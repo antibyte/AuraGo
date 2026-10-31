@@ -150,7 +150,7 @@ function sipWizardConfigured() {
         ${sipWizardTestCode ? `<div class="sip-test-diagnostic sip-profile-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
         ${sipNeedsRestart ? `<div class="sip-restart-banner" role="status"><div><strong>${sipEsc(t('config.sip.profile.restart_title'))}</strong><p>${sipEsc(t('config.sip.profile.restart_text'))}</p></div><button type="button" class="btn-save" data-sip-profile="restart">${sipEsc(t('config.sip.restart_modal_confirm'))}</button></div>` : ''}
         <div class="sip-profile-actions">
-            <button type="button" class="btn-save" data-sip-profile="test">${sipEsc(t('config.sip.test'))}</button>
+            <button type="button" class="btn-save" data-sip-profile="test" data-config-action-draft="false">${sipEsc(t('config.sip.test'))}</button>
             <button type="button" class="btn btn-secondary" data-sip-profile="permissions">${sipEsc(t('config.sip.profile.permissions'))}</button>
             <button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.profile.credentials'))}</button>
             <button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
@@ -414,7 +414,7 @@ function sipRender() {
     document.getElementById('content').innerHTML = `<section class="cfg-section active sip-section">
         <div class="section-header">${sipEsc(t('config.sip.title'))}</div>
         <div class="section-desc">${sipEsc(t('config.sip.wizard.intro'))}</div>
-        <div id="sip-status" class="adg-status-banner" role="status" aria-live="polite">${sipEsc(t('config.sip.loading_status'))}</div>
+        ${cfgStatusBanner.html('sip-status', 'checking', { label: t('config.sip.loading_status') })}
         ${outboundMigrationRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.outbound_policy_migration_required'))}</strong></div>` : ''}
         ${sipDockerAdvertisedHostRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.docker_advertised_host_required'))}</strong></div>` : ''}
         <div class="sip-wizard-shell cfg-topic" data-config-surface>
@@ -755,7 +755,7 @@ async function sipApplyProvider() {
         if (status) status.textContent = sipWizardMessage;
         return;
     }
-    button.disabled = true;
+    AuraConfigFeedback.busy(button, true);
     sipWizardTestCode = '';
     sipWizardMessage = t('config.sip.saving');
     document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
@@ -971,8 +971,9 @@ function sipTestErrorMessage(code) {
 }
 
 async function sipTestProfile() {
+    // Checks the saved profile on the running service (data-config-action-draft="false").
     const button = document.querySelector('[data-sip-profile="test"]');
-    if (button) button.disabled = true;
+    AuraConfigFeedback.busy(button, true);
     sipWizardMessage = t('config.sip.testing');
     const message = document.getElementById('sip-wizard-status');
     if (message) message.textContent = sipWizardMessage;
@@ -990,14 +991,14 @@ async function sipTestProfile() {
         sipWizardMessage = sipTestErrorMessage(sipWizardTestCode);
         sipRender();
     } finally {
-        const currentButton = document.querySelector('[data-sip-profile="test"]');
-        if (currentButton) currentButton.disabled = false;
+        AuraConfigFeedback.busy(button, false);
+        AuraConfigFeedback.busy(document.querySelector('[data-sip-profile="test"]'), false);
     }
 }
 
 async function sipDeleteProfile() {
     const button = document.querySelector('[data-sip-profile="delete-confirm"]');
-    if (button) button.disabled = true;
+    AuraConfigFeedback.busy(button, true);
     sipWizardMessage = t('config.sip.delete.deleting');
     const status = document.getElementById('sip-wizard-status');
     if (status) status.textContent = sipWizardMessage;
@@ -1021,7 +1022,7 @@ async function sipDeleteProfile() {
         sipWizardMessage = error.message;
         const current = document.getElementById('sip-wizard-status');
         if (current) current.textContent = sipWizardMessage;
-        if (button) button.disabled = false;
+        AuraConfigFeedback.busy(button, false);
     }
 }
 
@@ -1043,17 +1044,19 @@ async function sipLoadStatus() {
         sipRuntimeStatus = status;
         if (status.registered) sipConnectionVerified = true;
         if (status.state === 'failed' || status.state === 'disabled') sipConnectionVerified = false;
-        banner.className = `adg-status-banner ${status.registered ? 'is-success' : (status.state === 'failed' ? 'is-danger' : 'is-warning')}`;
         const registrationHint = sipRegistrationErrorLabel(status);
-        banner.textContent = t('config.sip.status_summary', { state: sipStatusLabel(status.state) }) + (registrationHint ? ` · ${registrationHint}` : '');
+        const bannerState = status.registered ? 'connected' : (status.state === 'failed' ? 'error' : (status.state === 'disabled' ? 'off' : 'degraded'));
+        cfgStatusBanner(banner, bannerState, {
+            detail: t('config.sip.status_summary', { state: sipStatusLabel(status.state) }) + (registrationHint ? ` · ${registrationHint}` : ''),
+            retry: bannerState === 'error' ? sipLoadStatus : null
+        });
         const profile = document.querySelector('.sip-profile-card');
         if (profile && sipWizardStep === 0) {
             profile.outerHTML = sipWizardConfigured();
             sipBindProfileEvents();
         }
     } catch (error) {
-        banner.className = 'adg-status-banner is-danger';
-        banner.textContent = error.message;
+        cfgStatusBanner(banner, 'error', { detail: error.message, retry: sipLoadStatus });
     }
 }
 

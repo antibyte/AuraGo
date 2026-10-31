@@ -342,7 +342,8 @@ func handleRestart(s *Server) http.HandlerFunc {
 // If omitted, falls back to the configured main LLM provider (must be ollama).
 func handleOllamaModels(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
+		// POST {"draft": ...} checks the endpoint typed into the form (integration mode only).
+		if r.Method != http.MethodGet && !(r.Method == http.MethodPost && (r.URL.Query().Get("integration") == "ollama" || r.URL.Query().Get("integration") == "embeddings")) {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -352,12 +353,24 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 
 		var ollamaHost string
 		if integration == "ollama" || integration == "embeddings" {
-			s.CfgMu.RLock()
-			ollamaHost = s.Cfg.Ollama.URL
-			if integration == "embeddings" {
-				ollamaHost = s.Cfg.Embeddings.BaseURL
+			if r.Method == http.MethodPost {
+				draft, err := s.draftTestConfig(r)
+				if err != nil {
+					writeDraftTestConfigError(w, err)
+					return
+				}
+				ollamaHost = draft.Ollama.URL
+				if integration == "embeddings" {
+					ollamaHost = draft.Embeddings.BaseURL
+				}
+			} else {
+				s.CfgMu.RLock()
+				ollamaHost = s.Cfg.Ollama.URL
+				if integration == "embeddings" {
+					ollamaHost = s.Cfg.Embeddings.BaseURL
+				}
+				s.CfgMu.RUnlock()
 			}
-			s.CfgMu.RUnlock()
 			ollamaHost = strings.TrimRight(strings.TrimSpace(ollamaHost), "/")
 			if integration == "embeddings" {
 				ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")

@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Indtast en fuld HTTP- eller HTTPS-URL uden brugernavn eller adgangskode.",
   "config.providers.tab_diagnostics": "Status og test",
   "config.providers.diagnostics_help": "Status bruger eksisterende driftsdata. Nøgler bliver i den krypterede Vault; fjern dem udtrykkeligt for at slette dem.",
-  "config.providers.saved_test_help": "Test bruger gemte indstillinger. Gem først dine ændringer. Metadatakontrol genererer aldrig et svar.",
+  "config.providers.saved_test_help": "Tests bruger værdierne i denne formular; intet gemmes. En gemt nøgle bruges, så længe slutpunktet er uændret. Metadatatjek genererer aldrig et svar.",
   "config.providers.metadata_test": "Kontrollér metadata",
   "config.providers.generation_test": "Test model (kan koste penge)",
   "config.providers.generation_confirm": "Send én kort modelforespørgsel? Udbyderen kan opkræve betaling, og forespørgslen tæller med i dit budget.",

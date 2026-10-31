@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "ユーザー名やパスワードを含まない完全な HTTP または HTTPS URL を入力してください。",
   "config.providers.tab_diagnostics": "状態とテスト",
   "config.providers.diagnostics_help": "状態は既存の実行データに基づきます。キーは暗号化された Vault に保持されます。削除するには明示的に削除操作を行ってください。",
-  "config.providers.saved_test_help": "テストには保存済み設定を使用します。先に変更を保存してください。メタデータ検査では回答を生成しません。",
+  "config.providers.saved_test_help": "テストはこのフォームの値を使用し、何も保存しません。エンドポイントが変わらない間は、保存済みのキーが使われます。メタデータの確認では回答は生成されません。",
   "config.providers.metadata_test": "メタデータを確認",
   "config.providers.generation_test": "モデルをテスト（課金の可能性あり）",
   "config.providers.generation_confirm": "短いリクエストをモデルに一度送信しますか？プロバイダーにより課金され、予算に計上されます。",

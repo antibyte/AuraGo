@@ -144,18 +144,14 @@
     margin-top: 16px;
 }
 
+/* The result lines are cfg-action-result (state colors come from config-workspace.css). */
 .pw-page[data-workspace-page="config"] .rs-test-status,
-.pw-page[data-workspace-page="config"] .rs-save-row > span {
+.pw-page[data-workspace-page="config"] .rs-save-row > .cfg-action-result {
     flex: 1;
     min-height: 20px;
-    color: var(--text-muted, #91a1ad);
     font-size: .82rem;
 }
 
-.pw-page[data-workspace-page="config"] .rs-test-status.success,
-.pw-page[data-workspace-page="config"] .rs-save-row > span.success { color: #69c990; }
-.pw-page[data-workspace-page="config"] .rs-test-status.error,
-.pw-page[data-workspace-page="config"] .rs-save-row > span.error,
 .pw-page[data-workspace-page="config"] .rs-load-error { color: #ef7777; }
 
 .pw-page[data-workspace-page="config"] .rs-save-row {

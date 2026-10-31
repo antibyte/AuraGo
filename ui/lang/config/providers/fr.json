@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Saisissez une URL HTTP ou HTTPS complète sans nom d’utilisateur ni mot de passe.",
   "config.providers.tab_diagnostics": "État et tests",
   "config.providers.diagnostics_help": "L’état utilise les données d’exécution existantes. Les clés restent dans le Vault chiffré ; supprimez-les explicitement pour les effacer.",
-  "config.providers.saved_test_help": "Les tests utilisent les réglages enregistrés. Enregistrez vos modifications d’abord. Les tests de métadonnées ne génèrent aucune réponse.",
+  "config.providers.saved_test_help": "Les tests utilisent les valeurs de ce formulaire ; rien n’est enregistré. Une clé enregistrée est utilisée tant que le point de terminaison reste inchangé. Les vérifications des métadonnées ne génèrent jamais de réponse.",
   "config.providers.metadata_test": "Vérifier les métadonnées",
   "config.providers.generation_test": "Tester le modèle (coût possible)",
   "config.providers.generation_confirm": "Envoyer une courte requête au modèle ? Le fournisseur peut la facturer et elle sera comptée dans votre budget.",

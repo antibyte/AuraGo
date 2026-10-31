@@ -145,8 +145,8 @@ function rsProfileCard(profile, index) {
             ${profile.provider === 'xai' && profile.api_key_set
                 ? `<button type="button" class="btn btn-secondary" data-rs-refresh-voices="${index}">${rsEsc(t('config.realtime_speech.refresh_voices'))}</button>`
                 : ''}
-            <button type="button" class="btn btn-secondary" data-rs-test="${index}">${rsEsc(t('config.realtime_speech.test_connection'))}</button>
-            <span class="rs-test-status" data-rs-test-status="${index}" role="status" aria-live="polite"></span>
+            <button type="button" class="btn btn-secondary" data-rs-test="${index}" data-config-action-draft="true">${rsEsc(t('config.realtime_speech.test_connection'))}</button>
+            <span class="cfg-action-result rs-test-status" data-rs-test-status="${index}" role="status" aria-live="polite" aria-atomic="true"></span>
         </div>
     </article>`;
 }
@@ -194,8 +194,8 @@ function rsRender() {
         </div>
         <div class="rs-save-row">
             <small class="rs-save-note">${rsEsc(t('config.realtime_speech.save_note'))}</small>
-            <span data-rs-save-status role="status" aria-live="polite"></span>
-            <button type="button" class="btn-save" data-rs-save>${rsEsc(t('config.realtime_speech.save'))}</button>
+            ${cfgActionResult.html('rs-save-btn-result')}
+            <button type="button" class="btn-save" id="rs-save-btn" data-rs-save>${rsEsc(t('config.realtime_speech.save'))}</button>
         </div>
         <div class="rs-security-note">
             <strong>${rsEsc(t('config.realtime_speech.security_title'))}</strong>
@@ -241,16 +241,12 @@ async function rsRequest(url, options) {
     return body;
 }
 
+// Tests the profile as typed in (its own body, including a newly typed key).
 async function rsTest(index) {
     const card = document.querySelector(`[data-rs-profile="${index}"]`);
     if (!card) return;
     const profile = rsReadCard(card);
-    const status = card.querySelector(`[data-rs-test-status="${index}"]`);
-    const testBtn = card.querySelector(`[data-rs-test="${index}"]`);
-    if (testBtn) { testBtn.disabled = true; testBtn.setAttribute('aria-busy', 'true'); }
-    status.className = 'rs-test-status pending';
-    status.textContent = t('config.realtime_speech.testing');
-    try {
+    return cfgActionResult(card.querySelector(`[data-rs-test="${index}"]`), async () => {
         const body = await rsRequest('/api/realtime-speech/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -261,81 +257,66 @@ async function rsTest(index) {
             if (provider) provider.voices = body.voices;
             profile.voice = body.voice || profile.voice;
         }
-        status.className = 'rs-test-status success';
-        status.textContent = t('config.realtime_speech.test_success');
-    } catch (error) {
-        status.className = 'rs-test-status error';
-        status.textContent = error.message;
-    } finally {
-        if (testBtn && testBtn.isConnected) { testBtn.disabled = false; testBtn.removeAttribute('aria-busy'); }
-    }
+        return { status: 'ok' };
+    }, {
+        target: card.querySelector(`[data-rs-test-status="${index}"]`),
+        pending: t('config.realtime_speech.testing'),
+        success: t('config.realtime_speech.test_success')
+    });
 }
 
 async function rsRefreshVoices(index) {
     const card = document.querySelector(`[data-rs-profile="${index}"]`);
     if (!card) return;
     const profile = rsReadCard(card);
-    const status = card.querySelector(`[data-rs-test-status="${index}"]`);
-    const refreshBtn = card.querySelector(`[data-rs-refresh-voices="${index}"]`);
-    if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.setAttribute('aria-busy', 'true'); }
-    status.className = 'rs-test-status pending';
-    status.textContent = t('config.realtime_speech.loading_voices');
-    try {
+    return cfgActionResult(card.querySelector(`[data-rs-refresh-voices="${index}"]`), async () => {
         const body = await rsRequest('/api/realtime-speech/catalog?profile_id=' + encodeURIComponent(profile.id));
         const xai = (body.providers || []).find(provider => provider.id === 'xai');
         const localXAI = rsProvider('xai');
         if (xai && localXAI) localXAI.voices = xai.voices;
-        status.textContent = t('config.realtime_speech.voices_loaded');
         rsRender();
-    } catch (error) {
-        status.className = 'rs-test-status error';
-        status.textContent = error.message;
-    } finally {
-        if (refreshBtn && refreshBtn.isConnected) { refreshBtn.disabled = false; refreshBtn.removeAttribute('aria-busy'); }
-    }
+        return { status: 'ok' };
+    }, {
+        target: card.querySelector(`[data-rs-test-status="${index}"]`),
+        pending: t('config.realtime_speech.loading_voices'),
+        success: t('config.realtime_speech.voices_loaded')
+    });
 }
 
 async function rsSave() {
     rsReadAll();
-    const status = document.querySelector('[data-rs-save-status]');
-    const save = document.querySelector('[data-rs-save]');
     const park = Number(realtimeSpeechState.park_after_seconds);
     if (!Number.isInteger(park) || park < 5 || park > 60) {
-        status.className = 'error';
-        status.textContent = t('config.realtime_speech.park_invalid');
+        cfgActionResult.show('rs-save-btn-result', 'error', t('config.realtime_speech.park_invalid'));
         return false;
     }
     const ids = new Set();
     for (const profile of realtimeSpeechState.profiles) {
         if (!profile.id || ids.has(profile.id) || !profile.name.trim()) {
-            status.className = 'error';
-            status.textContent = t('config.realtime_speech.profile_invalid');
+            cfgActionResult.show('rs-save-btn-result', 'error', t('config.realtime_speech.profile_invalid'));
             return false;
         }
         ids.add(profile.id);
     }
-    save.disabled = true;
-    status.className = 'pending';
-    status.textContent = t('config.realtime_speech.saving');
-    try {
+    let saved = false;
+    await cfgActionResult(document.getElementById('rs-save-btn'), async () => {
         realtimeSpeechState = await rsRequest('/api/realtime-speech/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(realtimeSpeechState)
         });
         realtimeSpeechState.profiles = (realtimeSpeechState.profiles || []).map(rsNormalizeProfile);
+        // The section is re-rendered; the result line is found again by its id.
         rsRender();
         rsMarkClean();
-        const next = document.querySelector('[data-rs-save-status]');
-        next.className = 'success';
-        next.textContent = t('config.realtime_speech.saved');
-        return true;
-    } catch (error) {
-        status.className = 'error';
-        status.textContent = error.message;
-        save.disabled = false;
-        return false;
-    }
+        saved = true;
+        return { status: 'ok' };
+    }, {
+        target: 'rs-save-btn-result',
+        pending: t('config.realtime_speech.saving'),
+        success: t('config.realtime_speech.saved')
+    });
+    return saved;
 }
 // The unsaved-changes dialog's "Save" saves profiles through the section's own endpoint.
 window.realtimeSpeechSaveUnsaved = rsSave;

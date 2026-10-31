@@ -17,12 +17,12 @@ func TestOllamaManagedLifecycleBrowser(t *testing.T) {
         runtimeData.features={docker:{available:true}};
         runtimeData.runtime={is_docker:true};
         AuraConfigState.init(configData);
-        window.__ollamaPosts=0;window.__ollamaStatusReads=0;window.__ollamaReady=false;window.__ollamaModelsReads=0;
+        window.__ollamaPosts=0;window.__ollamaModelsBodies=[];window.__ollamaStatusReads=0;window.__ollamaReady=false;window.__ollamaModelsReads=0;
         window.__ollamaRealFetch=window.fetch.bind(window);
         window.showConfirm=async()=>false;
         window.fetch=async(url,options)=>{
             if(String(url).includes('/recreate')){window.__ollamaPosts++;return {ok:true,status:202,json:async()=>({status:'accepted',operation:{id:'fixture-ollama'}})}}
-            if(String(url).includes('/models')){window.__ollamaModelsReads++;return {ok:true,status:200,json:async()=>({version:'fixture',models:['one','two']})}};
+            if(String(url).includes('/models')){window.__ollamaModelsReads++;window.__ollamaModelsBodies.push({method:options&&options.method,body:options&&options.body});return {ok:true,status:200,json:async()=>({version:'fixture',models:['one','two']})}};
             if(String(url).includes('/status')){window.__ollamaStatusReads++;const state=window.__ollamaState||(window.__ollamaReady?'ready':'model_pull');return {ok:true,status:200,json:async()=>({running:true,operations:[{id:'fixture-ollama',state,models:{'fixture-embedding':state},error:state==='failed'?'fixture failure':'',updated:new Date().toISOString()}]})}}
             return window.__ollamaRealFetch(url,options);
         };
@@ -43,11 +43,16 @@ func TestOllamaManagedLifecycleBrowser(t *testing.T) {
 	page.MustElement("#ollama-recreate-btn").MustClick()
 	waitForJSBool(t, page, `()=>window.__ollamaPosts===1&&document.querySelector('#ollama-managed-banner').textContent.includes('Bereit')`)
 	page.MustEval(`()=>AuraConfigState.set('ollama.managed_instance.container_port',11436)`)
-	waitForJSBool(t, page, `()=>document.querySelector('#ollama-test-btn').dataset.configActionLocked==='true'&&document.querySelector('#ollama-recreate-btn').dataset.configActionLocked==='true'`)
+	// Unsaved settings lock the recreate (it needs the saved settings) but not the endpoint check (it sends the draft).
+	waitForJSBool(t, page, `()=>document.querySelector('#ollama-test-btn').dataset.configActionLocked==='false'&&document.querySelector('#ollama-recreate-btn').dataset.configActionLocked==='true'`)
 	page.MustElement("#ollama-test-btn").MustClick()
+	waitForJSBool(t, page, `()=>window.__ollamaModelsReads===2&&document.querySelector('#ollama-test-btn').dataset.configActionBusy==='false'`)
 	page.MustElement("#ollama-recreate-btn").MustClick()
-	if !page.MustEval(`()=>window.__ollamaPosts===1&&window.__ollamaModelsReads===1`).Bool() {
-		t.Fatal("unsaved settings allowed saved-endpoint actions")
+	if !page.MustEval(`()=>window.__ollamaPosts===1&&window.__ollamaModelsReads===2`).Bool() {
+		t.Fatal("unsaved settings allowed the saved-settings action or blocked the draft check")
+	}
+	if !page.MustEval(`()=>window.__ollamaModelsBodies.length===2&&window.__ollamaModelsBodies.every(item=>item.method==='POST'&&JSON.parse(item.body).draft)`).Bool() {
+		t.Fatal("endpoint check did not send the draft")
 	}
 	page.MustEval(`async()=>{AuraConfigState.init(configData);window.__ollamaState='failed';await ollamaManagedCheckStatus(true)}`)
 	if !page.MustEval(`()=>document.querySelector('#ollama-managed-banner').textContent.includes('Fehlgeschlagen')&&document.querySelector('#ollama-managed-banner').textContent.includes('fixture failure')`).Bool() {

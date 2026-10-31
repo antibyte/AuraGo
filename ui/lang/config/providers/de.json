@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Gib eine vollständige HTTP- oder HTTPS-URL ohne Benutzername oder Passwort ein.",
   "config.providers.tab_diagnostics": "Status und Tests",
   "config.providers.diagnostics_help": "Der Status nutzt vorhandene Laufzeitdaten. Schlüssel bleiben im verschlüsselten Vault; entferne sie ausdrücklich, um sie zu löschen.",
-  "config.providers.saved_test_help": "Tests verwenden gespeicherte Einstellungen. Speichere zuerst Deine Änderungen. Metadatenprüfungen erzeugen keine Antwort.",
+  "config.providers.saved_test_help": "Tests verwenden die Werte in diesem Formular; es wird nichts gespeichert. Ein gespeicherter Schlüssel gilt, solange der Endpunkt unverändert bleibt. Metadatenprüfungen erzeugen keine Antwort.",
   "config.providers.metadata_test": "Metadaten prüfen",
   "config.providers.generation_test": "Modell testen (mögliche Kosten)",
   "config.providers.generation_confirm": "Eine kurze Modellanfrage senden? Dein Provider kann dafür Kosten berechnen; die Anfrage zählt zu Deinem Budget.",

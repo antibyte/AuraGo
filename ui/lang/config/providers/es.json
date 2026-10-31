@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Introduce una URL HTTP o HTTPS completa sin usuario ni contraseña.",
   "config.providers.tab_diagnostics": "Estado y pruebas",
   "config.providers.diagnostics_help": "El estado usa datos existentes de ejecución. Las claves permanecen en el Vault cifrado; elimínalas expresamente para borrarlas.",
-  "config.providers.saved_test_help": "Las pruebas usan los ajustes guardados. Guarda primero los cambios. Las comprobaciones de metadatos nunca generan respuestas.",
+  "config.providers.saved_test_help": "Las pruebas usan los valores de este formulario; no se guarda nada. Se usa la clave guardada mientras el endpoint no cambie. Las comprobaciones de metadatos nunca generan una respuesta.",
   "config.providers.metadata_test": "Comprobar metadatos",
   "config.providers.generation_test": "Probar modelo (puede tener coste)",
   "config.providers.generation_confirm": "¿Enviar una solicitud breve al modelo? El proveedor puede cobrarla y se descontará de tu presupuesto.",

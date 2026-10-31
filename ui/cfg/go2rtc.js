@@ -96,15 +96,17 @@ function renderGo2RTCSection(section) {
     html += go2rtcToggle('go2rtc.web_ui_enabled', data.web_ui_enabled === true, 'config.go2rtc.web_ui_enabled', 'help.go2rtc.web_ui_enabled');
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.go2rtc.runtime_title') + '</div>';
-    html += '<div class="field-group"><div id="go2rtc-runtime-status" class="cfg-note-banner">' + t('config.go2rtc.status_unknown') + '</div>';
+    // These actions work on the running sidecar: unsaved settings lock them (data-config-action-draft="false").
+    html += '<div class="field-group">' + cfgStatusBanner.html('go2rtc-runtime-status', 'unknown', { detail: t('config.go2rtc.status_unknown') });
     html += '<a class="btn-secondary" href="/desktop?app=network-cameras" target="_blank" rel="noopener">' + t('config.go2rtc.open_camera_app') + '</a> ';
-    html += '<button type="button" class="btn-save" onclick="go2rtcTest()" id="go2rtc-test">' + t('config.go2rtc.test') + '</button> ';
-    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'start\')">' + t('config.go2rtc.start') + '</button> ';
-    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'stop\')">' + t('config.go2rtc.stop') + '</button> ';
-    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'restart\')">' + t('config.go2rtc.restart') + '</button>';
+    html += '<button type="button" class="btn-save" onclick="go2rtcTest()" id="go2rtc-test" data-config-action-draft="false">' + t('config.go2rtc.test') + '</button> ';
+    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'start\')" id="go2rtc-start" data-config-action-draft="false">' + t('config.go2rtc.start') + '</button> ';
+    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'stop\')" id="go2rtc-stop" data-config-action-draft="false">' + t('config.go2rtc.stop') + '</button> ';
+    html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'restart\')" id="go2rtc-restart" data-config-action-draft="false">' + t('config.go2rtc.restart') + '</button>';
     if (data.web_ui_enabled === true) {
         html += ' <a class="btn-secondary" href="/api/go2rtc/proxy/" target="_blank" rel="noopener">' + t('config.go2rtc.open_web_ui') + '</a>';
     }
+    html += cfgActionResult.html('go2rtc-runtime-result');
     html += '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.go2rtc.streams_title') + '</div>';
@@ -138,11 +140,11 @@ function renderGo2RTCSection(section) {
         html += go2rtcToggle(base + '.talk_enabled', stream.talk_enabled === true, 'config.go2rtc.talk_enabled', '');
         html += '</div></details>';
         html += '<div class="field-group">';
-        html += '<button type="button" class="btn-save" onclick="go2rtcSnapshot(' + index + ')">' + t('config.go2rtc.snapshot') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="go2rtcOpenViewer(' + index + ')">' + t('config.go2rtc.viewer') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="go2rtcDiagnose(' + index + ')">' + t('config.go2rtc.diagnose') + '</button> ';
+        html += '<button type="button" class="btn-save" id="go2rtc-snapshot-' + index + '" data-config-action-draft="false" onclick="go2rtcSnapshot(' + index + ')">' + t('config.go2rtc.snapshot') + '</button> ';
+        html += '<button type="button" class="btn-secondary" data-config-action-draft="false" onclick="go2rtcOpenViewer(' + index + ')">' + t('config.go2rtc.viewer') + '</button> ';
+        html += '<button type="button" class="btn-secondary" id="go2rtc-diagnose-' + index + '" data-config-action-draft="false" onclick="go2rtcDiagnose(' + index + ')">' + t('config.go2rtc.diagnose') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="go2rtcRemoveStream(' + index + ')">' + t('config.go2rtc.remove') + '</button>';
-        html += '<div id="go2rtc-stream-result-' + index + '" class="adg-test-result"></div>';
+        html += cfgActionResult.html('go2rtc-stream-result-' + index);
         html += '<div id="go2rtc-stream-preview-' + index + '"></div>';
         html += '</div></div>';
     });
@@ -156,7 +158,7 @@ function renderGo2RTCSection(section) {
         html += go2rtcField('go2rtc.hardware.render_group', data.hardware.render_group || '', 'config.go2rtc.hardware_group', '', '993', false);
     }
     if (data.hardware.backend === 'cuda') html += go2rtcField('go2rtc.hardware.device_id', data.hardware.device_id || '0', 'config.go2rtc.hardware_device', '', '0', false);
-    html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="go2rtcHardwareTest()">' + t('config.go2rtc.hardware_test') + '</button><output id="go2rtc-hardware-result" class="adg-test-result"></output></div>';
+    html += '<div class="field-group"><button type="button" class="btn-secondary" id="go2rtc-hardware-test" data-config-action-draft="false" onclick="go2rtcHardwareTest()">' + t('config.go2rtc.hardware_test') + '</button>' + cfgActionResult.html('go2rtc-hardware-result') + '</div>';
     html += go2rtcField('go2rtc.image', data.image, 'config.go2rtc.image', 'help.go2rtc.image', '', false);
     html += go2rtcField('go2rtc.container_name', data.container_name, 'config.go2rtc.container_name', 'help.go2rtc.container_name', 'aurago_go2rtc', false);
     html += go2rtcToggle('go2rtc.webrtc.enabled', data.webrtc.enabled === true, 'config.go2rtc.webrtc_enabled', 'help.go2rtc.webrtc_enabled', true);
@@ -311,71 +313,50 @@ function go2rtcDropStream(index) {
     go2rtcSetStreams(streams);
 }
 
-function go2rtcSavedOnly(result) {
+function go2rtcSavedOnly(resultID) {
     if (!isDirty) return true;
-    if (result) {
-        result.textContent = t('config.go2rtc.save_first');
-        result.className = 'adg-test-result is-danger';
-    }
+    if (resultID) cfgActionResult.show(resultID, 'warning', t('config.go2rtc.save_first'));
     return false;
 }
 
 async function go2rtcRefreshStatus() {
     const target = document.getElementById('go2rtc-runtime-status');
     if (!target) return;
-    try {
-        const response = await fetch('/api/go2rtc/status');
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || ('HTTP ' + response.status));
-        target.className = 'cfg-note-banner ' + (data.api_usable ? 'cfg-note-banner-success' : 'cfg-note-banner-warning');
-        target.textContent = t('config.go2rtc.status_summary')
-            .replace('{container}', data.container_running ? t('config.go2rtc.running') : t('config.go2rtc.stopped'))
-            .replace('{api}', data.api_usable ? t('config.go2rtc.available') : t('config.go2rtc.unavailable'));
-    } catch (error) {
-        target.className = 'cfg-note-banner cfg-note-banner-warning';
-        target.textContent = t('config.go2rtc.status_error') + ': ' + error.message;
-    }
+    return cfgStatusBanner.check(target, () => fetch('/api/go2rtc/status'), body => ({
+        state: body.api_usable ? 'connected' : 'degraded',
+        detail: t('config.go2rtc.status_summary')
+            .replace('{container}', body.container_running ? t('config.go2rtc.running') : t('config.go2rtc.stopped'))
+            .replace('{api}', body.api_usable ? t('config.go2rtc.available') : t('config.go2rtc.unavailable'))
+    }));
 }
 
 async function go2rtcTest() {
-    const result = document.getElementById('go2rtc-runtime-status');
-    if (!go2rtcSavedOnly(result)) return;
-    await go2rtcRequest('/api/go2rtc/test', result);
+    if (!go2rtcSavedOnly('go2rtc-runtime-result')) return;
+    await go2rtcRequest('/api/go2rtc/test', document.getElementById('go2rtc-test'), 'go2rtc-runtime-result');
     go2rtcRefreshStatus();
 }
 
 async function go2rtcControl(action) {
-    const result = document.getElementById('go2rtc-runtime-status');
-    if (!go2rtcSavedOnly(result)) return;
-    await go2rtcRequest('/api/go2rtc/' + action, result);
+    if (!go2rtcSavedOnly('go2rtc-runtime-result')) return;
+    await go2rtcRequest('/api/go2rtc/' + action, document.getElementById('go2rtc-' + action), 'go2rtc-runtime-result');
     go2rtcRefreshStatus();
 }
 
-async function go2rtcRequest(path, result) {
-    if (result) result.textContent = t('config.go2rtc.working');
-    try {
+// POST to the running sidecar; the server reason is shown next to the button.
+function go2rtcRequest(path, button, resultID) {
+    return cfgActionResult(button, async () => {
         const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const data = await response.json();
         if (!response.ok || data.status === 'error') throw new Error(data.message || ('HTTP ' + response.status));
-        if (result) {
-            result.textContent = t('config.go2rtc.action_ok');
-            result.className = 'adg-test-result is-success';
-        }
         return data;
-    } catch (error) {
-        if (result) {
-            result.textContent = t('config.go2rtc.status_error') + ': ' + error.message;
-            result.className = 'adg-test-result is-danger';
-        }
-        return null;
-    }
+    }, { target: resultID, pending: t('config.go2rtc.working'), success: t('config.go2rtc.action_ok'), failure: t('config.go2rtc.status_error') + ':' });
 }
 
-async function go2rtcSnapshot(index) {
+function go2rtcSnapshot(index) {
     const stream = go2rtcEnsureData().streams[index] || {};
-    const result = document.getElementById('go2rtc-stream-result-' + index);
-    if (!go2rtcSavedOnly(result)) return;
-    try {
+    const resultID = 'go2rtc-stream-result-' + index;
+    if (!go2rtcSavedOnly(resultID)) return;
+    return cfgActionResult(document.getElementById('go2rtc-snapshot-' + index), async () => {
         const response = await fetch('/api/go2rtc/snapshot', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -383,21 +364,24 @@ async function go2rtcSnapshot(index) {
         });
         const data = await response.json();
         if (!response.ok || data.status === 'error') throw new Error(data.message || ('HTTP ' + response.status));
-        result.textContent = t('config.go2rtc.snapshot_ok');
-        result.className = 'adg-test-result is-success';
-        const preview = document.getElementById('go2rtc-stream-preview-' + index);
-        const src = data.web_path || ('/api/go2rtc/proxy/api/frame.jpeg?src=' + encodeURIComponent(stream.id));
-        preview.innerHTML = '<img class="go2rtc-stream-preview-image" src="' + escapeAttr(src) + '" alt="' + escapeAttr(stream.name || stream.id) + '">';
-    } catch (error) {
-        result.textContent = t('config.go2rtc.status_error') + ': ' + error.message;
-        result.className = 'adg-test-result is-danger';
-    }
+        return data;
+    }, {
+        target: resultID,
+        pending: t('config.go2rtc.working'),
+        success: t('config.go2rtc.snapshot_ok'),
+        failure: t('config.go2rtc.status_error') + ':',
+        onSuccess: outcome => {
+            const preview = document.getElementById('go2rtc-stream-preview-' + index);
+            if (!preview) return;
+            const src = outcome.body.web_path || ('/api/go2rtc/proxy/api/frame.jpeg?src=' + encodeURIComponent(stream.id));
+            preview.innerHTML = '<img class="go2rtc-stream-preview-image" src="' + escapeAttr(src) + '" alt="' + escapeAttr(stream.name || stream.id) + '">';
+        }
+    });
 }
 
 function go2rtcOpenViewer(index) {
     const stream = go2rtcEnsureData().streams[index] || {};
-    const result = document.getElementById('go2rtc-stream-result-' + index);
-    if (!go2rtcSavedOnly(result)) return;
+    if (!go2rtcSavedOnly('go2rtc-stream-result-' + index)) return;
     window.open('/api/go2rtc/viewer/' + encodeURIComponent(stream.id), '_blank', 'noopener');
 }
 
@@ -421,31 +405,41 @@ function go2rtcSelect(path, value, label, choices, rerender) {
     return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(literalCaptions || /[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
 }
 
-async function go2rtcHardwareTest() {
-    const output = document.getElementById('go2rtc-hardware-result');
-    if (!go2rtcSavedOnly(output)) return;
-    output.textContent = t('config.go2rtc.working');
-    try {
+// The probe verdict is the whole answer (no server reason line), so the text names it exactly.
+function go2rtcHardwareTest() {
+    if (!go2rtcSavedOnly('go2rtc-hardware-result')) return;
+    return cfgActionResult(document.getElementById('go2rtc-hardware-test'), async () => {
         const response = await fetch('/api/go2rtc/hardware/test', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-        const result = await response.json();
-        const verified = response.ok && result.verified;
-        output.textContent = t(verified ? 'config.go2rtc.hardware_verified' : 'config.go2rtc.hardware_failed');
-        output.className = 'adg-test-result ' + (verified ? 'is-success' : 'is-danger');
-    } catch (_) { output.textContent = t('config.go2rtc.hardware_failed'); output.className = 'adg-test-result is-danger'; }
+        const result = await response.json().catch(() => ({}));
+        return { status: response.ok && result.verified ? 'ok' : 'error' };
+    }, {
+        target: 'go2rtc-hardware-result',
+        pending: t('config.go2rtc.working'),
+        success: t('config.go2rtc.hardware_verified'),
+        failure: t('config.go2rtc.hardware_failed')
+    });
 }
 
-async function go2rtcDiagnose(index) {
-    const output = document.getElementById('go2rtc-stream-result-' + index);
-    if (!go2rtcSavedOnly(output)) return;
+function go2rtcDiagnosisText(key, result) {
+    let text = t(key).replace('{width}', result.width || 0).replace('{height}', result.height || 0).replace('{ms}', result.duration_ms || 0);
+    if (result.error_code) text += ' (' + result.error_code + ')';
+    if (result.effective_transcoding_backend) text += ' · ' + (result.effective_transcoding_backend === 'software' ? 'CPU' : result.effective_transcoding_backend);
+    return text;
+}
+
+function go2rtcDiagnose(index) {
+    const resultID = 'go2rtc-stream-result-' + index;
+    if (!go2rtcSavedOnly(resultID)) return;
     const stream = go2rtcEnsureData().streams[index];
-    output.textContent = t('config.go2rtc.working');
-    try {
+    return cfgActionResult(document.getElementById('go2rtc-diagnose-' + index), async () => {
         const response = await fetch('/api/go2rtc/diagnostics/' + encodeURIComponent(stream.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        if (!response.ok) throw new Error('diagnosis');
-        const result = await response.json();
-        output.textContent = t(result.status === 'ok' ? 'config.go2rtc.diagnostics_success' : 'config.go2rtc.diagnostics_failed').replace('{width}', result.width || 0).replace('{height}', result.height || 0).replace('{ms}', result.duration_ms || 0);
-        if (result.error_code) output.textContent += ' (' + result.error_code + ')';
-        if (result.effective_transcoding_backend) output.textContent += ' · ' + (result.effective_transcoding_backend === 'software' ? 'CPU' : result.effective_transcoding_backend);
-        output.className = 'adg-test-result ' + (result.status === 'ok' ? 'is-success' : 'is-danger');
-    } catch (_) { output.textContent = t('config.go2rtc.diagnostics_failed'); output.className = 'adg-test-result is-danger'; }
+        return response.ok ? response.json() : { status: 'error' };
+    }, {
+        target: resultID,
+        pending: t('config.go2rtc.working'),
+        success: outcome => go2rtcDiagnosisText('config.go2rtc.diagnostics_success', outcome.body),
+        failure: outcome => go2rtcDiagnosisText('config.go2rtc.diagnostics_failed', outcome.body || {}),
+        // The verdict is in the body; its codes are already part of the text.
+        interpret: outcome => outcome.body && typeof outcome.body === 'object' ? { state: outcome.body.status === 'ok' ? 'success' : 'error', reason: '' } : null
+    });
 }

@@ -18,14 +18,9 @@ func TestTTSCloudProviderConfigBrowser(t *testing.T) {
 	page.MustEval(`async () => {
         await selectSection('tts', {scrollBehavior:'auto'});
         const realFetch = window.fetch;
-        const writes = [];
-        let rejectVault = true;
+        const vaultWrites = [];
         window.fetch = async (url, options) => {
-            if (String(url) === '/api/vault/secrets') {
-                writes.push(JSON.parse(options.body));
-                if (rejectVault) return new Response(JSON.stringify({status:'error'}), {status:403,headers:{'Content-Type':'application/json'}});
-                return new Response(JSON.stringify({status:'ok'}), {status:200,headers:{'Content-Type':'application/json'}});
-            }
+            if (String(url) === '/api/vault/secrets') vaultWrites.push(String(url));
             return realFetch(url, options);
         };
         const providerSelect = document.querySelector('[data-path="tts.provider"]');
@@ -41,13 +36,11 @@ func TestTTSCloudProviderConfigBrowser(t *testing.T) {
             const input = document.getElementById('tts-' + provider + '-api-key');
             if (input.type !== 'password' || input.value) throw Error('Key is exposed');
             input.value = 'fixture-' + provider;
-            rejectVault = true;
-            await ttsSaveCloudKey(provider);
-            if (input.value !== 'fixture-' + provider) throw Error('Rejected key save cleared the key');
-            rejectVault = false;
-            await ttsSaveCloudKey(provider);
-            const write = writes.at(-1);
-            if (write.key !== 'tts_' + provider + '_api_key' || write.value !== 'fixture-' + provider || input.value) throw Error('Vault key save failed: ' + provider);
+            input.dispatchEvent(new Event('input', {bubbles:true}));
+            AuraConfigState.syncFromDOM();
+            // The key joins the save dock; there is no own vault button or vault request.
+            if (AuraConfigState.get('tts.' + provider + '.api_key') !== 'fixture-' + provider) throw Error('Key is not part of the save dock draft: ' + provider);
+            if (document.querySelector('#tts-' + provider + '-section .adg-save-btn') || vaultWrites.length) throw Error('Own vault save is back: ' + provider);
             const voice = document.querySelector('[data-path="tts.' + provider + '.voice_id"]');
             if (!voice) throw Error('Voice field missing');
             if (voice.tagName === 'SELECT') {
@@ -66,7 +59,10 @@ func TestTTSCloudProviderConfigBrowser(t *testing.T) {
             if (draft.provider !== provider || draft[provider].voice_id !== 'custom-' + provider) throw Error('Draft lost provider or custom voice: ' + JSON.stringify({provider,selected:providerSelect.value,savedProvider:draft.provider,savedVoice:draft[provider].voice_id}));
         }
         const sent = AuraConfigState.snapshot().draft;
-        AuraConfigState.commitSent(sent, sent);
+        // The server answers a save with masked secrets.
+        const answer = JSON.parse(JSON.stringify(sent));
+        for (const provider of ['xai','openai','stepfun','resemble']) answer.tts[provider].api_key = '••••••••';
+        AuraConfigState.commitSent(answer, sent);
         for (const provider of ['xai','openai','stepfun']) {
             const voice = document.querySelector('[data-path="tts.' + provider + '.voice_id"]');
             if (voice.value !== CFG_OPTION_OTHER_CUSTOM || voice.nextElementSibling.value !== 'custom-' + provider) throw Error('Custom voice did not survive save response');

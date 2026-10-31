@@ -19,7 +19,7 @@ func TestTTSConfigOffersMistralProvider(t *testing.T) {
 		`id="tts-mistral-section"`,
 		`tts.mistral.voice_id`,
 		`tts.mistral.model_id`,
-		`ttsSaveMistralKey`,
+		`data-path="tts.mistral.api_key"`,
 	} {
 		if !strings.Contains(src, want) {
 			t.Fatalf("tts.js missing Mistral UI contract %q", want)

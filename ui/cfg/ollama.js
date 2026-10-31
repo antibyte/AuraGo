@@ -34,13 +34,13 @@ async function renderOllamaSection(section) {
         '<input class="field-input" type="text" data-path="ollama.url" value="' + escapeAttr(managedEnabled ? ollamaEffectiveURL(miData) : (data.url || '')) + '" placeholder="http://localhost:11434"' + (managedEnabled ? ' readonly' : '') + '>');
 
     html += '<div class="field-help">' + t('config.ollama.endpoint_help') + '</div>';
-    html += '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="cfg-btn">' + t('config.ollama.test_connection') + '</button><span id="ollama-test-result" role="status" aria-live="polite"></span></div>';
+    html += '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="cfg-btn" data-config-action-draft="true">' + t('config.ollama.test_connection') + '</button>' + cfgActionResult.html('ollama-test-result') + '</div>';
 
     // ── Managed Instance section header ──
     html += '<div class="pw-u-subsection-title">🐳 ' + t('config.ollama.managed_title') + '</div>';
 
     // Status banner (only shown when managed is enabled)
-    html += '<div id="ollama-managed-banner" class="pw-u-status-banner">' + t('config.ollama.managed_checking') + '</div>';
+    html += cfgStatusBanner.html('ollama-managed-banner', 'checking', { detail: t('config.ollama.managed_checking') });
 
     html += _ollamaField('ollama.managed_instance.enabled', t('config.ollama.managed_enabled_label'), t('config.ollama.managed_enabled_help'),
         _ollamaToggle('ollama.managed_instance.enabled', managedEnabled, 'ollamaManagedToggled(this)'));
@@ -72,9 +72,9 @@ async function renderOllamaSection(section) {
 
     // ── Recreate button (shown when managed is enabled) ──
     html += '<div id="ollama-recreate-wrap" class="pw-u-mt-100' + (managedEnabled ? '' : ' pw-u-hidden') + '">';
-    html += '<button class="btn-save pw-u-btn-md" id="ollama-recreate-btn" type="button">';
+    html += '<button class="btn-save pw-u-btn-md" id="ollama-recreate-btn" type="button" data-config-action-draft="false">';
     html += '🔄 ' + t('config.ollama.managed_recreate_btn') + '</button>';
-    html += '<span id="ollama-recreate-status" class="pw-u-inline-status"></span>';
+    html += cfgActionResult.html('ollama-recreate-status');
     html += '</div>';
 
     html += '</div>';
@@ -86,8 +86,23 @@ async function renderOllamaSection(section) {
     }
 
     if (window.AuraConfigActions) {
-        AuraConfigActions.register('ollama-test', { elementId: 'ollama-test-btn', requiresSaved: true, run: ollamaTestConnection });
-        AuraConfigActions.register('ollama-recreate', { elementId: 'ollama-recreate-btn', requiresSaved: true, run: ollamaManagedRecreate });
+        // The endpoint check runs with the URL typed in; recreating the container needs the saved settings.
+        AuraConfigActions.register('ollama-test', {
+            elementId: 'ollama-test-btn', requiresSaved: false, run: ollamaTestConnection,
+            result: {
+                target: 'ollama-test-result',
+                pending: t('config.ollama.managed_checking'),
+                success: outcome => t('config.ollama.connection_ok', { version: outcome.body.version, count: outcome.body.count })
+            }
+        });
+        AuraConfigActions.register('ollama-recreate', {
+            elementId: 'ollama-recreate-btn', requiresSaved: true, run: ollamaManagedRecreate,
+            result: {
+                target: 'ollama-recreate-status',
+                pending: t('config.ollama.managed_recreating'),
+                success: t('config.ollama.managed_recreate_started')
+            }
+        });
     }
     const recreate = document.getElementById('ollama-recreate-btn');
     if (recreate && managedDockerUnavailableReason()) { recreate.disabled = true; recreate.title = managedDockerUnavailableReason(); }
@@ -123,9 +138,9 @@ function ollamaManagedToggled(el) {
     ollamaManagedCheckStatus(isOn);
 }
 
-function ollamaSetManagedBanner(banner, kind, message) {
-    banner.className = 'pw-u-status-banner ollama-managed-banner is-' + kind;
-    banner.textContent = message;
+// state: off | checking | connected | degraded | error | unknown (see cfgStatusBanner).
+function ollamaSetManagedBanner(banner, state, message) {
+    cfgStatusBanner(banner, state, Object.assign({ detail: message }, state === 'error' ? { retry: () => ollamaManagedCheckStatus(true) } : {}));
 }
 
 function ollamaEffectiveURL(mi) {
@@ -142,7 +157,7 @@ async function ollamaManagedCheckStatus(enabled) {
     const generation = ollamaPollGeneration;
     const banner = document.getElementById('ollama-managed-banner');
     if (!banner) return;
-    if (!enabled) ollamaSetManagedBanner(banner, 'neutral', t('config.ollama.managed_status_disabled'));
+    if (!enabled) ollamaSetManagedBanner(banner, 'off', t('config.ollama.managed_status_disabled'));
     const controller = new AbortController();
     ollamaPollController = controller;
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -154,22 +169,22 @@ async function ollamaManagedCheckStatus(enabled) {
         const operations = (res.operations || []).sort((a, b) => new Date(b.updated) - new Date(a.updated));
         const op = ollamaExpectedOperation ? operations.find(item => item.id === ollamaExpectedOperation) : operations[0];
         if (res.status === 'disabled' && (!op || op.state === 'ready')) {
-            ollamaSetManagedBanner(banner, 'neutral', t('config.ollama.managed_status_disabled'));
+            ollamaSetManagedBanner(banner, 'off', t('config.ollama.managed_status_disabled'));
             return;
         }
         if (op) {
             if (op.state === 'ready' && !res.running && res.status !== 'disabled') {
-                ollamaSetManagedBanner(banner, 'warning', t('config.ollama.managed_status_stopped'));
+                ollamaSetManagedBanner(banner, 'degraded', t('config.ollama.managed_status_stopped'));
                 return;
             }
             const terminal = ['ready', 'failed', 'cancelled', 'unknown', 'stopped'].includes(op.state);
-            ollamaSetManagedBanner(banner, op.state === 'ready' ? 'success' : terminal ? 'warning' : 'neutral', ollamaOperationText(op));
+            ollamaSetManagedBanner(banner, op.state === 'ready' ? 'connected' : op.state === 'failed' ? 'error' : terminal ? 'degraded' : 'checking', ollamaOperationText(op));
             if (!terminal) ollamaPollTimer = setTimeout(() => ollamaManagedCheckStatus(true), 2000);
         } else if (ollamaExpectedOperation) {
-            ollamaSetManagedBanner(banner, 'warning', t('config.ollama.state_unknown'));
+            ollamaSetManagedBanner(banner, 'degraded', t('config.ollama.state_unknown'));
         } else {
             const key = res.status === 'disabled' ? 'managed_status_disabled' : res.running ? 'container_unverified' : res.status === 'not_found' ? 'managed_status_not_found' : res.running === false ? 'managed_status_stopped' : 'managed_status_error';
-            ollamaSetManagedBanner(banner, 'neutral', t('config.ollama.' + key));
+            ollamaSetManagedBanner(banner, key === 'managed_status_disabled' ? 'off' : key === 'managed_status_stopped' ? 'degraded' : key === 'managed_status_error' ? 'error' : 'unknown', t('config.ollama.' + key));
         }
     } catch (error) {
         if (banner.isConnected && generation === ollamaPollGeneration) {
@@ -178,31 +193,29 @@ async function ollamaManagedCheckStatus(enabled) {
     } finally { clearTimeout(timeout); }
 }
 
+// Checks the endpoint typed into the form (the server reads the URL from the draft).
 async function ollamaTestConnection() {
-    const result = document.getElementById('ollama-test-result');
-    if (!result) return;
-    result.textContent = t('config.ollama.managed_checking');
-    try {
-        const response = await fetch('/api/ollama/models?integration=ollama', { signal: AbortSignal.timeout(10000) });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || data.error || t('config.ollama.managed_status_error'));
-        if (result.isConnected) result.textContent = t('config.ollama.connection_ok', {version: data.version, count: (data.models || []).length});
-    } catch (error) { if (result.isConnected) result.textContent = error.message; }
+    const response = await fetch('/api/ollama/models?integration=ollama', {
+        method: 'POST', signal: AbortSignal.timeout(10000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['ollama']) })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || data.error || t('config.ollama.managed_status_error'));
+    return { status: 'ok', version: data.version, count: (data.models || []).length };
 }
 
+// Runs behind the registered result line (confirmation and busy state come from there).
 async function ollamaManagedRecreate() {
-    if (managedDockerUnavailableReason()) return;
-    if (window.AuraConfigState?.isDirty()) return;
-    if (!await showConfirm(t('config.ollama.managed_recreate_btn'), t('config.ollama.recreate_confirm'))) return;
-    if (managedDockerUnavailableReason() || window.AuraConfigState?.isDirty()) return;
-    const statusEl = document.getElementById('ollama-recreate-status');
-    if (statusEl) statusEl.textContent = t('config.ollama.managed_recreating');
-    try {
-        const response = await fetch('/api/ollama/managed/recreate', {method:'POST', signal: AbortSignal.timeout(10000)});
-        const data = await response.json();
-        if (response.status !== 202 || !data.operation?.id) throw new Error(data.message || data.error || t('config.ollama.managed_status_error'));
-        ollamaExpectedOperation = data.operation.id;
-        if (statusEl?.isConnected) statusEl.textContent = t('config.ollama.managed_recreate_started');
-        ollamaManagedCheckStatus(true);
-    } catch (error) { if (statusEl?.isConnected) statusEl.textContent = error.message; }
+    if (managedDockerUnavailableReason()) throw new Error(managedDockerUnavailableReason());
+    if (window.AuraConfigState?.isDirty()) throw new Error(t('config.feedback.runtime_only'));
+    // A declined confirmation ends the run quietly (cancelled), busy state still resets.
+    if (!await showConfirm(t('config.ollama.managed_recreate_btn'), t('config.ollama.recreate_confirm'))) throw new DOMException('cancelled', 'AbortError');
+    if (managedDockerUnavailableReason() || window.AuraConfigState?.isDirty()) throw new Error(t('config.feedback.runtime_only'));
+    const response = await fetch('/api/ollama/managed/recreate', {method:'POST', signal: AbortSignal.timeout(10000)});
+    const data = await response.json();
+    if (response.status !== 202 || !data.operation?.id) throw new Error(data.message || data.error || t('config.ollama.managed_status_error'));
+    ollamaExpectedOperation = data.operation.id;
+    ollamaManagedCheckStatus(true);
+    return { status: 'ok' };
 }

@@ -8,21 +8,20 @@ async function renderTregSection(section) {
         <div class="section-header">${escapeHtml(section.label)}</div><div class="section-desc">${escapeHtml(section.desc)}</div>
         ${AuraConfigForm.toggle({ path: 'treg.enabled', value: cfg.enabled === true, label: tr('enabled') })}
         ${AuraConfigForm.toggle({ path: 'treg.readonly', value: cfg.readonly !== false, label: tr('readonly') })}
-        <p id="treg-local-status" role="status">${tr('loading')}</p>
+        ${cfgStatusBanner.html('treg-local-status', 'checking', { detail: tr('loading') })}
         <div class="field-group"><label for="treg-cost">${tr('cost')}</label>
             <input id="treg-cost" class="field-input" inputmode="decimal" value="${(Number(cfg.max_call_cost_micro ?? 1000000) / 1000000).toFixed(6)}" aria-describedby="treg-cost-help">
             <input type="hidden" data-path="treg.max_call_cost_micro" data-type="number" value="${Number(cfg.max_call_cost_micro ?? 1000000)}">
             <p class="field-help" id="treg-cost-help">${tr('cost_help')}</p><p id="treg-cost-error" role="alert"></p></div>
         <div class="field-group"><label for="treg-token">${tr('token')}</label>
-            <input id="treg-token" class="field-input" type="password" autocomplete="new-password" placeholder="${escapeAttr(secret)}">
-            <div class="cfg-actions-row"><button type="button" class="btn-save" id="treg-save-token">${tr('save_token')}</button><button type="button" class="btn-secondary" id="treg-test-btn">${tr('test')}</button></div>
-            <p class="field-help">${tr('test_help')}</p><p id="treg-action-status" role="status" aria-live="polite"></p></div>
+            <input id="treg-token" class="field-input" type="password" autocomplete="new-password" data-path="treg.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(secret)}">
+            <div class="cfg-actions-row"><button type="button" class="btn-secondary" id="treg-test-btn" data-config-action-draft="true">${tr('test')}</button>${cfgActionResult.html('treg-action-status')}</div></div>
         <div class="field-group"><div class="field-group-title">${tr('grants')}</div><p class="field-help">${tr('draft_hint')}</p>
             <textarea hidden data-path="treg.allowed_endpoints" data-type="json">${escapeHtml(JSON.stringify(cfg.allowed_endpoints || []))}</textarea>
             <div id="treg-grants"></div></div>
         <div class="field-group"><label for="treg-query">${tr('search')}</label><div class="cfg-actions-row">
             <input id="treg-query" class="field-input" maxlength="500"><button type="button" class="btn-save" id="treg-search">${tr('search')}</button></div>
-            <p id="treg-search-status" role="status" aria-live="polite"></p><div id="treg-results"></div><div id="treg-details"></div></div>
+            ${cfgActionResult.html('treg-search-status')}<div id="treg-results"></div><div id="treg-details"></div></div>
     </div>`;
     const root = document.getElementById('treg-section');
     const grantsInput = root.querySelector('[data-path="treg.allowed_endpoints"]');
@@ -60,23 +59,19 @@ async function renderTregSection(section) {
         if (!response.ok) throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
         return payload;
     }
-    async function action(button, status, work) {
-        button.disabled = true; status.textContent = tr('loading');
-        try { await work(); } catch (error) { if (root.isConnected) status.textContent = tr('error') + ': ' + error.message; }
-        finally { if (root.isConnected) button.disabled = false; }
-    }
-    root.querySelector('#treg-save-token').addEventListener('click', event => action(event.currentTarget, root.querySelector('#treg-action-status'), async () => {
-        const input = root.querySelector('#treg-token');
-        if (!input.value.trim()) throw new Error(tr('token_required'));
-        const response = await fetch('/api/vault/secrets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'treg_token', value: input.value.trim() }) });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        cfgMarkSecretStored(input, 'treg.token');
-        window.AuraConfigState?.markSaved('treg.token', configData.treg.token);
-        root.querySelector('#treg-action-status').textContent = tr('success');
-    }));
-    root.querySelector('#treg-test-btn').addEventListener('click', event => action(event.currentTarget, root.querySelector('#treg-action-status'), async () => {
-        const result = await request('test-connection', { method: 'POST' });
-        if (root.isConnected) root.querySelector('#treg-action-status').textContent = tr('success') + ' · ' + tr('balance') + ': ' + (result.data.balance_micro == null ? '?' : (result.data.balance_micro / 1000000).toFixed(6)) + ' USD';
+    // The token is a save-dock secret (data-path); the test runs with what is typed in, the stored token stands in for an empty field.
+    root.querySelector('#treg-test-btn').addEventListener('click', event => cfgActionResult(event.currentTarget, () => fetch('/api/treg/test-connection', {
+        method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(95000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['treg']) })
+    }), {
+        target: 'treg-action-status',
+        pending: tr('loading'),
+        success: outcome => {
+            const micro = outcome.body && outcome.body.data ? outcome.body.data.balance_micro : null;
+            return tr('success') + ' · ' + tr('balance') + ': ' + (micro == null ? '?' : (micro / 1000000).toFixed(6)) + ' USD';
+        },
+        failure: tr('error') + ':'
     }));
     let sequence = 0;
     async function showDetails(id) {
@@ -114,22 +109,27 @@ async function renderTregSection(section) {
             panel.append(actions); status.textContent = '';
         } catch (error) { if (root.isConnected && current === sequence) status.textContent = tr('error') + ': ' + error.message; }
     }
-    root.querySelector('#treg-search').addEventListener('click', event => action(event.currentTarget, root.querySelector('#treg-search-status'), async () => {
+    root.querySelector('#treg-search').addEventListener('click', event => cfgActionResult(event.currentTarget, async () => {
         const current = ++sequence;
         const payload = await request('catalog?q=' + encodeURIComponent(root.querySelector('#treg-query').value) + '&limit=20');
-        if (!root.isConnected || current !== sequence) return;
+        if (!root.isConnected || current !== sequence) return { status: 'ok', rows: -1 };
         const list = root.querySelector('#treg-results'); list.replaceChildren(); root.querySelector('#treg-details').replaceChildren();
         const rows = payload.data.results || [];
-        root.querySelector('#treg-search-status').textContent = rows.length ? '' : tr('empty');
         rows.forEach(ep => {
             const button = document.createElement('button'); button.type = 'button'; button.className = 'btn-secondary'; button.style.overflowWrap = 'anywhere';
             button.textContent = ep.id + ' · ' + (ep.name || ep.summary || ''); button.addEventListener('click', () => showDetails(ep.id)); list.append(button);
         });
+        return { status: 'ok', rows: rows.length };
+    }, {
+        target: 'treg-search-status',
+        pending: tr('loading'),
+        failure: tr('error') + ':',
+        // A search with hits needs no confirmation line; an empty one says so.
+        onSuccess: outcome => cfgActionResult.show('treg-search-status', outcome.body.rows === 0 ? 'warning' : '', outcome.body.rows === 0 ? tr('empty') : '')
     }));
     root.querySelector('#treg-query').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); root.querySelector('#treg-search').click(); } });
     attachChangeListeners();
-    try {
-        const local = await request('status');
-        if (root.isConnected) root.querySelector('#treg-local-status').textContent = tr(local.status);
-    } catch (_) { if (root.isConnected) root.querySelector('#treg-local-status').textContent = tr('error'); }
+    const localStates = { disabled: 'off', network_disabled: 'degraded', needs_setup: 'unconfigured', configured: 'unknown' };
+    await cfgStatusBanner.check('treg-local-status', () => fetch('/api/treg/status', { cache: 'no-store' }),
+        body => ({ state: localStates[body && body.status] || 'unknown', detail: tr(body && body.status ? body.status : 'error') }));
 }

@@ -68,11 +68,11 @@ function renderLocalLLMSection(section) {
     html += '<div class="field-help">' + t('config.local_llm.storage_note') + '</div>';
 
     html += '<h3 class="cfg-subheading">' + t('config.local_llm.compatibility') + '</h3>';
-    html += '<div id="local-llm-status" class="cfg-note-banner ' + localLLMStatusClass(status) + '">' + escapeHtml(localLLMStatusText(status)) + '</div>';
+    html += cfgStatusBanner.html('local-llm-status', localLLMBannerState(status), { detail: localLLMStatusText(status) });
     html += localLLMPromptCacheStatus(status);
     if (status.acknowledgement_required) {
         html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.local_llm.ack_warning') + '</div>';
-        html += '<button type="button" class="btn-secondary" data-local-llm-saved-action data-policy-disabled="false" onclick="localLLMAcknowledge()">' + t('config.local_llm.ack') + '</button> ';
+        html += '<button type="button" class="btn-secondary" data-local-llm-saved-action data-local-llm-ack data-policy-disabled="false" onclick="localLLMAcknowledge()">' + t('config.local_llm.ack') + '</button> ';
     }
     html += '<div class="field-group">';
     html += localLLMActionButton('probe', 'config.local_llm.probe', false);
@@ -82,7 +82,7 @@ function renderLocalLLMSection(section) {
     html += localLLMActionButton('recreate', 'config.local_llm.recreate', false);
     html += localLLMActionButton('smoke_test', 'config.local_llm.smoke_test', false);
     html += localLLMActionButton('benchmark', 'config.local_llm.benchmark', false);
-    html += '<p id="local-llm-action-result" class="cfg-help-text" role="status" aria-live="polite"></p>';
+    html += cfgActionResult.html('local-llm-action-result');
     html += '</div>';
     if (status.release_manifest_ready === false) {
         html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.local_llm.release_gate') + '</div>';
@@ -97,7 +97,8 @@ function renderLocalLLMSection(section) {
         providers.map(provider => [provider.id, provider.name || provider.id]), 'localLLMRenderRoutingPreview()',
         localLLMPreservedProviderOption(selectedRegular, providers));
     html += '<div id="local-llm-routing-preview" class="cfg-note-banner"></div>';
-    html += '<button type="button" class="btn-save" data-local-llm-saved-action data-policy-disabled="false" onclick="localLLMApplyRole()">' + t('config.local_llm.apply_role') + '</button>';
+    html += '<button type="button" class="btn-save" data-local-llm-saved-action data-local-llm-apply data-policy-disabled="false" onclick="localLLMApplyRole()">' + t('config.local_llm.apply_role') + '</button>';
+    html += cfgActionResult.html('local-llm-role-result');
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -183,10 +184,7 @@ function localLLMToggleEnabled(element) {
         if (typeof syncToggleA11y === 'function') syncToggleA11y(element);
         localLLMSetDraftValue('local_llm.enabled', true);
         const target = document.getElementById('local-llm-status');
-        if (target) {
-            target.textContent = t('config.local_llm.error_prefix') + ': ' + t('config.local_llm.regular_provider');
-            target.className = 'cfg-note-banner cfg-note-banner-warning';
-        }
+        if (target) cfgStatusBanner(target, 'degraded', { detail: t('config.local_llm.error_prefix') + ': ' + t('config.local_llm.regular_provider') });
         return;
     }
 
@@ -240,10 +238,16 @@ function localLLMUpdateSavedActionState() {
     });
 }
 
-function localLLMStatusClass(status) {
-    if (status.state === 'running') return 'cfg-note-banner-success';
-    if (status.state === 'error') return 'cfg-note-banner-warning';
-    return '';
+// Banner state for the runtime state reported by /api/local-llm/status.
+function localLLMBannerState(status) {
+    const state = status && status.state;
+    if (!state) return 'unknown';
+    if (state === 'running') return 'connected';
+    if (state === 'error') return 'error';
+    if (state === 'ready_to_install') return 'unconfigured';
+    if (['downloading', 'pulling', 'starting', 'testing', 'benchmarking'].includes(state)) return 'checking';
+    if (state === 'disabled' || state === 'stopped') return 'off';
+    return 'unknown';
 }
 
 function localLLMStatusText(status) {
@@ -320,12 +324,8 @@ function localLLMLocalizedRuntimeValue(kind, value) {
 }
 
 function localLLMSavedOnly() {
-    const target = document.getElementById('local-llm-status');
     if (!isDirty) return true;
-    if (target) {
-        target.textContent = t('config.local_llm.save_first');
-        target.className = 'cfg-note-banner cfg-note-banner-warning';
-    }
+    cfgActionResult.show('local-llm-action-result', 'warning', t('config.local_llm.save_first'));
     return false;
 }
 
@@ -353,17 +353,14 @@ async function localLLMRefreshStatus() {
         localLLMSchedulePolling();
     } catch (error) {
         const target = document.getElementById('local-llm-status');
-        if (target) target.textContent = t('config.local_llm.error_prefix') + ': ' + error.message;
+        if (target) cfgStatusBanner(target, 'error', { detail: t('config.local_llm.error_prefix') + ': ' + error.message, retry: localLLMRefreshStatus });
     }
 }
 
 function localLLMUpdateStatusDOM() {
     const status = _localLLMStatus || {};
     const target = document.getElementById('local-llm-status');
-    if (target) {
-        target.textContent = localLLMStatusText(status);
-        target.className = 'cfg-note-banner ' + localLLMStatusClass(status);
-    }
+    if (target) cfgStatusBanner(target, localLLMBannerState(status), { detail: localLLMStatusText(status) });
     const cache = document.getElementById('local-llm-prompt-cache');
     if (cache) cache.outerHTML = localLLMPromptCacheStatus(status);
     localLLMUpdateSavedActionState();
@@ -383,25 +380,16 @@ function localLLMSchedulePolling() {
 
 let _localLLMActionBusy = false;
 
-function localLLMSetActionResult(text, kind) {
-    const el = document.getElementById('local-llm-action-result');
-    if (!el) return;
-    el.textContent = text || '';
-    el.className = 'cfg-help-text' + (kind ? ' is-' + kind : '');
-}
-
 async function localLLMAction(action) {
     if (_localLLMActionBusy || !localLLMSavedOnly()) return;
     if (action === 'recreate' && !(await showConfirm(t('config.local_llm.confirm_recreate_title'), t('config.local_llm.confirm_recreate_message')))) return;
     _localLLMActionBusy = true;
     const busyButton = document.querySelector('[data-local-llm-action="' + action + '"]');
-    if (busyButton) busyButton.setAttribute('aria-busy', 'true');
     localLLMUpdateSavedActionState();
-    localLLMSetActionResult(t('config.local_llm.working'), '');
     const path = action === 'probe' ? '/api/local-llm/probe' : (action === 'install' ? '/api/local-llm/install' : '/api/local-llm/action');
     const body = action === 'probe' || action === 'install' ? {} : { action };
     const target = document.getElementById('local-llm-status');
-    if (target) target.textContent = t('config.local_llm.working');
+    if (target) cfgStatusBanner(target, 'checking', { detail: t('config.local_llm.working') });
     if (action === 'install') {
         _localLLMInstallPending = true;
         localLLMUpdateSavedActionState();
@@ -409,32 +397,30 @@ async function localLLMAction(action) {
     if (_localLLMPollTimer) clearTimeout(_localLLMPollTimer);
     _localLLMPollTimer = setTimeout(localLLMRefreshStatus, 500);
     try {
-        const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
-        if (action === 'smoke_test') {
-            localLLMSetActionResult(t('config.local_llm.smoke_test') + ': ' + t('config.local_llm.result_ok'), 'success');
-        } else if (action === 'benchmark') {
-            localLLMSetActionResult(t('config.local_llm.benchmark') + ': ' + localLLMFormatResult(data), 'success');
-        } else {
-            localLLMSetActionResult('', '');
-        }
-        await localLLMRefreshStatus();
-    } catch (error) {
-        localLLMSetActionResult(t('config.local_llm.error_prefix') + ': ' + error.message, 'danger');
-        if (action === 'install') _localLLMInstallPending = false;
-        localLLMUpdateSavedActionState();
-        if (_localLLMPollTimer) {
-            clearTimeout(_localLLMPollTimer);
-            _localLLMPollTimer = null;
-        }
-        if (target) {
-            target.textContent = t('config.local_llm.error_prefix') + ': ' + error.message;
-            target.className = 'cfg-note-banner cfg-note-banner-warning';
-        }
+        const outcome = await cfgActionResult(busyButton, async () => {
+            const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
+            return data;
+        }, {
+            target: 'local-llm-action-result',
+            pending: t('config.local_llm.working'),
+            success: o => action === 'smoke_test' ? t('config.local_llm.smoke_test') + ': ' + t('config.local_llm.result_ok')
+                : action === 'benchmark' ? t('config.local_llm.benchmark') + ': ' + localLLMFormatResult(o.body) : '',
+            failure: t('config.local_llm.error_prefix') + ':',
+            onError: o => {
+                if (action === 'install') _localLLMInstallPending = false;
+                if (_localLLMPollTimer) {
+                    clearTimeout(_localLLMPollTimer);
+                    _localLLMPollTimer = null;
+                }
+                const banner = document.getElementById('local-llm-status');
+                if (banner) cfgStatusBanner(banner, 'error', { detail: t('config.local_llm.error_prefix') + ': ' + o.reason, retry: localLLMRefreshStatus });
+            }
+        });
+        if (outcome.ok) await localLLMRefreshStatus();
     } finally {
         _localLLMActionBusy = false;
-        if (busyButton) busyButton.removeAttribute('aria-busy');
         localLLMUpdateSavedActionState();
     }
 }
@@ -451,18 +437,18 @@ async function localLLMAcknowledge() {
     _localLLMActionBusy = true;
     localLLMUpdateSavedActionState();
     try {
-        const response = await fetch('/api/local-llm/acknowledgement', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint: _localLLMStatus.hardware_fingerprint })
-        });
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.message || data.error || ('HTTP ' + response.status));
-        }
-        localLLMSetActionResult('', '');
-        await localLLMRefreshStatus();
-    } catch (error) {
-        localLLMSetActionResult(t('config.local_llm.error_prefix') + ': ' + error.message, 'danger');
+        const outcome = await cfgActionResult(document.querySelector('[data-local-llm-ack]'), async () => {
+            const response = await fetch('/api/local-llm/acknowledgement', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fingerprint: _localLLMStatus.hardware_fingerprint })
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || data.error || ('HTTP ' + response.status));
+            }
+            return { status: 'ok' };
+        }, { target: 'local-llm-action-result', failure: t('config.local_llm.error_prefix') + ':' });
+        if (outcome.ok) await localLLMRefreshStatus();
     } finally {
         _localLLMActionBusy = false;
         localLLMUpdateSavedActionState();
@@ -507,15 +493,11 @@ async function localLLMApplyRole() {
     if (!localLLMSavedOnly() || !_localLLMStatus) return;
     const role = document.getElementById('local-llm-role').value;
     const regularProvider = document.getElementById('local-llm-regular-provider').value;
-    const target = document.getElementById('local-llm-status');
     if (!configGeneralProviders(configData.providers || []).some(provider => provider.id === regularProvider)) {
-        if (target) {
-            target.textContent = t('config.providers.not_available_here');
-            target.className = 'cfg-note-banner cfg-note-banner-warning';
-        }
+        cfgActionResult.show('local-llm-role-result', 'warning', t('config.providers.not_available_here'));
         return;
     }
-    try {
+    await cfgActionResult(document.querySelector('[data-local-llm-apply]'), async () => {
         const response = await fetch('/api/local-llm/role', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role, regular_provider: regularProvider, config_revision: _localLLMStatus.config_revision })
@@ -523,10 +505,8 @@ async function localLLMApplyRole() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
         window.location.reload();
-    } catch (error) {
-        target.textContent = t('config.local_llm.error_prefix') + ': ' + error.message;
-        target.className = 'cfg-note-banner cfg-note-banner-warning';
-    }
+        return data;
+    }, { target: 'local-llm-role-result', failure: t('config.local_llm.error_prefix') + ':' });
 }
 
 document.addEventListener('aurago:config-saved', () => {

@@ -15,7 +15,7 @@ async function renderCYDSection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
-    html += `<div id="cyd-status-banner" class="adg-status-banner">${t('config.cyd.checking')}</div>`;
+    html += cfgStatusBanner.html('cyd-status-banner', 'checking', { detail: t('config.cyd.checking') });
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.cyd.enabled_label')}</div>
@@ -82,7 +82,7 @@ async function renderCYDSection(section) {
         <div class="field-help">${t('help.cyd.device_url')}</div>
         <code id="cyd-device-url" class="cyd-token-code">…</code>
         <button type="button" class="btn-save" id="cyd-copy-url-btn" onclick="cydCopyDeviceUrl()">${t('config.cyd.device_url_copy')}</button>
-        <span id="cyd-copy-url-result" class="field-help"></span>
+        ${cfgActionResult.html('cyd-copy-url-result')}
     </div>`;
 
     html += `<div class="field-group">
@@ -95,8 +95,8 @@ async function renderCYDSection(section) {
     html += `<div id="cyd-devices"></div>`;
 
     html += `<div class="field-group">
-        <button type="button" class="btn-save" id="cyd-test-btn" onclick="cydSendTest()">${t('config.cyd.test_btn')}</button>
-        <span id="cyd-test-result" class="field-help"></span>
+        <button type="button" class="btn-save" id="cyd-test-btn" data-config-action-draft="false" onclick="cydSendTest()">${t('config.cyd.test_btn')}</button>
+        ${cfgActionResult.html('cyd-test-result')}
     </div>`;
 
     html += `</div>`;
@@ -110,6 +110,7 @@ async function cydLoadStatus() {
     const banner = document.getElementById('cyd-status-banner');
     const list = document.getElementById('cyd-devices');
     if (!banner) return;
+    cfgStatusBanner(banner, 'checking', { detail: t('config.cyd.checking') });
     try {
         const resp = await fetch('/api/cyd/status');
         if (!resp.ok) throw new Error('status ' + resp.status);
@@ -119,11 +120,11 @@ async function cydLoadStatus() {
             urlEl.textContent = data.device_url;
         }
         if (!data.enabled) {
-            banner.textContent = t('config.cyd.status_disabled');
+            cfgStatusBanner(banner, 'off', { detail: t('config.cyd.status_disabled') });
         } else if (!data.devices || data.devices.length === 0) {
-            banner.textContent = t('config.cyd.status_no_devices');
+            cfgStatusBanner(banner, 'degraded', { detail: t('config.cyd.status_no_devices'), retry: cydLoadStatus });
         } else {
-            banner.textContent = t('config.cyd.status_devices').replace('{count}', String(data.devices.length));
+            cfgStatusBanner(banner, 'connected', { detail: t('config.cyd.status_devices').replace('{count}', String(data.devices.length)) });
         }
         if (list) {
             if (!data.devices || data.devices.length === 0) {
@@ -139,16 +140,15 @@ async function cydLoadStatus() {
             }
         }
     } catch (err) {
-        banner.textContent = t('config.cyd.status_error');
+        cfgStatusBanner(banner, 'error', { detail: t('config.cyd.status_error'), retry: cydLoadStatus });
     }
 }
 
 async function cydCopyDeviceUrl() {
     const el = document.getElementById('cyd-device-url');
-    const out = document.getElementById('cyd-copy-url-result');
     const url = el ? String(el.textContent || '').trim() : '';
     if (!url || url === '…') {
-        if (out) out.textContent = t('config.cyd.device_url_copy_fail');
+        cfgActionResult.show('cyd-copy-url-result', 'error', t('config.cyd.device_url_copy_fail'));
         return;
     }
     try {
@@ -162,9 +162,9 @@ async function cydCopyDeviceUrl() {
             document.execCommand('copy');
             document.body.removeChild(tmp);
         }
-        if (out) out.textContent = t('config.cyd.device_url_copied');
+        cfgActionResult.show('cyd-copy-url-result', 'success', t('config.cyd.device_url_copied'));
     } catch (err) {
-        if (out) out.textContent = t('config.cyd.device_url_copy_fail');
+        cfgActionResult.show('cyd-copy-url-result', 'error', t('config.cyd.device_url_copy_fail'));
     }
 }
 
@@ -177,16 +177,10 @@ function cydFormatTokenDisplay(token) {
     return raw;
 }
 
-function cydSetBusy(btn, busy) {
-    if (!btn) return;
-    btn.disabled = busy;
-    if (busy) btn.setAttribute('aria-busy', 'true'); else btn.removeAttribute('aria-busy');
-}
-
 async function cydCreateToken() {
     const box = document.getElementById('cyd-token-result');
     const tokenBtn = document.getElementById('cyd-create-token-btn');
-    cydSetBusy(tokenBtn, true);
+    AuraConfigFeedback.busy(tokenBtn, true);
     if (box) box.textContent = t('config.cyd.token_creating');
     try {
         const resp = await fetch('/api/tokens', {
@@ -207,34 +201,27 @@ async function cydCreateToken() {
     } catch (err) {
         if (box) box.textContent = t('config.cyd.token_failed') + ' ' + (err && err.message ? err.message : '');
     } finally {
-        cydSetBusy(tokenBtn, false);
+        AuraConfigFeedback.busy(tokenBtn, false);
     }
 }
 
-async function cydSendTest() {
-    const el = document.getElementById('cyd-test-result');
-    const testBtn = document.getElementById('cyd-test-btn');
-    cydSetBusy(testBtn, true);
-    if (el) el.textContent = t('config.cyd.testing');
-    try {
-        const resp = await fetch('/api/cyd/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                title: 'AuraGo',
-                message: t('config.cyd.test_message'),
-                priority: 'normal'
-            })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || data.message || ('HTTP ' + resp.status));
-        if (el) el.textContent = t('config.cyd.test_ok');
-        cydLoadStatus();
-    } catch (err) {
-        if (el) el.textContent = t('config.cyd.test_fail') + ' ' + (err && err.message ? err.message : '');
-    } finally {
-        cydSetBusy(testBtn, false);
-    }
+// Sends a notification to the running display, so unsaved settings lock the button (data-config-action-draft="false").
+function cydSendTest() {
+    return cfgActionResult(document.getElementById('cyd-test-btn'), () => fetch('/api/cyd/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: 'AuraGo',
+            message: t('config.cyd.test_message'),
+            priority: 'normal'
+        })
+    }), {
+        target: 'cyd-test-result',
+        pending: t('config.cyd.testing'),
+        success: t('config.cyd.test_ok'),
+        failure: t('config.cyd.test_fail'),
+        onSuccess: cydLoadStatus
+    });
 }
 
 async function cydLoadFirmwareStatus() {
@@ -315,11 +302,11 @@ async function cydFlashDisplay() {
     const status = document.getElementById('cyd-flash-status');
     const host = document.getElementById('cyd-ewt-host');
     const flashBtn = document.getElementById('cyd-flash-btn');
-    cydSetBusy(flashBtn, true);
+    AuraConfigFeedback.busy(flashBtn, true);
     if (status) status.textContent = t('config.cyd.flash_need_token');
     try {
         await cydLoadFirmwareStatus();
-        cydSetBusy(flashBtn, true);
+        AuraConfigFeedback.busy(flashBtn, true);
         if (!cydWebSerialAvailable()) return;
         const variant = cydSelectedVariant();
         const info = cydVariantInfo(variant);
@@ -372,6 +359,7 @@ async function cydFlashDisplay() {
         if (status) status.textContent = (err && err.message) ? err.message : '';
     } finally {
         const finfo = cydVariantInfo(cydSelectedVariant());
-        cydSetBusy(flashBtn, !(cydWebSerialAvailable() && finfo && finfo.available));
+        AuraConfigFeedback.busy(flashBtn, false);
+        if (flashBtn) flashBtn.disabled = !(cydWebSerialAvailable() && finfo && finfo.available);
     }
 }

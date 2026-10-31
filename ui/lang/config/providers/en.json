@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Enter an absolute HTTP or HTTPS URL without a username or password.",
   "config.providers.tab_diagnostics": "Status and tests",
   "config.providers.diagnostics_help": "Status uses existing runtime data. Keys stay in the encrypted Vault; remove them explicitly to clear them.",
-  "config.providers.saved_test_help": "Tests use saved settings. Save your changes first. Metadata checks never generate an answer.",
+  "config.providers.saved_test_help": "Tests use the values in this form; nothing is saved. A stored key is used while the endpoint stays unchanged. Metadata checks never generate an answer.",
   "config.providers.metadata_test": "Check metadata",
   "config.providers.generation_test": "Test model (may cost money)",
   "config.providers.generation_confirm": "Send one short model request? Your provider may charge for it; the request counts toward your budget.",

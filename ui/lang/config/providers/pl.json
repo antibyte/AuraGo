@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Wpisz pełny adres HTTP lub HTTPS bez nazwy użytkownika i hasła.",
   "config.providers.tab_diagnostics": "Stan i testy",
   "config.providers.diagnostics_help": "Stan korzysta z istniejących danych działania. Klucze pozostają w szyfrowanym Vault; usuń je jawnie, aby je skasować.",
-  "config.providers.saved_test_help": "Testy używają zapisanych ustawień. Najpierw zapisz zmiany. Sprawdzanie metadanych nigdy nie generuje odpowiedzi.",
+  "config.providers.saved_test_help": "Testy używają wartości z tego formularza; nic nie jest zapisywane. Zapisany klucz jest używany, dopóki punkt końcowy się nie zmieni. Kontrole metadanych nigdy nie generują odpowiedzi.",
   "config.providers.metadata_test": "Sprawdź metadane",
   "config.providers.generation_test": "Testuj model (możliwe koszty)",
   "config.providers.generation_confirm": "Wysłać jedno krótkie zapytanie do modelu? Dostawca może naliczyć opłatę, która zostanie uwzględniona w budżecie.",

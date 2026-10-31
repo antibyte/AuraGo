@@ -73,10 +73,9 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-elevenlabs-api-key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
+    html += '<input class="field-input adg-password-input" type="password" id="tts-elevenlabs-api-key" data-path="tts.elevenlabs.api_key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="ttsSaveElevenLabsKey()">💾</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -98,10 +97,9 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-minimax-api-key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
+    html += '<input class="field-input adg-password-input" type="password" id="tts-minimax-api-key" data-path="tts.minimax.api_key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="ttsSaveMiniMaxKey()">💾</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -134,10 +132,9 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.mistral_api_key_label') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-mistral-api-key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
+    html += '<input class="field-input adg-password-input" type="password" id="tts-mistral-api-key" data-path="tts.mistral.api_key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="ttsSaveMistralKey()">💾</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -158,11 +155,11 @@ function renderTTSSection(section) {
         const path = 'tts.' + id;
         html += '<div id="tts-' + id + '-section" class="tts-provider-section' + (currentProvider === id ? '' : ' is-hidden') + '">';
         html += '<div class="tts-subsection-title">' + provider.name + '</div>';
-        if (provider.notice) html += '<div class="adg-status-banner is-warning" role="note">' + t('config.tts.' + provider.notice) + '</div>';
+        if (provider.notice) html += '<div class="cfg-note-banner cfg-note-banner-warning" role="note">' + t('config.tts.' + provider.notice) + '</div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-api-key">' + t('config.tts.cloud_api_key_label') + '</label>';
         html += '<div class="adg-password-row"><div class="password-wrap adg-password-input">';
-        html += '<input class="field-input adg-password-input" type="password" id="tts-' + id + '-api-key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
-        html += '</div><button type="button" class="btn-save adg-save-btn" onclick="ttsSaveCloudKey(\'' + id + '\')">' + t('config.tts.cloud_save_key') + '</button></div></div>';
+        html += '<input class="field-input adg-password-input" type="password" id="tts-' + id + '-api-key" data-path="' + path + '.api_key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
+        html += '</div></div></div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-voice">' + t('config.tts.cloud_voice_label') + '</label>';
         if (provider.voices) {
             html += ttsCloudSelect(path + '.voice_id', settings.voice_id || provider.voice, provider.voices, 'tts-' + id + '-voice');
@@ -182,7 +179,7 @@ function renderTTSSection(section) {
     const showSupertonic = currentProvider === 'supertonic';
     html += '<div id="tts-supertonic-section" class="tts-provider-section' + (showSupertonic ? '' : ' is-hidden') + '">';
     html += '<div class="tts-subsection-title">Supertonic TTS (Local Docker)</div>';
-    html += '<div id="supertonic-status-banner" class="adg-status-banner">' + t('config.tts.supertonic_checking') + '</div>';
+    html += cfgStatusBanner.html('supertonic-status-banner', 'checking', { detail: t('config.tts.supertonic_checking') });
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.supertonic_auto_start_label') + '</div>';
@@ -269,7 +266,7 @@ function renderTTSSection(section) {
     html += '</div>';
 
     html += '<div class="tts-subsection-title">🗣️ Piper TTS (Local Docker)</div>';
-    html += '<div id="piper-status-banner" class="adg-status-banner">' + t('config.tts.piper_checking') + '</div>';
+    html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_enabled_label') + '</div>';
@@ -325,7 +322,7 @@ function renderTTSSection(section) {
     if (piperEnabled) {
         piperCheckStatus();
     } else {
-        piperSetBanner('neutral', t('config.tts.piper_status_disabled'));
+        cfgStatusBanner('piper-status-banner', 'off', { detail: t('config.tts.piper_status_disabled') });
     }
     if (showSupertonic) {
         supertonicCheckStatus();
@@ -481,167 +478,30 @@ function ttsCloudSelect(path, value, options, id) {
     return html;
 }
 
-async function ttsSaveCloudKey(provider) {
-    if (!Object.hasOwn(ttsCloudProviders, provider)) return;
-    const input = document.getElementById('tts-' + provider + '-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.tts.cloud_api_key_required'), 'warn');
-        return;
-    }
-    try {
-        const response = await fetch('/api/vault/secrets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'tts_' + provider + '_api_key', value })
-        });
-        const result = await response.json();
-        if (!response.ok || !(result.status === 'ok' || result.success)) throw new Error('vault save failed');
-        cfgMarkSecretStored(input, 'tts.' + provider + '.api_key');
-        window.AuraConfigState?.markSaved('tts.' + provider + '.api_key', configData.tts[provider].api_key);
-        showToast(t('config.tts.cloud_api_key_saved'), 'success');
-    } catch (_) {
-        showToast(t('config.tts.cloud_api_key_save_failed'), 'error');
-    }
-}
-
-function piperSetBanner(state, text) {
-    const banner = document.getElementById('piper-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
-}
-
-function supertonicSetBanner(state, text) {
-    const banner = document.getElementById('supertonic-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
-}
-
-function ttsSaveElevenLabsKey() {
-    const input = document.getElementById('tts-elevenlabs-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.tts.elevenlabs_api_key_required'), 'warn');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tts_elevenlabs_api_key', value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.tts.elevenlabs_api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'tts.elevenlabs.api_key');
-            } else {
-                showToast(res.message || t('config.tts.elevenlabs_api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.tts.elevenlabs_api_key_save_failed'), 'error'));
-}
-
-function ttsSaveMiniMaxKey() {
-    const input = document.getElementById('tts-minimax-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.tts.minimax_api_key_required'), 'warn');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tts_minimax_api_key', value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.tts.minimax_api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'tts.minimax.api_key');
-            } else {
-                showToast(res.message || t('config.tts.minimax_api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.tts.minimax_api_key_save_failed'), 'error'));
-}
-
-function ttsSaveMistralKey() {
-    const input = document.getElementById('tts-mistral-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.tts.mistral_api_key_required'), 'warn');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tts_mistral_api_key', value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.tts.mistral_api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'tts.mistral.api_key');
-            } else {
-                showToast(res.message || t('config.tts.mistral_api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.tts.mistral_api_key_save_failed'), 'error'));
-}
-
+// API keys are save-dock secrets (data-path tts.<provider>.api_key); the server writes them to the Vault.
 function piperCheckStatus() {
-    piperSetBanner('neutral', '⏳ ' + t('config.tts.piper_checking'));
-
-    fetch('/api/piper/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                piperSetBanner('neutral', t('config.tts.piper_status_disabled'));
-            } else if (res.status === 'running') {
-                let text = t('config.tts.piper_status_running');
-                if (res.voice) text += ' — ' + res.voice;
-                piperSetBanner('success', text);
-            } else if (res.status === 'stopped') {
-                piperSetBanner('warning', '🟡 ' + t('config.tts.piper_status_stopped'));
-            } else {
-                piperSetBanner('danger', '🔴 ' + t('config.tts.piper_status_error') + (res.error ? ': ' + res.error : ''));
-            }
-        })
-        .catch(() => piperSetBanner('danger', '🔴 ' + t('config.tts.piper_status_error')));
+    return cfgStatusBanner.check('piper-status-banner', () => fetch('/api/piper/status'), body => {
+        if (body.status === 'disabled') return { state: 'off', detail: t('config.tts.piper_status_disabled') };
+        if (body.status === 'running') return { state: 'connected', detail: t('config.tts.piper_status_running') + (body.voice ? ' — ' + body.voice : '') };
+        if (body.status === 'stopped') return { state: 'degraded', detail: t('config.tts.piper_status_stopped') };
+        return { state: 'error', detail: t('config.tts.piper_status_error') + (body.error ? ': ' + body.error : '') };
+    }, { checkingDetail: t('config.tts.piper_checking') });
 }
 
 function supertonicCheckStatus() {
-    supertonicSetBanner('neutral', t('config.tts.supertonic_checking'));
-
-    fetch('/api/supertonic/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                supertonicSetBanner('neutral', t('config.tts.supertonic_status_disabled'));
-            } else if (res.status === 'running') {
-                let text = t('config.tts.supertonic_status_running');
-                const details = [];
-                if (res.model) details.push(res.model);
-                if (res.voices_loaded !== undefined) details.push(res.voices_loaded + ' ' + t('config.tts.supertonic_voices_loaded'));
-                if (details.length) text += ' — ' + details.join(' · ');
-                supertonicSetBanner('success', text);
-            } else if (res.status === 'loading') {
-                supertonicSetBanner('warning', t('config.tts.supertonic_status_loading'));
-            } else if (res.status === 'stopped') {
-                supertonicSetBanner('warning', t('config.tts.supertonic_status_stopped'));
-            } else {
-                const message = res.message || res.error || '';
-                supertonicSetBanner('danger', t('config.tts.supertonic_status_error') + (message ? ': ' + message : ''));
-            }
-        })
-        .catch(() => supertonicSetBanner('danger', t('config.tts.supertonic_status_error')));
+    return cfgStatusBanner.check('supertonic-status-banner', () => fetch('/api/supertonic/status'), body => {
+        if (body.status === 'disabled') return { state: 'off', detail: t('config.tts.supertonic_status_disabled') };
+        if (body.status === 'running') {
+            const details = [];
+            if (body.model) details.push(body.model);
+            if (body.voices_loaded !== undefined) details.push(body.voices_loaded + ' ' + t('config.tts.supertonic_voices_loaded'));
+            return { state: 'connected', detail: t('config.tts.supertonic_status_running') + (details.length ? ' — ' + details.join(' · ') : '') };
+        }
+        if (body.status === 'loading') return { state: 'degraded', detail: t('config.tts.supertonic_status_loading') };
+        if (body.status === 'stopped') return { state: 'degraded', detail: t('config.tts.supertonic_status_stopped') };
+        const message = body.message || body.error || '';
+        return { state: 'error', detail: t('config.tts.supertonic_status_error') + (message ? ': ' + message : '') };
+    }, { checkingDetail: t('config.tts.supertonic_checking') });
 }
 
 async function supertonicLoadStyles(list, attempt = 0) {

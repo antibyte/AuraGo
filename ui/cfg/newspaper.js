@@ -25,7 +25,7 @@ function renderNewspaperSection(section) {
     }
     html += '</div><div class="cfg-actions-row"><button class="btn-save" type="button" data-overview-preset="recommended">' + label('preset_recommended') + '</button><button class="btn-save" type="button" data-overview-preset="none">' + label('preset_none') + '</button></div><input class="field-input is-hidden" type="text" data-path="newspaper.overview_sources" data-type="array" value="' + escapeHtml(sources.join(', ')) + '" tabindex="-1" aria-hidden="true"></div>';
     html += '<section class="cfg-note-banner cfg-note-banner-info" aria-live="polite"><strong>' + label('budget_preview') + '</strong><div id="newspaper-budget-preview" role="status">' + label('budget_preview_loading') + '</div></section>';
-    html += '<div class="field-group"><button class="btn-save dc-test-btn" type="button" onclick="newspaperCheckReadiness()">' + label('check') + '</button><a class="btn-save dc-test-btn" href="/desktop">' + label('open') + '</a><div id="newspaper-config-status" class="dc-test-result" role="status"></div></div></div>';
+    html += '<div class="field-group"><div class="cfg-actions-row"><button id="newspaper-check-btn" class="btn-save dc-test-btn" type="button" data-config-action-draft="false" onclick="newspaperCheckReadiness()">' + label('check') + '</button><a class="btn-save dc-test-btn" href="/desktop">' + label('open') + '</a>' + cfgActionResult.html('newspaper-check-result') + '</div><div id="newspaper-config-status" class="np-readiness"></div></div></div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
     const sourceInputs = [...document.querySelectorAll('[data-overview-source]')];
@@ -122,25 +122,37 @@ function newspaperRenderBudgetPreview(target, result) {
     }
 }
 
-async function newspaperCheckReadiness() {
+// Checks the running desktop service, so unsaved settings lock the button (data-config-action-draft="false").
+function newspaperCheckReadiness() {
+    const button = document.getElementById('newspaper-check-btn');
+    const summary = outcome => outcome.body.summary;
+    return cfgActionResult(button, newspaperLoadReadiness, {
+        target: 'newspaper-check-result',
+        pending: t('config.newspaper.checking'),
+        success: summary,
+        warning: summary,
+        failure: t('config.newspaper.check_failed')
+    });
+}
+
+async function newspaperLoadReadiness() {
     const target = document.getElementById('newspaper-config-status');
-    if (!target) return;
-    target.textContent = t('config.newspaper.checking');
-    try {
-        const response = await fetch('/api/desktop/newspaper/capabilities', {credentials:'same-origin',cache:'no-store'});
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        const caps = await response.json();
-        target.textContent = [caps.enabled ? t('config.newspaper.active') : t('config.newspaper.inactive'), caps.research_ready ? t('config.newspaper.research_ready') : t('config.newspaper.research_blocked'), caps.email_ready ? t('config.newspaper.email_ready') : t('config.newspaper.email_pending'), caps.telegram_ready ? t('config.newspaper.telegram_ready') : t('config.newspaper.telegram_pending')].join(' · ');
-        const message = reason => t('config.newspaper.reason_' + (['ready','disabled','key_missing','network_disabled','feeds_missing','scraper_disabled','read_only','model_missing','skill_missing','rate_limited','quota_exhausted','access_denied'].includes(reason) ? reason : 'failed'));
-        if (caps.research_reason) { const p = document.createElement('p'); p.textContent = message(caps.research_reason); target.append(p); }
-        const list = document.createElement('ul');
-        for (const tool of caps.research_tools || []) {
-            if (!['brave_search','ddg_search','rss','web_scraper'].includes(tool.id)) continue;
-            const row = document.createElement('li');
-            row.textContent = t('config.newspaper.tool_' + tool.id) + ': ' + message(tool.reason || tool.state);
-            if (tool.last_error) row.textContent += ' · ' + t('config.newspaper.last_attempt').replace('{result}', message(tool.last_error));
-            list.append(row);
-        }
-        target.append(list);
-    } catch (_) { target.textContent = t('config.newspaper.check_failed'); }
+    if (!target) return { status: 'ok', summary: '' };
+    target.replaceChildren();
+    const response = await fetch('/api/desktop/newspaper/capabilities', {credentials:'same-origin',cache:'no-store'});
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const caps = await response.json();
+    const summary = [caps.enabled ? t('config.newspaper.active') : t('config.newspaper.inactive'), caps.research_ready ? t('config.newspaper.research_ready') : t('config.newspaper.research_blocked'), caps.email_ready ? t('config.newspaper.email_ready') : t('config.newspaper.email_pending'), caps.telegram_ready ? t('config.newspaper.telegram_ready') : t('config.newspaper.telegram_pending')].join(' · ');
+    const message = reason => t('config.newspaper.reason_' + (['ready','disabled','key_missing','network_disabled','feeds_missing','scraper_disabled','read_only','model_missing','skill_missing','rate_limited','quota_exhausted','access_denied'].includes(reason) ? reason : 'failed'));
+    if (caps.research_reason) { const p = document.createElement('p'); p.textContent = message(caps.research_reason); target.append(p); }
+    const list = document.createElement('ul');
+    for (const tool of caps.research_tools || []) {
+        if (!['brave_search','ddg_search','rss','web_scraper'].includes(tool.id)) continue;
+        const row = document.createElement('li');
+        row.textContent = t('config.newspaper.tool_' + tool.id) + ': ' + message(tool.reason || tool.state);
+        if (tool.last_error) row.textContent += ' · ' + t('config.newspaper.last_attempt').replace('{result}', message(tool.last_error));
+        list.append(row);
+    }
+    target.append(list);
+    return { status: caps.research_ready ? 'ok' : 'warning', summary };
 }

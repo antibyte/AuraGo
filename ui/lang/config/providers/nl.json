@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Voer een volledige HTTP- of HTTPS-URL zonder gebruikersnaam of wachtwoord in.",
   "config.providers.tab_diagnostics": "Status en tests",
   "config.providers.diagnostics_help": "De status gebruikt bestaande runtimegegevens. Sleutels blijven in de versleutelde Vault; verwijder ze uitdrukkelijk om ze te wissen.",
-  "config.providers.saved_test_help": "Tests gebruiken opgeslagen instellingen. Sla wijzigingen eerst op. Metadatacontroles genereren nooit een antwoord.",
+  "config.providers.saved_test_help": "Tests gebruiken de waarden in dit formulier; er wordt niets opgeslagen. Een opgeslagen sleutel wordt gebruikt zolang het eindpunt ongewijzigd blijft. Metadatacontroles genereren nooit een antwoord.",
   "config.providers.metadata_test": "Metadata controleren",
   "config.providers.generation_test": "Model testen (kan geld kosten)",
   "config.providers.generation_confirm": "Eén kort modelverzoek verzenden? Je provider kan hiervoor kosten rekenen; het verzoek telt mee voor je budget.",

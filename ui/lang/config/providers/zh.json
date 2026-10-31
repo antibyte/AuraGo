@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "请输入不含用户名或密码的完整 HTTP 或 HTTPS 网址。",
   "config.providers.tab_diagnostics": "状态与测试",
   "config.providers.diagnostics_help": "状态来自已有的运行数据。密钥保留在加密的 Vault 中；如需清除，请明确执行删除操作。",
-  "config.providers.saved_test_help": "测试使用已保存的设置。请先保存更改。元数据检查不会生成回答。",
+  "config.providers.saved_test_help": "测试使用此表单中的值，不会保存任何内容。只要端点未更改，就会使用已保存的密钥。元数据检查不会生成回答。",
   "config.providers.metadata_test": "检查元数据",
   "config.providers.generation_test": "测试模型（可能产生费用）",
   "config.providers.generation_confirm": "向模型发送一次简短请求吗？提供商可能会收费，此请求将计入预算。",
