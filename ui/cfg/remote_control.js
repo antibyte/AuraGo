@@ -240,7 +240,8 @@ async function rcCreateEnrollmentToken(pendingID) {
         pending: t('config.remote_control.pairing_token_generating'),
         success: t('config.remote_control.pairing_token_ready'),
         failure: t('config.remote_control.pairing_token_failed'),
-        interpret: outcome => outcome.body && outcome.body.token ? {} : { state: 'error' },
+        // The approve/enroll answer is {status:"token_required", token}: a success. The token is never part of the result line.
+        interpret: outcome => outcome.httpStatus < 400 && outcome.body && outcome.body.token ? { state: 'success', reason: '' } : { state: 'error', reason: outcome.httpStatus >= 400 ? outcome.reason : '' },
         onSuccess: async outcome => {
             const data = outcome.body;
             const expires = data.expires_at ? new Date(data.expires_at).toLocaleString() : '';

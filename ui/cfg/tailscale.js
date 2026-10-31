@@ -213,13 +213,14 @@ function tsApiCheckStatus() {
     });
 }
 
-// The test sends the form values (draft), so the banner (saved state) stays as it is.
+// The test sends the form values (draft) of the API fields only: the tsnet hostnames would count as
+// targets server-side and drop the saved key. The banner (saved state) stays as it is.
 function tsApiTestConnection() {
     const btn = document.getElementById('ts-api-test-btn');
     return cfgActionResult(btn, () => fetch('/api/tailscale/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft: cfgDraftPatch(['tailscale']) })
+        body: JSON.stringify({ draft: cfgDraftPatch(['tailscale.enabled', 'tailscale.api_key', 'tailscale.tailnet', 'tailscale.readonly']) })
     }), {
         target: 'ts-api-test-result',
         pending: t('config.tailscale.loading'),
@@ -599,6 +600,7 @@ async function _tsnetStop() {
     return cfgActionResult(document.getElementById('tsnet-btn-stop'), () => fetch('/api/tsnet/stop', { method: 'POST' }), {
         target: 'tsnet-action-result',
         success: t('config.tailscale.tsnet_stopped_toast'),
+        interpret: outcome => outcome.body && outcome.body.status === 'stopped' && outcome.httpStatus < 400 ? { state: 'success', reason: '' } : {},
         failure: t('config.tailscale.tsnet_status_error'),
         clearAfter: 6000,
         lock: '#tsnet-btn-start',

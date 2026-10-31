@@ -19,7 +19,7 @@ var wave1Batch4Modules = []wave1Batch4Module{
 	{"github", "cfg/github.js", "github-test-btn", "github-test-result", "", "githubTestConnection", "/api/github/repos", "github", []string{"github.token"}},
 	{"here_now", "cfg/here_now.js", "hn-test-btn", "hn-test-result", "hn-status-banner", "hereNowTestConnection", "/api/here-now/test-connection", "here_now", []string{"here_now.api_key"}},
 	{"netlify", "cfg/netlify.js", "nf-test-btn", "nf-test-result", "nf-status-banner", "nfTestConnection", "/api/netlify/test-connection", "netlify", []string{"netlify.token"}},
-	{"tailscale", "cfg/tailscale.js", "ts-api-test-btn", "ts-api-test-result", "ts-api-status-banner", "tsApiTestConnection", "/api/tailscale/test", "tailscale", []string{"tailscale.api_key"}},
+	{"tailscale", "cfg/tailscale.js", "ts-api-test-btn", "ts-api-test-result", "ts-api-status-banner", "tsApiTestConnection", "/api/tailscale/test", "tailscale.enabled", []string{"tailscale.api_key"}},
 	{"vercel", "cfg/vercel.js", "vercel-test-btn", "vercel-test-result", "vercel-status-banner", "vercelTestConnection", "/api/vercel/test-connection", "vercel", []string{"vercel.token"}},
 }
 
@@ -31,7 +31,7 @@ func TestConfigWave1Batch4DraftModulesUseSharedFeedback(t *testing.T) {
 		src := readWave0File(t, m.file)
 		for _, want := range []string{
 			"cfgActionResult(",
-			"cfgDraftPatch(['" + m.draftSection + "'])",
+			"cfgDraftPatch(['" + m.draftSection + "'",
 			`data-config-action-draft="true"`,
 			m.testEndpoint,
 		} {

@@ -372,19 +372,21 @@ function vcCfgSetSudoPasswordStatus(stored, messageKey, state) {
     });
 }
 
-async function vcCfgRefreshSudoPasswordStatus() {
+// The banner never hangs on "checking": a slow or failing answer turns it into unknown/error with a retry.
+function vcCfgRefreshSudoPasswordStatus() {
     const requestGeneration = ++_vcSudoPasswordStatusGeneration;
-    try {
-        const resp = await fetch('/api/virtual-computers/setup/status');
-        const body = await resp.json();
-        if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
-        if (requestGeneration !== _vcSudoPasswordStatusGeneration) return;
-        vcCfgSetSudoPasswordStatus(body.sudo_password_stored === true);
-    } catch (_) {
-        if (requestGeneration !== _vcSudoPasswordStatusGeneration) return;
-        const statusEl = document.getElementById('vc-sudo-password-status');
-        if (statusEl) cfgStatusBanner(statusEl, 'error', { label: t('config.virtual_computers.status_error'), retry: () => vcCfgRefreshSudoPasswordStatus() });
-    }
+    const statusEl = document.getElementById('vc-sudo-password-status');
+    if (!statusEl) return Promise.resolve(null);
+    return cfgStatusBanner.check(statusEl, () => fetch('/api/virtual-computers/setup/status'), body => {
+        if (body && body.error) return { state: 'error', label: t('config.virtual_computers.status_error'), detail: String(body.error) };
+        // A save since the request started has the newer truth.
+        const stored = requestGeneration !== _vcSudoPasswordStatusGeneration ? _vcSudoPasswordStored === true : body && body.sudo_password_stored === true;
+        if (requestGeneration === _vcSudoPasswordStatusGeneration) _vcSudoPasswordStored = stored;
+        return {
+            state: stored ? 'connected' : 'unconfigured',
+            label: t(stored ? 'config.virtual_computers.sudo_password_stored' : 'config.virtual_computers.sudo_password_missing')
+        };
+    }, { retry: () => vcCfgRefreshSudoPasswordStatus() });
 }
 
 // The sudo password is a pure vault key (shared with execute_sudo), so it keeps its own button.
@@ -517,11 +519,17 @@ function vcCfgPostSetup(url, buttonID, showElapsed) {
         reasonText: body => body && (body.error || (body.setup && body.setup.message) || body.message) || '',
         interpret: outcome => {
             const body = outcome.body || {};
+            // preflight answers supported/unsupported, install installed/unhealthy (HTTP 200 for all four).
+            if (outcome.httpStatus >= 400) return {};
             if (body.status === 'unhealthy') return { state: 'error' };
-            if (!outcome.ok) return {};
-            const warnings = (body.result && body.result.warnings) || (body.setup && body.setup.preflight && body.setup.preflight.warnings) || [];
-            if (!warnings.length) return {};
-            return { state: 'warning', reason: (body.message || t('config.virtual_computers.status_ok')) + ' ' + warnings.join('; ') };
+            const warnings = body.warnings || (body.result && body.result.warnings) || (body.setup && body.setup.preflight && body.setup.preflight.warnings) || [];
+            // unsupported: the check itself ran, the host just cannot run it -> warning (not a failed request) with the reason.
+            if (body.status === 'unsupported') return { state: 'warning', reason: [body.message].concat(warnings).filter(Boolean).join(' ') };
+            if (body.status === 'supported' || body.status === 'installed') {
+                if (!warnings.length) return { state: 'success', reason: '' };
+                return { state: 'warning', reason: (body.message || t('config.virtual_computers.status_ok')) + ' ' + warnings.join('; ') };
+            }
+            return {};
         },
         success: outcome => (outcome.body && outcome.body.message) || t('config.virtual_computers.status_ok')
     });

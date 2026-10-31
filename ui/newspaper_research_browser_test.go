@@ -179,7 +179,7 @@ return getComputedStyle(grid).display==='grid' && choices.every((choice,i)=>{con
 	}
 	page.MustElement("button.dc-test-btn").MustClick()
 	page.MustElement("#newspaper-config-status li")
-	if !page.MustEval(`()=>{const r=document.getElementById('newspaper-check-result');const b=document.getElementById('newspaper-check-btn');return r.dataset.state==='warning'&&r.textContent.includes('')&&r.textContent.length>0&&b.dataset.configActionBusy==='false'}`).Bool() {
+	if !page.MustEval(`()=>{const r=document.getElementById('newspaper-check-result');const b=document.getElementById('newspaper-check-btn');return r.dataset.state==='warning'&&r.textContent.trim().length>0&&!r.textContent.includes('{')&&r.dataset.state!=='pending'&&b.dataset.configActionBusy==='false'}`).Bool() {
 		t.Fatal("readiness result line missing or button still busy")
 	}
 	text := page.MustElement("#newspaper-config-status").MustText()

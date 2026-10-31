@@ -146,7 +146,6 @@ function hereNowTestConnection() {
         success: t('config.here_now.test_success'),
         failure: t('config.here_now.test_failed'),
         onSuccess: outcome => {
-            hereNowStatusCache = { status: 'ready' };
             hereNowAccountsCache = hereNowActiveAccountRows(outcome.body && outcome.body.accounts);
             const accountSelect = document.querySelector('select[data-path="here_now.default_account"]');
             if (accountSelect) {
