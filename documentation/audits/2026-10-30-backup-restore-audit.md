@@ -33,7 +33,16 @@ Tests:
 
 - `restorepending`, `config`, `security`, `i18n` und `ui` grün.
 - Backup/Restore/WebAuthn-Tests im Server-Paket grün, `internal/audit` komplett grün.
-- Ein echter Neustart mit Wiederherstellung ist **nicht** geprüft. Das bleibt Abnahme auf aurago-test.
+- **Scratch-Abnahme (Windows, lokale Instanz von `53cb2de30`, 2026-10-31): 30/30 bestanden.**
+  - Verschlüsseltes Backup; 32 Datenbanken im Archiv; Manifest mit `user_version`; Passwort > 1024 Byte → 400.
+  - Import nur bereitgestellt: Datei, SQLite-Marker und Login-Passwort bleiben bis zum Neustart unverändert.
+  - Neustart: Datei, SQLite-Tabelle und Login-Passwort (Vault) auf Backup-Stand; Pending-Verzeichnis entfernt; eine Rollback-Kopie behalten; Status `applied`.
+  - Verwerfen per API und per UI (Bestätigungsdialog, Statuszeile).
+  - Ungültige bereitgestellte `config.yaml` → `rolled_back`, Dateien und Passwort unverändert, Meldung „auch keine Vault-Secrets“.
+  - Aufgefallen:
+    - In Builds ohne `.version` steht im Manifest `app_version: unknown`, und der Import warnt entsprechend.
+    - Die Server-Meldungen des Backups sind deutsch, auch bei englischer UI (bestehende Konvention des Handlers).
+- Abnahme auf aurago-test (Linux, echte Daten) steht noch aus.
 
 Neu offen aus dem Review:
 
