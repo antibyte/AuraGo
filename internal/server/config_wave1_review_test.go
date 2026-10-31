@@ -125,12 +125,12 @@ func TestExtractRecursiveKeepsMQTTPasswordWhitespace(t *testing.T) {
 
 func TestDraftTestConfigKeepsMQTTPasswordWhitespace(t *testing.T) {
 	s := newDraftTestServer(t)
-	req := httptest.NewRequest(http.MethodPost, "/api/mqtt/test", strings.NewReader(`{"draft":{"mqtt":{"password":"  pass word  "}}}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/mqtt/test", strings.NewReader(`{"draft":{"mqtt":{"password":"  draft-only mqtt pw Zq7x  "}}}`))
 	cfg, err := s.draftTestConfig(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.MQTT.Password != "  pass word  " {
+	if cfg.MQTT.Password != "  draft-only mqtt pw Zq7x  " {
 		t.Fatalf("draft mqtt password = %q", cfg.MQTT.Password)
 	}
 }

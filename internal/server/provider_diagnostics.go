@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/providerutil"
 )
 
 type providerProbeObservation struct {
@@ -78,7 +79,7 @@ func handleProviderTest(s *Server) http.HandlerFunc {
 		if request.Provider != nil {
 			// The form as typed in: the probed entry comes from the request, the
 			// saved entry only supplies secrets that stay valid for the same target.
-			draft := request.Provider.entry(request.ProviderID, saved)
+			draft := request.Provider.entry(request.ProviderID, saved, cfg)
 			if saved != nil && providerDraftSameTarget(saved, draft) && normalizeProviderAuthType(draft.AuthType) == "oauth2" {
 				_, draft.APIKey = speechLabRuntimeChatProvider(saved, s.Vault)
 			}
@@ -115,14 +116,16 @@ type providerTestDraft struct {
 	OAuthScopes       string `json:"oauth_scopes"`
 }
 
-// entry builds the probed provider; saved may be nil (new provider).
-func (d *providerTestDraft) entry(id string, saved *config.ProviderEntry) config.ProviderEntry {
+// entry builds the probed provider; saved may be nil (new provider). cfg (the
+// saved configuration, may be nil) resolves the URL of the auto-URL types.
+func (d *providerTestDraft) entry(id string, saved *config.ProviderEntry, cfg *config.Config) config.ProviderEntry {
 	p := config.ProviderEntry{
 		ID: strings.TrimSpace(id), Name: d.Name, Type: strings.TrimSpace(d.Type), BaseURL: strings.TrimSpace(d.BaseURL),
 		Model: strings.TrimSpace(d.Model), AuthType: d.AuthType, AccountID: strings.TrimSpace(d.AccountID), GatewayID: strings.TrimSpace(d.GatewayID),
 		OAuthAuthURL: strings.TrimSpace(d.OAuthAuthURL), OAuthTokenURL: strings.TrimSpace(d.OAuthTokenURL),
 		OAuthClientID: strings.TrimSpace(d.OAuthClientID), OAuthScopes: d.OAuthScopes,
 	}
+	resolveProviderDraftURL(cfg, &p)
 	sameTarget := saved != nil && providerDraftSameTarget(saved, p)
 	if key := strings.TrimSpace(d.APIKey); key != "" && key != maskedKey {
 		p.APIKey = key
@@ -137,12 +140,40 @@ func (d *providerTestDraft) entry(id string, saved *config.ProviderEntry) config
 	return p
 }
 
+// resolveProviderDraftURL gives a draft without URL the endpoint a saved entry of
+// that type gets on load (Config.ResolveProviders): the modal sends no base_url
+// for the gateway types whose address is derived. The URL is normalized like a
+// saved one so both sides compare equal.
+func resolveProviderDraftURL(cfg *config.Config, p *config.ProviderEntry) {
+	if cfg != nil {
+		switch strings.ToLower(p.Type) {
+		case "manifest":
+			if strings.ToLower(strings.TrimSpace(cfg.Manifest.Mode)) != "external" || strings.TrimSpace(p.BaseURL) == "" {
+				p.BaseURL = cfg.ManifestProviderBaseURL()
+			}
+		case "omniroute":
+			p.BaseURL = cfg.OmniRouteProviderBaseURL()
+		}
+	}
+	p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
+	if strings.EqualFold(p.Type, "cloudflare-rest") && p.BaseURL == "" && config.ValidAIGatewaySegment(p.AccountID) {
+		p.BaseURL = "https://api.cloudflare.com/client/v4/accounts/" + p.AccountID + "/ai/v1"
+	}
+}
+
 // providerDraftSameTarget reports whether the draft still talks to the saved
 // endpoint, so the saved credentials may be used for it.
 func providerDraftSameTarget(saved *config.ProviderEntry, draft config.ProviderEntry) bool {
 	same := func(a, b string) bool { return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b)) }
-	return same(saved.Type, draft.Type) && same(saved.BaseURL, draft.BaseURL) && same(saved.AccountID, draft.AccountID) &&
-		same(saved.GatewayID, draft.GatewayID) && same(saved.OAuthTokenURL, draft.OAuthTokenURL) && same(saved.OAuthAuthURL, draft.OAuthAuthURL)
+	if !(same(saved.Type, draft.Type) && same(saved.BaseURL, draft.BaseURL) && same(saved.AccountID, draft.AccountID) && same(saved.GatewayID, draft.GatewayID)) {
+		return false
+	}
+	// The OAuth endpoints only matter for OAuth: an API-key form sends none, and
+	// a leftover on the saved entry must not make the key look foreign.
+	if normalizeProviderAuthType(draft.AuthType) != "oauth2" {
+		return true
+	}
+	return same(saved.OAuthTokenURL, draft.OAuthTokenURL) && same(saved.OAuthAuthURL, draft.OAuthAuthURL)
 }
 
 func writeSavedProviderProbe(w http.ResponseWriter, s *Server, parent context.Context, cfg *config.Config, p config.ProviderEntry, kind string, result map[string]any, revision string) {

@@ -223,27 +223,6 @@ func TestValidateSetupTestBaseURLAllowsConfiguredLocalOllamaPort(t *testing.T) {
 	}
 }
 
-func TestResolveMeshCentralTestURLRejectsDifferentOverrideHost(t *testing.T) {
-	t.Parallel()
-
-	_, err := resolveMeshCentralTestURL("https://169.254.169.254", "https://mesh.example.com")
-	if err == nil || !strings.Contains(err.Error(), "configured MeshCentral host") {
-		t.Fatalf("expected configured-host override rejection, got %v", err)
-	}
-}
-
-func TestResolveMeshCentralTestURLAllowsConfiguredPrivateURL(t *testing.T) {
-	t.Parallel()
-
-	got, err := resolveMeshCentralTestURL("", "https://192.168.1.20")
-	if err != nil {
-		t.Fatalf("expected configured private MeshCentral URL to be allowed: %v", err)
-	}
-	if got != "https://192.168.1.20" {
-		t.Fatalf("resolved URL = %q", got)
-	}
-}
-
 func TestHandleMeshCentralTest_DoesNotUseVaultForUnconfiguredHost(t *testing.T) {
 	t.Parallel()
 

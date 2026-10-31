@@ -263,12 +263,46 @@ var (
 	errSQLTestSaveFirst       = errors.New("save the connection first to test a SQLite database")
 	errSQLTestPasswordNeeded  = errors.New("the connection target changed - enter the password to test it")
 	errSQLTestRequiredNetwork = errors.New("driver, host and database are required to test a connection")
+	errSQLTestInvalidSSLMode  = errors.New("ssl_mode must be one of disable, allow, prefer, require, verify-ca, verify-full")
 )
+
+// sqlSSLModeRank orders the TLS modes by strength. Reports false for an unknown mode.
+func sqlSSLModeRank(mode string) (int, bool) {
+	switch mode {
+	case "disable":
+		return 0, true
+	case "allow", "prefer":
+		return 1, true
+	case "require":
+		return 2, true
+	case "verify-ca":
+		return 3, true
+	case "verify-full":
+		return 4, true
+	}
+	return 0, false
+}
+
+// sqlSSLModeWeakened reports whether testing with the drafted mode instead of the
+// stored one lowers the transport protection. Only a stronger mode keeps the
+// stored password; a weaker, different or unknown stored mode counts as a change.
+func sqlSSLModeWeakened(stored, drafted string) bool {
+	if stored == drafted {
+		return false
+	}
+	if stored == "" {
+		stored = "disable" // the pool's default for an unset mode
+	}
+	storedRank, storedKnown := sqlSSLModeRank(stored)
+	draftedRank, draftedKnown := sqlSSLModeRank(drafted)
+	return !storedKnown || !draftedKnown || draftedRank <= storedRank
+}
 
 // resolveSQLConnectionTestTarget lays the edited record fields over the stored
 // record (nil for a connection that is not saved yet). Stored credentials follow
 // the target: they are only reused while driver, host, port, database and user
-// are unchanged and no new password is typed; a changed target needs the typed
+// are unchanged, the TLS mode is not weakened (disable < allow/prefer < require <
+// verify-ca < verify-full; an unknown mode is rejected) and no new password is typed; a changed target needs the typed
 // password, so a stored secret is never sent to an edited address.
 func resolveSQLConnectionTestTarget(req sqlConnectionRequest, stored *sqlconnections.ConnectionRecord, storedUser, storedPassword string) (sqlConnectionTestTarget, error) {
 	var rec sqlconnections.ConnectionRecord
@@ -288,6 +322,9 @@ func resolveSQLConnectionTestTarget(req sqlConnectionRequest, stored *sqlconnect
 		rec.DatabaseName = v
 	}
 	if v := strings.TrimSpace(req.SSLMode); v != "" {
+		if _, known := sqlSSLModeRank(v); !known {
+			return sqlConnectionTestTarget{}, errSQLTestInvalidSSLMode
+		}
 		rec.SSLMode = v
 	}
 	if v := strings.TrimSpace(req.Name); v != "" {
@@ -316,7 +353,8 @@ func resolveSQLConnectionTestTarget(req sqlConnectionRequest, stored *sqlconnect
 		!strings.EqualFold(rec.Host, stored.Host) ||
 		rec.Port != stored.Port ||
 		rec.DatabaseName != stored.DatabaseName ||
-		(username != "" && username != storedUser)
+		(username != "" && username != storedUser) ||
+		sqlSSLModeWeakened(stored.SSLMode, rec.SSLMode)
 
 	if password == "" {
 		if targetChanged {

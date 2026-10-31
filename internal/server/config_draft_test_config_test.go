@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -678,5 +679,29 @@ func TestRejectedPutLeavesNoSecretSideEffects(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(s.Cfg.ConfigPath); string(after) != string(file) {
 		t.Fatal("rejected save changed the file")
+	}
+}
+
+// Draft secrets are scoped to the request: they must not join the permanent
+// scrubber registry and stop redacting once the request context ends.
+func TestDraftTestConfigScopesTypedSecretsToTheRequest(t *testing.T) {
+	s := newDraftTestServer(t)
+	const secret = "scoped-draft-secret-Hq4v82Lm"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := draftRequest(`{"draft":{"home_assistant":{"access_token":"` + secret + `"}}}`).WithContext(ctx)
+	if _, err := s.draftTestConfig(req); err != nil {
+		t.Fatal(err)
+	}
+	if got := security.Scrub("token " + secret); strings.Contains(got, secret) {
+		t.Fatalf("typed draft secret is not scrubbed while the request runs: %q", got)
+	}
+	cancel()
+	deadline := time.Now().Add(2 * time.Second)
+	for strings.Contains(security.Scrub("token "+secret), "[redacted]") {
+		if time.Now().After(deadline) {
+			t.Fatal("typed draft secret stayed registered after the request ended")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }

@@ -293,7 +293,7 @@ func handleHomepageTestConnection(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		// The test uses the values typed into the form (draft); the target rule keeps
-		// the saved password and key from following a changed host or user.
+		// the saved password and key from following a changed host, port or user.
 		draft, err := s.draftTestConfig(r)
 		if err != nil {
 			writeDraftTestConfigError(w, err)

@@ -153,3 +153,43 @@ func TestHandleSQLConnectionTestRefusesChangedTargetWithoutPassword(t *testing.T
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+// F: a TLS mode that is not stronger than the stored one is a target change.
+func TestResolveSQLConnectionTestTargetSSLModeDowngradeNeedsPassword(t *testing.T) {
+	t.Parallel()
+
+	base := sqlconnections.ConnectionRecord{ID: "c1", Name: "Main", Driver: "postgres", Host: "db.local", Port: 5432, DatabaseName: "app", VaultSecretID: "v1"}
+	for _, tc := range []struct{ stored, drafted string }{
+		{"require", "disable"}, {"verify-full", "verify-ca"}, {"verify-ca", "require"}, {"require", "allow"},
+		{"prefer", "allow"}, {"disable", "tls-please"},
+	} {
+		stored := base
+		stored.SSLMode = tc.stored
+		_, err := resolveSQLConnectionTestTarget(sqlConnectionRequest{SSLMode: tc.drafted}, &stored, "alice", "s3cret")
+		if tc.drafted == "tls-please" {
+			if !errors.Is(err, errSQLTestInvalidSSLMode) {
+				t.Fatalf("unknown mode: err = %v, want errSQLTestInvalidSSLMode", err)
+			}
+			continue
+		}
+		if !errors.Is(err, errSQLTestPasswordNeeded) {
+			t.Fatalf("%s -> %s: err = %v, want errSQLTestPasswordNeeded", tc.stored, tc.drafted, err)
+		}
+	}
+
+	// A typed password may test the weaker mode, an upgrade keeps the stored password.
+	stored := base
+	stored.SSLMode = "require"
+	target, err := resolveSQLConnectionTestTarget(sqlConnectionRequest{SSLMode: "disable", Password: "typed"}, &stored, "alice", "s3cret")
+	if err != nil || target.Password != "typed" || target.Record.SSLMode != "disable" {
+		t.Fatalf("typed password: target = %+v, err = %v", target, err)
+	}
+	target, err = resolveSQLConnectionTestTarget(sqlConnectionRequest{SSLMode: "verify-full"}, &stored, "alice", "s3cret")
+	if err != nil || target.Password != "s3cret" || target.Record.SSLMode != "verify-full" {
+		t.Fatalf("upgrade: target = %+v, err = %v", target, err)
+	}
+	// Unchanged and unset modes keep using the stored secret untouched.
+	if target, err = resolveSQLConnectionTestTarget(sqlConnectionRequest{SSLMode: "require"}, &stored, "alice", "s3cret"); err != nil || !target.UseStoredVault {
+		t.Fatalf("same mode: target = %+v, err = %v", target, err)
+	}
+}

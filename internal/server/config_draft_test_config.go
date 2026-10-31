@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
@@ -167,9 +169,7 @@ func (s *Server) draftTestConfig(r *http.Request) (*config.Config, error) {
 	if err := extractRecursive(draft, "", overrides, discardLogger()); err != nil {
 		return nil, newDraftConfigError("Invalid draft: %s", err.Error())
 	}
-	for _, value := range overrides {
-		security.RegisterSensitive(value)
-	}
+	registerDraftSecretsScoped(r, overrides)
 
 	overlay := map[string]interface{}{}
 	stripDraftMaskedLeaves(draft)
@@ -226,12 +226,43 @@ func (s *Server) draftTestConfig(r *http.Request) (*config.Config, error) {
 	cfg.ApplyOAuthTokens(reader)
 	for _, section := range changed {
 		if missing := missingDraftSectionSecret(saved, cfg, section); missing != "" {
+			if draftSecretSaveFirst(section, missing) {
+				return nil, newDraftConfigError("The target of %q changed: save it first, its generated credentials cannot be entered here (Ziel geändert – bitte zuerst speichern)", section)
+			}
 			return nil, newDraftConfigError("The target of %q changed: enter the credentials again to test it (Ziel geändert – bitte Zugangsdaten erneut eingeben)", section)
 		}
 	}
 	cfg.Runtime = saved.Runtime
 	cfg.ConfigPath = saved.ConfigPath
 	return cfg, nil
+}
+
+// draftScopedSecretTTL bounds how long a draft secret stays registered when the
+// request context never ends (tests, background contexts).
+const draftScopedSecretTTL = 2 * time.Minute
+
+// registerDraftSecretsScoped keeps the typed draft secrets out of logs and error
+// text while the request runs, without adding them to the permanent scrubber
+// registry: a draft value is not saved, so it must not redact unrelated text
+// for the rest of the process. The values are released when the request context
+// ends, at the latest after draftScopedSecretTTL.
+func registerDraftSecretsScoped(r *http.Request, secrets map[string]string) {
+	releases := make([]func(), 0, len(secrets))
+	for _, value := range secrets {
+		releases = append(releases, security.RegisterScopedSensitiveExact(value))
+	}
+	if len(releases) == 0 {
+		return
+	}
+	release := func() {
+		for _, fn := range releases {
+			fn()
+		}
+	}
+	time.AfterFunc(draftScopedSecretTTL, release)
+	if r != nil {
+		context.AfterFunc(r.Context(), release)
+	}
 }
 
 // readDraftPatch parses the optional {"draft": {...}} body and restores r.Body.
@@ -436,6 +467,7 @@ var draftTargetFieldNames = map[string]bool{
 	"user": true, "userid": true, "tokenid": true, "region": true, "bucket": true,
 	"account": true, "accountid": true, "broker": true, "domain": true, "tenant": true,
 	"tenantid": true, "inbox": true, "usetls": true, "tlsmode": true, "starttls": true, "pathstyle": true, "usepathstyle": true,
+	"deployport": true, "deployuser": true, "cafile": true,
 }
 
 // draftSecretNameFragments mark yaml:"-" string fields without vault tag as secrets.
@@ -485,6 +517,10 @@ func isDraftSecretField(field reflect.StructField) bool {
 	yamlName := strings.Split(field.Tag.Get("yaml"), ",")[0]
 	if field.Tag.Get("vault") != "" || sensitiveKeys[yamlName] {
 		return true
+	}
+	// An identifier such as credential_id points at a secret, it is not one.
+	if strings.HasSuffix(name, "id") {
+		return false
 	}
 	for _, fragment := range draftSecretNameFragments {
 		if strings.Contains(name, fragment) {
@@ -581,8 +617,35 @@ func zeroDraftSectionSecrets(cfg *config.Config, section string) {
 	})
 }
 
+// draftSectionNeedsSecret says whether a connection test of the section uses the
+// secret at path (normalized, as visitDraftSecretFields reports it). Sections
+// without a rule need every secret. Secrets a test does not use must not be
+// demanded after a target change, least of all vault-only ones the user cannot
+// type: the virtual computers storage test needs the S3 keys in external mode
+// and the generated Garage keys in managed mode.
+func draftSectionNeedsSecret(drafted *config.Config, section, path string) bool {
+	if section != "virtual_computers" {
+		return true
+	}
+	external := drafted.VirtualComputers.Storage.Mode == config.VirtualComputersStorageModeExternalS3
+	switch path {
+	case "virtual_computers.s3accesskeyid", "virtual_computers.s3secretkey":
+		return external
+	case "virtual_computers.garageaccesskeyid", "virtual_computers.garagesecretkey":
+		return !external
+	}
+	return false
+}
+
+// draftSecretSaveFirst reports a needed secret that has no editable field, so the
+// user cannot enter it again: the target must be saved (and set up) first.
+func draftSecretSaveFirst(section, path string) bool {
+	return section == "virtual_computers" && strings.HasPrefix(path, "virtual_computers.garage")
+}
+
 // missingDraftSectionSecret returns the path of a secret that was set in the
-// saved section but is empty in the draft (target changed, nothing typed).
+// saved section but is empty in the draft (target changed, nothing typed) and
+// that a test of the section needs (draftSectionNeedsSecret).
 func missingDraftSectionSecret(saved, drafted *config.Config, section string) string {
 	savedValue, ok := draftSectionValue(saved, section)
 	if !ok {
@@ -595,7 +658,7 @@ func missingDraftSectionSecret(saved, drafted *config.Config, section string) st
 	})
 	missing := ""
 	visitDraftSecretFields(draftedValue, section, func(path string, field reflect.Value) {
-		if savedSecrets[path] != "" && field.String() == "" && missing == "" {
+		if savedSecrets[path] != "" && field.String() == "" && missing == "" && draftSectionNeedsSecret(drafted, section, path) {
 			missing = path
 		}
 	})

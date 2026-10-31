@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -561,8 +562,11 @@ func handleOpenRouterModels(s *Server) http.HandlerFunc {
 }
 
 // handleMeshCentralTest attempts a login + WebSocket handshake against the MeshCentral server.
-// Accepts an optional JSON body with fields {url, username, password}; any empty/omitted field
-// falls back to the saved config value (password also falls back to the vault).
+// It tests the form as typed in (draftTestConfig, meshcentral section): the body is
+// {"draft": {...}}, or the legacy flat fields {url, username, password, login_token,
+// insecure, ca_file}, which are mapped into such a draft. Empty fields mean "the
+// saved value". The saved password and login token only follow an unchanged target
+// (url, username, insecure, ca_file); the handler never reads the vault itself.
 func handleMeshCentralTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -571,92 +575,38 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		// Parse optional override values from request body.
-		// Always attempt decode regardless of ContentLength (HTTP/2 may omit it).
-		var body struct {
-			URL        string `json:"url"`
-			Username   string `json:"username"`
-			Password   string `json:"password"`
-			LoginToken string `json:"login_token"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-
-		// Fall back to saved config
-		s.CfgMu.RLock()
-		configuredURL := s.Cfg.MeshCentral.URL
-		username := body.Username
-		if username == "" {
-			username = s.Cfg.MeshCentral.Username
-		}
-		password := body.Password
-		if password == "" {
-			password = s.Cfg.MeshCentral.Password
-		}
-		loginToken := body.LoginToken
-		if loginToken == "" {
-			loginToken = s.Cfg.MeshCentral.LoginToken
-		}
-		insecure := s.Cfg.MeshCentral.Insecure
-		caFile := s.Cfg.MeshCentral.CAFile
-		s.CfgMu.RUnlock()
-
-		meshURL, err := resolveMeshCentralTestURL(body.URL, configuredURL)
-		if err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": err.Error(),
-			})
+		if err := meshCentralLegacyBodyToDraft(r); err != nil {
+			writeDraftTestConfigError(w, err)
 			return
 		}
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		mesh := cfg.MeshCentral
+		meshURL := strings.TrimSpace(mesh.URL)
+		username := mesh.Username
+		password := mesh.Password
+		loginToken := mesh.LoginToken
 
-		// Vault fallback for password / token: only allowed if meshURL matches configured host/origin
-		allowVaultFallback := configuredURL != ""
-		if allowVaultFallback {
-			same, err := sameURLOrigin(meshURL, configuredURL)
-			if err != nil || !same {
-				allowVaultFallback = false
-			}
-		}
-
-		if s.Vault != nil && allowVaultFallback {
-			if password == "" {
-				if v, _ := s.Vault.ReadSecret("meshcentral_password"); v != "" {
-					if s.Logger != nil {
-						s.Logger.Info("[MeshCentral Test] Found password in vault")
-					}
-					password = v
-				}
-			}
-			if loginToken == "" {
-				if v, _ := s.Vault.ReadSecret("meshcentral_token"); v != "" {
-					if s.Logger != nil {
-						s.Logger.Info("[MeshCentral Test] Found login token in vault", "tokenLength", len(v))
-					}
-					loginToken = v
-				} else if s.Logger != nil {
-					s.Logger.Info("[MeshCentral Test] No login token found in vault")
-				}
-			}
-		} else if s.Vault != nil && !allowVaultFallback && (password == "" || loginToken == "") {
-			if s.Logger != nil {
-				s.Logger.Info("[MeshCentral Test] Skipping vault fallback: target URL does not match configured URL")
-			}
-		} else if s.Vault == nil && s.Logger != nil {
-			s.Logger.Info("[MeshCentral Test] Vault is nil")
-		}
-
-		if password != "" {
-			security.RegisterSensitive(password)
-		}
-		if loginToken != "" {
-			security.RegisterSensitive(loginToken)
-		}
+		releasePassword := security.RegisterScopedSensitiveExact(password)
+		defer releasePassword()
+		releaseToken := security.RegisterScopedSensitiveExact(loginToken)
+		defer releaseToken()
 
 		// URL is always required. Username is required only when no login token is set.
 		if meshURL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "URL is required (not set in config)",
+			})
+			return
+		}
+		if _, err := parseHTTPOrigin(meshURL); err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": fmt.Sprintf("Invalid configuration: %v", err),
 			})
 			return
 		}
@@ -675,9 +625,9 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, insecure)
+		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, mesh.Insecure)
 		if err == nil {
-			mc.SetCAFile(caFile)
+			mc.SetCAFile(mesh.CAFile)
 		}
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -708,41 +658,64 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 	}
 }
 
-func resolveMeshCentralTestURL(overrideURL, configuredURL string) (string, error) {
-	candidate := strings.TrimSpace(overrideURL)
-	configured := strings.TrimSpace(configuredURL)
-	if candidate == "" {
-		return configured, nil
+// meshCentralLegacyBodyToDraft rewrites the legacy flat test body into the
+// {"draft":{"meshcentral":{...}}} form draftTestConfig reads. Bodies that already
+// carry a "draft" are left alone. Empty legacy fields are dropped: they mean "use
+// the saved value" and must not blank it in the draft.
+func meshCentralLegacyBodyToDraft(r *http.Request) error {
+	if r.Body == nil || r.Body == http.NoBody {
+		return nil
 	}
-
-	if configured != "" {
-		same, err := sameURLOrigin(candidate, configured)
-		if err != nil {
-			return "", err
-		}
-		if !same {
-			return "", fmt.Errorf("MeshCentral test URL override must match the configured MeshCentral host")
-		}
-		return candidate, nil
-	}
-
-	if err := security.ValidateSSRF(candidate); err != nil {
-		return "", fmt.Errorf("MeshCentral URL rejected: %w", err)
-	}
-	return candidate, nil
-}
-
-func sameURLOrigin(a, b string) (bool, error) {
-	parsedA, err := parseHTTPOrigin(a)
+	raw, err := io.ReadAll(io.LimitReader(r.Body, draftTestMaxBody+1))
+	_ = r.Body.Close()
 	if err != nil {
-		return false, err
+		return newDraftConfigError("Failed to read request body")
 	}
-	parsedB, err := parseHTTPOrigin(b)
-	if err != nil {
-		return false, err
+	if len(raw) > draftTestMaxBody {
+		return newDraftConfigError("Request body too large")
 	}
-	return strings.EqualFold(parsedA.Scheme, parsedB.Scheme) &&
-		strings.EqualFold(parsedA.Host, parsedB.Host), nil
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return nil
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return newDraftConfigError("Invalid JSON")
+	}
+	if _, hasDraft := fields["draft"]; hasDraft {
+		return nil
+	}
+	var legacy struct {
+		URL        string `json:"url"`
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		LoginToken string `json:"login_token"`
+		Insecure   *bool  `json:"insecure"`
+		CAFile     string `json:"ca_file"`
+	}
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		return newDraftConfigError("Invalid JSON")
+	}
+	mesh := map[string]interface{}{}
+	for key, value := range map[string]string{
+		"url": strings.TrimSpace(legacy.URL), "username": legacy.Username, "password": legacy.Password,
+		"login_token": legacy.LoginToken, "ca_file": strings.TrimSpace(legacy.CAFile),
+	} {
+		if value != "" {
+			mesh[key] = value
+		}
+	}
+	if legacy.Insecure != nil {
+		mesh["insecure"] = *legacy.Insecure
+	}
+	body := []byte("{}")
+	if len(mesh) > 0 {
+		if body, err = json.Marshal(map[string]interface{}{"draft": map[string]interface{}{"meshcentral": mesh}}); err != nil {
+			return newDraftConfigError("Invalid JSON")
+		}
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	return nil
 }
 
 func parseHTTPOrigin(raw string) (*neturl.URL, error) {
