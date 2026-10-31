@@ -80,7 +80,7 @@
             group.classList.toggle('cfg-switch-field', !!toggle && !!label);
             // The help follows the editor in both visual and screen-reader order.
             if (help && !toggle && help.nextElementSibling && !help.nextElementSibling.matches('.pw-field-error, .cfg-save-scope')) {
-                const editor = group.querySelector(':scope > input, :scope > select, :scope > textarea, :scope > .password-wrap, :scope > .cfg-secret-row, :scope > .field-select-wrap');
+                const editor = group.querySelector(':scope > input, :scope > .cfg-input-unit, :scope > select, :scope > textarea, :scope > .password-wrap, :scope > .cfg-secret-row, :scope > .field-select-wrap');
                 if (editor && editor.previousElementSibling === help) editor.after(help);
             }
             group.querySelectorAll('input, select, textarea, .toggle[data-path]').forEach(control => {

@@ -287,8 +287,69 @@
         rules = Object.assign({}, nextRules || {});
     }
 
-    function validationMessage(path, code) {
-        return { path: path, code: code, message: code };
+    function validationMessage(path, code, params) {
+        const error = { path: path, code: code, message: code };
+        if (params) error.params = params;
+        return error;
+    }
+
+    // Rule kinds: type 'number' (min, max, integer, unit), type 'url' (schemes, schemeOptional),
+    // 'range' as a spelling of a number rule with min/max, pattern, options. 'unit' is display-only.
+    function isValidUrl(value, rule) {
+        const text = String(value).trim();
+        if (/\s/.test(text)) return false;
+        const schemes = Array.isArray(rule.schemes) && rule.schemes.length ? rule.schemes : ['http', 'https'];
+        if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) {
+            try {
+                const parsed = new URL(text);
+                return schemes.includes(parsed.protocol.replace(/:$/, '').toLowerCase()) && !!parsed.hostname;
+            } catch (_) {
+                return false;
+            }
+        }
+        // A bare host[:port] is only valid for rules that allow a missing scheme.
+        return rule.schemeOptional === true && /^[^/?#:@]+(:\d{1,5})?$/.test(text);
+    }
+
+    // Error codes of one value against one rule; the same checks run on save and inline.
+    function ruleErrors(path, rule, value) {
+        const errors = [];
+        const empty = value == null || String(value).trim() === '';
+        if (rule.required && empty) return [validationMessage(path, 'required')];
+        if (empty) return errors;
+        if (rule.type === 'number' || rule.type === 'range') {
+            if (typeof value !== 'number' || Number.isNaN(value)) return [validationMessage(path, 'number')];
+            if (rule.integer === true && !Number.isInteger(value)) errors.push(validationMessage(path, 'integer_required'));
+        }
+        if (rule.min != null && Number(value) < Number(rule.min)) errors.push(validationMessage(path, 'min', { min: rule.min, max: rule.max }));
+        if (rule.max != null && Number(value) > Number(rule.max)) errors.push(validationMessage(path, 'max', { min: rule.min, max: rule.max }));
+        if (rule.pattern && !(new RegExp(rule.pattern)).test(String(value))) errors.push(validationMessage(path, 'pattern'));
+        if (Array.isArray(rule.options) && !rule.options.includes(value)) errors.push(validationMessage(path, 'option'));
+        if (rule.type === 'url' && !isValidUrl(value, rule)) errors.push(validationMessage(path, 'url'));
+        return errors;
+    }
+
+    function pathErrors(path) {
+        const rule = rules[path];
+        const errors = [];
+        const code = invalidControls.get(path);
+        if (code) errors.push(validationMessage(path, code));
+        if (!rule) return errors;
+        // changedOnly rules check edits only; an unchanged saved value is not part of the patch.
+        if (rule.changedOnly && !changed.has(trackedPath(path))) return errors;
+        return errors.concat(ruleErrors(path, rule, read(draftConfig, path)));
+    }
+
+    // Inline check of one control: takes over its current value, then reports its errors only.
+    function validateElement(element) {
+        if (!element || !element.dataset || !element.dataset.path) return { valid: true, errors: [] };
+        syncElement(element);
+        const errors = pathErrors(element.dataset.path);
+        return { valid: errors.length === 0, errors: errors };
+    }
+
+    function ruleFor(path) {
+        return rules[path] || null;
     }
 
     function validate() {
@@ -309,29 +370,7 @@
             const rule = rules[path] || {};
             // changedOnly rules check edits only; an unchanged saved value is not part of the patch.
             if (rule.changedOnly && !changed.has(trackedPath(path))) return;
-            const value = read(draftConfig, path);
-            const empty = value == null || String(value).trim() === '';
-            if (rule.required && empty) {
-                errors.push(validationMessage(path, 'required'));
-                return;
-            }
-            if (empty) return;
-            if (rule.type === 'number' && (typeof value !== 'number' || Number.isNaN(value))) {
-                errors.push(validationMessage(path, 'number'));
-                return;
-            }
-            if (rule.min != null && Number(value) < Number(rule.min)) errors.push(validationMessage(path, 'min'));
-            if (rule.max != null && Number(value) > Number(rule.max)) errors.push(validationMessage(path, 'max'));
-            if (rule.pattern && !(new RegExp(rule.pattern)).test(String(value))) errors.push(validationMessage(path, 'pattern'));
-            if (Array.isArray(rule.options) && !rule.options.includes(value)) errors.push(validationMessage(path, 'option'));
-            if (rule.type === 'url') {
-                try {
-                    const parsed = new URL(String(value));
-                    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('protocol');
-                } catch (_) {
-                    errors.push(validationMessage(path, 'url'));
-                }
-            }
+            ruleErrors(path, rule, read(draftConfig, path)).forEach(error => errors.push(error));
         });
         const cf = draftConfig.cloudflare_tunnel || {};
         const server = draftConfig.server || {};
@@ -435,6 +474,8 @@
         isDirty: isDirty,
         buildPatch: buildPatch,
         validate: validate,
+        validateElement: validateElement,
+        ruleFor: ruleFor,
         setRules: setRules,
         commit: commit,
         commitSent: commitSent,

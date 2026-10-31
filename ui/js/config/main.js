@@ -473,6 +473,7 @@ async function init() {
         if (window.AuraConfigState) {
             window.AuraConfigState.init(configData);
             window.AuraConfigState.bind(document);
+            installConfigInlineValidation();
             window.AuraConfigState.subscribe(state => setDirty(state.dirty));
         }
         schema = await schemaResp.json();
@@ -1173,20 +1174,26 @@ function configSearchEntriesForSection(sectionKey) {
     });
 }
 
+// Rules per config path: schema numbers, then name-derived defaults (catalog.deriveValidationRule),
+// then the explicit catalog table, which always wins. Cached for the loaded schema.
+let configRulesCache = null;
 function configValidationRules() {
+    if (configRulesCache && configRulesCache.schema === schema) return configRulesCache.rules;
+    const catalog = window.AuraConfigCatalog || {};
     const result = {};
     const collect = fields => (fields || []).forEach(field => {
         if (field.type === 'object' && Array.isArray(field.children)) {
             collect(field.children);
             return;
         }
-        if (field.type === 'int' || field.type === 'float') {
-            result[field.key] = { type: 'number' };
-        }
+        const derived = typeof catalog.deriveValidationRule === 'function' ? catalog.deriveValidationRule(field.key, field.type) : null;
+        if (derived) result[field.key] = derived;
+        else if (field.type === 'int' || field.type === 'float') result[field.key] = { type: 'number' };
     });
     collect(schema);
-    const catalog = window.AuraConfigCatalog || {};
-    return Object.assign(result, catalog.validationRules || {});
+    const rules = Object.assign(result, catalog.validationRules || {});
+    configRulesCache = { schema, rules };
+    return rules;
 }
 
 function sidebarItemMatches(item, terms) {
@@ -2809,7 +2816,13 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         if (fullPath.endsWith('agent.core_memory_max_entries')) {
             showValue = (value === undefined || value === null || value === 0 || value === '') ? 80 : value;
         }
-        html += '<input class="field-input" type="number" step="' + step + '" data-path="' + fullPath + '" value="' + (showValue ?? '') + '"' + cfgNoAutofillAttrs(false) + '>';
+        const numberRule = configValidationRules()[fullPath] || {};
+        let numberControl = '<input class="field-input" type="number" step="' + step + '"'
+            + (numberRule.min != null ? ' min="' + numberRule.min + '"' : '')
+            + (numberRule.max != null ? ' max="' + numberRule.max + '"' : '')
+            + ' data-path="' + fullPath + '" value="' + (showValue ?? '') + '"' + cfgNoAutofillAttrs(false) + '>';
+        if (numberRule.unit) numberControl = '<div class="cfg-input-unit">' + numberControl + '<span class="cfg-unit">' + escapeHtml(numberRule.unit) + '</span></div>';
+        html += numberControl;
     } else if (fieldType === 'array') {
         // budget.models is now managed in Provider settings
         if (fullPath === 'budget.models') {
@@ -3232,6 +3245,71 @@ function clearConfigValidation() {
     });
 }
 
+// Text of a validation error; {min}/{max} come from the rule that failed.
+function configValidationText(error) {
+    const translated = t('config.precision.validation_' + error.code);
+    const text = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
+    const params = error.params || {};
+    return String(text).replace(/\{(min|max)\}/g, (match, name) => params[name] != null ? params[name] : match);
+}
+
+// Puts the alert below the field (below the unit wrapper for numbers with a unit) and links it
+// through aria-describedby next to the existing help id.
+function placeConfigFieldError(control, path, text) {
+    const id = (control.id || 'cfg-' + (path || '').replace(/[^a-z0-9_-]/gi, '-')) + '-validation';
+    let message = document.getElementById(id);
+    if (!message) {
+        message = document.createElement('div');
+        message.id = id;
+        message.className = 'pw-field-error';
+        message.dataset.configValidation = 'true';
+        message.setAttribute('role', 'alert');
+        const anchor = control.parentElement && control.parentElement.classList.contains('cfg-input-unit') ? control.parentElement : control;
+        anchor.insertAdjacentElement('afterend', message);
+    }
+    message.textContent = text;
+    control.setAttribute('aria-invalid', 'true');
+    control.dataset.configValidation = 'true';
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    describedBy.add(id);
+    control.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
+    return message;
+}
+
+function clearConfigFieldError(control) {
+    document.querySelectorAll('.pw-field-error[data-config-validation]').forEach(message => {
+        if ((control.getAttribute('aria-describedby') || '').split(/\s+/).includes(message.id)) message.remove();
+    });
+    control.removeAttribute('aria-invalid');
+    delete control.dataset.configValidation;
+    const describedBy = (control.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && !id.endsWith('-validation'));
+    if (describedBy.length) control.setAttribute('aria-describedby', describedBy.join(' '));
+    else control.removeAttribute('aria-describedby');
+}
+
+// Inline validation while editing: on blur/change always, while typing only once an error shows,
+// so a half-typed URL is not flagged. Save stays blocked by AuraConfigState.validate().
+function validateConfigControlInline(control, eventType) {
+    if (!window.AuraConfigState || !control || !control.dataset || !control.dataset.path) return;
+    if (!control.matches('input:not([type="checkbox"]):not([type="radio"]), select, textarea')) return;
+    const showing = control.dataset.configValidation === 'true';
+    if (!showing && !window.AuraConfigState.ruleFor(control.dataset.path)) return;
+    if (eventType === 'input' && !showing) return;
+    const result = window.AuraConfigState.validateElement(control);
+    if (result.valid) clearConfigFieldError(control);
+    else placeConfigFieldError(control, control.dataset.path, configValidationText(result.errors[0]));
+}
+
+let configInlineValidationInstalled = false;
+// Registered after AuraConfigState.bind(document) so the state has taken over the value first.
+function installConfigInlineValidation() {
+    if (configInlineValidationInstalled) return;
+    configInlineValidationInstalled = true;
+    document.addEventListener('input', event => validateConfigControlInline(event.target, 'input'));
+    document.addEventListener('change', event => validateConfigControlInline(event.target, 'change'));
+    document.addEventListener('focusout', event => validateConfigControlInline(event.target, 'blur'));
+}
+
 function showConfigValidationErrors(errors) {
     clearConfigValidation();
     let first = null;
@@ -3239,26 +3317,13 @@ function showConfigValidationErrors(errors) {
     (errors || []).forEach(error => {
         const selector = '[data-path="' + CSS.escape(error.path || '') + '"]';
         const control = error.controlId ? document.getElementById(error.controlId) : document.querySelector(selector);
-        const translated = t('config.precision.validation_' + error.code);
-        const text = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
+        const text = configValidationText(error);
         // Hidden or unrendered controls (another section) still need a visible reason.
         if (!control || !control.getClientRects().length) {
             unshown.push((error.path || '') + ': ' + text);
             if (!control) return;
         }
-        const id = (control.id || 'cfg-' + (error.path || '').replace(/[^a-z0-9_-]/gi, '-')) + '-validation';
-        const message = document.createElement('div');
-        message.id = id;
-        message.className = 'pw-field-error';
-        message.dataset.configValidation = 'true';
-        message.setAttribute('role', 'alert');
-        message.textContent = text;
-        control.setAttribute('aria-invalid', 'true');
-        control.dataset.configValidation = 'true';
-        const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
-        describedBy.add(id);
-        control.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
-        control.insertAdjacentElement('afterend', message);
+        placeConfigFieldError(control, error.path, text);
         if (!first && control.getClientRects().length) first = control;
     });
     if (unshown.length) showToast(unshown.join('\n'), 'error', 8000);

@@ -90,6 +90,36 @@
         'huggingface.allow_job_token_injection': 'host'
     });
 
+    // Generic fields get a default rule from their name when the table below has no entry.
+    // Derived rules are changedOnly: a value the user did not touch never blocks a save.
+    //   *port            0-65535 (the backend reads 0 as "use the default" or "off")
+    //   url, *_url       scheme http, https, ws or wss (printers, relays and websockets use ws)
+    //   endpoint         the same, or a bare host[:port] (S3 endpoints are host:port)
+    //   *_seconds/_secs/_sec/_ms/_minutes, timeout*, *_timeout, interval*   zero or more; the unit
+    //                    is shown for the suffixes that name one
+    const URL_SCHEMES = Object.freeze(['http', 'https', 'ws', 'wss']);
+    function deriveValidationRule(path, type) {
+        const leaf = String(path || '').split('.').pop();
+        if (type === 'int' || type === 'float') {
+            const integer = type === 'int';
+            if (/(^|_)port(_|$)/.test(leaf)) {
+                return { type: 'number', min: 0, max: 65535, integer: true, changedOnly: true, derived: true };
+            }
+            const units = [[/_(seconds|secs|sec)$/, 's'], [/_ms$/, 'ms'], [/_minutes$/, 'min']];
+            const unit = (units.find(entry => entry[0].test(leaf)) || [])[1];
+            if (unit || /(^|_)(timeout|interval)(_|$)/.test(leaf)) {
+                const rule = { type: 'number', min: 0, integer, changedOnly: true, derived: true };
+                if (unit) rule.unit = unit;
+                return rule;
+            }
+        }
+        if (type === 'string' || type === 'url') {
+            if (/(^|_)url$/.test(leaf)) return { type: 'url', schemes: URL_SCHEMES, changedOnly: true, derived: true };
+            if (leaf === 'endpoint') return { type: 'url', schemes: URL_SCHEMES, schemeOptional: true, changedOnly: true, derived: true };
+        }
+        return null;
+    }
+
     const validationRules = Object.freeze({
         'cloudflare_tunnel.loopback_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
         'cloudflare_tunnel.metrics_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
@@ -188,6 +218,7 @@
         actionRules,
         sectionStatePaths,
         validationRules,
+        deriveValidationRule,
         confirmOnEnable,
         // Semantic surfaces declared by the integration renderers. These are exact
         // selectors, never guesses from a field name or DOM nesting depth.
@@ -234,11 +265,78 @@
             output_compression: ['agent.output_compression'],
             danger_zone: ['agent.allow_shell', 'agent.allow_python', 'agent.allow_filesystem_write', 'agent.allow_network_requests', 'agent.allow_remote_shell', 'agent.allow_self_update', 'agent.allow_package_manager', 'agent.allow_mcp', 'agent.sudo_enabled', 'docker.allow_host_access']
         }),
-        // Only explicitly reviewed tuning fields may be collapsed. Unknown fields stay visible.
-        sectionTiers: Object.freeze({
-            'server.debug_mode': 'advanced',
-            'agent.debug_mode': 'advanced',
-            'circuit_breaker.llm_timeout_seconds': 'advanced'
-        })
+        // Only explicitly reviewed expert fields may be collapsed (timeouts, retries, buffers, internal
+        // paths, debug flags, rarely changed tuning). Required fields, enable switches, permission
+        // switches and credentials never belong here. Unknown fields stay visible.
+        sectionTiers: Object.freeze(Object.fromEntries([
+            // Debug flags and timeouts
+            'server.debug_mode', 'agent.debug_mode', 'circuit_breaker.llm_timeout_seconds',
+            // Tool permissions: timeouts, knowledge graph tuning, on-demand memory limits
+            'tools.background_timeout_seconds', 'tools.python_timeout_seconds', 'tools.skill_timeout_seconds',
+            'tools.knowledge_graph.exclude_node_types', 'tools.knowledge_graph.low_confidence_co_mention_min_weight',
+            'tools.knowledge_graph.max_prompt_chars', 'tools.knowledge_graph.max_prompt_nodes',
+            'tools.knowledge_graph.min_semantic_similarity', 'tools.knowledge_graph.pending_co_mention_ttl_days',
+            'tools.knowledge_graph.protect_id_prefixes', 'tools.knowledge_graph.protect_optimize_sources',
+            'tools.knowledge_graph.semantic_reindex_interval',
+            'tools.memory.ondemand_retrieval.dedupe_scope', 'tools.memory.ondemand_retrieval.max_available_chars',
+            'tools.memory.ondemand_retrieval.max_available_kg_nodes', 'tools.memory.ondemand_retrieval.max_available_memories',
+            'tools.memory.ondemand_retrieval.max_essential_memories',
+            // Optimizations: buffers, adaptive tool tuning, recovery, background tasks
+            'agent.memory_compression_char_limit', 'agent.core_memory_cap_mode', 'agent.max_tool_guides', 'agent.tool_output_limit',
+            'agent.adaptive_tools.decay_half_life_days', 'agent.adaptive_tools.max_schema_tokens',
+            'agent.adaptive_tools.max_total_tools', 'agent.adaptive_tools.session_tool_retention_turns',
+            'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals',
+            'agent.recovery.duplicate_consecutive_hits', 'agent.recovery.duplicate_frequency_hits',
+            'agent.recovery.identical_tool_error_hits', 'agent.recovery.max_provider_422_recoveries',
+            'agent.recovery.min_messages_for_empty_retry',
+            'agent.background_tasks.follow_up_delay_seconds', 'agent.background_tasks.http_timeout_seconds',
+            'agent.background_tasks.max_active_tasks', 'agent.background_tasks.max_due_starts_per_tick',
+            'agent.background_tasks.max_retries', 'agent.background_tasks.max_terminal_tasks',
+            'agent.background_tasks.retain_completed_days', 'agent.background_tasks.retain_failed_days',
+            'agent.background_tasks.retry_delay_seconds', 'agent.background_tasks.wait_default_timeout_secs',
+            'agent.background_tasks.wait_poll_interval_seconds',
+            // Agent
+            'agent.max_concurrent_loops', 'agent.max_cron_jobs', 'agent.step_delay_seconds',
+            'agent.history_compaction.keep_recent_tool_rounds_full',
+            'agent.reuse_first.max_artifacts_per_session', 'agent.reuse_first.min_steps',
+            // LLM, server, logging
+            'llm.anthropic_thinking.budget_tokens', 'llm.anthropic_thinking.model_allowlist',
+            'server.max_body_bytes', 'server.oauth_redirect_base_url',
+            'logging.log_dir', 'logging.enable_prompt_log',
+            // Internal paths: databases and folders
+            'sqlite.short_term_path',
+            'sqlite.long_term_path',
+            'sqlite.inventory_path',
+            'sqlite.invasion_path',
+            'sqlite.cheatsheet_path',
+            'sqlite.image_gallery_path',
+            'sqlite.remote_control_path',
+            'sqlite.media_registry_path',
+            'sqlite.homepage_registry_path',
+            'sqlite.game_maker_path',
+            'sqlite.detective_path',
+            'sqlite.cyd_creator_path',
+            'sqlite.contacts_path',
+            'sqlite.planner_path',
+            'sqlite.virtual_desktop_path',
+            'sqlite.virtual_computers_path',
+            'sqlite.site_monitor_path',
+            'sqlite.sql_connections_path',
+            'sqlite.skills_path',
+            'sqlite.knowledge_graph_path',
+            'sqlite.optimization_path',
+            'sqlite.prepared_missions_path',
+            'sqlite.mission_history_path',
+            'sqlite.push_path',
+            'sqlite.launchpad_path',
+            'sqlite.network_shares_path',
+            'directories.data_dir',
+            'directories.workspace_dir',
+            'directories.tools_dir',
+            'directories.prompts_dir',
+            'directories.skills_dir',
+            'directories.agent_skills_dir',
+            'directories.vectordb_dir'
+        ].map(path => [path, 'advanced'])))
     });
 })();
