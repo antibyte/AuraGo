@@ -18,6 +18,23 @@ Tests:
 - Backup-Tests im Server-Paket grün.
 - Updater-Tests (`internal/audit`, `update`) unter Linux im Container `golang:1.27.3` grün, ohne Skips.
 
+### Welle 2 (2026-10-31)
+
+Welle 2 ist auf dem lokalen main (`7a2ecfab2..93ee8ddee`), nicht gepusht und nicht deployed.
+
+| Befund | Commit | Kern der Änderung |
+| --- | --- | --- |
+| B1 | `7a2ecfab2` | 12 weitere Datenbanken, Laufzeitdateien, `data/documents/`, Agent-Skills (`agent_workspace/agent_skills/`); Ausnahmen dokumentiert (tsnet, Modelle/Caches, Suchindex); Guard-Test `TestSQLiteOpensAreBackedUpOrExcluded` |
+| B2, B7 | `b0ae39698`, `82aead839`, `93ee8ddee` | Import validiert und stellt nur bereit (`data/.restore-pending`); Anwendung beim nächsten Start nach dem Instanz-Lock, vor Config und Datenbanken; Rollback-Journal mit `rollback-complete`-Marker (crash-sicher); Ziele werden aus relativen Pfaden neu berechnet und erneut geprüft; Sidecars werden entfernt; Ergebnis in `data/.restore-last.json`; Vault-Secrets werden ebenfalls bereitgestellt und nur nach erfolgreicher Anwendung übernommen; `GET/DELETE /api/backup/restore-status`; Manifest mit `app_version` und `user_version` je DB, neuere Backups → 400; SQLite-Snapshots bis zur Gesamtgrenze, übergroße Dokumente werden übersprungen |
+| B8 | `85469dc88`, `ab5350f5c` | Bestätigung vor dem Import, Teilerfolg als Warnung, Neustart-Knopf nur bei `restart_required`, Status der bereitgestellten Wiederherstellung mit „Verwerfen“, robuste Fehleranzeige; 16 Sprachen |
+| Doku | `0fcd2de5d` | Handbuch en/de: API-Referenz, Anhang, Schlüsselrotation, Tresor |
+
+Tests:
+
+- `restorepending`, `config`, `security`, `i18n` und `ui` grün.
+- Backup/Restore/WebAuthn-Tests im Server-Paket grün, `internal/audit` komplett grün.
+- Ein echter Neustart mit Wiederherstellung ist **nicht** geprüft. Das bleibt Abnahme auf aurago-test.
+
 Neu offen aus dem Review:
 
 - `snapshot.publication.correction.*`: Eine fehlgeschlagene Korrektur behält ihren Marker, bis dieselbe Korrektur erneut angewendet wird (`correction_apply.go:129-137`). Wird sie nie wiederholt, bleiben Snapshots gesperrt.
