@@ -88,16 +88,34 @@ func handleVercelTestConnection(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		token, err := s.Vault.ReadSecret("vercel_token")
-		if err != nil || token == "" {
+		// The test uses the values typed into the form (draft); the token comes from the draft or the vault.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		token := draft.Vercel.Token
+		if token == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Vercel token not found in vault. Store it with key 'vercel_token' first.",
+				"message": "Vercel token is missing. Enter a token and try again.",
 			})
 			return
 		}
 
-		vcfg := vercelServerConfig(s, token)
+		security.RegisterSensitive(token)
+		vcfg := tools.VercelConfig{
+			Context:                r.Context(),
+			Token:                  token,
+			DefaultProjectID:       draft.Vercel.DefaultProjectID,
+			TeamID:                 draft.Vercel.TeamID,
+			TeamSlug:               draft.Vercel.TeamSlug,
+			ReadOnly:               draft.Vercel.ReadOnly,
+			AllowDeploy:            draft.Vercel.AllowDeploy,
+			AllowProjectManagement: draft.Vercel.AllowProjectManagement,
+			AllowEnvManagement:     draft.Vercel.AllowEnvManagement,
+			AllowDomainManagement:  draft.Vercel.AllowDomainManagement,
+		}
 
 		diagResult := tools.VercelCheckConnection(vcfg)
 		var diag map[string]interface{}

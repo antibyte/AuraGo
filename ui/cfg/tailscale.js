@@ -19,7 +19,7 @@ async function renderTailscaleSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.tailscale.api_title')}</div>
         <div class="field-group-desc">${t('config.tailscale.api_desc')}</div>
-        <div id="ts-api-status-banner" class="adg-status-banner">${t('config.tailscale.checking')}</div>`;
+        ${cfgStatusBanner.html('ts-api-status-banner', cfg.enabled ? 'checking' : 'off', { detail: cfg.enabled ? '' : t('config.tailscale.status_disabled') })}`;
 
     html += `<div class="field-group">
         <span class="field-label">${t('config.tailscale.enabled_label')}</span>
@@ -41,17 +41,15 @@ async function renderTailscaleSection(section) {
         <div class="field-help">${t('config.tailscale.api_key_hint')}</div>
         <div class="adg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="ts-api-key-input" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="ts-api-key-input" data-path="tailscale.api_key" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save adg-save-btn" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
         </div>
-        <div id="ts-api-key-status" class="adg-test-result"></div>
     </div>`;
 
     html += `<div class="cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn">🔌 ${t('config.tailscale.test_btn')}</button>
-        <span id="ts-api-test-result" class="adg-test-result"></span>
+        <button class="btn-save adg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn" data-config-action-draft="true">🔌 ${t('config.tailscale.test_btn')}</button>
+        ${cfgActionResult.html('ts-api-test-result')}
     </div>`;
 
     html += `</div>`;
@@ -157,12 +155,10 @@ async function renderTailscaleSection(section) {
             <div class="field-help">${t('config.tailscale.tsnet_shared_key_hint')}</div>
             <div class="adg-password-row">
                 <div class="password-wrap cfg-password-input">
-                    <input class="field-input adg-password-input" type="password" id="ts-auth-key-input" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
+                    <input class="field-input adg-password-input" type="password" id="ts-auth-key-input" data-path="tailscale.tsnet.auth_key" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                 </div>
-                <button class="btn-save adg-save-btn" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
             </div>
-            <div id="ts-auth-key-status" class="adg-test-result"></div>
             <div id="tsnet-shared-key-warning"></div>
         </div>`;
 
@@ -175,7 +171,8 @@ async function renderTailscaleSection(section) {
             <div class="ts-btn-row">
                 <button class="btn btn-sm btn-secondary" onclick="_tsnetRefreshStatus()">🔄 ${t('config.tailscale.tsnet_btn_refresh')}</button>
                 <button id="tsnet-btn-start" class="btn btn-sm btn-success is-hidden" onclick="_tsnetStart()">▶ ${t('config.tailscale.tsnet_btn_start')}</button>
-                <button class="btn btn-sm btn-warning" onclick="_tsnetStop()">⏹ ${t('config.tailscale.tsnet_btn_stop')}</button>
+                <button id="tsnet-btn-stop" class="btn btn-sm btn-warning" onclick="_tsnetStop()">⏹ ${t('config.tailscale.tsnet_btn_stop')}</button>
+                ${cfgActionResult.html('tsnet-action-result')}
             </div>
         </div>`;
 
@@ -195,79 +192,40 @@ async function renderTailscaleSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
-    if (cfg.enabled) {
-        tsApiCheckStatus();
-    } else {
-        tsApiSetBanner('neutral', '⚪ ' + t('config.tailscale.status_disabled'));
-    }
+    if (cfg.enabled) tsApiCheckStatus();
 
     if (tsEnabled) {
         _tsnetRefreshStatus();
     }
 }
 
-function tsApiSetBanner(state, text) {
-    const banner = document.getElementById('ts-api-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
-}
-
 function tsApiCheckStatus() {
-    tsApiSetBanner('neutral', t('config.tailscale.checking'));
-    fetch('/api/tailscale/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                tsApiSetBanner('neutral', '⚪ ' + t('config.tailscale.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_credentials') {
-                tsApiSetBanner('warning', '🟡 ' + t('config.tailscale.status_no_credentials'));
-                return;
-            }
-            if (res.status === 'ok') {
-                let text = '🟢 ' + t('config.tailscale.status_ok');
-                if (typeof res.count === 'number') text += ' (' + res.count + ')';
-                tsApiSetBanner('success', text);
-                return;
-            }
-            tsApiSetBanner('danger', '🔴 ' + (res.message || t('config.tailscale.connection_failed')));
-        })
-        .catch(() => tsApiSetBanner('danger', '🔴 ' + t('config.tailscale.connection_failed')));
+    const banner = document.getElementById('ts-api-status-banner');
+    if (!banner) return null;
+    return cfgStatusBanner.check(banner, () => fetch('/api/tailscale/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off', detail: t('config.tailscale.status_disabled') };
+        if (res.status === 'no_credentials') return { state: 'unconfigured', detail: t('config.tailscale.status_no_credentials') };
+        if (res.status === 'ok') {
+            return { state: 'connected', detail: t('config.tailscale.status_ok') + (typeof res.count === 'number' ? ' (' + res.count + ')' : '') };
+        }
+        return { state: 'error', detail: res.message || t('config.tailscale.connection_failed') };
+    });
 }
 
+// The test sends the form values (draft), so the banner (saved state) stays as it is.
 function tsApiTestConnection() {
     const btn = document.getElementById('ts-api-test-btn');
-    const result = document.getElementById('ts-api-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.tailscale.loading');
-        result.className = 'adg-test-result';
-    }
-
-    fetch('/api/tailscale/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.tailscale.status_success') + ' ' + t('config.tailscale.test_ok');
-                tsApiCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.tailscale.status_error') + ' ' + (res.message || t('config.tailscale.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.tailscale.status_error') + ' ' + t('config.tailscale.test_fail');
-            }
-        });
+    return cfgActionResult(btn, () => fetch('/api/tailscale/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['tailscale']) })
+    }), {
+        target: 'ts-api-test-result',
+        pending: t('config.tailscale.loading'),
+        success: t('config.tailscale.test_ok'),
+        failure: t('config.tailscale.test_fail')
+    });
 }
 
 async function _tsnetRefreshStatus() {
@@ -499,6 +457,11 @@ function _tsnetRenderNodeCards(data) {
     const operationRunning = !!(data.operation && (data.operation.state === 'running' || data.operation.state === 'pending'));
     const disabled = operationRunning || _tsnetActionsBlocked();
     const nodeOrder = ['main', 'manifest', 'space_agent'];
+    const typedKeys = {};
+    nodeOrder.forEach(node => {
+        const input = document.getElementById(`tsnet-node-key-${node}`);
+        if (input && input.value) typedKeys[node] = input.value;
+    });
     container.innerHTML = nodeOrder.map(node => {
         const state = nodes[node] || {};
         const health = state.health || 'stopped';
@@ -524,16 +487,22 @@ function _tsnetRenderNodeCards(data) {
                     <input class="field-input adg-password-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)" ${disabled ? 'disabled' : ''}>${EYE_OPEN_SVG}</button>
                 </div>
-                <button class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>💾 ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
+                <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>💾 ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
             </div>
-            <div id="tsnet-node-result-${escapeAttr(node)}" class="adg-test-result"></div>
+            ${cfgActionResult.html('tsnet-node-result-' + node)}
             <div class="ts-btn-row">
-                <button class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>🔐 ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
-                <button class="btn btn-sm btn-secondary" onclick="_tsnetDeleteNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>🗑 ${escapeHtml(t('config.tailscale.tsnet_delete_node_key'))}</button>
-                ${recoveryAllowed ? `<button class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>⚠ ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
+                <button id="tsnet-node-reauth-${escapeAttr(node)}" class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>🔐 ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
+                <button id="tsnet-node-delete-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetDeleteNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>🗑 ${escapeHtml(t('config.tailscale.tsnet_delete_node_key'))}</button>
+                ${recoveryAllowed ? `<button id="tsnet-node-recover-${escapeAttr(node)}" class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>⚠ ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
             </div>
         </article>`;
     }).join('');
+    // A status refresh redraws the cards; typed keys and a fresh result line survive it.
+    nodeOrder.forEach(node => {
+        const input = document.getElementById(`tsnet-node-key-${node}`);
+        if (input && typedKeys[node]) input.value = typedKeys[node];
+        _tsnetShowNodeResult(node);
+    });
 
     const sharedWarning = document.getElementById('tsnet-shared-key-warning');
     if (sharedWarning) {
@@ -544,177 +513,111 @@ function _tsnetRenderNodeCards(data) {
     }
 }
 
+// Node result lines are redrawn with the cards; the last outcome is kept for a few seconds.
+const _tsnetNodeResults = {};
+const TSNET_NODE_RESULT_MS = 8000;
+
+function _tsnetRememberNodeResult(node) {
+    const line = document.getElementById(`tsnet-node-result-${node}`);
+    if (!line || !line.dataset.state || line.dataset.state === 'pending') return;
+    _tsnetNodeResults[node] = { state: line.dataset.state, text: line.textContent, at: Date.now() };
+}
+
+function _tsnetShowNodeResult(node) {
+    const kept = _tsnetNodeResults[node];
+    if (!kept) return;
+    if (Date.now() - kept.at > TSNET_NODE_RESULT_MS) {
+        delete _tsnetNodeResults[node];
+        return;
+    }
+    cfgActionResult.show(`tsnet-node-result-${node}`, kept.state, kept.text);
+}
+
+// Runs a node action next to its own result line and keeps the line through a card redraw.
+async function _tsnetNodeAction(node, buttonId, run, opts) {
+    const button = document.getElementById(buttonId);
+    const outcome = await cfgActionResult(button, run, Object.assign({ target: `tsnet-node-result-${node}` }, opts));
+    if (!outcome.skipped) {
+        _tsnetRememberNodeResult(node);
+        _tsnetShowNodeResult(node);
+    }
+    return outcome;
+}
+
 async function _tsnetSaveNodeKey(node) {
     if (!_tsnetRequireSavedConfig()) return;
     const input = document.getElementById(`tsnet-node-key-${node}`);
-    const result = document.getElementById(`tsnet-node-result-${node}`);
     const authKey = input ? input.value.trim() : '';
     if (!authKey) {
-        if (result) result.textContent = t('config.tailscale.key_empty');
+        cfgActionResult.show(`tsnet-node-result-${node}`, 'error', t('config.tailscale.key_empty'));
+        _tsnetRememberNodeResult(node);
         return;
     }
-    try {
-        const resp = await fetch('/api/tsnet/credentials', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ node, auth_key: authKey })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(t('config.tailscale.key_save_failed'));
-        if (input) input.value = '';
-        if (result) {
-            result.className = 'adg-test-result is-success';
-            result.textContent = t('config.tailscale.tsnet_node_key_saved');
+    return _tsnetNodeAction(node, `tsnet-node-save-${node}`, () => fetch('/api/tsnet/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node, auth_key: authKey })
+    }), {
+        success: t('config.tailscale.tsnet_node_key_saved'),
+        failure: t('config.tailscale.key_save_failed'),
+        onSuccess: () => {
+            const field = document.getElementById(`tsnet-node-key-${node}`);
+            if (field) field.value = '';
+            _tsnetRefreshStatus();
         }
-        await _tsnetRefreshStatus();
-    } catch (error) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = t('config.tailscale.key_save_failed');
-        }
-    }
+    });
 }
 
 async function _tsnetDeleteNodeKey(node) {
     if (!_tsnetRequireSavedConfig()) return;
-    if (!confirm(t('config.tailscale.tsnet_delete_key_confirm'))) return;
-    const resp = await fetch(`/api/tsnet/credentials?node=${encodeURIComponent(node)}`, { method: 'DELETE' });
-    const data = await resp.json();
-    if (!resp.ok) {
-        showToast(t('config.tailscale.key_save_failed'), 'error');
-        return;
-    }
-    showToast(t('config.tailscale.tsnet_node_key_deleted'), 'success');
-    await _tsnetRefreshStatus();
+    if (!await showConfirm(t('config.tailscale.tsnet_delete_node_key'), t('config.tailscale.tsnet_delete_key_confirm'))) return;
+    return _tsnetNodeAction(node, `tsnet-node-delete-${node}`, () => fetch(`/api/tsnet/credentials?node=${encodeURIComponent(node)}`, { method: 'DELETE' }), {
+        success: t('config.tailscale.tsnet_node_key_deleted'),
+        failure: t('config.tailscale.key_save_failed'),
+        onSuccess: () => _tsnetRefreshStatus()
+    });
 }
 
 async function _tsnetReauth(node, mode) {
     if (!_tsnetRequireSavedConfig()) return;
     const recovering = mode === 'recover_state';
-    if (recovering && !confirm(t('config.tailscale.tsnet_recover_confirm'))) return;
-    try {
-        const resp = await fetch('/api/tsnet/reauth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ node, mode, confirm_new_identity: recovering })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(_tsnetErrorLabel(data.error_code));
-        showToast(t(recovering ? 'config.tailscale.tsnet_recovery_started' : 'config.tailscale.tsnet_reauth_started'), 'success');
-        _tsnetStartPolling(data.operation_id || '');
-    } catch (error) {
-        showToast(error.message || t('config.tailscale.tsnet_status_error'), 'error');
-    }
+    if (recovering && !await showConfirm(t('config.tailscale.tsnet_recover_state'), t('config.tailscale.tsnet_recover_confirm'))) return;
+    return _tsnetNodeAction(node, `tsnet-node-${recovering ? 'recover' : 'reauth'}-${node}`, () => fetch('/api/tsnet/reauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node, mode, confirm_new_identity: recovering })
+    }), {
+        success: t(recovering ? 'config.tailscale.tsnet_recovery_started' : 'config.tailscale.tsnet_reauth_started'),
+        failure: t('config.tailscale.tsnet_status_error'),
+        reasonText: body => body && body.error_code ? _tsnetErrorLabel(body.error_code) : '',
+        onSuccess: outcome => _tsnetStartPolling((outcome.body && outcome.body.operation_id) || '')
+    });
 }
 
 async function _tsnetStop() {
     if (!_tsnetRequireSavedConfig()) return;
-    try {
-        const resp = await fetch('/api/tsnet/stop', { method: 'POST' });
-        const data = await resp.json();
-        if (!resp.ok || data.error) {
-            showToast(t('config.tailscale.tsnet_status_error'), 'error');
-        } else {
-            showToast(t('config.tailscale.tsnet_stopped_toast'), 'success');
-        }
-        _tsnetStartPolling();
-        setTimeout(_tsnetRefreshStatus, 500);
-    } catch (e) {
-        showToast(t('config.tailscale.tsnet_status_error'), 'error');
-    }
-}
-
-async function _tsnetStart() {
-    if (!_tsnetRequireSavedConfig()) return;
-    try {
-        const resp = await fetch('/api/tsnet/start', { method: 'POST' });
-        const data = await resp.json();
-        if (!resp.ok || data.error) {
-            showToast(t('config.tailscale.tsnet_status_error'), 'error');
-        } else {
-            showToast(t('config.tailscale.tsnet_starting_toast'), 'success');
-            _tsnetStartPolling(data.operation_id || '');
-        }
-    } catch (e) {
-        showToast(t('config.tailscale.tsnet_status_error'), 'error');
-    }
-}
-
-function tsSaveApiKey() {
-    const input = document.getElementById('ts-api-key-input');
-    const statusEl = document.getElementById('ts-api-key-status');
-    const key = input ? input.value.trim() : '';
-    if (!key) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.tailscale.key_empty');
-        }
-        return;
-    }
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tailscale_api_key', value: key })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            if (statusEl) {
-                statusEl.className = 'adg-test-result is-success';
-                statusEl.textContent = t('config.tailscale.key_saved');
-            }
-            cfgMarkSecretStored(input, 'tailscale.api_key');
-        } else if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = res.message || t('config.tailscale.key_save_failed');
-        }
-        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
-    })
-    .catch(() => {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.tailscale.key_save_failed');
+    return cfgActionResult(document.getElementById('tsnet-btn-stop'), () => fetch('/api/tsnet/stop', { method: 'POST' }), {
+        target: 'tsnet-action-result',
+        success: t('config.tailscale.tsnet_stopped_toast'),
+        failure: t('config.tailscale.tsnet_status_error'),
+        clearAfter: 6000,
+        lock: '#tsnet-btn-start',
+        onSuccess: () => {
+            _tsnetStartPolling();
+            setTimeout(_tsnetRefreshStatus, 500);
         }
     });
 }
 
-function tsSaveAuthKey() {
+async function _tsnetStart() {
     if (!_tsnetRequireSavedConfig()) return;
-    const input = document.getElementById('ts-auth-key-input');
-    const statusEl = document.getElementById('ts-auth-key-status');
-    const key = input ? input.value.trim() : '';
-    if (!key) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.tailscale.key_empty');
-        }
-        return;
-    }
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'tailscale_tsnet_authkey', value: key })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            if (statusEl) {
-                statusEl.className = 'adg-test-result is-success';
-                statusEl.textContent = t('config.tailscale.key_saved');
-            }
-            cfgMarkSecretStored(input, 'tailscale.tsnet.auth_key');
-            _tsnetRefreshStatus();
-        } else if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = res.message || t('config.tailscale.key_save_failed');
-        }
-        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
-    })
-    .catch(() => {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.tailscale.key_save_failed');
-        }
+    return cfgActionResult(document.getElementById('tsnet-btn-start'), () => fetch('/api/tsnet/start', { method: 'POST' }), {
+        target: 'tsnet-action-result',
+        success: t('config.tailscale.tsnet_starting_toast'),
+        failure: t('config.tailscale.tsnet_status_error'),
+        clearAfter: 6000,
+        lock: '#tsnet-btn-stop',
+        onSuccess: outcome => _tsnetStartPolling((outcome.body && outcome.body.operation_id) || '')
     });
 }
 

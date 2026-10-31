@@ -26,35 +26,26 @@ async function renderNetlifySection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
+    let bannerState = 'off';
+    let bannerDetail = t('config.netlify.disabled_desc');
     if (nfEnabled && st.status === 'ok') {
-        const name = st.full_name || st.email || 'Connected';
+        const name = st.full_name || st.email || t('config.netlify.status_connected');
         const siteCount = st.site_count !== undefined
             ? String(st.site_count) + (st.site_count_truncated ? '+' : '')
             : '';
-        html += `<div class="wh-notice nf-status-ok">
-            <span>✅</span>
-            <div>
-                <strong>${t('config.netlify.status_connected')}</strong><br>
-                <small>${escapeAttr(name)}${siteCount ? ' · ' + siteCount + ' ' + t('config.netlify.sites') : ''}</small>
-            </div>
-        </div>`;
+        bannerState = 'connected';
+        bannerDetail = name + (siteCount ? ' · ' + siteCount + ' ' + t('config.netlify.sites') : '');
     } else if (nfEnabled && st.status === 'no_token') {
-        html += `<div class="wh-notice nf-status-warn">
-            <span>🔑</span>
-            <div>
-                <strong>${t('config.netlify.no_token')}</strong><br>
-                <small>${t('config.netlify.no_token_desc')}</small>
-            </div>
-        </div>`;
+        bannerState = 'unconfigured';
+        bannerDetail = t('config.netlify.no_token_desc');
     } else if (nfEnabled && st.status === 'error') {
-        html += `<div class="wh-notice nf-status-error">
-            <span>❌</span>
-            <div>
-                <strong>${t('config.netlify.status_error')}</strong><br>
-                <small>${escapeAttr(st.message || '')}</small>
-            </div>
-        </div>`;
+        bannerState = 'error';
+        bannerDetail = st.message || t('config.netlify.status_error');
+    } else if (nfEnabled) {
+        bannerState = 'unknown';
+        bannerDetail = '';
     }
+    html += cfgStatusBanner.html('nf-status-banner', bannerState, { detail: bannerDetail });
 
     html += `<div class="cfg-toggle-row-highlight">
         <div class="cfg-toggle-copy">
@@ -63,16 +54,6 @@ async function renderNetlifySection(section) {
         </div>
         <div class="toggle ${nfEnabled ? 'on' : ''}" data-path="netlify.enabled" onclick="toggleBool(this)"></div>
     </div>`;
-
-    if (!nfEnabled) {
-        html += `<div class="wh-notice">
-            <span>🚀</span>
-            <div>
-                <strong>${t('config.netlify.disabled_notice')}</strong><br>
-                <small>${t('config.netlify.disabled_desc')}</small>
-            </div>
-        </div>`;
-    }
 
     html += `<div class="field-group">`;
     html += `<div class="field-group-title">🔐 ${t('config.netlify.permissions_title')}</div>`;
@@ -145,15 +126,10 @@ async function renderNetlifySection(section) {
     html += `<label>
         <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 vault</small></span>
         <div class="password-wrap">
-            <input class="field-input" type="password" id="nf-token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
+            <input class="field-input" type="password" id="nf-token" data-path="netlify.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
         </div>
     </label>`;
-
-    html += `<div class="adg-password-row">
-        <button class="btn-save adg-save-btn" onclick="nfSaveToken()">💾 ${t('config.netlify.save_token')}</button>
-        <span id="nf-token-status" class="adg-test-result"></span>
-    </div>`;
 
     html += `</div>`;
 
@@ -161,95 +137,39 @@ async function renderNetlifySection(section) {
         <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
         <div class="field-group-desc">${t('config.netlify.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="nf-test-btn" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
-            <span id="nf-test-result" class="adg-test-result"></span>
+            <button class="btn-save adg-test-btn" id="nf-test-btn" data-config-action-draft="true" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
+            ${cfgActionResult.html('nf-test-result')}
         </div>
     </div>`;
 
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
-}
-
-async function nfSaveToken() {
-    const statusEl = document.getElementById('nf-token-status');
-    const token = document.getElementById('nf-token').value;
-
-    if (!token) {
-        if (statusEl) {
-            statusEl.textContent = t('config.netlify.token_empty');
-            statusEl.className = 'adg-test-result is-danger';
-        }
-        return;
-    }
-
-    if (statusEl) {
-        statusEl.textContent = t('config.netlify.saving');
-        statusEl.className = 'adg-test-result';
-    }
-
-    try {
-        const resp = await fetch('/api/vault/secrets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'netlify_token', value: token })
+    if (nfEnabled && st.status === 'error') {
+        cfgStatusBanner(document.getElementById('nf-status-banner'), 'error', {
+            detail: bannerDetail,
+            retry: () => { nfStatusCache = null; renderNetlifySection(section); }
         });
-        if (!resp.ok) {
-            const txt = await resp.text();
-            if (statusEl) {
-                statusEl.textContent = txt;
-                statusEl.className = 'adg-test-result is-danger';
-            }
-        } else {
-            if (statusEl) {
-                statusEl.textContent = t('config.netlify.token_saved');
-                statusEl.className = 'adg-test-result is-success';
-            }
-            cfgMarkSecretStored(document.getElementById('nf-token'), 'netlify.token');
-            nfStatusCache = null;
-        }
-    } catch (e) {
-        if (statusEl) {
-            statusEl.textContent = e.message;
-            statusEl.className = 'adg-test-result is-danger';
-        }
     }
 }
 
-async function nfTestConnection() {
+function nfTestConnection() {
     const btn = document.getElementById('nf-test-btn');
-    const result = document.getElementById('nf-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.netlify.connecting');
-    }
-
-    try {
-        const resp = await fetch('/api/netlify/test-connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}'
-        });
-        const json = await resp.json();
-        if (!result) return;
-        if (json.status === 'ok') {
+    return cfgActionResult(btn, () => fetch('/api/netlify/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['netlify']) })
+    }), {
+        target: 'nf-test-result',
+        pending: t('config.netlify.connecting'),
+        failure: t('config.netlify.test_failed'),
+        success: outcome => {
+            const json = outcome.body || {};
             let details = json.account_email || json.account_slug || json.full_name || json.email || '';
             if (json.site_count !== undefined) {
                 details += (details ? ' · ' : '') + json.site_count + ' ' + t('config.netlify.sites');
             }
-            result.className = 'adg-test-result is-success';
-            result.textContent = (json.message || t('config.netlify.test_success')) + (details ? ' — ' + details : '');
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = json.message || t('config.netlify.test_failed');
+            return (json.message || t('config.netlify.test_success')) + (details ? ' — ' + details : '');
         }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = e.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    });
 }

@@ -1,12 +1,5 @@
 // cfg/homepage.js — Homepage tool section module
 
-function hpSetStatusState(el, state, text) {
-    if (!el) return;
-    const cls = state === 'success' ? 'is-success' : (state === 'error' ? 'is-danger' : (state === 'warning' ? 'is-warning' : ''));
-    el.className = 'adg-test-result' + (cls ? ' ' + cls : '');
-    el.textContent = text || '';
-}
-
 function hpCountAdaptivePromptTools() {
     const tools = (configData && configData.tools) || {};
     let count = 0;
@@ -247,7 +240,7 @@ async function renderHomepageSection(section) {
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 vault</small></div>
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="hp-deploy-password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="hp-deploy-password" data-path="homepage.deploy_password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>`;
@@ -255,17 +248,12 @@ async function renderHomepageSection(section) {
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 vault</small></div>
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="hp-deploy-key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="hp-deploy-key" data-path="homepage.deploy_key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>`;
 
         html += `</div>`;
-
-        html += `<div class="cfg-actions-row">
-            <button class="btn-save adg-save-btn" onclick="hpSaveCredentials()">💾 ${t('config.homepage.save_credentials')}</button>
-            <span id="hp-cred-status" class="adg-test-result"></span>
-        </div>`;
 
         html += `</div>`;
 
@@ -273,8 +261,8 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">🔌 ${t('config.homepage.test_title')}</div>
             <div class="field-group-desc">${t('config.homepage.test_desc')}</div>
             <div class="cfg-actions-row">
-                <button class="btn-save adg-test-btn" id="hp-test-btn" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
-                <span id="hp-test-result" class="adg-test-result"></span>
+                <button class="btn-save adg-test-btn" id="hp-test-btn" data-config-action-draft="true" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
+                ${cfgActionResult.html('hp-test-result')}
             </div>
         </div>`;
         html += `</div>`;
@@ -368,52 +356,6 @@ async function renderHomepageSection(section) {
     attachChangeListeners();
 }
 
-async function hpSaveCredentials() {
-    const statusEl = document.getElementById('hp-cred-status');
-    const pw = document.getElementById('hp-deploy-password').value;
-    const key = document.getElementById('hp-deploy-key').value;
-
-    if (!pw && !key) {
-        hpSetStatusState(statusEl, 'warning', '⚠️ ' + t('config.homepage.cred_empty'));
-        return;
-    }
-
-    let saved = 0;
-    let errors = [];
-
-    async function saveOne(vaultKey, value) {
-        if (!value) return;
-        try {
-            const resp = await fetch('/api/vault/secrets', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: vaultKey, value: value })
-            });
-            if (!resp.ok) {
-                const txt = await resp.text();
-                errors.push(vaultKey + ': ' + txt);
-            } else {
-                saved++;
-            }
-        } catch (e) {
-            errors.push(vaultKey + ': ' + e.message);
-        }
-    }
-
-    hpSetStatusState(statusEl, 'muted', '⏳ ' + t('config.homepage.saving'));
-
-    await saveOne('homepage_deploy_password', pw);
-    await saveOne('homepage_deploy_key', key);
-
-    if (errors.length > 0) {
-        hpSetStatusState(statusEl, 'error', '❌ ' + errors.join('; '));
-    } else {
-        hpSetStatusState(statusEl, 'success', '✅ ' + t('config.homepage.cred_saved', { count: saved }));
-        if (pw) cfgMarkSecretStored(document.getElementById('hp-deploy-password'), 'homepage.deploy_password');
-        if (key) cfgMarkSecretStored(document.getElementById('hp-deploy-key'), 'homepage.deploy_key');
-    }
-}
-
 async function hpAutoDetectWorkspace() {
     const input = document.getElementById('hp-workspace-path-input');
     if (!input) return;
@@ -447,51 +389,18 @@ async function hpAutoDetectWorkspace() {
     }
 }
 
-async function hpTestConnection() {
+// The test sends the form values (draft); the target rule of the server keeps the
+// saved password and key from following a changed host.
+function hpTestConnection() {
     const btn = document.getElementById('hp-test-btn');
-    const result = document.getElementById('hp-test-result');
-
-    const getField = (path) => {
-        const el = document.querySelector('[data-path="' + path + '"]');
-        if (!el) return '';
-        return el.value.trim();
-    };
-
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.homepage.connecting');
-    }
-
-    const body = {
-        host: getField('homepage.deploy_host'),
-        port: parseInt(getField('homepage.deploy_port')) || 0,
-        user: getField('homepage.deploy_user'),
-        password: document.getElementById('hp-deploy-password') ? document.getElementById('hp-deploy-password').value : '',
-        path: getField('homepage.deploy_path')
-    };
-
-    try {
-        const resp = await fetch('/api/homepage/test-connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        const json = await resp.json();
-        if (!result) return;
-        if (json.status === 'ok') {
-            result.className = 'adg-test-result is-success';
-            result.textContent = json.message || t('config.homepage.test_success');
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = json.message || t('config.homepage.test_failed');
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = e.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return cfgActionResult(btn, () => fetch('/api/homepage/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['homepage']) })
+    }), {
+        target: 'hp-test-result',
+        pending: t('config.homepage.connecting'),
+        success: outcome => (outcome.body && outcome.body.message) || t('config.homepage.test_success'),
+        failure: t('config.homepage.test_failed')
+    });
 }

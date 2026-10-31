@@ -198,18 +198,23 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 		`data-path="virtual_computers.storage.bucket"`,
 		`data-path="virtual_computers.storage.region"`,
 		`'virtual_computers.storage.use_ssl'`,
-		`virtual_computers_s3_access_key_id`,
-		`virtual_computers_s3_secret_key`,
+		// The S3 credentials travel with the save dock (the server writes them to the Vault).
+		`data-path="virtual_computers.s3_access_key_id"`,
+		`data-path="virtual_computers.s3_secret_key"`,
+		`data-path="virtual_computers.boring_token"`,
 		`/api/virtual-computers/storage/test`,
-		`vcCfgStorageActionsLocked`,
-		`storage_test_dirty_lock`,
+		// The connection test sends the form values, so unsaved changes do not lock it.
+		`id="vc-storage-test-btn" data-config-action-draft="true"`,
+		`cfgDraftPatch(['virtual_computers'])`,
 	} {
 		if !strings.Contains(vcJS, want) {
 			t.Fatalf("virtual computer storage UI missing %q", want)
 		}
 	}
-	if strings.Contains(vcJS, `data-path="virtual_computers.s3_secret_key"`) || strings.Contains(vcJS, `data-path="virtual_computers.s3_access_key_id"`) {
-		t.Fatal("S3 credentials must never be serialized into config data")
+	for _, legacy := range []string{`virtual_computers_s3_access_key_id`, `virtual_computers_s3_secret_key`, `virtual_computers_boring_token`, `vcCfgSaveSecret`, `vcCfgStorageActionsLocked`} {
+		if strings.Contains(vcJS, legacy) {
+			t.Fatalf("virtual computer storage UI still carries its own vault row: %q", legacy)
+		}
 	}
 	if strings.Contains(vcJS, `virtual_computers_garage_`) {
 		t.Fatal("managed Garage credentials must never be editable in the config UI")

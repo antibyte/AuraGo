@@ -509,26 +509,37 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 // Used by the config section to let the user pick which repos the agent may access.
 func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !s.Cfg.GitHub.Enabled {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": "GitHub integration is not enabled",
-			})
-			return
-		}
-
+		ghSettings := s.Cfg.GitHub
 		token := ""
-		if s.Vault != nil {
-			t, err := s.Vault.ReadSecret("github_token")
-			if err == nil {
-				token = t
+		if r.Method == http.MethodPost {
+			// The config page sends the unsaved form values (draft); the token comes from the draft or the vault.
+			draft, err := s.draftTestConfig(r)
+			if err != nil {
+				writeDraftTestConfigError(w, err)
+				return
+			}
+			ghSettings = draft.GitHub
+			token = ghSettings.Token
+		} else {
+			if !ghSettings.Enabled {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"status":  "error",
+					"message": "GitHub integration is not enabled",
+				})
+				return
+			}
+			if s.Vault != nil {
+				t, err := s.Vault.ReadSecret("github_token")
+				if err == nil {
+					token = t
+				}
 			}
 		}
 		if token == "" {
@@ -541,11 +552,11 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 
 		ghCfg := tools.GitHubConfig{
 			Token:                 token,
-			Owner:                 s.Cfg.GitHub.Owner,
-			BaseURL:               s.Cfg.GitHub.BaseURL,
-			ReadOnly:              s.Cfg.GitHub.ReadOnly,
-			AllowedRepos:          s.Cfg.GitHub.AllowedRepos,
-			TrustedRepos:          tools.GitHubTrustedProjectRepos(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL),
+			Owner:                 ghSettings.Owner,
+			BaseURL:               ghSettings.BaseURL,
+			ReadOnly:              ghSettings.ReadOnly,
+			AllowedRepos:          ghSettings.AllowedRepos,
+			TrustedRepos:          tools.GitHubTrustedProjectRepos(s.Cfg.Directories.DataDir, ghSettings.BaseURL),
 			ListReposUnrestricted: true,
 		}
 
@@ -569,10 +580,10 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 
 		// Annotate repos
 		allowedCfg := tools.GitHubConfig{
-			Owner:        s.Cfg.GitHub.Owner,
-			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
+			Owner:        ghSettings.Owner,
+			AllowedRepos: ghSettings.AllowedRepos,
 		}
-		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL)
+		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.DataDir, ghSettings.BaseURL)
 		legacyMap := make(map[string]bool)
 		for _, repo := range tools.GitHubLegacyProjectRepos(s.Cfg.Directories.WorkspaceDir) {
 			legacyMap[repo] = true
@@ -581,7 +592,7 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 		if repoList, ok := repos.([]interface{}); ok {
 			for _, r := range repoList {
 				if rm, ok := r.(map[string]interface{}); ok {
-					repoOwner, repoName := githubRepoIdentity(s.Cfg.GitHub.Owner, rm)
+					repoOwner, repoName := githubRepoIdentity(ghSettings.Owner, rm)
 					canonical := tools.GitHubCanonicalRepo(repoOwner, repoName)
 					rm["allowed"] = tools.GitHubRepoAllowed(allowedCfg, repoOwner, repoName)
 					rm["agent_created"] = trustedMap[canonical]
