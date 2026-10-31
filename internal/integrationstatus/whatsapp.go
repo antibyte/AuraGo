@@ -1,6 +1,7 @@
 package integrationstatus
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,18 +50,58 @@ var whatsAppRuntime = struct {
 
 func whatsAppStamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
+// whatsAppMask keeps only the last four digits of a number, an already masked
+// number or a JID such as 491701234567:12@s.whatsapp.net. It returns "" when
+// fewer than four digits remain.
+func whatsAppMask(raw string) string {
+	user := raw
+	if at := strings.IndexByte(user, '@'); at >= 0 {
+		user = user[:at]
+		if i := strings.IndexAny(user, ":."); i >= 0 {
+			user = user[:i]
+		}
+	}
+	var digits []byte
+	for i := 0; i < len(user); i++ {
+		if c := user[i]; c >= '0' && c <= '9' {
+			digits = append(digits, c)
+		}
+	}
+	if len(digits) < 4 {
+		return ""
+	}
+	return "***" + string(digits[len(digits)-4:])
+}
+
+// enterWhatsAppState sets state and drops the details that only belong to
+// other states: a ban expiry outside temp_banned, a login time outside healthy,
+// and the linked device once the account is not linked or logged out. The
+// caller holds the lock.
+func enterWhatsAppState(s *WhatsAppRuntimeStatus, state string) {
+	s.State = state
+	if state != WhatsAppStateTempBanned {
+		s.TempBanExpiresAt = ""
+	}
+	if state != WhatsAppStateHealthy {
+		s.ConnectedSince = ""
+	}
+	if state == WhatsAppStateNotLinked || state == WhatsAppStateLoggedOut {
+		s.Linked = false
+		s.LinkedJIDMasked = ""
+	}
+}
+
 // SetWhatsAppConfigState publishes a new generation's first state and clears
 // the previous connection's details. Counters survive generations.
 func SetWhatsAppConfigState(state, mode string) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()
 	s := &whatsAppRuntime.status
+	enterWhatsAppState(s, state)
 	s.Enabled = state != WhatsAppStateDisabled
-	s.State = state
 	s.Mode = mode
 	s.ConnectedSince = ""
 	s.LastError = ""
-	s.TempBanExpiresAt = ""
 	if state == WhatsAppStateDisabled || state == WhatsAppStateNotConfigured {
 		s.Linked = false
 		s.LinkedJIDMasked = ""
@@ -68,23 +109,20 @@ func SetWhatsAppConfigState(state, mode string) {
 }
 
 // SetWhatsAppState moves the runtime to state. healthy clears the last error
-// and an expired temporary ban.
+// and keeps the login time, every other state drops it. not_linked and
+// logged_out also drop the linked device.
 func SetWhatsAppState(state string) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()
 	s := &whatsAppRuntime.status
-	s.State = state
-	switch state {
-	case WhatsAppStateHealthy:
+	enterWhatsAppState(s, state)
+	if state == WhatsAppStateHealthy {
 		s.LastError = ""
-		s.TempBanExpiresAt = ""
-	case WhatsAppStateNotLinked, WhatsAppStateLinking:
-		s.ConnectedSince = ""
 	}
 }
 
-// SetWhatsAppLinked records whether the store holds a linked device and its
-// masked number.
+// SetWhatsAppLinked records whether the store holds a linked device. It keeps
+// only the last four digits of masked, so callers may pass a full JID.
 func SetWhatsAppLinked(linked bool, masked string) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()
@@ -92,7 +130,7 @@ func SetWhatsAppLinked(linked bool, masked string) {
 	if !linked {
 		masked = ""
 	}
-	whatsAppRuntime.status.LinkedJIDMasked = masked
+	whatsAppRuntime.status.LinkedJIDMasked = whatsAppMask(masked)
 }
 
 // MarkWhatsAppConnected records the latest completed login.
@@ -106,12 +144,12 @@ func MarkWhatsAppConnected(now time.Time) {
 func MarkWhatsAppError(state, code string) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()
-	whatsAppRuntime.status.State = state
+	enterWhatsAppState(&whatsAppRuntime.status, state)
 	whatsAppRuntime.status.LastError = code
 }
 
-// MarkWhatsAppTempBan records a temporary ban. A zero expiry means WhatsApp
-// sent none.
+// MarkWhatsAppTempBan records a temporary ban and keeps the last login time.
+// A zero expiry means WhatsApp sent none.
 func MarkWhatsAppTempBan(code string, expires time.Time) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()

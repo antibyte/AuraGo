@@ -37,3 +37,51 @@ func TestWhatsAppStatusTransitions(t *testing.T) {
 		t.Fatalf("not_configured status kept connection details: %+v", s)
 	}
 }
+
+func TestWhatsAppStatusDropsStaleFields(t *testing.T) {
+	now := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+
+	// not_linked and logged_out drop the linked device, whichever way they are entered.
+	for name, enter := range map[string]func(){
+		"state not_linked":  func() { SetWhatsAppState(WhatsAppStateNotLinked) },
+		"config not_linked": func() { SetWhatsAppConfigState(WhatsAppStateNotLinked, "dedicated") },
+		"error logged_out":  func() { MarkWhatsAppError(WhatsAppStateLoggedOut, "logged_out") },
+		"state logged_out":  func() { SetWhatsAppState(WhatsAppStateLoggedOut) },
+	} {
+		SetWhatsAppConfigState(WhatsAppStateConnecting, "dedicated")
+		SetWhatsAppLinked(true, "***5678")
+		enter()
+		if s := WhatsAppStatus(); s.Linked || s.LinkedJIDMasked != "" {
+			t.Errorf("%s kept the linked device: %+v", name, s)
+		}
+	}
+
+	// A ban expiry only lives in temp_banned; the login time only in healthy.
+	SetWhatsAppConfigState(WhatsAppStateConnecting, "dedicated")
+	MarkWhatsAppConnected(now)
+	SetWhatsAppState(WhatsAppStateHealthy)
+	SetWhatsAppState(WhatsAppStateHealthy)
+	if s := WhatsAppStatus(); s.ConnectedSince != "2026-10-31T12:00:00Z" {
+		t.Fatalf("healthy to healthy lost the login time: %+v", s)
+	}
+	MarkWhatsAppTempBan("temp_ban_101", now.Add(time.Hour))
+	SetWhatsAppState(WhatsAppStateDegraded)
+	if s := WhatsAppStatus(); s.TempBanExpiresAt != "" || s.ConnectedSince != "" {
+		t.Fatalf("degraded kept stale ban expiry or login time: %+v", s)
+	}
+
+	// SetWhatsAppLinked masks whatever it receives.
+	for raw, want := range map[string]string{
+		"***5678":                        "***5678",
+		"491701234567@s.whatsapp.net":    "***4567",
+		"491701234567:12@s.whatsapp.net": "***4567",
+		"+49 170 1234567":                "***4567",
+		"123":                            "",
+		"":                               "",
+	} {
+		SetWhatsAppLinked(true, raw)
+		if got := WhatsAppStatus().LinkedJIDMasked; got != want {
+			t.Errorf("SetWhatsAppLinked(%q) stored %q, want %q", raw, got, want)
+		}
+	}
+}

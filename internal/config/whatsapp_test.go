@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -46,6 +48,8 @@ func TestNormalizeE164(t *testing.T) {
 		"+491701234567":         "+491701234567",
 		" +49 (170) 123-45.67 ": "+491701234567",
 		"0043 660 1234567":      "+436601234567",
+		"+1234567":              "+1234567",
+		"+123456789012345":      "+123456789012345",
 	} {
 		if got, err := NormalizeE164(raw); err != nil || got != want {
 			t.Errorf("NormalizeE164(%q) = %q, %v; want %q", raw, got, err, want)
@@ -66,6 +70,11 @@ func TestValidateWhatsAppConfig(t *testing.T) {
 	var tooMany []string
 	for i := 0; i < 11; i++ {
 		tooMany = append(tooMany, fmt.Sprintf("+4917000000%02d", i))
+	}
+	// The cap counts distinct numbers: a blank row and a reformatted duplicate do not count.
+	atCap := append(slices.Clone(tooMany[:10]), "", "0049 1700 000000")
+	if err := ValidateWhatsAppConfig(WhatsAppConfig{OwnerNumbers: atCap}); err != nil {
+		t.Fatalf("10 distinct numbers plus a blank row and a duplicate rejected: %v", err)
 	}
 	for name, c := range map[string]WhatsAppConfig{
 		"mode":     {Mode: "group"},
@@ -94,5 +103,25 @@ func TestWhatsAppStorePathsStayOutOfBackups(t *testing.T) {
 	}
 	if slices.Contains(SQLiteDatabasePaths(cfg), db) {
 		t.Fatal("the WhatsApp device store must never be backed up")
+	}
+}
+
+func TestNormalizeWhatsAppConfigWarnsWhenOwnerCapTruncates(t *testing.T) {
+	var logged bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	var c WhatsAppConfig
+	for i := 0; i < 12; i++ {
+		c.OwnerNumbers = append(c.OwnerNumbers, fmt.Sprintf("+4917000000%02d", i))
+	}
+	c.OwnerNumbers = append(c.OwnerNumbers, c.OwnerNumbers[11]) // a repeated dropped number counts once
+	NormalizeWhatsAppConfig(&c)
+	if len(c.OwnerNumbers) != 10 {
+		t.Fatalf("kept %d owner numbers, want 10", len(c.OwnerNumbers))
+	}
+	if out := logged.String(); !strings.Contains(out, "count=2") || strings.Contains(out, "4917000000") {
+		t.Fatalf("truncation warning = %q, want the dropped count and no number", out)
 	}
 }

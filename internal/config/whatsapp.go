@@ -78,7 +78,7 @@ func NormalizeWhatsAppConfig(c *WhatsAppConfig) {
 	}
 	var owners []string
 	seen := make(map[string]bool, len(c.OwnerNumbers))
-	dropped := 0
+	dropped, truncated := 0, 0
 	for _, raw := range c.OwnerNumbers {
 		if strings.TrimSpace(raw) == "" {
 			continue
@@ -88,14 +88,21 @@ func NormalizeWhatsAppConfig(c *WhatsAppConfig) {
 			dropped++
 			continue
 		}
-		if seen[number] || len(owners) == maxWhatsAppOwnerNumbers {
+		if seen[number] {
 			continue
 		}
 		seen[number] = true
+		if len(owners) == maxWhatsAppOwnerNumbers {
+			truncated++
+			continue
+		}
 		owners = append(owners, number)
 	}
 	if dropped > 0 {
 		slog.Warn("[Config] Ignored invalid whatsapp.owner_numbers entries", "count", dropped)
+	}
+	if truncated > 0 {
+		slog.Warn("[Config] Ignored whatsapp.owner_numbers beyond the limit", "count", truncated, "limit", maxWhatsAppOwnerNumbers)
 	}
 	c.OwnerNumbers = owners
 	if utf8.RuneCountInString(c.SelfChatPrefix) > maxWhatsAppPrefixRunes {
@@ -110,16 +117,19 @@ func ValidateWhatsAppConfig(c WhatsAppConfig) error {
 	default:
 		return errors.New("whatsapp.mode must be dedicated or self_chat")
 	}
-	if len(c.OwnerNumbers) > maxWhatsAppOwnerNumbers {
-		return fmt.Errorf("whatsapp.owner_numbers allows at most %d numbers", maxWhatsAppOwnerNumbers)
-	}
+	unique := make(map[string]bool, len(c.OwnerNumbers))
 	for i, raw := range c.OwnerNumbers {
 		if strings.TrimSpace(raw) == "" {
 			continue
 		}
-		if _, err := NormalizeE164(raw); err != nil {
+		number, err := NormalizeE164(raw)
+		if err != nil {
 			return fmt.Errorf("whatsapp.owner_numbers[%d] must be an international number such as +491701234567", i)
 		}
+		unique[number] = true
+	}
+	if len(unique) > maxWhatsAppOwnerNumbers {
+		return fmt.Errorf("whatsapp.owner_numbers allows at most %d numbers", maxWhatsAppOwnerNumbers)
 	}
 	if utf8.RuneCountInString(c.SelfChatPrefix) > maxWhatsAppPrefixRunes {
 		return fmt.Errorf("whatsapp.self_chat_prefix allows at most %d characters", maxWhatsAppPrefixRunes)
