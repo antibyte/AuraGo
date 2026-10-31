@@ -18,6 +18,7 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
 <button id="audio-gesture">Enable audio</button>
 <script src="/js/vendor/synth-studio/gm-data.js"></script>
 <script src="/js/desktop/apps/synth-studio-presets.js"></script>
+<script src="/js/desktop/apps/synth-studio-fx.js"></script>
 <script src="/js/desktop/apps/synth-studio-voices.js"></script>
 <script src="/js/desktop/apps/synth-studio-audio.js"></script>
 </body></html>`)
@@ -31,7 +32,7 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  const original=AudioContext.prototype.resume;let finish;
  AudioContext.prototype.resume=function(){return new Promise(resolve=>{finish=resolve})};
  const player=SynthStudioAudio.create();let ticks=0;
- const project={version:1,tempo:120,ppq:480,tracks:[{id:'race',instrument:'lead-saw',clips:[{start:0,length:120,notes:[{pitch:60,start:0,duration:120,velocity:0.7}],controllers:[]}]}]};
+ const project={version:3,tempo:120,ppq:480,tracks:[{id:'race',instrument:'lead-saw',clips:[{start:0,length:120,notes:[{pitch:60,start:0,duration:120,velocity:0.7}],controllers:[]}]}]};
  const pending=player.play(project,0,()=>ticks++);player.stop();finish();await pending;
  AudioContext.prototype.resume=original;
  player.dispose();return ticks===0;
@@ -45,13 +46,13 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  const check=(condition,message)=>{if(!condition)throw Error(message)};
  const catalog=window.SynthStudioPresets;
  check(catalog.categories.length===5,'five preset categories');
- check(catalog.presets.length===80,'80 curated presets');
- check(['drums','bass','leads','pads','keys'].every(category=>catalog.presets.filter(p=>p.category===category).length===16),'16 presets in each category');
+ check(catalog.presets.length===120,'120 curated presets');
+ check(['drums','bass','leads','pads','keys'].every(category=>catalog.presets.filter(p=>p.category===category).length===24),'24 presets in each category');
  check(catalog.gm.length===128&&catalog.gm[0].id==='gm-0'&&catalog.gm[127].id==='gm-127','128 GM melodic patches');
- check(catalog.drums.length===16&&catalog.get('drum-shaker').drumNote===70&&catalog.get('drum-cowbell').drumNote===56,'sixteen standard-note kit sounds');
+ check(catalog.drums.length===24&&catalog.get('drum-shaker').drumNote===70&&catalog.get('drum-cowbell').drumNote===56,'twenty-four standard-note kit sounds');
  check(window.SynthStudioGMData.drums.length===47,'GM drum map spans notes 35 through 81');
 
- const makeProject=(instrument,notes)=>({version:1,name:'Audio test',tempo:120,ppq:480,beatsPerBar:4,loop:{enabled:false,start:0,end:0},tracks:[{id:'track',name:'Track',instrument,volume:0.8,pan:0,mute:false,solo:false,params:{tone:0.5,resonance:0,drive:0,attack:0.01,release:0.12,chorus:0,phaser:0,reverb:0,delay:0},clips:[{id:'clip',name:'Clip',start:0,length:notes.length?notes.at(-1).start+notes.at(-1).duration:0,notes,controllers:[]}]}]});
+ const makeProject=(instrument,notes)=>({version:3,name:'Audio test',tempo:120,ppq:480,beatsPerBar:4,loop:{enabled:false,start:0,end:0},tracks:[{id:'track',name:'Track',instrument,volume:0.8,pan:0,mute:false,solo:false,params:{tone:0.5,resonance:0,drive:0,attack:0.01,release:0.12,reverb:0,delay:0},clips:[{id:'clip',name:'Clip',start:0,length:notes.length?notes.at(-1).start+notes.at(-1).duration:0,notes,controllers:[]}]}]});
  const render=(instrument,notes)=>window.SynthStudioAudio.renderWav(makeProject(instrument,notes));
  const readPCM=async blob=>{
    const bytes=await blob.arrayBuffer(),view=new DataView(bytes);
@@ -111,7 +112,8 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  check(difference>100000,'different presets render distinct timbres');
 
  const fxProj=makeProject('lead-supersaw',one);
- fxProj.tracks[0].params={tone:0.7,resonance:0.5,drive:0.45,attack:0.01,release:0.15,chorus:0.55,phaser:0.4,reverb:0.25,delay:0.2};
+ fxProj.tracks[0].params={tone:0.7,resonance:0.5,drive:0.45,attack:0.01,release:0.15,reverb:0.25,delay:0.2};
+ fxProj.tracks[0].fx={inserts:[{type:'chorus',mix:0.55,rate:0.6,depth:0.4,feedback:0.1,tone:0.3},{type:'phaser',mix:0.4,rate:0.42,depth:0.5,feedback:0.35,tone:0.35}]};
  const fxRendered=await readPCM(await window.SynthStudioAudio.renderWav(fxProj));
  check(fxRendered.rms(0.05,0.18)>0.01,'new supersaw preset and full FX chain render audible output');
 

@@ -15,7 +15,7 @@
         }return out;
     }
     function mergeGesture(track,points){
-        for(const parameter of ['tone','reverb']){
+        for(const parameter of ['tone','resonance','drive','reverb','delay']){
             const unique=new Map();for(const point of points)if(point.parameter===parameter)unique.set(Math.round(point.tick),point);
             const incoming=reducePoints([...unique.values()].sort((a,b)=>a.tick-b.tick));if(!incoming.length)continue;
             const from=incoming[0].tick,to=incoming.at(-1).tick;
@@ -54,7 +54,7 @@
                     clip.controllers.push({tick:0,type,value});
                 }
                 for(const c of controllers)if(c.type!=='sustain'&&c.tick>=part.start&&c.tick<part.end)clip.controllers.push({...c,tick:c.tick-part.start});
-                for(const parameter of ['tone','reverb'])track.automation.push({tick:part.at,parameter,value:valueAt(original,parameter,part.start)});
+                for(const parameter of ['tone','resonance','drive','reverb','delay'])track.automation.push({tick:part.at,parameter,value:valueAt(original,parameter,part.start)});
                 for(const point of original.automation||[])if(point.tick>part.start&&point.tick<part.end)track.automation.push({...point,tick:part.at+point.tick-part.start});
                 count+=clip.notes.length+clip.controllers.length;if(count>50000)throw Error('E_PROJECT_LIMIT');
                 track.clips.push(clip);

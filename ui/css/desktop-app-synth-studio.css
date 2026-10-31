@@ -38,7 +38,7 @@
 .ss-loop-range input {width:43px}
 .ss-history {display:flex;margin-left:auto}
 .ss-notice {flex-shrink:0;padding:8px 14px;background:color-mix(in srgb,#dda349 12%,var(--ss-bg));border-bottom:1px solid color-mix(in srgb,#dda349 35%,transparent);overflow-wrap:anywhere}
-.ss-workspace {display:grid;grid-template-columns:210px minmax(0,1fr) 180px;flex:1;min-height:0;overflow:hidden}
+.ss-workspace {display:grid;grid-template-columns:210px minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
 .ss-library {background:var(--ss-panel);border-right:1px solid var(--ss-border);display:flex;flex-direction:column;min-height:0;padding:10px;gap:10px}
 .ss-library-tabs {display:flex;border-bottom:1px solid var(--ss-border);gap:3px;padding-bottom:5px}
 .ss-library-tabs button {min-width:0;overflow-wrap:anywhere;font-size:11px;flex:1;color:var(--ss-muted)}
@@ -127,11 +127,13 @@
 .ss-midi-panel input[type=number] {width:62px}.ss-midi-panel select {max-width:220px}
 .ss-midi-panel>button {border:1px solid var(--ss-border);font-size:11px}
 .ss-footer {display:flex;align-items:center;gap:10px;flex-shrink:0;height:27px;padding:0 12px;border-top:1px solid var(--ss-border);background:var(--ss-panel);font-size:9px;color:var(--ss-muted)}
-.ss-footer>span:first-child {margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ss-footer>span:last-child {letter-spacing:1px;font-size:8px;white-space:nowrap}
+.ss-footer>span:first-child {margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ss-footer>span[data-footer-count] {letter-spacing:1px;font-size:8px;white-space:nowrap}
+.ss-tour-button {margin-left:2px;border:1px solid var(--ss-border);font-size:9px;padding:2px 7px;color:var(--ss-muted);background:none}
+.ss-tour-button:hover {color:var(--ss-accent);border-color:color-mix(in srgb,var(--ss-accent) 50%,transparent)}
 .ss-midi-led {height:5px;width:5px;border-radius:50%;background:var(--ss-border)}.ss-midi-led.is-on {background:var(--ss-accent)}
 .ss-muted {color:var(--ss-muted);font-size:11px;line-height:1.7;padding:8px}
 .ss-compact-only,.ss-inspector-toggle {display:none!important}
-@container (max-width:1000px){.ss-workspace{grid-template-columns:185px minmax(0,1fr) 155px}.ss-transport{gap:9px;padding:8px}.ss-time-signature{display:none}.ss-brand-mark{display:none}.ss-note-editor{flex-basis:210px}.ss-footer-hint{display:none}}
+@container (max-width:1000px){.ss-workspace{grid-template-columns:185px minmax(0,1fr)}.ss-transport{gap:9px;padding:8px}.ss-time-signature{display:none}.ss-brand-mark{display:none}.ss-note-editor{flex-basis:210px}.ss-footer-hint{display:none}}
 @container (max-width:760px){.ss-workspace{position:relative;grid-template-columns:175px minmax(0,1fr)}.ss-inspector-toggle{display:block!important}.ss-inspector{display:none;position:absolute;right:0;top:0;bottom:0;width:210px;z-index:11;box-shadow:-12px 0 25px #0004}.ss-inspector-open .ss-inspector{display:block}.ss-header{padding:8px}.ss-transport{gap:7px}.ss-transport label{font-size:10px}.ss-tempo input{width:62px}.ss-transport-buttons button{width:28px}.ss-position{font-size:14px;min-width:72px}}
 @container (max-width:540px){.ss-workspace{position:relative;display:flex}.ss-main{width:100%}.ss-library{display:none;position:absolute;left:0;top:0;bottom:0;width:210px;z-index:10;box-shadow:12px 0 25px #0004}.ss-library-open .ss-library{display:flex}.ss-compact-only{display:block!important}.ss-transport{flex-wrap:wrap;row-gap:5px;overflow:visible}.ss-transport .ss-loop-range input{width:36px}.ss-transport label{font-size:10px}.ss-header{gap:4px}.ss-brand strong{font-size:12px}.ss-project-name{max-width:130px!important}.ss-file-actions{gap:0;justify-content:flex-end;width:100%}.ss-file-actions button{padding:4px;width:28px}.ss-file-actions select{width:76px;font-size:10px}.ss-transport .ss-history{margin-left:0}.ss-editor-header{gap:6px}.ss-editor-header strong{max-width:90px}.ss-editor-header label{font-size:9px}.ss-editor-header label input{width:40px!important}.ss-note-editor{flex-basis:190px}.ss-arrange-tools{gap:8px}.ss-arrange-tools input{width:45px!important}.ss-footer>span:last-child{font-size:7px}.ss-midi-panel{max-height:180px;overflow:auto}.ss-midi-panel select{max-width:170px}}
 @media(prefers-reduced-motion:reduce){.ss-app *{scroll-behavior:auto!important}}
@@ -225,3 +227,62 @@
 @media(prefers-reduced-motion:reduce){.ss-app *{transition:none!important;animation:none!important}}
 
 .ss-app .ss-automation-editor{margin:12px 0;font-size:13px}.ss-app .ss-automation-editor summary{cursor:pointer}.ss-app .ss-automation-fields{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:10px 0}.ss-app .ss-automation-fields label{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.ss-app .ss-automation-fields input{width:80px}
+
+/* --- Effect rack, library tags, analyser and guided tour --- */
+.ss-analyser {width:160px;height:34px;margin-left:6px;border:1px solid var(--ss-border);border-radius:6px;background:var(--ss-bg);flex-shrink:0}
+.ss-library-tags {display:flex;flex-wrap:wrap;gap:4px}
+.ss-library-tags button {font-size:9px;min-height:22px;padding:2px 6px;border:1px solid var(--ss-border);color:var(--ss-muted);border-radius:999px}
+.ss-library-tags button[aria-pressed=true] {color:var(--ss-accent);border-color:color-mix(in srgb,var(--ss-accent) 55%,transparent);background:color-mix(in srgb,var(--ss-accent) 10%,transparent)}
+.ss-library-name small {display:flex;gap:3px;flex-wrap:wrap;letter-spacing:0}
+.ss-tag {font-style:normal;font-size:8px;letter-spacing:.4px;text-transform:uppercase;padding:1px 5px;border-radius:999px;color:var(--ss-muted);border:1px solid var(--ss-border);white-space:nowrap}
+.ss-favourite {color:var(--ss-muted);font-size:14px;line-height:1;padding:4px 5px!important;width:auto!important}
+.ss-favourite[aria-pressed=true] {color:var(--ss-accent)}
+.ss-inspector h4 {font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ss-muted);margin:18px 0 8px}
+.ss-fx-rack {display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.ss-fx-slot {border:1px solid var(--ss-border);border-radius:9px;background:var(--ss-bg);padding:8px 10px 10px}
+.ss-fx-slot header {display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.ss-fx-slot header select {flex:1;min-width:0;font-size:11px!important;padding:4px 6px!important}
+.ss-fx-slot header button {width:26px;height:26px;padding:0;font-size:13px;line-height:1;color:var(--ss-muted)}
+.ss-fx-slot header button:hover {color:#e6868b}
+.ss-fx-params {display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 8px}
+.ss-fx-params .ss-parameter {padding:6px 8px;border:1px solid var(--ss-border);border-radius:7px;background:var(--ss-panel)}
+.ss-fx-params .ss-parameter output {font:11px ui-monospace,monospace;color:var(--ss-text)}
+.ss-fx-add {width:100%;border:1px dashed var(--ss-border)!important;font-size:11px!important;color:var(--ss-muted)}
+.ss-fx-add:hover {color:var(--ss-accent);border-color:var(--ss-accent)!important}
+.ss-tour {position:absolute;left:50%;bottom:74px;transform:translateX(-50%);z-index:14;max-width:min(440px,90vw)}
+.ss-tour-card {background:var(--ss-panel);border:1px solid var(--ss-accent);border-radius:12px;padding:14px 16px;box-shadow:0 16px 40px #0006}
+.ss-tour-step {font:10px ui-monospace,monospace;color:var(--ss-muted);letter-spacing:1px}
+.ss-tour-card p {margin:8px 0 12px;font-size:12px;line-height:1.6;color:var(--ss-text)}
+.ss-tour-actions {display:flex;gap:8px;align-items:center}
+.ss-tour-actions button {font-size:11px;min-height:30px;padding:4px 12px}
+.ss-tour-actions button[data-action=tourSkip] {margin-left:auto;border:1px solid var(--ss-border);color:var(--ss-muted)}
+/* On a wide desktop the arrangement keeps the full width of the workbench and
+   the piano roll sits next to the sound workbench below it. The timeline must
+   never be squeezed into a narrow column, because clips outside the visible
+   strip cannot be reached at all. */
+.ss-wide .ss-editor-host {display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(130px,1.2fr) minmax(150px,1fr)}
+.ss-wide .ss-workbench-tabs {grid-area:1/1/2/3}
+.ss-wide .ss-arrangement {grid-area:2/1/3/3}
+.ss-wide .ss-note-editor,.ss-wide .ss-performance-workbench {grid-area:3/1/4/2;min-width:0}
+.ss-wide .ss-sound-workbench {grid-area:3/2/4/3;width:360px;border-left:1px solid var(--ss-border);border-top:0}
+.ss-wide .ss-workbench-tabs [data-work-tab=sound] {display:none}
+.ss-wide .ss-workbench-grip {display:none}
+/* Master strip: the project wide mix controls live in the transport area, so
+   they can be reached without opening the sound panel. */
+.ss-master-toggle {flex-shrink:0;border:1px solid var(--ss-border);font-size:11px;padding:4px 12px;color:var(--ss-muted);white-space:nowrap}
+.ss-master-toggle:hover {color:var(--ss-accent);border-color:color-mix(in srgb,var(--ss-accent) 50%,transparent)}
+.ss-master-toggle[aria-expanded=true] {color:var(--ss-accent);border-color:color-mix(in srgb,var(--ss-accent) 55%,transparent);background:color-mix(in srgb,var(--ss-accent) 12%,transparent)}
+.ss-master-panel {flex-shrink:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 22px;align-items:start;padding:10px 14px;border-bottom:1px solid var(--ss-border);background:var(--ss-panel)}
+.ss-master-panel[hidden] {display:none}
+.ss-master-group {min-width:0}
+.ss-master-group h4 {font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ss-muted);margin:0 0 6px}
+.ss-master-fields {display:grid;grid-template-columns:repeat(var(--ss-master-cols,2),minmax(0,1fr));gap:6px 10px}
+.ss-master-fields .ss-parameter {gap:2px;padding:6px 8px;border-radius:8px}
+.ss-master-fields .ss-parameter span {font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-master-fields .ss-parameter input {width:100%!important}
+.ss-master-fields .ss-parameter output {font:11px ui-monospace,monospace}
+.ss-master-select select {width:100%}
+@container (max-width:1000px){.ss-master-panel{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:620px){.ss-master-panel{grid-template-columns:minmax(0,1fr)}}
+@container (max-width:1000px){.ss-analyser {width:110px;height:26px}.ss-tour {bottom:60px}}
+@container (max-width:760px){.ss-analyser {display:none}.ss-fx-params {grid-template-columns:repeat(2,minmax(0,1fr))}}

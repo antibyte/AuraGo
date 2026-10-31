@@ -20,7 +20,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
@@ -44,7 +44,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	page := newSmokeBrowser(t).MustPage().Timeout(120 * time.Second)
+	// The page context carries one deadline for the whole run. The demo holds 138
+	// clips and the responsive pass renders the arrangement twelve times, so the
+	// budget has to cover the complete flow.
+	page := newSmokeBrowser(t).MustPage().Timeout(180 * time.Second)
 	defer func() {
 		_, _ = page.Eval(`()=>{for(const id of [...SynthStudioApp.instances.keys()])SynthStudioApp.dispose(id)}`)
 		_ = page.Close()
@@ -58,10 +61,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			t.Fatalf("%s; errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
-	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===209`)
+	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===249`)
 	page.MustElement("[data-template=electronic]").MustClick()
-	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length===4`)
-	check("template is four bars and paused", `()=>{const p=synthInstance().project();return p.loop.end===7680&&!document.querySelector('[data-action=play]').classList.contains('is-active')}`)
+	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length===5`)
+	check("template is sixteen bars and paused", `()=>{const p=synthInstance().project();return p.loop.end===30720&&!document.querySelector('[data-action=play]').classList.contains('is-active')}`)
 	check("clip repeat bounds allocation before expansion", `()=>{
         const p=SynthStudioModel.create('Repeat limit'),t=SynthStudioModel.addTrack(p,'bass-sub'),c=SynthStudioModel.createClip(t.instrument,0);
         c.length=1;c.notes=Array.from({length:10},(_,i)=>({id:'bounded-'+i,pitch:60,start:0,duration:1,velocity:.5}));t.clips.push(c);
@@ -72,16 +75,34 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
         editor.dispose();host.remove();return code==='E_PROJECT_LIMIT'&&c.notes.length===10;
     }`)
 	page.MustElement(".ss-app [data-action=demo]").MustClick()
-	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length>=5`)
+	// The demo replaces the document asynchronously: the project is loaded and
+	// then written to disk, and every storage state re-renders the arrangement.
+	// Wait for the settled demo so the clip handle stays valid.
+	waitForJSBool(t, page, `()=>{const p=synthInstance().project(),s=synthInstance().storage.state;return p.name==='Neon Sketch'&&p.loop.end===61440&&!s.loading}`)
 	check("demo has audible notes", `()=>synthInstance().project().tracks.every(t=>t.clips.some(c=>c.notes.length))`)
 	page.MustElement(".ss-clip").MustClick()
-	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===10`)
+	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===8`)
 	page.MustEval(`()=>{window.originalTone=synthInstance().project().tracks[0].params.tone;const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(const v of [.2,.4,.65]){e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}window.dispatchEvent(new PointerEvent('pointerup'));}`)
 	check("parameter gesture commits", `()=>synthInstance().project().tracks[0].params.tone===.65`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("one undo restores whole gesture", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=.12;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointercancel'));}`)
 	check("cancelled gesture leaves model untouched", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
+	// The master strip belongs to the project, not to a track, and it lives in
+	// the transport area so the mix can be judged without opening a panel.
+	page.MustElement("[data-action=master]").MustClick()
+	waitForJSBool(t, page, `()=>{const p=document.querySelector('[data-master-panel]');return !!p&&!p.hidden}`)
+	check("master panel opens with every control", `()=>{const p=document.querySelector('[data-master-panel]');return p.querySelectorAll('[data-master-param]').length===14&&!!p.querySelector('[data-master-select=echoSync]')&&!!p.querySelector('[data-master-param=threshold]')&&!!p.querySelector('[data-master-param=knee]')}`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-master-param=threshold]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=-20;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup'));}`)
+	check("master gesture commits into the project", `()=>synthInstance().project().master.threshold===-20`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("master gesture is one undo step", `()=>synthInstance().project().master.threshold!==-20`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-master-select=echoSync]');e.value='1/16';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	check("master sync selection commits", `()=>synthInstance().project().master.echoSync==='1/16'`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("master sync is one undo step", `()=>synthInstance().project().master.echoSync!=='1/16'`)
+	page.MustElement("[data-action=master]").MustClick()
+	waitForJSBool(t, page, `()=>{const p=document.querySelector('[data-master-panel]');return !!p&&p.hidden}`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.generatorOriginal=JSON.stringify(synthInstance().project());}`)
 	page.MustElement("[data-work-tab=performance]").MustClick()
 	page.MustEval(`()=>{const e=document.querySelector('[data-music=generator]');e.value='arp';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
@@ -119,7 +140,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>{const d=new DataTransfer();d.setData('application/x-aurago-synth',JSON.stringify({type:'pattern',id:SynthStudioModel.patterns.find(p=>p.category==='leads').id}));document.querySelector('[data-empty-drop]').dispatchEvent(new DragEvent('drop',{dataTransfer:d,bubbles:true,cancelable:true}));}`)
 	check("pattern drop creates notes", `()=>synthInstance().project().tracks.at(-1).clips[0].notes.length>0`)
 	page.MustEval(`async()=>{await synthInstance().storage.save();}`)
-	check("project saved through API", `()=>synthFiles.size===1 && [...synthFiles.values()][0].content.includes('"version":2') && !synthInstance().storage.state.dirty`)
+	check("project saved through API", `()=>synthFiles.size===1 && [...synthFiles.values()][0].content.includes('"version":3') && !synthInstance().storage.state.dirty`)
 	page.MustEval(`()=>{synthFailWrite=true;document.querySelector('[data-tempo]').value='135';document.querySelector('[data-tempo]').dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`async()=>{try{await synthInstance().storage.save()}catch{}}`)
 	check("failed save preserves project", `()=>synthInstance().storage.state.dirty && synthInstance().project().tempo===135`)
@@ -142,10 +163,11 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustElement("[data-work-tab=performance]").MustClick()
 	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-tempo]',240);set('[data-loop-start]',1);set('[data-loop-end]',2);}`)
 	page.MustElement("[data-stage=sceneCreate]").MustClick()
-	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===1`)
+	// The demo ships two scenes, the two new ones follow them.
+	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===3`)
 	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-loop-end]',3);set('[data-loop-start]',2);}`)
 	page.MustElement("[data-stage=sceneCreate]").MustClick()
-	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===2`)
+	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===4`)
 	page.MustElement("[data-scene]").MustClick()
 	waitForJSBool(t, page, `()=>document.querySelectorAll('.ss-scene-pads .active').length===1`)
 	waitForJSBool(t, page, `()=>synthInstance().audio.elapsed()>.1`)
@@ -191,9 +213,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			for _, width := range []int{1280, 760, 420} {
 				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;document.body.dataset.scheme=mode;const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
 				page.MustElement("[data-work-tab=notes]").MustClick()
+				page.MustEval(`()=>document.querySelector('.ss-clip').scrollIntoView({block:'nearest',inline:'nearest'})`)
 				page.MustElement(".ss-clip").MustClick()
 				page.MustElement("[data-tool=select]").MustClick()
-				page.MustEval(`()=>{const editor=document.querySelector('[data-note-editor]');window.beforeNoteEdit=JSON.stringify(synthInstance().project());editor.dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));document.querySelector('[data-copy-notes]').click();}`)
+				page.MustEval(`()=>{const p=synthInstance().project();const t=p.tracks.find(track=>track.clips.some(c=>c.notes.length));if(t){const c=t.clips.find(c=>c.notes.length);synthInstance().editor.select(t.id,c.id);}synthInstance().editor.setPlayhead(0);const editor=document.querySelector('[data-note-editor]');window.beforeNoteEdit=JSON.stringify(synthInstance().project());editor.dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));document.querySelector('[data-copy-notes]').click();}`)
 				page.MustElement("[data-paste-notes]").MustClick()
 				check("copy/paste remains usable at this width", `()=>JSON.stringify(synthInstance().project())!==beforeNoteEdit`)
 				page.MustElement("[data-action=undo]").MustClick()
@@ -213,6 +236,14 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			}
 		}
 	}
+	// The wide workbench has to follow the window width on its own. Without an
+	// observer the layout would keep the old mode until a tab was switched.
+	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1500px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
+	waitForJSBool(t, page, `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
+	check("wide workbench follows the window width", `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
+	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='420px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
+	waitForJSBool(t, page, `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)
+	check("wide workbench releases on a narrow window", `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)
 	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforeTouch=JSON.stringify(synthInstance().project());document.querySelector('[data-xy]').scrollIntoView({block:'center'});}`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
 		t.Fatal(err)
