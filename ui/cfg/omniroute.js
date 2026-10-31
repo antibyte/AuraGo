@@ -125,7 +125,7 @@ async function renderOmniRouteSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn" data-config-action-draft="true">🔌 ' + omniRouteText('config.omniroute.test_button') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn" data-config-action-draft="true">🔌 ' + omniRouteText('config.omniroute.test_button') + '</button>';
     if (managed) {
         html += '<button class="btn-save btn-secondary" onclick="omniRouteStartSidecar()" id="omniroute-start-btn" data-config-action-draft="false">▶ ' + omniRouteText('config.omniroute.start_button') + '</button>';
         html += '<button class="btn-save btn-secondary" onclick="omniRouteStopSidecar()" id="omniroute-stop-btn" data-config-action-draft="false">⏹ ' + omniRouteText('config.omniroute.stop_button') + '</button>';

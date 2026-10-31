@@ -286,7 +286,7 @@ function emailAccountShowModal(title, data, onSave) {
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">
                 ${t('config.email.cancel')}
             </button>
-            <button type="button" class="btn-save adg-test-btn" id="ea-test-btn" data-config-action-draft="true">
+            <button type="button" class="btn-save cfg-test-btn" id="ea-test-btn" data-config-action-draft="true">
                 🔌 ${t('config.email.test_btn')}
             </button>
             <button type="button" class="btn-save" id="ea-save-btn">

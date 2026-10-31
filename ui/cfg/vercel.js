@@ -137,7 +137,7 @@ async function renderVercelSection(section) {
         <div class="field-group-title">🔌 ${t('config.vercel.test_title')}</div>
         <div class="field-group-desc">${t('config.vercel.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="vercel-test-btn" data-config-action-draft="true" onclick="vercelTestConnection()">🔌 ${t('config.vercel.test_btn')}</button>
+            <button class="btn-save cfg-test-btn" id="vercel-test-btn" data-config-action-draft="true" onclick="vercelTestConnection()">🔌 ${t('config.vercel.test_btn')}</button>
             ${cfgActionResult.html('vercel-test-result')}
         </div>
     </div>`;

@@ -66,7 +66,7 @@ async function renderDograhSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">▧ ' + dograhText('config.dograh.sidecar_note') + '</div>';
     html += cfgStatusBanner.html('dograh-status-box', 'checking', { detail: dograhText('config.dograh.status_prefix') + ' ...' });
     html += '<div class="cfg-actions-row">';
-    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\'test\')', 'adg-test-btn', '🔌 ');
+    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\'test\')', 'cfg-test-btn', '🔌 ');
     html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\'start\')', 'btn-secondary', '▶ ');
     html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\'stop\')', 'btn-secondary', '⏹ ');
     html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\'recreate\')', 'btn-secondary', '🔄 ');

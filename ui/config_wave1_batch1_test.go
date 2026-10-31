@@ -16,7 +16,7 @@ type wave1Batch1Module struct {
 }
 
 var wave1Batch1Modules = []wave1Batch1Module{
-	{"adguard", "cfg/adguard.js", "adg-test-btn", "adg-test-result", "adg-status-banner", "adgTestConnection", "/api/adguard/test", "adguard", []string{"adguard.password"}},
+	{"adguard", "cfg/adguard.js", "cfg-test-btn", "adguard-test-result", "adguard-status-banner", "adgTestConnection", "/api/adguard/test", "adguard", []string{"adguard.password"}},
 	{"agentmail", "cfg/agentmail.js", "agentmail-test-btn", "agentmail-test-result", "agentmail-status-banner", "agentMailTestConnection", "/api/agentmail/test", "agentmail", []string{"agentmail.api_key"}},
 	{"evomap", "cfg/evomap.js", "evomap-test-btn", "evomap-test-result", "evomap-status-banner", "evomapTestConnection", "/api/evomap/test", "evomap", []string{"evomap.api_key", "evomap.node_secret"}},
 	{"grafana", "cfg/grafana.js", "grafana-test-btn", "grafana-test-result", "grafana-status-banner", "grafanaTestConnection", "/api/grafana/test", "grafana", []string{"grafana.api_key"}},
@@ -45,7 +45,7 @@ func TestConfigWave1Batch1ModulesUseSharedFeedback(t *testing.T) {
 				t.Errorf("%s missing %q", m.file, want)
 			}
 		}
-		for _, banned := range []string{"/api/vault/secrets", "adg-save-btn", "SetBannerState", "adg-status-banner\"", "🟢", "🔴", "⚪", "🟡"} {
+		for _, banned := range []string{"/api/vault/secrets", "cfg-save-btn", "SetBannerState", "adguard-status-banner\"", "🟢", "🔴", "⚪", "🟡"} {
 			if strings.Contains(src, banned) {
 				t.Errorf("%s still contains %q", m.file, banned)
 			}
@@ -82,7 +82,7 @@ func TestConfigWave1Batch1ModulesBrowser(t *testing.T) {
 					result: !!result && result.classList.contains('cfg-action-result') && result.getAttribute('role') === 'status',
 					draft: !!button && button.dataset.configActionDraft === 'true',
 					secrets: secrets.length >= 1,
-					vaultButtons: document.querySelectorAll('#content .adg-save-btn, #content [onclick*="Vault"], #content [onclick*="SaveKey"], #content [onclick*="SaveAPIKey"]').length,
+					vaultButtons: document.querySelectorAll('#content .cfg-save-btn, #content [onclick*="Vault"], #content [onclick*="SaveKey"], #content [onclick*="SaveAPIKey"]').length,
 					vaultHint: !!document.querySelector('#content .cfg-save-scope'),
 					emoji: /[\u{1F7E2}\u{1F534}\u{26AA}\u{1F7E1}]/u.test(banner ? banner.textContent : '')
 				};

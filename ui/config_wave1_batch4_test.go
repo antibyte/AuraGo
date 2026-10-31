@@ -42,7 +42,7 @@ func TestConfigWave1Batch4DraftModulesUseSharedFeedback(t *testing.T) {
 		if m.bannerID != "" && !strings.Contains(src, "cfgStatusBanner") {
 			t.Errorf("%s does not use cfgStatusBanner", m.file)
 		}
-		for _, banned := range append([]string{"/api/vault/secrets", "adg-save-btn", "wh-notice nf-status", "adg-status-banner"}, wave1Batch4EmojiDots...) {
+		for _, banned := range append([]string{"/api/vault/secrets", "cfg-save-btn", "wh-notice nf-status", "adguard-status-banner"}, wave1Batch4EmojiDots...) {
 			if strings.Contains(src, banned) {
 				t.Errorf("%s still contains %q", m.file, banned)
 			}
@@ -82,7 +82,7 @@ func TestConfigWave1Batch4SecretsAndRuntimeActions(t *testing.T) {
 			t.Errorf("a2a missing %q", want)
 		}
 	}
-	for _, banned := range append([]string{"a2aSaveVault", "/api/vault/secrets", "adg-save-btn", "a2a-save-btn-xs"}, wave1Batch4EmojiDots...) {
+	for _, banned := range append([]string{"a2aSaveVault", "/api/vault/secrets", "cfg-save-btn", "a2a-save-btn-xs"}, wave1Batch4EmojiDots...) {
 		if strings.Contains(a2a, banned) {
 			t.Errorf("a2a still contains %q", banned)
 		}
@@ -127,8 +127,8 @@ func TestConfigWave1Batch4SecretsAndRuntimeActions(t *testing.T) {
 	if !strings.Contains(remote, "cfgActionResult.html('rc-token-status')") || !strings.Contains(remote, `id="rc-token-result"`) {
 		t.Error("remote_control: the status line must use cfgActionResult and the token stays in #rc-token-result")
 	}
-	if strings.Contains(remote, "adg-test-result") {
-		t.Error("remote_control still uses adg-test-result lines")
+	if strings.Contains(remote, "adguard-test-result") {
+		t.Error("remote_control still uses adguard-test-result lines")
 	}
 }
 
@@ -156,7 +156,7 @@ func TestConfigWave1Batch4ModulesBrowser(t *testing.T) {
 					result: !!result && result.classList.contains('cfg-action-result') && result.getAttribute('role') === 'status',
 					draft: !!button && button.dataset.configActionDraft === 'true',
 					secrets: secrets.length >= 1,
-					vaultButtons: document.querySelectorAll('#content .adg-save-btn, #content [onclick*="Vault"], #content [onclick*="SaveKey"], #content [onclick*="SaveToken"]').length,
+					vaultButtons: document.querySelectorAll('#content .cfg-save-btn, #content [onclick*="Vault"], #content [onclick*="SaveKey"], #content [onclick*="SaveToken"]').length,
 					emoji: /[\u{1F7E2}\u{1F534}\u{26AA}\u{1F7E1}]/u.test(banner ? banner.textContent : '')
 				};
 			}`, map[string]interface{}{"bannerID": m.bannerID, "resultID": m.resultID, "testButton": m.testButton, "secretPaths": m.secretPaths}).Map()
@@ -232,7 +232,7 @@ func TestConfigWave1Batch4RuntimeAndListSecretsBrowser(t *testing.T) {
 			keyPath: key.dataset.path, bearerPath: bearer.dataset.path,
 			draftKey: window.AuraConfigState.get('a2a.client.remote_agents.0.api_key'),
 			locked: button.dataset.configActionLocked, reason: reason ? reason.textContent : '',
-			dockButtons: document.querySelectorAll('#content .adg-save-btn, #content .a2a-save-btn-xs').length
+			dockButtons: document.querySelectorAll('#content .cfg-save-btn, #content .a2a-save-btn-xs').length
 		};
 	}`).Map()
 	if !a2a["banner"].Bool() || a2a["keyPath"].Str() != "a2a.client.remote_agents.0.api_key" || a2a["bearerPath"].Str() != "a2a.client.remote_agents.0.bearer_token" {

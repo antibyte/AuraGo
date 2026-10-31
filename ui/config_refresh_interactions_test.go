@@ -193,18 +193,18 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 	page.MustEval(`() => {SECTION_MODULES.adguard.m=window.__adguardModule;}`)
 	page.MustElement("[data-config-retry]").MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-path="adguard.url"]')`)
-	if !page.MustEval(`() => document.getElementById('adg-test-btn').getAttribute('aria-disabled')==='true' && !document.getElementById('adg-test-btn-reason').hidden`).Bool() {
+	if !page.MustEval(`() => document.getElementById('cfg-test-btn').getAttribute('aria-disabled')==='true' && !document.getElementById('cfg-test-btn-reason').hidden`).Bool() {
 		t.Fatal("connection test missing visible lock reason")
 	}
 	page.MustEval(`async () => {configData.adguard={enabled:true,url:'http://fixture.invalid',password:'••••••••'}; AuraConfigState.commit(configData); await selectSection('adguard'); resetDirtySnapshot();}`)
-	page.MustElement("#adg-test-btn").MustClick()
-	waitForJSBool(t, page, `() => document.getElementById('adg-test-result').classList.contains('is-danger')`)
+	page.MustElement("#cfg-test-btn").MustClick()
+	waitForJSBool(t, page, `() => document.getElementById('adguard-test-result').classList.contains('is-danger')`)
 	if !page.MustEval(`() => document.querySelector('[data-path="adguard.url"]').value=== 'http://fixture.invalid' && !document.querySelector('.cfg-save-scope')`).Bool() {
-		t.Fatalf("failed test lost inputs or showed a vault hint for a dock secret: %s", page.MustEval(`() => JSON.stringify({u:document.querySelector('[data-path="adguard.url"]')?.value, s:!!document.querySelector('.cfg-save-scope'), r:document.getElementById('adg-test-result').textContent})`).String())
+		t.Fatalf("failed test lost inputs or showed a vault hint for a dock secret: %s", page.MustEval(`() => JSON.stringify({u:document.querySelector('[data-path="adguard.url"]')?.value, s:!!document.querySelector('.cfg-save-scope'), r:document.getElementById('adguard-test-result').textContent})`).String())
 	}
 	// A credential typed into the field joins the save dock: one config PUT carries it, no own Vault POST.
-	page.MustEval(`() => {window.__writes=[]; window.fetch=(url,opts)=>{if(opts?.method==='POST' || opts?.method==='PUT'){window.__writes.push(String(url)+' '+String(opts.body||''));} return String(url)==='/api/config' && opts?.method==='PUT' ? Promise.resolve(new Response('{"status":"ok"}',{headers:{'Content-Type':'application/json'}})) : window.__originalFetch(url,opts);}; const input=document.getElementById('adg-password'); input.value='local-fixture-only'; input.dispatchEvent(new Event('input',{bubbles:true}));}`)
-	if !page.MustEval(`() => document.getElementById('adg-password').dataset.path==='adguard.password' && hasUnsavedConfigChanges() && !document.querySelector('.adg-save-btn') && !document.querySelector('[onclick*="adgSavePassword"]')`).Bool() {
+	page.MustEval(`() => {window.__writes=[]; window.fetch=(url,opts)=>{if(opts?.method==='POST' || opts?.method==='PUT'){window.__writes.push(String(url)+' '+String(opts.body||''));} return String(url)==='/api/config' && opts?.method==='PUT' ? Promise.resolve(new Response('{"status":"ok"}',{headers:{'Content-Type':'application/json'}})) : window.__originalFetch(url,opts);}; const input=document.getElementById('adguard-password'); input.value='local-fixture-only'; input.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	if !page.MustEval(`() => document.getElementById('adguard-password').dataset.path==='adguard.password' && hasUnsavedConfigChanges() && !document.querySelector('.cfg-save-btn') && !document.querySelector('[onclick*="adgSavePassword"]')`).Bool() {
 		t.Fatal("typed credential did not join the save dock")
 	}
 	page.MustEval(`async () => { await saveConfig(); }`)
@@ -304,9 +304,9 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 		t.Fatal("provider save crossed its storage boundary")
 	}
 	page.MustEval(`() => {window.fetch=window.__originalFetch;}`)
-	page.MustSetViewport(1024, 768, 1, false)
+	page.MustSetViewport(800, 768, 1, false)
 	if !page.MustEval(`() => getComputedStyle(document.getElementById('cfg-hamburger')).display !== 'none'`).Bool() {
-		t.Fatalf("drawer button hidden: %s", page.MustEval(`() => ({width:innerWidth, match:matchMedia('(max-width:1099px)').matches,header:document.querySelector('.header-left').getBoundingClientRect().toJSON()})`).String())
+		t.Fatalf("drawer button hidden: %s", page.MustEval(`() => ({width:innerWidth, match:matchMedia('(max-width:899px)').matches,header:document.querySelector('.header-left').getBoundingClientRect().toJSON()})`).String())
 	}
 	page.MustElement("#cfg-hamburger").MustClick()
 	if !page.MustEval(`() => !document.getElementById('sidebar').inert && document.getElementById('cfg-hamburger').getAttribute('aria-expanded')==='true' && document.activeElement.id==='sidebarSearchInput'`).Bool() {

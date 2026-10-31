@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Δεν έχει ενεργοποιηθεί ακόμη καμία ενσωμάτωση.",
   "config.overview.attention_title": "Χρειάζεται προσοχή",
   "config.overview.blocked": "Μη διαθέσιμο",
-  "config.overview.group_active": "{count} ενεργά"
+  "config.overview.group_active": "{count} ενεργά",
+  "config.common.close": "Κλείσιμο",
+  "config.common.retry": "Δοκιμάστε ξανά",
+  "config.common.empty": "Δεν υπάρχει τίποτα ακόμη.",
+  "config.common.load_failed": "Δεν ήταν δυνατή η φόρτωση της λίστας.",
+  "config.common.delete_item": "Διαγραφή {name}"
 }

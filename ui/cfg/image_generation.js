@@ -131,7 +131,7 @@ async function renderImageGenerationSection(section) {
         <div class="field-group-title">${t('config.image_generation.test_title')}</div>
         <div class="field-group-desc">${t('config.image_generation.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()" data-config-action-draft="true">
+            <button class="btn-save cfg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()" data-config-action-draft="true">
                 🧪 ${t('config.image_generation.test_btn')}
             </button>
             ${cfgActionResult.html('imggen-test-result')}

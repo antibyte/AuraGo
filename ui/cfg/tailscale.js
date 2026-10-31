@@ -42,16 +42,16 @@ async function renderTailscaleSection(section) {
     html += `<div class="field-group ts-mt">
         <div class="field-label">🔑 ${t('config.tailscale.api_key_label')}</div>
         <div class="field-help">${t('config.tailscale.api_key_hint')}</div>
-        <div class="adg-password-row">
+        <div class="cfg-secret-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="ts-api-key-input" data-path="tailscale.api_key" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
+                <input class="field-input cfg-secret-input" type="password" id="ts-api-key-input" data-path="tailscale.api_key" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>
     </div>`;
 
     html += `<div class="cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn" data-config-action-draft="true">🔌 ${t('config.tailscale.test_btn')}</button>
+        <button class="btn-save cfg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn" data-config-action-draft="true">🔌 ${t('config.tailscale.test_btn')}</button>
         ${cfgActionResult.html('ts-api-test-result')}
     </div>`;
 
@@ -157,9 +157,9 @@ async function renderTailscaleSection(section) {
         html += `<div class="field-group ts-mt">
             <div class="field-label">🔑 ${t('config.tailscale.tsnet_shared_key_label')}</div>
             <div class="field-help">${t('config.tailscale.tsnet_shared_key_hint')}</div>
-            <div class="adg-password-row">
+            <div class="cfg-secret-row">
                 <div class="password-wrap cfg-password-input">
-                    <input class="field-input adg-password-input" type="password" id="ts-auth-key-input" data-path="tailscale.tsnet.auth_key" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
+                    <input class="field-input cfg-secret-input" type="password" id="ts-auth-key-input" data-path="tailscale.tsnet.auth_key" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                 </div>
             </div>
@@ -487,9 +487,9 @@ function _tsnetRenderNodeCards(data) {
                 <span class="${healthClass}">● ${escapeHtml(_tsnetHealthLabel(health))}</span>
             </div>
             <div class="ts-node-details">${details.join('')}</div>
-            <div class="adg-password-row ts-node-key-row">
+            <div class="cfg-secret-row ts-node-key-row">
                 <div class="password-wrap cfg-password-input">
-                    <input class="field-input adg-password-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
+                    <input class="field-input cfg-secret-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)" ${disabled ? 'disabled' : ''}>${EYE_OPEN_SVG}</button>
                 </div>
                 <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>💾 ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>

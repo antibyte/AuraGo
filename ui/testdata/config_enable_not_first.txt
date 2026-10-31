@@ -1,0 +1,5 @@
+# <section> <enable path>: the section's enable control is not its first visible control (E5). Ends empty.
+decisions decisions.enabled
+output_compression agent.output_compression.enabled
+tts tts.piper.enabled
+video_download tools.video_download.enabled

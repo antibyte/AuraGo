@@ -70,7 +70,7 @@
         scope.querySelectorAll('.section-header').forEach(heading => {
             if (heading.closest('.modal-overlay')) return;
             heading.setAttribute('role', 'heading');
-            heading.setAttribute('aria-level', '1');
+            heading.setAttribute('aria-level', '2');
         });
         scope.querySelectorAll('.field-group').forEach(group => {
             group.classList.add('pw-field');
@@ -80,7 +80,7 @@
             group.classList.toggle('cfg-switch-field', !!toggle && !!label);
             // The help follows the editor in both visual and screen-reader order.
             if (help && !toggle && help.nextElementSibling && !help.nextElementSibling.matches('.pw-field-error, .cfg-save-scope')) {
-                const editor = group.querySelector(':scope > input, :scope > select, :scope > textarea, :scope > .password-wrap, :scope > .adg-password-row, :scope > .field-select-wrap');
+                const editor = group.querySelector(':scope > input, :scope > select, :scope > textarea, :scope > .password-wrap, :scope > .cfg-secret-row, :scope > .field-select-wrap');
                 if (editor && editor.previousElementSibling === help) editor.after(help);
             }
             group.querySelectorAll('input, select, textarea, .toggle[data-path]').forEach(control => {

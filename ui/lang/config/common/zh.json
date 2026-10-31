@@ -160,5 +160,10 @@
   "config.overview.active_empty": "尚未开启任何集成。",
   "config.overview.attention_title": "需要关注",
   "config.overview.blocked": "不可用",
-  "config.overview.group_active": "{count} 个已启用"
+  "config.overview.group_active": "{count} 个已启用",
+  "config.common.close": "关闭",
+  "config.common.retry": "重试",
+  "config.common.empty": "这里还没有内容。",
+  "config.common.load_failed": "无法加载此列表。",
+  "config.common.delete_item": "删除 {name}"
 }

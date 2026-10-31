@@ -128,7 +128,7 @@ function renderVideoGenerationSection(section) {
         <div class="field-group-title">${t('config.video_gen.test_title')}</div>
         <div class="field-group-desc">${t('config.video_gen.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="video-test-btn" onclick="videoTestConnection()" data-config-action-draft="true">
+            <button class="btn-save cfg-test-btn" id="video-test-btn" onclick="videoTestConnection()" data-config-action-draft="true">
                 🔌 ${t('config.video_gen.test_btn')}
             </button>
             ${cfgActionResult.html('video-test-result')}

@@ -79,16 +79,16 @@ function renderTrueNASSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.truenas.apikey_label') + '</div>';
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
         html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" data-path="truenas.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+        html += '<input class="field-input cfg-secret-input" type="password" id="truenas-apikey" data-path="truenas.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '</div></div>';
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn" data-config-action-draft="true">' + t('config.truenas.test_btn') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn" data-config-action-draft="true">' + t('config.truenas.test_btn') + '</button>';
     html += cfgActionResult.html('truenas-test-result');
     html += '</div>';
 

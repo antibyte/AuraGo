@@ -249,7 +249,7 @@ async function renderHomepageSection(section) {
             <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
             <div class="field-help">${t('config.homepage.deploy_password_help')}</div>
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="hp-deploy-password" data-path="homepage.deploy_password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
+                <input class="field-input cfg-secret-input" type="password" id="hp-deploy-password" data-path="homepage.deploy_password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>`;
@@ -258,7 +258,7 @@ async function renderHomepageSection(section) {
             <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
             <div class="field-help">${t('config.homepage.deploy_key_help')}</div>
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="hp-deploy-key" data-path="homepage.deploy_key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
+                <input class="field-input cfg-secret-input" type="password" id="hp-deploy-key" data-path="homepage.deploy_key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>`;
@@ -271,7 +271,7 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">🔌 ${t('config.homepage.test_title')}</div>
             <div class="field-group-desc">${t('config.homepage.test_desc')}</div>
             <div class="cfg-actions-row">
-                <button class="btn-save adg-test-btn" id="hp-test-btn" data-config-action-draft="true" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
+                <button class="btn-save cfg-test-btn" id="hp-test-btn" data-config-action-draft="true" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
                 ${cfgActionResult.html('hp-test-result')}
             </div>
         </div>`;

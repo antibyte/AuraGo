@@ -123,7 +123,7 @@ async function renderHereNowSection(section) {
     </div>`;
 
     html += `<div class="field-group"><div class="field-group-title">🔌 ${t('config.here_now.test')}</div><div class="field-help">${t('config.here_now.test_help')}</div>
-        <div class="cfg-actions-row"><button class="btn-save adg-test-btn" id="hn-test-btn" data-config-action-draft="true" onclick="hereNowTestConnection()">🔌 ${t('config.here_now.test_button')}</button>${cfgActionResult.html('hn-test-result')}</div>
+        <div class="cfg-actions-row"><button class="btn-save cfg-test-btn" id="hn-test-btn" data-config-action-draft="true" onclick="hereNowTestConnection()">🔌 ${t('config.here_now.test_button')}</button>${cfgActionResult.html('hn-test-result')}</div>
     </div></div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();

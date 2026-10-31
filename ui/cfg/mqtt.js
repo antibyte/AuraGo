@@ -54,9 +54,9 @@ async function renderMQTTSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.password_label')}</div>
         <div class="field-help">${t('help.mqtt.password_help')}</div>
-        <div class="adg-password-row">
+        <div class="cfg-secret-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="mqtt-password" data-path="mqtt.password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}" autocomplete="off">
+                <input class="field-input cfg-secret-input" type="password" id="mqtt-password" data-path="mqtt.password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>
@@ -263,7 +263,7 @@ async function renderMQTTSection(section) {
 
     html += `<hr class="cfg-section-hr">`;
     html += `<div class="cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="mqttTestConnection()" id="mqtt-test-btn" data-config-action-draft="true">${t('config.mqtt.test_btn')}</button>
+        <button class="btn-save cfg-test-btn" onclick="mqttTestConnection()" id="mqtt-test-btn" data-config-action-draft="true">${t('config.mqtt.test_btn')}</button>
         ${cfgActionResult.html('mqtt-test-result')}
     </div>`;
 

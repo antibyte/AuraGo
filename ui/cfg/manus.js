@@ -41,14 +41,14 @@ async function renderManusSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += cfgStatusBanner.html('manus-status-banner', 'checking', { detail: t('config.manus.status_loading') });
-    html += '<div class="cfg-actions-row manus-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" data-config-action-draft="true" onclick="manusTestConnection()">' + t('config.manus.test_connection') + '</button>';
+    html += '<div class="cfg-actions-row manus-actions-row"><button class="btn-save cfg-test-btn" id="manus-test-btn" data-config-action-draft="true" onclick="manusTestConnection()">' + t('config.manus.test_connection') + '</button>';
     html += '<button class="btn-save btn-secondary" id="manus-load-catalogs-btn" data-config-action-draft="false" onclick="manusLoadCatalogs(true)"' + actionsDisabled + '>' + t('config.manus.load_catalogs') + '</button>';
     html += cfgActionResult.html('manus-test-result') + cfgActionResult.html('manus-catalog-result') + '</div>';
 
     html += manusToggle('manus.enabled', cfg.enabled, 'config.manus.enabled', 'help.manus.enabled', false);
     html += '<div class="field-group"><div class="field-label">' + t('config.manus.api_key') + '</div><div class="field-help">' + t('help.manus.api_key') + '</div>';
-    html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="manus-api-key" data-path="manus.api_key" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.manus.api_key_existing') : t('config.manus.api_key_placeholder')) + '" autocomplete="off">';
+    html += '<div class="cfg-secret-row"><div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="manus-api-key" data-path="manus.api_key" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.manus.api_key_existing') : t('config.manus.api_key_placeholder')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
     html += '</div></div>';
 

@@ -30,11 +30,11 @@ function renderGrafanaSection(section) {
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn" data-config-action-draft="true">' + t('config.grafana.test_btn') + '</button>' },
+            { html: '<button class="btn-save cfg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn" data-config-action-draft="true">' + t('config.grafana.test_btn') + '</button>' },
             { html: form.actionResult({ id: 'grafana-test-result' }) }
-        ]) + '<div id="grafana-summary" class="adg-quick-stats is-hidden">'
-            + '<div class="adg-stats-title">' + t('config.grafana.summary_title') + '</div>'
-            + '<div id="grafana-summary-content" class="adg-stats-grid"></div>'
+        ]) + '<div id="grafana-summary" class="cfg-stats is-hidden">'
+            + '<div class="cfg-stats-title">' + t('config.grafana.summary_title') + '</div>'
+            + '<div id="grafana-summary-content" class="cfg-stats-grid"></div>'
             + '</div>'
     });
 
@@ -68,9 +68,9 @@ function grafanaRenderSummary(summary, partialErrors) {
     html += '<div><strong>' + t('config.grafana.summary_alerts') + '</strong><br>' + escapeHtml(String(summary.alerts || 0)) + '</div>';
     html += '<div><strong>' + t('config.grafana.summary_org') + '</strong><br>' + escapeHtml(summary.org || '-') + '</div>';
     if (Array.isArray(partialErrors) && partialErrors.length > 0) {
-        html += '<div class="adg-stats-loaded"><strong>' + t('config.grafana.partial_warning') + '</strong><br>' + escapeHtml(partialErrors.join(' | ')) + '</div>';
+        html += '<div class="cfg-stats-loaded"><strong>' + t('config.grafana.partial_warning') + '</strong><br>' + escapeHtml(partialErrors.join(' | ')) + '</div>';
     }
-    content.innerHTML = html || '<div class="adg-stats-loaded">' + t('config.grafana.summary_empty') + '</div>';
+    content.innerHTML = html || '<div class="cfg-stats-loaded">' + t('config.grafana.summary_empty') + '</div>';
 }
 
 function grafanaTestConnection() {

@@ -50,9 +50,9 @@ async function renderGitHubSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.token_label')} <span class="gh-lock-icon">🔒</span></div>
         <div class="field-help">${t('config.github.token_hint')}</div>
-        <div class="adg-password-row">
+        <div class="cfg-secret-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="github-token-input" data-path="github.token" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
+                <input class="field-input cfg-secret-input" type="password" id="github-token-input" data-path="github.token" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </div>
@@ -87,7 +87,7 @@ async function renderGitHubSection(section) {
         : `<span class="gh-count-active">${allowedRepos.length} ${t('config.github.repos_selected_count')}</span>`;
 
     html += `<div class="gh-actions-row cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="githubTestConnection()" id="github-test-btn" data-config-action-draft="true">🔌 ${t('config.github.test_btn')}</button>
+        <button class="btn-save cfg-test-btn" onclick="githubTestConnection()" id="github-test-btn" data-config-action-draft="true">🔌 ${t('config.github.test_btn')}</button>
         ${cfgActionResult.html('github-test-result')}
         <button class="btn-save btn-secondary" onclick="githubFetchRepos()" id="github-fetch-btn">
             🔄 ${t('config.github.fetch_repos_btn')}

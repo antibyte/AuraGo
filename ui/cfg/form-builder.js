@@ -49,12 +49,15 @@
         if (type === 'textarea') return textarea(options);
         if (type === 'password') return password(options);
         if (type === 'number') return number(options);
+        if (type === 'choice') return choiceList(options);
         const value = options.value != null ? options.value : '';
         const placeholder = options.placeholder != null ? options.placeholder : '';
         const id = options.id ? ' id="' + attr(options.id) + '"' : '';
         const css = options.className ? ' field-input ' + attr(options.className) : ' field-input';
+        // URLs: no autocapitalise/spellcheck; the browser's own form validation stays out of the way (E14 validates inline).
+        const urlAttrs = type === 'url' ? ' inputmode="url" autocomplete="off" spellcheck="false"' : '';
         return fieldShell(options,
-            '<input class="' + css.trim() + '" type="' + attr(type) + '"' + id
+            '<input class="' + css.trim() + '" type="' + attr(type) + '"' + id + urlAttrs
             + ' data-path="' + attr(options.path || '') + '" value="' + attr(value) + '" placeholder="' + attr(placeholder) + '">');
     }
 
@@ -97,9 +100,9 @@
         // an empty field keeps it (state.js), so only a newly typed secret is saved.
         const path = options.path ? ' data-path="' + attr(options.path) + '"' : '';
         return fieldShell(options,
-            '<div class="adg-password-row">'
+            '<div class="cfg-secret-row">'
             + '<div class="password-wrap cfg-password-input">'
-            + '<input class="field-input adg-password-input" type="password"' + id + path + ' value="' + attr(value) + '" placeholder="' + attr(placeholder) + '" autocomplete="off">'
+            + '<input class="field-input cfg-secret-input" type="password"' + id + path + ' value="' + attr(value) + '" placeholder="' + attr(placeholder) + '" autocomplete="off">'
             + '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + (typeof EYE_OPEN_SVG !== 'undefined' ? EYE_OPEN_SVG : '') + '</button>'
             + '</div>'
             + (options.actionHTML || '')
@@ -113,7 +116,33 @@
         if (options.max != null) control += ' max="' + attr(options.max) + '"';
         if (options.step != null) control += ' step="' + attr(options.step) + '"';
         control += '>';
+        // unit: visible suffix (seconds, MB, ...) so the value needs no unit in its label.
+        if (options.unit) control = '<div class="cfg-input-unit">' + control + '<span class="cfg-unit">' + html(options.unit) + '</span></div>';
         return fieldShell(options, control);
+    }
+
+    // "Pick entries from a list": the only place a native checkbox is allowed (data-cfg-choice).
+    // items: [{value, label, checked, help, id}]; each box keeps data-path/data-choice-value for the caller's code.
+    function choiceList(options) {
+        options = options || {};
+        const name = options.name || ('cfg-choice-' + (++fieldID));
+        const labelID = name + '-label';
+        const help = helpText(options);
+        const rows = (options.items || []).map((item, index) => {
+            const id = item.id || name + '-' + index;
+            return '<label class="cfg-choice-item" for="' + attr(id) + '">'
+                + '<input type="checkbox" data-cfg-choice id="' + attr(id) + '" name="' + attr(name) + '" value="' + attr(item.value) + '"'
+                + (item.checked ? ' checked' : '') + (options.path ? ' data-choice-path="' + attr(options.path) + '"' : '') + '>'
+                + '<span>' + html(item.label) + '</span>'
+                + (item.help ? '<small>' + html(item.help) + '</small>' : '') + '</label>';
+        }).join('');
+        return '<div class="field-group pw-field cfg-choice-list' + (options.groupClass ? ' ' + attr(options.groupClass) : '') + '"'
+            + (options.advanced ? ' data-tier="advanced"' : '') + ' role="group" aria-labelledby="' + attr(labelID) + '"'
+            + (help ? ' aria-describedby="' + attr(name + '-help') + '"' : '') + '>'
+            + '<div class="field-label" id="' + attr(labelID) + '">' + html(labelText(options)) + '</div>'
+            + '<div class="cfg-choice-items">' + rows + '</div>'
+            + (help ? '<div class="field-help" id="' + attr(name + '-help') + '">' + html(help) + '</div>' : '')
+            + '</div>';
     }
 
     function note(options) {
@@ -182,8 +211,21 @@
         return window.AuraConfigFeedback.bannerHTML(options.id || '', options.state || 'unknown', options);
     }
 
+    // Action row. Items are ready HTML ({html}) or buttons {label, action, id, className, draft, icon, danger}:
+    // data-config-action carries the registered action name, draft:false opts out of the draft values.
+    function actionButton(item) {
+        if (item.html != null) return item.html;
+        const cls = (item.danger ? 'btn-danger' : (item.primary === false ? 'btn-secondary' : 'btn-save')) + (item.className ? ' ' + item.className : '');
+        const icon = item.icon && typeof window.cfgIcon === 'function' ? window.cfgIcon(item.icon) : '';
+        return '<button type="button" class="' + attr(cls) + '"' + (item.id ? ' id="' + attr(item.id) + '"' : '')
+            + (item.action ? ' data-config-action="' + attr(item.action) + '"' : '')
+            + (item.draft != null ? ' data-config-action-draft="' + (item.draft ? 'true' : 'false') + '"' : '')
+            + (item.onclick ? ' onclick="' + attr(item.onclick) + '"' : '') + '>'
+            + icon + '<span>' + html(item.label != null ? item.label : t(item.labelKey || '')) + '</span></button>';
+    }
+
     function actions(items) {
-        const row = (items || []).map(item => item.html || '').join('');
+        const row = (items || []).map(actionButton).join('');
         return '<div class="cfg-actions-row pw-action-row">' + row + '</div>';
     }
 
@@ -191,14 +233,26 @@
         return renderSpec(spec);
     }
 
+    // E5: the section's enable switch is its first control. Found by spec.enablePath
+    // (default <spec.key>.enabled) among the plain field items; everything else keeps its order.
+    function orderEnableFirst(spec) {
+        const items = (spec.fields || []).slice();
+        const path = spec.enablePath || (spec.key ? spec.key + '.enabled' : '');
+        const at = path ? items.findIndex(item => item && typeof item === 'object' && item.type === 'toggle' && item.path === path) : -1;
+        if (at > 0) items.unshift(items.splice(at, 1)[0]);
+        return items;
+    }
+
     function renderSpec(spec) {
         spec = spec || {};
         let out = '<div class="cfg-section active">';
         out += '<h1 class="section-header">' + html(spec.label || '') + '</h1>';
         if (spec.desc) out += '<div class="section-desc">' + html(spec.desc) + '</div>';
+        // banner: {id, state, ...} (see statusBanner) sits right under the intro, before any control.
+        if (spec.banner) out += statusBanner(spec.banner);
         if (spec.beforeHTML) out += spec.beforeHTML;
         let fields = '';
-        (spec.fields || []).forEach(item => {
+        orderEnableFirst(spec).forEach(item => {
             fields += typeof item === 'string' ? item : field(item);
         });
         if (fields) out += panel({ titleKey: 'config.refresh.settings', content: fields, className: 'pw-section-panel' });
@@ -312,6 +366,7 @@
         textarea,
         password,
         number,
+        choiceList,
         note,
         panel,
         disclosure,
@@ -321,6 +376,7 @@
         actionResult,
         statusBanner,
         actions,
+        actionButton,
         renderSpec,
         layout
     };

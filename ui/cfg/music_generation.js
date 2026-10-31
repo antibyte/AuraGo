@@ -104,7 +104,7 @@ function renderMusicGenerationSection(section) {
         <div class="field-group-title">${t('config.music_gen.test_title')}</div>
         <div class="field-group-desc">${t('config.music_gen.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="music-test-btn" onclick="musicTestConnection()" data-config-action-draft="true">
+            <button class="btn-save cfg-test-btn" id="music-test-btn" onclick="musicTestConnection()" data-config-action-draft="true">
                 🔌 ${t('config.music_gen.test_btn')}
             </button>
             ${cfgActionResult.html('music-test-result')}

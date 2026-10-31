@@ -29,7 +29,7 @@ function renderKoofrSection(section) {
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="koofrTestConnection()" id="koofr-test-btn" data-config-action-draft="true">' + t('config.koofr.test_btn') + '</button>' },
+            { html: '<button class="btn-save cfg-test-btn" onclick="koofrTestConnection()" id="koofr-test-btn" data-config-action-draft="true">' + t('config.koofr.test_btn') + '</button>' },
             { html: form.actionResult({ id: 'koofr-test-result' }) }
         ])
     });

@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Ingen integrasjon er slått på ennå.",
   "config.overview.attention_title": "Trenger oppmerksomhet",
   "config.overview.blocked": "Ikke tilgjengelig",
-  "config.overview.group_active": "{count} aktive"
+  "config.overview.group_active": "{count} aktive",
+  "config.common.close": "Lukk",
+  "config.common.retry": "Prøv igjen",
+  "config.common.empty": "Ingenting her ennå.",
+  "config.common.load_failed": "Listen kunne ikke lastes.",
+  "config.common.delete_item": "Slett {name}"
 }

@@ -71,7 +71,7 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 		`min-height: 100dvh;`,
 		`width: 296px;`,
 		`max-width: 1120px;`,
-		`@media (max-width: 1099px)`,
+		`@media (max-width: 899px)`,
 		`min-height: 44px;`,
 		// Config dialogs are scoped to the opted-in body.
 		`.pw-unsaved-overlay {`,

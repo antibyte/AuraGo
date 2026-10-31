@@ -148,7 +148,7 @@ async function renderManifestSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn" data-config-action-draft="true">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn" data-config-action-draft="true">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
     if (managed) {
         html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn" data-config-action-draft="false">▶ ' + manifestText('config.manifest.start_button') + '</button>';
         html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn" data-config-action-draft="false">⏹ ' + manifestText('config.manifest.stop_button') + '</button>';

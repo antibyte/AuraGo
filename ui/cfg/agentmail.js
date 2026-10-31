@@ -43,11 +43,11 @@ function renderAgentMailSection(section) {
             form.field({ label: t('config.agentmail.websocket_url_label'), help: t('help.agentmail.websocket_url'), path: 'agentmail.websocket_url', value: data.websocket_url || 'wss://ws.agentmail.to/v0', placeholder: 'wss://ws.agentmail.to/v0' })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn" data-config-action-draft="true">' + t('config.agentmail.test_btn') + '</button>' },
+            { html: '<button class="btn-save cfg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn" data-config-action-draft="true">' + t('config.agentmail.test_btn') + '</button>' },
             { html: form.actionResult({ id: 'agentmail-test-result' }) }
-        ]) + '<div id="agentmail-summary" class="adg-quick-stats is-hidden">'
-            + '<div class="adg-stats-title">' + t('config.agentmail.summary_title') + '</div>'
-            + '<div id="agentmail-summary-content" class="adg-stats-grid"></div>'
+        ]) + '<div id="agentmail-summary" class="cfg-stats is-hidden">'
+            + '<div class="cfg-stats-title">' + t('config.agentmail.summary_title') + '</div>'
+            + '<div id="agentmail-summary-content" class="cfg-stats-grid"></div>'
             + '</div>'
     });
 

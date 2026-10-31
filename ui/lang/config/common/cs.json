@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Zatím není zapnutá žádná integrace.",
   "config.overview.attention_title": "Vyžaduje pozornost",
   "config.overview.blocked": "Nedostupné",
-  "config.overview.group_active": "Aktivní: {count}"
+  "config.overview.group_active": "Aktivní: {count}",
+  "config.common.close": "Zavřít",
+  "config.common.retry": "Zkusit znovu",
+  "config.common.empty": "Zatím tu nic není.",
+  "config.common.load_failed": "Tento seznam se nepodařilo načíst.",
+  "config.common.delete_item": "Smazat {name}"
 }

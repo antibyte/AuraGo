@@ -34,15 +34,15 @@ async function renderHuggingFaceSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += cfgStatusBanner.html('huggingface-status-banner', 'checking', { detail: t('config.huggingface.status_loading') });
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" id="huggingface-test-btn" data-config-action-draft="true" onclick="huggingFaceTestConnection()">' + t('config.huggingface.test_connection') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" id="huggingface-test-btn" data-config-action-draft="true" onclick="huggingFaceTestConnection()">' + t('config.huggingface.test_connection') + '</button>';
     html += cfgActionResult.html('huggingface-test-result') + '</div>';
 
     html += '<div class="field-group">' + huggingFaceToggle('huggingface.enabled', cfg.enabled, 'config.huggingface.enabled', 'help.huggingface.enabled') + '</div>';
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.huggingface.token') + '</div>';
     html += '<div class="field-help">' + t('help.huggingface.token') + '</div>';
-    html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="huggingface-token" data-path="huggingface.token" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')) + '" autocomplete="off">';
+    html += '<div class="cfg-secret-row"><div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="huggingface-token" data-path="huggingface.token" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
     html += '</div></div>';
 

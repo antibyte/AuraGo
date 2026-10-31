@@ -1432,7 +1432,7 @@
     animation: none;
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 899px) {
     .pw-page[data-workspace-page="config"] .cfg-hamburger {
         display: grid !important;
         place-items: center;
@@ -1817,3 +1817,76 @@
     .pw-page[data-workspace-page="config"] .cfg-sidebar-filter-input,
     .pw-page[data-workspace-page="config"] .cfg-sidebar-filter-input::after { transition: none; }
 }
+
+/* Page title for assistive technology (sections below are level-2 headings) */
+.pw-page[data-workspace-page="config"] .cfg-page-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Shared delete button (cfgDeleteButton) and list states (cfgListState) */
+.pw-page[data-workspace-page="config"] .cfg-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-delete-btn.is-icon-only {
+    padding-inline: 10px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-list-state button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-modal-overlay .modal-close {
+    display: inline-grid;
+    place-items: center;
+}
+
+/* Form builder: number with unit, choice list */
+.pw-page[data-workspace-page="config"] .cfg-input-unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-input-unit .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-unit {
+    flex: 0 0 auto;
+    color: var(--pw-muted);
+    font-size: 0.8125rem;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-choice-items {
+    display: grid;
+    gap: 6px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-choice-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-choice-item small {
+    flex-basis: 100%;
+    color: var(--pw-muted);
+}
+

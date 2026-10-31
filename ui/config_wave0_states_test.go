@@ -21,7 +21,7 @@ func readWave0File(t *testing.T, path string) string {
 func TestConfigStatusBannersLeaveCheckingState(t *testing.T) {
 	t.Parallel()
 	cases := []struct{ file, bannerID string }{
-		{"cfg/adguard.js", "adg-status-banner"},
+		{"cfg/adguard.js", "adguard-status-banner"},
 		{"cfg/fritzbox.js", "fb-status-banner"},
 		{"cfg/truenas.js", "truenas-status-banner"},
 		{"cfg/jellyfin.js", "jellyfin-status-banner"},

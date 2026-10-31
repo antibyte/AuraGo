@@ -219,7 +219,7 @@
         }
         element.dataset.state = state;
         element.textContent = message;
-        // Existing styles (adg-test-result) key off these classes.
+        // Existing styles (adguard-test-result) key off these classes.
         element.classList.toggle('is-success', state === 'success');
         element.classList.toggle('is-warning', state === 'warning');
         element.classList.toggle('is-danger', state === 'error');

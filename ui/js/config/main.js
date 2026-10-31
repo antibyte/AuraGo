@@ -498,7 +498,7 @@ async function init() {
     installConfigStatusRetry();
     if (window.AuraConfigSectionState) window.AuraConfigSectionState.setSections(SECTIONS.flatMap(group => group.items.map(item => item.key)));
     buildSidebar();
-    await selectSection(activeSection, { scrollBehavior: 'auto' });
+    await selectSection(activeSection, { scrollBehavior: 'auto', history: 'replace' });
     resetDirtySnapshot();
     // A restart marker from an earlier save ends once the server has started again.
     if (window.AuraConfigSectionState) {
@@ -519,11 +519,14 @@ function openSidebar() {
     document.getElementById('sidebarSearchInput')?.focus();
 }
 
+// Same breakpoint as the dashboard drawer; keep in sync with config-workspace.css.
+const CONFIG_DRAWER_QUERY = '(max-width: 899px)';
+
 function closeSidebar() {
     sidebarEl.classList.remove('open');
     sidebarBackdrop.classList.remove('open');
     cfgHamburger.setAttribute('aria-expanded', 'false');
-    sidebarEl.inert = window.matchMedia('(max-width: 1099px)').matches;
+    sidebarEl.inert = window.matchMedia(CONFIG_DRAWER_QUERY).matches;
     if (sidebarEl.contains(document.activeElement)) cfgHamburger.focus();
 }
 
@@ -536,7 +539,7 @@ cfgHamburger.addEventListener('click', () => {
 });
 
 sidebarBackdrop.addEventListener('click', closeSidebar);
-const configDrawerMedia = window.matchMedia('(max-width: 1099px)');
+const configDrawerMedia = window.matchMedia(CONFIG_DRAWER_QUERY);
 configDrawerMedia.addEventListener('change', () => {
     if (!configDrawerMedia.matches) {
         sidebarEl.classList.remove('open');
@@ -1491,7 +1494,10 @@ function handleConfigBeforeUnload(event) {
 function handleConfigHashChange() {
     const key = (window.location.hash || '').replace(/^#/, '') || 'overview';
     if (key === activeSection) return;
-    navigateToConfigSection(key, { scrollBehavior: 'auto' });
+    // The address bar already holds the new hash (back/forward, typed hash): no new entry, and an
+    // unknown hash is normalised in place. Leaving is refused by the unsaved-changes guard, which
+    // restores the old hash.
+    navigateToConfigSection(key, { scrollBehavior: 'auto', history: 'replace' });
 }
 
 function syncSidebarActiveState(key) {
@@ -1726,6 +1732,16 @@ if (configSectionObserverRoot) {
     configSectionObserver.observe(configSectionObserverRoot, { childList: true });
 }
 
+let configBaseTitle = '';
+
+// Tab title: "<Section> · <page title>".
+function updateConfigDocumentTitle(key) {
+    if (!configBaseTitle) configBaseTitle = document.title;
+    const section = sectionMetadata(key);
+    const label = section ? section.label : t('config.precision.overview_title');
+    document.title = label ? label + ' · ' + configBaseTitle : configBaseTitle;
+}
+
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth', focusPath = '' } = options;
     key = normalizeSectionKey(key);
@@ -1734,9 +1750,13 @@ async function selectSection(key, options = {}) {
     updateSaveDockSection(key);
     if (window.AuraConfigState) window.AuraConfigState.beginSection(key);
     localStorage.setItem('aurago-cfg-section', key);
+    // A user-initiated switch is a history entry (Back returns to the previous section); first load,
+    // hash changes that already happened and normalisation replace the current entry.
     if (window.location.hash !== '#' + key) {
-        history.replaceState(null, '', '#' + key);
+        if (options.history === 'replace') history.replaceState(null, '', '#' + key);
+        else history.pushState(null, '', '#' + key);
     }
+    updateConfigDocumentTitle(key);
     syncSidebarActiveState(key);
     // Auto-expand the group containing this section if it is collapsed
     let expandedTargetGroup = false;
@@ -2043,9 +2063,9 @@ async function renderSection(key) {
         if (key === 'docker') {
             schemaChildren = schemaChildren.filter(f => !DOCKER_SKIP_KEYS.has(f.yaml_key));
         }
-        html += renderFields(schemaChildren, data, key);
+        html += renderFields(enableFieldFirst(schemaChildren, key, f => f.yaml_key), data, key);
     } else {
-        for (const [k, v] of Object.entries(data)) {
+        for (const [k, v] of enableFieldFirst(Object.entries(data), key, entry => entry[0])) {
             // Skip keys that belong to other dedicated sections
             if (key === 'agent' && AGENT_SKIP_KEYS.has(k)) continue;
             if (key === 'embeddings' && EMBEDDINGS_SKIP_KEYS.has(k)) continue;
@@ -2407,6 +2427,18 @@ function _initArrayChipFields() {
     });
 }
 
+
+// The section's enable switch is the first control (E5). Its path comes from the catalog's
+// sectionStatePaths (default <section>.enabled); the rest keeps its order.
+function enableFieldFirst(items, sectionKey, keyOf) {
+    const entry = (window.AuraConfigCatalog?.sectionStatePaths || {})[sectionKey] || {};
+    const path = (entry.on && entry.on[0]) || sectionKey + '.enabled';
+    if (!path.startsWith(sectionKey + '.') || path.indexOf('.', sectionKey.length + 1) !== -1) return items;
+    const name = path.slice(sectionKey.length + 1);
+    const at = items.findIndex(item => keyOf(item) === name);
+    if (at <= 0) return items;
+    return [items[at], ...items.slice(0, at), ...items.slice(at + 1)];
+}
 
 function renderFields(fields, data, parentPath) {
     let html = '';

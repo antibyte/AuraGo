@@ -56,7 +56,7 @@ function renderAIGatewaySection(section) {
     if (!providers.length) html += '<option value="">' + t('config.ai_gateway.no_provider') + '</option>';
     providers.forEach(p => { html += '<option value="' + escapeAttr(p.id) + '"' + (p.id === _aiGatewayProviderID ? ' selected' : '') + '>' + escapeHtml(p.name || p.id) + '</option>'; });
     html += '</select></div><div class="cfg-actions-row">';
-    html += '<button type="button" class="btn-save adg-test-btn" id="ai-gw-test-btn" data-config-action-draft="true" onclick="aiGatewayTestConnection()">' + t('config.ai_gateway.test_btn') + '</button>';
+    html += '<button type="button" class="btn-save cfg-test-btn" id="ai-gw-test-btn" data-config-action-draft="true" onclick="aiGatewayTestConnection()">' + t('config.ai_gateway.test_btn') + '</button>';
     html += '<button type="button" class="btn-save btn-secondary" id="ai-gw-model-test-btn" data-config-action-draft="true" onclick="aiGatewayTestConnection(\'generation\')">' + t('config.ai_gateway.model_test') + '</button>';
     html += cfgActionResult.html('ai-gw-test-result') + '</div></div>';
     const content = document.getElementById('content');

@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Todavía no hay ninguna integración activada.",
   "config.overview.attention_title": "Requiere atención",
   "config.overview.blocked": "No disponible",
-  "config.overview.group_active": "{count} activas"
+  "config.overview.group_active": "{count} activas",
+  "config.common.close": "Cerrar",
+  "config.common.retry": "Reintentar",
+  "config.common.empty": "Aún no hay nada aquí.",
+  "config.common.load_failed": "No se pudo cargar esta lista.",
+  "config.common.delete_item": "Eliminar {name}"
 }

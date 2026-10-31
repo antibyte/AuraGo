@@ -46,10 +46,10 @@ function renderEvomapSection(section) {
             form.number({ label: t('config.evomap.max_result_label'), help: t('help.evomap.max_result'), path: 'evomap.max_result_bytes', value: String(data.max_result_bytes || 262144), min: 1024, step: 1024 })
         ] }],
         afterHTML: form.actions([
-            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-test-btn" data-config-action-draft="true" onclick="evomapTestConnection()">' + t('config.evomap.test_btn') + '</button>' },
-            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-register-btn" data-config-action-draft="false" onclick="evomapRegisterNode()">' + t('config.evomap.register_btn') + '</button>' },
+            { html: '<button type="button" class="btn-save cfg-test-btn" id="evomap-test-btn" data-config-action-draft="true" onclick="evomapTestConnection()">' + t('config.evomap.test_btn') + '</button>' },
+            { html: '<button type="button" class="btn-save cfg-test-btn" id="evomap-register-btn" data-config-action-draft="false" onclick="evomapRegisterNode()">' + t('config.evomap.register_btn') + '</button>' },
             { html: form.actionResult({ id: 'evomap-test-result' }) }
-        ]) + '<div id="evomap-secret-state" class="adg-quick-stats is-hidden"></div>'
+        ]) + '<div id="evomap-secret-state" class="cfg-stats is-hidden"></div>'
     });
 
     document.getElementById('content').innerHTML = html;
@@ -63,8 +63,8 @@ function evomapRenderSecretState(data) {
     el.classList.remove('is-hidden');
     const nodeSecret = data && data.node_secret_configured ? t('config.evomap.node_secret_existing') : t('config.evomap.node_secret_missing');
     const apiKey = data && data.api_key_configured ? t('config.evomap.api_key_existing') : t('config.evomap.api_key_missing');
-    el.innerHTML = '<div class="adg-stats-title">' + t('config.evomap.vault_status') + '</div>' +
-        '<div class="adg-stats-grid">' +
+    el.innerHTML = '<div class="cfg-stats-title">' + t('config.evomap.vault_status') + '</div>' +
+        '<div class="cfg-stats-grid">' +
         '<div><strong>' + t('config.evomap.node_secret_label') + '</strong><br>' + escapeHtml(nodeSecret) + '</div>' +
         '<div><strong>' + t('config.evomap.api_key_label') + '</strong><br>' + escapeHtml(apiKey) + '</div>' +
         '</div>';

@@ -160,5 +160,10 @@
   "config.overview.active_empty": "まだオンになっている連携はありません。",
   "config.overview.attention_title": "要確認",
   "config.overview.blocked": "利用できません",
-  "config.overview.group_active": "{count}件が有効"
+  "config.overview.group_active": "{count}件が有効",
+  "config.common.close": "閉じる",
+  "config.common.retry": "再試行",
+  "config.common.empty": "まだ何もありません。",
+  "config.common.load_failed": "このリストを読み込めませんでした。",
+  "config.common.delete_item": "{name} を削除"
 }

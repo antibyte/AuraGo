@@ -95,7 +95,7 @@ async function renderYepAPISection(section) {
     html += '<div class="field-group-title">' + t('config.yepapi.test_title') + '</div>';
     html += '<div class="field-group-desc">' + t('config.yepapi.test_desc') + '</div>';
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()" data-config-action-draft="true">';
+    html += '<button class="btn-save cfg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()" data-config-action-draft="true">';
     html += '🧪 ' + t('config.yepapi.test_btn');
     html += '</button>';
     html += cfgActionResult.html('yepapi-test-result');

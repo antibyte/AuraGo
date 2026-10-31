@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Er is nog geen integratie ingeschakeld.",
   "config.overview.attention_title": "Heeft aandacht nodig",
   "config.overview.blocked": "Niet beschikbaar",
-  "config.overview.group_active": "{count} actief"
+  "config.overview.group_active": "{count} actief",
+  "config.common.close": "Sluiten",
+  "config.common.retry": "Opnieuw proberen",
+  "config.common.empty": "Hier is nog niets.",
+  "config.common.load_failed": "Deze lijst kon niet worden geladen.",
+  "config.common.delete_item": "{name} verwijderen"
 }

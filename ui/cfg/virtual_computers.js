@@ -159,10 +159,10 @@ function renderVirtualComputersSection(section) {
         html += '<div class="field-help">' + t('help.virtual_computers.sudo_password') + '</div>';
         html += '<div class="cfg-password-row">';
         html += '<div class="password-wrap cfg-password-input">';
-        html += '<input class="field-input adg-password-input" type="password" id="vc-sudo-password-input" value="" autocomplete="off">';
+        html += '<input class="field-input cfg-secret-input" type="password" id="vc-sudo-password-input" value="" autocomplete="off">';
         html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-        html += '<button type="button" id="vc-sudo-save-btn" class="btn-save adg-save-btn" data-vc-action="save-sudo-password">' + t('config.virtual_computers.save_vault') + '</button>';
+        html += '<button type="button" id="vc-sudo-save-btn" class="btn-save cfg-save-btn" data-vc-action="save-sudo-password">' + t('config.virtual_computers.save_vault') + '</button>';
         html += cfgActionResult.html('vc-sudo-save-result');
         html += '</div>';
         html += cfgStatusBanner.html('vc-sudo-password-status', _vcSudoPasswordStored === true ? 'connected' : (_vcSudoPasswordStored === false ? 'unconfigured' : 'checking'), {
@@ -222,13 +222,13 @@ function renderVirtualComputersSection(section) {
 		html += '</div>';
 		html += '<div class="field-label">' + t('config.virtual_computers.s3_access_key_label') + '</div>';
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_access_key') + '</div>';
-		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-access-input" data-path="virtual_computers.s3_access_key_id" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
+		html += '<div class="cfg-secret-row"><div class="password-wrap cfg-password-input">';
+		html += '<input class="field-input cfg-secret-input" type="password" id="vc-s3-access-input" data-path="virtual_computers.s3_access_key_id" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
 		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div></div>';
 		html += '<div class="field-label">' + t('config.virtual_computers.s3_secret_key_label') + '</div>';
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_secret_key') + '</div>';
-		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-secret-input" data-path="virtual_computers.s3_secret_key" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
+		html += '<div class="cfg-secret-row"><div class="password-wrap cfg-password-input">';
+		html += '<input class="field-input cfg-secret-input" type="password" id="vc-s3-secret-input" data-path="virtual_computers.s3_secret_key" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
 		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div></div>';
 	}
 	html += '<button class="btn-save dc-test-btn" data-vc-action="test-storage" id="vc-storage-test-btn" data-config-action-draft="true">' + t('config.virtual_computers.storage_test_button') + '</button>';
@@ -277,9 +277,9 @@ function renderVirtualComputersSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.virtual_computers.boring_token_label') + '</div>';
     html += '<div class="field-help">' + t('help.virtual_computers.boring_token') + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="vc-boring-token-input" data-path="virtual_computers.boring_token" value="' + escapeAttr(cfgSecretValue(data.boring_token)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_token, 'boring-token')) + '" autocomplete="off">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="vc-boring-token-input" data-path="virtual_computers.boring_token" value="' + escapeAttr(cfgSecretValue(data.boring_token)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_token, 'boring-token')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';

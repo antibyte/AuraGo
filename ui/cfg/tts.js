@@ -73,9 +73,9 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
-    html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-elevenlabs-api-key" data-path="tts.elevenlabs.api_key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
+    html += '<div class="cfg-secret-row">';
+    html += '<div class="password-wrap cfg-secret-input">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="tts-elevenlabs-api-key" data-path="tts.elevenlabs.api_key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div></div>';
@@ -100,9 +100,9 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
-    html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-minimax-api-key" data-path="tts.minimax.api_key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
+    html += '<div class="cfg-secret-row">';
+    html += '<div class="password-wrap cfg-secret-input">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="tts-minimax-api-key" data-path="tts.minimax.api_key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div></div>';
@@ -136,9 +136,9 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.mistral_api_key_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
-    html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap adg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="tts-mistral-api-key" data-path="tts.mistral.api_key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
+    html += '<div class="cfg-secret-row">';
+    html += '<div class="password-wrap cfg-secret-input">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="tts-mistral-api-key" data-path="tts.mistral.api_key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div></div>';
@@ -164,8 +164,8 @@ function renderTTSSection(section) {
         if (provider.notice) html += '<div class="cfg-note-banner cfg-note-banner-warning" role="note">' + t('config.tts.' + provider.notice) + '</div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-api-key">' + t('config.tts.cloud_api_key_label') + '</label>';
         html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
-        html += '<div class="adg-password-row"><div class="password-wrap adg-password-input">';
-        html += '<input class="field-input adg-password-input" type="password" id="tts-' + id + '-api-key" data-path="' + path + '.api_key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
+        html += '<div class="cfg-secret-row"><div class="password-wrap cfg-secret-input">';
+        html += '<input class="field-input cfg-secret-input" type="password" id="tts-' + id + '-api-key" data-path="' + path + '.api_key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
         html += '</div></div></div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-voice">' + t('config.tts.cloud_voice_label') + '</label>';
         if (provider.voices) {
@@ -218,7 +218,7 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.supertonic_voice_help') + '</div>';
     html += '<div class="tts-voice-row">';
     html += '<input class="field-input" type="text" id="supertonic-voice-input" data-path="tts.supertonic.voice" value="' + escapeAttr(supertonicData.voice || 'M1') + '">';
-    html += '<button class="btn-save adg-save-btn" onclick="supertonicBrowseStyles()">' + t('config.tts.supertonic_load_voices') + '</button>';
+    html += '<button class="btn-save cfg-save-btn" onclick="supertonicBrowseStyles()">' + t('config.tts.supertonic_load_voices') + '</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -293,7 +293,7 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.piper_voice_help') + '</div>';
     html += '<div class="tts-voice-row">';
     html += '<input class="field-input" type="text" id="piper-voice-input" data-path="tts.piper.voice" value="' + escapeAttr(piperData.voice || 'de_DE-thorsten-high') + '">';
-    html += '<button class="btn-save adg-save-btn" onclick="piperBrowseVoices()">🔍 ' + t('config.tts.piper_browse_voices') + '</button>';
+    html += '<button class="btn-save cfg-save-btn" onclick="piperBrowseVoices()">🔍 ' + t('config.tts.piper_browse_voices') + '</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';

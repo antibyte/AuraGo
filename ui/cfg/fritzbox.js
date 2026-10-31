@@ -72,15 +72,15 @@ function renderFritzBoxSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.password_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.password') + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="fb-password" data-path="fritzbox.password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="fb-password" data-path="fritzbox.password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div></div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="fbTestConnection()" id="fb-test-btn" data-config-action-draft="true">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="fbTestConnection()" id="fb-test-btn" data-config-action-draft="true">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
     html += cfgActionResult.html('fb-test-result');
     html += '</div>';
 

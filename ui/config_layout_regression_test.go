@@ -174,7 +174,7 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 	}
 
 	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
-	for _, marker := range []string{"adg-password-row", "field-select", "tts-provider-section"} {
+	for _, marker := range []string{"cfg-secret-row", "field-select", "tts-provider-section"} {
 		if !hasModuleMarker(ttsJS, marker) {
 			t.Fatalf("tts.js missing marker %q", marker)
 		}
@@ -183,7 +183,7 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 	requireDockSecret(t, "tts.js", ttsJS, "tts.elevenlabs.api_key", "tts.minimax.api_key", "tts.mistral.api_key")
 
 	gwJS := normalizeAssetText(mustReadUIFile(t, "cfg/google_workspace.js"))
-	for _, marker := range []string{"adg-password-row", "adg-test-btn", "AuraConfigForm.toggle("} {
+	for _, marker := range []string{"cfg-secret-row", "cfg-test-btn", "AuraConfigForm.toggle("} {
 		if !hasModuleMarker(gwJS, marker) {
 			t.Fatalf("google_workspace.js missing marker %q", marker)
 		}
@@ -230,11 +230,11 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 
 	mqttJS := normalizeAssetText(mustReadUIFile(t, "cfg/mqtt.js"))
 	for _, marker := range []string{
-		"adg-test-btn",
+		"cfg-test-btn",
 		"cfg-actions-row",
 		"field-select",
 		"field-grid two-cols",
-		"adg-password-row",
+		"cfg-secret-row",
 		"/api/mqtt/test",
 	} {
 		if !hasModuleMarker(mqttJS, marker) {
@@ -252,7 +252,7 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 
 	netlifyJS := normalizeAssetText(mustReadUIFile(t, "cfg/netlify.js"))
 	for _, marker := range []string{
-		"adg-test-btn",
+		"cfg-test-btn",
 		"cfg-actions-row",
 		"nf-test-btn",
 		"/api/netlify/test-connection",
@@ -307,7 +307,7 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 
 	vercelJS := normalizeAssetText(mustReadUIFile(t, "cfg/vercel.js"))
 	for _, marker := range []string{
-		"adg-test-btn",
+		"cfg-test-btn",
 		"cfg-actions-row",
 		"vercel-test-btn",
 		"/api/vercel/test-connection",
@@ -319,7 +319,7 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 	}
 	requireFeedbackContract(t, "vercel.js", vercelJS, []string{"vercel-test-result"}, []string{"vercel-status-banner"})
 	requireDockSecret(t, "vercel.js", vercelJS, "vercel.token")
-	if strings.Contains(vercelJS, "adg-save-btn") {
+	if strings.Contains(vercelJS, "cfg-save-btn") {
 		t.Fatal("vercel.js must not render a vault save button")
 	}
 	if strings.Contains(vercelJS, "vercel-test-spinner") || strings.Contains(vercelJS, "vercel-test-msg") {
@@ -339,9 +339,9 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	fritzboxJS := normalizeAssetText(mustReadUIFile(t, "cfg/fritzbox.js"))
 	for _, marker := range []string{
 		"fbSetBanner",
-		"adg-password-row",
+		"cfg-secret-row",
 		"cfg-actions-row",
-		"adg-test-btn",
+		"cfg-test-btn",
 		"attachChangeListeners",
 		"status_not_configured",
 		"/api/fritzbox/status?check=1",
@@ -361,7 +361,7 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 			t.Fatalf("fritzbox.js test must send the draft and target its result line: missing %q", marker)
 		}
 	}
-	if strings.Contains(fritzboxJS, "adg-save-btn") {
+	if strings.Contains(fritzboxJS, "cfg-save-btn") {
 		t.Fatal("fritzbox.js must not render a vault save button")
 	}
 	successStart := strings.Index(fritzboxJS, "if (res.status === 'ok') {")
@@ -380,8 +380,8 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 
 	githubJS := normalizeAssetText(mustReadUIFile(t, "cfg/github.js"))
 	for _, marker := range []string{
-		"adg-password-row",
-		"adg-test-btn",
+		"cfg-secret-row",
+		"cfg-test-btn",
 		"cfg-actions-row",
 		"github-fetch-status",
 		"data-repo-full-name",
@@ -394,8 +394,8 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	}
 	requireFeedbackContract(t, "github.js", githubJS, []string{"github-test-result", "github-fetch-status"}, nil)
 	requireDockSecret(t, "github.js", githubJS, "github.token")
-	if strings.Contains(githubJS, "cfg-save-btn-sm") || strings.Contains(githubJS, "cfg-status-banner") || strings.Contains(githubJS, "github-token-status") || strings.Contains(githubJS, "adg-save-btn") {
-		t.Fatal("github.js should use unified adg-* and btn-secondary patterns without a vault save button")
+	if strings.Contains(githubJS, "cfg-save-btn-sm") || strings.Contains(githubJS, "cfg-status-banner") || strings.Contains(githubJS, "github-token-status") || strings.Contains(githubJS, "cfg-save-btn") {
+		t.Fatal("github.js should use unified cfg-* and btn-secondary patterns without a vault save button")
 	}
 }
 
@@ -404,7 +404,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 
 	tailscaleJS := normalizeAssetText(mustReadUIFile(t, "cfg/tailscale.js"))
 	for _, marker := range []string{
-		"adg-password-row",
+		"cfg-secret-row",
 		"tsnet-action-result",
 	} {
 		if !hasModuleMarker(tailscaleJS, marker) {
@@ -413,7 +413,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 	}
 	requireFeedbackContract(t, "tailscale.js", tailscaleJS, []string{"ts-api-test-result", "tsnet-action-result"}, []string{"ts-api-status-banner"})
 	requireDockSecret(t, "tailscale.js", tailscaleJS, "tailscale.api_key", "tailscale.tsnet.auth_key")
-	for _, removed := range []string{"cfg-save-btn-sm", "ts-key-status", "ts-api-key-status", "ts-auth-key-status", "adg-save-btn"} {
+	for _, removed := range []string{"cfg-save-btn-sm", "ts-key-status", "ts-api-key-status", "ts-auth-key-status", "cfg-save-btn"} {
 		if strings.Contains(tailscaleJS, removed) {
 			t.Fatalf("tailscale.js still carries the removed vault row marker %q", removed)
 		}
@@ -421,7 +421,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 
 	a2aJS := normalizeAssetText(mustReadUIFile(t, "cfg/a2a.js"))
 	for _, marker := range []string{
-		"adg-password-row",
+		"cfg-secret-row",
 	} {
 		if !hasModuleMarker(a2aJS, marker) {
 			t.Fatalf("a2a.js missing marker %q", marker)
@@ -429,7 +429,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 	}
 	requireFeedbackContract(t, "a2a.js", a2aJS, []string{"a2a-test-result"}, []string{"a2a-status-banner"})
 	requireDockSecret(t, "a2a.js", a2aJS, "a2a.auth.api_key", "a2a.auth.bearer_secret")
-	for _, removed := range []string{"cfg-save-btn-sm", "a2a-status-text", "a2a-bearer-secret-status", "adg-save-btn", "a2aSaveVault"} {
+	for _, removed := range []string{"cfg-save-btn-sm", "a2a-status-text", "a2a-bearer-secret-status", "cfg-save-btn", "a2aSaveVault"} {
 		if strings.Contains(a2aJS, removed) {
 			t.Fatalf("a2a.js still carries the removed vault row marker %q", removed)
 		}
@@ -455,7 +455,7 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 		content := normalizeAssetText(mustReadUIFile(t, spec.file))
 		markers := []string{
 			"cfg-actions-row",
-			"adg-test-btn",
+			"cfg-test-btn",
 			spec.resultID,
 			"field-select",
 			spec.testAPI,
@@ -504,8 +504,8 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 	composioJS := normalizeAssetText(mustReadUIFile(t, "cfg/composio.js"))
 	for _, marker := range []string{
 		"cfg-actions-row",
-		"adg-test-btn",
-		"adg-password-row",
+		"cfg-test-btn",
+		"cfg-secret-row",
 		"field-grid two-cols",
 		"/api/composio/test",
 	} {
@@ -515,11 +515,11 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 	}
 	requireFeedbackContract(t, "composio.js", composioJS, []string{"composio-test-result", "composio-connect-status", "composio-modal-result"}, []string{"composio-status-banner"})
 	requireDockSecret(t, "composio.js", composioJS, "composio.api_key")
-	if strings.Contains(composioJS, "adg-save-btn") {
+	if strings.Contains(composioJS, "cfg-save-btn") {
 		t.Fatal("composio.js must not render a vault save button")
 	}
 	if strings.Contains(composioJS, "cfg-save-btn-sm") || strings.Contains(composioJS, "cmp-status-line") {
-		t.Fatal("composio.js should use unified adg-* patterns")
+		t.Fatal("composio.js should use unified cfg-* patterns")
 	}
 
 	emailJS := normalizeAssetText(mustReadUIFile(t, "cfg/email.js"))
@@ -528,7 +528,7 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 		"btn-save btn-secondary",
 		"field-select",
 		"attachChangeListeners",
-		"adg-test-btn",
+		"cfg-test-btn",
 	} {
 		if !hasModuleMarker(emailJS, marker) {
 			t.Fatalf("email.js missing marker %q", marker)
@@ -578,7 +578,7 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 		"field-grid two-cols",
 		"field-input",
 		"field-select",
-		"adg-test-btn",
+		"cfg-test-btn",
 		"cfg-actions-row",
 		"/api/homepage/test-connection",
 		"hpTestConnection",
@@ -645,7 +645,7 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 		"field-grid two-cols",
 		"field-input",
 		"cfg-actions-row",
-		"adg-test-btn",
+		"cfg-test-btn",
 		"/api/ai-gateway/test",
 		"aiGatewayTestConnection",
 		"ai_gateway.log_mode",
@@ -901,7 +901,7 @@ func TestConfigLegacyPatternAudit(t *testing.T) {
 
 	// Legacy result/banner classes (ids with the same names are fine): a class attribute, classList
 	// call, class argument of cfgActionResult.html or a selector that names one of them.
-	legacyFeedbackClass := `(?:adg-test-result|adg-status-banner|dc-test-result|em-test-result|a2a-test-result|a2a-status-banner|ldap-test-result|[a-z0-9]+-test-result)`
+	legacyFeedbackClass := `(?:adguard-test-result|adguard-status-banner|dc-test-result|em-test-result|a2a-test-result|a2a-status-banner|ldap-test-result|[a-z0-9]+-test-result)`
 	legacyFeedbackClassUse := []*regexp.Regexp{
 		regexp.MustCompile(`class(?:Name)?\s*=\s*["'][^"']*` + legacyFeedbackClass),
 		regexp.MustCompile(`classList\.\w+\([^)]*` + legacyFeedbackClass),

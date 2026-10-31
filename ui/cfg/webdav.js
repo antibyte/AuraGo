@@ -52,7 +52,7 @@ function renderWebDAVSection(section) {
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="webdavTestConnection()" id="webdav-test-btn" data-config-action-draft="true">' + t('config.webdav.test_btn') + '</button>' },
+            { html: '<button class="btn-save cfg-test-btn" onclick="webdavTestConnection()" id="webdav-test-btn" data-config-action-draft="true">' + t('config.webdav.test_btn') + '</button>' },
             { html: form.actionResult({ id: 'webdav-test-result' }) }
         ])
     });

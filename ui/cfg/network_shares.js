@@ -178,12 +178,12 @@ function nsListEditor(path, rawValues, labelKey, helpKey, placeholderKey) {
         <div class="field-help">${escapeHtml(t(helpKey))}</div>
         <input id="ns-store-${token}" type="hidden" data-path="${escapeAttr(path)}" data-type="array" value="${escapeAttr(values.join(', '))}">
         <div class="three-d-printer-list">
-            ${values.map((value, index) => `<div class="adg-password-row">
+            ${values.map((value, index) => `<div class="cfg-secret-row">
                 <input class="field-input" type="text" value="${escapeAttr(value)}" data-ns-list="${escapeAttr(path)}" data-ns-index="${index}" onchange="nsChangeListValue(this)">
                 <button type="button" class="btn-save cfgdev-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-index="${index}" onclick="nsRemoveListValue(this)">${escapeHtml(t('config.network_shares.remove'))}</button>
             </div>`).join('')}
         </div>
-        <div class="adg-password-row">
+        <div class="cfg-secret-row">
             <input id="ns-new-${token}" class="field-input" type="text" placeholder="${escapeAttr(t(placeholderKey))}">
             <button type="button" class="btn-save cfgdev-btn-secondary" data-ns-list="${escapeAttr(path)}" data-ns-input="ns-new-${token}" onclick="nsAddListValue(this)">＋ ${escapeHtml(t('config.network_shares.add'))}</button>
         </div>
@@ -448,7 +448,7 @@ function nsRenderAccessFields(existing) {
         area.innerHTML = `
             ${permissions.smb_allow_guest ? `<label class="toggle-wrap"><input id="ns-form-guest" type="checkbox"${access.guest ? ' checked' : ''}> ${escapeHtml(t('config.network_shares.guest'))}</label>` : ''}
             <div class="field-label">${escapeHtml(t('config.network_shares.acl'))}</div>
-            ${(permissions.allowed_principals || []).map(principal => `<div class="adg-password-row">
+            ${(permissions.allowed_principals || []).map(principal => `<div class="cfg-secret-row">
                 <span class="field-help">${escapeHtml(principal)}</span>
                 <select class="field-select ns-acl-level" data-principal="${escapeAttr(principal)}">
                     ${availableLevels.map(level => `<option value="${level}"${levels.get(principal) === level ? ' selected' : ''}>${escapeHtml(t('config.network_shares.level_' + level))}</option>`).join('')}

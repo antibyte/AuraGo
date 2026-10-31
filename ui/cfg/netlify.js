@@ -137,7 +137,7 @@ async function renderNetlifySection(section) {
         <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
         <div class="field-group-desc">${t('config.netlify.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="nf-test-btn" data-config-action-draft="true" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
+            <button class="btn-save cfg-test-btn" id="nf-test-btn" data-config-action-draft="true" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
             ${cfgActionResult.html('nf-test-result')}
         </div>
     </div>`;

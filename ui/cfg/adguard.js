@@ -11,7 +11,7 @@ function renderAdGuardSection(section) {
     const html = form.renderSpec({
         label: section.label,
         desc: section.desc,
-        beforeHTML: form.statusBanner({ id: 'adg-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.url ? t('config.adguard.status_no_url') : '' }),
+        beforeHTML: form.statusBanner({ id: 'adguard-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.url ? t('config.adguard.status_no_url') : '' }),
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.adguard.enabled_label'), help: t('help.adguard.enabled'), path: 'adguard.enabled', value: enabledOn }),
             form.toggle({ label: t('config.adguard.readonly_label'), help: t('help.adguard.readonly'), path: 'adguard.readonly', value: readonlyOn })
@@ -22,18 +22,18 @@ function renderAdGuardSection(section) {
             form.password({
                 label: t('config.adguard.password_label'),
                 help: t('help.adguard.password'),
-                id: 'adg-password',
+                id: 'adguard-password',
                 path: 'adguard.password',
                 value: data.password,
                 placeholder: passwordPlaceholder
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="adgTestConnection()" id="adg-test-btn" data-config-action-draft="true">' + t('config.adguard.test_btn') + '</button>' },
-            { html: form.actionResult({ id: 'adg-test-result' }) }
-        ]) + '<div id="adg-quick-stats" class="adg-quick-stats is-hidden">'
-            + '<div class="adg-stats-title">' + t('config.adguard.stats_title') + '</div>'
-            + '<div id="adg-stats-content" class="adg-stats-grid"></div>'
+            { html: '<button class="btn-save cfg-test-btn" onclick="adgTestConnection()" id="cfg-test-btn" data-config-action-draft="true">' + t('config.adguard.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'adguard-test-result' }) }
+        ]) + '<div id="cfg-stats" class="cfg-stats is-hidden">'
+            + '<div class="cfg-stats-title">' + t('config.adguard.stats_title') + '</div>'
+            + '<div id="cfg-stats-content" class="cfg-stats-grid"></div>'
             + '</div>'
     });
 
@@ -43,7 +43,7 @@ function renderAdGuardSection(section) {
 }
 
 function adgCheckStatus() {
-    const banner = document.getElementById('adg-status-banner');
+    const banner = document.getElementById('adguard-status-banner');
     if (!banner) return;
     return cfgStatusBanner.check(banner, () => fetch('/api/adguard/status'), body => {
         if (!body) return null;
@@ -63,21 +63,21 @@ function adgCheckStatus() {
 }
 
 function adgLoadQuickStats() {
-    const wrap = document.getElementById('adg-quick-stats');
-    const content = document.getElementById('adg-stats-content');
+    const wrap = document.getElementById('cfg-stats');
+    const content = document.getElementById('cfg-stats-content');
     if (!wrap || !content) return;
     wrap.classList.remove('is-hidden');
-    content.innerHTML = '<div class="adg-stats-loaded">' + t('config.adguard.stats_loaded') + '</div>';
+    content.innerHTML = '<div class="cfg-stats-loaded">' + t('config.adguard.stats_loaded') + '</div>';
 }
 
 function adgTestConnection() {
-    const btn = document.getElementById('adg-test-btn');
+    const btn = document.getElementById('cfg-test-btn');
     return cfgActionResult(btn, () => fetch('/api/adguard/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ draft: cfgDraftPatch(['adguard']) })
     }), {
-        target: 'adg-test-result',
+        target: 'adguard-test-result',
         success: t('config.adguard.test_ok'),
         failure: t('config.adguard.test_fail'),
         onSuccess: () => adgCheckStatus()

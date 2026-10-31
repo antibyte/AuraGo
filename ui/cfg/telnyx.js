@@ -146,7 +146,7 @@ function renderTelnyxSection(section) {
     html += '</div></div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn" data-config-action-draft="true">' + t('config.telnyx.test_btn') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn" data-config-action-draft="true">' + t('config.telnyx.test_btn') + '</button>';
     html += cfgActionResult.html('telnyx-test-result');
     html += '</div>';
 

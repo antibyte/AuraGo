@@ -39,7 +39,7 @@ func TestTTSCloudProviderConfigBrowser(t *testing.T) {
             AuraConfigState.syncFromDOM();
             // The key joins the save dock; there is no own vault button or vault request.
             if (AuraConfigState.get('tts.' + provider + '.api_key') !== 'fixture-' + provider) throw Error('Key is not part of the save dock draft: ' + provider);
-            if (document.querySelector('#tts-' + provider + '-section .adg-save-btn') || vaultWrites.length) throw Error('Own vault save is back: ' + provider);
+            if (document.querySelector('#tts-' + provider + '-section .cfg-save-btn') || vaultWrites.length) throw Error('Own vault save is back: ' + provider);
             const voice = document.querySelector('[data-path="tts.' + provider + '.voice_id"]');
             if (!voice) throw Error('Voice field missing');
             if (voice.tagName === 'SELECT') {

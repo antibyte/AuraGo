@@ -65,7 +65,7 @@ func TestConfigWave1Batch5ModuleContracts(t *testing.T) {
 				t.Errorf("%s: secret %s is not in the save dock", module, path)
 			}
 		}
-		for _, banned := range []string{"/api/vault/secrets", "adg-save-btn\" onclick=\"ttsSave", "treg-save-token"} {
+		for _, banned := range []string{"/api/vault/secrets", "cfg-save-btn\" onclick=\"ttsSave", "treg-save-token"} {
 			if strings.Contains(src, banned) {
 				t.Errorf("%s still has its own vault save (%s)", module, banned)
 			}
@@ -78,7 +78,7 @@ func TestConfigWave1Batch5ModuleContracts(t *testing.T) {
 	}
 	// The static warning of the cloud providers is a note, not a status banner.
 	tts := readWave0File(t, "cfg/tts.js")
-	if !strings.Contains(tts, "cfg-note-banner cfg-note-banner-warning") || strings.Contains(tts, "adg-status-banner") {
+	if !strings.Contains(tts, "cfg-note-banner cfg-note-banner-warning") || strings.Contains(tts, "adguard-status-banner") {
 		t.Error("tts notices must use cfg-note-banner-warning")
 	}
 	// No emoji dots in the banners of this batch.

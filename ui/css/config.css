@@ -4009,28 +4009,22 @@ transform:none; filter:none;
     font-weight: 600;
 }
 
-/* ── AdGuard config section ────────────────────────── */
-.pw-page[data-workspace-page="config"] .adg-password-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.pw-page[data-workspace-page="config"] .adg-password-input {
+/* ── Shared config secret row, action buttons and stats ── */
+.pw-page[data-workspace-page="config"] .cfg-secret-input {
     flex: 1;
 }
 
-.pw-page[data-workspace-page="config"] .adg-save-btn {
+.pw-page[data-workspace-page="config"] .cfg-save-btn {
     padding: 0.45rem 1rem;
     font-size: 0.82rem;
 }
 
-.pw-page[data-workspace-page="config"] .adg-test-btn {
+.pw-page[data-workspace-page="config"] .cfg-test-btn {
     padding: 0.5rem 1.2rem;
     font-size: 0.85rem;
 }
 
-.pw-page[data-workspace-page="config"] .adg-quick-stats {
+.pw-page[data-workspace-page="config"] .cfg-stats {
     margin-top: 1.5rem;
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
@@ -4088,7 +4082,7 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .gw-manual-row .field-input { flex: 1; min-width: 0; font-size: 0.78rem; }
 .pw-page[data-workspace-page="config"] .gw-btn-disconnect { background: var(--danger); }
 
-.pw-page[data-workspace-page="config"] .adg-stats-title {
+.pw-page[data-workspace-page="config"] .cfg-stats-title {
     margin-bottom: 0.8rem;
     padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border-subtle);
@@ -4097,13 +4091,13 @@ transform:none; filter:none;
     font-weight: 600;
 }
 
-.pw-page[data-workspace-page="config"] .adg-stats-grid {
+.pw-page[data-workspace-page="config"] .cfg-stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     gap: 0.8rem;
 }
 
-.pw-page[data-workspace-page="config"] .adg-stats-loaded {
+.pw-page[data-workspace-page="config"] .cfg-stats-loaded {
     color: var(--text-tertiary);
     font-size: 0.83rem;
 }

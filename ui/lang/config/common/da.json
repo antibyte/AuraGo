@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Ingen integration er slået til endnu.",
   "config.overview.attention_title": "Kræver opmærksomhed",
   "config.overview.blocked": "Ikke tilgængelig",
-  "config.overview.group_active": "{count} aktive"
+  "config.overview.group_active": "{count} aktive",
+  "config.common.close": "Luk",
+  "config.common.retry": "Prøv igen",
+  "config.common.empty": "Der er intet her endnu.",
+  "config.common.load_failed": "Listen kunne ikke indlæses.",
+  "config.common.delete_item": "Slet {name}"
 }

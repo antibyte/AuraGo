@@ -101,7 +101,7 @@
             <div class="field-group-title">${text('config.integration_test.title', 'Connection test')}</div>
             <div class="field-help">${text('config.integration_test.description', 'Uses the saved configuration and performs a read-only check.')}</div>
             <div class="cfg-actions-row">
-                <button type="button" class="btn-save adg-test-btn" id="${entry.buttonId}" data-config-action-draft="true">${text('config.integration_test.button', 'Test connection')}</button>
+                <button type="button" class="btn-save cfg-test-btn" id="${entry.buttonId}" data-config-action-draft="true">${text('config.integration_test.button', 'Test connection')}</button>
                 ${cfgActionResult.html(entry.buttonId + '-result')}
             </div>
         </div>`;

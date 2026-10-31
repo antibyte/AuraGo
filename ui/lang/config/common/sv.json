@@ -160,5 +160,10 @@
   "config.overview.active_empty": "Ingen integration är påslagen ännu.",
   "config.overview.attention_title": "Behöver uppmärksamhet",
   "config.overview.blocked": "Inte tillgänglig",
-  "config.overview.group_active": "{count} aktiva"
+  "config.overview.group_active": "{count} aktiva",
+  "config.common.close": "Stäng",
+  "config.common.retry": "Försök igen",
+  "config.common.empty": "Inget här ännu.",
+  "config.common.load_failed": "Listan kunde inte läsas in.",
+  "config.common.delete_item": "Ta bort {name}"
 }

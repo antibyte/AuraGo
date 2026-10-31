@@ -94,9 +94,9 @@ function renderA2ASection(section) {
     html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', helpKey: 'config.a2a.help_api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
     html += '<div class="field-group"><div class="field-label">' + t('config.a2a.api_key_label') + '</div>';
     html += '<div class="field-help">' + t('config.a2a.help_api_key') + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" data-path="a2a.auth.api_key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="a2a-api-key" data-path="a2a.auth.api_key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';
@@ -106,9 +106,9 @@ function renderA2ASection(section) {
     html += AuraConfigForm.toggle({ path: 'a2a.auth.bearer_enabled', helpKey: 'config.a2a.help_bearer_enabled', value: !!auth.bearer_enabled, labelKey: 'config.a2a.bearer_auth' });
     html += '<div class="field-group"><div class="field-label">' + t('config.a2a.bearer_secret_label') + '</div>';
     html += '<div class="field-help">' + t('config.a2a.help_bearer_secret') + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" data-path="a2a.auth.bearer_secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="a2a-bearer-secret" data-path="a2a.auth.bearer_secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';

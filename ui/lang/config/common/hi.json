@@ -160,5 +160,10 @@
   "config.overview.active_empty": "अभी कोई इंटीग्रेशन चालू नहीं है।",
   "config.overview.attention_title": "ध्यान देने की ज़रूरत",
   "config.overview.blocked": "उपलब्ध नहीं",
-  "config.overview.group_active": "{count} सक्रिय"
+  "config.overview.group_active": "{count} सक्रिय",
+  "config.common.close": "बंद करें",
+  "config.common.retry": "फिर से कोशिश करें",
+  "config.common.empty": "यहाँ अभी कुछ नहीं है।",
+  "config.common.load_failed": "यह सूची लोड नहीं हो सकी।",
+  "config.common.delete_item": "{name} हटाएँ"
 }

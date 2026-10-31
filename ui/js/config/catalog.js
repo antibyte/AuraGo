@@ -3,7 +3,7 @@
     'use strict';
 
     const actionRules = Object.freeze({
-        'adg-test-btn': { requiredPaths: ['adguard.url'], credentialPaths: ['adguard.password'] },
+        'cfg-test-btn': { requiredPaths: ['adguard.url'], credentialPaths: ['adguard.password'] },
         'agentmail-test-btn': { requiredPaths: ['agentmail.base_url'], credentialPaths: ['agentmail.api_key'] },
         'ai-gw-test-btn': { requiredPaths: ['ai_gateway.account_id', 'ai_gateway.gateway_id'], credentialPaths: ['ai_gateway.token'] },
         'a2a-test-btn': { requiredPaths: ['a2a.server.agent_name'] },
@@ -152,7 +152,7 @@
         notifications: { on: ['notifications.ntfy.enabled', 'notifications.pushover.enabled'] },
         a2a: { on: ['a2a.server.enabled'] },
         telegram: { on: ['set:telegram.bot_token'], rule: 'integration-telegram-test-btn' },
-        adguard: { rule: 'adg-test-btn' },
+        adguard: { rule: 'cfg-test-btn' },
         agentmail: { rule: 'agentmail-test-btn' },
         ai_gateway: { rule: 'ai-gw-test-btn' },
         composio: { rule: 'composio-test-btn' },

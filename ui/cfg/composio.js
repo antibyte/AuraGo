@@ -27,7 +27,7 @@ async function renderComposioSection(section) {
 
     html += '<div class="cfg-actions-row">';
     html += '<button class="btn-save" onclick="composioOpenModal()">' + t('config.composio.open_picker') + '</button>';
-    html += '<button class="btn-save adg-test-btn" id="composio-test-btn" data-config-action-draft="true" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" id="composio-test-btn" data-config-action-draft="true" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
     html += cfgActionResult.html('composio-test-result');
     html += '<span class="cmp-selected-pill">' + t('config.composio.selected_count', { count: selectedCount }) + '</span>';
     html += '</div>';
@@ -43,9 +43,9 @@ async function renderComposioSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.composio.api_key') + '</div>';
     html += '<div class="field-help">' + t('help.composio.api_key') + '</div>';
-    html += '<div class="adg-password-row">';
+    html += '<div class="cfg-secret-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input cfg-secret-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';
