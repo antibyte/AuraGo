@@ -191,6 +191,8 @@ type fakeContainer struct {
 	Image       string
 	Labels      map[string]string
 	Running     bool
+	Status      string
+	ExitCode    int
 	Attached    bool
 	Aliases     []string
 	RestartName string
@@ -522,7 +524,7 @@ func (f *fakeDocker) serveContainer(w http.ResponseWriter, r *http.Request, path
 		if container.Attached {
 			networks["aurago-speech-lab"] = map[string]any{"Aliases": container.Aliases}
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"Id": container.ID, "Name": "/" + container.Name, "Config": map[string]any{"Image": container.Image, "Labels": container.Labels}, "State": map[string]any{"Running": container.Running}, "NetworkSettings": map[string]any{"Networks": networks}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"Id": container.ID, "Name": "/" + container.Name, "Config": map[string]any{"Image": container.Image, "Labels": container.Labels}, "State": map[string]any{"Running": container.Running, "Status": container.Status, "ExitCode": container.ExitCode}, "NetworkSettings": map[string]any{"Networks": networks}})
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/start"):
 		container.Running = true
 		if f.startNotModified {

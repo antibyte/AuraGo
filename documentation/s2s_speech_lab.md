@@ -117,6 +117,20 @@ and waits for `/health` plus `/ready`. After a restart an already installed
 bundle may be started automatically. Updates remain explicit and roll back if
 the replacement does not become ready.
 
+**Start Speech Lab** also repairs stale container references. AuraGo verifies
+the installed release manifest and its saved digest, then matches the existing
+services by ownership, role, bundle, image, hardware fingerprint and network.
+Pruned one-shot initialization containers do not invalidate a previously
+published installation; completed initializers are not run again. Repair pulls
+no images, replaces no services and preserves the active stack. It clears the
+deployment error only after readiness succeeds. If the installed manifest is
+unavailable or a service no longer matches, the error remains; use the explicit
+managed update action after reviewing it. A healthy speech endpoint alone does
+not establish ownership of the deployment.
+
+Chat audio downloads retain the response or URL filename and its actual format,
+including WAV from Speech Lab or Phonon.
+
 Bundle v2 adds a private, host-port-free controller. The controller is the only
 Speech Lab container with a read-only Docker socket mount. A one-shot internal
 initializer creates the per-deployment bearer token; gateway and controller
