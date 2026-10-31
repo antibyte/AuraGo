@@ -2716,6 +2716,8 @@ Content-Type: application/json
 
 Gibt das `.ago`-Archiv als `application/octet-stream`-Download mit `Content-Disposition`-Dateiname zurück. Lass `password` leer für ein unverschlüsseltes, ZIP-kompatibles `.ago`; setze es, um das Archiv zu verschlüsseln und portable Vault-/Token-Exporte einzuschließen. Mit Passwort bricht ein fehlgeschlagener Vault- oder Token-Export das Backup ab, statt die Secrets stillschweigend wegzulassen.
 
+Datenbanken außerhalb des Konfigurationsverzeichnisses werden nicht kopiert. Jede steht im Manifest im Feld `skipped` (zum Beispiel `sqlite/elsewhere.db skipped (outside the config root)`) und wird im Antwort-Header `X-AuraGo-Backup-Skipped` gezählt. Der Header ist nur gesetzt, wenn mindestens eine Datenbank übersprungen wurde. Dieselben Gründe gelten für Datenbanken ohne zulässigen Speicherort oder deren Snapshot fehlgeschlagen ist. Beim Import erscheinen die übersprungenen Einträge in `warnings`.
+
 #### Backup importieren
 ```http
 POST /api/backup/import
@@ -2737,6 +2739,8 @@ curl -X POST http://localhost:8088/api/backup/import \
 
 Der Import ändert zunächst nichts. AuraGo prüft das Archiv (Pfade, Größenlimits, SQLite-Integrität, Passwort), prüft die Versionen und stagt die Dateien, die Vault-Secrets (mit dem lokalen Master-Key neu verschlüsselt) und den API-Token-Store in `data/.restore-pending/`. Der Restore wird beim nächsten Start angewendet (siehe [Restore-Status](#restore-status)). Es gibt immer nur einen wartenden Restore; ein neuer Import ersetzt ihn.
 
+Wiederhergestellte Prompts, Skills, Agent-Skills, Tools sowie die Dateien der VectorDB und des Workspaces landen in den Verzeichnissen, die im Abschnitt `directories` der laufenden Instanz konfiguriert sind (`prompts_dir`, `skills_dir`, `agent_skills_dir`, `tools_dir` sowie die Verzeichnisse für VectorDB und Workspace). Verzeichniswerte in der `config.yaml` des Archivs werden ignoriert.
+
 Versionsprüfungen:
 
 - Ein Archiv aus einer neueren AuraGo-Version wird mit HTTP `400` abgelehnt. Das ist der Fall, wenn die App-Version im Manifest neuer ist als die installierte oder die `user_version` einer Datenbank neuer ist als die aktive Datenbank.
@@ -2749,7 +2753,10 @@ Erfolg liefert HTTP `200`:
 {
   "status": "ok",
   "pending_restore": true,
+  "restore_id": "20261031T090000-3fa1c2b4d5e6",
   "restart_required": true,
+  "awaiting_confirmation": false,
+  "security_changes": null,
   "staged": 1280,
   "vault_restored": 12,
   "tokens_restored": 3,
@@ -2760,18 +2767,79 @@ Erfolg liefert HTTP `200`:
 
 `status` ist `partial`, wenn die Vault-Secrets oder der Token-Store nicht gestagt werden konnten; der Grund steht in `warnings`. Die Felder `restored`, `skipped` und `schema_warning` gibt es nicht mehr.
 
-Fehler liefern JSON `{"error": "..."}`. Zu große Uploads liefern `413`. Verschlüsselte Archive ohne oder mit falschem Passwort liefern `password_required` bzw. `decryption_failed`, jeweils mit einer `message`.
+`restore_id` kennzeichnet den wartenden Restore und wird für die Bestätigung unten benötigt. `restart_required` ist nur `true`, wenn der Restore ohne Bestätigung beim nächsten Start angewendet wird; solange `awaiting_confirmation` `true` ist, ist es `false`.
 
-Die Config-UI (Bereich Backup) fragt vor einem Import nach einer Bestätigung, zeigt den wartenden Restore mit **Jetzt neu starten** und **Wartenden Restore verwerfen** und zeigt das Ergebnis des letzten Restores.
+Fehler liefern JSON `{"error": "..."}`. Zu große Uploads liefern `413`. Verschlüsselte Archive ohne oder mit falschem Passwort liefern `password_required` bzw. `decryption_failed`, jeweils mit einer `message`. Ein API-Token mit einem Scope, den AuraGo nicht kennt, liefert `400`; der Import wird abgelehnt.
+
+##### Sicherheitsbestätigung
+
+Manche Restores ändern, wer auf AuraGo zugreifen oder was AuraGo ausführen kann. Im Vergleich zur laufenden Instanz gilt ein gestagter Restore als sicherheitsrelevant, wenn er:
+
+- den Login abschaltet (`auth.enabled` wechselt von `true` auf `false`),
+- `server.host` ändert,
+- einen anderen Passwort-Hash, ein anderes Zwei-Faktor-Geheimnis (TOTP) oder einen anderen Passkey-Zustand (WebAuthn) mitbringt,
+- die Zwei-Faktor-Anmeldung (`auth.totp_enabled`) oder die Pflicht zum Origin-Header (`auth.require_origin_header`) abschaltet,
+- API-Token hinzufügt oder bei einem vorhandenen Token Hash oder Scopes ändert,
+- Dateien in den Verzeichnissen für Prompts, Skills, Agent-Skills oder Tools hinzufügt oder ändert,
+- Cron-Jobs (`data/crontab.json`) hinzufügt oder ändert oder
+- eine Datenbank mit Verbindungen, Zugangsdaten oder Remote-Zielen (`sql_connections.db`, `remote_control.db`, `inventory.db`, `invasion.db`, `mailer.db`) durch eine mit anderem Inhalt ersetzt.
+
+Trifft einer dieser Punkte zu, liefert die Import-Antwort `awaiting_confirmation: true`, und `security_changes` ist ein Objekt. Der Restore bleibt gestagt, wird beim nächsten Start aber **nicht** angewendet, bis ein Administrator ihn bestätigt: in der Config-UI (**Config → Backup**, **Wiederherstellung bestätigen**) oder per `POST /api/backup/restore-status` (siehe unten). Ohne Bestätigung ändert sich nichts, und der wartende Restore bleibt bestehen. Trifft keiner der Punkte zu, ist `security_changes` `null`, und der Restore wird wie bisher beim nächsten Start angewendet.
+
+`security_changes` hat folgende Felder. Felder mit `false` oder `0` fehlen in der Antwort:
+
+| Feld | Typ | Bedeutung |
+|------|-----|-----------|
+| `auth_disabled` | Boolean | Der Login ist jetzt aktiv, das Backup schaltet ihn ab. |
+| `host_changed` | Boolean | `server.host` im Backup weicht vom aktuellen Wert ab. |
+| `host_from`, `host_to` | String | Aktueller und gestagter `server.host` (nur bei `host_changed`). |
+| `password_hash_changed` | Boolean | Der gestagte Login-Passwort-Hash weicht vom aktuellen ab. |
+| `totp_disabled` | Boolean | Die Zwei-Faktor-Anmeldung ist jetzt aktiv, das Backup schaltet sie ab. |
+| `totp_secret_changed` | Boolean | Das gestagte Zwei-Faktor-Geheimnis weicht vom aktuellen ab. |
+| `webauthn_changed` | Boolean | Der gestagte Passkey-Zustand weicht vom aktuellen ab. |
+| `require_origin_disabled` | Boolean | Die Pflicht zum Origin-Header ist jetzt aktiv, das Backup schaltet sie ab. |
+| `token_count` | Integer | Anzahl der API-Token im gestagten Token-Store. |
+| `new_token_count` | Integer | Gestagte Token, die neu sind oder deren gespeicherter Hash abweicht. |
+| `new_tokens` | Array | Bis zu 20 dieser Token, jeweils mit `id`, `name` und `scopes`. |
+| `files` | Array | Geänderte Prompts, Skills, Agent-Skills, Tools, Cron-Jobs und Zugangsdaten-Datenbanken, ein Eintrag pro Kategorie. |
+
+Jeder `files`-Eintrag hat `category` (`prompts`, `skills`, `agent_skills`, `tools`, `crontab` oder `databases`), `new` und `changed` (Anzahl der Dateien, Cron-Jobs oder Datenbanken) und `examples` (bis zu 8 relative Pfade, Job-IDs oder Datenbanknamen). Es erscheinen nur Kategorien mit neuen oder geänderten Einträgen. Eine geänderte Datenbank zählt nur bei den oben genannten Zugangsdaten-Datenbanken und wird nach Inhalt verglichen.
+
+Geheimnisse, Token-Hashes und Passwort-Hashes werden nie zurückgegeben; die Geheimnis-Felder sind Booleans. Prüfe `new_tokens` und `files`, bevor du bestätigst.
+
+##### Bestätigen oder verwerfen
+
+```http
+POST /api/backup/restore-status
+Content-Type: application/json
+
+{"action": "confirm", "id": "20261031T090000-3fa1c2b4d5e6"}
+```
+
+| Status | Bedeutung |
+|--------|-----------|
+| `200` | Bestätigt. Die Antwort ist `{"confirmed": true, "id": "...", "restart_required": true}`. Starte AuraGo neu, um den Restore anzuwenden. |
+| `400` | Der Body ist nicht `{"action": "confirm", "id": "..."}` oder die ID ist leer. |
+| `404` | Es ist kein Restore vorgemerkt. |
+| `409` | Der wartende Restore hat eine andere ID, etwa weil ein neuer Import ihn ersetzt hat. Lade den Status neu und bestätige erneut. |
+
+Eine Bestätigung ohne sicherheitsrelevante Änderungen ist unschädlich. Die Bestätigung wird im gestagten Manifest vermerkt; angewendet wird der Restore trotzdem erst beim nächsten Start.
+
+Die Config-UI (Bereich Backup) fragt vor einem Import nach einer Bestätigung, zeigt den wartenden Restore mit **Jetzt neu starten** und **Wartenden Restore verwerfen** und zeigt das Ergebnis des letzten Restores. Wartet ein Restore auf Bestätigung, zeigt sie stattdessen die Sicherheitsänderungen und **Wiederherstellung bestätigen**.
+
+##### Login und Zugriff auf Backups
+
+Ist der Login deaktiviert, antworten die Backup-Endpunkte (`/api/backup/create`, `/api/backup/import` und `/api/backup/restore-status`) nur, wenn AuraGo über eine IP-Adresse, `localhost`, den Host-Namen des Rechners, eine konfigurierte Domain (HTTPS-Domain, Domain des Security-Proxys, OAuth-Redirect-Basis-URL oder Preview-Domain) oder den Tailscale-Namen geöffnet wird (nur bei aktivem tsnet-Node: der konfigurierte Name ohne Punkt oder der exakte MagicDNS-Name des laufenden Nodes, nie ein Name, der nur damit beginnt). Andere Host-Namen erhalten `403` mit `"error": "login_required_for_host"`. Das schützt vor DNS-Rebinding, bei dem eine Webseite unter eigenem Host-Namen den Browser auf AuraGo zugreifen lässt. Anfragen mit Bearer-Token umgehen diese Prüfung; die Endpunkte bleiben nur für Administratoren erreichbar. Aktiviere den Login, bevor du Backup und Restore nutzt. Ohne Login kann jeder Client, der AuraGo über eine der vertrauenswürdigen Adressen erreicht, Backups erstellen und Restores vormerken.
 
 #### Restore-Status
 
 ```http
 GET    /api/backup/restore-status
+POST   /api/backup/restore-status
 DELETE /api/backup/restore-status
 ```
 
-Beide Endpunkte sind nur für Administratoren verfügbar.
+Alle drei Methoden sind nur für Administratoren verfügbar.
 
 `GET` meldet den wartenden Restore und das Ergebnis des letzten Restores:
 
@@ -2779,6 +2847,16 @@ Beide Endpunkte sind nur für Administratoren verfügbar.
 {
   "pending": true,
   "pending_created_at": "2026-10-31T09:00:00Z",
+  "id": "20261031T090000-3fa1c2b4d5e6",
+  "awaiting_confirmation": true,
+  "restart_required": false,
+  "security_changes": {
+    "auth_disabled": true,
+    "token_count": 2,
+    "new_token_count": 1,
+    "new_tokens": [{"id": "t-1", "name": "ci", "scopes": ["admin"]}],
+    "files": [{"category": "prompts", "new": 3, "changed": 0, "examples": ["prompts/a.md"]}]
+  },
   "last": {
     "id": "...",
     "applied_at": "...",
@@ -2788,7 +2866,11 @@ Beide Endpunkte sind nur für Administratoren verfügbar.
 }
 ```
 
+`id` ist die ID des wartenden Restores; ohne wartenden Restore ist sie ein leerer String. `awaiting_confirmation` ist `true`, solange ein Restore mit sicherheitsrelevanten Änderungen auf `POST` wartet. `restart_required` ist `true`, wenn ein wartender Restore beim nächsten Start angewendet wird. `security_changes` hat die Felder aus [Sicherheitsbestätigung](#sicherheitsbestätigung) und ist `null`, wenn es keine gibt.
+
 `last` ist `null`, solange kein Restore gelaufen ist. `status` ist `applied`, `rolled_back` oder `failed`; die Erklärung steht in `message`.
+
+`POST` bestätigt einen wartenden Restore; Body und Statuscodes stehen unter [Bestätigen oder verwerfen](#bestätigen-oder-verwerfen).
 
 `DELETE` verwirft einen wartenden Restore und liefert `{"discarded": true}` bzw. `{"discarded": false}`.
 

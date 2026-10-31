@@ -655,7 +655,8 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 1. Create a password-protected backup with the old key (`POST /api/backup/create` with a `password`). Vault secrets are only exported when a password is set.
 2. Stop AuraGo, set the new `AURAGO_MASTER_KEY`, and start AuraGo so the vault is initialized with the new key.
 3. Import the backup (`POST /api/backup/import` as multipart form with `file` and `password`). The vault secrets are staged and re-encrypted with the new key.
-4. Restart AuraGo. The staged restore is applied only at this start. Check the outcome with `GET /api/backup/restore-status`.
+4. If the import response has `awaiting_confirmation: true`, confirm the restore with `POST /api/backup/restore-status` (`{"action":"confirm","id":"<restore_id>"}`). The restore changes security-relevant settings, so the next start does not apply it without this confirmation.
+5. Restart AuraGo. The staged restore is applied only at this start. Check the outcome with `GET /api/backup/restore-status`.
 
 See [Chapter 21: API Reference](21-api-reference.md#backup-api) for the request details.
 
