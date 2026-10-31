@@ -3,124 +3,42 @@
 function renderObsidianSection(section) {
     const data = configData['obsidian'] || {};
     const enabledOn = data.enabled === true;
-    const readonlyOn = data.readonly === true || data.read_only === true;
-    const destructiveOn = data.allow_destructive === true;
-    const httpsOn = data.use_https !== false; // default true
-    const insecureOn = data.insecure_ssl !== false; // default true
-    const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.obsidian.apikey_placeholder'));
-
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
+    const form = window.AuraConfigForm;
     const setupHint = t('help.obsidian.setup_hint');
-    if (setupHint) {
-        html += '<div class="field-group"><div class="field-help">' + setupHint + '</div></div>';
-    }
 
-    // ── Connection status banner ──
-    html += cfgStatusBanner.html('obsidian-status-banner', enabledOn ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !(enabledOn) ? t('config.obsidian.status_no_url') : '' });
-
-    // ── Enabled toggle ──
-    const helpEnabled = t('help.obsidian.enabled');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.enabled_label') + '</div>';
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="obsidian.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Read-only toggle ──
-    const helpReadonly = t('help.obsidian.readonly');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.readonly_label') + '</div>';
-    if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="obsidian.readonly" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Allow destructive toggle ──
-    const helpDestructive = t('help.obsidian.allow_destructive');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.destructive_label') + '</div>';
-    if (helpDestructive) html += '<div class="field-help">' + helpDestructive + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (destructiveOn ? ' on' : '') + '" data-path="obsidian.allow_destructive" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (destructiveOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Host ──
-    const helpHost = t('help.obsidian.host');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.host_label') + '</div>';
-    if (helpHost) html += '<div class="field-help">' + helpHost + '</div>';
-    html += '<input class="field-input" type="text" data-path="obsidian.host" value="' + escapeAttr(data.host || '') + '" placeholder="127.0.0.1">';
-    html += '</div>';
-
-    // ── Port ──
-    const helpPort = t('help.obsidian.port');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.port_label') + '</div>';
-    if (helpPort) html += '<div class="field-help">' + helpPort + '</div>';
-    html += '<input class="field-input" type="number" data-path="obsidian.port" value="' + escapeAttr(data.port || '27124') + '" placeholder="27124">';
-    html += '</div>';
-
-    // ── HTTPS toggle ──
-    const helpHTTPS = t('help.obsidian.use_https');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.https_label') + '</div>';
-    if (helpHTTPS) html += '<div class="field-help">' + helpHTTPS + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (httpsOn ? ' on' : '') + '" data-path="obsidian.use_https" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (httpsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Insecure SSL toggle ──
-    const helpInsecure = t('help.obsidian.insecure_ssl');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.insecure_label') + '</div>';
-    if (helpInsecure) html += '<div class="field-help">' + helpInsecure + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="obsidian.insecure_ssl" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Connect Timeout ──
-    const helpConnectTimeout = t('help.obsidian.connect_timeout');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + (t('config.obsidian.connect_timeout_label')) + '</div>';
-    if (helpConnectTimeout) html += '<div class="field-help">' + helpConnectTimeout + '</div>';
-    html += '<input class="field-input" type="number" data-path="obsidian.connect_timeout" value="' + escapeAttr(data.connect_timeout || '10') + '" placeholder="10">';
-    html += '</div>';
-
-    // ── Request Timeout ──
-    const helpRequestTimeout = t('help.obsidian.request_timeout');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + (t('config.obsidian.request_timeout_label')) + '</div>';
-    if (helpRequestTimeout) html += '<div class="field-help">' + helpRequestTimeout + '</div>';
-    html += '<input class="field-input" type="number" data-path="obsidian.request_timeout" value="' + escapeAttr(data.request_timeout || '30') + '" placeholder="30">';
-    html += '</div>';
-
-    // ── API Key (vault) ──
-    const helpKey = t('help.obsidian.api_key');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.obsidian.apikey_label') + '</div>';
-    if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
-    html += '<div class="cfg-secret-row">';
-        html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input cfg-secret-input" type="password" id="obsidian-apikey" data-path="obsidian.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-        html += '</div>';
-    html += '</div></div>';
-
-    // ── Test connection button ──
-    html += '<div class="field-group">';
-    html += '<button class="btn-save cfg-test-btn" onclick="obsidianTestConnection()" id="obsidian-test-btn" data-config-action-draft="true">' + t('config.obsidian.test_btn') + '</button>';
-    html += cfgActionResult.html('obsidian-test-result');
-    html += '</div>';
-
-    html += '</div>';
+    const html = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        key: 'obsidian',
+        banner: { id: 'obsidian-status-banner', state: enabledOn ? 'checking' : 'off' },
+        // The hint carries markup (<strong>), so it is inserted as HTML like the other help texts.
+        beforeHTML: setupHint ? '<div class="field-group"><div class="field-help">' + setupHint + '</div></div>' : '',
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            form.toggle({ label: t('config.obsidian.enabled_label'), help: t('help.obsidian.enabled'), path: 'obsidian.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.obsidian.readonly_label'), help: t('help.obsidian.readonly'), path: 'obsidian.readonly', value: data.readonly === true || data.read_only === true }),
+            form.toggle({ label: t('config.obsidian.destructive_label'), help: t('help.obsidian.allow_destructive'), path: 'obsidian.allow_destructive', value: data.allow_destructive === true })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.obsidian.host_label'), help: t('help.obsidian.host'), path: 'obsidian.host', value: data.host || '', placeholder: '127.0.0.1' }),
+            form.number({ label: t('config.obsidian.port_label'), help: t('help.obsidian.port'), path: 'obsidian.port', value: data.port || '27124', min: 1, max: 65535 }),
+            form.toggle({ label: t('config.obsidian.https_label'), help: t('help.obsidian.use_https'), path: 'obsidian.use_https', value: data.use_https !== false }),
+            form.toggle({ label: t('config.obsidian.insecure_label'), help: t('help.obsidian.insecure_ssl'), path: 'obsidian.insecure_ssl', value: data.insecure_ssl !== false }),
+            form.number({ label: t('config.obsidian.connect_timeout_label'), help: t('help.obsidian.connect_timeout'), path: 'obsidian.connect_timeout', value: data.connect_timeout || '10', min: 0 }),
+            form.number({ label: t('config.obsidian.request_timeout_label'), help: t('help.obsidian.request_timeout'), path: 'obsidian.request_timeout', value: data.request_timeout || '30', min: 0 })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.password({
+                label: t('config.obsidian.apikey_label'),
+                help: t('help.obsidian.api_key'),
+                id: 'obsidian-apikey',
+                path: 'obsidian.api_key',
+                value: data.api_key,
+                placeholder: cfgSecretPlaceholder(data.api_key, t('config.obsidian.apikey_placeholder'))
+            })
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="obsidianTestConnection()" id="obsidian-test-btn" data-config-action-draft="true">' + escapeHtml(t('config.obsidian.test_btn')) + '</button>' },
+            { html: form.actionResult({ id: 'obsidian-test-result' }) }
+        ])
+    });
 
     document.getElementById('content').innerHTML = html;
 

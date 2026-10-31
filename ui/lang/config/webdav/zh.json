@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "WebDAV 集成已禁用",
   "config.webdav.status_no_url": "未配置 WebDAV URL",
   "config.webdav.status_no_credentials": "缺少 WebDAV 凭据",
-  "config.webdav.status_ok": "已连接到 WebDAV",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "已连接到 WebDAV"
 }

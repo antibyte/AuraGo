@@ -439,8 +439,6 @@
   "config.github.test_ok": "接続に成功しました",
   "config.github.test_fail": "接続に失敗しました",
   "config.github.loading": "テスト中…",
-  "config.github.status_success": "✅",
-  "config.github.status_error": "❌",
   "config.group_title.agent.announcement_detector": "応答補正",
   "config.group_title.agent.importance_scoring": "重要度スコア",
   "config.group_title.agent.auto_learning": "自動学習",

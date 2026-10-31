@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "チートシートを読み込めませんでした",
   "config.agentmail.relay_cheatsheet_label": "指示付きチートシート",
   "config.agentmail.relay_cheatsheet_none": "チートシートを添付しない",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail 連携は無効です",
   "config.agentmail.status_no_api_key": "API キーが設定されていません",
   "config.agentmail.status_no_inbox": "中継には主要受信箱 ID が必要です",

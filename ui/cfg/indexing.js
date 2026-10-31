@@ -25,7 +25,7 @@
             // ── General Settings Card ──
             html += `<div class="idx-card">
                 <div class="idx-card-header">
-                    <span class="idx-card-icon">⚙️</span>
+                    <span class="idx-card-icon">${cfgIcon('settings')}</span>
                     <span class="idx-card-title">${t('config.indexing.general_settings')}</span>
                 </div>
                 <div class="idx-card-body">`;
@@ -47,23 +47,20 @@
                 const st = status.status;
                 html += `<div class="idx-status-card">
                     <div class="idx-status-header">
-                        <span class="idx-status-dot">${st.running ? '🟢' : '🔴'}</span>
-                        <span class="idx-status-text">
-                            ${st.running ? t('config.indexing.running') : t('config.indexing.stopped')}
-                        </span>
+                        ${cfgBadge(st.running ? 'ok' : 'idle', st.running ? t('config.indexing.running') : t('config.indexing.stopped'))}
                         <button class="btn-save idx-rescan-btn" id="idx-rescan-btn" onclick="idxRescan()">
-                            🔄 ${t('config.indexing.scan_now')}
+                            ${cfgIcon('refresh')} ${t('config.indexing.scan_now')}
                         </button>
                         ${cfgActionResult.html('idx-rescan-msg', 'idx-field-help')}
                     </div>
                     <div class="idx-status-meta">
-                        <span>📁 ${t('config.indexing.files')}: <strong>${st.total_files}</strong></span>
-                        <span>🔗 ${t('config.indexing.indexed')}: <strong>${st.indexed_files}</strong></span>
-                        <span>🧩 ${t('config.indexing.indexed_documents')}: <strong>${status.indexed_documents ?? st.indexed_documents ?? 0}</strong></span>
+                        <span>${cfgIcon('folder')} ${t('config.indexing.files')}: <strong>${st.total_files}</strong></span>
+                        <span>${cfgIcon('link')} ${t('config.indexing.indexed')}: <strong>${st.indexed_files}</strong></span>
+                        <span>${cfgIcon('puzzle')} ${t('config.indexing.indexed_documents')}: <strong>${status.indexed_documents ?? st.indexed_documents ?? 0}</strong></span>
                         <span>${t('config.indexing.chunking_strategy')}: <strong>${escapeHtml(status.chunking_strategy || st.chunking_strategy || chunkingStrategy)}</strong></span>
-                        ${st.last_scan_at ? `<span>⏱️ ${t('config.indexing.last_scan')}: ${st.last_scan_duration || '—'}</span>` : ''}
+                        ${st.last_scan_at ? `<span>${cfgIcon('clock')} ${t('config.indexing.last_scan')}: ${st.last_scan_duration || '—'}</span>` : ''}
                     </div>
-                    ${st.errors && st.errors.length > 0 ? `<div class="idx-status-errors">⚠️ ${st.errors.length} ${t('config.indexing.errors')}</div>` : ''}
+                    ${st.errors && st.errors.length > 0 ? `<div class="idx-status-errors">${cfgIcon('alert')} ${st.errors.length} ${t('config.indexing.errors')}</div>` : ''}
                 </div>`;
             }
 
@@ -72,7 +69,7 @@
             // ── Directories Card ──
             html += `<div class="idx-card">
                 <div class="idx-card-header">
-                    <span class="idx-card-icon">📂</span>
+                    <span class="idx-card-icon">${cfgIcon('folder-open')}</span>
                     <span class="idx-card-title">${t('config.indexing.watched_dirs')}</span>
                 </div>
                 <div class="idx-card-body">`;
@@ -98,9 +95,7 @@
             html += `<div id="idx-dirs-list">`;
 
             if (dirs.length === 0) {
-                html += `<div class="idx-empty-state">
-                    ${t('config.indexing.no_dirs')}
-                </div>`;
+                html += window.AuraConfigForm.emptyState({ title: t('config.indexing.no_dirs') });
             } else {
                 dirs.forEach(d => {
                     const dirPath = idxDirPath(d);
@@ -113,13 +108,13 @@
                     const mediaTitle = escapeAttr(t('config.indexing.media_toggle_title'));
                     const mediaDesc = showMediaHint ? ' aria-describedby="idx-media-hint"' : '';
                     html += `<div class="idx-dir-item">
-                        <span class="idx-dir-icon">📁</span>
+                        <span class="idx-dir-icon">${cfgIcon('folder')}</span>
                         <span class="idx-dir-path" title="${attrDir}">${safeDir}</span>
                         <div class="idx-media-toggle" title="${mediaTitle}">
                             <span class="idx-media-label" aria-hidden="true">${escapeHtml(mediaLabel)}</span>
-                            <button type="button" class="idx-media-switch" role="switch" aria-checked="${mediaOn ? 'true' : 'false'}" aria-label="${mediaName}"${mediaDesc} data-dir="${attrDir}" onclick="idxToggleMediaAnalysis(this)"></button>
+                            <button type="button" class="toggle${mediaOn ? ' on' : ''}" role="switch" aria-checked="${mediaOn ? 'true' : 'false'}" aria-label="${mediaName}"${mediaDesc} data-dir="${attrDir}" onclick="idxToggleMediaAnalysis(this)"></button>
                         </div>
-                        <button onclick="idxRemoveDir(this.dataset.dir, this)" data-dir="${attrDir}" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
+                        ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: dirLabel }), attrs: { 'data-dir': dirPath, onclick: 'idxRemoveDir(this.dataset.dir, this)' } })}
                     </div>`;
                 });
             }
@@ -129,8 +124,9 @@
                     <input type="text" id="idx-new-dir" placeholder="${escapeAttr(t('config.indexing.dir_placeholder'))}"
                         aria-label="${escapeAttr(t('config.indexing.dir_label'))}" aria-describedby="idx-new-dir-help"
                         class="idx-dir-input"
+                        oninput="this.removeAttribute('aria-invalid')"
                         onkeydown="if(event.key==='Enter')idxAddDir()">
-                    <button class="btn-save idx-add-btn" id="idx-add-btn" onclick="idxAddDir()">+ ${t('config.indexing.add')}</button>
+                    <button class="btn-save idx-add-btn" id="idx-add-btn" onclick="idxAddDir()">${cfgIcon('plus')} ${t('config.indexing.add')}</button>
                 </div>
                 <div class="idx-field-help idx-field-help-tight" id="idx-new-dir-help">${t('config.indexing.dir_help')}</div>
                 ${cfgActionResult.html('idx-dir-msg', 'idx-field-help')}
@@ -141,7 +137,7 @@
             // ── File Types Card (reuse existing idx-types-card inside a card) ──
             html += `<div class="idx-card">
                 <div class="idx-card-header">
-                    <span class="idx-card-icon">📋</span>
+                    <span class="idx-card-icon">${cfgIcon('list')}</span>
                     <span class="idx-card-title">${t('config.indexing.supported_types')}</span>
                 </div>
                 <div class="idx-card-body">`;
@@ -174,7 +170,7 @@
             // ── Advanced Settings Card ──
             html += `<div class="idx-card">
                 <div class="idx-card-header">
-                    <span class="idx-card-icon">🔧</span>
+                    <span class="idx-card-icon">${cfgIcon('wrench')}</span>
                     <span class="idx-card-title">${t('config.indexing.advanced_settings')}</span>
                 </div>
                 <div class="idx-card-body">`;
@@ -239,7 +235,7 @@
             const indexImagesVal = indexingCfg.index_images;
             html += `<div class="cfg-field idx-field-block idx-field-block-xl">
                 <div class="idx-field-row">
-                    <span class="idx-field-label" id="idx-index-images-label">🖼️ ${t('config.indexing.index_images_label')}</span>
+                    <span class="idx-field-label" id="idx-index-images-label">${cfgIcon('image')} ${t('config.indexing.index_images_label')}</span>
                     <div class="toggle ${indexImagesVal ? 'on' : ''}" role="switch" aria-labelledby="idx-index-images-label" aria-describedby="idx-index-images-help" onclick="toggleBool(this)" data-path="indexing.index_images"></div>
                 </div>
                 <div class="idx-field-help" id="idx-index-images-help">
@@ -252,7 +248,7 @@
 
             // Cost warning for image indexing
             html += `<div class="idx-image-notice">
-                <span class="idx-image-notice-icon">⚠️</span>
+                <span class="idx-image-notice-icon">${cfgIcon('alert')}</span>
                 <div class="idx-image-notice-text">
                     <strong class="idx-image-notice-title">${t('config.indexing.image_notice_title')}</strong><br>
                     ${t('config.indexing.image_notice_desc')}
@@ -280,10 +276,13 @@
             const input = document.getElementById('idx-new-dir');
             const path = input.value.trim();
             if (!path) {
-                idxSetInlineMsg('idx-dir-msg', t('config.feedback.missing_fields'), true);
+                // E15: say what is missing and mark the field instead of dropping the click.
+                input.setAttribute('aria-invalid', 'true');
+                idxSetInlineMsg('idx-dir-msg', t('config.indexing.dir_empty'), true);
                 input.focus();
                 return { skipped: 'empty' };
             }
+            input.removeAttribute('aria-invalid');
 
             return cfgActionResult(document.getElementById('idx-add-btn'), () => fetch('/api/indexing/directories', {
                 method: 'POST',
@@ -301,7 +300,13 @@
         }
 
         async function idxRemoveDir(path, button) {
-            if (!(await showConfirm(t('config.indexing.remove_confirm_title'), t('config.indexing.remove_confirm')))) return { skipped: 'cancelled' };
+            const answer = await showConfirmDialog({
+                title: t('config.indexing.remove_confirm_title'),
+                message: t('config.indexing.remove_confirm'),
+                danger: true,
+                confirmText: t('config.common.delete')
+            });
+            if (!answer.confirmed) return { skipped: 'cancelled' };
             idxSetInlineMsg('idx-dir-msg', '', true);
             return cfgActionResult(button || document.getElementById('idx-add-btn'), () => fetch('/api/indexing/directories', {
                 method: 'DELETE',
@@ -353,7 +358,7 @@
         }
 
         function idxFocusMediaSwitch(path) {
-            const sw = Array.from(document.querySelectorAll('.idx-media-switch')).find(b => b.dataset.dir === path);
+            const sw = Array.from(document.querySelectorAll('.idx-media-toggle .toggle')).find(b => b.dataset.dir === path);
             if (sw) sw.focus();
         }
 

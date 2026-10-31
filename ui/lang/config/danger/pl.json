@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Zarządzanie pakietami (package_manager)",
   "config.danger.package_manager.desc": "Pozwala agentowi instalować, usuwać, aktualizować, wyszukiwać i sprawdzać pakiety systemowe. Zmiany w Linuksie używają sudo_password ze skarbca.",
   "config.danger.mcp.title": "Połączenia Serwerów MCP (mcp_call)",
-  "config.danger.mcp.desc": "Pozwala agentowi łączyć się z zewnętrznymi serwerami MCP i używać ich narzędzi. <strong style=\"color:#f87171;\">⚠ Tylko zaufane serwery!</strong>",
+  "config.danger.mcp.desc": "Pozwala agentowi łączyć się z zewnętrznymi serwerami MCP i używać ich narzędzi. <strong style=\"color:#f87171;\">Tylko zaufane serwery!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemowy Dostęp do Zapisu przez Sudo",
   "config.danger.sudo_unrestricted.desc": "Pozwala agentowi zapisywać poza katalogiem instalacyjnym przy użyciu sudo (np. /etc.). Wymaga usunięcia ProtectSystem=strict z jednostki usługi systemd.",
   "config.danger.unsafe_host_execution.title": "Niebezpieczne uruchamianie na hoście",

@@ -101,9 +101,16 @@ async function renderHomepageSection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
+    // Enable switch first (E5); the Docker and container notices follow it.
+    html += `<div class="cfg-toggle-row-highlight${!dockerEnabled ? ' hp-disabled' : ''}">
+        <span class="cfg-toggle-label">${t('config.homepage.enabled_label')}</span>
+        <div class="toggle ${hpEnabled ? 'on' : ''}" data-path="homepage.enabled" aria-describedby="hp-enabled-help" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help" id="hp-enabled-help">${t('help.homepage.enabled')}</div>`;
+
     if (!dockerEnabled) {
         html += `<div class="wh-notice hp-notice-danger">
-            <span>🐳</span>
+            <span>${cfgIcon('box')}</span>
             <div>
                 <strong>${t('config.homepage.docker_required')}</strong><br>
                 <small>${t('config.homepage.docker_required_desc')}</small>
@@ -118,7 +125,7 @@ async function renderHomepageSection(section) {
         if (st.docker_available === false) {
             if (cfg.allow_container_management) {
                 html += `<div class="wh-notice hp-notice-warning">
-                    <span>⚠️</span>
+                    <span>${cfgIcon('alert')}</span>
                     <div>
                         <strong>${t('config.homepage.status_inactive')}</strong><br>
                         <small>${t('config.homepage.docker_engine_unavailable')}</small>
@@ -128,7 +135,7 @@ async function renderHomepageSection(section) {
         } else {
             if (st.image_build_refused) {
                 html += `<div class="wh-notice hp-notice-warning">
-                    <span>⚠️</span>
+                    <span>${cfgIcon('alert')}</span>
                     <div>
                         <strong>${t('config.homepage.image_build_refused')}</strong><br>
                         <small>${t('config.homepage.image_build_refused_desc')}</small>
@@ -143,12 +150,12 @@ async function renderHomepageSection(section) {
             if (devExists || webExists) {
                 const devState = devCtr ? (devCtr.status || (devExists ? 'stopped' : 'not_created')) : 'not_found';
                 const webState = webCtr ? (webCtr.status || (webExists ? 'stopped' : 'not_created')) : 'not_found';
-                const devIcon = devState === 'running' ? '✅' : devState === 'exited' ? '⏸️' : '⭕';
-                const webIcon = webState === 'running' ? '✅' : webState === 'exited' ? '⏸️' : '⭕';
+                const devIcon = devState === 'running' ? cfgIcon('check') : devState === 'exited' ? cfgIcon('pause') : cfgIcon('circle');
+                const webIcon = webState === 'running' ? cfgIcon('check') : webState === 'exited' ? cfgIcon('pause') : cfgIcon('circle');
                 const devRunning = devState === 'running';
                 const noticeStateClass = devRunning ? 'hp-notice-success' : 'hp-notice-warning';
                 html += `<div class="wh-notice ${noticeStateClass}">
-                    <span>${devRunning ? '🌐' : '⚠️'}</span>
+                    <span>${devRunning ? cfgIcon('globe') : cfgIcon('alert')}</span>
                     <div>
                         <strong>${devRunning ? t('config.homepage.status_active') : t('config.homepage.status_inactive')}</strong><br>
                         <small>${devIcon} ${t('config.homepage.dev_container')}: ${escapeAttr(devState)} · ${webIcon} ${t('config.homepage.web_container')}: ${escapeAttr(webState)}</small>
@@ -158,15 +165,9 @@ async function renderHomepageSection(section) {
         }
     }
 
-    html += `<div class="cfg-toggle-row-highlight${!dockerEnabled ? ' hp-disabled' : ''}">
-        <span class="cfg-toggle-label">${t('config.homepage.enabled_label')}</span>
-        <div class="toggle ${hpEnabled ? 'on' : ''}" data-path="homepage.enabled" aria-describedby="hp-enabled-help" onclick="toggleBool(this)"></div>
-    </div>
-    <div class="field-help" id="hp-enabled-help">${t('help.homepage.enabled')}</div>`;
-
     if (!hpEnabled && dockerEnabled) {
         html += `<div class="wh-notice">
-            <span>🌐</span>
+            <span>${cfgIcon('globe')}</span>
             <div>
                 <strong>${t('config.homepage.disabled_notice')}</strong><br>
                 <small>${t('config.homepage.disabled_desc')}</small>
@@ -176,7 +177,7 @@ async function renderHomepageSection(section) {
 
     if (dockerEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">🔐 ${t('config.homepage.permissions_title')}</div>
+            <div class="field-group-title">${cfgIcon('lock')} ${t('config.homepage.permissions_title')}</div>
             <div class="field-group-desc">${t('config.homepage.permissions_desc')}</div>`;
 
         html += `<div class="field-grid two-cols">`;
@@ -199,7 +200,7 @@ async function renderHomepageSection(section) {
 
     if (dockerEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">🚀 ${t('config.homepage.deploy_title')}</div>
+            <div class="field-group-title">${cfgIcon('rocket')} ${t('config.homepage.deploy_title')}</div>
             <div class="field-group-desc">${t('config.homepage.deploy_desc')}</div>`;
 
         html += `<div class="field-grid two-cols">`;
@@ -240,13 +241,13 @@ async function renderHomepageSection(section) {
         html += `</div>`;
 
         html += `<div class="hp-credentials-box">`;
-        html += `<div class="hp-credentials-title">🔑 ${t('config.homepage.credentials_title')}</div>`;
+        html += `<div class="hp-credentials-title">${cfgIcon('key')} ${t('config.homepage.credentials_title')}</div>`;
         html += `<div class="field-help hp-help-spaced">${t('config.homepage.credentials_desc')}</div>`;
 
         html += `<div class="field-grid two-cols">`;
 
         html += `<div class="field-group">
-            <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
+            <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">${cfgIcon('lock')} ${t('config.homepage.vault_badge')}</small></div>
             <div class="field-help">${t('config.homepage.deploy_password_help')}</div>
             <div class="password-wrap cfg-password-input">
                 <input class="field-input cfg-secret-input" type="password" id="hp-deploy-password" data-path="homepage.deploy_password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
@@ -255,7 +256,7 @@ async function renderHomepageSection(section) {
         </div>`;
 
         html += `<div class="field-group">
-            <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
+            <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">${cfgIcon('lock')} ${t('config.homepage.vault_badge')}</small></div>
             <div class="field-help">${t('config.homepage.deploy_key_help')}</div>
             <div class="password-wrap cfg-password-input">
                 <input class="field-input cfg-secret-input" type="password" id="hp-deploy-key" data-path="homepage.deploy_key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
@@ -268,10 +269,10 @@ async function renderHomepageSection(section) {
         html += `</div>`;
 
         html += `<div class="field-group">
-            <div class="field-group-title">🔌 ${t('config.homepage.test_title')}</div>
+            <div class="field-group-title">${cfgIcon('plug')} ${t('config.homepage.test_title')}</div>
             <div class="field-group-desc">${t('config.homepage.test_desc')}</div>
             <div class="cfg-actions-row">
-                <button class="btn-save cfg-test-btn" id="hp-test-btn" data-config-action-draft="true" onclick="hpTestConnection()">🔌 ${t('config.homepage.test_btn')}</button>
+                <button class="btn-save cfg-test-btn" id="hp-test-btn" data-config-action-draft="true" onclick="hpTestConnection()">${cfgIcon('plug')} ${t('config.homepage.test_btn')}</button>
                 ${cfgActionResult.html('hp-test-result')}
             </div>
         </div>`;
@@ -280,7 +281,7 @@ async function renderHomepageSection(section) {
 
     if (dockerEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">🖥️ ${t('config.homepage.webserver_title')}</div>
+            <div class="field-group-title">${cfgIcon('monitor')} ${t('config.homepage.webserver_title')}</div>
             <div class="field-group-desc">${t('config.homepage.webserver_desc')}</div>`;
 
         html += `<div class="field-group"><div class="cfg-toggle-row-compact">
@@ -315,12 +316,12 @@ async function renderHomepageSection(section) {
 
     if (dockerEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">📁 ${t('config.homepage.workspace_title')}</div>
+            <div class="field-group-title">${cfgIcon('folder')} ${t('config.homepage.workspace_title')}</div>
             <div class="field-group-desc">${t('config.homepage.workspace_desc')}</div>`;
 
         if (cfg.webserver_enabled && !cfg.workspace_path) {
             html += `<div class="hp-warning-box">
-                <span class="hp-warning-icon">⚠️</span>
+                <span class="hp-warning-icon">${cfgIcon('alert')}</span>
                 <span class="hp-warning-text">${t('config.homepage.workspace_path_missing_warning')}</span>
             </div>`;
         }
@@ -331,8 +332,9 @@ async function renderHomepageSection(section) {
             <div class="cfg-actions-row">
                 <input id="hp-workspace-path-input" class="field-input" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="/home/aurago/aurago/agent_workspace/homepage">
                 <button class="btn-save btn-secondary" onclick="hpAutoDetectWorkspace()" title="${t('config.homepage.workspace_autodetect_title')}">
-                    🔍 ${t('config.homepage.workspace_autodetect_btn')}
+                    ${cfgIcon('search')} ${t('config.homepage.workspace_autodetect_btn')}
                 </button>
+                ${cfgActionResult.html('hp-autodetect-result')}
             </div>
         </div>`;
         html += `<div class="field-help hp-help-mt-sm">${t('config.homepage.workspace_relative_hint')}</div>`;
@@ -341,7 +343,7 @@ async function renderHomepageSection(section) {
 
     if (dockerEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">⚡ ${t('config.homepage.circuit_breaker_title')}</div>
+            <div class="field-group-title">${cfgIcon('zap')} ${t('config.homepage.circuit_breaker_title')}</div>
             <div class="field-group-desc">${t('config.homepage.circuit_breaker_desc')}</div>`;
 
         html += `<div class="field-group">
@@ -384,21 +386,15 @@ async function hpAutoDetectWorkspace() {
             input.value = data.path;
             setNestedValue(configData, 'homepage.workspace_path', data.path);
             setDirty(true);
-            if (window.showToast) {
-                window.showToast(data.message || t('config.homepage.workspace_autodetect_success'), 'success');
-            }
             renderSection();
+            cfgActionResult.show('hp-autodetect-result', 'success', data.message || t('config.homepage.workspace_autodetect_success'));
         } else {
             input.value = origText;
-            if (window.showToast) {
-                window.showToast(data.message || t('config.homepage.workspace_autodetect_failed'), 'warning', 5000);
-            }
+            cfgActionResult.show('hp-autodetect-result', 'warning', data.message || t('config.homepage.workspace_autodetect_failed'));
         }
     } catch (e) {
         input.value = origText;
-        if (window.showToast) {
-            window.showToast(t('config.homepage.workspace_autodetect_failed'), 'warning', 5000);
-        }
+        cfgActionResult.show('hp-autodetect-result', 'warning', t('config.homepage.workspace_autodetect_failed'));
     } finally {
         input.disabled = false;
     }

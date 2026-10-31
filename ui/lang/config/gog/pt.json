@@ -59,5 +59,6 @@
   "config.gog.agent_help": "O agente pode usar esta conta com as permissões concedidas abaixo.",
   "config.gog.desktop_help": "Os aplicativos da área de trabalho podem usar esta conta, por exemplo para e-mail ou agenda.",
   "config.gog.client_id_help": "ID do cliente OAuth web do Google Cloud Console.",
-  "config.gog.secret_help": "Segredo do cliente OAuth. \"Salvar no Vault\" o armazena criptografado; ele não é mostrado novamente."
+  "config.gog.secret_help": "Segredo do cliente OAuth. \"Salvar no Vault\" o armazena criptografado; ele não é mostrado novamente.",
+  "config.gog.limit_reached": "São suportadas até {max} contas. Remova uma conta antes de adicionar outra."
 }

@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Pasta cujos arquivos são indexados, como caminho absoluto ou relativo à pasta do AuraGo. As subpastas são incluídas. Adicione com o botão ou Enter.",
   "config.indexing.chunk_max_chars_help": "Comprimento máximo de um trecho de texto em caracteres. Trechos menores dão resultados mais precisos, maiores dão mais contexto. Padrão: 3500.",
   "config.indexing.chunk_overlap_help": "Caracteres compartilhados entre trechos vizinhos para que frases nas bordas não sejam cortadas. Padrão: 200.",
-  "config.indexing.chunk_max_chunks_help": "Número máximo de trechos criados por arquivo; o restante de arquivos muito grandes é ignorado. Padrão: 200."
+  "config.indexing.chunk_max_chunks_help": "Número máximo de trechos criados por arquivo; o restante de arquivos muito grandes é ignorado. Padrão: 200.",
+  "config.indexing.dir_empty": "Introduza primeiro o caminho da pasta a indexar."
 }

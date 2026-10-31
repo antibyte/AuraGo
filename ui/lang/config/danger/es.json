@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Gestión de paquetes (package_manager)",
   "config.danger.package_manager.desc": "Permite al agente instalar, eliminar, actualizar, buscar e inspeccionar paquetes del sistema. Los cambios en Linux usan sudo_password del vault.",
   "config.danger.mcp.title": "Conexiones de Servidor MCP (mcp_call)",
-  "config.danger.mcp.desc": "Permite al agente conectarse a servidores MCP externos y usar sus herramientas. <strong style=\"color:#f87171;\">⚠ ¡Solo añade servidores de confianza!</strong>",
+  "config.danger.mcp.desc": "Permite al agente conectarse a servidores MCP externos y usar sus herramientas. <strong style=\"color:#f87171;\">¡Solo añade servidores de confianza!</strong>",
   "config.danger.sudo_unrestricted.title": "Acceso de Escritura Sudo a Nivel del Sistema",
   "config.danger.sudo_unrestricted.desc": "Permite al agente escribir fuera del directorio de instalación usando sudo (p. ej. /etc.). Requiere eliminar ProtectSystem=strict de la unidad de servicio systemd.",
   "config.danger.unsafe_host_execution.title": "Ejecución insegura en el equipo",

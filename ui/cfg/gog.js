@@ -1,4 +1,6 @@
 // Guided gog setup; status reads are local and probes require an explicit click.
+const GOG_MAX_ACCOUNTS = 20;
+
 async function renderGogSection(section) {
     const tr = key => t('config.gog.' + key);
     const cfg = window.AuraConfigState?.get('gog') || configData.gog || { enabled: false, readonly: true, accounts: [] };
@@ -9,7 +11,7 @@ async function renderGogSection(section) {
       ${AuraConfigForm.toggle({ path: 'gog.enabled', value: cfg.enabled === true, label: tr('enabled'), help: tr('enabled_help') })}
       ${AuraConfigForm.toggle({ path: 'gog.readonly', value: cfg.readonly !== false, label: tr('readonly'), help: tr('readonly_help') })}
       <div class="field-group"><h3>1. ${tr('install')}</h3><p id="gog-status" role="status">${tr('loading')}</p><button type="button" class="btn-save" id="gog-install">${tr('install')}</button></div>
-      <div class="field-group"><h3>2. ${tr('oauth')}</h3><p>${tr('cloud_help')}</p><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Google Cloud Console ↗</a><p>${tr('save_first')}</p></div>
+      <div class="field-group"><h3>2. ${tr('oauth')}</h3><p>${tr('cloud_help')}</p><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Google Cloud Console ${cfgIcon('external')}</a><p>${tr('save_first')}</p></div>
       <textarea hidden data-path="gog.accounts" data-type="json">${escapeHtml(JSON.stringify(accounts))}</textarea>
       <div id="gog-accounts"></div><button type="button" class="btn-secondary" id="gog-add">${tr('add')}</button>
       <p role="status" aria-live="polite" id="gog-message"></p></div>`;
@@ -17,6 +19,7 @@ async function renderGogSection(section) {
     const hidden = root.querySelector('[data-path="gog.accounts"]');
     const message = root.querySelector('#gog-message');
     let statuses = [];
+    let switchCount = 0;
     const change = () => { hidden.value = JSON.stringify(accounts); hidden.dispatchEvent(new Event('input', { bubbles: true })); setDirty(true); };
     async function request(path, body) {
         const response = await fetch('/api/gog/' + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
@@ -38,10 +41,26 @@ async function renderGogSection(section) {
         finally { if (root.isConnected) button.disabled = false; }
     }
     function field(parent, label, value, update, type = 'text', help = '') {
+        if (type === 'switch') return toggleField(parent, label, value, update, help);
         const wrap = document.createElement('label'); wrap.className = 'field-group'; wrap.textContent = label;
         const input = document.createElement('input'); input.className = 'field-input'; input.type = type;
-        if (type === 'checkbox') input.checked = value === true; else input.value = value || '';
-        input.addEventListener('change', () => { update(type === 'checkbox' ? input.checked : input.value); change(); }); wrap.append(input); if (help) { const note = document.createElement('small'); note.className = 'field-help'; note.textContent = help; wrap.append(note); } parent.append(wrap); return input;
+        input.value = value || '';
+        input.addEventListener('change', () => { update(input.value); change(); }); wrap.append(input); if (help) { const note = document.createElement('small'); note.className = 'field-help'; note.textContent = help; wrap.append(note); } parent.append(wrap); return input;
+    }
+    function syncSwitch(sw) {
+        if (typeof syncToggleA11y === 'function') { syncToggleA11y(sw); return; }
+        sw.setAttribute('role', 'switch'); sw.setAttribute('tabindex', '0'); sw.setAttribute('aria-checked', sw.classList.contains('on') ? 'true' : 'false');
+    }
+    // On/off settings of an account are switches (E4); the switch flips its own state and marks the draft dirty.
+    function toggleField(parent, label, value, update, help) {
+        const wrap = document.createElement('div'); wrap.className = 'field-group';
+        const caption = document.createElement('div'); caption.className = 'field-label'; caption.id = 'gog-sw-' + (++switchCount) + '-label'; caption.textContent = label; wrap.append(caption);
+        const holder = document.createElement('div'); holder.className = 'toggle-wrap';
+        const sw = document.createElement('div'); sw.className = 'toggle' + (value === true ? ' on' : ''); sw.setAttribute('aria-labelledby', caption.id);
+        sw.addEventListener('click', () => { if (sw.getAttribute('aria-disabled') === 'true') return; const on = sw.classList.toggle('on'); syncSwitch(sw); update(on); change(); });
+        syncSwitch(sw); holder.append(sw); wrap.append(holder);
+        if (help) { const note = document.createElement('small'); note.className = 'field-help'; note.textContent = help; wrap.append(note); }
+        parent.append(wrap); return sw;
     }
     function button(parent, label, work, confirmKeys) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-secondary'; b.textContent = label; b.addEventListener('click', async () => { if (confirmKeys && !(await showConfirm(tr(confirmKeys[0]), tr(confirmKeys[1]).replace('{name}', confirmKeys[2] || '')))) return; action(b, work); }); parent.append(b); return b; }
     function summarize(value) { const copy = Object.assign({}, value); delete copy.status; const text = copy.message || JSON.stringify(copy); return text.length > 300 ? text.slice(0, 300) + '...' : text; }
@@ -53,9 +72,9 @@ async function renderGogSection(section) {
             const status = document.createElement('p'); status.dataset.accountStatus = account.id; status.textContent = tr(statuses.find(s => s.account.id === account.id)?.connected ? 'connected' : 'disconnected'); card.append(status);
             field(card, tr('name'), account.name, v => { account.name = v; heading.textContent = v || account.id; }, 'text', tr('name_help'));
             const id = document.createElement('small'); id.textContent = 'ID: ' + account.id; card.append(id);
-            field(card, tr('enabled'), account.enabled, v => account.enabled = v, 'checkbox', tr('account_enabled_help'));
-            field(card, tr('agent'), account.agent_access, v => account.agent_access = v, 'checkbox', tr('agent_help'));
-            field(card, tr('desktop'), account.desktop_access, v => account.desktop_access = v, 'checkbox', tr('desktop_help'));
+            field(card, tr('enabled'), account.enabled, v => account.enabled = v, 'switch', tr('account_enabled_help'));
+            field(card, tr('agent'), account.agent_access, v => account.agent_access = v, 'switch', tr('agent_help'));
+            field(card, tr('desktop'), account.desktop_access, v => account.desktop_access = v, 'switch', tr('desktop_help'));
             field(card, tr('client_id'), account.client_id, v => account.client_id = v, 'text', tr('client_id_help'));
             const secretLabel = document.createElement('label'); secretLabel.textContent = tr('secret'); const secret = document.createElement('input'); secret.type = 'password'; secret.autocomplete = 'new-password'; secret.className = 'field-input'; const secretHelp = document.createElement('small'); secretHelp.className = 'field-help'; secretHelp.textContent = tr('secret_help'); secretLabel.append(secret, secretHelp); card.append(secretLabel);
             button(card, tr('save_secret'), async () => { await request('client-secret', { account_id: account.id, secret: secret.value }); secret.value = ''; });
@@ -64,7 +83,7 @@ async function renderGogSection(section) {
             const header = document.createElement('tr'); ['service', 'read', 'create', 'update', 'delete', 'send'].forEach(key => { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = tr(key); header.append(cell); }); table.append(header);
             ['gmail', 'calendar', 'drive', 'docs', 'sheets', 'slides', 'contacts', 'tasks'].forEach(service => {
                 const row = document.createElement('tr'); const name = document.createElement('th'); name.scope = 'row'; name.textContent = tr(service); row.append(name); account.services[service] ||= {};
-                ['read', 'create', 'update', 'delete', 'send'].forEach(grant => { const cell = document.createElement('td'); if (grant !== 'send' || service === 'gmail') { const check = document.createElement('input'); check.type = 'checkbox'; check.checked = account.services[service][grant] === true; check.setAttribute('aria-label', tr(service) + ': ' + tr(grant)); check.addEventListener('change', () => { account.services[service][grant] = check.checked; change(); }); cell.append(check); } row.append(cell); }); table.append(row);
+                ['read', 'create', 'update', 'delete', 'send'].forEach(grant => { const cell = document.createElement('td'); if (grant !== 'send' || service === 'gmail') { const check = document.createElement('input'); check.type = 'checkbox'; check.setAttribute('data-cfg-choice', ''); check.checked = account.services[service][grant] === true; check.setAttribute('aria-label', tr(service) + ': ' + tr(grant)); check.addEventListener('change', () => { account.services[service][grant] = check.checked; change(); }); cell.append(check); } row.append(cell); }); table.append(row);
             }); tableWrap.append(table); card.append(tableWrap);
             const actions = document.createElement('div'); actions.className = 'cfg-actions-row'; card.append(actions);
             const authLink = document.createElement('a'); authLink.target = '_blank'; authLink.rel = 'noopener noreferrer'; authLink.hidden = true; authLink.textContent = tr('open_login'); card.append(authLink);
@@ -76,11 +95,17 @@ async function renderGogSection(section) {
             const service = document.createElement('select'); service.className = 'field-input'; service.setAttribute('aria-label', tr('service')); Object.keys(account.services).forEach(key => { const option = document.createElement('option'); option.value = key; option.textContent = tr(key); service.append(option); }); card.append(service);
             const object = document.createElement('input'); object.className = 'field-input'; object.placeholder = tr('test_object'); object.setAttribute('aria-label', tr('test_object')); card.append(object);
             button(card, tr('test'), async () => tr('test') + ': ' + summarize(await request('test', { account_id: account.id, service: service.value, resource_id: object.value.trim() })));
-            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary'; remove.textContent = tr('remove'); remove.addEventListener('click', async () => { if (!(await showConfirm(tr('confirm_remove_title'), tr('confirm_remove_message').replace('{name}', account.name || account.id)))) return; accounts.splice(index, 1); change(); renderAccounts(); }); card.append(remove);
+            card.insertAdjacentHTML('beforeend', cfgDeleteButton({ label: tr('remove'), attrs: { 'data-gog-remove': String(index) } }));
+            card.querySelector('[data-gog-remove]').addEventListener('click', async () => {
+                const answer = await showConfirmDialog({ title: tr('confirm_remove_title'), message: tr('confirm_remove_message').replace('{name}', account.name || account.id), danger: true, confirmText: tr('remove') });
+                if (!answer.confirmed) return;
+                accounts.splice(index, 1); change(); renderAccounts();
+            });
             list.append(card);
         });
+        if (typeof enhanceConfigControls === 'function') enhanceConfigControls(list);
     }
-    root.querySelector('#gog-add').addEventListener('click', () => { if (accounts.length >= 20) return; accounts.push({ id: 'g' + crypto.randomUUID().replaceAll('-', '').slice(0, 16), name: '', client_id: '', enabled: false, agent_access: false, desktop_access: false, services: {} }); change(); renderAccounts(); });
+    root.querySelector('#gog-add').addEventListener('click', () => { if (accounts.length >= GOG_MAX_ACCOUNTS) { message.textContent = t('config.gog.limit_reached', { max: GOG_MAX_ACCOUNTS }); return; } message.textContent = ''; accounts.push({ id: 'g' + crypto.randomUUID().replaceAll('-', '').slice(0, 16), name: '', client_id: '', enabled: false, agent_access: false, desktop_access: false, services: {} }); change(); renderAccounts(); });
     root.querySelector('#gog-install').addEventListener('click', event => action(event.currentTarget, () => request('install', {}), false));
     attachChangeListeners(); renderAccounts();
     try { await refresh(); } catch (error) { if (root.isConnected) message.textContent = tr('error') + ' · ' + error.message; }

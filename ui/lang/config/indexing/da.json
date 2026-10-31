@@ -94,5 +94,6 @@
   "config.indexing.chunk_max_chunks_help": "Maksimalt antal stykker, der oprettes pr. fil; resten af meget store filer springes over. Standard: 200.",
   "config.indexing.chunk_overlap_help": "Tegn, der deles mellem nabostykker, så sætninger ved grænserne ikke skæres over. Standard: 200.",
   "config.indexing.dir_help": "Mappe, hvis filer indekseres, som absolut sti eller relativt til AuraGo-mappen. Undermapper er med. Tilføj den med knappen eller Enter.",
-  "config.indexing.dir_label": "Mappe, der overvåges"
+  "config.indexing.dir_label": "Mappe, der overvåges",
+  "config.indexing.dir_empty": "Angiv først stien til den mappe, der skal indekseres."
 }

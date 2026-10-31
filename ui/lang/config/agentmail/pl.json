@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Nie udało się wczytać ściągawek",
   "config.agentmail.relay_cheatsheet_label": "Ściągawka z instrukcjami",
   "config.agentmail.relay_cheatsheet_none": "Nie dołączaj ściągawki",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "Integracja AgentMail jest wyłączona",
   "config.agentmail.status_no_api_key": "Brak skonfigurowanego klucza API",
   "config.agentmail.status_no_inbox": "Relay wymaga ID głównej skrzynki",

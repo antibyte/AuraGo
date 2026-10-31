@@ -68,5 +68,6 @@
   "config.email.password_help": "Password o password per app dell'account. È memorizzata cifrata nel vault.",
   "config.email.watch_enabled_help": "AuraGo controlla regolarmente la cartella scelta qui sotto per nuova posta e può reagire.",
   "config.email.watch_folder_help": "Cartella IMAP monitorata per la nuova posta. Il valore predefinito è INBOX.",
-  "config.email.interval_seconds_help": "Ogni quanto viene controllata la cartella, in secondi (predefinito 120). Intervalli più brevi gravano di più sul server di posta."
+  "config.email.interval_seconds_help": "Ogni quanto viene controllata la cartella, in secondi (predefinito 120). Intervalli più brevi gravano di più sul server di posta.",
+  "config.email.id_sanitised": "Sono ammessi solo a-z, 0-9, - e _. L'ID verrà salvato come '{id}'."
 }

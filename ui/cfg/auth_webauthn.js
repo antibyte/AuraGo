@@ -8,7 +8,7 @@ function renderWebAuthnSection(settings, status) {
         <h2 class="auth-section-title auth-section-title-spaced" id="auth-webauthn-title">${t('webauthn.title')}</h2>
         <p class="field-help">${t('webauthn.intro')}</p>
         <p class="field-help" id="auth-webauthn-capability"></p>
-        ${field('wa-enabled', 'common.enabled', `<select class="field-input" id="wa-enabled" data-search-path="auth.webauthn.enabled"><option value="false" ${!settings.enabled ? 'selected' : ''}>${t('common.disabled')}</option><option value="true" ${settings.enabled ? 'selected' : ''}>${t('common.enabled')}</option></select>`, `<div class="field-help">${t('config.auth.webauthn_enabled_help')}</div>`)}
+        <div class="field-group"><div class="field-label" id="wa-enabled-label">${t('common.enabled')}</div><div class="toggle-wrap"><div class="toggle${settings.enabled ? ' on' : ''}" id="wa-enabled" data-search-path="auth.webauthn.enabled" role="switch" aria-labelledby="wa-enabled-label" aria-describedby="wa-enabled-help"></div></div><div class="field-help" id="wa-enabled-help">${t('config.auth.webauthn_enabled_help')}</div></div>
         ${field('wa-mode', 'webauthn.mode', `<select class="field-input" id="wa-mode" data-search-path="auth.webauthn.login_mode"><option value="passkey" ${settings.login_mode !== 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_passkey')}</option><option value="second_factor" ${settings.login_mode === 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_second_factor')}</option></select>`, '<div class="field-help" id="wa-mode-help"></div>')}
         ${field('wa-rpid', 'webauthn.rpid', `<input class="field-input" id="wa-rpid" data-search-path="auth.webauthn.rp_id" value="${escapeAttr(settings.rp_id || '')}" placeholder="aurago.example.test" autocomplete="off" spellcheck="false">`, `<div class="field-help">${t('config.auth.webauthn_rpid_help')}</div>`)}
         ${field('wa-origins', 'webauthn.origins', `<textarea class="field-input" id="wa-origins" data-search-path="auth.webauthn.origins" rows="2" placeholder="https://aurago.example.test" spellcheck="false">${escapeHtml((settings.origins || []).join('\n'))}</textarea>`, `<div class="field-help">${t('webauthn.origin_hint')}</div>`)}
@@ -40,14 +40,32 @@ function initWebAuthnSection() {
     const status = el('wa-status');
     const capability = root.querySelector('#auth-webauthn-capability');
     capability.textContent = t(api.available() ? 'webauthn.passkey_hint' : 'webauthn.unsupported');
+    // The enable switch is a .toggle (E4); it saves with the section's own button, not with the config draft.
+    const syncSwitch = toggle => {
+        const locked = toggle.classList.contains('cfg-toggle-disabled');
+        toggle.setAttribute('aria-checked', toggle.classList.contains('on') ? 'true' : 'false');
+        toggle.setAttribute('tabindex', locked ? '-1' : '0');
+        if (locked) toggle.setAttribute('aria-disabled', 'true'); else toggle.removeAttribute('aria-disabled');
+    };
+    const setEnabled = on => { const toggle = el('wa-enabled'); toggle.classList.toggle('on', on); syncSwitch(toggle); };
+    syncSwitch(el('wa-enabled'));
+    el('wa-enabled').addEventListener('click', () => {
+        const toggle = el('wa-enabled');
+        if (toggle.getAttribute('aria-disabled') === 'true') return;
+        setEnabled(!toggle.classList.contains('on'));
+        settingsEdited = true;
+    });
     const modeHelp = () => { el('wa-mode-help').textContent = t(el('wa-mode').value === 'second_factor' ? 'webauthn.second_factor_hint' : 'webauthn.passkey_hint'); };
     el('wa-mode').addEventListener('change', modeHelp); modeHelp();
-    const readSettings = () => ({ enabled: el('wa-enabled').value === 'true', login_mode: el('wa-mode').value, rp_id: el('wa-rpid').value.trim(), origins: el('wa-origins').value.split('\n').map(s => s.trim()).filter(Boolean) });
+    const readSettings = () => ({ enabled: el('wa-enabled').classList.contains('on'), login_mode: el('wa-mode').value, rp_id: el('wa-rpid').value.trim(), origins: el('wa-origins').value.split('\n').map(s => s.trim()).filter(Boolean) });
     root.addEventListener('input', event => { if (event.target.matches('[data-search-path]')) settingsEdited = true; });
     root.addEventListener('change', event => { if (event.target.matches('[data-search-path]')) settingsEdited = true; });
     function setBusy(value) {
         pending = value;
         root.querySelectorAll('button, input, select, textarea').forEach(control => { control.disabled = value; });
+        const enabledToggle = el('wa-enabled');
+        enabledToggle.classList.toggle('cfg-toggle-disabled', value);
+        syncSwitch(enabledToggle);
         const cancel = root.querySelector('[data-wa-cancel]');
         cancel.disabled = false; cancel.classList.toggle('is-hidden', !value || activeAction !== 'add');
         if (!value) root.querySelector('[data-wa-action="add"]').disabled = !api.available();
@@ -68,7 +86,7 @@ function initWebAuthnSection() {
             configData.auth = configData.auth || {};
             configData.auth.webauthn = savedSettings;
             if (window.AuraConfigState) window.AuraConfigState.commitSectionSent('auth.webauthn', savedSettings, baseline);
-            el('wa-enabled').value = String(!!savedSettings.enabled);
+            setEnabled(!!savedSettings.enabled);
             el('wa-mode').value = savedSettings.login_mode || 'passkey';
             el('wa-rpid').value = savedSettings.rp_id || '';
             el('wa-origins').value = (savedSettings.origins || []).join('\n');

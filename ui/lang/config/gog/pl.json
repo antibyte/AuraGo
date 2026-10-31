@@ -59,5 +59,6 @@
   "config.gog.agent_help": "Agent może używać tego konta z uprawnieniami nadanymi poniżej.",
   "config.gog.desktop_help": "Aplikacje pulpitu mogą używać tego konta, na przykład do poczty lub kalendarza.",
   "config.gog.client_id_help": "Identyfikator klienta webowego OAuth z Google Cloud Console.",
-  "config.gog.secret_help": "Sekret klienta OAuth. \"Zapisz w Vault\" zapisuje go w postaci zaszyfrowanej; nie jest ponownie wyświetlany."
+  "config.gog.secret_help": "Sekret klienta OAuth. \"Zapisz w Vault\" zapisuje go w postaci zaszyfrowanej; nie jest ponownie wyświetlany.",
+  "config.gog.limit_reached": "Obsługiwanych jest maksymalnie {max} kont. Usuń konto, zanim dodasz kolejne."
 }

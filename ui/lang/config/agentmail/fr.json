@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Impossible de charger les cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet avec instructions",
   "config.agentmail.relay_cheatsheet_none": "Ne pas joindre de cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "L'intégration AgentMail est désactivée",
   "config.agentmail.status_no_api_key": "Aucune clé API configurée",
   "config.agentmail.status_no_inbox": "Le relais nécessite une boîte principale",

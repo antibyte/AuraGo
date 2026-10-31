@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Η σύνδεση απέτυχε",
   "config.koofr.status_disabled": "Η ενσωμάτωση Koofr είναι απενεργοποιημένη",
   "config.koofr.status_no_credentials": "Λείπει όνομα χρήστη ή κωδικός εφαρμογής",
-  "config.koofr.status_ok": "Συνδέθηκε στο Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Συνδέθηκε στο Koofr"
 }

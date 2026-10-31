@@ -38,14 +38,12 @@ async function renderEmailSection(section) {
     html += emailCheatsheetSelect(emailCfg.relay_cheatsheet_id || '');
 
     html += `<div class="cfg-actions-row">
-            <button class="btn-save btn-secondary" onclick="emailAccountAdd()"${addDisabled}>
-                ＋ ${t('config.email.new_account')}
+            <button type="button" class="btn-save btn-secondary" onclick="emailAccountAdd()"${addDisabled}>
+                ${cfgIcon('plus')}<span>${t('config.email.new_account')}</span>
             </button>
+            ${cfgActionResult.html('email-list-result')}
         </div>
         <div id="email-accounts-list"></div>
-        <div id="email-accounts-empty" class="em-empty-state is-hidden">
-            ${t('config.email.empty')}
-        </div>
     </div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
@@ -96,52 +94,42 @@ function emailLoadCheatsheets(selectedID) {
 
 function emailAccountRenderCards() {
     const wrap = document.getElementById('email-accounts-list');
-    const empty = document.getElementById('email-accounts-empty');
     if (!wrap) return;
     if (emailAccountsCache === null) {
-        wrap.innerHTML = `<div class="wh-notice mcp-notice-danger" role="alert">
-            <span>⚠️</span>
-            <div>
-                <strong>${escapeHtml(t('config.email.load_failed'))}</strong><br>
-                <small>${escapeHtml(emailLoadError || '')}</small>
-            </div>
-            <button type="button" class="btn-save btn-secondary" onclick="emailRetryLoad()">${escapeHtml(t('config.email.retry'))}</button>
-        </div>`;
-        if (empty) empty.classList.add('is-hidden');
+        cfgListState(wrap, { state: 'error', title: t('config.email.load_failed'), text: emailLoadError || '', retry: emailRetryLoad });
         return;
     }
     if (emailAccountsCache.length === 0) {
-        wrap.innerHTML = '';
-        if (empty) empty.classList.remove('is-hidden');
+        cfgListState(wrap, { state: 'empty', title: t('config.email.empty') });
         return;
     }
-    if (empty) empty.classList.add('is-hidden');
 
     let html = '';
     emailAccountsCache.forEach((a, idx) => {
         const watchBadge = a.watch_enabled
-            ? `<span class="em-badge em-badge-success">👁️ Watcher</span>`
+            ? cfgBadge('ok', t('config.email.inbox_watcher'))
             : '';
         const enabledBadge = (a.enabled === false)
-            ? `<span class="em-badge em-badge-danger">⏸ ${t('config.email.disabled')}</span>`
-            : `<span class="em-badge em-badge-success">✔ ${t('config.email.enabled')}</span>`;
+            ? cfgBadge('idle', t('config.email.disabled'))
+            : cfgBadge('ok', t('config.email.enabled'));
         const sendBadge = (a.allow_sending === false)
-            ? `<span class="em-badge em-badge-warning">📖 ${t('config.email.read_only')}</span>`
+            ? cfgBadge('warn', t('config.email.read_only'))
             : '';
-        const maskedPw = a.password === '••••••••'
-            ? `<span class="em-pw-set">✔ ${t('config.email.password_set')}</span>`
-            : (a.password ? `<span class="em-pw-set">✔ ${t('config.email.password_set')}</span>` : '<span class="em-pw-unset">—</span>');
+        const maskedPw = a.password
+            ? `<span class="em-pw-set">${cfgIcon('check')} ${t('config.email.password_set')}</span>`
+            : '<span class="em-pw-unset">—</span>';
+        const label = a.name || a.id;
 
         html += `
         <div class="em-card" data-idx="${idx}">
             <div class="em-card-header">
                 <div class="em-card-title">
-                    ${escapeAttr(a.name || a.id)}${enabledBadge}${sendBadge}${watchBadge}
+                    ${escapeAttr(label)}${enabledBadge}${sendBadge}${watchBadge}
                     <span class="em-card-id">ID: ${escapeAttr(a.id)}</span>
                 </div>
                 <div class="em-card-actions">
-                    <button onclick="emailAccountEdit(${idx})" class="em-card-btn em-card-btn-edit" title="${t('config.email.edit_tooltip')}">✏️</button>
-                    <button onclick="emailAccountDelete(${idx})" class="em-card-btn em-card-btn-delete" title="${t('config.email.delete_tooltip')}">🗑️</button>
+                    <button type="button" onclick="emailAccountEdit(${idx})" class="em-card-btn em-card-btn-edit" title="${escapeAttr(t('config.email.edit_tooltip'))}" aria-label="${escapeAttr(t('config.email.edit_tooltip') + ': ' + label)}">${cfgIcon('edit')}</button>
+                    ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: label }), attrs: { onclick: 'emailAccountDelete(' + idx + ')' } })}
                 </div>
             </div>
             <div class="em-card-grid">
@@ -157,25 +145,51 @@ function emailAccountRenderCards() {
     wrap.innerHTML = html;
 }
 
+const EMAIL_ACCOUNT_DIALOG = 'email-account-dialog';
+
+// The account ID is a short lowercase key; anything else is dropped on save.
+function emailSanitizeID(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+}
+
+// E15: tell the user what will happen to the typed ID instead of silently changing it.
+function emailIdHint(input) {
+    const message = document.getElementById('ea-id-validation');
+    if (!input || !message) return;
+    const raw = input.value.trim();
+    const clean = emailSanitizeID(raw);
+    let text = '';
+    if (raw && !clean) text = t('config.email.id_empty');
+    else if (raw && raw !== clean) text = t('config.email.id_sanitised', { id: clean });
+    message.textContent = text;
+    message.hidden = !text;
+    if (text) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+}
+
+// Dialog switches are not part of the config draft: flip them without marking the config dirty.
+function emailToggle(el) {
+    el.classList.toggle('on');
+    syncToggleA11y(el);
+}
+
+function emailToggleField(id, labelKey, helpKey, on) {
+    return `<div class="field-group">
+            <div class="field-label" id="${id}-label">${t(labelKey)}</div>
+            <div class="toggle-wrap"><div class="toggle${on ? ' on' : ''}" id="${id}" role="switch" aria-labelledby="${id}-label" aria-describedby="${id}-help" onclick="emailToggle(this)"></div></div>
+            <div class="field-help" id="${id}-help">${t(helpKey)}</div>
+        </div>`;
+}
+
 function emailAccountShowModal(title, data, onSave) {
-    const existing = document.getElementById('email-modal-overlay');
+    const existing = document.getElementById(EMAIL_ACCOUNT_DIALOG);
     if (existing) existing.remove();
 
-    const overlay = document.createElement('div');
-    overlay.id = 'email-modal-overlay';
-    overlay.className = 'modal-overlay open active';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    overlay.innerHTML = `
-    <div class="modal-card email-modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h2>${title}</h2>
-            <button type="button" class="modal-close" onclick="document.getElementById('email-modal-overlay').remove()" aria-label="${t('config.email.cancel')}">&times;</button>
-        </div>
+    const body = `
         <div class="field-group">
             <div class="field-label">${t('config.email.field_id')}</div>
-            <div class="field-help">${t('config.email.id_help')}</div>
-            <input class="field-input${data._editMode ? ' is-disabled' : ''}" id="ea-id" value="${escapeAttr(data.id || '')}" placeholder="personal" ${data._editMode ? 'disabled' : ''}>
+            <div class="field-help" id="ea-id-help">${t('config.email.id_help')}</div>
+            <input class="field-input${data._editMode ? ' is-disabled' : ''}" id="ea-id" value="${escapeAttr(data.id || '')}" placeholder="personal" aria-describedby="ea-id-help ea-id-validation" oninput="emailIdHint(this)" ${data._editMode ? 'disabled' : ''}>
+            <div id="ea-id-validation" class="pw-field-error" role="alert" hidden></div>
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.field_name')}</div>
@@ -184,31 +198,13 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div class="em-section-divider">
-            <div class="em-section-subtitle">⚙️ ${t('config.email.account_settings')}</div>
+            <div class="em-section-subtitle">${cfgIcon('settings')} ${t('config.email.account_settings')}</div>
         </div>
-        <div class="field-group em-toggle-group">
-            <div class="em-flex-1">
-                <div class="field-label em-toggle-label-mb">${t('config.email.account_enabled_label')}</div>
-                <div class="field-help em-toggle-help-m0">${t('config.email.account_enabled_help')}</div>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" id="ea-enabled" ${(data.enabled !== false) ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="field-group em-toggle-group">
-            <div class="em-flex-1">
-                <div class="field-label em-toggle-label-mb">${t('config.email.allow_sending_label')}</div>
-                <div class="field-help em-toggle-help-m0">${t('config.email.allow_sending_help')}</div>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" id="ea-allow-sending" ${(data.allow_sending !== false) ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
+        ${emailToggleField('ea-enabled', 'config.email.account_enabled_label', 'config.email.account_enabled_help', data.enabled !== false)}
+        ${emailToggleField('ea-allow-sending', 'config.email.allow_sending_label', 'config.email.allow_sending_help', data.allow_sending !== false)}
 
         <div class="em-section-divider">
-            <div class="em-section-subtitle">📥 ${t('config.email.imap_receive')}</div>
+            <div class="em-section-subtitle">${cfgIcon('download')} ${t('config.email.imap_receive')}</div>
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.imap_host')}</div>
@@ -222,7 +218,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div class="em-section-divider">
-            <div class="em-section-subtitle">📤 ${t('config.email.smtp_send')}</div>
+            <div class="em-section-subtitle">${cfgIcon('upload')} ${t('config.email.smtp_send')}</div>
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.smtp_host')}</div>
@@ -236,7 +232,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div class="em-section-divider">
-            <div class="em-section-subtitle">🔑 ${t('config.email.credentials')}</div>
+            <div class="em-section-subtitle">${cfgIcon('key')} ${t('config.email.credentials')}</div>
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.username')}</div>
@@ -259,16 +255,9 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div class="em-section-divider">
-            <div class="em-section-subtitle">👁️ ${t('config.email.inbox_watcher')}</div>
+            <div class="em-section-subtitle">${cfgIcon('eye')} ${t('config.email.inbox_watcher')}</div>
         </div>
-        <div class="field-group em-toggle-group">
-            <div class="field-label em-toggle-label-mb">${t('config.email.watch_enabled')}</div>
-            <div class="field-help em-toggle-help-m0">${t('config.email.watch_enabled_help')}</div>
-            <label class="toggle-switch">
-                <input type="checkbox" id="ea-watch-enabled" ${data.watch_enabled ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
+        ${emailToggleField('ea-watch-enabled', 'config.email.watch_enabled', 'config.email.watch_enabled_help', !!data.watch_enabled)}
         <div class="field-group">
             <div class="field-label">${t('config.email.watch_folder')}</div>
             <div class="field-help">${t('config.email.watch_folder_help')}</div>
@@ -281,20 +270,15 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         ${cfgActionResult.html('ea-test-result')}
-        <div id="ea-save-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">
-                ${t('config.email.cancel')}
-            </button>
-            <button type="button" class="btn-save cfg-test-btn" id="ea-test-btn" data-config-action-draft="true">
-                🔌 ${t('config.email.test_btn')}
-            </button>
-            <button type="button" class="btn-save" id="ea-save-btn">
-                ${t('config.email.save')}
-            </button>
-        </div>
-    </div>`;
-    document.body.appendChild(overlay);
+        <div id="ea-save-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>`;
+    const actions = [
+        `<button type="button" class="btn btn-secondary" onclick="closeModal('${EMAIL_ACCOUNT_DIALOG}')">${t('config.email.cancel')}</button>`,
+        `<button type="button" class="btn-save cfg-test-btn" id="ea-test-btn" data-config-action-draft="true">${cfgIcon('plug')}<span>${t('config.email.test_btn')}</span></button>`,
+        `<button type="button" class="btn-save" id="ea-save-btn">${t('config.email.save')}</button>`
+    ];
+    document.body.insertAdjacentHTML('beforeend', cfgModal({ id: EMAIL_ACCOUNT_DIALOG, title, size: 'lg', body, actions }));
+    const dialog = document.getElementById(EMAIL_ACCOUNT_DIALOG);
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(dialog);
 
     document.getElementById('ea-test-btn').onclick = () => emailAccountTestFromModal(data);
 
@@ -303,10 +287,10 @@ function emailAccountShowModal(title, data, onSave) {
         const saveBtn = document.getElementById('ea-save-btn');
         const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
         errBox.classList.add('is-hidden');
-        const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        const id = emailSanitizeID(document.getElementById('ea-id').value);
         const name = document.getElementById('ea-name').value.trim();
-        const enabled = document.getElementById('ea-enabled').checked;
-        const allow_sending = document.getElementById('ea-allow-sending').checked;
+        const enabled = document.getElementById('ea-enabled').classList.contains('on');
+        const allow_sending = document.getElementById('ea-allow-sending').classList.contains('on');
         const imap_host = document.getElementById('ea-imap-host').value.trim();
         const imap_port = parseInt(document.getElementById('ea-imap-port').value, 10) || 993;
         const smtp_host = document.getElementById('ea-smtp-host').value.trim();
@@ -315,7 +299,7 @@ function emailAccountShowModal(title, data, onSave) {
         let password = document.getElementById('ea-password').value.trim();
         if (!password && cfgIsMaskedSecret(data.password)) password = CFG_MASKED_SECRET;
         const from_address = document.getElementById('ea-from').value.trim();
-        const watch_enabled = document.getElementById('ea-watch-enabled').checked;
+        const watch_enabled = document.getElementById('ea-watch-enabled').classList.contains('on');
         const watch_folder = document.getElementById('ea-watch-folder').value.trim() || 'INBOX';
         const watch_interval_seconds = parseInt(document.getElementById('ea-watch-interval').value, 10) || 120;
 
@@ -330,17 +314,14 @@ function emailAccountShowModal(title, data, onSave) {
             showErr(res.error || t('config.common.error'));
             return;
         }
-        overlay.remove();
+        closeModal(EMAIL_ACCOUNT_DIALOG);
     };
 
-    setTimeout(() => {
-        const focus = data._editMode ? document.getElementById('ea-name') : document.getElementById('ea-id');
-        if (focus) focus.focus();
-    }, 50);
+    openModal(EMAIL_ACCOUNT_DIALOG, { initialFocus: data._editMode ? '#ea-name' : '#ea-id', onClose: () => dialog.remove() });
 }
 
 function emailAccountAdd() {
-    if (emailAccountsCache === null) { showToast(t('config.email.load_failed_disabled'), 'warn'); return; }
+    if (emailAccountsCache === null) { cfgActionResult.show('email-list-result', 'error', t('config.email.load_failed_disabled')); return; }
     emailAccountShowModal(
         t('config.email.new_account'),
         {},
@@ -372,15 +353,22 @@ function emailAccountEdit(idx) {
 async function emailAccountDelete(idx) {
     if (emailAccountsCache === null) return;
     const a = emailAccountsCache[idx];
-    if (!await showConfirm(t('config.email.delete_confirm', {name: a.name || a.id}))) return;
+    const name = a.name || a.id;
+    const answer = await showConfirmDialog({
+        title: t('config.common.delete_item', { name }),
+        message: t('config.email.delete_confirm', { name }),
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return;
     const next = emailAccountsCache.slice();
     next.splice(idx, 1);
     const res = await emailAccountSave(next);
-    if (!res.ok) showToast(res.error, 'error');
+    if (!res.ok) cfgActionResult.show('email-list-result', 'error', res.error);
 }
 
 function emailAccountCollectModalFields(data) {
-    const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const id = emailSanitizeID(document.getElementById('ea-id').value);
     const imap_host = document.getElementById('ea-imap-host').value.trim();
     const imap_port = parseInt(document.getElementById('ea-imap-port').value, 10) || 993;
     const smtp_host = document.getElementById('ea-smtp-host').value.trim();
@@ -435,7 +423,7 @@ async function emailAccountSave(nextAccounts) {
             if (reload.ok) emailAccountsCache = await reload.json();
         } catch (_) { /* keep saved list */ }
         emailAccountRenderCards();
-        showToast(t('config.email.saved'), 'success');
+        cfgActionResult.show('email-list-result', 'success', t('config.email.saved'));
         return { ok: true };
     } catch (e) {
         return { ok: false, error: e.message || t('config.common.error') };

@@ -59,5 +59,6 @@
   "config.gog.agent_help": "Agenten kan bruke denne kontoen med tillatelsene som er gitt nedenfor.",
   "config.gog.desktop_help": "Skrivebordsapper kan bruke denne kontoen, for eksempel til e-post eller kalender.",
   "config.gog.client_id_help": "Klient-ID for OAuth-webklienten fra Google Cloud Console.",
-  "config.gog.secret_help": "Klienthemmeligheten til OAuth-klienten. \"Lagre i Vault\" lagrer den kryptert; den vises ikke igjen."
+  "config.gog.secret_help": "Klienthemmeligheten til OAuth-klienten. \"Lagre i Vault\" lagrer den kryptert; den vises ikke igjen.",
+  "config.gog.limit_reached": "Maks {max} kontoer støttes. Fjern en konto før du legger til en ny."
 }

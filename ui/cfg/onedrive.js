@@ -31,7 +31,7 @@ async function renderOneDriveSection(section) {
 
     // ── Authentication section ──
     html += `<div class="od-section-block">
-        <div class="od-section-title">🔐 ${t('config.onedrive.auth_title')}</div>
+        <div class="od-section-title">${cfgIcon('lock')} ${t('config.onedrive.auth_title')}</div>
         <div class="od-section-desc od-section-desc-spacious">
             ${t('config.onedrive.auth_desc')}
         </div>`;
@@ -54,7 +54,7 @@ async function renderOneDriveSection(section) {
 
     // ── Connection ──
     html += `<div class="od-section-block">
-        <div class="od-section-title">🔗 ${t('config.onedrive.connection_label')}</div>
+        <div class="od-section-title">${cfgIcon('link')} ${t('config.onedrive.connection_label')}</div>
         <div class="od-section-desc">
             ${t('config.onedrive.auth_instructions')}
         </div>
@@ -67,9 +67,9 @@ async function renderOneDriveSection(section) {
         </div>
         <!-- Device code display (shown after pressing Connect) -->
         <div id="od-device-code-box" class="od-device-code-box is-hidden">
-            <div class="od-device-code-title">📋 ${t('config.onedrive.device_code_title')}</div>
+            <div class="od-device-code-title">${cfgIcon('list')} ${t('config.onedrive.device_code_title')}</div>
             <div id="od-device-code-value" class="od-device-code-value"></div>
-            <a id="od-device-code-link" href="#" target="_blank" rel="noopener" class="btn-save od-device-code-link">🌐 ${t('config.onedrive.device_code_link')}</a>
+            <a id="od-device-code-link" href="#" target="_blank" rel="noopener" class="btn-save od-device-code-link">${cfgIcon('globe')} ${t('config.onedrive.device_code_link')}</a>
             <div class="od-device-code-hint">${t('config.onedrive.auth_waiting')}</div>
         </div>
         ${cfgActionResult.html('od-auth-result', 'od-auth-result')}

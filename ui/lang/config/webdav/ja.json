@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "WebDAV連携は無効です",
   "config.webdav.status_no_url": "WebDAV URLが設定されていません",
   "config.webdav.status_no_credentials": "WebDAV認証情報がありません",
-  "config.webdav.status_ok": "WebDAVに接続済み",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "WebDAVに接続済み"
 }

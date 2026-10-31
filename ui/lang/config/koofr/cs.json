@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Připojení selhalo",
   "config.koofr.status_disabled": "Integrace Koofr je zakázána",
   "config.koofr.status_no_credentials": "Chybí uživatelské jméno nebo heslo aplikace",
-  "config.koofr.status_ok": "Připojeno ke Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Připojeno ke Koofr"
 }

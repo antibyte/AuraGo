@@ -58,11 +58,11 @@ func TestConfigWave0SecretsModalClosesAfterSuccess(t *testing.T) {
 	}
 	body := src[start:]
 	awaitAt := strings.Index(body, "await onSave(key, value)")
-	closeAt := strings.Index(body, "overlay.remove();")
+	closeAt := strings.Index(body, "closeModal(SECRETS_DIALOG);")
 	if awaitAt < 0 || closeAt < awaitAt {
 		t.Fatal("secrets modal must close only after onSave succeeded")
 	}
-	for _, want := range []string{"secret-modal-error", "saveBtn.disabled = true", "secretsEsc(txt)"} {
+	for _, want := range []string{"secret-dialog-error", "saveBtn.disabled = true", "cfgListState('secrets-main'"} {
 		if !strings.Contains(src, want) {
 			t.Fatalf("secrets.js missing %q", want)
 		}

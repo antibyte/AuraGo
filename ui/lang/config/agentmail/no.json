@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Kunne ikke laste cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet med instruksjoner",
   "config.agentmail.relay_cheatsheet_none": "Ikke legg ved cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail-integrasjonen er deaktivert",
   "config.agentmail.status_no_api_key": "Ingen API-nøkkel konfigurert",
   "config.agentmail.status_no_inbox": "Videresending krever en primær innboks-ID",

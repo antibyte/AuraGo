@@ -15,7 +15,8 @@ function authSetStatus(el, level, text) {
 
 async function renderWebConfigSection(section) {
     const content = document.getElementById('content');
-    content.innerHTML = '<div class="cfg-section active"><div class="auth-loading">' + t('config.common.loading') + '</div></div>';
+    content.innerHTML = '<div class="cfg-section active"><div id="auth-status-state"></div></div>';
+    cfgListState('auth-status-state', { state: 'loading' });
 
     let authStatus = { enabled: false, password_set: false, totp_enabled: false };
     let statusError = '';
@@ -28,11 +29,14 @@ async function renderWebConfigSection(section) {
         content.innerHTML = '<div class="cfg-section active">'
             + '<div class="section-header">' + section.label + '</div>'
             + '<div class="section-desc">' + section.desc + '</div>'
-            + '<div class="auth-inline-msg is-error" role="alert">' + escapeHtml(t('config.auth.status_load_failed')) + ' (' + escapeHtml(statusError) + ')</div>'
-            + '<button type="button" class="auth-primary-btn" id="auth-status-retry">' + escapeHtml(t('config.auth.retry')) + '</button>'
+            + '<div id="auth-status-state"></div>'
             + '</div>';
-        const retry = document.getElementById('auth-status-retry');
-        if (retry) retry.addEventListener('click', () => renderWebConfigSection(section));
+        cfgListState('auth-status-state', {
+            state: 'error',
+            title: t('config.auth.status_load_failed'),
+            text: statusError,
+            retry: () => renderWebConfigSection(section)
+        });
         return;
     }
     _authStatus = authStatus;
@@ -48,7 +52,7 @@ async function renderWebConfigSection(section) {
 
     // ── Web Config Toggle ──
     html += `<div class="auth-section-title">
-                🛡️ ${t('config.auth.web_config_title')}
+                ${cfgIcon('shield')} ${t('config.auth.web_config_title')}
             </div>`;
     const wcHelp = (helpTexts['web_config.enabled'] || {})[lang] || '';
     html += `<div class="field-group">
@@ -62,7 +66,7 @@ async function renderWebConfigSection(section) {
 
     // ── Login-Schutz ──
     html += `<div class="auth-section-title auth-section-title-spaced">
-                🔐 ${t('config.auth.login_guard_title')}
+                ${cfgIcon('lock')} ${t('config.auth.login_guard_title')}
             </div>`;
 
     // Enable toggle
@@ -70,16 +74,16 @@ async function renderWebConfigSection(section) {
     const authHelpText = isHttpsEnabled ? (t('config.auth.https_forces_auth')) : t('config.auth.enable_desc');
 
     html += `<div class="field-group">
-                <div class="field-label">🔐 ${t('config.auth.enable_login_guard')}</div>
+                <div class="field-label">${cfgIcon('lock')} ${t('config.auth.enable_login_guard')}</div>
                 <div class="field-help">${authHelpText}</div>
                 <div class="toggle-wrap ${isHttpsEnabled ? 'auth-toggle-wrap-disabled' : ''}">
                     <div class="toggle ${(isAuthEnabled || isHttpsEnabled) ? 'on' : ''}${isHttpsEnabled ? ' cfg-toggle-disabled' : ''}" data-path="auth.enabled"${isHttpsEnabled ? ' aria-disabled="true" data-disabled="true" tabindex="-1" title="' + escapeAttr(t('config.auth.https_forces_auth')) + '"' : ''} onclick="toggleBool(this)"></div>
-                    <span class="toggle-label">${(isAuthEnabled || isHttpsEnabled) ? t('config.common.active') : t('config.common.inactive')}${isHttpsEnabled ? ' 🔒' : ''}</span>
+                    <span class="toggle-label">${(isAuthEnabled || isHttpsEnabled) ? t('config.common.active') : t('config.common.inactive')}${isHttpsEnabled ? cfgIcon('lock') : ''}</span>
                 </div>
             </div>`;
 
     html += `<div class="field-group">
-                <div class="field-label">⚠️ ${t('config.auth.unsafe_remote_title')}</div>
+                <div class="field-label">${cfgIcon('alert')} ${t('config.auth.unsafe_remote_title')}</div>
                 <div class="field-help">${t('config.auth.unsafe_remote_desc')}</div>
                 <div class="toggle-wrap">
                     <div class="toggle ${authCfg.allow_unauthenticated_remote === true ? 'on' : ''}" data-path="auth.allow_unauthenticated_remote" onclick="toggleBool(this)"></div>
@@ -110,7 +114,7 @@ async function renderWebConfigSection(section) {
     const pwStepUp = authStatus.password_set === true;
     const totpStepUp = authStatus.totp_enabled === true;
     html += `<div class="field-group">
-                <div class="field-label">🔑 ${t('config.auth.password_label')}</div>
+                <div class="field-label">${cfgIcon('key')} ${t('config.auth.password_label')}</div>
                 <div class="field-help">${authStatus.password_set
             ? t('config.auth.password_is_set')
             : t('config.auth.password_not_set')
@@ -147,13 +151,13 @@ async function renderWebConfigSection(section) {
 
     // ── TOTP card
     html += `<div class="field-group">
-                <div class="field-label">📱 ${t('config.auth.totp_title')}</div>
+                <div class="field-label">${cfgIcon('phone')} ${t('config.auth.totp_title')}</div>
                 <div class="field-help">${t('config.auth.totp_desc')}</div>
                 <div id="auth-totp-status-area" class="auth-totp-status-area">`;
 
     if (authStatus.totp_enabled) {
         html += `<div class="auth-totp-active-row">
-                    <span class="auth-totp-active-text">${t('config.auth.status_success')} ${t('config.auth.totp_active')}</span>
+                    <span class="auth-totp-active-text">${cfgIcon('check')} ${t('config.auth.totp_active')}</span>
                     <button onclick="authTOTPDisable()" id="auth-totp-disable-btn" class="auth-totp-disable-btn">
                         ${t('config.auth.totp_disable')}
                     </button>
@@ -217,7 +221,7 @@ async function renderWebConfigSection(section) {
 
     // ── Security Audit panel (populated async after render) ──
     html += `<div class="auth-section-title auth-section-title-spaced">
-                🔎 ${t('config.security.panel_title')}
+                ${cfgIcon('search')} ${t('config.security.panel_title')}
             </div>`;
     html += cfgActionResult.html('sec-harden-result');
     html += '<div id="sec-audit-panel" class="auth-sec-audit-panel">';
@@ -372,7 +376,7 @@ async function loadSecurityAuditPanel() {
 function renderSecurityAuditPanel(panel, hints) {
     if (!hints.length) {
         panel.innerHTML = `<div class="auth-sec-ok">
-            ${t('config.security.status_success')} ${t('config.security.no_issues')}
+            ${cfgIcon('check')} ${t('config.security.no_issues')}
         </div>`;
         return;
     }
@@ -388,7 +392,7 @@ function renderSecurityAuditPanel(panel, hints) {
         html += `<div class="auth-sec-fix-wrap">
             <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))}, this)"
                 class="auth-sec-fix-all-btn">
-                🔧 ${btnLabel}
+                ${cfgIcon('wrench')} ${btnLabel}
             </button>
         </div>`;
     }
@@ -406,12 +410,12 @@ function renderSecurityAuditPanel(panel, hints) {
         if (h.auto_fixable) {
             fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'], this)"
                 class="auth-sec-fix-now-btn">
-                🔧 ${t('config.security.fix_now')}
+                ${cfgIcon('wrench')} ${t('config.security.fix_now')}
             </button>`;
         }
         html += `<div class="auth-sec-hint-card is-${sevKey}">
             <div class="auth-sec-hint-head">
-                <span class="auth-sec-hint-badge is-${sevKey}">${sevLabel}</span>
+                ${cfgBadge(sevKey === 'critical' ? 'error' : (sevKey === 'warning' ? 'warn' : 'idle'), sevLabel)}
                 <span class="auth-sec-hint-title">${escapeHtml(title)}</span>
             </div>
             <div class="auth-sec-hint-desc">${desc}</div>

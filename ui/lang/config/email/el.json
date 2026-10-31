@@ -68,5 +68,6 @@
   "config.email.smtp_host_help": "Η διεύθυνση του διακομιστή εξερχόμενης αλληλογραφίας (SMTP) του παρόχου email σας.",
   "config.email.username_help": "Όνομα χρήστη για IMAP και SMTP, συνήθως ολόκληρη η διεύθυνση email.",
   "config.email.watch_enabled_help": "Το AuraGo ελέγχει τακτικά τον φάκελο που επιλέγετε παρακάτω για νέα αλληλογραφία και μπορεί να αντιδρά σε αυτήν.",
-  "config.email.watch_folder_help": "Φάκελος IMAP που παρακολουθείται για νέα αλληλογραφία. Η προεπιλογή είναι INBOX."
+  "config.email.watch_folder_help": "Φάκελος IMAP που παρακολουθείται για νέα αλληλογραφία. Η προεπιλογή είναι INBOX.",
+  "config.email.id_sanitised": "Επιτρέπονται μόνο a-z, 0-9, - και _. Το ID θα αποθηκευτεί ως '{id}'."
 }

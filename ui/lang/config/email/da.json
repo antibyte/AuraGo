@@ -68,5 +68,6 @@
   "config.email.smtp_host_help": "Adressen på din mailudbyders udgående mailserver (SMTP).",
   "config.email.username_help": "Brugernavn til IMAP og SMTP, normalt den fulde mailadresse.",
   "config.email.watch_enabled_help": "AuraGo tjekker jævnligt den mappe, du vælger nedenfor, for ny mail og kan reagere på den.",
-  "config.email.watch_folder_help": "IMAP-mappe, der overvåges for ny mail. Standard er INBOX."
+  "config.email.watch_folder_help": "IMAP-mappe, der overvåges for ny mail. Standard er INBOX.",
+  "config.email.id_sanitised": "Kun a-z, 0-9, - og _ er tilladt. ID'et gemmes som '{id}'."
 }

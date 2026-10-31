@@ -68,5 +68,6 @@
   "config.email.password_help": "Wachtwoord of app-wachtwoord van het account. Wordt versleuteld opgeslagen in de Vault.",
   "config.email.watch_enabled_help": "AuraGo controleert regelmatig de hieronder gekozen map op nieuwe e-mail en kan daarop reageren.",
   "config.email.watch_folder_help": "IMAP-map die op nieuwe e-mail wordt gecontroleerd. De standaard is INBOX.",
-  "config.email.interval_seconds_help": "Hoe vaak de map wordt gecontroleerd, in seconden (standaard 120). Kortere intervallen belasten de mailserver meer."
+  "config.email.interval_seconds_help": "Hoe vaak de map wordt gecontroleerd, in seconden (standaard 120). Kortere intervallen belasten de mailserver meer.",
+  "config.email.id_sanitised": "Alleen a-z, 0-9, - en _ zijn toegestaan. De ID wordt opgeslagen als '{id}'."
 }

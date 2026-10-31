@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "连接失败",
   "config.koofr.status_disabled": "Koofr 集成已禁用",
   "config.koofr.status_no_credentials": "缺少用户名或应用密码",
-  "config.koofr.status_ok": "已连接到 Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "已连接到 Koofr"
 }

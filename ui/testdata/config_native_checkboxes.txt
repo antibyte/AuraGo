@@ -1,9 +1,5 @@
 # <module>: native checkbox without data-cfg-choice; on/off settings are .toggle (E4).
-backup
 document_creator
-email
-github
-gog
 guardian
 meshcore
 network_shares
@@ -12,8 +8,6 @@ providers
 realtime_speech
 remote_control
 rules
-s3
 sip
 speech_lab
-sql_connections
 telephone_agent

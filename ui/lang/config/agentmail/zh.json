@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "无法加载速查表",
   "config.agentmail.relay_cheatsheet_label": "带说明的速查表",
   "config.agentmail.relay_cheatsheet_none": "不附加速查表",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail 集成已禁用",
   "config.agentmail.status_no_api_key": "未配置 API 密钥",
   "config.agentmail.status_no_inbox": "转发需要主收件箱 ID",

@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Package Management (package_manager)",
   "config.danger.package_manager.desc": "Allows the agent to install, remove, update, search and inspect system packages. Linux mutations use sudo_password from the vault.",
   "config.danger.mcp.title": "MCP Server Connections (mcp_call)",
-  "config.danger.mcp.desc": "Allows the agent to connect to external MCP servers and use their tools. <strong style=\"color:#f87171;\">⚠ Only add trusted servers!</strong>",
+  "config.danger.mcp.desc": "Allows the agent to connect to external MCP servers and use their tools. <strong style=\"color:#f87171;\">Only add trusted servers!</strong>",
   "config.danger.sudo_unrestricted.title": "System-wide Sudo Write Access",
   "config.danger.sudo_unrestricted.desc": "Allows the agent to write outside the installation directory using sudo (e.g. /etc/). Requires removing ProtectSystem=strict from the systemd service unit.",
   "config.danger.unsafe_host_execution.title": "Unsafe host execution",

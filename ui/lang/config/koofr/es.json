@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Conexión fallida",
   "config.koofr.status_disabled": "La integración Koofr está desactivada",
   "config.koofr.status_no_credentials": "Falta usuario o contraseña de aplicación",
-  "config.koofr.status_ok": "Conectado a Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Conectado a Koofr"
 }

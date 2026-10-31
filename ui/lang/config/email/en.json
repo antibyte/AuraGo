@@ -68,5 +68,6 @@
   "config.email.password_help": "Password or app password of the account. It is stored encrypted in the vault.",
   "config.email.watch_enabled_help": "AuraGo regularly checks the folder chosen below for new mail and can react to it.",
   "config.email.watch_folder_help": "IMAP folder that is watched for new mail. The default is INBOX.",
-  "config.email.interval_seconds_help": "How often the folder is checked, in seconds (default 120). Shorter intervals put more load on the mail server."
+  "config.email.interval_seconds_help": "How often the folder is checked, in seconds (default 120). Shorter intervals put more load on the mail server.",
+  "config.email.id_sanitised": "Only a-z, 0-9, - and _ are allowed. The ID will be saved as '{id}'."
 }

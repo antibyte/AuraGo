@@ -24,7 +24,8 @@ func TestConfigWave1Batch3ModuleContracts(t *testing.T) {
 	}
 	for module, path := range map[string]string{"ldap": "ldap.bind_password", "paperless": "paperless_ngx.api_token"} {
 		src := string(mustReadUIFile(t, "cfg/"+module+".js"))
-		if !strings.Contains(src, `data-path="`+path+`"`) {
+		// Form-builder modules declare the path as a field option instead of a data-path attribute.
+		if !strings.Contains(src, `data-path="`+path+`"`) && !strings.Contains(src, "path: '"+path+"'") {
 			t.Errorf("%s: secret %s is not in the save dock", module, path)
 		}
 		if strings.Contains(src, "/api/vault/secrets") {

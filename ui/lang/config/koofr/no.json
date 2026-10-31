@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Tilkobling mislyktes",
   "config.koofr.status_disabled": "Koofr-integrasjon er deaktivert",
   "config.koofr.status_no_credentials": "Brukernavn eller app-passord mangler",
-  "config.koofr.status_ok": "Koblet til Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Koblet til Koofr"
 }

@@ -59,5 +59,6 @@
   "config.gog.enabled_help": "Activa el enlace gog con cuentas de Google. Añade más cuentas a la integración integrada de Google Workspace.",
   "config.gog.name_help": "Nombre visible de la cuenta, por ejemplo \"Personal\" o \"Trabajo\".",
   "config.gog.readonly_help": "El agente solo puede leer a través de gog. Crear, modificar, eliminar y enviar siguen bloqueados aunque una cuenta lo permita.",
-  "config.gog.secret_help": "Secreto de cliente del cliente OAuth. «Guardar en Vault» lo guarda cifrado; no se vuelve a mostrar."
+  "config.gog.secret_help": "Secreto de cliente del cliente OAuth. «Guardar en Vault» lo guarda cifrado; no se vuelve a mostrar.",
+  "config.gog.limit_reached": "Se admiten hasta {max} cuentas. Elimina una cuenta antes de añadir otra."
 }

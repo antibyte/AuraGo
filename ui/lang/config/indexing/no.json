@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Mappe hvis filer indekseres, som absolutt sti eller relativt til AuraGo-mappen. Undermapper tas med. Legg til med knappen eller Enter.",
   "config.indexing.chunk_max_chars_help": "Maksimal lengde på én tekstbit i tegn. Mindre biter gir mer presise treff, større gir mer kontekst. Standard: 3500.",
   "config.indexing.chunk_overlap_help": "Tegn som deles mellom nabobiter slik at setninger i grensene ikke kuttes. Standard: 200.",
-  "config.indexing.chunk_max_chunks_help": "Maksimalt antall biter per fil; resten av svært store filer hoppes over. Standard: 200."
+  "config.indexing.chunk_max_chunks_help": "Maksimalt antall biter per fil; resten av svært store filer hoppes over. Standard: 200.",
+  "config.indexing.dir_empty": "Skriv først inn stien til mappen som skal indekseres."
 }

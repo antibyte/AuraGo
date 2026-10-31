@@ -59,5 +59,6 @@
   "config.gog.agent_help": "エージェントは、下で付与した権限の範囲でこのアカウントを使用できます。",
   "config.gog.desktop_help": "デスクトップアプリは、メールやカレンダーなどでこのアカウントを使用できます。",
   "config.gog.client_id_help": "Google Cloud Console の OAuth ウェブクライアントのクライアント ID です。",
-  "config.gog.secret_help": "OAuth クライアントのクライアントシークレットです。「Vault に保存」で暗号化して保存され、再表示はされません。"
+  "config.gog.secret_help": "OAuth クライアントのクライアントシークレットです。「Vault に保存」で暗号化して保存され、再表示はされません。",
+  "config.gog.limit_reached": "アカウントは最大 {max} 件までサポートされます。別のアカウントを追加する前に、既存のアカウントを削除してください。"
 }

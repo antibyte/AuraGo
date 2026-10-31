@@ -96,7 +96,7 @@ async function renderHereNowSection(section) {
         <div class="toggle ${enabled ? 'on' : ''}" data-path="here_now.enabled" aria-describedby="hn-enabled-help" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<div class="field-group"><div class="field-group-title">🔐 ${t('config.here_now.permissions')}</div><div class="field-grid two-cols">`;
+    html += `<div class="field-group"><div class="field-group-title">${cfgIcon('lock')} ${t('config.here_now.permissions')}</div><div class="field-grid two-cols">`;
     const toggles = [
         ['readonly', 'config.here_now.readonly', 'config.here_now.readonly_help'],
         ['allow_publish', 'config.here_now.allow_publish', 'config.here_now.allow_publish_help'],
@@ -109,21 +109,21 @@ async function renderHereNowSection(section) {
     }
     html += `</div></div>`;
 
-    html += `<div class="field-group"><div class="field-group-title" id="hn-account-title">🏢 ${t('config.here_now.account')}</div>
+    html += `<div class="field-group"><div class="field-group-title" id="hn-account-title">${cfgIcon('building')} ${t('config.here_now.account')}</div>
         <div class="field-help" id="hn-account-help">${t('config.here_now.account_help')}</div>
         <select class="field-select" data-path="here_now.default_account" aria-labelledby="hn-account-title" aria-describedby="hn-account-help" ${ready ? '' : 'disabled'}>${accountOptions}</select>
     </div>`;
 
     const keyPlaceholder = cfgSecretPlaceholder(cfg.api_key);
-    html += `<div class="field-group"><div class="field-group-title">🔑 ${t('config.here_now.api_key')}</div><div class="field-help">${t('config.here_now.api_key_help')}</div>
-        <label><span class="cfg-label">${t('config.here_now.api_key')} <small class="hp-text-tertiary">🔐 ${t('config.here_now.vault_badge')}</small></span><div class="password-wrap">
+    html += `<div class="field-group"><div class="field-group-title">${cfgIcon('key')} ${t('config.here_now.api_key')}</div><div class="field-help">${t('config.here_now.api_key_help')}</div>
+        <label><span class="cfg-label">${t('config.here_now.api_key')} <small class="hp-text-tertiary">${cfgIcon('lock')} ${t('config.here_now.vault_badge')}</small></span><div class="password-wrap">
             <input class="field-input" type="password" id="hn-api-key" data-path="here_now.api_key" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(keyPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
         </div></label>
     </div>`;
 
-    html += `<div class="field-group"><div class="field-group-title">🔌 ${t('config.here_now.test')}</div><div class="field-help">${t('config.here_now.test_help')}</div>
-        <div class="cfg-actions-row"><button class="btn-save cfg-test-btn" id="hn-test-btn" data-config-action-draft="true" onclick="hereNowTestConnection()">🔌 ${t('config.here_now.test_button')}</button>${cfgActionResult.html('hn-test-result')}</div>
+    html += `<div class="field-group"><div class="field-group-title">${cfgIcon('plug')} ${t('config.here_now.test')}</div><div class="field-help">${t('config.here_now.test_help')}</div>
+        <div class="cfg-actions-row"><button class="btn-save cfg-test-btn" id="hn-test-btn" data-config-action-draft="true" onclick="hereNowTestConnection()">${cfgIcon('plug')} ${t('config.here_now.test_button')}</button>${cfgActionResult.html('hn-test-result')}</div>
     </div></div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();

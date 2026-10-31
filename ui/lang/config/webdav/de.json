@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "WebDAV-Integration ist deaktiviert",
   "config.webdav.status_no_url": "Keine WebDAV-URL konfiguriert",
   "config.webdav.status_no_credentials": "WebDAV-Zugangsdaten fehlen",
-  "config.webdav.status_ok": "Mit WebDAV verbunden",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "Mit WebDAV verbunden"
 }

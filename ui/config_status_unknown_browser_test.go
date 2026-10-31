@@ -68,14 +68,19 @@ func TestSecretsSectionShowsUnknownVaultStatusBrowser(t *testing.T) {
 			return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
 		};
 	}`)
+	for _, helper := range []string{"js/config/icons.js", "js/config/components.js"} {
+		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, helper))); err != nil {
+			t.Fatalf("load config helper %s: %v", helper, err)
+		}
+	}
 	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "cfg/secrets.js"))); err != nil {
 		t.Fatalf("load secrets module: %v", err)
 	}
 	page.MustEval(`() => renderSecretsSection({ key: 'secrets', label: 'Secrets', container: 'secrets-host' })`)
-	waitForJSBool(t, page, `() => !!document.querySelector('[data-secrets-vault-retry]')`)
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-cfg-retry]')`)
 	if text := page.MustEval(`() => document.getElementById('secrets-host').textContent`).String(); strings.Contains(text, "config.secrets.no_vault") {
 		t.Fatalf("an unreadable vault status must not claim that no vault exists: %s", text)
 	}
-	page.MustEval(`() => { window.__vaultStatus = 200; document.querySelector('[data-secrets-vault-retry]').click(); }`)
+	page.MustEval(`() => { window.__vaultStatus = 200; document.querySelector('[data-cfg-retry]').click(); }`)
 	waitForJSBool(t, page, `() => document.getElementById('secrets-host').textContent.includes('config.secrets.empty')`)
 }

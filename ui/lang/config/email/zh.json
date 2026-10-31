@@ -68,5 +68,6 @@
   "config.email.password_help": "账户的密码或应用专用密码。它以加密方式存储在保险库中。",
   "config.email.watch_enabled_help": "AuraGo 会定期检查下方所选文件夹中的新邮件，并可对其作出响应。",
   "config.email.watch_folder_help": "监视新邮件的 IMAP 文件夹。默认是 INBOX。",
-  "config.email.interval_seconds_help": "检查文件夹的频率，单位为秒（默认 120）。间隔越短，给邮件服务器带来的负载越大。"
+  "config.email.interval_seconds_help": "检查文件夹的频率，单位为秒（默认 120）。间隔越短，给邮件服务器带来的负载越大。",
+  "config.email.id_sanitised": "仅允许 a-z、0-9、- 和 _。ID 将保存为 '{id}'。"
 }

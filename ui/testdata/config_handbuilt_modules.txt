@@ -48,12 +48,10 @@ music_generation
 netlify
 network_shares
 newspaper
-obsidian
 ollama
 omniroute
 onedrive
 output_compression
-paperless
 prompts
 providers
 realtime_speech
@@ -85,4 +83,3 @@ video_generation
 virtual_computers
 virtual_desktop
 webhooks
-yepapi

@@ -59,5 +59,6 @@
   "config.gog.agent_help": "代理可以使用此账户，权限以下方授予的为准。",
   "config.gog.desktop_help": "桌面应用可以使用此账户，例如用于邮件或日历。",
   "config.gog.client_id_help": "来自 Google Cloud Console 的 OAuth Web 客户端的客户端 ID。",
-  "config.gog.secret_help": "OAuth 客户端的客户端密钥。“保存到保险库”会将其加密存储；之后不会再次显示。"
+  "config.gog.secret_help": "OAuth 客户端的客户端密钥。“保存到保险库”会将其加密存储；之后不会再次显示。",
+  "config.gog.limit_reached": "最多支持 {max} 个账户。请先移除一个账户，再添加新的账户。"
 }
