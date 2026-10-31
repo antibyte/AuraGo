@@ -34,6 +34,8 @@ This page covers choosing a theme, accessibility and the developer contract. The
 - **Accent color** (teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. The other eleven themes use their fixed accent and hide the row.
 - The settings are `appearance.theme`, `appearance.icon_theme`, `appearance.fruity_mode`, `appearance.minimal_mode`, `appearance.accent`, `appearance.wallpaper` and `appearance.wallpaper_by_space`. The UI saves them through `PUT /api/desktop/settings`.
 
+Organic's *Forest* wallpaper is a misty conifer forest at dusk, with a low amber sun right of centre and the left edge kept dark for the desktop icons. It is the vector file `/img/wallpapers/themes/forest.svg` (set in `css/desktop-wallpaper-themes.css`), written by the deterministic generator `assets/desktop-wallpaper-forest/generate.mjs` (`node assets/desktop-wallpaper-forest/generate.mjs`); edit the generator, not the SVG.
+
 ## Accessibility
 
 - **Reduced motion.** When the system requests reduced motion (`prefers-reduced-motion: reduce`), a global override ends every transition and animation at once: durations drop to 0 ms and animations run a single iteration. The shell also skips its window, menu and start-menu transitions, and Crazy's confetti and sparkles stop.
@@ -432,8 +434,6 @@ Post-processing adds bloom, a vignette, chromatic aberration, film grain and a s
 **Shell.** The skin is dark glass: deep-blue panels with cyan and violet hairlines, and a HUD taskbar. The signal colour is cyan (`#5CE1FF`), with near-black text on it. Barlow Condensed SemiBold sets the uppercase dialog, popup and panel headings. Geist sets the text.
 
 **Wallpaper and fallback.** The *Orbit* wallpaper is the poster `/img/wallpapers/themes/orbit.png` (set in `css/desktop-wallpaper-themes.css`): a still frame of the scene at t = 44 s, from the neutral camera and without film grain. It shows while the live scene loads, without WebGL, with software GL and at quality 4. The live canvas fades in over it. With any other wallpaper, the theme keeps the particles and the window motion and builds no scene.
-
-**Forest wallpaper.** Organic suggests *Forest*, a misty conifer forest at dusk with a low amber sun right of centre and the left edge kept dark for the desktop icons. It is the vector file `/img/wallpapers/themes/forest.svg` (set in `css/desktop-wallpaper-themes.css`), written by the deterministic generator `assets/desktop-wallpaper-forest/generate.mjs` (`node assets/desktop-wallpaper-forest/generate.mjs`); edit the generator, not the SVG.
 
 **Performance.**
 

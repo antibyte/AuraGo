@@ -1,5 +1,9 @@
 /* desktop-app-calculator.css */
 .vd-calc {
+    --calc-op: var(--vd-accent, #f2b84b);
+    --calc-fn: var(--ds-color-info-fg, #27c7a6);
+    --calc-clear: var(--ds-color-danger-fg, #ff8066);
+    --calc-glow: var(--vd-accent, #27c7a6);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto 1fr auto;
@@ -82,7 +86,7 @@
     border-color: var(--vd-theme-accent-border, var(--vd-accent));
     color: var(--vd-text);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(39, 199, 166, 0.12);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--calc-glow) 12%, transparent);
 }
 
 .vd-calc-tabs button:hover::before {
@@ -94,7 +98,7 @@
     background: var(--vd-theme-accent-soft);
     color: var(--vd-text);
     box-shadow:
-        0 0 16px rgba(39, 199, 166, 0.15),
+        0 0 16px color-mix(in srgb, var(--calc-glow) 15%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
     text-shadow: none;
@@ -125,7 +129,7 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(154, 216, 207, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--calc-glow) 25%, transparent), transparent);
 }
 
 .vd-calc-display div {
@@ -145,14 +149,14 @@
     font-weight: 300;
     color: var(--vd-text);
     letter-spacing: -0.5px;
-    text-shadow: 0 0 20px rgba(154, 216, 207, 0.25), 0 0 40px rgba(154, 216, 207, 0.08);
+    text-shadow: 0 0 20px color-mix(in srgb, var(--calc-glow) 25%, transparent), 0 0 40px color-mix(in srgb, var(--calc-glow) 8%, transparent);
     line-height: 1.2;
     transition: all 0.15s ease;
 }
 
 .vd-calc-display strong.typing {
     transform: scale(1.02);
-    text-shadow: 0 0 30px rgba(154, 216, 207, 0.4), 0 0 60px rgba(154, 216, 207, 0.15);
+    text-shadow: 0 0 30px color-mix(in srgb, var(--calc-glow) 40%, transparent), 0 0 60px color-mix(in srgb, var(--calc-glow) 15%, transparent);
 }
 
 .vd-calc-keys {
@@ -223,10 +227,10 @@
 
 .vd-calc-keys button.op {
     background:
-        linear-gradient(145deg, rgba(242, 184, 75, 0.35), rgba(242, 184, 75, 0.18));
+        linear-gradient(145deg, color-mix(in srgb, var(--calc-op) 35%, transparent), color-mix(in srgb, var(--calc-op) 18%, transparent));
     color: var(--vd-text);
     box-shadow:
-        0 2px 8px rgba(242, 184, 75, 0.2),
+        0 2px 8px color-mix(in srgb, var(--calc-op) 20%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
 
     text-shadow: none;
@@ -234,18 +238,18 @@
 
 .vd-calc-keys button.op:hover {
     box-shadow:
-        0 6px 20px rgba(242, 184, 75, 0.3),
+        0 6px 20px color-mix(in srgb, var(--calc-op) 30%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .vd-calc-keys button.fn {
     display: none;
     background:
-        linear-gradient(145deg, rgba(39, 199, 166, 0.28), rgba(39, 199, 166, 0.12));
+        linear-gradient(145deg, color-mix(in srgb, var(--calc-fn) 28%, transparent), color-mix(in srgb, var(--calc-fn) 12%, transparent));
     color: var(--vd-text);
     font-size: clamp(10px, 1.1vw, 13px);
     box-shadow:
-        0 2px 8px rgba(39, 199, 166, 0.15),
+        0 2px 8px color-mix(in srgb, var(--calc-fn) 15%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
     text-shadow: none;
@@ -253,7 +257,7 @@
 
 .vd-calc-keys button.fn:hover {
     box-shadow:
-        0 6px 20px rgba(39, 199, 166, 0.25),
+        0 6px 20px color-mix(in srgb, var(--calc-fn) 25%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
@@ -289,17 +293,17 @@
 
 .vd-calc-keys button.eq:hover {
     box-shadow:
-        0 8px 24px rgba(39, 199, 166, 0.45),
+        0 8px 24px color-mix(in srgb, var(--calc-glow) 45%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .vd-calc-keys button[data-key="C"],
 .vd-calc-keys button[data-key="CE"] {
     background:
-        linear-gradient(145deg, rgba(255, 128, 102, 0.35), rgba(255, 128, 102, 0.18));
+        linear-gradient(145deg, color-mix(in srgb, var(--calc-clear) 35%, transparent), color-mix(in srgb, var(--calc-clear) 18%, transparent));
     color: var(--vd-text);
     box-shadow:
-        0 2px 8px rgba(255, 128, 102, 0.2),
+        0 2px 8px color-mix(in srgb, var(--calc-clear) 20%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
     text-shadow: none;
@@ -308,7 +312,7 @@
 .vd-calc-keys button[data-key="C"]:hover,
 .vd-calc-keys button[data-key="CE"]:hover {
     box-shadow:
-        0 6px 20px rgba(255, 128, 102, 0.3),
+        0 6px 20px color-mix(in srgb, var(--calc-clear) 30%, transparent),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
@@ -360,8 +364,8 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(39, 199, 166, 0.5);
-    box-shadow: 0 0 6px rgba(39, 199, 166, 0.3);
+    background: color-mix(in srgb, var(--calc-glow) 50%, transparent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--calc-glow) 30%, transparent);
 }
 
 .vd-calc-history ol {
@@ -416,10 +420,10 @@
 }
 
 .vd-calc-base button.active {
-    border-color: rgba(242, 184, 75, 0.5);
-    background: rgba(242, 184, 75, 0.15);
+    border-color: color-mix(in srgb, var(--calc-op) 50%, transparent);
+    background: color-mix(in srgb, var(--calc-op) 15%, transparent);
     color: var(--vd-text);
-    box-shadow: 0 0 10px rgba(242, 184, 75, 0.1);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--calc-op) 10%, transparent);
 }
 
 .vd-calc-prog-display {

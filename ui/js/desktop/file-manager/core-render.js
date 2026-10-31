@@ -402,7 +402,7 @@
                     { type: 'separator' },
                     { id: 'rename', labelKey: 'desktop.fm.rename', icon: 'edit', shortcut: 'F2', disabled: readonly || selected.length !== 1, action: () => selectedFile && startRename(selectedFile.path) },
                     { id: 'restore', labelKey: 'desktop.fm.restore', icon: 'undo', disabled: readonly || !hasRestorableTrashSelection(), action: () => restoreSelected() },
-                    { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', disabled: readonly || !hasSelection, action: () => deleteSelected() },
+                    { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', danger: true, disabled: readonly || !hasSelection, action: () => deleteSelected() },
                     { type: 'separator' },
                     { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => selectAll() }
                 ]

@@ -277,6 +277,7 @@
                     fallback: contextIconGlyph(item.icon)
                 };
                 if (item.disabled) converted.disabled = true;
+                if (item.danger === true) converted.danger = true;
                 converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
                 if (item.items) {
                     converted.items = item.items.map(convertItem);
@@ -296,7 +297,7 @@
         menu.style.top = y + 'px';
         menu.innerHTML = items.map(item => {
             if (item.separator) return '<div class="fm-context-separator"></div>';
-            return `<button type="button" class="fm-context-item${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
+            return `<button type="button" class="fm-context-item${item.danger === true ? ' fm-context-item-danger' : ''}${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
                 ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', 14) : ''}
                 <span>${esc(item.label)}</span>
                 ${item.shortcut ? `<kbd class="fm-context-shortcut">${esc(item.shortcut)}</kbd>` : ''}

@@ -8322,6 +8322,12 @@
     cursor: not-allowed;
 }
 
+/* Destructive items (item.danger): extra specificity so skin hover colours do not repaint them. */
+.desktop-body .vd-context-menu .vd-context-item.vd-context-item-danger:not(:disabled),
+.desktop-body .vd-context-submenu-popover .vd-context-item.vd-context-item-danger:not(:disabled) {
+    color: light-dark(color-mix(in srgb, var(--ds-color-danger-fg, #e5484d) 50%, #000), var(--ds-color-danger-fg, #e5484d));
+}
+
 @keyframes vd-context-item-enter {
     from { opacity: 0; transform: translateX(-6px); }
     to { opacity: 1; transform: translateX(0); }
@@ -11866,6 +11872,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) { background: #000000; color: #ffffff; border-radius: 0; }
 .desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) :is(kbd, .vd-context-shortcut, .vd-context-arrow, .vd-context-icon, .vd-window-menu-arrow) { color: #ffffff; }
 .desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):disabled { color: #333333; opacity: 0.6; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-menu, .vd-context-submenu-popover) .vd-context-item.vd-context-item-danger:is(:hover, :focus-visible):not(:disabled) { color: #ffffff; }
 .desktop-body[data-theme="amiga"] .vd-window-menu-item.checked { color: #000000; }
 .desktop-body[data-theme="amiga"] :is(kbd, .vd-context-shortcut, .vd-window-menu-arrow) { color: #333333; }
 .desktop-body[data-theme="amiga"] :is(.vd-context-separator, .vd-window-menu-separator) { height: 0; margin: 3px 4px; border-top: 1px dotted #000000; background: none; opacity: 1; }

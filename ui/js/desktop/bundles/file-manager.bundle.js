@@ -407,7 +407,7 @@
                     { type: 'separator' },
                     { id: 'rename', labelKey: 'desktop.fm.rename', icon: 'edit', shortcut: 'F2', disabled: readonly || selected.length !== 1, action: () => selectedFile && startRename(selectedFile.path) },
                     { id: 'restore', labelKey: 'desktop.fm.restore', icon: 'undo', disabled: readonly || !hasRestorableTrashSelection(), action: () => restoreSelected() },
-                    { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', disabled: readonly || !hasSelection, action: () => deleteSelected() },
+                    { id: 'delete', labelKey: 'desktop.fm.delete', icon: 'trash', shortcut: 'Del', danger: true, disabled: readonly || !hasSelection, action: () => deleteSelected() },
                     { type: 'separator' },
                     { id: 'select-all', labelKey: 'desktop.fm.select_all', icon: 'check-square', shortcut: 'Ctrl+A', action: () => selectAll() }
                 ]
@@ -1292,6 +1292,7 @@
                     fallback: contextIconGlyph(item.icon)
                 };
                 if (item.disabled) converted.disabled = true;
+                if (item.danger === true) converted.danger = true;
                 converted.action = typeof item.handler === 'function' ? item.handler : (typeof item.action === 'function' ? item.action : () => {});
                 if (item.items) {
                     converted.items = item.items.map(convertItem);
@@ -1311,7 +1312,7 @@
         menu.style.top = y + 'px';
         menu.innerHTML = items.map(item => {
             if (item.separator) return '<div class="fm-context-separator"></div>';
-            return `<button type="button" class="fm-context-item${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
+            return `<button type="button" class="fm-context-item${item.danger === true ? ' fm-context-item-danger' : ''}${item.disabled ? ' disabled' : ''}" data-action="${esc(item.action || '')}">
                 ${item.icon ? iconMarkup(item.icon, item.icon, 'fm-context-icon', 14) : ''}
                 <span>${esc(item.label)}</span>
                 ${item.shortcut ? `<kbd class="fm-context-shortcut">${esc(item.shortcut)}</kbd>` : ''}
@@ -1959,7 +1960,7 @@
         if (hasRestorableTrashSelection()) {
             items.push({ label: t('desktop.fm.restore'), action: 'restore', icon: 'undo', handler: () => restoreSelected() });
         }
-        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() });
+        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', danger: true, handler: () => deleteSelected() });
         if (type === 'directory') {
             items.push(
                 { separator: true },
@@ -1982,7 +1983,7 @@
         const items = [];
         if (isTrashFolderPath(fm.currentPath)) {
             items.push(
-                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
+                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', danger: true, handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
                 { separator: true }
             );
         }

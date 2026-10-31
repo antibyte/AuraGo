@@ -514,7 +514,7 @@
         if (hasRestorableTrashSelection()) {
             items.push({ label: t('desktop.fm.restore'), action: 'restore', icon: 'undo', handler: () => restoreSelected() });
         }
-        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', handler: () => deleteSelected() });
+        items.push({ label: t('desktop.fm.delete'), action: 'delete', icon: 'trash', shortcut: 'Del', danger: true, handler: () => deleteSelected() });
         if (type === 'directory') {
             items.push(
                 { separator: true },
@@ -537,7 +537,7 @@
         const items = [];
         if (isTrashFolderPath(fm.currentPath)) {
             items.push(
-                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
+                { label: t('desktop.context_empty_trash'), action: 'empty-trash', icon: 'trash', danger: true, handler: () => { if (fm.callbacks && typeof fm.callbacks.emptyTrash === 'function') fm.callbacks.emptyTrash(); } },
                 { separator: true }
             );
         }

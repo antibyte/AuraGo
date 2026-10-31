@@ -653,6 +653,9 @@
 .fm-context-item:hover {
     background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
 }
+.fm-context-item.fm-context-item-danger {
+    color: light-dark(color-mix(in srgb, var(--ds-color-danger-fg, #e5484d) 50%, #000), var(--ds-color-danger-fg, #e5484d));
+}
 .fm-context-item.disabled {
     opacity: 0.4;
     cursor: default;
