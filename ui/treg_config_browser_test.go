@@ -8,6 +8,9 @@ import (
 	"testing"
 )
 
+// tregLanguageNeutralKeys are identical in every language (ISO currency codes).
+var tregLanguageNeutralKeys = map[string]bool{"config.treg.currency_usd": true}
+
 func TestTregTranslations(t *testing.T) {
 	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	var english map[string]string
@@ -25,7 +28,7 @@ func TestTregTranslations(t *testing.T) {
 			continue
 		}
 		for key, value := range english {
-			if translations[key] == "" || translations[key] == value {
+			if translations[key] == "" || (translations[key] == value && !tregLanguageNeutralKeys[key]) {
 				t.Errorf("%s missing translation for %s", locale, key)
 			}
 		}

@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Encryption of the connection. Disable sends everything in plain text, Require encrypts without checking the certificate, Verify CA checks the certificate authority, Verify Full also checks the server name (most secure).",
   "config.sql_connections.database_help": "Name of the database on the server the agent connects to.",
   "config.sql_connections.description_help": "Short note for the agent and for you about what the database is used for.",
-  "config.sql_connections.username_help": "Database user. Use an account with as few privileges as possible.",
-  "config.sql_connections.password_help": "Stored encrypted in the vault. Leave empty to keep the saved password."
+  "config.sql_connections.username_help": "Database user. Use an account with as few privileges as possible. Leave empty together with the password to keep the saved credentials.",
+  "config.sql_connections.password_help": "Stored encrypted in the vault. Leave user name and password empty to keep the saved credentials; a new user name needs the password too."
 }

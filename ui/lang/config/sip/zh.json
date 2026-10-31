@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "音频数据的结束 UDP 端口。该范围决定了可同时进行的通话数量（默认 30099）。",
   "config.sip.help.media_advertised_host": "音频流的公网地址。在 NAT 之后或 Docker 中需要；否则请留空。",
   "config.sip.help.media_symmetric_rtp": "将音频发回其来源地址。当对端报告了错误地址时，在 NAT 之后会有帮助。",
-  "config.sip.help.media_jitter_buffer_ms": "用于应对数据包延迟波动的缓冲（20-200 毫秒，默认 60）。越大越稳定，但会延迟通话。",
+  "config.sip.help.media_jitter_buffer_ms": "用于应对数据包延迟波动的缓冲（20-200 毫秒，默认 60）。越大越稳定，但会延迟通话。必须是 20 的倍数。",
   "config.sip.help.media_rtp_idle_timeout_seconds": "如果在这么长时间内没有音频到达，就结束通话（15-600 秒，默认 60）。",
   "config.sip.help.media_codecs": "支持的音频编解码器，按固定的优先顺序排列。此列表无法在此处更改。",
   "config.sip.help.browser_media_enabled": "允许通过浏览器的麦克风和扬声器通话。更改后需要重启。",

@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "फ़ॉलबैक एलएलएम",
   "config.section.firewall.desc": "इस होस्ट के Linux फ़ायरवॉल नियम (ufw या iptables) प्रबंधित करता है।",
   "config.section.firewall.label": "फ़ायरवॉल",
-  "config.section.fritzbox.desc": "आपके AVM राउटर का सिस्टम, Wi-Fi, स्मार्ट होम और टेलीफ़ोनी प्रबंधित करता है।",
+  "config.section.fritzbox.desc": "आपके Fritz!Box का सिस्टम, Wi-Fi, स्मार्ट होम और टेलीफ़ोनी प्रबंधित करता है।",
   "config.section.fritzbox.label": "फ़्रिट्ज़!बॉक्स",
   "config.section.github.desc": "एजेंट को GitHub रिपॉज़िटरी और इश्यू के साथ काम करने देता है।",
   "config.section.github.label": "गिटहब",

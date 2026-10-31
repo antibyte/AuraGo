@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Verschlüsselung der Verbindung. „Disable“ sendet alles unverschlüsselt, „Require“ verschlüsselt ohne Zertifikatsprüfung, „Verify CA“ prüft die Zertifizierungsstelle, „Verify Full“ prüft zusätzlich den Servernamen (am sichersten).",
   "config.sql_connections.database_help": "Name der Datenbank auf dem Server, auf die sich der Agent verbindet.",
   "config.sql_connections.description_help": "Kurze Notiz für den Agenten und für dich, wofür die Datenbank gedacht ist.",
-  "config.sql_connections.username_help": "Datenbankbenutzer. Verwende ein Konto mit möglichst wenigen Rechten.",
-  "config.sql_connections.password_help": "Wird verschlüsselt im Tresor gespeichert. Leer lassen, um das gespeicherte Passwort zu behalten."
+  "config.sql_connections.username_help": "Datenbankbenutzer. Verwende ein Konto mit möglichst wenigen Rechten. Zusammen mit dem Passwort leer lassen, um die gespeicherten Zugangsdaten zu behalten.",
+  "config.sql_connections.password_help": "Wird verschlüsselt im Tresor gespeichert. Benutzername und Passwort leer lassen, um die gespeicherten Zugangsdaten zu behalten; ein neuer Benutzername braucht auch das Passwort."
 }

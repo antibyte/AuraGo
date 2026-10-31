@@ -32,7 +32,7 @@
   "config.treg.balance": "Saldo",
   "config.treg.cost_invalid": "Indtast 0–1000000 USD med højst seks decimaler.",
   "config.treg.token_required": "Indtast et organisationsbundet token.",
-  "config.treg.currency_usd": "US$",
+  "config.treg.currency_usd": "USD",
   "config.treg.enabled_help": "Aktiverer treg-integrationen. Den lader agenten bruge betalte tjenester fra treg-kataloget, i det omfang du godkender dem nedenfor.",
   "config.treg.readonly_help": "Agenten må kun læse kataloget og saldoen og kan ikke udløse betalte kald.",
   "config.treg.search_help": "Søgeord til treg-kataloget (maks. 500 tegn). Ud fra resultaterne godkender du enkelte kald til agenten.",

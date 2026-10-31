@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "Laatste UDP-poort voor audiogegevens. Het bereik beperkt het aantal gelijktijdige gesprekken (standaard 30099).",
   "config.sip.help.media_advertised_host": "Publiek adres voor de audiostream. Nodig achter NAT of in Docker; laat anders leeg.",
   "config.sip.help.media_symmetric_rtp": "Stuurt audio terug naar het adres waarvan het binnenkomt. Helpt achter NAT als de andere kant verkeerde adressen meldt.",
-  "config.sip.help.media_jitter_buffer_ms": "Buffer tegen wisselende pakketvertraging (20-200 ms, standaard 60). Groter is stabieler maar vertraagt het gesprek.",
+  "config.sip.help.media_jitter_buffer_ms": "Buffer tegen wisselende pakketvertraging (20-200 ms, standaard 60). Groter is stabieler maar vertraagt het gesprek. Moet een veelvoud van 20 zijn.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Beëindigt een gesprek als er zo lang geen audio binnenkomt (15-600 seconden, standaard 60).",
   "config.sip.help.media_codecs": "Ondersteunde audiocodecs in een vaste voorkeursvolgorde. Deze lijst kan hier niet worden gewijzigd.",
   "config.sip.help.browser_media_enabled": "Staat gesprekken toe via de microfoon en luidsprekers van de browser. Na een wijziging is een herstart nodig.",

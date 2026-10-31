@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "Liste à laquelle un nœud est ajouté lorsque vous utilisez le bouton dans la liste des nœuds.",
   "config.meshcore.allow_location_disclosure_help": "L'agent peut partager sur le mesh le texte de localisation saisi ci-dessous. Ce texte est lisible par tous les destinataires.",
   "config.meshcore.proactive_send_help": "L'agent peut envoyer de lui-même des messages aux nœuds d'envoi, sans avoir été contacté au préalable.",
-  "config.meshcore.max_command_age_seconds_help": "Les commandes plus anciennes que cette durée sont ignorées (600-86400 secondes, 600 par défaut). Protège contre la relecture de messages.",
-  "config.meshcore.future_tolerance_seconds_help": "Jusqu'où dans le futur l'horodatage d'un message peut se situer (120-3600 secondes, 120 par défaut). Compense la dérive de l'horloge.",
-  "config.meshcore.retention_days_help": "Les messages reçus sont supprimés après cette durée (7-90 jours, 7 par défaut).",
-  "config.meshcore.max_messages_help": "Nombre maximal de messages stockés (1000-10000, 1000 par défaut). Les plus anciens sont supprimés en premier.",
-  "config.meshcore.peer_runs_per_minute_help": "Fréquence à laquelle l'agent peut réagir par nœud ou canal et par minute (2-60, 2 par défaut). Limite le spam venant d'expéditeurs isolés.",
-  "config.meshcore.runs_per_minute_help": "Fréquence à laquelle l'agent peut réagir aux messages mesh au total par minute (12-120, 12 par défaut)."
+  "config.meshcore.max_command_age_seconds_help": "Les commandes plus anciennes que cette durée sont ignorées (1-86400 secondes, 600 par défaut). Protège contre la relecture de messages.",
+  "config.meshcore.future_tolerance_seconds_help": "Jusqu'où dans le futur l'horodatage d'un message peut se situer (1-3600 secondes, 120 par défaut). Compense la dérive de l'horloge.",
+  "config.meshcore.retention_days_help": "Les messages reçus sont supprimés après cette durée (1-90 jours, 7 par défaut).",
+  "config.meshcore.max_messages_help": "Nombre maximal de messages stockés (1-10000, 1000 par défaut). Les plus anciens sont supprimés en premier.",
+  "config.meshcore.peer_runs_per_minute_help": "Fréquence à laquelle l'agent peut réagir par nœud ou canal et par minute (1-60, 2 par défaut). Limite le spam venant d'expéditeurs isolés.",
+  "config.meshcore.runs_per_minute_help": "Fréquence à laquelle l'agent peut réagir aux messages mesh au total par minute (1-120, 12 par défaut)."
 }

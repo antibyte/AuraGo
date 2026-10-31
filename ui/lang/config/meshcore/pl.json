@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "Lista, do której dodawany jest węzeł po użyciu przycisku na liście węzłów.",
   "config.meshcore.allow_location_disclosure_help": "Agent może udostępniać w sieci mesh wpisany poniżej tekst lokalizacji. Tekst jest czytelny dla każdego odbiorcy.",
   "config.meshcore.proactive_send_help": "Agent może samodzielnie wysyłać wiadomości do węzłów wysyłających, bez wcześniejszego kontaktu.",
-  "config.meshcore.max_command_age_seconds_help": "Polecenia starsze niż ta wartość są ignorowane (600-86400 sekund, domyślnie 600). Chroni przed powtórzonymi wiadomościami.",
-  "config.meshcore.future_tolerance_seconds_help": "Jak daleko w przyszłości może znajdować się znacznik czasu wiadomości (120-3600 sekund, domyślnie 120). Kompensuje dryf zegara.",
-  "config.meshcore.retention_days_help": "Odebrane wiadomości są usuwane po tym czasie (7-90 dni, domyślnie 7).",
-  "config.meshcore.max_messages_help": "Maksymalna liczba przechowywanych wiadomości (1000-10000, domyślnie 1000). Najstarsze są usuwane jako pierwsze.",
-  "config.meshcore.peer_runs_per_minute_help": "Jak często agent może reagować na węzeł lub kanał w ciągu minuty (2-60, domyślnie 2). Ogranicza spam od pojedynczych nadawców.",
-  "config.meshcore.runs_per_minute_help": "Jak często agent może łącznie reagować na wiadomości mesh w ciągu minuty (12-120, domyślnie 12)."
+  "config.meshcore.max_command_age_seconds_help": "Polecenia starsze niż ta wartość są ignorowane (1-86400 sekund, domyślnie 600). Chroni przed powtórzonymi wiadomościami.",
+  "config.meshcore.future_tolerance_seconds_help": "Jak daleko w przyszłości może znajdować się znacznik czasu wiadomości (1-3600 sekund, domyślnie 120). Kompensuje dryf zegara.",
+  "config.meshcore.retention_days_help": "Odebrane wiadomości są usuwane po tym czasie (1-90 dni, domyślnie 7).",
+  "config.meshcore.max_messages_help": "Maksymalna liczba przechowywanych wiadomości (1-10000, domyślnie 1000). Najstarsze są usuwane jako pierwsze.",
+  "config.meshcore.peer_runs_per_minute_help": "Jak często agent może reagować na węzeł lub kanał w ciągu minuty (1-60, domyślnie 2). Ogranicza spam od pojedynczych nadawców.",
+  "config.meshcore.runs_per_minute_help": "Jak często agent może łącznie reagować na wiadomości mesh w ciągu minuty (1-120, domyślnie 12)."
 }

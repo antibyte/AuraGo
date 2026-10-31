@@ -104,7 +104,7 @@
   "config.server.restart_address": "重启后请打开：",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "AuraGo 监听的网络地址。留空或 0.0.0.0 = 所有网络接口，127.0.0.1 = 仅本机。更改后需要重启。",
+  "config.server.host_hint": "AuraGo 监听的网络地址。留空或 127.0.0.1 = 仅本机；0.0.0.0 = 所有网络接口。环境变量 AURAGO_SERVER_HOST 会覆盖该设置。更改后需要重启。",
   "config.server.port_hint": "Web 界面和 API 的 TCP 端口（默认 8088）。更改后需要重启。",
   "config.server.ui_language_hint": "Web 界面和系统消息的语言。适用于此实例的所有用户。",
   "config.server.cert_mode_hint": "TLS 证书的来源：通过 Let's Encrypt 自动获取、使用您自己的文件，或使用用于本地测试的自签名证书。",

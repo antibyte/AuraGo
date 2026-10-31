@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "Last UDP port for audio data. The range limits the number of simultaneous calls (default 30099).",
   "config.sip.help.media_advertised_host": "Public address for the audio stream. Needed behind NAT or in Docker; otherwise leave empty.",
   "config.sip.help.media_symmetric_rtp": "Sends audio back to the address it arrives from. Helps behind NAT when the other side reports wrong addresses.",
-  "config.sip.help.media_jitter_buffer_ms": "Buffer against varying packet delay (20-200 ms, default 60). Larger is steadier but delays the conversation.",
+  "config.sip.help.media_jitter_buffer_ms": "Buffer against varying packet delay (20-200 ms, default 60). Larger is steadier but delays the conversation. Must be a multiple of 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Ends a call when no audio arrives for this long (15-600 seconds, default 60).",
   "config.sip.help.media_codecs": "Supported audio codecs in a fixed order of preference. This list cannot be changed here.",
   "config.sip.help.browser_media_enabled": "Allows calls through the microphone and speakers of the browser. A restart is needed after changing it.",

@@ -77,10 +77,10 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="sp-toggle-row">
         <span class="cfg-label">${t('config.security_proxy.rate_limit_enabled_label')}</span>
-        <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" role="switch" aria-checked="${!!rl.enabled}" aria-label="${escapeAttr(t('config.security_proxy.rate_limit_enabled_label'))}" onclick="toggleBool(this)"></div>
+        <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" role="switch" aria-describedby="sp-rate-limit-hint" aria-checked="${!!rl.enabled}" aria-label="${escapeAttr(t('config.security_proxy.rate_limit_enabled_label'))}" onclick="toggleBool(this)"></div>
     </div>`;
 
-    html += `<div class="field-help">${t('config.security_proxy.rate_limit_build_hint')}</div>`;
+    html += `<div class="field-help" id="sp-rate-limit-hint">${t('config.security_proxy.rate_limit_build_hint')}</div>`;
 
     html += `<div class="field-grid two-cols">
         <div class="field-group">
@@ -103,9 +103,9 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="sp-toggle-row">
         <span class="cfg-label">${t('config.security_proxy.ip_filter_enabled_label')}</span>
-        <div class="toggle ${ipf.enabled ? 'on' : ''}" data-path="security_proxy.ip_filter.enabled" role="switch" aria-checked="${!!ipf.enabled}" aria-label="${escapeAttr(t('config.security_proxy.ip_filter_enabled_label'))}" onclick="toggleBool(this)"></div>
+        <div class="toggle ${ipf.enabled ? 'on' : ''}" data-path="security_proxy.ip_filter.enabled" role="switch" aria-describedby="sp-ip-filter-help" aria-checked="${!!ipf.enabled}" aria-label="${escapeAttr(t('config.security_proxy.ip_filter_enabled_label'))}" onclick="toggleBool(this)"></div>
     </div>
-    <div class="field-help">${t('config.security_proxy.ip_filter_enabled_help')}</div>`;
+    <div class="field-help" id="sp-ip-filter-help">${t('config.security_proxy.ip_filter_enabled_help')}</div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.security_proxy.ip_filter_mode_label')}</div>

@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Criptografia da conexão. Disable envia tudo em texto simples, Require criptografa sem verificar o certificado, Verify CA verifica a autoridade certificadora, Verify Full verifica também o nome do servidor (mais seguro).",
   "config.sql_connections.database_help": "Nome do banco de dados no servidor ao qual o agente se conecta.",
   "config.sql_connections.description_help": "Breve nota para o agente e para você sobre para que o banco de dados é usado.",
-  "config.sql_connections.username_help": "Usuário do banco de dados. Use uma conta com o mínimo possível de privilégios.",
-  "config.sql_connections.password_help": "Armazenada criptografada no vault. Deixe vazio para manter a senha salva."
+  "config.sql_connections.username_help": "Usuário do banco de dados. Use uma conta com o mínimo possível de privilégios. Deixe vazio junto com a senha para manter as credenciais salvas.",
+  "config.sql_connections.password_help": "Armazenada criptografada no vault. Deixe nome de usuário e senha vazios para manter as credenciais salvas; um novo nome de usuário também precisa da senha."
 }

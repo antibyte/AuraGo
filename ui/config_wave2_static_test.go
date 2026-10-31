@@ -176,7 +176,9 @@ func TestConfigI18nParityAcrossLanguages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	folders["lang/help"] = true
+	for _, extra := range []string{"lang/help", "lang/ruview", "lang/common", "lang/action_policy"} {
+		folders[extra] = true
+	}
 	perLang := map[string]int{}
 	for folder := range folders {
 		enKeys := configFlattenLang(t, folder+"/en.json")
@@ -257,7 +259,8 @@ func TestConfigSectionDescriptionContract(t *testing.T) {
 			if strings.Contains(text, ";") {
 				problems = append(problems, "semicolon")
 			}
-			if strings.Contains(strings.TrimSuffix(text, "."), ". ") || strings.ContainsAny(text, "!?") {
+			sentenceText := strings.ReplaceAll(text, "Fritz!Box", "FritzBox") // "!" inside a product name is no sentence end
+			if strings.Contains(strings.TrimSuffix(sentenceText, "."), ". ") || strings.ContainsAny(sentenceText, "!?") {
 				problems = append(problems, "sentences")
 			}
 			for _, problem := range problems {

@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Kryptering av tilkoblingen. Disable sender alt i klartekst, Require krypterer uten å sjekke sertifikatet, Verify CA sjekker sertifikatutstederen, Verify Full sjekker også servernavnet (tryggest).",
   "config.sql_connections.database_help": "Navnet på databasen på serveren agenten kobler til.",
   "config.sql_connections.description_help": "Kort notat til agenten og deg om hva databasen brukes til.",
-  "config.sql_connections.username_help": "Databasebruker. Bruk en konto med færrest mulig rettigheter.",
-  "config.sql_connections.password_help": "Lagret kryptert i Vault. La stå tomt for å beholde det lagrede passordet."
+  "config.sql_connections.username_help": "Databasebruker. Bruk en konto med færrest mulig rettigheter. La stå tomt sammen med passordet for å beholde den lagrede påloggingen.",
+  "config.sql_connections.password_help": "Lagret kryptert i Vault. La brukernavn og passord stå tomme for å beholde den lagrede påloggingen; et nytt brukernavn krever også passordet."
 }

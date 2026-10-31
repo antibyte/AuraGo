@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Reserv LLM",
   "config.section.firewall.desc": "Hanterar Linux-brandväggens regler (ufw eller iptables) på den här värden.",
   "config.section.firewall.label": "Brandvägg",
-  "config.section.fritzbox.desc": "Hanterar system, Wi-Fi, smarta hem och telefoni i din AVM-router.",
+  "config.section.fritzbox.desc": "Hanterar system, Wi-Fi, smarta hem och telefoni i din Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Box",
   "config.section.github.desc": "Låter agenten arbeta med GitHub-repositorier och ärenden.",
   "config.section.github.label": "GitHub",

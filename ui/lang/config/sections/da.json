@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Fallback-LLM",
   "config.section.firewall.desc": "Administrerer Linux-firewallreglerne (ufw eller iptables) på denne vært.",
   "config.section.firewall.label": "Firewall",
-  "config.section.fritzbox.desc": "Administrerer system, Wi-Fi, smart home og telefoni på din AVM-router.",
+  "config.section.fritzbox.desc": "Administrerer system, Wi-Fi, smart home og telefoni på din Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Box-integration",
   "config.section.github.desc": "Lader agenten arbejde med GitHub-repositories og issues.",
   "config.section.github.label": "GitHub-integration",

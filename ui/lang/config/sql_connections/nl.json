@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Versleuteling van de verbinding. Disable verstuurt alles in platte tekst, Require versleutelt zonder het certificaat te controleren, Verify CA controleert de certificaatautoriteit, Verify Full controleert ook de servernaam (veiligst).",
   "config.sql_connections.database_help": "Naam van de database op de server waarmee de agent verbinding maakt.",
   "config.sql_connections.description_help": "Korte notitie voor de agent en voor jou over waarvoor de database wordt gebruikt.",
-  "config.sql_connections.username_help": "Databasegebruiker. Gebruik een account met zo min mogelijk rechten.",
-  "config.sql_connections.password_help": "Versleuteld opgeslagen in de Vault. Laat leeg om het opgeslagen wachtwoord te behouden."
+  "config.sql_connections.username_help": "Databasegebruiker. Gebruik een account met zo min mogelijk rechten. Laat leeg samen met het wachtwoord om de opgeslagen inloggegevens te behouden.",
+  "config.sql_connections.password_help": "Versleuteld opgeslagen in de Vault. Laat gebruikersnaam en wachtwoord leeg om de opgeslagen inloggegevens te behouden; een nieuwe gebruikersnaam heeft ook het wachtwoord nodig."
 }

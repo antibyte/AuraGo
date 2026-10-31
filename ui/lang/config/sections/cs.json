@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Záložní LLM",
   "config.section.firewall.desc": "Spravuje pravidla linuxové brány firewall (ufw nebo iptables) tohoto hostitele.",
   "config.section.firewall.label": "Brána firewall",
-  "config.section.fritzbox.desc": "Spravuje systém, Wi-Fi, chytrou domácnost a telefonii vašeho routeru AVM.",
+  "config.section.fritzbox.desc": "Spravuje systém, Wi-Fi, chytrou domácnost a telefonii vašeho zařízení Fritz!Box.",
   "config.section.fritzbox.label": "Fritz! Box",
   "config.section.github.desc": "Umožní agentovi pracovat s repozitáři a issues na GitHubu.",
   "config.section.github.label": "GitHub",

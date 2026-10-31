@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Kryptering av anslutningen. Disable skickar allt i klartext, Require krypterar utan att kontrollera certifikatet, Verify CA kontrollerar certifikatutfärdaren, Verify Full kontrollerar även servernamnet (säkrast).",
   "config.sql_connections.database_help": "Namn på databasen på servern som agenten ansluter till.",
   "config.sql_connections.description_help": "Kort anteckning till agenten och dig om vad databasen används till.",
-  "config.sql_connections.username_help": "Databasanvändare. Använd ett konto med så få behörigheter som möjligt.",
-  "config.sql_connections.password_help": "Lagras krypterat i vault. Lämna tomt för att behålla det sparade lösenordet."
+  "config.sql_connections.username_help": "Databasanvändare. Använd ett konto med så få behörigheter som möjligt. Lämna tomt tillsammans med lösenordet för att behålla de sparade inloggningsuppgifterna.",
+  "config.sql_connections.password_help": "Lagras krypterat i vault. Lämna användarnamn och lösenord tomma för att behålla de sparade inloggningsuppgifterna; ett nytt användarnamn kräver också lösenordet."
 }

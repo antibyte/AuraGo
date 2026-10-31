@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "使用节点列表中的按钮时，节点会被添加到的列表。",
   "config.meshcore.allow_location_disclosure_help": "代理可以在 mesh 上分享下方填写的位置文本。所有接收者都能读到该文本。",
   "config.meshcore.proactive_send_help": "代理可以主动向发送节点发送消息，而无需先被联系。",
-  "config.meshcore.max_command_age_seconds_help": "早于此时间的命令将被忽略（600-86400 秒，默认 600）。可防御重放的消息。",
-  "config.meshcore.future_tolerance_seconds_help": "消息时间戳最多可以超前多久（120-3600 秒，默认 120）。用于补偿时钟漂移。",
-  "config.meshcore.retention_days_help": "收到的消息在此时间后会被删除（7-90 天，默认 7）。",
-  "config.meshcore.max_messages_help": "存储消息的最大数量（1000-10000，默认 1000）。最旧的会优先被丢弃。",
-  "config.meshcore.peer_runs_per_minute_help": "代理每个节点或频道每分钟最多可响应多少次（2-60，默认 2）。用于限制单个发送者的垃圾消息。",
-  "config.meshcore.runs_per_minute_help": "代理每分钟最多可对 mesh 消息响应的总次数（12-120，默认 12）。"
+  "config.meshcore.max_command_age_seconds_help": "早于此时间的命令将被忽略（1-86400 秒，默认 600）。可防御重放的消息。",
+  "config.meshcore.future_tolerance_seconds_help": "消息时间戳最多可以超前多久（1-3600 秒，默认 120）。用于补偿时钟漂移。",
+  "config.meshcore.retention_days_help": "收到的消息在此时间后会被删除（1-90 天，默认 7）。",
+  "config.meshcore.max_messages_help": "存储消息的最大数量（1-10000，默认 1000）。最旧的会优先被丢弃。",
+  "config.meshcore.peer_runs_per_minute_help": "代理每个节点或频道每分钟最多可响应多少次（1-60，默认 2）。用于限制单个发送者的垃圾消息。",
+  "config.meshcore.runs_per_minute_help": "代理每分钟最多可对 mesh 消息响应的总次数（1-120，默认 12）。"
 }

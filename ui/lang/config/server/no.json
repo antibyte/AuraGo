@@ -104,7 +104,7 @@
   "config.server.restart_address": "Åpne etter omstart:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "Nettverksadressen AuraGo lytter på. Tom eller 0.0.0.0 = alle grensesnitt, 127.0.0.1 = bare denne maskinen. Omstart kreves etter endring.",
+  "config.server.host_hint": "Nettverksadressen AuraGo lytter på. Tom eller 127.0.0.1 = bare denne maskinen; 0.0.0.0 = alle grensesnitt. Miljøvariabelen AURAGO_SERVER_HOST overstyrer den. Omstart kreves etter endring.",
   "config.server.port_hint": "TCP-port for web-UI og API (standard 8088). Omstart kreves etter endring.",
   "config.server.ui_language_hint": "Språk for web-UI og systemmeldinger. Gjelder for alle brukere av denne instansen.",
   "config.server.cert_mode_hint": "Hvor TLS-sertifikatet kommer fra: automatisk via Let's Encrypt, dine egne filer eller et selvsignert sertifikat for lokal testing.",

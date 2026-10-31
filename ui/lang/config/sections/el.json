@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Εναλλακτικό LLM",
   "config.section.firewall.desc": "Διαχειρίζεται τους κανόνες τείχους προστασίας Linux (ufw ή iptables) αυτού του host.",
   "config.section.firewall.label": "Τείχος προστασίας",
-  "config.section.fritzbox.desc": "Διαχειρίζεται το σύστημα, το Wi-Fi, το έξυπνο σπίτι και την τηλεφωνία του δρομολογητή AVM σας.",
+  "config.section.fritzbox.desc": "Διαχειρίζεται το σύστημα, το Wi-Fi, το έξυπνο σπίτι και την τηλεφωνία της συσκευής Fritz!Box σας.",
   "config.section.fritzbox.label": "Fritz!Box",
   "config.section.github.desc": "Επιτρέπει στον πράκτορα να εργάζεται με αποθετήρια και issues του GitHub.",
   "config.section.github.label": "GitHub",

@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "LLM de Secours",
   "config.section.firewall.desc": "Gère les règles du pare-feu Linux (ufw ou iptables) de cet hôte.",
   "config.section.firewall.label": "Pare-feu",
-  "config.section.fritzbox.desc": "Gère le système, le Wi-Fi, la maison connectée et la téléphonie de votre routeur AVM.",
+  "config.section.fritzbox.desc": "Gère le système, le Wi-Fi, la maison connectée et la téléphonie de votre Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Boîte",
   "config.section.github.desc": "Permet à l'agent de travailler avec les dépôts et les tickets GitHub.",
   "config.section.github.label": "GitHub",

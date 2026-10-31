@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Chiffrement de la connexion. Désactiver envoie tout en clair, Exiger chiffre sans vérifier le certificat, Vérifier l'AC contrôle l'autorité de certification, Vérification complète contrôle aussi le nom du serveur (le plus sûr).",
   "config.sql_connections.database_help": "Nom de la base de données du serveur à laquelle l'agent se connecte.",
   "config.sql_connections.description_help": "Courte note pour l'agent et pour vous sur l'usage de la base de données.",
-  "config.sql_connections.username_help": "Utilisateur de la base de données. Utilisez un compte avec le moins de privilèges possible.",
-  "config.sql_connections.password_help": "Stocké chiffré dans le vault. Laissez vide pour conserver le mot de passe enregistré."
+  "config.sql_connections.username_help": "Utilisateur de la base de données. Utilisez un compte avec le moins de privilèges possible. Laissez vide avec le mot de passe pour conserver les identifiants enregistrés.",
+  "config.sql_connections.password_help": "Stocké chiffré dans le vault. Laissez le nom d'utilisateur et le mot de passe vides pour conserver les identifiants enregistrés ; un nouveau nom d'utilisateur exige aussi le mot de passe."
 }

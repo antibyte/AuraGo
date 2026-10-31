@@ -110,7 +110,7 @@
   "config.server.cert_status_sans": "Alternativní názvy subjektu (SAN)",
   "config.server.domain_hint": "Veřejný název domény, pro kterou je certifikát vydán. Musí odkazovat na tento server.",
   "config.server.email_hint": "Kontaktní adresa pro Let's Encrypt, například pro upozornění na vypršení platnosti. Odesílá se pouze certifikační autoritě.",
-  "config.server.host_hint": "Síťová adresa, na které AuraGo naslouchá. Prázdné nebo 0.0.0.0 = všechna rozhraní, 127.0.0.1 = pouze tento počítač. Po změně je nutný restart.",
+  "config.server.host_hint": "Síťová adresa, na které AuraGo naslouchá. Prázdné nebo 127.0.0.1 = pouze tento počítač; 0.0.0.0 = všechna rozhraní. Přepíše ji proměnná prostředí AURAGO_SERVER_HOST. Po změně je nutný restart.",
   "config.server.https_port_hint": "Port pro šifrovaná spojení (výchozí 443). Porty pod 1024 vyžadují na Linuxu práva roota nebo odpovídající capability.",
   "config.server.key_file_hint": "Cesta k soukromému klíči ve formátu PEM. Soubor by měl být čitelný pouze pro účet AuraGo.",
   "config.server.port_hint": "Port TCP webového rozhraní a API (výchozí 8088). Po změně je nutný restart.",

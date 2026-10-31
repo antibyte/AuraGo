@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "接続の暗号化方式です。Disable はすべて平文で送信し、Require は証明書を検証せずに暗号化し、Verify CA は認証局を検証し、Verify Full はサーバー名も検証します (最も安全)。",
   "config.sql_connections.database_help": "エージェントが接続する、サーバー上のデータベース名です。",
   "config.sql_connections.description_help": "データベースの用途を示す、エージェントとあなた向けの短いメモです。",
-  "config.sql_connections.username_help": "データベースのユーザーです。可能な限り権限の少ないアカウントを使用してください。",
-  "config.sql_connections.password_help": "vault に暗号化して保存されます。保存済みのパスワードを維持するには空欄のままにします。"
+  "config.sql_connections.username_help": "データベースのユーザーです。可能な限り権限の少ないアカウントを使用してください。保存済みの認証情報を維持するには、パスワードと一緒に空欄のままにします。",
+  "config.sql_connections.password_help": "vault に暗号化して保存されます。保存済みの認証情報を維持するには、ユーザー名とパスワードの両方を空欄のままにします。新しいユーザー名にはパスワードも必要です。"
 }

@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "Sista UDP-port för ljuddata. Intervallet begränsar antalet samtidiga samtal (standard 30099).",
   "config.sip.help.media_advertised_host": "Offentlig adress för ljudströmmen. Behövs bakom NAT eller i Docker; lämna annars tomt.",
   "config.sip.help.media_symmetric_rtp": "Skickar tillbaka ljudet till den adress det kommer ifrån. Hjälper bakom NAT när andra sidan anger fel adresser.",
-  "config.sip.help.media_jitter_buffer_ms": "Buffert mot varierande paketfördröjning (20-200 ms, standard 60). Större ger stabilare ljud men fördröjer samtalet.",
+  "config.sip.help.media_jitter_buffer_ms": "Buffert mot varierande paketfördröjning (20-200 ms, standard 60). Större ger stabilare ljud men fördröjer samtalet. Måste vara en multipel av 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Avslutar ett samtal när inget ljud kommer in under så här lång tid (15-600 sekunder, standard 60).",
   "config.sip.help.media_codecs": "Stödda ljudkodekar i en fast prioritetsordning. Den här listan kan inte ändras här.",
   "config.sip.help.browser_media_enabled": "Tillåter samtal via webbläsarens mikrofon och högtalare. En omstart krävs efter ändring.",

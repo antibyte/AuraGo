@@ -104,7 +104,7 @@
   "config.server.restart_address": "Open na het herstarten:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "Netwerkadres waarop AuraGo luistert. Leeg of 0.0.0.0 = alle interfaces, 127.0.0.1 = alleen deze machine. Na een wijziging is een herstart nodig.",
+  "config.server.host_hint": "Netwerkadres waarop AuraGo luistert. Leeg of 127.0.0.1 = alleen deze machine; 0.0.0.0 = alle interfaces. De omgevingsvariabele AURAGO_SERVER_HOST overschrijft dit. Na een wijziging is een herstart nodig.",
   "config.server.port_hint": "TCP-poort van de web-UI en API (standaard 8088). Na een wijziging is een herstart nodig.",
   "config.server.ui_language_hint": "Taal van de web-UI en systeemberichten. Geldt voor elke gebruiker van deze instantie.",
   "config.server.cert_mode_hint": "Waar het TLS-certificaat vandaan komt: automatisch via Let's Encrypt, je eigen bestanden of een zelfondertekend certificaat voor lokaal testen.",

@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "Siste UDP-port for lyddata. Området begrenser antall samtidige samtaler (standard 30099).",
   "config.sip.help.media_advertised_host": "Offentlig adresse for lydstrømmen. Trengs bak NAT eller i Docker; ellers la stå tomt.",
   "config.sip.help.media_symmetric_rtp": "Sender lyd tilbake til adressen den kommer fra. Hjelper bak NAT når den andre siden oppgir feil adresser.",
-  "config.sip.help.media_jitter_buffer_ms": "Buffer mot varierende pakkeforsinkelse (20-200 ms, standard 60). Større er jevnere, men forsinker samtalen.",
+  "config.sip.help.media_jitter_buffer_ms": "Buffer mot varierende pakkeforsinkelse (20-200 ms, standard 60). Større er jevnere, men forsinker samtalen. Må være et multiplum av 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Avslutter en samtale hvis det ikke kommer lyd på så lenge (15-600 sekunder, standard 60).",
   "config.sip.help.media_codecs": "Støttede lydkodeker i en fast prioritert rekkefølge. Denne listen kan ikke endres her.",
   "config.sip.help.browser_media_enabled": "Tillater samtaler via mikrofonen og høyttalerne i nettleseren. Omstart kreves etter endring.",

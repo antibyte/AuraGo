@@ -104,7 +104,7 @@
   "config.server.restart_address": "दोबारा शुरू होने के बाद खोलें:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "वह नेटवर्क पता जिस पर AuraGo सुनता है। खाली या 0.0.0.0 = सभी इंटरफ़ेस, 127.0.0.1 = केवल यही मशीन। बदलने के बाद पुनः आरंभ आवश्यक है।",
+  "config.server.host_hint": "वह नेटवर्क पता जिस पर AuraGo सुनता है। खाली या 127.0.0.1 = केवल यही मशीन; 0.0.0.0 = सभी इंटरफ़ेस। पर्यावरण चर AURAGO_SERVER_HOST इसे अधिलेखित कर देता है। बदलने के बाद पुनः आरंभ आवश्यक है।",
   "config.server.port_hint": "वेब UI और API का TCP पोर्ट (डिफ़ॉल्ट 8088)। बदलने के बाद पुनः आरंभ आवश्यक है।",
   "config.server.ui_language_hint": "वेब UI और सिस्टम संदेशों की भाषा। यह इस इंस्टेंस के सभी उपयोगकर्ताओं पर लागू होती है।",
   "config.server.cert_mode_hint": "TLS प्रमाणपत्र कहाँ से आता है: Let's Encrypt के ज़रिए स्वचालित, आपकी अपनी फ़ाइलें, या स्थानीय परीक्षण के लिए स्व-हस्ताक्षरित प्रमाणपत्र।",

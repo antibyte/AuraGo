@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "ノード一覧のボタンを使ったときに、ノードが追加される一覧です。",
   "config.meshcore.allow_location_disclosure_help": "エージェントは、下に入力した位置情報のテキストをメッシュ上で共有できます。このテキストはすべての受信者が読めます。",
   "config.meshcore.proactive_send_help": "エージェントは、事前に連絡を受けていなくても、自分から送信ノードへメッセージを送れます。",
-  "config.meshcore.max_command_age_seconds_help": "これより古いコマンドは無視されます (600-86400 秒、デフォルト 600)。メッセージの再送攻撃を防ぎます。",
-  "config.meshcore.future_tolerance_seconds_help": "メッセージのタイムスタンプが未来にどこまでずれていてもよいか (120-3600 秒、デフォルト 120) です。時計のずれを補正します。",
-  "config.meshcore.retention_days_help": "受信したメッセージは、この期間が過ぎると削除されます (7-90 日、デフォルト 7)。",
-  "config.meshcore.max_messages_help": "保存するメッセージの最大数です (1000-10000、デフォルト 1000)。古いものから順に破棄されます。",
-  "config.meshcore.peer_runs_per_minute_help": "エージェントがノードまたはチャンネルごとに 1 分間に反応できる回数です (2-60、デフォルト 2)。特定の送信者からのスパムを抑えます。",
-  "config.meshcore.runs_per_minute_help": "エージェントがメッシュメッセージ全体に対して 1 分間に反応できる合計回数です (12-120、デフォルト 12)。"
+  "config.meshcore.max_command_age_seconds_help": "これより古いコマンドは無視されます (1-86400 秒、デフォルト 600)。メッセージの再送攻撃を防ぎます。",
+  "config.meshcore.future_tolerance_seconds_help": "メッセージのタイムスタンプが未来にどこまでずれていてもよいか (1-3600 秒、デフォルト 120) です。時計のずれを補正します。",
+  "config.meshcore.retention_days_help": "受信したメッセージは、この期間が過ぎると削除されます (1-90 日、デフォルト 7)。",
+  "config.meshcore.max_messages_help": "保存するメッセージの最大数です (1-10000、デフォルト 1000)。古いものから順に破棄されます。",
+  "config.meshcore.peer_runs_per_minute_help": "エージェントがノードまたはチャンネルごとに 1 分間に反応できる回数です (1-60、デフォルト 2)。特定の送信者からのスパムを抑えます。",
+  "config.meshcore.runs_per_minute_help": "エージェントがメッシュメッセージ全体に対して 1 分間に反応できる合計回数です (1-120、デフォルト 12)。"
 }

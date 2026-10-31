@@ -13,12 +13,6 @@ const CFG_OPTION_OTHER_CUSTOM = 'Other / Custom';
 function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-/** t() with an explicit fallback: t() returns the key itself (or '') when a translation is missing. */
-function tOr(key, fallback) {
-    const value = t(key);
-    return (typeof value === 'string' && value.trim() !== '' && value !== key) ? value : fallback;
-}
-
 function formatKey(key) {
     return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }

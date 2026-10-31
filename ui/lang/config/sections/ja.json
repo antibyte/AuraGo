@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "フォールバック LLM",
   "config.section.firewall.desc": "このホストの Linux ファイアウォールルール (ufw または iptables) を管理します。",
   "config.section.firewall.label": "ファイアウォール",
-  "config.section.fritzbox.desc": "AVM ルーターのシステム、Wi-Fi、スマートホーム、電話機能を管理します。",
+  "config.section.fritzbox.desc": "Fritz!Box のシステム、Wi-Fi、スマートホーム、電話機能を管理します。",
   "config.section.fritzbox.label": "フリッツ!ボックス",
   "config.section.github.desc": "エージェントが GitHub のリポジトリと Issue を扱えるようにします。",
   "config.section.github.label": "GitHub",

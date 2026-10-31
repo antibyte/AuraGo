@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Fallback-LLM",
   "config.section.firewall.desc": "Beheert de Linux-firewallregels (ufw of iptables) van deze host.",
   "config.section.firewall.label": "Firewall",
-  "config.section.fritzbox.desc": "Beheert systeem, wifi, smarthome en telefonie van je AVM-router.",
+  "config.section.fritzbox.desc": "Beheert systeem, wifi, smarthome en telefonie van je Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Box-integratie",
   "config.section.github.desc": "Laat de agent met GitHub-repositories en issues werken.",
   "config.section.github.label": "GitHub-integratie",

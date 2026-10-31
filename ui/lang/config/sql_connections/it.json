@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Cifratura della connessione. Disable invia tutto in chiaro, Require cifra senza verificare il certificato, Verify CA controlla l'autorità di certificazione, Verify Full controlla anche il nome del server (la più sicura).",
   "config.sql_connections.database_help": "Nome del database sul server a cui si connette l'agente.",
   "config.sql_connections.description_help": "Breve nota per l'agente e per te su come viene usato il database.",
-  "config.sql_connections.username_help": "Utente del database. Usa un account con il minor numero possibile di privilegi.",
-  "config.sql_connections.password_help": "Memorizzata cifrata nel vault. Lascia vuoto per mantenere la password salvata."
+  "config.sql_connections.username_help": "Utente del database. Usa un account con il minor numero possibile di privilegi. Lascia vuoto insieme alla password per mantenere le credenziali salvate.",
+  "config.sql_connections.password_help": "Memorizzata cifrata nel vault. Lascia vuoti nome utente e password per mantenere le credenziali salvate; un nuovo nome utente richiede anche la password."
 }

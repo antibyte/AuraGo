@@ -97,7 +97,7 @@
   "config.sip.help.inbound_ring_timeout_seconds": "Cuánto suena una llamada entrante antes de rechazarse (15-300 segundos, por defecto 90).",
   "config.sip.help.media_advertised_host": "Dirección pública para el flujo de audio. Necesaria tras NAT o en Docker; si no, déjala vacía.",
   "config.sip.help.media_codecs": "Códecs de audio admitidos en un orden de preferencia fijo. Esta lista no se puede cambiar aquí.",
-  "config.sip.help.media_jitter_buffer_ms": "Búfer contra el retraso variable de los paquetes (20-200 ms, por defecto 60). Más grande es más estable pero retrasa la conversación.",
+  "config.sip.help.media_jitter_buffer_ms": "Búfer contra el retraso variable de los paquetes (20-200 ms, por defecto 60). Más grande es más estable pero retrasa la conversación. Debe ser múltiplo de 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Termina una llamada cuando no llega audio durante este tiempo (15-600 segundos, por defecto 60).",
   "config.sip.help.media_rtp_port_end": "Último puerto UDP para los datos de audio. El rango limita el número de llamadas simultáneas (por defecto 30099).",
   "config.sip.help.media_rtp_port_start": "Primer puerto UDP para los datos de audio (RTP). Debe ser par y menor que el puerto final (por defecto 30000).",

@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Fallback-LLM",
   "config.section.firewall.desc": "Verwaltet die Linux-Firewall-Regeln (ufw oder iptables) dieses Hosts.",
   "config.section.firewall.label": "Firewall",
-  "config.section.fritzbox.desc": "Verwaltet System, WLAN, Smart Home und Telefonie deines AVM-Routers.",
+  "config.section.fritzbox.desc": "Verwaltet System, WLAN, Smart Home und Telefonie deiner Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Box",
   "config.section.github.desc": "Lässt den Agenten mit GitHub-Repositories und Issues arbeiten.",
   "config.section.github.label": "GitHub",

@@ -57,23 +57,23 @@ async function renderServerSection(section) {
 
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.server.preview_title')}</div>
-        <div class="field-help">${t('config.server.preview_hint')}</div>
+        <div class="field-help" id="server-preview-hint">${t('config.server.preview_hint')}</div>
         <label class="field-label" for="server-preview-domain">${t('config.server.preview_domain')}</label>
-        <input id="server-preview-domain" type="text" class="field-input" data-path="server.preview_domain" value="${escapeAttr(cfg.preview_domain || '')}" placeholder="apps.example.net">
+        <input id="server-preview-domain" type="text" class="field-input" aria-describedby="server-preview-hint" data-path="server.preview_domain" value="${escapeAttr(cfg.preview_domain || '')}" placeholder="apps.example.net">
         <div class="cfg-toggle-row">
             <span class="cfg-toggle-label">${t('config.server.preview_enabled')}</span>
-            <div class="toggle ${cfg.preview_enabled ? 'on' : ''}" data-path="server.preview_enabled" role="switch" aria-checked="${cfg.preview_enabled ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.preview_enabled'))}" onclick="toggleBool(this)"></div>
+            <div class="toggle ${cfg.preview_enabled ? 'on' : ''}" data-path="server.preview_enabled" role="switch" aria-describedby="server-preview-hint" aria-checked="${cfg.preview_enabled ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.preview_enabled'))}" onclick="toggleBool(this)"></div>
         </div>
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-group-title">🔒 ${t('config.server.https_title')}</div>
-        <div class="field-group-desc">${t('config.server.https_desc')}</div>`;
+        <div class="field-group-desc" id="server-https-desc">${t('config.server.https_desc')}</div>`;
 
     const httpsEnabled = https.enabled === true;
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
-        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
+        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-describedby="server-https-desc" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
     </div>`;
 
     if (httpsEnabled) {
@@ -197,9 +197,9 @@ async function renderServerSection(section) {
 
     html += `<div class="cfg-toggle-row">
         <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
-        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" role="switch" aria-checked="${https.behind_proxy ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.behind_proxy_label'))}" onclick="toggleBool(this)"></div>
+        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" role="switch" aria-describedby="server-behind-proxy-hint" aria-checked="${https.behind_proxy ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.behind_proxy_label'))}" onclick="toggleBool(this)"></div>
     </div>
-    <div class="field-help">${t('config.server.behind_proxy_hint')}</div>
+    <div class="field-help" id="server-behind-proxy-hint">${t('config.server.behind_proxy_hint')}</div>
     <div class="field-group">
         <div class="field-label">${t('config.server.trusted_proxy_cidrs_label')}</div>
         <div class="field-help">${t('config.server.trusted_proxy_cidrs_hint')}</div>

@@ -7,8 +7,8 @@ const ui = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(ui, 'cfg/daemon_skills.js'), 'utf8');
 const translate = fs.readFileSync(path.join(ui, 'js/shared/shared-core.js'), 'utf8')
     .match(/function t\(k, p\) \{[\s\S]*?\r?\n\}/)[0];
-const tOr = fs.readFileSync(path.join(ui, 'js/config/utils.js'), 'utf8')
-    .match(/function tOr\(key, fallback\) \{[\s\S]*?\r?\n\}/)[0];
+const tOr = fs.readFileSync(path.join(ui, 'js/shared/shared-core.js'), 'utf8')
+    .match(/function tOr\(k, fallback, p\) \{[\s\S]*?\r?\n\}/)[0];
 
 async function main() {
     for (const locale of fs.readdirSync(path.join(ui, 'lang/config/daemon_skills'))) {

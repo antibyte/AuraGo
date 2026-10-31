@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "Lijst waaraan een node wordt toegevoegd als je de knop in de nodelijst gebruikt.",
   "config.meshcore.allow_location_disclosure_help": "De agent mag de hieronder ingevoerde locatietekst op het mesh delen. De tekst is leesbaar voor elke ontvanger.",
   "config.meshcore.proactive_send_help": "De agent mag uit zichzelf berichten naar de zendnodes sturen, zonder eerst te zijn benaderd.",
-  "config.meshcore.max_command_age_seconds_help": "Opdrachten die ouder zijn dan dit worden genegeerd (600-86400 seconden, standaard 600). Beschermt tegen herhaalde berichten.",
-  "config.meshcore.future_tolerance_seconds_help": "Hoever in de toekomst de tijdstempel van een bericht mag liggen (120-3600 seconden, standaard 120). Compenseert klokafwijking.",
-  "config.meshcore.retention_days_help": "Ontvangen berichten worden na deze tijd verwijderd (7-90 dagen, standaard 7).",
-  "config.meshcore.max_messages_help": "Maximaal aantal opgeslagen berichten (1000-10000, standaard 1000). Oudere worden als eerste verwijderd.",
-  "config.meshcore.peer_runs_per_minute_help": "Hoe vaak de agent per node of kanaal en minuut mag reageren (2-60, standaard 2). Beperkt spam van afzonderlijke afzenders.",
-  "config.meshcore.runs_per_minute_help": "Hoe vaak de agent in totaal per minuut mag reageren op mesh-berichten (12-120, standaard 12)."
+  "config.meshcore.max_command_age_seconds_help": "Opdrachten die ouder zijn dan dit worden genegeerd (1-86400 seconden, standaard 600). Beschermt tegen herhaalde berichten.",
+  "config.meshcore.future_tolerance_seconds_help": "Hoever in de toekomst de tijdstempel van een bericht mag liggen (1-3600 seconden, standaard 120). Compenseert klokafwijking.",
+  "config.meshcore.retention_days_help": "Ontvangen berichten worden na deze tijd verwijderd (1-90 dagen, standaard 7).",
+  "config.meshcore.max_messages_help": "Maximaal aantal opgeslagen berichten (1-10000, standaard 1000). Oudere worden als eerste verwijderd.",
+  "config.meshcore.peer_runs_per_minute_help": "Hoe vaak de agent per node of kanaal en minuut mag reageren (1-60, standaard 2). Beperkt spam van afzonderlijke afzenders.",
+  "config.meshcore.runs_per_minute_help": "Hoe vaak de agent in totaal per minuut mag reageren op mesh-berichten (1-120, standaard 12)."
 }

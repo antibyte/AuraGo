@@ -76,8 +76,8 @@
   "config.sql_connections.filter_label": "Filtrer forbindelser",
   "config.sql_connections.host_help": "Værtsnavn eller IP-adresse på databaseserveren. Tom = localhost.",
   "config.sql_connections.name_help": "Entydigt navn, som agenten bruger om denne forbindelse.",
-  "config.sql_connections.password_help": "Gemt krypteret i vault. Lad feltet stå tomt for at beholde den gemte adgangskode.",
+  "config.sql_connections.password_help": "Gemt krypteret i vault. Lad brugernavn og adgangskode stå tomme for at beholde de gemte legitimationsoplysninger; et nyt brugernavn kræver også adgangskoden.",
   "config.sql_connections.port_help": "Lad stå tomt for databasetypens standardport (PostgreSQL 5432, MySQL 3306).",
   "config.sql_connections.ssl_mode_help": "Kryptering af forbindelsen. Disable sender alt i klartekst, Require krypterer uden at kontrollere certifikatet, Verify CA kontrollerer certifikatudstederen, Verify Full kontrollerer også servernavnet (mest sikkert).",
-  "config.sql_connections.username_help": "Databasebruger. Brug en konto med så få rettigheder som muligt."
+  "config.sql_connections.username_help": "Databasebruger. Brug en konto med så få rettigheder som muligt. Lad feltet stå tomt sammen med adgangskoden for at beholde de gemte legitimationsoplysninger."
 }

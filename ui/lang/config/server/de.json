@@ -104,7 +104,7 @@
   "config.server.restart_address": "Öffne nach dem Neustart:",
   "config.server.confirm_regen_title": "Selbstsigniertes Zertifikat neu erzeugen?",
   "config.server.confirm_regen_message": "Das aktuelle Zertifikat wird durch ein neues ersetzt. Browser und Clients, die dem alten Zertifikat vertraut haben, zeigen erneut eine Sicherheitswarnung, bis sie das neue akzeptieren, und offene HTTPS-Verbindungen können unterbrochen werden.",
-  "config.server.host_hint": "Netzwerkadresse, auf der AuraGo lauscht. Leer oder 0.0.0.0 = alle Schnittstellen, 127.0.0.1 = nur dieser Rechner. Nach einer Änderung ist ein Neustart nötig.",
+  "config.server.host_hint": "Netzwerkadresse, auf der AuraGo lauscht. Leer oder 127.0.0.1 = nur dieser Rechner; 0.0.0.0 = alle Schnittstellen. Die Umgebungsvariable AURAGO_SERVER_HOST überschreibt sie. Nach einer Änderung ist ein Neustart nötig.",
   "config.server.port_hint": "TCP-Port der Weboberfläche und API (Standard 8088). Nach einer Änderung ist ein Neustart nötig.",
   "config.server.ui_language_hint": "Sprache der Weboberfläche und der Systemmeldungen. Gilt für alle Benutzer dieser Instanz.",
   "config.server.cert_mode_hint": "Woher das TLS-Zertifikat kommt: automatisch per Let's Encrypt, eigene Dateien oder ein selbst signiertes Zertifikat für lokale Tests.",

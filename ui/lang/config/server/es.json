@@ -110,7 +110,7 @@
   "config.server.cert_status_sans": "Nombres alternativos del sujeto (SAN)",
   "config.server.domain_hint": "Nombre de dominio público para el que se emite el certificado. Debe apuntar a este servidor.",
   "config.server.email_hint": "Dirección de contacto para Let's Encrypt, por ejemplo para avisos de caducidad. Solo se envía a la autoridad de certificación.",
-  "config.server.host_hint": "Dirección de red en la que escucha AuraGo. Vacío o 0.0.0.0 = todas las interfaces, 127.0.0.1 = solo esta máquina. Tras cambiarla hace falta reiniciar.",
+  "config.server.host_hint": "Dirección de red en la que escucha AuraGo. Vacío o 127.0.0.1 = solo esta máquina; 0.0.0.0 = todas las interfaces. La variable de entorno AURAGO_SERVER_HOST la sustituye. Tras cambiarla hace falta reiniciar.",
   "config.server.https_port_hint": "Puerto para conexiones cifradas (por defecto 443). Los puertos por debajo de 1024 requieren permisos de root o una capability adecuada en Linux.",
   "config.server.key_file_hint": "Ruta de la clave privada en formato PEM. El archivo solo debería ser legible por la cuenta de AuraGo.",
   "config.server.port_hint": "Puerto TCP de la interfaz web y la API (por defecto 8088). Tras cambiarlo hace falta reiniciar.",

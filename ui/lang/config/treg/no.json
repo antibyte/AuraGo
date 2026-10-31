@@ -32,7 +32,7 @@
   "config.treg.balance": "Saldo",
   "config.treg.cost_invalid": "Skriv inn 0–1000000 USD med høyst seks desimaler.",
   "config.treg.token_required": "Skriv inn et organisasjonsbundet token.",
-  "config.treg.currency_usd": "US-dollar",
+  "config.treg.currency_usd": "USD",
   "config.treg.enabled_help": "Slår på treg-integrasjonen. Den lar agenten bruke betalte tjenester fra treg-katalogen, så langt du godkjenner dem nedenfor.",
   "config.treg.readonly_help": "Agenten kan bare lese katalogen og saldoen og kan ikke utløse betalte kall.",
   "config.treg.token_help": "Organisasjonstoken for treg-kontoen din. Det lagres kryptert i Vault.",

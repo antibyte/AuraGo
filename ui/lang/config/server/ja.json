@@ -104,7 +104,7 @@
   "config.server.restart_address": "再起動後に開くアドレス：",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "AuraGo が待ち受けるネットワークアドレスです。空欄または 0.0.0.0 = すべてのインターフェース、127.0.0.1 = このマシンのみ。変更後は再起動が必要です。",
+  "config.server.host_hint": "AuraGo が待ち受けるネットワークアドレスです。空欄または 127.0.0.1 = このマシンのみ、0.0.0.0 = すべてのインターフェース。環境変数 AURAGO_SERVER_HOST が設定されている場合はそちらが優先されます。変更後は再起動が必要です。",
   "config.server.port_hint": "Web UI と API の TCP ポートです (デフォルト 8088)。変更後は再起動が必要です。",
   "config.server.ui_language_hint": "Web UI とシステムメッセージの言語です。このインスタンスのすべてのユーザーに適用されます。",
   "config.server.cert_mode_hint": "TLS 証明書の入手元です。Let's Encrypt による自動取得、独自のファイル、またはローカルテスト用の自己署名証明書から選べます。",

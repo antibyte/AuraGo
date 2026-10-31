@@ -76,8 +76,8 @@
   "config.sql_connections.filter_label": "Filtrar conexiones",
   "config.sql_connections.host_help": "Nombre de host o dirección IP del servidor de base de datos. Vacío = localhost.",
   "config.sql_connections.name_help": "Nombre único con el que el agente se refiere a esta conexión.",
-  "config.sql_connections.password_help": "Se guarda cifrada en el vault. Déjalo vacío para conservar la contraseña guardada.",
+  "config.sql_connections.password_help": "Se guarda cifrada en el vault. Deja vacíos el nombre de usuario y la contraseña para conservar las credenciales guardadas; un nombre de usuario nuevo también necesita la contraseña.",
   "config.sql_connections.port_help": "Déjalo vacío para usar el puerto por defecto del tipo de base de datos (PostgreSQL 5432, MySQL 3306).",
   "config.sql_connections.ssl_mode_help": "Cifrado de la conexión. Disable lo envía todo en texto plano, Require cifra sin comprobar el certificado, Verify CA comprueba la autoridad de certificación y Verify Full comprueba además el nombre del servidor (lo más seguro).",
-  "config.sql_connections.username_help": "Usuario de la base de datos. Usa una cuenta con los mínimos privilegios posibles."
+  "config.sql_connections.username_help": "Usuario de la base de datos. Usa una cuenta con los mínimos privilegios posibles. Déjalo vacío junto con la contraseña para conservar las credenciales guardadas."
 }

@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "Ostatni port UDP dla danych audio. Zakres ogranicza liczbę jednoczesnych rozmów (domyślnie 30099).",
   "config.sip.help.media_advertised_host": "Publiczny adres strumienia audio. Potrzebny za NAT lub w Dockerze; w przeciwnym razie pozostaw puste.",
   "config.sip.help.media_symmetric_rtp": "Odsyła dźwięk na adres, z którego nadchodzi. Pomaga za NAT, gdy druga strona zgłasza błędne adresy.",
-  "config.sip.help.media_jitter_buffer_ms": "Bufor przeciw zmiennemu opóźnieniu pakietów (20-200 ms, domyślnie 60). Większy jest stabilniejszy, ale opóźnia rozmowę.",
+  "config.sip.help.media_jitter_buffer_ms": "Bufor przeciw zmiennemu opóźnieniu pakietów (20-200 ms, domyślnie 60). Większy jest stabilniejszy, ale opóźnia rozmowę. Musi być wielokrotnością 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Kończy rozmowę, gdy przez tak długi czas nie nadchodzi dźwięk (15-600 sekund, domyślnie 60).",
   "config.sip.help.media_codecs": "Obsługiwane kodeki audio w stałej kolejności preferencji. Tej listy nie można tu zmienić.",
   "config.sip.help.browser_media_enabled": "Zezwala na rozmowy przez mikrofon i głośniki przeglądarki. Po zmianie wymagany jest restart.",

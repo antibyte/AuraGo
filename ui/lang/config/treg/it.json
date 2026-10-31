@@ -32,7 +32,7 @@
   "config.treg.balance": "Saldo",
   "config.treg.cost_invalid": "Inserisci 0–1000000 USD con un massimo di sei decimali.",
   "config.treg.token_required": "Inserisci un token associato a un’organizzazione.",
-  "config.treg.currency_usd": "Dollaro USA",
+  "config.treg.currency_usd": "USD",
   "config.treg.enabled_help": "Attiva l'integrazione treg. Permette all'agente di usare i servizi a pagamento del catalogo treg, nella misura in cui li approvi qui sotto.",
   "config.treg.readonly_help": "L'agente può solo leggere il catalogo e il saldo e non può avviare chiamate a pagamento.",
   "config.treg.token_help": "Token dell'organizzazione del tuo account treg. È memorizzato cifrato nel vault.",

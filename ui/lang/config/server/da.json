@@ -110,7 +110,7 @@
   "config.server.cert_status_sans": "Subject Alternative Names (SAN'er)",
   "config.server.domain_hint": "Det offentlige domænenavn, certifikatet udstedes til. Det skal pege på denne server.",
   "config.server.email_hint": "Kontaktadresse til Let's Encrypt, f.eks. til udløbsadvarsler. Den sendes kun til certifikatudstederen.",
-  "config.server.host_hint": "Netværksadressen, AuraGo lytter på. Tom eller 0.0.0.0 = alle grænseflader, 127.0.0.1 = kun denne maskine. Genstart er nødvendig efter ændring.",
+  "config.server.host_hint": "Netværksadressen, AuraGo lytter på. Tom eller 127.0.0.1 = kun denne maskine; 0.0.0.0 = alle grænseflader. Miljøvariablen AURAGO_SERVER_HOST tilsidesætter den. Genstart er nødvendig efter ændring.",
   "config.server.https_port_hint": "Port til krypterede forbindelser (standard 443). Porte under 1024 kræver root-rettigheder eller en tilsvarende capability på Linux.",
   "config.server.key_file_hint": "Sti til den private nøgle i PEM-format. Filen bør kun kunne læses af AuraGo-kontoen.",
   "config.server.port_hint": "TCP-port for webgrænsefladen og API'et (standard 8088). Genstart er nødvendig efter ændring.",

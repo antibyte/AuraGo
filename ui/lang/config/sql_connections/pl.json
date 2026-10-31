@@ -78,6 +78,6 @@
   "config.sql_connections.ssl_mode_help": "Szyfrowanie połączenia. Disable wysyła wszystko jawnym tekstem, Require szyfruje bez sprawdzania certyfikatu, Verify CA sprawdza urząd certyfikacji, Verify Full sprawdza także nazwę serwera (najbezpieczniejsze).",
   "config.sql_connections.database_help": "Nazwa bazy danych na serwerze, z którą łączy się agent.",
   "config.sql_connections.description_help": "Krótka notatka dla agenta i dla Ciebie, do czego służy baza danych.",
-  "config.sql_connections.username_help": "Użytkownik bazy danych. Użyj konta z jak najmniejszymi uprawnieniami.",
-  "config.sql_connections.password_help": "Przechowywane w postaci zaszyfrowanej w Vault. Pozostaw puste, aby zachować zapisane hasło."
+  "config.sql_connections.username_help": "Użytkownik bazy danych. Użyj konta z jak najmniejszymi uprawnieniami. Pozostaw puste razem z hasłem, aby zachować zapisane dane logowania.",
+  "config.sql_connections.password_help": "Przechowywane w postaci zaszyfrowanej w Vault. Pozostaw puste nazwę użytkownika i hasło, aby zachować zapisane dane logowania; nowa nazwa użytkownika wymaga też hasła."
 }

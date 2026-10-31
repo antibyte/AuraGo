@@ -107,8 +107,8 @@ async function renderImageGenerationSection(section) {
 
     const enhanceOn = cfg.prompt_enhancement === true;
     html += `<div class="ig-toggle-row">
-        <span class="ig-label-text">${t('config.image_generation.prompt_enhancement_label')}</span>
-        <div class="toggle ${enhanceOn ? 'on' : ''}" data-path="image_generation.prompt_enhancement" aria-describedby="imggen-enhance-help" onclick="toggleBool(this)"></div>
+        <span class="ig-label-text" id="imggen-enhance-label">${t('config.image_generation.prompt_enhancement_label')}</span>
+        <div class="toggle ${enhanceOn ? 'on' : ''}" data-path="image_generation.prompt_enhancement" role="switch" aria-labelledby="imggen-enhance-label" aria-describedby="imggen-enhance-help" onclick="toggleBool(this)"></div>
     </div>
     <div class="field-help" id="imggen-enhance-help">${t('config.image_generation.prompt_enhancement_help')}</div>`;
 

@@ -71,22 +71,22 @@ window.renderHeartbeatSection = function (section) {
     // Day window card
     html += '<div class="field-group hb-window-card hb-day-card">';
     html += '<div class="hb-window-title">☀️ ' + t('config.heartbeat.day_window_title') + '</div>';
-    html += '<div class="field-help">' + t('help.heartbeat.day_time_window') + '</div>';
+    html += '<div class="field-help" id="hb-day-window-help">' + t('help.heartbeat.day_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_start_label') + '</div>';
-    html += '<input class="field-input" type="time" data-path="heartbeat.day_time_window.start" value="' + escapeAttr(dayWindow.start || '08:00') + '">';
+    html += '<div class="field-label" id="hb-day-start-label">' + t('config.heartbeat.window_start_label') + '</div>';
+    html += '<input class="field-input" type="time" aria-labelledby="hb-day-start-label" aria-describedby="hb-day-window-help" data-path="heartbeat.day_time_window.start" value="' + escapeAttr(dayWindow.start || '08:00') + '">';
     html += '</div>';
 
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_end_label') + '</div>';
-    html += '<input class="field-input" type="time" data-path="heartbeat.day_time_window.end" value="' + escapeAttr(dayWindow.end || '22:00') + '">';
+    html += '<div class="field-label" id="hb-day-end-label">' + t('config.heartbeat.window_end_label') + '</div>';
+    html += '<input class="field-input" type="time" aria-labelledby="hb-day-end-label" aria-describedby="hb-day-window-help" data-path="heartbeat.day_time_window.end" value="' + escapeAttr(dayWindow.end || '22:00') + '">';
     html += '</div>';
 
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_interval_label') + '</div>';
-    html += '<select class="field-select" data-path="heartbeat.day_time_window.interval">';
+    html += '<div class="field-label" id="hb-day-interval-label">' + t('config.heartbeat.window_interval_label') + '</div>';
+    html += '<select class="field-select" aria-labelledby="hb-day-interval-label" aria-describedby="hb-day-window-help" data-path="heartbeat.day_time_window.interval">';
     html += renderIntervalOptions(dayWindow.interval || '1h');
     html += '</select>';
     html += '</div>';
@@ -97,22 +97,22 @@ window.renderHeartbeatSection = function (section) {
     // Night window card
     html += '<div class="field-group hb-window-card hb-night-card">';
     html += '<div class="hb-window-title">🌙 ' + t('config.heartbeat.night_window_title') + '</div>';
-    html += '<div class="field-help">' + t('help.heartbeat.night_time_window') + '</div>';
+    html += '<div class="field-help" id="hb-night-window-help">' + t('help.heartbeat.night_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_start_label') + '</div>';
-    html += '<input class="field-input" type="time" data-path="heartbeat.night_time_window.start" value="' + escapeAttr(nightWindow.start || '22:00') + '">';
+    html += '<div class="field-label" id="hb-night-start-label">' + t('config.heartbeat.window_start_label') + '</div>';
+    html += '<input class="field-input" type="time" aria-labelledby="hb-night-start-label" aria-describedby="hb-night-window-help" data-path="heartbeat.night_time_window.start" value="' + escapeAttr(nightWindow.start || '22:00') + '">';
     html += '</div>';
 
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_end_label') + '</div>';
-    html += '<input class="field-input" type="time" data-path="heartbeat.night_time_window.end" value="' + escapeAttr(nightWindow.end || '08:00') + '">';
+    html += '<div class="field-label" id="hb-night-end-label">' + t('config.heartbeat.window_end_label') + '</div>';
+    html += '<input class="field-input" type="time" aria-labelledby="hb-night-end-label" aria-describedby="hb-night-window-help" data-path="heartbeat.night_time_window.end" value="' + escapeAttr(nightWindow.end || '08:00') + '">';
     html += '</div>';
 
     html += '<div class="hb-field">';
-    html += '<div class="field-label">' + t('config.heartbeat.window_interval_label') + '</div>';
-    html += '<select class="field-select" data-path="heartbeat.night_time_window.interval">';
+    html += '<div class="field-label" id="hb-night-interval-label">' + t('config.heartbeat.window_interval_label') + '</div>';
+    html += '<select class="field-select" aria-labelledby="hb-night-interval-label" aria-describedby="hb-night-window-help" data-path="heartbeat.night_time_window.interval">';
     html += renderIntervalOptions(nightWindow.interval || '4h');
     html += '</select>';
     html += '</div>';

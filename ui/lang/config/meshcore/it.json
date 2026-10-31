@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "Elenco a cui viene aggiunto un nodo quando usi il pulsante nell'elenco dei nodi.",
   "config.meshcore.allow_location_disclosure_help": "L'agente può condividere sulla mesh il testo della posizione inserito qui sotto. Il testo è leggibile da ogni destinatario.",
   "config.meshcore.proactive_send_help": "L'agente può inviare messaggi ai nodi di invio di propria iniziativa, senza essere stato contattato prima.",
-  "config.meshcore.max_command_age_seconds_help": "I comandi più vecchi di questo valore vengono ignorati (600-86400 secondi, predefinito 600). Protegge dai messaggi riproposti.",
-  "config.meshcore.future_tolerance_seconds_help": "Quanto nel futuro può trovarsi il timestamp di un messaggio (120-3600 secondi, predefinito 120). Compensa lo scostamento dell'orologio.",
-  "config.meshcore.retention_days_help": "I messaggi ricevuti vengono eliminati dopo questo periodo (7-90 giorni, predefinito 7).",
-  "config.meshcore.max_messages_help": "Numero massimo di messaggi memorizzati (1000-10000, predefinito 1000). Quelli più vecchi vengono eliminati per primi.",
-  "config.meshcore.peer_runs_per_minute_help": "Quante volte l'agente può reagire per nodo o canale al minuto (2-60, predefinito 2). Limita lo spam di singoli mittenti.",
-  "config.meshcore.runs_per_minute_help": "Quante volte in totale l'agente può reagire ai messaggi mesh al minuto (12-120, predefinito 12)."
+  "config.meshcore.max_command_age_seconds_help": "I comandi più vecchi di questo valore vengono ignorati (1-86400 secondi, predefinito 600). Protegge dai messaggi riproposti.",
+  "config.meshcore.future_tolerance_seconds_help": "Quanto nel futuro può trovarsi il timestamp di un messaggio (1-3600 secondi, predefinito 120). Compensa lo scostamento dell'orologio.",
+  "config.meshcore.retention_days_help": "I messaggi ricevuti vengono eliminati dopo questo periodo (1-90 giorni, predefinito 7).",
+  "config.meshcore.max_messages_help": "Numero massimo di messaggi memorizzati (1-10000, predefinito 1000). Quelli più vecchi vengono eliminati per primi.",
+  "config.meshcore.peer_runs_per_minute_help": "Quante volte l'agente può reagire per nodo o canale al minuto (1-60, predefinito 2). Limita lo spam di singoli mittenti.",
+  "config.meshcore.runs_per_minute_help": "Quante volte in totale l'agente può reagire ai messaggi mesh al minuto (1-120, predefinito 12)."
 }

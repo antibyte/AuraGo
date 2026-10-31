@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "List a node is added to when you use the button in the node list.",
   "config.meshcore.allow_location_disclosure_help": "The agent may share the location text entered below on the mesh. The text is readable by every recipient.",
   "config.meshcore.proactive_send_help": "The agent may send messages to the send nodes on its own, without having been contacted first.",
-  "config.meshcore.max_command_age_seconds_help": "Commands older than this are ignored (600-86400 seconds, default 600). Protects against replayed messages.",
-  "config.meshcore.future_tolerance_seconds_help": "How far in the future a message timestamp may lie (120-3600 seconds, default 120). Compensates clock drift.",
-  "config.meshcore.retention_days_help": "Received messages are deleted after this time (7-90 days, default 7).",
-  "config.meshcore.max_messages_help": "Maximum number of stored messages (1000-10000, default 1000). Older ones are dropped first.",
-  "config.meshcore.peer_runs_per_minute_help": "How often the agent may react per node or channel and minute (2-60, default 2). Limits spam from single senders.",
-  "config.meshcore.runs_per_minute_help": "How often the agent may react to mesh messages per minute in total (12-120, default 12)."
+  "config.meshcore.max_command_age_seconds_help": "Commands older than this are ignored (1-86400 seconds, default 600). Protects against replayed messages.",
+  "config.meshcore.future_tolerance_seconds_help": "How far in the future a message timestamp may lie (1-3600 seconds, default 120). Compensates clock drift.",
+  "config.meshcore.retention_days_help": "Received messages are deleted after this time (1-90 days, default 7).",
+  "config.meshcore.max_messages_help": "Maximum number of stored messages (1-10000, default 1000). Older ones are dropped first.",
+  "config.meshcore.peer_runs_per_minute_help": "How often the agent may react per node or channel and minute (1-60, default 2). Limits spam from single senders.",
+  "config.meshcore.runs_per_minute_help": "How often the agent may react to mesh messages per minute in total (1-120, default 12)."
 }

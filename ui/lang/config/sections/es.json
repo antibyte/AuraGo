@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "LLM de Respaldo",
   "config.section.firewall.desc": "Gestiona las reglas del cortafuegos de Linux (ufw o iptables) de este host.",
   "config.section.firewall.label": "Cortafuegos",
-  "config.section.fritzbox.desc": "Gestiona el sistema, el Wi-Fi, el hogar inteligente y la telefonía de tu router AVM.",
+  "config.section.fritzbox.desc": "Gestiona el sistema, el Wi-Fi, el hogar inteligente y la telefonía de tu Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Caja",
   "config.section.github.desc": "Permite que el agente trabaje con repositorios e issues de GitHub.",
   "config.section.github.label": "GitHub",

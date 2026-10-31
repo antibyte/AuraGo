@@ -97,7 +97,7 @@
   "config.sip.help.inbound_ring_timeout_seconds": "Jak dlouho příchozí hovor zvoní, než je odmítnut (15–300 sekund, výchozí 90).",
   "config.sip.help.media_advertised_host": "Veřejná adresa pro audio stream. Potřebná za NAT nebo v Dockeru; jinak nechte prázdné.",
   "config.sip.help.media_codecs": "Podporované audio kodeky v pevném pořadí preferencí. Tento seznam zde nelze změnit.",
-  "config.sip.help.media_jitter_buffer_ms": "Vyrovnávací paměť proti kolísavému zpoždění paketů (20–200 ms, výchozí 60). Větší je stabilnější, ale zpožďuje hovor.",
+  "config.sip.help.media_jitter_buffer_ms": "Vyrovnávací paměť proti kolísavému zpoždění paketů (20–200 ms, výchozí 60). Větší je stabilnější, ale zpožďuje hovor. Musí být násobek 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Ukončí hovor, pokud po tuto dobu nedorazí žádný zvuk (15–600 sekund, výchozí 60).",
   "config.sip.help.media_rtp_port_end": "Poslední port UDP pro audio data. Rozsah omezuje počet současných hovorů (výchozí 30099).",
   "config.sip.help.media_rtp_port_start": "První port UDP pro audio data (RTP). Musí být sudý a menší než koncový port (výchozí 30000).",

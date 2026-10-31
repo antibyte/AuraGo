@@ -92,10 +92,12 @@
                 describe(control, 'aria-describedby', help);
             });
         });
-        scope.querySelectorAll('.cfg-toggle-row, .cfg-toggle-row-highlight, .cfg-toggle-row-compact').forEach(row => {
+        scope.querySelectorAll('.cfg-toggle-row, .cfg-toggle-row-highlight, .cfg-toggle-row-compact, .cft-toggle-row').forEach(row => {
             const label = row.querySelector('.cfg-toggle-label');
             const toggle = row.querySelector('.toggle');
             if (label && toggle) describe(toggle, 'aria-labelledby', label);
+            // A description inside the row belongs to the row's only switch.
+            if (toggle && row.querySelectorAll('.toggle').length === 1) describe(toggle, 'aria-describedby', row.querySelector('.field-help'));
         });
         scope.querySelectorAll('.toggle[data-path]').forEach(toggle => {
             // Hidden binding mirrors must not acquire a visible state label.

@@ -32,7 +32,7 @@
   "config.treg.balance": "Zůstatek",
   "config.treg.cost_invalid": "Zadej 0–1000000 USD s nejvýše šesti desetinnými místy.",
   "config.treg.token_required": "Zadej token vázaný na organizaci.",
-  "config.treg.currency_usd": "US$",
+  "config.treg.currency_usd": "USD",
   "config.treg.enabled_help": "Zapne integraci treg. Umožní agentovi používat placené služby z katalogu treg, pokud je níže schválíte.",
   "config.treg.readonly_help": "Agent smí číst pouze katalog a zůstatek a nemůže spouštět placená volání.",
   "config.treg.search_help": "Hledaný výraz pro katalog treg (max. 500 znaků). Z výsledků schvalujete agentovi jednotlivá volání.",

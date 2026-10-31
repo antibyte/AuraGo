@@ -104,7 +104,7 @@
   "config.server.restart_address": "Öppna efter omstart:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "Nätverksadress som AuraGo lyssnar på. Tomt eller 0.0.0.0 = alla gränssnitt, 127.0.0.1 = endast den här maskinen. En omstart krävs efter ändring.",
+  "config.server.host_hint": "Nätverksadress som AuraGo lyssnar på. Tomt eller 127.0.0.1 = endast den här maskinen; 0.0.0.0 = alla gränssnitt. Miljövariabeln AURAGO_SERVER_HOST åsidosätter den. En omstart krävs efter ändring.",
   "config.server.port_hint": "TCP-port för webbgränssnittet och API:et (standard 8088). En omstart krävs efter ändring.",
   "config.server.ui_language_hint": "Språk för webbgränssnittet och systemmeddelanden. Gäller alla användare av den här instansen.",
   "config.server.cert_mode_hint": "Varifrån TLS-certifikatet kommer: automatiskt via Let's Encrypt, dina egna filer eller ett självsignerat certifikat för lokala tester.",

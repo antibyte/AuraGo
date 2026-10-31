@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "LLM zapasowy",
   "config.section.firewall.desc": "Zarządza regułami zapory Linux (ufw lub iptables) tego hosta.",
   "config.section.firewall.label": "Zapora sieciowa",
-  "config.section.fritzbox.desc": "Zarządza systemem, Wi-Fi, inteligentnym domem i telefonią Twojego routera AVM.",
+  "config.section.fritzbox.desc": "Zarządza systemem, Wi-Fi, inteligentnym domem i telefonią Twojego urządzenia Fritz!Box.",
   "config.section.fritzbox.label": "Fritz! Pudełko",
   "config.section.github.desc": "Pozwala agentowi pracować z repozytoriami i zgłoszeniami GitHub.",
   "config.section.github.label": "GitHub",

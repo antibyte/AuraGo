@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "Reserve LLM",
   "config.section.firewall.desc": "Administrerer Linux-brannmurreglene (ufw eller iptables) på denne verten.",
   "config.section.firewall.label": "Brannmur",
-  "config.section.fritzbox.desc": "Administrerer system, Wi-Fi, smarthus og telefoni på AVM-ruteren din.",
+  "config.section.fritzbox.desc": "Administrerer system, Wi-Fi, smarthus og telefoni på din Fritz!Box.",
   "config.section.fritzbox.label": "Fritz!Box",
   "config.section.github.desc": "Lar agenten jobbe med GitHub-repositorier og issues.",
   "config.section.github.label": "GitHub",

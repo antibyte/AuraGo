@@ -104,7 +104,7 @@
   "config.server.restart_address": "Après le redémarrage, ouvre :",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
   "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
-  "config.server.host_hint": "Adresse réseau sur laquelle AuraGo écoute. Vide ou 0.0.0.0 = toutes les interfaces, 127.0.0.1 = cette machine uniquement. Un redémarrage est nécessaire après modification.",
+  "config.server.host_hint": "Adresse réseau sur laquelle AuraGo écoute. Vide ou 127.0.0.1 = cette machine uniquement ; 0.0.0.0 = toutes les interfaces. La variable d'environnement AURAGO_SERVER_HOST la remplace. Un redémarrage est nécessaire après modification.",
   "config.server.port_hint": "Port TCP de l'interface web et de l'API (8088 par défaut). Un redémarrage est nécessaire après modification.",
   "config.server.ui_language_hint": "Langue de l'interface web et des messages système. S'applique à tous les utilisateurs de cette instance.",
   "config.server.cert_mode_hint": "Origine du certificat TLS : automatique via Let's Encrypt, vos propres fichiers ou un certificat auto-signé pour des tests locaux.",

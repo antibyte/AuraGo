@@ -126,6 +126,13 @@ func TestConfigRefreshPopulatedBrowser(t *testing.T) {
 
 func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) string {
 	t.Helper()
+	return configRefreshFixtureOriginWith(t, locale, populated, nil)
+}
+
+// configRefreshFixtureOriginWith is configRefreshFixtureOrigin with an optional hook that may change the
+// fixture configuration (after the populated defaults) without touching the copy other tests use.
+func configRefreshFixtureOriginWith(t *testing.T, locale string, populated bool, mutate func(map[string]any)) string {
+	t.Helper()
 	translations := map[string]string{}
 	err := filepath.WalkDir("lang", func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -169,6 +176,9 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 		configuration["agent"].(map[string]any)["allow_mcp"] = true
 		configuration["tools"].(map[string]any)["document_creator"].(map[string]any)["enabled"] = true
 		configuration["three_d_printers"] = map[string]any{"enabled": true, "klipper": map[string]any{"enabled": true, "printers": []any{map[string]any{"id": "fixture-printer", "name": "Home Lab · Voron 2.4", "url": "http://printer.fixture.invalid", "api_key": "••••••••"}}}}
+	}
+	if mutate != nil {
+		mutate(configuration)
 	}
 	var schemaFor func(map[string]any, string) []map[string]any
 	schemaFor = func(data map[string]any, prefix string) []map[string]any {

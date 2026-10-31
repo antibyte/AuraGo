@@ -131,7 +131,7 @@
   "config.section.fallback_llm.label": "备用 LLM",
   "config.section.firewall.desc": "管理本主机的 Linux 防火墙规则（ufw 或 iptables）。",
   "config.section.firewall.label": "防火墙",
-  "config.section.fritzbox.desc": "管理您的 AVM 路由器的系统、Wi-Fi、智能家居和电话功能。",
+  "config.section.fritzbox.desc": "管理您的 Fritz!Box 的系统、Wi-Fi、智能家居和电话功能。",
   "config.section.fritzbox.label": "弗里茨！盒子",
   "config.section.github.desc": "让代理处理 GitHub 仓库和 issue。",
   "config.section.github.label": "GitHub",

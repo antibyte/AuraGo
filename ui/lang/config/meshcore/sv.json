@@ -95,10 +95,10 @@
   "config.meshcore.add_to_help": "Lista som en nod läggs till i när du använder knappen i nodlistan.",
   "config.meshcore.allow_location_disclosure_help": "Agenten får dela den platstext som anges nedan i meshen. Texten kan läsas av alla mottagare.",
   "config.meshcore.proactive_send_help": "Agenten får skicka meddelanden till sändningsnoderna på eget initiativ, utan att först ha blivit kontaktad.",
-  "config.meshcore.max_command_age_seconds_help": "Kommandon som är äldre än så ignoreras (600-86400 sekunder, standard 600). Skyddar mot återuppspelade meddelanden.",
-  "config.meshcore.future_tolerance_seconds_help": "Hur långt fram i tiden en meddelandestämpel får ligga (120-3600 sekunder, standard 120). Kompenserar för klockdrift.",
-  "config.meshcore.retention_days_help": "Mottagna meddelanden tas bort efter den här tiden (7-90 dagar, standard 7).",
-  "config.meshcore.max_messages_help": "Maximalt antal lagrade meddelanden (1000-10000, standard 1000). De äldsta tas bort först.",
-  "config.meshcore.peer_runs_per_minute_help": "Hur ofta agenten får reagera per nod eller kanal och minut (2-60, standard 2). Begränsar spam från enskilda avsändare.",
-  "config.meshcore.runs_per_minute_help": "Hur ofta agenten får reagera på mesh-meddelanden per minut totalt (12-120, standard 12)."
+  "config.meshcore.max_command_age_seconds_help": "Kommandon som är äldre än så ignoreras (1-86400 sekunder, standard 600). Skyddar mot återuppspelade meddelanden.",
+  "config.meshcore.future_tolerance_seconds_help": "Hur långt fram i tiden en meddelandestämpel får ligga (1-3600 sekunder, standard 120). Kompenserar för klockdrift.",
+  "config.meshcore.retention_days_help": "Mottagna meddelanden tas bort efter den här tiden (1-90 dagar, standard 7).",
+  "config.meshcore.max_messages_help": "Maximalt antal lagrade meddelanden (1-10000, standard 1000). De äldsta tas bort först.",
+  "config.meshcore.peer_runs_per_minute_help": "Hur ofta agenten får reagera per nod eller kanal och minut (1-60, standard 2). Begränsar spam från enskilda avsändare.",
+  "config.meshcore.runs_per_minute_help": "Hur ofta agenten får reagera på mesh-meddelanden per minut totalt (1-120, standard 12)."
 }

@@ -97,7 +97,7 @@
   "config.sip.help.inbound_ring_timeout_seconds": "Hvor længe et indgående opkald ringer, før det afvises (15-300 sekunder, standard 90).",
   "config.sip.help.media_advertised_host": "Offentlig adresse til lydstreamen. Nødvendig bag NAT eller i Docker; ellers lad den stå tom.",
   "config.sip.help.media_codecs": "Understøttede lydcodecs i en fast prioriteret rækkefølge. Listen kan ikke ændres her.",
-  "config.sip.help.media_jitter_buffer_ms": "Buffer mod varierende pakkeforsinkelse (20-200 ms, standard 60). Større er mere stabilt, men forsinker samtalen.",
+  "config.sip.help.media_jitter_buffer_ms": "Buffer mod varierende pakkeforsinkelse (20-200 ms, standard 60). Større er mere stabilt, men forsinker samtalen. Skal være et multiplum af 20.",
   "config.sip.help.media_rtp_idle_timeout_seconds": "Afslutter et opkald, når der ikke kommer lyd i så lang tid (15-600 sekunder, standard 60).",
   "config.sip.help.media_rtp_port_end": "Sidste UDP-port til lyddata. Intervallet begrænser antallet af samtidige opkald (standard 30099).",
   "config.sip.help.media_rtp_port_start": "Første UDP-port til lyddata (RTP). Skal være lige og under slutporten (standard 30000).",

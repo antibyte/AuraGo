@@ -103,7 +103,7 @@
   "config.sip.help.media_rtp_port_end": "音声データ用の最後の UDP ポートです。この範囲によって同時通話数が制限されます (デフォルト 30099)。",
   "config.sip.help.media_advertised_host": "音声ストリームの公開アドレスです。NAT の内側や Docker 内では必要で、それ以外は空欄にします。",
   "config.sip.help.media_symmetric_rtp": "音声を、届いたアドレスへ返送します。相手側が誤ったアドレスを通知する場合に、NAT の内側で役立ちます。",
-  "config.sip.help.media_jitter_buffer_ms": "パケット遅延のばらつきを吸収するバッファです (20-200 ms、デフォルト 60)。大きいほど安定しますが、会話に遅れが生じます。",
+  "config.sip.help.media_jitter_buffer_ms": "パケット遅延のばらつきを吸収するバッファです (20-200 ms、デフォルト 60)。大きいほど安定しますが、会話に遅れが生じます。20 の倍数で指定します。",
   "config.sip.help.media_rtp_idle_timeout_seconds": "この時間、音声が届かない場合に通話を終了します (15-600 秒、デフォルト 60)。",
   "config.sip.help.media_codecs": "対応する音声コーデックを、固定の優先順位で表示しています。この一覧はここでは変更できません。",
   "config.sip.help.browser_media_enabled": "ブラウザーのマイクとスピーカーを使った通話を許可します。変更後は再起動が必要です。",
