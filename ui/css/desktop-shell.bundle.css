@@ -351,10 +351,6 @@
     background: radial-gradient(circle at 78% 18%, rgba(255, 128, 102, 0.22), transparent 32%), linear-gradient(150deg, #1b1010, #11151c 58%, #0b0e13);
 }
 
-.desktop-body[data-wallpaper="forest"] {
-    background: radial-gradient(circle at 16% 16%, rgba(68, 207, 142, 0.18), transparent 32%), linear-gradient(145deg, #07120f, #111c19 62%, #071014);
-}
-
 .desktop-body[data-wallpaper="groupshoot"],
 .desktop-body[data-wallpaper="alpine_dawn"],
 .desktop-body[data-wallpaper="city_rain"],
@@ -11350,6 +11346,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-wallpaper="green_slime"] {
     background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
 }
+/* Forest: generated vector dusk scene (assets/desktop-wallpaper-forest/generate.mjs); the left column is kept dark for the icons. */
+.desktop-body[data-wallpaper="forest"] {
+    background: #07120f url('/img/wallpapers/themes/forest.svg') center / cover no-repeat fixed;
+}
 .desktop-body[data-wallpaper="voxel_world"] {
     background: #bfe2ff url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
 }
@@ -12518,6 +12518,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="cyberpunk"] :is(.vd-modal-title, .vd-file-dialog-title) { color: #00F0FF; }
 .desktop-body[data-theme="cyberpunk"] .vd-clock-popup-time { color: #00F0FF; font-family: var(--vd-cyber-mono); }
+
+/* Unread rows: the shared accent mix turns yellow-on-navy into mud, so use a cool cyan wash and carry the yellow as a left rail. */
+.desktop-body[data-theme="cyberpunk"] .vd-notification-item.unread { background: rgba(0, 240, 255, .06); box-shadow: inset 2px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-notification-item.unread:is(:hover, :focus-visible) { background: rgba(0, 240, 255, .12); }
 
 /* === Dialog controls and toasts === */
 .desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-close, .vd-toast-close) { border: 1px solid rgba(0, 240, 255, 0.45); border-radius: 0; }
@@ -15480,6 +15484,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     color: #edf4ee;
     box-shadow: var(--vd-theme-shadow-modal);
 }
+/* Unread rows: amber mixed into dark teal reads as olive, so use a neutral light wash plus an amber left rail. */
+.desktop-body[data-theme="electronic_dreams"] .vd-notification-item.unread { background: rgba(255, 255, 255, .035); box-shadow: inset 2px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="electronic_dreams"] .vd-notification-item.unread:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .07); }
 .desktop-body[data-theme="electronic_dreams"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) {
     border: 1px solid #506459;
     border-radius: 5px;

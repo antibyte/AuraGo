@@ -142,7 +142,7 @@ and expired calls per family.
 4. JavaScript asks the capability helpers (`shellLayout()`, `themeUsesGlobalMenu()`, `themeScheme()`, `themeMotionMs(kind)`, `themeIconFamily()`) and never compares a theme id. Apps read `document.body.dataset.scheme`.
 5. `syncDesktopThemeFx()` starts or stops the effects of an `fx` theme.
 
-Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the five locally packaged theme wallpapers), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
+Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the locally packaged theme wallpapers: Electronic Dreams, Windows XP, Green Slime, Voxel World, Orbit, Forest and Minimal), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
 
 ### Body attributes
 
@@ -432,6 +432,8 @@ Post-processing adds bloom, a vignette, chromatic aberration, film grain and a s
 **Shell.** The skin is dark glass: deep-blue panels with cyan and violet hairlines, and a HUD taskbar. The signal colour is cyan (`#5CE1FF`), with near-black text on it. Barlow Condensed SemiBold sets the uppercase dialog, popup and panel headings. Geist sets the text.
 
 **Wallpaper and fallback.** The *Orbit* wallpaper is the poster `/img/wallpapers/themes/orbit.png` (set in `css/desktop-wallpaper-themes.css`): a still frame of the scene at t = 44 s, from the neutral camera and without film grain. It shows while the live scene loads, without WebGL, with software GL and at quality 4. The live canvas fades in over it. With any other wallpaper, the theme keeps the particles and the window motion and builds no scene.
+
+**Forest wallpaper.** Organic suggests *Forest*, a misty conifer forest at dusk with a low amber sun right of centre and the left edge kept dark for the desktop icons. It is the vector file `/img/wallpapers/themes/forest.svg` (set in `css/desktop-wallpaper-themes.css`), written by the deterministic generator `assets/desktop-wallpaper-forest/generate.mjs` (`node assets/desktop-wallpaper-forest/generate.mjs`); edit the generator, not the SVG.
 
 **Performance.**
 
