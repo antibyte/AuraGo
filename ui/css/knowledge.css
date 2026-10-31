@@ -139,6 +139,14 @@
     transition: border-color var(--transition-base);
 }
 
+.pw-page[data-workspace-page="knowledge"] .kc-filter-label {
+    flex: 0 0 auto;
+    color: var(--pw-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .pw-page[data-workspace-page="knowledge"] .kc-filter-select {
     padding: var(--space-2) var(--space-3);
     font-size: var(--text-sm);
@@ -465,21 +473,13 @@
 /* === Modals === */
 
 .pw-page[data-workspace-page="knowledge"] .modal {
-    width: min(680px, calc(100vw - 2rem));
-    max-height: calc(100dvh - 1rem);
-    overflow-y: auto;
     background-image: none;
     box-shadow: none;
     filter: none;
     transform: none;
 }
 
-.pw-page[data-workspace-page="knowledge"] .modal-small {
-    max-width: 420px;
-}
-
 .pw-page[data-workspace-page="knowledge"] .kc-preview-modal {
-    width: min(1100px, calc(100vw - 2rem));
     min-height: min(82vh, 860px);
     display: flex;
     flex-direction: column;
@@ -2027,7 +2027,6 @@
     }
 
     .pw-page[data-workspace-page="knowledge"] .kc-preview-modal {
-        width: min(calc(100vw - 16px), 1100px);
         min-height: calc(100dvh - 24px);
     }
 
@@ -2080,7 +2079,6 @@
 
     .pw-page[data-workspace-page="knowledge"] .modal,
     .pw-page[data-workspace-page="knowledge"] .kc-preview-modal {
-        width: 100%;
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
     }

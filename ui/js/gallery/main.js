@@ -47,10 +47,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-function makeStatusNode(icon, message) {
+function makeStatusNode(icon, message, title) {
     const wrap = document.createElement('div');
-    wrap.className = 'empty-state gallery-empty';
-    wrap.innerHTML = '<div class="empty-icon gallery-empty-icon">' + icon + '</div><p>' + escapeHtml(message) + '</p>';
+    wrap.className = 'empty-state pw-empty-state gallery-empty';
+    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + icon + '</div>' +
+        (title ? '<h3>' + escapeHtml(title) + '</h3>' : '') +
+        '<p>' + escapeHtml(message) + '</p>';
     return wrap;
 }
 
@@ -84,7 +86,7 @@ async function loadGallery() {
         populateProviderFilter(galleryImages);
 
         if (galleryImages.length === 0) {
-            grid.replaceChildren(makeStatusNode('🎨', t('gallery.empty')));
+            grid.replaceChildren(makeStatusNode('🎨', t('gallery.empty'), (t('media.empty_images_title') !== 'media.empty_images_title' ? t('media.empty_images_title') : '')));
             document.getElementById('gallery-pagination').classList.add('is-hidden');
             return;
         }

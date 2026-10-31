@@ -85,10 +85,10 @@
             <input type="search" id="sk-search" class="sk-search pw-search"
                 placeholder="" data-i18n-placeholder="skills.search_placeholder">
             <div class="sk-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="skills.filter_group_label">
-                <button class="sk-filter-btn pw-badge active" type="button" data-filter="all" aria-pressed="true" data-i18n="skills.filter_all"></button>
-                <button class="sk-filter-btn pw-badge" type="button" data-filter="agent" aria-pressed="false" data-i18n="skills.filter_agent"></button>
-                <button class="sk-filter-btn pw-badge" type="button" data-filter="user" aria-pressed="false" data-i18n="skills.filter_user"></button>
-                <button class="sk-filter-btn pw-badge" type="button" data-filter="daemon" aria-pressed="false" data-i18n="skills.filter_daemon"></button>
+                <button class="sk-filter-btn pw-filter-pill active" type="button" data-filter="all" aria-pressed="true" data-i18n="skills.filter_all"></button>
+                <button class="sk-filter-btn pw-filter-pill" type="button" data-filter="agent" aria-pressed="false" data-i18n="skills.filter_agent"></button>
+                <button class="sk-filter-btn pw-filter-pill" type="button" data-filter="user" aria-pressed="false" data-i18n="skills.filter_user"></button>
+                <button class="sk-filter-btn pw-filter-pill" type="button" data-filter="daemon" aria-pressed="false" data-i18n="skills.filter_daemon"></button>
             </div>
             <div class="pw-toolbar-spacer"></div>
             <div class="sk-toolbar-actions pw-toolbar-group" id="sk-toolbar-actions">
@@ -103,11 +103,11 @@
 
         <div class="sk-toolbar sk-toolbar-secondary pw-toolbar">
             <div class="sk-security-filters pw-toolbar-group" id="sk-security-filters" role="group" data-i18n-aria-label="skills.sec_filter_label">
-                <button class="sk-pill pw-badge active" type="button" data-sec="all" aria-pressed="true" data-i18n="skills.sec_all"></button>
-                <button class="sk-pill pw-badge" type="button" data-sec="clean" aria-pressed="false"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
-                <button class="sk-pill pw-badge" type="button" data-sec="warning" aria-pressed="false"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
-                <button class="sk-pill pw-badge" type="button" data-sec="dangerous" aria-pressed="false"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
-                <button class="sk-pill pw-badge" type="button" data-sec="pending" aria-pressed="false"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
+                <button class="sk-pill pw-filter-pill active" type="button" data-sec="all" aria-pressed="true" data-i18n="skills.sec_all"></button>
+                <button class="sk-pill pw-filter-pill" type="button" data-sec="clean" aria-pressed="false"><span class="sk-badge sk-badge-clean"></span> <span data-i18n="skills.sec_clean"></span></button>
+                <button class="sk-pill pw-filter-pill" type="button" data-sec="warning" aria-pressed="false"><span class="sk-badge sk-badge-warning"></span> <span data-i18n="skills.sec_warning"></span></button>
+                <button class="sk-pill pw-filter-pill" type="button" data-sec="dangerous" aria-pressed="false"><span class="sk-badge sk-badge-dangerous"></span> <span data-i18n="skills.sec_dangerous"></span></button>
+                <button class="sk-pill pw-filter-pill" type="button" data-sec="pending" aria-pressed="false"><span class="sk-badge sk-badge-pending"></span> <span data-i18n="skills.sec_pending"></span></button>
             </div>
         </div>
 
@@ -115,15 +115,15 @@
         <div class="sk-grid" id="sk-grid"></div>
 
         <!-- Empty state -->
-        <div class="empty-state is-hidden" id="sk-empty">
-            <div class="empty-icon">🧩</div>
+        <div class="empty-state pw-empty-state is-hidden" id="sk-empty">
+            <div class="empty-icon pw-empty-icon" aria-hidden="true">🧩</div>
             <h3 data-i18n="skills.empty_title"></h3>
             <p data-i18n="skills.empty_desc"></p>
         </div>
 
         <!-- Disabled state -->
-        <div class="empty-state is-hidden" id="sk-disabled">
-            <div class="empty-icon">⚠️</div>
+        <div class="empty-state pw-empty-state is-hidden" id="sk-disabled">
+            <div class="empty-icon pw-empty-icon" aria-hidden="true">⚠️</div>
             <h3 data-i18n="skills.disabled_title"></h3>
             <p data-i18n="skills.disabled_desc"></p>
         </div>
@@ -131,7 +131,7 @@
 
     <!-- AGENT SKILL CREATE / EDIT MODAL -->
     <div class="modal-overlay" id="agent-skill-modal" role="dialog" aria-modal="true" aria-labelledby="agent-skill-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillModal()">&times;</button>
@@ -215,7 +215,7 @@
 
     <!-- AGENT SKILL TEST MODAL -->
     <div class="modal-overlay" id="agent-test-modal" role="dialog" aria-modal="true" aria-labelledby="agent-test-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="agent-test-modal-title" data-i18n="skills.agent_test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
@@ -244,7 +244,7 @@
     </div>
 
     <!-- AGENT RESOURCE PATH MODAL -->
-    <div class="modal-overlay is-hidden" id="agent-resource-path-modal" role="dialog" aria-modal="true" aria-labelledby="agent-resource-path-title" aria-describedby="agent-resource-path-description" onkeydown="onAgentResourcePathKeydown(event)">
+    <div class="modal-overlay" id="agent-resource-path-modal" role="dialog" aria-modal="true" aria-labelledby="agent-resource-path-title" aria-describedby="agent-resource-path-description" onkeydown="onAgentResourcePathKeydown(event)">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="agent-resource-path-title"></h2>
@@ -267,7 +267,7 @@
     </div>
 
     <!-- AGENT RESOURCE DELETE CONFIRM MODAL -->
-    <div class="modal-overlay is-hidden" id="agent-file-delete-modal" role="dialog" aria-modal="true" aria-labelledby="agent-file-delete-title" aria-describedby="agent-file-delete-message" onkeydown="onAgentFileDeleteKeydown(event)">
+    <div class="modal-overlay" id="agent-file-delete-modal" role="dialog" aria-modal="true" aria-labelledby="agent-file-delete-title" aria-describedby="agent-file-delete-message" onkeydown="onAgentFileDeleteKeydown(event)">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="agent-file-delete-title" data-i18n="skills.agent_delete_file_title"></h2>
@@ -285,7 +285,7 @@
 
     <!-- DETAIL MODAL -->
     <div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="detail-modal-title" data-i18n="skills.detail_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDetailModal()">&times;</button>
@@ -304,7 +304,7 @@
 
     <!-- CODE EDITOR MODAL -->
     <div class="modal-overlay" id="code-modal" role="dialog" aria-modal="true" aria-labelledby="code-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="code-modal-title" data-i18n="skills.code_title"></h2>
                 <button class="btn btn-secondary btn-sm sk-code-fullscreen-btn" type="button" onclick="toggleCodeFullscreen()" data-i18n="skills.btn_fullscreen"></button>
@@ -451,27 +451,6 @@
         </div>
     </div>
 
-    <!-- DELETE CONFIRM MODAL -->
-    <div class="modal-overlay" id="delete-skill-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-modal-title">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="delete-skill-modal-title" data-i18n="skills.delete_title"></h2>
-                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteSkillModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p data-i18n="skills.delete_confirm"></p>
-                <p class="sk-delete-name" id="delete-skill-name"></p>
-                <label class="sk-checkbox-label">
-                    <input type="checkbox" id="delete-files-checkbox" checked> <span data-i18n="skills.delete_files"></span>
-                </label>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteSkillModal()" data-i18n="common.btn_cancel"></button>
-                <button class="btn btn-danger" id="skill-delete-confirm-btn" onclick="confirmDeleteSkill()" data-i18n="common.btn_delete"></button>
-            </div>
-        </div>
-    </div>
-
     <!-- VAULT KEY ASSIGNMENT MODAL -->
     <div class="modal-overlay" id="vault-key-modal" role="dialog" aria-modal="true" aria-labelledby="vault-key-modal-title">
         <div class="modal modal--sm">
@@ -516,7 +495,7 @@
 
     <!-- TEST MODAL -->
     <div class="modal-overlay" id="test-modal" role="dialog" aria-modal="true" aria-labelledby="test-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="test-modal-title" data-i18n="skills.test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTestModal()">&times;</button>
@@ -564,7 +543,7 @@
 
     <!-- GENERATE MODAL -->
     <div class="modal-overlay" id="generate-modal" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="generate-modal-title" data-i18n="skills.generate_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeGenerateModal()">&times;</button>

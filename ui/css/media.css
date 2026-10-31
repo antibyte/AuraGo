@@ -438,28 +438,12 @@
 
 /* ── Modal overlay for audio details ── */
 
-.pw-page[data-workspace-page="media"] .lightbox, .pw-page[data-workspace-page="media"] .media-modal {
+.pw-page[data-workspace-page="media"] .lightbox {
     align-items: center;
     padding: 0.5rem;
     background: color-mix(in srgb, var(--pw-canvas) 82%, transparent);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="media"] .media-modal {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    justify-content: center;
-    z-index: var(--z-modal);
-}
-
-/* .media-modal {display:flex} and shared.css .is-hidden {display:none} have
-   equal selector specificity. Because media.css loads after shared.css,
-   flex wins — the modal is always shown. This higher-specificity rule fixes it. */
-
-.pw-page[data-workspace-page="media"] .media-modal.is-hidden {
-    display: none;
 }
 
 .pw-page[data-workspace-page="media"] .lightbox-content, .pw-page[data-workspace-page="media"] .media-modal-content {
@@ -475,14 +459,14 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-modal-content {
-    padding: var(--space-6);
-    max-width: 480px;
+    width: min(100%, 480px);
+    padding: 0;
     position: relative;
 }
 
 .pw-page[data-workspace-page="media"] .media-modal-title {
-    margin-bottom: var(--space-3);
     font-size: var(--text-base);
+    overflow-wrap: anywhere;
 }
 
 .pw-page[data-workspace-page="media"] .lightbox-meta, .pw-page[data-workspace-page="media"] .media-modal-meta {
@@ -794,7 +778,7 @@
         margin-left: 0;
     }
 
-    .pw-page[data-workspace-page="media"] .lightbox, .pw-page[data-workspace-page="media"] .media-modal {
+    .pw-page[data-workspace-page="media"] .lightbox {
         align-items: flex-end;
         padding: 0;
     }

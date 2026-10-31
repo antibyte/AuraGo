@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "संपीडन",
   "truenas.dataset_used": "उपयोग किया गया",
   "truenas.empty_datasets": "कोई डेटासेट नहीं मिला",
+  "truenas.empty_datasets_desc": "पूल पर डेटा व्यवस्थित करने के लिए एक डेटासेट बनाएँ।",
   "truenas.empty_pools": "कोई पूल नहीं मिला",
+  "truenas.empty_pools_desc": "सिस्टम ने अभी तक कोई स्टोरेज पूल नहीं बताया है।",
   "truenas.empty_shares": "कोई शेयर नहीं मिला",
+  "truenas.empty_shares_desc": "डेटासेट को नेटवर्क पर उपलब्ध कराने के लिए SMB या NFS शेयर बनाएँ।",
   "truenas.empty_snapshots": "कोई स्नैपशॉट नहीं मिला",
+  "truenas.empty_snapshots_desc": "डेटासेट की पुनर्स्थापित करने योग्य प्रति रखने के लिए एक स्नैपशॉट बनाएँ।",
   "truenas.error_connection": "त्रुटि:",
   "truenas.error_create": "बनाते समय त्रुटि",
   "truenas.error_load_overview": "अवलोकन लोड करने में त्रुटि:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "बंद",
   "truenas.opt_smb": "SMB शेयर",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "अपने TrueNAS सिस्टम के पूल, डेटासेट, स्नैपशॉट और शेयर की निगरानी करें।",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "सब ठीक",
   "truenas.pool_allocated": "आवंटित",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "कॉन्फ़िगर नहीं है",
   "truenas.status_offline": "ऑफ़लाइन",
   "truenas.status_online": "ऑनलाइन",
-  "truenas.subtitle": "TrueNAS स्टोरेज"
+  "truenas.subtitle": "TrueNAS स्टोरेज",
+  "truenas.tablist_label": "TrueNAS अनुभाग"
 }

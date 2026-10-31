@@ -42,9 +42,9 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 	for _, marker := range []string{
 		`<button type="button" class="btn btn-secondary btn-sm" data-action="filesync-refresh" id="btn-fs-refresh-dash">`,
 		`<button type="button" class="btn btn-primary btn-sm" data-action="filesync-rescan" id="btn-fs-rescan-dash">`,
-		`id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run"`,
-		`<button type="button" class="cf-add-btn cron-btn-cancel" data-action="cron-edit-cancel"`,
-		`<button type="button" class="cf-add-btn" id="cronEditSaveBtn" data-action="cron-edit-save"`,
+		`id="memory-reflection-run" class="btn btn-secondary btn-sm mh-more-btn memory-reflection-run-btn" data-action="memory-reflection-run"`,
+		`<button type="button" class="btn btn-secondary" data-action="cron-edit-cancel"`,
+		`<button type="button" class="btn btn-primary" id="cronEditSaveBtn" data-action="cron-edit-save"`,
 		`<div class="kc-sync-loading" data-i18n="knowledge.filesync_loading"></div>`,
 		`<div id="budget-disabled" class="empty-state is-hidden" data-i18n="dashboard.budget_disabled"></div>`,
 	} {

@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Συμπίεση",
   "truenas.dataset_used": "χρησιμοποιημένο",
   "truenas.empty_datasets": "Δεν βρέθηκαν σύνολα δεδομένων",
+  "truenas.empty_datasets_desc": "Δημιουργήστε ένα dataset για να οργανώσετε δεδομένα σε ένα pool.",
   "truenas.empty_pools": "Δεν βρέθηκαν δεξαμενές",
+  "truenas.empty_pools_desc": "Το σύστημα δεν αναφέρει ακόμη pools αποθήκευσης.",
   "truenas.empty_shares": "Δεν βρέθηκαν κοινόχρηστα",
+  "truenas.empty_shares_desc": "Δημιουργήστε μια κοινόχρηστη θέση SMB ή NFS για να γίνει ένα dataset διαθέσιμο στο δίκτυο.",
   "truenas.empty_snapshots": "Δεν βρέθηκαν στιγμιότυπα",
+  "truenas.empty_snapshots_desc": "Δημιουργήστε ένα snapshot για να κρατήσετε ένα αντίγραφο ενός dataset που μπορεί να επαναφερθεί.",
   "truenas.error_connection": "Σφάλμα:",
   "truenas.error_create": "Σφάλμα δημιουργίας",
   "truenas.error_load_overview": "Σφάλμα κατά τη φόρτωση της επισκόπησης:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Απενεργοποιημένο",
   "truenas.opt_smb": "Κοινόχρηστο SMB",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Παρακολουθήστε τα pools, τα datasets, τα snapshots και τις κοινόχρηστες θέσεις του συστήματος TrueNAS.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Όλα καλά",
   "truenas.pool_allocated": "Εκχωρημένο",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "Δεν έχει ρυθμιστεί",
   "truenas.status_offline": "Εκτός σύνδεσης",
   "truenas.status_online": "Σε σύνδεση",
-  "truenas.subtitle": "Αποθήκευση TrueNAS"
+  "truenas.subtitle": "Αποθήκευση TrueNAS",
+  "truenas.tablist_label": "Ενότητες TrueNAS"
 }

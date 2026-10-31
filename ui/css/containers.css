@@ -186,39 +186,25 @@
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-state {
-    font-size: var(--text-xs);
-    padding: 3px var(--space-3);
-    border-radius: var(--radius-full);
-    display: inline-block;
-    font-weight: 600;
     text-transform: capitalize;
-    border: 1px solid transparent;
     letter-spacing: 0.02em;
 }
 
+/* Colour comes from .pw-badge[data-status]; only the tint lives here. */
 .pw-page[data-workspace-page="containers"] .ct-card-state.running {
-    background: color-mix(in srgb, var(--pw-success) 12%, transparent);
-    border-color: color-mix(in srgb, var(--pw-success) 22%, transparent);
-    color: var(--pw-success);
-    box-shadow: none;
+    background: color-mix(in srgb, var(--pw-status-ok) 12%, transparent);
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-state.exited, .pw-page[data-workspace-page="containers"] .ct-card-state.stopped {
-    background: color-mix(in srgb, var(--pw-muted) 10%, transparent);
-    color: var(--pw-muted);
-    border-color: color-mix(in srgb, var(--pw-muted) 18%, transparent);
+    background: color-mix(in srgb, var(--pw-status-idle) 10%, transparent);
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-state.paused {
-    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
-    color: var(--pw-warning);
-    border-color: color-mix(in srgb, var(--pw-warning) 22%, transparent);
+    background: color-mix(in srgb, var(--pw-status-warn) 12%, transparent);
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-state.restarting {
-    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
-    color: var(--pw-accent);
-    border-color: color-mix(in srgb, var(--pw-accent) 22%, transparent);
+    background: color-mix(in srgb, var(--pw-status-running) 12%, transparent);
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-actions {
@@ -245,9 +231,6 @@
 .pw-page[data-workspace-page="containers"] .modal {
     display: flex;
     flex-direction: column;
-    width: min(100%, 680px);
-    max-height: calc(100dvh - 1rem);
-    overflow: auto;
     background-image: none;
 }
 
@@ -266,11 +249,6 @@
 
 .pw-page[data-workspace-page="containers"] .modal-actions {
     padding: var(--space-3) var(--space-5) var(--space-4);
-}
-
-.pw-page[data-workspace-page="containers"] .modal-wide {
-    width: min(100%, 980px);
-    max-width: 100%;
 }
 
 /* ── Log / Inspect Output ── */

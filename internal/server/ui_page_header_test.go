@@ -33,7 +33,7 @@ var uiPageHeaderCases = []uiPageHeaderCase{
 	{file: "plans.html", page: "plans", h1Keyed: true},
 	{file: "containers.html", page: "containers", h1Keyed: true},
 	{file: "invasion_control.html", page: "invasion", h1Keyed: true},
-	{file: "truenas.html", page: "truenas"},
+	{file: "truenas.html", page: "truenas", h1Keyed: true},
 	{file: "media.html", page: "media", h1Keyed: true},
 	{file: "cheatsheets.html", page: "cheatsheets", h1Keyed: true},
 	{file: "login.html", page: "login", entry: true},
@@ -125,13 +125,23 @@ func TestUIPagesRenderWithSharedHeaderPartial(t *testing.T) {
 			}
 			if c.h1Keyed {
 				found := false
-				for _, m := range uiH1Pattern.FindAllStringSubmatch(page, -1) {
-					if !strings.Contains(m[1], "pw-page-title") && c.page != "dashboard" {
+				for _, loc := range uiH1Pattern.FindAllStringSubmatchIndex(page, -1) {
+					attrs := page[loc[2]:loc[3]]
+					if !strings.Contains(attrs, "pw-page-title") && c.page != "dashboard" {
 						continue
 					}
 					found = true
-					if k := uiDataI18NPattern.FindStringSubmatch(m[1]); k == nil || k[1] != key {
-						t.Errorf("H1 attributes %q: data-i18n must be %s", m[1], key)
+					if k := uiDataI18NPattern.FindStringSubmatch(attrs); k == nil || k[1] != key {
+						t.Errorf("H1 attributes %q: data-i18n must be %s", attrs, key)
+					}
+					// Wave 3: the keyed H1 sits inside the shared page heading
+					// (the dashboard has its own hero).
+					if c.page != "dashboard" {
+						before := page[:loc[0]]
+						open := strings.LastIndex(before, "pw-page-heading")
+						if open < 0 || strings.Contains(before[open:], "</header>") {
+							t.Errorf("H1 of %s must sit inside .pw-page-heading", c.file)
+						}
 					}
 				}
 				if !found {

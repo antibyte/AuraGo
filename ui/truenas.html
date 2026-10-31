@@ -37,21 +37,28 @@
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     {{template "app-header" .}}
 
-    <div class="truenas-container">
+    <div class="truenas-container pw-page-frame">
+        <header class="page-header pw-page-heading">
+            <div class="pw-page-heading-copy">
+                <h1 class="pw-page-title" data-i18n="common.page_truenas"></h1>
+                <p class="pw-page-description" data-i18n="truenas.page_description"></p>
+            </div>
+        </header>
+
         <!-- Tab Navigation -->
-        <nav class="truenas-nav">
-            <button class="nav-btn active" data-tab="overview" data-i18n="truenas.nav_overview"></button>
-            <button class="nav-btn" data-tab="pools" data-i18n="truenas.nav_pools"></button>
-            <button class="nav-btn" data-tab="datasets" data-i18n="truenas.nav_datasets"></button>
-            <button class="nav-btn" data-tab="snapshots" data-i18n="truenas.nav_snapshots"></button>
-            <button class="nav-btn" data-tab="shares" data-i18n="truenas.nav_shares"></button>
-            <button class="nav-btn" data-tab="settings" data-i18n="truenas.nav_settings"></button>
-        </nav>
+        <div class="truenas-nav pw-tabs" role="tablist" data-i18n-aria-label="truenas.tablist_label">
+            <button type="button" class="nav-btn pw-tab active" id="tabbtn-overview" role="tab" aria-selected="true" aria-controls="tab-overview" tabindex="0" data-tab="overview" data-i18n="truenas.nav_overview"></button>
+            <button type="button" class="nav-btn pw-tab" id="tabbtn-pools" role="tab" aria-selected="false" aria-controls="tab-pools" tabindex="-1" data-tab="pools" data-i18n="truenas.nav_pools"></button>
+            <button type="button" class="nav-btn pw-tab" id="tabbtn-datasets" role="tab" aria-selected="false" aria-controls="tab-datasets" tabindex="-1" data-tab="datasets" data-i18n="truenas.nav_datasets"></button>
+            <button type="button" class="nav-btn pw-tab" id="tabbtn-snapshots" role="tab" aria-selected="false" aria-controls="tab-snapshots" tabindex="-1" data-tab="snapshots" data-i18n="truenas.nav_snapshots"></button>
+            <button type="button" class="nav-btn pw-tab" id="tabbtn-shares" role="tab" aria-selected="false" aria-controls="tab-shares" tabindex="-1" data-tab="shares" data-i18n="truenas.nav_shares"></button>
+            <button type="button" class="nav-btn pw-tab" id="tabbtn-settings" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" data-tab="settings" data-i18n="truenas.nav_settings"></button>
+        </div>
 
         <!-- Content -->
         <main class="truenas-content" id="main-content">
             <!-- Overview Tab -->
-            <div id="tab-overview" class="tab-content active">
+            <div id="tab-overview" class="tab-content active" role="tabpanel" aria-labelledby="tabbtn-overview" tabindex="0">
                 <div id="overview-error"></div>
                 <div class="empty-state is-hidden" id="truenas-not-configured">
                     <div class="empty-icon">&#9888;&#65039;</div>
@@ -92,32 +99,33 @@
             </div>
 
             <!-- Pools Tab -->
-            <div id="tab-pools" class="tab-content">
+            <div id="tab-pools" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-pools" tabindex="0">
                 <div class="section-header">
                     <h2 data-i18n="truenas.section_pools"></h2>
                     <button class="btn btn-secondary" type="button" id="refresh-pools-btn" data-i18n="truenas.btn_refresh"></button>
                 </div>
                 <div id="pools-container" class="pools-grid">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_pools"></span></div>
+                    <div class="pw-loading-state" role="status"><span class="pw-skeleton skeleton" aria-hidden="true"></span><span data-i18n="truenas.loading_pools"></span></div>
                 </div>
             </div>
 
             <!-- Datasets Tab -->
-            <div id="tab-datasets" class="tab-content">
+            <div id="tab-datasets" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-datasets" tabindex="0">
                 <div class="section-header">
                     <h2 data-i18n="truenas.nav_datasets"></h2>
                     <button class="btn btn-primary" type="button" id="create-dataset-btn" data-i18n="truenas.btn_new_dataset"></button>
                 </div>
                 <div id="datasets-container" class="datasets-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_datasets"></span></div>
+                    <div class="pw-loading-state" role="status"><span class="pw-skeleton skeleton" aria-hidden="true"></span><span data-i18n="truenas.loading_datasets"></span></div>
                 </div>
             </div>
 
             <!-- Snapshots Tab -->
-            <div id="tab-snapshots" class="tab-content">
+            <div id="tab-snapshots" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-snapshots" tabindex="0">
                 <div class="section-header">
                     <h2 data-i18n="truenas.nav_snapshots"></h2>
                     <div>
+                        <label for="snapshot-filter" class="pw-field-label" data-i18n="truenas.nav_datasets"></label>
                         <select id="snapshot-filter">
                             <option value="" data-i18n="truenas.filter_all_datasets"></option>
                         </select>
@@ -125,34 +133,34 @@
                     </div>
                 </div>
                 <div id="snapshots-container" class="snapshots-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_snapshots"></span></div>
+                    <div class="pw-loading-state" role="status"><span class="pw-skeleton skeleton" aria-hidden="true"></span><span data-i18n="truenas.loading_snapshots"></span></div>
                 </div>
             </div>
 
             <!-- Shares Tab -->
-            <div id="tab-shares" class="tab-content">
+            <div id="tab-shares" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-shares" tabindex="0">
                 <div class="section-header">
                     <h2 data-i18n="truenas.section_shares"></h2>
                     <button class="btn btn-primary" type="button" id="create-share-btn" data-i18n="truenas.btn_new_share"></button>
                 </div>
                 <div id="shares-container" class="shares-list">
-                    <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_shares"></span></div>
+                    <div class="pw-loading-state" role="status"><span class="pw-skeleton skeleton" aria-hidden="true"></span><span data-i18n="truenas.loading_shares"></span></div>
                 </div>
             </div>
 
             <!-- Settings Tab -->
-            <div id="tab-settings" class="tab-content">
+            <div id="tab-settings" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-settings" tabindex="0">
                 <h2 data-i18n="truenas.section_settings"></h2>
                 <div id="settings-error"></div>
                 <form id="truenas-settings-form">
                     <div class="form-group">
-                        <label data-i18n="truenas.label_host"></label>
+                        <label for="setting-host" data-i18n="truenas.label_host"></label>
                         <input type="text" id="setting-host" placeholder="truenas.local">
                         <small data-i18n="truenas.hint_host"></small>
                     </div>
 
                     <div class="form-group">
-                        <label data-i18n="truenas.label_apikey"></label>
+                        <label for="setting-apikey" data-i18n="truenas.label_apikey"></label>
                         <input type="password" id="setting-apikey" placeholder="API Key">
                         <small data-i18n="truenas.hint_apikey">Create an API key under System → API Keys in TrueNAS</small>
                     </div>
@@ -190,18 +198,18 @@
     <div id="modal-dataset" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-dataset-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="modal-dataset-title" data-i18n="truenas.modal_dataset_title"></h2>
+                <h2 id="modal-dataset-title" class="modal-title" data-i18n="truenas.modal_dataset_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
             </div>
             <div class="modal-body">
             <div id="dataset-error"></div>
             <form id="dataset-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.label_name_example"></label>
+                    <label for="dataset-name" data-i18n="truenas.label_name_example"></label>
                     <input type="text" id="dataset-name" required placeholder="tank/my-share">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_compression"></label>
+                    <label for="dataset-compression" data-i18n="truenas.label_compression"></label>
                     <select id="dataset-compression">
                         <option value="lz4" selected data-i18n="truenas.opt_lz4"></option>
                         <option value="gzip" data-i18n="truenas.opt_gzip"></option>
@@ -210,10 +218,10 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_quota"></label>
+                    <label for="dataset-quota" data-i18n="truenas.label_quota"></label>
                     <input type="number" id="dataset-quota" min="0" value="0">
                 </div>
-                <div class="form-actions">
+                <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
@@ -226,20 +234,20 @@
     <div id="modal-snapshot" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-snapshot-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="modal-snapshot-title" data-i18n="truenas.modal_snapshot_title"></h2>
+                <h2 id="modal-snapshot-title" class="modal-title" data-i18n="truenas.modal_snapshot_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
             </div>
             <div class="modal-body">
             <div id="snapshot-error"></div>
             <form id="snapshot-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.nav_datasets"></label>
+                    <label for="snapshot-dataset" data-i18n="truenas.nav_datasets"></label>
                     <select id="snapshot-dataset" required>
                         <option value="">...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_name_optional"></label>
+                    <label for="snapshot-name" data-i18n="truenas.label_name_optional"></label>
                     <input type="text" id="snapshot-name" placeholder="aura-20240101-120000">
                 </div>
                 <div class="form-group checkbox">
@@ -247,10 +255,10 @@
                     <label for="snapshot-recursive" data-i18n="truenas.label_recursive"></label>
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_retention"></label>
+                    <label for="snapshot-retention" data-i18n="truenas.label_retention"></label>
                     <input type="number" id="snapshot-retention" min="0" value="0">
                 </div>
-                <div class="form-actions">
+                <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
@@ -263,25 +271,25 @@
     <div id="modal-share" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-share-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="modal-share-title" data-i18n="truenas.modal_share_title"></h2>
+                <h2 id="modal-share-title" class="modal-title" data-i18n="truenas.modal_share_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
             </div>
             <div class="modal-body">
             <div id="share-error"></div>
             <form id="share-form">
                 <div class="form-group">
-                    <label data-i18n="truenas.label_share_type"></label>
+                    <label for="share-type" data-i18n="truenas.label_share_type"></label>
                     <select id="share-type">
                         <option value="smb" selected data-i18n="truenas.opt_smb"></option>
                         <option value="nfs" data-i18n="truenas.opt_nfs"></option>
                     </select>
                 </div>
                 <div class="form-group" id="smb-share-name-field">
-                    <label data-i18n="truenas.label_name"></label>
+                    <label for="share-name" data-i18n="truenas.label_name"></label>
                     <input type="text" id="share-name" placeholder="MyShare">
                 </div>
                 <div class="form-group">
-                    <label data-i18n="truenas.label_path"></label>
+                    <label for="share-path" data-i18n="truenas.label_path"></label>
                     <input type="text" id="share-path" required placeholder="/mnt/tank/share">
                 </div>
                 <div id="smb-share-fields">
@@ -296,12 +304,12 @@
                 </div>
                 <div id="nfs-share-fields" class="is-hidden">
                     <div class="form-group">
-                        <label data-i18n="truenas.label_networks_optional"></label>
+                        <label for="nfs-networks" data-i18n="truenas.label_networks_optional"></label>
                         <input type="text" id="nfs-networks" placeholder="192.168.1.0/24">
                         <small data-i18n="truenas.hint_networks"></small>
                     </div>
                     <div class="form-group">
-                        <label data-i18n="truenas.label_hosts_optional"></label>
+                        <label for="nfs-hosts" data-i18n="truenas.label_hosts_optional"></label>
                         <input type="text" id="nfs-hosts" placeholder="backup-host,media-host">
                         <small data-i18n="truenas.hint_hosts"></small>
                     </div>
@@ -310,7 +318,7 @@
                         <label for="nfs-readonly" data-i18n="truenas.label_nfs_readonly"></label>
                     </div>
                 </div>
-                <div class="form-actions">
+                <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
@@ -323,4 +331,4 @@
     <script src="/js/truenas.js?v={{.BuildVersion}}"></script>
 </body>
 </html>
-{{define "app-header-status"}}<div class="connection-status"><span id="status-indicator" class="status-unknown"><span class="spinner"></span><span data-i18n="truenas.checking_connection"></span></span></div>{{end -}}
+{{define "app-header-status"}}<div class="connection-status"><span id="status-indicator" aria-live="polite"><span class="pw-badge" data-status="idle"><span class="spinner"></span><span data-i18n="truenas.checking_connection"></span></span></span></div>{{end -}}

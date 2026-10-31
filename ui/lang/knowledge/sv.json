@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Filindexerare → Kunskapsgraf-synkronisering",
   "knowledge.filesync_total_files": "Totalt filer",
   "knowledge.filesync_unavailable": "Ej tillgänglig",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Kunskapscenter",
   "knowledge.page_description": "Hantera kontakter, filer, enheter, inloggningar och hemligheter.",
   "knowledge.page_title": "AuraGo – Kunskapscenter",

@@ -61,22 +61,24 @@ func TestDashboardCSSDropsSupersededRules(t *testing.T) {
 	}
 }
 
-// TestDashboardControlsAndProfileSearchStyles: the problems and cron job control bars use the logs toolbar button
-// look, and the profile search box keeps its height in the user card's column flex body (.pw-search sets
-// flex: 1 1 220px, which grew it to about 220 px there).
+// TestDashboardControlsAndProfileSearchStyles: the logs, problems, cron job and audit control bars use the shared
+// .btn look (wave 3) instead of the former .log-btn rules, and the profile search box keeps its height in the user
+// card's column flex body (.pw-search sets flex: 1 1 220px, which grew it to about 220 px there).
 func TestDashboardControlsAndProfileSearchStyles(t *testing.T) {
 	t.Parallel()
 
 	css := dashboardCSSWithoutComments(t, "css/dashboard.css")
-	for _, scope := range []string{".log-controls", ".operational-issues-controls", ".cronjobs-controls"} {
-		body := dashboardCSSRuleBody(t, css, scope+" .log-btn")
-		for _, want := range []string{"padding: 0.45rem 0.85rem;", "border-radius: 0.6rem;", "cursor: pointer;", "font-size: var(--text-sm);"} {
-			if !strings.Contains(body, want) {
-				t.Errorf("%s .log-btn misses %q", scope, want)
+	for _, section := range []string{"logs", "problems", "automations", "audit"} {
+		html := normalizeAssetText(mustReadUIFile(t, "dashboard/sections/"+section+".html"))
+		for _, m := range regexp.MustCompile(`<button[^>]*class="([^"]*(?:log-btn|mh-more-btn)[^"]*)"`).FindAllStringSubmatch(html, -1) {
+			if !strings.Contains(m[1], "btn btn-") || !strings.Contains(m[1], "btn-sm") {
+				t.Errorf("dashboard/sections/%s.html: button class %q must use the shared btn variant + btn-sm", section, m[1])
 			}
 		}
-		if hover := dashboardCSSRuleBody(t, css, scope+" .log-btn:hover"); !strings.Contains(hover, "color: var(--pw-accent);") {
-			t.Errorf("%s .log-btn:hover must use the accent colour", scope)
+	}
+	for _, gone := range []string{".log-controls .log-btn", ".cf-overlay", ".cf-modal", ".cf-add-btn", ".audit-danger-btn"} {
+		if strings.Contains(css, gone) {
+			t.Errorf("dashboard.css still styles the superseded %s", gone)
 		}
 	}
 	if body := dashboardCSSRuleBody(t, css, ".dash-card-body > .profile-search"); !strings.Contains(body, "flex: none;") {

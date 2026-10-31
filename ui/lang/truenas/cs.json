@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Komprese",
   "truenas.dataset_used": "použito",
   "truenas.empty_datasets": "Nenalezeny žádné datasety",
+  "truenas.empty_datasets_desc": "Vytvořte dataset pro uspořádání dat v poolu.",
   "truenas.empty_pools": "Nenalezeny žádné pooly",
+  "truenas.empty_pools_desc": "Systém zatím nehlásí žádné úložné pooly.",
   "truenas.empty_shares": "Nebyla nalezena žádná sdílení",
+  "truenas.empty_shares_desc": "Vytvořte sdílení SMB nebo NFS, aby byl dataset dostupný v síti.",
   "truenas.empty_snapshots": "Nenalezeny žádné snímky",
+  "truenas.empty_snapshots_desc": "Vytvořte snapshot pro uchování obnovitelné kopie datasetu.",
   "truenas.error_connection": "Chyba:",
   "truenas.error_create": "Chyba při vytváření",
   "truenas.error_load_overview": "Chyba načítání přehledu:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Vypnuto",
   "truenas.opt_smb": "SMB sdílení",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Sledujte pooly, datasety, snapshoty a sdílení svého systému TrueNAS.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Vše OK",
   "truenas.pool_allocated": "Alokováno",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "Nenakonfigurováno",
   "truenas.status_offline": "Offline",
   "truenas.status_online": "Online",
-  "truenas.subtitle": "TrueNAS úložiště"
+  "truenas.subtitle": "TrueNAS úložiště",
+  "truenas.tablist_label": "Sekce TrueNAS"
 }

@@ -150,7 +150,7 @@ function _showSharedDialog(spec, opener) {
         const closeBtn = overlay.querySelector('[data-confirm-close]');
         const isAlert = !!spec.alert;
         const danger = !!spec.danger || !!spec.requireText;
-        const requireText = spec.requireText ? String(spec.requireText) : '';
+        const requireText = spec.requireText ? String(spec.requireText).trim() : '';
 
         if (titleEl) titleEl.textContent = spec.title == null ? '' : spec.title;
         if (msgEl) msgEl.textContent = spec.message == null ? '' : spec.message;
@@ -1148,7 +1148,10 @@ const _modalCtl = (function () {
         return stack.filter(e => e.modal.isConnected &&
             (e.modal.classList.contains('active') || e.modal.classList.contains('open')));
     }
-    function depth() { return showing().length; }
+    // Overlays that hold the page scroll lock; a shared confirm (noScroll) never does.
+    function depth() {
+        return showing().filter(e => { const h = _modalHooks.get(e.modal); return !(h && h.noScroll); }).length;
+    }
     function top() { const l = showing(); return l.length ? l[l.length - 1].modal : null; }
 
     return { open, close, focusables, isOpen, depth, top };
@@ -1183,7 +1186,7 @@ function _closeOverlay(modal, reason) {
  * Open a modal by ID
  * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
- * @param {Object} [options] - { initialFocus: selector|Element, onClose(reason) }
+ * @param {Object} [options] - { initialFocus: selector|Element, onClose(reason), canClose(reason) -> false vetoes }
  */
 function openModal(id, options) {
     const modal = document.getElementById(id);
@@ -1192,8 +1195,8 @@ function openModal(id, options) {
         modal.classList.add('active');
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
-        if (typeof opts.onClose === 'function') {
-            _modalHooks.set(modal, { onClose: opts.onClose });
+        if (typeof opts.onClose === 'function' || typeof opts.canClose === 'function') {
+            _modalHooks.set(modal, { onClose: opts.onClose, canClose: opts.canClose });
         }
         if (_modalCtl.isOpen(modal)) _modalCtl.close(modal); // drop a stale entry, then re-engage
         _modalCtl.open(modal, { initialFocus: opts.initialFocus });

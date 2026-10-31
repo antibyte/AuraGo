@@ -102,8 +102,8 @@
                     <tbody id="contacts-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state is-hidden" id="contacts-empty">
-                <div class="empty-icon">📇</div>
+            <div class="empty-state pw-empty-state is-hidden" id="contacts-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">📇</div>
                 <h3 data-i18n="knowledge.contacts_empty_title"></h3>
                 <p data-i18n="knowledge.contacts_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-contact" data-i18n="knowledge.contacts_add"></button>
@@ -142,8 +142,8 @@
                     <tbody id="files-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state is-hidden" id="files-empty">
-                <div class="empty-icon">📂</div>
+            <div class="empty-state pw-empty-state is-hidden" id="files-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">📂</div>
                 <h3 data-i18n="knowledge.files_empty_title"></h3>
                 <p data-i18n="knowledge.files_empty_desc"></p>
                 <button type="button" class="btn btn-primary kc-empty-cta" onclick="document.getElementById('file-upload-input-empty').click()">
@@ -192,8 +192,8 @@
                     <tbody id="devices-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state is-hidden" id="devices-empty">
-                <div class="empty-icon">📱</div>
+            <div class="empty-state pw-empty-state is-hidden" id="devices-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">📱</div>
                 <h3 data-i18n="knowledge.devices_empty_title"></h3>
                 <p data-i18n="knowledge.devices_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-device" data-i18n="knowledge.devices_add"></button>
@@ -229,8 +229,8 @@
                     <tbody id="credentials-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state is-hidden" id="credentials-empty">
-                <div class="empty-icon">🔑</div>
+            <div class="empty-state pw-empty-state is-hidden" id="credentials-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">🔑</div>
                 <h3 data-i18n="knowledge.credentials_empty_title"></h3>
                 <p data-i18n="knowledge.credentials_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-credential" data-i18n="knowledge.credentials_add"></button>
@@ -249,6 +249,7 @@
                     <input type="search" id="appointments-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.appointments_search_placeholder"
                         data-kc-search="appointments">
+                    <label class="kc-filter-label" for="appointments-filter" data-i18n="knowledge.filter_status_label"></label>
                     <select id="appointments-filter" class="kc-filter-select" onchange="loadAppointments()">
                         <option value="" data-i18n="knowledge.appointments_filter_all"></option>
                         <option value="upcoming" data-i18n="knowledge.appointments_filter_upcoming"></option>
@@ -262,8 +263,8 @@
                 </div>
             </div>
             <div id="appointments-list" class="kc-cards"></div>
-            <div class="empty-state is-hidden" id="appointments-empty">
-                <div class="empty-icon">📅</div>
+            <div class="empty-state pw-empty-state is-hidden" id="appointments-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">📅</div>
                 <h3 data-i18n="knowledge.appointments_empty_title"></h3>
                 <p data-i18n="knowledge.appointments_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-appointment" data-i18n="knowledge.appointments_add"></button>
@@ -277,6 +278,7 @@
                     <input type="search" id="todos-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.todos_search_placeholder"
                         data-kc-search="todos">
+                    <label class="kc-filter-label" for="todos-filter" data-i18n="knowledge.filter_status_label"></label>
                     <select id="todos-filter" class="kc-filter-select" onchange="loadTodos()">
                         <option value="" data-i18n="knowledge.todos_filter_all"></option>
                         <option value="open" data-i18n="knowledge.todos_filter_open"></option>
@@ -290,8 +292,8 @@
             </div>
             <div id="todos-summary" class="kc-todo-summary is-hidden"></div>
             <div id="todos-list" class="kc-todo-list"></div>
-            <div class="empty-state is-hidden" id="todos-empty">
-                <div class="empty-icon">✅</div>
+            <div class="empty-state pw-empty-state is-hidden" id="todos-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">✅</div>
                 <h3 data-i18n="knowledge.todos_empty_title"></h3>
                 <p data-i18n="knowledge.todos_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-todo" data-i18n="knowledge.todos_add"></button>
@@ -640,30 +642,9 @@
         </div>
     </div>
 
-    <!-- ═══════ DELETE CONFIRM MODAL ═══════ -->
-    <div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-delete-modal-title">
-        <div class="modal modal-small">
-            <div class="modal-header">
-                <h2 id="knowledge-delete-modal-title" data-i18n="knowledge.delete_confirm_title"></h2>
-                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
-            </div>
-            <p id="delete-confirm-text" data-i18n="knowledge.delete_confirm_text"></p>
-            <div id="contact-delete-scope" hidden>
-                <label><input type="checkbox" id="contact-delete-memories"> <span data-i18n="knowledge.contacts_delete_memories"></span></label>
-                <p data-i18n="knowledge.contacts_delete_backups"></p>
-            </div>
-            <input type="hidden" id="delete-target-id">
-            <input type="hidden" id="delete-target-type">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel"></button>
-                <button class="btn btn-danger" id="knowledge-delete-confirm-btn" onclick="confirmDelete()" data-i18n="common.btn_delete"></button>
-            </div>
-        </div>
-    </div>
-
     <!-- ═══════ FILE PREVIEW MODAL ═══════ -->
     <div class="modal-overlay" id="file-preview-modal" role="dialog" aria-modal="true" aria-labelledby="file-preview-title">
-        <div class="modal kc-preview-modal">
+        <div class="modal modal--xl kc-preview-modal">
             <div class="modal-header">
                 <div class="kc-preview-heading">
                     <h2 id="file-preview-title" data-i18n="knowledge.files_preview_title"></h2>
@@ -688,7 +669,7 @@
                     </div>
                 </div>
                 <div class="kc-preview-fallback is-hidden" id="file-preview-fallback">
-                    <div class="empty-icon">📄</div>
+                    <div class="empty-icon" aria-hidden="true">📄</div>
                     <h3 id="file-preview-fallback-title" data-i18n="knowledge.files_preview_unavailable_title"></h3>
                     <p id="file-preview-fallback-text" data-i18n="knowledge.files_preview_unavailable_desc"></p>
                 </div>

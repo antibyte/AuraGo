@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "File Indexer → Knowledge Graph Sync",
   "knowledge.filesync_total_files": "Total Files",
   "knowledge.filesync_unavailable": "Unavailable",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Knowledge Center",
   "knowledge.page_description": "Manage contacts, files, devices, credentials, and secrets.",
   "knowledge.page_title": "AuraGo – Knowledge Center",

@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "压缩",
   "truenas.dataset_used": "已用",
   "truenas.empty_datasets": "未找到数据集",
+  "truenas.empty_datasets_desc": "创建数据集以在存储池上组织数据。",
   "truenas.empty_pools": "未找到存储池",
+  "truenas.empty_pools_desc": "系统尚未报告任何存储池。",
   "truenas.empty_shares": "未找到共享",
+  "truenas.empty_shares_desc": "创建 SMB 或 NFS 共享，使数据集可在网络上访问。",
   "truenas.empty_snapshots": "未找到快照",
+  "truenas.empty_snapshots_desc": "创建快照以保留数据集的可恢复副本。",
   "truenas.error_connection": "错误：",
   "truenas.error_create": "创建时出错",
   "truenas.error_load_overview": "加载概览时出错：",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "关闭",
   "truenas.opt_smb": "SMB 共享",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "监控 TrueNAS 系统的存储池、数据集、快照和共享。",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "一切正常",
   "truenas.pool_allocated": "已分配",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "未配置",
   "truenas.status_offline": "离线",
   "truenas.status_online": "在线",
-  "truenas.subtitle": "TrueNAS 存储"
+  "truenas.subtitle": "TrueNAS 存储",
+  "truenas.tablist_label": "TrueNAS 分区"
 }

@@ -29,6 +29,7 @@
   <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
   <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
   <link rel="stylesheet" href="/css/plans.css?v={{.BuildVersion}}">
+  <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
 </head>
@@ -37,13 +38,20 @@
   {{template "app-header" .}}
 
 
-  <main class="plans-page" id="main-content">
-    <section class="plans-toolbar">
-      <div class="plans-toolbar-group">
+  <main class="plans-page pw-page-frame" id="main-content">
+    <header class="page-header pw-page-heading">
+      <div class="pw-page-heading-copy">
+        <h1 class="pw-page-title" data-i18n="common.page_plans"></h1>
+        <p class="pw-page-description" data-i18n="plans.page_description"></p>
+      </div>
+    </header>
+
+    <section class="plans-toolbar pw-toolbar">
+      <div class="plans-toolbar-group pw-toolbar-group">
         <label for="session-id" data-i18n="plans.session_label"></label>
         <input id="session-id" type="text" value="default">
       </div>
-      <div class="plans-toolbar-group">
+      <div class="plans-toolbar-group pw-toolbar-group">
         <label for="status-filter" data-i18n="plans.status_label"></label>
         <select id="status-filter">
           <option value="all" data-i18n="plans.status_all"></option>
@@ -55,19 +63,25 @@
           <option value="cancelled" data-i18n="plans.status_cancelled"></option>
         </select>
       </div>
-      <label class="plans-check">
+      <label class="plans-check" for="include-archived">
         <input id="include-archived" type="checkbox">
         <span data-i18n="plans.show_archived"></span>
       </label>
-      <button id="refresh-btn" class="btn btn-primary" data-i18n="plans.refresh"></button>
+      <span class="pw-toolbar-spacer"></span>
+      <button id="refresh-btn" type="button" class="btn btn-primary" data-i18n="plans.refresh"></button>
     </section>
 
     <section class="plans-layout">
       <aside class="plans-sidebar panel">
         <div class="panel-header">
-          <h1 class="pw-page-title" data-i18n="common.page_plans"></h1>
+          <h2 data-i18n="plans.list_title"></h2>
         </div>
-        <div id="plan-list" class="plan-list"></div>
+        <div id="plan-list" class="plan-list" aria-live="polite" aria-busy="true">
+          <div class="pw-loading-state" role="status">
+            <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+            <span data-i18n="common.loading"></span>
+          </div>
+        </div>
       </aside>
 
       <section class="plans-detail panel">
@@ -76,33 +90,36 @@
     </section>
   </main>
 
-  <div class="modal-overlay" id="blocker-modal">
-    <div class="modal-content plan-modal">
+  <div class="modal-overlay" id="blocker-modal" role="dialog" aria-modal="true" aria-labelledby="blocker-modal-title">
+    <div class="modal plan-modal">
       <div class="modal-header">
-        <h3 data-i18n="plans.block_modal_title"></h3>
+        <h2 id="blocker-modal-title" class="modal-title" data-i18n="plans.block_modal_title"></h2>
+        <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
       </div>
       <div class="modal-body">
-        <textarea id="blocker-reason" class="inline-note" data-i18n-placeholder="plans.block_prompt" placeholder=""></textarea>
+        <label for="blocker-reason" class="plan-field-label" data-i18n="plans.block_prompt"></label>
+        <textarea id="blocker-reason" class="inline-note"></textarea>
       </div>
-      <div class="modal-footer">
-        <button id="blocker-cancel" class="btn" data-i18n="common.btn_cancel"></button>
-        <button id="blocker-confirm" class="btn btn-primary" data-i18n="common.btn_ok"></button>
+      <div class="modal-actions">
+        <button id="blocker-cancel" type="button" class="btn btn-secondary" data-i18n="common.btn_cancel"></button>
+        <button id="blocker-confirm" type="button" class="btn btn-primary" data-i18n="common.btn_ok"></button>
       </div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="split-modal">
-    <div class="modal-content plan-modal">
+  <div class="modal-overlay" id="split-modal" role="dialog" aria-modal="true" aria-labelledby="split-modal-title">
+    <div class="modal plan-modal">
       <div class="modal-header">
-        <h3 data-i18n="plans.split_modal_title"></h3>
+        <h2 id="split-modal-title" class="modal-title" data-i18n="plans.split_modal_title"></h2>
+        <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
       </div>
       <div class="modal-body">
-        <p class="muted" data-i18n="plans.split_prompt"></p>
+        <label for="split-items" class="plan-field-label" data-i18n="plans.split_prompt"></label>
         <textarea id="split-items" class="inline-note" data-i18n-placeholder="plans.split_placeholder" placeholder=""></textarea>
       </div>
-      <div class="modal-footer">
-        <button id="split-cancel" class="btn" data-i18n="common.btn_cancel"></button>
-        <button id="split-confirm" class="btn btn-primary" data-i18n="plans.split"></button>
+      <div class="modal-actions">
+        <button id="split-cancel" type="button" class="btn btn-secondary" data-i18n="common.btn_cancel"></button>
+        <button id="split-confirm" type="button" class="btn btn-primary" data-i18n="plans.split"></button>
       </div>
     </div>
   </div>

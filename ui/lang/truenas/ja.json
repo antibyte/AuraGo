@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "圧縮",
   "truenas.dataset_used": "使用済み",
   "truenas.empty_datasets": "データセットが見つかりません",
+  "truenas.empty_datasets_desc": "データセットを作成して、プール上のデータを整理します。",
   "truenas.empty_pools": "プールが見つかりません",
+  "truenas.empty_pools_desc": "システムにはまだストレージプールが報告されていません。",
   "truenas.empty_shares": "共有が見つかりません",
+  "truenas.empty_shares_desc": "SMB または NFS 共有を作成して、データセットをネットワークで利用できるようにします。",
   "truenas.empty_snapshots": "スナップショットが見つかりません",
+  "truenas.empty_snapshots_desc": "スナップショットを作成して、データセットの復元可能なコピーを保持します。",
   "truenas.error_connection": "エラー:",
   "truenas.error_create": "作成エラー",
   "truenas.error_load_overview": "概要の読み込みエラー:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "オフ",
   "truenas.opt_smb": "SMB 共有",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "TrueNAS システムのプール、データセット、スナップショット、共有を監視します。",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "すべてOK",
   "truenas.pool_allocated": "割り当て済み",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "未設定",
   "truenas.status_offline": "オフライン",
   "truenas.status_online": "オンライン",
-  "truenas.subtitle": "TrueNASストレージ"
+  "truenas.subtitle": "TrueNASストレージ",
+  "truenas.tablist_label": "TrueNAS のセクション"
 }

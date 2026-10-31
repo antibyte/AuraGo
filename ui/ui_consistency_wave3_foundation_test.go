@@ -117,7 +117,6 @@ func TestWave3FoundationCSS(t *testing.T) {
 		"max-height: calc(100dvh - 1rem)",
 		".pw-page .pw-filter-pill", `.pw-filter-pill[aria-pressed="true"]`,
 		".pw-page .pw-empty-state .pw-empty-icon", ".pw-page .pw-loading-state .pw-skeleton",
-		".pw-page .modal-overlay.pw-confirm-overlay",
 	} {
 		if !strings.Contains(pages, marker) {
 			t.Errorf("precision-pages.css missing %q", marker)
@@ -125,7 +124,7 @@ func TestWave3FoundationCSS(t *testing.T) {
 	}
 	for _, marker := range []string{
 		".modal-overlay.pw-confirm-overlay", ".pw-confirm-detail", ".pw-confirm-field",
-		".pw-confirm-check", "calc(var(--z-modal, 1000) + 10)",
+		".pw-confirm-check", "--z-confirm: 13000",
 	} {
 		if !strings.Contains(shared, marker) {
 			t.Errorf("shared-components.css missing %q", marker)

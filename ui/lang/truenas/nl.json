@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Compressie",
   "truenas.dataset_used": "gebruikt",
   "truenas.empty_datasets": "Geen datasets gevonden",
+  "truenas.empty_datasets_desc": "Maak een dataset om gegevens op een pool te organiseren.",
   "truenas.empty_pools": "Geen pools gevonden",
+  "truenas.empty_pools_desc": "Het systeem meldt nog geen opslagpools.",
   "truenas.empty_shares": "Geen shares gevonden",
+  "truenas.empty_shares_desc": "Maak een SMB- of NFS-share om een dataset via het netwerk beschikbaar te maken.",
   "truenas.empty_snapshots": "Geen snapshots gevonden",
+  "truenas.empty_snapshots_desc": "Maak een snapshot om een herstelbare kopie van een dataset te bewaren.",
   "truenas.error_connection": "Fout:",
   "truenas.error_create": "Fout bij aanmaken",
   "truenas.error_load_overview": "Fout bij laden van overzicht:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Uit",
   "truenas.opt_smb": "SMB-share",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Bewaak pools, datasets, snapshots en shares van je TrueNAS-systeem.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Alles OK",
   "truenas.pool_allocated": "Toegewezen",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "Niet geconfigureerd",
   "truenas.status_offline": "Niet verbonden",
   "truenas.status_online": "Verbonden",
-  "truenas.subtitle": "TrueNAS-opslag"
+  "truenas.subtitle": "TrueNAS-opslag",
+  "truenas.tablist_label": "TrueNAS-secties"
 }

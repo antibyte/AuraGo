@@ -6,10 +6,6 @@
     overflow-x: clip;
 }
 
-.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-page {
-    padding-block: var(--pw-space-4);
-}
-
 .pw-page[data-workspace-page="plans"] .plans-page .empty-state {
     min-height: 180px;
     display: grid;
@@ -17,14 +13,6 @@
     padding: var(--pw-space-6);
     color: var(--pw-muted);
     text-align: center;
-}
-
-.pw-page[data-workspace-page="plans"] .plans-page {
-    margin: 0 auto;
-    width: min(100%, 1320px);
-    max-width: none;
-    margin-inline: auto;
-    padding: clamp(1rem, 2.5vw, 2rem);
 }
 
 .pw-page[data-workspace-page="plans"] .plans-toolbar {
@@ -239,15 +227,26 @@
     background: rgba(255,255,255,0.04);
 }
 
+/* Dialog chrome, sizing and the mobile bottom sheet come from .pw-page .modal (precision-pages.css). */
 .pw-page[data-workspace-page="plans"] .plan-modal {
-    width: min(560px, calc(100vw - 2rem));
+    width: min(100%, 560px);
     max-height: calc(100dvh - 1rem);
-    overflow-y: auto;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .modal-overlay {
+    min-height: 100dvh;
+}
+
+.pw-page[data-workspace-page="plans"] .plan-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="plans"] .plan-field-label {
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    font-weight: 650;
 }
 
 .pw-page[data-workspace-page="plans"] .plans-page .btn-primary, .pw-page[data-workspace-page="plans"] .plan-modal .btn-primary {
@@ -362,33 +361,6 @@
     margin: var(--space-2) 0 0 0;
 }
 
-.pw-page[data-workspace-page="plans"] .plan-modal .modal-header, .pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
-    border-color: var(--pw-line);
-}
-
-.pw-page[data-workspace-page="plans"] .plan-modal .modal-header, .pw-page[data-workspace-page="plans"] .plan-modal .modal-body, .pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
-    padding: var(--space-4) var(--space-5);
-}
-
-.pw-page[data-workspace-page="plans"] .plan-modal .modal-header {
-    border-bottom: 1px solid var(--plans-border);
-}
-
-.pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
-    border-top: 1px solid var(--plans-border);
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-3);
-}
-
-.pw-page[data-workspace-page="plans"] .modal-overlay {
-    min-height: 100dvh;
-    padding: var(--pw-space-4);
-    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
-    background-image: none;
-    backdrop-filter: blur(8px);
-}
-
 @media (max-width: 1080px) {
     .pw-page[data-workspace-page="plans"] .plans-layout, .pw-page[data-workspace-page="plans"] .plan-grid {
         grid-template-columns: 1fr;
@@ -406,8 +378,8 @@
 }
 
 @media (max-width: 640px) {
-    .pw-page[data-workspace-page="plans"] .plans-page {
-        padding: var(--pw-space-3);
+    .pw-page[data-workspace-page="plans"] .plan-modal {
+        border-radius: 20px 20px 0 0;
     }
 
     .pw-page[data-workspace-page="plans"] .plans-toolbar {
@@ -423,20 +395,6 @@
         min-height: 44px;
     }
 
-    .pw-page[data-workspace-page="plans"] .modal-overlay {
-        align-items: flex-end;
-        padding: var(--pw-space-2);
-    }
-
-    .pw-page[data-workspace-page="plans"] .plan-modal {
-        width: 100%;
-        max-height: calc(100dvh - 1rem);
-        border-radius: 20px 20px 0 0;
-    }
-
-    .pw-page[data-workspace-page="plans"] .plan-modal .modal-header, .pw-page[data-workspace-page="plans"] .plan-modal .modal-body, .pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
-        padding: var(--pw-space-4);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -470,4 +428,22 @@
 
 .pw-page[data-workspace-page="plans"] button.plan-row:not(:hover):not(.active) {
     background: transparent;
+}
+
+/* Toolbar labels sit left, flush with their controls (not centred over them). */
+.pw-page[data-workspace-page="plans"] .plans-toolbar .plans-toolbar-group {
+    align-items: stretch;
+    text-align: left;
+}
+
+/* The empty detail pane fills the panel without a second (dashed) frame. */
+.pw-page[data-workspace-page="plans"] .plans-detail {
+    display: grid;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .plans-detail .plan-detail.empty-state {
+    min-height: 240px;
+    border: 0;
+    border-radius: 0;
+    background: none;
 }

@@ -188,45 +188,6 @@
     align-items: center;
 }
 
-/* Type filter and security filter share one pill style (same look as missions/containers filters). */
-.pw-page[data-workspace-page="skills"] .sk-filter-btn {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: 40px;
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--pw-line);
-    border-radius: 999px;
-    background: var(--pw-surface-elevated);
-    color: var(--pw-muted);
-    font: inherit;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-        border-color var(--pw-duration-fast) var(--pw-ease),
-        background var(--pw-duration-fast) var(--pw-ease),
-        color var(--pw-duration-fast) var(--pw-ease);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-filter-btn:hover {
-    border-color: color-mix(in srgb, var(--pw-accent) 35%, var(--pw-line));
-    color: var(--pw-text);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-filter-btn.active,
-.pw-page[data-workspace-page="skills"] .sk-filter-btn.is-active,
-.pw-page[data-workspace-page="skills"] .sk-filter-btn[aria-pressed="true"],
-.pw-page[data-workspace-page="skills"] .sk-pill.active,
-.pw-page[data-workspace-page="skills"] .sk-pill[aria-pressed="true"] {
-    border-color: var(--pw-accent);
-    background: color-mix(in srgb, var(--pw-accent) 14%, var(--pw-surface-elevated));
-    color: var(--pw-text);
-    font-weight: 600;
-}
-
 .pw-page[data-workspace-page="skills"] .sk-toolbar-secondary {
     margin-top: calc(-1 * var(--pw-space-3));
     padding-top: 0;
@@ -252,33 +213,6 @@
 
 .pw-page[data-workspace-page="skills"] .sk-toolbar-actions .btn:hover {
     transform: translateY(-1px);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-pill {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--pw-line);
-    background: var(--pw-surface-elevated);
-    color: var(--pw-muted);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    transition:
-        border-color var(--pw-duration-fast) var(--pw-ease),
-        background var(--pw-duration-fast) var(--pw-ease),
-        color var(--pw-duration-fast) var(--pw-ease);
-    font-family: inherit;
-    font-weight: 500;
-}
-
-.pw-page[data-workspace-page="skills"] .sk-pill:hover {
-    border-color: color-mix(in srgb, var(--pw-accent) 35%, var(--pw-line));
-    color: var(--pw-text);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-pill.active {
-    font-weight: 600;
 }
 
 /* ── Security Badges ── */
@@ -599,13 +533,6 @@
     margin-left: var(--space-1);
 }
 
-/* ── Vault Key Assignment Modal ── */
-
-.pw-page[data-workspace-page="skills"] .modal--sm {
-    max-width: 420px;
-    width: 90%;
-}
-
 .pw-page[data-workspace-page="skills"] .sk-vault-key-list {
     display: flex;
     flex-direction: column;
@@ -670,13 +597,6 @@
 
 .pw-page[data-workspace-page="skills"] .sk-card-actions .btn:hover {
     transform: translateY(-1px);
-}
-
-/* ── Detail Modal ── */
-
-.pw-page[data-workspace-page="skills"] .modal-wide {
-    max-width: 900px;
-    width: min(980px, calc(100vw - 2rem));
 }
 
 .pw-page[data-workspace-page="skills"] .sk-detail-grid {
@@ -1126,30 +1046,6 @@
     line-height: 1.45;
 }
 
-.pw-page[data-workspace-page="skills"] .sk-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    margin-top: var(--space-2);
-    color: var(--pw-muted);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-checkbox-label input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: var(--pw-accent);
-}
-
-.pw-page[data-workspace-page="skills"] .sk-delete-name {
-    font-weight: 600;
-    color: var(--pw-accent);
-    margin: var(--space-2) 0;
-    letter-spacing: -0.01em;
-}
-
 .pw-page[data-workspace-page="skills"] .sk-error {
     color: var(--pw-danger);
 }
@@ -1202,21 +1098,6 @@
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;
-}
-
-.pw-page[data-workspace-page="skills"] .sk-pill:hover {
-    box-shadow: none;
-    filter: none;
-    transform: none;
-}
-
-.pw-page[data-workspace-page="skills"] .sk-pill {
-    min-height: 40px;
-    border-radius: 999px;
-    background-image: none;
-    box-shadow: none;
-    filter: none;
-    transform: none;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-search:focus-visible, .pw-page[data-workspace-page="skills"] .sk-filter-btn:focus-visible, .pw-page[data-workspace-page="skills"] .sk-pill:focus-visible, .pw-page[data-workspace-page="skills"] .sk-card-actions .btn:focus-visible, .pw-page[data-workspace-page="skills"] .sk-input:focus-visible, .pw-page[data-workspace-page="skills"] .sk-select:focus-visible {
@@ -1279,8 +1160,6 @@
 }
 
 .pw-page[data-workspace-page="skills"] .modal {
-    width: min(680px, calc(100vw - 2rem));
-    max-height: calc(100dvh - 1rem);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1428,8 +1307,7 @@
         padding: var(--pw-space-2);
     }
 
-    .pw-page[data-workspace-page="skills"] .modal, .pw-page[data-workspace-page="skills"] .modal-wide {
-        width: 100%;
+    .pw-page[data-workspace-page="skills"] .modal {
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
     }

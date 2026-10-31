@@ -12,8 +12,6 @@ let currentSecFilter = 'all';
 let currentSkillMode = 'python';
 let currentDetailId = '';
 let currentAgentSkillId = '';
-let deleteTargetId = '';
-let skillDeleteInFlight = false;
 let selectedFile = null;
 let selectedImportFile = null;
 let selectedAgentImportFile = null;
@@ -863,7 +861,7 @@ function showDisabledState() {
                 <h4>${t('skills.agent_scripts')}</h4>
                 <div class="sk-card-deps">${scripts.map(r => `<span class="sk-dep-tag">${esc(r.path || r.Path || '')}</span>`).join('') || '<em>' + t('skills.agent_no_scripts') + '</em>'}</div>
             `;
-            document.getElementById('detail-modal').classList.add('active');
+            openModal('detail-modal', { onClose: resetDetailModalState });
         } catch (e) {
             showToast(t('common.error'), 'error');
         }
@@ -883,7 +881,7 @@ function showDisabledState() {
         document.getElementById('agent-skill-content').value = data.content || '';
         document.getElementById('agent-resource-browser').style.display = 'block';
         renderAgentResourceList(data.skill.resources || []);
-        document.getElementById('agent-skill-modal').classList.add('active');
+        openModal('agent-skill-modal', { onClose: () => { currentAgentSkillId = ''; } });
     }
 
     function renderAgentResourceList(resources) {
@@ -980,15 +978,10 @@ function showDisabledState() {
     }
 
     function closeAgentResourcePathDialog(result) {
-        const overlay = document.getElementById('agent-resource-path-modal');
-        if (overlay) {
-            overlay.classList.remove('active');
-            overlay.style.display = 'none';
-            overlay.onclick = null;
-        }
         const resolve = agentResourcePathDialogResolve;
         agentResourcePathDialogResolve = null;
         if (resolve) resolve(result);
+        closeModal('agent-resource-path-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1021,19 +1014,21 @@ function showDisabledState() {
         input.value = options.value || '';
         confirmBtn.textContent = t(options.confirmKey);
         setAgentResourcePathError('');
-        overlay.style.display = 'flex';
-        overlay.classList.add('active');
-        overlay.onclick = event => {
-            if (event.target === overlay) cancelAgentResourcePathDialog();
-        };
-        window.setTimeout(() => {
-            input.focus();
-            if (input.value) input.select();
-        }, 0);
-        onAgentResourcePathInput();
-        return new Promise(resolve => {
+        const pending = new Promise(resolve => {
             agentResourcePathDialogResolve = resolve;
         });
+        openModal('agent-resource-path-modal', {
+            initialFocus: input,
+            onClose: () => {
+                // Esc, backdrop and X close the dialog without a path.
+                const resolve = agentResourcePathDialogResolve;
+                agentResourcePathDialogResolve = null;
+                if (resolve) resolve(null);
+            }
+        });
+        if (input.value) input.select();
+        onAgentResourcePathInput();
+        return pending;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1115,27 +1110,28 @@ function showDisabledState() {
         if (!overlay) return Promise.resolve(false);
         if (messageEl) messageEl.textContent = message;
         setAgentFileDeleteBusy(false);
-        overlay.style.display = 'flex';
-        overlay.classList.add('active');
-        overlay.onclick = event => {
-            if (event.target === overlay) cancelAgentFileDeleteDialog();
-        };
-        return new Promise(resolve => {
+        const pending = new Promise(resolve => {
             agentFileDeleteDialogResolve = resolve;
         });
+        openModal('agent-file-delete-modal', {
+            initialFocus: '#agent-file-delete-cancel-btn',
+            canClose: () => !agentFileDeleteBusy,
+            onClose: () => {
+                setAgentFileDeleteBusy(false);
+                const resolve = agentFileDeleteDialogResolve;
+                agentFileDeleteDialogResolve = null;
+                if (resolve) resolve(false);
+            }
+        });
+        return pending;
     }
 
     function closeAgentFileDeleteDialog(result) {
-        const overlay = document.getElementById('agent-file-delete-modal');
-        if (overlay) {
-            overlay.classList.remove('active');
-            overlay.style.display = 'none';
-            overlay.onclick = null;
-        }
         setAgentFileDeleteBusy(false);
         const resolve = agentFileDeleteDialogResolve;
         agentFileDeleteDialogResolve = null;
         if (resolve) resolve(result);
+        closeModal('agent-file-delete-modal');
     }
 
     function setAgentFileDeleteBusy(busy) {
@@ -1297,13 +1293,12 @@ function showDisabledState() {
         document.getElementById('agent-skill-name').value = '';
         document.getElementById('agent-skill-description').value = '';
         document.getElementById('agent-skill-content').value = '# Instructions\n\nUse this skill when the task matches the package description.\n';
-        document.getElementById('agent-skill-modal').classList.add('active');
+        openModal('agent-skill-modal', { onClose: () => { currentAgentSkillId = ''; } });
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeAgentSkillModal() {
-        document.getElementById('agent-skill-modal').classList.remove('active');
-        currentAgentSkillId = '';
+        closeModal('agent-skill-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1347,13 +1342,12 @@ function showDisabledState() {
         document.getElementById('agent-import-file').value = '';
         document.getElementById('agent-import-path').value = '';
         document.getElementById('agent-import-file-name').textContent = t('skills.agent_import_zip_hint');
-        document.getElementById('agent-import-modal').classList.add('active');
+        openModal('agent-import-modal', { onClose: () => { selectedAgentImportFile = null; } });
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeAgentSkillImportModal() {
-        document.getElementById('agent-import-modal').classList.remove('active');
-        selectedAgentImportFile = null;
+        closeModal('agent-import-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1404,7 +1398,7 @@ function showDisabledState() {
         document.getElementById('agent-test-args').value = '{}';
         document.getElementById('agent-test-output').textContent = '';
         onAgentTestScriptChange();
-        document.getElementById('agent-test-modal').classList.add('active');
+        openModal('agent-test-modal', { onClose: () => { currentAgentSkillId = ''; } });
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1419,8 +1413,7 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function closeAgentSkillTestModal() {
-        document.getElementById('agent-test-modal').classList.remove('active');
-        currentAgentSkillId = '';
+        closeModal('agent-test-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1513,7 +1506,7 @@ function showDisabledState() {
         if (actions) actions.style.display = '';
         const body = document.getElementById('detail-modal-body');
         body.innerHTML = `<p>${t('common.loading')}</p>`;
-        document.getElementById('detail-modal').classList.add('active');
+        openModal('detail-modal', { onClose: resetDetailModalState });
 
         try {
             const [skillResp, versionsResp, auditResp] = await Promise.all([
@@ -1599,7 +1592,10 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function closeDetailModal() {
-        document.getElementById('detail-modal').classList.remove('active');
+        closeModal('detail-modal');
+    }
+
+    function resetDetailModalState() {
         currentDetailId = '';
         currentAgentSkillId = '';
         const actions = document.querySelector('#detail-modal .modal-actions');
@@ -1733,12 +1729,12 @@ function showDisabledState() {
         saveBtn.style.display = readOnly ? 'none' : '';
         setDraftMeta(draftMeta, readOnly);
 
-        document.getElementById('code-modal').classList.add('active');
+        openModal('code-modal', { onClose: resetCodeModalState });
     }
 
     // eslint-disable-next-line no-unused-vars
     async function viewCode(id) {
-        document.getElementById('code-modal').classList.add('active');
+        openModal('code-modal', { onClose: resetCodeModalState });
         const container = document.getElementById('code-editor-container');
         container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('common.loading')}</p>`;
 
@@ -1806,9 +1802,12 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function closeCodeModal() {
+        closeModal('code-modal');
+    }
+
+    function resetCodeModalState() {
         const modal = document.getElementById('code-modal');
-        modal.classList.remove('active');
-        modal.classList.remove('sk-code-overlay-fullscreen');
+        if (modal) modal.classList.remove('sk-code-overlay-fullscreen');
         if (codeEditorView) {
             codeEditorView.destroy();
             codeEditorView = null;
@@ -1878,12 +1877,12 @@ function showDisabledState() {
         document.getElementById('upload-tags').value = '';
         const docEl = document.getElementById('upload-documentation');
         if (docEl) docEl.value = '';
-        document.getElementById('upload-modal').classList.add('active');
+        openModal('upload-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeUploadModal() {
-        document.getElementById('upload-modal').classList.remove('active');
+        closeModal('upload-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1981,12 +1980,12 @@ function showDisabledState() {
         document.getElementById('template-select').selectedIndex = 0;
         document.getElementById('template-description').style.display = 'none';
         document.getElementById('template-submit-btn').disabled = true;
-        document.getElementById('template-modal').classList.add('active');
+        openModal('template-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeTemplateModal() {
-        document.getElementById('template-modal').classList.remove('active');
+        closeModal('template-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -2050,67 +2049,45 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function showDeleteSkillModal(id, name) {
-        deleteTargetId = id;
-        skillDeleteInFlight = false;
-        document.getElementById('delete-skill-name').textContent = name;
-        document.getElementById('delete-files-checkbox').checked = true;
-        setSkillDeleteBusy(false);
-        document.getElementById('delete-skill-modal').classList.add('active');
+        return requestSkillDelete(id, name);
     }
 
     // eslint-disable-next-line no-unused-vars
     function deleteAgentSkill(id, name) {
-        deleteTargetId = `agent:${id}`;
-        skillDeleteInFlight = false;
-        document.getElementById('delete-skill-name').textContent = name;
-        document.getElementById('delete-files-checkbox').checked = true;
-        setSkillDeleteBusy(false);
-        document.getElementById('delete-skill-modal').classList.add('active');
+        return requestSkillDelete(`agent:${id}`, name);
     }
 
-    // eslint-disable-next-line no-unused-vars
-    function closeDeleteSkillModal() {
-        document.getElementById('delete-skill-modal').classList.remove('active');
-        deleteTargetId = '';
-        skillDeleteInFlight = false;
-        setSkillDeleteBusy(false);
+    function requestSkillDelete(targetId, name) {
+        return showConfirmDialog({
+            title: t('skills.delete_title'),
+            message: t('skills.delete_confirm'),
+            detail: name,
+            danger: true,
+            confirmText: t('common.btn_delete'),
+            cancelText: t('common.btn_cancel'),
+            checkbox: { label: t('skills.delete_files'), checked: true },
+            onConfirm: ({ checked }) => performSkillDelete(targetId, checked)
+        });
     }
 
-    // eslint-disable-next-line no-unused-vars
-    async function confirmDeleteSkill() {
-        if (!deleteTargetId || skillDeleteInFlight) return;
-        skillDeleteInFlight = true;
-        setSkillDeleteBusy(true);
-        const deleteFiles = document.getElementById('delete-files-checkbox').checked;
-
+    async function performSkillDelete(targetId, deleteFiles) {
         try {
-            const isAgentSkillDelete = deleteTargetId.startsWith('agent:');
-            const rawID = isAgentSkillDelete ? deleteTargetId.slice(6) : deleteTargetId;
+            const isAgentSkillDelete = targetId.startsWith('agent:');
+            const rawID = isAgentSkillDelete ? targetId.slice(6) : targetId;
             const apiPath = isAgentSkillDelete ? '/api/agent-skills/' : '/api/skills/';
             const resp = await fetch(`${apiPath}${encodeURIComponent(rawID)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
             const data = await resp.json();
-            if (data.status === 'deleted') {
-                showToast(t('skills.delete_success'), 'success');
-                closeDeleteSkillModal();
-                closeDetailModal();
-                if (isAgentSkillDelete) await loadAgentSkills(); else await loadSkills();
-            } else {
+            if (data.status !== 'deleted') {
                 showToast(data.message || t('common.error'), 'error');
+                return false;
             }
+            showToast(t('skills.delete_success'), 'success');
+            closeDetailModal();
+            if (isAgentSkillDelete) await loadAgentSkills(); else await loadSkills();
+            return true;
         } catch (e) {
             showToast(t('common.error'), 'error');
-        } finally {
-            if (deleteTargetId) {
-                skillDeleteInFlight = false;
-                setSkillDeleteBusy(false);
-            }
-        }
-    }
-
-    function setSkillDeleteBusy(busy) {
-        const confirmBtn = document.getElementById('skill-delete-confirm-btn');
-        if (confirmBtn) {
-            confirmBtn.disabled = busy;
+            return false;
         }
     }
 
@@ -2333,12 +2310,12 @@ function showDisabledState() {
         document.getElementById('test-args-input').value = '{}';
         document.getElementById('test-output').textContent = '';
         document.getElementById('test-output-status').textContent = '';
-        document.getElementById('test-modal').classList.add('active');
+        openModal('test-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeTestModal() {
-        document.getElementById('test-modal').classList.remove('active');
+        closeModal('test-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -2380,12 +2357,12 @@ function showDisabledState() {
         document.getElementById('import-file').value = '';
         document.getElementById('import-file-name').textContent = t('skills.import_hint');
         document.getElementById('import-submit-btn').disabled = true;
-        document.getElementById('import-modal').classList.add('active');
+        openModal('import-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeImportModal() {
-        document.getElementById('import-modal').classList.remove('active');
+        closeModal('import-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -2433,13 +2410,12 @@ function showDisabledState() {
         document.getElementById('generate-template-select').selectedIndex = 0;
         document.getElementById('generate-dependencies').value = '';
         clearGenerateStatus();
-        document.getElementById('generate-modal').classList.add('active');
+        openModal('generate-modal', { onClose: clearGenerateStatus });
     }
 
     // eslint-disable-next-line no-unused-vars
     function closeGenerateModal() {
-        clearGenerateStatus();
-        document.getElementById('generate-modal').classList.remove('active');
+        closeModal('generate-modal');
     }
 
     function setGenerateStatus(message, type = 'info') {
@@ -2547,7 +2523,7 @@ function showDisabledState() {
         const emptyEl = document.getElementById('vault-key-empty');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
         emptyEl.style.display = 'none';
-        document.getElementById('vault-key-modal').classList.add('active');
+        openModal('vault-key-modal', { onClose: () => { vaultKeyTargetId = ''; } });
 
         try {
             // Load vault secrets, credentials, and current skill in parallel
@@ -2609,8 +2585,7 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function closeVaultKeyModal() {
-        document.getElementById('vault-key-modal').classList.remove('active');
-        vaultKeyTargetId = '';
+        closeModal('vault-key-modal');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -2649,7 +2624,7 @@ function showDisabledState() {
         const bridgeOffEl = document.getElementById('internal-tools-bridge-off');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
         if (bridgeOffEl) bridgeOffEl.style.display = 'none';
-        document.getElementById('internal-tools-modal').classList.add('active');
+        openModal('internal-tools-modal', { onClose: () => { internalToolsTargetId = ''; } });
 
         try {
             const [toolsResp, skillResp] = await Promise.all([
@@ -2682,8 +2657,7 @@ function showDisabledState() {
 
     // eslint-disable-next-line no-unused-vars
     function closeInternalToolsModal() {
-        document.getElementById('internal-tools-modal').classList.remove('active');
-        internalToolsTargetId = '';
+        closeModal('internal-tools-modal');
     }
 
     // eslint-disable-next-line no-unused-vars

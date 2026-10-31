@@ -67,8 +67,12 @@
 
         <div id="panel-nests" class="tab-content invasion-panel" role="tabpanel" aria-labelledby="tab-nests" tabindex="0">
             <div class="cards-grid" id="nests-grid"></div>
-            <div class="empty-state is-hidden" id="nests-empty">
-                <div class="empty-icon">🪺</div>
+            <div class="pw-loading-state" id="nests-loading" role="status">
+                <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+                <span data-i18n="common.loading"></span>
+            </div>
+            <div class="empty-state pw-empty-state is-hidden" id="nests-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">🪺</div>
                 <h3 data-i18n="invasion.no_nests_title"></h3>
                 <p data-i18n="invasion.no_nests"></p>
                 <button class="btn btn-primary" type="button" data-action="open-create">
@@ -79,8 +83,12 @@
 
         <div id="panel-eggs" class="tab-content invasion-panel is-hidden" role="tabpanel" aria-labelledby="tab-eggs" tabindex="0">
             <div class="cards-grid" id="eggs-grid"></div>
-            <div class="empty-state is-hidden" id="eggs-empty">
-                <div class="empty-icon">🥚</div>
+            <div class="pw-loading-state" id="eggs-loading" role="status">
+                <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+                <span data-i18n="common.loading"></span>
+            </div>
+            <div class="empty-state pw-empty-state is-hidden" id="eggs-empty">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">🥚</div>
                 <h3 data-i18n="invasion.no_eggs_title"></h3>
                 <p data-i18n="invasion.no_eggs"></p>
                 <button class="btn btn-primary" type="button" data-action="open-create">
@@ -316,7 +324,7 @@
     </div>
 
     <div class="modal-overlay" id="reconfigure-modal" role="dialog" aria-modal="true" aria-labelledby="reconfigure-modal-title">
-        <div class="modal modal-lg">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="reconfigure-modal-title" data-i18n="invasion.reconfigure_title"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="reconfigure-modal">&times;</button>
@@ -385,7 +393,7 @@
     </div>
 
     <div class="modal-overlay" id="config-history-modal" role="dialog" aria-modal="true" aria-labelledby="config-history-title">
-        <div class="modal modal-lg">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="config-history-title" data-i18n="invasion.config_history_title"></h2>
                 <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="config-history-modal">&times;</button>
@@ -399,24 +407,6 @@
             </div>
         </div>
     </div>
-
-    <div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="invasion-delete-modal-title">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="delete-modal-title" id="invasion-delete-modal-title">⚠️ <span data-i18n="invasion.confirm_delete"></span></h2>
-                <button class="modal-close" type="button" data-i18n-aria-label="common.close" data-modal-close="delete-modal">&times;</button>
-            </div>
-            <p id="delete-message" class="delete-message"></p>
-            <p class="delete-modal-hint" data-i18n="invasion.type_name_confirm"></p>
-            <input type="text" class="delete-confirm-input" id="delete-confirm-input" autocomplete="off">
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="delete-cancel-btn" type="button" data-i18n="invasion.cancel"></button>
-                <button class="btn btn-danger" id="btn-delete-confirm" type="button" disabled data-i18n="invasion.delete_permanent"></button>
-            </div>
-        </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
 
     <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/invasion/main.js?v={{.BuildVersion}}"></script>

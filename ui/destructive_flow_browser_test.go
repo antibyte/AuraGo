@@ -243,26 +243,20 @@ func TestSkillsDestructiveDeleteFlowContract(t *testing.T) {
 
 	htmlText := string(html)
 	jsText := string(js)
-	for _, marker := range []string{
-		`id="skill-delete-confirm-btn"`,
-		`onclick="confirmDeleteSkill()"`,
-		`id="delete-files-checkbox"`,
-	} {
-		if !strings.Contains(htmlText, marker) {
-			t.Fatalf("skills delete flow is missing stable destructive-flow marker %q", marker)
-		}
+	// The shared confirm dialog owns the double-submit guard (busy onConfirm);
+	// the page only has to hand over a danger dialog with the files checkbox.
+	if strings.Contains(htmlText, `id="delete-skill-modal"`) {
+		t.Fatal("skills delete must use the shared confirm dialog, not a page modal")
 	}
 	for _, marker := range []string{
-		"let skillDeleteInFlight = false;",
-		"if (!deleteTargetId || skillDeleteInFlight) return;",
-		"skillDeleteInFlight = true;",
-		"setSkillDeleteBusy(true);",
-		"setSkillDeleteBusy(false);",
-		"function setSkillDeleteBusy(busy)",
-		"confirmBtn.disabled = busy;",
+		"showConfirmDialog({",
+		"danger: true,",
+		"checkbox: { label: t('skills.delete_files'), checked: true },",
+		"onConfirm: ({ checked }) => performSkillDelete(targetId, checked)",
+		"async function performSkillDelete(targetId, deleteFiles)",
 	} {
 		if !strings.Contains(jsText, marker) {
-			t.Fatalf("skills delete flow is missing double-submit guard marker %q", marker)
+			t.Fatalf("skills delete flow is missing shared-dialog marker %q", marker)
 		}
 	}
 }
@@ -369,26 +363,29 @@ func TestKnowledgeDestructiveDeleteFlowContract(t *testing.T) {
 
 	htmlText := string(html)
 	jsText := string(js)
-	for _, marker := range []string{
-		`id="knowledge-delete-confirm-btn"`,
-		`onclick="confirmDelete()"`,
-		`id="delete-target-type"`,
-	} {
-		if !strings.Contains(htmlText, marker) {
-			t.Fatalf("knowledge delete flow is missing stable destructive-flow marker %q", marker)
-		}
+	// One shared danger dialog for all six delete entry points; the dialog's
+	// busy onConfirm replaces the page-level in-flight flag.
+	if strings.Contains(htmlText, `id="delete-modal"`) {
+		t.Fatal("knowledge delete must use the shared confirm dialog, not a page modal")
 	}
 	for _, marker := range []string{
-		"let knowledgeDeleteInFlight = false;",
-		"if (knowledgeDeleteInFlight) return;",
-		"knowledgeDeleteInFlight = true;",
-		"setKnowledgeDeleteBusy(true);",
-		"setKnowledgeDeleteBusy(false);",
-		"function setKnowledgeDeleteBusy(busy)",
-		"confirmBtn.disabled = busy;",
+		"function askDeleteKnowledgeItem(type, id, message, options)",
+		"showConfirmDialog({",
+		"danger: true,",
+		"onConfirm: ({ checked }) => performKnowledgeDelete(type, id, !!checked)",
+		"async function performKnowledgeDelete(type, id, deleteMemories)",
 	} {
 		if !strings.Contains(jsText, marker) {
-			t.Fatalf("knowledge delete flow is missing double-submit guard marker %q", marker)
+			t.Fatalf("knowledge delete flow is missing shared-dialog marker %q", marker)
+		}
+	}
+	for _, file := range []string{"appointments.js", "todos.js"} {
+		extra, err := os.ReadFile(filepath.Join(".", "js", "knowledge", file))
+		if err != nil {
+			t.Fatalf("read knowledge %s: %v", file, err)
+		}
+		if !strings.Contains(string(extra), "askDeleteKnowledgeItem(") {
+			t.Fatalf("knowledge %s delete must go through askDeleteKnowledgeItem", file)
 		}
 	}
 }

@@ -126,7 +126,7 @@
             actions.className = 'memory-curator-actionbar';
             const detailsButton = document.createElement('button');
             detailsButton.type = 'button';
-            detailsButton.className = 'mh-more-btn';
+            detailsButton.className = 'btn btn-secondary btn-sm mh-more-btn';
             detailsButton.textContent = t('dashboard.memory_privacy_details');
             detailsButton.setAttribute('aria-expanded', 'false');
             const details = document.createElement('div');
@@ -172,7 +172,7 @@
             if (jobID && (jobStatus === 'retry_wait' || jobStatus === 'reconcile_pending')) {
                 const retryButton = document.createElement('button');
                 retryButton.type = 'button';
-                retryButton.className = 'mh-more-btn';
+                retryButton.className = 'btn btn-secondary btn-sm mh-more-btn';
                 retryButton.setAttribute('data-memory-privacy-retry', '');
                 retryButton.textContent = t(jobStatus === 'reconcile_pending'
                     ? 'dashboard.memory_privacy_reconcile_retry'
@@ -398,15 +398,15 @@
                     t('dashboard.memory_curator_fact_archived', { count: Number(confidence.archived || 0) }),
                 ];
                 curatorEl.innerHTML = '<div class="memory-curator-actionbar">' +
-                    '<button type="button" class="mh-more-btn" onclick="runMemoryCurationDryRun()">' + esc(t('dashboard.memory_curator_preview')) + '</button>' +
-                    '<button type="button" class="mh-more-btn memory-curator-apply-btn" onclick="applyMemoryCurationSafeActions()">' + esc(t('dashboard.memory_curator_apply')) + '</button>' +
-                    '<button type="button" class="mh-more-btn" onclick="runMemoryCurationDryRun(true)">' + esc(t('dashboard.memory_curator_show_archived')) + '</button>' +
+                    '<button type="button" class="btn btn-secondary btn-sm mh-more-btn" onclick="runMemoryCurationDryRun()">' + esc(t('dashboard.memory_curator_preview')) + '</button>' +
+                    '<button type="button" class="btn btn-secondary btn-sm mh-more-btn memory-curator-apply-btn" onclick="applyMemoryCurationSafeActions()">' + esc(t('dashboard.memory_curator_apply')) + '</button>' +
+                    '<button type="button" class="btn btn-secondary btn-sm mh-more-btn" onclick="runMemoryCurationDryRun(true)">' + esc(t('dashboard.memory_curator_show_archived')) + '</button>' +
                     '</div><div id="memory-curator-preview" class="memory-curator-preview"></div>' +
                     '<div id="memory-hygiene-panel" class="memory-hygiene-panel">' +
                     '<div class="memory-subsection-title">' + esc(t('dashboard.memory_hygiene_title')) + '</div>' +
                     '<div class="memory-curator-actionbar">' +
-                    '<button type="button" class="mh-more-btn" onclick="runMemoryHygieneDryRun()">' + esc(t('dashboard.memory_hygiene_preview')) + '</button>' +
-                    '<button type="button" class="mh-more-btn memory-curator-apply-btn" onclick="applyMemoryHygieneSafeActions()">' + esc(t('dashboard.memory_hygiene_apply')) + '</button>' +
+                    '<button type="button" class="btn btn-secondary btn-sm mh-more-btn" onclick="runMemoryHygieneDryRun()">' + esc(t('dashboard.memory_hygiene_preview')) + '</button>' +
+                    '<button type="button" class="btn btn-secondary btn-sm mh-more-btn memory-curator-apply-btn" onclick="applyMemoryHygieneSafeActions()">' + esc(t('dashboard.memory_hygiene_apply')) + '</button>' +
                     '</div><div id="memory-hygiene-preview" class="memory-curator-preview"></div>' +
                     '</div>' +
                     '<div class="memory-curator-grid">' +
@@ -421,7 +421,7 @@
                     (overused.length ? renderCollapsibleList(overused, item => `<div class="memory-curator-row mono">${esc(item)}</div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
                     '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-subsection-title">' + esc(t('dashboard.memory_conflicts_title')) + '</div><div class="memory-curator-list">' +
-                    (conflictItems.length ? renderCollapsibleList(conflictItems, item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span><button type="button" class="mh-more-btn" onclick="dismissMemoryConflict(this, ${Number(item.id)})">${esc(t('dashboard.memory_conflict_both_valid'))}</button><span role="status"></span></div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
+                    (conflictItems.length ? renderCollapsibleList(conflictItems, item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span><button type="button" class="btn btn-secondary btn-sm mh-more-btn" onclick="dismissMemoryConflict(this, ${Number(item.id)})">${esc(t('dashboard.memory_conflict_both_valid'))}</button><span role="status"></span></div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
                     '</div></div>' +
                 '</div>';
             }

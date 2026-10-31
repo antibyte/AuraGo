@@ -134,7 +134,7 @@
     function actionButton(key, onClick) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'log-btn operational-issue-action';
+        button.className = 'btn btn-secondary btn-sm log-btn operational-issue-action';
         button.textContent = localized(key, key, {});
         button.addEventListener('click', onClick);
         return button;

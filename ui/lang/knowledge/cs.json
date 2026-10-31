@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Indexer souborů → Synchronizace znalostního grafu",
   "knowledge.filesync_total_files": "Celkem souborů",
   "knowledge.filesync_unavailable": "Nedostupné",
+  "knowledge.filter_status_label": "Stav",
   "knowledge.heading": "Centrum znalostí",
   "knowledge.page_description": "Spravuj kontakty, soubory, zařízení, přístupové údaje a tajemství.",
   "knowledge.page_title": "AuraGo – Centrum znalostí",

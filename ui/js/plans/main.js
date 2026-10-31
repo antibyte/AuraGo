@@ -56,8 +56,9 @@ function includeArchived() {
 
 function renderPlanList(plans) {
     listedPlans = Array.isArray(plans) ? plans : [];
+    planListEl.setAttribute('aria-busy', 'false');
     if (!listedPlans.length) {
-        planListEl.innerHTML = `<div class="plan-row muted">${escapeHtml(t('plans.no_plans'))}</div>`;
+        planListEl.innerHTML = `<div class="pw-empty-state"><h3>${escapeHtml(t('plans.empty_list_title'))}</h3><p>${escapeHtml(t('plans.empty_list_desc'))}</p></div>`;
         return;
     }
     const focusedRow = document.activeElement && planListEl.contains(document.activeElement)
@@ -335,15 +336,19 @@ async function moveTask(taskId, offset) {
 function openBlockerDialog(taskId) {
     pendingBlockTaskId = taskId;
     blockerReasonEl.value = '';
-    openModal('blocker-modal');
-    blockerReasonEl.focus();
+    openModal('blocker-modal', {
+        initialFocus: '#blocker-reason',
+        onClose: () => { pendingBlockTaskId = null; }
+    });
 }
 
 function openSplitDialog(taskId) {
     pendingSplitTaskId = taskId;
     splitItemsEl.value = '';
-    openModal('split-modal');
-    splitItemsEl.focus();
+    openModal('split-modal', {
+        initialFocus: '#split-items',
+        onClose: () => { pendingSplitTaskId = null; }
+    });
 }
 
 async function confirmBlockerDialog() {
@@ -461,10 +466,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     statusFilter.addEventListener('change', () => loadPlans().catch(console.error));
     sessionInput.addEventListener('change', () => loadPlans().catch(console.error));
     includeArchivedInput.addEventListener('change', () => loadPlans().catch(console.error));
-    blockerCancelBtn.addEventListener('click', () => { pendingBlockTaskId = null; closeModal('blocker-modal'); });
+    blockerCancelBtn.addEventListener('click', () => closeModal('blocker-modal'));
     blockerConfirmBtn.addEventListener('click', () => confirmBlockerDialog());
-    splitCancelBtn.addEventListener('click', () => { pendingSplitTaskId = null; closeModal('split-modal'); });
+    splitCancelBtn.addEventListener('click', () => closeModal('split-modal'));
+    document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const overlay = btn.closest('.modal-overlay');
+            if (overlay) closeModal(overlay.id);
+        });
+    });
     splitConfirmBtn.addEventListener('click', () => confirmSplitDialog());
     initSSE();
-    await loadPlans();
+    try {
+        await loadPlans();
+    } catch (err) {
+        planListEl.setAttribute('aria-busy', 'false');
+        planListEl.innerHTML = `<div class="pw-error-state" role="alert">${escapeHtml(err.message || String(err))}</div>`;
+    }
 });

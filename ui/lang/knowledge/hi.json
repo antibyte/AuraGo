@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "फ़ाइल इंडेक्सर → नॉलेज ग्राफ सिंक",
   "knowledge.filesync_total_files": "कुल फ़ाइलें",
   "knowledge.filesync_unavailable": "अनुपलब्ध",
+  "knowledge.filter_status_label": "स्थिति",
   "knowledge.heading": "ज्ञान केंद्र",
   "knowledge.page_description": "संपर्क, फ़ाइलें, डिवाइस, क्रेडेंशियल और secrets प्रबंधित करो।",
   "knowledge.page_title": "AuraGo – ज्ञान केंद्र",

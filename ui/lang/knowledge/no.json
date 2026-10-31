@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Filindekserer → Kunnskapsgraf-synkronisering",
   "knowledge.filesync_total_files": "Totalt filer",
   "knowledge.filesync_unavailable": "Ikke tilgjengelig",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Kunnskapssenter",
   "knowledge.page_description": "Administrer kontakter, filer, enheter, legitimasjon og hemmeligheter.",
   "knowledge.page_title": "AuraGo – Kunnskapssenter",

@@ -71,32 +71,36 @@
             <input type="search" id="ct-search" class="ct-search pw-search"
                 placeholder="" data-i18n-placeholder="containers.search_placeholder">
             <div class="ct-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="containers.tablist_label">
-                <button class="ct-filter-btn pw-badge active" type="button" data-filter="all" aria-pressed="true" data-i18n="containers.filter_all"></button>
-                <button class="ct-filter-btn pw-badge" type="button" data-filter="running" aria-pressed="false" data-i18n="containers.filter_running"></button>
-                <button class="ct-filter-btn pw-badge" type="button" data-filter="stopped" aria-pressed="false" data-i18n="containers.filter_stopped"></button>
+                <button class="ct-filter-btn pw-filter-pill active" type="button" data-filter="all" aria-pressed="true" data-i18n="containers.filter_all"></button>
+                <button class="ct-filter-btn pw-filter-pill" type="button" data-filter="running" aria-pressed="false" data-i18n="containers.filter_running"></button>
+                <button class="ct-filter-btn pw-filter-pill" type="button" data-filter="stopped" aria-pressed="false" data-i18n="containers.filter_stopped"></button>
             </div>
         </div>
 
         <!-- Container cards -->
+        <div class="pw-loading-state" id="ct-loading" role="status">
+            <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+            <span data-i18n="common.loading"></span>
+        </div>
         <div class="ct-grid" id="ct-grid"></div>
 
         <!-- Empty state -->
-        <div class="empty-state is-hidden" id="ct-empty">
-            <div class="empty-icon">🐳</div>
+        <div class="empty-state pw-empty-state is-hidden" id="ct-empty">
+            <div class="empty-icon pw-empty-icon">🐳</div>
             <h3 data-i18n="containers.empty_title"></h3>
             <p data-i18n="containers.empty_desc"></p>
         </div>
 
         <!-- Error state (Docker disabled) -->
-        <div class="empty-state is-hidden" id="ct-disabled">
-            <div class="empty-icon">⚠️</div>
+        <div class="empty-state pw-empty-state is-hidden" id="ct-disabled">
+            <div class="empty-icon pw-empty-icon">⚠️</div>
             <h3 data-i18n="containers.disabled_title"></h3>
             <p data-i18n="containers.disabled_desc"></p>
         </div>
 
         <!-- Error state (Docker enabled, list failed) -->
-        <div class="empty-state is-hidden" id="ct-list-error" role="alert">
-            <div class="empty-icon">⚠️</div>
+        <div class="empty-state pw-empty-state is-hidden" id="ct-list-error" role="alert">
+            <div class="empty-icon pw-empty-icon">⚠️</div>
             <h3 data-i18n="containers.list_error_title"></h3>
             <p id="ct-list-error-message"></p>
         </div>
@@ -104,7 +108,7 @@
 
     <!-- ═══════ LOG MODAL ═══════ -->
     <div class="modal-overlay" id="log-modal" role="dialog" aria-modal="true" aria-labelledby="log-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="log-modal-title" data-i18n="containers.logs_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeLogModal()">&times;</button>
@@ -121,7 +125,7 @@
 
     <!-- ═══════ INSPECT MODAL ═══════ -->
     <div class="modal-overlay" id="inspect-modal" role="dialog" aria-modal="true" aria-labelledby="inspect-modal-title">
-        <div class="modal modal-wide">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="inspect-modal-title" data-i18n="containers.inspect_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInspectModal()">&times;</button>
@@ -137,7 +141,7 @@
 
     <!-- ═══════ TERMINAL MODAL ═══════ -->
     <div class="modal-overlay" id="terminal-modal" role="dialog" aria-modal="true" aria-labelledby="terminal-modal-title">
-        <div class="modal modal-wide ct-terminal-modal">
+        <div class="modal modal--lg ct-terminal-modal">
             <div class="modal-header">
                 <h2 id="terminal-modal-title"><span data-i18n="containers.terminal_title"></span> <span id="terminal-container-name"></span></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTerminalModal()">&times;</button>
@@ -155,7 +159,7 @@
 
     <!-- ═══════ CONFIRM PROTECTED SHELL MODAL ═══════ -->
     <div class="modal-overlay" id="protected-terminal-modal" role="dialog" aria-modal="true" aria-labelledby="protected-terminal-modal-title">
-        <div class="modal">
+        <div class="modal modal--sm">
             <div class="modal-header">
                 <h2 id="protected-terminal-modal-title" data-i18n="containers.protected_terminal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeProtectedTerminalModal()">&times;</button>
@@ -174,7 +178,7 @@
 
     <!-- ═══════ CONFIRM UPDATE MODAL ═══════ -->
     <div class="modal-overlay" id="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-modal-title">
-        <div class="modal">
+        <div class="modal modal--sm">
             <div class="modal-header">
                 <h2 id="update-modal-title" data-i18n="containers.update_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUpdateModal()">&times;</button>
@@ -194,7 +198,7 @@
 
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
     <div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
-        <div class="modal">
+        <div class="modal modal--sm">
             <div class="modal-header">
                 <h2 id="delete-modal-title" data-i18n="containers.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteModal()">&times;</button>

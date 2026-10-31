@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Indexador de Archivos → Sincronización del Grafo de Conocimiento",
   "knowledge.filesync_total_files": "Total de archivos",
   "knowledge.filesync_unavailable": "No disponible",
+  "knowledge.filter_status_label": "Estado",
   "knowledge.heading": "Centro de Conocimiento",
   "knowledge.page_description": "Gestiona contactos, archivos, dispositivos, credenciales y secretos.",
   "knowledge.page_title": "AuraGo – Centro de Conocimiento",

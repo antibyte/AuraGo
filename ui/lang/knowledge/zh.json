@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "文件索引器 → 知识图谱同步",
   "knowledge.filesync_total_files": "文件总数",
   "knowledge.filesync_unavailable": "不可用",
+  "knowledge.filter_status_label": "状态",
   "knowledge.heading": "知识中心",
   "knowledge.page_description": "管理联系人、文件、设备、凭据和密钥。",
   "knowledge.page_title": "AuraGo – 知识中心",

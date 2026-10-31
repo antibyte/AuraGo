@@ -145,26 +145,29 @@
   <script src="/js/knowledge/file_sync_status.js?v={{.BuildVersion}}" defer></script>
 
   <!-- Core-Facts Modal -->
-  <div class="cf-overlay" id="cfOverlay" role="dialog" aria-modal="true" aria-labelledby="cfTitleLabel">
-    <div class="cf-modal">
-      <div class="cf-header">
-        <span class="cf-title" id="cfTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="dashboard.core_facts_modal_title"></span></span>
-        <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="">&times;</button>
+  <div class="modal-overlay" id="cfOverlay" role="dialog" aria-modal="true" aria-labelledby="cfTitleLabel">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="cfTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5A3.5 3.5 0 0 0 5.5 9c0 1 .4 1.9 1 2.5A3.5 3.5 0 0 0 5 15.5c0 1.9 1.3 3.5 3 3.8V21a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.7c1.7-.3 3-1.9 3-3.8a3.5 3.5 0 0 0-1.5-4c.6-.6 1-1.5 1-2.5A3.5 3.5 0 0 0 15 5.5V5a3 3 0 0 0-3-3z"/></svg> <span data-i18n="dashboard.core_facts_modal_title"></span></h2>
+        <button type="button" class="modal-close" id="cfClose" data-i18n-aria-label="common.close">&times;</button>
       </div>
-      <div class="cf-body" id="cfBody">
+      <div class="modal-body" id="cfBody">
         <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-modal-close="cfOverlay" data-i18n="common.btn_close"></button>
       </div>
     </div>
   </div>
 
   <!-- Cron Edit Modal -->
-  <div class="cf-overlay" id="cronEditOverlay" role="dialog" aria-modal="true" aria-labelledby="cronEditTitleLabel">
-    <div class="cf-modal">
-      <div class="cf-header">
-        <span class="cf-title" id="cronEditTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14" stroke-linecap="round" stroke-linejoin="round"/></svg> <span data-i18n="dashboard.cron_edit_title"></span></span>
-        <button class="cf-close" id="cronEditClose">&times;</button>
+  <div class="modal-overlay" id="cronEditOverlay" role="dialog" aria-modal="true" aria-labelledby="cronEditTitleLabel">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="cronEditTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14" stroke-linecap="round" stroke-linejoin="round"/></svg> <span data-i18n="dashboard.cron_edit_title"></span></h2>
+        <button type="button" class="modal-close" id="cronEditClose" data-i18n-aria-label="common.close">&times;</button>
       </div>
-      <div class="cf-body">
+      <div class="modal-body">
         <div class="cron-edit-form">
           <div class="cron-form-group">
             <label class="cron-form-label" data-i18n="dashboard.cron_edit_id_label"></label>
@@ -189,11 +192,11 @@
             <label class="cron-form-label" data-i18n="dashboard.cron_edit_prompt_label"></label>
             <textarea id="cronEditPrompt" class="cf-add-input cron-edit-textarea" rows="8"></textarea>
           </div>
-          <div class="cron-form-actions">
-            <button type="button" class="cf-add-btn cron-btn-cancel" data-action="cron-edit-cancel" data-i18n="dashboard.cron_edit_cancel"></button>
-            <button type="button" class="cf-add-btn" id="cronEditSaveBtn" data-action="cron-edit-save" data-i18n="dashboard.cron_edit_save"></button>
-          </div>
         </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-action="cron-edit-cancel" data-i18n="dashboard.cron_edit_cancel"></button>
+        <button type="button" class="btn btn-primary" id="cronEditSaveBtn" data-action="cron-edit-save" data-i18n="dashboard.cron_edit_save"></button>
       </div>
     </div>
   </div>
@@ -201,14 +204,17 @@
   </div><!-- .dash-shell -->
 
   <!-- Knowledge Graph Detail Modal -->
-  <div class="cf-overlay" id="kgDetailOverlay" role="dialog" aria-modal="true" aria-labelledby="kgDetailTitleLabel">
-    <div class="cf-modal cf-modal-wide">
-      <div class="cf-header">
-        <span class="cf-title" id="kgDetailTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polygon points="16 8 14 14 8 16 10 10" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.knowledge_detail_title"></span></span>
-        <button class="cf-close" id="kgDetailClose">&times;</button>
+  <div class="modal-overlay" id="kgDetailOverlay" role="dialog" aria-modal="true" aria-labelledby="kgDetailTitleLabel">
+    <div class="modal modal--lg">
+      <div class="modal-header">
+        <h2 class="modal-title" id="kgDetailTitleLabel"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polygon points="16 8 14 14 8 16 10 10" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.knowledge_detail_title"></span></h2>
+        <button type="button" class="modal-close" id="kgDetailClose" data-i18n-aria-label="common.close">&times;</button>
       </div>
-      <div class="cf-body" id="kgDetailBody">
+      <div class="modal-body" id="kgDetailBody">
         <div class="empty-state" data-i18n="dashboard.knowledge_detail_loading"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-modal-close="kgDetailOverlay" data-i18n="common.btn_close"></button>
       </div>
     </div>
   </div>

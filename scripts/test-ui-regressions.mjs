@@ -3612,6 +3612,7 @@ function containersPage(route) {
   const sse = {};
   const timers = [];
   const modals = [];
+  const closeHooks = new Map();
   let modalAnswer = false;
   let domReady = null;
   class FakeWebSocket {
@@ -3676,6 +3677,14 @@ function containersPage(route) {
     applyI18n() {},
     showToast() {},
     showModal: async (title, message, isConfirm, options) => { modals.push({ title, message, isConfirm, options }); return modalAnswer; },
+    // Shared openModal/closeModal: toggle .active and run the onClose hook like shared-core.js.
+    openModal(id, options) { node(id).classList.add('active'); closeHooks.set(id, options && options.onClose); },
+    closeModal(id, reason = 'api') {
+      node(id).classList.remove('active');
+      const hook = closeHooks.get(id);
+      closeHooks.delete(id);
+      if (typeof hook === 'function') hook(reason);
+    },
     setTimeout(callback, ms) { timers.push({ callback, ms, fired: false }); return timers.length; },
     clearTimeout(id) { if (timers[id - 1]) timers[id - 1].fired = true; },
     setInterval,

@@ -89,44 +89,8 @@
     border: 1px solid color-mix(in srgb, var(--pw-danger) 25%, transparent);
 }
 
-/* ── Delete Confirm ── */
-
-.pw-page[data-workspace-page="invasion"] .delete-confirm-input {
-    width: 100%;
-    padding: var(--space-3) var(--space-4);
-    margin-top: var(--space-3);
-    border: 1.5px solid color-mix(in srgb, var(--pw-danger) 60%, var(--pw-line));
-    border-radius: var(--radius-xl);
-    background: color-mix(in srgb, var(--pw-danger) 6%, var(--pw-surface-elevated));
-    color: var(--pw-text);
-    font-size: var(--text-sm);
-    font-family: inherit;
-    transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.pw-page[data-workspace-page="invasion"] .delete-confirm-input:focus {
-    outline: none;
-    border-color: var(--pw-danger);
-}
-
 .pw-page[data-workspace-page="invasion"] .resize-vertical {
     resize: vertical;
-}
-
-.pw-page[data-workspace-page="invasion"] .delete-modal-title {
-    color: var(--pw-danger);
-    letter-spacing: -0.01em;
-}
-
-.pw-page[data-workspace-page="invasion"] .delete-message {
-    margin: var(--space-3) 0;
-    line-height: 1.5;
-}
-
-.pw-page[data-workspace-page="invasion"] .delete-modal-hint {
-    font-size: var(--text-sm);
-    color: var(--pw-muted);
-    line-height: 1.4;
 }
 
 .pw-page[data-workspace-page="invasion"] .hint-subtle {
@@ -198,9 +162,6 @@
 /* ── Modal Overrides ── */
 
 .pw-page[data-workspace-page="invasion"] .modal {
-    width: min(100%, 680px);
-    max-height: calc(100dvh - 1rem);
-    overflow: auto;
     background-image: none;
 }
 
@@ -215,11 +176,6 @@
 
 .pw-page[data-workspace-page="invasion"] .modal-actions {
     padding: 0.75rem 1.25rem 1rem;
-}
-
-.pw-page[data-workspace-page="invasion"] .modal-lg {
-    width: min(100%, 760px);
-    max-width: 100%;
 }
 
 /* ── Reconfigure ── */
@@ -507,10 +463,6 @@
         grid-template-columns: 1fr;
     }
 
-    .pw-page[data-workspace-page="invasion"] .modal-lg {
-        max-width: 100%;
-    }
-
     .pw-page[data-workspace-page="invasion"] .modal {
         border-radius: 0.9rem;
     }
@@ -557,7 +509,6 @@
     }
 
     .pw-page[data-workspace-page="invasion"] .modal {
-        width: 100%;
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
     }

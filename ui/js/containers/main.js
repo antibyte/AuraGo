@@ -147,7 +147,13 @@ function clearContainerList() {
     listUnavailable = true;
 }
 
+function hideLoadingState() {
+    const loading = document.getElementById('ct-loading');
+    if (loading) loading.classList.add('is-hidden');
+}
+
 function showDisabledState() {
+    hideLoadingState();
     clearContainerList();
     listFailed = false;
     cancelListRetry();
@@ -160,6 +166,7 @@ function showDisabledState() {
 }
 
 function showListErrorState(message) {
+    hideLoadingState();
     clearContainerList();
     listFailed = true;
     document.getElementById('ct-grid').style.display = 'none';
@@ -239,6 +246,7 @@ function renderContainers() {
     // The list is unavailable (Docker error or disabled): keep that state until
     // a list loads again.
     if (listUnavailable) return;
+    hideLoadingState();
     const grid = document.getElementById('ct-grid');
     const empty = document.getElementById('ct-empty');
     const disabled = document.getElementById('ct-disabled');
@@ -329,6 +337,14 @@ function buildCardElement(html) {
     return tpl.content.firstElementChild;
 }
 
+// stateBadgeStatus maps a Docker state to the shared pw-badge status.
+function stateBadgeStatus(state) {
+    if (state === 'running') return 'ok';
+    if (state === 'paused') return 'warn';
+    if (state === 'restarting') return 'running';
+    return 'idle';
+}
+
 function renderCard(c) {
     const name = (c.names && c.names.length > 0) ? c.names[0].replace(/^\//, '') : c.id;
     const state = (c.state || 'unknown').toLowerCase();
@@ -371,7 +387,7 @@ function renderCard(c) {
         </div>
         <div class="ct-card-meta">
             <span><span class="ct-meta-icon">📦</span> ${esc(c.image)}</span>
-            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state ${stateClass}">${esc(c.status)}</span></span>
+            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state pw-badge ${stateClass}" data-status="${stateBadgeStatus(stateClass)}">${esc(c.status)}</span></span>
         </div>
         <div class="ct-card-actions">
             ${actionBtns}
@@ -472,12 +488,16 @@ function showUpdateModal(id, name) {
     document.getElementById('update-container-name').textContent = name;
     renderUpdateProtection();
     setUpdateConfirmBusy(false);
-    document.getElementById('update-modal').classList.add('active');
+    openModal('update-modal', { onClose: resetUpdateModal });
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeUpdateModal() {
-    document.getElementById('update-modal').classList.remove('active');
+    closeModal('update-modal');
+}
+
+// Runs on every close path (buttons, Esc, backdrop, API).
+function resetUpdateModal() {
     updateTarget = '';
     updateInFlight = false;
     updateProtection = '';
@@ -547,7 +567,7 @@ function setUpdateConfirmBusy(busy) {
 async function showLogs(id) {
     currentLogContainer = id;
     document.getElementById('log-output').textContent = t('common.loading');
-    document.getElementById('log-modal').classList.add('active');
+    openModal('log-modal', { onClose: resetLogModal });
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/logs?tail=500`);
         const data = await resp.json();
@@ -571,7 +591,10 @@ function refreshLogs() {
 
 // eslint-disable-next-line no-unused-vars
 function closeLogModal() {
-    document.getElementById('log-modal').classList.remove('active');
+    closeModal('log-modal');
+}
+
+function resetLogModal() {
     currentLogContainer = '';
 }
 
@@ -580,7 +603,7 @@ function closeLogModal() {
 // eslint-disable-next-line no-unused-vars
 async function showInspect(id) {
     document.getElementById('inspect-output').textContent = t('common.loading');
-    document.getElementById('inspect-modal').classList.add('active');
+    openModal('inspect-modal');
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/inspect`);
         const data = await resp.json();
@@ -592,7 +615,7 @@ async function showInspect(id) {
 
 // eslint-disable-next-line no-unused-vars
 function closeInspectModal() {
-    document.getElementById('inspect-modal').classList.remove('active');
+    closeModal('inspect-modal');
 }
 
 // ── Terminal Modal ─────────────────────────────────────────────────────────
@@ -613,12 +636,15 @@ function showProtectedTerminalModal(id, name, protection) {
     protectedTerminalTarget = { id, name };
     document.getElementById('protected-terminal-name').textContent = name;
     document.getElementById('protected-terminal-warning').textContent = t(protectionWarningKey(protection));
-    document.getElementById('protected-terminal-modal').classList.add('active');
+    openModal('protected-terminal-modal', { onClose: resetProtectedTerminalModal });
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeProtectedTerminalModal() {
-    document.getElementById('protected-terminal-modal').classList.remove('active');
+    closeModal('protected-terminal-modal');
+}
+
+function resetProtectedTerminalModal() {
     protectedTerminalTarget = null;
 }
 
@@ -635,12 +661,11 @@ function openTerminal(id, name, confirmed) {
     closeTerminalSession();
     terminalSessionToken += 1;
     const token = terminalSessionToken;
-    const modal = document.getElementById('terminal-modal');
     const output = document.getElementById('terminal-output');
     const title = document.getElementById('terminal-container-name');
     title.textContent = name ? `· ${name}` : '';
     output.innerHTML = '';
-    modal.classList.add('active');
+    openModal('terminal-modal', { onClose: closeTerminalSession });
     setTerminalStatus('containers.terminal_connecting');
 
     if (!window.Terminal) {
@@ -752,8 +777,7 @@ async function explainTerminalHandshakeFailure(id, name, confirmed, token) {
 
 // eslint-disable-next-line no-unused-vars
 function closeTerminalModal() {
-    document.getElementById('terminal-modal').classList.remove('active');
-    closeTerminalSession();
+    closeModal('terminal-modal');
 }
 
 function closeTerminalSession() {
@@ -869,12 +893,15 @@ function showDeleteModal(id, name) {
     document.getElementById('delete-force').checked = false;
     renderDeleteProtection();
     setDeleteConfirmBusy(false);
-    document.getElementById('delete-modal').classList.add('active');
+    openModal('delete-modal', { onClose: resetDeleteModal });
 }
 
 // eslint-disable-next-line no-unused-vars
 function closeDeleteModal() {
-    document.getElementById('delete-modal').classList.remove('active');
+    closeModal('delete-modal');
+}
+
+function resetDeleteModal() {
     deleteTarget = '';
     deleteInFlight = false;
     deleteProtection = '';

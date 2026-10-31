@@ -1,5 +1,5 @@
 /* AuraGo – Knowledge Center: To-Dos */
-/* global t, esc, showToast, closeModal */
+/* global t, esc, showToast, openModal, closeModal, askDeleteKnowledgeItem */
 
 let allTodos = [];
 let todoSearchTimer = null;
@@ -167,7 +167,6 @@ function renderTodoItems(todo, detailsOpen) {
 }
 
 function openTodoModal(todo) {
-    const modal = document.getElementById('todo-modal');
     const title = document.getElementById('todo-modal-title');
     const remindDailyInput = document.getElementById('todo-remind-daily');
 
@@ -183,7 +182,7 @@ function openTodoModal(todo) {
     renderTodoDraftItems();
 
     title.textContent = todo ? t('knowledge.todos_edit') : t('knowledge.todos_add');
-    modal.classList.add('active');
+    openModal('todo-modal');
 }
 
 function editTodo(id) {
@@ -447,12 +446,8 @@ async function patchTodo(id, payload) {
 }
 
 function askDeleteTodo(id, title) {
-    document.getElementById('contact-delete-scope').hidden = true;
-    document.getElementById('delete-target-id').value = id;
-    document.getElementById('delete-target-type').value = 'todo';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.todos_delete_confirm').replace('{name}', title);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('todo', id,
+        t('knowledge.todos_delete_confirm').replace('{name}', title));
 }
 
 function collectTodoDraftItems() {

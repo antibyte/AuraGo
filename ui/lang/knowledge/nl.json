@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Bestandsindexering → Kennisgraaf-synchronisatie",
   "knowledge.filesync_total_files": "Totaal bestanden",
   "knowledge.filesync_unavailable": "Niet beschikbaar",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Kenniscentrum",
   "knowledge.page_description": "Beheer contacten, bestanden, apparaten, inloggegevens en geheimen.",
   "knowledge.page_title": "AuraGo – Kenniscentrum",

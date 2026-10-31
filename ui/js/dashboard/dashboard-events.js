@@ -178,109 +178,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             initDashboard();
             connectSSE();
-            initModalFocusTrap();
         });
 
         // Radial menu is initialized by shared.js (initRadialMenu)
 
-        // ══════════════════════════════════════════════════════════════════════════════
-        // MODAL FOCUS TRAP — Accessible modal management
-        // Traps Tab/Shift+Tab within open modal, restores focus on close.
-        // ══════════════════════════════════════════════════════════════════════════════
-        const ModalFocusTrap = {
-            _lastFocused: null,
-            _activeOverlay: null,
-
-            /**
-             * Get all focusable elements within a container.
-             */
-            _getFocusable(container) {
-                if (!container) return [];
-                return Array.from(container.querySelectorAll(
-                    'button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-                    'textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
-                )).filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
-            },
-
-            /**
-             * Called when a modal overlay gains the 'open' class.
-             * Stores the previously focused element and moves focus into the modal.
-             */
-            trap(overlayEl) {
-                if (!overlayEl || this._activeOverlay === overlayEl) return;
-                this._lastFocused = document.activeElement;
-                this._activeOverlay = overlayEl;
-                // Focus first focusable element (prefer close button, then first input)
-                const focusable = this._getFocusable(overlayEl);
-                const closeBtn = overlayEl.querySelector('.cf-close');
-                const target = closeBtn || focusable[0];
-                if (target) requestAnimationFrame(() => target.focus());
-            },
-
-            /**
-             * Releases the focus trap, restoring focus to the trigger element.
-             */
-            release(overlayEl) {
-                if (this._activeOverlay !== overlayEl) return;
-                this._activeOverlay = null;
-                if (this._lastFocused && typeof this._lastFocused.focus === 'function' && document.contains(this._lastFocused)) {
-                    this._lastFocused.focus();
-                }
-                this._lastFocused = null;
-            },
-
-            /**
-             * Tab key handler — wraps focus from last to first element.
-             */
-            _onKeyDown(e) {
-                if (!this._activeOverlay) return;
-                if (e.key !== 'Tab') return;
-                const focusable = this._getFocusable(this._activeOverlay);
-                if (focusable.length === 0) {
-                    e.preventDefault();
-                    return;
-                }
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey) {
-                    if (document.activeElement === first) {
-                        e.preventDefault();
-                        last.focus();
-                    }
-                } else {
-                    if (document.activeElement === last) {
-                        e.preventDefault();
-                        first.focus();
-                    }
-                }
-            },
-        };
-
-        function initModalFocusTrap() {
-            // Global Tab handler for focus trapping
-            document.addEventListener('keydown', (e) => ModalFocusTrap._onKeyDown(e));
-
-            // Observe 'open' class changes on all overlays
-            const overlayIds = ['cfOverlay', 'cronEditOverlay', 'kgDetailOverlay'];
-            overlayIds.forEach(id => {
-                const overlay = document.getElementById(id);
-                if (!overlay) return;
-                // Watch for class changes (open added/removed)
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach(m => {
-                        if (m.attributeName !== 'class') return;
-                        const isOpen = overlay.classList.contains('open');
-                        if (isOpen) ModalFocusTrap.trap(overlay);
-                        else ModalFocusTrap.release(overlay);
-                    });
-                });
-                observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
-            });
-        }
-
         // ── Cron Edit Modal ──────────────────────────────────────────────────────────
         function closeCronEditModal() {
-            document.getElementById('cronEditOverlay').classList.remove('open');
+            closeModal('cronEditOverlay');
         }
 
         function openCronEditModal(btn) {
@@ -291,8 +195,7 @@
             const disabledEl = document.getElementById('cronEditDisabled');
             if (sourceEl) sourceEl.value = btn.dataset.cronSource || 'agent';
             if (disabledEl) disabledEl.value = btn.dataset.cronDisabled === 'true' ? 'disabled' : 'enabled';
-            document.getElementById('cronEditOverlay').classList.add('open');
-            document.getElementById('cronEditExpr').focus();
+            openModal('cronEditOverlay', { initialFocus: '#cronEditExpr' });
         }
 
         async function saveCronEdit() {
@@ -322,7 +225,7 @@
         }
 
         async function deleteCronJob(id) {
-            if (!await showConfirm(t('dashboard.cron_delete_confirm', { id }))) return;
+            if (!await showConfirm(t('common.confirm_title'), t('dashboard.cron_delete_confirm', { id }), { danger: true, confirmText: t('common.btn_delete'), cancelText: t('common.btn_cancel') })) return;
             try {
                 const resp = await fetch('/api/dashboard/cronjobs/' + encodeURIComponent(id), {
                     method: 'DELETE',
@@ -349,16 +252,8 @@
 
         // Attach close handlers for cron edit modal
         document.addEventListener('DOMContentLoaded', () => {
-            const cronClose   = document.getElementById('cronEditClose');
-            const cronOverlay = document.getElementById('cronEditOverlay');
-            if (cronClose)   cronClose.addEventListener('click', closeCronEditModal);
-            if (cronOverlay) cronOverlay.addEventListener('click', e => {
-                if (e.target === cronOverlay) closeCronEditModal();
-            });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && cronOverlay && cronOverlay.classList.contains('open'))
-                    closeCronEditModal();
-            });
+            const cronClose = document.getElementById('cronEditClose');
+            if (cronClose) cronClose.addEventListener('click', closeCronEditModal);
         });
 
         // -- Declarative actions ---------------------------------------------------------
@@ -374,6 +269,11 @@
             'cron-edit-save': () => saveCronEdit(),
         };
         document.addEventListener('click', (e) => {
+            const closer = e.target instanceof Element ? e.target.closest('[data-modal-close]') : null;
+            if (closer) {
+                closeModal(closer.getAttribute('data-modal-close'));
+                return;
+            }
             const trigger = e.target instanceof Element ? e.target.closest('[data-action]') : null;
             if (!trigger) return;
             const action = trigger.getAttribute('data-action');
@@ -384,21 +284,20 @@
 
         // ── Core-Facts Modal ─────────────────────────────────────────────────────────
         function closeCoreFactsModal() {
-            document.getElementById('cfOverlay').classList.remove('open');
+            closeModal('cfOverlay');
         }
 
         async function openCoreFactsModal() {
-            const overlay = document.getElementById('cfOverlay');
             const body = document.getElementById('cfBody');
             body.innerHTML = '<div class="empty-state">' + t('dashboard.core_facts_modal_loading') + '</div>';
-            overlay.classList.add('open');
+            openModal('cfOverlay');
 
             try {
                 const data = await fetch('/api/dashboard/core-memory', { credentials: 'same-origin' }).then(r => r.json());
                 const facts = data.facts || [];
 
                 let html = `<div class="cf-add-bar">
-                    <button class="cf-add-btn cf-delete-all-btn" onclick="cfDeleteAllFacts()" ${facts.length === 0 ? 'disabled' : ''}>${t('dashboard.core_facts_modal_delete_all')}</button>
+                    <button type="button" class="btn btn-danger btn-sm cf-delete-all-btn" onclick="cfDeleteAllFacts()" ${facts.length === 0 ? 'disabled' : ''}>${t('dashboard.core_facts_modal_delete_all')}</button>
                 </div>`;
 
                 if (facts.length === 0) {
@@ -421,7 +320,7 @@
         }
 
         async function cfDeleteFact(id) {
-            if (!await showConfirm(t('dashboard.core_facts_modal_confirm_delete', {id: id}))) return;
+            if (!await showConfirm(t('common.confirm_title'), t('dashboard.core_facts_modal_confirm_delete', {id: id}), { danger: true, confirmText: t('common.btn_delete'), cancelText: t('common.btn_cancel') })) return;
             try {
                 const resp = await fetch('/api/dashboard/core-memory/mutate', {
                     method: 'DELETE',
@@ -459,28 +358,13 @@
             }
         }
 
-        // Attach close handlers after DOM is ready
+        // Attach close handlers after DOM is ready. Backdrop click and Escape come from the
+        // shared modal layer (openModal); only the X buttons need wiring here.
         document.addEventListener('DOMContentLoaded', () => {
             const cfCloseBtn = document.getElementById('cfClose');
-            const cfOverlay = document.getElementById('cfOverlay');
             if (cfCloseBtn) cfCloseBtn.addEventListener('click', closeCoreFactsModal);
-            if (cfOverlay) cfOverlay.addEventListener('click', (e) => {
-                if (e.target === cfOverlay) closeCoreFactsModal();
-            });
-
             const kgCloseBtn = document.getElementById('kgDetailClose');
-            const kgOverlay = document.getElementById('kgDetailOverlay');
             if (kgCloseBtn) kgCloseBtn.addEventListener('click', closeKGDetailModal);
-            if (kgOverlay) kgOverlay.addEventListener('click', (e) => {
-                if (e.target === kgOverlay) closeKGDetailModal();
-            });
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    if (kgOverlay && kgOverlay.classList.contains('open')) { closeKGDetailModal(); return; }
-                    if (cfOverlay && cfOverlay.classList.contains('open')) closeCoreFactsModal();
-                }
-            });
         });
 
         // ── Collapsible Cards ──────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
 // AuraGo – Cheat Sheets page logic
 
 let sheetsData = [];
-let deleteTarget = null;
 let viewMode = localStorage.getItem('cheatsheets-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs
 let currentAttachments = []; // Saved attachments for the currently edited sheet
@@ -45,10 +44,19 @@ async function api(path, options = {}) {
 async function loadSheets() {
     try {
         sheetsData = (await api('')) || [];
+        setSheetsLoading(false);
         renderSheets();
     } catch (e) {
+        setSheetsLoading(false);
         showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
     }
+}
+
+function setSheetsLoading(loading) {
+    ['user', 'agent'].forEach(function (group) {
+        const el = document.getElementById('sheets-loading-' + group);
+        if (el) el.classList.toggle('is-hidden', !loading);
+    });
 }
 
 // ── View Mode Functions ──────────────────────────────────
@@ -365,24 +373,25 @@ async function toggleActive(id, newState) {
 }
 
 // ── Delete ───────────────────────────────────────────────
-function requestDelete(id, name) {
-    deleteTarget = { id, name };
-    document.getElementById('delete-message').innerHTML =
-        t('cheatsheets.delete_prompt', { name: '<strong>"' + esc(name) + '"</strong>' });
-    openModal('delete-modal');
-}
-
-async function confirmDelete() {
-    if (!deleteTarget) return;
-    try {
-        await api('/' + deleteTarget.id, { method: 'DELETE' });
-        closeModal('delete-modal');
-        showToast(t('cheatsheets.deleted'), 'success');
-        await loadSheets();
-    } catch (e) {
-        showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
-    }
-    deleteTarget = null;
+async function requestDelete(id, name) {
+    await showConfirmDialog({
+        title: t('cheatsheets.confirm_delete'),
+        message: t('cheatsheets.delete_prompt', { name: '"' + name + '"' }),
+        danger: true,
+        confirmText: t('cheatsheets.delete'),
+        cancelText: t('cheatsheets.cancel'),
+        onConfirm: async () => {
+            try {
+                await api('/' + id, { method: 'DELETE' });
+            } catch (e) {
+                showToast(t('cheatsheets.error') + ': ' + e.message, 'error');
+                return false;
+            }
+            showToast(t('cheatsheets.deleted'), 'success');
+            await loadSheets();
+            return true;
+        }
+    });
 }
 
 function bindSheetActionEvents() {

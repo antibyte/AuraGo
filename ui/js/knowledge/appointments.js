@@ -1,5 +1,5 @@
 /* AuraGo – Knowledge Center: Appointments */
-/* global t, esc, showToast, closeModal */
+/* global t, esc, showToast, openModal, closeModal, askDeleteKnowledgeItem */
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -88,7 +88,6 @@ function renderAppointments() {
 // ═══════════════════════════════════════════════════════════════
 
 function openAppointmentModal(appointment) {
-    const modal = document.getElementById('appointment-modal');
     const title = document.getElementById('appointment-modal-title');
 
     document.getElementById('appointment-id').value = appointment ? appointment.id : '';
@@ -113,7 +112,7 @@ function openAppointmentModal(appointment) {
     toggleAgentInstruction();
 
     title.textContent = appointment ? t('knowledge.appointments_edit') : t('knowledge.appointments_add');
-    modal.classList.add('active');
+    openModal('appointment-modal');
 }
 
 function toggleAgentInstruction() {
@@ -214,12 +213,8 @@ async function updateAppointmentStatus(id, status) {
 }
 
 function askDeleteAppointment(id, title) {
-    document.getElementById('contact-delete-scope').hidden = true;
-    document.getElementById('delete-target-id').value = id;
-    document.getElementById('delete-target-type').value = 'appointment';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.appointments_delete_confirm').replace('{name}', title);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('appointment', id,
+        t('knowledge.appointments_delete_confirm').replace('{name}', title));
 }
 
 // ═══════════════════════════════════════════════════════════════

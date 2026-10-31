@@ -20,7 +20,7 @@ func TestContactPrivacyControlsBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html><head><link rel="stylesheet" href="/css/desktop-app-people.css"></head><body><main id="people"></main><div id="delete-modal"><p id="delete-confirm-text"></p><div id="contact-delete-scope" hidden><input id="contact-delete-memories" type="checkbox"></div><input id="delete-target-id"><input id="delete-target-type"><button id="knowledge-delete-confirm-btn"></button></div></body></html>`)
+		fmt.Fprint(w, `<!doctype html><html><head><link rel="stylesheet" href="/css/desktop-app-people.css"></head><body><main id="people"></main></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -62,11 +62,14 @@ func TestContactPrivacyControlsBrowser(t *testing.T) {
  await open();fail=true;document.querySelector('.vd-people-modal-save').click();await until(()=>deleted.length===3&&messages.length===3);await new Promise(r=>setTimeout(r,30));if(deleted.length!==3)throw Error('People silently retried failed deletion');
  PeopleApp.dispose('fixture');
  (0,eval)(knowledgeSource);window.loadContacts=()=>{};
- askDeleteContact('private','Private Contact');if(document.getElementById('contact-delete-memories').checked)throw Error('Knowledge default deletes memories');
- await confirmDelete();if(!deleted[3].endsWith('delete_memories=false'))throw Error('Knowledge missing default scope');
- askDeleteContact('private','Private Contact');document.getElementById('contact-delete-memories').checked=true;await confirmDelete();
+ let spec=null;window.showConfirmDialog=s=>{spec=s;return Promise.resolve({confirmed:false,checked:false})};
+ askDeleteContact('private','Private Contact');
+ if(!spec.danger||!spec.checkbox)throw Error('Knowledge contact delete needs a danger dialog with the memory checkbox');
+ if(spec.checkbox.checked)throw Error('Knowledge default deletes memories');
+ if(await spec.onConfirm({checked:false})!==true||!deleted[3].endsWith('delete_memories=false'))throw Error('Knowledge missing default scope');
+ askDeleteContact('private','Private Contact');await spec.onConfirm({checked:true});
  if(!deleted[4].endsWith('delete_memories=true')||!messages.at(-1).includes('delete_partial'))throw Error('Knowledge missing optin/partial report');
- askDeleteContact('private','Private Contact');if(document.getElementById('contact-delete-memories').checked)throw Error('stale optin reused');
+ askDeleteContact('private','Private Contact');if(spec.checkbox.checked)throw Error('stale optin reused');
  return true;
  }`, theme)
 			if !result.Bool() {

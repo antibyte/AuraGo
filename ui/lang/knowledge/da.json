@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Filindekser → Videngraf-synkronisering",
   "knowledge.filesync_total_files": "Total filer",
   "knowledge.filesync_unavailable": "Ikke tilgængelig",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Videnscenter",
   "knowledge.page_description": "Administrer kontakter, filer, enheder, adgangsoplysninger og hemmeligheder.",
   "knowledge.page_title": "AuraGo – Videnscenter",

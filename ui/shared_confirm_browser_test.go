@@ -284,6 +284,56 @@ func TestSharedConfirmDialogBrowser(t *testing.T) {
 		page.MustEval(`() => { openModal('page-modal'); if (!document.getElementById('page-modal').classList.contains('active')) throw Error('openModal(id)'); closeModal('page-modal'); }`)
 	})
 
+	t.Run("confirm sits above high overlays however they were opened", func(t *testing.T) {
+		page.MustEval(`() => {
+  const mk = (id, z, cls) => { const d = document.createElement('div'); d.id = id; d.className = cls;
+    d.style.cssText = 'position:fixed;inset:0;z-index:' + z + ';background:#222;display:none;align-items:center;justify-content:center';
+    d.innerHTML = '<div class="modal"><h2 id="' + id + '-t">x</h2><button id="' + id + '-b" type="button">b</button></div>';
+    document.body.appendChild(d); return d; };
+  mk('lightbox', 1000, 'lightbox-like'); mk('prov-open', 9999, 'modal-overlay'); mk('prov-plain', 9999, 'modal-overlay');
+}`)
+		cases := map[string]string{
+			"lightbox":    `() => { const e = document.getElementById('lightbox'); e.style.display = 'flex'; }`,
+			"openModal":   `() => { openModal('prov-open'); document.getElementById('prov-open').style.zIndex = '9999'; }`,
+			"plain class": `() => { const e = document.getElementById('prov-plain'); e.classList.add('active'); e.style.display = 'flex'; }`,
+		}
+		ids := map[string]string{"lightbox": "lightbox", "openModal": "prov-open", "plain class": "prov-plain"}
+		for name, setup := range cases {
+			page.MustEval(setup)
+			open(`showConfirm('Title', 'Message')`)
+			if !page.MustEval(`() => { const b = document.getElementById('shared-modal-confirm').getBoundingClientRect(); return document.getElementById('shared-modal-overlay').contains(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)); }`).Bool() {
+				t.Fatalf("%s: confirm is covered by the overlay", name)
+			}
+			page.MustElement("#shared-modal-confirm").MustClick()
+			closed()
+			page.MustEval(`id => { const e = document.getElementById(id); closeModal(id); e.classList.remove('active'); e.style.display = 'none'; }`, ids[name])
+		}
+	})
+
+	t.Run("closing a page modal from a busy onConfirm releases the scroll lock", func(t *testing.T) {
+		page.MustEval(`() => { openModal('page-modal'); }`)
+		if page.MustEval(`() => document.body.style.overflow`).String() != "hidden" {
+			t.Fatal("openModal did not lock scrolling")
+		}
+		open(`showConfirmDialog({ title: 'Busy', message: 'x', onConfirm: async () => { closeModal('page-modal'); await new Promise(r => setTimeout(r, 200)); return true; } })`)
+		page.MustElement("#shared-modal-confirm").MustClick()
+		waitForJSBool(t, page, `() => document.getElementById('shared-modal-confirm').getAttribute('aria-busy') === 'true' && document.body.style.overflow === ''`)
+		closed()
+		if page.MustEval(`() => document.body.style.overflow`).String() != "" {
+			t.Fatal("body stayed scroll-locked")
+		}
+	})
+
+	t.Run("type to confirm trims the target too", func(t *testing.T) {
+		open(`showConfirmDialog({ title: 'T', message: 'm', requireText: ' name ' })`)
+		page.MustEval(`() => { const i = document.getElementById('shared-modal-input'); i.value = 'name'; i.dispatchEvent(new Event('input', { bubbles: true })); }`)
+		if page.MustEval(`() => document.getElementById('shared-modal-confirm').disabled`).Bool() {
+			t.Fatal("confirm stayed disabled for a padded target")
+		}
+		page.MustElement("#shared-modal-cancel").MustClick()
+		closed()
+	})
+
 	t.Run("queue keeps dialogs in order", func(t *testing.T) {
 		page.MustEval(`() => { window.results = []; showModal('one', 'first', true).then(v => results.push(['one', v])); showModal('two', 'second', true).then(v => results.push(['two', v])); }`)
 		page.MustElement("#shared-modal-confirm").MustClick()

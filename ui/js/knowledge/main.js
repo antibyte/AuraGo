@@ -1,5 +1,5 @@
 /* AuraGo – Knowledge Center JavaScript */
-/* global t, showToast, closeModal */
+/* global t, showToast, openModal, closeModal, showConfirmDialog */
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -11,7 +11,6 @@ let allCredentials = [];
 let contactSearchTimer = null;
 let previewResetTimer = null;
 let pendingCredentialCertificateText = '';
-let knowledgeDeleteInFlight = false;
 let lastFocusedTrigger = null;
 
 const sortState = {
@@ -273,7 +272,6 @@ function renderContacts() {
 
 function openContactModal(contact) {
     lastFocusedTrigger = document.activeElement;
-    const modal = document.getElementById('contact-modal');
     const title = document.getElementById('contact-modal-title');
 
     document.getElementById('contact-id').value = contact ? contact.id : '';
@@ -286,7 +284,7 @@ function openContactModal(contact) {
     document.getElementById('contact-notes').value = contact ? contact.notes : '';
 
     title.textContent = contact ? t('knowledge.contacts_edit') : t('knowledge.contacts_add');
-    modal.classList.add('active');
+    openModal('contact-modal');
 }
 
 function editContact(id) {
@@ -343,14 +341,14 @@ async function saveContact() {
 }
 
 function askDeleteContact(id, name) {
-    if (knowledgeDeleteInFlight) return;
-    document.getElementById('contact-delete-memories').checked = false;
-    document.getElementById('contact-delete-scope').hidden = false;
-    document.getElementById('delete-target-id').value = id;
-    document.getElementById('delete-target-type').value = 'contact';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.delete_confirm_contact').replace('{name}', name);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('contact', id,
+        t('knowledge.delete_confirm_contact').replace('{name}', name), {
+            checkbox: {
+                label: t('knowledge.contacts_delete_memories'),
+                checked: false,
+                hint: t('knowledge.contacts_delete_backups')
+            }
+        });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -413,7 +411,6 @@ function renderFiles() {
 }
 
 function openFilePreview(name) {
-    const modal = document.getElementById('file-preview-modal');
     const title = document.getElementById('file-preview-title');
     const subtitle = document.getElementById('file-preview-subtitle');
     const frame = document.getElementById('file-preview-frame');
@@ -446,7 +443,7 @@ function openFilePreview(name) {
     imgWrap.classList.add('is-hidden');
     fallback.classList.add('is-hidden');
 
-    modal.classList.add('active');
+    openModal('file-preview-modal', { onClose: resetFilePreview });
 
     if (isImageFile(ext)) {
         // ── Images: <img> tag is reliable for all image types ──
@@ -593,7 +590,11 @@ function pdfPreviewZoomOut() {
 }
 
 function closeFilePreview() {
-    const modal = document.getElementById('file-preview-modal');
+    closeModal('file-preview-modal');
+}
+
+// Runs on every close path (X, button, Esc, backdrop) so the iframe never keeps playing.
+function resetFilePreview() {
     const frame = document.getElementById('file-preview-frame');
     const textEl = document.getElementById('file-preview-text');
     const imgWrap = document.getElementById('file-preview-img-wrap');
@@ -615,7 +616,6 @@ function closeFilePreview() {
     pdfWrap.classList.add('is-hidden');
     pdfDoc = null;
     fallback.classList.add('is-hidden');
-    modal.classList.remove('active');
 }
 
 async function uploadFiles(input) {
@@ -684,12 +684,8 @@ async function uploadFile(input) {
 }
 
 function askDeleteFile(name) {
-    document.getElementById('contact-delete-scope').hidden = true;
-    document.getElementById('delete-target-id').value = name;
-    document.getElementById('delete-target-type').value = 'file';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.delete_confirm_file').replace('{name}', name);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('file', name,
+        t('knowledge.delete_confirm_file').replace('{name}', name));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -768,7 +764,6 @@ function renderDevices() {
 }
 
 function openDeviceModal(device) {
-    const modal = document.getElementById('device-modal');
     const title = document.getElementById('device-modal-title');
 
     document.getElementById('device-id').value = device ? device.id : '';
@@ -782,7 +777,7 @@ function openDeviceModal(device) {
     document.getElementById('device-credential').innerHTML = renderDeviceCredentialOptions(device ? (device.credential_id || '') : '');
 
     title.textContent = device ? t('knowledge.devices_edit') : t('knowledge.devices_add');
-    modal.classList.add('active');
+    openModal('device-modal');
 }
 
 function editDevice(id) {
@@ -841,12 +836,8 @@ async function saveDevice() {
 }
 
 function askDeleteDevice(id, name) {
-    document.getElementById('contact-delete-scope').hidden = true;
-    document.getElementById('delete-target-id').value = id;
-    document.getElementById('delete-target-type').value = 'device';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.devices_delete_confirm').replace('{name}', name);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('device', id,
+        t('knowledge.devices_delete_confirm').replace('{name}', name));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -952,7 +943,6 @@ function renderCredentials() {
 }
 
 function openCredentialModal(credential) {
-    const modal = document.getElementById('credential-modal');
     document.getElementById('credential-modal-title').textContent = credential ? t('knowledge.credentials_edit') : t('knowledge.credentials_add');
     document.getElementById('credential-id').value = credential ? credential.id : '';
     document.getElementById('credential-name').value = credential ? credential.name : '';
@@ -976,7 +966,7 @@ function openCredentialModal(credential) {
 
     updateCredentialCertificateMode();
     updateCredentialTypeFields();
-    modal.classList.add('active');
+    openModal('credential-modal');
 }
 
 function editCredential(id) {
@@ -1077,48 +1067,54 @@ async function saveCredential() {
 }
 
 function askDeleteCredential(id, name) {
-    document.getElementById('contact-delete-scope').hidden = true;
-    document.getElementById('delete-target-id').value = id;
-    document.getElementById('delete-target-type').value = 'credential';
-    document.getElementById('delete-confirm-text').textContent =
-        t('knowledge.credentials_delete_confirm').replace('{name}', name);
-    document.getElementById('delete-modal').classList.add('active');
+    return askDeleteKnowledgeItem('credential', id,
+        t('knowledge.credentials_delete_confirm').replace('{name}', name));
 }
 
 // ═══════════════════════════════════════════════════════════════
 // DELETE CONFIRM
 // ═══════════════════════════════════════════════════════════════
 
-async function confirmDelete() {
-    if (knowledgeDeleteInFlight) return;
-    knowledgeDeleteInFlight = true;
-    setKnowledgeDeleteBusy(true);
-    const id = document.getElementById('delete-target-id').value;
-    const type = document.getElementById('delete-target-type').value;
+// One shared confirmation for every knowledge delete (danger tier).
+// options.checkbox adds the single optional checkbox (contacts: delete memories).
+function askDeleteKnowledgeItem(type, id, message, options) {
+    const opts = options || {};
+    return showConfirmDialog({
+        title: t('knowledge.delete_confirm_title'),
+        message,
+        danger: true,
+        confirmText: t('common.btn_delete'),
+        cancelText: t('common.btn_cancel'),
+        checkbox: opts.checkbox,
+        onConfirm: ({ checked }) => performKnowledgeDelete(type, id, !!checked)
+    });
+}
+
+// Returns true when the item was deleted (the dialog closes), false to keep it open.
+async function performKnowledgeDelete(type, id, deleteMemories) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
+    const signal = controller ? controller.signal : undefined;
 
     try {
         let resp;
         if (type === 'contact') {
-            const deleteMemories = document.getElementById('contact-delete-memories').checked;
-            resp = await fetch('/api/contacts/' + encodeURIComponent(id) + '?delete_memories=' + deleteMemories, { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/contacts/' + encodeURIComponent(id) + '?delete_memories=' + !!deleteMemories, { method: 'DELETE', signal });
         } else if (type === 'device') {
-            resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE', signal });
         } else if (type === 'credential') {
-            resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE', signal });
         } else if (type === 'appointment') {
-            resp = await fetch('/api/appointments/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/appointments/' + encodeURIComponent(id), { method: 'DELETE', signal });
         } else if (type === 'todo') {
-            resp = await fetch('/api/todos/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/todos/' + encodeURIComponent(id), { method: 'DELETE', signal });
         } else {
-            resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
+            resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE', signal });
         }
         if (!resp.ok) {
             const err = await resp.text();
             throw new Error(err);
         }
-        closeModal('delete-modal');
         if (type === 'contact') {
             const result = await resp.json();
             const message = t(result.status === 'partial' ? 'knowledge.contacts_delete_partial' : 'knowledge.contacts_delete_report').replace('{deleted}', String(result.deleted_graph_items || 0)).replace('{retained}', String(result.retained_graph_items || 0));
@@ -1130,22 +1126,13 @@ async function confirmDelete() {
         else if (type === 'appointment') loadAppointments();
         else if (type === 'todo') loadTodos();
         else loadFiles();
+        return true;
     } catch (e) {
         console.error('Delete failed:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
+        return false;
     } finally {
         if (timeout) clearTimeout(timeout);
-        knowledgeDeleteInFlight = false;
-        setKnowledgeDeleteBusy(false);
-    }
-}
-
-function setKnowledgeDeleteBusy(busy) {
-    const memoryOption = document.getElementById('contact-delete-memories');
-    if (memoryOption) memoryOption.disabled = busy;
-    const confirmBtn = document.getElementById('knowledge-delete-confirm-btn');
-    if (confirmBtn) {
-        confirmBtn.disabled = busy;
     }
 }
 
@@ -1402,8 +1389,8 @@ function initDropZone() {
 
 const _origCloseModal = typeof closeModal === 'function' ? closeModal : null;
 if (_origCloseModal) {
-    window.closeModal = function(id) {
-        _origCloseModal(id);
+    window.closeModal = function(...args) {
+        _origCloseModal(...args);
         if (lastFocusedTrigger) {
             lastFocusedTrigger.focus();
             lastFocusedTrigger = null;

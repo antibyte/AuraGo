@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Indekser Plików → Synchronizacja Grafu Wiedzy",
   "knowledge.filesync_total_files": "Łącznie plików",
   "knowledge.filesync_unavailable": "Niedostępny",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Centrum Wiedzy",
   "knowledge.page_description": "Zarządzaj kontaktami, plikami, urządzeniami, danymi dostępowymi i sekretami.",
   "knowledge.page_title": "AuraGo – Centrum Wiedzy",

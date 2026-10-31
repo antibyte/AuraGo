@@ -88,19 +88,19 @@
             <input type="search" id="missions-search" class="pw-search" autocomplete="off"
                 placeholder="" data-i18n-placeholder="missions.search_placeholder">
             <div class="missions-filter-group pw-toolbar-group" role="group" data-i18n-aria-label="missions.tablist_label">
-                <button class="missions-filter-btn pw-badge active" type="button" data-filter="all" id="filter-all" aria-pressed="true">
+                <button class="missions-filter-btn pw-filter-pill active" type="button" data-filter="all" id="filter-all" aria-pressed="true">
                     <span data-i18n="missions.filter_all"></span>
                 </button>
-                <button class="missions-filter-btn pw-badge" type="button" data-filter="manual" id="filter-manual" aria-pressed="false">
+                <button class="missions-filter-btn pw-filter-pill" type="button" data-filter="manual" id="filter-manual" aria-pressed="false">
                     <span data-i18n="missions.filter_manual"></span>
                 </button>
-                <button class="missions-filter-btn pw-badge" type="button" data-filter="scheduled" id="filter-scheduled" aria-pressed="false">
+                <button class="missions-filter-btn pw-filter-pill" type="button" data-filter="scheduled" id="filter-scheduled" aria-pressed="false">
                     <span data-i18n="missions.filter_scheduled"></span>
                 </button>
-                <button class="missions-filter-btn pw-badge" type="button" data-filter="triggered" id="filter-triggered" aria-pressed="false">
+                <button class="missions-filter-btn pw-filter-pill" type="button" data-filter="triggered" id="filter-triggered" aria-pressed="false">
                     <span data-i18n="missions.filter_triggered"></span>
                 </button>
-                <button class="missions-filter-btn pw-badge" type="button" data-filter="flow" id="filter-flow" aria-pressed="false">
+                <button class="missions-filter-btn pw-filter-pill" type="button" data-filter="flow" id="filter-flow" aria-pressed="false">
                     <span data-i18n="missions.filter_flow"></span>
                 </button>
             </div>
@@ -126,7 +126,7 @@
     </main>
 
     <!-- Modal -->
-    <div class="modal-overlay" id="modal">
+    <div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="modal-title"></h2>
@@ -516,7 +516,7 @@
     </div>
 
     <!-- Prepared Context Viewer Modal -->
-    <div id="prep-modal" class="modal-overlay">
+    <div id="prep-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="prep-modal-title">
         <div class="modal modal-prep-context">
             <div class="modal-header">
                 <h2 id="prep-modal-title"></h2>

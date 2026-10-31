@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Datei-Indexer → Wissensgraph-Sync",
   "knowledge.filesync_total_files": "Dateien gesamt",
   "knowledge.filesync_unavailable": "Nicht verfügbar",
+  "knowledge.filter_status_label": "Status",
   "knowledge.heading": "Wissenszentrale",
   "knowledge.page_description": "Verwalte Kontakte, Dateien, Geräte, Zugangsdaten und Geheimnisse.",
   "knowledge.page_title": "AuraGo – Wissenszentrale",

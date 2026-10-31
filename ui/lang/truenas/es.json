@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Compresión",
   "truenas.dataset_used": "usado",
   "truenas.empty_datasets": "No se encontraron conjuntos de datos",
+  "truenas.empty_datasets_desc": "Crea un dataset para organizar los datos de un pool.",
   "truenas.empty_pools": "No se encontraron pools",
+  "truenas.empty_pools_desc": "El sistema aún no informa de ningún pool de almacenamiento.",
   "truenas.empty_shares": "No se encontraron recursos compartidos",
+  "truenas.empty_shares_desc": "Crea un recurso compartido SMB o NFS para poner un dataset disponible en la red.",
   "truenas.empty_snapshots": "No se encontraron instantáneas",
+  "truenas.empty_snapshots_desc": "Crea un snapshot para conservar una copia restaurable de un dataset.",
   "truenas.error_connection": "Error:",
   "truenas.error_create": "Error al crear",
   "truenas.error_load_overview": "Error al cargar el resumen:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Desactivado",
   "truenas.opt_smb": "Recurso SMB",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Supervisa los pools, datasets, snapshots y recursos compartidos de tu sistema TrueNAS.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Todo correcto",
   "truenas.pool_allocated": "Asignado",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "No configurado",
   "truenas.status_offline": "Sin conexión",
   "truenas.status_online": "En línea",
-  "truenas.subtitle": "Almacenamiento TrueNAS"
+  "truenas.subtitle": "Almacenamiento TrueNAS",
+  "truenas.tablist_label": "Secciones de TrueNAS"
 }

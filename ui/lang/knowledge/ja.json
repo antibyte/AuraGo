@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "ファイルインデクサー → ナレッジグラフ同期",
   "knowledge.filesync_total_files": "総ファイル数",
   "knowledge.filesync_unavailable": "利用不可",
+  "knowledge.filter_status_label": "ステータス",
   "knowledge.heading": "ナレッジセンター",
   "knowledge.page_description": "連絡先、ファイル、デバイス、認証情報、シークレットを管理します。",
   "knowledge.page_title": "AuraGo – ナレッジセンター",

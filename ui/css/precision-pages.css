@@ -798,8 +798,9 @@
     transform: none;
 }
 
+/* The shared confirm outranks .pw-page .modal-overlay and every page overlay. */
 .pw-page .modal-overlay.pw-confirm-overlay {
-    z-index: 210;
+    z-index: var(--z-confirm, 13000);
 }
 
 .pw-page .modal-overlay {

@@ -404,14 +404,16 @@
             KnowledgeGraphState.modalNodeId = nodeID;
             KnowledgeGraphState.modalTriggerEl = triggerEl || null;
             body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_loading')}</div>`;
-            overlay.classList.add('open');
+            openModal('kgDetailOverlay', { onClose: resetKGDetailModal });
             loadKnowledgeGraphNodeDetail(nodeID);
         }
 
         function closeKGDetailModal() {
-            const overlay = document.getElementById('kgDetailOverlay');
-            if (!overlay) return;
-            overlay.classList.remove('open');
+            closeModal('kgDetailOverlay');
+        }
+
+        // Runs on every close path (X, Close, Esc, backdrop, API).
+        function resetKGDetailModal() {
             KnowledgeGraphState.modalNodeId = '';
             KnowledgeGraphState.editingNodeId = '';
             KnowledgeGraphState.editingEdgeKey = '';

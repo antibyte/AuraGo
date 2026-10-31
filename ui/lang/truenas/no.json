@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Komprimering",
   "truenas.dataset_used": "brukt",
   "truenas.empty_datasets": "Ingen datasett funnet",
+  "truenas.empty_datasets_desc": "Opprett et datasett for å organisere data på en pool.",
   "truenas.empty_pools": "Ingen pooler funnet",
+  "truenas.empty_pools_desc": "Systemet melder ingen lagringspooler ennå.",
   "truenas.empty_shares": "Ingen delinger funnet",
+  "truenas.empty_shares_desc": "Opprett en SMB- eller NFS-deling for å gjøre et datasett tilgjengelig på nettverket.",
   "truenas.empty_snapshots": "Ingen øyeblikksbilder funnet",
+  "truenas.empty_snapshots_desc": "Opprett et snapshot for å beholde en gjenopprettbar kopi av et datasett.",
   "truenas.error_connection": "Feil:",
   "truenas.error_create": "Feil ved opprettelse",
   "truenas.error_load_overview": "Feil ved lasting av oversikt:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Av",
   "truenas.opt_smb": "SMB-deling",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Overvåk pooler, datasett, snapshots og delinger på TrueNAS-systemet ditt.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Alt OK",
   "truenas.pool_allocated": "Allokert",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "Ikke konfigurert",
   "truenas.status_offline": "Frakoblet",
   "truenas.status_online": "Online",
-  "truenas.subtitle": "TrueNAS-lagring"
+  "truenas.subtitle": "TrueNAS-lagring",
+  "truenas.tablist_label": "TrueNAS-seksjoner"
 }

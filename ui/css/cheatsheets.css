@@ -259,13 +259,6 @@
     animation: fadeIn var(--transition-base) ease;
 }
 
-/* Modal wide variant */
-
-.pw-page[data-workspace-page="cheatsheets"] .modal-wide {
-    width: min(100%, 980px);
-    max-width: 100%;
-}
-
 .pw-page[data-workspace-page="cheatsheets"] .metadata-panel {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -445,7 +438,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.pw-page[data-workspace-page="cheatsheets"] .cheatsheets-danger-title, .pw-page[data-workspace-page="cheatsheets"] .char-counter.over-limit {
+.pw-page[data-workspace-page="cheatsheets"] .char-counter.over-limit {
     color: var(--pw-danger);
 }
 
@@ -623,10 +616,6 @@
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .modal {
-    width: min(100%, 620px);
-    max-width: calc(100vw - 1rem);
-    max-height: calc(100dvh - 1rem);
-    overflow-y: auto;
     background-image: none;
 }
 
@@ -656,10 +645,6 @@
     .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab {
         padding: 0.45rem 0.65rem;
         font-size: var(--text-sm);
-    }
-
-    .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
-        max-width: 95vw;
     }
 
     .pw-page[data-workspace-page="cheatsheets"] .metadata-panel {
@@ -734,9 +719,7 @@
         padding: var(--pw-space-2);
     }
 
-    .pw-page[data-workspace-page="cheatsheets"] .modal, .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
-        width: 100%;
-        max-width: 100%;
+    .pw-page[data-workspace-page="cheatsheets"] .modal {
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
     }

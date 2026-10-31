@@ -272,16 +272,7 @@
 }
 
 .pw-page[data-workspace-page="missions"] .modal {
-    width: min(100%, 700px);
-    max-width: min(700px, calc(100vw - 1rem)) !important;
-    max-height: calc(100dvh - 1rem);
-    overflow-y: auto;
     background-image: none;
-}
-
-.pw-page[data-workspace-page="missions"] .modal-prep-context {
-    width: min(100%, 700px);
-    max-width: min(700px, calc(100vw - 1rem)) !important;
 }
 
 .pw-page[data-workspace-page="missions"][data-density="compact"] button, .pw-page[data-workspace-page="missions"][data-density="compact"] input, .pw-page[data-workspace-page="missions"][data-density="compact"] select {
@@ -1705,8 +1696,6 @@
     }
 
     .pw-page[data-workspace-page="missions"] .modal {
-        width: 100%;
-        max-width: 100% !important;
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
     }

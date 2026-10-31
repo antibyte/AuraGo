@@ -201,6 +201,7 @@
   "knowledge.filesync_title": "Ευρετηριοποίηση Αρχείων → Συγχρονισμός Γραφήματος Γνώσης",
   "knowledge.filesync_total_files": "Σύνολο αρχείων",
   "knowledge.filesync_unavailable": "Μη διαθέσιμο",
+  "knowledge.filter_status_label": "Κατάσταση",
   "knowledge.heading": "Κέντρο Γνώσεων",
   "knowledge.page_description": "Διαχειρίσου επαφές, αρχεία, συσκευές, διαπιστευτήρια και μυστικά.",
   "knowledge.page_title": "AuraGo – Κέντρο Γνώσεων",

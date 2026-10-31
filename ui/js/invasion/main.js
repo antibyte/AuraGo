@@ -5,7 +5,6 @@ let currentTab = 'nests';
 let nestsData = [];
 let eggsData = [];
 let providersData = [];
-let deleteTarget = null; // { type: 'nest'|'egg', id, name }
 let configHistoryData = [];
 let invasionSearchQuery = '';
 
@@ -31,9 +30,6 @@ function bindInvasionUI() {
     document.getElementById('nest-cancel-btn')?.addEventListener('click', () => closeModal('nest-modal'));
     document.getElementById('egg-save-btn')?.addEventListener('click', saveEgg);
     document.getElementById('egg-cancel-btn')?.addEventListener('click', () => closeModal('egg-modal'));
-    document.getElementById('delete-cancel-btn')?.addEventListener('click', () => closeModal('delete-modal'));
-    document.getElementById('btn-delete-confirm')?.addEventListener('click', confirmDelete);
-    document.getElementById('delete-confirm-input')?.addEventListener('input', checkDeleteConfirm);
     document.getElementById('reconfigure-cancel-btn')?.addEventListener('click', () => closeModal('reconfigure-modal'));
     document.getElementById('reconfigure-apply-btn')?.addEventListener('click', applyReconfigure);
     document.getElementById('config-history-close-btn')?.addEventListener('click', () => closeModal('config-history-modal'));
@@ -157,19 +153,26 @@ async function api(path, options = {}) {
 }
 
 // ── Load Data ────────────────────────────────────────────
+function setInvasionLoading(kind, loading) {
+    const el = document.getElementById(kind + '-loading');
+    if (el) el.classList.toggle('is-hidden', !loading);
+}
+
 async function loadNests() {
     try {
         nestsData = (await api('nests')) || [];
+        setInvasionLoading('nests', false);
         renderNests();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { setInvasionLoading('nests', false); showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 async function loadEggs() {
     try {
         eggsData = (await api('eggs')) || [];
+        setInvasionLoading('eggs', false);
         renderEggs();
         renderNests();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { setInvasionLoading('eggs', false); showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 // ── Render ───────────────────────────────────────────────
@@ -646,33 +649,29 @@ async function validateNest() {
 }
 
 // ── Delete ───────────────────────────────────────────────
-function requestDelete(type, id, name) {
-    deleteTarget = { type, id, name };
+async function requestDelete(type, id, name) {
     const msgKey = type === 'nest' ? 'invasion.will_delete_nest' : 'invasion.will_delete_egg';
-    document.getElementById('delete-message').innerHTML =
-        `<strong>"${esc(name)}"</strong> ${t(msgKey)}`;
-    document.getElementById('delete-confirm-input').value = '';
-    document.getElementById('btn-delete-confirm').disabled = true;
-    openModal('delete-modal');
-    document.getElementById('delete-confirm-input').focus();
-}
-
-function checkDeleteConfirm() {
-    const input = document.getElementById('delete-confirm-input').value.trim();
-    document.getElementById('btn-delete-confirm').disabled = input !== deleteTarget?.name;
-}
-
-async function confirmDelete() {
-    if (!deleteTarget) return;
-    const { type, id } = deleteTarget;
-    try {
-        await api(type + 's/' + id, { method: 'DELETE' });
-        closeModal('delete-modal');
-        showToast(t('invasion.deleted'), 'success');
-        if (type === 'nest') await loadNests();
-        else await loadEggs();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
-    deleteTarget = null;
+    await showConfirmDialog({
+        title: t('invasion.confirm_delete'),
+        message: '"' + name + '" ' + t(msgKey),
+        danger: true,
+        requireText: name,
+        requireTextHint: t('invasion.type_name_confirm'),
+        confirmText: t('invasion.delete_permanent'),
+        cancelText: t('invasion.cancel'),
+        onConfirm: async () => {
+            try {
+                await api(type + 's/' + id, { method: 'DELETE' });
+            } catch (e) {
+                showToast(t('invasion.error') + ': ' + e.message, 'error');
+                return false;
+            }
+            showToast(t('invasion.deleted'), 'success');
+            if (type === 'nest') await loadNests();
+            else await loadEggs();
+            return true;
+        }
+    });
 }
 
 // ── Safe Reconfigure ─────────────────────────────────────

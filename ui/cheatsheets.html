@@ -75,16 +75,24 @@
 
         <div class="cheatsheet-panel active" id="panel-user" role="tabpanel" aria-labelledby="tab-user" tabindex="0">
             <div class="cards-grid" id="sheets-grid-user"></div>
-            <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
-                <div class="empty-icon">👤</div>
+            <div class="pw-loading-state" id="sheets-loading-user" role="status">
+                <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+                <span data-i18n="cheatsheets.loading"></span>
+            </div>
+            <div class="empty-state empty-state-inline pw-empty-state is-hidden" id="sheets-empty-user">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">👤</div>
                 <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_user"></p>
             </div>
         </div>
         <div class="cheatsheet-panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0">
             <div class="cards-grid" id="sheets-grid-agent"></div>
-            <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
-                <div class="empty-icon">🤖</div>
+            <div class="pw-loading-state" id="sheets-loading-agent" role="status">
+                <span class="pw-skeleton skeleton" aria-hidden="true"></span>
+                <span data-i18n="cheatsheets.loading"></span>
+            </div>
+            <div class="empty-state empty-state-inline pw-empty-state is-hidden" id="sheets-empty-agent">
+                <div class="empty-icon pw-empty-icon" aria-hidden="true">🤖</div>
                 <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_agent"></p>
             </div>
@@ -92,8 +100,8 @@
     </main>
 
     <!-- Edit Modal -->
-    <div class="modal-overlay" id="edit-modal">
-        <div class="modal modal-wide">
+    <div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal modal--lg">
             <div class="modal-header">
                 <h2 id="modal-title" data-i18n="cheatsheets.create_new"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('edit-modal')">&times;</button>
@@ -173,10 +181,10 @@
     </div>
 
     <!-- Knowledge Picker Modal -->
-    <div class="modal-overlay" id="knowledge-picker-modal">
+    <div class="modal-overlay" id="knowledge-picker-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-picker-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="cheatsheets.select_knowledge_file"></h2>
+                <h2 id="knowledge-picker-title" data-i18n="cheatsheets.select_knowledge_file"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('knowledge-picker-modal')">&times;</button>
             </div>
             <div class="knowledge-picker-list" id="knowledge-picker-list">
@@ -188,24 +196,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Delete Confirm Modal -->
-    <div class="modal-overlay" id="delete-modal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="cheatsheets-danger-title">⚠️ <span data-i18n="cheatsheets.confirm_delete"></span></h2>
-                <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
-            </div>
-            <p id="delete-message"></p>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="cheatsheets.cancel"></button>
-                <button class="btn btn-danger" id="btn-delete-confirm" onclick="confirmDelete()" data-i18n="cheatsheets.delete"></button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
 
     <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/cheatsheets/main.js?v={{.BuildVersion}}"></script>

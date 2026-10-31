@@ -44,8 +44,8 @@ func TestTrueNASNotConfiguredEmptyState(t *testing.T) {
 		t.Fatal("truenas.css must let .is-hidden win over the stats-grid display rule")
 	}
 	js := normalizeAssetText(mustReadUIFile(t, "js/truenas.js"))
-	if !strings.Contains(js, `<span class="status-unknown">● ${t('truenas.status_not_configured')}`) {
-		t.Fatal("not-configured header pill must be neutral (status-unknown)")
+	if !strings.Contains(js, `badgeHtml('idle', t('truenas.status_not_configured'))`) {
+		t.Fatal("not-configured header pill must be a neutral pw-badge (data-status=idle)")
 	}
 	for _, want := range []string{"setNotConfigured(data.enabled === false)", "truenas.status_not_configured", "resetOverviewStats"} {
 		if !strings.Contains(js, want) {

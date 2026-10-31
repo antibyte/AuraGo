@@ -1392,9 +1392,28 @@ div.toggle.toggle-sm.on::before {
     max-width: 420px;
 }
 
+/* Above every page overlay (config 9999-12000, lightbox 1000); toasts stay below on purpose. */
+:root {
+    --z-confirm: 13000;
+}
+
 .modal-overlay.pw-confirm-overlay {
-    z-index: calc(var(--z-modal, 1000) + 10);
+    z-index: var(--z-confirm, 13000);
     align-items: center;
+}
+
+/* Page-specific .modal-* paddings must not shift the shared dialog (one inset for all rows). */
+.modal-overlay.pw-confirm-overlay .pw-confirm .modal-header,
+.modal-overlay.pw-confirm-overlay .pw-confirm .modal-body,
+.modal-overlay.pw-confirm-overlay .pw-confirm .modal-actions {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.modal-overlay.pw-confirm-overlay .pw-confirm .modal-body {
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: visible;
 }
 
 .pw-confirm .modal-title {

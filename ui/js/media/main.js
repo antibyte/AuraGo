@@ -20,10 +20,12 @@ let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
-function mediaStatusNode(icon, message) {
+function mediaStatusNode(icon, message, title) {
     const wrap = document.createElement('div');
-    wrap.className = 'empty-state gallery-empty';
-    wrap.innerHTML = '<div class="empty-icon gallery-empty-icon">' + icon + '</div><p>' + escapeHtml(message) + '</p>';
+    wrap.className = 'empty-state pw-empty-state gallery-empty';
+    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + icon + '</div>' +
+        (title ? '<h3>' + escapeHtml(title) + '</h3>' : '') +
+        '<p>' + escapeHtml(message) + '</p>';
     return wrap;
 }
 
@@ -151,7 +153,7 @@ const MEDIA_TABS_ORDER = ['images', 'audio', 'videos', 'documents'];
 
 document.addEventListener('keydown', function (e) {
     // Only handle arrow keys when no modal is open and no input focused
-    if (!document.getElementById('audio-modal').classList.contains('is-hidden')) return;
+    if (document.getElementById('audio-modal').classList.contains('active')) return;
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         const idx = MEDIA_TABS_ORDER.indexOf(currentTab);
@@ -232,7 +234,7 @@ async function loadAudio() {
         audioTotal = data.total || 0;
 
         if (audioItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('🎵', t('media.empty_audio')));
+            grid.replaceChildren(mediaStatusNode('🎵', t('media.empty_audio'), t('media.empty_audio_title')));
             document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
@@ -403,16 +405,11 @@ function openAudioModal(id) {
     if (!item) return;
     currentAudioModalId = id;
 
-    const modal = document.getElementById('audio-modal');
     const body = document.getElementById('audio-modal-body');
     body.innerHTML = '';
 
-    const title = item.description || item.filename || t('media.audio_type_audio');
-    const titleEl = document.createElement('div');
-    titleEl.className = 'media-doc-row-title';
-    titleEl.classList.add('media-modal-title');
-    titleEl.textContent = title;
-    body.appendChild(titleEl);
+    document.getElementById('audio-modal-title').textContent =
+        item.description || item.filename || t('media.audio_type_audio');
 
     const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
     if (audioPath) {
@@ -441,16 +438,18 @@ function openAudioModal(id) {
     document.getElementById('audio-modal-download').download = item.filename || 'audio';
     document.getElementById('audio-modal-download').classList.toggle('is-hidden', !audioPath);
 
-    modal.classList.remove('is-hidden');
+    openModal('audio-modal', { onClose: resetAudioModal });
 }
 
-function closeAudioModal(event) {
-    if (event && event.target !== document.getElementById('audio-modal')) return;
-    const modal = document.getElementById('audio-modal');
-    modal.classList.add('is-hidden');
+function closeAudioModal() {
+    closeModal('audio-modal');
+}
+
+// Runs on every close path (X, Esc, backdrop, delete).
+function resetAudioModal() {
     currentAudioModalId = null;
-    // Stop any playing audio when modal closes
-    const player = modal.querySelector('audio');
+    // Stop any playing audio when the dialog closes
+    const player = document.getElementById('audio-modal').querySelector('audio');
     if (player) { player.pause(); player.currentTime = 0; }
 }
 
@@ -744,7 +743,7 @@ async function loadVideos() {
         videoTotal = data.total || 0;
 
         if (videoItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('🎬', t('media.empty_videos')));
+            grid.replaceChildren(mediaStatusNode('🎬', t('media.empty_videos'), t('media.empty_videos_title')));
             document.getElementById('video-pagination').classList.add('is-hidden');
             return;
         }
@@ -964,7 +963,7 @@ async function loadDocuments() {
         docTotal = data.total || 0;
 
         if (docItems.length === 0) {
-            list.replaceChildren(mediaStatusNode('📄', t('media.empty_documents')));
+            list.replaceChildren(mediaStatusNode('📄', t('media.empty_documents'), t('media.empty_documents_title')));
             document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }

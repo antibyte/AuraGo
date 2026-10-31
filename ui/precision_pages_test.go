@@ -858,7 +858,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsIntegration(t *testing.T) {
 			pageStylesheet: `/css/knowledge.css`,
 			pageScript:     `/js/knowledge/main.js`,
 			hiddenHooks: []string{
-				`class="empty-state is-hidden" id="devices-empty"`,
+				`class="empty-state pw-empty-state is-hidden" id="devices-empty"`,
 				`id="file-preview-frame" class="kc-preview-frame is-hidden"`,
 			},
 			hooks: []string{
@@ -879,7 +879,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsIntegration(t *testing.T) {
 			hiddenHooks: []string{
 				`id="agent-toolbar-actions"`,
 				`id="agent-file-upload-input" class="is-hidden"`,
-				`class="modal-overlay is-hidden" id="agent-resource-path-modal"`,
+				`class="modal-overlay" id="agent-resource-path-modal"`,
 				`id="upload-file" accept=".py" class="is-hidden"`,
 			},
 			hooks: []string{
@@ -1404,7 +1404,7 @@ func TestPrecisionWorkspaceStandaloneModalVisibilityMatchesOperationsOpenPaths(t
 	}
 
 	media := normalizeAssetText(mustReadUIFile(t, "media.html")) + normalizeAssetText(mustReadUIFile(t, "js/media/main.js"))
-	for _, marker := range []string{`id="lightbox" class="lightbox is-hidden" role="dialog"`, `modal.classList.remove('is-hidden');`} {
+	for _, marker := range []string{`id="lightbox" class="lightbox is-hidden" role="dialog"`, `openModal('audio-modal'`} {
 		if !strings.Contains(media, marker) {
 			t.Errorf("Media standalone dialog open path missing %q", marker)
 		}
@@ -1570,7 +1570,7 @@ func TestPrecisionWorkspaceOperationsModalARIAContract(t *testing.T) {
 		"containers.html":       {"log-modal", "inspect-modal", "terminal-modal", "protected-terminal-modal", "update-modal", "delete-modal"},
 		"media.html":            {"lightbox", "audio-modal"},
 		"truenas.html":          {"modal-dataset", "modal-snapshot", "modal-share"},
-		"invasion_control.html": {"nest-modal", "egg-modal", "reconfigure-modal", "config-history-modal", "delete-modal"},
+		"invasion_control.html": {"nest-modal", "egg-modal", "reconfigure-modal", "config-history-modal"},
 	}
 	for template, ids := range modals {
 		html := normalizeAssetText(mustReadUIFile(t, template))

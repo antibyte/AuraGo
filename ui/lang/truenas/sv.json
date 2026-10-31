@@ -25,9 +25,13 @@
   "truenas.dataset_compression": "Komprimering",
   "truenas.dataset_used": "använt",
   "truenas.empty_datasets": "Inga datauppsättningar hittades",
+  "truenas.empty_datasets_desc": "Skapa ett dataset för att organisera data på en pool.",
   "truenas.empty_pools": "Inga pooler hittades",
+  "truenas.empty_pools_desc": "Systemet rapporterar inga lagringspooler än.",
   "truenas.empty_shares": "Inga delningar hittades",
+  "truenas.empty_shares_desc": "Skapa en SMB- eller NFS-resurs för att göra ett dataset tillgängligt i nätverket.",
   "truenas.empty_snapshots": "Inga ögonblicksbilder hittades",
+  "truenas.empty_snapshots_desc": "Skapa en snapshot för att behålla en återställningsbar kopia av ett dataset.",
   "truenas.error_connection": "Fel:",
   "truenas.error_create": "Fel vid skapande",
   "truenas.error_load_overview": "Fel vid inläsning av översikt:",
@@ -80,6 +84,7 @@
   "truenas.opt_off": "Av",
   "truenas.opt_smb": "SMB-delning",
   "truenas.opt_zle": "ZLE",
+  "truenas.page_description": "Övervaka pooler, dataset, snapshots och resurser i ditt TrueNAS-system.",
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Allt OK",
   "truenas.pool_allocated": "Allokerat",
@@ -111,5 +116,6 @@
   "truenas.status_not_configured": "Inte konfigurerat",
   "truenas.status_offline": "Frånkopplad",
   "truenas.status_online": "Ansluten",
-  "truenas.subtitle": "TrueNAS-lagring"
+  "truenas.subtitle": "TrueNAS-lagring",
+  "truenas.tablist_label": "TrueNAS-avsnitt"
 }
