@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 画像ギャラリー",
+  "gallery.title": "画像ギャラリー",
   "gallery.subtitle": "画像ギャラリー",
   "gallery.search_placeholder": "プロンプトを検索...",
   "gallery.all_providers": "すべてのプロバイダー",
@@ -15,7 +15,7 @@
   "gallery.duration": "所要時間",
   "gallery.cost": "コスト",
   "gallery.date": "日付",
-  "gallery.download": "⬇ ダウンロード",
-  "gallery.delete": "🗑 削除",
+  "gallery.download": "ダウンロード",
+  "gallery.delete": "削除",
   "gallery.confirm_delete": "この画像を削除してもよろしいですか？"
 }

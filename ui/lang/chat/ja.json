@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "エージェントにタスクを伝える …",
   "chat.galaxy_persona": "パーソナリティ",
   "chat.galaxy_mood": "現在の気分",
-  "chat.youtube_play": "再生"
+  "chat.youtube_play": "再生",
+  "chat.speech_lab_not_ready_settings": "Speech Labは準備未完了です。設定を開いて接続を確認してください。"
 }

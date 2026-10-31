@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "Ingen gamle minnekandidater",
   "dashboard.memory_curator_title": "Minnehelse",
   "dashboard.memory_embeddings": "Innbygginger",
-  "dashboard.memory_embeddings_disabled": "Innbygginger ✗",
+  "dashboard.memory_embeddings_disabled": "Innbygginger deaktivert",
   "dashboard.memory_episodic": "Episoder",
   "dashboard.memory_episodic_agent_user": "bruker, agent",
   "dashboard.memory_episodic_empty": "Ingen nylige episoder ennå",

@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "deve essere non impostato",
   "config.speech_lab.external_hardware_linux": "Per AMD su Linux: usa S2S_GPU=auto o S2S_GPU=vulkan, rimuovi GGML_BACKEND=CPU e abilita l’overlay Compose GPU Linux.",
   "config.speech_lab.browser_backend_url": "Indirizzo del backend browser",
-  "config.speech_lab.browser_backend_url_help": "Indirizzo dell’interfaccia web dello Speech Lab esterno. Si collega solo il server AuraGo."
+  "config.speech_lab.browser_backend_url_help": "Indirizzo dell’interfaccia web dello Speech Lab esterno. Si collega solo il server AuraGo.",
+  "config.speech_lab.voice_mode_fixed": "Voce fissa: è disponibile solo la voce predefinita del catalogo.",
+  "config.speech_lab.voice_mode_restart": "Cambiare questa voce riavvia il backend quando attivi lo stack.",
+  "config.speech_lab.voice_mode_request": "Scegli una voce del catalogo per lo stack. Il backend supporta anche una voce per richiesta.",
+  "config.speech_lab.voice_mode_unsupported": "Questa modalità vocale TTS non è supportata. L’attivazione dello stack è bloccata.",
+  "config.speech_lab.error_voice": "La voce non è più attiva. Aggiorna lo stack e riprova.",
+  "config.speech_lab.error_module": "Il modulo vocale non è installato o pronto. Controlla Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Scegli una voce supportata da questo backend TTS.",
+  "config.speech_lab.error_busy": "Speech Lab è occupato. Attendi la fine dell’operazione o della chiamata.",
+  "config.speech_lab.error_conflict": "La modifica dello stack non è riuscita. Aggiorna lo stack e controlla Browser Lab.",
+  "config.speech_lab.memory_free": "{value} disponibili",
+  "config.speech_lab.suggestion_score": "Punteggio: {score}",
+  "config.speech_lab.suggestion_selected": "Consiglio selezionato. Controlla le scelte e attiva lo stack per applicarle."
 }

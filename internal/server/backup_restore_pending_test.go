@@ -28,7 +28,7 @@ func applyPendingRestoreForTest(t *testing.T, configPath string, vectorRoot ...s
 	}
 	opts := restorepending.Options{}
 	if len(vectorRoot) > 0 {
-		opts.ResolveVectorRoot = func() (string, error) { return vectorRoot[0], nil }
+		opts.ResolveDirs = func() (restorepending.Dirs, error) { return restorepending.Dirs{VectorDB: vectorRoot[0]}, nil }
 	}
 	res, err := restorepending.Apply(root, opts)
 	if err != nil || res == nil || res.Status != restorepending.StatusApplied {

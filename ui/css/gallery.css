@@ -1,4 +1,4 @@
-/* AuraGo – Gallery & Media page styles */
+/* AuraGo – Media page styles (images tab = gallery grid). The standalone gallery page is gone; /gallery redirects to /media. */
 
 /* Uses standard components from shared.css:
    - .app-header
@@ -7,7 +7,6 @@
    - .empty-state
 */
 
-.gallery-container,
 .media-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -15,8 +14,7 @@
     overflow-x: hidden;
 }
 
-.media-header,
-.gallery-header {
+.media-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -25,13 +23,11 @@
     margin-bottom: var(--space-5);
 }
 
-.media-header h1,
-.gallery-header h1 {
+.media-header h1 {
     margin: 0;
 }
 
-.media-controls,
-.gallery-controls {
+.media-controls {
     display: flex;
     gap: var(--space-2);
     align-items: center;
@@ -51,13 +47,13 @@
 }
 
 .gallery-search:hover {
-    border-color: rgba(45, 212, 191, 0.4);
+    border-color: color-mix(in srgb, var(--pw-accent) 40%, transparent);
 }
 
 .gallery-search:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 15%, transparent);
 }
 
 .gallery-filter {
@@ -71,13 +67,13 @@
 }
 
 .gallery-filter:hover {
-    border-color: rgba(45, 212, 191, 0.4);
+    border-color: color-mix(in srgb, var(--pw-accent) 40%, transparent);
 }
 
 .gallery-filter:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 15%, transparent);
 }
 
 /* Gallery Grid */
@@ -98,7 +94,7 @@
 
 .gallery-card:hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(2, 6, 23, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
+    box-shadow: var(--pw-shadow-soft), 0 0 0 1px color-mix(in srgb, var(--pw-accent) 10%, transparent);
     transform: translateY(-2px);
 }
 
@@ -123,7 +119,7 @@
 }
 
 .gallery-card-meta {
-    font-size: 0.68rem;
+    font-size: var(--pw-font-2xs);
     color: var(--text-secondary);
     display: flex;
     justify-content: space-between;
@@ -188,7 +184,7 @@
     position: fixed;
     inset: 0;
     z-index: var(--z-modal);
-    background: rgba(2, 6, 23, 0.85);
+    background: var(--pw-scrim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -216,7 +212,7 @@
     position: absolute;
     top: var(--space-2);
     right: var(--space-2);
-    background: rgba(2, 6, 23, 0.6);
+    background: var(--pw-scrim);
     color: white;
     border: none;
     border-radius: var(--radius-full);
@@ -232,7 +228,7 @@
 }
 
 .lightbox-close:hover {
-    background: rgba(239, 68, 68, 0.8);
+    background: color-mix(in srgb, var(--pw-danger) 80%, transparent);
 }
 
 .lightbox-content img {
@@ -286,7 +282,7 @@
 }
 
 .btn-gallery-action.btn-danger:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: color-mix(in srgb, var(--pw-danger) 10%, transparent);
 }
 
 /* Media page specific */
@@ -320,9 +316,9 @@
 }
 
 .media-tab.active {
-    background: linear-gradient(135deg, var(--accent), #0d9488);
-    color: white;
-    box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
+    background: linear-gradient(135deg, var(--pw-accent), var(--pw-accent-strong));
+    color: var(--pw-on-accent);
+    box-shadow: 0 4px 15px color-mix(in srgb, var(--pw-accent) 30%, transparent);
 }
 
 .media-tab:hover:not(.active) {
@@ -357,7 +353,7 @@
     position: fixed;
     inset: 0;
     z-index: var(--z-modal);
-    background: rgba(2, 6, 23, 0.85);
+    background: var(--pw-scrim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -376,14 +372,12 @@
 }
 
 @media (max-width: 640px) {
-    .gallery-container,
     .media-container {
         padding: var(--space-4);
     }
     .gallery-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
-    .gallery-header,
     .media-header {
         flex-direction: column;
         align-items: stretch;
@@ -404,11 +398,4 @@
    LIGHT THEME OVERRIDES
    ══════════════════════════════════════════════════════════════ */
 
-[data-theme="light"] .lightbox,
-[data-theme="light"] .media-modal {
-    background: rgba(30, 41, 59, 0.7);
-}
-
-[data-theme="light"] .lightbox-close {
-    background: rgba(30, 41, 59, 0.4);
-}
+/* Backdrop and close chip use --pw-scrim, which already has a light-theme value. */

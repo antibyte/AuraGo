@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "古いメモリ候補はありません",
   "dashboard.memory_curator_title": "メモリ健全性",
   "dashboard.memory_embeddings": "エンベディング",
-  "dashboard.memory_embeddings_disabled": "エンベディング ✗",
+  "dashboard.memory_embeddings_disabled": "エンベディング 無効",
   "dashboard.memory_episodic": "エピソード",
   "dashboard.memory_episodic_agent_user": "ユーザー、エージェント",
   "dashboard.memory_episodic_empty": "最近のエピソードはまだありません",

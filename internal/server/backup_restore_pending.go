@@ -2,7 +2,10 @@ package server
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -64,16 +67,45 @@ func agoCheckBackupDBVersions(entries []agoImportEntry) (older []string, newer [
 func agoJoinLabels(labels []string) string { return strings.Join(labels, ", ") }
 
 // handleBackupRestoreStatus reports a pending (not yet applied) restore and the
-// outcome of the last startup apply.
+// outcome of the last startup apply. GET reads the state, DELETE discards the
+// pending restore, and POST {"action":"confirm","id":"<pending id>"} confirms
+// the security changes of a pending restore so the next start applies it.
 func handleBackupRestoreStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+		if r.Method != http.MethodGet && r.Method != http.MethodDelete && r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		root, err := agoArchiveBaseDir(filepath.Dir(s.Cfg.ConfigPath))
 		if err != nil {
 			jsonError(w, "Cannot determine restore root", http.StatusInternalServerError)
+			return
+		}
+		if r.Method == http.MethodPost {
+			var req struct {
+				Action string `json:"action"`
+				ID     string `json:"id"`
+			}
+			body, err := io.ReadAll(io.LimitReader(r.Body, 4<<10+1))
+			if err != nil || len(body) > 4<<10 || json.Unmarshal(body, &req) != nil || req.Action != "confirm" || req.ID == "" {
+				jsonError(w, "Ungültige Anfrage: erwartet wird {\"action\":\"confirm\",\"id\":\"...\"}.", http.StatusBadRequest)
+				return
+			}
+			s.CfgSaveMu.Lock()
+			err = restorepending.Confirm(root, req.ID)
+			s.CfgSaveMu.Unlock()
+			switch {
+			case errors.Is(err, restorepending.ErrNoPending):
+				jsonError(w, "Es ist keine Wiederherstellung vorgemerkt.", http.StatusNotFound)
+			case errors.Is(err, restorepending.ErrIDMismatch):
+				jsonError(w, "Die vorgemerkte Wiederherstellung hat sich geändert; bitte Status neu laden.", http.StatusConflict)
+			case err != nil:
+				s.Logger.Error("[Backup] Failed to confirm pending restore", "error", err)
+				jsonError(w, "Die Wiederherstellung konnte nicht bestätigt werden.", http.StatusInternalServerError)
+			default:
+				s.Logger.Info("[Backup] Pending restore confirmed", "id", req.ID)
+				writeJSON(w, map[string]interface{}{"confirmed": true, "id": req.ID, "restart_required": true})
+			}
 			return
 		}
 		if r.Method == http.MethodDelete {
@@ -91,9 +123,13 @@ func handleBackupRestoreStatus(s *Server) http.HandlerFunc {
 		}
 		st := restorepending.ReadState(root)
 		resp := map[string]interface{}{
-			"pending":            st.Pending,
-			"pending_created_at": st.PendingCreatedAt,
-			"last":               nil,
+			"pending":               st.Pending,
+			"pending_created_at":    st.PendingCreatedAt,
+			"id":                    st.PendingID,
+			"awaiting_confirmation": st.AwaitingConfirmation,
+			"restart_required":      st.Pending && !st.AwaitingConfirmation,
+			"security_changes":      st.SecurityChanges,
+			"last":                  nil,
 		}
 		if st.Last != nil {
 			resp["last"] = map[string]string{

@@ -21,6 +21,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Kaggle configuration, Desktop and Dashboard use `/api/kaggle/status` and the same backend grants. `lang/kaggle/` owns all sixteen locale sets; `cfg/kaggle.js` keeps policy saves separate from Vault credential saves/removal and tests saved credentials only. The app loader includes its locale section, styles, DOMPurify and notebook editor. See `js/desktop/apps/AGENTS.md`, `../internal/kaggle/AGENTS.md` and `../documentation/kaggle.md`.
+- Kaggle's passive configured state is not proof of connectivity. Credential acknowledgements belong to their mounted section and submitted value, never a new draft. Its native switch buttons retain Config switch geometry. Verify `TestKaggleConfigBrowser`; `AURAGO_KAGGLE_CONFIG_AUDIT_URL_FILE` exposes the same local fixture for a bounded review, ended through `<file>.stop`.
+
 - Desktop file email actions use the common Mailer draft handoff and app-owned exporters defined in `js/desktop/apps/AGENTS.md`. Keep all sixteen `desktop.email_*` locale sets, native dialog accessibility, theme controls and version-bound delivery aligned.
 
 - The Guardian local-protection card keeps download and saved activation separate.
@@ -120,8 +123,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   navigation-free `.pw-entry-page` layer without density controls or the
   operational client.
 - Web Chat (`index.html`) and Virtual Desktop (`desktop.html`) retain their own
-  established visual systems. `gallery.html` is also protected because the
-  `/gallery` route redirects to `/media`.
+  established visual systems. `gallery.html` is removed (wave 4); the
+  `/gallery` route keeps its 301 redirect to `/media`.
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
@@ -395,6 +398,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestConfigSpeechLabFeedbackBrowser`.
   Browser links remain relative `/speech-lab/`; external mode exposes the separate
   server-side `browser_backend_url` and never links to legacy `advanced_ui_url`.
+  Voice controls honor catalog `voice_mode`: missing means fixed/default-only,
+  restart changes require confirmed activation, unknown modes block activation.
+  Suggestions only prefill available choices and expose escaped heuristic metadata;
+  no automatic PUT or installation. Preserve structured conflict status/code and
+  localize safe messages. The chat drawer respects the server's browser availability,
+  keeps status/auth hints visible and offers `/config#speech_lab` when needed.
+  Verify `TestConfigSpeechLabVoiceContractBrowser` and
+  `TestSpeechLabDrawerRespectsAvailabilityBrowser` alongside the feedback fixture.
 
 - Fresh setup displays HTTPS enabled/mode/port and uses `window.isSecureContext`
   for browser capability guidance; support and device permission remain separate.
@@ -504,8 +515,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   underline indicators, pill shapes, or per-page tab backgrounds; shared tab
   visuals belong to `precision-pages.css`. Knowledge has no tab indicator
   element or indicator JS.
-- Never load Precision Workspace assets from `index.html`, `desktop.html`, or
-  `gallery.html`.
+- Never load Precision Workspace assets from `index.html` or `desktop.html`.
 - Do not change Chat, Virtual Desktop, or an asset they share as a side effect
   of Precision Workspace work. This includes `shared-variables.css`,
   `shared-utilities.css`, `shared-components.css`, `shared-animations.css`,
@@ -516,6 +526,38 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `data-workspace-page`, `precision-workspace.css`, `precision-pages.css`, and
   `js/precision/workspace.js`. Entry templates use `.pw-page.pw-entry-page`,
   `precision-workspace.css`, and `precision-entry.css` only.
+- Wave 4 contract (guarded by `ui_consistency_wave4_test.go`; ratchet baselines
+  in `testdata/wave4_{colours,fontsizes,breakpoints,emoji}.txt`, refreshed with
+  `AURAGO_UPDATE_WAVE4_BASELINES=1`, counts only ever go down):
+  - Token layers: `tokens.css` and `shared-variables.css` are frozen
+    primitives. The semantic layer is `.pw-page` in `precision-workspace.css`
+    (`--pw-*` colours with a light override each, `--pw-on-accent`,
+    `--pw-scrim`, `--pw-terminal-*`, `--pw-font-*`, `--pw-space-*`,
+    `--pw-radius-*`). On `.pw-page.pw-operational-page, .pw-page.pw-entry-page`
+    the legacy names (`--border`, `--text-muted`, `--text-sm`,
+    `--transition-fast`, ...) are bridged to those tokens and `--text-*` are
+    fixed sizes (chat stays fluid). `tailwind-compat.css` has no `:root`
+    palette; do not add one.
+  - Page CSS uses `--pw-*` tokens: no new hex/rgb literals (tints are
+    `color-mix(in srgb, var(--pw-<hue>) 12%, transparent)`), font sizes from
+    the `--pw-font-*` scale, breakpoints only from
+    360/480/640/768/1024/1200 (900 is reserved for the dashboard drawer).
+  - `.pw-page .modal` is defined once in `precision-pages.css`, hiding is the
+    single `.pw-page.pw-operational-page .is-hidden { display: none !important }`.
+    Pages keep only size/layout overrides.
+  - Icons come from `js/precision/icons.js` (`AuraIcons.svg/el/has/names`,
+    shorthand `pwIcon(name, cls)`, inline stroke SVG, `currentColor`, no
+    sprite). Operational heads load it before the page scripts. In
+    `data-i18n` buttons place the icon outside the translated `<span>`.
+    `js/dashboard/dash-icons.js` is a shim over the same table and keeps
+    `dashIcon`, `dashIconEl`, the `#ic-*` sprite and the `dash-ic` class.
+    Status uses `.pw-badge[data-status]` dots, not icons or emoji.
+  - One focus trap: `window.AuraModalController` (the `_modalCtl` of
+    `js/shared/shared-core.js`). `workspace.js` keeps its observer and
+    `syncModalSemantics` but has no Tab/focus code; it hands class-opened
+    overlays to the controller with `background: 'keep'` (nothing inert) and
+    `aria: false`. The controller options `background`, `aria` and `keepFocus`
+    are additive; defaults keep the chat/desktop behaviour.
 - Migrated templates must not contain `style` attributes or `<style>` blocks.
   Put page-specific rules in the owning stylesheet. Operational Precision
   declarations must be consolidated selector-by-selector with functional page
@@ -1080,7 +1122,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run TestDashboardKnowledgeGraphVisualBrowserSmoke`.
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
-  `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
+  `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
 
 ## Decisions settings
 

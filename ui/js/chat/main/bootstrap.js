@@ -289,15 +289,20 @@ function initChatThemePicker() {
         applyChatIcon(icon, THEME_ICON_KEYS[theme] || 'theme-dark');
     }
 
+    function _syncSelectedOptions(theme) {
+        dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
+            const isActive = opt.dataset.theme === theme;
+            opt.classList.toggle('active', isActive);
+            opt.setAttribute('aria-selected', String(isActive));
+        });
+    }
+
     function _selectOption(theme) {
         setChatTheme(theme);
         _refreshIcon(theme);
         dropdown.hidden = true;
         btn.setAttribute('aria-expanded', 'false');
-        // Mark active option
-        dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
-            opt.classList.toggle('active', opt.dataset.theme === theme);
-        });
+        _syncSelectedOptions(theme);
     }
 
     function toggleChatThemeDropdown(e) {
@@ -341,9 +346,7 @@ function initChatThemePicker() {
         const theme = e.detail && e.detail.theme;
         if (theme) {
             _refreshIcon(theme);
-            dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
-                opt.classList.toggle('active', opt.dataset.theme === theme);
-            });
+            _syncSelectedOptions(theme);
         }
     });
 }

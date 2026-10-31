@@ -21,6 +21,13 @@ var adaptiveIntentSeedRules = []adaptiveIntentSeedRule{
 	{isMCPIntent, []string{"mcp_call"}},
 	{isComposioIntent, []string{"composio_call"}},
 	{isManusIntent, []string{"manus"}},
+	{isKaggleModelIntent, []string{"kaggle_models"}},
+	{isKaggleNotebookIntent, []string{"kaggle_notebooks", "kaggle_runtime"}},
+	{isKaggleCompetitionIntent, []string{"kaggle_competitions"}},
+	{isKaggleBenchmarkIntent, []string{"kaggle_benchmarks"}},
+	{isKaggleForumIntent, []string{"kaggle_forums"}},
+	{isJupyterIntent, []string{"kaggle_runtime"}},
+	{isKaggleIntent, []string{"kaggle_datasets", "kaggle_runtime"}},
 }
 
 // adaptiveSeedsForQuery returns the tools a request makes likely before any

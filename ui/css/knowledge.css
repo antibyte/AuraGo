@@ -33,7 +33,6 @@
 /* === Container === */
 
 .pw-page[data-workspace-page="knowledge"] .kc-container::before,
-.pw-page[data-workspace-page="knowledge"] .modal::before,
 .pw-page[data-workspace-page="knowledge"] .empty-icon {
     background-image: none;
     box-shadow: none;
@@ -58,6 +57,12 @@
     touch-action: pan-x;
 }
 
+.pw-page[data-workspace-page="knowledge"] .kc-tab-ic {
+    display: inline-flex;
+    margin-right: var(--pw-space-2);
+    vertical-align: middle;
+}
+
 .pw-page[data-workspace-page="knowledge"] .kc-tab-count {
     display: inline-flex;
     align-items: center;
@@ -69,7 +74,7 @@
     border-radius: var(--radius-full);
     background: var(--pw-surface);
     border: 1px solid var(--pw-line);
-    font-size: 0.68rem;
+    font-size: var(--pw-font-2xs);
     font-weight: 600;
     color: var(--pw-muted);
     line-height: 1;
@@ -339,7 +344,7 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-tag {
-    font-size: 0.72rem;
+    font-size: var(--pw-font-xs);
     margin-right: var(--space-1);
     white-space: nowrap;
     line-height: 1.6;
@@ -354,7 +359,7 @@
     border: 1px solid var(--pw-line);
     background: var(--pw-surface);
     color: var(--pw-muted);
-    font-size: 0.76rem;
+    font-size: var(--pw-font-xs);
     white-space: nowrap;
 }
 
@@ -471,13 +476,6 @@
 }
 
 /* === Modals === */
-
-.pw-page[data-workspace-page="knowledge"] .modal {
-    background-image: none;
-    box-shadow: none;
-    filter: none;
-    transform: none;
-}
 
 .pw-page[data-workspace-page="knowledge"] .kc-preview-modal {
     min-height: min(82vh, 860px);
@@ -659,7 +657,7 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .field-help {
-    font-size: 0.72rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     margin-bottom: var(--space-2);
     line-height: 1.4;
@@ -884,7 +882,7 @@
     display: inline-block;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-full);
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     font-weight: 600;
     font-variant: small-caps;
     letter-spacing: 0.04em;
@@ -982,14 +980,14 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-todo-summary-value {
-    font-size: 1.25rem;
+    font-size: var(--pw-font-xl);
     font-weight: 700;
     color: var(--pw-text);
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-todo-summary-subtext {
     margin-top: var(--space-1);
-    font-size: 0.76rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted, var(--pw-muted));
 }
 
@@ -1167,7 +1165,7 @@
 .pw-page[data-workspace-page="knowledge"] .kc-todo-subtasks summary::before {
     content: '▸';
     display: inline-block;
-    font-size: 0.7rem;
+    font-size: var(--pw-font-2xs);
     transition: transform 0.15s;
     color: var(--pw-muted, var(--pw-muted));
 }
@@ -1228,11 +1226,11 @@
     display: block;
     margin-top: var(--space-1);
     color: var(--pw-muted);
-    font-size: 0.76rem;
+    font-size: var(--pw-font-xs);
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-todo-subtask-meta {
-    font-size: 0.72rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted, var(--pw-muted));
     flex-shrink: 0;
 }
@@ -1278,7 +1276,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: 0.79rem;
+    font-size: var(--pw-font-sm);
     color: var(--pw-muted);
 }
 
@@ -1310,7 +1308,7 @@
     display: inline-block;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-md);
-    font-size: 0.72rem;
+    font-size: var(--pw-font-xs);
     font-weight: 600;
     font-variant: small-caps;
     letter-spacing: 0.03em;
@@ -1355,7 +1353,7 @@
 
 .pw-page[data-workspace-page="knowledge"] .kc-sync-title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--pw-font-lg);
     font-weight: 600;
     color: var(--pw-text);
 }
@@ -1395,7 +1393,7 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-sync-card-icon {
-    font-size: 1.1rem;
+    font-size: var(--pw-font-lg);
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-sync-card-title {
@@ -1594,7 +1592,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.65rem;
+    font-size: var(--pw-font-2xs);
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -1634,7 +1632,7 @@
     border: 1px solid var(--pw-line);
     border-radius: var(--radius-md);
     color: var(--pw-text);
-    font-size: 0.875rem;
+    font-size: var(--pw-font-md);
     transition: border-color 0.15s;
 }
 
@@ -1682,7 +1680,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -1699,7 +1697,7 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-picker-item-name {
-    font-size: 0.875rem;
+    font-size: var(--pw-font-md);
     color: var(--pw-text);
     white-space: nowrap;
     overflow: hidden;
@@ -1707,7 +1705,7 @@
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-picker-item-meta {
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -1844,10 +1842,6 @@
 
 /* === Utility === */
 
-.pw-page[data-workspace-page="knowledge"] .is-hidden {
-    display: none;
-}
-
 .pw-page[data-workspace-page="knowledge"] .kc-aria-live {
     position: absolute;
     width: 1px;
@@ -1862,7 +1856,7 @@
 
 .pw-page[data-workspace-page="knowledge"] .kc-kbd-hint {
     display: none;
-    font-size: 0.65rem;
+    font-size: var(--pw-font-2xs);
     color: var(--pw-muted, var(--pw-muted));
     margin-left: var(--space-1);
     opacity: 0.6;
@@ -1901,7 +1895,6 @@
 }
 
 .pw-page[data-workspace-page="knowledge"]:where(:root[data-theme="light"] *) .kc-table-wrap,
-.pw-page[data-workspace-page="knowledge"]:where(:root[data-theme="light"] *) .modal,
 .pw-page[data-workspace-page="knowledge"]:where(:root[data-theme="light"] *) .kc-appointment-card,
 .pw-page[data-workspace-page="knowledge"]:where(:root[data-theme="light"] *) .kc-todo-item {
     border-color: var(--pw-line-strong);
@@ -1970,7 +1963,7 @@
     }
 
     .pw-page[data-workspace-page="knowledge"] .kc-tab .kc-tab-count {
-        font-size: 0.68rem;
+        font-size: var(--pw-font-2xs);
     }
 
     .pw-page[data-workspace-page="knowledge"] .kc-search-row,

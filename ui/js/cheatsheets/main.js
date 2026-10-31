@@ -10,7 +10,15 @@ let currentCheatTab = localStorage.getItem('cheatsheets-tab') || 'user'; // 'use
 let cheatsheetSearchQuery = '';
 
 // ── Init ─────────────────────────────────────────────────
+/** Fills static [data-pw-icon] placeholders with the shared inline icons. */
+function hydratePwIcons(root) {
+    (root || document).querySelectorAll('[data-pw-icon]').forEach((el) => {
+        el.innerHTML = pwIcon(el.getAttribute('data-pw-icon'));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    hydratePwIcons();
     updateViewToggle();
     loadSheets();
     bindCheatsheetChrome();
@@ -162,9 +170,10 @@ function setGroupCount(groupKey, count) {
 
 // Compact List View
 function renderSheetCompact(s) {
-    const statusIcon = s.active ? '🟢' : '⚪';
-    const creatorIcon = s.created_by === 'agent' ? '🤖' : '';
-    const lockIcon = s.delete_locked ? '🔒' : '';
+    const statusLabel = s.active ? t('cheatsheets.active') : t('cheatsheets.inactive');
+    const statusIcon = `<span class="pw-badge" data-status="${s.active ? 'ok' : 'idle'}">${esc(statusLabel)}</span>`;
+    const creatorIcon = s.created_by === 'agent' ? pwIcon('bot') : '';
+    const lockIcon = s.delete_locked ? pwIcon('lock') : '';
     const abstract = s.abstract || (s.content || '').substring(0, 120).replace(/\n/g, ' ');
     const creatorTitle = s.created_by === 'agent'
         ? esc(t('cheatsheets.created_by_agent'))
@@ -172,14 +181,14 @@ function renderSheetCompact(s) {
 
     return `
         <div class="card-compact" title="${esc(abstract)}" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
-            <span class="card-icon" title="${s.active ? t('cheatsheets.active') : t('cheatsheets.inactive')}">${statusIcon}</span>
+            <span class="card-icon">${statusIcon}</span>
             <span class="card-name">${esc(s.name)}</span>
             ${creatorIcon ? `<span class="card-icon" title="${creatorTitle}">${creatorIcon}</span>` : ''}
             ${lockIcon ? `<span class="card-icon" title="${esc(t('cheatsheets.delete_locked'))}">${lockIcon}</span>` : ''}
             <div class="card-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
-                <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
-                ${s.delete_locked ? '' : `<button class="btn btn-sm btn-danger" data-action="delete-sheet" data-sheet-id="${esc(s.id)}" data-sheet-name="${esc(s.name)}" title="${esc(t('cheatsheets.delete'))}">🗑️</button>`}
+                <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}" aria-label="${esc(t('cheatsheets.edit'))}">${pwIcon('edit')}</button>
+                <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}" aria-label="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${pwIcon(s.active ? 'pause' : 'play')}</button>
+                ${s.delete_locked ? '' : `<button class="btn btn-sm btn-danger" data-action="delete-sheet" data-sheet-id="${esc(s.id)}" data-sheet-name="${esc(s.name)}" title="${esc(t('cheatsheets.delete'))}" aria-label="${esc(t('cheatsheets.delete'))}">${pwIcon('trash')}</button>`}
             </div>
         </div>
     `;
@@ -192,12 +201,12 @@ function renderSheetGrid(s) {
         ? `<span class="badge badge-active">${esc(t('cheatsheets.active'))}</span>`
         : `<span class="badge badge-inactive">${esc(t('cheatsheets.inactive'))}</span>`;
     const creatorBadge = s.created_by === 'agent'
-        ? `<span class="badge badge-agent">🤖 ${esc(t('cheatsheets.group_agent'))}</span>`
+        ? `<span class="badge badge-agent">${pwIcon('bot')} ${esc(t('cheatsheets.group_agent'))}</span>`
         : '';
     const attachBadge = (s.attachment_count > 0)
-        ? `<span class="badge badge-attachment">📎 ${s.attachment_count}</span>`
+        ? `<span class="badge badge-attachment">${pwIcon('paperclip')} ${s.attachment_count}</span>`
         : '';
-    const lockBadge = s.delete_locked ? `<span class="badge badge-locked">🔒 ${esc(t('cheatsheets.delete_locked'))}</span>` : '';
+    const lockBadge = s.delete_locked ? `<span class="badge badge-locked">${pwIcon('lock')} ${esc(t('cheatsheets.delete_locked'))}</span>` : '';
     const usageBadge = `<span class="badge badge-usage">${esc(t('cheatsheets.usage_count', { count: s.usage_count || 0 }))}</span>`;
     const abstract = esc(s.abstract || '');
     const preview = esc((s.content || '').substring(0, 150).replace(/\n/g, ' '));
@@ -216,8 +225,8 @@ function renderSheetGrid(s) {
             </div>
             <div class="card-body">
                 <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
-                ${updated ? `<div class="card-meta-line">🕐 ${updated}</div>` : ''}
-                ${expires && s.created_by === 'agent' ? `<div class="card-meta-line">⏳ ${esc(t('cheatsheets.expires_at', { date: expires }))}</div>` : ''}
+                ${updated ? `<div class="card-meta-line">${pwIcon('clock')} ${updated}</div>` : ''}
+                ${expires && s.created_by === 'agent' ? `<div class="card-meta-line">${pwIcon('hourglass')} ${esc(t('cheatsheets.expires_at', { date: expires }))}</div>` : ''}
             </div>
             <div class="card-footer">
                 <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
@@ -474,13 +483,13 @@ function renderAttachments() {
     }
 
     list.innerHTML = allItems.map(a => {
-        const sourceIcon = a.isPending ? '⏳' : (a.source === 'knowledge' ? '📚' : '📎');
+        const sourceIcon = pwIcon(a.isPending ? 'hourglass' : (a.source === 'knowledge' ? 'book' : 'paperclip'));
         return `
             <div class="attachment-item${a.isPending ? ' attachment-pending' : ''}">
                 <span class="attachment-icon">${sourceIcon}</span>
                 <span class="attachment-name" title="${esc(a.filename)}">${esc(a.filename)}</span>
                 <span class="attachment-size">${(a.char_count || a.charCount || 0).toLocaleString()} chars</span>
-                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.displayId)}')" title="${esc(t('cheatsheets.remove_attachment'))}">✕</button>
+                <button class="btn btn-sm btn-danger attachment-remove" onclick="removeAttachment('${esc(a.displayId)}')" title="${esc(t('cheatsheets.remove_attachment'))}" aria-label="${esc(t('cheatsheets.remove_attachment'))}">${pwIcon('x')}</button>
             </div>`;
     }).join('');
 }

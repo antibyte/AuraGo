@@ -45,7 +45,7 @@ func TestConfigSpeechLabFeedbackBrowser(t *testing.T) {
                 {id:'asr', name:'ASR', stage:'asr', available:true, stable:true},
                 {id:'confucius4-r2t2', name:'Confucius4-R2T2 GGUF', stage:'asr', available:false,
                  variants:[{id:'confucius4-r2t2-vulkan-windows', stable:true}]},
-                {id:'tts', name:'TTS', stage:'tts', available:true, stable:true, voices:['voice']}
+                {id:'tts', name:'TTS', stage:'tts', available:true, stable:true, default_voice:'voice', voices:['voice']}
             ]}));
             if (path.startsWith('/api/speech-lab/suggestions')) return Promise.resolve(json({suggested_pairs:[]}));
             if (path === '/api/speech-lab/deployment/update') {

@@ -73,6 +73,7 @@ window.LANG = 'en';
 window.t = (key) => key;
 window.tOr = (key, fallback) => fallback;
 window.dashIcon = () => '';
+window.pwIcon = () => '';
 window.showToast = () => {};
 window.showConfirm = async () => true;
 window.DashSections = { register() {} };

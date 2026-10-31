@@ -41,7 +41,7 @@
                 container.innerHTML = '<div class="empty-state">' + t('dashboard.profile_empty') + '</div>';
                 return;
             }
-            const catIcons = { tech: '💻', prefs: '⭐', preferences: '⭐', interests: '🎯', context: '📋', comm: '💬', communication: '💬' };
+            const catIcons = { tech: 'code', prefs: 'star', preferences: 'star', interests: 'target', context: 'clipboard', comm: 'chat', communication: 'chat' };
             const catNameMap = {
                 tech: t('dashboard.profile_cat_tech'),
                 prefs: t('dashboard.profile_cat_preferences'),
@@ -56,7 +56,7 @@
                 html += `<div class="profile-category" data-cat="${escAttr(cat)}">
             <div class="profile-cat-header" onclick="toggleCategory(this)">
                 <span class="profile-cat-toggle">▶</span>
-                ${catIcons[cat] || '📦'} ${catNameMap[cat] || esc(cat)} (${entries.length})
+                ${pwIcon(catIcons[cat] || 'package')} ${catNameMap[cat] || esc(cat)} (${entries.length})
             </div>
             <div class="profile-entries is-hidden">`;
                 for (const e of entries) {
@@ -74,8 +74,8 @@
                 </span>
                 <span class="profile-edit-form is-hidden">
                     <input type="text" class="profile-edit-input" value="${escAttr(e.value)}">
-                    <button class="profile-btn-save" onclick="saveProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✓</button>
-                    <button class="profile-btn-cancel" onclick="cancelProfileEdit(this)" title="${t('dashboard.profile_edit_cancel')}">✗</button>
+                    <button class="profile-btn-save" onclick="saveProfileEntry(this)" title="${t('dashboard.profile_edit_save')}" aria-label="${t('dashboard.profile_edit_save')}">${pwIcon('check')}</button>
+                    <button class="profile-btn-cancel" onclick="cancelProfileEdit(this)" title="${t('dashboard.profile_edit_cancel')}" aria-label="${t('dashboard.profile_edit_cancel')}">${pwIcon('x')}</button>
                 </span>
             </div>`;
                 }
@@ -154,10 +154,10 @@
 
         // ── Journal Timeline ────────────────────────────────────────────────────────
         const JOURNAL_ICONS = {
-            reflection: '💭', milestone: '🏆', preference: '⭐', task_completed: '✅',
-            integration: '🔌', learning: '📚', error_recovery: '🔧', system_event: '⚙️',
-            decision: '🎯', error: '❌', budget_exceeded: '💸', security_event: '🔒',
-            error_learned: '🧠', alert: '⚠️'
+            reflection: 'brain', milestone: 'trophy', preference: 'star', task_completed: 'check-circle',
+            integration: 'plug', learning: 'book', error_recovery: 'wrench', system_event: 'settings',
+            decision: 'target', error: 'x-circle', budget_exceeded: 'wallet', security_event: 'lock',
+            error_learned: 'brain', alert: 'alert'
         };
 
         function renderJournalTimeline(entries) {
@@ -168,12 +168,12 @@
                 return;
             }
             el.innerHTML = renderCollapsibleList(entries, e => {
-                const icon = JOURNAL_ICONS[e.entry_type] || '📔';
+                const icon = pwIcon(JOURNAL_ICONS[e.entry_type] || 'note');
                 const date = e.created_at ? new Date(e.created_at).toLocaleString(LANG, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
                 // tags is a JSON array from the backend; support both array and legacy comma-string
                 const rawTags = Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? e.tags.split(',') : []);
                 const tags = rawTags.filter(Boolean).map(tag => `<span class="je-tag">${escapeHtml(tag.trim())}</span>`).join('');
-                const auto = e.auto_generated ? ' 🤖' : '';
+                const auto = e.auto_generated ? ' ' + pwIcon('bot') : '';
                 const imp = e.importance || 2;
                 return `<div class="journal-entry" data-importance="${imp}">
                     <div class="je-icon">${icon}</div>
@@ -194,19 +194,19 @@
                 return;
             }
             const latest = summaries[0];
-            el.innerHTML = `<div class="journal-summary-label">📋 ${latest.date}</div><div>${escapeHtml(latest.summary || '')}</div>`;
+            el.innerHTML = `<div class="journal-summary-label">${pwIcon('clipboard')} ${latest.date}</div><div>${escapeHtml(latest.summary || '')}</div>`;
 
             // Sentiment trend + key topics
             const sentimentWrap = document.getElementById('journal-sentiment-wrap');
             const sentimentRow = document.getElementById('journal-sentiment-row');
             const topicsWrap = document.getElementById('journal-key-topics-wrap');
             if (sentimentWrap && sentimentRow) {
-                const sentimentEmoji = { positive: '😊', neutral: '😐', frustrated: '😤' };
+                const sentimentIcons = { positive: 'smile', neutral: 'meh', frustrated: 'frown' };
                 const withSentiment = summaries.filter(s => s.sentiment);
                 if (withSentiment.length > 0) {
                     dashSetHidden(sentimentWrap, false);
                     sentimentRow.innerHTML = withSentiment.map(s =>
-                        `<span class="sentiment-day-badge ${escAttr(s.sentiment)}">${sentimentEmoji[s.sentiment] || '•'} ${esc(s.date)}</span>`
+                        `<span class="sentiment-day-badge ${escAttr(s.sentiment)}">${sentimentIcons[s.sentiment] ? pwIcon(sentimentIcons[s.sentiment]) : '•'} ${esc(s.date)}</span>`
                     ).join('');
                 } else {
                     dashSetHidden(sentimentWrap, true);
@@ -237,16 +237,16 @@
                 return;
             }
 
-            summaryEl.innerHTML = data.overview_summary ? `<div class="journal-summary-label">🧭 ${t('dashboard.activity_overview_summary')}</div><div>${escapeHtml(data.overview_summary)}</div>` : '';
+            summaryEl.innerHTML = data.overview_summary ? `<div class="journal-summary-label">${pwIcon('compass')} ${t('dashboard.activity_overview_summary')}</div><div>${escapeHtml(data.overview_summary)}</div>` : '';
 
             const highlights = Array.isArray(data.highlights) ? data.highlights.slice(0, 3) : [];
             highlightsEl.innerHTML = highlights.length
-                ? `<div class="journal-summary-label">✨ ${t('dashboard.activity_overview_highlights')}</div><div>${highlights.map(item => `<span class="journal-topic-chip">${escapeHtml(item)}</span>`).join('')}</div>`
+                ? `<div class="journal-summary-label">${pwIcon('star')} ${t('dashboard.activity_overview_highlights')}</div><div>${highlights.map(item => `<span class="journal-topic-chip">${escapeHtml(item)}</span>`).join('')}</div>`
                 : '';
 
             const pending = Array.isArray(data.pending_items) ? data.pending_items.slice(0, 5) : [];
             pendingEl.innerHTML = pending.length
-                ? `<div class="journal-summary-label">📌 ${t('dashboard.activity_overview_pending')}</div><div>${pending.map(item => `<div class="journal-entry"><div class="je-body"><div class="je-title">${escapeHtml(item)}</div></div></div>`).join('')}</div>`
+                ? `<div class="journal-summary-label">${pwIcon('pin')} ${t('dashboard.activity_overview_pending')}</div><div>${pending.map(item => `<div class="journal-entry"><div class="je-body"><div class="je-title">${escapeHtml(item)}</div></div></div>`).join('')}</div>`
                 : '';
 
             const days = Array.isArray(data.days) ? data.days.slice(0, 3) : [];
@@ -256,7 +256,7 @@
             }
             daysEl.innerHTML = days.map(day => `
                 <div class="journal-entry" data-importance="2">
-                    <div class="je-icon">🗓️</div>
+                    <div class="je-icon">${pwIcon('calendar')}</div>
                     <div class="je-body">
                         <div class="je-title">${escapeHtml(day.date || '')}</div>
                         <div class="je-meta">${escapeHtml(day.summary || '')}</div>

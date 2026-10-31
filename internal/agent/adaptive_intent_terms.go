@@ -25,7 +25,14 @@ var (
 		"composio", "integration", "gmail", "google mail", "googlemail", "g mail",
 	}, nil)
 
-	manusTerms = newToolIntentTerms([]string{"manus"}, nil)
+	manusTerms             = newToolIntentTerms([]string{"manus"}, nil)
+	kaggleTerms            = newToolIntentTerms([]string{"kaggle"}, nil)
+	kaggleModelTerms       = newToolIntentTerms([]string{"model", "models", "modell", "modelle"}, nil)
+	kaggleNotebookTerms    = newToolIntentTerms([]string{"notebook", "notebooks", "kernel", "kernels"}, nil)
+	kaggleCompetitionTerms = newToolIntentTerms([]string{"competition", "competitions", "wettbewerb", "wettbewerbe", "submission", "einreichung"}, nil)
+	kaggleBenchmarkTerms   = newToolIntentTerms([]string{"benchmark", "benchmarks"}, nil)
+	kaggleForumTerms       = newToolIntentTerms([]string{"forum", "forums", "foren", "discussion", "diskussion"}, nil)
+	jupyterTerms           = newToolIntentTerms([]string{"jupyter", "notebook zelle", "notebook cell"}, nil)
 
 	pdfTerms = newToolIntentTerms([]string{"pdf"}, nil)
 
@@ -50,6 +57,24 @@ func isMCPIntent(text toolIntentText) bool { return mcpTerms.matches(text) }
 func isComposioIntent(text toolIntentText) bool { return composioTerms.matches(text) }
 
 func isManusIntent(text toolIntentText) bool { return manusTerms.matches(text) }
+
+func isKaggleIntent(text toolIntentText) bool { return kaggleTerms.matches(text) }
+func isKaggleModelIntent(text toolIntentText) bool {
+	return isKaggleIntent(text) && kaggleModelTerms.matches(text)
+}
+func isKaggleNotebookIntent(text toolIntentText) bool {
+	return isKaggleIntent(text) && kaggleNotebookTerms.matches(text)
+}
+func isKaggleCompetitionIntent(text toolIntentText) bool {
+	return isKaggleIntent(text) && kaggleCompetitionTerms.matches(text)
+}
+func isKaggleBenchmarkIntent(text toolIntentText) bool {
+	return isKaggleIntent(text) && kaggleBenchmarkTerms.matches(text)
+}
+func isKaggleForumIntent(text toolIntentText) bool {
+	return isKaggleIntent(text) && kaggleForumTerms.matches(text)
+}
+func isJupyterIntent(text toolIntentText) bool { return jupyterTerms.matches(text) }
 
 func isPDFIntent(text toolIntentText) bool { return pdfTerms.matches(text) }
 

@@ -1,5 +1,5 @@
 /* AuraGo – Skills Manager page JS */
-/* global I18N, t, applyI18n, esc */
+/* global I18N, t, applyI18n, esc, pwIcon, AuraIcons */
 'use strict';
 
 let allSkills = [];
@@ -179,11 +179,11 @@ async function loadTemplates() {
 
 function showDisabledState() {
     document.getElementById('sk-grid').style.display = 'none';
-    document.getElementById('sk-empty').style.display = 'none';
-    document.getElementById('sk-disabled').style.display = 'block';
+    document.getElementById('sk-empty').classList.add('is-hidden');
+    document.getElementById('sk-disabled').classList.remove('is-hidden');
     document.getElementById('sk-status-bar').style.display = 'none';
     document.getElementById('sk-toolbar-actions').style.display = 'none';
-    document.getElementById('agent-toolbar-actions').style.display = 'none';
+    document.getElementById('agent-toolbar-actions').classList.add('is-hidden');
     document.getElementById('sk-security-filters').style.display = 'none';
 }
 
@@ -207,15 +207,15 @@ function showDisabledState() {
         const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
         if (!ds) {
-            return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped')}">⏹ ${t('skills.daemon')}</span>`;
+            return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped')}">${pwIcon('stop')} ${t('skills.daemon')}</span>`;
         }
         const status = (ds.status || ds.Status || 'stopped').toLowerCase();
         const statusMap = {
-            running: { cls: 'sk-daemon-running', icon: '🟢', label: t('skills.daemon_running') },
-            stopped: { cls: 'sk-daemon-stopped', icon: '⏹', label: t('skills.daemon_stopped') },
-            error: { cls: 'sk-daemon-error', icon: '🔴', label: t('skills.daemon_error') },
-            disabled: { cls: 'sk-daemon-disabled', icon: '⛔', label: t('skills.daemon_disabled') },
-            starting: { cls: 'sk-daemon-starting', icon: '🟡', label: t('skills.daemon_starting') },
+            running: { cls: 'sk-daemon-running', icon: pwIcon('circle-dot'), label: t('skills.daemon_running') },
+            stopped: { cls: 'sk-daemon-stopped', icon: pwIcon('stop'), label: t('skills.daemon_stopped') },
+            error: { cls: 'sk-daemon-error', icon: pwIcon('x-circle'), label: t('skills.daemon_error') },
+            disabled: { cls: 'sk-daemon-disabled', icon: pwIcon('ban'), label: t('skills.daemon_disabled') },
+            starting: { cls: 'sk-daemon-starting', icon: pwIcon('hourglass'), label: t('skills.daemon_starting') },
         };
         const info = statusMap[status] || statusMap.stopped;
         return `<span class="sk-daemon-badge ${info.cls}" title="${info.label}">${info.icon} ${t('skills.daemon')}</span>`;
@@ -225,7 +225,7 @@ function showDisabledState() {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
         if (!daemonSystemEnabled) {
-            return `<div class="sk-daemon-actions"><span class="sk-daemon-badge sk-daemon-disabled" title="${t('skills.daemon_disabled_hint')}">⛔ ${t('skills.daemon')}</span></div>`;
+            return `<div class="sk-daemon-actions"><span class="sk-daemon-badge sk-daemon-disabled" title="${t('skills.daemon_disabled_hint')}">${pwIcon('ban')} ${t('skills.daemon')}</span></div>`;
         }
         const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
@@ -308,7 +308,7 @@ function showDisabledState() {
 
         return `
         <div class="sk-daemon-settings-section">
-            <h4 class="sk-daemon-settings-title">👹 ${t('skills.daemon_settings_title')}</h4>
+            <h4 class="sk-daemon-settings-title">${pwIcon('daemon')} ${t('skills.daemon_settings_title')}</h4>
             <div class="sk-detail-grid">
                 <div class="sk-detail-row">
                     <span class="sk-detail-label">${t('skills.daemon_wake_agent')}:</span>
@@ -401,12 +401,12 @@ function showDisabledState() {
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         document.getElementById('sk-toolbar-actions').style.display = currentSkillMode === 'python' ? '' : 'none';
-        document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? 'flex' : 'none';
+        document.getElementById('agent-toolbar-actions').classList.toggle('is-hidden', currentSkillMode !== 'agent');
         document.getElementById('sk-heading-create-python')?.classList.toggle('is-hidden', currentSkillMode !== 'python');
         document.getElementById('sk-heading-create-agent')?.classList.toggle('is-hidden', currentSkillMode !== 'agent');
         const typeFilter = document.querySelector('.sk-filter-group');
         if (typeFilter) typeFilter.style.display = currentSkillMode === 'python' ? '' : 'none';
-        document.getElementById('sk-disabled').style.display = 'none';
+        document.getElementById('sk-disabled').classList.add('is-hidden');
         document.getElementById('sk-status-bar').style.display = '';
         document.getElementById('sk-security-filters').style.display = '';
         if (currentSkillMode === 'agent') {
@@ -456,16 +456,16 @@ function showDisabledState() {
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
         const disabled = document.getElementById('sk-disabled');
-        disabled.style.display = 'none';
+        disabled.classList.add('is-hidden');
 
         const filtered = getFilteredSkills();
 
         if (filtered.length === 0) {
             grid.style.display = 'none';
-            empty.style.display = 'block';
+            empty.classList.remove('is-hidden');
             return;
         }
-        empty.style.display = 'none';
+        empty.classList.add('is-hidden');
         grid.style.display = '';
 
         if (window.AuraDiff) {
@@ -522,20 +522,20 @@ function showDisabledState() {
                 ? vaultKeys.map(k => {
                     if (k.startsWith('cred:')) {
                         const cname = credentialMap[k.slice(5)] || k.slice(5);
-                        return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">🔑 ${esc(cname)}</code>`;
+                        return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">${pwIcon('key')} ${esc(cname)}</code>`;
                     }
                     return `<code class="sk-vault-key-tag" title="${esc(k)}">${esc(k)}</code>`;
                 }).join('')
                 : '';
             vaultRow = `<div class="sk-card-vault">
-            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets')}">🔑 ${t('skills.btn_edit_secrets')}</button>
-            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openInternalToolsModal('${id}')" title="${t('skills.btn_edit_internal_tools')}">⚙️ ${t('skills.btn_edit_internal_tools')}</button>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets')}">${pwIcon('key')} ${t('skills.btn_edit_secrets')}</button>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openInternalToolsModal('${id}')" title="${t('skills.btn_edit_internal_tools')}">${pwIcon('settings')} ${t('skills.btn_edit_internal_tools')}</button>
             ${keyTags ? `<span class="sk-vault-keys">${keyTags}</span>` : ''}
         </div>`;
         }
 
         const internalToolsRow = internalTools.length > 0
-            ? `<div class="sk-card-internal-tools"><span class="sk-internal-tools-label">⚙️ ${t('skills.internal_tools_label')}:</span> ${internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag" title="${esc(tool)}">${esc(tool)}</code>`).join('')}</div>`
+            ? `<div class="sk-card-internal-tools"><span class="sk-internal-tools-label">${pwIcon('settings')} ${t('skills.internal_tools_label')}:</span> ${internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag" title="${esc(tool)}">${esc(tool)}</code>`).join('')}</div>`
             : '';
 
         return `
@@ -586,14 +586,14 @@ function showDisabledState() {
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
         const disabled = document.getElementById('sk-disabled');
-        disabled.style.display = 'none';
+        disabled.classList.add('is-hidden');
         const filtered = getFilteredAgentSkills();
         if (filtered.length === 0) {
             grid.style.display = 'none';
-            empty.style.display = 'block';
+            empty.classList.remove('is-hidden');
             return;
         }
-        empty.style.display = 'none';
+        empty.classList.add('is-hidden');
         grid.style.display = '';
         if (window.AuraDiff) {
             window.AuraDiff.render(grid, filtered, {
@@ -879,7 +879,7 @@ function showDisabledState() {
         document.getElementById('agent-skill-modal-title').textContent = data.skill.name || t('skills.agent_edit_title');
         document.getElementById('agent-create-fields').style.display = 'none';
         document.getElementById('agent-skill-content').value = data.content || '';
-        document.getElementById('agent-resource-browser').style.display = 'block';
+        document.getElementById('agent-resource-browser').classList.remove('is-hidden');
         renderAgentResourceList(data.skill.resources || []);
         openModal('agent-skill-modal', { onClose: () => { currentAgentSkillId = ''; } });
     }
@@ -921,11 +921,11 @@ function showDisabledState() {
 
     function resourceKindIcon(kind) {
         switch (kind) {
-            case 'script': return '⚙️';
-            case 'reference': return '📄';
-            case 'asset': return '📦';
-            case 'agent': return '🤖';
-            default: return '📁';
+            case 'script': return pwIcon('file-code');
+            case 'reference': return pwIcon('doc');
+            case 'asset': return pwIcon('package');
+            case 'agent': return pwIcon('bot');
+            default: return pwIcon('folder');
         }
     }
 
@@ -953,7 +953,7 @@ function showDisabledState() {
         const errorEl = document.getElementById('agent-resource-path-error');
         if (!errorEl) return;
         errorEl.textContent = message || '';
-        errorEl.style.display = message ? 'block' : 'none';
+        errorEl.classList.toggle('is-hidden', !message);
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1034,17 +1034,17 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     async function loadAgentSkillResource(path) {
         if (!currentAgentSkillId) return;
-        document.getElementById('agent-file-editor').style.display = 'block';
+        document.getElementById('agent-file-editor').classList.remove('is-hidden');
         document.getElementById('agent-resource-path').value = path;
         setAgentResourceSelection(path);
         const ext = path.split('.').pop().toLowerCase();
         const binaryExts = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'];
         if (binaryExts.includes(ext)) {
             document.getElementById('agent-resource-content').style.display = 'none';
-            document.getElementById('agent-binary-download').style.display = 'block';
+            document.getElementById('agent-binary-download').classList.remove('is-hidden');
         } else {
             document.getElementById('agent-resource-content').style.display = '';
-            document.getElementById('agent-binary-download').style.display = 'none';
+            document.getElementById('agent-binary-download').classList.add('is-hidden');
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`);
             const data = await resp.json();
             if (data.status === 'ok') {
@@ -1186,7 +1186,7 @@ function showDisabledState() {
             const data = await resp.json();
             if (data.status === 'deleted') {
                 showToast(t('skills.delete_success'), 'success');
-                document.getElementById('agent-file-editor').style.display = 'none';
+                document.getElementById('agent-file-editor').classList.add('is-hidden');
                 renderAgentResourceList((data.skill && data.skill.resources) || []);
                 await loadAgentSkills();
             } else {
@@ -1289,7 +1289,7 @@ function showDisabledState() {
         currentAgentSkillId = '';
         document.getElementById('agent-skill-modal-title').textContent = t('skills.agent_create_title');
         document.getElementById('agent-create-fields').style.display = '';
-        document.getElementById('agent-resource-browser').style.display = 'none';
+        document.getElementById('agent-resource-browser').classList.add('is-hidden');
         document.getElementById('agent-skill-name').value = '';
         document.getElementById('agent-skill-description').value = '';
         document.getElementById('agent-skill-content').value = '# Instructions\n\nUse this skill when the task matches the package description.\n';
@@ -1408,7 +1408,7 @@ function showDisabledState() {
         if (!sel || !warn) return;
         const val = sel.value || '';
         const ext = val.split('.').pop().toLowerCase();
-        warn.style.display = (ext === 'sh' || ext === 'js') ? 'flex' : 'none';
+        warn.classList.toggle('is-hidden', !(ext === 'sh' || ext === 'js'));
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1559,7 +1559,7 @@ function showDisabledState() {
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_type')}:</span> <span class="sk-type-badge sk-type-${(s.Type || s.type || '').toLowerCase()}">${esc(s.Type || s.type)}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_status')}:</span> ${renderSecurityBadge((s.SecurityStatus || s.security_status || 'pending').toLowerCase())}</div>
                 ${((s.SecurityStatus || s.security_status || '').toLowerCase() === 'warning') ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_warning_approved_label')}:</span><span>${(s.WarningApproved || s.warning_approved) ? t('common.yes') : t('common.no')}</span></div>` : ''}
-                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled')}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled')}:</span> <span>${AuraIcons.svg((s.Enabled || s.enabled) ? 'check-circle' : 'x-circle', { label: (s.Enabled || s.enabled) ? t('common.yes') : t('common.no') })}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created')}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description')}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
                 ${category ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_category')}:</span> <span>${esc(category)}</span></div>` : ''}
@@ -1568,11 +1568,11 @@ function showDisabledState() {
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label')}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => {
                 if (k.startsWith('cred:')) {
                     const cname = credentialMap[k.slice(5)] || k.slice(5);
-                    return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">🔑 ${esc(cname)}</code>`;
+                    return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">${pwIcon('key')} ${esc(cname)}</code>`;
                 }
                 return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
             }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none')}</span>`}</span></div>
-                <div class="sk-detail-row"><span class="sk-detail-label">⚙️ ${t('skills.internal_tools_label')}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none')}</span>`}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">${pwIcon('settings')} ${t('skills.internal_tools_label')}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none')}</span>`}</span></div>
             </div>
             ${renderDaemonSettings(s, data.daemon)}
             ${renderSkillDocumentation(s)}
@@ -1685,11 +1685,11 @@ function showDisabledState() {
         const metaWrap = document.getElementById('code-draft-meta');
         const saveBtn = document.getElementById('code-save-btn');
         if (!meta) {
-            metaWrap.style.display = 'none';
+            metaWrap.classList.add('is-hidden');
             saveBtn.textContent = t('skills.btn_save_code');
             return;
         }
-        metaWrap.style.display = 'block';
+        metaWrap.classList.remove('is-hidden');
         document.getElementById('code-draft-name').value = meta.name || '';
         document.getElementById('code-draft-description').value = meta.description || '';
         document.getElementById('code-draft-category').value = meta.category || '';
@@ -1814,7 +1814,7 @@ function showDisabledState() {
         }
         codeEditorSkillId = '';
         codeEditorDraft = null;
-        document.getElementById('code-draft-meta').style.display = 'none';
+        document.getElementById('code-draft-meta').classList.add('is-hidden');
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1854,7 +1854,7 @@ function showDisabledState() {
         }
         selectedFile = file;
         document.getElementById('sk-dropzone').style.display = 'none';
-        document.getElementById('sk-selected-file').style.display = 'flex';
+        document.getElementById('sk-selected-file').classList.remove('is-hidden');
         document.getElementById('sk-selected-name').textContent = file.name;
         document.getElementById('upload-submit-btn').disabled = false;
     }
@@ -1863,7 +1863,7 @@ function showDisabledState() {
     function clearFileSelection() {
         selectedFile = null;
         document.getElementById('sk-dropzone').style.display = '';
-        document.getElementById('sk-selected-file').style.display = 'none';
+        document.getElementById('sk-selected-file').classList.add('is-hidden');
         document.getElementById('upload-submit-btn').disabled = true;
         document.getElementById('upload-file').value = '';
     }
@@ -1961,10 +1961,10 @@ function showDisabledState() {
 
         if (tmpl) {
             descDiv.textContent = tmpl.Description || tmpl.description || '';
-            descDiv.style.display = 'block';
+            descDiv.classList.remove('is-hidden');
             btn.disabled = false;
         } else {
-            descDiv.style.display = 'none';
+            descDiv.classList.add('is-hidden');
             btn.disabled = true;
         }
     }
@@ -1978,7 +1978,7 @@ function showDisabledState() {
         document.getElementById('template-base-url-input').value = '';
         document.getElementById('template-dependencies-input').value = '';
         document.getElementById('template-select').selectedIndex = 0;
-        document.getElementById('template-description').style.display = 'none';
+        document.getElementById('template-description').classList.add('is-hidden');
         document.getElementById('template-submit-btn').disabled = true;
         openModal('template-modal');
     }
@@ -2098,7 +2098,7 @@ function showDisabledState() {
         const deleteBtn = has ? `<button class="btn btn-sm btn-danger" onclick="deleteSkillDocumentation()" data-i18n="skills.documentation_delete">${t('skills.documentation_delete')}</button>` : '';
         const placeholder = has ? `<p class="sk-loading">${t('common.loading')}</p>` : `<p class="sk-vault-none" data-i18n="skills.documentation_empty">${t('skills.documentation_empty')}</p>`;
         return `<div class="sk-findings sk-documentation-block">
-        <h4>📖 ${t('skills.documentation_title')}</h4>
+        <h4>${pwIcon('book')} ${t('skills.documentation_title')}</h4>
         <p class="sk-inline-help">${esc(hint)}</p>
         <div id="sk-documentation-content" class="sk-documentation-content">${placeholder}</div>
         <div class="sk-documentation-actions">
@@ -2424,12 +2424,12 @@ function showDisabledState() {
         if (!message) {
             el.textContent = '';
             el.className = 'sk-generate-status';
-            el.style.display = 'none';
+            el.classList.add('is-hidden');
             return;
         }
         el.textContent = message;
         el.className = `sk-generate-status sk-generate-status-${type}`;
-        el.style.display = '';
+        el.classList.remove('is-hidden');
     }
 
     function clearGenerateStatus() {
@@ -2522,7 +2522,7 @@ function showDisabledState() {
         const listEl = document.getElementById('vault-key-list');
         const emptyEl = document.getElementById('vault-key-empty');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
-        emptyEl.style.display = 'none';
+        emptyEl.classList.add('is-hidden');
         openModal('vault-key-modal', { onClose: () => { vaultKeyTargetId = ''; } });
 
         try {
@@ -2546,7 +2546,7 @@ function showDisabledState() {
 
             if (allVaultSecrets.length === 0 && credList.length === 0) {
                 listEl.innerHTML = '';
-                emptyEl.style.display = 'block';
+                emptyEl.classList.remove('is-hidden');
                 return;
             }
 
@@ -2623,7 +2623,7 @@ function showDisabledState() {
         const listEl = document.getElementById('internal-tools-list');
         const bridgeOffEl = document.getElementById('internal-tools-bridge-off');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
-        if (bridgeOffEl) bridgeOffEl.style.display = 'none';
+        if (bridgeOffEl) bridgeOffEl.classList.add('is-hidden');
         openModal('internal-tools-modal', { onClose: () => { internalToolsTargetId = ''; } });
 
         try {
@@ -2639,7 +2639,7 @@ function showDisabledState() {
 
             if (availableTools.length === 0) {
                 listEl.innerHTML = '';
-                if (bridgeOffEl) bridgeOffEl.style.display = 'block';
+                if (bridgeOffEl) bridgeOffEl.classList.remove('is-hidden');
                 return;
             }
 

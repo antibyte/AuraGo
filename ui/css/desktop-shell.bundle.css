@@ -18038,6 +18038,1333 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
 }
 
+/* ui/css/desktop-materials.css */
+/* desktop-materials.css - app material tokens (spec: docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md)
+   Vocabulary: --vd-mat-<canvas|bar|side|card|well|field|btn|primary|selected> (+ -color, -edge, -shadow, -border, -radius, -hover, -text),
+   --vd-mat-hover, -divider, -rule, -heading-*, -label-*, -mono-font, -accent-2, -glow.
+   Rules: custom properties only, every selector starts with .desktop-body, a theme sets EVERY token, -color is an opaque #rrggbb
+   (user-accent tokens use var(--vd-accent)) and each surface value ends with var(--vd-mat-<x>-color). Apps read the tokens with their
+   old value as fallback. This file holds the defaults (derived from the bridge tokens) plus Standard and Fruity (light and dark). */
+.desktop-body {
+    --vd-mat-canvas-color: var(--vd-theme-app-bg);
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: var(--vd-theme-chrome-bg);
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: none;
+    --vd-mat-side-color: var(--vd-theme-chrome-bg);
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: none;
+    --vd-mat-card-color: var(--vd-theme-panel-bg);
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: var(--vd-theme-border);
+    --vd-mat-card-radius: var(--vd-theme-radius-panel, 10px);
+    --vd-mat-card-shadow: none;
+    --vd-mat-well-color: color-mix(in srgb, var(--vd-theme-app-bg) 88%, #000);
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: none;
+    --vd-mat-field-color: var(--vd-theme-control-bg);
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: var(--vd-theme-border);
+    --vd-mat-field-radius: var(--vd-theme-radius-control, 6px);
+    --vd-mat-field-shadow: none;
+    --vd-mat-btn-color: var(--vd-theme-control-bg);
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: var(--vd-theme-control-hover);
+    --vd-mat-btn-border: var(--vd-theme-border);
+    --vd-mat-btn-radius: var(--vd-theme-radius-control, 6px);
+    --vd-mat-btn-shadow: none;
+    --vd-mat-btn-text: var(--vd-text);
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: color-mix(in srgb, var(--vd-accent) 86%, #fff);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
+    --vd-mat-primary-shadow: none;
+    --vd-mat-selected-color: var(--vd-theme-accent-soft);
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: var(--vd-text);
+    --vd-mat-selected-edge: none;
+    --vd-mat-hover: var(--vd-theme-control-hover);
+    --vd-mat-divider: var(--vd-theme-border);
+    --vd-mat-rule: none;
+    --vd-mat-heading-font: var(--vd-font-ui);
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: var(--vd-text);
+    --vd-mat-heading-tracking: normal;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: var(--vd-theme-muted);
+    --vd-mat-label-tracking: normal;
+    --vd-mat-label-transform: none;
+    --vd-mat-mono-font: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    --vd-mat-accent-2: var(--vd-amber, #f59e0b);
+    --vd-mat-glow: none;
+}
+
+/* Standard: calm pro-tool slate, layered contrast, user accent on primary and selection. */
+.desktop-body[data-theme="standard"] {
+    --vd-mat-canvas-color: #12161d;
+    --vd-mat-canvas: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0) 240px), var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #1a2029;
+    --vd-mat-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 70%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --vd-mat-side-color: #0e1218;
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(255, 255, 255, 0.045), inset 1px 0 0 rgba(0, 0, 0, 0.3);
+    --vd-mat-card-color: #1a212b;
+    --vd-mat-card: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 60%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(191, 210, 235, 0.13);
+    --vd-mat-card-radius: 10px;
+    --vd-mat-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --vd-mat-well-color: #0b0e13;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+    --vd-mat-field-color: #0c1016;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(191, 210, 235, 0.17);
+    --vd-mat-field-radius: 8px;
+    --vd-mat-field-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+    --vd-mat-btn-color: #222a35;
+    --vd-mat-btn: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(191, 210, 235, 0.2);
+    --vd-mat-btn-radius: 8px;
+    --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --vd-mat-btn-text: #edf1f7;
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: linear-gradient(180deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 82%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 90%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
+    --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --vd-mat-selected-color: #1f2a38;
+    --vd-mat-selected: linear-gradient(0deg, color-mix(in srgb, var(--vd-accent) 24%, transparent), color-mix(in srgb, var(--vd-accent) 24%, transparent)), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #f4f7fb;
+    --vd-mat-selected-edge: inset 3px 0 0 var(--vd-accent);
+    --vd-mat-hover: rgba(255, 255, 255, 0.07);
+    --vd-mat-divider: rgba(191, 210, 235, 0.15);
+    --vd-mat-rule: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16) 20%, rgba(255, 255, 255, 0.16) 80%, transparent);
+    --vd-mat-heading-font: var(--vd-font-ui);
+    --vd-mat-heading-weight: 650;
+    --vd-mat-heading-color: #f3f6fb;
+    --vd-mat-heading-tracking: -0.005em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: #a4afc0;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    --vd-mat-accent-2: #4fd1c5;
+    --vd-mat-glow: 0 0 0 3px color-mix(in srgb, var(--vd-accent) 22%, transparent);
+}
+
+/* Fruity light: macOS - unified toolbar gradient, vibrancy sidebar, white cards with layered soft shadows, accent gel, solid accent selection. */
+.desktop-body[data-theme="fruity"] {
+    --vd-mat-canvas-color: #f6f7f9;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #f2f3f7;
+    --vd-mat-bar: linear-gradient(180deg, #fbfbfd 0%, #eceef2 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(40, 52, 76, 0.14);
+    --vd-mat-side-color: #e8ebf0;
+    --vd-mat-side: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(40, 52, 76, 0.13);
+    --vd-mat-card-color: #ffffff;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(40, 52, 76, 0.1);
+    --vd-mat-card-radius: 12px;
+    --vd-mat-card-shadow: 0 0 0 0.5px rgba(40, 52, 76, 0.06), 0 1px 2px rgba(40, 52, 76, 0.1), 0 8px 20px rgba(40, 52, 76, 0.08);
+    --vd-mat-well-color: #eceef2;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 1px 3px rgba(40, 52, 76, 0.16), inset 0 0 0 1px rgba(40, 52, 76, 0.07);
+    --vd-mat-field-color: #ffffff;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(40, 52, 76, 0.24);
+    --vd-mat-field-radius: 8px;
+    --vd-mat-field-shadow: inset 0 1px 2px rgba(40, 52, 76, 0.12);
+    --vd-mat-btn-color: #f7f8fa;
+    --vd-mat-btn: linear-gradient(180deg, #ffffff, #f2f3f6), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #ffffff, #e9ecf1), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(40, 52, 76, 0.22);
+    --vd-mat-btn-radius: 8px;
+    --vd-mat-btn-shadow: 0 1px 1px rgba(40, 52, 76, 0.12), inset 0 1px 0 #ffffff;
+    --vd-mat-btn-text: #192334;
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 86%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 82%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 76%, #000);
+    --vd-mat-primary-shadow: 0 1px 2px rgba(20, 30, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-edge: none;
+    --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 12%, transparent);
+    --vd-mat-divider: rgba(40, 52, 76, 0.14);
+    --vd-mat-rule: linear-gradient(90deg, transparent, rgba(40, 52, 76, 0.18), transparent);
+    --vd-mat-heading-font: var(--vd-font-ui);
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #141b29;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: #4f5c74;
+    --vd-mat-label-tracking: 0.02em;
+    --vd-mat-label-transform: none;
+    --vd-mat-mono-font: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    --vd-mat-accent-2: #ff9f0a;
+    --vd-mat-glow: 0 0 0 3px color-mix(in srgb, var(--vd-accent) 30%, transparent);
+}
+
+/* Fruity dark: the same structure on graphite (data-scheme is "dark" when appearance.fruity_mode is dark). */
+.desktop-body[data-theme="fruity"][data-scheme="dark"] {
+    --vd-mat-canvas-color: #1e1e20;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #2e2e31;
+    --vd-mat-bar: linear-gradient(180deg, #323236 0%, #2a2a2d 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+    --vd-mat-side-color: #252528;
+    --vd-mat-side: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 55%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(0, 0, 0, 0.4);
+    --vd-mat-card-color: #2a2a2d;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(255, 255, 255, 0.08);
+    --vd-mat-card-radius: 12px;
+    --vd-mat-card-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 22px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --vd-mat-well-color: #18181a;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+    --vd-mat-field-color: #1c1c1e;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(255, 255, 255, 0.14);
+    --vd-mat-field-radius: 8px;
+    --vd-mat-field-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    --vd-mat-btn-color: #3a3a3d;
+    --vd-mat-btn: linear-gradient(180deg, #444448, #3a3a3d), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #4e4e53, #444448), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(255, 255, 255, 0.12);
+    --vd-mat-btn-radius: 8px;
+    --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --vd-mat-btn-text: #f5f5f7;
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 92%, #fff), color-mix(in srgb, var(--vd-accent) 84%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 84%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
+    --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-edge: none;
+    --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 18%, transparent);
+    --vd-mat-divider: rgba(255, 255, 255, 0.12);
+    --vd-mat-rule: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    --vd-mat-heading-font: var(--vd-font-ui);
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #f5f5f7;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: #a9b1c3;
+    --vd-mat-label-tracking: 0.02em;
+    --vd-mat-label-transform: none;
+    --vd-mat-mono-font: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    --vd-mat-accent-2: #ff9f0a;
+    --vd-mat-glow: 0 0 0 3px color-mix(in srgb, var(--vd-accent) 38%, transparent);
+}
+
+/* ui/css/desktop-materials-amiga.css */
+/* desktop-materials-amiga.css - app materials for the Amiga Workbench 3.1 desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Flat greys, no gradients, radius 0,
+ * structure through crisp 1 px bevels (raised: white top-left and dark bottom-right, recessed: the inverse), a
+ * pixel-dithered sidebar and Workbench blue for the default action and the selection. The headings and labels use
+ * the "Desktop Theme VGA" face declared by desktop-theme-amiga.css. Black (--vd-text) and #333333 (muted) stay
+ * above 4.5:1 on every grey below, the dither pixels included. */
+
+.desktop-body[data-theme="amiga"] {
+    /* Canvas: pen 0 grey */
+    --vd-mat-canvas-color: #AAAAAA;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+
+    /* Bar: a lighter grey strip with a white top line and a black bottom line */
+    --vd-mat-bar-color: #BBBBBB;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 #000000;
+
+    /* Side: drawer-list grey, a 1 px checker dither of #9E9E9E and #AAAAAA, white and black inner edges */
+    --vd-mat-side-color: #9E9E9E;
+    --vd-mat-side:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Cpath fill='%23AAAAAA' d='M0 0h1v1h-1zM1 1h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 2px 2px repeat,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset 1px 0 0 #FFFFFF, inset -1px 0 0 #000000;
+
+    /* Card: a raised grey group with a black outline */
+    --vd-mat-card-color: #BBBBBB;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #000000;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #7B7B7B;
+
+    /* Well: a light grey recessed list area, black top-left and white bottom-right */
+    --vd-mat-well-color: #CCCCCC;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 1px 1px 0 #000000, inset -1px -1px 0 #FFFFFF;
+
+    /* Field: white string gadget, recessed behind a black outline */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #000000;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 1px 1px 0 #7B7B7B, inset -1px -1px 0 #FFFFFF;
+
+    /* Buttons: raised grey gadgets, outlined in black */
+    --vd-mat-btn-color: #AAAAAA;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #BBBBBB;
+    --vd-mat-btn-border: #000000;
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #7B7B7B;
+    --vd-mat-btn-text: #000000;
+
+    /* Primary: the default gadget, Workbench blue with an extra black frame */
+    --vd-mat-primary-color: #6688BB;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #7799CC;
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #000000;
+    --vd-mat-primary-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #334466, 0 0 0 1px #000000;
+
+    /* Selection: Workbench blue with a 2 px black marker */
+    --vd-mat-selected-color: #6688BB;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #000000;
+    --vd-mat-selected-edge: inset 2px 0 0 #000000;
+    --vd-mat-hover: rgba(255, 255, 255, 0.35);
+
+    /* Lines and type: black separators over a white edge, VGA pixel text */
+    --vd-mat-divider: #000000;
+    --vd-mat-rule: linear-gradient(180deg, #000000 0, #000000 1px, #FFFFFF 1px, #FFFFFF 2px);
+    --vd-mat-heading-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-heading-weight: 400;
+    --vd-mat-heading-color: #000000;
+    --vd-mat-heading-tracking: 0;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-label-color: #222222;
+    --vd-mat-label-tracking: 0;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #FF8800;
+    --vd-mat-glow: none;
+}
+
+/* ui/css/desktop-materials-cyberpunk.css */
+/* desktop-materials-cyberpunk.css - Cyberpunk app materials: a neon HUD inside every app window.
+ * Night-blue canvas with a faint cyan grid and scanlines, bars with a yellow notch and underline, a side rail lit
+ * by a cyan neon edge, cards with a cut top-left corner and cyan frame, deep wells with a fine grid, yellow-outlined
+ * buttons and a solid yellow primary with a folded black corner and a yellow glow. Text is #E8F7FF with #8FA7C0 for
+ * muted; Oxanium (loaded globally) carries headings, Share Tech Mono (declared in the skin) labels and readouts.
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="cyberpunk"] {
+    /* Canvas: scanlines over a 28 px cyan grid, a magenta haze in the upper right corner */
+    --vd-mat-canvas-color: #070B18;
+    --vd-mat-canvas: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 3px), linear-gradient(rgba(0, 240, 255, 0.055) 1px, transparent 1px) 0 0 / 28px 28px, linear-gradient(90deg, rgba(0, 240, 255, 0.055) 1px, transparent 1px) 0 0 / 28px 28px, radial-gradient(ellipse 70% 55% at 100% 0%, rgba(255, 61, 127, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: scanlined night glass, a yellow notch at the left, a yellow underline */
+    --vd-mat-bar-color: #0A0F20;
+    --vd-mat-bar: linear-gradient(#F3E600, #F3E600) 0 50% / 3px 64% no-repeat, linear-gradient(270deg, rgba(0, 240, 255, 0.08), transparent 26%), repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px), linear-gradient(180deg, #161E3E 0, #0A0F20 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(243, 230, 0, 0.78), inset 0 1px 0 rgba(0, 240, 255, 0.16), 0 1px 0 #000000;
+
+    /* Sides: the darkest night, a cyan neon rail on the right edge */
+    --vd-mat-side-color: #050812;
+    --vd-mat-side: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 1px, transparent 1px 3px), linear-gradient(180deg, rgba(0, 240, 255, 0.07) 0, transparent 38%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #00F0FF, inset -14px 0 14px -14px rgba(0, 240, 255, 0.45), 0 0 14px rgba(0, 240, 255, 0.12);
+
+    /* Cards: top-left corner cut and traced in cyan, a bright tab on the top edge, a yellow tick bottom right */
+    --vd-mat-card-color: #0C1328;
+    --vd-mat-card: linear-gradient(135deg, #070B18 0 9px, #00F0FF 9px 10.6px, transparent 10.6px) 0 0 / 22px 22px no-repeat border-box, linear-gradient(#00F0FF, #00F0FF) 15px 0 / 30px 2px no-repeat border-box, linear-gradient(#F3E600, #F3E600) 100% 100% / 22px 2px no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 15px 0 / calc(100% - 15px) 1px no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 0 15px / 1px calc(100% - 15px) no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 100% 0 / 1px 100% no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 0 100% / 100% 1px no-repeat border-box, linear-gradient(180deg, rgba(0, 240, 255, 0.07) 0, transparent 46%), var(--vd-mat-card-color);
+    --vd-mat-card-border: transparent;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 240, 255, 0.08);
+
+    /* Wells: a recess with a fine 14 px cyan grid and a lit rim */
+    --vd-mat-well-color: #04070F;
+    --vd-mat-well: linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px) 0 0 / 14px 14px, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.22), inset 0 3px 12px rgba(0, 0, 0, 0.85);
+
+    /* Fields: the deepest black with a cyan line along the bottom */
+    --vd-mat-field-color: #03060F;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(0, 240, 255, 0.3);
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 0 -1px 0 #00F0FF, inset 0 2px 6px rgba(0, 0, 0, 0.65);
+
+    /* Buttons: dark indigo plates outlined in yellow, yellow caption */
+    --vd-mat-btn-color: #0F1630;
+    --vd-mat-btn: linear-gradient(180deg, #1B2549 0, #0F1630 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #2A3770 0, #172152 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(243, 230, 0, 0.72);
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65), 0 0 10px rgba(243, 230, 0, 0.12);
+    --vd-mat-btn-text: #F3E600;
+
+    /* Primary: solid yellow, black caption, a folded black corner at the bottom right, yellow glow */
+    --vd-mat-primary-color: #F3E600;
+    --vd-mat-primary: linear-gradient(315deg, #000000 0 5px, transparent 5px) 100% 100% / 14px 14px no-repeat border-box, linear-gradient(180deg, #FFF45C 0, #F3E600 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(315deg, #000000 0 5px, transparent 5px) 100% 100% / 14px 14px no-repeat border-box, linear-gradient(180deg, #FFFAA0 0, #FFF45C 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #F3E600;
+    --vd-mat-primary-shadow: 0 0 14px rgba(243, 230, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.6);
+
+    /* Selection and hover: a lit indigo row with a cyan marker */
+    --vd-mat-selected-color: #16203F;
+    --vd-mat-selected: linear-gradient(90deg, rgba(0, 240, 255, 0.15) 0, rgba(0, 240, 255, 0) 72%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #00F0FF, inset 0 0 0 1px rgba(0, 240, 255, 0.2);
+    --vd-mat-hover: rgba(0, 240, 255, 0.1);
+
+    /* Lines and type: cyan separators, a yellow-to-cyan neon rule, yellow Oxanium headings, cyan Share Tech labels */
+    --vd-mat-divider: rgba(0, 240, 255, 0.26);
+    --vd-mat-rule: linear-gradient(90deg, #F3E600, #00F0FF 60%, rgba(0, 240, 255, 0));
+    --vd-mat-heading-font: 'Oxanium', "Desktop Theme Share Tech", 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #F3E600;
+    --vd-mat-heading-tracking: 0.12em;
+    --vd-mat-heading-transform: uppercase;
+    --vd-mat-label-font: "Desktop Theme Share Tech", 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-label-color: #00F0FF;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: "Desktop Theme Share Tech", 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #00F0FF;
+    --vd-mat-glow: 0 0 12px rgba(0, 240, 255, 0.5), 0 0 2px rgba(0, 240, 255, 0.8);
+}
+
+/* ui/css/desktop-materials-black-gloss.css */
+/* desktop-materials-black-gloss.css - Black Gloss app materials: piano lacquer inside every app window.
+ * A black canvas with a curved lacquer reflection at the top, classic gloss-split bars, a side with a diagonal
+ * reflection streak, cards with a bright top highlight and deep shadows, deep wells and fields, glossy pill
+ * buttons and a glossy gel primary in the user's accent. Text is #F2F2F4 with #A3A3AB for muted; the accent comes
+ * from var(--vd-accent) (fallback rgb 39 199 166). Only custom properties live here; the vocabulary and the rules
+ * are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="black_gloss"] {
+    /* Canvas: a curved lacquer reflection and a soft sheen at the top, a faint diagonal streak */
+    --vd-mat-canvas-color: #0F0F12;
+    --vd-mat-canvas: radial-gradient(ellipse 900px 300px at 50% -110px, rgba(255, 255, 255, 0.075) 0 60%, rgba(255, 255, 255, 0) 62%) 0 0 / 100% 240px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0) 100%) 0 0 / 100% 140px no-repeat, linear-gradient(115deg, rgba(255, 255, 255, 0) 36%, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0) 58%), var(--vd-mat-canvas-color);
+
+    /* Bars: the classic gloss split, light upper half ending crisply at 50 %, dark lower half */
+    --vd-mat-bar-color: #101012;
+    --vd-mat-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0, rgba(255, 255, 255, 0.05) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #1C1C20 0, #0E0E10 50%, #060607 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    /* Sides: the deepest black, a diagonal reflection streak, an inner shadow on the left and a pale rim on the right */
+    --vd-mat-side-color: #08080A;
+    --vd-mat-side: linear-gradient(112deg, rgba(255, 255, 255, 0) 18%, rgba(255, 255, 255, 0.05) 34%, rgba(255, 255, 255, 0.012) 48%, rgba(255, 255, 255, 0) 62%), linear-gradient(180deg, #0D0D10 0, #060608 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(255, 255, 255, 0.13), inset -2px 0 0 rgba(0, 0, 0, 0.7), inset 14px 0 18px -16px rgba(0, 0, 0, 0.9);
+
+    /* Cards: lifted lacquer, a bright highlight line fading out to both sides, a half-height sheen, deep shadows */
+    --vd-mat-card-color: #18181C;
+    --vd-mat-card: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0)) 0 0 / 100% 1px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #1D1D22 0, #141417 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(255, 255, 255, 0.11);
+    --vd-mat-card-radius: 12px;
+    --vd-mat-card-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+    /* Wells: piano black pressed in, shaded from above */
+    --vd-mat-well-color: #050507;
+    --vd-mat-well: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0, rgba(0, 0, 0, 0) 48px) 0 0 / 100% 48px no-repeat, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+
+    /* Fields: a deep inset with a pale lip */
+    --vd-mat-field-color: #050506;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0, rgba(0, 0, 0, 0) 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(255, 255, 255, 0.16);
+    --vd-mat-field-radius: 8px;
+    --vd-mat-field-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.08);
+
+    /* Buttons: glossy pills, light upper half, dark lower half, a rim of light on top */
+    --vd-mat-btn-color: #1C1C20;
+    --vd-mat-btn: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0, rgba(255, 255, 255, 0.07) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #2C2C31 0, #151518 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0, rgba(255, 255, 255, 0.12) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #38383E 0, #1C1C20 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(255, 255, 255, 0.2);
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 2px 5px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+    --vd-mat-btn-text: #F2F2F4;
+
+    /* Primary: glossy accent gel, white gloss on the upper half, accent glow underneath */
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0.08) 41%, rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 82%, #000) 0, color-mix(in srgb, var(--vd-accent) 56%, #000) 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.44) 0, rgba(255, 255, 255, 0.12) 41%, rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 92%, #000) 0, color-mix(in srgb, var(--vd-accent) 66%, #000) 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 55%, #000);
+    --vd-mat-primary-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    /* Selection and hover: a dark accent mix with a sheen and a 1 px accent ring */
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 24%, #141416);
+    --vd-mat-selected: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0, rgba(255, 255, 255, 0) 55%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: var(--vd-text);
+    --vd-mat-selected-edge: inset 0 0 0 1px var(--vd-accent), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    --vd-mat-hover: rgba(255, 255, 255, 0.07);
+
+    /* Lines and type: pale separators, a silver rule, silver headings and labels */
+    --vd-mat-divider: rgba(255, 255, 255, 0.11);
+    --vd-mat-rule: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0));
+    --vd-mat-heading-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #DCDDE3;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #AEB0B8;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #C7C9D1;
+    --vd-mat-glow: 0 0 14px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+}
+
+/* ui/css/desktop-materials-crazy.css */
+/* desktop-materials-crazy.css - Crazy app materials: a party inside every app window.
+ * Violet night canvas with three layers of confetti dots and a tile of paper strips, rainbow stripe under the
+ * bars, a rainbow rail on the sides, cards in rainbow gradient frames, bubbly pill buttons, a pink to orange
+ * primary with black text, loud yellow headings and a pink glow. Text is #FFF6FD, muted text #D9C2FF (skin).
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="crazy"] {
+    /* Canvas: deep violet, confetti dots in pink, cyan and yellow, paper strips on top */
+    --vd-mat-canvas-color: #1D0440;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cg fill-opacity='.32'%3E%3Crect x='18' y='20' width='10' height='4' rx='2' fill='%23FF2BD6' transform='rotate(35 23 22)'/%3E%3Crect x='96' y='12' width='4' height='11' rx='2' fill='%23FFE600' transform='rotate(-30 98 17)'/%3E%3Cpath d='M140 40l6 10h-12z' fill='%2300E5FF' transform='rotate(25 140 46)'/%3E%3Crect x='52' y='62' width='9' height='4' rx='2' fill='%232BFF88' transform='rotate(-40 56 64)'/%3E%3Crect x='120' y='96' width='4' height='10' rx='2' fill='%23FF2BD6' transform='rotate(50 122 101)'/%3E%3Cpath d='M24 110l6 10h-12z' fill='%23FFE600' transform='rotate(-20 24 116)'/%3E%3Crect x='80' y='128' width='10' height='4' rx='2' fill='%2300E5FF' transform='rotate(20 85 130)'/%3E%3Crect x='146' y='146' width='4' height='10' rx='2' fill='%23B6FF00' transform='rotate(-35 148 151)'/%3E%3Ccircle cx='70' cy='96' r='3' fill='%237A5CFF'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 170px 170px, radial-gradient(circle at 12px 14px, rgba(255, 43, 214, 0.3) 0 2px, transparent 2.6px) 0 0 / 59px 61px, radial-gradient(circle at 30px 20px, rgba(0, 229, 255, 0.28) 0 1.8px, transparent 2.4px) 0 0 / 83px 79px, radial-gradient(circle at 50px 60px, rgba(255, 230, 0, 0.28) 0 2.2px, transparent 2.8px) 0 0 / 109px 97px, var(--vd-mat-canvas-color);
+
+    /* Bars: violet gloss, a 3 px rainbow stripe along the bottom edge and a pink glow below */
+    --vd-mat-bar-color: #2A0A5C;
+    --vd-mat-bar: linear-gradient(90deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) 0 100% / 100% 3px no-repeat, radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.08) 0 1.5px, transparent 2px) 0 0 / 20px 20px, linear-gradient(180deg, #3A1480 0, #2A0A5C 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 14px -2px rgba(255, 43, 214, 0.38);
+
+    /* Sides: night violet with a vertical rainbow rail on the right edge */
+    --vd-mat-side-color: #160335;
+    --vd-mat-side: linear-gradient(180deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) 100% 0 / 4px 100% no-repeat, radial-gradient(circle at 7px 7px, rgba(0, 229, 255, 0.12) 0 1px, transparent 1.6px) 0 0 / 14px 14px, linear-gradient(180deg, #1D0446 0, #160335 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: 4px 0 14px -4px rgba(255, 43, 214, 0.4), inset 0 0 0 1px rgba(122, 92, 255, 0.2);
+
+    /* Cards: violet panels in a rainbow gradient frame (the app border stays transparent) */
+    --vd-mat-card-color: #2E0D63;
+    --vd-mat-card: radial-gradient(120% 70% at 20% 0, rgba(255, 255, 255, 0.07), transparent 60%) padding-box, linear-gradient(160deg, #3A1480 0, #2E0D63 62%) padding-box, linear-gradient(135deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) border-box, var(--vd-mat-card-color);
+    --vd-mat-card-border: transparent;
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: 0 8px 24px rgba(8, 0, 22, 0.55), 0 0 18px rgba(255, 43, 214, 0.24);
+
+    /* Wells: near-black ink with a faint cyan dot grid, pressed in */
+    --vd-mat-well-color: #0B0121;
+    --vd-mat-well: radial-gradient(circle at 8px 8px, rgba(0, 229, 255, 0.14) 0 1px, transparent 1.6px) 0 0 / 16px 16px, linear-gradient(180deg, #08001A 0, #0F0229 100%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(217, 194, 255, 0.16);
+
+    /* Fields: dark indigo recess with a lavender ring */
+    --vd-mat-field-color: #150636;
+    --vd-mat-field: linear-gradient(180deg, #100329 0, #1A0845 100%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #A68CFF;
+    --vd-mat-field-radius: 14px;
+    --vd-mat-field-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
+
+    /* Buttons: bubbly violet pills with a bright rim and a hard shade underneath */
+    --vd-mat-btn-color: #4B1C9C;
+    --vd-mat-btn: linear-gradient(180deg, #6B3BE0 0, #4B1C9C 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #7D4DF0 0, #5A28C0 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #C8B4FF;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 3px 0 #1A0640, 0 6px 12px rgba(8, 0, 22, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.28);
+    --vd-mat-btn-text: #FFF6FD;
+
+    /* Primary: pink to orange candy gel, black text, yellow rim and a pink glow */
+    --vd-mat-primary-color: #FF4FA8;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0) 50%), linear-gradient(135deg, #FF2BD6 0, #FF5A8C 50%, #FF8A00 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0, rgba(255, 255, 255, 0) 50%), linear-gradient(135deg, #FF5BE0 0, #FF7FA0 50%, #FFB000 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #FFE600;
+    --vd-mat-primary-shadow: 0 3px 0 #8A1670, 0 0 20px rgba(255, 43, 214, 0.5);
+
+    /* Selection and hover: deep violet with a cyan marker, pink wash on hover */
+    --vd-mat-selected-color: #4A1690;
+    --vd-mat-selected: linear-gradient(90deg, #5C1CB0 0, #4A1690 70%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 4px 0 0 #00E5FF, inset 0 0 0 1px rgba(0, 229, 255, 0.38);
+    --vd-mat-hover: rgba(255, 43, 214, 0.2);
+
+    /* Lines and type: lilac separators, rainbow rule, loud yellow headings, cyan labels */
+    --vd-mat-divider: #6E44C4;
+    --vd-mat-rule: linear-gradient(90deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6);
+    --vd-mat-heading-font: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 800;
+    --vd-mat-heading-color: #FFE600;
+    --vd-mat-heading-tracking: 0.02em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #00E5FF;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #2BFF88;
+    --vd-mat-glow: 0 0 16px rgba(255, 43, 214, 0.55), 0 0 4px rgba(255, 43, 214, 0.8);
+}
+
+/* ui/css/desktop-materials-lollipop.css */
+/* desktop-materials-lollipop.css - Lollipop app materials: the candy shop inside every app window.
+ * Cotton-candy canvas with sparse white and pink polka dots,candy-cane bands on the bars, a lavender ticking side, white
+ * cards with pink-tinted shadows, a mint gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
+ * primary. Text is plum (#4A1F3D) and muted plum (#7A4A6C) from the skin. Only custom properties live here;
+ * the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="lollipop"] {
+    /* Canvas: cotton candy pink, white and lavender polka dots */
+    --vd-mat-canvas-color: #FFE9F4;
+    --vd-mat-canvas: radial-gradient(circle at 8px 8px, rgba(255, 255, 255, 0.95) 0 3px, transparent 3.7px) 0 0 / 32px 32px, radial-gradient(circle at 24px 24px, rgba(230, 92, 165, 0.2) 0 2.2px, transparent 2.8px) 0 0 / 32px 32px, var(--vd-mat-canvas-color);
+
+    /* Bars: pink with soft white stripes, a candy-cane band on the lower edge */
+    --vd-mat-bar-color: #FFDDEE;
+    --vd-mat-bar: repeating-linear-gradient(135deg, #E65CA5 0 5px, #FFFFFF 5px 10px) 0 100% / 100% 3px no-repeat, repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0 10px, rgba(255, 255, 255, 0) 10px 20px), linear-gradient(180deg, #FFE8F3 0, #FFDDEE 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 3px 8px -2px rgba(194, 24, 107, 0.24);
+
+    /* Sides: lavender ticking with a lilac edge */
+    --vd-mat-side-color: #F3E8FF;
+    --vd-mat-side: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0 6px, rgba(255, 255, 255, 0) 6px 12px), linear-gradient(180deg, #F8F1FF 0, #EEE0FF 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #CDB2F2, inset -4px 0 0 rgba(255, 255, 255, 0.55);
+
+    /* Cards: white candy tins, pink-tinted shadow and a soft shade on the bottom edge */
+    --vd-mat-card-color: #FFFFFF;
+    --vd-mat-card: linear-gradient(180deg, #FFFFFF 0, #FFFAFD 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: #F5BEDA;
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: 0 8px 20px -6px rgba(194, 24, 107, 0.28), 0 2px 5px rgba(230, 92, 165, 0.14), inset 0 -3px 0 rgba(230, 92, 165, 0.1);
+
+    /* Wells: a mint gingham tray pressed into the canvas */
+    --vd-mat-well-color: #E8F8F0;
+    --vd-mat-well: repeating-linear-gradient(0deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 7px rgba(46, 160, 120, 0.22), inset 0 0 0 1px rgba(105, 207, 168, 0.55);
+
+    /* Fields: white with a pink hairline and a soft inner shade */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: linear-gradient(180deg, #FFF1F8 0, #FFFFFF 45%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #EBA2C6;
+    --vd-mat-field-radius: 12px;
+    --vd-mat-field-shadow: inset 0 2px 3px rgba(194, 24, 107, 0.12);
+
+    /* Buttons: jelly-bean pills, white to blush with a rim of light and a shade underneath */
+    --vd-mat-btn-color: #FFE9F4;
+    --vd-mat-btn: linear-gradient(180deg, #FFFFFF 0, #FFE9F4 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #FFF4FA 0, #FFD3E8 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #E58DB9;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 2px 0 #F2B5D3, 0 4px 8px rgba(194, 24, 107, 0.18), inset 0 1px 0 #FFFFFF, inset 0 -3px 4px rgba(230, 92, 165, 0.18);
+    --vd-mat-btn-text: #4A1F3D;
+
+    /* Primary: glossy plum gel with a highlight on the upper half */
+    --vd-mat-primary-color: #B5145F;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0, rgba(255, 255, 255, 0.04) 46%, rgba(255, 255, 255, 0) 47%), linear-gradient(180deg, #BE1B6C 0, #B5145F 50%, #98104F 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0) 47%), linear-gradient(180deg, #C6247A 0, #B8165F 50%, #A31256 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #8E0D4A;
+    --vd-mat-primary-shadow: 0 3px 0 #8E0D4A, 0 6px 14px rgba(194, 24, 107, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    /* Selection and hover: bubblegum wash with a plum marker */
+    --vd-mat-selected-color: #FFD0E6;
+    --vd-mat-selected: linear-gradient(90deg, #FFC3DF 0, #FFD0E6 55%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #4A1F3D;
+    --vd-mat-selected-edge: inset 4px 0 0 #C2186B, inset 0 0 0 1px rgba(194, 24, 107, 0.16);
+    --vd-mat-hover: rgba(230, 92, 165, 0.12);
+
+    /* Lines and type: pink separators, candy-cane rule, Montserrat plum headings */
+    --vd-mat-divider: #EEB1D1;
+    --vd-mat-rule: repeating-linear-gradient(135deg, #E65CA5 0 5px, #FFFFFF 5px 10px);
+    --vd-mat-heading-font: "Desktop Theme Montserrat", 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 500;
+    --vd-mat-heading-color: #9C1259;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Montserrat", 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #7A3562;
+    --vd-mat-label-tracking: 0.06em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #2FB58A;
+    --vd-mat-glow: 0 0 0 3px rgba(230, 92, 165, 0.22), 0 4px 14px rgba(194, 24, 107, 0.3);
+}
+
+/* ui/css/desktop-materials-organic.css */
+/* desktop-materials-organic.css - app materials for the Organic desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Walnut and burl wood, brass hardware and an
+ * oxblood leather desk blotter. Only custom properties: the apps paint their regions from these tokens. The wood
+ * and brass shaders (--vd-organic-wood-*, --vd-organic-brass-*) live on the same element in desktop-theme-organic.css.
+ * Strong decoration sits on edges and small bands (brass rims, stitching, corner studs); the textures under text
+ * are darkened or warmed so --vd-text (#F4EBE1) and --vd-theme-muted (#C4AF9B) keep 4.5:1 or better. */
+
+.desktop-body[data-theme="organic"] {
+    /* Canvas: dark walnut figure under a deepening shade */
+    --vd-mat-canvas-color: #22160F;
+    --vd-mat-canvas:
+        linear-gradient(180deg, rgba(10, 5, 2, 0.32) 0%, rgba(10, 5, 2, 0.54) 100%),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-canvas-color);
+
+    /* Bar: richer carved wood header, glowing brass inlay along the bottom */
+    --vd-mat-bar-color: #3A2616;
+    --vd-mat-bar:
+        linear-gradient(180deg, rgba(255, 226, 176, 0.13) 0%, rgba(255, 226, 176, 0.02) 46%, rgba(8, 4, 2, 0.4) 100%),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 232, 190, 0.22), inset 0 -1px 0 rgba(224, 182, 92, 0.72), inset 0 -2px 0 rgba(8, 4, 2, 0.55), 0 2px 5px rgba(6, 3, 1, 0.45);
+
+    /* Side: oxblood leather desk blotter with fine pebble grain and a dashed brass stitch seam near the right edge */
+    --vd-mat-side-color: #3A1A14;
+    --vd-mat-side:
+        repeating-linear-gradient(180deg, rgba(226, 184, 92, 0.92) 0 5px, transparent 5px 9px) right 6px top 0 / 2px 100% no-repeat,
+        repeating-linear-gradient(180deg, rgba(8, 3, 1, 0.7) 0 5px, transparent 5px 9px) right 5px top 2px / 2px 100% no-repeat,
+        radial-gradient(ellipse 130% 55% at 30% 0%, rgba(196, 84, 62, 0.2), transparent 70%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cfilter id='a' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch' result='n'/%3E%3CfeColorMatrix in='n' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.75 0 0 0 -0.25' result='d'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='2' seed='23' stitchTiles='stitch' result='m'/%3E%3CfeColorMatrix in='m' values='0 0 0 0 0.85 0 0 0 0 0.45 0 0 0 0 0.35 0.51 0 0 0 -0.26' result='l'/%3E%3CfeMerge%3E%3CfeMergeNode in='d'/%3E%3CfeMergeNode in='l'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23a)'/%3E%3C/svg%3E") 0 0 / 96px 96px,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(212, 168, 79, 0.55), inset 0 0 26px rgba(0, 0, 0, 0.42);
+
+    /* Card: lighter burl panel, brass hairline border, four brass corner studs */
+    --vd-mat-card-color: #4F3320;
+    --vd-mat-card:
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) left 7px top 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) right 7px top 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) left 7px bottom 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) right 7px bottom 7px / 10px 10px no-repeat,
+        radial-gradient(ellipse 120% 90% at 22% 0%, rgba(240, 178, 100, 0.14), transparent 62%),
+        linear-gradient(180deg, rgba(150, 96, 50, 0.24), rgba(104, 62, 30, 0.2)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(212, 168, 79, 0.5);
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.22), inset 0 0 0 1px rgba(10, 5, 2, 0.5), 0 8px 20px rgba(6, 3, 1, 0.55);
+
+    /* Well: dark recessed wood, a brass-lit lower lip */
+    --vd-mat-well-color: #160F0A;
+    --vd-mat-well: var(--vd-organic-wood-recess), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(10, 5, 2, 0.8), inset 0 -1px 0 rgba(212, 168, 79, 0.16);
+
+    /* Field: dark recess ringed in brass, kept free of grain so typing stays crisp */
+    --vd-mat-field-color: #140D08;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.08)), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(212, 168, 79, 0.52);
+    --vd-mat-field-radius: 12px;
+    --vd-mat-field-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 232, 190, 0.1);
+
+    /* Buttons: wood with a brass rim */
+    --vd-mat-btn-color: #5A3A22;
+    --vd-mat-btn:
+        linear-gradient(180deg, rgba(255, 226, 176, 0.16), rgba(8, 4, 2, 0.22)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-hover:
+        linear-gradient(180deg, rgba(243, 217, 147, 0.32), rgba(212, 168, 79, 0.1)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(212, 168, 79, 0.62);
+    --vd-mat-btn-radius: 14px;
+    --vd-mat-btn-shadow: var(--vd-organic-brass-rim), 0 2px 5px rgba(8, 4, 2, 0.5);
+    --vd-mat-btn-text: #FAEAD2;
+
+    /* Primary: brushed brass with espresso text */
+    --vd-mat-primary-color: #D4A84F;
+    --vd-mat-primary: var(--vd-organic-brass-fill), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: var(--vd-organic-brass-hover), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #1A120B;
+    --vd-mat-primary-border: rgba(255, 240, 198, 0.68);
+    --vd-mat-primary-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.65), inset 0 -1px 0 rgba(74, 48, 10, 0.5), 0 3px 10px rgba(8, 4, 2, 0.52);
+
+    /* Selection: brass wash with a solid brass marker */
+    --vd-mat-selected-color: #573D1E;
+    --vd-mat-selected: linear-gradient(90deg, rgba(212, 168, 79, 0.28), rgba(212, 168, 79, 0.1)), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFF4DC;
+    --vd-mat-selected-edge: inset 3px 0 0 #D4A84F, inset 0 1px 0 rgba(255, 238, 196, 0.16);
+    --vd-mat-hover: rgba(212, 168, 79, 0.16);
+
+    /* Lines and type */
+    --vd-mat-divider: rgba(212, 168, 79, 0.3);
+    --vd-mat-rule: var(--vd-chrome-hairline);
+    --vd-mat-heading-font: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #F3D993;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: #DDB763;
+    --vd-mat-label-tracking: 0.14em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'JetBrains Mono', 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #8FB65B;
+    --vd-mat-glow: 0 0 10px rgba(212, 168, 79, 0.45);
+}
+
+/* ui/css/desktop-materials-electronic-dreams.css */
+/* desktop-materials-electronic-dreams.css - Electronic Dreams app materials: a graphite PCB inside every app window.
+ * Canvas with a faint copper trace tile, anodised graphite bars with a copper underline and one amber signal LED,
+ * a solder-mask side with a copper edge trace and vias, cards with copper via dots in the corners, perfboard wells,
+ * amber primary buttons and teal selection markers. Text is #EDF4EE with #BDCBBF for muted. Only custom properties
+ * live here; the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="electronic_dreams"] {
+    /* Canvas: right-angle and 45 degree copper traces with pads (96 px tile), a teal glow along the top */
+    --vd-mat-canvas-color: #101C1A;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cg fill='none' stroke='%23C87F3A' stroke-opacity='.2' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M0 20H30L42 32V54M96 20H72L60 8V0M60 96V82L72 70H96M0 70H18L30 82H46M66 44H80L88 52V62'/%3E%3Ccircle cx='42' cy='58' r='3'/%3E%3Ccircle cx='50' cy='82' r='3'/%3E%3Ccircle cx='62' cy='44' r='2.6'/%3E%3Ccircle cx='88' cy='66' r='2.6'/%3E%3C/g%3E%3Cg fill='%23E6A83A' fill-opacity='.32'%3E%3Ccircle cx='42' cy='58' r='1'/%3E%3Ccircle cx='50' cy='82' r='1'/%3E%3Ccircle cx='12' cy='44' r='1.2'/%3E%3Ccircle cx='80' cy='90' r='1.2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 96px 96px, radial-gradient(ellipse 80% 50% at 50% 0%, rgba(63, 214, 181, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: brushed anodised graphite, a copper trace fading out along the bottom, an amber LED near the right end */
+    --vd-mat-bar-color: #1B2622;
+    --vd-mat-bar: radial-gradient(circle closest-side, #FFE3A0 0 1.4px, #E6A83A 1.4px 2.8px, rgba(230, 168, 58, 0.4) 2.8px 4px, transparent 6px) right 14px bottom 1px / 12px 12px no-repeat, linear-gradient(90deg, #E6A83A 0, #C87F3A 26%, rgba(200, 127, 58, 0) 78%) 0 100% / 100% 2px no-repeat, repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 3px), linear-gradient(180deg, #36453F 0, #26332E 48%, #1B2622 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(200, 127, 58, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 2px 6px rgba(0, 0, 0, 0.4);
+
+    /* Sides: solder-mask green-black with a faint weave, a copper trace with vias 6 px from the edge */
+    --vd-mat-side-color: #0A1512;
+    --vd-mat-side: radial-gradient(circle closest-side, #0A1512 0 1.1px, #C87F3A 1.4px 2.8px, rgba(200, 127, 58, 0) 3.4px) right 2px top 12px / 8px 40px repeat-y, linear-gradient(rgba(200, 127, 58, 0.55), rgba(200, 127, 58, 0.55)) right 5px top 0 / 1px 100% no-repeat, repeating-linear-gradient(45deg, rgba(63, 214, 181, 0.035) 0 2px, transparent 2px 6px), linear-gradient(180deg, #0E1C18 0, #09130F 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(200, 127, 58, 0.55), inset 1px 0 0 rgba(0, 0, 0, 0.45), inset -14px 0 14px -14px rgba(0, 0, 0, 0.7);
+
+    /* Cards: a lifted board with copper-ringed via dots in all four corners */
+    --vd-mat-card-color: #1A2B26;
+    --vd-mat-card: radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) left 6px top 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) right 6px top 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) left 6px bottom 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) right 6px bottom 6px / 8px 8px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0, rgba(255, 255, 255, 0) 40%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(200, 127, 58, 0.42);
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+    /* Wells: a dark perfboard, a 12 px grid of teal pad dots, a teal rim */
+    --vd-mat-well-color: #09120F;
+    --vd-mat-well: radial-gradient(circle closest-side, rgba(63, 214, 181, 0.17) 0 0.9px, transparent 1.5px) 0 0 / 12px 12px, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(63, 214, 181, 0.18), inset 0 3px 10px rgba(0, 0, 0, 0.7);
+
+    /* Fields: black-green recess with a graphite-teal border */
+    --vd-mat-field-color: #060D0B;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #3F6358;
+    --vd-mat-field-radius: 4px;
+    --vd-mat-field-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.65);
+
+    /* Buttons: anodised graphite keys */
+    --vd-mat-btn-color: #1E2F2A;
+    --vd-mat-btn: linear-gradient(180deg, #34483F 0, #1E2F2A 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #46604F 0, #2A4137 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #55705F;
+    --vd-mat-btn-radius: 5px;
+    --vd-mat-btn-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 1px 2px rgba(0, 0, 0, 0.6);
+    --vd-mat-btn-text: #EDF4EE;
+
+    /* Primary: amber with a dark caption and a soft amber glow */
+    --vd-mat-primary-color: #E6A83A;
+    --vd-mat-primary: linear-gradient(180deg, #F4C167 0, #E6A83A 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #FFD27F 0, #F0B54F 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #20170B;
+    --vd-mat-primary-border: #B87A24;
+    --vd-mat-primary-shadow: 0 0 14px rgba(230, 168, 58, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+
+    /* Selection and hover: a green-graphite row with a teal marker */
+    --vd-mat-selected-color: #20362F;
+    --vd-mat-selected: linear-gradient(90deg, rgba(63, 214, 181, 0.22) 0, rgba(63, 214, 181, 0) 75%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F3F8F2;
+    --vd-mat-selected-edge: inset 3px 0 0 #3FD6B5, inset 0 0 0 1px rgba(63, 214, 181, 0.16);
+    --vd-mat-hover: rgba(63, 214, 181, 0.1);
+
+    /* Lines and type: green-graphite separators, a copper trace rule, warm amber-white headings, mono teal labels */
+    --vd-mat-divider: rgba(160, 200, 180, 0.22);
+    --vd-mat-rule: linear-gradient(90deg, #E6A83A, #C87F3A 40%, rgba(200, 127, 58, 0));
+    --vd-mat-heading-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #FFE7BD;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-label-color: #55E0C2;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #3FD6B5;
+    --vd-mat-glow: 0 0 12px rgba(230, 168, 58, 0.4);
+}
+
+/* ui/css/desktop-materials-windows-xp.css */
+/* desktop-materials-windows-xp.css - app materials for the Windows XP desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Luna: cream window face, gradient toolbars,
+ * a light blue task-pane sidebar, white list and edit wells with the #7F9DB9 hairline, XP push buttons and the
+ * Luna blue default button. Only custom properties; --vd-text (#1c2d45) and --vd-theme-muted (#435873) stay above
+ * 4.5:1 on every surface, including the lightest and darkest stop of each gradient. */
+
+.desktop-body[data-theme="windows_xp"] {
+    /* Canvas: the classic ButtonFace cream */
+    --vd-mat-canvas-color: #ECE9D8;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+
+    /* Bar: Luna toolbar gradient, white top highlight and an etched bottom line */
+    --vd-mat-bar-color: #F1EFE6;
+    --vd-mat-bar: linear-gradient(180deg, #FDFDFB 0%, #F1EFE6 52%, #E3E0D1 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #C6C3B4, inset 0 1px 0 #FFFFFF;
+
+    /* Side: light blue task pane under a thin Luna blue cap, #9AAEC8 edge */
+    --vd-mat-side-color: #D6E2F8;
+    --vd-mat-side:
+        linear-gradient(90deg, #3C7FE0 0%, #9DBBEF 100%) top / 100% 3px no-repeat,
+        linear-gradient(180deg, #E4ECFC 0%, #D6E3F9 50%, #C9D8F4 100%),
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #9AAEC8, inset 1px 0 0 rgba(255, 255, 255, 0.75);
+
+    /* Card: white task-pane box with a thin white-to-blue header band on top */
+    --vd-mat-card-color: #FAFBFE;
+    --vd-mat-card: linear-gradient(90deg, #FFFFFF 0%, #B8CBF3 100%) top / 100% 5px no-repeat, var(--vd-mat-card-color);
+    --vd-mat-card-border: #9AAEC8;
+    --vd-mat-card-radius: 3px;
+    --vd-mat-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 5px rgba(34, 62, 99, 0.18);
+
+    /* Well: white list and editor area inside the #7F9DB9 hairline */
+    --vd-mat-well-color: #FFFFFF;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #7F9DB9, inset 1px 1px 3px rgba(33, 57, 89, 0.16);
+
+    /* Field: white edit box, square corners, #7F9DB9 border */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #7F9DB9;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 0 1px 1px rgba(33, 57, 89, 0.1);
+
+    /* Buttons: XP push button, white to warm grey, #003C74 outline, blue-tinted hover */
+    --vd-mat-btn-color: #ECEBE5;
+    --vd-mat-btn: linear-gradient(180deg, #FFFFFF 0%, #F4F3EE 18%, #ECEBE5 55%, #E3E0D2 92%, #D6D0C5 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 25%, #DCEBFF 85%, #C7DDF8 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #003C74;
+    --vd-mat-btn-radius: 3px;
+    --vd-mat-btn-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 rgba(160, 152, 128, 0.5), 0 1px 0 rgba(255, 255, 255, 0.6);
+    --vd-mat-btn-text: #000000;
+
+    /* Primary: Luna blue gel, white text */
+    --vd-mat-primary-color: #1D5FAF;
+    --vd-mat-primary: linear-gradient(180deg, #3A86EB 0%, #2B6FD0 22%, #2565BE 45%, #1D5FAF 50%, #174D91 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #4C94F0 0%, #2F76D6 22%, #2868C6 45%, #1F5DB0 50%, #184E94 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #0B3F82;
+    --vd-mat-primary-shadow: inset 0 0 0 1px rgba(150, 190, 255, 0.55), 0 1px 2px rgba(0, 28, 80, 0.3);
+
+    /* Selection: the Windows selection blue, white text */
+    --vd-mat-selected-color: #316AC5;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 0 0 0 1px #1F4E9F;
+    --vd-mat-hover: rgba(49, 106, 197, 0.12);
+
+    /* Lines and type */
+    --vd-mat-divider: #A9B7CE;
+    --vd-mat-rule: linear-gradient(180deg, #ACA899 0, #ACA899 1px, #FFFFFF 1px, #FFFFFF 2px);
+    --vd-mat-heading-font: 'Trebuchet MS', Tahoma, 'Segoe UI', sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #215DC6;
+    --vd-mat-heading-tracking: 0;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: Tahoma, 'Segoe UI', Arial, sans-serif;
+    --vd-mat-label-color: #1D56B8;
+    --vd-mat-label-tracking: 0;
+    --vd-mat-label-transform: none;
+    --vd-mat-mono-font: 'Lucida Console', 'Courier New', Consolas, monospace;
+    --vd-mat-accent-2: #3C9B2E;
+    --vd-mat-glow: none;
+}
+
+/* ui/css/desktop-materials-green-slime.css */
+/* desktop-materials-green-slime.css - Green Slime app materials: glossy goo inside every app window.
+ * Mossy canvas with faint floating bubbles, glossy slime bars whose lower edge carries a lime band with hanging
+ * drips, a swamp-dark side with a lime rail that drips sideways, blobby squishy cards with a gel highlight,
+ * gel pill buttons and a lime gel primary with dark text. Text is #F1F7DC, muted text #C6D4A6 (skin).
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="green_slime"] {
+    /* Canvas: moss with a lime haze at the top and faint bubbles */
+    --vd-mat-canvas-color: #1A2212;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23A5D941' fill-opacity='.045' stroke='%23C8F075' stroke-opacity='.17' stroke-width='1.4'%3E%3Ccircle cx='34' cy='42' r='14'/%3E%3Ccircle cx='122' cy='24' r='7'/%3E%3Ccircle cx='172' cy='92' r='18'/%3E%3Ccircle cx='70' cy='132' r='9'/%3E%3Ccircle cx='192' cy='180' r='11'/%3E%3Ccircle cx='28' cy='190' r='16'/%3E%3Ccircle cx='122' cy='172' r='5'/%3E%3C/g%3E%3Cg fill='%23F2FFC8' fill-opacity='.2'%3E%3Ccircle cx='29' cy='36' r='2.6'/%3E%3Ccircle cx='166' cy='85' r='3.2'/%3E%3Ccircle cx='23' cy='183' r='2.8'/%3E%3Ccircle cx='67' cy='129' r='1.6'/%3E%3Ccircle cx='189' cy='176' r='2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 220px 220px, radial-gradient(120% 60% at 50% 0, rgba(165, 217, 65, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: glossy slime, a lime band 9 px above the lower edge with three rows of drips hanging from it */
+    --vd-mat-bar-color: #2D4219;
+    --vd-mat-bar: radial-gradient(ellipse 3.6px 5.6px at 9px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 31px 9px repeat-x, radial-gradient(ellipse 2.6px 4.4px at 31px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 47px 9px repeat-x, radial-gradient(ellipse 4.2px 6.6px at 40px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 71px 9px repeat-x, linear-gradient(180deg, #D8F68F 0, #A5D941 55%, #8DBF2F 100%) 0 calc(100% - 9px) / 100% 3px no-repeat, linear-gradient(180deg, rgba(240, 255, 190, 0.12) 0, rgba(240, 255, 190, 0.03) 48%, rgba(0, 0, 0, 0) 49%), linear-gradient(180deg, #324820 0, #2D4219 55%, #24361A 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(236, 255, 188, 0.24), 0 3px 8px rgba(0, 0, 0, 0.38);
+
+    /* Sides: swamp moss speckles, a glossy lime rail on the right edge with drips creeping left */
+    --vd-mat-side-color: #121A0B;
+    --vd-mat-side: radial-gradient(ellipse 5.6px 3.6px at 6px 9px, #A5D941 0 88%, transparent 100%) 100% 0 / 9px 37px repeat-y, radial-gradient(ellipse 4.4px 2.6px at 6px 20px, #A5D941 0 88%, transparent 100%) 100% 0 / 9px 53px repeat-y, linear-gradient(90deg, #8DBF2F 0, #A5D941 45%, #D8F68F 100%) 100% 0 / 3px 100% no-repeat, radial-gradient(circle at 5px 6px, rgba(165, 217, 65, 0.13) 0 1px, transparent 1.7px) 0 0 / 17px 19px, radial-gradient(circle at 11px 13px, rgba(120, 170, 50, 0.14) 0 1.4px, transparent 2px) 0 0 / 23px 21px, linear-gradient(90deg, #121A0B 0, #17220E 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: 3px 0 10px -3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(236, 255, 188, 0.1);
+
+    /* Cards: blobby gel with a bright highlight on the upper left and a squishy shade below */
+    --vd-mat-card-color: #26321A;
+    --vd-mat-card: radial-gradient(130% 55% at 28% 0, rgba(225, 255, 160, 0.12), transparent 62%), linear-gradient(180deg, #2D3B1E 0, #26321A 45%, #202B15 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: #5E7A33;
+    --vd-mat-card-radius: 16px 19px 14px 20px;
+    --vd-mat-card-shadow: 0 8px 18px rgba(0, 0, 0, 0.42), inset 0 2px 2px rgba(242, 255, 204, 0.18), inset 0 -4px 6px rgba(0, 0, 0, 0.24);
+
+    /* Wells: deep swamp water with a lime film on the lower rim */
+    --vd-mat-well-color: #0C1810;
+    --vd-mat-well: radial-gradient(90% 60% at 20% 0, rgba(165, 217, 65, 0.07), transparent 70%), linear-gradient(180deg, #08130C 0, #0E1C12 100%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(165, 217, 65, 0.2), inset 0 -2px 0 rgba(165, 217, 65, 0.14);
+
+    /* Fields: deep recess, rounded like a bubble */
+    --vd-mat-field-color: #131C0C;
+    --vd-mat-field: linear-gradient(180deg, #0E1508 0, #172210 100%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #6E8B3C;
+    --vd-mat-field-radius: 14px;
+    --vd-mat-field-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(218, 248, 148, 0.08);
+
+    /* Buttons: gel pills, glossy upper half and a dark underside */
+    --vd-mat-btn-color: #3A5224;
+    --vd-mat-btn: linear-gradient(180deg, rgba(240, 255, 190, 0.16) 0, rgba(240, 255, 190, 0.04) 48%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, #44602A 0, #3A5224 50%, #2E4320 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(240, 255, 190, 0.2) 0, rgba(240, 255, 190, 0.04) 48%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, #4A662D 0, #3F5927 50%, #324A22 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #7C9B45;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 3px 0 #1A2610, 0 5px 8px rgba(0, 0, 0, 0.35), inset 0 2px 2px rgba(245, 255, 208, 0.3), inset 0 -3px 4px rgba(0, 0, 0, 0.25);
+    --vd-mat-btn-text: #F2F8DF;
+
+    /* Primary: lime gel with a glossy highlight and dark text */
+    --vd-mat-primary-color: #A5D941;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.1) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #C9EF74 0, #A5D941 55%, #84B52C 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0, rgba(255, 255, 255, 0.14) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #D6F58A 0, #B4E84F 55%, #92C735 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #17210B;
+    --vd-mat-primary-border: #72A021;
+    --vd-mat-primary-shadow: 0 3px 0 #4F7314, 0 5px 14px rgba(165, 217, 65, 0.35), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+
+    /* Selection and hover: dark moss with a lime marker, lime haze on hover */
+    --vd-mat-selected-color: #34461F;
+    --vd-mat-selected: linear-gradient(90deg, #3F5826 0, #34461F 70%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F8FFDF;
+    --vd-mat-selected-edge: inset 4px 0 0 #A5D941, inset 0 0 0 1px rgba(165, 217, 65, 0.22);
+    --vd-mat-hover: rgba(165, 217, 65, 0.14);
+
+    /* Lines and type: moss separators, a lime rule that fades out, Trebuchet bold lime headings */
+    --vd-mat-divider: #4E6A2A;
+    --vd-mat-rule: linear-gradient(90deg, transparent, #A5D941 15%, #E1F7A5 50%, #A5D941 85%, transparent);
+    --vd-mat-heading-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #C9F27A;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-label-color: #A5D941;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #4FE0C0;
+    --vd-mat-glow: 0 0 14px rgba(165, 217, 65, 0.45), 0 0 3px rgba(200, 240, 117, 0.7);
+}
+
+/* ui/css/desktop-materials-voxel-world.css */
+/* desktop-materials-voxel-world.css - app materials for the Voxel World desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). A bright block-game inventory: parchment
+ * canvas, light oak plank bars, light cobblestone sidebars, grey inventory-slot cards with 2 px bevels, stone
+ * buttons, paper wells and a forest-green primary with a pixel grass fringe. Radius 0 everywhere. The pixel tiles
+ * are crisp 1:1 data-URI SVGs, kept faint where text sits so --vd-text (#352b1e) and --vd-theme-muted (#5d513e)
+ * keep 4.5:1; the strong accents (bevels, plank seam, grass) sit on edges. */
+
+.desktop-body[data-theme="voxel_world"] {
+    /* Canvas: parchment with a very faint 8 px pixel checker */
+    --vd-mat-canvas-color: #F5F1E5;
+    --vd-mat-canvas:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%238C7856' fill-opacity='.07' d='M0 0h8v8h-8zM8 8h8v8h-8z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-canvas-color);
+
+    /* Bar: light oak planks, staggered end joints, a dark plank seam along the bottom */
+    --vd-mat-bar-color: #E9D4AE;
+    --vd-mat-bar:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='32' shape-rendering='crispEdges'%3E%3Cpath fill='%239A7344' fill-opacity='.14' d='M0 15h64v1h-64zM0 31h64v1h-64zM44 1h1v14h-1zM14 17h1v14h-1z'/%3E%3Cpath fill='%23FFF6DC' fill-opacity='.5' d='M0 0h64v1h-64zM0 16h64v1h-64zM45 1h1v14h-1zM15 17h1v14h-1z'/%3E%3Cpath fill='%23B58B4F' fill-opacity='.2' d='M4 5h5v1h-5zM20 9h3v1h-3zM30 3h6v1h-6zM52 11h4v1h-4zM8 22h4v1h-4zM26 26h5v1h-5zM40 20h6v1h-6zM56 28h4v1h-4zM33 13h3v1h-3zM2 12h3v1h-3z'/%3E%3C/svg%3E") 0 0 / 64px 32px repeat,
+        var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 248, 226, 0.8), inset 0 -1px 0 #6B4C2A, inset 0 -2px 0 #8A6539, inset 0 -3px 0 rgba(255, 244, 214, 0.7);
+
+    /* Side: light cobblestone, block seams with a lit upper-left edge on every stone */
+    --vd-mat-side-color: #DDDDD4;
+    --vd-mat-side:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.16' d='M0 1h17v10h-17zM8 13h19v10h-19zM34 25h14v10h-14zM23 37h17v10h-17z'/%3E%3Cpath fill='%23000000' fill-opacity='.04' d='M18 1h18v10h-18zM0 13h7v10h-7zM16 25h17v10h-17zM6 37h17v10h-17z'/%3E%3Cpath fill='%237E7E74' fill-opacity='.22' d='M0 11h48v1h-48zM0 23h48v1h-48zM0 35h48v1h-48zM0 47h48v1h-48zM17 0h1v11h-1zM36 0h1v11h-1zM7 12h1v11h-1zM27 12h1v11h-1zM42 12h1v11h-1zM15 24h1v11h-1zM33 24h1v11h-1zM5 36h1v11h-1zM22 36h1v11h-1zM40 36h1v11h-1z'/%3E%3Cpath fill='%23FFFFFF' fill-opacity='.4' d='M0 0h48v1h-48zM0 12h48v1h-48zM0 24h48v1h-48zM0 36h48v1h-48zM18 1h1v10h-1zM37 1h1v10h-1zM8 13h1v10h-1zM28 13h1v10h-1zM43 13h1v10h-1zM16 25h1v10h-1zM34 25h1v10h-1zM6 37h1v10h-1zM23 37h1v10h-1zM41 37h1v10h-1z'/%3E%3C/svg%3E") 0 0 / 48px 48px repeat,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -2px 0 0 #8E8E86, inset -3px 0 0 rgba(255, 255, 255, 0.5);
+
+    /* Card: inventory slot, smooth stone with a 2 px white / #555 bevel and a block drop shadow */
+    --vd-mat-card-color: #D0D0D0;
+    --vd-mat-card:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.35' d='M2 2h2v1h-2zM10 5h1v1h-1zM6 9h2v1h-2zM13 12h2v1h-2zM1 13h1v1h-1z'/%3E%3Cpath fill='%23555555' fill-opacity='.07' d='M7 1h1v1h-1zM13 3h2v1h-2zM3 7h1v1h-1zM11 10h1v1h-1zM8 14h2v1h-2z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-card-color);
+    --vd-mat-card-border: #2B2B2B;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: inset 2px 2px 0 #FFFFFF, inset -2px -2px 0 #555555, 0 3px 0 rgba(30, 30, 30, 0.22);
+
+    /* Well: paper, sunk behind a dark upper-left bevel */
+    --vd-mat-well-color: #FFF9EA;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 2px 2px 0 #555555, inset -2px -2px 0 #FFFFFF;
+
+    /* Field: recessed paper with a soft dark upper-left bevel */
+    --vd-mat-field-color: #FFFEF8;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #555555;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 2px 2px 0 rgba(85, 85, 85, 0.35);
+
+    /* Buttons: stone with a 2 px bevel, hover turns mossy */
+    --vd-mat-btn-color: #BEBEBE;
+    --vd-mat-btn:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.35' d='M2 2h2v1h-2zM10 5h1v1h-1zM6 9h2v1h-2zM13 12h2v1h-2zM1 13h1v1h-1z'/%3E%3Cpath fill='%23555555' fill-opacity='.07' d='M7 1h1v1h-1zM13 3h2v1h-2zM3 7h1v1h-1zM11 10h1v1h-1zM8 14h2v1h-2z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(rgba(214, 232, 196, 0.62), rgba(214, 232, 196, 0.62)), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #1E1E1E;
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 2px 2px 0 #FDFDFD, inset -2px -2px 0 #555555;
+    --vd-mat-btn-text: #2B2218;
+
+    /* Primary: forest green under a 4 px pixel grass fringe */
+    --vd-mat-primary-color: #476B3C;
+    --vd-mat-primary:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%2381C04D' d='M0 0h8v2h-8z'/%3E%3Cpath fill='%2362A03A' d='M0 2h2v1h-2zM3 2h2v1h-2zM6 2h2v1h-2z'/%3E%3Cpath fill='%234C8A32' d='M1 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 8px 4px repeat-x,
+        var(--vd-mat-primary-color);
+    --vd-mat-primary-hover:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%2381C04D' d='M0 0h8v2h-8z'/%3E%3Cpath fill='%2362A03A' d='M0 2h2v1h-2zM3 2h2v1h-2zM6 2h2v1h-2z'/%3E%3Cpath fill='%234C8A32' d='M1 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 8px 4px repeat-x,
+        linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)),
+        var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #1E1E1E;
+    --vd-mat-primary-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.28), inset -2px -2px 0 rgba(0, 0, 0, 0.35);
+
+    /* Selection: forest green, white text, a bright grass marker */
+    --vd-mat-selected-color: #476B3C;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #8FD05A, inset 0 -2px 0 #2F4A26;
+    --vd-mat-hover: rgba(71, 107, 60, 0.14);
+
+    /* Lines and type */
+    --vd-mat-divider: #9A8967;
+    --vd-mat-rule: repeating-linear-gradient(90deg, #8C7856 0 4px, transparent 4px 8px);
+    --vd-mat-heading-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #2F4A26;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-label-color: #44553A;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: Consolas, 'Lucida Console', 'Courier New', monospace;
+    --vd-mat-accent-2: #C98F1E;
+    --vd-mat-glow: none;
+}
+
+/* ui/css/desktop-materials-orbit.css */
+/* desktop-materials-orbit.css - Orbit app materials: deep-space smoked glass inside every app window.
+ * Canvas with star specks and a violet nebula glow, glass bars with a cyan underline glow, a side rail lit in violet,
+ * cards with cyan HUD corner brackets, recessed wells, a glowing cyan primary and Barlow Condensed headings. Text is
+ * #E8F1FF with #9FB0CC for muted; the fonts are declared in desktop-theme-orbit.css. Only custom properties live
+ * here; the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="orbit"] {
+    /* Canvas: two star tiles of different periods (white, ice and lilac specks), a violet nebula top right, an ice haze bottom left */
+    --vd-mat-canvas-color: #0B1020;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='14' cy='30' r='.8' fill-opacity='.75'/%3E%3Ccircle cx='88' cy='12' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='160' cy='54' r='1' fill-opacity='.85'/%3E%3Ccircle cx='42' cy='112' r='.6' fill-opacity='.45'/%3E%3Ccircle cx='118' cy='96' r='.8' fill-opacity='.6'/%3E%3Ccircle cx='196' cy='140' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='70' cy='180' r='1' fill-opacity='.7'/%3E%3Ccircle cx='150' cy='204' r='.6' fill-opacity='.4'/%3E%3C/g%3E%3Ccircle cx='132' cy='160' r='1.1' fill='%235CE1FF' fill-opacity='.65'/%3E%3Ccircle cx='36' cy='70' r='.9' fill='%23B9A2FF' fill-opacity='.6'/%3E%3C/svg%3E") 0 0 / 220px 220px, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='347'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='50' cy='40' r='.7' fill-opacity='.6'/%3E%3Ccircle cx='300' cy='200' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='120' cy='260' r='.9' fill-opacity='.7'/%3E%3Ccircle cx='260' cy='320' r='.6' fill-opacity='.45'/%3E%3Ccircle cx='20' cy='190' r='.6' fill-opacity='.5'/%3E%3C/g%3E%3Ccircle cx='210' cy='90' r='1.1' fill='%235CE1FF' fill-opacity='.7'/%3E%3C/svg%3E") 60px 40px / 347px 347px, radial-gradient(ellipse 70% 62% at 100% 0%, rgba(140, 92, 255, 0.3), rgba(140, 92, 255, 0.11) 45%, transparent 78%), radial-gradient(ellipse 40% 34% at 82% 6%, rgba(255, 140, 220, 0.07), transparent 70%), radial-gradient(ellipse 55% 50% at 0% 100%, rgba(92, 225, 255, 0.11), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: smoked glass with a light sheen, a holographic cyan to violet line and a cyan underline glow */
+    --vd-mat-bar-color: #0E1530;
+    --vd-mat-bar: linear-gradient(90deg, #5CE1FF, #8C5CFF 55%, rgba(140, 92, 255, 0)) 0 100% / 62% 2px no-repeat, linear-gradient(180deg, rgba(180, 225, 255, 0.13) 0, rgba(180, 225, 255, 0.04) 50%, rgba(0, 0, 0, 0.16) 100%), linear-gradient(90deg, rgba(140, 92, 255, 0.14), rgba(140, 92, 255, 0) 42%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(92, 225, 255, 0.7), inset 0 1px 0 rgba(210, 235, 255, 0.14), 0 1px 12px -2px rgba(92, 225, 255, 0.32);
+
+    /* Sides: the darkest glass, a violet glow from the top and a violet rail on the right edge */
+    --vd-mat-side-color: #080D1C;
+    --vd-mat-side: linear-gradient(180deg, rgba(140, 92, 255, 0.16) 0, rgba(140, 92, 255, 0) 55%), linear-gradient(90deg, rgba(92, 225, 255, 0.04), rgba(92, 225, 255, 0) 60%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(140, 92, 255, 0.9), inset -10px 0 16px -10px rgba(140, 92, 255, 0.42);
+
+    /* Cards: lifted glass panels, cyan HUD brackets top left and bottom right, glows in the opposite corners */
+    --vd-mat-card-color: #121B38;
+    --vd-mat-card: linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) 3px 3px / 12px 2px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) 3px 3px / 2px 12px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) right 3px bottom 3px / 12px 2px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) right 3px bottom 3px / 2px 12px no-repeat, radial-gradient(ellipse 80% 70% at 0% 0%, rgba(92, 225, 255, 0.1), transparent 60%), radial-gradient(ellipse 70% 60% at 100% 100%, rgba(140, 92, 255, 0.13), transparent 65%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(92, 225, 255, 0.24);
+    --vd-mat-card-radius: 6px;
+    --vd-mat-card-shadow: 0 0 0 1px rgba(92, 225, 255, 0.06), 0 12px 30px rgba(0, 0, 10, 0.55), inset 0 1px 0 rgba(210, 235, 255, 0.1);
+
+    /* Wells: a dark recess with a few stars, a violet glow in one corner and a lit rim */
+    --vd-mat-well-color: #070B1A;
+    --vd-mat-well: radial-gradient(ellipse 70% 60% at 100% 0%, rgba(140, 92, 255, 0.12), transparent 70%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.18), inset 0 10px 24px -6px rgba(0, 0, 12, 0.8);
+
+    /* Fields: near-black glass with an ice rim */
+    --vd-mat-field-color: #050912;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 10, 0.5) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(92, 225, 255, 0.36);
+    --vd-mat-field-radius: 5px;
+    --vd-mat-field-shadow: inset 0 1px 4px rgba(0, 0, 12, 0.75);
+
+    /* Buttons: indigo glass with a cyan rim */
+    --vd-mat-btn-color: #131C3A;
+    --vd-mat-btn: linear-gradient(180deg, rgba(92, 225, 255, 0.17) 0, rgba(92, 225, 255, 0.03) 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(92, 225, 255, 0.32) 0, rgba(92, 225, 255, 0.11) 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(92, 225, 255, 0.5);
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.14), 0 0 0 1px rgba(0, 0, 12, 0.4);
+    --vd-mat-btn-text: #DFF7FF;
+
+    /* Primary: signal cyan, near-black caption, a cyan glow */
+    --vd-mat-primary-color: #5CE1FF;
+    --vd-mat-primary: linear-gradient(180deg, #98EFFF 0, #5CE1FF 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #B6F4FF 0, #7AE9FF 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #04121A;
+    --vd-mat-primary-border: #8EEEFF;
+    --vd-mat-primary-shadow: 0 0 18px rgba(92, 225, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+
+    /* Selection and hover: a deep blue row lit from the marker, a cyan marker */
+    --vd-mat-selected-color: #16244A;
+    --vd-mat-selected: linear-gradient(90deg, rgba(92, 225, 255, 0.16) 0, rgba(92, 225, 255, 0) 80%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F2FAFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #5CE1FF, inset 0 0 0 1px rgba(92, 225, 255, 0.18);
+    --vd-mat-hover: rgba(92, 225, 255, 0.1);
+
+    /* Lines and type: ice separators, a cyan to violet rule, Barlow Condensed headings, violet Geist labels */
+    --vd-mat-divider: rgba(140, 200, 255, 0.22);
+    --vd-mat-rule: linear-gradient(90deg, #5CE1FF, #8C5CFF 55%, rgba(140, 92, 255, 0));
+    --vd-mat-heading-font: "Desktop Theme Barlow Condensed", "Barlow Condensed", "Desktop Theme Geist", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #BFF3FF;
+    --vd-mat-heading-tracking: 0.08em;
+    --vd-mat-heading-transform: uppercase;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #B9A2FF;
+    --vd-mat-label-tracking: 0.14em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #A78BFF;
+    --vd-mat-glow: 0 0 16px rgba(92, 225, 255, 0.45);
+}
+
+/* ui/css/desktop-materials-minimal.css */
+/* desktop-materials-minimal.css - Minimal app materials: paper and ink (light), graphite and ink (dark).
+ * No gradients, no shadows, no decoration: regions are told apart by a step in paper tone and by crisp
+ * hairlines, hierarchy comes from ink weight (a solid ink primary, an ink selection marker, strong Geist
+ * headings, wide-tracked muted labels). Light: text #161616, muted #6B6A66; dark: text #EDEDED, muted #9A9893
+ * (the skin roots). Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="minimal"] {
+    /* Surfaces: white canvas, paper bars and sides, a darker paper well, white cards */
+    --vd-mat-canvas-color: #FFFFFF;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #FAF9F7;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #D6D3CC;
+    --vd-mat-side-color: #F5F4F0;
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #D6D3CC;
+    --vd-mat-card-color: #FFFFFF;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #DEDBD4;
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: none;
+    --vd-mat-well-color: #F1F0EC;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #E1DFD8;
+
+    /* Fields and buttons: white with a firm hairline, ink text */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #CBC8C0;
+    --vd-mat-field-radius: 6px;
+    --vd-mat-field-shadow: none;
+    --vd-mat-btn-color: #FFFFFF;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #F1F0EC;
+    --vd-mat-btn-border: #CBC8C0;
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: none;
+    --vd-mat-btn-text: #161616;
+
+    /* Primary: solid ink with paper text */
+    --vd-mat-primary-color: #161616;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #3A3935;
+    --vd-mat-primary-text: #F7F6F3;
+    --vd-mat-primary-border: #161616;
+    --vd-mat-primary-shadow: none;
+
+    /* Selection and hover: a darker paper step with a 2 px ink marker */
+    --vd-mat-selected-color: #EDEBE6;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #161616;
+    --vd-mat-selected-edge: inset 2px 0 0 #161616;
+    --vd-mat-hover: rgba(22, 22, 22, 0.05);
+
+    /* Lines and type: hairline separators, an ink rule, Geist 600 headings, wide-tracked muted labels */
+    --vd-mat-divider: #D6D3CC;
+    --vd-mat-rule: linear-gradient(#161616, #161616);
+    --vd-mat-heading-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #161616;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #66655F;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #3D6A99;
+    --vd-mat-glow: none;
+}
+
+.desktop-body[data-theme="minimal"][data-scheme="dark"] {
+    /* Surfaces: graphite canvas, lifted bars, a deeper well, raised cards */
+    --vd-mat-canvas-color: #161616;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #1E1E1E;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #333333;
+    --vd-mat-side-color: #1A1A1A;
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #333333;
+    --vd-mat-card-color: #202020;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #333333;
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: none;
+    --vd-mat-well-color: #101010;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #2A2A2A;
+
+    /* Fields and buttons: graphite with a firm hairline, ink text */
+    --vd-mat-field-color: #111111;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #4A4A4A;
+    --vd-mat-field-radius: 6px;
+    --vd-mat-field-shadow: none;
+    --vd-mat-btn-color: #232323;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #2D2D2D;
+    --vd-mat-btn-border: #4A4A4A;
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: none;
+    --vd-mat-btn-text: #EDEDED;
+
+    /* Primary: solid light ink with graphite text */
+    --vd-mat-primary-color: #EDEDED;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #FFFFFF;
+    --vd-mat-primary-text: #121212;
+    --vd-mat-primary-border: #EDEDED;
+    --vd-mat-primary-shadow: none;
+
+    /* Selection and hover: a lighter graphite step with a 2 px ink marker */
+    --vd-mat-selected-color: #2C2C2C;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #EDEDED;
+    --vd-mat-selected-edge: inset 2px 0 0 #EDEDED;
+    --vd-mat-hover: rgba(237, 237, 237, 0.07);
+
+    /* Lines and type */
+    --vd-mat-divider: #333333;
+    --vd-mat-rule: linear-gradient(#EDEDED, #EDEDED);
+    --vd-mat-heading-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #EDEDED;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #A3A19B;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #85AEE0;
+    --vd-mat-glow: none;
+}
+
 /* ui/css/desktop-cursors.css */
 /* Native cursors only on pointing devices. High-contrast mode keeps the OS cursor.
    App canvases, remote desktops and inline tool cursors retain their own semantics. */

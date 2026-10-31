@@ -1,0 +1,2 @@
+# <file> <pictograph runes>: wave 4 emoji ratchet over operational page JS, operational HTML and the page lang files (16 locales). Only ever goes down.
+# Replace emoji with pwIcon() / .pw-badge[data-status]. Refresh after fixing with AURAGO_UPDATE_WAVE4_BASELINES=1 go test ./ui/ -run TestUIWave4.

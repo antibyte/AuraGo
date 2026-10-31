@@ -798,6 +798,12 @@
     transform: none;
 }
 
+/* One hidden-state rule for every operational page. !important is deliberate:
+   it beats page display rules (e.g. media lightbox relies on .lightbox.is-hidden). */
+.pw-page.pw-operational-page .is-hidden {
+    display: none !important;
+}
+
 /* The shared confirm outranks .pw-page .modal-overlay and every page overlay. */
 .pw-page .modal-overlay.pw-confirm-overlay {
     z-index: var(--z-confirm, 13000);
@@ -819,6 +825,8 @@
     border: 1px solid var(--pw-line-strong);
     border-radius: var(--pw-radius-lg);
     background: var(--pw-surface);
+    background-image: none;
+    filter: none;
     box-shadow: var(--pw-shadow-soft);
     transition:
         transform var(--pw-duration-base) var(--pw-ease),
@@ -923,7 +931,7 @@
 .pw-page .empty-state h3 {
     margin-bottom: var(--pw-space-2);
     color: var(--pw-text);
-    font-size: var(--pw-heading-size);
+    font-size: var(--pw-font-xl);
     font-weight: 650;
 }
 
@@ -1072,6 +1080,13 @@
     .pw-page .pw-toolbar {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    /* The 220px flex-basis is a width in a row; in a stacked toolbar it would become the height. */
+    .pw-page .pw-search,
+    .pw-page input.pw-search {
+        flex: 1 1 auto;
+        width: 100%;
     }
 
     .pw-page .pw-grid {
@@ -1361,10 +1376,11 @@
     color: var(--pw-subtle);
 }
 
-.pw-page .pw-empty-state h3 {
+.pw-page .pw-empty-state h3,
+.pw-page .empty-state h3 {
     margin: 0;
     color: var(--pw-text);
-    font-size: var(--pw-label-size);
+    font-size: var(--pw-font-xl);
     font-weight: 700;
 }
 

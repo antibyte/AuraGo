@@ -231,7 +231,6 @@
 .pw-page[data-workspace-page="containers"] .modal {
     display: flex;
     flex-direction: column;
-    background-image: none;
 }
 
 .pw-page[data-workspace-page="containers"] .modal-header {
@@ -272,8 +271,8 @@
 
 .pw-page[data-workspace-page="containers"]:where(:root[data-theme="light"] *) .ct-log-output, .pw-page[data-workspace-page="containers"]:where(:root[data-theme="light"] *) .ct-inspect-output {
     border-color: color-mix(in srgb, var(--pw-line) 60%, transparent);
-    color: #1e293b;
-    background: #f1f5f9;
+    color: var(--pw-text);
+    background: var(--pw-surface-soft);
 }
 
 /* ── Terminal Modal ── */
@@ -319,7 +318,7 @@
     height: clamp(320px, 60vh, 560px);
     border-radius: var(--space-3);
     padding: var(--space-3);
-    color: #d7e1ec;
+    color: var(--pw-terminal-text);
     font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     font-size: var(--text-sm);
     line-height: 1.45;
@@ -327,7 +326,7 @@
     min-height: 280px;
     overflow: hidden;
     border: 1px solid var(--pw-line-strong);
-    background: #050807;
+    background: var(--pw-terminal-bg);
     box-shadow: none;
 }
 
@@ -412,11 +411,6 @@
 
 .pw-page[data-workspace-page="containers"]:where(:root[data-theme="light"] *) .ct-search {
     border-color: color-mix(in srgb, var(--pw-line) 70%, transparent);
-}
-
-.pw-page[data-workspace-page="containers"]:where(:root[data-theme="light"] *) .ct-terminal-output {
-    background: #f8fafc;
-    color: #1e293b;
 }
 
 @media (max-width: 768px) {

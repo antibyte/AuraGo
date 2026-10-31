@@ -28,13 +28,18 @@ func TestDashboardCSSDropsSupersededRules(t *testing.T) {
 	if strings.Contains(normalizeAssetText(mustReadUIFile(t, "css/dashboard.css")), "D-14/D-15") {
 		t.Error("dashboard.css keeps the orphaned D-14/D-15 breakpoint comments")
 	}
-	if n := strings.Count(dashboard, "@media (max-width: 700px)"); n != 1 {
-		t.Errorf("dashboard.css has %d @media (max-width: 700px) blocks, want 1", n)
+	// The former 700px narrow block sits on the 640px breakpoint (wave 4 set) as the last block of the file.
+	if strings.Contains(dashboard, "@media (max-width: 700px)") {
+		t.Error("dashboard.css still uses the off-scale 700px breakpoint")
 	}
-	narrow := dashboardCSSAtBlock(t, dashboard, "@media (max-width: 700px)")
+	lastNarrow := strings.LastIndex(dashboard, "@media (max-width: 640px) {")
+	if lastNarrow < 0 {
+		t.Fatal("dashboard.css misses the final 640px narrow block")
+	}
+	narrow := dashboardCSSAtBlock(t, dashboard[lastNarrow:], "@media (max-width: 640px)")
 	for _, selector := range []string{"#card-prompt .prompt-details-grid {", ".fs-dash-grid {"} {
 		if !strings.Contains(narrow, selector) {
-			t.Errorf("the 700px block misses %s", selector)
+			t.Errorf("the final 640px block misses %s", selector)
 		}
 	}
 

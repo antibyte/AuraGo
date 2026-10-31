@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "Confie une tâche à ton agent …",
   "chat.galaxy_persona": "Ta personnalité",
   "chat.galaxy_mood": "Humeur actuelle",
-  "chat.youtube_play": "Lire"
+  "chat.youtube_play": "Lire",
+  "chat.speech_lab_not_ready_settings": "Speech Lab n’est pas prêt. Ouvre les paramètres pour vérifier la connexion."
 }

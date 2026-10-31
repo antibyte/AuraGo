@@ -74,12 +74,12 @@
             // Status badges
             const badgesEl = document.getElementById('budget-badges');
             let badges = '';
-            if (data.is_blocked) badges += '<span class="budget-badge danger">🚫 ' + t('dashboard.budget_blocked') + '</span>';
-            else if (data.is_exceeded) badges += '<span class="budget-badge danger">⚠️ ' + t('dashboard.budget_exceeded') + '</span>';
-            else if (data.is_warning) badges += '<span class="budget-badge warning">⚡ ' + t('dashboard.budget_warning') + '</span>';
+            if (data.is_blocked) badges += '<span class="budget-badge danger">' + pwIcon('ban') + ' ' + t('dashboard.budget_blocked') + '</span>';
+            else if (data.is_exceeded) badges += '<span class="budget-badge danger">' + pwIcon('warning') + ' ' + t('dashboard.budget_exceeded') + '</span>';
+            else if (data.is_warning) badges += '<span class="budget-badge warning">' + pwIcon('alert') + ' ' + t('dashboard.budget_warning') + '</span>';
             if (data.enforcement) {
                 const enfMap = { warn: t('dashboard.budget_enforcement_warn'), partial: t('dashboard.budget_enforcement_partial'), full: t('dashboard.budget_enforcement_full') };
-                badges += `<span class="budget-badge info">🛡️ ${esc(enfMap[data.enforcement] || String(data.enforcement))}</span>`;
+                badges += `<span class="budget-badge info">${pwIcon('shield')} ${esc(enfMap[data.enforcement] || String(data.enforcement))}</span>`;
             }
             badgesEl.innerHTML = badges;
 

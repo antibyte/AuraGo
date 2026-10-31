@@ -254,11 +254,11 @@
 
 .pw-page[data-workspace-page="media"] .media-inline-warning-icon {
     opacity: 0.5;
-    font-size: 0.75em;
+    font-size: var(--pw-font-xs);
 }
 
 .pw-page[data-workspace-page="media"] .media-audio-card-meta {
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     display: flex;
     justify-content: space-between;
@@ -267,7 +267,7 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-type-badge {
-    font-size: 0.68rem;
+    font-size: var(--pw-font-2xs);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-md);
     background: var(--pw-surface);
@@ -305,7 +305,7 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-video-card-meta {
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     display: flex;
     justify-content: space-between;
@@ -324,7 +324,7 @@
     width: 100%;
     max-height: 360px;
     aspect-ratio: 16 / 9;
-    background: #000;
+    background: var(--pw-terminal-bg);
     border: 1px solid var(--pw-line);
     border-radius: var(--radius-lg);
 }
@@ -397,7 +397,7 @@
 }
 
 .pw-page[data-workspace-page="media"] .media-doc-row-meta {
-    font-size: 0.75rem;
+    font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     margin-top: var(--space-1);
 }
@@ -610,7 +610,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: color-mix(in srgb, #ffffff 50%, transparent);
+    background: color-mix(in srgb, var(--pw-on-accent) 50%, transparent);
 }
 
 .pw-page[data-workspace-page="media"] .audio-progress-handle {
@@ -632,7 +632,7 @@
 }
 
 .pw-page[data-workspace-page="media"] .audio-time {
-    font-size: 0.7rem;
+    font-size: var(--pw-font-2xs);
     color: var(--pw-muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     white-space: nowrap;
@@ -646,7 +646,7 @@
 
 .pw-page[data-workspace-page="media"] .audio-speed-btn {
     padding: var(--space-1) var(--space-2);
-    font-size: 0.65rem;
+    font-size: var(--pw-font-2xs);
     border-radius: var(--radius-sm);
     background: var(--pw-surface-elevated);
     border: 1px solid var(--pw-line);
@@ -797,7 +797,7 @@
 
     .pw-page[data-workspace-page="media"] .media-tab {
         padding: var(--space-2) var(--space-2);
-        font-size: 0.78rem;
+        font-size: var(--pw-font-sm);
     }
 
     .pw-page[data-workspace-page="media"] .media-doc-row {

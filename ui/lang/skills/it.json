@@ -162,7 +162,7 @@
   "skills.import_hint": "Scegli un bundle .aurago-skill.json esportato.",
   "skills.import_success": "Skill importata",
   "skills.import_title": "Importa bundle skill",
-  "skills.internal_tools_bridge_disabled": "Il Python Tool Bridge non è abilitato o non sono configurati strumenti. Abilitalo in Impostazioni → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "Il Python Tool Bridge non è abilitato o non sono configurati strumenti. Abilitalo in Impostazioni → Skill Manager.",
   "skills.internal_tools_label": "Strumenti interni",
   "skills.internal_tools_modal_desc": "Seleziona gli strumenti nativi di AuraGo che questo skill può chiamare tramite il tool bridge in fase di esecuzione.",
   "skills.internal_tools_modal_save": "Salva",

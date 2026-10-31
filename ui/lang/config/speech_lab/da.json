@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "skal ikke være sat",
   "config.speech_lab.external_hardware_linux": "For AMD på Linux: brug S2S_GPU=auto eller S2S_GPU=vulkan, fjern GGML_BACKEND=CPU, og aktivér Linux GPU Compose-overlayet.",
   "config.speech_lab.browser_backend_url": "Adresse til browserbackend",
-  "config.speech_lab.browser_backend_url_help": "Adresse til den eksterne Speech Labs webgrænseflade. Bruges kun af AuraGo-serveren."
+  "config.speech_lab.browser_backend_url_help": "Adresse til den eksterne Speech Labs webgrænseflade. Bruges kun af AuraGo-serveren.",
+  "config.speech_lab.voice_mode_fixed": "Fast stemme: kun katalogets standardstemme er tilgængelig.",
+  "config.speech_lab.voice_mode_restart": "Ændring af denne stemme genstarter backend, når du aktiverer stakken.",
+  "config.speech_lab.voice_mode_request": "Vælg en katalogstemme til stakken. Backend understøtter også en stemme pr. anmodning.",
+  "config.speech_lab.voice_mode_unsupported": "Denne TTS-stemmetilstand understøttes ikke. Aktivering af stakken er blokeret.",
+  "config.speech_lab.error_voice": "Stemmen er ikke længere aktiv. Opdater stakken, og prøv igen.",
+  "config.speech_lab.error_module": "Talemodulet er ikke installeret eller klar. Tjek Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Vælg en stemme, som denne TTS-backend understøtter.",
+  "config.speech_lab.error_busy": "Speech Lab er optaget. Vent, til handlingen eller opkaldet er afsluttet.",
+  "config.speech_lab.error_conflict": "Ændring af stakken mislykkedes. Opdater stakken, og tjek Browser Lab.",
+  "config.speech_lab.memory_free": "{value} tilgængelig",
+  "config.speech_lab.suggestion_score": "Vurdering: {score}",
+  "config.speech_lab.suggestion_selected": "Anbefaling valgt. Gennemgå valgene, og aktiver stakken for at anvende dem."
 }

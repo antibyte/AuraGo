@@ -41,7 +41,15 @@ function loadPdfLib() {
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
+/** Fills static [data-pw-icon] placeholders with the shared inline icons. */
+function hydratePwIcons(root) {
+    (root || document).querySelectorAll('[data-pw-icon]').forEach((el) => {
+        el.innerHTML = pwIcon(el.getAttribute('data-pw-icon'));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    hydratePwIcons();
     loadContacts();
     loadFiles();
     loadDevices();
@@ -133,7 +141,7 @@ function switchKCTab(tab) {
                 if (typeof renderSecretsSection === 'function') {
                     renderSecretsSection({
                         key: 'secrets',
-                        icon: '🔐',
+                        icon: 'lock',
                         label: window.t ? window.t('knowledge.tab_secrets') : 'Secrets',
                         container: 'secrets-section-content'
                     });
@@ -143,7 +151,7 @@ function switchKCTab(tab) {
         } else if (typeof renderSecretsSection === 'function') {
             renderSecretsSection({
                 key: 'secrets',
-                icon: '🔐',
+                icon: 'lock',
                 label: window.t ? window.t('knowledge.tab_secrets') : 'Secrets',
                 container: 'secrets-section-content'
             });
@@ -731,12 +739,12 @@ function renderDevices() {
 
     if (!filtered.length) {
         tbody.innerHTML = '';
-        tableWrap.style.display = 'none';
-        empty.style.display = 'block';
+        tableWrap.classList.add('is-hidden');
+        empty.classList.remove('is-hidden');
         return;
     }
-    tableWrap.style.display = '';
-    empty.style.display = 'none';
+    tableWrap.classList.remove('is-hidden');
+    empty.classList.add('is-hidden');
 
     const sorted = sortArray(filtered, sortState.devices);
     tbody.innerHTML = sorted.map(d => {
@@ -933,7 +941,7 @@ function renderCredentials() {
             <td>${esc(c.username || '—')}</td>
             <td>${c.has_password ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
             <td>${c.has_certificate ? '<span class="kc-state-chip kc-state-ok">' + esc(t('knowledge.credentials_state_present')) + '</span>' : '<span class="kc-state-chip">' + esc(t('knowledge.credentials_state_missing')) + '</span>'}</td>
-            <td>${c.allow_python ? '<span class="kc-state-chip kc-state-ok">✓</span>' : '<span class="kc-state-chip">—</span>'}</td>
+            <td>${c.allow_python ? '<span class="kc-state-chip kc-state-ok">' + pwIcon('check') + '</span>' : '<span class="kc-state-chip">—</span>'}</td>
             <td class="kc-actions">
                 <button class="kc-icon-btn" onclick="editCredential('${esc(c.id)}')" title="${t('common.btn_edit')}">${svgIcon('edit')}</button>
                 <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteCredential('${esc(c.id)}', '${esc(c.name)}')" title="${t('common.btn_delete')}">${svgIcon('delete')}</button>
@@ -1193,14 +1201,9 @@ function escAttr(value) {
 // ═══════════════════════════════════════════════════════════════
 
 function svgIcon(name) {
-    const icons = {
-        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
-        delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-        eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
-        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-        preview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
-    };
-    return icons[name] || '';
+    // Legacy names used by the row markup; everything renders through the shared icon set.
+    const alias = { delete: 'trash', preview: 'eye' };
+    return pwIcon(alias[name] || name);
 }
 
 function fileIconSvg(name) {
@@ -1229,18 +1232,6 @@ function fileIconSvg(name) {
         return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="2" y="1.5" width="12" height="13" rx="2"/><path d="M5 5h6M5 8h4"/></svg>`;
     }
     return `<svg viewBox="0 0 16 16" style="color:${color}"><rect x="2" y="1.5" width="12" height="13" rx="2"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>`;
-}
-
-// Keep backward-compatible emoji icon function
-function fileIcon(name) {
-    const ext = (name.split('.').pop() || '').toLowerCase();
-    const icons = {
-        md: '📝', txt: '📄', json: '📋', yaml: '⚙️', yml: '⚙️',
-        csv: '📊', log: '📃', pdf: '📕', xml: '📰', html: '🌐', htm: '🌐',
-        py: '🐍', go: '🔷', js: '🟨', ts: '🔷', sh: '🖥️', bat: '🖥️',
-        png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
-    };
-    return icons[ext] || '📄';
 }
 
 // ═══════════════════════════════════════════════════════════════

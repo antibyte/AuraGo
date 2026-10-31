@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 Afbeeldingengalerij",
+  "gallery.title": "Afbeeldingengalerij",
   "gallery.subtitle": "Afbeeldingengalerij",
   "gallery.search_placeholder": "Prompts zoeken...",
   "gallery.all_providers": "Alle providers",
@@ -15,7 +15,7 @@
   "gallery.duration": "Duur",
   "gallery.cost": "Kosten",
   "gallery.date": "Datum",
-  "gallery.download": "⬇ Downloaden",
-  "gallery.delete": "🗑 Verwijderen",
+  "gallery.download": "Downloaden",
+  "gallery.delete": "Verwijderen",
   "gallery.confirm_delete": "Weet je zeker dat je deze afbeelding wilt verwijderen?"
 }

@@ -51,8 +51,8 @@ func TestRustFSDashboardSeparatesConfiguredAndObservedState(t *testing.T) {
 	}
 	const check = `
 const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
-const grid={innerHTML:''};
-const ctx={document:{getElementById:()=>grid},dashIcon:key=>key,t:key=>key,esc:String,escAttr:String,DashSections:{register(){}}};
+const grid={innerHTML:'',append(){}};
+const ctx={document:{getElementById:()=>grid,createElement:()=>({isConnected:false})},API:{getWithStatus:async()=>({ok:false})},dashIcon:key=>key,t:key=>key,esc:String,escAttr:String,DashSections:{register(){}}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(0,'utf8'),ctx);
 function render(active,runtime){ctx.renderIntegrations({integrations:{rustfs:active},rustfs:runtime});return grid.innerHTML}
 let html=render(true,{ready:false,running:false});

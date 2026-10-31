@@ -161,10 +161,6 @@
 
 /* ── Modal Overrides ── */
 
-.pw-page[data-workspace-page="invasion"] .modal {
-    background-image: none;
-}
-
 .pw-page[data-workspace-page="invasion"] .modal-header {
     padding: 1.05rem 1.25rem 0.75rem;
     border-bottom: 1px solid var(--pw-line);

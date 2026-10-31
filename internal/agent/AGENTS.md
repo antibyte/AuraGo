@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Seven optional `kaggle_*` tools use the shared server-owned Kaggle/notebook services. Keep feature flags/cache keys, German/English discovery, semantic mutation classification and manuals aligned. All returned descriptions, forums, logs and cell events use external-content protection. Local output is polled through `kaggle_runtime.events` with cursor/revision/cell/execution identity; never replay code after reconnect. See `../kaggle/AGENTS.md` and `../notebooks/AGENTS.md`.
+
 - Runtime-owned `prompt_security` incidents use the planner's dedicated next-contact
   path even after the ordinary daily notice slot. Claim a durable five-minute batch
   lease, deliver through the existing typed notice or persisted answer fallback, and

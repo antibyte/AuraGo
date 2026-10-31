@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "无过时记忆候选",
   "dashboard.memory_curator_title": "记忆健康",
   "dashboard.memory_embeddings": "嵌入向量",
-  "dashboard.memory_embeddings_disabled": "嵌入向量 ✗",
+  "dashboard.memory_embeddings_disabled": "嵌入向量 已禁用",
   "dashboard.memory_episodic": "情景记忆",
   "dashboard.memory_episodic_agent_user": "用户，智能体",
   "dashboard.memory_episodic_empty": "暂无最近情景",

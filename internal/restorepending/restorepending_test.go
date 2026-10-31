@@ -308,3 +308,78 @@ func TestStagedVaultIsMergedOnlyAfterAppliedFiles(t *testing.T) {
 		t.Fatal("secrets of a rolled-back restore must not be applied")
 	}
 }
+
+func TestApplyWaitsForConfirmationOfSecurityChanges(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "config.yaml"), "old")
+	staging, entries := stageFiles(t, root, map[string]string{"config.yaml": "new"}, nil)
+	id, err := StageWithChanges(root, staging, entries, &SecurityChanges{AuthDisabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st := ReadState(root); !st.Pending || !st.AwaitingConfirmation || st.PendingID != id || !st.SecurityChanges.AuthDisabled {
+		t.Fatalf("state = %+v", st)
+	}
+	if res, err := Apply(root, Options{}); res != nil || err != nil {
+		t.Fatalf("unconfirmed apply must be a silent no-op: res=%+v err=%v", res, err)
+	}
+	if read(t, filepath.Join(root, "config.yaml")) != "old" || !ReadState(root).Pending || ReadState(root).Last != nil {
+		t.Fatal("unconfirmed restore must stay pending without a result")
+	}
+	if err := Confirm(root, "other"); !errors.Is(err, ErrIDMismatch) {
+		t.Fatalf("Confirm wrong id = %v", err)
+	}
+	if err := Confirm(root, id); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := Apply(root, Options{}); err != nil || res == nil || res.Status != StatusApplied {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+	if read(t, filepath.Join(root, "config.yaml")) != "new" {
+		t.Fatal("confirmed restore not applied")
+	}
+	if err := Confirm(root, id); !errors.Is(err, ErrNoPending) {
+		t.Fatalf("Confirm without pending = %v", err)
+	}
+}
+
+func TestApplyWritesConfiguredDirectoriesAndKeepsSymlinkCheck(t *testing.T) {
+	root, other := t.TempDir(), t.TempDir()
+	toolsDir := filepath.Join(other, "mytools")
+	staging, entries := stageFiles(t, root, map[string]string{
+		"agent_workspace/tools/a.py":      "tool",
+		"agent_workspace/workdir/w.txt":   "work",
+		"prompts/p.md":                    "prompt",
+		"agent_workspace/skills/s/run.py": "skill",
+	}, nil)
+	if _, err := Stage(root, staging, entries); err != nil {
+		t.Fatal(err)
+	}
+	dirs := Dirs{Tools: toolsDir, Workspace: filepath.Join(other, "work")}
+	if res, err := Apply(root, Options{ResolveDirs: func() (Dirs, error) { return dirs, nil }}); err != nil || res.Status != StatusApplied {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+	if read(t, filepath.Join(toolsDir, "a.py")) != "tool" || read(t, filepath.Join(other, "work", "w.txt")) != "work" {
+		t.Fatal("configured directories not used")
+	}
+	if read(t, filepath.Join(root, "prompts", "p.md")) != "prompt" || read(t, filepath.Join(root, "agent_workspace", "skills", "s", "run.py")) != "skill" {
+		t.Fatal("unconfigured prefixes must stay below the config root")
+	}
+	if exists(filepath.Join(root, "agent_workspace", "tools", "a.py")) {
+		t.Fatal("tool leaked into the config root")
+	}
+
+	// A symlinked configured root is refused and rolls nothing out.
+	link := filepath.Join(other, "link")
+	if err := os.Symlink(toolsDir, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	staging, entries = stageFiles(t, root, map[string]string{"agent_workspace/tools/b.py": "x"}, nil)
+	if _, err := Stage(root, staging, entries); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Apply(root, Options{ResolveDirs: func() (Dirs, error) { return Dirs{Tools: link}, nil }})
+	if err == nil || res == nil || res.Status != StatusFailed {
+		t.Fatalf("symlinked root must be rejected: res=%+v err=%v", res, err)
+	}
+}

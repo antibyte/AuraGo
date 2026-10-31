@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "musi być nieustawione",
   "config.speech_lab.external_hardware_linux": "Dla AMD w systemie Linux użyj S2S_GPU=auto lub S2S_GPU=vulkan, usuń GGML_BACKEND=CPU i włącz nakładkę Linux GPU Compose.",
   "config.speech_lab.browser_backend_url": "Adres zaplecza przeglądarki",
-  "config.speech_lab.browser_backend_url_help": "Adres interfejsu WWW zewnętrznego Speech Lab. Łączy się z nim tylko serwer AuraGo."
+  "config.speech_lab.browser_backend_url_help": "Adres interfejsu WWW zewnętrznego Speech Lab. Łączy się z nim tylko serwer AuraGo.",
+  "config.speech_lab.voice_mode_fixed": "Stały głos: dostępny jest tylko domyślny głos z katalogu.",
+  "config.speech_lab.voice_mode_restart": "Zmiana tego głosu uruchamia ponownie backend podczas aktywacji stosu.",
+  "config.speech_lab.voice_mode_request": "Wybierz głos z katalogu dla stosu. Backend obsługuje także głos dla każdego żądania.",
+  "config.speech_lab.voice_mode_unsupported": "Ten tryb głosu TTS nie jest obsługiwany. Aktywacja stosu jest zablokowana.",
+  "config.speech_lab.error_voice": "Głos nie jest już aktywny. Odśwież stos i spróbuj ponownie.",
+  "config.speech_lab.error_module": "Moduł mowy nie jest zainstalowany lub gotowy. Sprawdź Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Wybierz głos obsługiwany przez ten backend TTS.",
+  "config.speech_lab.error_busy": "Speech Lab jest zajęty. Poczekaj na zakończenie operacji lub połączenia.",
+  "config.speech_lab.error_conflict": "Zmiana stosu nie powiodła się. Odśwież stos i sprawdź Browser Lab.",
+  "config.speech_lab.memory_free": "{value} dostępne",
+  "config.speech_lab.suggestion_score": "Ocena: {score}",
+  "config.speech_lab.suggestion_selected": "Wybrano rekomendację. Sprawdź wybór i aktywuj stos, aby go zastosować."
 }

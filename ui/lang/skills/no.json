@@ -162,7 +162,7 @@
   "skills.import_hint": "Velg en eksportert .aurago-skill.json-pakke.",
   "skills.import_success": "Ferdighet importert",
   "skills.import_title": "Importer ferdighetspakke",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktivert, eller det er ikke konfigurert noen verktøy. Aktiver det under Innstillinger → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktivert, eller det er ikke konfigurert noen verktøy. Aktiver det under Innstillinger → Skill Manager.",
   "skills.internal_tools_label": "Interne verktøy",
   "skills.internal_tools_modal_desc": "Velg de native AuraGo-verktøyene som denne ferdigheten kan kalle via verktøybroen ved kjøring.",
   "skills.internal_tools_modal_save": "Lagre",

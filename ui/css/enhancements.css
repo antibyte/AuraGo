@@ -274,17 +274,17 @@ html {
 
 /* Message Row Entrance */
 .msg-row {
-    animation: messageSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: chatMessageArrive 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes messageSlideIn {
+@keyframes chatMessageArrive {
     from {
         opacity: 0;
-        transform: translateY(20px) scale(0.95);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
@@ -294,8 +294,102 @@ html {
 }
 
 .msg-row:hover .avatar {
-    transform: scale(1.05);
+    transform: scale(1.04);
     box-shadow: 0 0 15px var(--accent-dim);
+}
+
+/* Quiet, theme-aware finishing touches for the complete chat surface. */
+#chat-box {
+    scroll-padding-block: 1rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-accent) transparent;
+}
+
+#chat-box::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#chat-box::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chat-box::-webkit-scrollbar-thumb {
+    background: var(--border-accent);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: padding-box;
+}
+
+.message-timestamp {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.015em;
+    transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.msg-row:hover .message-timestamp {
+    opacity: 1;
+}
+
+.bubble ::selection,
+.input-wrap textarea::selection {
+    background: var(--accent-dim);
+    color: var(--text-primary);
+    text-shadow: none;
+}
+
+.chat-theme-dropdown:not([hidden]) {
+    transform-origin: top right;
+    animation: chatThemeDropdownIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes chatThemeDropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.chat-theme-option {
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.chat-theme-option-icon,
+.btn-send .chat-ui-icon,
+.btn-more .chat-ui-icon,
+.btn-voice .chat-ui-icon,
+.composer-tool-btn .chat-ui-icon {
+    transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.chat-theme-option.active .chat-theme-option-icon,
+.chat-theme-option[aria-selected="true"] .chat-theme-option-icon {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.btn-send:hover:not(:disabled) .chat-ui-icon {
+    transform: translate(2px, -2px);
+}
+
+.btn-more.is-open .chat-ui-icon {
+    transform: rotate(90deg);
+}
+
+html .chat-theme-btn:focus-visible,
+html .chat-theme-option:focus-visible,
+html .session-item:focus-visible,
+html .btn-send:focus-visible,
+html .btn-voice:focus-visible,
+html .btn-more:focus-visible,
+html .composer-tool-btn:focus-visible,
+html .scroll-to-bottom-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
 }
 
 /* Image Hover Zoom */
@@ -456,6 +550,14 @@ html {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+
+    #chat-box {
+        scroll-behavior: auto;
+    }
+
+    .chat-theme-dropdown:not([hidden]) {
+        animation: none;
     }
 }
 

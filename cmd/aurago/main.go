@@ -340,14 +340,22 @@ func main() {
 			if res, applyErr := restorepending.Apply(restoreRoot, restorepending.Options{
 				Logger:   appLog,
 				Validate: func() error { _, err := config.Load(configFile); return err },
-				ResolveVectorRoot: func() (string, error) {
+				ResolveDirs: func() (restorepending.Dirs, error) {
 					// Resolve against the config that is active right now (the
-					// restored config.yaml is not published yet at this point).
+					// restored config.yaml is not published yet at this point and
+					// its directory values are never used).
 					c, err := config.Load(configFile)
 					if err != nil {
-						return "", nil
+						return restorepending.Dirs{}, nil
 					}
-					return c.Directories.VectorDBDir, nil
+					return restorepending.Dirs{
+						VectorDB:    c.Directories.VectorDBDir,
+						Prompts:     c.Directories.PromptsDir,
+						Skills:      c.Directories.SkillsDir,
+						AgentSkills: c.Directories.AgentSkillsDir,
+						Tools:       c.Directories.ToolsDir,
+						Workspace:   c.Directories.WorkspaceDir,
+					}, nil
 				},
 			}); applyErr != nil {
 				status := ""

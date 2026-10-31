@@ -1,0 +1,83 @@
+/* desktop-materials-amiga.css - app materials for the Amiga Workbench 3.1 desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Flat greys, no gradients, radius 0,
+ * structure through crisp 1 px bevels (raised: white top-left and dark bottom-right, recessed: the inverse), a
+ * pixel-dithered sidebar and Workbench blue for the default action and the selection. The headings and labels use
+ * the "Desktop Theme VGA" face declared by desktop-theme-amiga.css. Black (--vd-text) and #333333 (muted) stay
+ * above 4.5:1 on every grey below, the dither pixels included. */
+
+.desktop-body[data-theme="amiga"] {
+    /* Canvas: pen 0 grey */
+    --vd-mat-canvas-color: #AAAAAA;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+
+    /* Bar: a lighter grey strip with a white top line and a black bottom line */
+    --vd-mat-bar-color: #BBBBBB;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 #000000;
+
+    /* Side: drawer-list grey, a 1 px checker dither of #9E9E9E and #AAAAAA, white and black inner edges */
+    --vd-mat-side-color: #9E9E9E;
+    --vd-mat-side:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Cpath fill='%23AAAAAA' d='M0 0h1v1h-1zM1 1h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 2px 2px repeat,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset 1px 0 0 #FFFFFF, inset -1px 0 0 #000000;
+
+    /* Card: a raised grey group with a black outline */
+    --vd-mat-card-color: #BBBBBB;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #000000;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #7B7B7B;
+
+    /* Well: a light grey recessed list area, black top-left and white bottom-right */
+    --vd-mat-well-color: #CCCCCC;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 1px 1px 0 #000000, inset -1px -1px 0 #FFFFFF;
+
+    /* Field: white string gadget, recessed behind a black outline */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #000000;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 1px 1px 0 #7B7B7B, inset -1px -1px 0 #FFFFFF;
+
+    /* Buttons: raised grey gadgets, outlined in black */
+    --vd-mat-btn-color: #AAAAAA;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #BBBBBB;
+    --vd-mat-btn-border: #000000;
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #7B7B7B;
+    --vd-mat-btn-text: #000000;
+
+    /* Primary: the default gadget, Workbench blue with an extra black frame */
+    --vd-mat-primary-color: #6688BB;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #7799CC;
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #000000;
+    --vd-mat-primary-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #334466, 0 0 0 1px #000000;
+
+    /* Selection: Workbench blue with a 2 px black marker */
+    --vd-mat-selected-color: #6688BB;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #000000;
+    --vd-mat-selected-edge: inset 2px 0 0 #000000;
+    --vd-mat-hover: rgba(255, 255, 255, 0.35);
+
+    /* Lines and type: black separators over a white edge, VGA pixel text */
+    --vd-mat-divider: #000000;
+    --vd-mat-rule: linear-gradient(180deg, #000000 0, #000000 1px, #FFFFFF 1px, #FFFFFF 2px);
+    --vd-mat-heading-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-heading-weight: 400;
+    --vd-mat-heading-color: #000000;
+    --vd-mat-heading-tracking: 0;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-label-color: #222222;
+    --vd-mat-label-tracking: 0;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: "Desktop Theme VGA", ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #FF8800;
+    --vd-mat-glow: none;
+}

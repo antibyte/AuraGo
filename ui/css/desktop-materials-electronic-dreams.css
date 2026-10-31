@@ -1,0 +1,80 @@
+/* desktop-materials-electronic-dreams.css - Electronic Dreams app materials: a graphite PCB inside every app window.
+ * Canvas with a faint copper trace tile, anodised graphite bars with a copper underline and one amber signal LED,
+ * a solder-mask side with a copper edge trace and vias, cards with copper via dots in the corners, perfboard wells,
+ * amber primary buttons and teal selection markers. Text is #EDF4EE with #BDCBBF for muted. Only custom properties
+ * live here; the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="electronic_dreams"] {
+    /* Canvas: right-angle and 45 degree copper traces with pads (96 px tile), a teal glow along the top */
+    --vd-mat-canvas-color: #101C1A;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cg fill='none' stroke='%23C87F3A' stroke-opacity='.2' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M0 20H30L42 32V54M96 20H72L60 8V0M60 96V82L72 70H96M0 70H18L30 82H46M66 44H80L88 52V62'/%3E%3Ccircle cx='42' cy='58' r='3'/%3E%3Ccircle cx='50' cy='82' r='3'/%3E%3Ccircle cx='62' cy='44' r='2.6'/%3E%3Ccircle cx='88' cy='66' r='2.6'/%3E%3C/g%3E%3Cg fill='%23E6A83A' fill-opacity='.32'%3E%3Ccircle cx='42' cy='58' r='1'/%3E%3Ccircle cx='50' cy='82' r='1'/%3E%3Ccircle cx='12' cy='44' r='1.2'/%3E%3Ccircle cx='80' cy='90' r='1.2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 96px 96px, radial-gradient(ellipse 80% 50% at 50% 0%, rgba(63, 214, 181, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: brushed anodised graphite, a copper trace fading out along the bottom, an amber LED near the right end */
+    --vd-mat-bar-color: #1B2622;
+    --vd-mat-bar: radial-gradient(circle closest-side, #FFE3A0 0 1.4px, #E6A83A 1.4px 2.8px, rgba(230, 168, 58, 0.4) 2.8px 4px, transparent 6px) right 14px bottom 1px / 12px 12px no-repeat, linear-gradient(90deg, #E6A83A 0, #C87F3A 26%, rgba(200, 127, 58, 0) 78%) 0 100% / 100% 2px no-repeat, repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 3px), linear-gradient(180deg, #36453F 0, #26332E 48%, #1B2622 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(200, 127, 58, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 2px 6px rgba(0, 0, 0, 0.4);
+
+    /* Sides: solder-mask green-black with a faint weave, a copper trace with vias 6 px from the edge */
+    --vd-mat-side-color: #0A1512;
+    --vd-mat-side: radial-gradient(circle closest-side, #0A1512 0 1.1px, #C87F3A 1.4px 2.8px, rgba(200, 127, 58, 0) 3.4px) right 2px top 12px / 8px 40px repeat-y, linear-gradient(rgba(200, 127, 58, 0.55), rgba(200, 127, 58, 0.55)) right 5px top 0 / 1px 100% no-repeat, repeating-linear-gradient(45deg, rgba(63, 214, 181, 0.035) 0 2px, transparent 2px 6px), linear-gradient(180deg, #0E1C18 0, #09130F 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(200, 127, 58, 0.55), inset 1px 0 0 rgba(0, 0, 0, 0.45), inset -14px 0 14px -14px rgba(0, 0, 0, 0.7);
+
+    /* Cards: a lifted board with copper-ringed via dots in all four corners */
+    --vd-mat-card-color: #1A2B26;
+    --vd-mat-card: radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) left 6px top 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) right 6px top 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) left 6px bottom 6px / 8px 8px no-repeat, radial-gradient(circle closest-side, #0B1512 0 1.1px, #C87F3A 1.4px 2.9px, rgba(200, 127, 58, 0) 3.4px) right 6px bottom 6px / 8px 8px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0, rgba(255, 255, 255, 0) 40%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(200, 127, 58, 0.42);
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+    /* Wells: a dark perfboard, a 12 px grid of teal pad dots, a teal rim */
+    --vd-mat-well-color: #09120F;
+    --vd-mat-well: radial-gradient(circle closest-side, rgba(63, 214, 181, 0.17) 0 0.9px, transparent 1.5px) 0 0 / 12px 12px, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(63, 214, 181, 0.18), inset 0 3px 10px rgba(0, 0, 0, 0.7);
+
+    /* Fields: black-green recess with a graphite-teal border */
+    --vd-mat-field-color: #060D0B;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #3F6358;
+    --vd-mat-field-radius: 4px;
+    --vd-mat-field-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.65);
+
+    /* Buttons: anodised graphite keys */
+    --vd-mat-btn-color: #1E2F2A;
+    --vd-mat-btn: linear-gradient(180deg, #34483F 0, #1E2F2A 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #46604F 0, #2A4137 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #55705F;
+    --vd-mat-btn-radius: 5px;
+    --vd-mat-btn-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 1px 2px rgba(0, 0, 0, 0.6);
+    --vd-mat-btn-text: #EDF4EE;
+
+    /* Primary: amber with a dark caption and a soft amber glow */
+    --vd-mat-primary-color: #E6A83A;
+    --vd-mat-primary: linear-gradient(180deg, #F4C167 0, #E6A83A 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #FFD27F 0, #F0B54F 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #20170B;
+    --vd-mat-primary-border: #B87A24;
+    --vd-mat-primary-shadow: 0 0 14px rgba(230, 168, 58, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+
+    /* Selection and hover: a green-graphite row with a teal marker */
+    --vd-mat-selected-color: #20362F;
+    --vd-mat-selected: linear-gradient(90deg, rgba(63, 214, 181, 0.22) 0, rgba(63, 214, 181, 0) 75%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F3F8F2;
+    --vd-mat-selected-edge: inset 3px 0 0 #3FD6B5, inset 0 0 0 1px rgba(63, 214, 181, 0.16);
+    --vd-mat-hover: rgba(63, 214, 181, 0.1);
+
+    /* Lines and type: green-graphite separators, a copper trace rule, warm amber-white headings, mono teal labels */
+    --vd-mat-divider: rgba(160, 200, 180, 0.22);
+    --vd-mat-rule: linear-gradient(90deg, #E6A83A, #C87F3A 40%, rgba(200, 127, 58, 0));
+    --vd-mat-heading-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #FFE7BD;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-label-color: #55E0C2;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #3FD6B5;
+    --vd-mat-glow: 0 0 12px rgba(230, 168, 58, 0.4);
+}

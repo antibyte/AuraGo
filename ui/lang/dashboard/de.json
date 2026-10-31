@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "Keine veralteten Memory-Kandidaten",
   "dashboard.memory_curator_title": "Speichergesundheit",
   "dashboard.memory_embeddings": "Embeddings",
-  "dashboard.memory_embeddings_disabled": "Embeddings aus ✗",
+  "dashboard.memory_embeddings_disabled": "Embeddings aus",
   "dashboard.memory_episodic": "Episoden",
   "dashboard.memory_episodic_agent_user": "User, Agent",
   "dashboard.memory_episodic_empty": "Noch keine aktuellen Episoden",

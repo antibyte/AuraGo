@@ -61,9 +61,18 @@ Every telephone call snapshots its selected providers, language, the active Spee
 
 AuraGo never sends `llm_id`. It validates backend IDs and voices against the catalog, checks the stack response `ok` field, and then checks `/ready`. A stack change is rejected while a Speech Lab operation or SIP call is active.
 
-The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI. The browser link is always `/speech-lab/`.
+The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's catalog. `voice_mode` controls the editor:
 
-When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline and opens `/speech-lab/`. The legacy `advanced_ui_url` does not override this link.
+- `fixed` offers only `default_voice`; the voice selector is read-only. Missing or empty modes use this rule for older external catalogs.
+- `restart` offers catalog voices and explains that confirmed stack activation restarts the backend.
+- `request` offers catalog voices; AuraGo still follows the active stack snapshot for each conversation instead of overriding its voice per request.
+- Unknown modes block activation. Invalid local stack or voice selections return HTTP 400.
+
+Recommendations show their heuristic score and reason. Selecting one only prefills an available ASR/TTS pair and a permitted default voice; it never installs a module or sends a stack update. Review the selection and confirm **Activate stack** to apply it. These scores are not measured benchmarks.
+
+The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI. The browser link is always `/speech-lab/`.
+
+When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline. It preserves server-provided availability and sign-in hints, offers `/config#speech_lab` when attention is needed, and opens `/speech-lab/` only when the server advertises that route. The legacy `advanced_ui_url` does not override this link.
 
 ## s2s contract
 
@@ -73,7 +82,7 @@ AuraGo uses these fixed paths:
 |---|---|---|
 | `GET` | `/ready` | HTTP 200 when ready, otherwise 503; includes component status, backend IDs, and active voice from one runtime snapshot |
 | `GET` | `/api/v1/capability` | Hardware capability profile |
-| `GET` | `/api/v1/catalog` | Backend metadata, availability, stability, languages, and voices |
+| `GET` | `/api/v1/catalog` | Backend metadata, availability, stability, languages, voices, and `voice_mode` |
 | `GET` | `/api/v1/suggestions` | Heuristic stable-first recommendations |
 | `POST` | `/api/v1/modules/{backend_id}/install` | Confirmed model and immutable runtime installation; returns an operation ID |
 | `GET` | `/api/v1/modules/{backend_id}/install` | Separate model, image, and runtime progress for the selected variant |
@@ -81,9 +90,11 @@ AuraGo uses these fixed paths:
 | `DELETE` | `/api/v1/modules/{backend_id}` | Remove only an inactive managed runtime and its model state |
 | `PUT` | `/api/v1/stack` | HTTP 200 only for `ok:true`; omitted `llm_id` preserves the s2s LLM |
 | `POST` | `/v1/audio/transcriptions` | Raw or multipart PCM-WAV, maximum 8 MiB; response includes `asr_id` |
-| `POST` | `/v1/audio/speech` | JSON speech request; WAV response includes `X-S2S-TTS-ID` |
+| `POST` | `/v1/audio/speech` | JSON speech request; WAV response includes `X-S2S-TTS-ID` and `X-S2S-Voice` |
 
 AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot and uses the `/ready` voice for chat TTS and newly started SIP calls. Unexpected external stack drift fails the local speech path instead of silently changing models.
+
+A runtime voice mismatch on a `restart` or `fixed` backend returns HTTP 409 with `voice_not_active`; refresh the active stack before retrying. Missing modules return `module_not_provisioned`, `model_not_installed`, or `host_module_delivery_pending`; inspect their installation state in the Browser Lab. AuraGo recognizes gateway `code` and stack `error_code`, preserves known conflicts in its existing `{error, message}` REST envelope, and retains the code in chat `speech_lab_error` events. Messages are application-owned; raw upstream diagnostics are never forwarded. Unknown conflicts become `speech_lab_conflict` with HTTP 409, while other failures keep a generic gateway/unavailable response. Error bodies are limited to 1 MiB, including failed TTS requests.
 
 ## Deployment
 

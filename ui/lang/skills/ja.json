@@ -162,7 +162,7 @@
   "skills.import_hint": "エクスポートされた.aurago-skill.jsonバンドルを選択。",
   "skills.import_success": "スキルをインポートしました",
   "skills.import_title": "スキルバンドルをインポート",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridgeが有効でないか、ツールが設定されていません。設定 → 🧩 スキルマネージャー で有効にしてください。",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridgeが有効でないか、ツールが設定されていません。設定 → スキルマネージャー で有効にしてください。",
   "skills.internal_tools_label": "内部ツール",
   "skills.internal_tools_modal_desc": "このスキルが実行時にツールブリッジ経由で呼び出せるAuraGoのネイティブツールを選択してください。",
   "skills.internal_tools_modal_save": "保存",

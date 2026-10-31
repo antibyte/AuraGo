@@ -1,16 +1,5 @@
 // TrueNAS UI Controller
 
-// Escape HTML entities to prevent XSS when inserting server-provided data into the DOM.
-function escapeHtmlTruenas(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
 function poolBadgeStatus(status) {
     const s = String(status || '').toUpperCase();
     if (s === 'ONLINE' || s === 'HEALTHY') return 'ok';
@@ -19,7 +8,7 @@ function poolBadgeStatus(status) {
 }
 
 function badgeHtml(status, text) {
-    return `<span class="pw-badge" data-status="${escapeHtmlTruenas(status)}">${text}</span>`;
+    return `<span class="pw-badge" data-status="${escAttr(String(status ?? ''))}">${text}</span>`;
 }
 
 function truenasLoadingHtml(key) {
@@ -213,10 +202,10 @@ class TrueNASUI {
             if (data.enabled === false) {
                 indicator.innerHTML = badgeHtml('idle', t('truenas.status_not_configured'));
             } else if (data.status === 'online') {
-                indicator.innerHTML = badgeHtml('ok', t('truenas.status_online')) + ` (${escapeHtmlTruenas(data.version)})`;
+                indicator.innerHTML = badgeHtml('ok', t('truenas.status_online')) + ` (${escAttr(String(data.version ?? ''))})`;
                 this.loadOverview();
             } else if (data.status === 'error') {
-                indicator.innerHTML = badgeHtml('error', `${t('truenas.status_error_prefix')} ${escapeHtmlTruenas(data.error)}`);
+                indicator.innerHTML = badgeHtml('error', `${t('truenas.status_error_prefix')} ${escAttr(String(data.error ?? ''))}`);
             } else {
                 indicator.innerHTML = badgeHtml('error', t('truenas.status_offline'));
             }
@@ -273,9 +262,9 @@ class TrueNASUI {
                 alertsSection.classList.remove('is-hidden');
                 const container = document.getElementById('alerts-container');
                 container.innerHTML = activeAlerts.map(a => `
-                    <div class="alert-item ${escapeHtmlTruenas(a.level.toLowerCase())}">
-                        <h4>${escapeHtmlTruenas(a.title)}</h4>
-                        <p>${escapeHtmlTruenas(a.message)}</p>
+                    <div class="alert-item ${escAttr(String((a.level.toLowerCase()) ?? ''))}">
+                        <h4>${escAttr(String(a.title ?? ''))}</h4>
+                        <p>${escAttr(String(a.message ?? ''))}</p>
                         <div class="alert-date">${new Date(a.date).toLocaleString()}</div>
                     </div>
                 `).join('');
@@ -306,13 +295,13 @@ class TrueNASUI {
             this.pools = data.pools;
             container.innerHTML = data.pools.map(pool => {
                 const usage = pool.size?.total > 0 ? (pool.size.allocated / pool.size.total * 100).toFixed(1) : 0;
-                const safeStatus = escapeHtmlTruenas(pool.status.toLowerCase());
+                const safeStatus = escAttr(String((pool.status.toLowerCase()) ?? ''));
                 const scrubLabel = pool.scan?.state === 'SCANNING' ? t('truenas.scrub_running') : t('truenas.scrub_start');
                 return `
                     <div class="pool-card ${safeStatus}">
                         <div class="pool-header">
-                            <h3>${escapeHtmlTruenas(pool.name)}</h3>
-                            ${badgeHtml(poolBadgeStatus(pool.status), escapeHtmlTruenas(pool.status))}
+                            <h3>${escAttr(String(pool.name ?? ''))}</h3>
+                            ${badgeHtml(poolBadgeStatus(pool.status), escAttr(String(pool.status ?? '')))}
                         </div>
                         <div class="pool-stats">
                             <div class="stat">
@@ -332,7 +321,7 @@ class TrueNASUI {
                             <div class="progress-fill ${usage > 90 ? 'danger' : usage > 70 ? 'warning' : ''}" style="width: ${usage}%"></div>
                         </div>
                         <div class="pool-actions">
-                            <button class="btn btn-secondary" data-truenas-action="scrub-pool" data-pool-id="${escapeHtmlTruenas(pool.id)}" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
+                            <button class="btn btn-secondary" data-truenas-action="scrub-pool" data-pool-id="${escAttr(String(pool.id ?? ''))}" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
                                 ${scrubLabel}
                             </button>
                         </div>
@@ -341,7 +330,7 @@ class TrueNASUI {
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escAttr(String(err.message ?? ''))}</div>`;
         }
     }
     
@@ -368,11 +357,11 @@ class TrueNASUI {
                 return `
                     <div class="dataset-item">
                         <div class="dataset-info">
-                            <h4>${escapeHtmlTruenas(ds.name)}</h4>
-                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} ${t('truenas.dataset_used')} (${usage}%) • ${t('truenas.dataset_compression')}: ${escapeHtmlTruenas(ds.compression?.parsed || 'off')}</p>
+                            <h4>${escAttr(String(ds.name ?? ''))}</h4>
+                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} ${t('truenas.dataset_used')} (${usage}%) • ${t('truenas.dataset_compression')}: ${escAttr(String((ds.compression?.parsed || 'off') ?? ''))}</p>
                         </div>
                         <div class="dataset-actions">
-                            <button class="btn btn-danger" data-truenas-action="delete-dataset" data-name="${escapeHtmlTruenas(ds.name)}">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-danger" data-truenas-action="delete-dataset" data-name="${escAttr(String(ds.name ?? ''))}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -382,17 +371,17 @@ class TrueNASUI {
             const filterSelect = document.getElementById('snapshot-filter');
             if (filterSelect) {
                 filterSelect.innerHTML = `<option value="">${t('truenas.filter_all_datasets')}</option>` + 
-                    data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
+                    data.datasets.map(ds => `<option value="${escAttr(String(ds.name ?? ''))}">${escAttr(String(ds.name ?? ''))}</option>`).join('');
             }
             // Update snapshot create dropdown
             const createSelect = document.getElementById('snapshot-dataset');
             if (createSelect) {
                 createSelect.innerHTML = `<option value="">${t('truenas.select_placeholder')}</option>` + 
-                    data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
+                    data.datasets.map(ds => `<option value="${escAttr(String(ds.name ?? ''))}">${escAttr(String(ds.name ?? ''))}</option>`).join('');
             }
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escAttr(String(err.message ?? ''))}</div>`;
         }
     }
     
@@ -416,19 +405,19 @@ class TrueNASUI {
                 return `
                     <div class="snapshot-item">
                         <div class="snapshot-info">
-                            <h4>${escapeHtmlTruenas(snap.name)}</h4>
-                            <p>${escapeHtmlTruenas(snap.dataset)} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • ${t('truenas.snapshot_ago')} ${age}</p>
+                            <h4>${escAttr(String(snap.name ?? ''))}</h4>
+                            <p>${escAttr(String(snap.dataset ?? ''))} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • ${t('truenas.snapshot_ago')} ${age}</p>
                         </div>
                         <div class="snapshot-actions">
-                            <button class="btn btn-secondary" data-truenas-action="rollback-snapshot" data-name="${escapeHtmlTruenas(snap.name)}">${t('truenas.btn_rollback')}</button>
-                            <button class="btn btn-danger" data-truenas-action="delete-snapshot" data-name="${escapeHtmlTruenas(snap.name)}">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-secondary" data-truenas-action="rollback-snapshot" data-name="${escAttr(String(snap.name ?? ''))}">${t('truenas.btn_rollback')}</button>
+                            <button class="btn btn-danger" data-truenas-action="delete-snapshot" data-name="${escAttr(String(snap.name ?? ''))}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escAttr(String(err.message ?? ''))}</div>`;
         }
     }
     
@@ -461,25 +450,25 @@ class TrueNASUI {
                 const isNFS = share.share_type === 'nfs';
                 const guestLabel = !isNFS && share.guestok ? ` • ${t('truenas.share_guest')}` : '';
                 const tmLabel = !isNFS && share.timemachine ? ` • ${t('truenas.share_timemachine')}` : '';
-                const networks = isNFS && share.networks?.length ? ` • ${escapeHtmlTruenas(share.networks.join(', '))}` : '';
-                const hosts = isNFS && share.hosts?.length ? ` • ${escapeHtmlTruenas(share.hosts.join(', '))}` : '';
+                const networks = isNFS && share.networks?.length ? ` • ${escAttr(String((share.networks.join(', ')) ?? ''))}` : '';
+                const hosts = isNFS && share.hosts?.length ? ` • ${escAttr(String((share.hosts.join(', ')) ?? ''))}` : '';
                 const title = isNFS ? share.path : share.name;
                 const action = isNFS ? 'delete-nfs-share' : 'delete-share';
                 return `
                     <div class="share-item">
                         <div class="share-info">
-                            <h4>${escapeHtmlTruenas(title)} <span class="pw-badge">${isNFS ? 'NFS' : 'SMB'}</span></h4>
-                            <p>${escapeHtmlTruenas(share.path)}${guestLabel}${tmLabel}${networks}${hosts}</p>
+                            <h4>${escAttr(String(title ?? ''))} <span class="pw-badge">${isNFS ? 'NFS' : 'SMB'}</span></h4>
+                            <p>${escAttr(String(share.path ?? ''))}${guestLabel}${tmLabel}${networks}${hosts}</p>
                         </div>
                         <div class="share-actions">
-                            <button class="btn btn-danger" data-truenas-action="${action}" data-share-id="${escapeHtmlTruenas(share.id)}">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-danger" data-truenas-action="${action}" data-share-id="${escAttr(String(share.id ?? ''))}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escAttr(String(err.message ?? ''))}</div>`;
         }
     }
     
@@ -839,7 +828,7 @@ class TrueNASUI {
     
     showError(elementId, message) {
         const el = document.getElementById(elementId);
-        if (el) el.innerHTML = `<div class="alert error" role="alert">${escapeHtmlTruenas(message)}</div>`;
+        if (el) el.innerHTML = `<div class="alert error" role="alert">${escAttr(String(message ?? ''))}</div>`;
     }
     
     formatBytes(bytes) {

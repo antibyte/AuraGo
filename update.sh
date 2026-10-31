@@ -1961,6 +1961,71 @@ safe_restore_file() {
     return 1
 }
 
+# SQLite sidecars (-wal/-shm) hold committed-but-unflushed pages, so they are
+# backed up and restored together with their .db file. DB_SIDECAR_SUFFIXES is
+# the single list of suffixes.
+DB_SIDECAR_SUFFIXES=("-wal" "-shm")
+
+# backup_data_file_with_sidecars <live-file> <backup-file>
+backup_data_file_with_sidecars() {
+    local src="$1" dst="$2" s
+    safe_restore_file "$src" "$dst" || return 1
+    case "$src" in *.db) ;; *) return 0 ;; esac
+    for s in "${DB_SIDECAR_SUFFIXES[@]}"; do
+        [ -f "$src$s" ] || continue
+        safe_restore_file "$src$s" "$dst$s" || return 1
+    done
+}
+
+# restore_data_file_with_sidecars <backup-file> <live-file>
+# A DB restored without a matching sidecar must not keep a stale -wal/-shm
+# next to it, or a newer build's WAL would be replayed onto the old DB.
+restore_data_file_with_sidecars() {
+    local bak="$1" dst="$2" s
+    safe_restore_file "$bak" "$dst" || return 1
+    case "$dst" in *.db) ;; *) return 0 ;; esac
+    for s in "${DB_SIDECAR_SUFFIXES[@]}"; do
+        if [ -f "$bak$s" ]; then
+            safe_restore_file "$bak$s" "$dst$s" || return 1
+        elif [ -e "$dst$s" ] || [ -L "$dst$s" ]; then
+            rm -f "$dst$s" 2>/dev/null || $SUDO rm -f "$dst$s" 2>/dev/null || return 1
+        fi
+    done
+}
+
+file_owner_uid() {
+    stat -c %u "$1" 2>/dev/null || stat -f %u "$1" 2>/dev/null
+}
+
+# is_trusted_owned_path <path> <dir|file>: not a symlink, owned by the running
+# user, and not group/other-writable.
+is_trusted_owned_path() {
+    local p="$1" kind="$2"
+    [ ! -L "$p" ] || return 1
+    if [ "$kind" = dir ]; then [ -d "$p" ] || return 1; else [ -f "$p" ] || return 1; fi
+    [ "$(file_owner_uid "$p")" = "$(id -u)" ] || return 1
+    [ -z "$(find "$p" -maxdepth 0 \( -perm -020 -o -perm -002 \) 2>/dev/null)" ] || return 1
+}
+
+# find_trusted_previous_config <transactions-dir> <current-backup-dir>
+# Prints the newest config.yaml from an earlier update transaction backup that
+# passes the ownership checks; prints nothing (status 1) if none does.
+find_trusted_previous_config() {
+    local root="$1" current="$2" d cfg
+    is_trusted_owned_path "$root" dir || return 1
+    while IFS= read -r d; do
+        [ -n "$d" ] || continue
+        d="${d%/}"
+        [ "$d" != "${current%/}" ] || continue
+        cfg="$d/config.yaml"
+        is_trusted_owned_path "$d" dir || continue
+        is_trusted_owned_path "$cfg" file || continue
+        printf '%s\n' "$cfg"
+        return 0
+    done < <(ls -1dt "$root"/txn-*/ 2>/dev/null)
+    return 1
+}
+
 copy_tree_merge() {
     local src="$1"
     local dst="$2"
@@ -2927,7 +2992,7 @@ restore_critical_user_data_after_failure() {
         for f in "${DATA_FILES[@]}"; do
             local bak="$BACKUP_DIR/data/$(basename "$f")"
             [ -f "$bak" ] || continue
-            safe_restore_file "$bak" "$DIR/$f" || return 1
+            restore_data_file_with_sidecars "$bak" "$DIR/$f" || return 1
         done
     fi
 }
@@ -3088,12 +3153,16 @@ done
 # If config.yaml is missing (e.g. re-execution after git deleted it during a
 # tracked→untracked transition), recover it from the most recent prior backup.
 if [ ! -f "$BACKUP_DIR/config.yaml" ]; then
-    _prev_cfg=$(find /tmp -maxdepth 2 -name "config.yaml" \
-        -path "*/aurago-backup-*" ! -path "$BACKUP_DIR/*" \
-        2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+    # Only the update's own transaction backups are considered (never /tmp,
+    # which other users can write to), newest first, and only when they pass
+    # the ownership checks.
+    _prev_cfg=$(find_trusted_previous_config "$UPDATE_STATE/transactions" "$BACKUP_DIR") || _prev_cfg=""
     if [ -n "$_prev_cfg" ]; then
-        cp -p "$_prev_cfg" "$BACKUP_DIR/config.yaml"
-        ok "Recovered config.yaml from previous backup (re-execution safety net)."
+        if cp -p "$_prev_cfg" "$BACKUP_DIR/config.yaml"; then
+            ok "Recovered config.yaml from previous update backup: $_prev_cfg"
+        else
+            warn "Could not copy config.yaml from $_prev_cfg."
+        fi
     fi
 fi
 
@@ -3101,7 +3170,7 @@ fi
 mkdir -p "$BACKUP_DIR/data"
 for f in "${DATA_FILES[@]}"; do
     if [ -f "$DIR/$f" ]; then
-        if ! safe_restore_file "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"; then
+        if ! backup_data_file_with_sidecars "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"; then
             abort_before_file_changes "Could not back up $f; update aborted before changing files."
         fi
     fi
@@ -3279,20 +3348,46 @@ if [ -d "$OLD_PROMPTS" ]; then
     subsection "Migrating prompts directory"
     info "Old location detected: agent_workspace/prompts/ — migrating custom files ..."
     # Copy any files that don't yet exist at the new location (don't overwrite)
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -rl --quiet --no-owner --no-group --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/" || warn "Could not fully migrate old prompts directory."
-    else
-        find "$OLD_PROMPTS" -type f | while read -r f; do
-            rel="${f#$OLD_PROMPTS/}"
-            dest="$DIR/prompts/$rel"
-            if [ ! -f "$dest" ]; then
-                mkdir -p "$(dirname "$dest")"
-                cp -p "$f" "$dest"
-            fi
-        done
+    # The old directory is only removed when every file was copied; in git
+    # mode it is the only copy of the user's old prompts.
+    _prompts_migrated=true
+    _prompts_conflicts=0
+    _prompts_list="$(mktemp)" || _prompts_list=""
+    # Capture find's own status: an unreadable subtree must not look complete.
+    if [ -z "$_prompts_list" ] || ! find "$OLD_PROMPTS" -type f -print0 > "$_prompts_list"; then
+        _prompts_migrated=false
     fi
-    rm -rf "$OLD_PROMPTS"
-    ok "Migrated and removed agent_workspace/prompts/"
+    if $_prompts_migrated; then
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -rl --quiet --no-owner --no-group --ignore-existing "$OLD_PROMPTS/" "$DIR/prompts/" || _prompts_migrated=false
+        else
+            while IFS= read -r -d '' f; do
+                rel="${f#$OLD_PROMPTS/}"
+                dest="$DIR/prompts/$rel"
+                if [ ! -f "$dest" ]; then
+                    { mkdir -p "$(dirname "$dest")" && cp -p "$f" "$dest"; } || _prompts_migrated=false
+                fi
+            done < "$_prompts_list"
+        fi
+    fi
+    # Verify: every old file must now exist identically at the new location.
+    # An existing destination with different content was skipped (not
+    # overwritten), so the old copy is the only one holding that content.
+    if $_prompts_migrated; then
+        while IFS= read -r -d '' f; do
+            rel="${f#$OLD_PROMPTS/}"
+            cmp -s "$f" "$DIR/prompts/$rel" || _prompts_conflicts=$((_prompts_conflicts + 1))
+        done < "$_prompts_list"
+    fi
+    [ -z "$_prompts_list" ] || rm -f "$_prompts_list"
+    if $_prompts_migrated && [ "$_prompts_conflicts" -eq 0 ]; then
+        rm -rf "$OLD_PROMPTS"
+        ok "Migrated and removed agent_workspace/prompts/"
+    elif $_prompts_migrated; then
+        warn "$_prompts_conflicts old prompt file(s) differ from the same file in prompts/; keeping agent_workspace/prompts/ for manual review."
+    else
+        warn "Could not fully migrate agent_workspace/prompts/; keeping the old directory so no custom prompt is lost."
+    fi
 fi
 
 # No stash to re-apply — we used git checkout instead.
@@ -3334,7 +3429,7 @@ if [ -d "$BACKUP_DIR/data" ]; then
     for f in "${DATA_FILES[@]}"; do
         bak="$BACKUP_DIR/data/$(basename "$f")"
         if [ -f "$bak" ]; then
-            safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f (permission denied)."
+            restore_data_file_with_sidecars "$bak" "$DIR/$f" || warn "Could not restore $f (permission denied)."
         fi
     done
 fi

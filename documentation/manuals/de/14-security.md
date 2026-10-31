@@ -720,6 +720,8 @@ curl -X POST http://localhost:8088/api/backup/import \
 ./aurago          # bei systemd: systemctl start aurago
 ```
 
+Meldet der Import `awaiting_confirmation: true`, ändert der Restore sicherheitsrelevante Einstellungen. Bestätige ihn vor dem Neustart mit `POST /api/backup/restore-status` (`{"action":"confirm","id":"<restore_id>"}`), sonst wird er beim Start nicht angewendet.
+
 Danach prüfst du das Ergebnis mit `GET /api/backup/restore-status` (Feld `last.status` sollte `applied` sein).
 
 > [!NOTE]

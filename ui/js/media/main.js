@@ -23,7 +23,7 @@ const MEDIA_LIMIT = 30;
 function mediaStatusNode(icon, message, title) {
     const wrap = document.createElement('div');
     wrap.className = 'empty-state pw-empty-state gallery-empty';
-    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + icon + '</div>' +
+    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + (icon ? pwIcon(icon) : '') + '</div>' +
         (title ? '<h3>' + escapeHtml(title) + '</h3>' : '') +
         '<p>' + escapeHtml(message) + '</p>';
     return wrap;
@@ -47,7 +47,15 @@ let currentDocModalId = null;
 let isLoadingDocs = false;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+/** Fills static [data-pw-icon] placeholders with the shared inline icons. */
+function hydratePwIcons(root) {
+    (root || document).querySelectorAll('[data-pw-icon]').forEach(function (el) {
+        el.innerHTML = pwIcon(el.getAttribute('data-pw-icon'));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+    hydratePwIcons();
     // Wire search to current tab
     document.getElementById('media-search').addEventListener('input', function () {
         clearTimeout(mediaSearchDebounce);
@@ -226,7 +234,7 @@ async function loadAudio() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
+            grid.replaceChildren(mediaStatusNode('alert', data.message || t('common.error')));
             return;
         }
 
@@ -234,7 +242,7 @@ async function loadAudio() {
         audioTotal = data.total || 0;
 
         if (audioItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('🎵', t('media.empty_audio'), t('media.empty_audio_title')));
+            grid.replaceChildren(mediaStatusNode('music', t('media.empty_audio'), t('media.empty_audio_title')));
             document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
@@ -242,7 +250,7 @@ async function loadAudio() {
         renderAudioGrid(audioItems);
         updateAudioPagination();
     } catch (e) {
-        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
+        grid.replaceChildren(mediaStatusNode('alert', e.message || t('common.error')));
     } finally {
         isLoadingAudio = false;
     }
@@ -267,8 +275,8 @@ function renderAudioCard(item) {
     const title = item.description || item.filename || t('media.audio_type_audio');
     const fmt = (item.format || '').toUpperCase();
     const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
-    const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
-    const typeIcon = typeIconMap[item.media_type] || '🎵';
+    const typeIconMap = { tts: 'tts', music: 'music', audio: 'music' };
+    const typeIcon = pwIcon(typeIconMap[item.media_type] || 'music');
     const typeLbl = ({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') })[item.media_type] || item.media_type;
     const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
     const hasFile = !!audioPath;
@@ -285,11 +293,12 @@ function renderAudioCard(item) {
     // Title
     const titleEl = document.createElement('div');
     titleEl.className = 'media-audio-card-title';
-    titleEl.textContent = typeIcon + ' ' + title;
+    titleEl.innerHTML = typeIcon + ' ' + escapeHtml(title);
     if (!hasFile) {
         const warn = document.createElement('span');
         warn.className = 'media-inline-warning-icon';
-        warn.textContent = ' ⚠️';
+        warn.innerHTML = ' ' + pwIcon('warning');
+        warn.title = t('media.file_not_available');
         titleEl.appendChild(warn);
     }
     card.appendChild(titleEl);
@@ -324,12 +333,12 @@ function renderAudioCard(item) {
         dlBtn.href = audioPath;
         dlBtn.download = item.filename || 'audio';
         dlBtn.className = 'btn-gallery-action';
-        dlBtn.textContent = '⬇ ' + t('gallery.download');
+        dlBtn.innerHTML = pwIcon('download') + ' ' + escapeHtml(t('gallery.download'));
         actionsEl.appendChild(dlBtn);
 
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-gallery-action btn-danger';
-        delBtn.textContent = '🗑 ' + t('gallery.delete');
+        delBtn.innerHTML = pwIcon('trash') + ' ' + escapeHtml(t('gallery.delete'));
         delBtn.addEventListener('click', (function (id) {
             return function () { deleteAudioItem(id); };
         }(item.id)));
@@ -339,7 +348,7 @@ function renderAudioCard(item) {
     } else {
         const unavailEl = document.createElement('div');
         unavailEl.className = 'audio-error media-audio-unavailable';
-        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+        unavailEl.innerHTML = pwIcon('warning') + ' ' + escapeHtml(t('media.file_not_available'));
         card.appendChild(unavailEl);
     }
 
@@ -422,7 +431,7 @@ function openAudioModal(id) {
     } else {
         const unavailEl = document.createElement('div');
         unavailEl.className = 'audio-error media-audio-unavailable';
-            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+            unavailEl.innerHTML = pwIcon('warning') + ' ' + escapeHtml(t('media.file_not_available'));
         body.appendChild(unavailEl);
     }
 
@@ -735,7 +744,7 @@ async function loadVideos() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
+            grid.replaceChildren(mediaStatusNode('alert', data.message || t('common.error')));
             return;
         }
 
@@ -743,7 +752,7 @@ async function loadVideos() {
         videoTotal = data.total || 0;
 
         if (videoItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('🎬', t('media.empty_videos'), t('media.empty_videos_title')));
+            grid.replaceChildren(mediaStatusNode('video', t('media.empty_videos'), t('media.empty_videos_title')));
             document.getElementById('video-pagination').classList.add('is-hidden');
             return;
         }
@@ -751,7 +760,7 @@ async function loadVideos() {
         renderVideoGrid(videoItems);
         updateVideoPagination();
     } catch (e) {
-        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
+        grid.replaceChildren(mediaStatusNode('alert', e.message || t('common.error')));
     } finally {
         isLoadingVideos = false;
     }
@@ -792,11 +801,12 @@ function renderVideoCard(item) {
 
     const titleEl = document.createElement('div');
     titleEl.className = 'media-video-card-title';
-    titleEl.textContent = '🎬 ' + title;
+    titleEl.innerHTML = pwIcon('video') + ' ' + escapeHtml(title);
     if (!hasFile) {
         const warn = document.createElement('span');
         warn.className = 'media-inline-warning-icon';
-        warn.textContent = ' ⚠️';
+        warn.innerHTML = ' ' + pwIcon('warning');
+        warn.title = t('media.file_not_available');
         titleEl.appendChild(warn);
     }
     card.appendChild(titleEl);
@@ -833,12 +843,12 @@ function renderVideoCard(item) {
         dlBtn.href = videoPath;
         dlBtn.download = item.filename || 'video';
         dlBtn.className = 'btn-gallery-action';
-        dlBtn.textContent = '⬇ ' + t('gallery.download');
+        dlBtn.innerHTML = pwIcon('download') + ' ' + escapeHtml(t('gallery.download'));
         actionsEl.appendChild(dlBtn);
 
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-gallery-action btn-danger';
-        delBtn.textContent = '🗑 ' + t('gallery.delete');
+        delBtn.innerHTML = pwIcon('trash') + ' ' + escapeHtml(t('gallery.delete'));
         delBtn.addEventListener('click', (function (id) {
             return function () { deleteVideoItem(id); };
         }(item.id)));
@@ -848,7 +858,7 @@ function renderVideoCard(item) {
     } else {
         const unavailEl = document.createElement('div');
         unavailEl.className = 'audio-error media-video-unavailable';
-        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+        unavailEl.innerHTML = pwIcon('warning') + ' ' + escapeHtml(t('media.file_not_available'));
         card.appendChild(unavailEl);
     }
 
@@ -955,7 +965,7 @@ async function loadDocuments() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            list.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
+            list.replaceChildren(mediaStatusNode('alert', data.message || t('common.error')));
             return;
         }
 
@@ -963,7 +973,7 @@ async function loadDocuments() {
         docTotal = data.total || 0;
 
         if (docItems.length === 0) {
-            list.replaceChildren(mediaStatusNode('📄', t('media.empty_documents'), t('media.empty_documents_title')));
+            list.replaceChildren(mediaStatusNode('doc', t('media.empty_documents'), t('media.empty_documents_title')));
             document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }
@@ -971,7 +981,7 @@ async function loadDocuments() {
         renderDocList(docItems);
         updateDocPagination();
     } catch (e) {
-        list.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
+        list.replaceChildren(mediaStatusNode('alert', e.message || t('common.error')));
     } finally {
         isLoadingDocs = false;
     }
@@ -979,17 +989,12 @@ async function loadDocuments() {
 
 function docFormatIconMedia(fmt) {
     switch ((fmt || '').toLowerCase()) {
-        case 'pdf': return '📄';
-        case 'docx': case 'doc': return '📝';
-        case 'xlsx': case 'xls': return '📊';
-        case 'pptx': case 'ppt': return '📑';
-        case 'csv': return '📋';
-        case 'md': return '📓';
-        case 'txt': return '📃';
-        case 'json': return '🔧';
-        case 'xml': return '🗂️';
-        case 'html': case 'htm': return '🌐';
-        default: return '📎';
+        case 'pdf': case 'docx': case 'doc': case 'pptx': case 'ppt': case 'txt': return 'doc';
+        case 'xlsx': case 'xls': case 'csv': return 'table';
+        case 'md': return 'note';
+        case 'json': case 'xml': return 'file-code';
+        case 'html': case 'htm': return 'globe';
+        default: return 'paperclip';
     }
 }
 
@@ -1001,7 +1006,7 @@ function renderDocItemHTML(item) {
     const title = escapeHtml(item.description || item.filename || t('media.tab_documents'));
     // Fall back to file extension when format field is empty (agent may not always set it)
     const fmt = item.format || (item.filename ? item.filename.split('.').pop() : '') || '';
-    const icon = docFormatIconMedia(fmt);
+    const icon = pwIcon(docFormatIconMedia(fmt));
     const fmtLabel = escapeHtml(fmt.toUpperCase());
     const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
     const webPath = item.web_path || ('/files/documents/' + item.filename);
@@ -1024,10 +1029,10 @@ function renderDocItemHTML(item) {
     html += '</div>';
     html += '<div class="media-doc-row-actions">';
     if (previewHref) {
-        html += '<a href="' + previewHref + '" target="_blank" title="' + t('media.doc_open') + '">🔍</a>';
+        html += '<a href="' + previewHref + '" target="_blank" title="' + t('media.doc_open') + '" aria-label="' + escapeHtml(t('media.doc_open')) + '">' + pwIcon('search') + '</a>';
     }
-    html += '<a href="' + dlHref + '" download="' + filename + '" title="' + t('gallery.download') + '">⬇</a>';
-    html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + t('gallery.delete') + '">🗑</button>';
+    html += '<a href="' + dlHref + '" download="' + filename + '" title="' + t('gallery.download') + '" aria-label="' + escapeHtml(t('gallery.download')) + '">' + pwIcon('download') + '</a>';
+    html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + t('gallery.delete') + '" aria-label="' + escapeHtml(t('gallery.delete')) + '">' + pwIcon('trash') + '</button>';
     html += '</div>';
     html += '</div>';
     return html;

@@ -162,7 +162,7 @@
   "skills.import_hint": "Vyberte exportovaný balíček .aurago-skill.json.",
   "skills.import_success": "Dovednost importována",
   "skills.import_title": "Importovat balíček dovedností",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge není aktivována nebo nejsou nakonfigurovány žádné nástroje. Aktivujte ji v Nastavení → 🧩 Správce dovedností.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge není aktivována nebo nejsou nakonfigurovány žádné nástroje. Aktivujte ji v Nastavení → Správce dovedností.",
   "skills.internal_tools_label": "Interní nástroje",
   "skills.internal_tools_modal_desc": "Vyberte nativní nástroje AuraGo, které může tento skill volat přes tool bridge za běhu.",
   "skills.internal_tools_modal_save": "Uložit",

@@ -45,6 +45,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendMemoryToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = appendKaggleSchemas(tools, ff)
 	tools = appendGogSchemas(tools, ff)
 	tools = appendGameMakerToolSchemas(tools, ff)
 	tools = replaceMegaToolSchemasWithFocused(tools, ff)
@@ -70,6 +71,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		RuViewEnabled:   true,
+		KaggleEnabled:   true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
@@ -146,6 +148,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("invasion_control", ff.InvasionControlEnabled)
 	appendToolFeatureKeyPart("github", ff.GitHubEnabled)
 	appendToolFeatureKeyPart("huggingface", ff.HuggingFaceEnabled)
+	appendToolFeatureKeyPart("kaggle", ff.KaggleEnabled)
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
 	appendToolFeatureKeyPart("cyd", ff.CydEnabled)
 	appendToolFeatureKeyPart("notification", ff.NotificationEnabled)

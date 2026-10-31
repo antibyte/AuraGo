@@ -1,0 +1,106 @@
+/* desktop-materials-organic.css - app materials for the Organic desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Walnut and burl wood, brass hardware and an
+ * oxblood leather desk blotter. Only custom properties: the apps paint their regions from these tokens. The wood
+ * and brass shaders (--vd-organic-wood-*, --vd-organic-brass-*) live on the same element in desktop-theme-organic.css.
+ * Strong decoration sits on edges and small bands (brass rims, stitching, corner studs); the textures under text
+ * are darkened or warmed so --vd-text (#F4EBE1) and --vd-theme-muted (#C4AF9B) keep 4.5:1 or better. */
+
+.desktop-body[data-theme="organic"] {
+    /* Canvas: dark walnut figure under a deepening shade */
+    --vd-mat-canvas-color: #22160F;
+    --vd-mat-canvas:
+        linear-gradient(180deg, rgba(10, 5, 2, 0.32) 0%, rgba(10, 5, 2, 0.54) 100%),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-canvas-color);
+
+    /* Bar: richer carved wood header, glowing brass inlay along the bottom */
+    --vd-mat-bar-color: #3A2616;
+    --vd-mat-bar:
+        linear-gradient(180deg, rgba(255, 226, 176, 0.13) 0%, rgba(255, 226, 176, 0.02) 46%, rgba(8, 4, 2, 0.4) 100%),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 232, 190, 0.22), inset 0 -1px 0 rgba(224, 182, 92, 0.72), inset 0 -2px 0 rgba(8, 4, 2, 0.55), 0 2px 5px rgba(6, 3, 1, 0.45);
+
+    /* Side: oxblood leather desk blotter with fine pebble grain and a dashed brass stitch seam near the right edge */
+    --vd-mat-side-color: #3A1A14;
+    --vd-mat-side:
+        repeating-linear-gradient(180deg, rgba(226, 184, 92, 0.92) 0 5px, transparent 5px 9px) right 6px top 0 / 2px 100% no-repeat,
+        repeating-linear-gradient(180deg, rgba(8, 3, 1, 0.7) 0 5px, transparent 5px 9px) right 5px top 2px / 2px 100% no-repeat,
+        radial-gradient(ellipse 130% 55% at 30% 0%, rgba(196, 84, 62, 0.2), transparent 70%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cfilter id='a' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7' stitchTiles='stitch' result='n'/%3E%3CfeColorMatrix in='n' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.75 0 0 0 -0.25' result='d'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='2' seed='23' stitchTiles='stitch' result='m'/%3E%3CfeColorMatrix in='m' values='0 0 0 0 0.85 0 0 0 0 0.45 0 0 0 0 0.35 0.51 0 0 0 -0.26' result='l'/%3E%3CfeMerge%3E%3CfeMergeNode in='d'/%3E%3CfeMergeNode in='l'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23a)'/%3E%3C/svg%3E") 0 0 / 96px 96px,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(212, 168, 79, 0.55), inset 0 0 26px rgba(0, 0, 0, 0.42);
+
+    /* Card: lighter burl panel, brass hairline border, four brass corner studs */
+    --vd-mat-card-color: #4F3320;
+    --vd-mat-card:
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) left 7px top 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) right 7px top 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) left 7px bottom 7px / 10px 10px no-repeat,
+        radial-gradient(circle 4px at 45% 42%, #FBE9B0 0, #D4A84F 1.4px, #8A621C 3.4px, rgba(138, 98, 28, 0) 4px) right 7px bottom 7px / 10px 10px no-repeat,
+        radial-gradient(ellipse 120% 90% at 22% 0%, rgba(240, 178, 100, 0.14), transparent 62%),
+        linear-gradient(180deg, rgba(150, 96, 50, 0.24), rgba(104, 62, 30, 0.2)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(212, 168, 79, 0.5);
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.22), inset 0 0 0 1px rgba(10, 5, 2, 0.5), 0 8px 20px rgba(6, 3, 1, 0.55);
+
+    /* Well: dark recessed wood, a brass-lit lower lip */
+    --vd-mat-well-color: #160F0A;
+    --vd-mat-well: var(--vd-organic-wood-recess), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(10, 5, 2, 0.8), inset 0 -1px 0 rgba(212, 168, 79, 0.16);
+
+    /* Field: dark recess ringed in brass, kept free of grain so typing stays crisp */
+    --vd-mat-field-color: #140D08;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.08)), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(212, 168, 79, 0.52);
+    --vd-mat-field-radius: 12px;
+    --vd-mat-field-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 232, 190, 0.1);
+
+    /* Buttons: wood with a brass rim */
+    --vd-mat-btn-color: #5A3A22;
+    --vd-mat-btn:
+        linear-gradient(180deg, rgba(255, 226, 176, 0.16), rgba(8, 4, 2, 0.22)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-hover:
+        linear-gradient(180deg, rgba(243, 217, 147, 0.32), rgba(212, 168, 79, 0.1)),
+        var(--vd-organic-wood-tile),
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(212, 168, 79, 0.62);
+    --vd-mat-btn-radius: 14px;
+    --vd-mat-btn-shadow: var(--vd-organic-brass-rim), 0 2px 5px rgba(8, 4, 2, 0.5);
+    --vd-mat-btn-text: #FAEAD2;
+
+    /* Primary: brushed brass with espresso text */
+    --vd-mat-primary-color: #D4A84F;
+    --vd-mat-primary: var(--vd-organic-brass-fill), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: var(--vd-organic-brass-hover), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #1A120B;
+    --vd-mat-primary-border: rgba(255, 240, 198, 0.68);
+    --vd-mat-primary-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.65), inset 0 -1px 0 rgba(74, 48, 10, 0.5), 0 3px 10px rgba(8, 4, 2, 0.52);
+
+    /* Selection: brass wash with a solid brass marker */
+    --vd-mat-selected-color: #573D1E;
+    --vd-mat-selected: linear-gradient(90deg, rgba(212, 168, 79, 0.28), rgba(212, 168, 79, 0.1)), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFF4DC;
+    --vd-mat-selected-edge: inset 3px 0 0 #D4A84F, inset 0 1px 0 rgba(255, 238, 196, 0.16);
+    --vd-mat-hover: rgba(212, 168, 79, 0.16);
+
+    /* Lines and type */
+    --vd-mat-divider: rgba(212, 168, 79, 0.3);
+    --vd-mat-rule: var(--vd-chrome-hairline);
+    --vd-mat-heading-font: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #F3D993;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: var(--vd-font-ui);
+    --vd-mat-label-color: #DDB763;
+    --vd-mat-label-tracking: 0.14em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'JetBrains Mono', 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #8FB65B;
+    --vd-mat-glow: 0 0 10px rgba(212, 168, 79, 0.45);
+}

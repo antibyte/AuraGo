@@ -4166,6 +4166,18 @@ transform:none; filter:none;
     margin-bottom: 0.4rem;
 }
 
+.pw-page[data-workspace-page="config"] .backup-security-intro {
+    margin: 0.25rem 0 0.2rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.pw-page[data-workspace-page="config"] .backup-security-changes ul {
+    margin: 0.2rem 0 0.2rem 1rem;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+}
+
 .pw-page[data-workspace-page="config"] .backup-restart-btn {
     margin-top: 0.85rem;
     padding: 0.45rem 1.1rem;

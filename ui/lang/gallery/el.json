@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 Συλλογή εικόνων",
+  "gallery.title": "Συλλογή εικόνων",
   "gallery.subtitle": "Συλλογή εικόνων",
   "gallery.search_placeholder": "Αναζήτηση prompt...",
   "gallery.all_providers": "Όλοι οι πάροχοι",
@@ -15,7 +15,7 @@
   "gallery.duration": "Διάρκεια",
   "gallery.cost": "Κόστος",
   "gallery.date": "Ημερομηνία",
-  "gallery.download": "⬇ Λήψη",
-  "gallery.delete": "🗑 Διαγραφή",
+  "gallery.download": "Λήψη",
+  "gallery.delete": "Διαγραφή",
   "gallery.confirm_delete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εικόνα;"
 }

@@ -55,6 +55,7 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 		return errJSON("reserved AuraGo local LLM container name")
 	}
 	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) ||
+		dockerutil.IsKaggleNotebookContainerName(name) ||
 		dockerutil.IsSecurityProxyContainerName(name) || dockerutil.IsCYDCreatorBuilderContainerName(name) ||
 		dockerutil.IsDecisionsContainerName(name) || dockerutil.IsOllamaContainerName(name) || dockerutil.IsRustFSContainerName(name) {
 		return errJSON("reserved AuraGo managed container name")

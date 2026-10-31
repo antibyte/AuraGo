@@ -213,8 +213,8 @@ function renderNests() {
         // Config drift indicator
         const hasDrift = n.desired_config_rev && n.applied_config_rev && n.desired_config_rev !== n.applied_config_rev;
         const driftBadge = hasDrift
-            ? `<span class="badge badge-drift" title="${t('invasion.config_drift_tooltip')}">🔄 ${t('invasion.config_drift')}</span>`
-            : (n.applied_config_rev ? `<span class="badge badge-synced">✅ ${t('invasion.config_synced')}</span>` : '');
+            ? `<span class="badge badge-drift" title="${t('invasion.config_drift_tooltip')}">${pwIcon('refresh')} ${t('invasion.config_drift')}</span>`
+            : (n.applied_config_rev ? `<span class="badge badge-synced">${pwIcon('check-circle')} ${t('invasion.config_synced')}</span>` : '');
         const statusBadges = [hsBadge, wsStatus, driftBadge].filter(Boolean).join(' ');
         let telBadge = '';
         if (n.telemetry) {
@@ -222,9 +222,9 @@ function renderNests() {
             const mem = Math.round(n.telemetry.mem_percent || 0);
             const hrs = Math.floor((n.telemetry.uptime_seconds || 0) / 3600);
             telBadge = `<div class="inv-telemetry-row">
-                    <span>📊 ${t('invasion.telemetry_cpu')}: ${cpu}%</span>
-                    <span>🧠 ${t('invasion.telemetry_mem')}: ${mem}%</span>
-                    <span>⏱ ${hrs}h</span>
+                    <span>${pwIcon('chart')} ${t('invasion.telemetry_cpu')}: ${cpu}%</span>
+                    <span>${pwIcon('brain')} ${t('invasion.telemetry_mem')}: ${mem}%</span>
+                    <span>${pwIcon('clock')} ${hrs}h</span>
                 </div>`;
         }
         return `
@@ -241,25 +241,25 @@ function renderNests() {
                 <div class="card-meta">
                     <span><span class="badge badge-${n.access_type}">${n.access_type.toUpperCase()}</span>
                           ${(n.access_type !== 'local' || n.deploy_method === 'docker_ssh') ? esc(n.host) + ':' + n.port : 'localhost'}</span>
-                    ${n.username ? '<span>👤 ' + esc(n.username) + '</span>' : ''}
-                    <span>🥚 ${esc(eggName)}</span>
-                    ${n.deploy_method ? '<span>🚀 ' + esc(n.deploy_method) + '</span>' : ''}
-                    ${n.route ? '<span>🔗 ' + esc(n.route) + '</span>' : ''}
-                    ${n.target_arch ? '<span>💻 ' + esc(n.target_arch) + '</span>' : ''}
-                    ${n.hatch_error ? '<span class="inv-hatch-error">⚠️ ' + esc(n.hatch_error) + '</span>' : ''}
-                    ${n.notes ? '<span class="inv-note-text">📝 ' + esc(n.notes) + '</span>' : ''}
+                    ${n.username ? '<span>' + pwIcon('user') + ' ' + esc(n.username) + '</span>' : ''}
+                    <span>${pwIcon('egg')} ${esc(eggName)}</span>
+                    ${n.deploy_method ? '<span>' + pwIcon('rocket') + ' ' + esc(n.deploy_method) + '</span>' : ''}
+                    ${n.route ? '<span>' + pwIcon('link') + ' ' + esc(n.route) + '</span>' : ''}
+                    ${n.target_arch ? '<span>' + pwIcon('monitor') + ' ' + esc(n.target_arch) + '</span>' : ''}
+                    ${n.hatch_error ? '<span class="inv-hatch-error">' + pwIcon('alert') + ' ' + esc(n.hatch_error) + '</span>' : ''}
+                    ${n.notes ? '<span class="inv-note-text">' + pwIcon('note') + ' ' + esc(n.notes) + '</span>' : ''}
                     ${telBadge}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" data-action="edit-nest" data-id="${escAttr(n.id)}">✏️ ${t('invasion.edit')}</button>
+                    <button class="btn btn-sm btn-secondary" data-action="edit-nest" data-id="${escAttr(n.id)}">${pwIcon('edit')} ${t('invasion.edit')}</button>
                     ${canHatch ? `<button class="btn btn-sm btn-primary" data-action="hatch-nest" data-id="${escAttr(n.id)}">${t('invasion.hatch')}</button>` : ''}
                     ${canStop ? `<button class="btn btn-sm btn-danger" data-action="stop-nest" data-id="${escAttr(n.id)}">${t('invasion.stop_egg')}</button>` : ''}
-                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="reconfigure-nest" data-id="${escAttr(n.id)}">🔧 ${t('invasion.reconfigure')}</button>` : ''}
-                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="config-history-nest" data-id="${escAttr(n.id)}">📋 ${t('invasion.config_history')}</button>` : ''}
+                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="reconfigure-nest" data-id="${escAttr(n.id)}">${pwIcon('wrench')} ${t('invasion.reconfigure')}</button>` : ''}
+                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="config-history-nest" data-id="${escAttr(n.id)}">${pwIcon('clipboard')} ${t('invasion.config_history')}</button>` : ''}
                     <button class="btn btn-sm btn-secondary" data-action="toggle-nest" data-id="${escAttr(n.id)}" data-active="${String(!n.active)}">
-                        ${n.active ? '⏸️' : '▶️'} ${n.active ? t('invasion.inactive') : t('invasion.active')}
+                        ${pwIcon(n.active ? 'pause' : 'play')} ${n.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="nest" data-id="${escAttr(n.id)}" data-name="${escAttr(n.name)}">🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="nest" data-id="${escAttr(n.id)}" data-name="${escAttr(n.name)}" aria-label="${escAttr(t('invasion.delete'))}" title="${escAttr(t('invasion.delete'))}">${pwIcon('trash')}</button>
                 </div>
             </div>`;
     }).join('');
@@ -284,20 +284,20 @@ function renderEggs() {
                     </span>
                 </div>
                 <div class="card-meta">
-                    ${e.description ? '<span>📋 ' + esc(e.description) + '</span>' : ''}
-                    ${e.model ? '<span>🤖 ' + esc(e.provider ? e.provider + '/' : '') + esc(e.model) + '</span>' : ''}
-                    <span>🔑 ${t('invasion.api_key')}: ${e.has_api_key ? '✅' : '❌'}</span>
-                    <span>🌐 ${t('invasion.port')}: ${e.egg_port || 8099}</span>
+                    ${e.description ? '<span>' + pwIcon('clipboard') + ' ' + esc(e.description) + '</span>' : ''}
+                    ${e.model ? '<span>' + pwIcon('bot') + ' ' + esc(e.provider ? e.provider + '/' : '') + esc(e.model) + '</span>' : ''}
+                    <span>${pwIcon('key')} ${t('invasion.api_key')}: ${AuraIcons.svg(e.has_api_key ? 'check-circle' : 'x-circle', { label: e.has_api_key ? t('invasion.active') : t('invasion.inactive') })}</span>
+                    <span>${pwIcon('globe')} ${t('invasion.port')}: ${e.egg_port || 8099}</span>
                     ${e.permanent ? '<span class="badge badge-permanent">' + t('invasion.badge_permanent') + '</span>' : ''}
                     ${e.inherit_llm ? '<span class="badge badge-inherit">' + t('invasion.badge_llm_inherit') + '</span>' : ''}
                     ${e.include_vault ? '<span class="badge badge-vault">' + t('invasion.badge_vault') + '</span>' : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" data-action="edit-egg" data-id="${escAttr(e.id)}">✏️ ${t('invasion.edit')}</button>
+                    <button class="btn btn-sm btn-secondary" data-action="edit-egg" data-id="${escAttr(e.id)}">${pwIcon('edit')} ${t('invasion.edit')}</button>
                     <button class="btn btn-sm btn-secondary" data-action="toggle-egg" data-id="${escAttr(e.id)}" data-active="${String(!e.active)}">
-                        ${e.active ? '⏸️' : '▶️'} ${e.active ? t('invasion.inactive') : t('invasion.active')}
+                        ${pwIcon(e.active ? 'pause' : 'play')} ${e.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="egg" data-id="${escAttr(e.id)}" data-name="${escAttr(e.name)}">🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="egg" data-id="${escAttr(e.id)}" data-name="${escAttr(e.name)}" aria-label="${escAttr(t('invasion.delete'))}" title="${escAttr(t('invasion.delete'))}">${pwIcon('trash')}</button>
                 </div>
             </div>
         `).join('');
@@ -832,10 +832,10 @@ function renderConfigHistory(nestId) {
                     <span class="rev-date">${esc(date)}</span>
                 </div>
                 <div class="rev-fields">${patchSummary}</div>
-                ${rev.error_message ? `<div class="rev-error">⚠️ ${esc(rev.error_message)}</div>` : ''}
+                ${rev.error_message ? `<div class="rev-error">${pwIcon('alert')} ${esc(rev.error_message)}</div>` : ''}
                 <div class="rev-actions">
                     <span class="rev-source">${esc(rev.source)}</span>
-                    ${canRollback ? `<button class="btn btn-sm btn-secondary" data-action="rollback-config" data-id="${escAttr(nestId)}" data-revision="${escAttr(rev.id)}">↩️ ${t('invasion.config_rollback')}</button>` : ''}
+                    ${canRollback ? `<button class="btn btn-sm btn-secondary" data-action="rollback-config" data-id="${escAttr(nestId)}" data-revision="${escAttr(rev.id)}">${pwIcon('undo')} ${t('invasion.config_rollback')}</button>` : ''}
                 </div>
             </div>`;
     }).join('');

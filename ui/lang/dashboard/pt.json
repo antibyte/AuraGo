@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "Nenhum candidato de memória obsoleto",
   "dashboard.memory_curator_title": "Saúde da Memória",
   "dashboard.memory_embeddings": "Embeddings",
-  "dashboard.memory_embeddings_disabled": "Embeddings desativados ✗",
+  "dashboard.memory_embeddings_disabled": "Embeddings desativados",
   "dashboard.memory_episodic": "Episódios",
   "dashboard.memory_episodic_agent_user": "usuário, agente",
   "dashboard.memory_episodic_empty": "Nenhum episódio recente ainda",

@@ -2715,6 +2715,8 @@ Content-Type: application/json
 
 Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports. With a password, a failed vault or token export aborts the backup instead of silently omitting the secrets.
 
+Databases outside the config root are not copied. Each one is listed in the manifest field `skipped` (for example `sqlite/elsewhere.db skipped (outside the config root)`) and counted in the response header `X-AuraGo-Backup-Skipped`, which is set only when at least one database was skipped. The same reasons apply to databases that are not a restorable location or whose snapshot failed. On import, the skipped entries appear in `warnings`.
+
 #### Import Backup
 ```http
 POST /api/backup/import
@@ -2736,6 +2738,8 @@ curl -X POST http://localhost:8088/api/backup/import \
 
 The import changes nothing immediately. AuraGo validates the archive (paths, size limits, SQLite integrity, password), checks versions, and stages the files, the vault secrets (re-encrypted with the local master key) and the API token store in `data/.restore-pending/`. The restore is applied at the next start (see [Restore Status](#restore-status)). Only one pending restore exists; a new import replaces it.
 
+Restored prompts, skills, agent skills, tools and the vector DB and workspace files are written to the directories configured in the `directories` section of the running instance (`prompts_dir`, `skills_dir`, `agent_skills_dir`, `tools_dir`, and the vector DB and workspace directories). Directory values in the archive's own `config.yaml` are ignored.
+
 Version checks:
 
 - An archive from a newer AuraGo version is rejected with HTTP `400`. This happens when the manifest's app version is newer than the installed one, or when any database `user_version` is newer than the live database.
@@ -2748,7 +2752,10 @@ Success returns HTTP `200`:
 {
   "status": "ok",
   "pending_restore": true,
+  "restore_id": "20261031T090000-3fa1c2b4d5e6",
   "restart_required": true,
+  "awaiting_confirmation": false,
+  "security_changes": null,
   "staged": 1280,
   "vault_restored": 12,
   "tokens_restored": 3,
@@ -2759,18 +2766,79 @@ Success returns HTTP `200`:
 
 `status` is `partial` when the vault secrets or the token store could not be staged; the reason is listed in `warnings`. The fields `restored`, `skipped` and `schema_warning` no longer exist.
 
-Errors return JSON `{"error": "..."}`. Uploads that are too large return `413`. Encrypted archives without a password, or with a wrong one, return `password_required` or `decryption_failed`, each with a `message`.
+`restore_id` identifies the pending restore and is needed for the confirmation below. `restart_required` is `true` only when the restore can be applied at the next start without confirmation; while `awaiting_confirmation` is `true` it is `false`.
 
-The config UI (Backup section) asks for confirmation before an import, shows the pending restore with **Restart now** and **Discard pending restore**, and shows the outcome of the last restore.
+Errors return JSON `{"error": "..."}`. Uploads that are too large return `413`. Encrypted archives without a password, or with a wrong one, return `password_required` or `decryption_failed`, each with a `message`. An API token with a scope that AuraGo does not know returns `400` and the import is refused.
+
+##### Security confirmation
+
+Some restores change what can access AuraGo or what it can run. Compared with the running instance, a staged restore counts as security-relevant when it:
+
+- switches login off (`auth.enabled` changes from `true` to `false`),
+- changes `server.host`,
+- carries a different password hash, two-factor (TOTP) secret or passkey (WebAuthn) state,
+- switches two-factor login (`auth.totp_enabled`) or the Origin header requirement (`auth.require_origin_header`) off,
+- adds API tokens or changes the hash or the scopes of an existing token,
+- adds or changes files under the prompts, skills, agent skills or tools directories,
+- adds or changes cron jobs (`data/crontab.json`), or
+- replaces a database that holds connections, credentials or remote endpoints (`sql_connections.db`, `remote_control.db`, `inventory.db`, `invasion.db`, `mailer.db`) with different content.
+
+If any of these apply, the import response has `awaiting_confirmation: true` and `security_changes` is an object. The restore stays staged, but the next start does **not** apply it until an administrator confirms it: in the config UI (**Config → Backup**, **Confirm restore**) or with `POST /api/backup/restore-status` (see below). Without a confirmation, nothing changes and the pending restore stays in place. If none of these apply, `security_changes` is `null` and the restore is applied at the next start as before.
+
+`security_changes` has these fields. Fields that are `false` or `0` are omitted:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `auth_disabled` | boolean | Login is enabled now and the backup has it disabled. |
+| `host_changed` | boolean | The backup's `server.host` differs from the current one. |
+| `host_from`, `host_to` | string | Current and staged `server.host` (only when `host_changed`). |
+| `password_hash_changed` | boolean | The staged login password hash differs from the current one. |
+| `totp_disabled` | boolean | Two-factor login is on now and the backup has it off. |
+| `totp_secret_changed` | boolean | The staged two-factor secret differs from the current one. |
+| `webauthn_changed` | boolean | The staged passkey state differs from the current one. |
+| `require_origin_disabled` | boolean | The Origin header requirement is on now and the backup has it off. |
+| `token_count` | integer | Number of API tokens in the staged token store. |
+| `new_token_count` | integer | Staged tokens that are new or whose stored hash differs. |
+| `new_tokens` | array | Up to 20 of those tokens, each with `id`, `name` and `scopes`. |
+| `files` | array | Changed prompts, skills, agent skills, tools, cron jobs and credential databases, one entry per category. |
+
+Each `files` entry has `category` (`prompts`, `skills`, `agent_skills`, `tools`, `crontab` or `databases`), `new` and `changed` (counts of files, cron jobs or databases) and `examples` (up to 8 relative paths, job IDs or database names). Only categories with new or changed items appear. A changed database counts only for the credential databases listed above, compared by content.
+
+Secret values, token hashes and password hashes are never returned; the secret fields are booleans. Review `new_tokens` and `files` before you confirm.
+
+##### Confirm or discard
+
+```http
+POST /api/backup/restore-status
+Content-Type: application/json
+
+{"action": "confirm", "id": "20261031T090000-3fa1c2b4d5e6"}
+```
+
+| Status | Meaning |
+|--------|---------|
+| `200` | Confirmed. The response is `{"confirmed": true, "id": "...", "restart_required": true}`. Restart AuraGo to apply the restore. |
+| `400` | The body is not `{"action": "confirm", "id": "..."}` or the id is empty. |
+| `404` | No restore is pending. |
+| `409` | The pending restore has a different id, for example because a new import replaced it. Reload the status and confirm again. |
+
+Confirming an import that has no security changes is harmless. Confirmation is recorded in the staged manifest; the restore is still applied only at the next start.
+
+The config UI (Backup section) asks for confirmation before an import, shows the pending restore with **Restart now** and **Discard pending restore**, and shows the outcome of the last restore. If a restore is awaiting confirmation, it shows the security changes and **Confirm restore** instead.
+
+##### Login and backup access
+
+With login disabled, the backup endpoints (`/api/backup/create`, `/api/backup/import` and `/api/backup/restore-status`) answer only when AuraGo is opened by IP address, `localhost`, the machine's host name, a configured domain (HTTPS domain, security proxy domain, OAuth redirect base URL or preview domain) or the Tailscale host name (only when the tsnet node is enabled: the bare configured name or the exact MagicDNS name of the running node, never a name that merely starts with it). Requests under any other host name get `403` with `"error": "login_required_for_host"`. This protects against DNS rebinding, where a web page under its own host name reaches AuraGo from a browser. Requests with a Bearer token skip this check; the endpoints remain administrator-only. Enable login before you use backup and restore, because with login disabled any client that reaches AuraGo on one of the trusted addresses can create and stage backups.
 
 #### Restore Status
 
 ```http
 GET    /api/backup/restore-status
+POST   /api/backup/restore-status
 DELETE /api/backup/restore-status
 ```
 
-Both endpoints are administrator-only.
+All three methods are administrator-only.
 
 `GET` reports the pending restore and the outcome of the last one:
 
@@ -2778,6 +2846,16 @@ Both endpoints are administrator-only.
 {
   "pending": true,
   "pending_created_at": "2026-10-31T09:00:00Z",
+  "id": "20261031T090000-3fa1c2b4d5e6",
+  "awaiting_confirmation": true,
+  "restart_required": false,
+  "security_changes": {
+    "auth_disabled": true,
+    "token_count": 2,
+    "new_token_count": 1,
+    "new_tokens": [{"id": "t-1", "name": "ci", "scopes": ["admin"]}],
+    "files": [{"category": "prompts", "new": 3, "changed": 0, "examples": ["prompts/a.md"]}]
+  },
   "last": {
     "id": "...",
     "applied_at": "...",
@@ -2787,7 +2865,11 @@ Both endpoints are administrator-only.
 }
 ```
 
+`id` is the pending restore's id; it is an empty string when nothing is pending. `awaiting_confirmation` is `true` while a restore with security changes waits for `POST`. `restart_required` is `true` when a pending restore will be applied at the next start. `security_changes` has the fields described under [Security confirmation](#security-confirmation) and is `null` when there are none.
+
 `last` is `null` until a restore has run. `status` is `applied`, `rolled_back` or `failed`, with an explanation in `message`.
+
+`POST` confirms a pending restore; the body and status codes are described under [Confirm or discard](#confirm-or-discard).
 
 `DELETE` discards a pending restore and returns `{"discarded": true}` or `{"discarded": false}`.
 

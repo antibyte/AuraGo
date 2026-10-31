@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 图像库",
+  "gallery.title": "图像库",
   "gallery.subtitle": "图像库",
   "gallery.search_placeholder": "搜索提示词...",
   "gallery.all_providers": "所有提供商",
@@ -15,7 +15,7 @@
   "gallery.duration": "时长",
   "gallery.cost": "成本",
   "gallery.date": "日期",
-  "gallery.download": "⬇ 下载",
-  "gallery.delete": "🗑 删除",
+  "gallery.download": "下载",
+  "gallery.delete": "删除",
   "gallery.confirm_delete": "确定要删除这张图像吗？"
 }

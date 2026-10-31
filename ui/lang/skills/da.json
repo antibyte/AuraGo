@@ -162,7 +162,7 @@
   "skills.import_hint": "Vælg en eksporteret .aurago-skill.json-pakke.",
   "skills.import_success": "Færdighed importeret",
   "skills.import_title": "Importér færdighedspakke",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktiveret, eller der er ikke konfigureret nogen værktøjer. Aktiver det under Indstillinger → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktiveret, eller der er ikke konfigureret nogen værktøjer. Aktiver det under Indstillinger → Skill Manager.",
   "skills.internal_tools_label": "Interne værktøjer",
   "skills.internal_tools_modal_desc": "Vælg de native AuraGo-værktøjer, som denne skill må kalde via tool bridge ved kørselstid.",
   "skills.internal_tools_modal_save": "Gem",

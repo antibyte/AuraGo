@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "δεν πρέπει να οριστεί",
   "config.speech_lab.external_hardware_linux": "Για AMD σε Linux: χρησιμοποιήστε S2S_GPU=auto ή S2S_GPU=vulkan, αφαιρέστε το GGML_BACKEND=CPU και ενεργοποιήστε το Linux GPU Compose overlay.",
   "config.speech_lab.browser_backend_url": "Διεύθυνση backend προγράμματος περιήγησης",
-  "config.speech_lab.browser_backend_url_help": "Διεύθυνση της διεπαφής ιστού του εξωτερικού Speech Lab. Χρησιμοποιείται μόνο από τον διακομιστή AuraGo."
+  "config.speech_lab.browser_backend_url_help": "Διεύθυνση της διεπαφής ιστού του εξωτερικού Speech Lab. Χρησιμοποιείται μόνο από τον διακομιστή AuraGo.",
+  "config.speech_lab.voice_mode_fixed": "Σταθερή φωνή: διατίθεται μόνο η προεπιλεγμένη φωνή του καταλόγου.",
+  "config.speech_lab.voice_mode_restart": "Η αλλαγή αυτής της φωνής επανεκκινεί το backend κατά την ενεργοποίηση της στοίβας.",
+  "config.speech_lab.voice_mode_request": "Επίλεξε φωνή καταλόγου για τη στοίβα. Το backend υποστηρίζει και φωνή ανά αίτημα.",
+  "config.speech_lab.voice_mode_unsupported": "Αυτή η λειτουργία φωνής TTS δεν υποστηρίζεται. Η ενεργοποίηση της στοίβας έχει αποκλειστεί.",
+  "config.speech_lab.error_voice": "Η φωνή δεν είναι πλέον ενεργή. Ανανέωσε τη στοίβα και δοκίμασε ξανά.",
+  "config.speech_lab.error_module": "Η μονάδα ομιλίας δεν είναι εγκατεστημένη ή έτοιμη. Έλεγξε το Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Επίλεξε φωνή που υποστηρίζει αυτό το backend TTS.",
+  "config.speech_lab.error_busy": "Το Speech Lab είναι απασχολημένο. Περίμενε να ολοκληρωθεί η λειτουργία ή η κλήση.",
+  "config.speech_lab.error_conflict": "Η αλλαγή στοίβας απέτυχε. Ανανέωσε τη στοίβα και έλεγξε το Browser Lab.",
+  "config.speech_lab.memory_free": "{value} διαθέσιμα",
+  "config.speech_lab.suggestion_score": "Βαθμολογία: {score}",
+  "config.speech_lab.suggestion_selected": "Η πρόταση επιλέχθηκε. Έλεγξε τις επιλογές και ενεργοποίησε τη στοίβα για εφαρμογή."
 }

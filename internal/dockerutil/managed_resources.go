@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	KaggleNotebookOwner        = "kaggle-notebook"
 	RustFSOwner                = "rustfs"
 	RustFSContainerName        = "aurago-rustfs"
 	RustFSSeedContainerName    = "aurago-rustfs-key-seed"
@@ -58,6 +59,11 @@ const (
 	// image (config.DefaultCYDCreatorBuilderImage without its tag).
 	CYDCreatorImageRepository = "ghcr.io/antibyte/aurago-cyd-builder"
 )
+
+// IsKaggleNotebookContainerName reserves managed per-session Python kernels.
+func IsKaggleNotebookContainerName(name string) bool {
+	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/"), "aurago-kaggle-")
+}
 
 // IsOllamaContainerName protects both current names, including unlabeled legacy containers.
 func IsOllamaContainerName(name string) bool {

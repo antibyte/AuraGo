@@ -252,7 +252,7 @@ func handleSpeechLabStack(s *Server) http.Handler {
 			release, err = s.SIPPhone.ReserveSpeechLabStackChange()
 			if err != nil {
 				if errors.Is(err, sipphone.ErrBusy) {
-					jsonError(w, "Speech Lab stack cannot change while SIP is busy", http.StatusConflict)
+					writeSpeechLabError(w, &speechlab.ResponseError{StatusCode: http.StatusConflict, Code: "speech_lab_stack_busy"})
 					return
 				}
 				jsonError(w, "Speech Lab stack reservation failed", http.StatusConflict)
@@ -269,10 +269,6 @@ func handleSpeechLabStack(s *Server) http.Handler {
 		}
 		result, ready, err := s.SpeechLab.ActivateStack(r.Context(), request)
 		if err != nil {
-			if strings.Contains(err.Error(), "busy") {
-				jsonError(w, "Speech Lab stack is busy", http.StatusConflict)
-				return
-			}
 			writeSpeechLabError(w, err)
 			return
 		}
@@ -300,6 +296,13 @@ func writeSpeechLabError(w http.ResponseWriter, err error) {
 	if errors.As(err, &notReady) {
 		writeSpeechLabJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"error": speechlab.ErrorCode(err), "message": notReady.Error(), "ready": notReady.Status,
+		})
+		return
+	}
+	var responseErr *speechlab.ResponseError
+	if errors.As(err, &responseErr) {
+		writeSpeechLabJSON(w, responseErr.StatusCode, map[string]string{
+			"error": responseErr.Code, "message": responseErr.Error(),
 		})
 		return
 	}

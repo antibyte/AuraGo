@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "must be unset",
   "config.speech_lab.external_hardware_linux": "For AMD on Linux: use S2S_GPU=auto or S2S_GPU=vulkan, remove GGML_BACKEND=CPU, and enable the Linux GPU Compose overlay.",
   "config.speech_lab.browser_backend_url": "Browser backend address",
-  "config.speech_lab.browser_backend_url_help": "Address of the external Speech Lab web interface. Only the AuraGo server connects to it."
+  "config.speech_lab.browser_backend_url_help": "Address of the external Speech Lab web interface. Only the AuraGo server connects to it.",
+  "config.speech_lab.voice_mode_fixed": "Fixed voice: only the catalog default is available.",
+  "config.speech_lab.voice_mode_restart": "Changing this voice requires a backend restart when you activate the stack.",
+  "config.speech_lab.voice_mode_request": "Select a catalog voice for the stack. The backend also supports voices per request.",
+  "config.speech_lab.voice_mode_unsupported": "This TTS voice mode is unsupported. Stack activation is blocked.",
+  "config.speech_lab.error_voice": "The voice is no longer active. Refresh the stack and try again.",
+  "config.speech_lab.error_module": "The speech module is not installed or ready. Check the Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Select a voice supported by this TTS backend.",
+  "config.speech_lab.error_busy": "Speech Lab is busy. Wait for the current operation or call to finish.",
+  "config.speech_lab.error_conflict": "The stack change failed. Refresh the stack and check the Browser Lab.",
+  "config.speech_lab.memory_free": "{value} available",
+  "config.speech_lab.suggestion_score": "Score: {score}",
+  "config.speech_lab.suggestion_selected": "Recommendation selected. Review the choices and activate the stack to apply them."
 }

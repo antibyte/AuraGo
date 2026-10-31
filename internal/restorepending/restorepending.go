@@ -42,6 +42,13 @@ const (
 
 	vectorPrefix = "data/vectordb/"
 
+	// Archive prefixes whose destination is a configurable directory.
+	promptsPrefix     = "prompts/"
+	skillsPrefix      = "agent_workspace/skills/"
+	agentSkillsPrefix = "agent_workspace/agent_skills/"
+	toolsPrefix       = "agent_workspace/tools/"
+	workspacePrefix   = "agent_workspace/workdir/"
+
 	StatusApplied    = "applied"
 	StatusRolledBack = "rolled_back"
 	StatusFailed     = "failed"
@@ -63,6 +70,47 @@ type Manifest struct {
 	ID        string  `json:"id"`
 	CreatedAt string  `json:"created_at"`
 	Entries   []Entry `json:"entries"`
+	// SecurityChanges lists what the staged restore changes security-wise. A
+	// non-empty list means Apply waits until Confirmed is true.
+	SecurityChanges *SecurityChanges `json:"security_changes,omitempty"`
+	Confirmed       bool             `json:"confirmed"`
+}
+
+// FileChange summarizes new or changed files below one restored directory.
+type FileChange struct {
+	Category string   `json:"category"` // prompts | skills | agent_skills | tools | crontab | databases
+	New      int      `json:"new"`
+	Changed  int      `json:"changed"`
+	Examples []string `json:"examples,omitempty"` // capped list of relative paths
+}
+
+// TokenInfo describes an API token that the restore would add or replace.
+type TokenInfo struct {
+	ID     string   `json:"id"`
+	Name   string   `json:"name,omitempty"`
+	Scopes []string `json:"scopes"`
+}
+
+// SecurityChanges is the summary shown before a foreign backup may be applied.
+type SecurityChanges struct {
+	AuthDisabled        bool         `json:"auth_disabled,omitempty"`
+	HostChanged         bool         `json:"host_changed,omitempty"`
+	HostFrom            string       `json:"host_from,omitempty"`
+	HostTo              string       `json:"host_to,omitempty"`
+	PasswordHashChanged bool         `json:"password_hash_changed,omitempty"`
+	TOTPDisabled        bool         `json:"totp_disabled,omitempty"`       // auth.totp_enabled on -> off
+	TOTPSecretChanged   bool         `json:"totp_secret_changed,omitempty"` // booleans only, never values
+	WebAuthnChanged     bool         `json:"webauthn_changed,omitempty"`
+	RequireOriginOff    bool         `json:"require_origin_disabled,omitempty"`
+	TokenCount          int          `json:"token_count,omitempty"`
+	NewTokenCount       int          `json:"new_token_count,omitempty"`
+	NewTokens           []TokenInfo  `json:"new_tokens,omitempty"` // capped
+	Files               []FileChange `json:"files,omitempty"`
+}
+
+// Empty reports whether nothing needs confirmation.
+func (c *SecurityChanges) Empty() bool {
+	return c == nil || (!c.AuthDisabled && !c.HostChanged && !c.PasswordHashChanged && !c.TOTPDisabled && !c.TOTPSecretChanged && !c.WebAuthnChanged && !c.RequireOriginOff && c.NewTokenCount == 0 && len(c.Files) == 0)
 }
 
 // Result is the outcome of the last apply attempt.
@@ -76,9 +124,21 @@ type Result struct {
 // State is what the status endpoint reports.
 type State struct {
 	Pending          bool
+	PendingID        string
 	PendingCreatedAt string
-	Last             *Result
+	// SecurityChanges is the summary of the pending restore (nil: none).
+	SecurityChanges *SecurityChanges
+	// AwaitingConfirmation: the pending restore has security changes and was
+	// not confirmed yet, so the next start will not apply it.
+	AwaitingConfirmation bool
+	Last                 *Result
 }
+
+// ErrNoPending and ErrIDMismatch are returned by Confirm.
+var (
+	ErrNoPending  = errors.New("no pending restore")
+	ErrIDMismatch = errors.New("pending restore id does not match")
+)
 
 // Options tune Apply.
 type Options struct {
@@ -88,12 +148,54 @@ type Options struct {
 	Validate func() error
 	// ResolveVectorRoot returns the configured vector database directory (empty:
 	// use the config root). It is only called when data/vectordb/ entries exist.
+	// Kept for callers that only map the vector database; ResolveDirs wins.
 	ResolveVectorRoot func() (string, error)
+	// ResolveDirs returns the configured directories of the ACTIVE (pre-restore,
+	// trusted) config. It is only called when mapped entries exist. A directory
+	// value from the archive's own config.yaml is never used.
+	ResolveDirs func() (Dirs, error)
 	// afterPublish is a test hook; an error simulates a failure mid-way.
 	afterPublish func(index int, e Entry) error
 	// simulateCrash makes Apply return right after the given number of published
 	// entries without rolling back or finishing (test hook).
 	simulateCrash int
+}
+
+// Dirs holds the configured destination directories of the archive prefixes
+// that are not fixed below the config root. Empty values use the config root.
+type Dirs struct {
+	VectorDB, Prompts, Skills, AgentSkills, Tools, Workspace string
+}
+
+// MapPath maps an archive-relative slash path to its destination root and the
+// path relative to that root. Prefixes with a configured directory are written
+// there; everything else goes below configRoot unchanged. Relative configured
+// directories are made absolute. mapped reports whether a configured directory
+// was used.
+func (d Dirs) MapPath(configRoot, clean string) (root, rel string, mapped bool, err error) {
+	for _, m := range []struct{ prefix, dir string }{
+		{vectorPrefix, d.VectorDB}, {promptsPrefix, d.Prompts}, {skillsPrefix, d.Skills},
+		{agentSkillsPrefix, d.AgentSkills}, {toolsPrefix, d.Tools}, {workspacePrefix, d.Workspace},
+	} {
+		if m.dir == "" {
+			continue
+		}
+		var tail string
+		switch {
+		case clean == strings.TrimSuffix(m.prefix, "/"):
+			tail = "."
+		case strings.HasPrefix(clean, m.prefix):
+			tail = strings.TrimPrefix(clean, m.prefix)
+		default:
+			continue
+		}
+		abs, absErr := filepath.Abs(m.dir)
+		if absErr != nil {
+			return "", "", false, absErr
+		}
+		return abs, tail, true, nil
+	}
+	return configRoot, clean, false, nil
 }
 
 var errSimulatedCrash = errors.New("simulated crash")
@@ -165,6 +267,12 @@ func newID() string {
 // older pending restore. stagingRoot must be on the same volume as the config
 // root and is consumed (renamed) on success.
 func Stage(configRoot, stagingRoot string, entries []Entry) (string, error) {
+	return StageWithChanges(configRoot, stagingRoot, entries, nil)
+}
+
+// StageWithChanges is Stage plus a security summary. A non-empty summary makes
+// the restore wait for Confirm before the next start applies it.
+func StageWithChanges(configRoot, stagingRoot string, entries []Entry, changes *SecurityChanges) (string, error) {
 	if err := os.MkdirAll(dataDir(configRoot), 0o750); err != nil {
 		return "", err
 	}
@@ -186,6 +294,9 @@ func Stage(configRoot, stagingRoot string, entries []Entry) (string, error) {
 		return "", fmt.Errorf("move staging tree: %w", err)
 	}
 	m := Manifest{ID: id, CreatedAt: time.Now().UTC().Format(time.RFC3339), Entries: entries}
+	if !changes.Empty() {
+		m.SecurityChanges = changes
+	}
 	if err := writeJSON(filepath.Join(next, manifestName), m); err != nil {
 		return "", err
 	}
@@ -237,6 +348,30 @@ func removePending(pending, id string) error {
 	return os.RemoveAll(gone)
 }
 
+// Confirm marks the pending restore with the given id as confirmed. It returns
+// ErrNoPending / ErrIDMismatch when there is nothing (matching) to confirm.
+func Confirm(configRoot, id string) error {
+	manifestPath := filepath.Join(pendingDir(configRoot), manifestName)
+	var m Manifest
+	if err := readJSON(manifestPath, &m); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ErrNoPending
+		}
+		return err
+	}
+	if id == "" || m.ID != id {
+		return ErrIDMismatch
+	}
+	m.Confirmed = true
+	return writeJSON(manifestPath, m)
+}
+
+// AwaitingConfirmation reports whether the manifest must be confirmed before
+// it may be applied.
+func (m Manifest) AwaitingConfirmation() bool {
+	return !m.SecurityChanges.Empty() && !m.Confirmed
+}
+
 // StagedPath returns the location of a staged file inside the pending tree
 // (useful to tests).
 func StagedPath(configRoot, rel string) string {
@@ -249,7 +384,12 @@ func ReadState(configRoot string) State {
 	var m Manifest
 	if err := readJSON(filepath.Join(pendingDir(configRoot), manifestName), &m); err == nil {
 		st.Pending = true
+		st.PendingID = m.ID
 		st.PendingCreatedAt = m.CreatedAt
+		if !m.SecurityChanges.Empty() {
+			st.SecurityChanges = m.SecurityChanges
+		}
+		st.AwaitingConfirmation = m.AwaitingConfirmation()
 	}
 	var r Result
 	if err := readJSON(lastPath(configRoot), &r); err == nil {
@@ -275,8 +415,8 @@ type target struct {
 // computes the destinations. Any violation rejects the entire restore.
 func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, error) {
 	files := filepath.Join(pending, filesDirName)
-	vectorRoot := ""
-	vectorResolved := false
+	var dirs Dirs
+	dirsResolved := false
 	targets := make([]target, 0, len(m.Entries))
 	for _, e := range m.Entries {
 		clean := path.Clean(strings.ReplaceAll(e.Clean, "\\", "/"))
@@ -289,29 +429,22 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 		if IsReservedPath(clean) {
 			return nil, fmt.Errorf("path %q is reserved", clean)
 		}
-		root, rel := configRoot, clean
-		if strings.HasPrefix(clean, vectorPrefix) && opts.ResolveVectorRoot != nil {
-			if !vectorResolved {
-				v, err := opts.ResolveVectorRoot()
-				if err != nil {
-					return nil, fmt.Errorf("resolve vector database directory: %w", err)
-				}
-				if v != "" {
-					if v, err = filepath.Abs(v); err != nil {
-						return nil, err
-					}
-				}
-				vectorRoot, vectorResolved = v, true
+		if !dirsResolved && isMappedPath(clean) {
+			var err error
+			if dirs, err = resolveDirs(opts); err != nil {
+				return nil, fmt.Errorf("resolve configured directories: %w", err)
 			}
-			if vectorRoot != "" {
-				root, rel = vectorRoot, strings.TrimPrefix(clean, vectorPrefix)
-			}
+			dirsResolved = true
+		}
+		root, rel, mapped, err := dirs.MapPath(configRoot, clean)
+		if err != nil {
+			return nil, err
 		}
 		dest := filepath.Join(root, filepath.FromSlash(rel))
 		if !within(root, dest) {
 			return nil, fmt.Errorf("destination of %q escapes the restore root", clean)
 		}
-		if err := checkNoSymlinks(root, dest, root != configRoot); err != nil {
+		if err := checkNoSymlinks(root, dest, mapped); err != nil {
 			return nil, fmt.Errorf("destination of %q: %w", clean, err)
 		}
 		src := filepath.Join(files, filepath.FromSlash(clean))
@@ -331,6 +464,30 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 		targets = append(targets, target{Entry: e, src: src, dest: dest})
 	}
 	return targets, nil
+}
+
+func isMappedPath(clean string) bool {
+	for _, p := range []string{vectorPrefix, promptsPrefix, skillsPrefix, agentSkillsPrefix, toolsPrefix, workspacePrefix} {
+		if clean == strings.TrimSuffix(p, "/") || strings.HasPrefix(clean, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveDirs(opts Options) (Dirs, error) {
+	var d Dirs
+	if opts.ResolveDirs != nil {
+		return opts.ResolveDirs()
+	}
+	if opts.ResolveVectorRoot != nil {
+		v, err := opts.ResolveVectorRoot()
+		if err != nil {
+			return d, err
+		}
+		d.VectorDB = v
+	}
+	return d, nil
 }
 
 func within(root, p string) bool {
@@ -392,6 +549,11 @@ func Apply(configRoot string, opts Options) (*Result, error) {
 		res := finish(configRoot, pending, Result{ID: "unknown", Status: StatusFailed, Message: "Die vorgemerkte Wiederherstellung war unlesbar und wurde verworfen. Es wurde nichts übernommen (auch keine Vault-Secrets)."})
 		log.Error("[Restore] Pending restore manifest unreadable, discarding", "error", err)
 		return res, err
+	}
+	if m.AwaitingConfirmation() {
+		// Not confirmed: stay pending, apply nothing, write no result.
+		log.Info("[Restore] Pending restore has security changes and is waiting for confirmation; not applied", "id", m.ID)
+		return nil, nil
 	}
 	targets, err := resolve(configRoot, pending, m, opts)
 	if err != nil {

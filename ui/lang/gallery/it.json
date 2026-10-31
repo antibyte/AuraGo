@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 Galleria immagini",
+  "gallery.title": "Galleria immagini",
   "gallery.subtitle": "Galleria immagini",
   "gallery.search_placeholder": "Cerca prompt...",
   "gallery.all_providers": "Tutti i provider",
@@ -15,7 +15,7 @@
   "gallery.duration": "Durata",
   "gallery.cost": "Costo",
   "gallery.date": "Data",
-  "gallery.download": "⬇ Scarica",
-  "gallery.delete": "🗑 Elimina",
+  "gallery.download": "Scarica",
+  "gallery.delete": "Elimina",
   "gallery.confirm_delete": "Sei sicuro di voler eliminare questa immagine?"
 }

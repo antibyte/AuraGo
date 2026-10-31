@@ -10650,5 +10650,6 @@
   "game_maker.use_guided_base": "Przejdź na prowadzony szablon",
   "game_maker.guided_base_change": "Przenieś grę na prowadzony szablon 3D pasujący do przebiegu: eksploracja, jazda, lot, kosmos albo FPS. Wolne three zostawia zasady bez sprawdzenia.",
   "game_maker.retry_keeps_pending_selection": "Spróbuj ponownie zachowuje wybór assetów tego biegu, bo plan nie został jeszcze przyjęty.",
-  "game_maker.compact_opt_in": "Użyj trybu kompaktowego dla tego nieznanego modelu. Plan zostaje krótszy, a nowy szablon zmienia się małymi krokami."
+  "game_maker.compact_opt_in": "Użyj trybu kompaktowego dla tego nieznanego modelu. Plan zostaje krótszy, a nowy szablon zmienia się małymi krokami.",
+  "desktop.app_kaggle": "Kaggle"
 }

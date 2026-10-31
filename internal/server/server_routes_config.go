@@ -14,6 +14,7 @@ import (
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
+	s.registerKaggleRoutes(mux)
 	s.registerSelfTestRoutes(mux)
 	mux.Handle("/api/agent/actions", requireAdmin(s, handleActionApprovals(s)))
 	mux.Handle("/api/agent/action-policy/preview", requireAdmin(s, handleActionPolicyPreview(s)))
@@ -146,9 +147,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	})))
 
 	// Backup & Restore (.ago archives)
-	mux.Handle("/api/backup/create", requireAdmin(s, handleBackupCreate(s)))
-	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
-	mux.Handle("/api/backup/restore-status", requireAdmin(s, handleBackupRestoreStatus(s)))
+	mux.Handle("/api/backup/create", requireAdmin(s, requireRebindingSafeHostWithoutLogin(s, handleBackupCreate(s))))
+	mux.Handle("/api/backup/import", requireAdmin(s, requireRebindingSafeHostWithoutLogin(s, handleBackupImport(s))))
+	mux.Handle("/api/backup/restore-status", requireAdmin(s, requireRebindingSafeHostWithoutLogin(s, handleBackupRestoreStatus(s))))
 
 	// Chromecast discovery and the saved-device test announcement are admin-only.
 	mux.Handle("/api/chromecast/discover", requireAdmin(s, handleChromecastDiscover(s)))

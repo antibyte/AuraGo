@@ -38,7 +38,7 @@
     background: none;
     background-image: none;
     color: var(--pw-accent);
-    font-size: clamp(5rem, 12vw, 9rem);
+    font-size: clamp(calc(var(--pw-font-2xl) * 3.5), 12vw, calc(var(--pw-font-2xl) * 6));
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1;
@@ -50,7 +50,7 @@
 .pw-page.pw-entry-page[data-entry-page="not-found"] .not-found-title {
     margin-bottom: var(--pw-space-3);
     color: var(--pw-text);
-    font-size: clamp(1.35rem, 3vw, 1.8rem);
+    font-size: clamp(var(--pw-font-xl), 3vw, calc(var(--pw-font-2xl) * 1.2));
     font-weight: 650;
     letter-spacing: -0.02em;
     text-wrap: balance;

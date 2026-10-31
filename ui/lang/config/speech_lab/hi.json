@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "सेट नहीं होना चाहिए",
   "config.speech_lab.external_hardware_linux": "Linux पर AMD के लिए: S2S_GPU=auto या S2S_GPU=vulkan उपयोग करें, GGML_BACKEND=CPU हटाएँ और Linux GPU Compose overlay सक्षम करें।",
   "config.speech_lab.browser_backend_url": "ब्राउज़र बैकएंड पता",
-  "config.speech_lab.browser_backend_url_help": "बाहरी Speech Lab के वेब इंटरफ़ेस का पता। केवल AuraGo सर्वर इससे जुड़ता है।"
+  "config.speech_lab.browser_backend_url_help": "बाहरी Speech Lab के वेब इंटरफ़ेस का पता। केवल AuraGo सर्वर इससे जुड़ता है।",
+  "config.speech_lab.voice_mode_fixed": "निश्चित आवाज़: केवल कैटलॉग की डिफ़ॉल्ट आवाज़ उपलब्ध है।",
+  "config.speech_lab.voice_mode_restart": "इस आवाज़ को बदलने पर स्टैक सक्रिय करते समय बैकएंड फिर से शुरू होगा।",
+  "config.speech_lab.voice_mode_request": "स्टैक के लिए कैटलॉग से आवाज़ चुनें। बैकएंड हर अनुरोध में अलग आवाज़ भी स्वीकार करता है।",
+  "config.speech_lab.voice_mode_unsupported": "यह TTS आवाज़ मोड समर्थित नहीं है। स्टैक सक्रिय करना अवरुद्ध है।",
+  "config.speech_lab.error_voice": "यह आवाज़ अब सक्रिय नहीं है। स्टैक रीफ़्रेश करके फिर कोशिश करें।",
+  "config.speech_lab.error_module": "वाक् मॉड्यूल इंस्टॉल नहीं है या तैयार नहीं है। Browser Lab जाँचें।",
+  "config.speech_lab.error_invalid_voice": "इस TTS बैकएंड द्वारा समर्थित आवाज़ चुनें।",
+  "config.speech_lab.error_busy": "Speech Lab व्यस्त है। वर्तमान प्रक्रिया या कॉल समाप्त होने तक प्रतीक्षा करें।",
+  "config.speech_lab.error_conflict": "स्टैक बदलना विफल हुआ। स्टैक रीफ़्रेश करें और Browser Lab जाँचें।",
+  "config.speech_lab.memory_free": "{value} उपलब्ध",
+  "config.speech_lab.suggestion_score": "अंक: {score}",
+  "config.speech_lab.suggestion_selected": "सुझाव चुन लिया गया है। विकल्पों की जाँच करें और उन्हें लागू करने के लिए स्टैक सक्रिय करें।"
 }

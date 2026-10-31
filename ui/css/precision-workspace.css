@@ -12,6 +12,10 @@
     --pw-danger: #fb7185;
     --pw-warning: #f6c453;
     --pw-success: #4ade80;
+    --pw-on-accent: #0d1726;
+    --pw-scrim: color-mix(in srgb, #020617 78%, transparent);
+    --pw-terminal-bg: #050807;
+    --pw-terminal-text: #d7e1ec;
     --pw-line: #30455e;
     --pw-line-strong: #526a82;
     --pw-shell: color-mix(in srgb, var(--pw-surface-elevated) 72%, transparent);
@@ -19,6 +23,14 @@
     --pw-label-size: 0.9375rem;
     --pw-help-size: 0.875rem;
     --pw-meta-size: 0.8125rem;
+    --pw-font-2xs: 0.6875rem;
+    --pw-font-xs: 0.75rem;
+    --pw-font-sm: 0.8125rem;
+    --pw-font-md: 0.875rem;
+    --pw-font-base: 0.9375rem;
+    --pw-font-lg: 1rem;
+    --pw-font-xl: 1.25rem;
+    --pw-font-2xl: 1.5rem;
     --pw-radius-sm: 10px;
     --pw-radius-md: 14px;
     --pw-radius-lg: 20px;
@@ -62,6 +74,7 @@
     --pw-space-6: 1.5rem;
     --pw-space-8: 2rem;
     --pw-space-10: 2.5rem;
+    --pw-space-12: 3rem;
     --pw-title-size: clamp(1.65rem, 2.4vw, 2.35rem);
     --pw-heading-size: clamp(1.125rem, 1.4vw, 1.35rem);
     --pw-body-size: 0.9375rem;
@@ -69,6 +82,47 @@
     color-scheme: dark;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+}
+
+/* Legacy-name bridge and fixed type scale. Only operational and entry pages opt
+   in; config (a plain .pw-page) and chat keep their own values. Page CSS reads
+   the legacy names (--border, --text-sm, --transition-fast, ...) 130+ times, so
+   they are re-pointed here instead of renamed. */
+.pw-page.pw-operational-page,
+.pw-page.pw-entry-page {
+    --border: var(--pw-line);
+    --border-focus: var(--pw-accent);
+    --bg-elevated: var(--pw-surface-elevated);
+    --text-muted: var(--pw-subtle);
+    --text-inverse: var(--pw-on-accent);
+    --info: var(--pw-accent);
+    --accent-glow: color-mix(in srgb, var(--pw-accent) 30%, transparent);
+    --accent-hover: var(--pw-accent-strong);
+    --accent-active: var(--pw-accent-strong);
+    --text-xs: var(--pw-font-xs);
+    --text-sm: var(--pw-font-md);
+    --text-base: var(--pw-font-base);
+    --text-lg: var(--pw-font-xl);
+    --text-xl: var(--pw-font-2xl);
+    --text-2xl: 1.875rem;
+    --transition-fast: var(--pw-duration-fast) var(--pw-ease);
+    --transition-base: var(--pw-duration-base) var(--pw-ease);
+    --transition-slow: var(--pw-duration-slow) var(--pw-ease);
+}
+
+/* Shared inline icons (js/precision/icons.js). */
+.pw-page .pw-ic {
+    width: 1em;
+    height: 1em;
+    flex: none;
+    vertical-align: -0.125em;
+    fill: none;
+    stroke: currentColor;
+}
+
+.pw-page .pw-empty-icon .pw-ic {
+    width: 2rem;
+    height: 2rem;
 }
 
 .pw-page *,
@@ -111,6 +165,10 @@
     --pw-danger: #be123c;
     --pw-warning: #a16207;
     --pw-success: #15803d;
+    --pw-on-accent: #ffffff;
+    --pw-scrim: color-mix(in srgb, #162b40 45%, transparent);
+    --pw-terminal-bg: #050807;
+    --pw-terminal-text: #d7e1ec;
     --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #162b40 13%, transparent);
     color-scheme: light;
 }

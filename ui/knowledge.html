@@ -28,6 +28,7 @@
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
+    <script src="/js/precision/icons.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/knowledge.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/secrets-shared.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
@@ -53,24 +54,24 @@
         <div class="kc-tabs-wrap">
             <div class="kc-tabs pw-tabs" role="tablist" data-i18n-aria-label="knowledge.tablist_label">
                 <button class="kc-tab pw-tab active" type="button" id="tab-contacts" role="tab" aria-selected="true"
-                    aria-controls="panel-contacts" tabindex="0" data-kc-tab="contacts"><span data-i18n="knowledge.tab_contacts"></span>
+                    aria-controls="panel-contacts" tabindex="0" data-kc-tab="contacts"><span class="kc-tab-ic" data-pw-icon="book" aria-hidden="true"></span><span data-i18n="knowledge.tab_contacts"></span>
                     <span class="kc-tab-count" id="count-contacts">0</span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-files" role="tab" aria-selected="false"
-                    aria-controls="panel-files" tabindex="-1" data-kc-tab="files"><span data-i18n="knowledge.tab_files"></span>
+                    aria-controls="panel-files" tabindex="-1" data-kc-tab="files"><span class="kc-tab-ic" data-pw-icon="folder" aria-hidden="true"></span><span data-i18n="knowledge.tab_files"></span>
                     <span class="kc-tab-count" id="count-files">0</span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-devices" role="tab" aria-selected="false"
-                    aria-controls="panel-devices" tabindex="-1" data-kc-tab="devices"><span data-i18n="knowledge.tab_devices"></span>
+                    aria-controls="panel-devices" tabindex="-1" data-kc-tab="devices"><span class="kc-tab-ic" data-pw-icon="phone" aria-hidden="true"></span><span data-i18n="knowledge.tab_devices"></span>
                     <span class="kc-tab-count" id="count-devices">0</span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-credentials" role="tab" aria-selected="false"
-                    aria-controls="panel-credentials" tabindex="-1" data-kc-tab="credentials"><span data-i18n="knowledge.tab_credentials"></span>
+                    aria-controls="panel-credentials" tabindex="-1" data-kc-tab="credentials"><span class="kc-tab-ic" data-pw-icon="key" aria-hidden="true"></span><span data-i18n="knowledge.tab_credentials"></span>
                     <span class="kc-tab-count" id="count-credentials">0</span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-secrets" role="tab" aria-selected="false"
-                    aria-controls="panel-secrets" tabindex="-1" data-kc-tab="secrets"><span data-i18n="knowledge.tab_secrets"></span></button>
+                    aria-controls="panel-secrets" tabindex="-1" data-kc-tab="secrets"><span class="kc-tab-ic" data-pw-icon="lock" aria-hidden="true"></span><span data-i18n="knowledge.tab_secrets"></span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-appointments" role="tab" aria-selected="false"
-                    aria-controls="panel-appointments" tabindex="-1" data-kc-tab="appointments"><span data-i18n="knowledge.tab_appointments"></span>
+                    aria-controls="panel-appointments" tabindex="-1" data-kc-tab="appointments"><span class="kc-tab-ic" data-pw-icon="calendar" aria-hidden="true"></span><span data-i18n="knowledge.tab_appointments"></span>
                     <span class="kc-tab-count" id="count-appointments">0</span></button>
                 <button class="kc-tab pw-tab" type="button" id="tab-todos" role="tab" aria-selected="false"
-                    aria-controls="panel-todos" tabindex="-1" data-kc-tab="todos"><span data-i18n="knowledge.tab_todos"></span>
+                    aria-controls="panel-todos" tabindex="-1" data-kc-tab="todos"><span class="kc-tab-ic" data-pw-icon="check-square" aria-hidden="true"></span><span data-i18n="knowledge.tab_todos"></span>
                     <span class="kc-tab-count" id="count-todos">0</span></button>
             </div>
         </div>
@@ -103,7 +104,7 @@
                 </table>
             </div>
             <div class="empty-state pw-empty-state is-hidden" id="contacts-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">📇</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="book" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.contacts_empty_title"></h3>
                 <p data-i18n="knowledge.contacts_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-contact" data-i18n="knowledge.contacts_add"></button>
@@ -118,14 +119,14 @@
                         placeholder="" data-i18n-placeholder="knowledge.files_search_placeholder"
                         data-kc-search="files">
                     <button type="button" class="btn btn-primary kc-upload-btn" onclick="document.getElementById('file-upload-input').click()">
-                        <span>⬆</span> <span data-i18n="knowledge.files_upload"></span>
+                        <span data-pw-icon="upload" aria-hidden="true"></span> <span data-i18n="knowledge.files_upload"></span>
                     </button>
                     <input type="file" id="file-upload-input" class="is-hidden" multiple tabindex="-1" aria-hidden="true" onchange="uploadFiles(this)">
                 </div>
             </div>
             <div class="kc-drop-zone" id="files-drop-zone">
                 <div class="kc-drop-zone-content">
-                    <div class="kc-drop-zone-icon">⬆</div>
+                    <div class="kc-drop-zone-icon" data-pw-icon="upload" aria-hidden="true"></div>
                     <p data-i18n="knowledge.files_drop_here"></p>
                 </div>
             </div>
@@ -143,7 +144,7 @@
                 </table>
             </div>
             <div class="empty-state pw-empty-state is-hidden" id="files-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">📂</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="folder" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.files_empty_title"></h3>
                 <p data-i18n="knowledge.files_empty_desc"></p>
                 <button type="button" class="btn btn-primary kc-empty-cta" onclick="document.getElementById('file-upload-input-empty').click()">
@@ -193,7 +194,7 @@
                 </table>
             </div>
             <div class="empty-state pw-empty-state is-hidden" id="devices-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">📱</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="phone" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.devices_empty_title"></h3>
                 <p data-i18n="knowledge.devices_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-device" data-i18n="knowledge.devices_add"></button>
@@ -230,7 +231,7 @@
                 </table>
             </div>
             <div class="empty-state pw-empty-state is-hidden" id="credentials-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">🔑</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="key" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.credentials_empty_title"></h3>
                 <p data-i18n="knowledge.credentials_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-credential" data-i18n="knowledge.credentials_add"></button>
@@ -264,7 +265,7 @@
             </div>
             <div id="appointments-list" class="kc-cards"></div>
             <div class="empty-state pw-empty-state is-hidden" id="appointments-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">📅</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="calendar" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.appointments_empty_title"></h3>
                 <p data-i18n="knowledge.appointments_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-appointment" data-i18n="knowledge.appointments_add"></button>
@@ -293,7 +294,7 @@
             <div id="todos-summary" class="kc-todo-summary is-hidden"></div>
             <div id="todos-list" class="kc-todo-list"></div>
             <div class="empty-state pw-empty-state is-hidden" id="todos-empty">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">✅</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="check-square" aria-hidden="true"></div>
                 <h3 data-i18n="knowledge.todos_empty_title"></h3>
                 <p data-i18n="knowledge.todos_empty_desc"></p>
                 <button class="btn btn-primary kc-empty-cta" type="button" data-kc-action="open-todo" data-i18n="knowledge.todos_add"></button>
@@ -661,22 +662,22 @@
                 <div id="file-preview-pdf-wrap" class="kc-preview-pdf-wrap is-hidden">
                     <canvas id="file-preview-pdf-canvas"></canvas>
                     <div class="kc-pdf-controls" id="file-preview-pdf-controls">
-                        <button class="btn btn-sm btn-secondary" id="pdf-prev-btn" onclick="pdfPreviewPrev()">◀</button>
+                        <button class="btn btn-sm btn-secondary" id="pdf-prev-btn" onclick="pdfPreviewPrev()" data-i18n-aria-label="common.pagination_previous" data-i18n-title="common.pagination_previous" data-pw-icon="chevron-left"></button>
                         <span id="pdf-page-info">1 / 1</span>
-                        <button class="btn btn-sm btn-secondary" id="pdf-next-btn" onclick="pdfPreviewNext()">▶</button>
-                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomIn()">➕</button>
-                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomOut()">➖</button>
+                        <button class="btn btn-sm btn-secondary" id="pdf-next-btn" onclick="pdfPreviewNext()" data-i18n-aria-label="common.pagination_next" data-i18n-title="common.pagination_next" data-pw-icon="chevron-right"></button>
+                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomIn()" data-i18n-aria-label="knowledge.pdf_zoom_in" data-i18n-title="knowledge.pdf_zoom_in" data-pw-icon="plus"></button>
+                        <button class="btn btn-sm btn-secondary" onclick="pdfPreviewZoomOut()" data-i18n-aria-label="knowledge.pdf_zoom_out" data-i18n-title="knowledge.pdf_zoom_out" data-pw-icon="minus"></button>
                     </div>
                 </div>
                 <div class="kc-preview-fallback is-hidden" id="file-preview-fallback">
-                    <div class="empty-icon" aria-hidden="true">📄</div>
+                    <div class="empty-icon" data-pw-icon="doc" aria-hidden="true"></div>
                     <h3 id="file-preview-fallback-title" data-i18n="knowledge.files_preview_unavailable_title"></h3>
                     <p id="file-preview-fallback-text" data-i18n="knowledge.files_preview_unavailable_desc"></p>
                 </div>
             </div>
             <div class="modal-actions">
                 <a id="file-preview-download" class="btn btn-secondary" target="_blank" rel="noopener">
-                    <span>⬇️</span>
+                    <span data-pw-icon="download" aria-hidden="true"></span>
                     <span data-i18n="knowledge.files_download"></span>
                 </a>
                 <button class="btn btn-primary" onclick="closeFilePreview()" data-i18n="common.btn_close"></button>

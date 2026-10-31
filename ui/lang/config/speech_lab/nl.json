@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "mag niet ingesteld zijn",
   "config.speech_lab.external_hardware_linux": "Voor AMD op Linux: gebruik S2S_GPU=auto of S2S_GPU=vulkan, verwijder GGML_BACKEND=CPU en activeer de Linux GPU Compose-overlay.",
   "config.speech_lab.browser_backend_url": "Adres van browserbackend",
-  "config.speech_lab.browser_backend_url_help": "Adres van de webinterface van een externe Speech Lab. Alleen de AuraGo-server maakt verbinding."
+  "config.speech_lab.browser_backend_url_help": "Adres van de webinterface van een externe Speech Lab. Alleen de AuraGo-server maakt verbinding.",
+  "config.speech_lab.voice_mode_fixed": "Vaste stem: alleen de standaardstem uit de catalogus is beschikbaar.",
+  "config.speech_lab.voice_mode_restart": "Deze stem wijzigen herstart de backend wanneer je de stack activeert.",
+  "config.speech_lab.voice_mode_request": "Kies een catalogusstem voor de stack. De backend ondersteunt ook een stem per aanvraag.",
+  "config.speech_lab.voice_mode_unsupported": "Deze TTS-stemmodus wordt niet ondersteund. Activering van de stack is geblokkeerd.",
+  "config.speech_lab.error_voice": "De stem is niet meer actief. Vernieuw de stack en probeer het opnieuw.",
+  "config.speech_lab.error_module": "De spraakmodule is niet geïnstalleerd of gereed. Controleer Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Kies een stem die deze TTS-backend ondersteunt.",
+  "config.speech_lab.error_busy": "Speech Lab is bezig. Wacht tot de bewerking of het gesprek is afgelopen.",
+  "config.speech_lab.error_conflict": "De stack kon niet worden gewijzigd. Vernieuw de stack en controleer Browser Lab.",
+  "config.speech_lab.memory_free": "{value} beschikbaar",
+  "config.speech_lab.suggestion_score": "Beoordeling: {score}",
+  "config.speech_lab.suggestion_selected": "Aanbeveling geselecteerd. Controleer de keuzes en activeer de stack om ze toe te passen."
 }

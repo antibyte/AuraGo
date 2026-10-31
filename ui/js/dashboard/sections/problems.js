@@ -34,7 +34,7 @@
             dashSetHidden(wrap, false);
             let html = '';
             const renderItem = (p) => {
-                const resolved = p.resolution ? `<div class="error-pattern-resolution">✓ ${esc(p.resolution.substring(0, 80))}${p.resolution.length > 80 ? '…' : ''}</div>` : '';
+                const resolved = p.resolution ? `<div class="error-pattern-resolution">${pwIcon('check')} ${esc(p.resolution.substring(0, 80))}${p.resolution.length > 80 ? '…' : ''}</div>` : '';
                 return `<div class="error-pattern-item">
                     <div class="error-pattern-header">
                         <span class="error-pattern-tool">${esc(p.tool_name || '?')}</span>

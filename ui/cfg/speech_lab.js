@@ -193,7 +193,7 @@ function speechLabRunningFeedback(operation, deployment) {
 }
 
 function speechLabLockActions(includeRefresh = true) {
-    const selector = '#speech-lab-deployment button, #speech-lab-stack button, #speech-lab-deployment select' +
+    const selector = '#speech-lab-deployment button, #speech-lab-stack button, #speech-lab-stack select, #speech-lab-stack input, #speech-lab-suggestions button, #speech-lab-deployment select' +
         (includeRefresh ? ', #speech-lab-refresh' : '');
     document.querySelectorAll(selector)
         .forEach(control => { control.disabled = true; });
@@ -209,8 +209,13 @@ function speechLabRestoreActions() {
     const busy = !speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {});
     document.querySelectorAll('#speech-lab-deployment button, #speech-lab-deployment select')
         .forEach(control => { control.disabled = busy; });
-    document.querySelectorAll('#speech-lab-stack button')
-        .forEach(control => { control.disabled = busy; });
+    document.querySelectorAll('#speech-lab-asr, #speech-lab-tts, #speech-lab-experimental').forEach(control => { control.disabled = busy; });
+    const voice = document.getElementById('speech-lab-voice');
+    const backend = (speechLabCatalog?.backends || []).find(item => item.id === document.getElementById('speech-lab-tts')?.value) || {};
+    const choices = speechLabVoiceChoices(backend);
+    if (voice) voice.disabled = busy || choices.mode === 'fixed' || choices.voices.length === 0;
+    speechLabUpdateStackAction();
+    speechLabRenderSuggestions();
     const refreshButton = document.getElementById('speech-lab-refresh');
     if (refreshButton) refreshButton.disabled = document.getElementById('speech-lab-status')?.dataset.loading === 'true';
 }
@@ -289,7 +294,21 @@ async function speechLabRefresh(announce = true) {
 
 async function speechLabJSON(response) {
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
+    if (!response.ok) {
+        const codes = {
+            voice_not_active: 'error_voice',
+            module_not_provisioned: 'error_module', model_not_installed: 'error_module', host_module_delivery_pending: 'error_module',
+            speech_lab_invalid_voice: 'error_invalid_voice', speech_lab_voice_mode_unsupported: 'voice_mode_unsupported',
+            speech_lab_invalid_stack: 'select_stack', speech_lab_stack_busy: 'error_busy',
+            stack_activation_failed: 'error_conflict', speech_lab_conflict: 'error_conflict',
+            speech_lab_unavailable: 'unreachable', speech_lab_not_ready: 'not_ready'
+        };
+        const key = Object.hasOwn(codes, data.error) ? codes[data.error] : 'apply_failed';
+        const error = new Error(t('config.speech_lab.' + key));
+        error.code = data.error;
+        error.status = response.status;
+        throw error;
+    }
     return data;
 }
 
@@ -318,8 +337,8 @@ function speechLabRenderCapability() {
     const vramFree = formatGB(value('vram_free_gb'));
     const ramTotal = formatGB(value('ram_total_gb'));
     const ramAvailable = formatGB(value('ram_available_gb'));
-    if (vramTotal || vramFree) memory.push('VRAM ' + (vramTotal || '—') + (vramFree ? ' · ' + vramFree + ' free' : ''));
-    if (ramTotal || ramAvailable) memory.push('RAM ' + (ramTotal || '—') + (ramAvailable ? ' · ' + ramAvailable + ' available' : ''));
+    if (vramTotal || vramFree) memory.push('VRAM ' + (vramTotal || '—') + (vramFree ? ' · ' + t('config.speech_lab.memory_free').replace('{value}', vramFree) : ''));
+    if (ramTotal || ramAvailable) memory.push('RAM ' + (ramTotal || '—') + (ramAvailable ? ' · ' + t('config.speech_lab.memory_free').replace('{value}', ramAvailable) : ''));
     let details = '';
     if (accelerators.length) {
         details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_accelerators')) + ':</strong> ' + escapeHtml(accelerators.join(' · ')) + '</div>';
@@ -490,31 +509,66 @@ function speechLabRenderSuggestions() {
     let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.suggestions')) + '</div>';
     html += '<div class="field-help">' + escapeHtml(t('config.speech_lab.heuristic')) + '</div>';
     if (!pairs.length) html += '<p>' + escapeHtml(t('config.speech_lab.no_suggestions')) + '</p>';
-    pairs.slice(0, 4).forEach(pair => {
+    pairs.slice(0, 4).forEach((pair, index) => {
         const label = pair.name || pair.id || [pair.asr_id, pair.tts_id].filter(Boolean).join(' + ');
-        html += '<span class="cfg-chip">' + escapeHtml(label || t('config.speech_lab.suggestion')) + '</span> ';
+        const details = [t('config.speech_lab.heuristic')];
+        if (typeof pair.score === 'number' && Number.isFinite(pair.score)) details.push(t('config.speech_lab.suggestion_score').replace('{score}', String(pair.score)));
+        if (typeof pair.reason === 'string' && pair.reason.trim()) details.push(pair.reason.trim());
+        if (typeof pair.vram_gb === 'number' && Number.isFinite(pair.vram_gb)) details.push('VRAM ' + pair.vram_gb + ' GB');
+        const disabled = !speechLabSuggestionAvailable(pair) || !speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {});
+        html += '<div><button type="button" class="cfg-chip btn-speech-lab" data-speech-lab-suggestion="' + index + '"' +
+            (disabled ? ' disabled' : '') + ' title="' + escapeAttr(details.join(' · ')) + '" aria-describedby="speech-lab-suggestion-' + index + '">' +
+            escapeHtml(label || t('config.speech_lab.suggestion')) + '</button>' +
+            '<p class="field-help" id="speech-lab-suggestion-' + index + '">' + escapeHtml(details.join(' · ')) + '</p></div>';
     });
     const cautions = Array.isArray(speechLabSuggestions.caution) ? speechLabSuggestions.caution : [];
     cautions.slice(0, 3).forEach(item => {
         html += '<p class="field-help">' + escapeHtml(item.reason || String(item)) + '</p>';
     });
     node.innerHTML = html + '</div>';
+    node.querySelectorAll('[data-speech-lab-suggestion]').forEach(button => {
+        button.addEventListener('click', () => speechLabUseSuggestion(pairs[Number(button.dataset.speechLabSuggestion)]));
+    });
+}
+
+function speechLabBackendVisible(backend) {
+    return !!backend && (speechLabShowExperimental || backend.stable === true || backend.selected_variant?.stable === true ||
+        (backend.variants || []).some(variant => variant.stable === true));
+}
+
+function speechLabSuggestionAvailable(pair) {
+    const backends = speechLabCatalog?.backends || [];
+    const asr = backends.find(item => item.id === pair.asr_id && speechLabIsASR(item));
+    const tts = backends.find(item => item.id === pair.tts_id && speechLabIsTTS(item));
+    return asr?.available === true && tts?.available === true && speechLabBackendVisible(asr) && speechLabBackendVisible(tts) && speechLabVoiceChoices(tts).voices.length > 0;
+}
+
+function speechLabUseSuggestion(pair) {
+    if (!speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {}) || !speechLabSuggestionAvailable(pair)) return;
+    const asr = document.getElementById('speech-lab-asr');
+    const tts = document.getElementById('speech-lab-tts');
+    if (!asr || !tts) return;
+    asr.value = pair.asr_id;
+    tts.value = pair.tts_id;
+    const backend = (speechLabCatalog.backends || []).find(item => item.id === pair.tts_id);
+    const choices = speechLabVoiceChoices(backend);
+    speechLabUpdateVoices(choices.voices.includes(choices.defaultVoice) ? choices.defaultVoice : choices.voices[0]);
+    speechLabFeedback(t('config.speech_lab.suggestion_selected'));
+    document.querySelector('.speech-lab-stack-actions button')?.focus();
 }
 
 function speechLabRenderStack() {
     const node = document.getElementById('speech-lab-stack');
     if (!node || !speechLabCatalog) return;
-    const backends = (speechLabCatalog.backends || []).filter(item =>
-        speechLabShowExperimental || item.stable === true || item.selected_variant?.stable === true ||
-        (item.variants || []).some(variant => variant.stable === true));
+    const backends = (speechLabCatalog.backends || []).filter(speechLabBackendVisible);
     const tts = backends.filter(speechLabIsTTS);
     const asr = backends.filter(speechLabIsASR);
     let html = '<div class="cfg-card speech-lab-stack-editor"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
     const activeParts = [speechLabStatus?.asr_id || '—', speechLabStatus?.tts_id || '—', speechLabStatus?.voice || '—'];
     html += '<div class="cfg-note-banner cfg-note-banner-info"><strong>' + escapeHtml(t('config.speech_lab.active_combination')) + ':</strong> ' + escapeHtml(activeParts.join(' + ')) + '</div>';
-    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-asr">ASR</label><select id="speech-lab-asr" class="field-select">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></div>';
+    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-asr">ASR</label><select id="speech-lab-asr" class="field-select" onchange="speechLabUpdateStackAction()">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></div>';
     html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-tts">TTS</label><select id="speech-lab-tts" class="field-select" onchange="speechLabUpdateVoices()">' + speechLabOptions(tts, speechLabStatus && speechLabStatus.tts_id) + '</select></div>';
-    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-voice">' + escapeHtml(t('config.speech_lab.voice')) + '</label><span class="field-help">' + escapeHtml(t('config.speech_lab.voice_help')) + '</span><select id="speech-lab-voice" class="field-select"></select></div>';
+    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-voice">' + escapeHtml(t('config.speech_lab.voice')) + '</label><span class="field-help" id="speech-lab-voice-help"></span><select id="speech-lab-voice" class="field-select" aria-describedby="speech-lab-voice-help" onchange="speechLabUpdateStackAction()"></select></div>';
     html += '<div class="speech-lab-experimental-row"><div id="speech-lab-experimental" class="toggle' + (speechLabShowExperimental ? ' on' : '') + '" aria-labelledby="speech-lab-experimental-label" onclick="speechLabToggleExperimental(!this.classList.contains(\'on\'))"></div><span id="speech-lab-experimental-label">' + escapeHtml(t('config.speech_lab.show_experimental')) + '</span></div>';
     html += '<div class="speech-lab-stack-actions"><button type="button" class="btn-save" ' + (!speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {}) ? 'disabled' : '') + ' onclick="speechLabApplyStack()">' + escapeHtml(t('config.speech_lab.apply_stack')) + '</button></div></div>';
     node.innerHTML = html;
@@ -542,24 +596,48 @@ function speechLabOptions(items, selected) {
         (item.available === true ? '' : ' · ' + escapeHtml(t('config.speech_lab.not_ready'))) + '</option>').join('');
 }
 
-function speechLabUpdateVoices() {
+function speechLabVoiceChoices(backend) {
+    const mode = String(backend.voice_mode || '').trim().toLowerCase() || 'fixed';
+    const defaultVoice = String(backend.default_voice || '').trim();
+    let voices = [...new Set((Array.isArray(backend.voices) ? backend.voices : [])
+        .map(value => String(value || '').trim()).filter(Boolean))];
+    if (mode === 'fixed') voices = defaultVoice ? [defaultVoice] : [];
+    else if (mode === 'request' || mode === 'restart') {
+        if (!voices.length && defaultVoice) voices = [defaultVoice];
+    } else voices = [];
+    return { mode, voices, defaultVoice };
+}
+
+function speechLabUpdateVoices(preferredVoice) {
     const ttsID = document.getElementById('speech-lab-tts')?.value;
     const backend = (speechLabCatalog?.backends || []).find(item => item.id === ttsID) || {};
     const voice = document.getElementById('speech-lab-voice');
     if (!voice) return;
-    const voices = [...new Set((Array.isArray(backend.voices) ? backend.voices : [])
-        .map(value => String(value || '').trim()).filter(Boolean))];
-    const defaultVoice = String(backend.default_voice || '').trim();
-    if (!voices.length && defaultVoice) voices.push(defaultVoice);
+    const { mode, voices, defaultVoice } = speechLabVoiceChoices(backend);
     const activeVoice = ttsID === speechLabStatus?.tts_id ? String(speechLabStatus?.voice || '').trim() : '';
-    const selected = voices.includes(activeVoice) ? activeVoice : (voices.includes(defaultVoice) ? defaultVoice : (voices[0] || ''));
+    const selected = voices.includes(preferredVoice) ? preferredVoice : (voices.includes(activeVoice) ? activeVoice : (voices.includes(defaultVoice) ? defaultVoice : (voices[0] || '')));
     voice.innerHTML = voices.map(value => '<option value="' + escapeAttr(value) + '"' + (value === selected ? ' selected' : '') + '>' + escapeHtml(value) + '</option>').join('');
-    voice.disabled = voices.length === 0;
+    voice.disabled = mode === 'fixed' || voices.length === 0 || speechLabDeploymentBusy(speechLabStatus?.deployment || {});
+    const help = document.getElementById('speech-lab-voice-help');
+    if (help) help.textContent = t('config.speech_lab.' + (['fixed', 'request', 'restart'].includes(mode) ? (voices.length ? 'voice_mode_' + mode : 'error_invalid_voice') : 'voice_mode_unsupported'));
+    speechLabUpdateStackAction();
+}
+
+function speechLabStackSelectionValid() {
+    const pair = { asr_id: document.getElementById('speech-lab-asr')?.value, tts_id: document.getElementById('speech-lab-tts')?.value };
+    const backend = (speechLabCatalog?.backends || []).find(item => item.id === pair.tts_id) || {};
+    return speechLabSuggestionAvailable(pair) && speechLabVoiceChoices(backend).voices.includes(document.getElementById('speech-lab-voice')?.value);
+}
+
+function speechLabUpdateStackAction() {
+    const button = document.querySelector('.speech-lab-stack-actions button');
+    if (button) button.disabled = !speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {}) || !speechLabStackSelectionValid();
 }
 
 function speechLabToggleExperimental(enabled) {
     speechLabShowExperimental = !!enabled;
     speechLabRenderStack();
+    speechLabRenderSuggestions();
     document.getElementById('speech-lab-experimental')?.focus();
 }
 
@@ -574,7 +652,7 @@ async function speechLabApplyStack() {
         tts_id: document.getElementById('speech-lab-tts')?.value || '',
         voice: document.getElementById('speech-lab-voice')?.value || ''
     };
-    if (!request.asr_id || !request.tts_id) {
+    if (!speechLabStackSelectionValid()) {
         speechLabFeedback(t('config.speech_lab.select_stack'), 'warning');
         return;
     }
@@ -608,6 +686,7 @@ window.renderSpeechLabSection = renderSpeechLabSection;
 window.speechLabRefresh = speechLabRefresh;
 window.speechLabApplyStack = speechLabApplyStack;
 window.speechLabUpdateVoices = speechLabUpdateVoices;
+window.speechLabUpdateStackAction = speechLabUpdateStackAction;
 window.speechLabToggleExperimental = speechLabToggleExperimental;
 window.speechLabDeploymentAction = speechLabDeploymentAction;
 window.speechLabApplyHardwareProfile = speechLabApplyHardwareProfile;

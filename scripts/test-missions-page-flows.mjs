@@ -82,7 +82,9 @@ const sandbox = {
     showToast: (message, type) => toasts.push({ message, type }),
     showConfirm: (title, message) => { confirms.push({ title, message }); return Promise.resolve(confirmQueue.length ? confirmQueue.shift() : confirmAnswer); },
     openModal: (id) => modals.push(id),
-    closeModal() {}
+    closeModal() {},
+    // js/precision/icons.js is a separate script on the real page; markup is not under test here.
+    pwIcon: (name, cls) => '<svg class="pw-ic pw-ic-' + name + (cls ? ' ' + cls : '') + '" aria-hidden="true"></svg>'
 };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
@@ -241,7 +243,7 @@ for (const [mission, label] of stateCases) {
     check(`status chip: ${mission.id} reads ${label}`, chip.includes(`mc-status-chip__label">${label}</span>`) && chip.includes('mc-status-chip--flow-off'), chip);
     check(`status chip: ${mission.id} keeps the whole label in its title`, chip.includes(`mc-status-chip--flow-off" title="${label}"`), chip);
     const grid = P.renderMissionGrid(mission, false);
-    check(`grid: ${mission.id} shows ${label} and keeps the Flow pill`, grid.includes(`>${label}</span>`) && grid.includes('🧩<span>missions.filter_flow</span>'));
+    check(`grid: ${mission.id} shows ${label} and keeps the Flow pill`, grid.includes(`>${label}</span>`) && grid.includes('pw-ic-puzzle" aria-hidden="true"></svg><span>missions.filter_flow</span>'));
     const list = P.renderMissionCompact(mission);
     check(`list: ${mission.id} shows ${label} as a badge`, list.includes(`<span class="badge badge-idle">${label}</span>`), list.match(/card-badges">[^]*?<\/div>/)?.[0]);
 }
@@ -254,9 +256,9 @@ check('status chip: a running flow shows the running state', runningChip.include
 check('list: a running flow shows the running badge', P.renderMissionCompact(flowRunning).includes('badge-running'));
 check('status chip: manual missions keep their label', P.renderStatusChip(agent, false, false, false).includes('missions.filter_manual'));
 const flowGrid = P.renderMissionGrid(flowLive, false);
-check('grid: the execution pill names the flow type', flowGrid.includes('🧩<span>missions.filter_flow</span>'), flowGrid.match(/mc-trigger-pill[^]*?<\/div>/)?.[0]);
+check('grid: the execution pill names the flow type', flowGrid.includes('pw-ic-puzzle" aria-hidden="true"></svg><span>missions.filter_flow</span>'), flowGrid.match(/mc-trigger-pill[^]*?<\/div>/)?.[0]);
 check('grid: data-status is flow', flowGrid.includes('data-status="flow"'));
-check('list: the type icon is the flow icon', P.renderMissionCompact(flowLive).includes('🧩'));
+check('list: the type icon is the flow icon', P.renderMissionCompact(flowLive).includes('pw-ic-puzzle'));
 
 // ── Run: requests, toasts and refused runs ──
 reset();
@@ -343,7 +345,7 @@ check('filter: Flow hides other missions', !grid.includes('data-mission-id="agen
 P.filterMissions('all');
 const html = fs.readFileSync(path.join(uiDir, 'missions_v2.html'), 'utf8');
 const flowBtn = html.match(/<button[^>]*data-filter="flow"[^>]*>\s*<span data-i18n="([^"]+)"><\/span>/);
-check('filter: missions_v2.html has a Flow filter button', !!flowBtn && flowBtn[1] === 'missions.filter_flow' && flowBtn[0].includes('class="missions-filter-btn pw-badge"') && flowBtn[0].includes('aria-pressed="false"'));
+check('filter: missions_v2.html has a Flow filter button', !!flowBtn && flowBtn[1] === 'missions.filter_flow' && flowBtn[0].includes('class="missions-filter-btn pw-filter-pill"') && flowBtn[0].includes('aria-pressed="false"'));
 check('filter: the Flow button follows Triggered', html.indexOf('data-filter="triggered"') < html.indexOf('data-filter="flow"'));
 
 // ── mission_completed source selector ──

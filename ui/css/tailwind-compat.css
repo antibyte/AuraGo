@@ -7,22 +7,9 @@
    Base Variables
    ─────────────────────────────────────────────────────────────────────────────── */
 
-:root {
-  --accent: #2dd4bf;
-  --accent-dim: rgba(45, 212, 191, 0.15);
-  --accent-glow: rgba(45, 212, 191, 0.3);
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #232323;
-  --text-primary: #e5e5e5;
-  --text-secondary: #a1a1aa;
-  --border: #2a2a2a;
-  --border-subtle: #2a2a2a;
-  --success: #22c55e;
-  --warning: #eab308;
-  --danger: #ef4444;
-  --info: #3b82f6;
-}
+/* The former :root palette lived here. It is gone on purpose: every page that
+   loads this file loads shared-variables.css (and tokens.css) which own the
+   primitives. Do not re-add a :root block. */
 
 /* ───────────────────────────────────────────────────────────────────────────────
    Tailwind Color Classes

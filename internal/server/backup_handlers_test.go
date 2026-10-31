@@ -938,6 +938,8 @@ func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
 		t.Fatalf("import status = %d, want %d; body=%s", importRec.Code, http.StatusOK, importRec.Body.String())
 	}
 
+	// A token store the instance does not know yet needs explicit confirmation.
+	assertAwaitingConfirmationThenConfirm(t, destServer, importRec, 1)
 	applyPendingRestoreForTest(t, destServer.Cfg.ConfigPath)
 	destTM, err := security.NewTokenManager(destVault, filepath.Join(destData, "tokens.json"))
 	if err != nil {

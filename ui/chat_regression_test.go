@@ -525,6 +525,7 @@ func TestChatFrontend_MobileHeaderControlsRemainTappable(t *testing.T) {
 		"el.addEventListener('touchend', activate, { passive: false });",
 		"bindHeaderActivation(document.getElementById('speaker-toggle'), toggleSpeakerMode);",
 		"bindHeaderActivation(btn, toggleChatThemeDropdown);",
+		"opt.setAttribute('aria-selected', String(isActive));",
 		"bindHeaderActivation(opt, () => {",
 		"bindHeaderActivation(mobilePersonalityBtn, togglePersonalityDropdown);",
 		"bindHeaderActivation(document.getElementById('moodToggle'), toggleMoodPanel);",
@@ -619,7 +620,7 @@ func TestChatFrontend_LongBubbleTextWrapsWithinBubble(t *testing.T) {
 		"min-width: 0;\n            max-width: 100%;",
 		"overflow-wrap: anywhere;\n            word-break: normal;\n            hyphens: auto;",
 		".bubble > * {\n            max-width: 100%;\n            min-width: 0;",
-		".bubble a {\n            color: var(--accent);\n            text-decoration: underline;\n            text-underline-offset: 2px;\n            overflow-wrap: anywhere;",
+		".bubble a {\n            color: var(--accent);\n            text-decoration: underline;\n            text-decoration-thickness: 0.08em;\n            text-underline-offset: 0.18em;\n            overflow-wrap: anywhere;",
 		".code-block-wrapper {\n            margin: 0.75rem 0;",
 		".code-content {\n            display: flex;\n            background: var(--code-bg);\n            min-width: 0;",
 		".thinking-content {\n            padding: 0.7rem 1rem;",
@@ -3608,10 +3609,6 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read media.html: %v", err)
 	}
-	galleryHTML, err := os.ReadFile("gallery.html")
-	if err != nil {
-		t.Fatalf("read gallery.html: %v", err)
-	}
 	mediaJS, err := os.ReadFile(filepath.Join("js", "media", "main.js"))
 	if err != nil {
 		t.Fatalf("read media js: %v", err)
@@ -3644,18 +3641,6 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 			if strings.Contains(mediaHTMLText, forbidden) {
 				t.Fatalf("media pagination %s must use delegated actions instead of %q", prefix, forbidden)
 			}
-		}
-	}
-
-	galleryHTMLText := string(galleryHTML)
-	for _, marker := range []string{
-		`id="gallery-first"`,
-		`onclick="galleryFirst()"`,
-		`id="gallery-last"`,
-		`onclick="galleryLast()"`,
-	} {
-		if !strings.Contains(galleryHTMLText, marker) {
-			t.Fatalf("gallery pagination missing marker %q", marker)
 		}
 	}
 

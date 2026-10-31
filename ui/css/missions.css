@@ -271,10 +271,6 @@
     visibility: visible;
 }
 
-.pw-page[data-workspace-page="missions"] .modal {
-    background-image: none;
-}
-
 .pw-page[data-workspace-page="missions"][data-density="compact"] button, .pw-page[data-workspace-page="missions"][data-density="compact"] input, .pw-page[data-workspace-page="missions"][data-density="compact"] select {
     min-height: 36px;
 }
@@ -358,7 +354,7 @@
 
 .pw-page[data-workspace-page="missions"] .inline-note {
     margin-left: 12px;
-    font-size: 0.9rem;
+    font-size: var(--pw-font-base);
 }
 
 .pw-page[data-workspace-page="missions"] .form-group-inline {
@@ -708,8 +704,8 @@
 }
 
 .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .mc-btn {
-    border-color: color-mix(in srgb, #475569 14%, transparent);
-    background: color-mix(in srgb, #eaf2ed 88%, transparent);
+    border-color: color-mix(in srgb, var(--pw-line-strong) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-surface-soft) 88%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .mc-btn.mc-btn-run {
@@ -968,7 +964,7 @@
 }
 
 .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .queue-item, .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .exec-type-option, .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .trigger-type-btn, .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .mission-option, .pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .cheatsheet-picker {
-    border-color: color-mix(in srgb, #475569 14%, transparent);
+    border-color: color-mix(in srgb, var(--pw-line-strong) 30%, transparent);
 }
 
 .pw-page[data-workspace-page="missions"] .cheatsheet-option {
@@ -1566,7 +1562,7 @@
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .pw-page[data-workspace-page="missions"] .missions-grid {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -1619,7 +1615,7 @@
 
     .pw-page[data-workspace-page="missions"] .tab {
         padding: 8px 14px;
-        font-size: 0.85rem;
+        font-size: var(--pw-font-md);
     }
 }
 
@@ -1744,7 +1740,7 @@
     }
 
     .pw-page[data-workspace-page="missions"] .mc-meta {
-        font-size: 0.72rem;
+        font-size: var(--pw-font-xs);
         gap: 8px;
     }
 
@@ -1762,7 +1758,7 @@
 }
 
 @supports not (container-type: inline-size) {
-    @media (max-width: 380px) {
+    @media (max-width: 360px) {
         .pw-page[data-workspace-page="missions"] .mc-cta-run .mc-cta-label {
             display: none;
         }

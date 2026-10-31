@@ -27,6 +27,7 @@
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
+    <script src="/js/precision/icons.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/xterm.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/containers.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
@@ -86,21 +87,21 @@
 
         <!-- Empty state -->
         <div class="empty-state pw-empty-state is-hidden" id="ct-empty">
-            <div class="empty-icon pw-empty-icon">🐳</div>
+            <div class="empty-icon pw-empty-icon" aria-hidden="true"><svg class="pw-ic pw-ic-docker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><rect x="2" y="9" width="4" height="4" fill="currentColor" stroke="none"/><rect x="7" y="9" width="4" height="4" fill="currentColor" stroke="none"/><rect x="12" y="9" width="4" height="4" fill="currentColor" stroke="none"/><path d="M2 14c0 3 3 4 8 4s10-2 10-4z" fill="none"/></svg></div>
             <h3 data-i18n="containers.empty_title"></h3>
             <p data-i18n="containers.empty_desc"></p>
         </div>
 
         <!-- Error state (Docker disabled) -->
         <div class="empty-state pw-empty-state is-hidden" id="ct-disabled">
-            <div class="empty-icon pw-empty-icon">⚠️</div>
+            <div class="empty-icon pw-empty-icon" aria-hidden="true"><svg class="pw-ic pw-ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg></div>
             <h3 data-i18n="containers.disabled_title"></h3>
             <p data-i18n="containers.disabled_desc"></p>
         </div>
 
         <!-- Error state (Docker enabled, list failed) -->
         <div class="empty-state pw-empty-state is-hidden" id="ct-list-error" role="alert">
-            <div class="empty-icon pw-empty-icon">⚠️</div>
+            <div class="empty-icon pw-empty-icon" aria-hidden="true"><svg class="pw-ic pw-ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg></div>
             <h3 data-i18n="containers.list_error_title"></h3>
             <p id="ct-list-error-message"></p>
         </div>

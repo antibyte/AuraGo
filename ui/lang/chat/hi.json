@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "अपने एजेंट को कोई काम दें …",
   "chat.galaxy_persona": "आपका व्यक्तित्व",
   "chat.galaxy_mood": "वर्तमान मनोदशा",
-  "chat.youtube_play": "चलाएँ"
+  "chat.youtube_play": "चलाएँ",
+  "chat.speech_lab_not_ready_settings": "Speech Lab तैयार नहीं है। कनेक्शन जाँचने के लिए सेटिंग खोलें।"
 }

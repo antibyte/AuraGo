@@ -233,8 +233,8 @@
             entries.forEach(e => {
                 const tr = document.createElement('tr');
                 const statusCls = e.status === 'success' ? 'mh-status-success' : e.status === 'error' ? 'mh-status-error' : 'mh-status-running';
-                const icon = statusIcons[e.status] || '❓';
-                const trigIcon = triggerLabels[e.trigger_type] || '⚡';
+                const icon = statusIcons[e.status] || dashIcon('info');
+                const trigIcon = triggerLabels[e.trigger_type] || dashIcon('bolt');
                 const dur = e.duration_ms > 0 ? (e.duration_ms >= 60000 ? `${(e.duration_ms / 60000).toFixed(1)}m` : `${(e.duration_ms / 1000).toFixed(1)}s`) : '—';
                 const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 tr.innerHTML = `
@@ -303,14 +303,14 @@
             // Auto-disabled alert banner
             const alertHTML = autoDisabled > 0 ? `
                 <div class="daemon-disabled-alert">
-                    ⚠ ${t('dashboard.daemons_auto_disabled_alert') || `${autoDisabled} daemon(s) auto-disabled — re-enable via Skills page`}
+                    ${dashIcon('warning')} ${t('dashboard.daemons_auto_disabled_alert') || `${autoDisabled} daemon(s) auto-disabled — re-enable via Skills page`}
                 </div>` : '';
 
-            const statusIcon = { running: '🟢', starting: '🟡', stopped: '⏹', error: '🔴', disabled: '⛔' };
+            const statusBadge = { running: 'ok', starting: 'warn', stopped: 'idle', error: 'error', disabled: 'idle' };
 
             const rowsHTML = renderCollapsibleList(daemons, d => {
                 const s = (d.status || 'stopped').toLowerCase();
-                const icon = statusIcon[s] || '⏹';
+                const icon = `<span class="daemon-icon pw-badge" data-status="${statusBadge[s] || 'idle'}" role="img" aria-label="${escAttr(s)}" title="${escAttr(s)}"></span>`;
                 const name = esc(d.skill_name || d.skill_id || '?');
 
                 // Uptime from started_at
@@ -328,7 +328,7 @@
                 const suppressedCount = d.suppressed_count || 0;
                 const wakeLabel = t('dashboard.daemons_wakeups');
                 const wakeHtml = wakeCount > 0
-                    ? `<span class="daemon-badge daemon-badge-wake" title="${wakeLabel}: ${wakeCount}${suppressedCount > 0 ? ` (${suppressedCount} suppressed)` : ''}">💬 ${wakeCount}</span>`
+                    ? `<span class="daemon-badge daemon-badge-wake" title="${wakeLabel}: ${wakeCount}${suppressedCount > 0 ? ` (${suppressedCount} suppressed)` : ''}">${dashIcon('chat')} ${wakeCount}</span>`
                     : '';
 
                 // Restart count badge
@@ -350,11 +350,11 @@
 
                 // Error detail
                 const errHtml = d.last_error
-                    ? `<div class="daemon-meta daemon-meta-error"><span title="${escAttr(d.last_error)}">⚠ ${esc(d.last_error.length > 60 ? d.last_error.substring(0, 60) + '…' : d.last_error)}</span></div>`
+                    ? `<div class="daemon-meta daemon-meta-error"><span title="${escAttr(d.last_error)}">${dashIcon('warning')} ${esc(d.last_error.length > 60 ? d.last_error.substring(0, 60) + '…' : d.last_error)}</span></div>`
                     : '';
 
                 return `<div class="daemon-row${d.auto_disabled ? ' daemon-row-disabled' : ''}">
-                    <span class="daemon-icon">${icon}</span>
+                    ${icon}
                     <div class="daemon-row-body">
                         <div class="daemon-row-main">
                             <span class="daemon-name">${name}</span>

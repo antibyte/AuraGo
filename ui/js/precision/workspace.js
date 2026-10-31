@@ -38,15 +38,6 @@
     const MODAL_OVERLAY_SELECTOR = '.modal-overlay';
     const STANDALONE_DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';
     const MODAL_BOUNDARY_SELECTOR = MODAL_OVERLAY_SELECTOR + ', ' + STANDALONE_DIALOG_SELECTOR;
-    const MODAL_FOCUSABLE_SELECTOR = [
-        '[autofocus]',
-        'a[href]',
-        'button:not([disabled])',
-        'input:not([disabled]):not([type="hidden"])',
-        'select:not([disabled])',
-        'textarea:not([disabled])',
-        '[tabindex]:not([tabindex="-1"])'
-    ].join(',');
 
     let currentDensity = DEFAULT_DENSITY;
     let initialized = false;
@@ -54,7 +45,6 @@
     let modalObserver = null;
     let generatedModalTitle = 0;
     const activeModalOverlays = new Set();
-    const modalPreviousFocus = new WeakMap();
 
     function normalizeDensity(value) {
         return DENSITIES.has(value) ? value : DEFAULT_DENSITY;
@@ -219,13 +209,6 @@
         enhanceRadialMenu();
     }
 
-    function modalFocusableElements(overlay) {
-        return Array.from(overlay.querySelectorAll(MODAL_FOCUSABLE_SELECTOR)).filter((element) => {
-            if (element.getAttribute('aria-hidden') === 'true') return false;
-            return element.getClientRects().length > 0;
-        });
-    }
-
     function isModalBoundary(element) {
         if (!(element instanceof Element) || !element.matches(MODAL_BOUNDARY_SELECTOR)) return false;
         return !(element.parentElement && element.parentElement.closest(MODAL_BOUNDARY_SELECTOR));
@@ -246,56 +229,32 @@
             computed.pointerEvents !== 'none';
     }
 
-    function focusModal(overlay) {
-        const focusable = modalFocusableElements(overlay);
-        const target = focusable[0] || overlay;
-        if (target === overlay && !overlay.hasAttribute('tabindex')) {
-            overlay.setAttribute('tabindex', '-1');
-        }
-        target.focus({ preventScroll: true });
+    // Focus trap, initial focus and focus restore are owned by the shared modal
+    // controller (shared-core.js, window.AuraModalController). Class-opened
+    // overlays are handed to it with background:'keep': nothing outside the
+    // overlay is made inert, because config dialogs live inside backdrops and
+    // would otherwise inert themselves. aria:false keeps the dialog semantics
+    // that syncModalSemantics() placed on the inner dialog element.
+    function modalController() {
+        const ctl = window.AuraModalController;
+        return ctl && typeof ctl.open === 'function' ? ctl : null;
     }
 
     function activateModal(overlay) {
         if (activeModalOverlays.has(overlay)) return;
         activeModalOverlays.add(overlay);
-        const previousFocus = document.activeElement;
-        if (previousFocus && previousFocus !== document.body) {
-            modalPreviousFocus.set(overlay, previousFocus);
-        }
         overlay.dataset.pwModalActive = 'true';
-        window.requestAnimationFrame(() => {
-            if (!isModalOpen(overlay)) return;
-            if (!overlay.contains(document.activeElement)) focusModal(overlay);
-        });
+        const ctl = modalController();
+        if (ctl && !ctl.isOpen(overlay)) {
+            ctl.open(overlay, { background: 'keep', aria: false, keepFocus: true });
+        }
     }
 
     function deactivateModal(overlay) {
         if (!activeModalOverlays.delete(overlay)) return;
         delete overlay.dataset.pwModalActive;
-        const previousFocus = modalPreviousFocus.get(overlay);
-        modalPreviousFocus.delete(overlay);
-        if (!previousFocus || !previousFocus.isConnected || typeof previousFocus.focus !== 'function') return;
-        window.requestAnimationFrame(() => previousFocus.focus({ preventScroll: true }));
-    }
-
-    function handleModalKeydown(overlay, event) {
-        if (event.key !== 'Tab' || !isModalOpen(overlay)) return;
-        const focusable = modalFocusableElements(overlay);
-        if (focusable.length === 0) {
-            event.preventDefault();
-            focusModal(overlay);
-            return;
-        }
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && (document.activeElement === first || !overlay.contains(document.activeElement))) {
-            event.preventDefault();
-            last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-        }
+        const ctl = modalController();
+        if (ctl && ctl.isOpen(overlay)) ctl.close(overlay);
     }
 
     function syncModalOverlay(overlay) {
@@ -348,7 +307,6 @@
         }
 
         overlay.dataset.pwModalBound = 'true';
-        overlay.addEventListener('keydown', (event) => handleModalKeydown(overlay, event));
         syncModalOverlay(overlay);
     }
 

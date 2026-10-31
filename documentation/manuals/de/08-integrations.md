@@ -444,6 +444,14 @@ Eine Speech-Lab-Transkription kann `chat_llm_provider_id` nur für den nächsten
 
 AuraGo liest ASR, TTS und Stimme aus einem `/ready`-Snapshot und verlangt passende Backend-IDs sowie die Header `X-S2S-Voice` und `X-S2S-TTS-ID`. Ein Stack-Wechsel wird während einer Speech-Lab-Operation oder eines SIP-Anrufs abgelehnt. Realtime-Aktionen senden genau ein `final_response` und danach ein inhaltsloses `done`; die Abbruchlogik ist requestbezogen.
 
+#### Stimmen, Empfehlungen und Fehler
+
+Die Stimmauswahl folgt dem TTS-Katalog: `fixed` erlaubt nur die Standardstimme, `restart` wechselt die Stimme durch eine bestätigte Stack-Aktivierung mit Backend-Neustart, und `request` erlaubt Katalogstimmen. Ein fehlender Modus gilt als `fixed`; unbekannte Modi sperren die Aktivierung. Laufende Gespräche behalten ihren ursprünglichen Stimmen-Snapshot.
+
+Ein Klick auf eine Empfehlung belegt ASR, TTS und eine zulässige Standardstimme vor. Bewertung und Begründung sind heuristisch und keine Benchmark-Ergebnisse. Prüfe die Auswahl und bestätige **Stack aktivieren**, um sie anzuwenden. Die Auswahl einer Empfehlung startet keinen Download und verändert den laufenden Stack nicht.
+
+Bei HTTP 409 `voice_not_active` aktualisierst Du vor einem erneuten Versuch den Stack. Bei `module_not_provisioned` prüfst Du die Modulinstallation im Browser Lab. Audiofehler lassen die Textantwort verfügbar. Wenn Speech Lab offline ist, noch startet oder eine Anmeldung benötigt, zeigt der Chat-Integrationsdrawer die Erklärung und einen Link zu den Einstellungen.
+
 #### Deployment und Netzwerkgrenze
 
 Die Managed-Installation verwendet das signierte, Digest-gepinnte Bundle und verlangt für den ersten Pull eine ausdrückliche Admin-Bestätigung. Port `8765` bleibt privat; der Browser-Backend-Standard ist loopback `8766` (native Installation) beziehungsweise `http://s2s-web:80` (Docker) und nur über den `/speech-lab/`-Proxy erreichbar. Es gibt keinen separaten Tailscale-Listener; bei aktiviertem eingebettetem Tailscale ist das Browser Lab über den normalen AuraGo-Zugang erreichbar.

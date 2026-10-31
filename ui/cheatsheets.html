@@ -27,6 +27,7 @@
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
+    <script src="/js/precision/icons.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/cheatsheets.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
@@ -47,10 +48,10 @@
             <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
                     <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
-                        <span class="view-toggle-glyph" aria-hidden="true">▦</span>
+                        <span class="view-toggle-glyph" data-pw-icon="layout-grid" aria-hidden="true"></span>
                     </button>
                     <button type="button" data-view-mode="list" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
-                        <span class="view-toggle-glyph" aria-hidden="true">☰</span>
+                        <span class="view-toggle-glyph" data-pw-icon="list" aria-hidden="true"></span>
                     </button>
                 </div>
                 <button class="btn btn-primary" type="button" id="btn-create">
@@ -80,7 +81,7 @@
                 <span data-i18n="cheatsheets.loading"></span>
             </div>
             <div class="empty-state empty-state-inline pw-empty-state is-hidden" id="sheets-empty-user">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">👤</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="user" aria-hidden="true"></div>
                 <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_user"></p>
             </div>
@@ -92,7 +93,7 @@
                 <span data-i18n="cheatsheets.loading"></span>
             </div>
             <div class="empty-state empty-state-inline pw-empty-state is-hidden" id="sheets-empty-agent">
-                <div class="empty-icon pw-empty-icon" aria-hidden="true">🤖</div>
+                <div class="empty-icon pw-empty-icon" data-pw-icon="bot" aria-hidden="true"></div>
                 <h3 data-i18n="cheatsheets.empty_title"></h3>
                 <p data-i18n="cheatsheets.empty_agent"></p>
             </div>
@@ -162,11 +163,11 @@
                 <div class="attachments-list" id="attachments-list"></div>
                 <div class="attachments-actions">
                     <label class="btn btn-secondary btn-sm attachment-upload-btn">
-                        <span>📎</span> <span data-i18n="cheatsheets.upload_file"></span>
+                        <span data-pw-icon="paperclip" aria-hidden="true"></span> <span data-i18n="cheatsheets.upload_file"></span>
                         <input type="file" id="attachment-file-input" accept=".txt,.md" class="is-hidden" onchange="uploadAttachment(this)">
                     </label>
                     <button class="btn btn-secondary btn-sm" onclick="openKnowledgePicker()">
-                        <span>📚</span> <span data-i18n="cheatsheets.from_knowledge"></span>
+                        <span data-pw-icon="book" aria-hidden="true"></span> <span data-i18n="cheatsheets.from_knowledge"></span>
                     </button>
                 </div>
                 <div class="attachments-hint" data-i18n="cheatsheets.attachments_hint"></div>

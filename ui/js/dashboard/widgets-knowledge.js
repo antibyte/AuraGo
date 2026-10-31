@@ -275,7 +275,7 @@
                     ? `<td><span class="kg-type-badge" data-badge-color="${escAttr(typeColor)}">${esc(node.properties.type)}</span></td>`
                     : '<td class="text-secondary">—</td>';
                 const score = typeof node.importance_score === 'number' ? node.importance_score : '—';
-                const flags = node.protected ? '<span class="kg-flag-protected" title="Protected">🔒</span>' : '';
+                const flags = node.protected ? '<span class="kg-flag-protected" title="Protected" aria-label="Protected">' + pwIcon('lock') + '</span>' : '';
                 html += `<tr>
                     <td class="kg-cell-link" data-kg-open-node="${escAttr(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
                     ${typeCell}

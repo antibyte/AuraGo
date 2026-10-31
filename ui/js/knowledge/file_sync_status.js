@@ -29,11 +29,20 @@ function fsFormatTime(iso) {
 }
 
 /**
- * Renders a stat row: label + value.
+ * Indexer state dot: an icon tinted by status (ok / error / idle).
+ */
+function fsSetIndexerDot(dot, status) {
+    dot.innerHTML = pwIcon('circle-dot');
+    dot.dataset.status = status;
+    dot.style.color = status === 'ok' ? 'var(--pw-success)' : status === 'error' ? 'var(--pw-danger)' : 'var(--pw-muted)';
+}
+
+/**
+ * Renders a stat row: label + value (icon is a pwIcon name).
  */
 function fsStatRow(label, value, icon) {
     return `<div class="kc-sync-stat">
-        ${icon ? `<span class="kc-sync-stat-icon">${icon}</span>` : ''}
+        ${icon ? `<span class="kc-sync-stat-icon">${pwIcon(icon)}</span>` : ''}
         <span class="kc-sync-stat-label">${label}</span>
         <span class="kc-sync-stat-value">${value}</span>
     </div>`;
@@ -72,7 +81,7 @@ async function loadFileSyncStatus() {
     if (indexerBody && status) {
         const idx = status.indexer || {};
         const isRunning = !!idx.running;
-        if (indexerDot) indexerDot.textContent = isRunning ? '🟢' : '🔴';
+        if (indexerDot) fsSetIndexerDot(indexerDot, isRunning ? 'ok' : 'error');
         if (indexerStatusLabel) {
             indexerStatusLabel.textContent = isRunning
                 ? (t('knowledge.filesync_running'))
@@ -81,15 +90,15 @@ async function loadFileSyncStatus() {
         }
 
         let html = '';
-        html += fsStatRow(t('knowledge.filesync_total_files'), idx.total_files ?? '—', '📄');
-        html += fsStatRow(t('knowledge.filesync_indexed_files'), idx.indexed_files ?? '—', '🔗');
-        html += fsStatRow(t('knowledge.filesync_last_scan'), fsFormatTime(idx.last_scan_at), '⏱️');
+        html += fsStatRow(t('knowledge.filesync_total_files'), idx.total_files ?? '—', 'doc');
+        html += fsStatRow(t('knowledge.filesync_indexed_files'), idx.indexed_files ?? '—', 'link');
+        html += fsStatRow(t('knowledge.filesync_last_scan'), fsFormatTime(idx.last_scan_at), 'clock');
         if (idx.last_scan_duration) {
-            html += fsStatRow(t('knowledge.filesync_scan_duration'), idx.last_scan_duration, '⏳');
+            html += fsStatRow(t('knowledge.filesync_scan_duration'), idx.last_scan_duration, 'hourglass');
         }
         if (idx.directories && idx.directories.length > 0) {
             html += `<div class="kc-sync-stat kc-sync-stat-full">
-                <span class="kc-sync-stat-label">📂 ${t('knowledge.filesync_directories')}</span>
+                <span class="kc-sync-stat-label">${pwIcon('folder')} ${t('knowledge.filesync_directories')}</span>
             </div>`;
             idx.directories.forEach(dir => {
                 html += `<div class="kc-sync-dir-item"><span class="kc-sync-dir-path">${fsEscapeHtml(dir)}</span></div>`;
@@ -97,13 +106,13 @@ async function loadFileSyncStatus() {
         }
         if (idx.errors && idx.errors.length > 0) {
             html += `<div class="kc-sync-errors">
-                <span class="kc-sync-errors-title">⚠️ ${idx.errors.length} ${t('knowledge.filesync_errors')}</span>
+                <span class="kc-sync-errors-title">${pwIcon('warning')} ${idx.errors.length} ${t('knowledge.filesync_errors')}</span>
                 <ul class="kc-sync-errors-list">${idx.errors.map(e => `<li>${fsEscapeHtml(String(e))}</li>`).join('')}</ul>
             </div>`;
         }
         indexerBody.innerHTML = html;
     } else if (indexerBody) {
-        if (indexerDot) indexerDot.textContent = '⚫';
+        if (indexerDot) fsSetIndexerDot(indexerDot, 'idle');
         if (indexerStatusLabel) {
             indexerStatusLabel.textContent = t('knowledge.filesync_unavailable');
             indexerStatusLabel.className = 'kc-sync-status-label kc-sync-warn';
@@ -114,8 +123,8 @@ async function loadFileSyncStatus() {
     // ── KG Stats ──
     if (kgBody && kg) {
         let html = '';
-        html += fsStatRow(t('knowledge.filesync_kg_nodes'), kg.node_count ?? 0, '🔵');
-        html += fsStatRow(t('knowledge.filesync_kg_edges'), kg.edge_count ?? 0, '🔗');
+        html += fsStatRow(t('knowledge.filesync_kg_nodes'), kg.node_count ?? 0, 'circle-dot');
+        html += fsStatRow(t('knowledge.filesync_kg_edges'), kg.edge_count ?? 0, 'link');
 
         if (kg.by_entity_type && Object.keys(kg.by_entity_type).length > 0) {
             html += `<div class="kc-sync-stat kc-sync-stat-full">
@@ -170,10 +179,10 @@ async function loadFileSyncStatus() {
     // ── Last Sync ──
     if (lastSyncBody && last) {
         let html = '';
-        html += fsStatRow(t('knowledge.filesync_global_last_sync'), fsFormatTime(last.global), '🌐');
+        html += fsStatRow(t('knowledge.filesync_global_last_sync'), fsFormatTime(last.global), 'globe');
         if (last.per_collection && last.per_collection.length > 0) {
             last.per_collection.forEach(c => {
-                html += fsStatRow(c.collection, fsFormatTime(c.last_sync_at), '📂');
+                html += fsStatRow(c.collection, fsFormatTime(c.last_sync_at), 'folder');
             });
         }
         lastSyncBody.innerHTML = html;

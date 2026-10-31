@@ -36,6 +36,7 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		// Stores whose location is fixed by their package (audit B1).
 		filepath.Join(dataDir, "mailer", "mailer.db"):         true,
 		filepath.Join(dataDir, "huggingface.db"):              true,
+		filepath.Join(dataDir, "kaggle.db"):                   true,
 		filepath.Join(dataDir, "manus.db"):                    true,
 		filepath.Join(dataDir, "sip_calls.db"):                true,
 		filepath.Join(dataDir, "docker_manager.db"):           true,

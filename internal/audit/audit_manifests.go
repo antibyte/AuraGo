@@ -222,6 +222,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/kaggle/", Classification: "fixed-kaggle-api-no-credentialed-redirects-and-public-storage-transfers", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/phonon/", Classification: "fixed-pinned-public-voice-downloads-with-allowlisted-https-redirects"},
 		{Path: "internal/decisions/", Classification: "pinned-model-downloads-and-authenticated-private-scoring-runtime", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},

@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "Δώσε στον βοηθό σου μια εργασία …",
   "chat.galaxy_persona": "Η προσωπικότητά σου",
   "chat.galaxy_mood": "Τρέχουσα διάθεση",
-  "chat.youtube_play": "Αναπαραγωγή"
+  "chat.youtube_play": "Αναπαραγωγή",
+  "chat.speech_lab_not_ready_settings": "Το Speech Lab δεν είναι έτοιμο. Άνοιξε τις ρυθμίσεις και έλεγξε τη σύνδεση."
 }

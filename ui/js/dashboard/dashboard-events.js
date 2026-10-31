@@ -93,7 +93,7 @@
                 if (_sseReconnectTimer) return; // Already pending
                 _sseReconnectTimer = setTimeout(function () {
                     _sseReconnectTimer = null;
-                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting')));
+                    showSSEBanner(t('dashboard.sse_reconnecting'));
                 }, 3000);
                 // Also check auth status after a longer delay
                 if (_sseReconnectTimeout) clearTimeout(_sseReconnectTimeout);
@@ -166,9 +166,9 @@
                             document.getElementById('budget-spent').textContent = '$' + (data.spent_usd || 0).toFixed(2);
                         }
                     } else if (data.event === 'budget_warning') {
-                        if (typeof showToast === 'function') showToast('⚡ ' + (data.detail || t('dashboard.budget_warning')), 'warning', 5000);
+                        if (typeof showToast === 'function') showToast((data.detail || t('dashboard.budget_warning')), 'warning', 5000);
                     } else if (data.event === 'budget_blocked') {
-                        if (typeof showToast === 'function') showToast('🚫 ' + (data.detail || t('dashboard.budget_blocked')), 'error', 0);
+                        if (typeof showToast === 'function') showToast((data.detail || t('dashboard.budget_blocked')), 'error', 0);
                     }
                 } catch (e) { /* ignore non-JSON */ }
             });
