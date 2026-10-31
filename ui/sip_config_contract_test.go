@@ -29,7 +29,7 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"/api/sip/config", "/api/sip/providers", "/api/sip/setup", "/api/sip/status", "/api/sip/test", "password_set",
 		"sipSavedState", "sipComparable(current) !== sipSavedState",
 		"config.telephone_agent.sip_summary", `class="sip-settings-grid"`,
-		`class="field-group sip-toggle-field"`, `class="toggle"`, `class="slider"`,
+		`class="field-group sip-toggle-field"`, `class="toggle${value ? ' on' : ''}"`,
 		`class="sip-wizard-shell cfg-topic"`, `class="sip-provider-grid"`, `class="sip-advanced"`,
 		"confirm_replace", "sipWizardPassword", "sipAdvancedDirty",
 		"const canReusePassword = sipConfigState.password_set && sipConfigState.preset_id === provider.id",
@@ -134,7 +134,7 @@ func TestSIPConfigHasResponsiveLayoutStyles(t *testing.T) {
 		"grid-template-columns: minmax(0, 1fr)", ".sip-toggle-field",
 		".sip-wizard-shell", ".sip-provider-grid", ".sip-advanced",
 		".sip-mode-card", ".sip-choice-group", ".sip-profile-card",
-		".sip-readiness-list", ".sip-delete-confirm", ".sip-password-toggle",
+		".sip-readiness-list", ".sip-profile-delete", ".sip-password-toggle",
 		"@media (prefers-reduced-motion: reduce)",
 	} {
 		if !strings.Contains(source, marker) {

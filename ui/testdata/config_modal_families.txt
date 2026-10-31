@@ -99,9 +99,6 @@ sql_connections sqlconn-modal-header
 sql_connections sqlconn-modal-overlay
 sql_connections sqlconn-modal-save
 sql_connections sqlconn-modal-title
-tts style-modal
-tts voice-modal
-tts voice-modal-body
 webhooks og-modal
 webhooks og-modal-body
 webhooks og-modal-error-host

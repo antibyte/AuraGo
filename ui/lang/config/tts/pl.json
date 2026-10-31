@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Obraz Docker",
   "config.tts.piper_data_path_label": "Ścieżka danych",
   "config.tts.piper_voice_browser_title": "Przeglądarka głosów Piper",
-  "config.tts.piper_loading_voices": "⏳ Ładowanie głosów...",
+  "config.tts.piper_loading_voices": "Ładowanie głosów...",
   "config.tts.piper_no_voices": "Brak dostępnych głosów.",
   "config.tts.piper_voice_error": "Nie udało się wczytać głosów.",
   "config.tts.piper_status_disabled": "Piper jest wyłączony",

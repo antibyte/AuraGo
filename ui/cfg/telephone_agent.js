@@ -86,6 +86,11 @@ function taHelp(key) {
     return `<small class="field-help" id="ta-${key}">${taEsc(t('config.telephone_agent.' + key))}</small>`;
 }
 
+// On/off setting as a switch (E4); attrs carries the data-ta / data-ta-live-confirm binding.
+function taSwitch(id, attrs, on, label, helpKey) {
+    return `<div class="ta-check"><div class="toggle${on ? ' on' : ''}" ${attrs} aria-labelledby="ta-${id}-label" aria-describedby="ta-${helpKey}"></div><span id="ta-${id}-label">${taEsc(label)}</span>${taHelp(helpKey)}</div>`;
+}
+
 function taBlockerMarkup() {
     if (!telephoneAgentBlockers.length) {
         return `<div class="ta-status-card is-ready"><strong>${taEsc(t('config.telephone_agent.ready'))}</strong><span>${taEsc(t('config.telephone_agent.ready_desc'))}</span></div>`;
@@ -106,10 +111,10 @@ function taToolMarkup(selected) {
     });
     const query = telephoneAgentToolQuery.trim().toLowerCase();
     const visible = tools.filter(tool => !query || `${tool.id} ${tool.description || ''}`.toLowerCase().includes(query));
-    if (!visible.length) return `<p class="ta-empty">${taEsc(t('config.telephone_agent.no_tools'))}</p>`;
+    if (!visible.length) return AuraConfigForm.emptyState({ title: t('config.telephone_agent.no_tools') });
     const selectedSet = new Set(selected || []);
     return visible.map((tool, index) => `<label class="ta-tool">
-        <input type="checkbox" value="${taEsc(tool.id)}" data-ta-tool aria-describedby="ta-tool-desc-${index}" ${selectedSet.has(tool.id) ? 'checked' : ''}>
+        <input type="checkbox" data-cfg-choice value="${taEsc(tool.id)}" data-ta-tool aria-describedby="ta-tool-desc-${index}" ${selectedSet.has(tool.id) ? 'checked' : ''}>
         <span><strong>${taEsc(tool.id)}</strong><small id="ta-tool-desc-${index}">${taEsc(tool.description || tool.id)}</small></span>
     </label>`).join('');
 }
@@ -174,7 +179,7 @@ function taRender() {
 
             <section class="ta-card ta-card-wide">
                 <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.behavior'))}</h2>
-                <label class="ta-check"><input type="checkbox" data-ta="voice.behavior.greeting_enabled" ${c.voice.behavior.greeting_enabled ? 'checked' : ''}>${taEsc(t('config.telephone_agent.greeting_enabled'))}${taHelp('help_greeting_enabled')}</label>
+                ${taSwitch('greeting-enabled', 'data-ta="voice.behavior.greeting_enabled"', c.voice.behavior.greeting_enabled, t('config.telephone_agent.greeting_enabled'), 'help_greeting_enabled')}
                 <label>${taEsc(t('config.telephone_agent.greeting'))}<textarea class="field-input" maxlength="500" data-ta="voice.behavior.greeting">${taEsc(c.voice.behavior.greeting)}</textarea>${taHelp('help_greeting')}</label>
                 <label>${taEsc(t('config.telephone_agent.purpose'))}<textarea class="field-input" maxlength="8000" data-ta="voice.behavior.purpose">${taEsc(c.voice.behavior.purpose)}</textarea>${taHelp('help_purpose')}</label>
                 <label>${taEsc(t('config.telephone_agent.style'))}<textarea class="field-input" maxlength="8000" data-ta="voice.behavior.speaking_style">${taEsc(c.voice.behavior.speaking_style)}</textarea>${taHelp('help_style')}</label>
@@ -196,7 +201,7 @@ function taRender() {
 
             <section class="ta-card">
                 <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.privacy_limits'))}</h2>
-                <label class="ta-check"><input type="checkbox" data-ta="voice.persist_transcripts" ${c.voice.persist_transcripts ? 'checked' : ''}>${taEsc(t('config.sip.persist_transcripts'))}${taHelp('help_persist_transcripts')}</label>
+                ${taSwitch('persist-transcripts', 'data-ta="voice.persist_transcripts"', c.voice.persist_transcripts, t('config.sip.persist_transcripts'), 'help_persist_transcripts')}
                 <label>${taEsc(t('config.sip.max_duration'))}<input class="field-input" type="number" min="30" max="86400" data-ta="voice.max_call_duration_seconds" value="${c.voice.max_call_duration_seconds}">${taHelp('help_max_duration')}</label>
 				<label>${taEsc(t('config.telephone_agent.idle_timeout'))}<input class="field-input" type="number" min="15" max="3600" data-ta="voice.idle_timeout_seconds" value="${c.voice.idle_timeout_seconds}">${taHelp('help_idle_timeout')}</label>
 				<label>${taEsc(t('config.telephone_agent.turn_timeout'))}<input class="field-input" type="number" min="15" max="300" data-ta="voice.turn_timeout_seconds" value="${c.voice.turn_timeout_seconds}">${taHelp('help_turn_timeout')}</label>
@@ -209,7 +214,7 @@ function taRender() {
         <div class="ta-actions">
             <span id="telephone-agent-status" role="status" aria-live="polite"></span>
             <button type="button" class="btn btn-secondary" data-ta-action="preflight">${taEsc(t('config.telephone_agent.preflight'))}</button>
-            <label class="ta-check"><input type="checkbox" data-ta-live-confirm>${taEsc(t('config.telephone_agent.confirm_live'))}${taHelp('help_confirm_live')}</label>
+            ${taSwitch('confirm-live', 'data-ta-live-confirm', false, t('config.telephone_agent.confirm_live'), 'help_confirm_live')}
             <button type="button" class="btn btn-secondary" data-ta-action="live-test">${taEsc(t('config.telephone_agent.live_test'))}</button>
             <button type="button" class="btn-save" data-ta-action="save">${taEsc(t('config.sip.save'))}</button>
         </div>
@@ -219,6 +224,11 @@ function taRender() {
         help.parentElement.querySelector('[data-ta], [data-ta-live-confirm]')?.setAttribute('aria-describedby', help.id);
     });
     taBind();
+    document.querySelector('[data-ta-live-confirm]')?.addEventListener('click', event => {
+        event.currentTarget.classList.toggle('on');
+        if (typeof syncToggleA11y === 'function') syncToggleA11y(event.currentTarget);
+    });
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls();
     taSyncActions();
 }
 
@@ -290,7 +300,7 @@ function taAssign(target, path, value) {
 function taRead() {
     const next = JSON.parse(JSON.stringify(telephoneAgentState));
     document.querySelectorAll('[data-ta]').forEach(input => {
-        let value = input.type === 'checkbox' ? input.checked : input.value;
+        let value = input.classList.contains('toggle') ? input.classList.contains('on') : (input.type === 'checkbox' ? input.checked : input.value);
         if (input.type === 'number') value = Number(value);
         taAssign(next, input.dataset.ta, value);
     });
@@ -310,6 +320,11 @@ function taMarkDirty() {
 
 function taBind() {
     document.querySelectorAll('[data-ta]').forEach(input => {
+        if (input.classList.contains('toggle')) input.addEventListener('click', () => {
+            input.classList.toggle('on');
+            if (typeof syncToggleA11y === 'function') syncToggleA11y(input);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
         input.addEventListener('input', taMarkDirty);
         input.addEventListener('change', () => {
             const pipelineChanged = input.dataset.ta === 'voice.backend';
@@ -411,7 +426,7 @@ async function taTest(live) {
         if (status) status.textContent = t('config.telephone_agent.save_before_test');
         return;
     }
-    const confirmed = !!document.querySelector('[data-ta-live-confirm]')?.checked;
+    const confirmed = !!document.querySelector('[data-ta-live-confirm]')?.classList.contains('on');
     if (live && !confirmed) {
         if (status) status.textContent = t('config.telephone_agent.confirm_required');
         return;
@@ -447,7 +462,8 @@ window.telephoneAgentDiscardUnsaved = function () {
 };
 
 async function renderTelephoneAgentSection() {
-    document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section"><div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div><div class="loading-state">${taEsc(t('config.telephone_agent.loading'))}</div></section>`;
+    document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section"><div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div><div id="ta-loading"></div></section>`;
+    cfgListState('ta-loading', { state: 'loading', title: t('config.telephone_agent.loading') });
     await taLoad();
 }
 

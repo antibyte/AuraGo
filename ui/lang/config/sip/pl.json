@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "Agent może samodzielnie rozpoczynać rozmowy. Koszty nalicza Twój operator telefoniczny.",
   "config.sip.help.permissions_send_dtmf": "Agent może wysyłać tony DTMF, na przykład dla menu central telefonicznych.",
   "config.sip.help.permissions_agent_hangup": "Agent może kończyć trwające rozmowy.",
-  "config.sip.help.history_retention_days": "Rejestr połączeń jest usuwany po tym czasie (1-3650 dni, domyślnie 90)."
+  "config.sip.help.history_retention_days": "Rejestr połączeń jest usuwany po tym czasie (1-3650 dni, domyślnie 90).",
+  "config.sip.wizard.replace_title": "Zastąpić istniejące konto?",
+  "config.sip.wizard.replace_text": "Ten szablon zastępuje istniejące wartości konta i sieci."
 }

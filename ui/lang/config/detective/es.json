@@ -19,5 +19,6 @@
   "config.detective.help_readonly": "Permite que la investigación solo lea. Se recomienda salvo que estés seguro de que no hay nada que modificar.",
   "config.detective.help_seconds": "Tiempo máximo de ejecución de un trabajo en segundos (30 a 7200); después se detiene.",
   "config.detective.help_tokens": "Tope adicional de tokens por trabajo. 0 = sin límite adicional.",
-  "config.detective.help_tools": "Número máximo de llamadas a herramientas por trabajo (1 a 500)."
+  "config.detective.help_tools": "Número máximo de llamadas a herramientas por trabajo (1 a 500).",
+  "config.detective.extra_read_invalid": "Estas líneas no se guardarán porque no tienen el formato herramienta: operación, operación. Línea {lines}."
 }

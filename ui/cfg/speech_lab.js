@@ -325,7 +325,7 @@ function speechLabRenderCapability() {
         details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_accelerators')) + ':</strong> ' + escapeHtml(accelerators.join(' · ')) + '</div>';
     }
     if (typeof value('host_agent_online') === 'boolean') {
-        details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_host_agent')) + ':</strong> ' + (value('host_agent_online') ? '✓' : '—') + '</div>';
+        details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_host_agent')) + ':</strong> ' + (value('host_agent_online') ? cfgIcon('check', { label: t('config.toggle.active') }) : '—') + '</div>';
     }
     if (memory.length) {
         details += '<div><strong>' + escapeHtml(t('config.speech_lab.capability_memory')) + ':</strong> ' + escapeHtml(memory.join(' · ')) + '</div>';
@@ -354,9 +354,9 @@ function speechLabRenderDeployment() {
 	const installedBundle = String(deployment.bundle || '');
 	const requestedBundle = String(deployment.requested_bundle || '');
 	let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(managed ? t('config.speech_lab.deployment_managed') : t('config.speech_lab.external_hardware_title')) + '</div>';
-	html += '<p>' + escapeHtml(state) + (installedBundle ? ' · ✓ ' + escapeHtml(installedBundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
+	html += '<p>' + escapeHtml(state) + (installedBundle ? ' · ' + cfgIcon('check') + ' ' + escapeHtml(installedBundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
 	if (managed && requestedBundle && requestedBundle !== installedBundle) {
-		html += '<p class="field-help">✓ ' + escapeHtml(installedBundle || '—') + ' → ' + escapeHtml(requestedBundle) + '</p>';
+		html += '<p class="field-help">' + cfgIcon('check') + ' ' + escapeHtml(installedBundle || '—') + ' ' + cfgIcon('arrow-right') + ' ' + escapeHtml(requestedBundle) + '</p>';
 	}
 	if (deployment.last_error) html += '<p class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(deployment.last_error) + '</p>';
 	if (!managed) {
@@ -425,12 +425,10 @@ async function speechLabDeploymentAction(action) {
         succeeded = true;
         const message = t('config.speech_lab.action_done').replace('{action}', speechLabActionLabel(action));
         speechLabFeedback(message, 'success');
-        showToast(message, 'success');
     } catch (error) {
         const message = t('config.speech_lab.action_failed').replace('{action}', speechLabActionLabel(action))
             .replace('{error}', error.message || t('config.speech_lab.apply_failed'));
         speechLabFeedback(message, 'warning');
-        showToast(message, 'error');
     } finally {
         clearInterval(timer);
         speechLabPendingAction = null;
@@ -453,12 +451,12 @@ async function speechLabApplyHardwareProfile() {
     if (speechLabPendingAction || speechLabSavingProfile) return;
     const deployment = speechLabStatus?.deployment || {};
     if (deployment.managed !== true) {
-        showToast(t('config.speech_lab.external_hardware_help'), 'warn');
+        speechLabFeedback(t('config.speech_lab.external_hardware_help'), 'warning');
         return;
     }
     const dirtyPaths = speechLabHardwareDirtyPaths();
     if (dirtyPaths.some(path => path !== 'speech_lab.deployment.gpu_backend')) {
-        showToast(t('config.speech_lab.hardware_save_first'), 'warn');
+        speechLabFeedback(t('config.speech_lab.hardware_save_first'), 'warning');
         return;
     }
     if (dirtyPaths.includes('speech_lab.deployment.gpu_backend')) {
@@ -517,9 +515,11 @@ function speechLabRenderStack() {
     html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-asr">ASR</label><select id="speech-lab-asr" class="field-select">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></div>';
     html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-tts">TTS</label><select id="speech-lab-tts" class="field-select" onchange="speechLabUpdateVoices()">' + speechLabOptions(tts, speechLabStatus && speechLabStatus.tts_id) + '</select></div>';
     html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-voice">' + escapeHtml(t('config.speech_lab.voice')) + '</label><span class="field-help">' + escapeHtml(t('config.speech_lab.voice_help')) + '</span><select id="speech-lab-voice" class="field-select"></select></div>';
-    html += '<label class="speech-lab-experimental-row"><input id="speech-lab-experimental" type="checkbox" ' + (speechLabShowExperimental ? 'checked' : '') + ' onchange="speechLabToggleExperimental(this.checked)"><span>' + escapeHtml(t('config.speech_lab.show_experimental')) + '</span></label>';
+    html += '<div class="speech-lab-experimental-row"><div id="speech-lab-experimental" class="toggle' + (speechLabShowExperimental ? ' on' : '') + '" aria-labelledby="speech-lab-experimental-label" onclick="speechLabToggleExperimental(!this.classList.contains(\'on\'))"></div><span id="speech-lab-experimental-label">' + escapeHtml(t('config.speech_lab.show_experimental')) + '</span></div>';
     html += '<div class="speech-lab-stack-actions"><button type="button" class="btn-save" ' + (!speechLabStatus || speechLabDeploymentBusy(speechLabStatus.deployment || {}) ? 'disabled' : '') + ' onclick="speechLabApplyStack()">' + escapeHtml(t('config.speech_lab.apply_stack')) + '</button></div></div>';
     node.innerHTML = html;
+    // Role, aria-checked and Space/Enter for the experimental switch.
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(node);
     speechLabUpdateVoices();
 }
 
@@ -560,12 +560,13 @@ function speechLabUpdateVoices() {
 function speechLabToggleExperimental(enabled) {
     speechLabShowExperimental = !!enabled;
     speechLabRenderStack();
+    document.getElementById('speech-lab-experimental')?.focus();
 }
 
 async function speechLabApplyStack() {
     if (speechLabPendingAction || speechLabSavingProfile) return;
     if (typeof isDirty !== 'undefined' && isDirty) {
-        showToast(t('config.speech_lab.save_first'), 'warn');
+        speechLabFeedback(t('config.speech_lab.save_first'), 'warning');
         return;
     }
     const request = {
@@ -574,7 +575,7 @@ async function speechLabApplyStack() {
         voice: document.getElementById('speech-lab-voice')?.value || ''
     };
     if (!request.asr_id || !request.tts_id) {
-        showToast(t('config.speech_lab.select_stack'), 'warn');
+        speechLabFeedback(t('config.speech_lab.select_stack'), 'warning');
         return;
     }
     const oldStack = (speechLabStatus?.asr_id || '—') + ' + ' + (speechLabStatus?.tts_id || '—') + ' + ' + (speechLabStatus?.voice || '—');
@@ -592,11 +593,9 @@ async function speechLabApplyStack() {
         const result = await speechLabJSON(response);
         const message = result.message || t('config.speech_lab.applied');
         speechLabFeedback(message, 'success');
-        showToast(message, 'success');
     } catch (error) {
         const message = error.message || t('config.speech_lab.apply_failed');
         speechLabFeedback(message, 'warning');
-        showToast(message, 'error');
     } finally {
         speechLabPendingAction = null;
         await speechLabRefresh(false);

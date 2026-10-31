@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker-image",
   "config.tts.piper_data_path_label": "Gegevenspad",
   "config.tts.piper_voice_browser_title": "Piper-stembrowser",
-  "config.tts.piper_loading_voices": "⏳ Stemmen laden...",
+  "config.tts.piper_loading_voices": "Stemmen laden...",
   "config.tts.piper_no_voices": "Geen stemmen beschikbaar.",
   "config.tts.piper_voice_error": "Stemmen laden mislukt.",
   "config.tts.piper_status_disabled": "Piper is uitgeschakeld",

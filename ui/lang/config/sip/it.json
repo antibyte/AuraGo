@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "L'agente può avviare chiamate di propria iniziativa. I costi sono addebitati dal tuo operatore telefonico.",
   "config.sip.help.permissions_send_dtmf": "L'agente può inviare i toni DTMF, ad esempio per i menu dei sistemi telefonici.",
   "config.sip.help.permissions_agent_hangup": "L'agente può terminare le chiamate in corso.",
-  "config.sip.help.history_retention_days": "Il registro delle chiamate viene eliminato dopo questo periodo (1-3650 giorni, predefinito 90)."
+  "config.sip.help.history_retention_days": "Il registro delle chiamate viene eliminato dopo questo periodo (1-3650 giorni, predefinito 90).",
+  "config.sip.wizard.replace_title": "Sostituire l'account esistente?",
+  "config.sip.wizard.replace_text": "Questo preset sostituisce i valori esistenti dell'account e della rete."
 }

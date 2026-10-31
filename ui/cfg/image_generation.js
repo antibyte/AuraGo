@@ -1,146 +1,51 @@
 let _imggenSection = null;
 
-async function renderImageGenerationSection(section) {
+function renderImageGenerationSection(section) {
     if (section) _imggenSection = section; else section = _imggenSection;
     const cfg = configData.image_generation || {};
     const enabled = cfg.enabled === true;
+    const form = window.AuraConfigForm;
+    const key = name => t('config.image_generation.' + name);
 
-    let html = `<div class="cfg-section active">
-        <div class="section-header">${section.label}</div>
-        <div class="section-desc">${section.desc}</div>`;
-
-    html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.image_generation.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" aria-describedby="imggen-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)"></div>
-    </div>
-    <div class="field-help" id="imggen-enabled-help">${t('config.image_generation.enabled_help')}</div>`;
+    // The switch re-renders the section: the provider groups only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'image_generation.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', 'onclick="toggleBool(this);setNestedValue(configData,\'image_generation.enabled\',this.classList.contains(\'on\'));renderImageGenerationSection(null)"');
+    const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
+    let after = '';
 
     if (!enabled) {
-        html += `<div class="wh-notice">
-            <span>🎨</span>
-            <div>
-                <strong>${t('config.image_generation.disabled_notice')}</strong><br>
-                <small>${t('config.image_generation.disabled_desc')}</small>
-            </div>
-        </div>`;
-        html += `</div>`;
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
+    } else {
+        const curProvider = cfg.provider || '';
+        const providers = configGeneralProviders();
+        const providerOptions = [{ value: '', label: key('select_provider') }].concat(providers.map(p => ({
+            value: p.id,
+            label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' — ' + p.model : '')
+        })));
+        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'image_generation.provider', value: curProvider, options: providerOptions })
+            .replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+        const choices = values => values.map(v => ({ value: v, label: v }));
+        groups.push({ title: key('provider_title'), desc: key('provider_desc'), fields: [
+            providerSelect,
+            form.field({ label: key('model_label'), help: key('model_hint'), path: 'image_generation.model', value: cfg.model || '', placeholder: 'dall-e-3, stable-diffusion-3, imagen-3.0-generate-002...' })
+        ] });
+        groups.push({ title: key('defaults_title'), desc: key('defaults_desc'), fields: [
+            form.select({ label: key('size_label'), help: key('size_help'), path: 'image_generation.default_size', value: cfg.default_size || '1024x1024', options: choices(['256x256', '512x512', '1024x1024', '1024x1792', '1792x1024']) }),
+            form.select({ label: key('quality_label'), help: key('quality_help'), path: 'image_generation.default_quality', value: cfg.default_quality || 'standard', options: choices(['standard', 'hd']) }),
+            form.select({ label: key('style_label'), help: key('style_help'), path: 'image_generation.default_style', value: cfg.default_style || 'natural', options: choices(['natural', 'vivid']) })
+        ] });
+        groups.push({ title: key('enhancement_title'), desc: key('enhancement_desc'), fields: [
+            form.toggle({ label: key('prompt_enhancement_label'), help: key('prompt_enhancement_help'), path: 'image_generation.prompt_enhancement', value: cfg.prompt_enhancement === true }),
+            form.number({ label: key('max_monthly_label'), help: key('max_monthly_hint'), path: 'image_generation.max_monthly', value: cfg.max_monthly || 0, min: 0 }),
+            form.number({ label: key('max_daily_label'), help: key('max_daily_hint'), path: 'image_generation.max_daily', value: cfg.max_daily || 0, min: 0 })
+        ] });
+        groups.push({ title: key('test_title'), desc: key('test_desc'), content: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()" data-config-action-draft="true">' + cfgIcon('flask') + '<span>' + escapeHtml(key('test_btn')) + '</span></button>' },
+            { html: cfgActionResult.html('imggen-test-result') }
+        ]) + '<div id="imggen-test-preview" class="ig-test-preview"></div>' });
     }
 
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.image_generation.provider_title')}</div>
-        <div class="field-group-desc">${t('config.image_generation.provider_desc')}</div>`;
-
-    const curProvider = cfg.provider || '';
-    html += `<div class="field-grid two-cols">`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.provider_label')}</div>
-        <div class="field-help">${t('config.image_generation.provider_help')}</div>
-        <select class="field-select" data-path="image_generation.provider">
-            <option value=""${!curProvider ? ' selected' : ''}>${t('config.image_generation.select_provider')}</option>`;
-    configGeneralProviders().forEach(p => {
-        const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
-        const name = p.name || p.id;
-        const badge = p.type ? (' [' + p.type + ']') : '';
-        const model = p.model ? (' — ' + p.model) : '';
-        html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
-    });
-    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
-    html += `</select></div>`;
-
-    const curModel = cfg.model || '';
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.model_label')}</div>
-        <div class="field-help">${t('config.image_generation.model_hint')}</div>
-        <input type="text" class="field-input" data-path="image_generation.model" value="${escapeAttr(curModel)}"
-            placeholder="dall-e-3, stable-diffusion-3, imagen-3.0-generate-002...">
-    </div></div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.image_generation.defaults_title')}</div>
-        <div class="field-group-desc">${t('config.image_generation.defaults_desc')}</div>`;
-
-    const sizes = ['256x256', '512x512', '1024x1024', '1024x1792', '1792x1024'];
-    const curSize = cfg.default_size || '1024x1024';
-    html += `<div class="field-grid two-cols">`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.size_label')}</div>
-        <div class="field-help">${t('config.image_generation.size_help')}</div>
-        <select class="field-select" data-path="image_generation.default_size">`;
-    sizes.forEach(s => {
-        const sel = (curSize === s) ? ' selected' : '';
-        html += `<option value="${s}"${sel}>${s}</option>`;
-    });
-    html += `</select></div>`;
-
-    const qualities = ['standard', 'hd'];
-    const curQuality = cfg.default_quality || 'standard';
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.quality_label')}</div>
-        <div class="field-help">${t('config.image_generation.quality_help')}</div>
-        <select class="field-select" data-path="image_generation.default_quality">`;
-    qualities.forEach(q => {
-        const sel = (curQuality === q) ? ' selected' : '';
-        html += `<option value="${q}"${sel}>${q}</option>`;
-    });
-    html += `</select></div>`;
-
-    const styles = ['natural', 'vivid'];
-    const curStyle = cfg.default_style || 'natural';
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.style_label')}</div>
-        <div class="field-help">${t('config.image_generation.style_help')}</div>
-        <select class="field-select" data-path="image_generation.default_style">`;
-    styles.forEach(st => {
-        const sel = (curStyle === st) ? ' selected' : '';
-        html += `<option value="${st}"${sel}>${st}</option>`;
-    });
-    html += `</select></div></div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.image_generation.enhancement_title')}</div>
-        <div class="field-group-desc">${t('config.image_generation.enhancement_desc')}</div>`;
-
-    const enhanceOn = cfg.prompt_enhancement === true;
-    html += `<div class="ig-toggle-row">
-        <span class="ig-label-text" id="imggen-enhance-label">${t('config.image_generation.prompt_enhancement_label')}</span>
-        <div class="toggle ${enhanceOn ? 'on' : ''}" data-path="image_generation.prompt_enhancement" role="switch" aria-labelledby="imggen-enhance-label" aria-describedby="imggen-enhance-help" onclick="toggleBool(this)"></div>
-    </div>
-    <div class="field-help" id="imggen-enhance-help">${t('config.image_generation.prompt_enhancement_help')}</div>`;
-
-    const curMax = cfg.max_monthly || 0;
-    const curMaxDaily = cfg.max_daily || 0;
-    html += `<div class="field-grid two-cols">`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.max_monthly_label')}</div>
-        <div class="field-help">${t('config.image_generation.max_monthly_hint')}</div>
-        <input type="number" class="field-input" data-path="image_generation.max_monthly" value="${curMax}" min="0" placeholder="0">
-    </div>`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.image_generation.max_daily_label')}</div>
-        <div class="field-help">${t('config.image_generation.max_daily_hint')}</div>
-        <input type="number" class="field-input" data-path="image_generation.max_daily" value="${curMaxDaily}" min="0" placeholder="0">
-    </div></div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.image_generation.test_title')}</div>
-        <div class="field-group-desc">${t('config.image_generation.test_desc')}</div>
-        <div class="cfg-actions-row">
-            <button class="btn-save cfg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()" data-config-action-draft="true">
-                🧪 ${t('config.image_generation.test_btn')}
-            </button>
-            ${cfgActionResult.html('imggen-test-result')}
-        </div>
-        <div id="imggen-test-preview" class="ig-test-preview"></div>
-    </div>`;
-
-    html += `</div>`;
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc, groups, afterHTML: after });
     attachChangeListeners();
 }
 

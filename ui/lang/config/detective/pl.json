@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "Najdłuższy czas działania jednego zadania w sekundach (od 30 do 7200), po którym zostaje zatrzymane.",
   "config.detective.help_tools": "Maksymalna liczba wywołań narzędzi na zadanie (od 1 do 500).",
   "config.detective.help_iterations": "Maksymalna liczba rund rozumowania i pracy na zadanie (od 1 do 750).",
-  "config.detective.help_tokens": "Dodatkowy limit tokenów na zadanie. 0 = bez dodatkowego limitu."
+  "config.detective.help_tokens": "Dodatkowy limit tokenów na zadanie. 0 = bez dodatkowego limitu.",
+  "config.detective.extra_read_invalid": "Te wiersze nie zostaną zapisane, ponieważ nie mają postaci narzędzie: operacja, operacja. Wiersz {lines}."
 }

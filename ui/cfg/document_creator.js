@@ -9,92 +9,44 @@ async function renderDocumentCreatorSection(section) {
     const enabled = data.enabled === true;
     const backend = data.backend || 'maroto';
     const gotCfg = data.gotenberg || {};
+    const form = window.AuraConfigForm;
+    const key = name => t('config.document_creator.' + name);
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Enabled toggle ──
-    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.document_creator.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('config.document_creator.enabled_help') + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="tools.document_creator.enabled" onclick="toggleBool(this);dcUpdateEnabled(this.classList.contains(\'on\'))"></div>';
-    html += '</div>';
+    // The switch re-renders the section: the backend settings only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'tools.document_creator.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);dcUpdateEnabled(this.classList.contains('on'))"`);
+    const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
+    let after = '';
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>📄</span><div>';
-        html += '<strong>' + t('config.document_creator.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.document_creator.disabled_desc') + '</small>';
-        html += '</div></div></div>';
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
+    } else {
+        const radio = (value, labelKey) => '<label class="dc-radio-label">'
+            + '<input type="radio" name="dc_backend" data-path="tools.document_creator.backend" value="' + value + '"' + (backend === value ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">'
+            + '<span class="dc-radio-text">' + escapeHtml(key(labelKey)) + '</span></label>';
+        const helpBackend = t('help.document_creator.backend');
+        const backendField = '<div class="field-group dc-field-group-top" role="radiogroup" aria-labelledby="dc-backend-label"' + (helpBackend ? ' aria-describedby="dc-backend-help"' : '') + '>'
+            + '<div class="field-label" id="dc-backend-label">' + escapeHtml(key('backend_label')) + '</div>'
+            + (helpBackend ? '<div class="field-help" id="dc-backend-help">' + escapeHtml(helpBackend) + '</div>' : '')
+            + '<div class="dc-backend-row">' + radio('maroto', 'backend_maroto') + radio('gotenberg', 'backend_gotenberg') + '</div></div>';
+        groups.push({ titleKey: 'config.refresh.settings', fields: [
+            backendField,
+            form.field({ label: key('output_dir_label'), help: t('help.document_creator.output_dir'), path: 'tools.document_creator.output_dir', value: data.output_dir || 'data/documents', placeholder: 'data/documents' })
+        ] });
+        // Hidden, not removed, while another backend is selected (dcSwitchBackend toggles it).
+        const gotenberg = form.panel({ title: key('gotenberg_title'), content:
+            form.toggle({ label: key('allow_remote_resources_label'), help: t('help.document_creator.allow_remote_resources'), path: 'tools.document_creator.allow_remote_resources', value: data.allow_remote_resources === true })
+            + form.field({ type: 'url', label: key('gotenberg_url_label'), help: t('help.document_creator.gotenberg_url'), path: 'tools.document_creator.gotenberg.url', value: gotCfg.url || '' })
+            + form.number({ label: key('gotenberg_timeout_label'), help: t('help.document_creator.gotenberg_timeout'), path: 'tools.document_creator.gotenberg.timeout', value: gotCfg.timeout || 120, min: 5, max: 600, unit: key('seconds') })
+            + form.actions([
+                { html: '<button class="btn-save cfg-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + escapeHtml(key('test_gotenberg')) + '</span></button>' },
+                { html: cfgActionResult.html('dc-test-result') }
+            ])
+            + '<div class="field-help">' + escapeHtml(key('test_saved_settings')) + '</div>' });
+        after = '<div id="dc-gotenberg-fields"' + (backend === 'gotenberg' ? '' : ' class="is-hidden"') + '>' + gotenberg + '</div>';
     }
 
-    // ── Backend selector ──
-    html += '<div class="field-group dc-field-group-top">';
-    html += '<div class="field-label">' + t('config.document_creator.backend_label') + '</div>';
-    const helpBackend = t('help.document_creator.backend');
-    if (helpBackend) html += '<div class="field-help">' + helpBackend + '</div>';
-    html += '<div class="dc-backend-row">';
-    html += '<label class="dc-radio-label">';
-    html += '<input type="radio" name="dc_backend" data-path="tools.document_creator.backend" value="maroto"' + (backend === 'maroto' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
-    html += '<span class="dc-radio-text">' + t('config.document_creator.backend_maroto') + '</span>';
-    html += '</label>';
-    html += '<label class="dc-radio-label">';
-    html += '<input type="radio" name="dc_backend" data-path="tools.document_creator.backend" value="gotenberg"' + (backend === 'gotenberg' ? ' checked' : '') + ' onchange="dcSwitchBackend(this.value)">';
-    html += '<span class="dc-radio-text">' + t('config.document_creator.backend_gotenberg') + '</span>';
-    html += '</label>';
-    html += '</div></div>';
-
-    // ── Output directory ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.document_creator.output_dir_label') + '</div>';
-    const helpDir = t('help.document_creator.output_dir');
-    if (helpDir) html += '<div class="field-help">' + helpDir + '</div>';
-    html += '<input class="field-input" type="text" data-path="tools.document_creator.output_dir" value="' + escapeAttr(data.output_dir || 'data/documents') + '" placeholder="data/documents">';
-    html += '</div>';
-
-    // ── Gotenberg fields (conditional) ──
-    var showGot = backend === 'gotenberg';
-    html += '<section id="dc-gotenberg-fields" class="cfg-topic' + (showGot ? '' : ' is-hidden') + '">';
-    html += '<h2 class="cfg-topic-heading">' + t('config.document_creator.gotenberg_title') + '</h2>';
-
-    html += '<div class="field-group"><label for="dc-allow-remote-resources">';
-    html += '<input id="dc-allow-remote-resources" type="checkbox" data-path="tools.document_creator.allow_remote_resources" aria-describedby="dc-remote-help"' + (data.allow_remote_resources === true ? ' checked' : '') + '> ';
-    html += t('config.document_creator.allow_remote_resources_label') + '</label>';
-    html += '<div id="dc-remote-help" class="field-help">' + t('help.document_creator.allow_remote_resources') + '</div></div>';
-
-    // URL
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.document_creator.gotenberg_url_label') + '</div>';
-    const helpUrl = t('help.document_creator.gotenberg_url');
-    if (helpUrl) html += '<div class="field-help">' + helpUrl + '</div>';
-    html += '<input class="field-input" type="text" data-path="tools.document_creator.gotenberg.url" value="' + escapeAttr(gotCfg.url || '') + '">';
-    html += '</div>';
-
-    // Timeout
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.document_creator.gotenberg_timeout_label') + '</div>';
-    const helpTimeout = t('help.document_creator.gotenberg_timeout');
-    if (helpTimeout) html += '<div class="field-help">' + helpTimeout + '</div>';
-    html += '<div class="dc-timeout-row">';
-    html += '<input class="field-input dc-timeout-input" type="number" data-path="tools.document_creator.gotenberg.timeout" value="' + (gotCfg.timeout || 120) + '" min="5" max="600">';
-    html += '<span class="dc-seconds-label">' + t('config.document_creator.seconds') + '</span>';
-    html += '</div></div>';
-
-    // Test button
-    html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn" data-config-action-draft="true">🔌 ' + t('config.document_creator.test_gotenberg') + '</button>';
-    html += cfgActionResult.html('dc-test-result');
-    html += '<div class="field-help">' + t('config.document_creator.test_saved_settings') + '</div>';
-    html += '</div>';
-
-    html += '</section>'; // End gotenberg-fields
-    html += '</div>'; // End cfg-section
-
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc, groups, afterHTML: after });
     attachChangeListeners();
 }
 

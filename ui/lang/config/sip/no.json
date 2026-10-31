@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "Agenten kan starte samtaler på egen hånd. Kostnadene belastes av telefonleverandøren din.",
   "config.sip.help.permissions_send_dtmf": "Agenten kan sende tastetoner, for eksempel for menyer i telefonsentraler.",
   "config.sip.help.permissions_agent_hangup": "Agenten kan avslutte pågående samtaler.",
-  "config.sip.help.history_retention_days": "Samtaleloggen slettes etter dette tidsrommet (1-3650 dager, standard 90)."
+  "config.sip.help.history_retention_days": "Samtaleloggen slettes etter dette tidsrommet (1-3650 dager, standard 90).",
+  "config.sip.wizard.replace_title": "Vil du erstatte den eksisterende kontoen?",
+  "config.sip.wizard.replace_text": "Denne forhåndsinnstillingen erstatter de eksisterende konto- og nettverksverdiene."
 }

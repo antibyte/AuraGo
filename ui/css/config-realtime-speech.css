@@ -14,21 +14,17 @@
     display: block;
 }
 
-.pw-page[data-workspace-page="config"] .rs-master-card > .rs-master-toggle,
+.pw-page[data-workspace-page="config"] .rs-master-toggle,
 .pw-page[data-workspace-page="config"] .rs-inline-toggle {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     min-height: 44px;
-    cursor: pointer;
 }
 
-.pw-page[data-workspace-page="config"] .rs-master-toggle input,
-.pw-page[data-workspace-page="config"] .rs-inline-toggle input {
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
-    accent-color: var(--accent, #35c7d3);
+.pw-page[data-workspace-page="config"] .rs-master-toggle .toggle,
+.pw-page[data-workspace-page="config"] .rs-inline-toggle .toggle {
+    flex: 0 0 auto;
     order: 2;
     margin-left: auto;
 }
@@ -113,14 +109,6 @@
     gap: 12px;
 }
 
-.pw-page[data-workspace-page="config"] .rs-icon-button {
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    font-size: 1.25rem;
-}
-
 .pw-page[data-workspace-page="config"] .rs-profile-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -152,22 +140,12 @@
     font-size: .82rem;
 }
 
-.pw-page[data-workspace-page="config"] .rs-load-error { color: #ef7777; }
-
 .pw-page[data-workspace-page="config"] .rs-save-row {
     margin-top: 18px;
 }
 
 .pw-page[data-workspace-page="config"] .rs-security-note p {
     margin: 6px 0 0;
-}
-
-.pw-page[data-workspace-page="config"] .rs-empty,
-.pw-page[data-workspace-page="config"] .rs-load-error {
-    padding: 28px;
-    text-align: center;
-    border: 1px dashed var(--border-color, rgb(255 255 255 / 12%));
-    border-radius: 14px;
 }
 
 @media (max-width: 820px) {

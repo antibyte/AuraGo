@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "单个任务的最长运行时间，单位为秒（30 到 7200），超时后会被停止。",
   "config.detective.help_tools": "每个任务的最大工具调用次数（1 到 500）。",
   "config.detective.help_iterations": "每个任务的最大推理与工作轮数（1 到 750）。",
-  "config.detective.help_tokens": "每个任务使用令牌数的额外上限。0 = 无额外限制。"
+  "config.detective.help_tokens": "每个任务使用令牌数的额外上限。0 = 无额外限制。",
+  "config.detective.extra_read_invalid": "这些行不会被保存，因为它们不是“工具: 操作, 操作”的格式。第 {lines} 行。"
 }

@@ -14,107 +14,63 @@ function renderMusicGenerationSection(section) {
     if (section) _musicSection = section; else section = _musicSection;
     const cfg = configData['music_generation'] || {};
     const enabled = cfg.enabled === true;
+    const form = window.AuraConfigForm;
+    const key = name => t('config.music_gen.' + name);
 
-    let html = `<div class="cfg-section active">
-        <div class="section-header">${section.label}</div>
-        <div class="section-desc">${section.desc}</div>`;
-
-    html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.music_gen.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="music_generation.enabled" aria-describedby="music-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)"></div>
-    </div>
-    <div class="field-help" id="music-enabled-help">${t('config.music_gen.enabled_help')}</div>`;
-
-    if (!enabled) {
-        html += `<div class="wh-notice">
-            <span>🎵</span>
-            <div>
-                <strong>${t('config.music_gen.disabled_notice')}</strong><br>
-                <small>${t('config.music_gen.disabled_desc')}</small>
-            </div>
-        </div>`;
-        html += `</div>`;
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
-    }
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.music_gen.provider_label')}</div>
-        <div class="field-group-desc">${t('config.music_gen.provider_desc')}</div>`;
-
+    // The switch re-renders the section: the provider groups only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'music_generation.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)"`);
+    const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
+    let after = '';
     const curProvider = cfg.provider || '';
     const local = curProvider === 'aurago-acestep-local';
-    html += `<div class="field-grid two-cols">`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.music_gen.provider_label')}</div>
-        <div class="field-help">${t('config.music_gen.provider_help')}</div>
-        <select class="field-select" data-path="music_generation.provider" onchange="setNestedValue(configData,'music_generation.provider',this.value);renderMusicGenerationSection(null)">
-            <option value=""${!curProvider ? ' selected' : ''}>${t('config.music_gen.select_provider')}</option>
-            <option value="aurago-acestep-local"${local ? ' selected' : ''}>${t('config.music_gen.local_provider')}</option>`;
-    configGeneralProviders().forEach(p => {
-        const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
-        const name = p.name || p.id;
-        const badge = p.type ? (' [' + p.type + ']') : '';
-        const model = p.model ? (' — ' + p.model) : '';
-        html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
-    });
-    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
-    html += `</select></div>`;
 
-    const curModel = cfg.model || '';
-    if (!local) html += `<div class="field-group">
-        <div class="field-label">${t('config.music_gen.model_label')}</div>
-        <div class="field-help">${t('config.music_gen.model_hint')}</div>
-        <input type="text" class="field-input" data-path="music_generation.model" value="${escapeAttr(curModel)}"
-            placeholder="music-2.5+, lyria-3-clip-preview...">
-    </div>`;
-    html += `</div>`;
-    html += `</div>`;
+    if (!enabled) {
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
+    } else {
+        const providers = configGeneralProviders();
+        const providerOptions = [
+            { value: '', label: key('select_provider') },
+            { value: 'aurago-acestep-local', label: key('local_provider') }
+        ].concat(providers.map(p => ({
+            value: p.id,
+            label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' — ' + p.model : '')
+        })));
+        const providerSelect = form.select({
+            label: key('provider_label'), help: key('provider_help'), path: 'music_generation.provider', value: curProvider, options: providerOptions,
+            onchange: "setNestedValue(configData,'music_generation.provider',this.value);renderMusicGenerationSection(null)"
+        }).replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+        const providerFields = [providerSelect];
+        if (!local) providerFields.push(form.field({ label: key('model_label'), help: key('model_hint'), path: 'music_generation.model', value: cfg.model || '', placeholder: 'music-2.5+, lyria-3-clip-preview...' }));
+        groups.push({ title: key('provider_label'), desc: key('provider_desc'), fields: providerFields });
 
-    if (local) {
-        const options = cfg.local || {};
-        html += `<div class="field-group"><div class="field-group-title">${t('config.music_gen.local_provider')}</div>
-            <p class="field-help">${t('config.music_gen.local_help')}</p><div class="field-grid two-cols">`;
-        html += `<label>${t('config.music_gen.backend')}<select class="field-select" data-path="music_generation.local.backend">`;
-        ['auto', 'cuda', 'rocm', 'xpu', 'vulkan', 'cpu'].forEach(value => {
-            html += `<option value="${value}"${(options.backend || 'auto') === value ? ' selected' : ''}>${value === 'auto' ? t('config.music_gen.automatic') : value.toUpperCase()}</option>`;
-        });
-        html += `</select><span class="field-help">${t('config.music_gen.vulkan_help')}</span></label><label>${t('config.music_gen.device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist><span class="field-help">${t('config.music_gen.device_help')}</span></label>
-            <label>${t('config.music_gen.reserve')}<input type="number" class="field-input" data-path="music_generation.local.vram_reserve_gb" min="0" max="256" step="0.25" value="${escapeAttr(options.vram_reserve_gb ?? 1)}"><span class="field-help">${t('config.music_gen.reserve_help')}</span></label>
-            <label>${t('config.music_gen.timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"><span class="field-help">${t('config.music_gen.timeout_help')}</span></label></div>
-            <p id="music-local-status" role="status" aria-live="polite">${t('config.music_gen.testing')}</p><progress id="music-local-progress" aria-labelledby="music-local-status" hidden></progress>
-            <div id="music-local-actions" class="cfg-actions-row">${['start','stop','recheck'].map(action => `<button type="button" class="btn-secondary" data-music-local-action="${action}">${t('config.music_gen.' + action)}</button>`).join('')}</div>
-            <p id="music-local-feedback" class="cfg-action-result" role="status" aria-live="polite" aria-atomic="true" hidden></p></div>`;
+        if (local) {
+            const options = cfg.local || {};
+            const backends = ['auto', 'cuda', 'rocm', 'xpu', 'vulkan', 'cpu'].map(value =>
+                `<option value="${value}"${(options.backend || 'auto') === value ? ' selected' : ''}>${value === 'auto' ? key('automatic') : value.toUpperCase()}</option>`).join('');
+            const actionButtons = ['start', 'stop', 'recheck'].map(action => `<button type="button" class="btn-secondary" data-music-local-action="${action}">${key(action)}</button>`).join('');
+            groups.push({ title: key('local_provider'), desc: key('local_help'), content: `<div class="field-grid two-cols">`
+                + `<label>${key('backend')}<select class="field-select" data-path="music_generation.local.backend">${backends}</select><span class="field-help">${key('vulkan_help')}</span></label>`
+                + `<label>${key('device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist><span class="field-help">${key('device_help')}</span></label>`
+                + `<label>${key('reserve')}<input type="number" class="field-input" data-path="music_generation.local.vram_reserve_gb" min="0" max="256" step="0.25" value="${escapeAttr(options.vram_reserve_gb ?? 1)}"><span class="field-help">${key('reserve_help')}</span></label>`
+                + `<label>${key('timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"><span class="field-help">${key('timeout_help')}</span></label></div>`
+                + `<p id="music-local-status" role="status" aria-live="polite">${key('testing')}</p><progress id="music-local-progress" aria-labelledby="music-local-status" hidden></progress>`
+                + `<div id="music-local-actions" class="cfg-actions-row">${actionButtons}</div>`
+                + `<p id="music-local-feedback" class="cfg-action-result" role="status" aria-live="polite" aria-atomic="true" hidden></p>` });
+        }
+
+        groups.push({ title: key('limits_title'), desc: key('limits_desc'), fields: [
+            form.number({ label: key('max_daily_label'), help: key('max_daily_help'), path: 'music_generation.max_daily', value: cfg.max_daily || 0, min: 0 })
+        ] });
+        groups.push({ title: key('test_title'), desc: key('test_desc'), content: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" id="music-test-btn" onclick="musicTestConnection()" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + escapeHtml(key('test_btn')) + '</span></button>' },
+            { html: cfgActionResult.html('music-test-result') }
+        ]) });
     }
 
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.music_gen.limits_title')}</div>
-        <div class="field-group-desc">${t('config.music_gen.limits_desc')}</div>`;
-
-    const curMaxDaily = cfg.max_daily || 0;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.music_gen.max_daily_label')}</div>
-        <div class="field-help">${t('config.music_gen.max_daily_help')}</div>
-        <input type="number" class="field-input" data-path="music_generation.max_daily" value="${curMaxDaily}" min="0" placeholder="0">
-    </div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.music_gen.test_title')}</div>
-        <div class="field-group-desc">${t('config.music_gen.test_desc')}</div>
-        <div class="cfg-actions-row">
-            <button class="btn-save cfg-test-btn" id="music-test-btn" onclick="musicTestConnection()" data-config-action-draft="true">
-                🔌 ${t('config.music_gen.test_btn')}
-            </button>
-            ${cfgActionResult.html('music-test-result')}
-        </div>
-    </div>`;
-
-    html += `</div>`;
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc, groups, afterHTML: after });
     attachChangeListeners();
-    if (local) {
+    if (local && enabled) {
         document.querySelectorAll('[data-music-local-action]').forEach(button => button.addEventListener('click', () => musicLocalAction(button.dataset.musicLocalAction)));
         musicLocalRenderFeedback();
         musicLocalRefresh();

@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker-image",
   "config.tts.piper_data_path_label": "Datasökväg",
   "config.tts.piper_voice_browser_title": "Piper-röstbläddrare",
-  "config.tts.piper_loading_voices": "⏳ Läser in röster...",
+  "config.tts.piper_loading_voices": "Läser in röster...",
   "config.tts.piper_no_voices": "Inga röster tillgängliga.",
   "config.tts.piper_voice_error": "Kunde inte läsa in röster.",
   "config.tts.piper_status_disabled": "Piper är inaktiverat",

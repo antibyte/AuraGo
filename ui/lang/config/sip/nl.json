@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "De agent mag zelf gesprekken starten. De kosten worden door je telefoonprovider in rekening gebracht.",
   "config.sip.help.permissions_send_dtmf": "De agent mag toetstonen sturen, bijvoorbeeld voor menu's van telefooncentrales.",
   "config.sip.help.permissions_agent_hangup": "De agent mag lopende gesprekken beëindigen.",
-  "config.sip.help.history_retention_days": "Het gespreksoverzicht wordt na deze tijd verwijderd (1-3650 dagen, standaard 90)."
+  "config.sip.help.history_retention_days": "Het gespreksoverzicht wordt na deze tijd verwijderd (1-3650 dagen, standaard 90).",
+  "config.sip.wizard.replace_title": "Het bestaande account vervangen?",
+  "config.sip.wizard.replace_text": "Deze voorinstelling vervangt de bestaande account- en netwerkwaarden."
 }

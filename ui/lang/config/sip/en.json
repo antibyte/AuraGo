@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "The agent may start calls on its own. Costs are charged by your phone provider.",
   "config.sip.help.permissions_send_dtmf": "The agent may send touch-tone keys, for example for phone system menus.",
   "config.sip.help.permissions_agent_hangup": "The agent may end running calls.",
-  "config.sip.help.history_retention_days": "The call log is deleted after this time (1-3650 days, default 90)."
+  "config.sip.help.history_retention_days": "The call log is deleted after this time (1-3650 days, default 90).",
+  "config.sip.wizard.replace_title": "Replace the existing account?",
+  "config.sip.wizard.replace_text": "This preset replaces the existing account and network values."
 }

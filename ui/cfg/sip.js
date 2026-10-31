@@ -21,7 +21,6 @@ let sipWizardCustomCallers = '';
 let sipRuntimeStatus = null;
 let sipConnectionVerified = false;
 let sipNeedsRestart = false;
-let sipDeleteConfirm = false;
 let sipDeleteHistory = false;
 let sipDockerAdvertisedHostRequired = false;
 let sipSavePromise = null;
@@ -78,7 +77,10 @@ function sipField(path, label, type, value, extra, help) {
     const helpText = sipFieldHelp(path, help);
     const helpMarkup = helpText ? `<small class="field-help">${sipEsc(helpText)}</small>` : '';
     if (type === 'checkbox') {
-        return `<label class="field-group sip-toggle-field"><span><span class="field-label">${sipEsc(label)}</span>${helpMarkup}</span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}><span class="slider"></span></span></span></label>`;
+        const id = 'sip-' + String(path).replace(/[^a-z0-9]+/gi, '-');
+        const described = helpText ? ` aria-describedby="${id}-help"` : '';
+        // A switch (E4): data-sip carries the setting, sipRead() reads the .on class.
+        return `<div class="field-group sip-toggle-field"><span><span class="field-label" id="${id}-label">${sipEsc(label)}</span>${helpText ? `<small class="field-help" id="${id}-help">${sipEsc(helpText)}</small>` : ''}</span><div class="toggle-wrap"><div class="toggle${value ? ' on' : ''}" id="${id}" data-sip="${path}" aria-labelledby="${id}-label"${described}></div></div></div>`;
     }
     return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><input class="field-input" type="${type}" data-sip="${path}" value="${sipEsc(value)}" ${attrs}>${helpMarkup}</label>`;
 }
@@ -151,7 +153,7 @@ function sipWizardConfigured() {
     return `<article class="sip-profile-card">
         <header class="sip-profile-header">
             <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.configured'))}</span><h3>${sipEsc(provider.name)}</h3><p>${sipEsc(headline)}</p></div>
-            <span class="sip-profile-state ${registered && outboundReady ? 'is-ready' : 'is-attention'}">${sipEsc(registered && outboundReady ? t('config.sip.profile.badge_ready') : t('config.sip.profile.badge_check'))}</span>
+            ${cfgBadge(registered && outboundReady ? 'ok' : 'warn', registered && outboundReady ? t('config.sip.profile.badge_ready') : t('config.sip.profile.badge_check'))}
         </header>
         <dl class="sip-readiness-list">${readiness.map(([ready, label, value]) => `<div><dt>${sipEsc(t(label))}</dt><dd class="${ready ? 'is-ready' : 'is-muted'}"><span class="sip-readiness-dot" aria-hidden="true"></span>${sipEsc(t(value))}</dd></div>`).join('')}</dl>
         ${sipWizardTestCode ? `<div class="sip-test-diagnostic sip-profile-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
@@ -161,18 +163,9 @@ function sipWizardConfigured() {
             <button type="button" class="btn btn-secondary" data-sip-profile="permissions">${sipEsc(t('config.sip.profile.permissions'))}</button>
             <button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.profile.credentials'))}</button>
             <button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
-            <button type="button" class="sip-text-action is-danger" data-sip-profile="delete">${sipEsc(t('config.sip.profile.delete'))}</button>
+            ${cfgDeleteButton({ label: t('config.sip.profile.delete'), cls: 'sip-profile-delete', attrs: 'data-sip-profile="delete"' })}
         </div>
-        ${sipDeleteConfirm ? sipDeleteConfirmation() : ''}
     </article>`;
-}
-
-function sipDeleteConfirmation() {
-    return `<section class="sip-delete-confirm" role="alertdialog" tabindex="-1" aria-labelledby="sip-delete-title" aria-describedby="sip-delete-text">
-        <div><strong id="sip-delete-title">${sipEsc(t('config.sip.delete.title'))}</strong><p id="sip-delete-text">${sipEsc(t('config.sip.delete.text'))}</p><p>${sipEsc(t('config.sip.telephone_profile_preserved'))}</p></div>
-        <label><input type="checkbox" data-sip-delete-history ${sipDeleteHistory ? 'checked' : ''}> <span>${sipEsc(t('config.sip.delete.history'))}</span></label>
-        <div><button type="button" class="btn btn-secondary" data-sip-profile="delete-cancel">${sipEsc(t('config.sip.delete.cancel'))}</button><button type="button" class="btn-save sip-danger-button" data-sip-profile="delete-confirm">${sipEsc(t('config.sip.delete.confirm'))}</button></div>
-    </section>`;
 }
 
 function sipProviderGroupsMarkup() {
@@ -204,7 +197,7 @@ function sipProviderGroupsMarkup() {
                 <button type="button" class="sip-provider-card" data-provider-id="${sipEsc(provider.id)}">
                     <span class="sip-provider-monogram" aria-hidden="true">${sipEsc(provider.name.slice(0, 2).toUpperCase())}</span>
                     <span class="sip-provider-copy"><strong>${sipEsc(provider.name)}</strong><small>${sipEsc(provider.region)}</small></span>
-                    <span class="sip-provider-arrow" aria-hidden="true">→</span>
+                    <span class="sip-provider-arrow" aria-hidden="true">${cfgIcon('arrow-right')}</span>
                 </button>`).join('')}</div>
         </section>`).join('');
     return content || `<p class="sip-empty-state">${sipEsc(t('config.sip.wizard.no_results'))}</p>`;
@@ -223,7 +216,7 @@ function sipWizardCredentials(provider) {
     const passwordHint = canReusePassword ? t('config.sip.password_stored') : t('config.sip.password_missing');
     return `<div class="sip-wizard-panel">
         <div class="sip-wizard-provider-heading">
-            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
+            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">${cfgIcon('arrow-left')}</button>
             <div><span class="sip-eyebrow">${sipEsc(sipProviderCategory(provider.category))} · ${sipEsc(provider.region)}</span><h3>${sipEsc(provider.name)}</h3></div>
         </div>
         ${provider.notice ? `<div class="sip-wizard-notice">${sipEsc(t(`config.sip.wizard.notice_${provider.notice}`))}</div>` : ''}
@@ -242,7 +235,7 @@ function sipWizardCredentials(provider) {
             </label>`;
         }).join('')}</div>
         <div class="sip-wizard-actions">
-            <a class="sip-doc-link" href="${sipEsc(provider.documentation_url)}" target="_blank" rel="noopener noreferrer">${sipEsc(t('config.sip.wizard.documentation'))} ↗</a>
+            <a class="sip-doc-link" href="${sipEsc(provider.documentation_url)}" target="_blank" rel="noopener noreferrer">${sipEsc(t('config.sip.wizard.documentation'))} ${cfgIcon('external')}</a>
             <button type="button" class="btn-save" data-sip-wizard="calling">${sipEsc(t('config.sip.wizard.continue'))}</button>
         </div>
     </div>`;
@@ -257,7 +250,7 @@ function sipWizardCalling(provider) {
     ];
     return `<div class="sip-wizard-panel">
         <div class="sip-wizard-provider-heading">
-            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
+            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">${cfgIcon('arrow-left')}</button>
             <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.calling'))}</span><h3>${sipEsc(t('config.sip.wizard.calling_title'))}</h3></div>
         </div>
         <fieldset class="sip-choice-group">
@@ -268,7 +261,7 @@ function sipWizardCalling(provider) {
         </fieldset>
         <fieldset class="sip-choice-group sip-inbound-choice">
             <legend>${sipEsc(t('config.sip.wizard.inbound_title'))}</legend>
-            <label class="sip-inbound-toggle"><span><strong>${sipEsc(t('config.sip.wizard.inbound_enable'))}</strong><small>${sipEsc(t('config.sip.wizard.inbound_enable_desc'))}</small></span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip-guided-inbound ${sipWizardInboundEnabled ? 'checked' : ''}><span class="slider"></span></span></span></label>
+            <div class="sip-inbound-toggle"><span><strong id="sip-inbound-label">${sipEsc(t('config.sip.wizard.inbound_enable'))}</strong><small id="sip-inbound-help">${sipEsc(t('config.sip.wizard.inbound_enable_desc'))}</small></span><div class="toggle-wrap"><div class="toggle${sipWizardInboundEnabled ? ' on' : ''}" data-sip-guided-inbound aria-labelledby="sip-inbound-label" aria-describedby="sip-inbound-help"></div></div></div>
             ${sipWizardInboundEnabled ? `<div class="sip-inbound-options">
                 ${sipChoiceCard('sip-inbound-scope', 'all', sipWizardInboundScope, 'config.sip.wizard.callers_all', 'config.sip.wizard.callers_all_desc')}
                 ${sipChoiceCard('sip-inbound-scope', 'custom', sipWizardInboundScope, 'config.sip.wizard.callers_custom', 'config.sip.wizard.callers_custom_desc')}
@@ -295,7 +288,7 @@ function sipWizardReview(provider) {
         : t('config.sip.wizard.inbound_off');
     return `<div class="sip-wizard-panel">
         <div class="sip-wizard-provider-heading">
-            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
+            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">${cfgIcon('arrow-left')}</button>
             <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.verify'))}</span><h3>${sipEsc(t('config.sip.wizard.verify_title'))}</h3></div>
         </div>
         <div class="sip-review-grid">
@@ -307,7 +300,6 @@ function sipWizardReview(provider) {
         <div class="sip-security-summary"><strong>${sipEsc(t('config.sip.wizard.verify_check_title'))}</strong><p>${sipEsc(t('config.sip.wizard.verify_check_text'))}</p></div>
         <p class="section-desc">${sipEsc(t('config.sip.telephone_profile_preserved'))}</p>
         ${sipWizardTestCode ? `<div class="sip-test-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-provider">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
-        ${replacing ? `<label class="sip-replace-confirm"><input type="checkbox" data-sip-replace-confirm> <span>${sipEsc(t('config.sip.wizard.replace_confirm'))}</span></label>` : ''}
         <div class="sip-wizard-actions">
             <span></span>
             <button type="button" class="btn-save" data-sip-wizard="apply">${sipEsc(t('config.sip.wizard.save_test'))}</button>
@@ -331,7 +323,6 @@ function sipAdvancedMarkup(c) {
         <summary>${sipEsc(t('config.sip.wizard.advanced'))}<span>${sipEsc(t('config.sip.wizard.advanced_hint'))}</span></summary>
         <div class="sip-advanced-content">
             <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.activation'))}</h3><div class="sip-settings-grid">
-                ${sipField('enabled', t('config.sip.enabled'), 'checkbox', c.enabled)}
                 ${sipField('readonly', t('config.sip.readonly'), 'checkbox', c.readonly)}
             </div></div>
 
@@ -422,6 +413,7 @@ function sipRender() {
         <div class="section-header">${sipEsc(t('config.sip.title'))}</div>
         <div class="section-desc">${sipEsc(t('config.sip.wizard.intro'))}</div>
         ${cfgStatusBanner.html('sip-status', 'checking', { label: t('config.sip.loading_status') })}
+        <div class="sip-settings-grid sip-enable-row">${sipField('enabled', t('config.sip.enabled'), 'checkbox', c.enabled)}</div>
         ${outboundMigrationRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.outbound_policy_migration_required'))}</strong></div>` : ''}
         ${sipDockerAdvertisedHostRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.docker_advertised_host_required'))}</strong></div>` : ''}
         <div class="sip-wizard-shell cfg-topic" data-config-surface>
@@ -520,6 +512,11 @@ function sipBindEvents() {
         const onChange = () => sipNotifyDirty();
         input.addEventListener('input', onChange);
         input.addEventListener('change', onChange);
+        if (input.classList.contains('toggle')) input.addEventListener('click', () => {
+            input.classList.toggle('on');
+            if (typeof syncToggleA11y === 'function') syncToggleA11y(input);
+            onChange();
+        });
     });
     document.querySelector('.sip-advanced')?.addEventListener('toggle', event => {
         sipAdvancedOpen = event.currentTarget.open;
@@ -579,12 +576,16 @@ function sipBindEvents() {
     document.querySelector('[data-sip-guided-callers]')?.addEventListener('input', event => {
         sipWizardCustomCallers = event.target.value;
     });
-    document.querySelector('[data-sip-guided-inbound]')?.addEventListener('change', event => {
-        sipWizardInboundEnabled = event.target.checked;
+    // The whole row is the click target; the switch inside it carries the state and the keyboard handling.
+    document.querySelector('.sip-inbound-toggle')?.addEventListener('click', () => {
+        sipWizardInboundEnabled = !sipWizardInboundEnabled;
         sipWizardMessage = '';
         sipRender();
+        document.querySelector('[data-sip-guided-inbound]')?.focus();
     });
     sipBindProfileEvents();
+    // Role, aria-checked and Space/Enter for the switches rendered above.
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls();
 }
 
 function sipBindProfileEvents() {
@@ -627,21 +628,19 @@ function sipBindProfileEvents() {
         sipRender();
         sipFocusWizardHeading();
     }));
-    document.querySelector('[data-sip-profile="delete"]')?.addEventListener('click', () => {
-        sipDeleteConfirm = true;
-        sipRender();
-        document.querySelector('.sip-delete-confirm')?.focus();
+    document.querySelector('[data-sip-profile="delete"]')?.addEventListener('click', async () => {
+        const answer = await showConfirmDialog({
+            title: t('config.sip.delete.title'),
+            message: t('config.sip.delete.text') + ' ' + t('config.sip.telephone_profile_preserved'),
+            danger: true,
+            confirmText: t('config.sip.delete.confirm'),
+            cancelText: t('config.sip.delete.cancel'),
+            checkbox: { label: t('config.sip.delete.history'), checked: false }
+        });
+        if (!answer.confirmed) return;
+        sipDeleteHistory = !!answer.checked;
+        await sipDeleteProfile();
     });
-    document.querySelector('[data-sip-profile="delete-cancel"]')?.addEventListener('click', () => {
-        sipDeleteConfirm = false;
-        sipDeleteHistory = false;
-        sipRender();
-        document.querySelector('[data-sip-profile="delete"]')?.focus();
-    });
-    document.querySelector('[data-sip-delete-history]')?.addEventListener('change', event => {
-        sipDeleteHistory = event.target.checked;
-    });
-    document.querySelector('[data-sip-profile="delete-confirm"]')?.addEventListener('click', sipDeleteProfile);
     document.querySelector('[data-sip-profile="restart"]')?.addEventListener('click', async () => {
         if (typeof restartAuraGo === 'function') await restartAuraGo(true);
     });
@@ -742,12 +741,18 @@ async function sipApplyProvider() {
     const button = document.querySelector('[data-sip-wizard="apply"]');
     if (!provider || !button) return;
     const replacing = !!(sipConfigState.registrar && sipConfigState.preset_id !== provider.id);
-    const confirmation = document.querySelector('[data-sip-replace-confirm]');
-    if (replacing && !confirmation?.checked) {
-        sipWizardMessage = t('config.sip.wizard.replace_required');
-        const status = document.getElementById('sip-wizard-status');
-        if (status) status.textContent = sipWizardMessage;
-        return;
+    if (replacing) {
+        const answer = await showConfirmDialog({
+            title: t('config.sip.wizard.replace_title'),
+            message: t('config.sip.wizard.replace_text'),
+            confirmText: t('config.sip.wizard.save_test')
+        });
+        if (!answer.confirmed) {
+            sipWizardMessage = t('config.sip.wizard.replace_required');
+            const status = document.getElementById('sip-wizard-status');
+            if (status) status.textContent = sipWizardMessage;
+            return;
+        }
     }
     let outboundValues = [];
     let inboundValues = [];
@@ -827,7 +832,7 @@ function sipRead(options) {
     const forCompare = !!(options && options.forCompare);
     const result = JSON.parse(JSON.stringify(sipConfigState));
     document.querySelectorAll('[data-sip]').forEach(input => {
-        let value = input.type === 'checkbox' ? input.checked : input.value;
+        let value = input.classList.contains('toggle') ? input.classList.contains('on') : (input.type === 'checkbox' ? input.checked : input.value);
         if (input.type === 'number') value = Number(value);
         if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'inbound.denied_callers', 'outbound.allowed_domains', 'outbound.denied_domains', 'outbound.allowed_users', 'outbound.denied_users', 'outbound.allowed_e164_prefixes', 'outbound.denied_e164_prefixes'].includes(input.dataset.sip)) value = sipSplit(value);
         sipAssign(result, input.dataset.sip, value);
@@ -910,7 +915,7 @@ function sipSave() {
             if (draft.clear_password === sentDraft.clear_password) {
                 draft.clear_password = false;
                 const input = document.querySelector('[data-sip="clear_password"]');
-                if (input) input.checked = false;
+                if (input) { input.classList.remove('on'); if (typeof syncToggleA11y === 'function') syncToggleA11y(input); }
             }
             draft.password_set = saved.password_set;
             sipConfigState = edited ? draft : saved;
@@ -1004,7 +1009,7 @@ async function sipTestProfile() {
 }
 
 async function sipDeleteProfile() {
-    const button = document.querySelector('[data-sip-profile="delete-confirm"]');
+    const button = document.querySelector('[data-sip-profile="delete"]');
     AuraConfigFeedback.busy(button, true);
     sipWizardMessage = t('config.sip.delete.deleting');
     const status = document.getElementById('sip-wizard-status');
@@ -1015,7 +1020,6 @@ async function sipDeleteProfile() {
         sipRuntimeStatus = { registered: false, state: 'disabled' };
         sipConnectionVerified = false;
         sipNeedsRestart = !!(result && result.needs_restart);
-        sipDeleteConfirm = false;
         sipDeleteHistory = false;
         sipWizardProviderID = '';
         sipWizardValues = {};

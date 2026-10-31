@@ -115,5 +115,7 @@
   "config.sip.help.tls_key_file": "Sti til klientcertifikatets private nøgle.",
   "config.sip.help.tls_server_name": "Servernavn, der bruges til at verificere TLS-certifikatet. Lad det stå tomt for at bruge registraren.",
   "config.sip.help.transport": "Transport til SIP-serveren. UDP er almindeligt, TLS krypterer signaleringen.",
-  "config.sip.help.username": "Brugernavn eller telefonnummer på SIP-kontoen, som oplyst af din udbyder."
+  "config.sip.help.username": "Brugernavn eller telefonnummer på SIP-kontoen, som oplyst af din udbyder.",
+  "config.sip.wizard.replace_title": "Skal den eksisterende konto erstattes?",
+  "config.sip.wizard.replace_text": "Denne forudindstilling erstatter de eksisterende konto- og netværksværdier."
 }

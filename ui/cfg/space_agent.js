@@ -36,17 +36,14 @@ async function renderSpaceAgentSection(section) {
     html += spaceAgentToggleRow('config.space_agent.enabled_label', 'help.space_agent.enabled', enabled, 'space_agent.enabled', "spaceAgentToggleEnabled(this)");
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>🛰️</span><div>';
-        html += '<strong>' + t('config.space_agent.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.space_agent.disabled_desc') + '</small>';
-        html += '</div></div>';
+        html += AuraConfigForm.emptyState({ title: t('config.space_agent.disabled_notice'), desc: t('config.space_agent.disabled_desc') });
         html += '</div>';
         document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">🛰️ ' + t('config.space_agent.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.space_agent.sidecar_note') + '</div>';
     html += spaceAgentToggleRow('config.space_agent.auto_start_label', 'help.space_agent.auto_start', data.auto_start !== false, 'space_agent.auto_start');
 
     html += '<div class="cfg-group-title">' + t('config.refresh.connection') + '</div>';
@@ -76,7 +73,7 @@ async function renderSpaceAgentSection(section) {
 
     html += '<div class="cfg-group-title">' + t('config.refresh.runtime') + '</div>';
     html += '<details class="cfg-advanced-panel space-agent-advanced-panel">';
-    html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.space_agent.advanced_label') + '</summary>';
+    html += '<summary class="cfg-advanced-summary">' + cfgIcon('settings') + ' ' + t('config.space_agent.advanced_label') + '</summary>';
     html += '<div class="cfg-advanced-body">';
     html += '<div class="cfg-advanced-help">' + t('config.space_agent.advanced_desc') + '</div>';
     html += spaceAgentField('config.space_agent.repo_url_label', 'help.space_agent.repo_url',
@@ -94,8 +91,8 @@ async function renderSpaceAgentSection(section) {
     html += '</div></details>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentRecreate()" id="space-agent-recreate-btn" data-config-action-draft="false">🔄 ' + t('config.space_agent.recreate_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentStatus()" id="space-agent-status-btn" data-config-action-draft="false">🔌 ' + t('config.space_agent.status_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentRecreate()" id="space-agent-recreate-btn" data-config-action-draft="false">' + cfgIcon('refresh') + '<span>' + t('config.space_agent.recreate_button') + '</span></button>';
+    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentStatus()" id="space-agent-status-btn" data-config-action-draft="false">' + cfgIcon('plug') + '<span>' + t('config.space_agent.status_button') + '</span></button>';
     html += cfgActionResult.html('space-agent-result');
     html += '</div>';
 

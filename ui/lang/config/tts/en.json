@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker Image",
   "config.tts.piper_data_path_label": "Data Path",
   "config.tts.piper_voice_browser_title": "Piper Voice Browser",
-  "config.tts.piper_loading_voices": "⏳ Loading voices...",
+  "config.tts.piper_loading_voices": "Loading voices...",
   "config.tts.piper_no_voices": "No voices available.",
   "config.tts.piper_voice_error": "Failed to load voices.",
   "config.tts.piper_status_disabled": "Piper is disabled",

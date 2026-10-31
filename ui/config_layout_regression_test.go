@@ -69,8 +69,8 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 	if strings.Contains(videoJS, "field-grid two-col\"") || strings.Contains(videoJS, "field-grid two-col'") {
 		t.Fatal("video_download.js still uses two-col typo")
 	}
-	if !strings.Contains(videoJS, "field-grid two-cols") {
-		t.Fatal("video_download.js should use field-grid two-cols")
+	if !strings.Contains(videoJS, "form.renderSpec") {
+		t.Fatal("video_download.js should render through the form builder")
 	}
 }
 
@@ -462,7 +462,8 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 			spec.testFn,
 		}
 		if spec.wantGrid {
-			markers = append(markers, "field-grid two-cols", "field-input")
+			// Migrated to AuraConfigForm.renderSpec: rows, selects and inputs come from the form builder.
+			markers = []string{"cfg-test-btn", spec.resultID, "form.renderSpec", "form.select", "form.field", spec.testAPI, spec.testFn}
 		}
 		for _, marker := range markers {
 			if !hasModuleMarker(content, marker) {

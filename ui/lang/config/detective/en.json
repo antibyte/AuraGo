@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "Longest run time of one job in seconds (30 to 7200), after which it is stopped.",
   "config.detective.help_tools": "Maximum number of tool calls per job (1 to 500).",
   "config.detective.help_iterations": "Maximum number of reasoning and work rounds per job (1 to 750).",
-  "config.detective.help_tokens": "Additional cap on tokens used per job. 0 = no additional limit."
+  "config.detective.help_tokens": "Additional cap on tokens used per job. 0 = no additional limit.",
+  "config.detective.extra_read_invalid": "These lines will not be saved because they are not in the form tool: operation, operation. Line {lines}."
 }

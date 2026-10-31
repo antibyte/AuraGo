@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "1 つのジョブの最長実行時間 (秒、30 ～ 7200) です。超過すると停止されます。",
   "config.detective.help_tools": "ジョブごとのツール呼び出しの最大回数 (1 ～ 500) です。",
   "config.detective.help_iterations": "ジョブごとの思考と作業のラウンドの最大数 (1 ～ 750) です。",
-  "config.detective.help_tokens": "ジョブごとに使用するトークンの追加の上限です。0 = 追加の上限なし。"
+  "config.detective.help_tokens": "ジョブごとに使用するトークンの追加の上限です。0 = 追加の上限なし。",
+  "config.detective.extra_read_invalid": "ツール: 操作, 操作 の形式ではないため、これらの行は保存されません。行 {lines}。"
 }

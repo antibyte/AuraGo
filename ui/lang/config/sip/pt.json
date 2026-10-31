@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "O agente pode iniciar chamadas por conta própria. Os custos são cobrados pelo seu provedor de telefonia.",
   "config.sip.help.permissions_send_dtmf": "O agente pode enviar teclas de tom, por exemplo para menus de centrais telefônicas.",
   "config.sip.help.permissions_agent_hangup": "O agente pode encerrar chamadas em andamento.",
-  "config.sip.help.history_retention_days": "O registro de chamadas é excluído após este tempo (1-3650 dias, padrão 90)."
+  "config.sip.help.history_retention_days": "O registro de chamadas é excluído após este tempo (1-3650 dias, padrão 90).",
+  "config.sip.wizard.replace_title": "Substituir a conta existente?",
+  "config.sip.wizard.replace_text": "Esta predefinição substitui os valores existentes da conta e da rede."
 }

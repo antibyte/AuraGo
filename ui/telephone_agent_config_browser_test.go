@@ -178,7 +178,7 @@ func TestTelephoneAgentConfigBrowser(t *testing.T) {
 					}
 				}
 
-				page.MustEval(`async()=>{telephoneAgentDiscardUnsaved();markDirty();telephoneFixture.profile.config.voice.agent_provider_id='phone';await taLoad();telephoneFixture.holdTest=true;document.querySelector('[data-ta-live-confirm]').checked=true;document.querySelector('[data-ta-action="live-test"]').click();document.querySelector('[data-ta-action="live-test"]').click();}`)
+				page.MustEval(`async()=>{telephoneAgentDiscardUnsaved();markDirty();telephoneFixture.profile.config.voice.agent_provider_id='phone';await taLoad();telephoneFixture.holdTest=true;document.querySelector('[data-ta-live-confirm]').classList.add('on');document.querySelector('[data-ta-action="live-test"]').click();document.querySelector('[data-ta-action="live-test"]').click();}`)
 				waitForJSBool(t, page, `()=>!!telephoneFixture.releaseTest`)
 				if !page.MustEval(`()=>telephoneFixture.tests.filter(test=>test.live).length===1&&document.querySelector('[data-ta-action="live-test"]').disabled`).Bool() {
 					t.Fatal("double click started multiple live tests")

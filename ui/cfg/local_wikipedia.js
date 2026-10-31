@@ -349,9 +349,13 @@ function localWikiActionsHTML(status) {
     // Delete needs no enabled integration, but acts on saved state only.
     const deleteDisabled = busy || blocked === 'save_first';
     const readable = status.readable === true;
-    const button = (action, labelKey, primary, isDisabled, handler) => '<button type="button" class="' +
-        (primary ? 'btn-save' : 'btn-secondary') + '" data-lw-action="' + action + '" onclick="' + handler + '"' +
-        (isDisabled ? ' disabled' : '') + '>' + escapeHtml(t('config.local_wikipedia.' + labelKey)) + '</button>';
+    const button = (action, labelKey, primary, isDisabled, handler) => {
+        const label = t('config.local_wikipedia.' + labelKey);
+        // Delete is the shared destructive button (E7); the confirmation stays in localWikiDelete().
+        if (action === 'delete') return cfgDeleteButton({ label, attrs: { 'data-lw-action': action, onclick: handler, disabled: isDisabled } });
+        return '<button type="button" class="' + (primary ? 'btn-save' : 'btn-secondary') + '" data-lw-action="' + action + '" onclick="' + handler + '"' +
+            (isDisabled ? ' disabled' : '') + '>' + escapeHtml(label) + '</button>';
+    };
     const buttons = [];
     if (status.operation_in_progress) {
         buttons.push(button('cancel', 'cancel', false, _lwActionPending, 'localWikiCancel()'));
@@ -575,7 +579,7 @@ async function localWikiPostInstall(body) {
         if (code === 'insufficient_disk_space' && data.can_delete_old === true && body.replace_mode !== 'delete_old_first') {
             if (await showConfirm(t('config.local_wikipedia.confirm_delete_old_title'), t('config.local_wikipedia.confirm_delete_old', {
                 required: localWikiFormatBytes(data.required_bytes), free: localWikiFormatBytes(data.free_bytes)
-            }))) {
+            }), { danger: true })) {
                 await localWikiPostInstall(Object.assign({}, body, { replace_mode: 'delete_old_first' }));
             }
             return;
@@ -620,7 +624,7 @@ async function localWikiDelete() {
         localWikiUpdateRuntimeDOM();
         return;
     }
-    if (!(await showConfirm(t('config.local_wikipedia.confirm_delete_title'), t('config.local_wikipedia.confirm_delete')))) return;
+    if (!(await showConfirm(t('config.local_wikipedia.confirm_delete_title'), t('config.local_wikipedia.confirm_delete'), { danger: true, confirmText: t('config.local_wikipedia.delete') }))) return;
     await localWikiSimpleAction('/api/local-wikipedia/delete');
 }
 

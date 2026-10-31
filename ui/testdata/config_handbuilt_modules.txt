@@ -10,19 +10,14 @@ chromecast
 cloudflare_tunnel
 composio
 cyd
-cyd_creator
 daemon_skills
 danger
 decisions
-detective
 devices
-document_creator
 dograh
 email
 firewall
-flows
 fritzbox
-game_maker
 github
 go2rtc
 gog
@@ -32,7 +27,6 @@ heartbeat
 here_now
 homepage
 huggingface
-image_generation
 indexing
 jellyfin
 ldap
@@ -44,11 +38,9 @@ manifest
 manus
 mcp
 mcp_server
-media_conversion
 memory_analysis
 mission_preparation
 mqtt
-music_generation
 netlify
 network_shares
 newspaper
@@ -65,7 +57,6 @@ remote_control
 rules
 s3
 sandbox
-scraper
 secrets
 security_proxy
 server
@@ -84,8 +75,6 @@ tts
 updates
 uptime_kuma
 vercel
-video_download
-video_generation
 virtual_computers
 virtual_desktop
 webhooks
