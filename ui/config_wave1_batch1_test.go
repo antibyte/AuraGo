@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/ysmood/gson"
 )
 
 // Config UX wave 1, batch 1: adguard, agentmail, evomap, grafana, jellyfin, koofr, mqtt,
@@ -95,13 +97,14 @@ func TestConfigWave1Batch1ModulesBrowser(t *testing.T) {
 			}
 
 			// The test button posts the draft and writes the server reason next to the button.
-			outcome := page.MustEval(`async (m) => {
+			runTest := func(replyStatus int, replyBody string) map[string]gson.JSON {
+				return page.MustEval(`async (m) => {
 				const original = window.fetch;
 				const calls = [];
 				window.fetch = (url, init) => {
 					if (String(url) === m.testEndpoint) {
 						calls.push({url: String(url), method: init && init.method, body: init && init.body});
-						return Promise.resolve(new Response(JSON.stringify({status: 'error', message: 'Fixture says no'}), {status: 502, headers: {'Content-Type': 'application/json'}}));
+						return Promise.resolve(new Response(m.replyBody, {status: m.replyStatus, headers: {'Content-Type': 'application/json'}}));
 					}
 					return original(url, init);
 				};
@@ -113,7 +116,9 @@ func TestConfigWave1Batch1ModulesBrowser(t *testing.T) {
 				let draft = null;
 				try { draft = JSON.parse(calls[0].body).draft; } catch (_) { draft = undefined; }
 				return {calls: calls.length, method: calls[0] && calls[0].method, hasDraft: draft !== undefined && typeof draft === 'object', state: result.dataset.state, text: result.textContent, busy: button.dataset.configActionBusy};
-			}`, map[string]interface{}{"testEndpoint": m.testEndpoint, "testButton": m.testButton, "testFn": m.testFn, "resultID": m.resultID}).Map()
+			}`, map[string]interface{}{"testEndpoint": m.testEndpoint, "testButton": m.testButton, "testFn": m.testFn, "resultID": m.resultID, "replyStatus": replyStatus, "replyBody": replyBody}).Map()
+			}
+			outcome := runTest(502, `{"status":"error","message":"Fixture says no"}`)
 			if outcome["calls"].Int() != 1 || outcome["method"].Str() != "POST" || !outcome["hasDraft"].Bool() {
 				t.Errorf("%s: test request was not a POST with a draft: %v", m.section, outcome)
 			}
@@ -122,6 +127,12 @@ func TestConfigWave1Batch1ModulesBrowser(t *testing.T) {
 			}
 			if outcome["busy"].Str() == "true" {
 				t.Errorf("%s: test button stayed busy", m.section)
+			}
+
+			// A 200 answer with a status that is no success word (disabled, no_credentials, ...) is an error.
+			disabled := runTest(200, `{"status":"disabled","message":"Fixture is disabled"}`)
+			if disabled["state"].Str() != "error" || !strings.Contains(disabled["text"].Str(), "Fixture is disabled") {
+				t.Errorf("%s: 200 + status disabled must show an error: %v", m.section, disabled)
 			}
 		})
 	}

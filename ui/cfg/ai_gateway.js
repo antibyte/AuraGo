@@ -155,6 +155,8 @@ function aiGatewayView(response, res, kind) {
     else if (res.status === 'no_credentials') { key = 'config.ai_gateway.status_no_credentials'; state = 'unconfigured'; }
     else if (res.status === 'invalid_config' || !response.ok || res.status === 'error') { key = 'config.ai_gateway.connection_failed'; state = 'error'; }
     let message = t(key);
+    // A rejected draft (HTTP 400) names its reason, for example a changed target.
+    if (state === 'error' && !response.ok && !res.code && res.status === 'error' && typeof res.message === 'string' && res.message.trim()) message = res.message.trim();
     if (res.code && !successful) message += ' (' + res.code + ')';
     if (res.request_timeout_ms > 0) message += ' · ' + res.request_timeout_effective_ms + ' ms';
     return { state, message, successful };

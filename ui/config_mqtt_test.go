@@ -140,13 +140,13 @@ func TestMQTTConfigTopicsEditSaveReloadBrowser(t *testing.T) {
     }`).String(); got != `0` {
 		t.Fatalf("saved availability QoS0 = %s", got)
 	}
-	// The broker password joins the save dock (the server trims and writes it to the vault).
+	// The broker password joins the save dock (the server writes it to the vault verbatim).
 	page.MustEval(`() => {
         const input = document.getElementById('mqtt-password');
         input.value = '  password with spaces  ';
         input.dispatchEvent(new Event('input', {bubbles:true}));
     }`)
-	if !page.MustEval(`() => document.getElementById('mqtt-password').dataset.path === 'mqtt.password' && String(AuraConfigState.get('mqtt.password')).trim() === 'password with spaces' && hasUnsavedConfigChanges() && !document.querySelector('[onclick*="mqttSavePassword"]')`).Bool() {
+	if !page.MustEval(`() => document.getElementById('mqtt-password').dataset.path === 'mqtt.password' && AuraConfigState.get('mqtt.password') === '  password with spaces  ' && hasUnsavedConfigChanges() && !document.querySelector('[onclick*="mqttSavePassword"]')`).Bool() {
 		t.Fatal("mqtt password did not join the save dock")
 	}
 	page.MustEval(`() => {

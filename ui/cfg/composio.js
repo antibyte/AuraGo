@@ -175,30 +175,15 @@ function composioToolSortScore(item) {
 }
 
 async function composioRefreshStatus() {
-    composioSetBanner('checking', t('config.composio.status_loading'));
-    try {
-        const resp = await fetch('/api/composio/status');
-        if (!resp.ok) {
-            const txt = (await resp.text().catch(() => '')).trim();
-            let reason = txt;
-            try { const j = JSON.parse(txt); reason = j.error || j.message || txt; } catch (_) { /* plain text */ }
-            composioState.status = null;
-            composioSetBanner('error', t('config.composio.status_error') + ': ' + (reason || resp.statusText || ('HTTP ' + resp.status)));
-            return;
-        }
-        const data = await resp.json();
+    // Times out to "unknown" with a retry instead of hanging on "checking".
+    const result = await cfgStatusBanner.check('composio-status-banner', signal => fetch('/api/composio/status', { signal }), data => {
+        if (!data || typeof data !== 'object') return null;
         composioState.status = data;
-        if (!data) {
-            composioSetBanner('unknown', t('config.composio.status_error'));
-            return;
-        }
+        composioConfig().configured = !!data.configured;
         const state = data.status === 'ready' ? 'connected' : (data.status === 'missing_api_key' ? 'unconfigured' : (data.status === 'disabled' ? 'off' : 'unknown'));
-        composioSetBanner(state, t('config.composio.status_' + data.status));
-        const cmp = composioConfig();
-        cmp.configured = !!data.configured;
-    } catch (_) {
-        composioSetBanner('error', t('config.composio.status_error'));
-    }
+        return { state: state, detail: t('config.composio.status_' + data.status) };
+    }, { checkingDetail: t('config.composio.status_loading'), retry: composioRefreshStatus });
+    if (result && result.state === 'error') composioState.status = null;
 }
 
 // Tests the connection with the values typed in; the server falls back to the stored key.

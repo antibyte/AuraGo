@@ -137,23 +137,17 @@ function manusCatalogGroup(kind, configKey, labelKey, helpKey, selected) {
 
 async function manusRefreshStatus() {
     const banner = document.getElementById('manus-status-banner');
-    if (banner) cfgStatusBanner(banner, 'checking', { detail: t('config.manus.status_loading') });
-    try {
-        const resp = await fetch('/api/manus/status');
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || data.message || t('config.manus.status_error'));
-        const cfg = manusConfig();
-        cfg.configured = !!data.configured;
+    if (!banner) return;
+    // Times out to "unknown" with a retry instead of hanging on "checking".
+    const result = await cfgStatusBanner.check(banner, signal => fetch('/api/manus/status', { signal }), data => {
+        if (!data || typeof data !== 'object') return null;
+        manusConfig().configured = !!data.configured;
         manusSetActionAvailability(data.status === 'ready');
         const state = data.status || 'error';
-        if (banner) {
-            const bannerState = state === 'ready' ? 'connected' : (state === 'disabled' ? 'off' : (state === 'missing_key' ? 'unconfigured' : 'degraded'));
-            cfgStatusBanner(banner, bannerState, { detail: t('config.manus.status_' + state) });
-        }
-    } catch (error) {
-        manusSetActionAvailability(false);
-        if (banner) cfgStatusBanner(banner, 'error', { detail: (error && error.message) || t('config.manus.status_error'), retry: manusRefreshStatus });
-    }
+        const bannerState = state === 'ready' ? 'connected' : (state === 'disabled' ? 'off' : (state === 'missing_key' ? 'unconfigured' : 'degraded'));
+        return { state: bannerState, detail: t('config.manus.status_' + state) };
+    }, { checkingDetail: t('config.manus.status_loading'), retry: manusRefreshStatus });
+    if (result && (result.state === 'error' || result.state === 'unknown')) manusSetActionAvailability(false);
 }
 
 // Tests with the values typed in; the key follows the draft (the stored one when the field is empty).

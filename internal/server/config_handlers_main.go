@@ -2584,6 +2584,10 @@ func extractSecretsToVault(patch map[string]interface{}, vault *security.Vault, 
 	return extractRecursive(patch, "", vault, logger)
 }
 
+// configSecretNoTrimPaths lists secrets that are saved verbatim: a broker password
+// may legitimately start or end with whitespace.
+var configSecretNoTrimPaths = map[string]bool{"mqtt.password": true}
+
 func extractRecursive(m map[string]interface{}, prefix string, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for key, val := range m {
@@ -2648,10 +2652,17 @@ func extractRecursive(m map[string]interface{}, prefix string, vault configSecre
 			// Always remove from patch — sensitive fields must never reach config.yaml.
 			delete(m, key)
 			// Empty or masked values are just removed, nothing to store. Pasted
-			// secrets often carry a trailing newline or space.
-			v = strings.TrimSpace(v)
-			if v == "" || v == "••••••••" {
-				continue
+			// secrets often carry a trailing newline or space; a few passwords are
+			// exact strings and stay untouched (configSecretNoTrimPaths).
+			if configSecretNoTrimPaths[fullPath] {
+				if strings.TrimSpace(v) == "" || strings.TrimSpace(v) == "••••••••" {
+					continue
+				}
+			} else {
+				v = strings.TrimSpace(v)
+				if v == "" || v == "••••••••" {
+					continue
+				}
 			}
 			if configSecretWriterMissing(vault) {
 				// No vault available — credential is stripped but cannot be persisted.

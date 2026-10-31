@@ -105,24 +105,18 @@ function huggingFaceArray(key, labelKey, helpKey, values) {
 }
 
 async function huggingFaceRefreshStatus() {
-    const banner = document.getElementById('huggingface-status-banner');
-    if (!banner) return;
-    cfgStatusBanner(banner, 'checking', { detail: t('config.huggingface.status_loading') });
-    try {
-        const resp = await fetch('/api/huggingface/status');
-        const data = resp.ok ? await resp.json() : null;
-        if (!data) throw new Error(t('config.huggingface.status_error') + (resp.ok ? '' : ' (HTTP ' + resp.status + ')'));
+    if (!document.getElementById('huggingface-status-banner')) return;
+    // Times out to "unknown" with a retry instead of hanging on "checking".
+    await cfgStatusBanner.check('huggingface-status-banner', signal => fetch('/api/huggingface/status', { signal }), data => {
+        if (!data || typeof data !== 'object') return null;
         if (!['ready', 'disabled', 'public_read_only'].includes(data.status)) {
-            throw new Error(t('config.huggingface.status_error') + (data.message || data.error || data.status ? ': ' + (data.message || data.error || data.status) : ''));
+            return { state: 'error', detail: t('config.huggingface.status_error') + (data.message || data.error || data.status ? ': ' + (data.message || data.error || data.status) : '') };
         }
-        const cfg = huggingFaceConfig();
-        cfg.configured = !!data.configured;
+        huggingFaceConfig().configured = !!data.configured;
         const key = data.status === 'ready' ? 'status_ready' : (data.status === 'disabled' ? 'status_disabled' : 'status_public_read_only');
         const state = data.status === 'ready' ? 'connected' : (data.status === 'disabled' ? 'off' : 'degraded');
-        cfgStatusBanner(banner, state, { detail: t('config.huggingface.' + key) });
-    } catch (error) {
-        cfgStatusBanner(banner, 'error', { detail: (error && error.message) || t('config.huggingface.status_error'), retry: huggingFaceRefreshStatus });
-    }
+        return { state: state, detail: t('config.huggingface.' + key) };
+    }, { checkingDetail: t('config.huggingface.status_loading'), retry: huggingFaceRefreshStatus });
 }
 
 // Tests with the values typed in; the server falls back to the stored token while the endpoints are unchanged.

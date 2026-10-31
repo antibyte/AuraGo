@@ -330,29 +330,32 @@ function manifestStatusState(body) {
 }
 
 // Draws the status answer into the banner; the sidecar URL is a link, the provider URL and notes the detail.
-function manifestRenderStatus(body) {
+function manifestStatusSpec(body) {
+    if (!body || typeof body !== 'object') return null;
     const detail = [manifestText('config.manifest.status_prefix') + ' ' + (body.status || 'unknown')];
     if (body.provider_base_url) detail.push(body.provider_base_url);
     if (body.admin_setup_required) detail.push(manifestText('config.manifest.admin_setup_required'));
     if (body.message) detail.push(body.message);
     const state = manifestStatusState(body);
-    cfgStatusBanner('manifest-status-panel', state, {
+    return {
+        state: state,
         detail: detail.join(' · '),
         links: body.url ? [{ href: body.url, label: body.url }] : [],
         retry: state === 'error' || state === 'unknown' ? manifestRefreshStatus : null
-    });
+    };
+}
+
+function manifestRenderStatus(body) {
+    const spec = manifestStatusSpec(body);
+    if (spec) cfgStatusBanner('manifest-status-panel', spec.state, spec);
 }
 
 async function manifestRefreshStatus() {
     if (!document.getElementById('manifest-status-panel')) return;
-    cfgStatusBanner('manifest-status-panel', 'checking', {});
-    try {
-        const resp = await fetch('/api/manifest/status');
-        const body = await resp.json();
-        manifestRenderStatus(body);
-    } catch (e) {
-        cfgStatusBanner('manifest-status-panel', 'error', { detail: manifestText('config.manifest.status_error') + ' ' + e.message, retry: manifestRefreshStatus });
-    }
+    // Times out to "unknown" with a retry instead of hanging on "checking".
+    await cfgStatusBanner.check('manifest-status-panel', signal => fetch('/api/manifest/status', { signal }), body => manifestStatusSpec(body), {
+        retry: manifestRefreshStatus
+    });
 }
 
 async function manifestTestConnection() {

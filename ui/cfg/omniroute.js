@@ -232,29 +232,32 @@ function omniRouteStatusState(body) {
 }
 
 // Draws the status answer into the banner; the sidecar URL is a link, the provider URL and notes the detail.
-function omniRouteRenderStatus(body) {
+function omniRouteStatusSpec(body) {
+    if (!body || typeof body !== 'object') return null;
     const detail = [omniRouteText('config.omniroute.status_prefix') + ' ' + (body.status || 'unknown')];
     if (body.provider_base_url) detail.push(body.provider_base_url);
     if (body.admin_setup_required) detail.push(omniRouteText('config.omniroute.admin_setup_required'));
     if (body.message) detail.push(body.message);
     const state = omniRouteStatusState(body);
-    cfgStatusBanner('omniroute-status-panel', state, {
+    return {
+        state: state,
         detail: detail.join(' · '),
         links: body.url ? [{ href: body.url, label: body.url }] : [],
         retry: state === 'error' || state === 'unknown' ? omniRouteRefreshStatus : null
-    });
+    };
+}
+
+function omniRouteRenderStatus(body) {
+    const spec = omniRouteStatusSpec(body);
+    if (spec) cfgStatusBanner('omniroute-status-panel', spec.state, spec);
 }
 
 async function omniRouteRefreshStatus() {
     if (!document.getElementById('omniroute-status-panel')) return;
-    cfgStatusBanner('omniroute-status-panel', 'checking', {});
-    try {
-        const resp = await fetch('/api/omniroute/status');
-        const body = await resp.json();
-        omniRouteRenderStatus(body);
-    } catch (e) {
-        cfgStatusBanner('omniroute-status-panel', 'error', { detail: omniRouteText('config.omniroute.status_error') + ' ' + e.message, retry: omniRouteRefreshStatus });
-    }
+    // Times out to "unknown" with a retry instead of hanging on "checking".
+    await cfgStatusBanner.check('omniroute-status-panel', signal => fetch('/api/omniroute/status', { signal }), body => omniRouteStatusSpec(body), {
+        retry: omniRouteRefreshStatus
+    });
 }
 
 async function omniRouteTestConnection() {

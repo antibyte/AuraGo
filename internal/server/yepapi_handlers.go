@@ -4,11 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 )
+
+func normalizeYepAPIBaseURL(raw string) string {
+	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+	if raw == "" {
+		return "https://api.yepapi.com"
+	}
+	return raw
+}
 
 // handleYepAPITest returns a handler that tests the YepAPI connection.
 func handleYepAPITest(s *Server) http.HandlerFunc {
@@ -31,11 +40,16 @@ func handleYepAPITest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// The dedicated vault key is not part of the config; it only counts while
-		// the draft still points at the saved base URL (stored keys must not follow
-		// a changed target).
+		// Provider keys (saved providers) and the dedicated vault key must not follow
+		// a changed base URL: refuse before any key is resolved.
+		saved := s.ConfigSnapshot()
+		sameTarget := saved != nil && normalizeYepAPIBaseURL(saved.YepAPI.BaseURL) == normalizeYepAPIBaseURL(cfg.YepAPI.BaseURL)
+		if saved != nil && !sameTarget {
+			writeDraftTestConfigError(w, newDraftConfigError("The target of %q changed: save the new base URL first, then test (Ziel geändert – bitte zuerst speichern)", "yepapi"))
+			return
+		}
 		var secrets config.SecretReader
-		if saved := s.ConfigSnapshot(); s.Vault != nil && saved != nil && saved.YepAPI.BaseURL == cfg.YepAPI.BaseURL {
+		if s.Vault != nil && sameTarget {
 			secrets = s.Vault
 		}
 		apiKey, err := tools.ResolveYepAPIKey(cfg, secrets)

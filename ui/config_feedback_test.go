@@ -136,6 +136,8 @@ func feedbackPage(t *testing.T, body string) *rod.Page {
 			'config.precision.action_save_first': 'Save first',
 			'config.precision.action_missing_fields': 'Missing fields',
 			'config.precision.action_missing_credential': 'Missing credential',
+			'config.feedback.missing_fields': 'Fill in fields',
+			'config.feedback.missing_credential': 'Enter credential',
 			'config.confirm_enable.title': 'Enable {label}?',
 			'config.confirm_enable.host': 'Host rights for {label}',
 			'config.confirm_enable.delete': 'Delete rights'
@@ -188,7 +190,16 @@ func TestConfigFeedbackReadBrowser(t *testing.T) {
 		for (const status of ['success', 'connected', 'online', 'ready', 'running', 'healthy']) {
 			expect('status ' + status, (await pick(response({ status })))[0], 'success');
 		}
-		for (const status of ['partial', 'warning', 'degraded', 'untested', 'skipped']) {
+		for (const status of ['done', 'completed', 'saved', 'started', 'active', 'enabled', 'available', 'up', 'valid', 'created', 'applied', 'accepted']) {
+			expect('status ' + status, (await pick(response({ status })))[0], 'success');
+		}
+		// A status word that is no success word is an error, never a silent success.
+		for (const status of ['disabled', 'no_credentials', 'no_url', 'not_configured', 'something_new']) {
+			expect('status ' + status, (await pick(response({ status, message: 'm' })))[0], 'error');
+		}
+		expect('disabled reason', await pick(response({ status: 'disabled', message: 'Koofr is disabled' })), ['error', 'Koofr is disabled', 200]);
+		expect('disabled interpret', (await F.read(response({ status: 'disabled' }), { interpret: o => o.body.status === 'disabled' ? { state: 'warning' } : null })).state, 'warning');
+		for (const status of ['partial', 'warning', 'degraded', 'untested', 'skipped', 'setup_required', 'stopped']) {
 			expect('status ' + status, (await pick(response({ status, message: 'm' })))[0], 'warning');
 		}
 		expect('success true', (await pick(response({ success: true })))[0], 'success');
@@ -483,11 +494,11 @@ func TestConfigFeedbackDraftLockRuleBrowser(t *testing.T) {
 
 		// required values and the credential are read from the draft; a stored mask counts as present
 		type('url', '');
-		expect('empty required field', [locked('draft-btn'), reasonOf('draft-btn')], ['true', 'Missing fields']);
+		expect('empty required field', [locked('draft-btn'), reasonOf('draft-btn')], ['true', 'Fill in fields']);
 		type('url', 'https://typed.example');
 		expect('field back', locked('draft-btn'), 'false');
 		S.init({ demo: { url: 'https://saved.example' } });
-		expect('no credential saved or typed', [locked('draft-btn'), reasonOf('draft-btn')], ['true', 'Missing credential']);
+		expect('no credential saved or typed', [locked('draft-btn'), reasonOf('draft-btn')], ['true', 'Enter credential']);
 		type('key', 'typed-key');
 		expect('credential typed, not yet saved', locked('draft-btn'), 'false');
 		type('key', '');

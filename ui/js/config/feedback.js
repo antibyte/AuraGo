@@ -5,8 +5,12 @@
     'use strict';
 
     const MASK = '••••••••';
-    const SUCCESS_STATUS = ['ok', 'success', 'connected', 'online', 'ready', 'running', 'healthy'];
-    const WARNING_STATUS = ['partial', 'warning', 'degraded', 'untested', 'skipped'];
+    // Positive words our handlers answer with on HTTP 200. Anything else (disabled,
+    // no_credentials, no_url, not_configured, ...) is an error, see classify().
+    const SUCCESS_STATUS = ['ok', 'success', 'connected', 'online', 'ready', 'running', 'healthy', 'done', 'completed', 'saved',
+        'started', 'starting', 'stopping', 'active', 'enabled', 'available', 'up', 'valid', 'created', 'exists', 'applied',
+        'accepted', 'updated', 'configured', 'sent', 'deleted', 'revoked', 'imported', 'authorized', 'acknowledged'];
+    const WARNING_STATUS = ['partial', 'warning', 'degraded', 'untested', 'skipped', 'setup_required', 'stopped'];
     const ERROR_STATUS = ['error', 'failed', 'failure', 'fail', 'offline', 'disconnected'];
     const BANNER_STATES = Object.freeze(['off', 'unconfigured', 'checking', 'connected', 'degraded', 'error', 'unknown']);
     const MAX_REASON = 300;
@@ -86,6 +90,7 @@
             if (!httpOK || body.success === false || body.ok === false || body.connected === false) return 'error';
             if (status && SUCCESS_STATUS.includes(status)) return 'success';
             if (status && WARNING_STATUS.includes(status)) return 'warning';
+            if (status) return 'error';
             return body.error ? 'error' : 'success';
         }
         return httpOK ? 'success' : 'error';

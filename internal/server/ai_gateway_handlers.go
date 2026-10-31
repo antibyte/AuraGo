@@ -76,8 +76,29 @@ func handleAIGatewayTest(s *Server) http.HandlerFunc {
 			writeDraftTestConfigError(w, err)
 			return
 		}
+		// A saved provider key must not travel to another account or gateway typed
+		// into the form: a 400 asks to save first (clearer than a silent route-skipped
+		// answer). Without a provider key the typed values can still be tested.
+		if saved := s.ConfigSnapshot(); saved != nil && (strings.TrimSpace(saved.AIGateway.AccountID) != strings.TrimSpace(draftCfg.AIGateway.AccountID) ||
+			strings.TrimSpace(saved.AIGateway.GatewayID) != strings.TrimSpace(draftCfg.AIGateway.GatewayID)) && aiGatewayProbeUsesProviderKey(draftCfg, request.ProviderID) {
+			writeDraftTestConfigError(w, newDraftConfigError("The target of %q changed: save the account and gateway first, then test (Ziel geändert – bitte zuerst speichern)", "ai_gateway"))
+			return
+		}
 		writeAIGatewayProbeResult(w, s, r.Context(), true, request.ProbeKind, request.ProviderID, draftCfg)
 	}
+}
+
+// aiGatewayProbeUsesProviderKey reports whether the probe would send a provider
+// credential (API key or OAuth token) of the chosen provider.
+func aiGatewayProbeUsesProviderKey(cfg *config.Config, providerID string) bool {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		providerID = cfg.LLM.Provider
+	}
+	if p := cfg.FindProvider(providerID); p != nil {
+		return strings.TrimSpace(p.APIKey) != "" || strings.TrimSpace(p.RuntimeAPIKey()) != "" || strings.TrimSpace(p.OAuthClientSecret) != ""
+	}
+	return strings.TrimSpace(cfg.LLM.APIKey) != ""
 }
 
 // writeAIGatewayProbeResult probes the saved configuration, or draftCfg when the

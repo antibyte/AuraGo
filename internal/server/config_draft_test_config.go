@@ -435,7 +435,7 @@ var draftTargetFieldNames = map[string]bool{
 	"insecureskipverify": true, "verifytls": true, "tlsskipverify": true, "username": true,
 	"user": true, "userid": true, "tokenid": true, "region": true, "bucket": true,
 	"account": true, "accountid": true, "broker": true, "domain": true, "tenant": true,
-	"tenantid": true, "inbox": true, "pathstyle": true, "usepathstyle": true,
+	"tenantid": true, "inbox": true, "usetls": true, "tlsmode": true, "starttls": true, "pathstyle": true, "usepathstyle": true,
 }
 
 // draftSecretNameFragments mark yaml:"-" string fields without vault tag as secrets.
