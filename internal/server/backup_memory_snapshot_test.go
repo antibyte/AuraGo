@@ -57,8 +57,8 @@ func TestManualBackupUsesCoordinatedMemorySnapshotAndRejectsPartialPublication(t
 		handleBackupCreate(s).ServeHTTP(r, httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{}`)))
 		return r
 	}
-	if r := export(); r.Code != http.StatusInternalServerError {
-		t.Fatalf("partial publication export status=%d", r.Code)
+	if r := export(); r.Code != http.StatusServiceUnavailable || !strings.Contains(r.Body.String(), "unfinished memory write") {
+		t.Fatalf("partial publication export status=%d %s", r.Code, r.Body.String())
 	}
 	if _, err := stm.Exec(`DELETE FROM memory_maintenance_meta`); err != nil {
 		t.Fatal(err)

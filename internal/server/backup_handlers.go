@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -705,6 +706,10 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 			if err := memory.CaptureMemorySnapshots(r.Context(), s.Cfg, destinations); err != nil {
 				s.Logger.Warn("[Backup] Memory snapshot is incomplete", "error", err)
+				if errors.Is(err, memory.ErrMemorySnapshotBlocked) {
+					jsonError(w, "Memory backup blocked by an unfinished memory write; restart AuraGo and try again.", http.StatusServiceUnavailable)
+					return
+				}
 				jsonError(w, "Failed to create a coordinated memory backup", http.StatusInternalServerError)
 				return
 			}
