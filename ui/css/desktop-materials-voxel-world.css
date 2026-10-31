@@ -1,0 +1,96 @@
+/* desktop-materials-voxel-world.css - app materials for the Voxel World desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). A bright block-game inventory: parchment
+ * canvas, light oak plank bars, light cobblestone sidebars, grey inventory-slot cards with 2 px bevels, stone
+ * buttons, paper wells and a forest-green primary with a pixel grass fringe. Radius 0 everywhere. The pixel tiles
+ * are crisp 1:1 data-URI SVGs, kept faint where text sits so --vd-text (#352b1e) and --vd-theme-muted (#5d513e)
+ * keep 4.5:1; the strong accents (bevels, plank seam, grass) sit on edges. */
+
+.desktop-body[data-theme="voxel_world"] {
+    /* Canvas: parchment with a very faint 8 px pixel checker */
+    --vd-mat-canvas-color: #F5F1E5;
+    --vd-mat-canvas:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%238C7856' fill-opacity='.07' d='M0 0h8v8h-8zM8 8h8v8h-8z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-canvas-color);
+
+    /* Bar: light oak planks, staggered end joints, a dark plank seam along the bottom */
+    --vd-mat-bar-color: #E9D4AE;
+    --vd-mat-bar:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='32' shape-rendering='crispEdges'%3E%3Cpath fill='%239A7344' fill-opacity='.14' d='M0 15h64v1h-64zM0 31h64v1h-64zM44 1h1v14h-1zM14 17h1v14h-1z'/%3E%3Cpath fill='%23FFF6DC' fill-opacity='.5' d='M0 0h64v1h-64zM0 16h64v1h-64zM45 1h1v14h-1zM15 17h1v14h-1z'/%3E%3Cpath fill='%23B58B4F' fill-opacity='.2' d='M4 5h5v1h-5zM20 9h3v1h-3zM30 3h6v1h-6zM52 11h4v1h-4zM8 22h4v1h-4zM26 26h5v1h-5zM40 20h6v1h-6zM56 28h4v1h-4zM33 13h3v1h-3zM2 12h3v1h-3z'/%3E%3C/svg%3E") 0 0 / 64px 32px repeat,
+        var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 248, 226, 0.8), inset 0 -1px 0 #6B4C2A, inset 0 -2px 0 #8A6539, inset 0 -3px 0 rgba(255, 244, 214, 0.7);
+
+    /* Side: light cobblestone, block seams with a lit upper-left edge on every stone */
+    --vd-mat-side-color: #DDDDD4;
+    --vd-mat-side:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.16' d='M0 1h17v10h-17zM8 13h19v10h-19zM34 25h14v10h-14zM23 37h17v10h-17z'/%3E%3Cpath fill='%23000000' fill-opacity='.04' d='M18 1h18v10h-18zM0 13h7v10h-7zM16 25h17v10h-17zM6 37h17v10h-17z'/%3E%3Cpath fill='%237E7E74' fill-opacity='.22' d='M0 11h48v1h-48zM0 23h48v1h-48zM0 35h48v1h-48zM0 47h48v1h-48zM17 0h1v11h-1zM36 0h1v11h-1zM7 12h1v11h-1zM27 12h1v11h-1zM42 12h1v11h-1zM15 24h1v11h-1zM33 24h1v11h-1zM5 36h1v11h-1zM22 36h1v11h-1zM40 36h1v11h-1z'/%3E%3Cpath fill='%23FFFFFF' fill-opacity='.4' d='M0 0h48v1h-48zM0 12h48v1h-48zM0 24h48v1h-48zM0 36h48v1h-48zM18 1h1v10h-1zM37 1h1v10h-1zM8 13h1v10h-1zM28 13h1v10h-1zM43 13h1v10h-1zM16 25h1v10h-1zM34 25h1v10h-1zM6 37h1v10h-1zM23 37h1v10h-1zM41 37h1v10h-1z'/%3E%3C/svg%3E") 0 0 / 48px 48px repeat,
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -2px 0 0 #8E8E86, inset -3px 0 0 rgba(255, 255, 255, 0.5);
+
+    /* Card: inventory slot, smooth stone with a 2 px white / #555 bevel and a block drop shadow */
+    --vd-mat-card-color: #D0D0D0;
+    --vd-mat-card:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.35' d='M2 2h2v1h-2zM10 5h1v1h-1zM6 9h2v1h-2zM13 12h2v1h-2zM1 13h1v1h-1z'/%3E%3Cpath fill='%23555555' fill-opacity='.07' d='M7 1h1v1h-1zM13 3h2v1h-2zM3 7h1v1h-1zM11 10h1v1h-1zM8 14h2v1h-2z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-card-color);
+    --vd-mat-card-border: #2B2B2B;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: inset 2px 2px 0 #FFFFFF, inset -2px -2px 0 #555555, 0 3px 0 rgba(30, 30, 30, 0.22);
+
+    /* Well: paper, sunk behind a dark upper-left bevel */
+    --vd-mat-well-color: #FFF9EA;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 2px 2px 0 #555555, inset -2px -2px 0 #FFFFFF;
+
+    /* Field: recessed paper with a soft dark upper-left bevel */
+    --vd-mat-field-color: #FFFEF8;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #555555;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 2px 2px 0 rgba(85, 85, 85, 0.35);
+
+    /* Buttons: stone with a 2 px bevel, hover turns mossy */
+    --vd-mat-btn-color: #BEBEBE;
+    --vd-mat-btn:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23FFFFFF' fill-opacity='.35' d='M2 2h2v1h-2zM10 5h1v1h-1zM6 9h2v1h-2zM13 12h2v1h-2zM1 13h1v1h-1z'/%3E%3Cpath fill='%23555555' fill-opacity='.07' d='M7 1h1v1h-1zM13 3h2v1h-2zM3 7h1v1h-1zM11 10h1v1h-1zM8 14h2v1h-2z'/%3E%3C/svg%3E") 0 0 / 16px 16px repeat,
+        var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(rgba(214, 232, 196, 0.62), rgba(214, 232, 196, 0.62)), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #1E1E1E;
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 2px 2px 0 #FDFDFD, inset -2px -2px 0 #555555;
+    --vd-mat-btn-text: #2B2218;
+
+    /* Primary: forest green under a 4 px pixel grass fringe */
+    --vd-mat-primary-color: #476B3C;
+    --vd-mat-primary:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%2381C04D' d='M0 0h8v2h-8z'/%3E%3Cpath fill='%2362A03A' d='M0 2h2v1h-2zM3 2h2v1h-2zM6 2h2v1h-2z'/%3E%3Cpath fill='%234C8A32' d='M1 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 8px 4px repeat-x,
+        var(--vd-mat-primary-color);
+    --vd-mat-primary-hover:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%2381C04D' d='M0 0h8v2h-8z'/%3E%3Cpath fill='%2362A03A' d='M0 2h2v1h-2zM3 2h2v1h-2zM6 2h2v1h-2z'/%3E%3Cpath fill='%234C8A32' d='M1 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1z'/%3E%3C/svg%3E") 0 0 / 8px 4px repeat-x,
+        linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)),
+        var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #1E1E1E;
+    --vd-mat-primary-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.28), inset -2px -2px 0 rgba(0, 0, 0, 0.35);
+
+    /* Selection: forest green, white text, a bright grass marker */
+    --vd-mat-selected-color: #476B3C;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #8FD05A, inset 0 -2px 0 #2F4A26;
+    --vd-mat-hover: rgba(71, 107, 60, 0.14);
+
+    /* Lines and type */
+    --vd-mat-divider: #9A8967;
+    --vd-mat-rule: repeating-linear-gradient(90deg, #8C7856 0 4px, transparent 4px 8px);
+    --vd-mat-heading-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #2F4A26;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-label-color: #44553A;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: Consolas, 'Lucida Console', 'Courier New', monospace;
+    --vd-mat-accent-2: #C98F1E;
+    --vd-mat-glow: none;
+}

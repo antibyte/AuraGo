@@ -1,0 +1,83 @@
+/* desktop-materials-windows-xp.css - app materials for the Windows XP desktop theme (see
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md). Luna: cream window face, gradient toolbars,
+ * a light blue task-pane sidebar, white list and edit wells with the #7F9DB9 hairline, XP push buttons and the
+ * Luna blue default button. Only custom properties; --vd-text (#1c2d45) and --vd-theme-muted (#435873) stay above
+ * 4.5:1 on every surface, including the lightest and darkest stop of each gradient. */
+
+.desktop-body[data-theme="windows_xp"] {
+    /* Canvas: the classic ButtonFace cream */
+    --vd-mat-canvas-color: #ECE9D8;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+
+    /* Bar: Luna toolbar gradient, white top highlight and an etched bottom line */
+    --vd-mat-bar-color: #F1EFE6;
+    --vd-mat-bar: linear-gradient(180deg, #FDFDFB 0%, #F1EFE6 52%, #E3E0D1 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #C6C3B4, inset 0 1px 0 #FFFFFF;
+
+    /* Side: light blue task pane under a thin Luna blue cap, #9AAEC8 edge */
+    --vd-mat-side-color: #D6E2F8;
+    --vd-mat-side:
+        linear-gradient(90deg, #3C7FE0 0%, #9DBBEF 100%) top / 100% 3px no-repeat,
+        linear-gradient(180deg, #E4ECFC 0%, #D6E3F9 50%, #C9D8F4 100%),
+        var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #9AAEC8, inset 1px 0 0 rgba(255, 255, 255, 0.75);
+
+    /* Card: white task-pane box with a thin white-to-blue header band on top */
+    --vd-mat-card-color: #FAFBFE;
+    --vd-mat-card: linear-gradient(90deg, #FFFFFF 0%, #B8CBF3 100%) top / 100% 5px no-repeat, var(--vd-mat-card-color);
+    --vd-mat-card-border: #9AAEC8;
+    --vd-mat-card-radius: 3px;
+    --vd-mat-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 5px rgba(34, 62, 99, 0.18);
+
+    /* Well: white list and editor area inside the #7F9DB9 hairline */
+    --vd-mat-well-color: #FFFFFF;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #7F9DB9, inset 1px 1px 3px rgba(33, 57, 89, 0.16);
+
+    /* Field: white edit box, square corners, #7F9DB9 border */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #7F9DB9;
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 0 1px 1px rgba(33, 57, 89, 0.1);
+
+    /* Buttons: XP push button, white to warm grey, #003C74 outline, blue-tinted hover */
+    --vd-mat-btn-color: #ECEBE5;
+    --vd-mat-btn: linear-gradient(180deg, #FFFFFF 0%, #F4F3EE 18%, #ECEBE5 55%, #E3E0D2 92%, #D6D0C5 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 25%, #DCEBFF 85%, #C7DDF8 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #003C74;
+    --vd-mat-btn-radius: 3px;
+    --vd-mat-btn-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 rgba(160, 152, 128, 0.5), 0 1px 0 rgba(255, 255, 255, 0.6);
+    --vd-mat-btn-text: #000000;
+
+    /* Primary: Luna blue gel, white text */
+    --vd-mat-primary-color: #1D5FAF;
+    --vd-mat-primary: linear-gradient(180deg, #3A86EB 0%, #2B6FD0 22%, #2565BE 45%, #1D5FAF 50%, #174D91 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #4C94F0 0%, #2F76D6 22%, #2868C6 45%, #1F5DB0 50%, #184E94 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #0B3F82;
+    --vd-mat-primary-shadow: inset 0 0 0 1px rgba(150, 190, 255, 0.55), 0 1px 2px rgba(0, 28, 80, 0.3);
+
+    /* Selection: the Windows selection blue, white text */
+    --vd-mat-selected-color: #316AC5;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 0 0 0 1px #1F4E9F;
+    --vd-mat-hover: rgba(49, 106, 197, 0.12);
+
+    /* Lines and type */
+    --vd-mat-divider: #A9B7CE;
+    --vd-mat-rule: linear-gradient(180deg, #ACA899 0, #ACA899 1px, #FFFFFF 1px, #FFFFFF 2px);
+    --vd-mat-heading-font: 'Trebuchet MS', Tahoma, 'Segoe UI', sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #215DC6;
+    --vd-mat-heading-tracking: 0;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: Tahoma, 'Segoe UI', Arial, sans-serif;
+    --vd-mat-label-color: #1D56B8;
+    --vd-mat-label-tracking: 0;
+    --vd-mat-label-transform: none;
+    --vd-mat-mono-font: 'Lucida Console', 'Courier New', Consolas, monospace;
+    --vd-mat-accent-2: #3C9B2E;
+    --vd-mat-glow: none;
+}

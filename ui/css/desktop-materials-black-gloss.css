@@ -1,0 +1,81 @@
+/* desktop-materials-black-gloss.css - Black Gloss app materials: piano lacquer inside every app window.
+ * A black canvas with a curved lacquer reflection at the top, classic gloss-split bars, a side with a diagonal
+ * reflection streak, cards with a bright top highlight and deep shadows, deep wells and fields, glossy pill
+ * buttons and a glossy gel primary in the user's accent. Text is #F2F2F4 with #A3A3AB for muted; the accent comes
+ * from var(--vd-accent) (fallback rgb 39 199 166). Only custom properties live here; the vocabulary and the rules
+ * are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="black_gloss"] {
+    /* Canvas: a curved lacquer reflection and a soft sheen at the top, a faint diagonal streak */
+    --vd-mat-canvas-color: #0F0F12;
+    --vd-mat-canvas: radial-gradient(ellipse 900px 300px at 50% -110px, rgba(255, 255, 255, 0.075) 0 60%, rgba(255, 255, 255, 0) 62%) 0 0 / 100% 240px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0) 100%) 0 0 / 100% 140px no-repeat, linear-gradient(115deg, rgba(255, 255, 255, 0) 36%, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0) 58%), var(--vd-mat-canvas-color);
+
+    /* Bars: the classic gloss split, light upper half ending crisply at 50 %, dark lower half */
+    --vd-mat-bar-color: #101012;
+    --vd-mat-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0, rgba(255, 255, 255, 0.05) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #1C1C20 0, #0E0E10 50%, #060607 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    /* Sides: the deepest black, a diagonal reflection streak, an inner shadow on the left and a pale rim on the right */
+    --vd-mat-side-color: #08080A;
+    --vd-mat-side: linear-gradient(112deg, rgba(255, 255, 255, 0) 18%, rgba(255, 255, 255, 0.05) 34%, rgba(255, 255, 255, 0.012) 48%, rgba(255, 255, 255, 0) 62%), linear-gradient(180deg, #0D0D10 0, #060608 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(255, 255, 255, 0.13), inset -2px 0 0 rgba(0, 0, 0, 0.7), inset 14px 0 18px -16px rgba(0, 0, 0, 0.9);
+
+    /* Cards: lifted lacquer, a bright highlight line fading out to both sides, a half-height sheen, deep shadows */
+    --vd-mat-card-color: #18181C;
+    --vd-mat-card: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0)) 0 0 / 100% 1px no-repeat, linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #1D1D22 0, #141417 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(255, 255, 255, 0.11);
+    --vd-mat-card-radius: 12px;
+    --vd-mat-card-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+    /* Wells: piano black pressed in, shaded from above */
+    --vd-mat-well-color: #050507;
+    --vd-mat-well: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0, rgba(0, 0, 0, 0) 48px) 0 0 / 100% 48px no-repeat, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+
+    /* Fields: a deep inset with a pale lip */
+    --vd-mat-field-color: #050506;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0, rgba(0, 0, 0, 0) 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(255, 255, 255, 0.16);
+    --vd-mat-field-radius: 8px;
+    --vd-mat-field-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.08);
+
+    /* Buttons: glossy pills, light upper half, dark lower half, a rim of light on top */
+    --vd-mat-btn-color: #1C1C20;
+    --vd-mat-btn: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0, rgba(255, 255, 255, 0.07) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #2C2C31 0, #151518 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0, rgba(255, 255, 255, 0.12) 49%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #38383E 0, #1C1C20 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(255, 255, 255, 0.2);
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 2px 5px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+    --vd-mat-btn-text: #F2F2F4;
+
+    /* Primary: glossy accent gel, white gloss on the upper half, accent glow underneath */
+    --vd-mat-primary-color: var(--vd-accent);
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0.08) 41%, rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 82%, #000) 0, color-mix(in srgb, var(--vd-accent) 56%, #000) 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.44) 0, rgba(255, 255, 255, 0.12) 41%, rgba(255, 255, 255, 0) 42%), linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 92%, #000) 0, color-mix(in srgb, var(--vd-accent) 66%, #000) 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 55%, #000);
+    --vd-mat-primary-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    /* Selection and hover: a dark accent mix with a sheen and a 1 px accent ring */
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 24%, #141416);
+    --vd-mat-selected: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0, rgba(255, 255, 255, 0) 55%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: var(--vd-text);
+    --vd-mat-selected-edge: inset 0 0 0 1px var(--vd-accent), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    --vd-mat-hover: rgba(255, 255, 255, 0.07);
+
+    /* Lines and type: pale separators, a silver rule, silver headings and labels */
+    --vd-mat-divider: rgba(255, 255, 255, 0.11);
+    --vd-mat-rule: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0));
+    --vd-mat-heading-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #DCDDE3;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #AEB0B8;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #C7C9D1;
+    --vd-mat-glow: 0 0 14px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45);
+}

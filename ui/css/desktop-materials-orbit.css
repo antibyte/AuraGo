@@ -1,0 +1,80 @@
+/* desktop-materials-orbit.css - Orbit app materials: deep-space smoked glass inside every app window.
+ * Canvas with star specks and a violet nebula glow, glass bars with a cyan underline glow, a side rail lit in violet,
+ * cards with cyan HUD corner brackets, recessed wells, a glowing cyan primary and Barlow Condensed headings. Text is
+ * #E8F1FF with #9FB0CC for muted; the fonts are declared in desktop-theme-orbit.css. Only custom properties live
+ * here; the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="orbit"] {
+    /* Canvas: two star tiles of different periods (white, ice and lilac specks), a violet nebula top right, an ice haze bottom left */
+    --vd-mat-canvas-color: #0B1020;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='14' cy='30' r='.8' fill-opacity='.75'/%3E%3Ccircle cx='88' cy='12' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='160' cy='54' r='1' fill-opacity='.85'/%3E%3Ccircle cx='42' cy='112' r='.6' fill-opacity='.45'/%3E%3Ccircle cx='118' cy='96' r='.8' fill-opacity='.6'/%3E%3Ccircle cx='196' cy='140' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='70' cy='180' r='1' fill-opacity='.7'/%3E%3Ccircle cx='150' cy='204' r='.6' fill-opacity='.4'/%3E%3C/g%3E%3Ccircle cx='132' cy='160' r='1.1' fill='%235CE1FF' fill-opacity='.65'/%3E%3Ccircle cx='36' cy='70' r='.9' fill='%23B9A2FF' fill-opacity='.6'/%3E%3C/svg%3E") 0 0 / 220px 220px, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='347' height='347'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='50' cy='40' r='.7' fill-opacity='.6'/%3E%3Ccircle cx='300' cy='200' r='.6' fill-opacity='.5'/%3E%3Ccircle cx='120' cy='260' r='.9' fill-opacity='.7'/%3E%3Ccircle cx='260' cy='320' r='.6' fill-opacity='.45'/%3E%3Ccircle cx='20' cy='190' r='.6' fill-opacity='.5'/%3E%3C/g%3E%3Ccircle cx='210' cy='90' r='1.1' fill='%235CE1FF' fill-opacity='.7'/%3E%3C/svg%3E") 60px 40px / 347px 347px, radial-gradient(ellipse 70% 62% at 100% 0%, rgba(140, 92, 255, 0.3), rgba(140, 92, 255, 0.11) 45%, transparent 78%), radial-gradient(ellipse 40% 34% at 82% 6%, rgba(255, 140, 220, 0.07), transparent 70%), radial-gradient(ellipse 55% 50% at 0% 100%, rgba(92, 225, 255, 0.11), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: smoked glass with a light sheen, a holographic cyan to violet line and a cyan underline glow */
+    --vd-mat-bar-color: #0E1530;
+    --vd-mat-bar: linear-gradient(90deg, #5CE1FF, #8C5CFF 55%, rgba(140, 92, 255, 0)) 0 100% / 62% 2px no-repeat, linear-gradient(180deg, rgba(180, 225, 255, 0.13) 0, rgba(180, 225, 255, 0.04) 50%, rgba(0, 0, 0, 0.16) 100%), linear-gradient(90deg, rgba(140, 92, 255, 0.14), rgba(140, 92, 255, 0) 42%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(92, 225, 255, 0.7), inset 0 1px 0 rgba(210, 235, 255, 0.14), 0 1px 12px -2px rgba(92, 225, 255, 0.32);
+
+    /* Sides: the darkest glass, a violet glow from the top and a violet rail on the right edge */
+    --vd-mat-side-color: #080D1C;
+    --vd-mat-side: linear-gradient(180deg, rgba(140, 92, 255, 0.16) 0, rgba(140, 92, 255, 0) 55%), linear-gradient(90deg, rgba(92, 225, 255, 0.04), rgba(92, 225, 255, 0) 60%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 rgba(140, 92, 255, 0.9), inset -10px 0 16px -10px rgba(140, 92, 255, 0.42);
+
+    /* Cards: lifted glass panels, cyan HUD brackets top left and bottom right, glows in the opposite corners */
+    --vd-mat-card-color: #121B38;
+    --vd-mat-card: linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) 3px 3px / 12px 2px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) 3px 3px / 2px 12px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) right 3px bottom 3px / 12px 2px no-repeat, linear-gradient(rgba(92, 225, 255, 0.92), rgba(92, 225, 255, 0.92)) right 3px bottom 3px / 2px 12px no-repeat, radial-gradient(ellipse 80% 70% at 0% 0%, rgba(92, 225, 255, 0.1), transparent 60%), radial-gradient(ellipse 70% 60% at 100% 100%, rgba(140, 92, 255, 0.13), transparent 65%), var(--vd-mat-card-color);
+    --vd-mat-card-border: rgba(92, 225, 255, 0.24);
+    --vd-mat-card-radius: 6px;
+    --vd-mat-card-shadow: 0 0 0 1px rgba(92, 225, 255, 0.06), 0 12px 30px rgba(0, 0, 10, 0.55), inset 0 1px 0 rgba(210, 235, 255, 0.1);
+
+    /* Wells: a dark recess with a few stars, a violet glow in one corner and a lit rim */
+    --vd-mat-well-color: #070B1A;
+    --vd-mat-well: radial-gradient(ellipse 70% 60% at 100% 0%, rgba(140, 92, 255, 0.12), transparent 70%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.18), inset 0 10px 24px -6px rgba(0, 0, 12, 0.8);
+
+    /* Fields: near-black glass with an ice rim */
+    --vd-mat-field-color: #050912;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 10, 0.5) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(92, 225, 255, 0.36);
+    --vd-mat-field-radius: 5px;
+    --vd-mat-field-shadow: inset 0 1px 4px rgba(0, 0, 12, 0.75);
+
+    /* Buttons: indigo glass with a cyan rim */
+    --vd-mat-btn-color: #131C3A;
+    --vd-mat-btn: linear-gradient(180deg, rgba(92, 225, 255, 0.17) 0, rgba(92, 225, 255, 0.03) 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(92, 225, 255, 0.32) 0, rgba(92, 225, 255, 0.11) 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(92, 225, 255, 0.5);
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.14), 0 0 0 1px rgba(0, 0, 12, 0.4);
+    --vd-mat-btn-text: #DFF7FF;
+
+    /* Primary: signal cyan, near-black caption, a cyan glow */
+    --vd-mat-primary-color: #5CE1FF;
+    --vd-mat-primary: linear-gradient(180deg, #98EFFF 0, #5CE1FF 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, #B6F4FF 0, #7AE9FF 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #04121A;
+    --vd-mat-primary-border: #8EEEFF;
+    --vd-mat-primary-shadow: 0 0 18px rgba(92, 225, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+
+    /* Selection and hover: a deep blue row lit from the marker, a cyan marker */
+    --vd-mat-selected-color: #16244A;
+    --vd-mat-selected: linear-gradient(90deg, rgba(92, 225, 255, 0.16) 0, rgba(92, 225, 255, 0) 80%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F2FAFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #5CE1FF, inset 0 0 0 1px rgba(92, 225, 255, 0.18);
+    --vd-mat-hover: rgba(92, 225, 255, 0.1);
+
+    /* Lines and type: ice separators, a cyan to violet rule, Barlow Condensed headings, violet Geist labels */
+    --vd-mat-divider: rgba(140, 200, 255, 0.22);
+    --vd-mat-rule: linear-gradient(90deg, #5CE1FF, #8C5CFF 55%, rgba(140, 92, 255, 0));
+    --vd-mat-heading-font: "Desktop Theme Barlow Condensed", "Barlow Condensed", "Desktop Theme Geist", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #BFF3FF;
+    --vd-mat-heading-tracking: 0.08em;
+    --vd-mat-heading-transform: uppercase;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #B9A2FF;
+    --vd-mat-label-tracking: 0.14em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #A78BFF;
+    --vd-mat-glow: 0 0 16px rgba(92, 225, 255, 0.45);
+}

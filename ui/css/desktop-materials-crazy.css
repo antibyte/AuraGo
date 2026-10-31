@@ -1,0 +1,81 @@
+/* desktop-materials-crazy.css - Crazy app materials: a party inside every app window.
+ * Violet night canvas with three layers of confetti dots and a tile of paper strips, rainbow stripe under the
+ * bars, a rainbow rail on the sides, cards in rainbow gradient frames, bubbly pill buttons, a pink to orange
+ * primary with black text, loud yellow headings and a pink glow. Text is #FFF6FD, muted text #D9C2FF (skin).
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="crazy"] {
+    /* Canvas: deep violet, confetti dots in pink, cyan and yellow, paper strips on top */
+    --vd-mat-canvas-color: #1D0440;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cg fill-opacity='.32'%3E%3Crect x='18' y='20' width='10' height='4' rx='2' fill='%23FF2BD6' transform='rotate(35 23 22)'/%3E%3Crect x='96' y='12' width='4' height='11' rx='2' fill='%23FFE600' transform='rotate(-30 98 17)'/%3E%3Cpath d='M140 40l6 10h-12z' fill='%2300E5FF' transform='rotate(25 140 46)'/%3E%3Crect x='52' y='62' width='9' height='4' rx='2' fill='%232BFF88' transform='rotate(-40 56 64)'/%3E%3Crect x='120' y='96' width='4' height='10' rx='2' fill='%23FF2BD6' transform='rotate(50 122 101)'/%3E%3Cpath d='M24 110l6 10h-12z' fill='%23FFE600' transform='rotate(-20 24 116)'/%3E%3Crect x='80' y='128' width='10' height='4' rx='2' fill='%2300E5FF' transform='rotate(20 85 130)'/%3E%3Crect x='146' y='146' width='4' height='10' rx='2' fill='%23B6FF00' transform='rotate(-35 148 151)'/%3E%3Ccircle cx='70' cy='96' r='3' fill='%237A5CFF'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 170px 170px, radial-gradient(circle at 12px 14px, rgba(255, 43, 214, 0.3) 0 2px, transparent 2.6px) 0 0 / 59px 61px, radial-gradient(circle at 30px 20px, rgba(0, 229, 255, 0.28) 0 1.8px, transparent 2.4px) 0 0 / 83px 79px, radial-gradient(circle at 50px 60px, rgba(255, 230, 0, 0.28) 0 2.2px, transparent 2.8px) 0 0 / 109px 97px, var(--vd-mat-canvas-color);
+
+    /* Bars: violet gloss, a 3 px rainbow stripe along the bottom edge and a pink glow below */
+    --vd-mat-bar-color: #2A0A5C;
+    --vd-mat-bar: linear-gradient(90deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) 0 100% / 100% 3px no-repeat, radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.08) 0 1.5px, transparent 2px) 0 0 / 20px 20px, linear-gradient(180deg, #3A1480 0, #2A0A5C 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 14px -2px rgba(255, 43, 214, 0.38);
+
+    /* Sides: night violet with a vertical rainbow rail on the right edge */
+    --vd-mat-side-color: #160335;
+    --vd-mat-side: linear-gradient(180deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) 100% 0 / 4px 100% no-repeat, radial-gradient(circle at 7px 7px, rgba(0, 229, 255, 0.12) 0 1px, transparent 1.6px) 0 0 / 14px 14px, linear-gradient(180deg, #1D0446 0, #160335 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: 4px 0 14px -4px rgba(255, 43, 214, 0.4), inset 0 0 0 1px rgba(122, 92, 255, 0.2);
+
+    /* Cards: violet panels in a rainbow gradient frame (the app border stays transparent) */
+    --vd-mat-card-color: #2E0D63;
+    --vd-mat-card: radial-gradient(120% 70% at 20% 0, rgba(255, 255, 255, 0.07), transparent 60%) padding-box, linear-gradient(160deg, #3A1480 0, #2E0D63 62%) padding-box, linear-gradient(135deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6) border-box, var(--vd-mat-card-color);
+    --vd-mat-card-border: transparent;
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: 0 8px 24px rgba(8, 0, 22, 0.55), 0 0 18px rgba(255, 43, 214, 0.24);
+
+    /* Wells: near-black ink with a faint cyan dot grid, pressed in */
+    --vd-mat-well-color: #0B0121;
+    --vd-mat-well: radial-gradient(circle at 8px 8px, rgba(0, 229, 255, 0.14) 0 1px, transparent 1.6px) 0 0 / 16px 16px, linear-gradient(180deg, #08001A 0, #0F0229 100%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(217, 194, 255, 0.16);
+
+    /* Fields: dark indigo recess with a lavender ring */
+    --vd-mat-field-color: #150636;
+    --vd-mat-field: linear-gradient(180deg, #100329 0, #1A0845 100%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #A68CFF;
+    --vd-mat-field-radius: 14px;
+    --vd-mat-field-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
+
+    /* Buttons: bubbly violet pills with a bright rim and a hard shade underneath */
+    --vd-mat-btn-color: #4B1C9C;
+    --vd-mat-btn: linear-gradient(180deg, #6B3BE0 0, #4B1C9C 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #7D4DF0 0, #5A28C0 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #C8B4FF;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 3px 0 #1A0640, 0 6px 12px rgba(8, 0, 22, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.28);
+    --vd-mat-btn-text: #FFF6FD;
+
+    /* Primary: pink to orange candy gel, black text, yellow rim and a pink glow */
+    --vd-mat-primary-color: #FF4FA8;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0) 50%), linear-gradient(135deg, #FF2BD6 0, #FF5A8C 50%, #FF8A00 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0, rgba(255, 255, 255, 0) 50%), linear-gradient(135deg, #FF5BE0 0, #FF7FA0 50%, #FFB000 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #FFE600;
+    --vd-mat-primary-shadow: 0 3px 0 #8A1670, 0 0 20px rgba(255, 43, 214, 0.5);
+
+    /* Selection and hover: deep violet with a cyan marker, pink wash on hover */
+    --vd-mat-selected-color: #4A1690;
+    --vd-mat-selected: linear-gradient(90deg, #5C1CB0 0, #4A1690 70%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 4px 0 0 #00E5FF, inset 0 0 0 1px rgba(0, 229, 255, 0.38);
+    --vd-mat-hover: rgba(255, 43, 214, 0.2);
+
+    /* Lines and type: lilac separators, rainbow rule, loud yellow headings, cyan labels */
+    --vd-mat-divider: #6E44C4;
+    --vd-mat-rule: linear-gradient(90deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF, #FF2BD6);
+    --vd-mat-heading-font: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 800;
+    --vd-mat-heading-color: #FFE600;
+    --vd-mat-heading-tracking: 0.02em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #00E5FF;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #2BFF88;
+    --vd-mat-glow: 0 0 16px rgba(255, 43, 214, 0.55), 0 0 4px rgba(255, 43, 214, 0.8);
+}

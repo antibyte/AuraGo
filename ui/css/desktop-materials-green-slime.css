@@ -1,0 +1,81 @@
+/* desktop-materials-green-slime.css - Green Slime app materials: glossy goo inside every app window.
+ * Mossy canvas with faint floating bubbles, glossy slime bars whose lower edge carries a lime band with hanging
+ * drips, a swamp-dark side with a lime rail that drips sideways, blobby squishy cards with a gel highlight,
+ * gel pill buttons and a lime gel primary with dark text. Text is #F1F7DC, muted text #C6D4A6 (skin).
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="green_slime"] {
+    /* Canvas: moss with a lime haze at the top and faint bubbles */
+    --vd-mat-canvas-color: #1A2212;
+    --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23A5D941' fill-opacity='.045' stroke='%23C8F075' stroke-opacity='.17' stroke-width='1.4'%3E%3Ccircle cx='34' cy='42' r='14'/%3E%3Ccircle cx='122' cy='24' r='7'/%3E%3Ccircle cx='172' cy='92' r='18'/%3E%3Ccircle cx='70' cy='132' r='9'/%3E%3Ccircle cx='192' cy='180' r='11'/%3E%3Ccircle cx='28' cy='190' r='16'/%3E%3Ccircle cx='122' cy='172' r='5'/%3E%3C/g%3E%3Cg fill='%23F2FFC8' fill-opacity='.2'%3E%3Ccircle cx='29' cy='36' r='2.6'/%3E%3Ccircle cx='166' cy='85' r='3.2'/%3E%3Ccircle cx='23' cy='183' r='2.8'/%3E%3Ccircle cx='67' cy='129' r='1.6'/%3E%3Ccircle cx='189' cy='176' r='2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 220px 220px, radial-gradient(120% 60% at 50% 0, rgba(165, 217, 65, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: glossy slime, a lime band 9 px above the lower edge with three rows of drips hanging from it */
+    --vd-mat-bar-color: #2D4219;
+    --vd-mat-bar: radial-gradient(ellipse 3.6px 5.6px at 9px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 31px 9px repeat-x, radial-gradient(ellipse 2.6px 4.4px at 31px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 47px 9px repeat-x, radial-gradient(ellipse 4.2px 6.6px at 40px 3px, #A5D941 0 88%, transparent 100%) 0 100% / 71px 9px repeat-x, linear-gradient(180deg, #D8F68F 0, #A5D941 55%, #8DBF2F 100%) 0 calc(100% - 9px) / 100% 3px no-repeat, linear-gradient(180deg, rgba(240, 255, 190, 0.12) 0, rgba(240, 255, 190, 0.03) 48%, rgba(0, 0, 0, 0) 49%), linear-gradient(180deg, #324820 0, #2D4219 55%, #24361A 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(236, 255, 188, 0.24), 0 3px 8px rgba(0, 0, 0, 0.38);
+
+    /* Sides: swamp moss speckles, a glossy lime rail on the right edge with drips creeping left */
+    --vd-mat-side-color: #121A0B;
+    --vd-mat-side: radial-gradient(ellipse 5.6px 3.6px at 6px 9px, #A5D941 0 88%, transparent 100%) 100% 0 / 9px 37px repeat-y, radial-gradient(ellipse 4.4px 2.6px at 6px 20px, #A5D941 0 88%, transparent 100%) 100% 0 / 9px 53px repeat-y, linear-gradient(90deg, #8DBF2F 0, #A5D941 45%, #D8F68F 100%) 100% 0 / 3px 100% no-repeat, radial-gradient(circle at 5px 6px, rgba(165, 217, 65, 0.13) 0 1px, transparent 1.7px) 0 0 / 17px 19px, radial-gradient(circle at 11px 13px, rgba(120, 170, 50, 0.14) 0 1.4px, transparent 2px) 0 0 / 23px 21px, linear-gradient(90deg, #121A0B 0, #17220E 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: 3px 0 10px -3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(236, 255, 188, 0.1);
+
+    /* Cards: blobby gel with a bright highlight on the upper left and a squishy shade below */
+    --vd-mat-card-color: #26321A;
+    --vd-mat-card: radial-gradient(130% 55% at 28% 0, rgba(225, 255, 160, 0.12), transparent 62%), linear-gradient(180deg, #2D3B1E 0, #26321A 45%, #202B15 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: #5E7A33;
+    --vd-mat-card-radius: 16px 19px 14px 20px;
+    --vd-mat-card-shadow: 0 8px 18px rgba(0, 0, 0, 0.42), inset 0 2px 2px rgba(242, 255, 204, 0.18), inset 0 -4px 6px rgba(0, 0, 0, 0.24);
+
+    /* Wells: deep swamp water with a lime film on the lower rim */
+    --vd-mat-well-color: #0C1810;
+    --vd-mat-well: radial-gradient(90% 60% at 20% 0, rgba(165, 217, 65, 0.07), transparent 70%), linear-gradient(180deg, #08130C 0, #0E1C12 100%), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(165, 217, 65, 0.2), inset 0 -2px 0 rgba(165, 217, 65, 0.14);
+
+    /* Fields: deep recess, rounded like a bubble */
+    --vd-mat-field-color: #131C0C;
+    --vd-mat-field: linear-gradient(180deg, #0E1508 0, #172210 100%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #6E8B3C;
+    --vd-mat-field-radius: 14px;
+    --vd-mat-field-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(218, 248, 148, 0.08);
+
+    /* Buttons: gel pills, glossy upper half and a dark underside */
+    --vd-mat-btn-color: #3A5224;
+    --vd-mat-btn: linear-gradient(180deg, rgba(240, 255, 190, 0.16) 0, rgba(240, 255, 190, 0.04) 48%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, #44602A 0, #3A5224 50%, #2E4320 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, rgba(240, 255, 190, 0.2) 0, rgba(240, 255, 190, 0.04) 48%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, #4A662D 0, #3F5927 50%, #324A22 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #7C9B45;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 3px 0 #1A2610, 0 5px 8px rgba(0, 0, 0, 0.35), inset 0 2px 2px rgba(245, 255, 208, 0.3), inset 0 -3px 4px rgba(0, 0, 0, 0.25);
+    --vd-mat-btn-text: #F2F8DF;
+
+    /* Primary: lime gel with a glossy highlight and dark text */
+    --vd-mat-primary-color: #A5D941;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.1) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #C9EF74 0, #A5D941 55%, #84B52C 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0, rgba(255, 255, 255, 0.14) 48%, rgba(255, 255, 255, 0) 50%), linear-gradient(180deg, #D6F58A 0, #B4E84F 55%, #92C735 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #17210B;
+    --vd-mat-primary-border: #72A021;
+    --vd-mat-primary-shadow: 0 3px 0 #4F7314, 0 5px 14px rgba(165, 217, 65, 0.35), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+
+    /* Selection and hover: dark moss with a lime marker, lime haze on hover */
+    --vd-mat-selected-color: #34461F;
+    --vd-mat-selected: linear-gradient(90deg, #3F5826 0, #34461F 70%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #F8FFDF;
+    --vd-mat-selected-edge: inset 4px 0 0 #A5D941, inset 0 0 0 1px rgba(165, 217, 65, 0.22);
+    --vd-mat-hover: rgba(165, 217, 65, 0.14);
+
+    /* Lines and type: moss separators, a lime rule that fades out, Trebuchet bold lime headings */
+    --vd-mat-divider: #4E6A2A;
+    --vd-mat-rule: linear-gradient(90deg, transparent, #A5D941 15%, #E1F7A5 50%, #A5D941 85%, transparent);
+    --vd-mat-heading-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #C9F27A;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-mat-label-color: #A5D941;
+    --vd-mat-label-tracking: 0.08em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #4FE0C0;
+    --vd-mat-glow: 0 0 14px rgba(165, 217, 65, 0.45), 0 0 3px rgba(200, 240, 117, 0.7);
+}

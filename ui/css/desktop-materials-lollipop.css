@@ -1,0 +1,80 @@
+/* desktop-materials-lollipop.css - Lollipop app materials: the candy shop inside every app window.
+ * Cotton-candy canvas with sparse white and pink polka dots,candy-cane bands on the bars, a lavender ticking side, white
+ * cards with pink-tinted shadows, a mint gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
+ * primary. Text is plum (#4A1F3D) and muted plum (#7A4A6C) from the skin. Only custom properties live here;
+ * the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="lollipop"] {
+    /* Canvas: cotton candy pink, white and lavender polka dots */
+    --vd-mat-canvas-color: #FFE9F4;
+    --vd-mat-canvas: radial-gradient(circle at 8px 8px, rgba(255, 255, 255, 0.95) 0 3px, transparent 3.7px) 0 0 / 32px 32px, radial-gradient(circle at 24px 24px, rgba(230, 92, 165, 0.2) 0 2.2px, transparent 2.8px) 0 0 / 32px 32px, var(--vd-mat-canvas-color);
+
+    /* Bars: pink with soft white stripes, a candy-cane band on the lower edge */
+    --vd-mat-bar-color: #FFDDEE;
+    --vd-mat-bar: repeating-linear-gradient(135deg, #E65CA5 0 5px, #FFFFFF 5px 10px) 0 100% / 100% 3px no-repeat, repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0 10px, rgba(255, 255, 255, 0) 10px 20px), linear-gradient(180deg, #FFE8F3 0, #FFDDEE 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 3px 8px -2px rgba(194, 24, 107, 0.24);
+
+    /* Sides: lavender ticking with a lilac edge */
+    --vd-mat-side-color: #F3E8FF;
+    --vd-mat-side: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0 6px, rgba(255, 255, 255, 0) 6px 12px), linear-gradient(180deg, #F8F1FF 0, #EEE0FF 100%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #CDB2F2, inset -4px 0 0 rgba(255, 255, 255, 0.55);
+
+    /* Cards: white candy tins, pink-tinted shadow and a soft shade on the bottom edge */
+    --vd-mat-card-color: #FFFFFF;
+    --vd-mat-card: linear-gradient(180deg, #FFFFFF 0, #FFFAFD 100%), var(--vd-mat-card-color);
+    --vd-mat-card-border: #F5BEDA;
+    --vd-mat-card-radius: 18px;
+    --vd-mat-card-shadow: 0 8px 20px -6px rgba(194, 24, 107, 0.28), 0 2px 5px rgba(230, 92, 165, 0.14), inset 0 -3px 0 rgba(230, 92, 165, 0.1);
+
+    /* Wells: a mint gingham tray pressed into the canvas */
+    --vd-mat-well-color: #E8F8F0;
+    --vd-mat-well: repeating-linear-gradient(0deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 7px rgba(46, 160, 120, 0.22), inset 0 0 0 1px rgba(105, 207, 168, 0.55);
+
+    /* Fields: white with a pink hairline and a soft inner shade */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: linear-gradient(180deg, #FFF1F8 0, #FFFFFF 45%), var(--vd-mat-field-color);
+    --vd-mat-field-border: #EBA2C6;
+    --vd-mat-field-radius: 12px;
+    --vd-mat-field-shadow: inset 0 2px 3px rgba(194, 24, 107, 0.12);
+
+    /* Buttons: jelly-bean pills, white to blush with a rim of light and a shade underneath */
+    --vd-mat-btn-color: #FFE9F4;
+    --vd-mat-btn: linear-gradient(180deg, #FFFFFF 0, #FFE9F4 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #FFF4FA 0, #FFD3E8 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: #E58DB9;
+    --vd-mat-btn-radius: 999px;
+    --vd-mat-btn-shadow: 0 2px 0 #F2B5D3, 0 4px 8px rgba(194, 24, 107, 0.18), inset 0 1px 0 #FFFFFF, inset 0 -3px 4px rgba(230, 92, 165, 0.18);
+    --vd-mat-btn-text: #4A1F3D;
+
+    /* Primary: glossy plum gel with a highlight on the upper half */
+    --vd-mat-primary-color: #B5145F;
+    --vd-mat-primary: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0, rgba(255, 255, 255, 0.04) 46%, rgba(255, 255, 255, 0) 47%), linear-gradient(180deg, #BE1B6C 0, #B5145F 50%, #98104F 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0) 47%), linear-gradient(180deg, #C6247A 0, #B8165F 50%, #A31256 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #FFFFFF;
+    --vd-mat-primary-border: #8E0D4A;
+    --vd-mat-primary-shadow: 0 3px 0 #8E0D4A, 0 6px 14px rgba(194, 24, 107, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    /* Selection and hover: bubblegum wash with a plum marker */
+    --vd-mat-selected-color: #FFD0E6;
+    --vd-mat-selected: linear-gradient(90deg, #FFC3DF 0, #FFD0E6 55%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #4A1F3D;
+    --vd-mat-selected-edge: inset 4px 0 0 #C2186B, inset 0 0 0 1px rgba(194, 24, 107, 0.16);
+    --vd-mat-hover: rgba(230, 92, 165, 0.12);
+
+    /* Lines and type: pink separators, candy-cane rule, Montserrat plum headings */
+    --vd-mat-divider: #EEB1D1;
+    --vd-mat-rule: repeating-linear-gradient(135deg, #E65CA5 0 5px, #FFFFFF 5px 10px);
+    --vd-mat-heading-font: "Desktop Theme Montserrat", 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 500;
+    --vd-mat-heading-color: #9C1259;
+    --vd-mat-heading-tracking: 0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Montserrat", 'Geist', system-ui, sans-serif;
+    --vd-mat-label-color: #7A3562;
+    --vd-mat-label-tracking: 0.06em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #2FB58A;
+    --vd-mat-glow: 0 0 0 3px rgba(230, 92, 165, 0.22), 0 4px 14px rgba(194, 24, 107, 0.3);
+}

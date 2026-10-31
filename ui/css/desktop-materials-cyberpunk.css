@@ -1,0 +1,82 @@
+/* desktop-materials-cyberpunk.css - Cyberpunk app materials: a neon HUD inside every app window.
+ * Night-blue canvas with a faint cyan grid and scanlines, bars with a yellow notch and underline, a side rail lit
+ * by a cyan neon edge, cards with a cut top-left corner and cyan frame, deep wells with a fine grid, yellow-outlined
+ * buttons and a solid yellow primary with a folded black corner and a yellow glow. Text is #E8F7FF with #8FA7C0 for
+ * muted; Oxanium (loaded globally) carries headings, Share Tech Mono (declared in the skin) labels and readouts.
+ * Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="cyberpunk"] {
+    /* Canvas: scanlines over a 28 px cyan grid, a magenta haze in the upper right corner */
+    --vd-mat-canvas-color: #070B18;
+    --vd-mat-canvas: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 3px), linear-gradient(rgba(0, 240, 255, 0.055) 1px, transparent 1px) 0 0 / 28px 28px, linear-gradient(90deg, rgba(0, 240, 255, 0.055) 1px, transparent 1px) 0 0 / 28px 28px, radial-gradient(ellipse 70% 55% at 100% 0%, rgba(255, 61, 127, 0.08), transparent 70%), var(--vd-mat-canvas-color);
+
+    /* Bars: scanlined night glass, a yellow notch at the left, a yellow underline */
+    --vd-mat-bar-color: #0A0F20;
+    --vd-mat-bar: linear-gradient(#F3E600, #F3E600) 0 50% / 3px 64% no-repeat, linear-gradient(270deg, rgba(0, 240, 255, 0.08), transparent 26%), repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px), linear-gradient(180deg, #161E3E 0, #0A0F20 100%), var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 rgba(243, 230, 0, 0.78), inset 0 1px 0 rgba(0, 240, 255, 0.16), 0 1px 0 #000000;
+
+    /* Sides: the darkest night, a cyan neon rail on the right edge */
+    --vd-mat-side-color: #050812;
+    --vd-mat-side: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 1px, transparent 1px 3px), linear-gradient(180deg, rgba(0, 240, 255, 0.07) 0, transparent 38%), var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #00F0FF, inset -14px 0 14px -14px rgba(0, 240, 255, 0.45), 0 0 14px rgba(0, 240, 255, 0.12);
+
+    /* Cards: top-left corner cut and traced in cyan, a bright tab on the top edge, a yellow tick bottom right */
+    --vd-mat-card-color: #0C1328;
+    --vd-mat-card: linear-gradient(135deg, #070B18 0 9px, #00F0FF 9px 10.6px, transparent 10.6px) 0 0 / 22px 22px no-repeat border-box, linear-gradient(#00F0FF, #00F0FF) 15px 0 / 30px 2px no-repeat border-box, linear-gradient(#F3E600, #F3E600) 100% 100% / 22px 2px no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 15px 0 / calc(100% - 15px) 1px no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 0 15px / 1px calc(100% - 15px) no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 100% 0 / 1px 100% no-repeat border-box, linear-gradient(rgba(0, 240, 255, 0.42), rgba(0, 240, 255, 0.42)) 0 100% / 100% 1px no-repeat border-box, linear-gradient(180deg, rgba(0, 240, 255, 0.07) 0, transparent 46%), var(--vd-mat-card-color);
+    --vd-mat-card-border: transparent;
+    --vd-mat-card-radius: 0;
+    --vd-mat-card-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 240, 255, 0.08);
+
+    /* Wells: a recess with a fine 14 px cyan grid and a lit rim */
+    --vd-mat-well-color: #04070F;
+    --vd-mat-well: linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px) 0 0 / 14px 14px, var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.22), inset 0 3px 12px rgba(0, 0, 0, 0.85);
+
+    /* Fields: the deepest black with a cyan line along the bottom */
+    --vd-mat-field-color: #03060F;
+    --vd-mat-field: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0, transparent 60%), var(--vd-mat-field-color);
+    --vd-mat-field-border: rgba(0, 240, 255, 0.3);
+    --vd-mat-field-radius: 0;
+    --vd-mat-field-shadow: inset 0 -1px 0 #00F0FF, inset 0 2px 6px rgba(0, 0, 0, 0.65);
+
+    /* Buttons: dark indigo plates outlined in yellow, yellow caption */
+    --vd-mat-btn-color: #0F1630;
+    --vd-mat-btn: linear-gradient(180deg, #1B2549 0, #0F1630 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: linear-gradient(180deg, #2A3770 0, #172152 100%), var(--vd-mat-btn-color);
+    --vd-mat-btn-border: rgba(243, 230, 0, 0.72);
+    --vd-mat-btn-radius: 0;
+    --vd-mat-btn-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65), 0 0 10px rgba(243, 230, 0, 0.12);
+    --vd-mat-btn-text: #F3E600;
+
+    /* Primary: solid yellow, black caption, a folded black corner at the bottom right, yellow glow */
+    --vd-mat-primary-color: #F3E600;
+    --vd-mat-primary: linear-gradient(315deg, #000000 0 5px, transparent 5px) 100% 100% / 14px 14px no-repeat border-box, linear-gradient(180deg, #FFF45C 0, #F3E600 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(315deg, #000000 0 5px, transparent 5px) 100% 100% / 14px 14px no-repeat border-box, linear-gradient(180deg, #FFFAA0 0, #FFF45C 100%), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #000000;
+    --vd-mat-primary-border: #F3E600;
+    --vd-mat-primary-shadow: 0 0 14px rgba(243, 230, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.6);
+
+    /* Selection and hover: a lit indigo row with a cyan marker */
+    --vd-mat-selected-color: #16203F;
+    --vd-mat-selected: linear-gradient(90deg, rgba(0, 240, 255, 0.15) 0, rgba(0, 240, 255, 0) 72%), var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #FFFFFF;
+    --vd-mat-selected-edge: inset 3px 0 0 #00F0FF, inset 0 0 0 1px rgba(0, 240, 255, 0.2);
+    --vd-mat-hover: rgba(0, 240, 255, 0.1);
+
+    /* Lines and type: cyan separators, a yellow-to-cyan neon rule, yellow Oxanium headings, cyan Share Tech labels */
+    --vd-mat-divider: rgba(0, 240, 255, 0.26);
+    --vd-mat-rule: linear-gradient(90deg, #F3E600, #00F0FF 60%, rgba(0, 240, 255, 0));
+    --vd-mat-heading-font: 'Oxanium', "Desktop Theme Share Tech", 'Geist', system-ui, sans-serif;
+    --vd-mat-heading-weight: 700;
+    --vd-mat-heading-color: #F3E600;
+    --vd-mat-heading-tracking: 0.12em;
+    --vd-mat-heading-transform: uppercase;
+    --vd-mat-label-font: "Desktop Theme Share Tech", 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-label-color: #00F0FF;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: "Desktop Theme Share Tech", 'Geist Mono', ui-monospace, Consolas, monospace;
+    --vd-mat-accent-2: #00F0FF;
+    --vd-mat-glow: 0 0 12px rgba(0, 240, 255, 0.5), 0 0 2px rgba(0, 240, 255, 0.8);
+}

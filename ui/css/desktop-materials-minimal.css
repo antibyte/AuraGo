@@ -1,0 +1,136 @@
+/* desktop-materials-minimal.css - Minimal app materials: paper and ink (light), graphite and ink (dark).
+ * No gradients, no shadows, no decoration: regions are told apart by a step in paper tone and by crisp
+ * hairlines, hierarchy comes from ink weight (a solid ink primary, an ink selection marker, strong Geist
+ * headings, wide-tracked muted labels). Light: text #161616, muted #6B6A66; dark: text #EDEDED, muted #9A9893
+ * (the skin roots). Only custom properties live here; the vocabulary and the rules are in
+ * docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
+
+.desktop-body[data-theme="minimal"] {
+    /* Surfaces: white canvas, paper bars and sides, a darker paper well, white cards */
+    --vd-mat-canvas-color: #FFFFFF;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #FAF9F7;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #D6D3CC;
+    --vd-mat-side-color: #F5F4F0;
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #D6D3CC;
+    --vd-mat-card-color: #FFFFFF;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #DEDBD4;
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: none;
+    --vd-mat-well-color: #F1F0EC;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #E1DFD8;
+
+    /* Fields and buttons: white with a firm hairline, ink text */
+    --vd-mat-field-color: #FFFFFF;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #CBC8C0;
+    --vd-mat-field-radius: 6px;
+    --vd-mat-field-shadow: none;
+    --vd-mat-btn-color: #FFFFFF;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #F1F0EC;
+    --vd-mat-btn-border: #CBC8C0;
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: none;
+    --vd-mat-btn-text: #161616;
+
+    /* Primary: solid ink with paper text */
+    --vd-mat-primary-color: #161616;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #3A3935;
+    --vd-mat-primary-text: #F7F6F3;
+    --vd-mat-primary-border: #161616;
+    --vd-mat-primary-shadow: none;
+
+    /* Selection and hover: a darker paper step with a 2 px ink marker */
+    --vd-mat-selected-color: #EDEBE6;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #161616;
+    --vd-mat-selected-edge: inset 2px 0 0 #161616;
+    --vd-mat-hover: rgba(22, 22, 22, 0.05);
+
+    /* Lines and type: hairline separators, an ink rule, Geist 600 headings, wide-tracked muted labels */
+    --vd-mat-divider: #D6D3CC;
+    --vd-mat-rule: linear-gradient(#161616, #161616);
+    --vd-mat-heading-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #161616;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #66655F;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #3D6A99;
+    --vd-mat-glow: none;
+}
+
+.desktop-body[data-theme="minimal"][data-scheme="dark"] {
+    /* Surfaces: graphite canvas, lifted bars, a deeper well, raised cards */
+    --vd-mat-canvas-color: #161616;
+    --vd-mat-canvas: var(--vd-mat-canvas-color);
+    --vd-mat-bar-color: #1E1E1E;
+    --vd-mat-bar: var(--vd-mat-bar-color);
+    --vd-mat-bar-edge: inset 0 -1px 0 #333333;
+    --vd-mat-side-color: #1A1A1A;
+    --vd-mat-side: var(--vd-mat-side-color);
+    --vd-mat-side-edge: inset -1px 0 0 #333333;
+    --vd-mat-card-color: #202020;
+    --vd-mat-card: var(--vd-mat-card-color);
+    --vd-mat-card-border: #333333;
+    --vd-mat-card-radius: 8px;
+    --vd-mat-card-shadow: none;
+    --vd-mat-well-color: #101010;
+    --vd-mat-well: var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 0 0 1px #2A2A2A;
+
+    /* Fields and buttons: graphite with a firm hairline, ink text */
+    --vd-mat-field-color: #111111;
+    --vd-mat-field: var(--vd-mat-field-color);
+    --vd-mat-field-border: #4A4A4A;
+    --vd-mat-field-radius: 6px;
+    --vd-mat-field-shadow: none;
+    --vd-mat-btn-color: #232323;
+    --vd-mat-btn: var(--vd-mat-btn-color);
+    --vd-mat-btn-hover: #2D2D2D;
+    --vd-mat-btn-border: #4A4A4A;
+    --vd-mat-btn-radius: 6px;
+    --vd-mat-btn-shadow: none;
+    --vd-mat-btn-text: #EDEDED;
+
+    /* Primary: solid light ink with graphite text */
+    --vd-mat-primary-color: #EDEDED;
+    --vd-mat-primary: var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: #FFFFFF;
+    --vd-mat-primary-text: #121212;
+    --vd-mat-primary-border: #EDEDED;
+    --vd-mat-primary-shadow: none;
+
+    /* Selection and hover: a lighter graphite step with a 2 px ink marker */
+    --vd-mat-selected-color: #2C2C2C;
+    --vd-mat-selected: var(--vd-mat-selected-color);
+    --vd-mat-selected-text: #EDEDED;
+    --vd-mat-selected-edge: inset 2px 0 0 #EDEDED;
+    --vd-mat-hover: rgba(237, 237, 237, 0.07);
+
+    /* Lines and type */
+    --vd-mat-divider: #333333;
+    --vd-mat-rule: linear-gradient(#EDEDED, #EDEDED);
+    --vd-mat-heading-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-heading-weight: 600;
+    --vd-mat-heading-color: #EDEDED;
+    --vd-mat-heading-tracking: -0.01em;
+    --vd-mat-heading-transform: none;
+    --vd-mat-label-font: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+    --vd-mat-label-color: #A3A19B;
+    --vd-mat-label-tracking: 0.1em;
+    --vd-mat-label-transform: uppercase;
+    --vd-mat-mono-font: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --vd-mat-accent-2: #85AEE0;
+    --vd-mat-glow: none;
+}
