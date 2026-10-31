@@ -989,13 +989,6 @@
     backdrop-filter: blur(12px);
 }
 
-.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .logo-icon {
-    background: none;
-    background-image: none;
-    color: var(--pw-accent);
-    box-shadow: none;
-}
-
 .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav {
     min-width: 0;
 }

@@ -262,7 +262,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	}, "\n")
 	html := fmt.Sprintf(`<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>%s</style></head>
 	<body class="pw-page" data-workspace-page="config" data-density="comfortable">
-	<div class="cfg-header"><div class="cfg-logo-wrap header-left"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span data-pw-density-label>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
+	<header class="app-header" data-app-header><div class="header-left"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><span class="logo-icon"></span><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button><button id="pw-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><span data-pw-density-label>Comfortable</span></button></div></header>
 	<div class="cfg-layout" id="main-content"><div id="sidebar-backdrop" class="sidebar-backdrop"></div><div class="cfg-sidebar" id="sidebar"></div><main class="cfg-content" id="content"></main></div>
 	<div class="save-bar"><div class="pw-save-context"><strong id="saveSection"></strong><span id="saveChangeCount"></span><span id="saveValidation"></span></div><span id="changesPill" class="changes-pill">Unsaved</span><span id="saveStatus"></span><button id="btnSave" class="btn-save" disabled>Save</button></div>
 	<script>window.I18N=%s;window.I18N_META={};window.SYSTEM_LANG='en';window.AURAGO_BUILD_VERSION='test';window.t=(key)=>window.I18N[key]||key;
@@ -312,7 +312,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 			page.MustEval(`theme => { document.documentElement.dataset.theme = theme === 'system' ? 'dark' : theme; document.body.dataset.theme = theme === 'system' ? 'dark' : theme; }`, theme)
 			layout := page.MustEval(`() => {
 				const content = document.querySelector('.cfg-content');
-				const header = document.querySelector('.cfg-header');
+				const header = document.querySelector('.app-header');
 				const sidebar = document.querySelector('.cfg-sidebar');
 				const filler = document.createElement('div');
 				filler.style.height = '2000px';
@@ -352,7 +352,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	}
 
 	page.MustSetViewport(1440, 900, 1, false)
-	page.MustElement("#cfg-density-toggle").MustClick()
+	page.MustElement("#pw-density-toggle").MustClick()
 	if got := page.MustEval(`() => document.body.dataset.density`).String(); got != "compact" {
 		t.Fatalf("density = %q, want compact", got)
 	}
@@ -406,9 +406,10 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	t.Parallel()
 
-	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
+	html := normalizeAssetText(mustReadUIFile(t, "config.html")) + " " + normalizeAssetText(mustReadUIFile(t, "partials/app-header.html"))
 	for _, marker := range []string{
-		`id="cfg-density-toggle"`,
+		`{{template "app-header" .}}`,
+		`id="pw-density-toggle"`,
 		`data-pw-density-toggle`,
 		`data-i18n-title="common.workspace_density_toggle"`,
 		`aria-pressed="false"`,

@@ -338,5 +338,6 @@
   "common.page_media": "媒体视图",
   "common.page_cheatsheets": "备忘单",
   "common.page_dashboard": "仪表盘",
-  "common.ui_language": "语言"
+  "common.ui_language": "语言",
+  "common.home_link": "AuraGo – 首页"
 }

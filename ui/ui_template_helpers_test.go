@@ -31,6 +31,22 @@ var uiPageKeys = map[string]string{
 // partials) and fed with Lang, BuildVersion, Page and the template data JSON.
 func renderUIPage(t *testing.T, file string) string {
 	t.Helper()
+	return renderUIPageWith(t, file, uiPageOptions{})
+}
+
+// uiPageOptions overrides the template data renderUIPageWith feeds a page.
+// Zero values keep the renderUIPage defaults.
+type uiPageOptions struct {
+	Lang             string
+	BuildVersion     string
+	TemplateDataJSON string // raw JSON for the template data script
+	I18N             map[string]string
+}
+
+// renderUIPageWith is renderUIPage with custom Lang, BuildVersion, template
+// data JSON and I18N strings, for tests that feed a page its own fixtures.
+func renderUIPageWith(t *testing.T, file string, opts uiPageOptions) string {
+	t.Helper()
 	files := []string{file}
 	if file == "dashboard.html" {
 		files = append(files, dashboardSectionPartialFiles(t)...)
@@ -44,12 +60,25 @@ func renderUIPage(t *testing.T, file string) string {
 	if !ok {
 		page = strings.TrimSuffix(file, ".html")
 	}
+	lang, build, dataJSON, i18n := opts.Lang, opts.BuildVersion, opts.TemplateDataJSON, opts.I18N
+	if lang == "" {
+		lang = "en"
+	}
+	if build == "" {
+		build = "test"
+	}
+	if dataJSON == "" {
+		dataJSON = `{"systemLang":"en","i18n":{}}`
+	}
+	if i18n == nil {
+		i18n = map[string]string{}
+	}
 	data := map[string]any{
-		"Lang":             "en",
-		"BuildVersion":     "test",
+		"Lang":             lang,
+		"BuildVersion":     build,
 		"Page":             page,
-		"I18N":             map[string]string{},
-		"TemplateDataJSON": template.JS(`{"systemLang":"en","i18n":{}}`),
+		"I18N":             i18n,
+		"TemplateDataJSON": template.JS(dataJSON),
 	}
 	var out bytes.Buffer
 	if err := tmpl.Execute(&out, data); err != nil {

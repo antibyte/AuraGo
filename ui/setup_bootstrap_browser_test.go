@@ -2,7 +2,6 @@ package ui
 
 import (
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
@@ -17,8 +16,7 @@ func openSetupWithStatus(t *testing.T, path, statusJS string) *rod.Page {
 	page := browser.MustPage(newPrecisionSmokeOrigin(t) + path)
 	t.Cleanup(func() { page.MustClose() })
 	page.MustWaitLoad()
-	html := normalizeAssetText(mustReadUIFile(t, "setup.html"))
-	html = strings.NewReplacer("{{.Lang}}", "en", "{{.BuildVersion}}", "test", "{{.TemplateDataJSON}}", "{}").Replace(html)
+	html := renderUIPageWith(t, "setup.html", uiPageOptions{TemplateDataJSON: "{}"})
 	html = regexp.MustCompile(`(?is)<script\s+src="[^"]+"[^>]*></script>`).ReplaceAllString(html, "")
 	page.MustSetDocumentContent(html)
 	page.MustEval(`() => {

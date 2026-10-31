@@ -117,7 +117,7 @@
             } catch (_) { /* sandboxed frame */ }
         }
         storeSection(target);
-        document.title = translate('dashboard.section.' + target + '.title') + ' · ' + translate('dashboard.page_title');
+        document.title = 'AuraGo – ' + translate('common.page_dashboard') + ' · ' + translate('dashboard.section.' + target + '.title');
         closeDrawer();
         active = target;
         if (moveFocus) {

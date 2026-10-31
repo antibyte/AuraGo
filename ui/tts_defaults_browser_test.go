@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -141,8 +140,7 @@ func TestQuickSetupKeepsSanoDefaultBrowser(t *testing.T) {
 	page := browser.MustPage(newPrecisionSmokeOrigin(t) + "/setup")
 	defer page.MustClose()
 	page.MustWaitLoad()
-	html := normalizeAssetText(mustReadUIFile(t, "setup.html"))
-	html = strings.NewReplacer("{{.Lang}}", "en", "{{.BuildVersion}}", "test", "{{.TemplateDataJSON}}", "{}").Replace(html)
+	html := renderUIPageWith(t, "setup.html", uiPageOptions{TemplateDataJSON: "{}"})
 	html = regexp.MustCompile(`(?is)<script\s+src="[^"]+"[^>]*></script>`).ReplaceAllString(html, "")
 	page.MustSetDocumentContent(html)
 	page.MustEval(`() => {

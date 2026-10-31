@@ -730,7 +730,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				setTemplateDataJSON(data, map[string]any{
 					"i18nMeta": json.RawMessage(getI18NMetaJSON()),
 				})
-				if err := cfgTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, cfgTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute config template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -759,7 +759,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "dashboard")
-				if err := dashTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, dashTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute dashboard template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -777,7 +777,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "desktop")
-				if err := desktopTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, desktopTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute desktop template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -798,7 +798,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "plans")
-				if err := plansTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, plansTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute plans template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -823,7 +823,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "missions")
-				if err := missionV2Tmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, missionV2Tmpl, data); err != nil {
 					s.Logger.Error("Failed to execute mission V2 template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -842,7 +842,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "cheatsheets")
-				if err := cheatsheetTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, cheatsheetTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute cheatsheet template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -861,7 +861,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "media")
-				if err := mediaTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, mediaTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute media template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -885,7 +885,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "knowledge")
-				if err := knowledgeTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, knowledgeTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute knowledge template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -904,7 +904,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "containers")
-				if err := containersTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, containersTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute containers template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -923,7 +923,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "truenas")
-				if err := truenasTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, truenasTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute TrueNAS template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -942,7 +942,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				}
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
 				data := uiTemplateData(lang, "skills")
-				if err := skillsTmpl.Execute(w, data); err != nil {
+				if err := executeUIPageTemplate(w, skillsTmpl, data); err != nil {
 					s.Logger.Error("Failed to execute Skills template", "error", err)
 					http.Error(w, "Template render error", http.StatusInternalServerError)
 				}
@@ -962,7 +962,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := uiTemplateData(lang, "invasion")
-			if err := invasionTmpl.Execute(w, data); err != nil {
+			if err := executeUIPageTemplate(w, invasionTmpl, data); err != nil {
 				s.Logger.Error("Failed to execute invasion control template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
 			}
@@ -981,7 +981,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
 			data := uiTemplateData(lang, "setup")
-			if err := setupTmpl.Execute(w, data); err != nil {
+			if err := executeUIPageTemplate(w, setupTmpl, data); err != nil {
 				s.Logger.Error("Failed to execute setup template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
 			}
@@ -1028,7 +1028,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 						"debugMode":          agent.GetDebugMode(),
 						"personalityEnabled": s.Cfg.Personality.Engine,
 					})
-					if err := tmpl.Execute(w, data); err != nil {
+					if err := executeUIPageTemplate(w, tmpl, data); err != nil {
 						s.Logger.Error("Failed to execute UI template", "error", err)
 						http.Error(w, "Template render error", http.StatusInternalServerError)
 						return
@@ -1049,7 +1049,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 					w.WriteHeader(http.StatusNotFound)
 					lang := normalizeLang(s.Cfg.Server.UILanguage)
 					data := uiTemplateData(lang, "404")
-					if err := notFoundTmpl.Execute(w, data); err != nil {
+					if err := executeUIPageTemplate(w, notFoundTmpl, data); err != nil {
 						s.Logger.Error("Failed to execute 404 template", "error", err)
 					}
 				} else {
@@ -1298,4 +1298,19 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	}
 
 	return ttsServer, nil
+}
+
+// executeUIPageTemplate renders a UI page into a buffer and only then writes it
+// with an explicit text/html Content-Type. Rendering first lets callers still
+// answer a template error with a clean 500 (nothing has been written yet), and
+// the explicit type keeps content sniffing (and the gzip middleware) from
+// misclassifying pages that start with whitespace-only template output.
+func executeUIPageTemplate(w http.ResponseWriter, tmpl *template.Template, data any) error {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, err := w.Write(buf.Bytes())
+	return err
 }

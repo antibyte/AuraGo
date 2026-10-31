@@ -338,5 +338,6 @@
   "common.page_media": "Mediaoverzicht",
   "common.page_cheatsheets": "Spiekbriefjes",
   "common.page_dashboard": "Dashboard",
-  "common.ui_language": "Taal"
+  "common.ui_language": "Taal",
+  "common.home_link": "AuraGo – Start"
 }

@@ -338,5 +338,6 @@
   "common.page_media": "Médiathèque",
   "common.page_cheatsheets": "Aide-mémoire",
   "common.page_dashboard": "Tableau de bord",
-  "common.ui_language": "Langue"
+  "common.ui_language": "Langue",
+  "common.home_link": "AuraGo – Accueil"
 }

@@ -712,11 +712,6 @@
 }
 
 @media (max-width: 640px) {
-    .pw-page[data-workspace-page="cheatsheets"] .app-header {
-        min-height: 56px;
-        padding-inline: var(--pw-space-4);
-    }
-
     .pw-page[data-workspace-page="cheatsheets"] .container {
         padding: var(--pw-space-3);
     }

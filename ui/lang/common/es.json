@@ -338,5 +338,6 @@
   "common.page_media": "Vista de medios",
   "common.page_cheatsheets": "Hojas de referencia",
   "common.page_dashboard": "Panel",
-  "common.ui_language": "Idioma"
+  "common.ui_language": "Idioma",
+  "common.home_link": "AuraGo – Inicio"
 }

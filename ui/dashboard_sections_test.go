@@ -54,7 +54,7 @@ func TestDashboardTemplateExecutesAllSectionPartials(t *testing.T) {
 	if len(partials) != len(dashboardSectionIDs) {
 		t.Fatalf("section partials = %v, want one per section %v", partials, dashboardSectionIDs)
 	}
-	tmpl, err := template.ParseFS(Content, append([]string{"dashboard.html"}, partials...)...)
+	tmpl, err := template.ParseFS(Content, append([]string{"dashboard.html", "partials/app-header.html"}, partials...)...)
 	if err != nil {
 		t.Fatalf("parse dashboard template: %v", err)
 	}
@@ -62,7 +62,8 @@ func TestDashboardTemplateExecutesAllSectionPartials(t *testing.T) {
 		Lang             string
 		BuildVersion     string
 		TemplateDataJSON template.JS
-	}{Lang: "en", BuildVersion: "p2-test", TemplateDataJSON: template.JS(`{"systemLang":"en","i18n":{}}`)}
+		Page             string
+	}{Lang: "en", BuildVersion: "p2-test", Page: "dashboard", TemplateDataJSON: template.JS(`{"systemLang":"en","i18n":{}}`)}
 	var out bytes.Buffer
 	if err := tmpl.Execute(&out, data); err != nil {
 		t.Fatalf("execute dashboard template: %v", err)
@@ -154,7 +155,7 @@ func TestDashboardSidebarLinksMatchSectionPartials(t *testing.T) {
 	for _, marker := range []string{
 		`href="#main-content" class="skip-link"`,
 		`<main class="dash-content pw-page-frame" id="main-content">`,
-		`<h1 class="visually-hidden" data-i18n="dashboard.page_heading"></h1>`,
+		`<h1 class="visually-hidden" data-i18n="common.page_dashboard"></h1>`,
 		`<nav class="dash-sidebar" id="dash-sidebar" data-i18n-aria-label="dashboard.nav.label">`,
 		`<div class="dash-sidebar-backdrop" id="dash-sidebar-backdrop" hidden></div>`,
 		`<button type="button" class="dash-menu-btn" id="dash-menu-btn" aria-controls="dash-sidebar" aria-expanded="false" data-i18n-aria-label="dashboard.nav.menu" data-i18n-title="dashboard.nav.menu">`,
@@ -165,8 +166,8 @@ func TestDashboardSidebarLinksMatchSectionPartials(t *testing.T) {
 			t.Errorf("dashboard shell missing %q", marker)
 		}
 	}
-	if !regexp.MustCompile(`<div class="header-actions">\s*<button type="button" class="dash-menu-btn"`).MatchString(shell) {
-		t.Error("the menu button must be the first child of .header-actions")
+	if !regexp.MustCompile(`\{\{define "app-header-lead"\}\}<button type="button" class="dash-menu-btn"`).MatchString(shell) {
+		t.Error("the menu button must fill the shared header lead slot")
 	}
 	routerAt := strings.Index(shell, `/js/dashboard/dash-router.js?v={{.BuildVersion}}`)
 	apiAt := strings.Index(shell, `/js/dashboard/dash-api.js?v={{.BuildVersion}}`)

@@ -381,16 +381,6 @@
     gap: var(--space-3);
 }
 
-.pw-page[data-workspace-page="plans"] .app-header {
-    min-height: var(--pw-header-height);
-    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
-    background-image: none;
-    box-shadow: none;
-    backdrop-filter: blur(18px);
-}
-
 .pw-page[data-workspace-page="plans"] .modal-overlay {
     min-height: 100dvh;
     padding: var(--pw-space-4);
@@ -416,11 +406,6 @@
 }
 
 @media (max-width: 640px) {
-    .pw-page[data-workspace-page="plans"] .app-header {
-        min-height: 56px;
-        padding-inline: var(--pw-space-4);
-    }
-
     .pw-page[data-workspace-page="plans"] .plans-page {
         padding: var(--pw-space-3);
     }

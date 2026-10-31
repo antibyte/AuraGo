@@ -13,16 +13,14 @@ import (
 )
 
 // uiPageHeaderCase describes one page template and what the shared app header
-// contract demands from it. `migrated` is the single gate: T2-T4 of the
-// wave-2 migration flip it to true once the page calls {{template "app-header" .}}
-// (workspace pages) or {{template "brand-lockup" .}} (entry pages).
+// contract demands from it: workspace pages call {{template "app-header" .}},
+// entry pages {{template "brand-lockup" .}}. A new standalone page belongs here.
 type uiPageHeaderCase struct {
-	file     string
-	page     string // page key passed to uiTemplateData, == data-workspace-page
-	entry    bool   // login/setup/404: brand lockup only, no app header
-	migrated bool
+	file  string
+	page  string // page key passed to uiTemplateData, == data-workspace-page
+	entry bool   // login/setup/404: brand lockup only, no app header
 	// h1Keyed pages carry an H1 (pw-page-title, or the dashboard H1) whose
-	// data-i18n must equal common.page_<id> once migrated.
+	// data-i18n must equal common.page_<id>.
 	h1Keyed bool
 }
 
@@ -32,7 +30,7 @@ var uiPageHeaderCases = []uiPageHeaderCase{
 	{file: "knowledge.html", page: "knowledge", h1Keyed: true},
 	{file: "skills.html", page: "skills", h1Keyed: true},
 	{file: "missions_v2.html", page: "missions", h1Keyed: true},
-	{file: "plans.html", page: "plans"},
+	{file: "plans.html", page: "plans", h1Keyed: true},
 	{file: "containers.html", page: "containers", h1Keyed: true},
 	{file: "invasion_control.html", page: "invasion", h1Keyed: true},
 	{file: "truenas.html", page: "truenas"},
@@ -85,9 +83,6 @@ func TestUIPagesRenderWithSharedHeaderPartial(t *testing.T) {
 			}
 			if c.entry && (strings.Contains(page, "data-app-header") || strings.Contains(page, "data-pw-density-toggle") || strings.Contains(page, `id="radialMenuAnchor"`)) {
 				t.Error("entry pages must not carry the app header, density toggle or radial anchor")
-			}
-			if !c.migrated {
-				return
 			}
 			key := "common.page_" + c.page
 			if c.entry {

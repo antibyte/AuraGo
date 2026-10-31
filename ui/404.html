@@ -36,8 +36,8 @@
 <body class="pw-page pw-entry-page" data-entry-page="not-found">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
 
-    <a href="/" class="not-found-logo">
-        <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
+    <a href="/" class="not-found-logo" data-i18n-aria-label="common.home_link">
+        {{template "brand-lockup" .}}
     </a>
 
     <main id="main-content" class="not-found-page">
@@ -56,7 +56,11 @@
                 var key = el.getAttribute('data-i18n');
                 if (I18N[key]) el.textContent = I18N[key];
             });
-            var pageTitle = I18N['404.page_title'] || (I18N['notfound.title'] ? I18N['notfound.title'] + ' – AuraGo' : '');
+            document.querySelectorAll('[data-i18n-aria-label]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n-aria-label');
+                if (I18N[key]) el.setAttribute('aria-label', I18N[key]);
+            });
+            var pageTitle = I18N['notfound.title'] ? 'AuraGo – ' + I18N['notfound.title'] : (I18N['404.page_title'] || '');
             if (pageTitle) document.title = pageTitle;
             var metaDesc = document.querySelector('meta[name="description"]');
             if (metaDesc && I18N['notfound.description']) metaDesc.setAttribute('content', I18N['notfound.description']);

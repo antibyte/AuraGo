@@ -867,26 +867,27 @@ func (s *Server) isTelnyxWebhookIngress(path string) bool {
 // is hard-blocked, so the server is never openly accessible while auth is
 // "enabled" but the vault is missing or the password was lost.
 var noPasswordExactPaths = map[string]bool{
-	"/auth/login":            true,
-	"/auth/logout":           true,
-	"/api/auth/status":       true,
-	"/api/auth/logout":       true,
-	"/api/auth/password":     true, // allows setting the initial password
-	"/api/security/status":   true,
-	"/api/setup":             true,
-	"/api/i18n":              true,
-	"/api/personalities":     true,
-	"/api/openrouter/models": true,
-	"/api/ready":             true, // readiness probe (healthcheck, setup page); reveals only readiness + asset-set id
-	"/setup":                 true,
-	"/shared.css":            true,
-	"/shared-variables.css":  true,
-	"/shared-utilities.css":  true,
-	"/shared-components.css": true,
-	"/shared-animations.css": true,
-	"/shared.js":             true,
-	"/site.webmanifest":      true,
-	"/sw.js":                 true,
+	"/auth/login":                  true,
+	"/img/chat-ui-icons/robot.png": true, // setup page brand lockup
+	"/auth/logout":                 true,
+	"/api/auth/status":             true,
+	"/api/auth/logout":             true,
+	"/api/auth/password":           true, // allows setting the initial password
+	"/api/security/status":         true,
+	"/api/setup":                   true,
+	"/api/i18n":                    true,
+	"/api/personalities":           true,
+	"/api/openrouter/models":       true,
+	"/api/ready":                   true, // readiness probe (healthcheck, setup page); reveals only readiness + asset-set id
+	"/setup":                       true,
+	"/shared.css":                  true,
+	"/shared-variables.css":        true,
+	"/shared-utilities.css":        true,
+	"/shared-components.css":       true,
+	"/shared-animations.css":       true,
+	"/shared.js":                   true,
+	"/site.webmanifest":            true,
+	"/sw.js":                       true,
 }
 
 var noPasswordSubtrees = []string{

@@ -223,3 +223,44 @@ func mustGzipReader(t *testing.T, b []byte) io.Reader {
 	t.Cleanup(func() { _ = r.Close() })
 	return r
 }
+
+func TestGzipMiddlewareWhitespaceFirstChunkStillSniffsHTML(t *testing.T) {
+	t.Parallel()
+
+	h := gzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("\n\n"))
+		_, _ = w.Write([]byte("<!DOCTYPE html><html><body>" + strings.Repeat("x", 600) + "</body></html>"))
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", ct)
+	}
+	if rec.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("expected gzip encoding")
+	}
+	zr, err := gzip.NewReader(rec.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := io.ReadAll(zr)
+	if !strings.HasPrefix(string(out), "\n\n<!DOCTYPE") {
+		t.Fatalf("body prefix lost: %q", out[:20])
+	}
+}
+
+func TestGzipMiddlewareWhitespaceOnlyBodyIsFlushed(t *testing.T) {
+	t.Parallel()
+
+	h := gzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("  \n"))
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Body.String() != "  \n" {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+}

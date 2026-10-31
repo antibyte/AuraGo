@@ -1,5 +1,6 @@
+{{define "app-header-lead"}}<button type="button" class="dash-menu-btn" id="dash-menu-btn" aria-controls="dash-sidebar" aria-expanded="false" data-i18n-aria-label="dashboard.nav.menu" data-i18n-title="dashboard.nav.menu"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>{{end -}}
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="dashboard.page_title">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.page_dashboard">
 
 <head>
   <meta charset="UTF-8">
@@ -12,7 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="/site.webmanifest" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-  <title></title>
+  <title>AuraGo</title>
   <meta name="description" content="Monitor and manage your AI agent">
   <meta property="og:title" content="AuraGo Dashboard">
   <meta property="og:description" content="Monitor and manage your AI agent">
@@ -46,30 +47,8 @@
 <body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">
   <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-left">
-      <a href="/" class="logo">
-        <div class="logo-icon">🥚</div>
-        <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-        <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle"></span>
-      </a>
-    </div>
-    <div class="header-actions">
-      <button type="button" class="dash-menu-btn" id="dash-menu-btn" aria-controls="dash-sidebar" aria-expanded="false" data-i18n-aria-label="dashboard.nav.menu" data-i18n-title="dashboard.nav.menu"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-      <button id="dash-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
-          data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
-          data-i18n-aria-label="common.workspace_density_toggle">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 7h14M5 12h14M5 17h14" />
-        </svg>
-        <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
-      </button>
-      <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
-    </div>
-  </header>
-
-  <div id="radialMenuAnchor"></div>
+  <!-- Header (shared partial) -->
+  {{template "app-header" .}}
 
   <div class="dash-shell">
     <div class="dash-sidebar-backdrop" id="dash-sidebar-backdrop" hidden></div>
@@ -117,7 +96,7 @@
       </div>
     </nav>
     <main class="dash-content pw-page-frame" id="main-content">
-      <h1 class="visually-hidden" data-i18n="dashboard.page_heading"></h1>
+      <h1 class="visually-hidden" data-i18n="common.page_dashboard"></h1>
       {{template "dash-section-overview" .}}
       {{template "dash-section-personality" .}}
       {{template "dash-section-memory" .}}

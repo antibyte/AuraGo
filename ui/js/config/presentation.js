@@ -36,9 +36,6 @@
     }
 
     function enhance(scope) {
-        const language = document.getElementById('ui-lang-switcher');
-        const header = document.querySelector('.cfg-header .header-actions');
-        if (language && header && language.parentElement !== header) header.append(language);
         scope.querySelectorAll('button').forEach(button => {
             if (button.querySelector('svg, img')) return;
             const node = [...button.childNodes].find(child => child.nodeType === Node.TEXT_NODE && child.textContent.trim());

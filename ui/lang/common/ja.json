@@ -338,5 +338,6 @@
   "common.page_media": "メディアビュー",
   "common.page_cheatsheets": "チートシート",
   "common.page_dashboard": "ダッシュボード",
-  "common.ui_language": "言語"
+  "common.ui_language": "言語",
+  "common.home_link": "AuraGo – ホーム"
 }

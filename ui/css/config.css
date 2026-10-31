@@ -979,13 +979,6 @@ transform:none; filter:none;
     display: inline;
 }
 
-.pw-page[data-workspace-page="config"] .cfg-logo-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
 .pw-page[data-workspace-page="config"] .cfg-restart-danger {
     color: var(--danger);
     border-color: color-mix(in srgb, #ef4444 30%, transparent);
@@ -1021,11 +1014,6 @@ transform:none; filter:none;
 
 /* D-14/D-15: Unified breakpoint — 767px → 768px */
 @media (max-width: 768px) {
-    /* Hide subtitle text on very small screens */
-    .pw-page[data-workspace-page="config"] .logo .logo-subtitle {
-        display: none;
-    }
-
     /* Compact buttons: icon-only */
     .pw-page[data-workspace-page="config"] .cfg-restart-full,
 .pw-page[data-workspace-page="config"] .cfg-chat-full {
@@ -1057,7 +1045,7 @@ transform:none; filter:none;
     }
 
     /* Very small phones: also hide logo text */
-    .pw-page[data-workspace-page="config"] .logo>span {
+    .pw-page[data-workspace-page="config"] .logo>span:not(.logo-icon) {
         display: none;
     }
 

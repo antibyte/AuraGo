@@ -1,7 +1,7 @@
 {{define "brand-lockup"}}<span class="logo-icon"><img class="aurago-brand-icon" src="/img/chat-ui-icons/robot.png?v={{.BuildVersion}}" alt="" width="32" height="32" decoding="async"></span><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>{{end}}
 {{define "app-header"}}<header class="app-header" data-app-header>
   <div class="header-left">{{template "app-header-lead" .}}
-    <a href="/" class="logo">{{template "brand-lockup" .}}<span class="logo-subtitle" data-i18n="common.page_{{.Page}}"></span></a>
+    <a href="/" class="logo" data-i18n-aria-label="common.home_link">{{template "brand-lockup" .}}<span class="logo-subtitle" data-i18n="common.page_{{.Page}}"></span></a>
   </div>
   <div class="header-actions">{{template "app-header-status" .}}{{template "app-header-actions" .}}
     <button id="pw-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle data-i18n-title="common.workspace_density_toggle" data-i18n-aria-label="common.workspace_density_toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span></button>
