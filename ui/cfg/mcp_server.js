@@ -116,7 +116,7 @@ async function renderMCPServerSection(section) {
                         <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
                         <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
                     </div>
-                    <div class="field-help is-error is-hidden" id="mcp-token-error" role="alert"></div>
+                    ${cfgActionResult.html('mcp-token-error')}
                 </label>
             </div>`;
             // Load existing token
@@ -141,7 +141,7 @@ async function renderMCPServerSection(section) {
         <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
         <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
         <textarea class="field-input is-hidden pw-u-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
-        ${vscodeBridge ? `<button class="btn" id="mcp-apply-preset" onclick="mcpApplyBridgePreset(this)">${t('config.mcp_server.apply_preset')}</button><div id="mcp-preset-status" role="status"></div>` : ''}
+        ${vscodeBridge ? `<button class="btn" id="mcp-apply-preset" onclick="mcpApplyBridgePreset(this)">${t('config.mcp_server.apply_preset')}</button>${cfgActionResult.html('mcp-preset-status')}` : ''}
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
@@ -196,28 +196,27 @@ function mcpUpdateAllowedTools() {
     setDirty(true);
 }
 
+function mcpShowToken(token) {
+    const input = document.getElementById('mcp-token-value');
+    if (input && token) input.value = token;
+}
+
 async function mcpGenerateToken() {
-    const errEl = document.getElementById('mcp-token-error');
-    if (errEl) { errEl.textContent = ''; setHidden(errEl, true); }
-    try {
-        const resp = await fetch('/api/mcp-server/token', { method: 'POST' });
-        if (!resp.ok) {
-            let reason = 'HTTP ' + resp.status;
-            try { const body = await resp.json(); if (body && (body.error || body.message)) reason = body.error || body.message; } catch (_) {}
-            throw new Error(reason);
-        }
-        const data = await resp.json();
-        const input = document.getElementById('mcp-token-value');
-        if (input && data.token) {
-            input.value = data.token;
-        }
-    } catch (e) {
-        console.error('Token generation failed:', e);
-        const msg = t('config.mcp_server.token_error') + ': ' + ((e && e.message) || String(e));
-        const el = document.getElementById('mcp-token-error');
-        if (el) { el.textContent = msg; setHidden(el, false); }
-        else if (typeof showToast === 'function') showToast(msg, 'error');
+    const btn = document.getElementById('mcp-gen-token');
+    const request = () => fetch('/api/mcp-server/token', { method: 'POST' });
+    if (!btn) {
+        // Called while the section is being rebuilt (VS Code bridge switched on): no button to report at.
+        try {
+            const resp = await request();
+            if (resp.ok) mcpShowToken((await resp.json()).token);
+        } catch (_) {}
+        return { skipped: 'missing' };
     }
+    return cfgActionResult(btn, request, {
+        target: 'mcp-token-error',
+        failure: t('config.mcp_server.token_error'),
+        onSuccess: outcome => mcpShowToken(outcome.body && outcome.body.token)
+    });
 }
 
 async function mcpLoadToken() {
@@ -269,25 +268,22 @@ function mcpSyncAllowedToolsState() {
     hiddenInput.value = JSON.stringify(selected);
 }
 
-async function mcpApplyBridgePreset(button) {
-    button.disabled = true;
-    try {
-        const resp = await fetch('/api/mcp-server/vscode-bridge');
-        if (!resp.ok) throw new Error('Failed to load preset');
-        const data = await resp.json();
-        if (!Array.isArray(data.recommended_tools)) throw new Error('Invalid preset');
-        if (!button.isConnected) return;
-        const current = configData.mcp_server.allowed_tools || [];
-        const selected = Array.from(new Set([...current, ...data.recommended_tools]));
-        setNestedValue(configData, 'mcp_server.allowed_tools', selected);
-        document.getElementById('mcp-allowed-tools-state').value = JSON.stringify(selected);
-        setDirty(true);
-        await mcpLoadToolList(selected);
-    } catch (_) {
-        if (button.isConnected) document.getElementById('mcp-preset-status').textContent = t('config.mcp_server.error_loading_tools');
-    } finally {
-        button.disabled = false;
-    }
+function mcpApplyBridgePreset(button) {
+    return cfgActionResult(button, () => fetch('/api/mcp-server/vscode-bridge'), {
+        target: 'mcp-preset-status',
+        success: t('config.mcp_server.preset_applied'),
+        failure: t('config.mcp_server.error_loading_tools'),
+        interpret: outcome => (outcome.body && Array.isArray(outcome.body.recommended_tools) ? null : { state: 'error', reason: outcome.reason || '' }),
+        onSuccess: async outcome => {
+            if (!button.isConnected) return;
+            const current = configData.mcp_server.allowed_tools || [];
+            const selected = Array.from(new Set([...current, ...outcome.body.recommended_tools]));
+            setNestedValue(configData, 'mcp_server.allowed_tools', selected);
+            document.getElementById('mcp-allowed-tools-state').value = JSON.stringify(selected);
+            setDirty(true);
+            await mcpLoadToolList(selected);
+        }
+    });
 }
 
 async function mcpLoadVSCodeBridgeInfo() {

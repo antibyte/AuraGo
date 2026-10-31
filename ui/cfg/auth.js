@@ -3,13 +3,14 @@
 let _totpNewSecret = '';
 let _authStatus = { enabled: false, password_set: false, totp_enabled: false };
 
+// Inline message of a card: the shared result line (role=status), hidden while empty.
+// level: 'success' | 'error', anything else is a neutral progress text; empty text clears.
 function authSetStatus(el, level, text) {
     if (!el) return;
-    el.classList.remove('is-success', 'is-error');
-    if (level === 'success') el.classList.add('is-success');
-    if (level === 'error') el.classList.add('is-error');
-    el.textContent = text || '';
-    setHidden(el, !text);
+    const state = level === 'success' ? 'success' : (level === 'error' ? 'error' : (text ? 'pending' : ''));
+    cfgActionResult.show(el, state, text || '');
+    // The card styles still key off is-error.
+    el.classList.toggle('is-error', state === 'error');
 }
 
 async function renderWebConfigSection(section) {
@@ -136,11 +137,11 @@ async function renderWebConfigSection(section) {
                             onkeydown="if(event.key==='Enter')authSetPassword()">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
-                    <button onclick="authSetPassword()" class="auth-primary-btn">
+                    <button onclick="authSetPassword()" id="auth-set-pw-btn" class="auth-primary-btn">
                         ${authStatus.password_set ? t('config.auth.update_password') : t('config.auth.set_password')}
                     </button>
                 </div>
-                <div id="auth-pw-msg" class="auth-inline-msg is-hidden"></div>
+                <div id="auth-pw-msg" class="auth-inline-msg cfg-action-result"></div>
             </div>`;
 
     // ── TOTP card
@@ -152,7 +153,7 @@ async function renderWebConfigSection(section) {
     if (authStatus.totp_enabled) {
         html += `<div class="auth-totp-active-row">
                     <span class="auth-totp-active-text">${t('config.auth.status_success')} ${t('config.auth.totp_active')}</span>
-                    <button onclick="authTOTPDisable()" class="auth-totp-disable-btn">
+                    <button onclick="authTOTPDisable()" id="auth-totp-disable-btn" class="auth-totp-disable-btn">
                         ${t('config.auth.totp_disable')}
                     </button>
                 </div>
@@ -168,7 +169,7 @@ async function renderWebConfigSection(section) {
                         inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                         placeholder="${t('config.auth.current_totp_placeholder')}">
                 </div>
-                <div id="auth-totp-disable-msg" class="auth-inline-msg is-hidden"></div>`;
+                <div id="auth-totp-disable-msg" class="auth-inline-msg cfg-action-result"></div>`;
     } else {
         html += `<div class="auth-totp-inactive-text">${t('config.auth.totp_not_active')}.</div>
                 <button onclick="authTOTPStartSetup()" id="btn-totp-start" class="auth-totp-start-btn">
@@ -198,12 +199,12 @@ async function renderWebConfigSection(section) {
                         <div class="auth-totp-confirm-row">
                             <input id="totp-confirm-code" type="number" class="field-input auth-totp-confirm-input" placeholder="000000"
                                 onkeydown="if(event.key==='Enter')authTOTPConfirm()">
-                            <button onclick="authTOTPConfirm()" class="auth-primary-btn auth-totp-activate-btn">
+                            <button onclick="authTOTPConfirm()" id="auth-totp-confirm-btn" class="auth-primary-btn auth-totp-activate-btn">
                                 ${t('config.auth.activate')}
                             </button>
                         </div>
                     </div>
-                    <div id="auth-totp-msg" class="auth-inline-msg is-hidden"></div>
+                    <div id="auth-totp-msg" class="auth-inline-msg cfg-action-result"></div>
                 </div>`;
     }
 
@@ -215,6 +216,7 @@ async function renderWebConfigSection(section) {
     html += `<div class="auth-section-title auth-section-title-spaced">
                 🔎 ${t('config.security.panel_title')}
             </div>`;
+    html += cfgActionResult.html('sec-harden-result');
     html += '<div id="sec-audit-panel" class="auth-sec-audit-panel">';
     html += `<div class="auth-sec-audit-loading">${t('config.common.loading')}</div>`;
     html += '</div>';
@@ -241,68 +243,66 @@ function authStepUpMissing(stepUp) {
     return '';
 }
 
-async function authSetPassword() {
+function authSetPassword() {
     const pw = (document.getElementById('auth-new-pw') || {}).value || '';
     const msgEl = document.getElementById('auth-pw-msg');
     authSetStatus(msgEl, null, '');
     if (!pw || pw.length < 8) {
         authSetStatus(msgEl, 'error', t('config.auth.password_min_length'));
-        return;
+        return Promise.resolve({ skipped: 'invalid' });
     }
     const stepUp = authReadStepUp('auth');
     const missing = authStepUpMissing(stepUp);
     if (missing) {
         authSetStatus(msgEl, 'error', missing);
-        return;
+        return Promise.resolve({ skipped: 'invalid' });
     }
-    try {
-        const resp = await fetch('/api/auth/password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.assign({ new_password: pw }, stepUp))
-        });
-        const data = await resp.json();
-        if (resp.ok && data.ok) {
-            authSetStatus(msgEl, 'success', '✓ ' + (data.message || t('config.common.saved')));
+    return cfgActionResult(document.getElementById('auth-set-pw-btn'), () => fetch('/api/auth/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ new_password: pw }, stepUp))
+    }), {
+        target: 'auth-pw-msg',
+        success: outcome => (outcome.body && outcome.body.message) || t('config.common.saved'),
+        failure: t('config.common.error'),
+        onSuccess: () => {
             ['auth-new-pw', 'auth-current-pw', 'auth-current-totp'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-        } else {
-            authSetStatus(msgEl, 'error', data.error || t('config.common.error'));
         }
-    } catch (e) {
-        authSetStatus(msgEl, 'error', t('config.common.network_error'));
-    }
+    });
 }
 
-async function authTOTPStartSetup() {
-    try {
-        const resp = await fetch('/api/auth/totp/setup');
-        if (resp.status === 401) { showToast(t('config.auth.login_first'), 'warn'); return; }
-        const data = await resp.json();
-        _totpNewSecret = data.secret;
-        document.getElementById('totp-secret-display').textContent = data.secret;
-        setHidden(document.getElementById('auth-totp-setup'), false);
-        setHidden(document.getElementById('btn-totp-start'), true);
-        // Render QR code (qrcodejs library)
-        const qrEl = document.getElementById('totp-qr');
-        qrEl.innerHTML = '';
-        if (typeof QRCode !== 'undefined') {
-            // Use the real URI for the QR code — the authenticator app needs the actual secret.
-            // Never render the raw secret as visible text (it's shown separately as _totpNewSecret).
-            new QRCode(qrEl, { text: data.uri || '', width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
-        } else {
-            // Fallback: display URI with masked secret as text only
-            qrEl.classList.add('auth-totp-qr-fallback');
-            qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc((data.uri || '').replace(/secret=[^&]*/, 'secret=***')) + '</div>';
+function authTOTPStartSetup() {
+    return cfgActionResult(document.getElementById('btn-totp-start'), () => fetch('/api/auth/totp/setup'), {
+        success: t('config.feedback.done'),
+        failure: t('config.common.error'),
+        reasonText: (body, ctx) => (ctx && ctx.httpStatus === 401 ? t('config.auth.login_first') : ''),
+        onSuccess: outcome => {
+            const data = outcome.body || {};
+            _totpNewSecret = data.secret;
+            document.getElementById('totp-secret-display').textContent = data.secret;
+            setHidden(document.getElementById('auth-totp-setup'), false);
+            setHidden(document.getElementById('btn-totp-start'), true);
+            // Render QR code (qrcodejs library)
+            const qrEl = document.getElementById('totp-qr');
+            qrEl.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                // Use the real URI for the QR code — the authenticator app needs the actual secret.
+                // Never render the raw secret as visible text (it's shown separately as _totpNewSecret).
+                new QRCode(qrEl, { text: data.uri || '', width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff' });
+            } else {
+                // Fallback: display URI with masked secret as text only
+                qrEl.classList.add('auth-totp-qr-fallback');
+                qrEl.innerHTML = '<div class="auth-totp-uri-fallback">' + esc((data.uri || '').replace(/secret=[^&]*/, 'secret=***')) + '</div>';
+            }
+            cfgActionResult.show('auth-totp-start-result', '', '');
         }
-    } catch (e) {
-        showToast(t('config.common.error') + ': ' + e.message, 'error');
-    }
+    });
 }
 
-async function authTOTPConfirm() {
+function authTOTPConfirm() {
     const code = (document.getElementById('totp-confirm-code') || {}).value || '';
     const msgEl = document.getElementById('auth-totp-msg');
     authSetStatus(msgEl, null, '');
@@ -310,24 +310,18 @@ async function authTOTPConfirm() {
     const missing = authStepUpMissing(stepUp);
     if (missing) {
         authSetStatus(msgEl, 'error', missing);
-        return;
+        return Promise.resolve({ skipped: 'invalid' });
     }
-    try {
-        const resp = await fetch('/api/auth/totp/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.assign({ secret: _totpNewSecret, code }, stepUp))
-        });
-        const data = await resp.json();
-        if (resp.ok && data.ok) {
-            authSetStatus(msgEl, 'success', '✓ ' + (data.message || t('config.auth.totp_activated')));
-            setTimeout(() => selectSection('web_config'), 1200);
-        } else {
-            authSetStatus(msgEl, 'error', data.error || t('config.auth.invalid_code'));
-        }
-    } catch (e) {
-        authSetStatus(msgEl, 'error', t('config.common.network_error'));
-    }
+    return cfgActionResult(document.getElementById('auth-totp-confirm-btn'), () => fetch('/api/auth/totp/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ secret: _totpNewSecret, code }, stepUp))
+    }), {
+        target: 'auth-totp-msg',
+        success: outcome => (outcome.body && outcome.body.message) || t('config.auth.totp_activated'),
+        failure: t('config.auth.invalid_code'),
+        onSuccess: () => setTimeout(() => selectSection('web_config'), 1200)
+    });
 }
 
 async function authTOTPDisable() {
@@ -337,24 +331,18 @@ async function authTOTPDisable() {
     const missing = authStepUpMissing(stepUp);
     if (missing) {
         authSetStatus(msgEl, 'error', missing);
-        return;
+        return { skipped: 'invalid' };
     }
-    if (!(await showConfirm(t('config.auth.totp_disable_confirm_title'), t('config.auth.totp_disable_confirm')))) return;
-    try {
-        const resp = await fetch('/api/auth/totp', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(stepUp)
-        });
-        const data = await resp.json();
-        if (resp.ok) {
-            selectSection('web_config');
-        } else {
-            authSetStatus(msgEl, 'error', data.error || t('config.common.error'));
-        }
-    } catch (e) {
-        showToast(t('config.common.network_error'), 'error');
-    }
+    if (!(await showConfirm(t('config.auth.totp_disable_confirm_title'), t('config.auth.totp_disable_confirm')))) return { skipped: 'cancelled' };
+    return cfgActionResult(document.getElementById('auth-totp-disable-btn'), () => fetch('/api/auth/totp', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(stepUp)
+    }), {
+        target: 'auth-totp-disable-msg',
+        failure: t('config.common.error'),
+        onSuccess: () => selectSection('web_config')
+    });
 }
 
 // Vault delete functions are in config.html core (needed by vault modal HTML + renderField)
@@ -395,7 +383,7 @@ function renderSecurityAuditPanel(panel, hints) {
     if (fixable.length > 0) {
         const btnLabel = t('config.security.fix_all_auto').replace('{n}', fixable.length);
         html += `<div class="auth-sec-fix-wrap">
-            <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))})"
+            <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))}, this)"
                 class="auth-sec-fix-all-btn">
                 🔧 ${btnLabel}
             </button>
@@ -413,7 +401,7 @@ function renderSecurityAuditPanel(panel, hints) {
         const desc = escapeHtml(translatedDescription === descriptionKey ? (h.description || '') : translatedDescription);
         let fixBtn = '';
         if (h.auto_fixable) {
-            fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'])"
+            fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'], this)"
                 class="auth-sec-fix-now-btn">
                 🔧 ${t('config.security.fix_now')}
             </button>`;
@@ -431,24 +419,16 @@ function renderSecurityAuditPanel(panel, hints) {
     panel.innerHTML = html;
 }
 
-async function securityHardenIds(ids) {
-    const btn = document.getElementById('btn-fix-all');
-    if (btn) { btn.disabled = true; btn.textContent = t('config.security.applying'); }
-    try {
-        const resp = await fetch('/api/security/harden', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids })
-        });
-        const data = await resp.json();
-        if (resp.ok) {
-            await loadSecurityAuditPanel();
-        } else {
-            showToast((data && data.error) || t('config.common.error'), 'error');
-            if (btn) { btn.disabled = false; btn.textContent = t('config.security.fix_all_auto').replace('{n}', ids.length); }
-        }
-    } catch (e) {
-        showToast(t('config.common.network_error'), 'error');
-        if (btn) { btn.disabled = false; }
-    }
+function securityHardenIds(ids, button) {
+    return cfgActionResult(button || document.getElementById('btn-fix-all'), () => fetch('/api/security/harden', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+    }), {
+        target: 'sec-harden-result',
+        pending: t('config.security.applying'),
+        success: t('config.feedback.done'),
+        failure: t('config.common.error'),
+        onSuccess: () => loadSecurityAuditPanel()
+    });
 }

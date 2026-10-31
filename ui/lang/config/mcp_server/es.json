@@ -37,5 +37,6 @@
   "config.mcp_server.forced_by_bridge": "Forced on by the VS Code bridge — turn the bridge off to change this.",
   "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
   "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
-  "config.mcp_server.token_error": "Error al generar el token"
+  "config.mcp_server.token_error": "Error al generar el token",
+  "config.mcp_server.preset_applied": "Preajuste aplicado. Guarda para conservar la selección de herramientas."
 }

@@ -22,7 +22,7 @@ function renderWebAuthnSection(settings, status) {
         ${field('wa-label', 'webauthn.label', '<input class="field-input" id="wa-label" maxlength="64" autocomplete="off">')}
         <button type="button" class="auth-primary-btn" data-wa-action="add">${t('webauthn.add')}</button>
         <button type="button" class="auth-totp-disable-btn is-hidden" data-wa-cancel>${t('common.btn_cancel')}</button>
-        <p id="wa-status" class="auth-inline-msg is-hidden" role="status" aria-live="polite"></p>
+        <p id="wa-status" class="auth-inline-msg cfg-action-result" role="status" aria-live="polite"></p>
         <div id="wa-credentials" aria-live="polite"></div>
     </section>`;
 }

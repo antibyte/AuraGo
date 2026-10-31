@@ -54,7 +54,7 @@
                         <button class="btn-save idx-rescan-btn" id="idx-rescan-btn" onclick="idxRescan()">
                             🔄 ${t('config.indexing.scan_now')}
                         </button>
-                        <span id="idx-rescan-msg" class="idx-field-help is-hidden" role="status"></span>
+                        ${cfgActionResult.html('idx-rescan-msg', 'idx-field-help')}
                     </div>
                     <div class="idx-status-meta">
                         <span>📁 ${t('config.indexing.files')}: <strong>${st.total_files}</strong></span>
@@ -119,7 +119,7 @@
                             <span class="idx-media-label" aria-hidden="true">${escapeHtml(mediaLabel)}</span>
                             <button type="button" class="idx-media-switch" role="switch" aria-checked="${mediaOn ? 'true' : 'false'}" aria-label="${mediaName}"${mediaDesc} data-dir="${attrDir}" onclick="idxToggleMediaAnalysis(this)"></button>
                         </div>
-                        <button onclick="idxRemoveDir(this.dataset.dir)" data-dir="${attrDir}" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
+                        <button onclick="idxRemoveDir(this.dataset.dir, this)" data-dir="${attrDir}" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
                     </div>`;
                 });
             }
@@ -129,9 +129,9 @@
                     <input type="text" id="idx-new-dir" placeholder="${t('config.indexing.dir_placeholder')}"
                         class="idx-dir-input"
                         onkeydown="if(event.key==='Enter')idxAddDir()">
-                    <button class="btn-save idx-add-btn" onclick="idxAddDir()">+ ${t('config.indexing.add')}</button>
+                    <button class="btn-save idx-add-btn" id="idx-add-btn" onclick="idxAddDir()">+ ${t('config.indexing.add')}</button>
                 </div>
-                <div id="idx-dir-msg" class="idx-field-help is-error is-hidden" role="alert"></div>
+                ${cfgActionResult.html('idx-dir-msg', 'idx-field-help')}
             </div>`;
 
             html += `</div></div>`; // close idx-card-body & idx-card (Directories)
@@ -258,62 +258,55 @@
         }
 
 
+        // Inline message below the folder list / next to the scan button (shared result line).
         function idxSetInlineMsg(id, text, isError) {
-            const el = document.getElementById(id);
-            if (!el) return false;
-            el.textContent = text || '';
-            el.classList.toggle('is-error', !!isError);
-            el.classList.toggle('is-hidden', !text);
-            return true;
+            return !!cfgActionResult.show(id, !text ? '' : (isError ? 'error' : 'success'), text || '');
+        }
+
+        function idxReloadSection() {
+            const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
+            return renderIndexingSection(sectionMeta);
         }
 
         async function idxAddDir() {
             const input = document.getElementById('idx-new-dir');
             const path = input.value.trim();
-            if (!path) return;
-            idxSetInlineMsg('idx-dir-msg', '', true);
-
-            try {
-                const resp = await fetch('/api/indexing/directories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path })
-                });
-                if (!resp.ok) {
-                    const text = await idxResponseError(resp);
-                    if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
-                    return;
-                }
-                input.value = '';
-                // Re-render
-                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
-                await renderIndexingSection(sectionMeta);
-            } catch (e) {
-                const text = t('config.common.error') + ': ' + e.message;
-                if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
+            if (!path) {
+                idxSetInlineMsg('idx-dir-msg', t('config.feedback.missing_fields'), true);
+                input.focus();
+                return { skipped: 'empty' };
             }
+
+            return cfgActionResult(document.getElementById('idx-add-btn'), () => fetch('/api/indexing/directories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path })
+            }), {
+                target: 'idx-dir-msg',
+                failure: t('config.common.error'),
+                onSuccess: async () => {
+                    input.value = '';
+                    await idxReloadSection();
+                    idxSetInlineMsg('idx-dir-msg', t('config.feedback.done'), false);
+                }
+            });
         }
 
-        async function idxRemoveDir(path) {
-            if (!(await showConfirm(t('config.indexing.remove_confirm_title'), t('config.indexing.remove_confirm')))) return;
+        async function idxRemoveDir(path, button) {
+            if (!(await showConfirm(t('config.indexing.remove_confirm_title'), t('config.indexing.remove_confirm')))) return { skipped: 'cancelled' };
             idxSetInlineMsg('idx-dir-msg', '', true);
-            try {
-                const resp = await fetch('/api/indexing/directories', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path })
-                });
-                if (!resp.ok) {
-                    const text = await idxResponseError(resp);
-                    if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
-                    return;
+            return cfgActionResult(button || document.getElementById('idx-add-btn'), () => fetch('/api/indexing/directories', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path })
+            }), {
+                target: 'idx-dir-msg',
+                failure: t('config.common.error'),
+                onSuccess: async () => {
+                    await idxReloadSection();
+                    idxSetInlineMsg('idx-dir-msg', t('config.feedback.done'), false);
                 }
-                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
-                await renderIndexingSection(sectionMeta);
-            } catch (e) {
-                const text = t('config.common.error') + ': ' + e.message;
-                if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
-            }
+            });
         }
 
         // Per-folder opt-in: images, audio and scanned PDFs of a folder may only go to the
@@ -337,14 +330,14 @@
                     body: JSON.stringify({ path, allow_media_analysis: enable })
                 });
                 if (!resp.ok) {
-                    showToast(await idxResponseError(resp), 'error');
+                    idxSetInlineMsg('idx-dir-msg', t('config.common.error') + ': ' + await idxResponseError(resp), true);
                     return;
                 }
-                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
-                await renderIndexingSection(sectionMeta);
+                await idxReloadSection();
+                idxSetInlineMsg('idx-dir-msg', t('config.feedback.done'), false);
                 if (restoreFocus) idxFocusMediaSwitch(path);
             } catch (e) {
-                showToast(t('config.common.error') + ': ' + e.message, 'error');
+                idxSetInlineMsg('idx-dir-msg', t('config.common.error') + ': ' + e.message, true);
             } finally {
                 idxMediaToggleBusy = false;
                 if (btn.isConnected) btn.removeAttribute('aria-disabled');
@@ -370,28 +363,15 @@
             return text || t('config.common.error');
         }
 
-        async function idxRescan() {
-            const btn = document.getElementById('idx-rescan-btn');
-            if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
-            idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_starting'), false);
-            const release = () => { if (btn && btn.isConnected) { btn.disabled = false; btn.removeAttribute('aria-busy'); } };
-            try {
-                const resp = await fetch('/api/indexing/rescan', { method: 'POST' });
-                if (resp.ok) {
-                    idxSetInlineMsg('idx-rescan-msg', '✅ ' + t('config.indexing.rescan_started'), false);
-                    // Re-render after a short delay to allow scan to start
-                    setTimeout(async () => {
-                        const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
-                        await renderIndexingSection(sectionMeta);
-                    }, 1500);
-                } else {
-                    idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_failed') + ': ' + await idxResponseError(resp), true);
-                    release();
-                }
-            } catch (e) {
-                idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_failed') + ': ' + ((e && e.message) || ''), true);
-                release();
-            }
+        function idxRescan() {
+            return cfgActionResult(document.getElementById('idx-rescan-btn'), () => fetch('/api/indexing/rescan', { method: 'POST' }), {
+                target: 'idx-rescan-msg',
+                pending: t('config.indexing.rescan_starting'),
+                success: t('config.indexing.rescan_started'),
+                failure: t('config.indexing.rescan_failed'),
+                // Re-render after a short delay to allow the scan to start
+                onSuccess: () => setTimeout(() => { if (document.getElementById('idx-rescan-btn')) idxReloadSection(); }, 1500)
+            });
         }
 
         function idxDirPath(dir) {

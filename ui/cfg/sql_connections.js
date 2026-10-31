@@ -60,6 +60,7 @@ function renderSQLConnectionsSection(section) {
             ＋ ${t('config.sql_connections.add_connection')}
         </button>
     </div>
+    ${cfgActionResult.html('sqlconn-list-result')}
     <div id="sqlconn-table-wrap" class="sql-table-wrap">
         <table class="sql-table">
             <thead>
@@ -174,11 +175,11 @@ function renderSQLConnectionsSection(section) {
                 <div class="sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>
             </div>
 
-            <div id="sqlconn-modal-error" class="sql-modal-error is-hidden"></div>
-            <div id="sqlconn-modal-success" class="sql-modal-success is-hidden"></div>
+            ${cfgActionResult.html('sqlconn-test-result')}
+            ${cfgActionResult.html('sqlconn-save-result')}
 
             <div class="sqlconn-modal-actions">
-                <button class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" onclick="sqlConnTest()">
+                <button class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" data-config-action-draft="true" onclick="sqlConnTest()">
                     🔌 ${t('config.sql_connections.test_connection')}
                 </button>
                 <div class="sqlconn-modal-actions-right">
@@ -293,8 +294,8 @@ function sqlConnShowModal(id) {
     document.getElementById('sqlconn-import-file').value = '';
     const overlay = document.getElementById('sqlconn-modal-overlay');
     const title = document.getElementById('sqlconn-modal-title');
-    document.getElementById('sqlconn-modal-error').classList.add('is-hidden');
-    document.getElementById('sqlconn-modal-success').classList.add('is-hidden');
+    cfgActionResult.show('sqlconn-test-result', '', '');
+    cfgActionResult.show('sqlconn-save-result', '', '');
 
     if (id) {
         const c = sqlConnCache.find(x => x.id === id);
@@ -344,34 +345,15 @@ function sqlConnCloseModal(e) {
     document.getElementById('sqlconn-modal-overlay').classList.add('is-hidden');
 }
 
-async function sqlConnSave() {
-    const revision = sqlConnModalRevision;
-    const errBox = document.getElementById('sqlconn-modal-error');
-    const successBox = document.getElementById('sqlconn-modal-success');
-    errBox.classList.add('is-hidden');
-    successBox.classList.add('is-hidden');
-
-    const name = document.getElementById('sqlconn-field-name').value.trim();
-    const database = document.getElementById('sqlconn-field-database').value.trim();
-    if (!name) {
-        errBox.textContent = t('config.sql_connections.name_required');
-        errBox.classList.remove('is-hidden');
-        return;
-    }
+// Edited record fields as the save and test requests send them.
+function sqlConnPayload() {
     const isSQLite = document.getElementById('sqlconn-field-driver').value === 'sqlite';
-    const importFile = document.getElementById('sqlconn-import-file').files[0];
-    if (!database && !isSQLite) {
-        errBox.textContent = t('config.sql_connections.database_required');
-        errBox.classList.remove('is-hidden');
-        return;
-    }
-
-    const payload = {
-        name: name,
+    return {
+        name: document.getElementById('sqlconn-field-name').value.trim(),
         driver: document.getElementById('sqlconn-field-driver').value,
         host: document.getElementById('sqlconn-field-host').value.trim(),
         port: parseInt(document.getElementById('sqlconn-field-port').value) || 0,
-        database_name: database,
+        database_name: document.getElementById('sqlconn-field-database').value.trim(),
         description: document.getElementById('sqlconn-field-desc').value.trim(),
         // SQLite hides the TLS field; leave it to the server default.
         ssl_mode: isSQLite ? '' : document.getElementById('sqlconn-field-ssl').value,
@@ -382,110 +364,98 @@ async function sqlConnSave() {
         allow_change: document.getElementById('sqlconn-perm-change').checked,
         allow_delete: document.getElementById('sqlconn-perm-delete').checked
     };
+}
+
+async function sqlConnSave() {
+    const revision = sqlConnModalRevision;
+    const saveLine = 'sqlconn-save-result';
+    cfgActionResult.show(saveLine, '', '');
+    cfgActionResult.show('sqlconn-test-result', '', '');
+
+    const payload = sqlConnPayload();
+    if (!payload.name) {
+        cfgActionResult.show(saveLine, 'error', t('config.sql_connections.name_required'));
+        return { skipped: 'invalid' };
+    }
+    const isSQLite = payload.driver === 'sqlite';
+    const importFile = document.getElementById('sqlconn-import-file').files[0];
+    if (!payload.database_name && !isSQLite) {
+        cfgActionResult.show(saveLine, 'error', t('config.sql_connections.database_required'));
+        return { skipped: 'invalid' };
+    }
 
     const editId = document.getElementById('sqlconn-edit-id').value;
     const isEdit = !!editId;
     const btn = document.getElementById('sqlconn-modal-save');
-    btn.disabled = true;
 
-    try {
+    return cfgActionResult(btn, async () => {
         const url = isEdit ? '/api/sql-connections/' + editId : '/api/sql-connections';
-        const method = isEdit ? 'PUT' : 'POST';
         const resp = await fetch(url, {
-            method: method,
+            method: isEdit ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || 'Request failed');
-        }
-        const saved = await resp.json();
+        if (!resp.ok) return resp;
+        const saved = await resp.json().catch(() => ({}));
         const savedId = editId || saved.id;
         if (revision === sqlConnModalRevision) document.getElementById('sqlconn-edit-id').value = savedId;
         if (isSQLite && importFile) {
             const imported = await fetch('/api/sql-connections/' + encodeURIComponent(savedId) + '/import', {
                 method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: importFile
             });
-            if (!imported.ok) {
-                const data = await imported.json().catch(() => ({}));
-                throw new Error(data.error || t('config.sql_connections.sqlite_import_required'));
-            }
+            if (!imported.ok) return imported;
         }
-        if (revision !== sqlConnModalRevision) return;
-        sqlConnCloseModal();
-        await sqlConnLoad();
-    } catch (e) {
-        if (revision !== sqlConnModalRevision) return;
-        errBox.textContent = '❌ ' + e.message;
-        errBox.classList.remove('is-hidden');
-    } finally {
-        if (revision === sqlConnModalRevision) btn.disabled = false;
-    }
+        return { ok: true };
+    }, {
+        target: saveLine,
+        success: t('config.common.saved'),
+        failure: t('config.feedback.failed'),
+        onSuccess: async () => {
+            if (revision !== sqlConnModalRevision) return;
+            sqlConnCloseModal();
+            await sqlConnLoad();
+            cfgActionResult.show('sqlconn-list-result', 'success', t('config.common.saved'));
+        }
+    });
 }
 
-async function sqlConnTest() {
-    const errBox = document.getElementById('sqlconn-modal-error');
-    const successBox = document.getElementById('sqlconn-modal-success');
-    errBox.classList.add('is-hidden');
-    successBox.classList.add('is-hidden');
-
-    const btn = document.getElementById('sqlconn-test-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ ' + t('config.sql_connections.testing');
-
+// Tests the values typed into the modal (draft); a connection that is not saved yet is tested as typed.
+function sqlConnTest() {
+    cfgActionResult.show('sqlconn-save-result', '', '');
     const editId = document.getElementById('sqlconn-edit-id').value;
-
-    try {
-        if (editId) {
-            const resp = await fetch('/api/sql-connections/' + editId + '/test', { method: 'POST' });
-            const data = await resp.json().catch(() => ({}));
-            // Check both HTTP status and response status field
-            if (!resp.ok || data.status === 'error') {
-                throw new Error(data.message || (resp.ok ? 'Test failed' : 'Test failed with status ' + resp.status));
-            }
-            successBox.textContent = '✅ ' + (data.message || t('config.sql_connections.test_success'));
-        } else {
-            errBox.textContent = t('config.sql_connections.save_before_test');
-            errBox.classList.remove('is-hidden');
-            return;
-        }
-        successBox.classList.remove('is-hidden');
-    } catch (e) {
-        errBox.textContent = '❌ ' + e.message;
-        errBox.classList.remove('is-hidden');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '🔌 ' + t('config.sql_connections.test_connection');
-    }
+    const btn = document.getElementById('sqlconn-test-btn');
+    return cfgActionResult(btn, () => fetch('/api/sql-connections/' + encodeURIComponent(editId || 'new') + '/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sqlConnPayload())
+    }), {
+        target: 'sqlconn-test-result',
+        pending: t('config.sql_connections.testing'),
+        success: t('config.sql_connections.test_success'),
+        failure: t('config.feedback.failed')
+    });
 }
 
-async function sqlConnTestExisting(id) {
-    try {
-        const resp = await fetch('/api/sql-connections/' + id + '/test', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        // Check both HTTP status and response status field
-        if (!resp.ok || data.status === 'error') {
-            throw new Error(data.message || (resp.ok ? 'Test failed' : 'Test failed with status ' + resp.status));
-        }
-        showToast(data.message || t('config.sql_connections.test_success'), 'success');
-    } catch (e) {
-        showToast(e.message || t('config.common.error'), 'error');
-    }
+function sqlConnTestExisting(id) {
+    const connection = sqlConnCache.find(x => x.id === id) || {};
+    const btn = document.querySelector('#sqlconn-tbody tr[data-id="' + id + '"] .sql-action-btn');
+    return cfgActionResult(btn, () => fetch('/api/sql-connections/' + encodeURIComponent(id) + '/test', { method: 'POST' }), {
+        target: 'sqlconn-list-result',
+        pending: (connection.name ? connection.name + ': ' : '') + t('config.sql_connections.testing'),
+        success: (connection.name ? connection.name + ': ' : '') + t('config.sql_connections.test_success'),
+        failure: (connection.name ? connection.name + ': ' : '') + t('config.feedback.failed')
+    });
 }
 
 async function sqlConnDelete(id, name) {
     const msg = t('config.sql_connections.delete_confirm', { name: name });
-    if (!await showConfirm(msg)) return;
+    if (!await showConfirm(msg)) return { skipped: 'cancelled' };
 
-    try {
-        const resp = await fetch('/api/sql-connections/' + id, { method: 'DELETE' });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || 'Delete failed');
-        }
-        await sqlConnLoad();
-    } catch (e) {
-        showToast(e.message || t('config.common.error'), 'error');
-    }
+    const btn = document.querySelector('#sqlconn-tbody tr[data-id="' + id + '"] .sql-action-btn-delete');
+    return cfgActionResult(btn, () => fetch('/api/sql-connections/' + encodeURIComponent(id), { method: 'DELETE' }), {
+        target: 'sqlconn-list-result',
+        success: name + ': ' + t('config.feedback.done'),
+        failure: name + ': ' + t('config.feedback.failed'),
+        onSuccess: () => sqlConnLoad()
+    });
 }
