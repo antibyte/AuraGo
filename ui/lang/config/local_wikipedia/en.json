@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "With media",
   "config.local_wikipedia.variant_nopic": "Without media",
   "config.local_wikipedia.warning_size": "Depending on language and variant, an edition needs up to 130 GB and the download can take hours.",
-  "config.section.local_wikipedia.desc": "Offline Wikipedia for the agent and the desktop, read from one downloaded Kiwix edition.",
+  "config.section.local_wikipedia.desc": "Provides Wikipedia offline to the agent and desktop from a downloaded Kiwix edition.",
   "config.section.local_wikipedia.label": "Local Wikipedia",
   "help.local_wikipedia.agent_access": "Lets the agent search and read the installed edition.",
   "help.local_wikipedia.data_dir": "Absolute path for the edition. Leave empty to use the wikipedia folder in AuraGo's data directory.",

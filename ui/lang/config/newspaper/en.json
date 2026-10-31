@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Last attempt: {result}",
   "config.newspaper.max_searches": "Maximum searches per edition (including retries)",
   "config.section.newspaper.label": "Newspaper",
-  "config.section.newspaper.desc": "A personal, sourced daily edition",
+  "config.section.newspaper.desc": "Builds a personal daily newspaper from sourced research.",
   "config.newspaper.enabled": "Enable Newspaper",
   "config.newspaper.readonly": "Read-only mode",
   "config.newspaper.allow_email": "Allow email delivery",

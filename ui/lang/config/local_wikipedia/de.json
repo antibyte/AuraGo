@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Mit Medien",
   "config.local_wikipedia.variant_nopic": "Ohne Medien",
   "config.local_wikipedia.warning_size": "Je nach Sprache und Variante braucht eine Ausgabe bis zu 130 GB, und der Download kann Stunden dauern.",
-  "config.section.local_wikipedia.desc": "Wikipedia offline für den Agenten und den Desktop – aus einer heruntergeladenen Kiwix-Ausgabe.",
+  "config.section.local_wikipedia.desc": "Stellt Wikipedia offline für Agent und Desktop aus einer heruntergeladenen Kiwix-Ausgabe bereit.",
   "config.section.local_wikipedia.label": "Lokale Wikipedia",
   "help.local_wikipedia.agent_access": "Erlaubt dem Agenten, die installierte Ausgabe zu durchsuchen und zu lesen.",
   "help.local_wikipedia.data_dir": "Absoluter Pfad für die Ausgabe. Leer lassen, um den Ordner „wikipedia“ im AuraGo-Datenverzeichnis zu verwenden.",

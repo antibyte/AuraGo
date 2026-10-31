@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Local network shares",
-  "config.section.network_shares.desc": "Manage SMB and NFS shares provided by this host.",
+  "config.section.network_shares.desc": "Manages the SMB and NFS shares that this host provides.",
   "dashboard.integration_network_shares": "Local network shares",
   "config.network_shares.loading": "Reading local SMB and NFS capabilities…",
   "config.network_shares.enabled": "Enable integration",

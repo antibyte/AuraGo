@@ -71,7 +71,7 @@
   "config.meshcore.not_sent": "Nicht gesendet",
   "config.meshcore.device_accepted": "Vom Gerät angenommen",
   "config.meshcore.delivered": "Direktzustellung bestätigt",
-  "config.section.meshcore.desc": "Ein Companion-Funkgerät über USB oder natives Linux-Bluetooth.",
+  "config.section.meshcore.desc": "Bindet ein MeshCore-Companion-Funkgerät über USB oder natives Linux-Bluetooth an.",
   "config.meshcore.security": "Kanalantworten nutzen öffentliches Wissen und optional ausschließlich Brave-Websuche. Vertrauenswürdige Direktnachrichten unterliegen den bestehenden AuraGo-Rechten. Fehlgeschlagene Sicherheitsprüfungen führen zur Quarantäne.",
   "config.meshcore.keys_help": "Ein vollständiger öffentlicher Schlüssel mit 64 Zeichen pro Zeile. Namen und Kanalabsender begründen niemals Vertrauen.",
   "config.meshcore.channels_help": "Jede Kanalzuordnung vor Antworten oder proaktivem Senden bestätigen. Geräte- oder Kanalwechsel sperren automatische Arbeit bis zur erneuten Zuordnung.",

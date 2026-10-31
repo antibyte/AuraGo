@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Bitte gib den aktuellen Code aus deiner Authenticator-App ein.",
   "config.auth.step_up_hint": "Änderungen am Login-Passwort oder an der Zwei-Faktor-Authentifizierung erfordern dein aktuelles Passwort (und bei aktivem TOTP den aktuellen Code).",
   "config.auth.status_load_failed": "Anmeldestatus konnte nicht geladen werden",
-  "config.auth.retry": "Erneut versuchen"
+  "config.auth.retry": "Erneut versuchen",
+  "config.auth.new_password_help": "Mindestens 8 Zeichen verwenden. Am sichersten ist eine lange, einmalige Passphrase.",
+  "config.auth.confirmation_code_help": "Gib den 6-stelligen Code ein, den deine Authenticator-App gerade anzeigt.",
+  "config.auth.current_totp_help": "Der 6-stellige Code, den deine Authenticator-App gerade anzeigt.",
+  "config.auth.webauthn_enabled_help": "Schaltet die Anmeldung mit Passkey und Sicherheitsschlüssel ein. Registriere zuerst einen Schlüssel und teste die Anmeldung, bevor du dich darauf verlässt.",
+  "config.auth.webauthn_rpid_help": "Der Domainname, an den deine Schlüssel gebunden sind, zum Beispiel aurago.example.test. Eine Änderung entfernt alle registrierten Schlüssel.",
+  "config.auth.webauthn_key_name_help": "Ein Name, an dem du den Schlüssel später erkennst, zum Beispiel Laptop oder YubiKey."
 }

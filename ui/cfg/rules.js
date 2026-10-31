@@ -78,15 +78,17 @@ function rulesCandidateOptions(kind) {
     }).join('');
 }
 
-function rulesRenderTargetField(kind, label, values, placeholder) {
+function rulesRenderTargetField(kind, label, help, values, placeholder) {
     const inputID = kind === 'tools' ? 'rules-tools-input' : 'rules-workflows-input';
     const selectID = kind === 'tools' ? 'rules-tools-select' : 'rules-workflows-select';
+    const pickerLabel = kind === 'tools' ? rulesText('config.rules.select_tool', 'Select tool...') : rulesText('config.rules.select_workflow', 'Select workflow...');
     return `
         <div class="field-group rules-target-field">
             <span class="field-label">${label}</span>
+            <div class="field-help">${help}</div>
             <input id="${inputID}" class="field-input" value="${rulesEscape(rulesToCSV(values))}" placeholder="${rulesEscape(placeholder)}">
             <div class="rules-target-picker">
-                <select id="${selectID}" class="field-input">${rulesCandidateOptions(kind)}</select>
+                <select id="${selectID}" class="field-input" aria-label="${rulesEscape(pickerLabel)}">${rulesCandidateOptions(kind)}</select>
                 <button type="button" class="wh-btn wh-btn-sm" onclick="rulesAddTarget('${kind}')">${rulesText('config.rules.add_target', 'Add')}</button>
             </div>
         </div>`;
@@ -272,29 +274,34 @@ function rulesRenderEditor(isNew) {
         <div class="rules-grid rules-grid-meta">
             <label class="field-group">
                 <span class="field-label">${rulesText('config.rules.rule_id', 'Rule ID')}</span>
+                <div class="field-help">${rulesText('config.rules.rule_id_help', 'Short unique name of the rule, for example homepage. It cannot be changed after creation.')}</div>
                 <input id="rules-id-input" class="field-input" value="${rulesEscape(rule.id || '')}" ${isNew ? '' : 'disabled'} placeholder="homepage">
             </label>
             <label class="field-group">
                 <span class="field-label">${rulesText('config.rules.rule_title', 'Title')}</span>
+                <div class="field-help">${rulesText('config.rules.rule_title_help', 'Readable name shown in the rule library.')}</div>
                 <input id="rules-title-input" class="field-input" value="${rulesEscape(rule.title || '')}">
             </label>
             <label class="field-group rules-priority-field">
                 <span class="field-label">${rulesText('config.rules.priority', 'Priority')}</span>
+                <div class="field-help">${rulesText('config.rules.priority_help', 'When several rules match, higher numbers are injected first. Default 50.')}</div>
                 <input id="rules-priority-input" class="field-input" type="number" step="1" value="${Number.isFinite(rule.priority) ? rule.priority : 50}">
             </label>
             <div class="field-group rules-toggle-field">
                 <span class="field-label">${rulesText('config.rules.enabled', 'Enabled')}</span>
                 <label class="rules-checkbox"><input id="rules-enabled-input" type="checkbox" ${rule.enabled !== false ? 'checked' : ''}> ${rulesText('config.rules.enabled', 'Enabled')}</label>
+                <div class="field-help">${rulesText('config.rules.enabled_help', 'Switched-off rules are never injected into tasks.')}</div>
             </div>
         </div>
     </div>
     <div class="rules-field-panel">
         <div class="rules-panel-title">${rulesText('config.rules.targeting', 'Matching targets')}</div>
         <div class="rules-grid rules-grid-targeting">
-            ${rulesRenderTargetField('tools', rulesText('config.rules.tools', 'Tools'), rule.tools, 'homepage, shell')}
-            ${rulesRenderTargetField('workflows', rulesText('config.rules.workflows', 'Workflows'), rule.workflows, 'homepage, website')}
+            ${rulesRenderTargetField('tools', rulesText('config.rules.tools', 'Tools'), rulesText('config.rules.tools_help', 'Tool names that activate this rule, separated by commas. Pick a tool below to add it.'), rule.tools, 'homepage, shell')}
+            ${rulesRenderTargetField('workflows', rulesText('config.rules.workflows', 'Workflows'), rulesText('config.rules.workflows_help', 'Workflow names that activate this rule, separated by commas. Pick a workflow below to add it.'), rule.workflows, 'homepage, website')}
             <label class="field-group">
                 <span class="field-label">${rulesText('config.rules.keywords', 'Keywords')}</span>
+                <div class="field-help">${rulesText('config.rules.keywords_help', 'Words in the task text that activate this rule, separated by commas.')}</div>
                 <input id="rules-keywords-input" class="field-input" value="${rulesEscape(rulesToCSV(rule.keywords))}" placeholder="homepage, redesign">
             </label>
         </div>
@@ -302,12 +309,13 @@ function rulesRenderEditor(isNew) {
     <label class="rules-field-panel rules-markdown-panel">
         <span class="rules-panel-title">${rulesText('config.rules.markdown_editor', 'Markdown editor')}</span>
         <span class="field-label">${rulesText('config.rules.body_title', 'Rule Markdown')}</span>
+        <div class="field-help">${rulesText('config.rules.body_help', 'The guardrail text in Markdown. It is injected before a matching task begins.')}</div>
         <textarea id="rules-rule-input" class="field-input rules-textarea" rows="14">${rulesEscape(rule.body || '')}</textarea>
     </label>
     <details class="rules-design-panel" ${designOpen ? 'open' : ''}>
         <summary>${rulesText('config.rules.design_title', 'Homepage DESIGN.md')}</summary>
-        <div class="field-help">${rulesText('config.rules.design_hint', 'For homepage rules, this design system is injected after task rules. Project DESIGN.md files may add local design context.')}</div>
-        <textarea id="rules-design-input" class="field-input rules-textarea rules-design-textarea" rows="12">${rulesEscape(rulesState.current.design || '')}</textarea>
+        <div class="field-help" id="rules-design-help">${rulesText('config.rules.design_hint', 'For homepage rules, this design system is injected after task rules. Project DESIGN.md files may add local design context.')}</div>
+        <textarea id="rules-design-input" class="field-input rules-textarea rules-design-textarea" rows="12" aria-label="${rulesEscape(rulesText('config.rules.design_title', 'Homepage DESIGN.md'))}" aria-describedby="rules-design-help">${rulesEscape(rulesState.current.design || '')}</textarea>
     </details>
     ${cfgActionResult.html('rules-status', 'field-help rules-status')}`;
 }

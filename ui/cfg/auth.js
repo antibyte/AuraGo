@@ -116,22 +116,23 @@ async function renderWebConfigSection(section) {
             : t('config.auth.password_not_set')
         }</div>`;
     if (pwStepUp) {
-        html += `<div class="field-help">${t('config.auth.step_up_hint')}</div>
+        html += `<div class="field-help" id="auth-stepup-help">${t('config.auth.step_up_hint')}</div>
                 <div class="auth-password-row">
                     <div class="password-wrap auth-password-wrap">
-                        <input class="field-input" type="password" id="auth-current-pw"
+                        <input class="field-input" type="password" id="auth-current-pw" aria-label="${escapeAttr(t('config.auth.current_password_placeholder'))}" aria-describedby="auth-stepup-help"
                             placeholder="${t('config.auth.current_password_placeholder')}"
                             autocomplete="current-password">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
-                    ${totpStepUp ? `<input class="field-input auth-totp-confirm-input" type="text" id="auth-current-totp"
+                    ${totpStepUp ? `<input class="field-input auth-totp-confirm-input" type="text" id="auth-current-totp" aria-label="${escapeAttr(t('config.auth.current_totp_placeholder'))}" aria-describedby="auth-stepup-help"
                         inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                         placeholder="${t('config.auth.current_totp_placeholder')}">` : ''}
                 </div>`;
     }
-    html += `<div class="auth-password-row">
+    html += `<div class="field-help" id="auth-new-pw-help">${t('config.auth.new_password_help')}</div>
+                <div class="auth-password-row">
                     <div class="password-wrap auth-password-wrap">
-                        <input class="field-input" type="password" id="auth-new-pw"
+                        <input class="field-input" type="password" id="auth-new-pw" aria-label="${escapeAttr(t('config.auth.new_password_placeholder'))}" aria-describedby="auth-new-pw-help"
                             placeholder="${t('config.auth.new_password_placeholder')}"
                             autocomplete="new-password"
                             onkeydown="if(event.key==='Enter')authSetPassword()">
@@ -157,15 +158,15 @@ async function renderWebConfigSection(section) {
                         ${t('config.auth.totp_disable')}
                     </button>
                 </div>
-                <div class="field-help">${t('config.auth.step_up_hint')}</div>
+                <div class="field-help" id="auth-totp-disable-stepup-help">${t('config.auth.step_up_hint')}</div>
                 <div class="auth-password-row">
                     <div class="password-wrap auth-password-wrap">
-                        <input class="field-input" type="password" id="auth-totp-disable-current-pw"
+                        <input class="field-input" type="password" id="auth-totp-disable-current-pw" aria-label="${escapeAttr(t('config.auth.current_password_placeholder'))}" aria-describedby="auth-totp-disable-stepup-help"
                             placeholder="${t('config.auth.current_password_placeholder')}"
                             autocomplete="current-password">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
-                    <input class="field-input auth-totp-confirm-input" type="text" id="auth-totp-disable-current-totp"
+                    <input class="field-input auth-totp-confirm-input" type="text" id="auth-totp-disable-current-totp" aria-label="${escapeAttr(t('config.auth.current_totp_placeholder'))}" aria-describedby="auth-totp-disable-stepup-help"
                         inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                         placeholder="${t('config.auth.current_totp_placeholder')}">
                 </div>
@@ -186,18 +187,20 @@ async function renderWebConfigSection(section) {
                             <div id="totp-secret-display" class="auth-totp-secret"></div>
                         </div>
                     </div>
+                    <div class="field-help" id="totp-setup-stepup-help">${t('config.auth.step_up_hint')}</div>
                     <div class="auth-password-row">
                         <div class="password-wrap auth-password-wrap">
-                            <input class="field-input" type="password" id="totp-setup-current-pw"
+                            <input class="field-input" type="password" id="totp-setup-current-pw" aria-label="${escapeAttr(t('config.auth.current_password_placeholder'))}" aria-describedby="totp-setup-stepup-help"
                                 placeholder="${t('config.auth.current_password_placeholder')}"
                                 autocomplete="current-password">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
                     </div>
                     <div>
-                        <div class="auth-totp-confirm-label">${t('config.auth.confirmation_code')}</div>
+                        <div class="auth-totp-confirm-label"><label for="totp-confirm-code">${t('config.auth.confirmation_code')}</label></div>
+                        <div class="field-help" id="totp-confirm-help">${t('config.auth.confirmation_code_help')}</div>
                         <div class="auth-totp-confirm-row">
-                            <input id="totp-confirm-code" type="number" class="field-input auth-totp-confirm-input" placeholder="000000"
+                            <input id="totp-confirm-code" aria-describedby="totp-confirm-help" type="number" class="field-input auth-totp-confirm-input" placeholder="000000"
                                 onkeydown="if(event.key==='Enter')authTOTPConfirm()">
                             <button onclick="authTOTPConfirm()" id="auth-totp-confirm-btn" class="auth-primary-btn auth-totp-activate-btn">
                                 ${t('config.auth.activate')}

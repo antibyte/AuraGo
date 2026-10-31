@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Research with traceable sources",
+  "config.section.detective.desc": "Lets the agent research a topic and cite the sources it used.",
   "config.detective.enabled": "Enable Detective",
   "config.detective.extra_read_operations": "Approved read operations",
   "config.detective.extra_read_help": "Adds exact tool operations that research may call on connected private services. A case still has to select the source.",

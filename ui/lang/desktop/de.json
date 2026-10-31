@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "Vergrößern",
   "codeStudio.zoomOut": "Verkleinern",
   "codeStudio.zoomReset": "Zoom zurücksetzen",
-  "config.section.virtual_desktop.desc": "Browser-Desktop-Arbeitsbereich mit agentengesteuerten Apps, Dateien und Widgets.",
+  "config.section.virtual_desktop.desc": "Stellt einen Browser-Desktop bereit, in dem der Agent Apps, Dateien und Widgets steuert.",
   "config.section.virtual_desktop.label": "Virtueller Desktop",
   "config.virtual_desktop.agent_control_label": "Agentensteuerung erlauben",
   "config.virtual_desktop.disabled_desc": "Aktivieren, um Desktop-Seite und Backend-Arbeitsbereich bereitzustellen.",

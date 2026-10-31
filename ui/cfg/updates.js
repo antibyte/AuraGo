@@ -49,7 +49,7 @@ async function renderUpdatesBody() {
         <button class="btn-save updates-btn is-hidden" id="updates-install-btn" onclick="updatesInstall()">
             ${t('config.updates.install_button')}
         </button>
-        <button class="btn-save updates-btn is-hidden" id="updates-cancel-btn" onclick="updatesCancelReload()">✕</button>
+        <button class="btn-save updates-btn is-hidden" id="updates-cancel-btn" onclick="updatesCancelReload()" aria-label="${escapeAttr(t('config.updates.cancel_reload'))}" title="${escapeAttr(t('config.updates.cancel_reload'))}">✕</button>
         <span id="updates-status" class="updates-status"></span>
     </div>`;
 }
@@ -94,7 +94,7 @@ async function updatesCheck() {
                 <div class="updates-meta-row">
                     ${data.current_version ? `<span>${t('config.updates.current')}: <strong>${escapeHtml(String(data.current_version))}</strong></span>` : ''}
                     ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${escapeHtml(String(data.latest_version))}</strong></span>` : ''}
-                    ${data.commit_count ? `<span>${escapeHtml(String(data.commit_count))} commit(s)</span>` : ''}
+                    ${data.commit_count ? `<span>${escapeHtml(String(data.commit_count))} ${t('config.updates.commits')}</span>` : ''}
                 </div>
                 ${data.message ? `<div class="updates-result-detail">${escapeHtml(data.message)}</div>` : ''}
                 ${changelogHtml}
