@@ -22,6 +22,10 @@ function renderTTSSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    // E5: the Piper container switch is the section's enable control (tts.piper.enabled), so it comes first with its status.
+    html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
+    html += AuraConfigForm.toggle({ label: t('config.tts.piper_enabled_label'), help: t('config.tts.piper_enabled_help'), path: 'tts.piper.enabled', value: piperEnabled });
+
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.provider_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.provider_help') + '</div>';
@@ -68,7 +72,7 @@ function renderTTSSection(section) {
 
     const showEL = currentProvider === 'elevenlabs';
     html += '<div id="tts-elevenlabs-section" class="tts-provider-section' + (showEL ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">🎤 ' + t('config.tts.title_elevenlabs') + '</div>';
+    html += '<div class="tts-subsection-title">' + cfgIcon('mic') + ' ' + t('config.tts.title_elevenlabs') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
@@ -95,7 +99,7 @@ function renderTTSSection(section) {
 
     const showMM = currentProvider === 'minimax';
     html += '<div id="tts-minimax-section" class="tts-provider-section' + (showMM ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">🎵 ' + t('config.tts.title_minimax') + '</div>';
+    html += '<div class="tts-subsection-title">' + cfgIcon('music') + ' ' + t('config.tts.title_minimax') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
@@ -268,32 +272,16 @@ function renderTTSSection(section) {
     html += '<input class="field-input" type="text" data-path="tts.supertonic.container_name" value="' + escapeAttr(supertonicData.container_name || 'aurago-supertonic-tts') + '">';
     html += '</div>';
 
-    html += '<div id="supertonic-style-modal" class="modal-overlay tts-voice-modal" onclick="if(event.target===this)supertonicCloseStyleModal()">';
-    html += '<div class="modal">';
-    html += '<div class="modal-header"><span>' + t('config.tts.supertonic_style_browser_title') + '</span><span class="modal-close" onclick="supertonicCloseStyleModal()">&times;</span></div>';
-    html += '<div class="modal-body tts-voice-modal-body">';
-    html += '<div id="supertonic-style-list" class="tts-voice-list">' + t('config.tts.supertonic_loading_voices') + '</div>';
-    html += '</div></div></div>';
-
     html += '</div>';
 
-    html += '<div class="tts-subsection-title">🗣️ ' + t('config.tts.title_piper') + '</div>';
-    html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.tts.piper_enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('config.tts.piper_enabled_help') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (piperEnabled ? ' on' : '') + '" data-path="tts.piper.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (piperEnabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
+    html += '<div class="tts-subsection-title">' + cfgIcon('speaker') + ' ' + t('config.tts.title_piper') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_voice_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.piper_voice_help') + '</div>';
     html += '<div class="tts-voice-row">';
     html += '<input class="field-input" type="text" id="piper-voice-input" data-path="tts.piper.voice" value="' + escapeAttr(piperData.voice || 'de_DE-thorsten-high') + '">';
-    html += '<button class="btn-save cfg-save-btn" onclick="piperBrowseVoices()">🔍 ' + t('config.tts.piper_browse_voices') + '</button>';
+    html += '<button class="btn-save cfg-save-btn" onclick="piperBrowseVoices()">' + cfgIcon('search') + '<span>' + t('config.tts.piper_browse_voices') + '</span></button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -320,13 +308,6 @@ function renderTTSSection(section) {
     html += '<input class="field-input" type="text" data-path="tts.piper.data_path" value="' + escapeAttr(piperData.data_path || 'data/piper') + '">';
     html += '</div>';
 
-    html += '<div id="piper-voice-modal" class="modal-overlay tts-voice-modal" onclick="if(event.target===this)piperCloseVoiceModal()">';
-    html += '<div class="modal">';
-    html += '<div class="modal-header"><span>' + t('config.tts.piper_voice_browser_title') + '</span><span class="modal-close" onclick="piperCloseVoiceModal()">&times;</span></div>';
-    html += '<div class="modal-body tts-voice-modal-body">';
-    html += '<div id="piper-voice-list" class="tts-voice-list">' + t('config.tts.piper_loading_voices') + '</div>';
-    html += '</div></div></div>';
-
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -342,6 +323,16 @@ function renderTTSSection(section) {
     if (showSupertonic) {
         supertonicCheckStatus();
     }
+}
+
+// A voice browser is created once in <body>; openModal/closeModal own focus, Esc and backdrop.
+function ttsVoiceDialog(id, title, listId) {
+    let dialog = document.getElementById(id);
+    if (!dialog) {
+        document.body.insertAdjacentHTML('beforeend', cfgModal({ id, title, size: 'sm', body: '<div id="' + listId + '" class="tts-voice-list"></div>' }));
+        dialog = document.getElementById(id);
+    }
+    return dialog;
 }
 
 function ttsLanguageSelect(path, selected) {
@@ -524,10 +515,10 @@ async function supertonicLoadStyles(list, attempt = 0) {
         const response = await fetch('/api/supertonic/styles', { cache: 'no-store' });
         const res = await response.json();
         if (res.code === 'supertonic_starting' && attempt < 90) {
-            const overlay = document.getElementById('supertonic-style-modal');
+            const overlay = document.getElementById('tts-style-dialog');
             if (!overlay || !overlay.classList.contains('active')) return;
             if (list) {
-                list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.supertonic_loading_voices') + '</div>';
+                cfgListState(list, { state: 'loading', title: t('config.tts.supertonic_loading_voices') });
             }
             const headerDelay = Number.parseInt(response.headers.get('Retry-After') || '', 10);
             const bodyDelay = Number(res.retry_after_seconds || 0);
@@ -536,12 +527,12 @@ async function supertonicLoadStyles(list, attempt = 0) {
             return;
         }
         if (!response.ok || res.error) {
-            if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
+            if (list) cfgListState(list, { state: 'error', title: t('config.tts.supertonic_voice_error'), retry: supertonicBrowseStyles });
             return;
         }
         const styles = res.styles || [];
         if (styles.length === 0) {
-            if (list) list.innerHTML = '<div class="tts-voice-empty">' + t('config.tts.supertonic_no_voices') + '</div>';
+            if (list) cfgListState(list, { state: 'empty', title: t('config.tts.supertonic_no_voices') });
             return;
         }
         let html = '';
@@ -554,16 +545,15 @@ async function supertonicLoadStyles(list, attempt = 0) {
         }
         if (list) list.innerHTML = html;
     } catch (_) {
-        if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
+        if (list) cfgListState(list, { state: 'error', title: t('config.tts.supertonic_voice_error'), retry: supertonicBrowseStyles });
     }
 }
 
 function supertonicBrowseStyles() {
-    const overlay = document.getElementById('supertonic-style-modal');
-    if (!overlay) return;
-    overlay.classList.add('active');
+    if (!ttsVoiceDialog('tts-style-dialog', t('config.tts.supertonic_style_browser_title'), 'supertonic-style-list')) return;
+    openModal('tts-style-dialog');
     const list = document.getElementById('supertonic-style-list');
-    if (list) list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.supertonic_loading_voices') + '</div>';
+    if (list) cfgListState(list, { state: 'loading', title: t('config.tts.supertonic_loading_voices') });
 
     supertonicLoadStyles(list);
 }
@@ -578,43 +568,41 @@ function supertonicSelectStyle(name) {
 }
 
 function supertonicCloseStyleModal() {
-    const overlay = document.getElementById('supertonic-style-modal');
-    if (overlay) overlay.classList.remove('active');
+    closeModal('tts-style-dialog');
 }
 
 function piperBrowseVoices() {
-    const overlay = document.getElementById('piper-voice-modal');
-    if (!overlay) return;
-    overlay.classList.add('active');
+    if (!ttsVoiceDialog('tts-voice-dialog', t('config.tts.piper_voice_browser_title'), 'piper-voice-list')) return;
+    openModal('tts-voice-dialog');
     const list = document.getElementById('piper-voice-list');
-    if (list) list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.piper_loading_voices') + '</div>';
+    if (list) cfgListState(list, { state: 'loading', title: t('config.tts.piper_loading_voices') });
 
     fetch('/api/piper/voices')
         .then(r => r.json())
         .then(res => {
             if (res.error) {
-                list.innerHTML = '<div class="tts-voice-error">' + escapeHtml(res.error) + '</div>';
+                cfgListState(list, { state: 'error', title: t('config.tts.piper_voice_error'), text: res.error, retry: piperBrowseVoices });
                 return;
             }
             const voices = res.voices || [];
             if (voices.length === 0) {
-                list.innerHTML = '<div class="tts-voice-empty">' + t('config.tts.piper_no_voices') + '</div>';
+                cfgListState(list, { state: 'empty', title: t('config.tts.piper_no_voices') });
                 return;
             }
             let html = '';
             for (const v of voices) {
                 const langs = (v.languages || []).join(', ');
-                const installed = v.installed ? '✅ ' : '';
+                const installed = v.installed ? cfgIcon('check', { label: t('config.tts.phonon_installed') }) + ' ' : '';
                 html += '<div class="tts-voice-item" onclick="piperSelectVoice(\'' + escapeAttr(v.name) + '\')">';
                 html += '<div class="tts-voice-item-name">' + installed + escapeHtml(v.name) + '</div>';
                 if (v.description) html += '<div class="tts-voice-item-desc">' + escapeHtml(v.description) + '</div>';
-                if (langs) html += '<div class="tts-voice-item-lang">🌍 ' + escapeHtml(langs) + '</div>';
+                if (langs) html += '<div class="tts-voice-item-lang">' + cfgIcon('globe') + ' ' + escapeHtml(langs) + '</div>';
                 html += '</div>';
             }
             list.innerHTML = html;
         })
         .catch(() => {
-            list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.piper_voice_error') + '</div>';
+            cfgListState(list, { state: 'error', title: t('config.tts.piper_voice_error'), retry: piperBrowseVoices });
         });
 }
 
@@ -628,6 +616,5 @@ function piperSelectVoice(name) {
 }
 
 function piperCloseVoiceModal() {
-    const overlay = document.getElementById('piper-voice-modal');
-    if (overlay) overlay.classList.remove('active');
+    closeModal('tts-voice-dialog');
 }

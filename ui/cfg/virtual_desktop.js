@@ -41,17 +41,14 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgHiddenToggle('tools.virtual_desktop.enabled', data.allow_agent_control === true);
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>▣</span><div>';
-        html += '<strong>' + t('config.virtual_desktop.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.virtual_desktop.disabled_desc') + '</small>';
-        html += '</div></div>';
+        html += AuraConfigForm.emptyState({ title: t('config.virtual_desktop.disabled_notice'), desc: t('config.virtual_desktop.disabled_desc') });
         html += '</div>';
         document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▣ ' + t('config.virtual_desktop.first_party_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_desktop.first_party_note') + '</div>';
     html += vdCfgToggleRow('config.virtual_desktop.readonly_label', 'help.virtual_desktop.readonly', data.readonly === true, 'virtual_desktop.readonly');
     html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this)");
     html += vdCfgToggleRow('config.virtual_desktop.generated_apps_label', 'help.virtual_desktop.allow_generated_apps', data.allow_generated_apps !== false, 'virtual_desktop.allow_generated_apps');
@@ -105,7 +102,7 @@ function renderVirtualDesktopSection(section) {
     const layerlingAccessLabels = { off: t('config.layerling.off'), read: t('config.layerling.read'), write: t('config.layerling.write') };
     html += vdCfgField('config.layerling.access', 'config.layerling.access_help', '<select class="field-select" data-path="virtual_desktop.layerling.agent_access">' + Object.keys(layerlingAccessLabels).map(value => '<option value="' + value + '"' + ((layerling.agent_access || 'off') === value ? ' selected' : '') + '>' + layerlingAccessLabels[value] + '</option>').join('') + '</select>');
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn" data-config-action-draft="false">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn" data-config-action-draft="false">' + cfgIcon('monitor') + '<span>' + t('config.virtual_desktop.test_button') + '</span></button>';
     html += '<a class="btn-save dc-test-btn" href="/desktop">' + t('config.virtual_desktop.open_button') + '</a>';
     html += cfgActionResult.html('vd-cfg-result');
     html += '</div>';

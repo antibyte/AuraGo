@@ -66,24 +66,21 @@ async function renderBrowserAutomationSection(section) {
     html += baHiddenToggle('tools.browser_automation.enabled', integrationEnabled);
 
     if (!integrationEnabled) {
-        html += '<div class="wh-notice"><span>🌐</span><div>';
-        html += '<strong>' + t('config.browser_automation.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.browser_automation.disabled_desc') + '</small>';
-        html += '</div></div>';
+        html += AuraConfigForm.emptyState({ title: t('config.browser_automation.disabled_notice'), desc: t('config.browser_automation.disabled_desc') });
         html += '</div>';
         document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">🧭 ' + t('config.browser_automation.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.browser_automation.sidecar_note') + '</div>';
     html += baToggleRow('config.browser_automation.readonly_label', 'help.browser_automation.readonly', data.readonly === true, 'browser_automation.readonly');
     html += baToggleRow('config.browser_automation.headless_label', 'help.browser_automation.headless', data.headless !== false, 'browser_automation.headless');
     html += baToggleRow('config.browser_automation.allow_uploads_label', 'help.browser_automation.allow_file_uploads', data.allow_file_uploads !== false, 'browser_automation.allow_file_uploads');
     html += baToggleRow('config.browser_automation.allow_downloads_label', 'help.browser_automation.allow_file_downloads', data.allow_file_downloads !== false, 'browser_automation.allow_file_downloads');
 
     html += '<details class="cfg-advanced-panel ba-advanced-panel">';
-    html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.browser_automation.advanced_label') + '</summary>';
+    html += '<summary class="cfg-advanced-summary">' + cfgIcon('settings') + ' ' + t('config.browser_automation.advanced_label') + '</summary>';
     html += '<div class="cfg-advanced-body">';
     html += '<div class="cfg-advanced-help">' + t('config.browser_automation.advanced_desc') + '</div>';
 
@@ -135,7 +132,7 @@ async function renderBrowserAutomationSection(section) {
     html += '</div>';
 
     // CloakBrowser stealth options
-    html += '<div class="cfg-note-banner cfg-note-banner-info">🛡️ ' + t('config.browser_automation.cloak_info') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.browser_automation.cloak_info') + '</div>';
     html += baToggleRow('config.browser_automation.cloak_humanize_label', 'help.browser_automation.cloak_humanize', data.cloak_humanize === true, 'browser_automation.cloak_humanize');
 
     html += baFieldWithHelp('config.browser_automation.cloak_human_preset_label', 'help.browser_automation.cloak_human_preset',
@@ -161,7 +158,7 @@ async function renderBrowserAutomationSection(section) {
     html += '</details>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn" data-config-action-draft="true">🔌 ' + t('config.browser_automation.test_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + t('config.browser_automation.test_button') + '</span></button>';
     html += cfgActionResult.html('ba-test-result');
     html += '</div>';
 

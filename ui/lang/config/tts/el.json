@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Εικόνα Docker",
   "config.tts.piper_data_path_label": "Διαδρομή δεδομένων",
   "config.tts.piper_voice_browser_title": "Περιηγητής φωνών Piper",
-  "config.tts.piper_loading_voices": "⏳ Φόρτωση φωνών...",
+  "config.tts.piper_loading_voices": "Φόρτωση φωνών...",
   "config.tts.piper_no_voices": "Δεν υπάρχουν διαθέσιμες φωνές.",
   "config.tts.piper_voice_error": "Αποτυχία φόρτωσης φωνών.",
   "config.tts.piper_status_disabled": "Το Piper είναι απενεργοποιημένο",

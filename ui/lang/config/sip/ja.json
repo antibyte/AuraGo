@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "エージェントは自分から発信できます。通話料金はお使いの電話プロバイダーから請求されます。",
   "config.sip.help.permissions_send_dtmf": "エージェントは、電話システムのメニュー操作などのためにプッシュ音 (DTMF) を送信できます。",
   "config.sip.help.permissions_agent_hangup": "エージェントは進行中の通話を終了できます。",
-  "config.sip.help.history_retention_days": "通話ログは、この期間が過ぎると削除されます (1-3650 日、デフォルト 90)。"
+  "config.sip.help.history_retention_days": "通話ログは、この期間が過ぎると削除されます (1-3650 日、デフォルト 90)。",
+  "config.sip.wizard.replace_title": "既存のアカウントを置き換えますか？",
+  "config.sip.wizard.replace_text": "このプリセットは、既存のアカウントとネットワークの値を置き換えます。"
 }

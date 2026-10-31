@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker-Image",
   "config.tts.piper_data_path_label": "Datenpfad",
   "config.tts.piper_voice_browser_title": "Piper-Stimmenbrowser",
-  "config.tts.piper_loading_voices": "⏳ Stimmen werden geladen...",
+  "config.tts.piper_loading_voices": "Stimmen werden geladen...",
   "config.tts.piper_no_voices": "Keine Stimmen verfügbar.",
   "config.tts.piper_voice_error": "Stimmen konnten nicht geladen werden.",
   "config.tts.piper_status_disabled": "Piper ist deaktiviert",

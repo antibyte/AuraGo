@@ -115,5 +115,7 @@
   "config.sip.help.tls_key_file": "Cesta k soukromému klíči certifikátu klienta.",
   "config.sip.help.tls_server_name": "Název serveru použitý k ověření certifikátu TLS. Nechte prázdné pro použití registrar.",
   "config.sip.help.transport": "Přenos k serveru SIP. UDP je běžný, TLS šifruje signalizaci.",
-  "config.sip.help.username": "Uživatelské jméno nebo telefonní číslo účtu SIP podle údajů poskytovatele."
+  "config.sip.help.username": "Uživatelské jméno nebo telefonní číslo účtu SIP podle údajů poskytovatele.",
+  "config.sip.wizard.replace_title": "Nahradit stávající účet?",
+  "config.sip.wizard.replace_text": "Tato předvolba nahradí stávající hodnoty účtu a sítě."
 }

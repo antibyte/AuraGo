@@ -26,96 +26,56 @@ function vdSendData() {
     return configData.tools.send_youtube_video;
 }
 
-function vdField(labelKey, helpKey, inputHtml) {
-    const helpText = t(helpKey);
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
-    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
-    html += inputHtml;
-    html += '</div>';
-    return html;
-}
-
-function vdToggleRow(labelKey, helpKey, enabled, path) {
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
-    const helpText = t(helpKey);
-    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div>';
-    html += '</div>';
-    return html;
-}
-
 async function renderVideoDownloadSection(section) {
     if (section) _vdSection = section; else section = _vdSection;
     const data = vdEnsureData();
     const send = vdSendData();
     const enabled = data.enabled !== false;
     const mode = data.mode || 'docker';
+    const form = window.AuraConfigForm;
+    const key = name => t('config.video_download.' + name);
+    const toggle = (name, helpKey, on, path) => form.toggle({ label: key(name + '_label'), help: t('help.video_download.' + helpKey), path, value: on });
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▶️ ' + t('config.video_download.note') + '</div>';
-
-    html += vdToggleRow('config.video_download.send_enabled_label', 'help.video_download.send_enabled', send.enabled !== false, 'tools.send_youtube_video.enabled');
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.video_download.enabled_label') + '</div>';
-    const helpEnabled = t('help.video_download.enabled');
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="tools.video_download.enabled" onclick="toggleBool(this);vdUpdateEnabled(this.classList.contains(\'on\'))"></div>';
-    html += '</div>';
+    // The switch re-renders the section: the download settings only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.video_download.enabled'), path: 'tools.video_download.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);vdUpdateEnabled(this.classList.contains('on'))"`);
+    const operation = [enableToggle, toggle('send_enabled', 'send_enabled', send.enabled !== false, 'tools.send_youtube_video.enabled')];
+    const groups = [{ titleKey: 'config.refresh.operation', fields: operation }];
+    let after = '';
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>▶️</span><div>';
-        html += '<strong>' + t('config.video_download.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.video_download.disabled_desc') + '</small>';
-        html += '</div></div></div>';
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
-    }
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.video_download.mode_label') + '</div>';
-    const helpMode = t('help.video_download.mode');
-    if (helpMode) html += '<div class="field-help">' + helpMode + '</div>';
-    html += '<select class="field-select" data-path="tools.video_download.mode" onchange="vdSwitchMode(this.value)">';
-    html += '<option value="docker"' + (mode === 'docker' ? ' selected' : '') + '>' + t('config.video_download.mode_docker') + '</option>';
-    html += '<option value="native"' + (mode === 'native' ? ' selected' : '') + '>' + t('config.video_download.mode_native') + '</option>';
-    html += '</select></div>';
-
-    html += vdToggleRow('config.video_download.allow_download_label', 'help.video_download.allow_download', data.allow_download === true, 'tools.video_download.allow_download');
-    html += vdToggleRow('config.video_download.allow_transcribe_label', 'help.video_download.allow_transcribe', data.allow_transcribe === true, 'tools.video_download.allow_transcribe');
-    html += vdToggleRow('config.video_download.readonly_label', 'help.video_download.readonly', data.readonly === true, 'tools.video_download.readonly');
-
-    html += vdField('config.video_download.download_dir_label', 'help.video_download.download_dir',
-        '<input class="field-input" type="text" data-path="tools.video_download.download_dir" value="' + escapeAttr(data.download_dir || 'data/downloads') + '" placeholder="data/downloads">');
-
-    html += vdField('config.video_download.default_format_label', 'help.video_download.default_format',
-        '<input class="field-input" type="text" data-path="tools.video_download.default_format" value="' + escapeAttr(data.default_format || VD_DEFAULT_FORMAT) + '" placeholder="' + escapeAttr(VD_DEFAULT_FORMAT) + '">');
-
-    html += '<div class="field-grid two-cols">';
-    html += vdField('config.video_download.max_file_size_label', 'help.video_download.max_file_size_mb',
-        '<input class="field-input" type="number" min="0" max="10000" data-path="tools.video_download.max_file_size_mb" value="' + (typeof data.max_file_size_mb === 'number' ? data.max_file_size_mb : 500) + '">');
-    html += vdField('config.video_download.timeout_label', 'help.video_download.timeout_seconds',
-        '<input class="field-input" type="number" min="10" max="3600" data-path="tools.video_download.timeout_seconds" value="' + (data.timeout_seconds || 300) + '">');
-    html += vdField('config.video_download.max_search_results_label', 'help.video_download.max_search_results',
-        '<input class="field-input" type="number" min="1" max="25" data-path="tools.video_download.max_search_results" value="' + (data.max_search_results || 10) + '">');
-    html += '</div>';
-
-    if (mode === 'native') {
-        html += vdField('config.video_download.yt_dlp_path_label', 'help.video_download.yt_dlp_path',
-            '<input class="field-input" type="text" data-path="tools.video_download.yt_dlp_path" value="' + escapeAttr(data.yt_dlp_path || '') + '" placeholder="yt-dlp">');
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
     } else {
-        html += vdField('config.video_download.container_image_label', 'help.video_download.container_image',
-            '<input class="field-input" type="text" data-path="tools.video_download.container_image" value="' + escapeAttr(data.container_image || VD_PINNED_IMAGE) + '" placeholder="' + escapeAttr(VD_PINNED_IMAGE) + '">');
-        html += vdToggleRow('config.video_download.auto_pull_label', 'help.video_download.auto_pull', data.auto_pull !== false, 'tools.video_download.auto_pull');
+        operation.push(
+            toggle('allow_download', 'allow_download', data.allow_download === true, 'tools.video_download.allow_download'),
+            toggle('allow_transcribe', 'allow_transcribe', data.allow_transcribe === true, 'tools.video_download.allow_transcribe'),
+            toggle('readonly', 'readonly', data.readonly === true, 'tools.video_download.readonly'));
+        const settings = [
+            form.select({
+                label: key('mode_label'), help: t('help.video_download.mode'), path: 'tools.video_download.mode', value: mode,
+                onchange: 'vdSwitchMode(this.value)',
+                options: [{ value: 'docker', label: key('mode_docker') }, { value: 'native', label: key('mode_native') }]
+            }),
+            form.field({ label: key('download_dir_label'), help: t('help.video_download.download_dir'), path: 'tools.video_download.download_dir', value: data.download_dir || 'data/downloads', placeholder: 'data/downloads' }),
+            form.field({ label: key('default_format_label'), help: t('help.video_download.default_format'), path: 'tools.video_download.default_format', value: data.default_format || VD_DEFAULT_FORMAT, placeholder: VD_DEFAULT_FORMAT }),
+            form.number({ label: key('max_file_size_label'), help: t('help.video_download.max_file_size_mb'), path: 'tools.video_download.max_file_size_mb', value: typeof data.max_file_size_mb === 'number' ? data.max_file_size_mb : 500, min: 0, max: 10000 }),
+            form.number({ label: key('timeout_label'), help: t('help.video_download.timeout_seconds'), path: 'tools.video_download.timeout_seconds', value: data.timeout_seconds || 300, min: 10, max: 3600 }),
+            form.number({ label: key('max_search_results_label'), help: t('help.video_download.max_search_results'), path: 'tools.video_download.max_search_results', value: data.max_search_results || 10, min: 1, max: 25 })
+        ];
+        if (mode === 'native') {
+            settings.push(form.field({ label: key('yt_dlp_path_label'), help: t('help.video_download.yt_dlp_path'), path: 'tools.video_download.yt_dlp_path', value: data.yt_dlp_path || '', placeholder: 'yt-dlp' }));
+        } else {
+            settings.push(
+                form.field({ label: key('container_image_label'), help: t('help.video_download.container_image'), path: 'tools.video_download.container_image', value: data.container_image || VD_PINNED_IMAGE, placeholder: VD_PINNED_IMAGE }),
+                toggle('auto_pull', 'auto_pull', data.auto_pull !== false, 'tools.video_download.auto_pull'));
+        }
+        groups.push({ titleKey: 'config.refresh.settings', fields: settings });
     }
 
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({
+        label: section.label, desc: section.desc, groups, afterHTML: after,
+        beforeHTML: '<div class="cfg-note-banner cfg-note-banner-info">' + escapeHtml(key('note')) + '</div>'
+    });
     attachChangeListeners();
 }
 

@@ -115,5 +115,7 @@
   "config.sip.help.tls_key_file": "Ruta de la clave privada del certificado de cliente.",
   "config.sip.help.tls_server_name": "Nombre del servidor que se usa para verificar el certificado TLS. Déjalo vacío para usar el registrar.",
   "config.sip.help.transport": "Transporte hacia el servidor SIP. UDP es lo habitual; TLS cifra la señalización.",
-  "config.sip.help.username": "Nombre de usuario o número de teléfono de la cuenta SIP, tal como lo da tu proveedor."
+  "config.sip.help.username": "Nombre de usuario o número de teléfono de la cuenta SIP, tal como lo da tu proveedor.",
+  "config.sip.wizard.replace_title": "¿Reemplazar la cuenta existente?",
+  "config.sip.wizard.replace_text": "Esta plantilla reemplaza los valores existentes de la cuenta y de la red."
 }

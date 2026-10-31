@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "एजेंट अपने आप कॉल शुरू कर सकता है। शुल्क आपके फ़ोन प्रदाता द्वारा लिया जाता है।",
   "config.sip.help.permissions_send_dtmf": "एजेंट टच-टोन कुंजियाँ भेज सकता है, जैसे फ़ोन सिस्टम के मेनू के लिए।",
   "config.sip.help.permissions_agent_hangup": "एजेंट चल रहे कॉल समाप्त कर सकता है।",
-  "config.sip.help.history_retention_days": "कॉल लॉग इस अवधि के बाद हटा दिया जाता है (1-3650 दिन, डिफ़ॉल्ट 90)।"
+  "config.sip.help.history_retention_days": "कॉल लॉग इस अवधि के बाद हटा दिया जाता है (1-3650 दिन, डिफ़ॉल्ट 90)।",
+  "config.sip.wizard.replace_title": "क्या मौजूदा खाता बदलना है?",
+  "config.sip.wizard.replace_text": "यह प्रीसेट मौजूदा खाते और नेटवर्क के मानों को बदल देगा।"
 }

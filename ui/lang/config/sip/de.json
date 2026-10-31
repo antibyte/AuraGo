@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "Der Agent darf selbst Anrufe starten. Kosten fallen beim Telefonanbieter an.",
   "config.sip.help.permissions_send_dtmf": "Der Agent darf Tonwahl-Tasten senden, etwa für Menüs von Telefonanlagen.",
   "config.sip.help.permissions_agent_hangup": "Der Agent darf laufende Anrufe beenden.",
-  "config.sip.help.history_retention_days": "Anrufprotokoll wird nach dieser Zeit gelöscht (1–3650 Tage, Standard 90)."
+  "config.sip.help.history_retention_days": "Anrufprotokoll wird nach dieser Zeit gelöscht (1–3650 Tage, Standard 90).",
+  "config.sip.wizard.replace_title": "Bestehendes Konto ersetzen?",
+  "config.sip.wizard.replace_text": "Diese Vorlage ersetzt die vorhandenen Konto- und Netzwerkwerte."
 }

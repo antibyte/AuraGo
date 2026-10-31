@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "代理可以自行发起通话。费用由您的电话服务商收取。",
   "config.sip.help.permissions_send_dtmf": "代理可以发送双音多频按键，例如用于电话系统菜单。",
   "config.sip.help.permissions_agent_hangup": "代理可以结束正在进行的通话。",
-  "config.sip.help.history_retention_days": "通话记录在此时间后会被删除（1-3650 天，默认 90）。"
+  "config.sip.help.history_retention_days": "通话记录在此时间后会被删除（1-3650 天，默认 90）。",
+  "config.sip.wizard.replace_title": "要替换现有账户吗？",
+  "config.sip.wizard.replace_text": "此预设将替换现有的账户和网络设置值。"
 }

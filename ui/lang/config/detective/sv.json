@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "Längsta körtid för ett jobb i sekunder (30 till 7200); därefter stoppas det.",
   "config.detective.help_tools": "Maximalt antal verktygsanrop per jobb (1 till 500).",
   "config.detective.help_iterations": "Maximalt antal resonemangs- och arbetsrundor per jobb (1 till 750).",
-  "config.detective.help_tokens": "Ytterligare tak för tokens per jobb. 0 = ingen ytterligare gräns."
+  "config.detective.help_tokens": "Ytterligare tak för tokens per jobb. 0 = ingen ytterligare gräns.",
+  "config.detective.extra_read_invalid": "Dessa rader sparas inte eftersom de inte har formen verktyg: åtgärd, åtgärd. Rad {lines}."
 }

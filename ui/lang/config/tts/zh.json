@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker 镜像",
   "config.tts.piper_data_path_label": "数据路径",
   "config.tts.piper_voice_browser_title": "Piper 语音浏览器",
-  "config.tts.piper_loading_voices": "⏳ 正在加载语音...",
+  "config.tts.piper_loading_voices": "正在加载语音...",
   "config.tts.piper_no_voices": "没有可用语音。",
   "config.tts.piper_voice_error": "无法加载语音。",
   "config.tts.piper_status_disabled": "Piper 已禁用",

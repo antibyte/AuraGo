@@ -1,3 +1,1 @@
 # <section> <enable path>: the section's enable control is not its first visible control (E5). Ends empty.
-tts tts.piper.enabled
-video_download tools.video_download.enabled

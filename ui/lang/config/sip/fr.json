@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "L'agent peut lancer des appels de lui-même. Les frais sont facturés par votre opérateur téléphonique.",
   "config.sip.help.permissions_send_dtmf": "L'agent peut envoyer des touches de numérotation, par exemple pour les menus de systèmes téléphoniques.",
   "config.sip.help.permissions_agent_hangup": "L'agent peut mettre fin aux appels en cours.",
-  "config.sip.help.history_retention_days": "Le journal des appels est supprimé après cette durée (1-3650 jours, 90 par défaut)."
+  "config.sip.help.history_retention_days": "Le journal des appels est supprimé après cette durée (1-3650 jours, 90 par défaut).",
+  "config.sip.wizard.replace_title": "Remplacer le compte existant ?",
+  "config.sip.wizard.replace_text": "Ce préréglage remplace les valeurs existantes du compte et du réseau."
 }

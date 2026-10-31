@@ -98,11 +98,11 @@ function rsProfileCard(profile, index) {
                 <code>${rsEsc(profile.id)}</code>
             </div>
             <div class="rs-profile-head-actions">
-                <label class="rs-inline-toggle">
-                    <input type="checkbox" data-rs-field="enabled" aria-describedby="rs-profile-${index}-enabled-help" ${profile.enabled ? 'checked' : ''}>
-                    <span>${rsEsc(t('config.realtime_speech.profile_enabled'))}</span>
-                </label>
-                <button type="button" class="btn btn-danger rs-icon-button" data-rs-delete="${index}" title="${rsEsc(t('config.realtime_speech.delete_profile'))}">×</button>
+                <div class="rs-inline-toggle">
+                    <div class="toggle${profile.enabled ? ' on' : ''}" data-rs-field="enabled" aria-labelledby="rs-profile-${index}-enabled-label" aria-describedby="rs-profile-${index}-enabled-help"></div>
+                    <span id="rs-profile-${index}-enabled-label">${rsEsc(t('config.realtime_speech.profile_enabled'))}</span>
+                </div>
+                ${cfgDeleteButton({ iconOnly: true, label: t('config.realtime_speech.delete_profile'), attrs: `data-rs-delete="${index}"` })}
             </div>
         </div>
         <small class="field-help" id="rs-profile-${index}-enabled-help">${rsEsc(t('config.realtime_speech.profile_enabled_help'))}</small>
@@ -140,10 +140,10 @@ function rsProfileCard(profile, index) {
             </label>
             <div class="field-group rs-key-actions">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.vault_action'))}</span>
-                <label class="rs-inline-toggle">
-                    <input type="checkbox" data-rs-field="clear_api_key" ${profile.clear_api_key ? 'checked' : ''}>
-                    <span>${rsEsc(t('config.realtime_speech.clear_key'))}</span>
-                </label>
+                <div class="rs-inline-toggle">
+                    <div class="toggle${profile.clear_api_key ? ' on' : ''}" data-rs-field="clear_api_key" aria-labelledby="rs-profile-${index}-clear-label"></div>
+                    <span id="rs-profile-${index}-clear-label">${rsEsc(t('config.realtime_speech.clear_key'))}</span>
+                </div>
                 <small class="field-help">${rsEsc(t('config.realtime_speech.clear_key_help'))}</small>
             </div>`}
         </div>
@@ -165,13 +165,13 @@ function rsRender() {
         <div class="section-desc">${rsEsc(t('config.realtime_speech.description'))}</div>
         <div class="rs-master-card">
             <h2 class="cfg-topic-heading">${rsEsc(t('config.refresh.operation'))}</h2>
-            <label class="rs-master-toggle">
-                <input type="checkbox" data-rs-master="enabled" aria-describedby="rs-master-enabled-help" ${realtimeSpeechState.enabled ? 'checked' : ''}>
+            <div class="rs-master-toggle">
+                <div class="toggle${realtimeSpeechState.enabled ? ' on' : ''}" data-rs-master="enabled" aria-labelledby="rs-master-enabled-label" aria-describedby="rs-master-enabled-help"></div>
                 <span>
-                    <strong>${rsEsc(t('config.realtime_speech.master_enabled'))}</strong>
+                    <strong id="rs-master-enabled-label">${rsEsc(t('config.realtime_speech.master_enabled'))}</strong>
                     <small class="field-help" id="rs-master-enabled-help">${rsEsc(t('config.realtime_speech.master_enabled_help'))}</small>
                 </span>
-            </label>
+            </div>
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.default_profile'))}</span>
                 <select class="field-input" data-rs-master="default_profile">
@@ -197,7 +197,7 @@ function rsRender() {
         <div class="rs-profile-list">
             ${profiles.length
                 ? profiles.map(rsProfileCard).join('')
-                : `<div class="rs-empty">${rsEsc(t('config.realtime_speech.no_profiles'))}</div>`}
+                : AuraConfigForm.emptyState({ title: t('config.realtime_speech.no_profiles') })}
         </div>
         <div class="rs-save-row">
             <small class="rs-save-note">${rsEsc(t('config.realtime_speech.save_note'))}</small>
@@ -217,7 +217,7 @@ function rsReadCard(card) {
     const profile = realtimeSpeechState.profiles[index];
     card.querySelectorAll('[data-rs-field]').forEach(input => {
         const key = input.dataset.rsField;
-        profile[key] = input.type === 'checkbox' ? input.checked : input.value;
+        profile[key] = input.classList.contains('toggle') ? input.classList.contains('on') : (input.type === 'checkbox' ? input.checked : input.value);
     });
     return profile;
 }
@@ -227,7 +227,7 @@ function rsReadAll() {
     const enabled = document.querySelector('[data-rs-master="enabled"]');
     const defaultProfile = document.querySelector('[data-rs-master="default_profile"]');
     const park = document.querySelector('[data-rs-master="park_after_seconds"]');
-    realtimeSpeechState.enabled = !!(enabled && enabled.checked);
+    realtimeSpeechState.enabled = !!(enabled && enabled.classList.contains('on'));
     realtimeSpeechState.default_profile = defaultProfile ? defaultProfile.value : '';
     realtimeSpeechState.park_after_seconds = Number(park && park.value);
 }
@@ -350,7 +350,7 @@ function rsBind() {
             const index = Number(button.dataset.rsDelete);
             const removed = realtimeSpeechState.profiles[index];
             const label = (removed && (removed.name || removed.id)) || String(index + 1);
-            if (!(await showConfirm(t('config.realtime_speech.confirm_delete_title'), t('config.realtime_speech.confirm_delete_message', { name: label })))) return;
+            if (!(await showConfirm(t('config.realtime_speech.confirm_delete_title'), t('config.realtime_speech.confirm_delete_message', { name: label }), { danger: true, confirmText: t('config.common.delete') }))) return;
             realtimeSpeechState.profiles.splice(index, 1);
             if (removed && realtimeSpeechState.default_profile === removed.id) realtimeSpeechState.default_profile = '';
             rsRender();
@@ -359,11 +359,18 @@ function rsBind() {
     document.querySelectorAll('[data-rs-test]').forEach(button => button.addEventListener('click', () => rsTest(Number(button.dataset.rsTest))));
     document.querySelectorAll('[data-rs-refresh-voices]').forEach(button => button.addEventListener('click', () => rsRefreshVoices(Number(button.dataset.rsRefreshVoices))));
     document.querySelector('[data-rs-save]')?.addEventListener('click', rsSave);
+    document.querySelectorAll('.rs-section .toggle').forEach(toggle => toggle.addEventListener('click', () => {
+        toggle.classList.toggle('on');
+        if (typeof syncToggleA11y === 'function') syncToggleA11y(toggle);
+    }));
+    // Role, aria-checked and Space/Enter for the switches.
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls();
 }
 
 async function renderRealtimeSpeechSection() {
     const content = document.getElementById('content');
-    content.innerHTML = `<div class="cfg-section active"><div class="cfg-loading-state">${rsEsc(t('config.realtime_speech.loading'))}</div></div>`;
+    content.innerHTML = '<div class="cfg-section active" id="rs-state"></div>';
+    cfgListState('rs-state', { state: 'loading', title: t('config.realtime_speech.loading') });
     try {
         const [state, catalog] = await Promise.all([
             rsRequest('/api/realtime-speech/config'),
@@ -375,6 +382,7 @@ async function renderRealtimeSpeechSection() {
         rsRender();
         rsMarkClean();
     } catch (error) {
-        content.innerHTML = `<div class="cfg-section active"><div class="rs-load-error">${rsEsc(error.message)}</div></div>`;
+        content.innerHTML = '<div class="cfg-section active" id="rs-state"></div>';
+        cfgListState('rs-state', { state: 'error', text: error.message, retry: renderRealtimeSpeechSection });
     }
 }

@@ -19,5 +19,6 @@
   "config.detective.help_seconds": "Durée d'exécution maximale d'une tâche en secondes (30 à 7200), après quoi elle est arrêtée.",
   "config.detective.help_tools": "Nombre maximal d'appels d'outils par tâche (1 à 500).",
   "config.detective.help_iterations": "Nombre maximal de cycles de réflexion et de travail par tâche (1 à 750).",
-  "config.detective.help_tokens": "Plafond supplémentaire de tokens utilisés par tâche. 0 = aucune limite supplémentaire."
+  "config.detective.help_tokens": "Plafond supplémentaire de tokens utilisés par tâche. 0 = aucune limite supplémentaire.",
+  "config.detective.extra_read_invalid": "Ces lignes ne seront pas enregistrées, car elles n'ont pas la forme outil : opération, opération. Ligne {lines}."
 }

@@ -115,5 +115,7 @@
   "config.sip.help.permissions_originate_outbound": "Agenten får starta samtal på eget initiativ. Kostnaderna debiteras av din telefonileverantör.",
   "config.sip.help.permissions_send_dtmf": "Agenten får skicka tonvalstangenter, till exempel för menyer i telefonsystem.",
   "config.sip.help.permissions_agent_hangup": "Agenten får avsluta pågående samtal.",
-  "config.sip.help.history_retention_days": "Samtalsloggen tas bort efter den här tiden (1-3650 dagar, standard 90)."
+  "config.sip.help.history_retention_days": "Samtalsloggen tas bort efter den här tiden (1-3650 dagar, standard 90).",
+  "config.sip.wizard.replace_title": "Ska det befintliga kontot ersättas?",
+  "config.sip.wizard.replace_text": "Den här förinställningen ersätter de befintliga konto- och nätverksvärdena."
 }

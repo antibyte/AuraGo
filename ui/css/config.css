@@ -3931,8 +3931,6 @@ transform:none; filter:none;
 }
 .pw-page[data-workspace-page="config"] .tts-voice-row { display: flex; gap: 0.5rem; align-items: center; }
 .pw-page[data-workspace-page="config"] .tts-voice-row .field-input { flex: 1; }
-.pw-page[data-workspace-page="config"] .tts-voice-modal .modal { max-width: 600px; }
-.pw-page[data-workspace-page="config"] .tts-voice-modal-body { max-height: 400px; overflow-y: auto; }
 .pw-page[data-workspace-page="config"] .tts-voice-list { padding: 0.5rem; }
 .pw-page[data-workspace-page="config"] .tts-voice-item {
     padding: 0.6rem 0.8rem;
@@ -3947,9 +3945,6 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] #phonon-voice-list { max-height: 24rem; overflow-y: auto; margin-top: 0.5rem; }
 .pw-page[data-workspace-page="config"] .tts-phonon-voice-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; cursor: default; flex-wrap: wrap; }
 .pw-page[data-workspace-page="config"] .tts-phonon-voice-item .tts-voice-item-name { min-width: 0; overflow-wrap: anywhere; }
-.pw-page[data-workspace-page="config"] .tts-voice-loading,
-.pw-page[data-workspace-page="config"] .tts-voice-empty { text-align: center; padding: 1rem; color: var(--text-secondary); }
-.pw-page[data-workspace-page="config"] .tts-voice-error { color: var(--danger); padding: 1rem; }
 
 /* Google Workspace config section */
 .pw-page[data-workspace-page="config"] .gw-vault-badge { font-size: 0.65rem; color: var(--warning); }

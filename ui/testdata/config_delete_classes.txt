@@ -2,5 +2,4 @@
 chromecast cfgdev-icon-btn-danger
 devices devices-action-btn-delete
 email em-card-btn-delete
-sip sip-danger-button
 sql_connections action-btn-delete

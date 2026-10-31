@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker image",
   "config.tts.piper_data_path_label": "Cesta k datům",
   "config.tts.piper_voice_browser_title": "Hlasový prohlížeč Piper",
-  "config.tts.piper_loading_voices": "⏳ Načítání hlasů...",
+  "config.tts.piper_loading_voices": "Načítání hlasů...",
   "config.tts.piper_no_voices": "Nejsou k dispozici žádné hlasy.",
   "config.tts.piper_voice_error": "Hlasy se nepodařilo načíst.",
   "config.tts.piper_status_disabled": "Piper je vypnutý",

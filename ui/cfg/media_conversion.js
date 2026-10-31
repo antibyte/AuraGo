@@ -8,86 +8,38 @@ function mcEnsureData() {
     return configData.tools.media_conversion;
 }
 
-function mcField(labelKey, helpKey, inputHtml) {
-    const helpText = t(helpKey);
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
-    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
-    html += inputHtml;
-    html += '</div>';
-    return html;
-}
-
-function mcToggleRow(labelKey, helpKey, enabled, path) {
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + t(labelKey) + '</div>';
-    const helpText = t(helpKey);
-    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div>';
-    html += '</div>';
-    return html;
-}
-
 async function renderMediaConversionSection(section) {
     if (section) _mcSection = section; else section = _mcSection;
     const data = mcEnsureData();
     const enabled = data.enabled === true;
+    const form = window.AuraConfigForm;
+    const key = name => t('config.media_conversion.' + name);
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div class="cfg-note-banner cfg-note-banner-info">🎬 ' + t('config.media_conversion.note') + '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.media_conversion.enabled_label') + '</div>';
-    const helpEnabled = t('help.media_conversion.enabled');
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="tools.media_conversion.enabled" onclick="toggleBool(this);mcUpdateEnabled(this.classList.contains(\'on\'))"></div>';
-    html += '</div>';
+    // The switch re-renders the section: the tool fields only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.media_conversion.enabled'), path: 'tools.media_conversion.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);mcUpdateEnabled(this.classList.contains('on'))"`);
+    const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
+    let after = '';
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>🎞️</span><div>';
-        html += '<strong>' + t('config.media_conversion.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.media_conversion.disabled_desc') + '</small>';
-        html += '</div></div></div>';
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
+    } else {
+        groups[0].fields.push(form.toggle({ label: key('readonly_label'), help: t('help.media_conversion.readonly'), path: 'tools.media_conversion.readonly', value: data.readonly === true }));
+        groups.push({ titleKey: 'config.refresh.runtime', fields: [
+            form.field({ label: key('ffmpeg_path_label'), help: t('help.media_conversion.ffmpeg_path'), path: 'tools.media_conversion.ffmpeg_path', value: data.ffmpeg_path || '', placeholder: 'ffmpeg' }),
+            form.field({ label: key('imagemagick_path_label'), help: t('help.media_conversion.imagemagick_path'), path: 'tools.media_conversion.imagemagick_path', value: data.imagemagick_path || '', placeholder: 'magick' }),
+            form.number({ label: key('timeout_label'), help: t('help.media_conversion.timeout_seconds'), path: 'tools.media_conversion.timeout_seconds', value: data.timeout_seconds || 120, min: 5, max: 1800, unit: key('seconds') }),
+            form.number({ label: key('max_file_size_label'), help: t('help.media_conversion.max_file_size_mb'), path: 'tools.media_conversion.max_file_size_mb', value: data.max_file_size_mb || 0, min: 0, max: 102400, unit: key('megabytes') })
+        ], content: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="mcTestTools()" id="mc-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + escapeHtml(key('test_button')) + '</span></button>' },
+            { html: cfgActionResult.html('mc-test-result') }
+        ]) });
     }
 
-    html += mcToggleRow('config.media_conversion.readonly_label', 'help.media_conversion.readonly', data.readonly === true, 'tools.media_conversion.readonly');
-
-    html += mcField('config.media_conversion.ffmpeg_path_label', 'help.media_conversion.ffmpeg_path',
-        '<input class="field-input" type="text" data-path="tools.media_conversion.ffmpeg_path" value="' + escapeAttr(data.ffmpeg_path || '') + '" placeholder="ffmpeg">');
-
-    html += mcField('config.media_conversion.imagemagick_path_label', 'help.media_conversion.imagemagick_path',
-        '<input class="field-input" type="text" data-path="tools.media_conversion.imagemagick_path" value="' + escapeAttr(data.imagemagick_path || '') + '" placeholder="magick">');
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.media_conversion.timeout_label') + '</div>';
-    const helpTimeout = t('help.media_conversion.timeout_seconds');
-    if (helpTimeout) html += '<div class="field-help">' + helpTimeout + '</div>';
-    html += '<div class="dc-timeout-row">';
-    html += '<input class="field-input dc-timeout-input" type="number" min="5" max="1800" data-path="tools.media_conversion.timeout_seconds" value="' + (data.timeout_seconds || 120) + '">';
-    html += '<span class="dc-seconds-label">' + t('config.media_conversion.seconds') + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.media_conversion.max_file_size_label') + '</div>';
-    const helpMaxSize = t('help.media_conversion.max_file_size_mb');
-    if (helpMaxSize) html += '<div class="field-help">' + helpMaxSize + '</div>';
-    html += '<div class="dc-timeout-row">';
-    html += '<input class="field-input dc-timeout-input" type="number" min="0" max="102400" data-path="tools.media_conversion.max_file_size_mb" value="' + (data.max_file_size_mb || 0) + '">';
-    html += '<span class="dc-seconds-label">' + t('config.media_conversion.megabytes') + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="mcTestTools()" id="mc-test-btn" data-config-action-draft="true">🔌 ' + t('config.media_conversion.test_button') + '</button>';
-    html += cfgActionResult.html('mc-test-result');
-    html += '</div>';
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({
+        label: section.label, desc: section.desc, groups, afterHTML: after,
+        beforeHTML: '<div class="cfg-note-banner cfg-note-banner-info">' + escapeHtml(key('note')) + '</div>'
+    });
     attachChangeListeners();
 }
 

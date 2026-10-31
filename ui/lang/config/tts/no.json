@@ -47,7 +47,7 @@
   "config.tts.piper_image_label": "Docker-image",
   "config.tts.piper_data_path_label": "Datasti",
   "config.tts.piper_voice_browser_title": "Piper-stemmeutforsker",
-  "config.tts.piper_loading_voices": "⏳ Laster stemmer...",
+  "config.tts.piper_loading_voices": "Laster stemmer...",
   "config.tts.piper_no_voices": "Ingen stemmer tilgjengelige.",
   "config.tts.piper_voice_error": "Kunne ikke laste stemmer.",
   "config.tts.piper_status_disabled": "Piper er deaktivert",

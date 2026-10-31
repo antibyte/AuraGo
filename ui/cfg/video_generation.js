@@ -17,126 +17,52 @@ function renderVideoGenerationSection(section) {
     if (section) _videoSection = section; else section = _videoSection;
     const cfg = configData['video_generation'] || {};
     const enabled = cfg.enabled === true;
+    const form = window.AuraConfigForm;
+    const key = name => t('config.video_gen.' + name);
 
-    let html = `<div class="cfg-section active">
-        <div class="section-header">${section.label}</div>
-        <div class="section-desc">${section.desc}</div>`;
-
-    html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.video_gen.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="video_generation.enabled" aria-describedby="video-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)"></div>
-    </div>
-    <div class="field-help" id="video-enabled-help">${t('config.video_gen.enabled_help')}</div>`;
+    // The switch re-renders the section: the provider groups only exist while the feature is on.
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'video_generation.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)"`);
+    const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
+    let after = '';
 
     if (!enabled) {
-        html += `<div class="wh-notice">
-            <span>🎬</span>
-            <div>
-                <strong>${t('config.video_gen.disabled_notice')}</strong><br>
-                <small>${t('config.video_gen.disabled_desc')}</small>
-            </div>
-        </div>`;
-        html += `</div>`;
-        document.getElementById('content').innerHTML = html;
-        attachChangeListeners();
-        return;
+        after = form.emptyState({ title: key('disabled_notice'), desc: key('disabled_desc') });
+    } else {
+        const curProvider = cfg.provider || '';
+        const providers = configGeneralProviders();
+        const isAgnes = videoGenerationProviderType(curProvider) === 'agnes';
+        const resolutionOptions = isAgnes ? ['480p','720p','768P','1080p'] : ['768P','1080P','720p','4k'];
+        const aspectRatioOptions = isAgnes ? ['16:9','9:16','1:1','4:3','3:4'] : ['16:9','9:16','1:1'];
+        const currentResolution = String(cfg.default_resolution || '768P').toLowerCase();
+        const currentAspectRatio = String(cfg.default_aspect_ratio || '16:9');
+        const providerOptions = [{ value: '', label: key('select_provider') }].concat(providers.map(p => ({
+            value: p.id,
+            label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' - ' + p.model : '')
+        })));
+        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'video_generation.provider', value: curProvider, options: providerOptions, onchange: 'videoGenerationProviderChanged(this)' })
+            .replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+        groups.push({ title: key('provider_title'), desc: key('provider_desc'), fields: [
+            providerSelect,
+            form.field({ label: key('model_label'), help: key('model_hint'), path: 'video_generation.model', value: cfg.model || '', placeholder: 'MiniMax-Hailuo-2.3, veo-3.1-generate-preview...' })
+        ] });
+        groups.push({ title: key('defaults_title'), desc: key('defaults_desc'), fields: [
+            form.number({ label: key('duration_label'), help: key('duration_help'), path: 'video_generation.default_duration_seconds', value: cfg.default_duration_seconds || 6, min: 1, max: 30 }),
+            form.select({ label: key('resolution_label'), help: key('resolution_help'), path: 'video_generation.default_resolution', value: (resolutionOptions.find(v => v.toLowerCase() === currentResolution) || ''), options: resolutionOptions.map(v => ({ value: v, label: v })) }),
+            form.select({ label: key('aspect_ratio_label'), help: key('aspect_ratio_help'), path: 'video_generation.default_aspect_ratio', value: currentAspectRatio, options: aspectRatioOptions.map(v => ({ value: v, label: v })) })
+        ] });
+        groups.push({ title: key('limits_title'), desc: key('limits_desc'), fields: [
+            form.number({ label: key('poll_interval_label'), help: key('poll_interval_help'), path: 'video_generation.poll_interval_seconds', value: cfg.poll_interval_seconds || 10, min: 1, max: 120 }),
+            form.number({ label: key('timeout_label'), help: key('timeout_help'), path: 'video_generation.timeout_seconds', value: cfg.timeout_seconds || 600, min: 30, max: 3600 }),
+            form.number({ label: key('max_daily_label'), help: key('max_daily_help'), path: 'video_generation.max_daily', value: cfg.max_daily || 0, min: 0 })
+        ] });
+        groups.push({ title: key('test_title'), desc: key('test_desc'), content: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" id="video-test-btn" onclick="videoTestConnection()" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + escapeHtml(key('test_btn')) + '</span></button>' },
+            { html: cfgActionResult.html('video-test-result') }
+        ]) });
     }
 
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.video_gen.provider_title')}</div>
-        <div class="field-group-desc">${t('config.video_gen.provider_desc')}</div>`;
-
-    const curProvider = cfg.provider || '';
-    const isAgnes = videoGenerationProviderType(curProvider) === 'agnes';
-    const resolutionOptions = isAgnes ? ['480p','720p','768P','1080p'] : ['768P','1080P','720p','4k'];
-    const aspectRatioOptions = isAgnes ? ['16:9','9:16','1:1','4:3','3:4'] : ['16:9','9:16','1:1'];
-    const currentResolution = String(cfg.default_resolution || '768P').toLowerCase();
-    const currentAspectRatio = String(cfg.default_aspect_ratio || '16:9');
-    html += `<div class="field-grid two-cols">`;
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.video_gen.provider_label')}</div>
-        <div class="field-help">${t('config.video_gen.provider_help')}</div>
-        <select class="field-select" data-path="video_generation.provider" onchange="videoGenerationProviderChanged(this)">
-            <option value=""${!curProvider ? ' selected' : ''}>${t('config.video_gen.select_provider')}</option>`;
-    configGeneralProviders().forEach(p => {
-        const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
-        const name = p.name || p.id;
-        const badge = p.type ? (' [' + p.type + ']') : '';
-        const model = p.model ? (' - ' + p.model) : '';
-        html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
-    });
-    html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
-    html += `</select></div>`;
-
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.video_gen.model_label')}</div>
-        <div class="field-help">${t('config.video_gen.model_hint')}</div>
-        <input type="text" class="field-input" data-path="video_generation.model" value="${escapeAttr(cfg.model || '')}"
-            placeholder="MiniMax-Hailuo-2.3, veo-3.1-generate-preview...">
-    </div></div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.video_gen.defaults_title')}</div>
-        <div class="field-group-desc">${t('config.video_gen.defaults_desc')}</div>
-        <div class="field-grid two-cols">
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.duration_label')}</div>
-                <div class="field-help">${t('config.video_gen.duration_help')}</div>
-                <input type="number" class="field-input" data-path="video_generation.default_duration_seconds" value="${cfg.default_duration_seconds || 6}" min="1" max="30">
-            </div>
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.resolution_label')}</div>
-                <div class="field-help">${t('config.video_gen.resolution_help')}</div>
-                <select class="field-select" data-path="video_generation.default_resolution">
-                    ${resolutionOptions.map(v => `<option value="${v}"${currentResolution === v.toLowerCase() ? ' selected' : ''}>${v}</option>`).join('')}
-                </select>
-            </div>
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.aspect_ratio_label')}</div>
-                <div class="field-help">${t('config.video_gen.aspect_ratio_help')}</div>
-                <select class="field-select" data-path="video_generation.default_aspect_ratio">
-                    ${aspectRatioOptions.map(v => `<option value="${v}"${currentAspectRatio === v ? ' selected' : ''}>${v}</option>`).join('')}
-                </select>
-            </div>
-        </div>
-    </div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.video_gen.limits_title')}</div>
-        <div class="field-group-desc">${t('config.video_gen.limits_desc')}</div>
-        <div class="field-grid two-cols">
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.poll_interval_label')}</div>
-                <div class="field-help">${t('config.video_gen.poll_interval_help')}</div>
-                <input type="number" class="field-input" data-path="video_generation.poll_interval_seconds" value="${cfg.poll_interval_seconds || 10}" min="1" max="120">
-            </div>
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.timeout_label')}</div>
-                <div class="field-help">${t('config.video_gen.timeout_help')}</div>
-                <input type="number" class="field-input" data-path="video_generation.timeout_seconds" value="${cfg.timeout_seconds || 600}" min="30" max="3600">
-            </div>
-            <div class="field-group">
-                <div class="field-label">${t('config.video_gen.max_daily_label')}</div>
-                <div class="field-help">${t('config.video_gen.max_daily_help')}</div>
-                <input type="number" class="field-input" data-path="video_generation.max_daily" value="${cfg.max_daily || 0}" min="0" placeholder="0">
-            </div>
-        </div>
-    </div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">${t('config.video_gen.test_title')}</div>
-        <div class="field-group-desc">${t('config.video_gen.test_desc')}</div>
-        <div class="cfg-actions-row">
-            <button class="btn-save cfg-test-btn" id="video-test-btn" onclick="videoTestConnection()" data-config-action-draft="true">
-                🔌 ${t('config.video_gen.test_btn')}
-            </button>
-            ${cfgActionResult.html('video-test-result')}
-        </div>
-    </div>`;
-
-    html += `</div>`;
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc, groups, afterHTML: after });
     attachChangeListeners();
 }
 
