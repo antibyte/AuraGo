@@ -16,6 +16,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // ── MCP Server (Streamable HTTP, JSON-RPC 2.0) ─────────────────────────────
@@ -311,6 +312,19 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 			IsError: true,
 		}, nil
 	}
+	if p.Name == "invoke_tool" {
+		valid := false
+		switch args := p.Arguments["arguments"].(type) {
+		case map[string]interface{}:
+			valid = true
+		case string:
+			value := strings.TrimSpace(args)
+			valid = strings.HasPrefix(value, "{") && json.Valid([]byte(value))
+		}
+		if !valid {
+			return mcpCallToolResult{}, &mcpError{Code: -32602, Message: "Invalid params: invoke_tool arguments must be a JSON object or an encoded JSON object"}
+		}
+	}
 
 	// Build a ToolCall from MCP arguments
 	tc := agent.ToolCall{
@@ -318,7 +332,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 		Action: p.Name,
 	}
 
-	// Marshal arguments into JSON and unmarshal into ToolCall to populate fields
+	// Decode through the native transport path, including serialized object fields.
 	if len(p.Arguments) > 0 {
 		argBytes, _ := json.Marshal(p.Arguments)
 		// Scan marshaled arguments for prompt injection before dispatch
@@ -332,11 +346,13 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 				}, nil
 			}
 		}
-		json.Unmarshal(argBytes, &tc)
-		// Ensure Action stays correct after unmarshal
-		tc.Action = p.Name
-		tc.IsTool = true
-		tc.Params = p.Arguments
+		tc = agent.NativeToolCallToToolCall(openai.ToolCall{
+			Type: openai.ToolTypeFunction,
+			Function: openai.FunctionCall{
+				Name:      p.Name,
+				Arguments: string(argBytes),
+			},
+		}, s.Logger)
 	}
 
 	// Add timeout

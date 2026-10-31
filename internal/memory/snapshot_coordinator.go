@@ -270,7 +270,7 @@ func FreezeMemorySnapshots(ctx context.Context, cfg *config.Config) (func(), err
 			}
 			if pending != 0 {
 				release()
-				return nil, fmt.Errorf("memory snapshot blocked by %d unfinished publications", pending)
+				return nil, fmt.Errorf("%w (%d pending)", ErrMemorySnapshotBlocked, pending)
 			}
 		}
 	}

@@ -92,6 +92,9 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 			AND consolidation_status='in_progress' ORDER BY id LIMIT 1000)`); err != nil {
 		return nil, fmt.Errorf("recover memory consolidation claims: %w", err)
 	}
+	if err := sweepAbandonedMemoryPublications(db, logger); err != nil {
+		return nil, err
+	}
 	if err := stm.EnsureDefaultSession(); err != nil {
 		return nil, fmt.Errorf("ensure default chat session: %w", err)
 	}

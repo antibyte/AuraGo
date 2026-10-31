@@ -124,6 +124,21 @@ attestation, request validation, candidate-logit normalization, and status.
   evaluation only: no retry, device switch or generation retirement. Preserve
   caller cancellation causes and keep the cancel endpoint active while reading.
 
+## Consumer layer
+
+- Consumer snapshots are passive: they read settings and status only and never
+  start, install or probe the runtime. The catalog read in
+  `RefreshImageCapability` is the only remote call on that path and runs no inference.
+- Consumer switches live in top-level `decision_consumers`, never in
+  `DecisionsConfig`, which is compared with `==`; changing it rotates the provider generation.
+- `ImageRequired` consumers never send on `images_unknown`. They need images
+  supported, and external backends also need `allow_external_images`.
+- `images_unsupported` is not retryable and pins only that provider generation and model epoch.
+- Consumer results never gate security. They may reorder, add one hint, or
+  suppress one optional action at p >= 0.85. Off or failing means today's behaviour.
+- New consumers register in `consumers.Registry` with class, modality, a
+  `decisions_<id>` budget category and a timeout, and join `consumers.Order` and the config switches.
+
 ## Verification
 
 The task router consumes the existing service through an injected scoring

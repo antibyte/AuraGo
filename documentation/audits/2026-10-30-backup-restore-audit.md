@@ -2,6 +2,27 @@
 
 Nur gelesen, nichts geändert. Zeilennummern beziehen sich auf `main` bei `e83e79752` mit Working Tree.
 
+## Status (2026-10-31)
+
+Welle 1 ist auf dem lokalen main committet, nicht gepusht und nicht deployed.
+
+| Befund | Commit | Kern der Änderung |
+| --- | --- | --- |
+| B3, B4 | `e886e9817` | Body bis 64 KiB, 400 bei Übergröße, ungültigem JSON und Passwort > 1024 Byte; mit Passwort bricht ein Vault- oder Token-Exportfehler mit 500 ab |
+| M1 | `97d27bd15` | Marker ohne Schreibzustand werden gelöscht; Chunk-Hash für Fakten > 4000 Zeichen; `NewSQLiteMemory` räumt beim Start Marker früherer Läufe ab (WARN mit Doc-IDs); Backup antwortet 503 über `ErrMemorySnapshotBlocked` |
+| U1, U2 | `88b427132` | `abort_update` spielt Prompt-, Skill- und Tool-Kopien zurück; Recovery-Zustand für INT/TERM/Exit nach dem Stopp; Restore-Helfer ohne `errexit`-Abhängigkeit; `--no-restart` endet `rolled_back` |
+
+Tests:
+
+- Memory-Paket komplett grün.
+- Backup-Tests im Server-Paket grün.
+- Updater-Tests (`internal/audit`, `update`) unter Linux im Container `golang:1.27.3` grün, ohne Skips.
+
+Neu offen aus dem Review:
+
+- `snapshot.publication.correction.*`: Eine fehlgeschlagene Korrektur behält ihren Marker, bis dieselbe Korrektur erneut angewendet wird (`correction_apply.go:129-137`). Wird sie nie wiederholt, bleiben Snapshots gesperrt.
+- `abort_before_file_changes` endet weiterhin `uncertain` und blockiert das nächste Update (Altlast, nicht durch Welle 1 entstanden).
+
 ## Umfang
 
 | Bereich | Dateien |

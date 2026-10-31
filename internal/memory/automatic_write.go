@@ -154,7 +154,18 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 	resultErr = storeErr
 	publication.createdIDs = stored.CreatedIDs
 	publication.rollbackAllowed = len(stored.ReusedIDs)+len(stored.UnknownIDs) == 0
-	for _, id := range stored.CreatedIDs {
+	publication.nothingWritten = len(stored.CreatedIDs)+len(stored.UnknownIDs) == 0
+	// Documents over 4000 characters are stored as chunks (3500/200), one ID per
+	// chunk in order; the single-document embedding gate does not apply to them.
+	// Ownership of a chunk is provable when the stored text is exactly the chunk
+	// this call generated.
+	var expectedChunks []string
+	if len(buildContentString(concept, content)) > 4000 {
+		if chunks := chunkText(content, 3500, 200); len(chunks) == len(stored.CreatedIDs) {
+			expectedChunks = chunks
+		}
+	}
+	for i, id := range stored.CreatedIDs {
 		write := AutomaticMemoryWrite{DocID: id, PublicationID: publication.key}
 		if s != nil {
 			var err error
@@ -166,6 +177,11 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 		if len(buildContentString(concept, content)) <= 4000 {
 			actual, err := ltm.GetByID(id)
 			if err == nil && (actual == buildContentString(concept, content) || actual == content) {
+				write.ContentHash = contentSHA256(actual)
+			}
+		} else if expectedChunks != nil {
+			actual, err := ltm.GetByID(id)
+			if err == nil && actual == buildContentString(concept, expectedChunks[i]) {
 				write.ContentHash = contentSHA256(actual)
 			}
 		}

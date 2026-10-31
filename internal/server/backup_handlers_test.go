@@ -912,3 +912,81 @@ func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
 		t.Fatalf("restored token count = %d, want 1", got)
 	}
 }
+
+func newBackupCreateTestServer(t *testing.T) *Server {
+	t.Helper()
+	instanceRoot := t.TempDir()
+	dataDir := filepath.Join(instanceRoot, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(data): %v", err)
+	}
+	configPath := filepath.Join(instanceRoot, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  port: 1234\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(config): %v", err)
+	}
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = dataDir
+	return &Server{Cfg: cfg, Logger: slog.Default()}
+}
+
+func TestHandleBackupCreateRejectsBadBodies(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"oversize body":     `{"password":"` + strings.Repeat("a", backupCreateMaxBodyBytes) + `"}`,
+		"invalid json":      `{"password":`,
+		"password too long": `{"password":"` + strings.Repeat("a", backupCreateMaxPasswordBytes+1) + `"}`,
+	}
+	for name, body := range cases {
+		body := body
+		t.Run(name, func(t *testing.T) {
+			s := newBackupCreateTestServer(t)
+			req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(body))
+			rec := httptest.NewRecorder()
+			handleBackupCreate(s).ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body=%.200s", rec.Code, rec.Body.String())
+			}
+			if rec.Header().Get("Content-Disposition") != "" {
+				t.Fatalf("unexpected archive download for %s", name)
+			}
+		})
+	}
+}
+
+func TestHandleBackupCreateEmptyBodyStillCreatesPlainBackup(t *testing.T) {
+	t.Parallel()
+
+	s := newBackupCreateTestServer(t)
+	// Plain-text backups are refused only when config secrets exist; this one has none.
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(""))
+	rec := httptest.NewRecorder()
+	handleBackupCreate(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%.200s", rec.Code, rec.Body.String())
+	}
+}
+
+// Not parallel: swaps the package-level export seam.
+func TestHandleBackupCreateAbortsWhenVaultExportFails(t *testing.T) {
+	orig := exportVaultSecretsFn
+	exportVaultSecretsFn = func(*security.Vault, string) ([]byte, error) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	t.Cleanup(func() { exportVaultSecretsFn = orig })
+
+	s := newBackupCreateTestServer(t)
+	s.Vault = newTestVault(t, filepath.Join(filepath.Dir(s.Cfg.ConfigPath), "data", "vault.bin"), "01")
+	req := httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{"password":"portable"}`))
+	rec := httptest.NewRecorder()
+	handleBackupCreate(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body=%.200s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "backup aborted") {
+		t.Fatalf("body = %s, want abort message", rec.Body.String())
+	}
+	if rec.Header().Get("Content-Disposition") != "" {
+		t.Fatal("unexpected archive download")
+	}
+}

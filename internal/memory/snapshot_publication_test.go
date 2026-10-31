@@ -4,8 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -223,5 +228,133 @@ func TestPanickingAutomaticPublicationKeepsMarkerAndReleasesLease(t *testing.T) 
 	var pending int
 	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'snapshot.publication.%'`).Scan(&pending); err != nil || pending != 1 {
 		t.Fatalf("panic marker count=%d err=%v", pending, err)
+	}
+}
+
+func publicationMarkerCount(t *testing.T, s *SQLiteMemory) int {
+	t.Helper()
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'snapshot.publication.%'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestFailedPublicationWithoutWritesLeavesNoMarker(t *testing.T) {
+	cfg, stm, vector := publicationSnapshotFixture(t)
+	_, err := storeAutomaticMemoryDocument(t.Context(), stm, vector, "early failure", "body", MemoryMetaUpdate{}, func(ctx context.Context, v VectorDB, concept, body string) (VectorStoreResult, error) {
+		if err := startMemoryPublication(ctx); err != nil {
+			return VectorStoreResult{}, err
+		}
+		return VectorStoreResult{}, errors.New("injected failure before any write")
+	})
+	if err == nil {
+		t.Fatal("expected injected failure")
+	}
+	if n := publicationMarkerCount(t, stm); n != 0 {
+		t.Fatalf("markers after failure without writes: %d", n)
+	}
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); err != nil {
+		t.Fatalf("snapshot after failed write: %v", err)
+	}
+}
+
+func TestReusedPublicationLeavesNoMarker(t *testing.T) {
+	_, stm, vector := publicationSnapshotFixture(t)
+	first, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "reuse fact", "same body", MemoryMetaUpdate{})
+	if err != nil || len(first.CreatedIDs) != 1 {
+		t.Fatalf("first=%+v err=%v", first, err)
+	}
+	// A reuse whose bookkeeping fails still wrote nothing to the corpus.
+	if _, err := stm.db.Exec(`CREATE TRIGGER fail_source BEFORE INSERT ON memory_extraction_sources BEGIN SELECT RAISE(ABORT,'injected'); END`); err != nil {
+		t.Fatal(err)
+	}
+	second, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "reuse fact", "same body", MemoryMetaUpdate{SourceSessionID: "other"})
+	if len(second.ReusedIDs) != 1 || len(second.CreatedIDs) != 0 {
+		t.Fatalf("expected reuse, got %+v err=%v", second, err)
+	}
+	if n := publicationMarkerCount(t, stm); n != 0 {
+		t.Fatalf("markers after reuse: %d", n)
+	}
+}
+
+func TestUncertainPublicationBlocksSnapshotWithSentinel(t *testing.T) {
+	cfg, stm, vector := publicationSnapshotFixture(t)
+	if _, err := stm.db.Exec(`CREATE TRIGGER fail_metadata BEFORE INSERT ON memory_meta BEGIN SELECT RAISE(ABORT,'injected metadata failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "partial fact", "body", MemoryMetaUpdate{}); err == nil {
+		t.Fatal("expected partial failure")
+	}
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); !errors.Is(err, ErrMemorySnapshotBlocked) {
+		t.Fatalf("err=%v, want ErrMemorySnapshotBlocked", err)
+	}
+}
+
+func TestChunkedAutomaticWriteCanBeRolledBack(t *testing.T) {
+	_, stm, vector := publicationSnapshotFixture(t)
+	body := strings.Repeat("alpha beta gamma delta. ", 300)
+	result, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "long fact", body, MemoryMetaUpdate{})
+	if err != nil || len(result.CreatedIDs) < 2 {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	for _, w := range result.Writes {
+		if w.ContentHash == "" {
+			t.Fatalf("chunk %s has no provable content hash", w.DocID)
+		}
+	}
+	if err := stm.RollbackAutomaticMemoryWritesContext(t.Context(), vector, result.Writes); err != nil {
+		t.Fatalf("rollback of chunked write: %v", err)
+	}
+	for _, id := range result.CreatedIDs {
+		if _, err := vector.GetByID(id); err == nil {
+			t.Fatalf("chunk %s survived rollback", id)
+		}
+	}
+}
+
+func TestStartupSweepClearsLeftoverPublicationMarkersOnReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sweep.db")
+	stm, err := NewSQLiteMemory(path, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range map[string]string{
+		"snapshot.publication.abandoned":     memoryPublicationPublishingValue,
+		"snapshot.publication.created":       `["mem_1"]`,
+		"snapshot.publication.uncertain":     memoryPublicationUncertainValue,
+		"snapshot.publication.correction.c1": memoryPublicationPublishingValue,
+		"snapshot.publication.privacy.job1":  "scrub",
+		"file_index.replacement.x.y":         memoryPublicationPublishingValue,
+	} {
+		if _, err := stm.db.Exec(`INSERT INTO memory_maintenance_meta(key,value) VALUES(?,?)`, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := stm.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Reopen a current-schema database: the sweep must run on this path.
+	stm, err = NewSQLiteMemory(path, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	rows, err := stm.db.Query(`SELECT key FROM memory_maintenance_meta WHERE key LIKE 'snapshot.publication.%' OR key LIKE 'file_index.replacement.%' ORDER BY key`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var left []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		left = append(left, k)
+	}
+	want := []string{"file_index.replacement.x.y", "snapshot.publication.correction.c1", "snapshot.publication.privacy.job1"}
+	if !slices.Equal(left, want) {
+		t.Fatalf("left=%v want=%v", left, want)
 	}
 }

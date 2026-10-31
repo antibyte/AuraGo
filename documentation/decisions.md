@@ -265,6 +265,110 @@ budget. Known model-specific limits, including Clef's text truncation boundary,
 are checked before sending rather than silently dropping input. Exceeding a
 limit requires a smaller request or another compatible model.
 
+## Consumers
+
+Consumers are optional subsystems that ask Decisions one question. Each is off
+by default and has its own switch. They all call through one hub
+(`internal/server/decisions_consumers.go`), which first takes a passive snapshot
+of saved settings and status. A snapshot never installs, starts or probes the
+runtime.
+
+| Consumer | Asks | May change | Without a usable answer |
+| --- | --- | --- | --- |
+| `memory_rerank` | Relevance 0-10 for up to six recalled memories | Reorders them: 70 % from the answer, 30 % from the existing score | LLM rerank, as today |
+| `appraisal` | Praise, criticism or repair, and its target | One relationship observation for the personality engine | No observation |
+| `salience_gate` | Does the turn state a durable fact, preference or plan | In the gray zone only, skips memory extraction for that turn | Extraction runs |
+| `mail_triage` | Urgent, FYI, automated or suspicious | Groups the poll's summary under labelled headings | Flat summary, byte-identical |
+| `webhook_questions` | The webhook's own yes/no question | Adds a hint line; in `gate` mode suppresses the agent message | Delivered as today |
+| `person_wake` | What a camera frame mainly shows | Suppresses the agent wake, or adds a hint line to it | Agent wakes as today |
+| `indexer_images` | Kind of image and whether it has readable text | Adds a kind hint to the vision prompt; a coarse text entry where vision cannot read the image | Today's vision path |
+| `game_maker_visual` | Canvas state and HUD visibility of the first capture | Evidence in the `visual_result` event only | No precheck |
+
+Limits per consumer: `appraisal` runs only for plain chat turns with the
+personality engine on, EngineV2 off, no helper or mood analysis and no phrase
+match. `salience_gate` asks only when the prototype margin is 0.00 to 0.05 and
+skips extraction when yes is at most 0.15. `mail_triage` classifies at most 16
+emails per poll; a failure stops the rest of that poll. `person_wake` decides only
+the agent wake: notifications, toasts and missions always run, and the wake is
+suppressed when no-human, animal and vehicle reach 0.85 together. `webhook_questions`
+applies to `message` delivery only; `gate` mode suppresses the agent message at
+yes of 0.15 or less, and webhook missions still run.
+
+| Consumer | Class | Input | Cost category | Timeout |
+| --- | --- | --- | --- | --- |
+| `router` | Interactive | Text | `routing` | 1.5 s |
+| `memory_rerank` | Interactive | Text | `decisions_memory_rerank` | 1.2 s |
+| `appraisal` | Background | Text | `decisions_appraisal` | 10 s |
+| `salience_gate` | Background | Text | `decisions_salience_gate` | 10 s |
+| `mail_triage` | Background | Text | `decisions_mail_triage` | 20 s |
+| `webhook_question` | Background | Text | `decisions_webhook_question` | 20 s |
+| `person_wake` | Background, min. 2 s apart | Image | `decisions_person_wake` | 20 s |
+| `indexer_images` | Background | Image | `decisions_indexer_images` | 30 s |
+| `game_maker_visual` | Background | Image | `decisions_game_maker_visual` | 30 s |
+
+The router's switch is `llm_router.decisions_fallback`. The other consumers use the
+top-level `decision_consumers` key, deliberately outside `decisions`: a switch
+change there does not rotate the Decisions provider generation. Each entry has
+`enabled`; image consumers also have `allow_external_images`. The Consumers card
+in **Configuration → Decisions** shows image permissions only for the external
+backend. A consumer's own switch change revokes only its pending results.
+
+### Images
+
+- **Local:** the service is ready, the projector SHA-256 is set, and the runtime
+  reports the same projector revision and hash. No projector gives
+  `images_unsupported`; a mismatch gives `images_unknown`.
+- **Provider:** the saved model is usable in the catalog and advertises image
+  input. A catalog past its TTL is unknown, and unknown counts as no. For the
+  three image consumers, an unknown catalog triggers one catalog read (no
+  inference) before the decision, at most once per five minutes across all
+  consumers. Snapshots themselves never refresh.
+- `images_unsupported` is not retryable and pins that provider generation and
+  model epoch.
+- Image consumers (`person_wake`, `indexer_images`, `game_maker_visual`) stay off
+  unless images are supported and the backend is local or `allow_external_images`
+  is set. Text consumers drop any image (`images_skipped`).
+- Preparation caps the longer side at 448 px and never enlarges. Photos become
+  JPEG at quality 85, images with alpha stay PNG, and GIF or WebP become one PNG
+  frame. One image is prepared at a time. Inputs above 12 MiB or 32 million pixels
+  are refused.
+
+### Privacy, cost and admission
+
+`allow_external_images` is the operator's consent to send that consumer's frames
+to the provider; it is off by default. With the external backend, text consumers
+also send bounded, scrubbed state, as the router does.
+
+Reported USD cost is booked once under the consumer's category. Failed or rejected
+replies keep their usage in every category except `decisions`. In `partial` budget
+mode every category except `chat` is blocked (`full` blocks chat too). Consumers
+then report `budget_blocked`; the router checks its own `routing` category and
+falls back to the ordinary route.
+
+- `router` and `memory_rerank` are interactive: consumers never defer them, and
+  on the local backend they cancel a running background call (`preempted`). Paid
+  external calls are never cut.
+- Other consumers are background. They start only when no interactive or other
+  background call runs, the consumer's minimum interval has passed, and the
+  backend is idle. Otherwise they return `admission_deferred` and start nothing.
+- External calls use a shared `busy` slot and a `reserved` slot that only
+  interactive calls may take. A background call takes `busy`, so the router still
+  gets `reserved`. EasyDrag and the API bypass the hub but share these slots.
+
+### Results and status
+
+- A result may only reorder, add one hint line, or suppress one optional action at
+  p 0.85 or higher. Decisions never gates security: guardian, quarantine,
+  allowlists, tool checks and storage rules run first and are unchanged.
+- Off, unavailable, deferred or failing means exactly today's behaviour.
+  Probabilities are uncalibrated.
+- `GET /api/decisions/status` adds `capabilities` and `consumers` (`id`,
+  `enabled`, `available`, `code`, `images_allowed`, `stats`). The webhook entry is
+  `webhook_question`; its config key is `webhook_questions`.
+- Stats are in-memory counters since restart (attempts, successes, failures,
+  deferred, preempted, timeouts, tokens, `cost_usd`, `cost_missing`, `last_code`).
+  `uncertain` is reserved and stays 0.
+
 ## Limits
 
 The public input limits below apply to both backends. External evaluation also
