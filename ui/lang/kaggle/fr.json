@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "Plus de filtres et d’options",
+  "kaggle.required": "Renseigne ce champ.",
   "kaggle.overview": "Vue d'ensemble",
   "kaggle.navigation": "Navigation",
   "kaggle.connection": "Connexion",

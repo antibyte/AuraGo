@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "Weitere Filter und Optionen",
+  "kaggle.required": "Fülle dieses Feld aus.",
   "kaggle.overview": "Übersicht",
   "kaggle.datasets": "Datensätze",
   "kaggle.models": "Modelle",

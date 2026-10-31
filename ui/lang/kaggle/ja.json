@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "その他のフィルターとオプション",
+  "kaggle.required": "この項目を入力してください。",
   "kaggle.overview": "概要",
   "kaggle.navigation": "ナビゲーション",
   "kaggle.connection": "接続",

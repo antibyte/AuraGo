@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "更多筛选条件和选项",
+  "kaggle.required": "请填写此字段。",
   "kaggle.overview": "概览",
   "kaggle.navigation": "导航",
   "kaggle.connection": "连接",

@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "और फ़िल्टर व विकल्प",
+  "kaggle.required": "यह फ़ील्ड भरें।",
   "kaggle.overview": "अवलोकन",
   "kaggle.navigation": "नेविगेशन",
   "kaggle.connection": "कनेक्शन",

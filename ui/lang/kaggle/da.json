@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "Flere filtre og indstillinger",
+  "kaggle.required": "Udfyld dette felt.",
   "kaggle.overview": "Oversigt",
   "kaggle.navigation": "Navigation",
   "kaggle.connection": "Forbindelse",

@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "Fler filter och alternativ",
+  "kaggle.required": "Fyll i det här fältet.",
   "kaggle.overview": "Översikt",
   "kaggle.navigation": "Navigering",
   "kaggle.connection": "Anslutning",

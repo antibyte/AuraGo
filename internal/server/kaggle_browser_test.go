@@ -63,7 +63,10 @@ func (kaggleBrowserRuntime) Attach(ctx context.Context, _ string) (io.ReadWriteC
 }
 
 func TestKaggleNotebookBrowser(t *testing.T) {
-	browser := personalRadioBrowser(t)
+	auditFile := os.Getenv("AURAGO_KAGGLE_AUDIT_URL_FILE")
+	if auditFile == "" && os.Getenv("AURAGO_RUN_BROWSER_SMOKE") != "1" {
+		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1 for browser verification")
+	}
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = t.TempDir()
 	cfg.VirtualDesktop.Enabled = true
@@ -100,6 +103,39 @@ func TestKaggleNotebookBrowser(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/attack", func(w http.ResponseWriter, r *http.Request) { attacks.Add(1); w.WriteHeader(204) })
 	mux.HandleFunc("/api/kaggle/", func(w http.ResponseWriter, r *http.Request) {
+		// Manual review offers synthetic search results, never a provider call.
+		if auditFile != "" {
+			switch r.URL.Path {
+			case "/api/kaggle/status":
+				status := b.Platform.Status()
+				status["configured"] = true
+				kaggleJSON(w, 200, status)
+				return
+			case "/api/kaggle/test":
+				kaggleJSON(w, 200, map[string]string{"account": "local-review-fixture"})
+				return
+			case "/api/kaggle/quotas":
+				kaggleJSON(w, 200, map[string]any{"notebooks": map[string]int{"cpuHoursRemaining": 30}})
+				return
+			case "/api/kaggle/operations":
+				var request kaggle.Request
+				if !decodeKaggle(w, r, &request) {
+					return
+				}
+				op, err := kaggle.Lookup(request.Domain, request.Operation)
+				if err != nil || op.Grant != "read" {
+					kaggleJSON(w, 403, map[string]string{"error": "Remote mutations are disabled in this local fixture"})
+					return
+				}
+				if request.Operation == "get_kernel" {
+					kaggleJSON(w, 200, map[string]any{"data": map[string]any{"blob": map[string]string{"source": raw}}})
+					return
+				}
+				titles := map[string]string{"datasets": "Iris flowers", "models": "Classification model", "notebooks": "Iris analysis", "competitions": "Tabular practice", "benchmarks": "Classification accuracy", "forums": "Working with notebook data"}
+				kaggleJSON(w, 200, map[string]any{"data": map[string]any{"items": []map[string]string{{"title": titles[request.Domain], "ref": "review/iris", "subtitle": "Synthetic local review data", "description": "Local fixture. External text stays inert: <script>alert(1)</script>"}}}})
+				return
+			}
+		}
 		if r.URL.Path == "/api/kaggle/runtime" && r.Method == "POST" {
 			body, _ := io.ReadAll(r.Body)
 			r.Body = io.NopCloser(strings.NewReader(string(body)))
@@ -121,9 +157,35 @@ func TestKaggleNotebookBrowser(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-kaggle.css"><style>body{margin:0;background:#0d1420}.host{height:760px;width:940px;margin:12px;display:inline-block;vertical-align:top}#b{width:360px}</style><body data-theme="standard"><div class="host" id="a"></div><div class="host" id="b"></div><script>window.I18N=%s;window.errors=[];window.addEventListener('error',e=>errors.push(e.message));window.addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));window.pwned=false;</script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/kaggle-notebook.js"></script><script src="/js/desktop/apps/kaggle.js"></script><script>const ctx={t:k=>I18N[k]||k};KaggleApp.render(document.getElementById('a'),'a',ctx);KaggleApp.render(document.getElementById('b'),'b',ctx);</script>`, translations)
 	})
+	mux.HandleFunc("/review", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/css/desktop-app-kaggle.css"><style>body{margin:0;background:#0d1420}header{padding:8px;color:#cbd5e1;font:12px system-ui}header a{color:#7dd3fc;margin:0 10px}.host{height:calc(100vh - 38px);width:100%%;max-width:100%%}body.narrow .host{width:390px}body[data-theme=fruity]{background:#edf0f5}</style><body><header>Lokale UI-Prüfung · keine Kaggle-Verbindung <a href="?theme=standard">Standard</a><a href="?theme=fruity">Fruity</a><a href="?theme=standard&narrow=1">Schmal</a></header><div class="host" id="a"></div><script>window.I18N=%s;const query=new URLSearchParams(location.search);document.body.dataset.theme=query.get('theme')==='fruity'?'fruity':'standard';document.body.classList.toggle('narrow',query.has('narrow'));window.errors=[];window.addEventListener('error',e=>errors.push(e.message));window.addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/kaggle-notebook.js"></script><script src="/js/desktop/apps/kaggle.js"></script><script>KaggleApp.render(document.getElementById('a'),'review',{t:k=>I18N[k]||k});</script></html>`, translations)
+	})
 	mux.Handle("/", http.FileServer(http.FS(ui.Content.FS)))
 	origin := httptest.NewServer(mux)
 	defer origin.Close()
+	// Opt-in manual review uses the same real UI and local services as this test.
+	// It never contacts Kaggle and stops after the reviewer writes <file>.stop.
+	if auditFile != "" {
+		if err := os.WriteFile(auditFile, []byte(origin.URL+"/review"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.NewTimer(30 * time.Minute)
+		defer deadline.Stop()
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-deadline.C:
+				t.Fatal("manual review deadline reached")
+			case <-tick.C:
+				if _, err := os.Stat(auditFile + ".stop"); err == nil {
+					return
+				}
+			}
+		}
+	}
+	browser := personalRadioBrowser(t)
 	page := browser.MustPage().Timeout(45 * time.Second)
 	defer page.Close()
 	page.MustNavigate(origin.URL + "/fixture").MustWaitLoad()
@@ -131,9 +193,29 @@ func TestKaggleNotebookBrowser(t *testing.T) {
 	if !page.MustEval(`()=>getComputedStyle(document.querySelector('#b .kg-nav')).flexDirection==='row'`).Bool() {
 		t.Fatal("narrow window does not use horizontal navigation")
 	}
+	// Invalid and conflicting creation keeps the dialog and its draft available.
+	page.MustEval(`()=>{const button=[...document.querySelectorAll('#a button')].find(b=>b.textContent===I18N['kaggle.new_notebook']);button.focus();button.click();}`)
+	page.MustEval(`()=>[...document.querySelectorAll('#a dialog button')].find(b=>b.textContent===I18N['kaggle.continue']).click()`)
+	page.MustWait(`()=>document.querySelector('#a dialog[open] [role="alert"]')?.textContent.includes(I18N['kaggle.required'])`)
+	if !page.MustEval(`()=>document.activeElement===document.querySelector('#a dialog input')&&document.querySelector('#a dialog').getAttribute('aria-label')===I18N['kaggle.new_notebook']`).Bool() {
+		t.Fatal("creation dialog lost its accessible name or invalid field focus")
+	}
+	page.MustElement("#a dialog input").MustInput("fixture.ipynb")
+	page.MustEval(`()=>[...document.querySelectorAll('#a dialog button')].find(b=>b.textContent===I18N['kaggle.continue']).click()`)
+	page.MustWait(`()=>document.querySelector('#a dialog[open] [role="alert"]')?.textContent.includes(I18N['kaggle.conflict'])`)
+	if page.MustElement("#a dialog input").MustProperty("value").Str() != "fixture.ipynb" {
+		t.Fatal("conflicting filename draft was lost")
+	}
+	page.MustEval(`()=>[...document.querySelectorAll('#a dialog button')].find(b=>b.textContent===I18N['kaggle.cancel']).click()`)
+	if !page.MustEval(`()=>document.activeElement.textContent===I18N['kaggle.new_notebook']`).Bool() {
+		t.Fatal("dialog close lost the originating keyboard focus")
+	}
 	page.MustElement("#a .kg-resource button").MustClick()
 	page.MustElement("#b .kg-resource button").MustClick()
 	page.MustWait(`()=>document.querySelectorAll('.cm-editor').length===6`)
+	if !page.MustEval(`()=>[...document.querySelectorAll('.cm-content')].every(e=>e.getAttribute('aria-label'))`).Bool() {
+		t.Fatal("notebook editors have no accessible cell labels")
+	}
 	if !page.MustEval(`()=>[...document.querySelectorAll('.kg-html-output')].every(f=>f.getAttribute('sandbox')===''&&!f.srcdoc.includes('<script')&&!f.srcdoc.includes('onerror'))&&!window.pwned`).Bool() {
 		t.Fatal("active notebook HTML")
 	}

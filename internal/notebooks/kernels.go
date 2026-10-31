@@ -40,6 +40,7 @@ type Session struct {
 	last      time.Time
 	deadline  time.Time
 	writeMu   sync.Mutex
+	stopMu    sync.Mutex
 }
 type Kernels struct {
 	storage     *kaggle.Service
@@ -193,6 +194,10 @@ func (k *Kernels) start(ctx context.Context, s *Session) {
 		}
 		kind, _ := event["kind"].(string)
 		k.mu.Lock()
+		if ctx.Err() != nil || s.Status == "stopping" || s.Status == "stopped" {
+			k.mu.Unlock()
+			break
+		}
 		if kind == "ready" {
 			s.Status = "idle"
 		} else {
@@ -225,19 +230,22 @@ func (k *Kernels) setError(s *Session, err error) {
 func (k *Kernels) Stop(id, reason string) error {
 	k.mu.Lock()
 	s := k.sessions[id]
+	k.mu.Unlock()
 	if s == nil {
-		k.mu.Unlock()
 		return errors.New("unknown notebook session")
 	}
+	// A disconnect, revocation and explicit stop may arrive concurrently.
+	// Retain the owned container and its slot until Docker confirms removal.
+	s.stopMu.Lock()
+	defer s.stopMu.Unlock()
+	k.mu.Lock()
 	if s.Status == "stopped" && s.container == "" && s.stream == nil {
 		k.mu.Unlock()
 		return nil
 	}
-	s.Status = "stopped"
+	s.Status = "stopping"
 	container, stream, cancel := s.container, s.stream, s.cancel
 	s.stream = nil
-	s.container = ""
-	state := snapshotSession(s)
 	k.mu.Unlock()
 	cancel()
 	if stream != nil {
@@ -249,7 +257,23 @@ func (k *Kernels) Stop(id, reason string) error {
 	if container != "" {
 		err = k.runtime.Remove(ctx, container)
 	}
-	state.Error = reason
+	k.mu.Lock()
+	if err != nil {
+		s.Status = "stopping"
+		s.Error = kaggle.PublicError(err)
+	} else {
+		// Creation may have finished after a concurrent early stop. Its start
+		// goroutine observes cancellation and removes that container itself.
+		if s.container == container {
+			s.container = ""
+		}
+		s.Status = "stopped"
+		if reason != "runtime_start_failed" || s.Error == "" {
+			s.Error = reason
+		}
+	}
+	state := snapshotSession(s)
+	k.mu.Unlock()
 	_, _ = k.storage.Store.Emit(ctx, "session", state)
 	return err
 }
@@ -360,6 +384,10 @@ func (k *Kernels) maintain() {
 			stop := map[string]string{}
 			idle := time.Duration(k.storage.Snapshot().Config.Local.IdleMinutes) * time.Minute
 			for id, s := range k.sessions {
+				if s.Status == "stopping" {
+					stop[id] = "container_cleanup_pending"
+					continue
+				}
 				if s.Status == "stopped" {
 					continue
 				}

@@ -1,4 +1,6 @@
 {
+  "kaggle.filters": "Más filtros y opciones",
+  "kaggle.required": "Completa este campo.",
   "kaggle.overview": "General",
   "kaggle.navigation": "Navegación",
   "kaggle.connection": "Conexión",

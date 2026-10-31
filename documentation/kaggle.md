@@ -15,6 +15,8 @@ Secrets live in the encrypted Vault (`kaggle_api_token`, `kaggle_legacy_key`, op
 
 The Desktop app contains Overview, Datasets, Models, Notebooks, Competitions, Benchmarks, Forums and Jobs. Choose an operation to display its typed fields. Defined API values use dropdowns; optional empty values use the operation's default. Details display external text inertly. Pagination follows Kaggle cursors. Projects hold imported notebooks, selected datasets and downloaded results. Text/log/CSV/JSON files have bounded previews; binary files can be exported.
 
+Search uses one query field; expand **More filters and options** for the remaining API fields. Creation dialogs retain invalid or conflicting input so you can correct it. Closing a dialog returns keyboard focus to its originating control. A passive configured status means credentials are stored; only the explicit connection test verifies access.
+
 | Area | Supported scope |
 | --- | --- |
 | Datasets | Search, metadata, file/version listing, download, upload, private creation, metadata changes, new versions, publication through metadata and deletion. |
@@ -48,6 +50,8 @@ The limits are configurable. Transfers stream into temporary regular files, enfo
 ## Local Python versus Kaggle execution
 
 **Local – Jupyter** starts an AuraGo-managed container. Select the project files to copy into the session. Python cells share variables until restart, stop, revocation or idle expiry. Shift+Enter executes a code cell; the toolbar also offers Run all, Interrupt and Restart. The agent can stop a session through `kaggle_runtime.stop`; disabling local execution stops affected sessions. Internet is independently opt-in (`internet: true` for an authorized runtime start); the Desktop's normal start is offline.
+
+Outputs received during a save remain unsaved until a later save includes them. Editing a cell during its prerequisite save prevents that execution, so an older saved source cannot masquerade as the current draft. A successful save retires the unchanged recovered draft without removing newer work from another window. If Docker cannot confirm container removal, cleanup remains pending and retains its session slot until a retry succeeds.
 
 **Run on Kaggle** freezes the displayed notebook content and lets you explicitly select Kaggle data sources. It submits a whole private CPU version. Local variables and unselected files are not transferred. Native `save_kernel` uses `kernelExecutionType: QUICK_SAVE` to save without execution and `SAVE_AND_RUN_ALL` for a whole run. Interactive remote Kaggle cells are unsupported.
 
