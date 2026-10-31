@@ -10651,5 +10651,13 @@
   "game_maker.guided_base_change": "流れに合うガイド付き3Dの土台へ移してください。探索、運転、飛行、宇宙、FPSのいずれかです。自由な three はルールを未確認のままにします。",
   "game_maker.retry_keeps_pending_selection": "再試行はこの実行のアセット選択を残します。まだ計画が受け入れられていないためです。",
   "game_maker.compact_opt_in": "この未知のモデルではコンパクトモードを使います。計画は短くなり、新しい土台は小さな置き換えで変えます。",
-  "desktop.app_kaggle": "Kaggle"
+  "desktop.app_kaggle": "Kaggle",
+  "codeStudio.diffWorktree": "作業ツリー",
+  "codeStudio.diffIndex": "インデックス（ステージ済み）",
+  "codeStudio.promptSelection": "選択したコード",
+  "codeStudio.promptFile": "現在のファイル",
+  "codeStudio.promptExplain": "{{path}} の{{target}}を説明してください。",
+  "codeStudio.promptComments": "{{path}} の{{target}}に分かりやすいコメントを追加してください。変更後のコードのみを返してください。",
+  "codeStudio.promptTests": "{{path}} に役立つテストを作成してください。新規または変更したファイルのコードブロックを返してください。",
+  "codeStudio.promptRefactor": "{{path}} の{{target}}をリファクタリングしてください。変更後のコードのみを返してください。"
 }

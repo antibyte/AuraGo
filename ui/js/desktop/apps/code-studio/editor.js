@@ -1,5 +1,4 @@
     function renderEditor() {
-        state.diffRequest = null;
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
@@ -24,6 +23,12 @@
             return;
         }
         editor.innerHTML = '';
+        if (tab.kind === 'diff') {
+            renderGitDiffTab(editor, tab);
+            editor.oncontextmenu = null;
+            editor.onwheel = null;
+            return;
+        }
         if (state.splitMode) {
             renderSplitPanes(editor, tab);
         } else {
@@ -127,6 +132,7 @@
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
         const scheme = new cm.Compartment();
+        const policy = new cm.Compartment();
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
@@ -138,6 +144,7 @@
             cm.indentUnit && cm.indentUnit.of('    '),
             cm.EditorView.lineWrapping,
             scheme.of(codeMirrorSchemeExtensions(cm)),
+            policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
             cm.rectangularSelection && cm.rectangularSelection(),
@@ -220,9 +227,14 @@
             parent: container
         });
         view.csScheme = scheme;
+        view.csPolicy = policy;
         view.csLight = light;
         watchEditorScheme();
         return view;
+    }
+
+    function editorPolicyExtensions(cm) {
+        return [cm.EditorState.readOnly.of(!canWrite()), cm.EditorView.editable.of(canWrite())];
     }
 
     function createTextareaEditor(container, tab, link) {
@@ -232,21 +244,27 @@
         textarea.className = 'code-studio-textarea';
         textarea.value = tab.content;
         textarea.spellcheck = false;
+        textarea.readOnly = !canWrite();
         const preview = document.createElement('pre');
         preview.className = 'code-studio-preview hljs';
         wrapper.appendChild(textarea);
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
-        const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        let highlightTimer = null;
+        const view = { textarea, destroy: () => clearTimeout(highlightTimer), getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
         textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
-            preview.textContent = textarea.value;
-            if (window.hljs && tab.language) {
-                try {
-                    preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
-                } catch (_) {}
-            }
+            clearTimeout(highlightTimer);
+            highlightTimer = setTimeout(() => {
+                if (!wrapper.isConnected) return;
+                preview.textContent = textarea.value;
+                if (window.hljs && tab.language) {
+                    try {
+                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
+                    } catch (_) {}
+                }
+            }, 100);
             if (link && !link.syncing) {
                 link.syncing = true;
                 try {
@@ -268,7 +286,7 @@
                 event.preventDefault();
                 saveCurrentFile();
             }
-            if (event.key === 'Tab') {
+            if (event.key === 'Tab' && canWrite()) {
                 event.preventDefault();
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;

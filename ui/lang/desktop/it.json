@@ -10651,5 +10651,13 @@
   "game_maker.guided_base_change": "Sposta il gioco su un modello 3D guidato adatto al percorso: esplorazione, guida, volo, spazio o FPS. Il three libero lascia le regole non verificate.",
   "game_maker.retry_keeps_pending_selection": "Riprova conserva la selezione di asset di questo tentativo, perché nessun piano è stato ancora accettato.",
   "game_maker.compact_opt_in": "Usa la modalità compatta per questo modello sconosciuto. Il piano resta breve e un modello nuovo si modifica a piccoli passi.",
-  "desktop.app_kaggle": "Kaggle"
+  "desktop.app_kaggle": "Kaggle",
+  "codeStudio.diffWorktree": "Copia di lavoro",
+  "codeStudio.diffIndex": "Indice (in staging)",
+  "codeStudio.promptSelection": "il codice selezionato",
+  "codeStudio.promptFile": "il file corrente",
+  "codeStudio.promptExplain": "Spiega {{target}} in {{path}}.",
+  "codeStudio.promptComments": "Aggiungi commenti chiari per {{target}} in {{path}}. Restituisci solo il codice modificato.",
+  "codeStudio.promptTests": "Genera test utili per {{path}}. Restituisci blocchi di codice per i file nuovi o modificati.",
+  "codeStudio.promptRefactor": "Riorganizza {{target}} in {{path}}. Restituisci solo il codice modificato."
 }

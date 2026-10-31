@@ -10,8 +10,12 @@
                 <span>${esc(session.name || shellName(index))}</span>
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
-        terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
-            <div class="cs-terminal-head">
+        if (!terminal.querySelector('[data-terminal-screen]')) {
+            terminal.innerHTML = '<div class="cs-terminal-resize" data-terminal-resize></div><div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
+            wireTerminalResize();
+            wireTerminalObserver(terminal);
+        }
+        terminal.querySelector('.cs-terminal-head').innerHTML = `
                 <div class="cs-terminal-tabs">
                     ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
@@ -19,9 +23,8 @@
                 <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
                 <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
-            </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
-        wireTerminalResize();
-        wireTerminalObserver(terminal);
+            `;
+        updatePolicyControls();
         terminal.querySelectorAll('[data-terminal-tab]').forEach(btn => {
             btn.addEventListener('click', bind(() => switchTerminalSession(Number(btn.dataset.terminalTab))));
         });
@@ -89,7 +92,7 @@
     }
 
     function writeTerminalBytes(bytes, session) {
-        if (!session || !state || !state.terminalSessions || !state.terminalSessions.includes(session)) return;
+        if (!canWrite() || !session || !state.terminalSessions.includes(session)) return;
         const ws = session.ws;
         if (!ws || typeof WebSocket === 'undefined' || ws.readyState !== WebSocket.OPEN) return;
         const payload = bytes instanceof Uint8Array ? bytes : new TextEncoder().encode(String(bytes));
@@ -168,6 +171,7 @@
     function connectTerminal() {
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
+        if (!canWrite()) { renderTerminal(); return; }
         if (!screen || !window.Terminal) {
             if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
             return;
@@ -180,26 +184,39 @@
     function connectTerminalSession(index, screen, label) {
         if (!screen) screen = shellPart('[data-terminal-screen]');
         if (!label) label = shellPart('[data-terminal-state]');
-        if (!screen || !window.Terminal) return;
+        if (!canWrite() || !screen || !window.Terminal) return;
         const session = state.terminalSessions[index];
         if (!session) return;
         try {
             const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
             const instance = state;
             let terminalDisposed = false;
+            let unregister = () => {};
+            const pane = document.createElement('div');
+            pane.className = 'cs-terminal-pane';
+            screen.appendChild(pane);
+            session.pane = pane;
             session.dispose = () => {
                 if (terminalDisposed) return;
                 terminalDisposed = true;
-                if (session.ws) endTerminalSocket(session.ws);
-                if (term && typeof term.dispose === 'function') term.dispose();
+                unregister();
+                if (session.dataSubscription) session.dataSubscription.dispose();
+                session.dataSubscription = null;
+                if (session.ws) {
+                    session.ws.onopen = session.ws.onmessage = session.ws.onerror = session.ws.onclose = null;
+                    endTerminalSocket(session.ws);
+                }
+                session.ws = null;
+                term.dispose();
+                pane.remove();
             };
-            instance.disposers.push(session.dispose);
+            unregister = registerDisposer(session.dispose);
             if (window.FitAddon && window.FitAddon.FitAddon) {
                 const fitAddon = new window.FitAddon.FitAddon();
                 term.loadAddon(fitAddon);
                 session.fitAddon = fitAddon;
             }
-            term.open(screen);
+            term.open(pane);
             session.term = term;
             const fitTarget = session.fitAddon;
             if (fitTarget) fitTarget.fit();
@@ -213,11 +230,11 @@
                 if (!state.terminalSessions.includes(session)) return;
                 terminalSessionStatus(session, session.lineMode ? 'codeStudio.terminalLineMode' : 'codeStudio.running');
                 const termDataDispose = term.onData(bindInstance(instance, data => {
-                    if (ws.readyState !== WebSocket.OPEN) return;
+                    if (!canWrite() || ws.readyState !== WebSocket.OPEN) return;
                     ws.send(new TextEncoder().encode(data));
                 }));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
-                    instance.disposers.push(() => termDataDispose.dispose());
+                    session.dataSubscription = termDataDispose;
                 }
                 sendTerminalResize(session);
             });
@@ -239,10 +256,15 @@
                 terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
             });
             ws.onclose = bindInstance(instance, () => {
+                if (session.dataSubscription) session.dataSubscription.dispose();
+                session.dataSubscription = null;
                 terminalSessionStatus(session, 'codeStudio.stopped');
             });
+            renderTerminal();
+            mountActiveTerminalSession(session);
         } catch (err) {
-            screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+            if (session.dispose) session.dispose();
+            terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
         }
     }
 
@@ -257,11 +279,11 @@
     function mountActiveTerminalSession(session) {
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
-        if (screen) screen.innerHTML = '';
-        if (session && session.term && screen) {
-            session.term.open(screen);
+        (state.terminalSessions || []).forEach(item => {
+            if (item.pane) item.pane.hidden = item !== session;
+        });
+        if (session && session.term && session.pane?.isConnected) {
             if (session.fitAddon) session.fitAddon.fit();
-            else if (state.fitAddon) state.fitAddon.fit();
             session.term.focus();
         }
         syncTerminalAliases();
@@ -275,6 +297,7 @@
     }
 
     function addTerminalSession() {
+        if (!canWrite()) return;
         if (!state.terminalSessions) state.terminalSessions = [];
         const index = state.terminalSessions.length;
         state.terminalSessions.push({ name: shellName(index), term: null, ws: null });
@@ -282,7 +305,6 @@
         renderTerminal();
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
-        if (screen) screen.innerHTML = '';
         connectTerminalSession(index, screen, label);
     }
 
@@ -292,14 +314,11 @@
         const active = activeTerminalSession();
         if (session && session.dispose) session.dispose();
         state.terminalSessions.splice(index, 1);
+        if (state.runSession === session) state.runSession = null;
         if (!state.terminalSessions.length) {
-            state.terminalSessions.push({ name: shellName(0), term: null, ws: null });
             state.activeTerminalSession = 0;
+            syncTerminalAliases();
             renderTerminal();
-            const screen = shellPart('[data-terminal-screen]');
-            const label = shellPart('[data-terminal-state]');
-            if (screen) screen.innerHTML = '';
-            connectTerminalSession(0, screen, label);
         } else {
             state.activeTerminalSession = active !== session ? state.terminalSessions.indexOf(active) : Math.min(index, state.terminalSessions.length - 1);
             switchTerminalSession(state.activeTerminalSession);

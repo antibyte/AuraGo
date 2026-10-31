@@ -46,6 +46,7 @@
                 : `<button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>`
             }
         </form>`;
+        updatePolicyControls();
         panel.querySelector('[data-agent-close]').addEventListener('click', bind(toggleAgentPanel));
         panel.querySelectorAll('[data-code-action]').forEach(btn => {
             btn.addEventListener('click', bind(() => runCodeAction(btn.dataset.codeAction)));
@@ -82,10 +83,7 @@
             btn.addEventListener('click', bind(() => {
                 const code = btn.closest('pre')?.querySelector('code');
                 if (code) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        btn.textContent = tr('desktop.copied');
-                        setTimeout(() => { btn.textContent = tr('desktop.copy'); }, 1500);
-                    }).catch(() => {});
+                    copyTextToClipboard(code.textContent);
                 }
             }));
         });
@@ -221,14 +219,15 @@
 
     function runCodeAction(action) {
         const tab = activeTab();
-        if (!tab) return;
+        if (!tab || tab.kind === 'diff' || action !== 'explain' && !canWrite()) return;
         const selection = codeStudioSelection();
-        const target = selection.text ? 'selected code' : 'current file';
+        const target = selection.text ? tr('codeStudio.promptSelection', 'selected code') : tr('codeStudio.promptFile', 'current file');
+        const vars = { target, path: tab.path };
         const prompts = {
-            explain: `Explain the ${target} in ${tab.path}.`,
-            comments: `Generate clear comments for the ${target} in ${tab.path}. Return only the modified code when you change code.`,
-            tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
-            refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
+            explain: tr('codeStudio.promptExplain', 'Explain the {{target}} in {{path}}.', vars),
+            comments: tr('codeStudio.promptComments', 'Add clear comments to the {{target}} in {{path}}. Return only the modified code.', vars),
+            tests: tr('codeStudio.promptTests', 'Generate useful tests for {{path}}. Return code blocks for new or changed files.', vars),
+            refactor: tr('codeStudio.promptRefactor', 'Refactor the {{target}} in {{path}}. Return only the modified code.', vars)
         };
         sendAgentMessage(prompts[action] || prompts.explain, action);
     }
@@ -240,13 +239,13 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
-            current_file: tab ? tab.path : '',
+            current_file: tab && tab.kind !== 'diff' ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,
             cursor_line: cursor.line,
             cursor_column: cursor.column,
             selected_text: selection.text,
-            open_files: state.openTabs.map(item => item.path)
+            open_files: state.openTabs.filter(item => item.kind !== 'diff').map(item => item.path)
         };
     }
 
@@ -256,7 +255,7 @@
     }
 
     function suggestionCanApply(suggestion) {
-        return suggestion && suggestion.canReplace && suggestion.windowId === state.windowId &&
+        return canWrite() && activeTab()?.kind !== 'diff' && suggestion && suggestion.canReplace && suggestion.tab && suggestion.tab.kind !== 'diff' && suggestion.windowId === state.windowId &&
             state.openTabs.includes(suggestion.tab) && suggestion.tab.path === suggestion.path &&
             !suggestion.tab.pathMutation && (suggestion.tab.revision || 0) === suggestion.revision;
     }

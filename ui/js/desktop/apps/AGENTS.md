@@ -3799,16 +3799,30 @@ registration lives in `internal/desktop/types.go`.
   Print and exports serialize the current editor, never stale server content.
   Unknown package parts and authored font names must survive native saves.
 - Code Studio exposes `window.CodeStudioApp = { render, dispose, state, instances,
-  api, command, knownFiles, loadState, saveState, refreshFiles, openFile, openPath,
+  api, command, knownFiles, trapDialogFocus, loadState, saveState, refreshFiles, openFile, openPath,
   openFileFromDialog, saveCurrentFile, uploadFile, downloadFile }`. All
   non-command-palette modules share a single IIFE closure; `core.js` opens the
   IIFE, `shortcuts.js` closes it. Function declarations are hoisted across the
   entire IIFE scope. All `const`/`let` declarations must stay in `core.js` (the
   first module in the bundle load order).
-- The command palette drives Code Studio only through
-  `CodeStudioApp.command(name, args)` (table in `shortcuts.js`) and lists tree
-  files from `CodeStudioApp.knownFiles()`; never dispatch synthetic key events
-  or click hidden buttons from the palette.
+- The command palette captures its originating window and uses
+  `CodeStudioApp.command(name, args, windowId)` and `knownFiles(windowId)`;
+  never dispatch synthetic keys or click hidden buttons from the palette.
+  Palette and shortcut overlays close with their owner; closing another window
+  must leave them intact. Dialogs trap keyboard focus and restore it on close.
+- Code Studio uses one live `readOnly` policy from status and
+  `aurago:desktop-policy` events for both editor panes, actions, menus, uploads,
+  terminal and Git. Revocation closes terminal sessions and retains editor and
+  commit drafts. Re-enabling restores controls; Plus opens a new shell. UI guards
+  complement server authorization. Late status replies cannot overwrite a newer
+  policy event; verify `TestDesktopCodeStudioLateStatusKeepsCurrentPolicy`.
+  Insights is disabled without its shared UI;
+  source links normalize both workspace-prefixed and relative paths.
+- Tab/menu rebuilding follows structure, selection and dirty-state transitions.
+  Textarea content updates synchronously; syntax highlighting coalesces at
+  100 ms and is cancelled on disposal. Zoom measures both split views. Responsive
+  rules use the Code Studio container's inline size, and reduced motion disables
+  app/overlay animations. Preserve theme tokens and hidden-panel contracts.
 - Code Studio binds shared `state` only during synchronous work. Async handlers
   capture their instance, reject disposed/superseded requests, and explicitly
   bind UI updates after awaits. Never leave `state` switched while awaiting.
@@ -3859,6 +3873,18 @@ registration lives in `internal/desktop/types.go`.
   `0x03` only to that session. Bytes for a session that has already closed are
   discarded. A file without a runner (`codeStudio.noRunner`) does not write to
   the terminal. Runners are `go`, `python`, `.js`/`.mjs`, `.c`, and `rust`.
+- Each terminal keeps its own DOM pane; xterm opens exactly once. Tab switches
+  only toggle panes. Session disposal removes the pane, socket handlers, data
+  subscription and window disposer. Closing the last terminal leaves no session.
+  Verify visible elements and cleanup with
+  `TestDesktopCodeStudioPersistentTerminalDOMAndCleanup`.
+- Git diffs are distinct, read-only tabs with working-tree/index selection.
+  Save, Run and agent replacement cannot target a diff's hidden source. Ordinary
+  file tabs retain their drafts, selection and undo state. Git status refreshes
+  after startup and successful mutations, coalesced at 200 ms. Verify
+  `TestDesktopCodeStudioDiffTabPreservesSource`, `TestDesktopCodeStudioLivePolicyAndDrafts`,
+  `TestDesktopCodeStudioOverlaysKeepWindowOwnership` and
+  `TestDesktopCodeStudioRenderCostAndWindowWidth`.
 - Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
   bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
   `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for
@@ -3882,7 +3908,8 @@ registration lives in `internal/desktop/types.go`.
   error view when startup reports an error. The status bar shows
   `codeStudio.readOnly` when the desktop is read-only, `codeStudio.networkOff`
   when `network` is `none`, and `codeStudio.idleUntil` once a running container
-  has `last_activity` and `auto_stop_minutes` above zero. Search shows
+  has `last_activity`, `auto_stop_minutes` above zero and no active terminal
+  sessions. Search shows
   `codeStudio.resultsTruncated` when the response sets `truncated`.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
@@ -4980,7 +5007,7 @@ registration lives in `internal/desktop/types.go`.
   file needed.
 - `code-studio/search.js` - Search-in-files panel with grep, result navigation.
   No child DOX file needed.
-- `code-studio/agent.js` - Agent chat panel, SSE streaming, diff preview,
+- `code-studio/agent.js` - Agent chat panel, proposal diff preview,
   code actions (explain/comments/tests/refactor), markdown rendering. No child
   DOX file needed.
 - `code-studio/git.js` - Git panel: branch display, change list with

@@ -59,6 +59,7 @@
     }
 
     function wireSidebarHead(sidebar) {
+        updatePolicyControls();
         sidebar.querySelectorAll('[data-sidebar-nav]').forEach(btn => {
             btn.addEventListener('click', bind(() => refreshFiles(btn.dataset.sidebarNav)));
         });
@@ -344,12 +345,12 @@
     function wireSidebarDragDrop(sidebar) {
         sidebar.ondragover = bind(event => {
             event.preventDefault();
-            sidebar.classList.add('dragover');
+            if (canWrite()) sidebar.classList.add('dragover');
         });
         sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
         sidebar.ondrop = bind(async event => {
             const target = state;
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             event.preventDefault();
             sidebar.classList.remove('dragover');
             const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
@@ -357,8 +358,10 @@
             const uploadDir = dropRow ? dropRow.dataset.filePath : targetDirectory();
             try {
                 for (const file of files) {
+                    if (!canWrite(target)) return;
                     await apiClient.uploadFile(uploadDir, file);
-                    if (!isLiveInstance(target)) return;
+                    if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+                    if (!canWrite(target)) return;
                 }
                 if (files.length) await runAsyncStep(target, () => reloadTreeDirectory(uploadDir));
             } catch (err) {

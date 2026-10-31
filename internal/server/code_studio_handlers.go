@@ -74,7 +74,7 @@ type codeStudioHandlers struct {
 func newCodeStudioHandlers(s *Server) codeStudioHandlers {
 	return codeStudioHandlers{
 		server: s,
-		docker: newCodeStudioDockerAdapter(desktop.ConfigFromAuraConfig(s.ConfigSnapshot()), s.Logger),
+		docker: nil,
 	}
 }
 
@@ -97,21 +97,26 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/log", handlers.handleGitLog)
 }
 
-func (h codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
+func (h *codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
 	svc, _, err := h.server.getDesktopService(ctx)
 	if err != nil {
 		return nil, "", err
+	}
+	// Each handler owns its value receiver: pin the adapter to this service,
+	// never to a later server snapshot or the snapshot from route registration.
+	if _, concrete := h.docker.(codeStudioDockerAdapter); h.docker == nil || concrete {
+		h.docker = newCodeStudioDockerAdapter(svc.Config(), h.server.Logger)
 	}
 	container := svc.CodeContainer()
 	if container == nil {
 		return nil, "", fmt.Errorf("code studio container service is not available")
 	}
+	var containerID string
 	if start {
-		if err := container.EnsureStarted(ctx); err != nil {
-			return nil, "", err
-		}
+		containerID, err = container.EnsureContainer(ctx)
+	} else {
+		containerID, err = container.ContainerID(ctx)
 	}
-	containerID, err := container.ContainerID(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -132,6 +137,7 @@ func (h codeStudioHandlers) handleStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	status := svc.CodeContainer().Status(r.Context())
+	status.ReadOnly = svc.Config().ReadOnly
 	writeJSON(w, map[string]interface{}{"status": "ok", "code_studio": status})
 }
 
@@ -153,7 +159,7 @@ func (h codeStudioHandlers) handleFiles(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	cmd := []string{"find", path, "-maxdepth", "1", "-mindepth", "1", "-printf", "%y|%s|%T@|%p\n"}
+	cmd := codeStudioPathCommand("list", path)
 	result, err := h.docker.Exec(r.Context(), containerID, cmd, 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
@@ -299,8 +305,7 @@ func (h codeStudioHandlers) handleMoveFile(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	script := fmt.Sprintf("mkdir -p %s && mv -- %s %s", shellQuote(pathpkg.Dir(newPath)), shellQuote(oldPath), shellQuote(newPath))
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", script}, 30*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("move", oldPath, newPath), 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -330,7 +335,7 @@ func (h codeStudioHandlers) handleDeleteFile(w http.ResponseWriter, r *http.Requ
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"rm", "-rf", "--", path}, 30*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("delete", path), 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -370,7 +375,7 @@ func (h codeStudioHandlers) handleDirectory(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"mkdir", "-p", "--", path}, 30*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("mkdir", path), 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -598,11 +603,17 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	container, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	release, err := container.HoldTerminal(containerID)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
 	conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -624,17 +635,25 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git status --porcelain=v1 -z 2>/dev/null"}, 15*time.Second)
+	statusResult, err := h.execGit(r.Context(), containerID, 15*time.Second, "status", "--porcelain=v1", "-z")
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	branchResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch --show-current 2>/dev/null"}, 10*time.Second)
-	logResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git log --oneline -10 2>/dev/null"}, 10*time.Second)
-
-	changes := parseGitPorcelain(statusResult.Output)
-	branch := strings.TrimSpace(branchResult.Output)
-	logEntries := parseGitLog(logResult.Output)
+	changes := []map[string]string{}
+	branch := ""
+	logEntries := []map[string]string{}
+	if statusResult.ExitCode == 0 {
+		changes = parseGitPorcelain(statusResult.Output)
+		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
+			branch = strings.TrimSpace(result.Output)
+		}
+		// A new repository has no log yet. Neither that error nor a missing
+		// repository should appear as a branch, file change or commit.
+		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, "log", "--oneline", "-10"); err == nil && result.ExitCode == 0 {
+			logEntries = parseGitLog(result.Output)
+		}
+	}
 
 	writeJSON(w, map[string]interface{}{
 		"status":  "ok",
@@ -654,22 +673,25 @@ func (h codeStudioHandlers) handleGitDiff(w http.ResponseWriter, r *http.Request
 	}
 	file := r.URL.Query().Get("file")
 	staged := r.URL.Query().Get("staged") == "true"
-	cmd := "cd /workspace && git diff"
+	args := []string{"diff"}
 	if staged {
-		cmd += " --staged"
+		args = append(args, "--staged")
 	}
 	if file != "" {
-		safeFile := strings.ReplaceAll(file, "'", "'\\''")
-		cmd += " -- '" + safeFile + "'"
+		args = append(args, "--", file)
 	}
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 30*time.Second)
+	result, err := h.execGit(r.Context(), containerID, 30*time.Second, args...)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if result.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(result.Output, "git diff failed"), http.StatusBadRequest)
 		return
 	}
 	writeJSON(w, map[string]interface{}{"status": "ok", "diff": result.Output})
@@ -787,16 +809,23 @@ func (h codeStudioHandlers) listGitBranches(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	listResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch -a"}, 10*time.Second)
+	listResult, err := h.execGit(r.Context(), containerID, 10*time.Second, "branch", "-a")
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	currentResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch --show-current"}, 5*time.Second)
+	branches := []string{}
+	current := ""
+	if listResult.ExitCode == 0 {
+		branches = parseGitBranches(listResult.Output)
+		if result, err := h.execGit(r.Context(), containerID, 5*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
+			current = strings.TrimSpace(result.Output)
+		}
+	}
 	writeJSON(w, map[string]interface{}{
 		"status":   "ok",
-		"branches": parseGitBranches(listResult.Output),
-		"current":  strings.TrimSpace(currentResult.Output),
+		"branches": branches,
+		"current":  current,
 	})
 }
 
@@ -893,14 +922,14 @@ func (h codeStudioHandlers) handleGitIdentity(w http.ResponseWriter, r *http.Req
 }
 
 func (h codeStudioHandlers) execGit(ctx context.Context, containerID string, timeout time.Duration, args ...string) (codeStudioExecResult, error) {
-	cmd := make([]string, 0, len(args)+3)
-	cmd = append(cmd, "git", "-C", codeStudioWorkspaceRoot)
+	cmd := make([]string, 0, len(args)+4)
+	cmd = append(cmd, "git", "-C", codeStudioWorkspaceRoot, "--literal-pathspecs")
 	cmd = append(cmd, args...)
 	return h.docker.Exec(ctx, containerID, cmd, timeout)
 }
 
 func codeStudioGitAddPath(raw string) (string, error) {
-	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	raw = strings.ReplaceAll(raw, "\\", "/")
 	if raw == "" {
 		return "", fmt.Errorf("code studio path is empty")
 	}
@@ -986,23 +1015,26 @@ func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request)
 	if count > 100 {
 		count = 100
 	}
-	path := strings.TrimSpace(r.URL.Query().Get("path"))
-	cmd := fmt.Sprintf("cd /workspace && git log --oneline -%d", count)
-	if path != "" {
-		safePath := strings.ReplaceAll(path, "'", "'\\''")
-		cmd += " -- '" + safePath + "'"
+	file := r.URL.Query().Get("path")
+	args := []string{"log", "--oneline", "-n", strconv.Itoa(count)}
+	if file != "" {
+		args = append(args, "--", file)
 	}
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 15*time.Second)
+	result, err := h.execGit(r.Context(), containerID, 15*time.Second, args...)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"status": "ok", "log": parseGitLog(result.Output)})
+	entries := []map[string]string{}
+	if result.ExitCode == 0 {
+		entries = parseGitLog(result.Output)
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "log": entries})
 }
 
 func parseGitPorcelain(output string) []map[string]string {
@@ -1136,7 +1168,7 @@ var codeStudioWSUpgrader = websocket.Upgrader{
 }
 
 func sanitizeCodeStudioPath(raw string) (string, error) {
-	p := strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	p := strings.ReplaceAll(raw, "\\", "/")
 	if strings.ContainsRune(p, 0) {
 		return "", fmt.Errorf("code studio path contains a null byte")
 	}
@@ -1159,8 +1191,8 @@ func sanitizeCodeStudioPath(raw string) (string, error) {
 }
 
 func parseCodeStudioFindOutput(output string) ([]codeStudioFileEntry, error) {
-	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
-	if len(lines) == 1 && strings.TrimSpace(lines[0]) == "" {
+	lines := strings.Split(strings.TrimSuffix(output, "\x00"), "\x00")
+	if output == "" {
 		return []codeStudioFileEntry{}, nil
 	}
 	entries := make([]codeStudioFileEntry, 0, len(lines))
@@ -1232,7 +1264,7 @@ func codeStudioProbeHTTPError(err error) (int, string, bool) {
 }
 
 func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID, lexical string) (codeStudioFileProbe, error) {
-	result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-c", codeStudioPhysicalFileScript(lexical)}, 30*time.Second)
+	result, err := h.docker.Exec(ctx, containerID, codeStudioPathCommand("probe", lexical), 30*time.Second)
 	if err != nil {
 		return codeStudioFileProbe{}, fmt.Errorf("probe code studio file: %w", err)
 	}
@@ -1243,7 +1275,7 @@ func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID
 		}
 		return codeStudioFileProbe{}, codeStudioProbeRejection{message: message}
 	}
-	lines := strings.SplitN(strings.TrimRight(result.Output, "\n"), "\n", 2)
+	lines := strings.SplitN(strings.TrimSuffix(result.Output, "\x00"), "\n", 2)
 	if len(lines) != 2 {
 		return codeStudioFileProbe{}, codeStudioProbeRejection{message: "invalid file probe"}
 	}
@@ -1251,7 +1283,7 @@ func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID
 	if err != nil {
 		return codeStudioFileProbe{}, codeStudioProbeRejection{message: err.Error()}
 	}
-	physical, err := sanitizeCodeStudioPath(strings.TrimSpace(lines[1]))
+	physical, err := sanitizeCodeStudioPath(lines[1])
 	if err != nil {
 		return codeStudioFileProbe{}, codeStudioProbeRejection{message: err.Error()}
 	}
@@ -1259,7 +1291,7 @@ func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID
 }
 
 func (h codeStudioHandlers) readCodeStudioFileBytes(ctx context.Context, containerID, physical string) ([]byte, error) {
-	result, err := h.docker.Exec(ctx, containerID, []string{"base64", "-w0", physical}, 30*time.Second)
+	result, err := h.docker.Exec(ctx, containerID, codeStudioPathCommand("read", physical, strconv.FormatInt(h.maxFileSizeBytes(), 10)), 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("read code studio file: %w", err)
 	}
@@ -1275,54 +1307,6 @@ func (h codeStudioHandlers) readCodeStudioFileBytes(ctx context.Context, contain
 		return nil, fmt.Errorf("invalid file content encoding")
 	}
 	return content, nil
-}
-
-// codeStudioPhysicalFileScript resolves a lexical workspace path inside the
-// container. The parent directory is entered with pwd -P before the final
-// component is inspected, so an intermediate symlink cannot point outside
-// /workspace. A final symlink is followed only while each hop stays inside
-// /workspace. The script prints size|mtime and the physical path.
-func codeStudioPhysicalFileScript(lexical string) string {
-	return `set -eu
-p=` + shellQuote(lexical) + `
-parent=$(dirname -- "$p")
-base=$(basename -- "$p")
-phys_dir=$(CDPATH= cd -- "$parent" && pwd -P)
-case "$phys_dir" in
-  /workspace|/workspace/*) ;;
-  *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
-esac
-cur="$phys_dir/$base"
-hops=0
-while [ -L "$cur" ]; do
-  hops=$((hops+1))
-  if [ "$hops" -gt 16 ]; then
-    echo "symlink loop" >&2
-    exit 1
-  fi
-  link=$(readlink -- "$cur")
-  case "$link" in
-    /*) cur=$link ;;
-    *) cur="$phys_dir/$link" ;;
-  esac
-  phys_dir=$(CDPATH= cd -- "$(dirname -- "$cur")" && pwd -P)
-  case "$phys_dir" in
-    /workspace|/workspace/*) ;;
-    *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
-  esac
-  cur="$phys_dir/$(basename -- "$cur")"
-done
-case "$cur" in
-  /workspace|/workspace/*) ;;
-  *) echo "directory is outside the workspace or unavailable" >&2; exit 1 ;;
-esac
-if [ ! -f "$cur" ] || [ -L "$cur" ]; then
-  echo "not a regular file" >&2
-  exit 1
-fi
-stat -c '%s|%Y' -- "$cur"
-printf '%s\n' "$cur"
-`
 }
 
 func parseCodeStudioStatLine(line string) (int64, time.Time, error) {
@@ -1369,60 +1353,53 @@ func buildCodeStudioSearchCommand(options codeStudioSearchOptions) ([]string, er
 	if strings.TrimSpace(options.Query) == "" {
 		return nil, fmt.Errorf("search query is required")
 	}
-	cmd := []string{"grep", "-R", "-n", "-I"}
-	if !options.Regex {
-		cmd = append(cmd, "-F")
+	args := []string{"grep", "-n", "-I"}
+	if options.Regex {
+		args = append(args, "-E")
 	} else {
-		cmd = append(cmd, "-E")
+		args = append(args, "-F")
 	}
 	if !options.CaseSensitive {
-		cmd = append(cmd, "-i")
+		args = append(args, "-i")
 	}
 	if options.WholeWord {
-		cmd = append(cmd, "-w")
+		args = append(args, "-w")
 	}
-	if include := sanitizeCodeStudioGlob(options.Include); include != "" {
-		cmd = append(cmd, "--include="+include)
-	}
-	if exclude := sanitizeCodeStudioExclude(options.Exclude); exclude != "" {
-		cmd = append(cmd, "--exclude-dir="+exclude)
-	}
-	cmd = append(cmd, "-e", options.Query, "--", path)
-	return cmd, nil
+	args = append(args, "-e", options.Query, "--")
+	payload, _ := json.Marshal(map[string]interface{}{"args": args, "include": sanitizeCodeStudioGlob(options.Include), "exclude": sanitizeCodeStudioExclude(options.Exclude), "limit": codeStudioSearchResultLimit + 1})
+	return codeStudioPathCommand("search", path, string(payload)), nil
 }
 
 func parseCodeStudioGrepOutput(output string) ([]codeStudioSearchResult, bool, error) {
-	output = strings.TrimRight(output, "\n")
-	if strings.TrimSpace(output) == "" {
-		return []codeStudioSearchResult{}, false, nil
-	}
-	lines := strings.Split(output, "\n")
-	results := make([]codeStudioSearchResult, 0, min(len(lines), codeStudioSearchResultLimit))
-	truncated := false
-	for _, line := range lines {
+	results := make([]codeStudioSearchResult, 0)
+	for output != "" {
 		if len(results) >= codeStudioSearchResultLimit {
-			truncated = true
-			break
+			return results, true, nil
 		}
-		parts := strings.SplitN(line, ":", 3)
-		if len(parts) != 3 {
+		filename, rest, ok := strings.Cut(output, "\x00")
+		if !ok {
+			return nil, false, fmt.Errorf("invalid search filename record")
+		}
+		line, tail, ended := strings.Cut(rest, "\n")
+		if !ended {
+			tail = ""
+		}
+		output = tail
+		lineNumber, preview, ok := strings.Cut(line, ":")
+		if !ok {
 			return nil, false, fmt.Errorf("invalid search output line")
 		}
-		path, err := sanitizeCodeStudioPath(parts[0])
+		path, err := sanitizeCodeStudioPath(filename)
 		if err != nil {
 			return nil, false, err
 		}
-		lineNo, err := strconv.Atoi(parts[1])
+		lineNo, err := strconv.Atoi(lineNumber)
 		if err != nil || lineNo <= 0 {
 			return nil, false, fmt.Errorf("invalid search line number")
 		}
-		results = append(results, codeStudioSearchResult{
-			Path:    path,
-			Line:    lineNo,
-			Preview: parts[2],
-		})
+		results = append(results, codeStudioSearchResult{Path: path, Line: lineNo, Preview: preview})
 	}
-	return results, truncated, nil
+	return results, false, nil
 }
 
 func sanitizeCodeStudioGlob(raw string) string {

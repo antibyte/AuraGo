@@ -54,10 +54,20 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - Managed probes and workspace scripts use non-login shells to retain the image
   PATH, including `/usr/local/go/bin`. Never rebuild a healthy image because a
   login profile hid its tools. Verify `TestCodeStudioRuntimeRequiresCCompiler`.
+- Code Studio acquisitions cache the container ID and perform one targeted
+  inspect on ordinary access. Discovery, workspace repair and seeding run only
+  during startup/adoption. Docker I/O stays outside the state mutex; the
+  lifecycle lock serializes startup/stop while allowing concurrent acquisitions.
+  Do not retry uncertain writes. `HoldTerminal` returns an idempotent lease:
+  live sessions suspend idle stop, the last release restarts the idle interval,
+  and timer generations reject callbacks superseded by activity. Verify
+  `TestCodeContainerCachedParallelAccessDoesOneInspect` and
+  `TestCodeContainerTerminalLeasesInvalidateIdleCallbacks`.
 - `virtual_desktop.code_studio.allow_network` defaults false. Off creates the
   container with Docker `NetworkMode` `none`. On leaves `NetworkMode` empty so
   Docker uses its default bridge. The container still has no Docker socket and
-  no extra capabilities. `EnsureStarted` removes and recreates a container whose
+  drops all capabilities, then adds only `CHOWN` and `FOWNER` for workspace
+  ownership repair. `EnsureStarted` removes and recreates a container whose
   mode does not match; workspace content stays on the host mount. Status
   reports `network` from that setting until the container is running, then
   from the inspected mode (`none`, `bridge`, or the raw mode such as `host`).

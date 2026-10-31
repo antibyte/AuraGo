@@ -3089,6 +3089,15 @@ GET /api/code-studio/terminal
 ```
 
 Code Studio paths are sanitized inside the container workspace and mounted at `/workspace`.
+File operations and search remain anchored to that workspace during concurrent
+path changes. Search returns at most 200 matches and sets `truncated` when more
+exist. Filenames retain whitespace, newlines and colons.
+
+The status object's additive `active_terminal_sessions` field counts connected
+terminal sessions. They suspend automatic idle shutdown; closing the last session
+starts a fresh idle interval. `read_only` reflects the current Desktop policy.
+Docker host changes take effect on subsequent operations without restarting the
+HTTP server. Existing exec and Git endpoints remain available.
 
 ### Desktop Workspace API
 

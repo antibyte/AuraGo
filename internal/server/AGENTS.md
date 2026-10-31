@@ -332,20 +332,33 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Code Studio
 
-- Managed terminal, Run, and Git status, diff and log retain the container
-  image's environment with `sh -c`; login profiles must not hide installed
-  toolchains. Explicit exec argument arrays stay unchanged. Verify
+- Managed terminal and Run retain the container image's environment with
+  non-login shells; Git uses the shared `execGit` argument helper. Login profiles
+  must not hide installed toolchains. Explicit exec arrays stay unchanged. Verify
   `TestNormalizeCodeStudioExecCommandPreservesEnvironment` and the terminal tests.
+- Each request binds the Docker adapter and acquired container ID to the same
+  current Desktop service configuration. Route registration never freezes the
+  adapter. A terminal holds a container lease until upgrade/exec failure,
+  disconnect or cancellation; status exposes `active_terminal_sessions`.
+  Verify `TestCodeStudioOperationBindsCurrentDockerHostAndContainer`,
+  `TestCodeStudioStatusUsesLiveReadOnlyPolicy` and the terminal lease tests.
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a
   single generated regular staging file through the Docker archive API. Never
   embed contents in exec arguments. The normal container user verifies the
   staged digest and installs through no-follow directory descriptors.
-- File GET and download resolve the physical path with `pwd -P` before
-  reading bytes. An intermediate or final symlink whose target leaves
-  `/workspace`, a non-regular file, or a probe path that fails
-  `sanitizeCodeStudioPath` is HTTP 400 and is not base64-read. The response
-  path is the physical path. Verify `TestCodeStudioReadRejectsSymlinkEscape`,
-  `TestCodeStudioReadFollowsSymlinkInsideWorkspace` and `TestCodeStudioDownload*`.
+- `code_studio_paths.go` traverses relative to no-follow directory descriptors
+  for move, delete, mkdir, list and search. Delete removes links themselves;
+  recursive search skips links. Never substitute a preliminary realpath check
+  for anchored operations. File GET/download resolve internal links with bounded
+  descriptor-relative traversal; each read independently enforces confinement,
+  regular-file type and the size limit. The response retains the physical path.
+  List records end in NUL; search frames filename + NUL + line:preview + LF.
+  Preserve colons, newlines and edge spaces in names. Search caps individual
+  output lines at 1 MiB and total output at 16 MiB. Verify
+  `TestCodeStudioRootedPaths`, `TestCodeStudioPathRecordsPreserveNames` and
+  `TestCodeStudioDownload*`. On non-Linux hosts,
+  `AURAGO_CODE_STUDIO_DOCKER_SMOKE=1` runs the path/race and Go/Node/Python/C
+  acceptance in the managed image with no network or host mounts.
 - The Code Studio terminal rejects an empty or foreign `Origin` with HTTP 403
   before the container starts and before the WebSocket upgrade.
   `CheckOrigin` is `desktop.SameHostWebSocketOrigin`. Verify
@@ -377,7 +390,10 @@ Server-owned HTTP and cross-component integration contracts.
   Verify `TestCodeStudioTerminal*` including the WebSocket test.
 - Git status uses porcelain v1 with NUL-delimited records, including the second
   rename/copy path. Each change reports `staged` from the index column.
-  Preserve filename bytes through diff requests. Search uses
+  Preserve filename bytes through diff requests and use `--literal-pathspecs` for
+  Git file operands. Missing repositories and empty logs expose no Git diagnostics
+  as repository data. Verify `TestCodeStudioGitFailuresAreNotRepositoryData` and
+  `TestCodeStudioGitUsesLiteralPathspecs`. Search uses
   an explicit grep pattern operand (`-e`) and option terminator (`--`).
   It keeps the first 200 matches and sets `truncated` when more lines remain.
   An invalid line before that cap still fails the search. Verify

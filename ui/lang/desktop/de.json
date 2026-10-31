@@ -10651,5 +10651,13 @@
   "game_maker.guided_base_change": "Stelle das Spiel auf eine geführte 3D-Vorlage um, die zum Ablauf passt: Erkundung, Fahren, Flug, Weltraum oder FPS. Freies three lässt die Spielregeln ungeprüft.",
   "game_maker.retry_keeps_pending_selection": "Erneut versuchen behält die Asset-Auswahl dieses Laufs, weil noch kein Plan angenommen wurde.",
   "game_maker.compact_opt_in": "Kompaktmodus für dieses unbekannte Modell. Der Plan wird kürzer, und eine neue Vorlage wird in kleinen Schritten geändert.",
-  "desktop.app_kaggle": "Kaggle"
+  "desktop.app_kaggle": "Kaggle",
+  "codeStudio.diffWorktree": "Arbeitskopie",
+  "codeStudio.diffIndex": "Index (vorgemerkt)",
+  "codeStudio.promptSelection": "den ausgewählten Code",
+  "codeStudio.promptFile": "die aktuelle Datei",
+  "codeStudio.promptExplain": "Erkläre {{target}} in {{path}}.",
+  "codeStudio.promptComments": "Ergänze hilfreiche Kommentare für {{target}} in {{path}}. Gib nur den geänderten Code zurück.",
+  "codeStudio.promptTests": "Erstelle sinnvolle Tests für {{path}}. Gib Codeblöcke für neue oder geänderte Dateien zurück.",
+  "codeStudio.promptRefactor": "Überarbeite {{target}} in {{path}}. Gib nur den geänderten Code zurück."
 }

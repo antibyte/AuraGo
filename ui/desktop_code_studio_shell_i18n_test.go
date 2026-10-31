@@ -99,7 +99,7 @@ func TestDesktopCodeStudioTerminalFrames(t *testing.T) {
 		t.Fatal("code studio keystrokes must not be sent as text frames")
 	}
 	core := readDesktopAssetText(t, "js/desktop/apps/code-studio/core.js")
-	if !strings.Contains(core, "endTerminalSocket(socket)") {
+	if !strings.Contains(core, "session.dispose && session.dispose()") || !strings.Contains(terminal, "endTerminalSocket(session.ws)") {
 		t.Fatal("closing code studio must end the terminal socket")
 	}
 }

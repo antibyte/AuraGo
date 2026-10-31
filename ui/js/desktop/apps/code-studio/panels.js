@@ -1,6 +1,6 @@
     function showProjectKnowledge() {
         const instance = state;
-        if (!instance || !window.AuraGoLearnings) return;
+        if (!instance || (!window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function')) return;
         if (instance.knowledgeClose) instance.knowledgeClose();
         const tab = activeTab();
         instance.knowledgeClose = window.AuraGoLearnings.open({
@@ -8,13 +8,13 @@
             parent: instance.root, title: tr('codeStudio.knowledge', 'Insights'),
             openSource: (file, line) => {
                 if (instance.knowledgeClose) instance.knowledgeClose();
-                return runAsyncStep(instance, () => openSearchResult('/workspace/' + file, line));
+                return runAsyncStep(instance, () => openSearchResult(desktopToCodeStudioPath(file), line));
             }
         });
     }
 
     function splitEditor(direction) {
-        if (!state) return;
+        if (!state || activeTab()?.kind === 'diff') return;
         const next = direction === 'down' ? 'down' : 'right';
         state.splitMode = state.splitMode === next ? null : next;
         if (!state.splitMode) state.splitRatio = 0.5;

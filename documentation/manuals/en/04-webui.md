@@ -236,7 +236,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | App | Purpose |
 |-----|---------|
 | **Files** | Browse the virtual desktop workspace and open files in the right app |
-| **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, and agent context |
+| **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, agent context and read-only Git diff tabs (working tree or index) |
 | **Terminal** | Workspace terminal with selectable CRT styles (retro tube look); with **Retro-Net** (on by default) also a dialing directory for Telnet BBSes, C64 boards, MUDs and more — see below |
 | **Writer / Sheets / Notes / Viewer** | Native DOCX word processor, native spreadsheet, and rich note editor (list, live preview, tags, rich layout), plus a file viewer |
 | **Pixel** | Layered image editor with masks, blend modes, selections, retouch tools, 80 filters and adjustments, 43 generators, background removal (on the device, or AI models downloaded on demand), a command palette and OpenRaster (`.ora`) projects. Also has the older provider-based AI panel ([Chapter 31](31-pixel.md)) |

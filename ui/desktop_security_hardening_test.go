@@ -70,8 +70,8 @@ func TestCodeStudioSanitizesPersistedStateAndSocketAliases(t *testing.T) {
 		"const MIN_SIDEBAR_WIDTH = 180", "const MAX_SIDEBAR_WIDTH = 500",
 		"const MIN_TERMINAL_HEIGHT = 80", "const MAX_TERMINAL_HEIGHT = 600",
 		"function normalizePersistedPaths(values)", "normalizeCodeStudioPath(rawPath)",
-		"if (path === WORKSPACE_ROOT || seen.has(path)) continue", "const sockets = new Set()",
-		"if (instance.ws) sockets.add(instance.ws)", "session.ws = null",
+		"if (path === WORKSPACE_ROOT || seen.has(path)) continue", "instance.terminalSessions.forEach(session => session.dispose && session.dispose())",
+		"instance.ws = instance.terminal = instance.fitAddon = instance.runSession = null",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("Code Studio persisted-state hardening missing %q", want)

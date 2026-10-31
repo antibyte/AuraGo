@@ -39,7 +39,7 @@ func TestCodeStudioGitBranchGetDoesNotMutate(t *testing.T) {
 			t.Fatalf("list ran checkout: %#v", docker.commands)
 		}
 	}
-	if len(docker.commands) != 2 || !strings.Contains(docker.commands[0][2], "git branch -a") {
+	if len(docker.commands) != 2 || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "--literal-pathspecs", "branch", "-a"}) {
 		t.Fatalf("list commands=%#v", docker.commands)
 	}
 
@@ -50,7 +50,7 @@ func TestCodeStudioGitBranchGetDoesNotMutate(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	want := []string{"git", "-C", "/workspace", "checkout", "-b", "feature/one"}
+	want := []string{"git", "-C", "/workspace", "--literal-pathspecs", "checkout", "-b", "feature/one"}
 	if !reflect.DeepEqual(docker.commands[0], want) {
 		t.Fatalf("create command=%#v", docker.commands[0])
 	}
@@ -75,10 +75,10 @@ func TestCodeStudioGitCommitStagesOnlyGivenPaths(t *testing.T) {
 		t.Fatalf("commit status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	want := [][]string{
-		{"git", "-C", "/workspace", "add", "--", "main.go"},
-		{"git", "-C", "/workspace", "add", "--", "sub/a.txt"},
-		{"git", "-C", "/workspace", "commit", "-m", "save work"},
-		{"git", "-C", "/workspace", "rev-parse", "--short", "HEAD"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "add", "--", "main.go"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "add", "--", "sub/a.txt"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "commit", "-m", "save work"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "rev-parse", "--short", "HEAD"},
 	}
 	if !reflect.DeepEqual(docker.commands, want) {
 		t.Fatalf("commands=%#v", docker.commands)
@@ -88,7 +88,7 @@ func TestCodeStudioGitCommitStagesOnlyGivenPaths(t *testing.T) {
 	h.docker = docker
 	rec = httptest.NewRecorder()
 	h.handleGitCommit(rec, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/commit", strings.NewReader(`{"message":"index only"}`)))
-	if rec.Code != http.StatusOK || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "commit", "-m", "index only"}) {
+	if rec.Code != http.StatusOK || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "--literal-pathspecs", "commit", "-m", "index only"}) {
 		t.Fatalf("index commit status=%d commands=%#v body=%s", rec.Code, docker.commands, rec.Body.String())
 	}
 
@@ -96,7 +96,7 @@ func TestCodeStudioGitCommitStagesOnlyGivenPaths(t *testing.T) {
 	h.docker = docker
 	rec = httptest.NewRecorder()
 	h.handleGitCommit(rec, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/commit", strings.NewReader(`{"message":"all","add_all":true,"paths":["main.go"]}`)))
-	if rec.Code != http.StatusOK || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "add", "-A"}) {
+	if rec.Code != http.StatusOK || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "--literal-pathspecs", "add", "-A"}) {
 		t.Fatalf("add all commands=%#v", docker.commands)
 	}
 	for _, cmd := range docker.commands {
@@ -132,8 +132,8 @@ func TestCodeStudioGitIdentityIsLocal(t *testing.T) {
 		t.Fatalf("identity status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	want := [][]string{
-		{"git", "-C", "/workspace", "config", "--local", "user.name", "Ada Lovelace"},
-		{"git", "-C", "/workspace", "config", "--local", "user.email", "ada@example.com"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "config", "--local", "user.name", "Ada Lovelace"},
+		{"git", "-C", "/workspace", "--literal-pathspecs", "config", "--local", "user.email", "ada@example.com"},
 	}
 	if !reflect.DeepEqual(docker.commands, want) {
 		t.Fatalf("commands=%#v", docker.commands)

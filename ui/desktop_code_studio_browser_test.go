@@ -386,13 +386,14 @@ func TestDesktopCodeStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>{csRoot().querySelector('[data-activity="terminal"]').click();csRoot().querySelector('[data-activity="terminal"]').click();}`)
 	check("terminal survives toggling", `()=>csRoot().dataset.terminal==='visible' && csRoot().querySelector('.xterm')!==null`)
 
-	// Run sends the file to exec and prints into the terminal.
+	// Run sends the command through the active terminal session.
 	page.MustEval(`async()=>{csRoot().querySelector('[data-action="run"]').click();await new Promise(r=>setTimeout(r,400));}`)
 	backend.mu.Lock()
+	inputs := strings.Join(backend.inputs, "")
 	execs := append([]string{}, backend.execs...)
 	backend.mu.Unlock()
-	if len(execs) != 1 || !strings.Contains(execs[0], "go run") {
-		t.Errorf("run did not execute the active Go file: %v", execs)
+	if len(execs) != 0 || !strings.Contains(inputs, "go run") {
+		t.Errorf("run did not use the active terminal: inputs=%q execs=%v", inputs, execs)
 	}
 
 	// Unsaved changes guard the window close (Run saved the file, so dirty it again first).

@@ -104,6 +104,7 @@ func TestCodeContainerEnsureStartedReconcilesCachedRunningState(t *testing.T) {
 				fake.inspectByName["created-1"] = inspect
 			case "removed":
 				fake.containers = nil
+				delete(fake.inspectByName, "created-1")
 			case "inspect error":
 				fake.inspectErr = errors.New("daemon unavailable")
 			}
@@ -879,7 +880,7 @@ func TestCodeContainerStatusReportsInspectedNetworkAndReadOnly(t *testing.T) {
 	}
 }
 
-func TestCodeContainerStatusKeepsConfiguredNetworkWhenInspectFails(t *testing.T) {
+func TestCodeContainerStatusUsesSingleInspect(t *testing.T) {
 	t.Parallel()
 
 	fake := &failLaterCodeContainerInspect{
@@ -897,8 +898,8 @@ func TestCodeContainerStatusKeepsConfiguredNetworkWhenInspectFails(t *testing.T)
 	svc.docker = fake
 
 	status := svc.Status(context.Background())
-	if status.Error != "" || !status.Running || status.Network != "bridge" {
-		t.Fatalf("status error/running/network = %q/%v/%q, want empty/true/bridge", status.Error, status.Running, status.Network)
+	if status.Error != "" || !status.Running || status.Network != "none" || fake.calls != 1 {
+		t.Fatalf("status error/running/network = %q/%v/%q calls=%d, want empty/true/none and one inspect", status.Error, status.Running, status.Network, fake.calls)
 	}
 }
 

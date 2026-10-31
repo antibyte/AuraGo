@@ -58,7 +58,7 @@ func TestParseCodeStudioFindOutputSortsFoldersFirst(t *testing.T) {
 		"f|12|1710000001.0000000000|/workspace/main.go",
 		"d|4096|1710000000.0000000000|/workspace/src",
 		"f|8|1710000002.0000000000|/workspace/README.md",
-	}, "\n") + "\n"
+	}, "\x00") + "\x00"
 
 	entries, err := parseCodeStudioFindOutput(output)
 	if err != nil {
@@ -108,7 +108,7 @@ func TestDemuxDockerAttachStream(t *testing.T) {
 }
 
 func TestParseCodeStudioGrepOutput(t *testing.T) {
-	output := "/workspace/main.go:12:func main() {\n/workspace/pkg/app.go:8:func Run() error {\n"
+	output := "/workspace/main.go\x0012:func main() {\n/workspace/pkg/app.go\x008:func Run() error {\n"
 
 	results, truncated, err := parseCodeStudioGrepOutput(output)
 	if err != nil {
@@ -129,12 +129,12 @@ func TestParseCodeStudioGrepOutput(t *testing.T) {
 }
 
 func TestParseCodeStudioGrepOutputCapsResults(t *testing.T) {
-	line := "/workspace/main.go:1:hit\n"
+	line := "/workspace/main.go\x001:hit\n"
 	results, truncated, err := parseCodeStudioGrepOutput(strings.Repeat(line, codeStudioSearchResultLimit))
 	if err != nil || truncated || len(results) != codeStudioSearchResultLimit {
 		t.Fatalf("exact cap: n=%d truncated=%v err=%v", len(results), truncated, err)
 	}
-	results, truncated, err = parseCodeStudioGrepOutput(strings.Repeat(line, codeStudioSearchResultLimit) + "not valid\n")
+	results, truncated, err = parseCodeStudioGrepOutput(strings.Repeat(line, codeStudioSearchResultLimit) + line)
 	if err != nil || !truncated || len(results) != codeStudioSearchResultLimit {
 		t.Fatalf("over cap: n=%d truncated=%v err=%v", len(results), truncated, err)
 	}
@@ -171,7 +171,7 @@ func TestCodeStudioStatusOmitsHostPathAndReportsInspectedNetwork(t *testing.T) {
 
 func TestCodeStudioSearchCapsResults(t *testing.T) {
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
-	output := strings.Repeat("/workspace/main.go:1:hit\n", codeStudioSearchResultLimit+1)
+	output := strings.Repeat("/workspace/main.go\x001:hit\n", codeStudioSearchResultLimit+1)
 	docker := &recordingCodeStudioDockerAPI{results: []codeStudioExecResult{{ExitCode: 0, Output: output}}}
 	h := codeStudioHandlers{server: s, docker: docker}
 	rec := httptest.NewRecorder()
@@ -203,17 +203,22 @@ func TestBuildCodeStudioSearchCommandEscapesUserInput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildCodeStudioSearchCommand: %v", err)
 	}
-	joined := strings.Join(cmd, " ")
-	for _, want := range []string{"grep", "-R", "-n", "-I", "-i", "-w", "--include=*.go", "--exclude-dir=vendor"} {
+	var options struct {
+		Args             []string
+		Include, Exclude string
+		Limit            int
+	}
+	if err := json.Unmarshal([]byte(cmd[len(cmd)-1]), &options); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(options.Args, " ")
+	for _, want := range []string{"grep", "-n", "-I", "-i", "-w", "-e func main --"} {
 		if !strings.Contains(joined, want) {
-			t.Fatalf("command %q missing %q", joined, want)
+			t.Fatalf("grep arguments missing %q: %s", want, joined)
 		}
 	}
-	if got := cmd[len(cmd)-3]; got != "func main" {
-		t.Fatalf("query arg = %q, want literal query", got)
-	}
-	if got := cmd[len(cmd)-1]; got != "/workspace/src" {
-		t.Fatalf("path arg = %q, want sanitized path", got)
+	if strings.Contains(joined, "-R") || options.Include != "*.go" || options.Exclude != "vendor" || options.Limit != 201 || cmd[5] != "/workspace/src" {
+		t.Fatalf("unexpected rooted search options: %+v", options)
 	}
 }
 
@@ -358,7 +363,7 @@ func TestCodeStudioDownloadRejectsFilesOverConfiguredLimit(t *testing.T) {
 
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{
-			{ExitCode: 0, Output: "1048577|1710000000\n/workspace/large.bin\n"},
+			{ExitCode: 0, Output: "1048577|1710000000\n/workspace/large.bin\x00"},
 			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("should-not-read"))},
 		},
 	}
@@ -374,8 +379,8 @@ func TestCodeStudioDownloadRejectsFilesOverConfiguredLimit(t *testing.T) {
 	if len(docker.commands) != 1 {
 		t.Fatalf("docker exec calls = %d, want 1; commands=%v", len(docker.commands), docker.commands)
 	}
-	if joined := strings.Join(docker.commands[0], " "); !strings.Contains(joined, "stat") || strings.Contains(joined, "base64") {
-		t.Fatalf("first download command = %q, want stat-only size probe", joined)
+	if docker.commands[0][4] != "probe" {
+		t.Fatal("download did not probe before reading")
 	}
 }
 
@@ -383,7 +388,7 @@ func TestCodeStudioDownloadStillStreamsFilesWithinConfiguredLimit(t *testing.T) 
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{
-			{ExitCode: 0, Output: "5|1710000000\n/workspace/hello.txt\n"},
+			{ExitCode: 0, Output: "5|1710000000\n/workspace/hello.txt\x00"},
 			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("hello"))},
 		},
 	}
@@ -402,7 +407,7 @@ func TestCodeStudioDownloadStillStreamsFilesWithinConfiguredLimit(t *testing.T) 
 	if len(docker.commands) != 2 {
 		t.Fatalf("docker exec calls = %d, want 2; commands=%v", len(docker.commands), docker.commands)
 	}
-	if got := docker.commands[1]; len(got) != 3 || got[0] != "base64" || got[2] != "/workspace/hello.txt" {
+	if got := docker.commands[1]; len(got) != 7 || got[4] != "read" || got[5] != "/workspace/hello.txt" {
 		t.Fatalf("content command = %q, want base64 of the physical path", got)
 	}
 }
@@ -427,7 +432,7 @@ func TestCodeStudioReadRejectsSymlinkEscape(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "root:x") {
 		t.Fatal("escaped symlink content was returned")
 	}
-	if len(docker.commands) != 1 || strings.Contains(strings.Join(docker.commands[0], " "), "base64") {
+	if len(docker.commands) != 1 || docker.commands[0][4] != "probe" {
 		t.Fatalf("commands = %v, want one probe without base64", docker.commands)
 	}
 }
@@ -436,7 +441,7 @@ func TestCodeStudioReadFollowsSymlinkInsideWorkspace(t *testing.T) {
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{
-			{ExitCode: 0, Output: "5|1710000000\n/workspace/real.txt\n"},
+			{ExitCode: 0, Output: "5|1710000000\n/workspace/real.txt\x00"},
 			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("hello"))},
 		},
 	}
@@ -459,7 +464,7 @@ func TestCodeStudioReadFollowsSymlinkInsideWorkspace(t *testing.T) {
 	if body.Path != "/workspace/real.txt" || body.Content != "hello" {
 		t.Fatalf("body = %+v, want physical path and target content", body)
 	}
-	if got := docker.commands[1]; len(got) != 3 || got[2] != "/workspace/real.txt" {
+	if got := docker.commands[1]; len(got) != 7 || got[4] != "read" || got[5] != "/workspace/real.txt" {
 		t.Fatalf("content command = %q, want the physical path", got)
 	}
 }
@@ -469,7 +474,7 @@ func TestCodeStudioReadRejectsProbePathOutsideWorkspace(t *testing.T) {
 	docker := &recordingCodeStudioDockerAPI{
 		results: []codeStudioExecResult{{
 			ExitCode: 0,
-			Output:   "4|1710000000\n/etc/passwd\n",
+			Output:   "4|1710000000\n/etc/passwd\x00",
 		}},
 	}
 	handler := codeStudioHandlers{server: s, docker: docker}

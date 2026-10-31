@@ -24,6 +24,8 @@
             root: container,
             windowId,
             context: context || {},
+            readOnly: !!(context && context.readonly),
+            policyRevision: 0,
             editorType: null,
             cmModule: null,
             files: [],
@@ -236,7 +238,7 @@
     }
 
     function normalizeCodeStudioPath(rawPath) {
-        let value = String(rawPath || '').replace(/\\/g, '/').replace(/\0/g, '').trim();
+        let value = String(rawPath || '').replace(/\\/g, '/').replace(/\0/g, '');
         if (!value) return WORKSPACE_ROOT;
         value = value.replace(/^file:\/+/i, '/').replace(/\/+/g, '/');
         if (/^[a-zA-Z]:\//.test(value) || value.startsWith('~')) return WORKSPACE_ROOT;
@@ -356,7 +358,6 @@
             return api('/api/code-studio/git/branch');
         },
         gitLog: (path, count) => api('/api/code-studio/git/log?' + new URLSearchParams({ path: path || '', count: String(count || 20) })),
-        agentStream: (message, context) => api('/api/code-studio/agent/stream?' + new URLSearchParams({ message, context: JSON.stringify(context || {}) }))
     };
 
     function loadState() {
@@ -388,7 +389,7 @@
     }
 
     function saveState() {
-        const openPaths = normalizePersistedPaths(state.openTabs);
+        const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => tab.kind !== 'diff'));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
         const payload = {
             openTabs: openPaths.map(path => ({ path })),
@@ -410,11 +411,12 @@
         instances.set(windowId, instance);
         window.AuraDesktopEmail?.attach(windowId, '.code-studio-toolbar', () => {
             const tab = instance.openTabs[instance.activeTabIndex];
-            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary, subject:tab?.path.split('/').pop(),
+            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary||tab.kind==='diff', subject:tab?.path.split('/').pop(),
                 formats:tab?[{id:'source',label:tab.path.split('/').pop()}]:[],
                 createFiles:async()=>[new File([tab.content],tab.path.split('/').pop(),{type:'text/plain;charset=utf-8'})]};
         });
         latestWindowId = windowId;
+        runWithInstance(instance, watchStudioPolicy);
         runWithInstance(instance, () => {
             loadState();
             container.innerHTML = shellMarkup();
@@ -440,7 +442,7 @@
                 await runAsyncStep(instance, () => openPath(context.path));
                 if (!isLiveInstance(instance)) return;
             }
-            runWithInstance(instance, connectTerminal);
+            runWithInstance(instance, () => { connectTerminal(); scheduleGitRefresh(); });
         } catch (err) {
             if (isLiveInstance(instance)) runWithInstance(instance, () => renderError(err.message || String(err)));
         }
@@ -456,7 +458,9 @@
         if (instance.agentAbortController) instance.agentAbortController.abort();
         if (instance.knowledgeClose) instance.knowledgeClose();
         closeTerminalSessionSockets(instance);
-        for (const disposeFn of instance.disposers || []) {
+        window.CodeStudioCommandPalette?.close(windowId);
+        if (instance.gitRefreshTimer) clearTimeout(instance.gitRefreshTimer);
+        for (const disposeFn of [...(instance.disposers || [])]) {
             try { disposeFn(); } catch (_) {}
         }
         instance.openTabs.forEach(tab => destroyTabView(tab, true));
@@ -468,24 +472,105 @@
 
     function closeTerminalSessionSockets(instance) {
         if (!instance) return;
-        const sockets = new Set();
-        if (instance.ws) sockets.add(instance.ws);
-        if (Array.isArray(instance.terminalSessions)) {
-            instance.terminalSessions.forEach(session => {
-                if (session && session.ws) sockets.add(session.ws);
-            });
-        }
-        sockets.forEach(socket => endTerminalSocket(socket));
-        instance.ws = null;
-        if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
+        instance.terminalSessions.forEach(session => session.dispose && session.dispose());
+        instance.terminalSessions = [];
+        instance.ws = instance.terminal = instance.fitAddon = instance.runSession = null;
     }
 
-    function rememberContainerStatus(payload) {
+    function rememberContainerStatus(payload, policyRevision) {
         const info = payload || {};
         state.containerInfo = info;
+        if (policyRevision === state.policyRevision && typeof info.read_only === 'boolean') applyStudioPolicy(info.read_only);
+        info.read_only = state.readOnly;
         if (info.running) state.containerStatus = 'running';
         else if (info.error || info.state === 'error') state.containerStatus = 'error';
         else state.containerStatus = 'starting';
+    }
+
+    function canWrite(instance = state) {
+        return isLiveInstance(instance) && !instance.readOnly;
+    }
+
+    function policyDisables(id, tab = activeTab()) {
+        if (id === 'run-current') id = 'run';
+        const writes = ['new-file', 'new-folder', 'save', 'save-all', 'upload', 'rename', 'delete', 'run', 'new-terminal', 'comments', 'tests', 'refactor'];
+        if (!canWrite() && writes.includes(id)) return true;
+        return ['save', 'run', 'split-right', 'split-down', 'explain', 'comments', 'tests', 'refactor'].includes(id) && (!tab || tab.kind === 'diff');
+    }
+
+    function watchStudioPolicy() {
+        const instance = state;
+        const onPolicy = bindInstance(instance, event => {
+            const policy = event.detail || {};
+            if (typeof policy.readonly === 'boolean') {
+                instance.policyRevision++;
+                applyStudioPolicy(policy.readonly);
+            }
+        });
+        document.addEventListener('aurago:desktop-policy', onPolicy);
+        registerDisposer(() => document.removeEventListener('aurago:desktop-policy', onPolicy));
+    }
+
+    function applyStudioPolicy(readOnly) {
+        if (state.readOnly === readOnly) return;
+        state.readOnly = readOnly;
+        state.context.readonly = readOnly;
+        if (state.containerInfo) state.containerInfo.read_only = readOnly;
+        state.openTabs.forEach(tab => (tab.views || []).forEach(view => {
+            if (view.csPolicy) view.dispatch({ effects: view.csPolicy.reconfigure(editorPolicyExtensions(state.cmModule)) });
+            if (view.textarea) view.textarea.readOnly = readOnly;
+        }));
+        if (readOnly) {
+            state.terminalSessions.forEach(session => session.dispose && session.dispose());
+            state.terminalSessions = [];
+            state.runSession = null;
+            syncTerminalAliases();
+        }
+        // Before shell readiness only retain the policy; rendering is done by renderShell.
+        if (!state.root.querySelector('[data-action="save"]')) return;
+        renderTerminal();
+        renderWindowMenus();
+        updatePolicyControls();
+        updateSuggestionStatus();
+        renderStatus();
+        window.CodeStudioCommandPalette?.refresh(state.windowId);
+    }
+
+    function updatePolicyControls() {
+        state.root.querySelectorAll('[data-action], [data-sidebar-tool]').forEach(button => {
+            button.disabled = policyDisables(button.dataset.action || button.dataset.sidebarTool);
+        });
+        state.root.querySelectorAll('[data-file-action]').forEach(control => {
+            const disabled = policyDisables(control.dataset.fileAction);
+            control.setAttribute('aria-disabled', String(disabled));
+            control.tabIndex = disabled ? -1 : 0;
+        });
+        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-select], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
+        state.root.querySelectorAll('[data-code-action]').forEach(button => { button.disabled = policyDisables(button.dataset.codeAction); });
+        const message = state.root.querySelector('[data-git-commit-msg]');
+        if (message) message.readOnly = !canWrite();
+        const knowledge = state.root.querySelector('[data-action="knowledge"]');
+        if (knowledge) knowledge.disabled = !window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function';
+    }
+
+    function trapDialogFocus(overlay) {
+        const previous = document.activeElement;
+        const onKey = event => {
+            if (event.key !== 'Tab') return;
+            const controls = Array.from(overlay.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]'));
+            if (!controls.length) return;
+            const index = controls.indexOf(document.activeElement);
+            if (event.shiftKey && index <= 0 || !event.shiftKey && index === controls.length - 1) {
+                event.preventDefault();
+                controls[event.shiftKey ? controls.length - 1 : 0].focus();
+            }
+            event.stopPropagation();
+        };
+        overlay.addEventListener('keydown', onKey);
+        return () => {
+            overlay.removeEventListener('keydown', onKey);
+            if (previous && previous.isConnected && (overlay.contains(document.activeElement) || document.activeElement === document.body)) previous.focus();
+        };
     }
 
     function containerWaitMessage(payload) {
@@ -499,7 +584,7 @@
     }
 
     function containerIdleLabel(info) {
-        if (!info || !info.running) return '';
+        if (!info || !info.running || info.active_terminal_sessions > 0) return '';
         const minutes = Number(info.auto_stop_minutes);
         if (!Number.isFinite(minutes) || minutes <= 0) return '';
         const started = Date.parse(info.last_activity);
@@ -510,22 +595,24 @@
 
     async function prepareContainer(instance) {
         const target = instance || state;
+        let policyRevision = target.policyRevision;
         const status = await apiClient.status();
         const payload = status.code_studio || {};
         if (!payload.enabled) throw new Error(tr('codeStudio.dockerUnavailable', 'Docker is not available. Code Studio requires Docker.'));
         if (!isLiveInstance(target)) return;
-        runWithInstance(target, () => rememberContainerStatus(payload));
+        runWithInstance(target, () => rememberContainerStatus(payload, policyRevision));
         if (payload.running) return;
         if (payload.error) throw new Error(payload.error);
         runWithInstance(target, () => renderLoading(containerWaitMessage(payload)));
         await apiClient.files(WORKSPACE_ROOT);
         if (!isLiveInstance(target)) return;
+        policyRevision = target.policyRevision;
         const started = await apiClient.status();
         if (!isLiveInstance(target)) return;
         const next = started.code_studio || {};
         if (!next.running && next.error) throw new Error(next.error);
         runWithInstance(target, () => {
-            rememberContainerStatus(next.running ? next : Object.assign({}, next, { running: true, state: 'running' }));
+            rememberContainerStatus(next.running ? next : Object.assign({}, next, { running: true, state: 'running' }), policyRevision);
         });
     }
 
@@ -623,7 +710,7 @@
         const hasActiveTab = !!activeTab();
         const hasModified = state.openTabs.some(tab => tab.modified);
         const hasOtherTabs = state.openTabs.length > 1;
-        state.context.setWindowMenus(state.windowId, [
+        const menus = [
             {
                 id: 'file',
                 labelKey: 'desktop.menu_file',
@@ -678,7 +765,9 @@
                     { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) }
                 ]
             }
-        ]);
+        ];
+        menus.forEach(menu => menu.items.forEach(item => { item.disabled = !!item.disabled || policyDisables(item.id); }));
+        state.context.setWindowMenus(state.windowId, menus);
     }
 
     function renderToolbar() {
@@ -706,6 +795,7 @@
         const knowledge = document.createElement('button');
         knowledge.type = 'button'; knowledge.className = 'cs-button'; knowledge.dataset.action = 'knowledge';
         knowledge.textContent = tr('codeStudio.knowledge', 'Insights');
+        knowledge.disabled = !window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function';
         knowledge.addEventListener('click', bind(showProjectKnowledge)); toolbar.append(knowledge);
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
@@ -717,7 +807,7 @@
         const cpBtn = toolbar.querySelector('[data-action="command-palette"]');
         if (cpBtn) cpBtn.addEventListener('click', bind(() => {
             if (typeof window.CodeStudioCommandPalette === 'object' && window.CodeStudioCommandPalette.toggle) {
-                window.CodeStudioCommandPalette.toggle();
+                window.CodeStudioCommandPalette.toggle(state.windowId);
             }
         }));
     }
@@ -725,9 +815,12 @@
     function renderTabs() {
         const tabs = shellPart('[data-tabs]');
         if (!tabs) return;
+        const signature = JSON.stringify([state.activeTabIndex, state.readOnly, state.openTabs.map(tab => [tab.path, tab.kind, !!tab.modified])]);
+        if (tabs.dataset.signature === signature) return;
+        tabs.dataset.signature = signature;
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
             <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}${tab.modified ? ' modified' : ''}" data-tab="${index}" draggable="true" role="tab" aria-selected="${index === state.activeTabIndex ? 'true' : 'false'}" title="${esc(tab.path)}${tab.modified ? ' \u2022 ' + esc(tr('codeStudio.unsavedChanges', 'Unsaved changes')) : ''}">
-                <span>${esc(baseName(tab.path))}</span>
+                <span>${esc(baseName(tab.path))}${tab.kind === 'diff' ? ' · ' + esc(tr('codeStudio.gitDiff', 'Git Diff')) : ''}</span>
                 ${tab.modified ? '<span class="cs-tab-modified"></span>' : ''}
                 <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
             </button>`).join('') : `<div class="cs-tabs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
@@ -781,6 +874,8 @@
         renderWindowMenus();
         highlightActiveTreeRow();
         updateToolbarTitle();
+        updatePolicyControls();
+        updateSuggestionStatus();
     }
 
     function updateToolbarTitle() {
@@ -813,7 +908,7 @@
 
     function showStudioContextMenu(x, y, items) {
         const ctx = state && state.context || {};
-        const visible = (items || []).filter(item => item && !item.hidden);
+        const visible = (items || []).filter(item => item && !item.hidden).map(item => ({ ...item, disabled: !!item.disabled || policyDisables(item.id) }));
         if (!visible.length) return;
         if (typeof ctx.showContextMenu === 'function') {
             ctx.showContextMenu(x, y, visible);
@@ -1005,13 +1100,11 @@
 
     function refreshActiveEditorZoomLayout() {
         const tab = activeTab();
-        if (!tab || !tab.view) return;
-        if (typeof tab.view.requestMeasure === 'function') {
-            tab.view.requestMeasure();
-        }
-        if (tab.view.textarea && typeof tab.view.textarea.getBoundingClientRect === 'function') {
-            tab.view.textarea.getBoundingClientRect();
-        }
+        if (!tab) return;
+        (tab.views || []).forEach(view => {
+            if (view.requestMeasure) view.requestMeasure();
+            if (view.textarea) view.textarea.getBoundingClientRect();
+        });
     }
 
     function adjustEditorZoom(delta) {
@@ -1174,7 +1267,7 @@
             await refreshFiles(WORKSPACE_ROOT);
             return;
         }
-        const existing = state.openTabs.findIndex(tab => tab.path === path);
+        const existing = state.openTabs.findIndex(tab => tab.path === path && tab.kind !== 'diff');
         if (existing >= 0) {
             activateTab(existing);
             return;
@@ -1312,19 +1405,20 @@
     }
 
     function saveTab(target, tab) {
-        if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
+        if (!canWrite(target) || !tab || tab.kind === 'diff' || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
         const content = editorValue(tab);
         const path = tab.path;
         const pending = (tab.pendingSave || Promise.resolve()).then(async () => {
-            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
+            if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             try {
                 await apiClient.writeFile(path, content);
             } catch (err) {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
                 return false;
             }
-            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
+            if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             return runWithInstance(target, () => {
+                scheduleGitRefresh();
                 tab.modified = editorValue(tab) !== content;
                 renderTabs();
                 if (!tab.modified) flashStatus(tr('codeStudio.saved', 'Saved'));
@@ -1349,14 +1443,16 @@
     }
 
     async function mutatePath(target, file, operation) {
+        if (!canWrite(target) || file.kind === 'diff') return false;
         const tabs = target.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
         if (tabs.some(tab => tab.pathMutation)) return false;
         tabs.forEach(tab => { tab.pathMutation = true; });
         target.openRequest = null;
         try {
             await Promise.all(tabs.map(tab => tab.pendingSave));
-            if (!isLiveInstance(target)) return false;
+            if (!canWrite(target)) return false;
             await operation();
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
             return isLiveInstance(target);
         } finally {
             tabs.forEach(tab => { tab.pathMutation = false; });
@@ -1365,18 +1461,19 @@
 
     async function createNewFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const path = joinPath(directory, name);
         try {
             await apiClient.writeFile(path, '', true);
-            if (!isLiveInstance(target)) return;
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+            if (!canWrite(target)) return;
             runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
             await runAsyncStep(target, () => reloadTreeDirectory(directory));
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             await runAsyncStep(target, () => openFile(path));
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => {
@@ -1388,17 +1485,18 @@
 
     async function createNewFolder() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFolder', 'New Folder'), 'src');
         if (!name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         try {
             await apiClient.createDirectory(joinPath(directory, name));
-            if (!isLiveInstance(target)) return;
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+            if (!canWrite(target)) return;
             runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
             await runAsyncStep(target, () => reloadTreeDirectory(directory));
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => flashStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name));
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
@@ -1407,10 +1505,10 @@
 
     async function renamePath(file) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const name = await promptValue(tr('codeStudio.rename', 'Rename'), file.name);
         if (!name || name === file.name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const newPath = joinPath(parentPath(file.path), name);
         try {
             if (!await mutatePath(target, file, () => apiClient.renamePath(file.path, newPath))) return;
@@ -1418,9 +1516,10 @@
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             return;
         }
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             state.openTabs.forEach(tab => {
+                if (tab.kind === 'diff') return;
                 if (tab.path === file.path) tab.path = newPath;
                 else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
                     tab.path = newPath + tab.path.slice(file.path.length);
@@ -1440,7 +1539,7 @@
             }
         });
         await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             renderTabs();
             renderBreadcrumbs();
@@ -1451,17 +1550,17 @@
 
     async function deletePath(file) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const confirmed = await confirmValue(tr('codeStudio.deleteConfirm', 'Are you sure you want to delete {{name}}?', { name: file.name }));
         if (!confirmed) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         try {
             if (!await mutatePath(target, file, () => apiClient.deletePath(file.path))) return;
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             return;
         }
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
             removedTabs.forEach(tab => destroyTabView(tab, true));
@@ -1476,7 +1575,7 @@
             if (state.selectedDir === file.path || state.selectedDir.startsWith(file.path + '/')) state.selectedDir = parentPath(file.path);
         });
         await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             renderTabs();
             renderEditor();
@@ -1504,7 +1603,7 @@
 
     async function uploadFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const ctx = target.context || {};
         const directory = runWithInstance(target, targetDirectory);
         if (typeof ctx.importFilesFromHost === 'function') {
@@ -1513,7 +1612,10 @@
                 multiple: true,
                 uploadURL: '/api/code-studio/upload'
             });
-            if (result && !result.canceled && isLiveInstance(target)) await runAsyncStep(target, () => reloadTreeDirectory(directory));
+            if (result && !result.canceled && isLiveInstance(target)) {
+                runWithInstance(target, scheduleGitRefresh);
+                await runAsyncStep(target, () => reloadTreeDirectory(directory));
+            }
             return;
         }
         const input = document.createElement('input');
@@ -1521,13 +1623,15 @@
         input.multiple = true;
         input.addEventListener('change', bind(async () => {
             const target = state;
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             const files = Array.from(input.files || []);
             if (!files.length) return;
             try {
                 for (const file of files) {
+                    if (!canWrite(target)) return;
                     await apiClient.uploadFile(directory, file);
-                    if (!isLiveInstance(target)) return;
+                    if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+                    if (!canWrite(target)) return;
                 }
                 await runAsyncStep(target, () => reloadTreeDirectory(directory));
             } catch (err) {
@@ -1547,7 +1651,7 @@
             initialPath: codeStudioDesktopPath(target.currentPath),
             filters: [{
                 label: tr('codeStudio.files', 'Files'),
-                extensions: ['.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
+                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
             }]
         });
         if (!result || result.canceled || !result.path || !isLiveInstance(target)) return;
@@ -1583,16 +1687,16 @@
 
     async function runCurrentFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const tab = activeTab();
-        if (!tab) return;
+        if (!tab || tab.kind === 'diff') return;
         const path = tab.path;
         const content = editorValue(tab);
         const terminal = activeTerminalSession();
         if (tab.modified || tab.pendingSave) {
             if (!await saveTab(target, tab)) return;
         }
-        if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
+        if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
         const command = runCommandFor(path);
         if (!command) {
             runWithInstance(target, () => {
@@ -1843,7 +1947,7 @@
             const instance = state;
             const overlay = document.createElement('div');
             overlay.className = 'cs-modal-backdrop';
-            overlay.innerHTML = `<form class="cs-modal">
+            overlay.innerHTML = `<form class="cs-modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
                 <label>${esc(title)}<input name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false"></label>
                 <div class="cs-modal-actions">
                     <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
@@ -1851,6 +1955,7 @@
                 </div>
             </form>`;
             document.body.appendChild(overlay);
+            const releaseFocus = trapDialogFocus(overlay);
             const input = overlay.querySelector('input');
             let settled = false;
             let unregister = () => {};
@@ -1859,6 +1964,7 @@
                 settled = true;
                 unregister();
                 overlay.remove();
+                releaseFocus();
                 resolve(result);
             };
             runWithInstance(instance, () => {
@@ -1866,7 +1972,7 @@
             });
             overlay.querySelector('form').addEventListener('submit', bind(event => {
                 event.preventDefault();
-                cleanup(input.value.trim());
+                cleanup(input.value);
             }));
             overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup('')));
             overlay.addEventListener('click', bind(event => {
@@ -1900,6 +2006,7 @@
                 </div>
             </div>`;
             document.body.appendChild(overlay);
+            const releaseFocus = trapDialogFocus(overlay);
             let settled = false;
             let unregister = () => {};
             const cleanup = result => {
@@ -1907,6 +2014,7 @@
                 settled = true;
                 unregister();
                 overlay.remove();
+                releaseFocus();
                 resolve(result);
             };
             runWithInstance(instance, () => {
@@ -1998,6 +2106,7 @@
     }
 
     function wireSidebarHead(sidebar) {
+        updatePolicyControls();
         sidebar.querySelectorAll('[data-sidebar-nav]').forEach(btn => {
             btn.addEventListener('click', bind(() => refreshFiles(btn.dataset.sidebarNav)));
         });
@@ -2283,12 +2392,12 @@
     function wireSidebarDragDrop(sidebar) {
         sidebar.ondragover = bind(event => {
             event.preventDefault();
-            sidebar.classList.add('dragover');
+            if (canWrite()) sidebar.classList.add('dragover');
         });
         sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
         sidebar.ondrop = bind(async event => {
             const target = state;
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             event.preventDefault();
             sidebar.classList.remove('dragover');
             const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
@@ -2296,8 +2405,10 @@
             const uploadDir = dropRow ? dropRow.dataset.filePath : targetDirectory();
             try {
                 for (const file of files) {
+                    if (!canWrite(target)) return;
                     await apiClient.uploadFile(uploadDir, file);
-                    if (!isLiveInstance(target)) return;
+                    if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+                    if (!canWrite(target)) return;
                 }
                 if (files.length) await runAsyncStep(target, () => reloadTreeDirectory(uploadDir));
             } catch (err) {
@@ -2348,7 +2459,6 @@
 ;
 /* ui/js/desktop/apps/code-studio/editor.js */
     function renderEditor() {
-        state.diffRequest = null;
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
@@ -2373,6 +2483,12 @@
             return;
         }
         editor.innerHTML = '';
+        if (tab.kind === 'diff') {
+            renderGitDiffTab(editor, tab);
+            editor.oncontextmenu = null;
+            editor.onwheel = null;
+            return;
+        }
         if (state.splitMode) {
             renderSplitPanes(editor, tab);
         } else {
@@ -2476,6 +2592,7 @@
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
         const scheme = new cm.Compartment();
+        const policy = new cm.Compartment();
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
@@ -2487,6 +2604,7 @@
             cm.indentUnit && cm.indentUnit.of('    '),
             cm.EditorView.lineWrapping,
             scheme.of(codeMirrorSchemeExtensions(cm)),
+            policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
             cm.rectangularSelection && cm.rectangularSelection(),
@@ -2569,9 +2687,14 @@
             parent: container
         });
         view.csScheme = scheme;
+        view.csPolicy = policy;
         view.csLight = light;
         watchEditorScheme();
         return view;
+    }
+
+    function editorPolicyExtensions(cm) {
+        return [cm.EditorState.readOnly.of(!canWrite()), cm.EditorView.editable.of(canWrite())];
     }
 
     function createTextareaEditor(container, tab, link) {
@@ -2581,21 +2704,27 @@
         textarea.className = 'code-studio-textarea';
         textarea.value = tab.content;
         textarea.spellcheck = false;
+        textarea.readOnly = !canWrite();
         const preview = document.createElement('pre');
         preview.className = 'code-studio-preview hljs';
         wrapper.appendChild(textarea);
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
-        const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        let highlightTimer = null;
+        const view = { textarea, destroy: () => clearTimeout(highlightTimer), getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
         textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
-            preview.textContent = textarea.value;
-            if (window.hljs && tab.language) {
-                try {
-                    preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
-                } catch (_) {}
-            }
+            clearTimeout(highlightTimer);
+            highlightTimer = setTimeout(() => {
+                if (!wrapper.isConnected) return;
+                preview.textContent = textarea.value;
+                if (window.hljs && tab.language) {
+                    try {
+                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
+                    } catch (_) {}
+                }
+            }, 100);
             if (link && !link.syncing) {
                 link.syncing = true;
                 try {
@@ -2617,7 +2746,7 @@
                 event.preventDefault();
                 saveCurrentFile();
             }
-            if (event.key === 'Tab') {
+            if (event.key === 'Tab' && canWrite()) {
                 event.preventDefault();
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
@@ -2654,8 +2783,12 @@
                 <span>${esc(session.name || shellName(index))}</span>
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
-        terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
-            <div class="cs-terminal-head">
+        if (!terminal.querySelector('[data-terminal-screen]')) {
+            terminal.innerHTML = '<div class="cs-terminal-resize" data-terminal-resize></div><div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
+            wireTerminalResize();
+            wireTerminalObserver(terminal);
+        }
+        terminal.querySelector('.cs-terminal-head').innerHTML = `
                 <div class="cs-terminal-tabs">
                     ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
@@ -2663,9 +2796,8 @@
                 <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
                 <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
-            </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
-        wireTerminalResize();
-        wireTerminalObserver(terminal);
+            `;
+        updatePolicyControls();
         terminal.querySelectorAll('[data-terminal-tab]').forEach(btn => {
             btn.addEventListener('click', bind(() => switchTerminalSession(Number(btn.dataset.terminalTab))));
         });
@@ -2733,7 +2865,7 @@
     }
 
     function writeTerminalBytes(bytes, session) {
-        if (!session || !state || !state.terminalSessions || !state.terminalSessions.includes(session)) return;
+        if (!canWrite() || !session || !state.terminalSessions.includes(session)) return;
         const ws = session.ws;
         if (!ws || typeof WebSocket === 'undefined' || ws.readyState !== WebSocket.OPEN) return;
         const payload = bytes instanceof Uint8Array ? bytes : new TextEncoder().encode(String(bytes));
@@ -2812,6 +2944,7 @@
     function connectTerminal() {
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
+        if (!canWrite()) { renderTerminal(); return; }
         if (!screen || !window.Terminal) {
             if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
             return;
@@ -2824,26 +2957,39 @@
     function connectTerminalSession(index, screen, label) {
         if (!screen) screen = shellPart('[data-terminal-screen]');
         if (!label) label = shellPart('[data-terminal-state]');
-        if (!screen || !window.Terminal) return;
+        if (!canWrite() || !screen || !window.Terminal) return;
         const session = state.terminalSessions[index];
         if (!session) return;
         try {
             const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
             const instance = state;
             let terminalDisposed = false;
+            let unregister = () => {};
+            const pane = document.createElement('div');
+            pane.className = 'cs-terminal-pane';
+            screen.appendChild(pane);
+            session.pane = pane;
             session.dispose = () => {
                 if (terminalDisposed) return;
                 terminalDisposed = true;
-                if (session.ws) endTerminalSocket(session.ws);
-                if (term && typeof term.dispose === 'function') term.dispose();
+                unregister();
+                if (session.dataSubscription) session.dataSubscription.dispose();
+                session.dataSubscription = null;
+                if (session.ws) {
+                    session.ws.onopen = session.ws.onmessage = session.ws.onerror = session.ws.onclose = null;
+                    endTerminalSocket(session.ws);
+                }
+                session.ws = null;
+                term.dispose();
+                pane.remove();
             };
-            instance.disposers.push(session.dispose);
+            unregister = registerDisposer(session.dispose);
             if (window.FitAddon && window.FitAddon.FitAddon) {
                 const fitAddon = new window.FitAddon.FitAddon();
                 term.loadAddon(fitAddon);
                 session.fitAddon = fitAddon;
             }
-            term.open(screen);
+            term.open(pane);
             session.term = term;
             const fitTarget = session.fitAddon;
             if (fitTarget) fitTarget.fit();
@@ -2857,11 +3003,11 @@
                 if (!state.terminalSessions.includes(session)) return;
                 terminalSessionStatus(session, session.lineMode ? 'codeStudio.terminalLineMode' : 'codeStudio.running');
                 const termDataDispose = term.onData(bindInstance(instance, data => {
-                    if (ws.readyState !== WebSocket.OPEN) return;
+                    if (!canWrite() || ws.readyState !== WebSocket.OPEN) return;
                     ws.send(new TextEncoder().encode(data));
                 }));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
-                    instance.disposers.push(() => termDataDispose.dispose());
+                    session.dataSubscription = termDataDispose;
                 }
                 sendTerminalResize(session);
             });
@@ -2883,10 +3029,15 @@
                 terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
             });
             ws.onclose = bindInstance(instance, () => {
+                if (session.dataSubscription) session.dataSubscription.dispose();
+                session.dataSubscription = null;
                 terminalSessionStatus(session, 'codeStudio.stopped');
             });
+            renderTerminal();
+            mountActiveTerminalSession(session);
         } catch (err) {
-            screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+            if (session.dispose) session.dispose();
+            terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
         }
     }
 
@@ -2901,11 +3052,11 @@
     function mountActiveTerminalSession(session) {
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
-        if (screen) screen.innerHTML = '';
-        if (session && session.term && screen) {
-            session.term.open(screen);
+        (state.terminalSessions || []).forEach(item => {
+            if (item.pane) item.pane.hidden = item !== session;
+        });
+        if (session && session.term && session.pane?.isConnected) {
             if (session.fitAddon) session.fitAddon.fit();
-            else if (state.fitAddon) state.fitAddon.fit();
             session.term.focus();
         }
         syncTerminalAliases();
@@ -2919,6 +3070,7 @@
     }
 
     function addTerminalSession() {
+        if (!canWrite()) return;
         if (!state.terminalSessions) state.terminalSessions = [];
         const index = state.terminalSessions.length;
         state.terminalSessions.push({ name: shellName(index), term: null, ws: null });
@@ -2926,7 +3078,6 @@
         renderTerminal();
         const screen = shellPart('[data-terminal-screen]');
         const label = shellPart('[data-terminal-state]');
-        if (screen) screen.innerHTML = '';
         connectTerminalSession(index, screen, label);
     }
 
@@ -2936,14 +3087,11 @@
         const active = activeTerminalSession();
         if (session && session.dispose) session.dispose();
         state.terminalSessions.splice(index, 1);
+        if (state.runSession === session) state.runSession = null;
         if (!state.terminalSessions.length) {
-            state.terminalSessions.push({ name: shellName(0), term: null, ws: null });
             state.activeTerminalSession = 0;
+            syncTerminalAliases();
             renderTerminal();
-            const screen = shellPart('[data-terminal-screen]');
-            const label = shellPart('[data-terminal-state]');
-            if (screen) screen.innerHTML = '';
-            connectTerminalSession(0, screen, label);
         } else {
             state.activeTerminalSession = active !== session ? state.terminalSessions.indexOf(active) : Math.min(index, state.terminalSessions.length - 1);
             switchTerminalSession(state.activeTerminalSession);
@@ -3147,6 +3295,7 @@
                 : `<button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>`
             }
         </form>`;
+        updatePolicyControls();
         panel.querySelector('[data-agent-close]').addEventListener('click', bind(toggleAgentPanel));
         panel.querySelectorAll('[data-code-action]').forEach(btn => {
             btn.addEventListener('click', bind(() => runCodeAction(btn.dataset.codeAction)));
@@ -3183,10 +3332,7 @@
             btn.addEventListener('click', bind(() => {
                 const code = btn.closest('pre')?.querySelector('code');
                 if (code) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        btn.textContent = tr('desktop.copied');
-                        setTimeout(() => { btn.textContent = tr('desktop.copy'); }, 1500);
-                    }).catch(() => {});
+                    copyTextToClipboard(code.textContent);
                 }
             }));
         });
@@ -3322,14 +3468,15 @@
 
     function runCodeAction(action) {
         const tab = activeTab();
-        if (!tab) return;
+        if (!tab || tab.kind === 'diff' || action !== 'explain' && !canWrite()) return;
         const selection = codeStudioSelection();
-        const target = selection.text ? 'selected code' : 'current file';
+        const target = selection.text ? tr('codeStudio.promptSelection', 'selected code') : tr('codeStudio.promptFile', 'current file');
+        const vars = { target, path: tab.path };
         const prompts = {
-            explain: `Explain the ${target} in ${tab.path}.`,
-            comments: `Generate clear comments for the ${target} in ${tab.path}. Return only the modified code when you change code.`,
-            tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
-            refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
+            explain: tr('codeStudio.promptExplain', 'Explain the {{target}} in {{path}}.', vars),
+            comments: tr('codeStudio.promptComments', 'Add clear comments to the {{target}} in {{path}}. Return only the modified code.', vars),
+            tests: tr('codeStudio.promptTests', 'Generate useful tests for {{path}}. Return code blocks for new or changed files.', vars),
+            refactor: tr('codeStudio.promptRefactor', 'Refactor the {{target}} in {{path}}. Return only the modified code.', vars)
         };
         sendAgentMessage(prompts[action] || prompts.explain, action);
     }
@@ -3341,13 +3488,13 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
-            current_file: tab ? tab.path : '',
+            current_file: tab && tab.kind !== 'diff' ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,
             cursor_line: cursor.line,
             cursor_column: cursor.column,
             selected_text: selection.text,
-            open_files: state.openTabs.map(item => item.path)
+            open_files: state.openTabs.filter(item => item.kind !== 'diff').map(item => item.path)
         };
     }
 
@@ -3357,7 +3504,7 @@
     }
 
     function suggestionCanApply(suggestion) {
-        return suggestion && suggestion.canReplace && suggestion.windowId === state.windowId &&
+        return canWrite() && activeTab()?.kind !== 'diff' && suggestion && suggestion.canReplace && suggestion.tab && suggestion.tab.kind !== 'diff' && suggestion.windowId === state.windowId &&
             state.openTabs.includes(suggestion.tab) && suggestion.tab.path === suggestion.path &&
             !suggestion.tab.pathMutation && (suggestion.tab.revision || 0) === suggestion.revision;
     }
@@ -3489,6 +3636,7 @@
                 else state.gitSelected.delete(box.dataset.gitSelect);
             }));
         });
+        updatePolicyControls();
         const identityForm = panel.querySelector('[data-git-identity]');
         if (identityForm) identityForm.addEventListener('submit', bind(event => {
             event.preventDefault();
@@ -3509,6 +3657,15 @@
         scheduleTerminalFit();
     }
 
+    function scheduleGitRefresh() {
+        const instance = state;
+        clearTimeout(instance.gitRefreshTimer);
+        instance.gitRefreshTimer = setTimeout(bindInstance(instance, () => {
+            instance.gitRefreshTimer = null;
+            refreshGitStatus();
+        }), 200);
+    }
+
     async function refreshGitStatus() {
         const target = state;
         if (!isLiveInstance(target)) return;
@@ -3523,6 +3680,7 @@
                 rememberGitSelection(state.gitChanges);
                 renderGitPanel();
                 renderActivityBar();
+                renderStatus();
             });
         } catch (err) {
             if (isLiveInstance(target) && target.gitRequest === request) {
@@ -3537,43 +3695,57 @@
         }
     }
 
-    async function openGitDiff(filePath) {
+    async function openGitDiff(filePath, staged = false) {
         const target = state;
         if (!isLiveInstance(target)) return;
-        const request = target.diffRequest = Symbol();
+        let tab = target.openTabs.find(item => item.kind === 'diff' && item.gitPath === filePath);
+        if (!tab) {
+            tab = { kind: 'diff', gitPath: filePath, path: desktopToCodeStudioPath(filePath), content: '', modified: false, staged };
+            target.openTabs.push(tab);
+        }
+        tab.staged = staged;
+        tab.content = '';
+        tab.loading = true;
+        activateTab(target.openTabs.indexOf(tab));
+        const request = tab.diffRequest = Symbol();
         try {
-            const result = await apiClient.gitDiff(filePath, false);
-            if (!isLiveInstance(target) || target.diffRequest !== request) return;
+            const result = await apiClient.gitDiff(filePath, staged);
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.diffRequest !== request) return;
             runWithInstance(target, () => {
-                const diffLines = (result.diff || '').split('\n');
-                const diffHtml = diffLines.map(line => {
-                    if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="cs-diff-line added">${esc(line)}</span>`;
-                    if (line.startsWith('-') && !line.startsWith('---')) return `<span class="cs-diff-line removed">${esc(line)}</span>`;
-                    if (line.startsWith('@@')) return `<span class="cs-diff-line context">${esc(line)}</span>`;
-                    return `<span class="cs-diff-line">${esc(line)}</span>`;
-                }).join('');
-                const editor = shellPart('[data-editor]');
-                if (editor) {
-                    const tab = activeTab();
-                    if (tab) destroyTabView(tab);
-                    editor.classList.remove('code-studio-split', 'split-right', 'split-down');
-                    editor.style.gridTemplateColumns = '';
-                    editor.style.gridTemplateRows = '';
-                    editor.innerHTML = `<div class="cs-diff-view">
-                        <div class="cs-diff-view-head">
-                            <strong>${esc(filePath.split('/').pop())}</strong>
-                            <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))}</span>
-                            <span class="cs-diff-view-spacer"></span>
-                            <button type="button" class="cs-icon-button" data-diff-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
-                        </div>
-                        <div class="cs-diff-content">${diffHtml || `<div class="cs-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`}</div>
-                    </div>`;
-                    editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => renderEditor()));
-                }
+                tab.content = result.diff || '';
+                tab.loading = false;
+                if (activeTab() === tab) renderEditor();
             });
         } catch (err) {
-            if (isLiveInstance(target) && target.diffRequest === request) runWithInstance(target, () => renderStatus(err.message || String(err)));
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.diffRequest !== request) return;
+            runWithInstance(target, () => {
+                tab.loading = false;
+                tab.content = err.message || String(err);
+                if (activeTab() === tab) renderEditor();
+            });
         }
+    }
+
+    function renderGitDiffTab(editor, tab) {
+        const diffHtml = tab.content.split('\n').map(line => {
+            const style = line.startsWith('+') && !line.startsWith('+++') ? 'added' : line.startsWith('-') && !line.startsWith('---') ? 'removed' : line.startsWith('@@') ? 'context' : '';
+            return `<span class="cs-diff-line ${style}">${esc(line)}</span>`;
+        }).join('');
+        editor.innerHTML = `<div class="cs-diff-view">
+            <div class="cs-diff-view-head">
+                <strong>${esc(baseName(tab.path))}</strong>
+                <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>
+                <span class="cs-diff-view-spacer"></span>
+                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}">
+                    <option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option>
+                    <option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option>
+                </select>
+                <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
+            </div>
+            <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffHtml : esc(tr('codeStudio.noChanges', 'No changes'))}</div>
+        </div>`;
+        editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => closeTab(state.openTabs.indexOf(tab))));
+        editor.querySelector('[data-diff-source]').addEventListener('change', bind(event => openGitDiff(tab.gitPath, event.target.value === 'index')));
     }
 
     function rememberGitSelection(changes) {
@@ -3588,7 +3760,7 @@
 
     async function commitGitChanges() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const msgInput = shellPart('[data-git-commit-msg]');
         const message = (msgInput ? msgInput.value : state.gitCommitMessage || '').trim();
         state.gitCommitMessage = message;
@@ -3605,7 +3777,7 @@
         }
         try {
             const result = await apiClient.gitCommit(message, paths);
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 flashStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7), 4000);
                 state.gitCommitMessage = '';
@@ -3615,7 +3787,7 @@
                 refreshGitStatus();
             });
         } catch (err) {
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 if (err && err.status === 409 && err.message === 'git_identity_required') {
                     state.gitIdentityPrompt = true;
@@ -3629,7 +3801,7 @@
 
     async function saveGitIdentity(formData) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const name = String(formData.get('name') || '').trim();
         const email = String(formData.get('email') || '').trim();
         state.gitIdentityName = name;
@@ -3640,7 +3812,7 @@
         }
         try {
             await apiClient.gitIdentity(name, email);
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 state.gitIdentityPrompt = false;
                 renderGitPanel();
@@ -3655,7 +3827,7 @@
 /* ui/js/desktop/apps/code-studio/panels.js */
     function showProjectKnowledge() {
         const instance = state;
-        if (!instance || !window.AuraGoLearnings) return;
+        if (!instance || (!window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function')) return;
         if (instance.knowledgeClose) instance.knowledgeClose();
         const tab = activeTab();
         instance.knowledgeClose = window.AuraGoLearnings.open({
@@ -3663,13 +3835,13 @@
             parent: instance.root, title: tr('codeStudio.knowledge', 'Insights'),
             openSource: (file, line) => {
                 if (instance.knowledgeClose) instance.knowledgeClose();
-                return runAsyncStep(instance, () => openSearchResult('/workspace/' + file, line));
+                return runAsyncStep(instance, () => openSearchResult(desktopToCodeStudioPath(file), line));
             }
         });
     }
 
     function splitEditor(direction) {
-        if (!state) return;
+        if (!state || activeTab()?.kind === 'diff') return;
         const next = direction === 'down' ? 'down' : 'right';
         state.splitMode = state.splitMode === next ? null : next;
         if (!state.splitMode) state.splitRatio = 0.5;
@@ -3757,7 +3929,7 @@
 
     function openCommandPalette() {
         if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.toggle === 'function') {
-            window.CodeStudioCommandPalette.toggle();
+            window.CodeStudioCommandPalette.toggle(state.windowId);
         }
     }
 
@@ -3833,8 +4005,8 @@
     }
 
     function showShortcutOverlay() {
-        const existing = document.querySelector('.cs-shortcut-overlay');
-        if (existing) { existing.remove(); return; }
+        const instance = state;
+        if (instance.shortcutClose) { instance.shortcutClose(); return; }
         const overlay = document.createElement('div');
         overlay.className = 'cs-shortcut-overlay';
         const sections = [
@@ -3881,8 +4053,13 @@
             <div class="cs-shortcut-modal-body">${bodyHtml}</div>
         </div>`;
         document.body.appendChild(overlay);
+        const releaseFocus = trapDialogFocus(overlay);
+        let unregister = () => {};
         const close = () => {
-            document.removeEventListener('keydown', onKey);
+            unregister();
+            instance.shortcutClose = null;
+            releaseFocus();
+            overlay.removeEventListener('keydown', onKey);
             overlay.remove();
         };
         const onKey = event => {
@@ -3891,7 +4068,9 @@
                 close();
             }
         };
-        document.addEventListener('keydown', onKey);
+        unregister = registerDisposer(close);
+        instance.shortcutClose = close;
+        overlay.addEventListener('keydown', onKey);
         overlay.querySelector('[data-close-overlay]').addEventListener('click', close);
         overlay.addEventListener('mousedown', event => { if (event.target === overlay) close(); });
         overlay.querySelector('[data-close-overlay]').focus();
@@ -3988,6 +4167,7 @@
         dispose,
         get state() { return currentInstance(); },
         instances,
+        trapDialogFocus,
         api: apiClient,
         command: exposedCommand,
         knownFiles: exposedKnownFiles,
@@ -4011,6 +4191,8 @@
     'use strict';
 
     let backdrop = null;
+    let owner = null;
+    let releaseFocus = null;
     let selectedIndex = 0;
     let filteredItems = [];
     let lastQuery = '';
@@ -4043,7 +4225,7 @@
 
     function getState() {
         const app = getApp();
-        return app && typeof app.state === 'object' ? app.state : null;
+        return app && owner && app.instances.get(owner.windowId) === owner ? owner : null;
     }
 
     function iconMarkup(key, fallback) {
@@ -4089,6 +4271,7 @@
         const state = getState();
         if (!state) return [];
         const hasTab = !!(state.openTabs && state.openTabs.length);
+        const sourceTab = hasTab && state.openTabs[state.activeTabIndex]?.kind !== 'diff';
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
@@ -4115,7 +4298,7 @@
             { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), shortcut: 'Ctrl+-', icon: 'zoom-out', run: 'adjustEditorZoom', args: [-1] },
             { id: 'zoom-reset', label: tr('codeStudio.zoomReset', 'Reset Zoom'), shortcut: 'Ctrl+0', icon: 'zoom-reset', run: 'resetEditorZoom' },
             { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), shortcut: '?', icon: 'help', run: 'showShortcutOverlay' }
-        ].filter(cmd => !cmd.disabled);
+        ].filter(cmd => !cmd.disabled && !(state.readOnly && ['createNewFile', 'createNewFolder', 'saveCurrentFile', 'saveAllFiles', 'runCurrentFile', 'uploadFile'].includes(cmd.run)) && !(!sourceTab && ['saveCurrentFile', 'runCurrentFile', 'splitEditor'].includes(cmd.run)));
     }
 
     function fileLabel(path) {
@@ -4135,7 +4318,7 @@
         };
         (state.openTabs || []).forEach(tab => push(tab.path, 'file', 'file'));
         (state.recentFiles || []).slice(0, 8).forEach(path => push(path, 'recent', 'clock'));
-        const known = app && typeof app.knownFiles === 'function' ? app.knownFiles() : [];
+        const known = app && typeof app.knownFiles === 'function' ? app.knownFiles(owner.windowId) : [];
         known.forEach(entry => push(entry.path, 'file', 'file'));
         return items;
     }
@@ -4145,21 +4328,24 @@
         return [...commands, ...getFileItems()];
     }
 
-    function executeItem(item) {
+    function executeItem(item, origin) {
         const app = getApp();
-        if (!app || !item) return;
+        if (!app || !item || (!origin || app.instances.get(origin.windowId) !== origin)) return;
         if (item.type === 'file' || item.type === 'recent') {
-            if (typeof app.command === 'function') app.command('openFile', [item.path]);
-            else if (typeof app.openFile === 'function') app.openFile(item.path);
+            if (typeof app.command === 'function') app.command('openFile', [item.path], origin.windowId);
+            else if (typeof app.openFile === 'function') app.openFile(item.path, true, origin.windowId);
             return;
         }
         if (item.run && typeof app.command === 'function') {
-            app.command(item.run, item.args || []);
+            app.command(item.run, item.args || [], origin.windowId);
         }
     }
 
-    function renderPalette() {
-        if (backdrop) return;
+    function renderPalette(windowId) {
+        if (backdrop) closePalette();
+        const app = getApp();
+        owner = app && (windowId ? app.instances.get(windowId) : app.state);
+        if (!owner) return;
         backdrop = document.createElement('div');
         backdrop.className = 'cs-command-palette-backdrop';
         backdrop.innerHTML = `<div class="cs-command-palette" role="dialog" aria-modal="true" aria-label="${esc(tr('codeStudio.commandPalette', 'Command Palette'))}">
@@ -4171,6 +4357,7 @@
             <div class="cs-command-palette-results" data-cp-results role="listbox"></div>
         </div>`;
         document.body.appendChild(backdrop);
+        releaseFocus = getApp().trapDialogFocus(backdrop);
 
         const input = backdrop.querySelector('input');
         const resultsEl = backdrop.querySelector('[data-cp-results]');
@@ -4202,8 +4389,9 @@
                 event.preventDefault();
                 if (filteredItems[selectedIndex]) {
                     const item = filteredItems[selectedIndex];
+                    const origin = owner;
                     closePalette();
-                    executeItem(item);
+                    executeItem(item, origin);
                 }
             } else if (event.key === 'Escape') {
                 event.preventDefault();
@@ -4215,7 +4403,7 @@
             if (event.target === backdrop) closePalette();
         });
 
-        requestAnimationFrame(() => input.focus());
+        requestAnimationFrame(() => { if (input.isConnected) input.focus(); });
     }
 
     function filterItems(query) {
@@ -4261,8 +4449,9 @@
                 const idx = Number(el.dataset.index);
                 if (filteredItems[idx]) {
                     const item = filteredItems[idx];
+                    const origin = owner;
                     closePalette();
-                    executeItem(item);
+                    executeItem(item, origin);
                 }
             });
             el.addEventListener('mouseenter', () => {
@@ -4291,21 +4480,34 @@
         if (selected) selected.scrollIntoView({ block: 'nearest' });
     }
 
-    function closePalette() {
+    function closePalette(windowId) {
+        if (windowId && owner?.windowId !== windowId) return;
         if (backdrop) {
             backdrop.remove();
             backdrop = null;
+            if (releaseFocus) releaseFocus();
+            releaseFocus = null;
         }
+        owner = null;
+        filteredItems = [];
     }
 
-    function togglePalette() {
-        if (backdrop) closePalette();
-        else renderPalette();
+    function togglePalette(windowId) {
+        if (backdrop && (!windowId || owner?.windowId === windowId)) closePalette();
+        else renderPalette(windowId);
+    }
+
+    function refreshPalette(windowId) {
+        if (!backdrop || owner?.windowId !== windowId) return;
+        filteredItems = filterItems(lastQuery);
+        selectedIndex = 0;
+        renderResults(backdrop.querySelector('[data-cp-results]'), lastQuery);
     }
 
     window.CodeStudioCommandPalette = {
         open: renderPalette,
         close: closePalette,
-        toggle: togglePalette
+        toggle: togglePalette,
+        refresh: refreshPalette
     };
 })();

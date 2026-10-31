@@ -2,6 +2,8 @@
     'use strict';
 
     let backdrop = null;
+    let owner = null;
+    let releaseFocus = null;
     let selectedIndex = 0;
     let filteredItems = [];
     let lastQuery = '';
@@ -34,7 +36,7 @@
 
     function getState() {
         const app = getApp();
-        return app && typeof app.state === 'object' ? app.state : null;
+        return app && owner && app.instances.get(owner.windowId) === owner ? owner : null;
     }
 
     function iconMarkup(key, fallback) {
@@ -80,6 +82,7 @@
         const state = getState();
         if (!state) return [];
         const hasTab = !!(state.openTabs && state.openTabs.length);
+        const sourceTab = hasTab && state.openTabs[state.activeTabIndex]?.kind !== 'diff';
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
@@ -106,7 +109,7 @@
             { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), shortcut: 'Ctrl+-', icon: 'zoom-out', run: 'adjustEditorZoom', args: [-1] },
             { id: 'zoom-reset', label: tr('codeStudio.zoomReset', 'Reset Zoom'), shortcut: 'Ctrl+0', icon: 'zoom-reset', run: 'resetEditorZoom' },
             { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), shortcut: '?', icon: 'help', run: 'showShortcutOverlay' }
-        ].filter(cmd => !cmd.disabled);
+        ].filter(cmd => !cmd.disabled && !(state.readOnly && ['createNewFile', 'createNewFolder', 'saveCurrentFile', 'saveAllFiles', 'runCurrentFile', 'uploadFile'].includes(cmd.run)) && !(!sourceTab && ['saveCurrentFile', 'runCurrentFile', 'splitEditor'].includes(cmd.run)));
     }
 
     function fileLabel(path) {
@@ -126,7 +129,7 @@
         };
         (state.openTabs || []).forEach(tab => push(tab.path, 'file', 'file'));
         (state.recentFiles || []).slice(0, 8).forEach(path => push(path, 'recent', 'clock'));
-        const known = app && typeof app.knownFiles === 'function' ? app.knownFiles() : [];
+        const known = app && typeof app.knownFiles === 'function' ? app.knownFiles(owner.windowId) : [];
         known.forEach(entry => push(entry.path, 'file', 'file'));
         return items;
     }
@@ -136,21 +139,24 @@
         return [...commands, ...getFileItems()];
     }
 
-    function executeItem(item) {
+    function executeItem(item, origin) {
         const app = getApp();
-        if (!app || !item) return;
+        if (!app || !item || (!origin || app.instances.get(origin.windowId) !== origin)) return;
         if (item.type === 'file' || item.type === 'recent') {
-            if (typeof app.command === 'function') app.command('openFile', [item.path]);
-            else if (typeof app.openFile === 'function') app.openFile(item.path);
+            if (typeof app.command === 'function') app.command('openFile', [item.path], origin.windowId);
+            else if (typeof app.openFile === 'function') app.openFile(item.path, true, origin.windowId);
             return;
         }
         if (item.run && typeof app.command === 'function') {
-            app.command(item.run, item.args || []);
+            app.command(item.run, item.args || [], origin.windowId);
         }
     }
 
-    function renderPalette() {
-        if (backdrop) return;
+    function renderPalette(windowId) {
+        if (backdrop) closePalette();
+        const app = getApp();
+        owner = app && (windowId ? app.instances.get(windowId) : app.state);
+        if (!owner) return;
         backdrop = document.createElement('div');
         backdrop.className = 'cs-command-palette-backdrop';
         backdrop.innerHTML = `<div class="cs-command-palette" role="dialog" aria-modal="true" aria-label="${esc(tr('codeStudio.commandPalette', 'Command Palette'))}">
@@ -162,6 +168,7 @@
             <div class="cs-command-palette-results" data-cp-results role="listbox"></div>
         </div>`;
         document.body.appendChild(backdrop);
+        releaseFocus = getApp().trapDialogFocus(backdrop);
 
         const input = backdrop.querySelector('input');
         const resultsEl = backdrop.querySelector('[data-cp-results]');
@@ -193,8 +200,9 @@
                 event.preventDefault();
                 if (filteredItems[selectedIndex]) {
                     const item = filteredItems[selectedIndex];
+                    const origin = owner;
                     closePalette();
-                    executeItem(item);
+                    executeItem(item, origin);
                 }
             } else if (event.key === 'Escape') {
                 event.preventDefault();
@@ -206,7 +214,7 @@
             if (event.target === backdrop) closePalette();
         });
 
-        requestAnimationFrame(() => input.focus());
+        requestAnimationFrame(() => { if (input.isConnected) input.focus(); });
     }
 
     function filterItems(query) {
@@ -252,8 +260,9 @@
                 const idx = Number(el.dataset.index);
                 if (filteredItems[idx]) {
                     const item = filteredItems[idx];
+                    const origin = owner;
                     closePalette();
-                    executeItem(item);
+                    executeItem(item, origin);
                 }
             });
             el.addEventListener('mouseenter', () => {
@@ -282,21 +291,34 @@
         if (selected) selected.scrollIntoView({ block: 'nearest' });
     }
 
-    function closePalette() {
+    function closePalette(windowId) {
+        if (windowId && owner?.windowId !== windowId) return;
         if (backdrop) {
             backdrop.remove();
             backdrop = null;
+            if (releaseFocus) releaseFocus();
+            releaseFocus = null;
         }
+        owner = null;
+        filteredItems = [];
     }
 
-    function togglePalette() {
-        if (backdrop) closePalette();
-        else renderPalette();
+    function togglePalette(windowId) {
+        if (backdrop && (!windowId || owner?.windowId === windowId)) closePalette();
+        else renderPalette(windowId);
+    }
+
+    function refreshPalette(windowId) {
+        if (!backdrop || owner?.windowId !== windowId) return;
+        filteredItems = filterItems(lastQuery);
+        selectedIndex = 0;
+        renderResults(backdrop.querySelector('[data-cp-results]'), lastQuery);
     }
 
     window.CodeStudioCommandPalette = {
         open: renderPalette,
         close: closePalette,
-        toggle: togglePalette
+        toggle: togglePalette,
+        refresh: refreshPalette
     };
 })();
