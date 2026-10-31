@@ -228,6 +228,7 @@ const SECTIONS = [
             { key: 'treg', icon: '↗', label: t('config.section.treg.label'), desc: t('config.section.treg.desc') },
             { key: 'manus', icon: 'M', label: t('config.section.manus.label'), desc: t('config.section.manus.desc') },
             { key: 'huggingface', icon: 'HF', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
+            { key: 'kaggle', icon: 'K', label: t('config.section.kaggle.label'), desc: t('config.section.kaggle.desc') },
             { key: 'evomap', icon: '◇', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
@@ -693,6 +694,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     ai_gateway: 93,
     composio: 94,
     huggingface: 95,
+    kaggle: 125,
     evomap: 96,
     mcp: 97,
     mcp_server: 98,
@@ -707,6 +709,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    kaggle: "<rect x=\"30\" y=\"22\" width=\"68\" height=\"84\" rx=\"8\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\"/><path d=\"M44 22v84M58 46v38M80 46 58 65 80 84\" fill=\"none\" stroke=\"#6fca8f\" stroke-width=\"6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
     decisions: "<path d=\"M64 17 86 39 64 61 42 39z\" fill=\"#35c7d3\" opacity=\".25\"/><path d=\"M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><rect x=\"20\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#6fca8f\"/><rect x=\"84\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#7da3c8\"/>",
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     gog: '<rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/>',
@@ -3499,6 +3502,7 @@ const SECTION_MODULES = {
     composio: { m: 'composio', fn: 'renderComposioSection' },
     manus: { m: 'manus', fn: 'renderManusSection' },
     huggingface: { m: 'huggingface', fn: 'renderHuggingFaceSection' },
+    kaggle: { m: 'kaggle', fn: 'renderKaggleSection' },
     evomap: { m: 'evomap', fn: 'renderEvomapSection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },

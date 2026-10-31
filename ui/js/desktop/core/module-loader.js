@@ -20,6 +20,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        kaggle: { styles: appStyles('/css/desktop-app-kaggle.css'), scripts: ['/js/vendor/purify.min.js', '/js/desktop/apps/kaggle-notebook.js', '/js/desktop/apps/kaggle.js'] },
         qr: { styles: ['/css/desktop-qr.css'], scripts: ['/js/desktop/shared/qr-dialog.js'] },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
@@ -637,6 +638,7 @@
     // App id → i18n section prefixes to merge into window.I18N before scripts run.
     // Shell only embeds desktop.*; apps load their own sections on demand.
     const APP_I18N_SECTIONS = {
+        kaggle: ['kaggle'],
         'minigolf': ['minigolf'],
         infra: [],
         'ruview': ['ruview'],

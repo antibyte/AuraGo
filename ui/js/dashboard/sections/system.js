@@ -239,6 +239,20 @@
                 }
                 return `<span class="int-badge ${cls}">${content}</span>`;
             }).join('');
+            loadKaggleIntegrationStatus(grid);
+        }
+
+        async function loadKaggleIntegrationStatus(grid) {
+            const badge = document.createElement('a');
+            badge.className = 'int-badge inactive'; badge.href = '/config#kaggle'; badge.textContent = 'Kaggle'; grid.append(badge);
+            const response = await API.getWithStatus('/api/kaggle/status');
+            if (!badge.isConnected) return;
+            if (!response.ok) { badge.title = t('dashboard.overview.pill_unavailable'); return; }
+            const status = response.data;
+            badge.className = 'int-badge ' + (!status.enabled ? 'inactive' : status.configured ? 'active' : 'active-warning');
+            const state = t(status.enabled ? 'dashboard.cronjobs_status_enabled' : 'dashboard.operations_disabled');
+            badge.textContent = 'Kaggle · ' + state + ' · ' + formatBytes(status.storage_bytes || 0);
+            badge.title = state + ' · ' + formatBytes(status.storage_bytes || 0) + ' / ' + formatBytes(status.max_storage_bytes || 0);
         }
 
         // ── LLM Guardian Card ───────────────────────────────────────────────────────

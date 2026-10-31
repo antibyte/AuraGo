@@ -10540,5 +10540,6 @@
   "game_maker.use_guided_base": "Naar een geleide basis",
   "game_maker.guided_base_change": "Zet het spel op een geleide 3D-basis die bij het verloop past: verkenning, rijden, vliegen, ruimte of FPS. Vrije three laat de regels ongecontroleerd.",
   "game_maker.retry_keeps_pending_selection": "Opnieuw proberen houdt de assetselectie van deze run, omdat er nog geen plan is aanvaard.",
-  "game_maker.compact_opt_in": "Gebruik de compacte modus voor dit onbekende model. Het plan blijft korter en een nieuwe basis verandert in kleine stappen."
+  "game_maker.compact_opt_in": "Gebruik de compacte modus voor dit onbekende model. Het plan blijft korter en een nieuwe basis verandert in kleine stappen.",
+  "desktop.app_kaggle": "Kaggle"
 }

@@ -10540,5 +10540,6 @@
   "game_maker.use_guided_base": "Passer à un modèle guidé",
   "game_maker.guided_base_change": "Passe le jeu sur un modèle 3D guidé qui correspond au déroulement : exploration, conduite, vol, espace ou FPS. Le three libre laisse les règles non vérifiées.",
   "game_maker.retry_keeps_pending_selection": "Réessayer conserve le choix d'assets de cette tentative, parce qu'aucun plan n'a encore été accepté.",
-  "game_maker.compact_opt_in": "Utilise le mode compact pour ce modèle inconnu. Le plan reste court et un nouveau modèle se modifie par petites étapes."
+  "game_maker.compact_opt_in": "Utilise le mode compact pour ce modèle inconnu. Le plan reste court et un nouveau modèle se modifie par petites étapes.",
+  "desktop.app_kaggle": "Kaggle"
 }

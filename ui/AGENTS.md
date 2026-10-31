@@ -21,6 +21,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Kaggle configuration, Desktop and Dashboard use `/api/kaggle/status` and the same backend grants. `lang/kaggle/` owns all sixteen locale sets; `cfg/kaggle.js` keeps policy saves separate from Vault credential saves/removal and tests saved credentials only. The app loader includes its locale section, styles, DOMPurify and notebook editor. See `js/desktop/apps/AGENTS.md`, `../internal/kaggle/AGENTS.md` and `../documentation/kaggle.md`.
+
 - Desktop file email actions use the common Mailer draft handoff and app-owned exporters defined in `js/desktop/apps/AGENTS.md`. Keep all sixteen `desktop.email_*` locale sets, native dialog accessibility, theme controls and version-bound delivery aligned.
 
 - The Guardian local-protection card keeps download and saved activation separate.

@@ -10540,5 +10540,6 @@
   "game_maker.use_guided_base": "ガイド付きの土台に切り替える",
   "game_maker.guided_base_change": "流れに合うガイド付き3Dの土台へ移してください。探索、運転、飛行、宇宙、FPSのいずれかです。自由な three はルールを未確認のままにします。",
   "game_maker.retry_keeps_pending_selection": "再試行はこの実行のアセット選択を残します。まだ計画が受け入れられていないためです。",
-  "game_maker.compact_opt_in": "この未知のモデルではコンパクトモードを使います。計画は短くなり、新しい土台は小さな置き換えで変えます。"
+  "game_maker.compact_opt_in": "この未知のモデルではコンパクトモードを使います。計画は短くなり、新しい土台は小さな置き換えで変えます。",
+  "desktop.app_kaggle": "Kaggle"
 }

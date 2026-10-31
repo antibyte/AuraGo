@@ -366,6 +366,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        kaggle: 'code',
         'ha-switchboard': 'ha-switchboard',
         'ruview': 'ruview',
         analytics: 'analytics',
@@ -855,6 +856,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            kaggle: 'KaggleApp',
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
             'docker-manager': 'DockerManagerApp',
@@ -7078,6 +7080,7 @@
 
     function appWindowSize(appId) {
         const presets = {
+            kaggle: { width: 1180, height: 780 },
             'ha-switchboard': { width: 1300, height: 820 },
             files: { width: 920, height: 600 },
             writer: { width: 960, height: 700 },
@@ -7134,9 +7137,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
+        if (appId === 'kaggle') return { width: 360, height: 420 };
         if (appId === 'infra') return { width: 360, height: 480 };
         if (appId === 'docker-manager') return { width: 440, height: 400 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
@@ -18723,6 +18727,9 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
+        }
+        if (appId === 'kaggle' && window.KaggleApp) {
+            return window.KaggleApp.render(contentEl(id), id, { esc, t, api });
         }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {

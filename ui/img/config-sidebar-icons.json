@@ -1005,6 +1005,14 @@
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "kaggle",
+      "slot": 125,
+      "column": 4,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }
