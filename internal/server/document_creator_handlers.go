@@ -19,10 +19,19 @@ func handleGotenbergTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		s.CfgMu.RLock()
-		snapshot := *s.Cfg
-		cfg := s.Cfg.Tools.DocumentCreator
-		s.CfgMu.RUnlock()
+		// Optional {"draft": ...} tests the typed-in URL (nothing is persisted).
+		draftCfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := draftCfg.Tools.DocumentCreator
+		// The managed-container restart check inspects the running container, so it
+		// stays on the saved configuration.
+		snapshot := s.ConfigSnapshot()
+		if snapshot == nil {
+			snapshot = draftCfg
+		}
 
 		if cfg.Gotenberg.URL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -35,7 +44,7 @@ func handleGotenbergTest(s *Server) http.HandlerFunc {
 
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
-		restartRequired := tools.GotenbergRestartRequired(ctx, &snapshot)
+		restartRequired := tools.GotenbergRestartRequired(ctx, snapshot)
 
 		resultStr := tools.GotenbergHealth(ctx, &cfg.Gotenberg)
 

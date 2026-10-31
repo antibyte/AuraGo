@@ -85,8 +85,8 @@ async function renderDocumentCreatorSection(section) {
 
     // Test button
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn">🔌 ' + t('config.document_creator.test_gotenberg') + '</button>';
-    html += '<span id="dc-test-result" class="dc-test-result" role="status" aria-live="polite"></span>';
+    html += '<button class="btn-save dc-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn" data-config-action-draft="true">🔌 ' + t('config.document_creator.test_gotenberg') + '</button>';
+    html += cfgActionResult.html('dc-test-result', 'dc-test-result');
     html += '<div class="field-help">' + t('config.document_creator.test_saved_settings') + '</div>';
     html += '</div>';
 
@@ -114,37 +114,29 @@ function dcSwitchBackend(val) {
     setHidden(el, val !== 'gotenberg');
 }
 
+// Checks the URL typed in (unsaved included). The restart hint for the managed
+// container still looks at the saved configuration on the server.
 async function dcTestGotenberg() {
-    var btn = document.getElementById('dc-test-btn');
-    var result = document.getElementById('dc-test-result');
-    if (hasUnsavedConfigChanges()) {
-        result.textContent = t('config.document_creator.save_before_test');
-        result.className = 'dc-test-result is-danger';
-        return;
-    }
-    btn.disabled = true;
-    result.textContent = t('config.document_creator.loading');
-    result.className = 'dc-test-result';
-
-    try {
-        var resp = await fetch('/api/document-creator/test', { method: 'POST' });
-        var body = await resp.json();
-        if (!btn.isConnected || !result.isConnected) return;
-        if (body.restart_required) {
-            result.className = 'dc-test-result is-danger';
-            result.textContent = t('config.document_creator.restart_required');
-        } else if (resp.ok && body.status === 'success' && body.security_verified === true) {
-            result.className = 'dc-test-result is-success';
-            result.textContent = t('config.document_creator.test_verified');
-        } else {
-            result.className = 'dc-test-result is-danger';
-            var key = body.reachable === true ? 'test_unverified' : 'test_unreachable';
-            result.textContent = t('config.document_creator.' + key) + (body.message ? ' ' + body.message : '');
+    return cfgActionResult(document.getElementById('dc-test-btn'), () => fetch('/api/document-creator/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['tools.document_creator']) })
+    }), {
+        target: 'dc-test-result',
+        pending: t('config.document_creator.loading'),
+        success: t('config.document_creator.test_verified'),
+        failure: outcome => {
+            const body = outcome.body || {};
+            if (outcome.httpStatus >= 400) return t('config.document_creator.status_error');
+            return t('config.document_creator.' + (body.reachable === true ? 'test_unverified' : 'test_unreachable'));
+        },
+        interpret: outcome => {
+            const body = outcome.body || {};
+            if (outcome.httpStatus >= 400) return null;
+            // A running but outdated managed container is a warning, not a failed URL.
+            if (body.restart_required) return { state: 'warning', reason: t('config.document_creator.restart_required') };
+            if (body.status === 'success' && body.security_verified === true) return { state: 'success', reason: '' };
+            return { state: 'error' };
         }
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.document_creator.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+    });
 }

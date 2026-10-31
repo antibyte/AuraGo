@@ -94,9 +94,9 @@ async function renderSpaceAgentSection(section) {
     html += '</div></details>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentRecreate()" id="space-agent-recreate-btn">🔄 ' + t('config.space_agent.recreate_button') + '</button>';
-    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentStatus()" id="space-agent-status-btn">🔌 ' + t('config.space_agent.status_button') + '</button>';
-    html += '<span id="space-agent-result" class="dc-test-result"></span>';
+    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentRecreate()" id="space-agent-recreate-btn" data-config-action-draft="false">🔄 ' + t('config.space_agent.recreate_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="spaceAgentStatus()" id="space-agent-status-btn" data-config-action-draft="false">🔌 ' + t('config.space_agent.status_button') + '</button>';
+    html += cfgActionResult.html('space-agent-result', 'dc-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -135,41 +135,38 @@ function spaceAgentToggleEnabled(el) {
     renderSpaceAgentSection(null);
 }
 
+// Status and recreate act on the running container, so unsaved changes block them
+// with the reason in the result line (draft="false" on the buttons).
+function spaceAgentRuntimeLocked() {
+    if (!window.AuraConfigState || !AuraConfigState.isDirty()) return false;
+    cfgActionResult.show('space-agent-result', 'warning', t('config.feedback.runtime_only'));
+    return true;
+}
+
 async function spaceAgentStatus() {
-    const result = document.getElementById('space-agent-result');
-    const btn = document.getElementById('space-agent-status-btn');
-    btn.disabled = true;
-    result.textContent = t('config.space_agent.loading');
-    result.className = 'dc-test-result';
-    try {
-        const resp = await fetch('/api/space-agent/status');
-        const body = await resp.json();
-        result.className = body.status === 'running' ? 'dc-test-result is-success' : 'dc-test-result';
-        result.textContent = t('config.space_agent.status_prefix') + ' ' + (body.status || 'unknown');
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.space_agent.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+    if (spaceAgentRuntimeLocked()) return { skipped: 'locked' };
+    return cfgActionResult(document.getElementById('space-agent-status-btn'), () => fetch('/api/space-agent/status'), {
+        target: 'space-agent-result',
+        pending: t('config.space_agent.loading'),
+        failure: t('config.space_agent.status_error'),
+        interpret: outcome => {
+            if (!outcome.ok || !outcome.body) return null;
+            const status = outcome.body.status || 'unknown';
+            // Only a running container is a success; every other state is shown as a warning.
+            return { state: status === 'running' ? 'success' : 'warning', reason: t('config.space_agent.status_prefix') + ' ' + status };
+        },
+        success: outcome => outcome.reason
+    });
 }
 
 async function spaceAgentRecreate() {
+    if (spaceAgentRuntimeLocked()) return { skipped: 'locked' };
     if (!(await showConfirm(t('config.space_agent.confirm_recreate_title'), t('config.space_agent.confirm_recreate_message')))) return;
-    const result = document.getElementById('space-agent-result');
-    const btn = document.getElementById('space-agent-recreate-btn');
-    btn.disabled = true;
-    result.textContent = t('config.space_agent.recreate_starting');
-    result.className = 'dc-test-result';
-    try {
-        const resp = await fetch('/api/space-agent/recreate', { method: 'POST' });
-        const body = await resp.json();
-        result.className = resp.ok ? 'dc-test-result is-success' : 'dc-test-result is-danger';
-        result.textContent = body.message || (body.status || '');
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.space_agent.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+    return cfgActionResult(document.getElementById('space-agent-recreate-btn'), () => fetch('/api/space-agent/recreate', { method: 'POST' }), {
+        target: 'space-agent-result',
+        pending: t('config.space_agent.recreate_starting'),
+        failure: t('config.space_agent.status_error'),
+        success: outcome => outcome.reason || t('config.feedback.done'),
+        lock: '#space-agent-status-btn'
+    });
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -73,6 +74,9 @@ func TestHandleLDAPTestUsesVaultPassword(t *testing.T) {
 	cfg.LDAP.Host = "ldap.example.com"
 	cfg.LDAP.BindDN = "cn=svc,dc=example,dc=com"
 
+	// A loaded configuration already carries the vault secrets.
+	cfg.ApplyVaultSecrets(vault)
+
 	var captured ldap.LDAPConfig
 	orig := newLDAPTestClient
 	newLDAPTestClient = func(clientCfg ldap.LDAPConfig) ldapTestClient {
@@ -123,5 +127,41 @@ func TestHandleLDAPTestPropagatesConnectionFailure(t *testing.T) {
 	}
 	if payload["status"] != "error" {
 		t.Fatalf("payload = %v", payload)
+	}
+}
+
+func TestHandleLDAPTestUsesDraftValues(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LDAP.Enabled = true
+	cfg.LDAP.Host = "saved.example.com"
+	cfg.LDAP.BindDN = "cn=saved,dc=example,dc=com"
+
+	var captured ldap.LDAPConfig
+	orig := newLDAPTestClient
+	newLDAPTestClient = func(clientCfg ldap.LDAPConfig) ldapTestClient {
+		captured = clientCfg
+		return &fakeLDAPHandlerClient{}
+	}
+	defer func() { newLDAPTestClient = orig }()
+
+	s := &Server{Cfg: cfg}
+	body := `{"draft":{"ldap":{"host":"draft.example.com","bind_dn":"cn=draft,dc=example,dc=com","bind_password":"typed-secret"}}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/ldap/test", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handleLDAPTest(s).ServeHTTP(rec, req)
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload["status"] != "success" {
+		t.Fatalf("payload = %v", payload)
+	}
+	if captured.Host != "draft.example.com" || captured.BindDN != "cn=draft,dc=example,dc=com" || captured.BindPassword != "typed-secret" {
+		t.Fatalf("client config did not use the draft: %+v", captured)
+	}
+	if cfg.LDAP.Host != "saved.example.com" {
+		t.Fatalf("saved config was modified: %q", cfg.LDAP.Host)
 	}
 }

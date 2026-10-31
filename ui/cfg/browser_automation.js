@@ -161,8 +161,8 @@ async function renderBrowserAutomationSection(section) {
     html += '</details>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn">🔌 ' + t('config.browser_automation.test_button') + '</button>';
-    html += '<span id="ba-test-result" class="dc-test-result"></span>';
+    html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn" data-config-action-draft="true">🔌 ' + t('config.browser_automation.test_button') + '</button>';
+    html += cfgActionResult.html('ba-test-result', 'dc-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -196,17 +196,13 @@ function baToggleIntegration(isOn) {
     renderBrowserAutomationSection(null);
 }
 
+// Tests the sidecar settings typed in (unsaved included); the server accepts this body shape.
 async function baTestConnection() {
-    const btn = document.getElementById('ba-test-btn');
-    const result = document.getElementById('ba-test-result');
-    btn.disabled = true;
-    result.textContent = t('config.browser_automation.loading');
-    result.className = 'dc-test-result';
-    try {
+    return cfgActionResult(document.getElementById('ba-test-btn'), () => {
         const patch = buildConfigPatchFromForm();
         const browserAutomation = patch.browser_automation || {};
         const toolEnabled = patch.tools?.browser_automation?.enabled === true || browserAutomation.enabled === true;
-        const resp = await fetch('/api/browser-automation/test', {
+        return fetch('/api/browser-automation/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -214,19 +210,11 @@ async function baTestConnection() {
                 tool_enabled: toolEnabled
             })
         });
-        const body = await resp.json();
-        if (resp.ok && body.status === 'success') {
-            result.className = 'dc-test-result is-success';
-            result.textContent = t('config.browser_automation.status_ok');
-        } else {
-            baApplySuggestedURL(body);
-            result.className = 'dc-test-result is-danger';
-            result.textContent = t('config.browser_automation.status_error') + ' ' + (body.message || ('HTTP ' + resp.status));
-        }
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.browser_automation.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+    }, {
+        target: 'ba-test-result',
+        pending: t('config.browser_automation.loading'),
+        success: t('config.browser_automation.status_ok'),
+        failure: t('config.browser_automation.status_error'),
+        onError: outcome => baApplySuggestedURL(outcome.body || {})
+    });
 }

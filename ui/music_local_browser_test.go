@@ -55,6 +55,10 @@ func TestLocalMusicConfigBrowser(t *testing.T) {
 	if !page.MustEval(`() => musicActions.some(r=>r.method==='POST' && JSON.parse(r.body).action==='recheck')`).Bool() {
 		t.Fatal("recheck did not post")
 	}
+	page.MustEval(`async () => {await musicTestConnection();}`)
+	if !page.MustEval(`() => {const r=musicActions.find(a=>a.url==='/api/music-generation/test');return !!r&&r.method==='POST'&&JSON.parse(r.body).draft.music_generation.provider==='aurago-acestep-local'&&document.querySelector('#music-test-result').dataset.state==='success'&&!document.querySelector('#music-test-btn').disabled;}`).Bool() {
+		t.Fatal("music test did not send the draft or show a result")
+	}
 	page.MustEval(`async () => {await musicLocalRefresh();}`)
 	if page.MustEval(`() => document.querySelector('[data-path="music_generation.local.vram_reserve_gb"]').value!=='0'`).Bool() {
 		t.Fatal("poll overwrote settings")

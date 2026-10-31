@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Connessione fallita",
   "config.document_creator.test_gotenberg": "Testa connessione",
   "config.document_creator.test_ok": "Connessione riuscita",
-  "config.document_creator.test_saved_settings": "Il test utilizza le impostazioni salvate.",
+  "config.document_creator.test_saved_settings": "Il test usa i valori inseriti. Il controllo del riavvio si riferisce alla configurazione salvata.",
   "config.document_creator.test_unreachable": "Servizio non raggiungibile.",
   "config.document_creator.test_unverified": "Servizio raggiungibile, ma protezione di rete non verificata.",
   "config.document_creator.test_verified": "Servizio raggiungibile e protezione di rete verificata.",

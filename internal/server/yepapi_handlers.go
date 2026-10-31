@@ -17,19 +17,25 @@ func handleYepAPITest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
 		w.Header().Set("Content-Type", "application/json")
+
+		// Optional {"draft": ...} tests unsaved values (nothing is persisted).
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
 
 		if !cfg.YepAPI.Enabled {
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "YepAPI is not enabled"})
 			return
 		}
 
+		// The dedicated vault key is not part of the config; it only counts while
+		// the draft still points at the saved base URL (stored keys must not follow
+		// a changed target).
 		var secrets config.SecretReader
-		if s.Vault != nil {
+		if saved := s.ConfigSnapshot(); s.Vault != nil && saved != nil && saved.YepAPI.BaseURL == cfg.YepAPI.BaseURL {
 			secrets = s.Vault
 		}
 		apiKey, err := tools.ResolveYepAPIKey(cfg, secrets)

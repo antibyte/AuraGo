@@ -120,10 +120,10 @@ function renderVideoGenerationSection(section) {
         <div class="field-group-title">${t('config.video_gen.test_title')}</div>
         <div class="field-group-desc">${t('config.video_gen.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="video-test-btn" onclick="videoTestConnection()">
+            <button class="btn-save adg-test-btn" id="video-test-btn" onclick="videoTestConnection()" data-config-action-draft="true">
                 🔌 ${t('config.video_gen.test_btn')}
             </button>
-            <span id="video-test-result" class="adg-test-result"></span>
+            ${cfgActionResult.html('video-test-result')}
         </div>
     </div>`;
 
@@ -132,32 +132,16 @@ function renderVideoGenerationSection(section) {
     attachChangeListeners();
 }
 
+// Checks the provider selected in the form (unsaved included).
 function videoTestConnection() {
-    const btn = document.getElementById('video-test-btn');
-    const result = document.getElementById('video-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.video_gen.testing');
-    }
-
-    fetch('/api/video-generation/test')
-    .then(r => r.json())
-    .then(res => {
-        if (!result) return;
-        if (res.status === 'ok') {
-            result.className = 'adg-test-result is-success';
-            result.textContent = res.message || t('config.video_gen.test_success');
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = res.message || t('config.video_gen.test_failed');
-        }
-    })
-    .catch(err => {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = err.message;
-        }
-    })
-    .finally(() => { if (btn) btn.disabled = false; });
+    return cfgActionResult(document.getElementById('video-test-btn'), () => fetch('/api/video-generation/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['video_generation']) })
+    }), {
+        target: 'video-test-result',
+        pending: t('config.video_gen.testing'),
+        success: outcome => outcome.reason || t('config.video_gen.test_success'),
+        failure: t('config.video_gen.test_failed')
+    });
 }

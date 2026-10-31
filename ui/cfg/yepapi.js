@@ -94,10 +94,10 @@ async function renderYepAPISection(section) {
     html += '<div class="field-group-title">' + t('config.yepapi.test_title') + '</div>';
     html += '<div class="field-group-desc">' + t('config.yepapi.test_desc') + '</div>';
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()">';
+    html += '<button class="btn-save adg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()" data-config-action-draft="true">';
     html += '🧪 ' + t('config.yepapi.test_btn');
     html += '</button>';
-    html += '<span id="yepapi-test-result" class="adg-test-result"></span>';
+    html += cfgActionResult.html('yepapi-test-result');
     html += '</div>';
     html += '</div>';
 
@@ -106,34 +106,16 @@ async function renderYepAPISection(section) {
     attachChangeListeners();
 }
 
+// Probes with the provider selected in the form (unsaved included).
 async function yepapiTestConnection() {
-    const btn = document.getElementById('yepapi-test-btn');
-    const result = document.getElementById('yepapi-test-result');
-    if (!btn) return;
-
-    btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.yepapi.testing');
-    }
-
-    try {
-        const resp = await fetch('/api/yepapi/test', { method: 'POST' });
-        const data = await resp.json();
-        if (!result) return;
-        if (data.status === 'ok') {
-            result.className = 'adg-test-result is-success';
-            result.textContent = data.message || t('config.yepapi.test_success');
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = data.message || t('config.yepapi.test_error');
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = e.message;
-        }
-    } finally {
-        btn.disabled = false;
-    }
+    return cfgActionResult(document.getElementById('yepapi-test-btn'), () => fetch('/api/yepapi/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['yepapi']) })
+    }), {
+        target: 'yepapi-test-result',
+        pending: t('config.yepapi.testing'),
+        success: t('config.yepapi.test_success'),
+        failure: t('config.yepapi.test_error')
+    });
 }

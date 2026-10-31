@@ -37,6 +37,8 @@ func TestHandlePaperlessTestUsesRequestContext(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), Vault: vault}
 	s.Cfg.PaperlessNGX.Enabled = true
 	s.Cfg.PaperlessNGX.URL = upstream.URL
+	// A loaded configuration already carries the vault secrets.
+	s.Cfg.ApplyVaultSecrets(vault)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodPost, "/api/paperless/test", nil).WithContext(ctx)
@@ -63,5 +65,36 @@ func TestHandlePaperlessTestUsesRequestContext(t *testing.T) {
 	}
 	if body["status"] != "error" {
 		t.Fatalf("status = %#v, body=%s", body["status"], rec.Body.String())
+	}
+}
+
+func TestHandlePaperlessTestUsesDraftValues(t *testing.T) {
+	upstream := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Token typed-token" {
+			t.Errorf("Authorization = %q, want the typed draft token", r.Header.Get("Authorization"))
+		}
+		_, _ = w.Write([]byte(`{"count":3,"results":[]}`))
+	}))
+	defer upstream.Close()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	// Saved settings point nowhere; only the draft has a working target.
+	s.Cfg.PaperlessNGX.Enabled = true
+	s.Cfg.PaperlessNGX.URL = "http://saved.invalid"
+
+	body := `{"draft":{"paperless_ngx":{"url":"` + upstream.URL + `","api_token":"typed-token"}}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/paperless/test", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handlePaperlessTest(s).ServeHTTP(rec, req)
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json: %v body=%s", err, rec.Body.String())
+	}
+	if payload["status"] != "success" {
+		t.Fatalf("payload = %v", payload)
+	}
+	if s.Cfg.PaperlessNGX.URL != "http://saved.invalid" {
+		t.Fatalf("saved config was modified: %q", s.Cfg.PaperlessNGX.URL)
 	}
 }

@@ -19,10 +19,10 @@
   "config.image_generation.max_monthly_label": "Μέγιστες εικόνες ανά μήνα",
   "config.image_generation.max_monthly_hint": "0 = απεριόριστο",
   "config.image_generation.test_title": "Δοκιμαστική δημιουργία",
-  "config.image_generation.test_desc": "Δημιουργήστε δοκιμαστική εικόνα για επαλήθευση σύνδεσης παρόχου.",
+  "config.image_generation.test_desc": "Δημιουργεί μία πραγματική δοκιμαστική εικόνα για έλεγχο του παρόχου (καταναλώνει μία δημιουργία από το όριό σας· η εικόνα αποθηκεύεται στη συλλογή).",
   "config.image_generation.test_btn": "Δοκιμαστική δημιουργία",
   "config.image_generation.testing": "Δημιουργία...",
-  "config.image_generation.test_success": "Η εικόνα δημιουργήθηκε επιτυχώς",
+  "config.image_generation.test_success": "Η δοκιμαστική εικόνα δημιουργήθηκε και αποθηκεύτηκε στη συλλογή (καταναλώθηκε μία δημιουργία).",
   "config.image_generation.test_failed": "Η δημιουργία απέτυχε",
   "config.image_generation.max_daily_label": "Μέγιστες εικόνες ανά ημέρα",
   "config.image_generation.max_daily_hint": "0 = απεριόριστο"

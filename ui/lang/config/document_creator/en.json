@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Connection failed",
   "config.document_creator.test_gotenberg": "Test Connection",
   "config.document_creator.test_ok": "Connection successful",
-  "config.document_creator.test_saved_settings": "The test uses saved settings.",
+  "config.document_creator.test_saved_settings": "The test uses the values entered. The restart check refers to the saved configuration.",
   "config.document_creator.test_unreachable": "Service unreachable.",
   "config.document_creator.test_unverified": "Reachable, but network protection is not verified.",
   "config.document_creator.test_verified": "Reachable and network protection verified.",

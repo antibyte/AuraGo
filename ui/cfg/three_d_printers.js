@@ -35,9 +35,9 @@ function renderThreeDPrintersSection(section) {
         html += threeDPrinterField(base + '.mainboard_id', printer.mainboard_id || '', t('config.three_d_printers.mainboard_id_label'), t('help.three_d_printers.mainboard_id'), '');
         html += threeDPrinterNumber(base + '.timeout_seconds', printer.timeout_seconds || 10, t('config.three_d_printers.timeout_label'), t('help.three_d_printers.timeout'), 1, 120);
         html += '<div class="field-group">';
-        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'elegoo\', ' + idx + ')" id="three-d-printer-test-elegoo-' + idx + '">' + t('config.three_d_printers.test_button') + '</button> ';
+        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'elegoo\', ' + idx + ')" id="three-d-printer-test-elegoo-' + idx + '" data-config-action-draft="true">' + t('config.three_d_printers.test_button') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'elegoo\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
-        html += '<span id="three-d-printer-test-result-elegoo-' + idx + '" class="adg-test-result"></span>';
+        html += cfgActionResult.html('three-d-printer-test-result-elegoo-' + idx);
         html += '</div>';
         html += '</div>';
     });
@@ -59,9 +59,9 @@ function renderThreeDPrintersSection(section) {
         html += threeDPrinterNumber(base + '.timeout_seconds', printer.timeout_seconds || 10, t('config.three_d_printers.timeout_label'), t('help.three_d_printers.timeout'), 1, 120);
         html += threeDPrinterField(base + '.webcam_name', printer.webcam_name || '', t('config.three_d_printers.klipper_webcam_name_label'), t('help.three_d_printers.klipper_webcam_name'), 'toolhead');
         html += '<div class="field-group">';
-        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'klipper\', ' + idx + ')" id="three-d-printer-test-klipper-' + idx + '">' + t('config.three_d_printers.test_button') + '</button> ';
+        html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'klipper\', ' + idx + ')" id="three-d-printer-test-klipper-' + idx + '" data-config-action-draft="true">' + t('config.three_d_printers.test_button') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'klipper\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
-        html += '<span id="three-d-printer-test-result-klipper-' + idx + '" class="adg-test-result"></span>';
+        html += cfgActionResult.html('three-d-printer-test-result-klipper-' + idx);
         html += '</div>';
         html += '</div>';
     });
@@ -173,42 +173,37 @@ async function threeDPrinterRemove(protocol, index) {
     threeDPrinterSetPrinters(protocol, printers);
 }
 
+// Tests the printer as typed in (unsaved included); the server accepts this body shape.
 async function threeDPrinterTest(protocol, index) {
     const printers = threeDPrinterEnsurePrinters(protocol);
     const printer = printers[index] || {};
-    const result = document.getElementById('three-d-printer-test-result-' + protocol + '-' + index);
+    const resultId = 'three-d-printer-test-result-' + protocol + '-' + index;
     const btn = document.getElementById('three-d-printer-test-' + protocol + '-' + index);
-    if (!result || !btn) return;
+    if (!btn) return;
     if (!threeDPrinterURLLooksValid(protocol, printer.url || '')) {
-        result.textContent = t('config.three_d_printers.test_failed');
-        return;
+        cfgActionResult.show(resultId, 'error', t('config.three_d_printers.test_failed'));
+        return { skipped: 'invalid' };
     }
-    btn.disabled = true;
-    result.textContent = t('config.three_d_printers.testing');
-    try {
-        const res = await fetch('/api/3d-printers/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                operation: 'test_connection',
-                protocol: protocol === 'klipper' ? 'klipper' : 'elegoo_centauri_carbon',
-                printer_id: printer.id || '',
-                url: printer.url || '',
-                api_key: printer.api_key || '',
-                mainboard_id: printer.mainboard_id || '',
-                timeout_seconds: printer.timeout_seconds || 10,
-                webcam_name: printer.webcam_name || ''
-            })
-        });
-        const data = await res.json();
-        result.textContent = data.status === 'error'
-            ? t('config.three_d_printers.test_failed') + ': ' + (data.message || '')
-            : t('config.three_d_printers.test_ok');
-    } catch (err) {
-        result.textContent = t('config.three_d_printers.test_failed');
-    } finally {
-        btn.disabled = false;
-    }
+    return cfgActionResult(btn, () => fetch('/api/3d-printers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            operation: 'test_connection',
+            protocol: protocol === 'klipper' ? 'klipper' : 'elegoo_centauri_carbon',
+            printer_id: printer.id || '',
+            url: printer.url || '',
+            api_key: printer.api_key || '',
+            mainboard_id: printer.mainboard_id || '',
+            timeout_seconds: printer.timeout_seconds || 10,
+            webcam_name: printer.webcam_name || ''
+        })
+    }), {
+        target: resultId,
+        pending: t('config.three_d_printers.testing'),
+        success: t('config.three_d_printers.test_ok'),
+        // The server reason (message) is appended to the failure text.
+        failure: t('config.three_d_printers.test_failed') + ':'
+    });
 }
 
 function threeDPrinterURLLooksValid(protocol, value) {

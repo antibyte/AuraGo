@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Forbindelse mislykkedes",
   "config.document_creator.test_gotenberg": "Test forbindelse",
   "config.document_creator.test_ok": "Forbindelse lykkedes",
-  "config.document_creator.test_saved_settings": "Testen bruger gemte indstillinger.",
+  "config.document_creator.test_saved_settings": "Testen bruger de indtastede værdier. Genstartskontrollen refererer til den gemte konfiguration.",
   "config.document_creator.test_unreachable": "Tjenesten kan ikke nås.",
   "config.document_creator.test_unverified": "Tjenesten kan nås, men netværksbeskyttelsen er ikke bekræftet.",
   "config.document_creator.test_verified": "Tjenesten kan nås, og netværksbeskyttelsen er bekræftet.",

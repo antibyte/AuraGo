@@ -83,7 +83,7 @@ function renderMusicGenerationSection(section) {
             <label>${t('config.music_gen.timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"></label></div>
             <p id="music-local-status" role="status" aria-live="polite">${t('config.music_gen.testing')}</p><progress id="music-local-progress" aria-labelledby="music-local-status" hidden></progress>
             <div id="music-local-actions" class="cfg-actions-row">${['start','stop','recheck'].map(action => `<button type="button" class="btn-secondary" data-music-local-action="${action}">${t('config.music_gen.' + action)}</button>`).join('')}</div>
-            <p id="music-local-feedback" class="adg-test-result" role="status" aria-live="polite" aria-atomic="true" hidden></p></div>`;
+            <p id="music-local-feedback" class="cfg-action-result" role="status" aria-live="polite" aria-atomic="true" hidden></p></div>`;
     }
 
     html += `<div class="field-group">
@@ -102,10 +102,10 @@ function renderMusicGenerationSection(section) {
         <div class="field-group-title">${t('config.music_gen.test_title')}</div>
         <div class="field-group-desc">${t('config.music_gen.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="music-test-btn" onclick="musicTestConnection()">
+            <button class="btn-save adg-test-btn" id="music-test-btn" onclick="musicTestConnection()" data-config-action-draft="true">
                 🔌 ${t('config.music_gen.test_btn')}
             </button>
-            <span id="music-test-result" class="adg-test-result"></span>
+            ${cfgActionResult.html('music-test-result')}
         </div>
     </div>`;
 
@@ -122,14 +122,16 @@ function renderMusicGenerationSection(section) {
 function musicLocalRenderFeedback() {
     const feedback = document.getElementById('music-local-feedback');
     if (!feedback) return;
-    feedback.textContent = _musicLocalFeedback.message;
-    feedback.className = 'adg-test-result ' + _musicLocalFeedback.state;
+    // The result line shares the data-state contract of cfgActionResult.
+    const feedbackState = _musicLocalFeedback.state === 'is-success' ? 'success' : (_musicLocalFeedback.state === 'is-danger' ? 'error' : 'pending');
+    cfgActionResult.show(feedback, _musicLocalFeedback.message ? feedbackState : '', _musicLocalFeedback.message);
     feedback.hidden = !feedback.textContent;
     const working = _musicLocalSending || !!_musicLocalAction || _musicLocalStatus?.pending;
     document.getElementById('music-local-actions').setAttribute('aria-busy', String(!!working));
     document.querySelectorAll('[data-music-local-action]').forEach(button => {
         const action = button.dataset.musicLocalAction;
         button.disabled = _musicLocalSending || !!working && (action !== 'stop' || _musicLocalAction === 'stop');
+        button.setAttribute('aria-busy', String(action === _musicLocalAction && !!working));
         button.textContent = t('config.music_gen.' + (action === _musicLocalAction ? 'action_' + action : action));
     });
 }
@@ -217,33 +219,16 @@ async function musicLocalAction(action) {
 
 document.addEventListener('aurago:config-saved', () => { if (document.getElementById('music-local-status')) musicLocalRefresh(); });
 
+// Checks the provider selected in the form (unsaved included).
 function musicTestConnection() {
-    const btn = document.getElementById('music-test-btn');
-    const result = document.getElementById('music-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.music_gen.testing');
-    }
-
-    fetch('/api/music-generation/test')
-    .then(r => r.json())
-    .then(res => {
-        if (!result) return;
-        if (res.status === 'ok') {
-            result.className = 'adg-test-result is-success';
-            result.textContent = res.message || t('config.music_gen.test_success');
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = res.message || t('config.music_gen.test_failed');
-        }
-    })
-    .catch(err => {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = err.message;
-        }
-    })
-    .finally(() => { if (btn) btn.disabled = false; });
+    return cfgActionResult(document.getElementById('music-test-btn'), () => fetch('/api/music-generation/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['music_generation']) })
+    }), {
+        target: 'music-test-result',
+        pending: t('config.music_gen.testing'),
+        success: outcome => outcome.reason || t('config.music_gen.test_success'),
+        failure: t('config.music_gen.test_failed')
+    });
 }
-

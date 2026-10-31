@@ -90,11 +90,11 @@ function renderLDAPSection(section) {
     html += '<div class="field-label">' + t('config.ldap.bind_password_label') + '</div>';
     if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
     html += '<div class="ldap-password-row">';
-        html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input ldap-password-input" type="password" id="ldap-password" value="' + escapeAttr(cfgSecretValue(data.bind_password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-        html += '</div>';
-    html += '<button class="btn-save ldap-save-btn" onclick="ldapSavePassword()">' + t('config.ldap.save_icon') + ' ' + t('config.ldap.save_vault') + '</button>';
+    // With data-path the password joins the save dock (the server writes it to the vault).
+    html += '<div class="password-wrap pw-u-flex-1">';
+    html += '<input class="field-input ldap-password-input" type="password" id="ldap-password" data-path="ldap.bind_password" value="' + escapeAttr(cfgSecretValue(data.bind_password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '</div>';
     html += '</div></div>';
 
     // ── User Search Base ──
@@ -115,8 +115,8 @@ function renderLDAPSection(section) {
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save ldap-test-btn" onclick="ldapTestConnection()" id="ldap-test-btn">🔌 ' + t('config.ldap.test_btn') + '</button>';
-    html += '<span id="ldap-test-result" class="ldap-test-result"></span>';
+    html += '<button class="btn-save ldap-test-btn" onclick="ldapTestConnection()" id="ldap-test-btn" data-config-action-draft="true">🔌 ' + t('config.ldap.test_btn') + '</button>';
+    html += cfgActionResult.html('ldap-test-result', 'ldap-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -132,52 +132,16 @@ function ldapTransportChanged(select, event) {
     markDirty(event);
 }
 
+// Tests the values typed in (unsaved included); nothing is saved by the test.
 function ldapTestConnection() {
-    const btn = document.getElementById('ldap-test-btn');
-    const result = document.getElementById('ldap-test-result');
-    if (btn) btn.disabled = true;
-    if (result) { result.textContent = t('config.ldap.loading'); result.className = 'ldap-test-result'; }
-
-    fetch('/api/ldap/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'success') {
-                result.className = 'ldap-test-result is-success';
-                result.textContent = t('config.ldap.status_success') + ' ' + t('config.ldap.test_ok');
-            } else {
-                result.className = 'ldap-test-result is-danger';
-                result.textContent = t('config.ldap.status_error') + ' ' + (res.message || t('config.ldap.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'ldap-test-result is-danger';
-                result.textContent = t('config.ldap.status_error') + ' ' + t('config.ldap.test_fail');
-            }
-        });
-}
-
-function ldapSavePassword() {
-    const input = document.getElementById('ldap-password');
-    const pw = input ? input.value.trim() : '';
-    if (!pw) { showToast(t('config.ldap.password_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(document.getElementById('ldap-test-btn'), () => fetch('/api/ldap/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'ldap_bind_password', value: pw })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            showToast(t('config.ldap.password_saved'), 'success');
-            cfgMarkSecretStored(input, 'ldap.bind_password');
-        } else {
-            showToast(res.message || t('config.ldap.password_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.ldap.password_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['ldap']) })
+    }), {
+        target: 'ldap-test-result',
+        pending: t('config.ldap.loading'),
+        success: t('config.ldap.test_ok'),
+        failure: t('config.ldap.test_fail')
+    });
 }

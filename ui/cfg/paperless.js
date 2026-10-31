@@ -44,19 +44,18 @@ function renderPaperlessSection(section) {
     const helpToken = t('help.paperless_ngx.api_token');
     if (helpToken) html += '<div class="field-help">' + helpToken + '</div>';
     html += '<div class="pl-token-row">';
+    // With data-path the token joins the save dock (the server writes it to the vault).
     html += '<div class="password-wrap pl-password-wrap">';
-    html += '<input class="field-input" type="password" id="paperless-token-input" value="' + escapeAttr(cfgSecretValue(data.api_token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input" type="password" id="paperless-token-input" data-path="paperless_ngx.api_token" value="' + escapeAttr(cfgSecretValue(data.api_token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save pl-save-btn" onclick="paperlessSaveToken()">💾 ' + t('config.paperless.save_vault') + '</button>';
     html += '</div>';
-    html += '<div id="paperless-token-status" class="pl-token-status is-hidden"></div>';
     html += '</div>';
 
     // ── Test Connection ──
     html += '<div class="field-group">';
-    html += '<button id="paperless-test-btn" class="btn-save pw-u-mt-4" onclick="paperlessTestConnection()">🔌 ' + t('config.paperless.test_connection') + '</button>';
-    html += '<div id="paperless-test-status" class="pl-token-status is-hidden pw-u-mt-6"></div>';
+    html += '<button id="paperless-test-btn" class="btn-save pw-u-mt-4" onclick="paperlessTestConnection()" data-config-action-draft="true">🔌 ' + t('config.paperless.test_connection') + '</button>';
+    html += cfgActionResult.html('paperless-test-status', 'pw-u-mt-6');
     html += '</div>';
 
     html += '</div>';
@@ -64,60 +63,16 @@ function renderPaperlessSection(section) {
     document.getElementById('content').innerHTML = html;
 }
 
-function paperlessSaveToken() {
-    const input = document.getElementById('paperless-token-input');
-    const status = document.getElementById('paperless-token-status');
-    const token = input ? input.value.trim() : '';
-    if (!token) {
-        showToast(t('config.paperless.token_empty'), 'error');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
+// Tests the values typed in (unsaved included); nothing is saved by the test.
+function paperlessTestConnection() {
+    return cfgActionResult(document.getElementById('paperless-test-btn'), () => fetch('/api/paperless/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'paperless_ngx_api_token', value: token })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            showToast(t('config.paperless.token_saved'), 'success');
-            cfgMarkSecretStored(input, 'paperless_ngx.api_token');
-            if (status) status.classList.add('is-hidden');
-        } else {
-            showToast(res.message || t('config.paperless.token_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.paperless.token_save_failed'), 'error'));
-}
-
-function paperlessTestConnection() {
-    const statusEl = document.getElementById('paperless-test-status');
-    if (statusEl) {
-        statusEl.classList.remove('is-hidden');
-        statusEl.textContent = t('config.paperless.testing');
-        statusEl.style.color = 'var(--text-muted)';
-    }
-
-    fetch('/api/paperless/test', { method: 'POST' })
-    .then(r => r.json())
-    .then(res => {
-        if (statusEl) {
-            statusEl.classList.remove('is-hidden');
-            if (res.status === 'success') {
-                statusEl.textContent = '✅ ' + (res.message || t('config.paperless.test_success'));
-                statusEl.style.color = 'var(--success)';
-            } else {
-                statusEl.textContent = '❌ ' + (res.message || t('config.paperless.test_failed'));
-                statusEl.style.color = 'var(--error)';
-            }
-        }
-    })
-    .catch(() => {
-        if (statusEl) {
-            statusEl.classList.remove('is-hidden');
-            statusEl.textContent = '❌ ' + t('config.paperless.test_failed');
-            statusEl.style.color = 'var(--error)';
-        }
+        body: JSON.stringify({ draft: cfgDraftPatch(['paperless_ngx']) })
+    }), {
+        target: 'paperless-test-status',
+        pending: t('config.paperless.testing'),
+        success: outcome => outcome.reason || t('config.paperless.test_success'),
+        failure: t('config.paperless.test_failed')
     });
 }
