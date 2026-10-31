@@ -41,7 +41,7 @@ Expertenfelder eingeklappt, Eingaben werden sofort geprüft statt still verworfe
   `aria-modal`, `h2`-Titel, Schließen-Button mit SVG-X). Helfer `cfgModal({id, title, body, actions, size})` baut das Markup
   einmal. Eigene Familien (`cfgdev-modal-*`, `devices-modal-*`, `cmp-`, `mcp-`, `prov-`, `sec-`, `sqlconn-`, `og-modal-*`,
   `email-modal-card`, `tts-voice-modal`, `secrets-modal-card`) verschwinden (Test mit Präfixliste).
-- **E9 Status-Pillen:** `cfgBadge(status, text)` → `<span class="pw-badge" data-status="success|warning|error|accent|neutral">`.
+- **E9 Status-Pillen:** `cfgBadge(status, text)` → `<span class="pw-badge" data-status="ok|warn|error|idle|running">`.
   Eigene `*-badge`/`*-pill`-Klassen für Status in `ui/cfg` verschwinden (Ratchet).
 - **E10 Listen-Zustände:** `cfgListState(el, {state: 'loading'|'empty'|'error', title, text, retry})` auf Basis von
   `.pw-loading-state`/`.pw-empty-state`; der Fehlerzustand hat „Erneut versuchen“, wenn `retry` gesetzt ist.

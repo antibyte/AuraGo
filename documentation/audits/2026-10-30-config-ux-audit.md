@@ -400,6 +400,32 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 >   `replaceState` vs. `pushState` (M1/M2), ~12 Lösch-Button-Stile (M18), ≥ 11 Modal-Familien (M19), Feedback-Wege (M20),
 >   `div.toggle` vs. native Checkboxen (M21), Status-Pillen je Modul (M22).
 
+> **Stand Welle 4 (2026-10-31): umgesetzt** (Plan `plans/2026-10-31-config-ux-wave4.md`, Fundament + V + Module M1–M5 + Fixes).
+> - **Gemeinsame Helfer:** `cfgIcon` (dünne Hülle über `ui/js/precision/icons.js`), `cfgDeleteButton`, `cfgModal`, `cfgBadge`
+>   (`data-status=ok|warn|error|idle|running`), `cfgListState`, `cfgJsArg` (Werte in Inline-Handlern). `adg-*` → `cfg-*`.
+> - **Module:** keine Emoji mehr in `ui/cfg`; Ein/Aus immer `.toggle` (Checkboxen nur für Listenauswahl mit `data-cfg-choice`);
+>   Enable-Schalter zuerst (auch generischer Renderer, SIP, Server-HTTPS, Sandbox, Cloudflare, TTS, Video-Download, Entscheidungen);
+>   ein Lösch-Stil mit `showConfirmDialog({danger})`; alle eigenen Dialog-Familien (Provider, OpenRouter, Preise, MCP, Composio,
+>   Webhooks, SQL, E-Mail, Secrets, TTS, Geräte, Chromecast, Bluetooth, Freigaben, Embeddings-Reset, Sicherheit) auf dem gemeinsamen
+>   Overlay; Status-Pillen und Lade-/Leer-/Fehlerzustände mit „Erneut versuchen“ einheitlich; Klick-Ergebnisse am Button;
+>   34 Module nutzen `renderSpec` (Ratchet `config_handbuilt_modules.txt`, 67 Rest inkl. Kaggle).
+> - **U23 behoben:** Detective-Allowlist, MCP-Env/Header, Webhook-Header, E-Mail-ID, gog-Limit, leerer Indexierungspfad melden sich inline.
+> - **Validierung (U22):** abgeleitete Regeln für Ports (0–65535, `server.port` 1–65535), URLs (http/https/ws/wss) und Zeitfelder (≥ 0,
+>   Einheit), nur für geänderte Werte; Prüfung beim Verlassen mit `role=alert`. **Expertenfelder (U21):** ~90 Felder in Tools,
+>   Optimierungen, Agent, LLM, Server, Datenbanken, Verzeichnisse unter „Erweitert“.
+> - **Navigation (M1/M2):** Drawer unter 900 px wie im Dashboard; Sektionswechsel im Verlauf (Zurück/Vor), offene Dialoge schließen
+>   zuerst (mit Verwerfen-Rückfrage), Tab-Titel je Sektion; Sektionen `aria-level=2`, Seiten-`h1`.
+> - **Nebenbei:** SIP-Fokus-Rennen (`normalizeBodies`, seit 2026-09) behoben; französischer MCP-Kopieren-Handler war kaputt; Kaggle-Hilfen
+>   ergänzt; Backdrop-Schließen auch für später eingefügte Dialoge (`shared-core.js`).
+> - **Guards:** `ui/config_wave4_*_test.go` mit Ratchets in `ui/testdata/config_*` (Emoji, Checkboxen, Lösch-/Dialog-/Pillen-Familien,
+>   Enable-zuerst leer; Form-Builder schrumpft nur), Inline-Handler-Guard.
+>
+> **Offen nach Welle 4:**
+> - 67 Module bleiben handgebaut (große Widgets: providers, sip, webhooks, mcp …), nutzen aber die Helfer.
+> - `danger_zone` zeigt Emoji und eine Checkbox aus `js/shared/action-policy.js` (geteilt, nicht Config).
+> - Composio „Auswahl speichern“ schreibt weiter die ganze Sektion; Preis-Auswahl über dem Provider-Dialog nicht browsergetestet.
+> - Dialoge, Fritz!Box-Überschriften und neue Layouts nicht visuell abgenommen.
+
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
    Erfolg/Fehler **inkl. Server-Grund**, `role=status`; Toast nur zusätzlich. Ersetzt die ~40 `*-test-result`-Varianten.
