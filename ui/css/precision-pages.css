@@ -1266,6 +1266,19 @@
     transition: none;
 }
 
+/* The radial trigger normally sits at --z-max; while a dialog is open it drops
+   just above the sticky header (80) so the backdrop (200+) covers it too. */
+.pw-page:has(.modal-overlay.active) .radial-menu,
+.pw-page:has(.modal-overlay.open) .radial-menu {
+    z-index: 81;
+}
+
+@media (max-width: 900px) {
+    .pw-page .app-header[data-app-header] .pw-density-toggle span {
+        display: none;
+    }
+}
+
 @media (max-width: 640px) {
     .pw-page .app-header[data-app-header] .connection-status [data-i18n] {
         display: none;
