@@ -130,6 +130,8 @@
   "config.feedback.done": "Klaar.",
   "config.feedback.failed": "Mislukt.",
   "config.feedback.runtime_only": "Controleert de actieve service – sla eerst je wijzigingen op.",
+  "config.feedback.missing_fields": "Vul eerst de verplichte velden in.",
+  "config.feedback.missing_credential": "Voer eerst de vereiste inloggegevens in.",
   "config.feedback.timeout": "Geen antwoord op tijd.",
   "config.status.off": "Uit",
   "config.status.unconfigured": "Niet ingesteld",

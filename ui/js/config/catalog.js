@@ -46,14 +46,14 @@
         'integration-s3-test-btn': {},
         'integration-telegram-test-btn': { credentialPaths: ['telegram.bot_token'] },
         'sqlconn-test-btn': { requiredSelectors: ['#sqlconn-field-name', '#sqlconn-field-database'] },
-        'telnyx-test-btn': { requiredPaths: ['telnyx.phone_number'], credentialPaths: ['telnyx.api_key'] },
+        'telnyx-test-btn': { credentialPaths: ['telnyx.api_key'] },
         'truenas-test-btn': { requiredPaths: ['truenas.host'], credentialPaths: ['truenas.api_key'] },
         'ts-api-test-btn': { requiredPaths: ['tailscale.tailnet'], credentialPaths: ['tailscale.api_key'] },
         'uptime-kuma-test-btn': { requiredPaths: ['uptime_kuma.base_url'], credentialPaths: ['uptime_kuma.api_key'] },
         'vd-cfg-test-btn': { requiredPaths: ['virtual_desktop.workspace_dir'] },
         'vercel-test-btn': { credentialPaths: ['vercel.token'] },
         'video-test-btn': { requiredPaths: ['video_generation.provider'] },
-        'webdav-test-btn': { requiredPaths: ['webdav.url', 'webdav.username'], credentialPaths: ['webdav.password'] },
+        'webdav-test-btn': { requiredPaths: ['webdav.url', 'webdav.username'], credentialPaths: [['webdav.password', 'webdav.token']] },
         'yepapi-test-btn': { requiredPaths: ['yepapi.provider'] }
     });
 

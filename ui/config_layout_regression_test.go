@@ -1163,7 +1163,7 @@ func hasModuleMarker(content, marker string) bool {
 	}
 	for _, migratable := range []string{"test-result", "status-banner", "SetBanner", "save-btn", "password-row", "key-status", "token-status", "secret-status", "-status", "vault_section"} {
 		if strings.Contains(marker, migratable) {
-			return strings.Contains(content, "cfgActionResult(") || strings.Contains(content, "cfgStatusBanner(") || strings.Contains(content, ".password(")
+			return strings.Contains(content, "cfgActionResult(") || strings.Contains(content, "cfgStatusBanner") || strings.Contains(content, ".password(")
 		}
 	}
 	return false

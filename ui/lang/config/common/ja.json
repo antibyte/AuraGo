@@ -130,6 +130,8 @@
   "config.feedback.done": "完了しました。",
   "config.feedback.failed": "失敗しました。",
   "config.feedback.runtime_only": "稼働中のサービスを確認します。先に変更を保存してください。",
+  "config.feedback.missing_fields": "先に必須項目を入力してください。",
+  "config.feedback.missing_credential": "先に必要な認証情報を入力してください。",
   "config.feedback.timeout": "時間内に応答がありませんでした。",
   "config.status.off": "オフ",
   "config.status.unconfigured": "未設定",

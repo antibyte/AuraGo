@@ -444,6 +444,22 @@ var draftSecretNameFragments = []string{
 	"privatekey", "passphrase", "sharedkey", "deploykey", "credential",
 }
 
+// draftTargetFieldSuffixes catch prefixed target leaves such as hub_base_url,
+// webhook_url or smtp_host that the exact list above does not name.
+var draftTargetFieldSuffixes = []string{"url", "host", "hostname", "endpoint"}
+
+func isDraftTargetFieldName(name string) bool {
+	if draftTargetFieldNames[name] {
+		return true
+	}
+	for _, suffix := range draftTargetFieldSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeDraftFieldName(name string) string {
 	name = strings.ToLower(name)
 	name = strings.ReplaceAll(name, "_", "")
@@ -463,7 +479,7 @@ func isDraftSecretField(field reflect.StructField) bool {
 		return false
 	}
 	name := draftFieldName(field)
-	if draftTargetFieldNames[name] {
+	if isDraftTargetFieldName(name) {
 		return false
 	}
 	yamlName := strings.Split(field.Tag.Get("yaml"), ",")[0]
@@ -506,7 +522,7 @@ func draftTargetChanged(saved, drafted reflect.Value) bool {
 		if !field.IsExported() || field.Type.Kind() == reflect.Func {
 			continue
 		}
-		if draftTargetFieldNames[draftFieldName(field)] {
+		if isDraftTargetFieldName(draftFieldName(field)) {
 			if !reflect.DeepEqual(saved.Field(i).Interface(), drafted.Field(i).Interface()) {
 				return true
 			}

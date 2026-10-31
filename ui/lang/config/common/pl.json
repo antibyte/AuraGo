@@ -130,6 +130,8 @@
   "config.feedback.done": "Gotowe.",
   "config.feedback.failed": "Nie powiodło się.",
   "config.feedback.runtime_only": "Sprawdza działającą usługę – najpierw zapisz zmiany.",
+  "config.feedback.missing_fields": "Najpierw wypełnij wymagane pola.",
+  "config.feedback.missing_credential": "Najpierw wprowadź wymagane dane uwierzytelniające.",
   "config.feedback.timeout": "Brak odpowiedzi w czasie.",
   "config.status.off": "Wyłączone",
   "config.status.unconfigured": "Nieskonfigurowane",

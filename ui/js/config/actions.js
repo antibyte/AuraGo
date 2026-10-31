@@ -65,21 +65,26 @@
         if (spec.requiresSaved && !useDraft && spec.container && controlSnapshot(spec.container) !== spec.containerSnapshot) {
             return text('config.precision.action_save_first', 'Save your changes before testing.');
         }
-        const missing = (spec.requiredPaths || []).find(path => !hasValue(state.get(path, source)));
+        // A nested array lists alternatives: any one of them is enough.
+        const present = path => Array.isArray(path) ? path.some(present) : hasValue(state.get(path, source));
+        const missing = (spec.requiredPaths || []).find(path => !present(path));
         if (missing) {
-            return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
+            return useDraft
+                ? text('config.feedback.missing_fields', 'Fill in the required fields first.')
+                : text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
         }
         const missingSelector = (spec.requiredSelectors || []).find(selector => !selectorHasValue(selector));
         const missingSelectorGroup = (spec.requiredAnySelectors || []).find(group => !group.some(selectorHasValue));
         if (missingSelector || missingSelectorGroup) {
-            return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
+            return useDraft
+                ? text('config.feedback.missing_fields', 'Fill in the required fields first.')
+                : text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
         }
-        const missingCredential = (spec.credentialPaths || []).find(path => !hasValue(state.get(path, source)));
-        if (missingCredential) {
-            return text('config.precision.action_missing_credential', 'Store the required credential in the vault first.');
-        }
-        if (typeof spec.credentialReady === 'function' && !spec.credentialReady()) {
-            return text('config.precision.action_missing_credential', 'Store the required credential in the vault first.');
+        const missingCredential = (spec.credentialPaths || []).find(path => !present(path));
+        if (missingCredential || (typeof spec.credentialReady === 'function' && !spec.credentialReady())) {
+            return useDraft
+                ? text('config.feedback.missing_credential', 'Enter the required credential first.')
+                : text('config.precision.action_missing_credential', 'Store the required credential in the vault first.');
         }
         return '';
     }

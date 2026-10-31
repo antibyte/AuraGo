@@ -130,6 +130,8 @@
   "config.feedback.done": "Klart.",
   "config.feedback.failed": "Misslyckades.",
   "config.feedback.runtime_only": "Kontrollerar den körande tjänsten – spara ändringarna först.",
+  "config.feedback.missing_fields": "Fyll först i de obligatoriska fälten.",
+  "config.feedback.missing_credential": "Ange först de nödvändiga inloggningsuppgifterna.",
   "config.feedback.timeout": "Inget svar i tid.",
   "config.status.off": "Av",
   "config.status.unconfigured": "Inte konfigurerad",

@@ -130,6 +130,8 @@
   "config.feedback.done": "完成。",
   "config.feedback.failed": "失败。",
   "config.feedback.runtime_only": "检查正在运行的服务——请先保存更改。",
+  "config.feedback.missing_fields": "请先填写必填字段。",
+  "config.feedback.missing_credential": "请先输入所需的凭据。",
   "config.feedback.timeout": "未在时限内收到响应。",
   "config.status.off": "关闭",
   "config.status.unconfigured": "未设置",

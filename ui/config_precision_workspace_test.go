@@ -868,6 +868,8 @@ func TestConfigPrecisionTranslationsAreComplete(t *testing.T) {
 		"config.feedback.done",
 		"config.feedback.failed",
 		"config.feedback.runtime_only",
+		"config.feedback.missing_fields",
+		"config.feedback.missing_credential",
 		"config.feedback.timeout",
 		"config.status.off",
 		"config.status.unconfigured",

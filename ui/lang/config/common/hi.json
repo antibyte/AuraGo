@@ -130,6 +130,8 @@
   "config.feedback.done": "हो गया।",
   "config.feedback.failed": "विफल रहा।",
   "config.feedback.runtime_only": "चल रही सेवा की जाँच करता है – पहले अपने बदलाव सहेजें।",
+  "config.feedback.missing_fields": "पहले आवश्यक फ़ील्ड भरें।",
+  "config.feedback.missing_credential": "पहले आवश्यक क्रेडेंशियल दर्ज करें।",
   "config.feedback.timeout": "समय पर कोई उत्तर नहीं मिला।",
   "config.status.off": "बंद",
   "config.status.unconfigured": "सेट अप नहीं है",

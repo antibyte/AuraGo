@@ -130,6 +130,8 @@
   "config.feedback.done": "Færdig.",
   "config.feedback.failed": "Mislykkedes.",
   "config.feedback.runtime_only": "Kontrollerer den kørende tjeneste – gem først dine ændringer.",
+  "config.feedback.missing_fields": "Udfyld først de påkrævede felter.",
+  "config.feedback.missing_credential": "Indtast først de påkrævede legitimationsoplysninger.",
   "config.feedback.timeout": "Intet svar i tide.",
   "config.status.off": "Fra",
   "config.status.unconfigured": "Ikke konfigureret",

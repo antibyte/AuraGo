@@ -130,6 +130,8 @@
   "config.feedback.done": "Fatto.",
   "config.feedback.failed": "Non riuscito.",
   "config.feedback.runtime_only": "Verifica il servizio in esecuzione: salva prima le modifiche.",
+  "config.feedback.missing_fields": "Compila prima i campi obbligatori.",
+  "config.feedback.missing_credential": "Inserisci prima le credenziali richieste.",
   "config.feedback.timeout": "Nessuna risposta in tempo.",
   "config.status.off": "Disattivato",
   "config.status.unconfigured": "Non configurato",

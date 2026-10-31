@@ -130,6 +130,8 @@
   "config.feedback.done": "Ολοκληρώθηκε.",
   "config.feedback.failed": "Απέτυχε.",
   "config.feedback.runtime_only": "Ελέγχει την υπηρεσία που εκτελείται – αποθηκεύστε πρώτα τις αλλαγές.",
+  "config.feedback.missing_fields": "Συμπληρώστε πρώτα τα απαιτούμενα πεδία.",
+  "config.feedback.missing_credential": "Εισαγάγετε πρώτα τα απαιτούμενα διαπιστευτήρια.",
   "config.feedback.timeout": "Καμία απάντηση εγκαίρως.",
   "config.status.off": "Ανενεργό",
   "config.status.unconfigured": "Δεν έχει ρυθμιστεί",

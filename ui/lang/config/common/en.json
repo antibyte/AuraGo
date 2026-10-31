@@ -130,6 +130,8 @@
   "config.feedback.done": "Done.",
   "config.feedback.failed": "Failed.",
   "config.feedback.runtime_only": "Checks the running service – save your changes first.",
+  "config.feedback.missing_fields": "Fill in the required fields first.",
+  "config.feedback.missing_credential": "Enter the required credential first.",
   "config.feedback.timeout": "No answer in time.",
   "config.status.off": "Off",
   "config.status.unconfigured": "Not set up",

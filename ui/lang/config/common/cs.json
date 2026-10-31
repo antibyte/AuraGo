@@ -130,6 +130,8 @@
   "config.feedback.done": "Hotovo.",
   "config.feedback.failed": "Selhalo.",
   "config.feedback.runtime_only": "Kontroluje běžící službu – nejdřív uložte změny.",
+  "config.feedback.missing_fields": "Nejprve vyplňte povinná pole.",
+  "config.feedback.missing_credential": "Nejprve zadejte požadované přihlašovací údaje.",
   "config.feedback.timeout": "Žádná odpověď včas.",
   "config.status.off": "Vypnuto",
   "config.status.unconfigured": "Nenastaveno",
