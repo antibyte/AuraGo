@@ -30,6 +30,10 @@ var (
 )
 
 const (
+	// Tool verdicts share the completion budget with provider reasoning tokens.
+	// Keep a finite ceiling without truncating routine reasoning before its verdict.
+	toolVerdictMaxTokens = 8192
+
 	contentScanChunkBytes        = 4 * 1024
 	contentScanChunkOverlapBytes = 512
 	contentScanMaxChunks         = 8
@@ -345,7 +349,7 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 		// A ceiling, not a target: reasoning models spend much of it thinking
 		// before the "DECISION SCORE REASON" verdict, and a completion cut off
 		// here is treated as incomplete (fail-safe, never cached).
-		MaxTokens:   2048,
+		MaxTokens:   toolVerdictMaxTokens,
 		Temperature: 0,
 	}
 
@@ -964,7 +968,7 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 	req := openai.ChatCompletionRequest{
 		Model:       g.model,
 		Messages:    g.buildMessages(clarificationSystemPrompt, prompt),
-		MaxTokens:   2048,
+		MaxTokens:   toolVerdictMaxTokens,
 		Temperature: 0,
 	}
 
@@ -1193,7 +1197,7 @@ func (g *LLMGuardian) completeTracked(ctx context.Context, request openai.ChatCo
 			route.MaxOutputTokensOverride = provider.MaxOutputTokens
 		}
 	}
-	return budget.CompleteChat(ctx, llm.WrapOpenAIClient(g.client), request, route, "guardian", 2048)
+	return budget.CompleteChat(ctx, llm.WrapOpenAIClient(g.client), request, route, "guardian", toolVerdictMaxTokens)
 }
 func guardianBudgetDenied(start time.Time) GuardianResult {
 	return GuardianResult{Decision: DecisionBlock, RiskScore: 1, Reason: "fail-safe: security check blocked by spending policy", Duration: time.Since(start)}

@@ -33,6 +33,17 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, TresorDBFilename):                  true,
 		// Retro Games keeps favorites, plays and broken markers in its index.
 		filepath.Join(dataDir, "retrogames", "retrogames.db"): true,
+		// Stores whose location is fixed by their package (audit B1).
+		filepath.Join(dataDir, "mailer", "mailer.db"):         true,
+		filepath.Join(dataDir, "huggingface.db"):              true,
+		filepath.Join(dataDir, "manus.db"):                    true,
+		filepath.Join(dataDir, "sip_calls.db"):                true,
+		filepath.Join(dataDir, "docker_manager.db"):           true,
+		filepath.Join(dataDir, "meshcore.db"):                 true,
+		filepath.Join(dataDir, "personal-radio", "radio.db"):  true,
+		filepath.Join(dataDir, "rtl-sdr", "receiver.db"):      true,
+		filepath.Join(dataDir, "go2rtc", "detections.db"):     true,
+		filepath.Join(dataDir, "bookshelf", "catalog.sqlite"): true,
 	}
 
 	for _, path := range got {
@@ -49,7 +60,7 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 	}
 }
 
-func TestIsBestEffortSQLiteBackupOnlyForTheRetroGamesIndex(t *testing.T) {
+func TestIsBestEffortSQLiteBackupOnlyForRebuildableStores(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -65,8 +76,12 @@ func TestIsBestEffortSQLiteBackupOnlyForTheRetroGamesIndex(t *testing.T) {
 	if !IsBestEffortSQLiteBackup(cfg, filepath.Join(dataDir, "retrogames", ".", "retrogames.db")) {
 		t.Fatal("an uncleaned spelling of the index path must match")
 	}
+	hf := filepath.Join(dataDir, "huggingface.db")
+	if !IsBestEffortSQLiteBackup(cfg, hf) {
+		t.Fatalf("%s (job ledger) must be best-effort", hf)
+	}
 	for _, path := range append(SQLiteDatabasePaths(cfg), filepath.Join(dataDir, "retrogames.db"), filepath.Join(dataDir, "retrogames", "other.db"), "") {
-		if path == index {
+		if path == index || path == hf {
 			continue
 		}
 		if IsBestEffortSQLiteBackup(cfg, path) {

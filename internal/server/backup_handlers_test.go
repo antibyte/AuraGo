@@ -212,6 +212,10 @@ func TestHandleBackupImportRestoresIntoConfigRoot(t *testing.T) {
 	}
 
 	restoredPath := filepath.Join(instanceRoot, "data", "state.json")
+	if _, err := os.Stat(restoredPath); !os.IsNotExist(err) {
+		t.Fatalf("import must not publish before the restart: err=%v", err)
+	}
+	applyPendingRestoreForTest(t, configPath)
 	data, err := os.ReadFile(restoredPath)
 	if err != nil {
 		t.Fatalf("ReadFile(restored): %v", err)
@@ -567,6 +571,24 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 	writeTestSQLiteDB(t, desktopStorePath)
 	tresorPath := filepath.Join(dataDir, config.TresorDBFilename)
 	writeTestSQLiteDB(t, tresorPath)
+	// B1: stores and files that were missing from the backup.
+	agentSkillsDir := filepath.Join(instanceRoot, "agent_workspace", "agent_skills")
+	for _, dir := range []string{filepath.Join(dataDir, "mailer"), filepath.Join(dataDir, "speech_lab"), filepath.Join(dataDir, "documents"), filepath.Join(agentSkillsDir, "demo")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+	for _, rel := range []string{"mailer/mailer.db", "huggingface.db", "manus.db", "sip_calls.db", "detective.db"} {
+		writeTestSQLiteDB(t, filepath.Join(dataDir, filepath.FromSlash(rel)))
+	}
+	for _, rel := range []string{"core_memory.md", "github_trust.json", "speech_lab/deployment.json", "documents/report.md"} {
+		if err := os.WriteFile(filepath.Join(dataDir, filepath.FromSlash(rel)), []byte("x"), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s): %v", rel, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(agentSkillsDir, "demo", "SKILL.md"), []byte("x"), 0o600); err != nil {
+		t.Fatalf("WriteFile(agent skill): %v", err)
+	}
 
 	cfg := &config.Config{
 		ConfigPath: configPath,
@@ -576,6 +598,8 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 	cfg.Directories.SkillsDir = skillsDir
 	cfg.Directories.ToolsDir = toolsDir
 	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.AgentSkillsDir = agentSkillsDir
+	cfg.SQLite.DetectivePath = filepath.Join(dataDir, "detective.db")
 	cfg.SQLite.ShortTermPath = shortTermPath
 	cfg.SQLite.MissionHistoryPath = missionHistoryPath
 	cfg.SQLite.LaunchpadPath = launchpadPath
@@ -615,6 +639,16 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 		"data/galaxa.db",
 		"data/desktop_store.db",
 		"data/tresor.db",
+		"data/mailer/mailer.db",
+		"data/huggingface.db",
+		"data/manus.db",
+		"data/sip_calls.db",
+		"data/detective.db",
+		"data/core_memory.md",
+		"data/github_trust.json",
+		"data/speech_lab/deployment.json",
+		"data/documents/report.md",
+		"agent_workspace/agent_skills/demo/SKILL.md",
 		"manifest.json",
 	} {
 		if !entries[want] {
@@ -904,6 +938,7 @@ func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
 		t.Fatalf("import status = %d, want %d; body=%s", importRec.Code, http.StatusOK, importRec.Body.String())
 	}
 
+	applyPendingRestoreForTest(t, destServer.Cfg.ConfigPath)
 	destTM, err := security.NewTokenManager(destVault, filepath.Join(destData, "tokens.json"))
 	if err != nil {
 		t.Fatalf("NewTokenManager(dest): %v", err)

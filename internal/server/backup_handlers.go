@@ -33,6 +33,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
 	"aurago/internal/memory"
+	"aurago/internal/restorepending"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 
@@ -54,10 +55,6 @@ const (
 const vaultSecretsMagic = "AGOV"
 const tokenStoreMagic = "AGOT"
 
-// currentDBSchemaVersion is incremented whenever any SQLite schema changes.
-// Stored in the manifest so imports can warn about version mismatches.
-const currentDBSchemaVersion = 1
-
 // agoManifest is written as manifest.json at the ZIP root.
 type agoManifest struct {
 	MemoryConsistency string   `json:"memory_consistency,omitempty"`
@@ -66,7 +63,10 @@ type agoManifest struct {
 	Hostname          string   `json:"hostname"`
 	Contents          []string `json:"contents"`
 	VaultIncluded     bool     `json:"vault_included,omitempty"`
-	DBSchemaVersion   int      `json:"db_schema_version,omitempty"`
+	// AppVersion is the AuraGo version that created the backup.
+	AppVersion string `json:"app_version,omitempty"`
+	// DBUserVersions maps archive paths of included SQLite files to their PRAGMA user_version.
+	DBUserVersions map[string]int `json:"db_user_versions,omitempty"`
 }
 
 type agoImportEntry struct {
@@ -488,7 +488,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		totalSelectedBytes := int64(0)
 
 		// addFile adds a single file to the ZIP at the given zip-internal path.
+		var skipOversized bool
+		var skippedOversized []string
+		var addFileLimit func(zipPath, filePath string, limit int64) (bool, error)
 		addFile := func(zipPath, filePath string) (bool, error) {
+			return addFileLimit(zipPath, filePath, agoMaxBackupEntrySize)
+		}
+		addFileLimit = func(zipPath, filePath string, limit int64) (bool, error) {
 			info, err := os.Lstat(filePath)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -506,8 +512,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			if _, exists := seenZipPaths[zipPath]; exists {
 				return false, nil
 			}
-			if info.Size() > 100<<20 {
-				return false, fmt.Errorf("file exceeds backup entry size limit: %s (%d bytes)", filePath, info.Size())
+			if info.Size() > limit {
+				if skipOversized {
+					s.Logger.Warn("[Backup] Skipping oversized optional file", "path", filePath, "size_bytes", info.Size(), "limit_bytes", limit)
+					skippedOversized = append(skippedOversized, fmt.Sprintf("%s (%d MiB)", filepath.Base(filePath), info.Size()>>20))
+					return false, nil
+				}
+				return false, &agoEntryTooLargeError{path: filePath, size: info.Size(), limit: limit}
 			}
 			if totalSelectedBytes+info.Size() > agoMaxExtractSize {
 				return false, fmt.Errorf("backup selection exceeds maximum size limit")
@@ -595,7 +606,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		}
 		if _, err := addFile("config.yaml", absConfig); err != nil {
 			s.Logger.Warn("[Backup] Failed to add config", "path", absConfig, "error", err)
-			jsonError(w, "Failed to add config to backup", http.StatusInternalServerError)
+			jsonError(w, agoBackupFailMsg("Failed to add config to backup", err), http.StatusInternalServerError)
 			return
 		}
 		contents = append(contents, "config.yaml")
@@ -609,7 +620,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		if promptInfo, err := os.Lstat(absPrompts); err == nil {
 			if !promptInfo.IsDir() || promptInfo.Mode()&os.ModeSymlink != 0 {
 				s.Logger.Warn("[Backup] Prompts path is not a regular directory", "path", absPrompts)
-				jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add prompts to backup", err), http.StatusInternalServerError)
 				return
 			}
 			if err := filepath.Walk(absPrompts, func(path string, info os.FileInfo, err error) error {
@@ -646,12 +657,12 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				return nil
 			}); err != nil {
 				s.Logger.Warn("[Backup] Failed to add prompts", "path", absPrompts, "error", err)
-				jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add prompts to backup", err), http.StatusInternalServerError)
 				return
 			}
 		} else if !os.IsNotExist(err) {
 			s.Logger.Warn("[Backup] Failed to stat prompts directory", "path", absPrompts, "error", err)
-			jsonError(w, "Failed to add prompts to backup", http.StatusInternalServerError)
+			jsonError(w, agoBackupFailMsg("Failed to add prompts to backup", err), http.StatusInternalServerError)
 			return
 		}
 		if customPromptCount > 0 {
@@ -659,6 +670,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		}
 
 		// 3. Curated runtime files
+		//
+		// Deliberately NOT backed up (re-downloadable, derived, or machine identity):
+		//   - data/tsnet (Tailscale node state): the node identity must not be cloned
+		//     to another machine; the restored install re-registers instead.
+		//   - downloads, piper voices, models and caches: re-downloadable.
+		//   - workspace_search.db and similar derived indexes: rebuilt from files.
+		// SQLite stores are listed in config.SQLiteDatabasePaths (exclusions are
+		// documented and guarded by internal/audit TestSQLiteOpensAreBackedUpOrExcluded).
 		absData, _ := filepath.Abs(s.Cfg.Directories.DataDir)
 		dataFiles := []string{
 			"chat_history.json", "state.json", "graph.json",
@@ -666,15 +685,33 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			"budget.json", "tokens.json", "webhooks.json", "webhook_log.json",
 			"background_tasks.json", "missions_v2.json", "missions_v2_queue.json",
 			"heartbeat_state.json", "embeddings_reset_pending.json",
+			"core_memory.md", "github_trust.json",
+			"speech_lab/deployment.json",
 		}
 		for _, fname := range dataFiles {
 			if _, err := addFile("data/"+fname, filepath.Join(absData, fname)); err != nil {
 				s.Logger.Warn("[Backup] Failed to add runtime file", "file", fname, "error", err)
-				jsonError(w, "Failed to add runtime files to backup", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add runtime files to backup", err), http.StatusInternalServerError)
 				return
 			}
 		}
 		contents = append(contents, "data/ (runtime files)")
+
+		// Generated user documents (Virtual Desktop Documents, send_document output).
+		absDocuments := filepath.Join(absData, "documents")
+		skipOversized = true
+		docsAdded, docsErr := addDir("data/documents/", absDocuments)
+		skipOversized = false
+		if len(skippedOversized) > 0 {
+			contents = append(contents, fmt.Sprintf("data/documents/ (%d Datei(en) über %d MiB übersprungen: %s)", len(skippedOversized), agoMaxBackupEntrySize>>20, strings.Join(skippedOversized, ", ")))
+		}
+		if added, err := docsAdded, docsErr; err != nil {
+			s.Logger.Warn("[Backup] Failed to add documents", "path", absDocuments, "error", err)
+			jsonError(w, agoBackupFailMsg("Failed to add documents to backup", err), http.StatusInternalServerError)
+			return
+		} else if added > 0 {
+			contents = append(contents, "data/documents/")
+		}
 
 		// 4. SQLite databases + sidecars
 		sqlitePaths := config.SQLiteDatabasePaths(s.Cfg)
@@ -716,6 +753,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			memoryConsistency = "coordinated-three-db-read-snapshot-v1"
 		}
 		sqliteAdded := 0
+		dbUserVersions := map[string]int{}
 		var sqliteSkipped []string
 		for _, dbPath := range sqlitePaths {
 			if dbPath == "" {
@@ -754,14 +792,17 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				jsonError(w, "Failed to create a consistent SQLite backup", http.StatusInternalServerError)
 				return
 			}
-			added, err := addFile(zipPath, snapshotPath)
+			added, err := addFileLimit(zipPath, snapshotPath, agoMaxExtractSize)
 			if err != nil {
 				s.Logger.Warn("[Backup] Failed to add SQLite snapshot", "path", absDB, "error", err)
-				jsonError(w, "Failed to add SQLite backup to archive", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add SQLite backup to archive", err), http.StatusInternalServerError)
 				return
 			}
 			if added && len(seenZipPaths) > before {
 				sqliteAdded++
+				if v, vErr := agoSQLiteUserVersion(snapshotPath); vErr == nil {
+					dbUserVersions[zipPath] = v
+				}
 			}
 		}
 		if sqliteAdded > 0 {
@@ -775,7 +816,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			added, err := addDir("data/vectordb/", absVDB, "documents.sqlite")
 			if err != nil {
 				s.Logger.Warn("[Backup] Failed to add VectorDB", "path", absVDB, "error", err)
-				jsonError(w, "Failed to add VectorDB files to backup", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add VectorDB files to backup", err), http.StatusInternalServerError)
 				return
 			}
 			if added > 0 {
@@ -788,17 +829,30 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		if added, err := addDir("agent_workspace/skills/", absSkills,
 			"client_secret.json", "client_secrets.json", "token.json"); err != nil {
 			s.Logger.Warn("[Backup] Failed to add skills", "path", absSkills, "error", err)
-			jsonError(w, "Failed to add skills to backup", http.StatusInternalServerError)
+			jsonError(w, agoBackupFailMsg("Failed to add skills to backup", err), http.StatusInternalServerError)
 			return
 		} else if added > 0 {
 			contents = append(contents, "agent_workspace/skills/")
+		}
+
+		// 6b. Agent skills (installed/generated Agent Skills; exclude OAuth credentials)
+		absAgentSkills, _ := filepath.Abs(s.Cfg.Directories.AgentSkillsDir)
+		if s.Cfg.Directories.AgentSkillsDir != "" {
+			if added, err := addDir("agent_workspace/agent_skills/", absAgentSkills,
+				"client_secret.json", "client_secrets.json", "token.json"); err != nil {
+				s.Logger.Warn("[Backup] Failed to add agent skills", "path", absAgentSkills, "error", err)
+				jsonError(w, agoBackupFailMsg("Failed to add agent skills to backup", err), http.StatusInternalServerError)
+				return
+			} else if added > 0 {
+				contents = append(contents, "agent_workspace/agent_skills/")
+			}
 		}
 
 		// 7. Tools
 		absTools, _ := filepath.Abs(s.Cfg.Directories.ToolsDir)
 		if added, err := addDir("agent_workspace/tools/", absTools); err != nil {
 			s.Logger.Warn("[Backup] Failed to add tools", "path", absTools, "error", err)
-			jsonError(w, "Failed to add tools to backup", http.StatusInternalServerError)
+			jsonError(w, agoBackupFailMsg("Failed to add tools to backup", err), http.StatusInternalServerError)
 			return
 		} else if added > 0 {
 			contents = append(contents, "agent_workspace/tools/")
@@ -810,7 +864,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			added, err := addDir("agent_workspace/workdir/", absWorkdir, "/images/", "/attachments/")
 			if err != nil {
 				s.Logger.Warn("[Backup] Failed to add workdir", "path", absWorkdir, "error", err)
-				jsonError(w, "Failed to add workdir files to backup", http.StatusInternalServerError)
+				jsonError(w, agoBackupFailMsg("Failed to add workdir files to backup", err), http.StatusInternalServerError)
 				return
 			}
 			if added > 0 {
@@ -830,14 +884,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				if vw, err := zw.Create("vault_secrets.enc"); err == nil {
 					if _, err := vw.Write(vaultBlob); err != nil {
 						s.Logger.Warn("[Backup] Failed to write vault secrets", "error", err)
-						jsonError(w, "Failed to add vault secrets to backup", http.StatusInternalServerError)
+						jsonError(w, agoBackupFailMsg("Failed to add vault secrets to backup", err), http.StatusInternalServerError)
 						return
 					}
 					vaultIncluded = true
 					contents = append(contents, "vault_secrets.enc (secrets, encrypted)")
 				} else {
 					s.Logger.Warn("[Backup] Failed to create vault secrets entry", "error", err)
-					jsonError(w, "Failed to add vault secrets to backup", http.StatusInternalServerError)
+					jsonError(w, agoBackupFailMsg("Failed to add vault secrets to backup", err), http.StatusInternalServerError)
 					return
 				}
 			}
@@ -849,14 +903,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				if tw, err := zw.Create("token_store.enc"); err == nil {
 					if _, err := tw.Write(tokenBlob); err != nil {
 						s.Logger.Warn("[Backup] Failed to write token store", "error", err)
-						jsonError(w, "Failed to add token store to backup", http.StatusInternalServerError)
+						jsonError(w, agoBackupFailMsg("Failed to add token store to backup", err), http.StatusInternalServerError)
 						return
 					}
 					tokenStoreIncluded = true
 					contents = append(contents, fmt.Sprintf("token_store.enc (%d API token metadata record(s), encrypted)", tokenCount))
 				} else {
 					s.Logger.Warn("[Backup] Failed to create token store entry", "error", err)
-					jsonError(w, "Failed to add token store to backup", http.StatusInternalServerError)
+					jsonError(w, agoBackupFailMsg("Failed to add token store to backup", err), http.StatusInternalServerError)
 					return
 				}
 			}
@@ -871,7 +925,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			Hostname:          hostname,
 			Contents:          contents,
 			VaultIncluded:     vaultIncluded,
-			DBSchemaVersion:   currentDBSchemaVersion,
+			AppVersion:        readInstalledVersion(appInstallDir(s)),
+			DBUserVersions:    dbUserVersions,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			if err := json.NewEncoder(mw).Encode(manifest); err != nil {
@@ -937,6 +992,11 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, agoMaxUploadSize)
 		if err := r.ParseMultipartForm(agoMaxUploadSize); err != nil {
 			s.Logger.Warn("[Backup] Invalid import form", "error", err)
+			var tooLarge *http.MaxBytesError
+			if errors.As(err, &tooLarge) {
+				jsonError(w, "Die Backup-Datei ist zu groß.", http.StatusRequestEntityTooLarge)
+				return
+			}
 			jsonError(w, "Invalid backup upload", http.StatusBadRequest)
 			return
 		}
@@ -1010,14 +1070,11 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			return
 		}
 
-		restored, skipped := 0, 0
 		var vaultEncData []byte // vault_secrets.enc bytes, if present
 		var tokenStoreEncData []byte
 		var backupManifest *agoManifest
 		var importEntries []agoImportEntry
 		var totalBytes int64
-		sqliteRestore := false
-
 		for _, f := range zr.File {
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
 			if clean == "." {
@@ -1089,14 +1146,18 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 					return
 				}
 				var m agoManifest
-				if jsonErr := json.NewDecoder(io.LimitReader(rc, 1<<20)).Decode(&m); jsonErr == nil {
-					backupManifest = &m
-				}
+				jsonErr := json.NewDecoder(io.LimitReader(rc, 1<<20)).Decode(&m)
 				rc.Close()
+				if jsonErr != nil {
+					s.Logger.Warn("[Backup] Corrupt backup manifest", "error", jsonErr)
+					jsonError(w, "Das Backup-Manifest ist beschädigt.", http.StatusBadRequest)
+					return
+				}
+				backupManifest = &m
 				continue
 			}
 
-			if !agoIsAllowedRestorePath(clean) {
+			if !agoIsAllowedRestorePath(clean) || restorepending.IsReservedPath(clean) {
 				s.Logger.Warn("[Backup] Unsupported restore path in archive", "path", f.Name)
 				jsonError(w, "Backup archive contains unsupported restore paths", http.StatusBadRequest)
 				return
@@ -1131,9 +1192,6 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				mode:    f.Mode().Perm(),
 				zipPath: f.Name,
 			})
-			if agoIsSQLiteRelatedPath(clean) {
-				sqliteRestore = true
-			}
 		}
 
 		stagingRoot, err := os.MkdirTemp(configRoot, ".ago-import-*")
@@ -1206,123 +1264,140 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// Publish restored files and Vault state atomically with respect to auth/config writes.
-		s.CfgSaveMu.Lock()
-		defer s.CfgSaveMu.Unlock()
-		s.clearWebAuthnTransactions()
-		for _, entry := range importEntries {
-			if entry.isDir {
-				if err := os.MkdirAll(entry.dest, 0o755); err != nil {
-					s.Logger.Warn("[Backup] Failed to restore directory", "path", entry.zipPath, "error", err)
-					jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
-					return
-				}
-				continue
+		// Version check: a backup that is newer than the running binary cannot be
+		// migrated down and is rejected; older ones are migrated at start.
+		var warnings []string
+		if backupManifest == nil {
+			warnings = append(warnings, "Das Backup enthält kein Manifest (älteres Backup); die Version konnte nicht geprüft werden.")
+		} else if backupManifest.AppVersion != "" {
+			switch agoCompareAppVersions(backupManifest.AppVersion, readInstalledVersion(appInstallDir(s))) {
+			case 1:
+				s.Logger.Warn("[Backup] Backup is newer than this AuraGo version", "backup_version", backupManifest.AppVersion)
+				jsonError(w, "Das Backup stammt von einer neueren AuraGo-Version ("+backupManifest.AppVersion+"). Bitte AuraGo zuerst aktualisieren.", http.StatusBadRequest)
+				return
+			case agoVersionUnknown:
+				warnings = append(warnings, "Die AuraGo-Version des Backups ("+backupManifest.AppVersion+") konnte nicht mit der installierten Version verglichen werden.")
 			}
+		}
+		olderDBs, newerDBs := agoCheckBackupDBVersions(importEntries)
+		if len(newerDBs) > 0 {
+			s.Logger.Warn("[Backup] Backup is newer than this AuraGo version", "databases", newerDBs)
+			jsonError(w, "Das Backup stammt von einer neueren AuraGo-Version (Datenbanken: "+agoJoinLabels(newerDBs)+"). Bitte AuraGo zuerst aktualisieren.", http.StatusBadRequest)
+			return
+		}
+		if len(olderDBs) > 0 {
+			warnings = append(warnings, "Das Backup stammt von einer älteren AuraGo-Version; die Datenbanken werden beim Neustart migriert: "+agoJoinLabels(olderDBs))
+		}
+
+		// Token store: re-encrypt with the local vault key and stage it next to the
+		// other files. It is NOT written live, because the running process could
+		// overwrite it again before the restart.
+		tokensRestored := 0
+		tokenErr := ""
+		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
+			const tokenRel = "data/tokens.json"
+			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, restorepending.StageFilePath(stagingRoot, tokenRel))
+			if err != nil {
+				s.Logger.Warn("[Backup] Token store import failed", "error", err)
+				tokenErr = err.Error()
+				warnings = append(warnings, "Token-Import fehlgeschlagen: "+err.Error())
+			} else {
+				tokensRestored = n
+				found := false
+				for _, entry := range importEntries {
+					if filepath.ToSlash(entry.clean) == tokenRel {
+						found = true
+						break
+					}
+				}
+				if !found {
+					importEntries = append(importEntries, agoImportEntry{
+						clean: filepath.FromSlash(tokenRel),
+						dest:  filepath.Join(configRoot, "data", "tokens.json"),
+						mode:  0o600,
+					})
+				}
+			}
+		}
+
+		// Vault secrets: decrypt with the backup password and stage them,
+		// re-encrypted with the local vault key. They are merged into the vault at
+		// the next start, only if the file restore was applied as well.
+		vaultRestored := 0
+		vaultErr := ""
+		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
+			n, err := stageVaultSecrets(s.Vault, vaultEncData, password, restorepending.StagedVaultPath(stagingRoot))
+			if err != nil {
+				s.Logger.Warn("[Backup] Vault secrets staging failed", "error", err)
+				vaultErr = err.Error()
+				warnings = append(warnings, "Vault-Import fehlgeschlagen: "+err.Error())
+			} else {
+				vaultRestored = n
+			}
+		}
+
+		// Publish the validated staging tree as the single pending restore. The
+		// files are applied at the next start, before any database is opened.
+		pendingEntries := make([]restorepending.Entry, 0, len(importEntries))
+		staged := 0
+		for _, entry := range importEntries {
 			perm := entry.mode
 			if agoIsSQLiteRelatedPath(entry.clean) {
 				perm = 0o600
 			}
-			if perm == 0 {
-				perm = 0o644
-			}
-			if err := agoAtomicCopyFile(entry.stage, entry.dest, perm); err != nil {
-				s.Logger.Warn("[Backup] Failed to restore file", "path", entry.zipPath, "error", err)
-				jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
-				return
-			}
-			restored++
-		}
-
-		// Vault secrets import — re-encrypt with the local AURAGO_MASTER_KEY so
-		// the secrets are immediately available without restarting.
-		vaultRestored := 0
-		vaultErr := ""
-		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
-			n, err := importVaultSecrets(s.Vault, vaultEncData, password)
-			if err != nil {
-				s.Logger.Warn("[Backup] Vault secrets import failed", "error", err)
-				vaultErr = err.Error()
-			} else {
-				vaultRestored = n
-				s.Logger.Info("[Backup] Vault secrets imported", "count", n)
-				// Hot-reload config so that vault-backed fields like Auth.PasswordHash
-				// are reflected in the in-memory config immediately — without this the
-				// login handler would still see the old (empty) hash and reject logins.
-				s.CfgMu.Lock()
-				configPath := s.Cfg.ConfigPath
-				if newCfg, loadErr := config.Load(configPath); loadErr == nil {
-					newCfg.ConfigPath = configPath
-					newCfg.ApplyVaultSecrets(s.Vault)
-					s.replaceConfigSnapshot(newCfg)
-				}
-				s.CfgMu.Unlock()
+			pendingEntries = append(pendingEntries, restorepending.Entry{
+				Clean:  filepath.ToSlash(entry.clean),
+				Dir:    entry.isDir,
+				Mode:   uint32(perm),
+				SQLite: agoIsSQLiteRelatedPath(entry.clean),
+			})
+			if !entry.isDir {
+				staged++
 			}
 		}
-
-		tokensRestored := 0
-		tokenErr := ""
-		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
-			tokenPath := filepath.Join(configRoot, "data", "tokens.json")
-			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, tokenPath)
-			if err != nil {
-				s.Logger.Warn("[Backup] Token store import failed", "error", err)
-				tokenErr = err.Error()
-			} else {
-				tokensRestored = n
-				s.Logger.Info("[Backup] Token store imported", "count", n)
-				if tm, loadErr := security.NewTokenManager(s.Vault, tokenPath); loadErr == nil {
-					s.replaceTokenManager(tm)
-				} else {
-					s.Logger.Warn("[Backup] Imported token store but failed to reload TokenManager", "error", loadErr)
-				}
-			}
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		s.clearWebAuthnTransactions()
+		restoreID, err := restorepending.Stage(configRoot, stagingRoot, pendingEntries)
+		if err != nil {
+			s.Logger.Error("[Backup] Failed to store pending restore", "error", err)
+			jsonError(w, "Wiederherstellung konnte nicht vorgemerkt werden.", http.StatusInternalServerError)
+			return
 		}
 
-		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored, "tokens", tokensRestored)
+		s.Logger.Info("[Backup] Import staged", "id", restoreID, "staged", staged, "vault_secrets", vaultRestored, "tokens", tokensRestored)
 
-		schemaWarning := ""
-		if backupManifest != nil && backupManifest.DBSchemaVersion != 0 && backupManifest.DBSchemaVersion != currentDBSchemaVersion {
-			schemaWarning = fmt.Sprintf(
-				"DB-Schema-Version im Backup (%d) unterscheidet sich von aktueller Version (%d). "+
-					"AuraGo führt beim Neustart automatische Migrationen aus.",
-				backupManifest.DBSchemaVersion, currentDBSchemaVersion)
-			s.Logger.Warn("[Backup] DB schema version mismatch",
-				"backup_version", backupManifest.DBSchemaVersion,
-				"current_version", currentDBSchemaVersion)
-		}
-
-		msg := fmt.Sprintf("%d Dateien wiederhergestellt, %d übersprungen.", restored, skipped)
+		msg := fmt.Sprintf("%d Dateien für die Wiederherstellung vorgemerkt.", staged)
 		if vaultRestored > 0 {
-			msg += fmt.Sprintf(" %d Vault-Secrets wiederhergestellt.", vaultRestored)
+			msg += fmt.Sprintf(" %d Vault-Secrets vorgemerkt.", vaultRestored)
 		}
 		if vaultErr != "" {
 			msg += " Vault-Import fehlgeschlagen."
 		}
 		if tokensRestored > 0 {
-			msg += fmt.Sprintf(" %d API-Token-Datensätze wiederhergestellt.", tokensRestored)
+			msg += fmt.Sprintf(" %d API-Token-Datensätze vorgemerkt.", tokensRestored)
 		}
 		if tokenErr != "" {
 			msg += " Token-Import fehlgeschlagen."
 		}
-		if schemaWarning != "" {
-			msg += " " + schemaWarning
-		}
-		if sqliteRestore {
-			msg += " Neustart erforderlich, damit wiederhergestellte Datenbanken sicher neu geöffnet werden."
-		} else {
-			msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
-		}
+		msg += " Dateien, Vault-Secrets und API-Token werden erst beim nächsten Start von AuraGo angewendet (Neustart erforderlich); bis dahin ändert sich nichts."
 
+		status := "ok"
+		if vaultErr != "" || tokenErr != "" {
+			status = "partial"
+		}
+		if warnings == nil {
+			warnings = []string{}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":           "ok",
-			"restored":         restored,
-			"skipped":          skipped,
+			"status":           status,
+			"pending_restore":  true,
+			"restart_required": true,
+			"staged":           staged,
 			"vault_restored":   vaultRestored,
 			"tokens_restored":  tokensRestored,
-			"schema_warning":   schemaWarning,
-			"restart_required": sqliteRestore,
+			"warnings":         warnings,
 			"message":          msg,
 		})
 	}

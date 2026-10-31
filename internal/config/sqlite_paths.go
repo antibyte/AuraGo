@@ -21,6 +21,8 @@ const (
 	// it holds the user's favorites, plays and broken markers.
 	RetroGamesDirName    = "retrogames"
 	RetroGamesDBFilename = "retrogames.db"
+	// HuggingFaceDBFilename is the Hugging Face job ledger (<data_dir>/huggingface.db).
+	HuggingFaceDBFilename = "huggingface.db"
 )
 
 // FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
@@ -75,7 +77,31 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			filepath.Join(dataDir, DesktopStoreDBFilename),
 			filepath.Join(dataDir, TresorDBFilename),
 			filepath.Join(dataDir, RetroGamesDirName, RetroGamesDBFilename),
+			// Stores whose location is fixed by their package (see the guard test
+			// TestSQLiteOpensAreBackedUpOrExcluded for the full inclusion/exclusion list).
+			filepath.Join(dataDir, "mailer", "mailer.db"),
+			filepath.Join(dataDir, HuggingFaceDBFilename),
+			filepath.Join(dataDir, "manus.db"),
+			filepath.Join(dataDir, "sip_calls.db"),
+			filepath.Join(dataDir, "docker_manager.db"),
+			filepath.Join(dataDir, "meshcore.db"),
+			filepath.Join(dataDir, "personal-radio", "radio.db"),
+			filepath.Join(dataDir, "rtl-sdr", "receiver.db"),
+			filepath.Join(dataDir, "go2rtc", "detections.db"),
+			filepath.Join(dataDir, "bookshelf", "catalog.sqlite"),
 		)
+	}
+
+	// Detective cases: the configured path, plus the pre-data-dir location next
+	// to the Game Maker database that an upgraded install may still be using.
+	paths = append(paths, cfg.SQLite.DetectivePath)
+	if gm := cfg.SQLite.GameMakerPath; gm != "" {
+		legacy := filepath.Join(filepath.Dir(gm), "detective.db")
+		if _, err := os.Stat(legacy); err == nil {
+			paths = append(paths, legacy)
+		}
+		// Newspaper editions live next to the Game Maker database, like flows.db.
+		paths = append(paths, filepath.Join(filepath.Dir(gm), "newspaper.db"))
 	}
 
 	if legacy := cfg.SQLite.LongTermPath; legacy != "" {
@@ -97,22 +123,29 @@ func DocumentCorpusPath(cfg *Config) string {
 
 // IsBestEffortSQLiteBackup reports whether path (one of SQLiteDatabasePaths)
 // is backed up only on a best-effort basis: a failed snapshot skips that file
-// instead of failing the whole backup. Only the Retro Games index qualifies:
-// it is rebuildable and opens lazily, so a damaged file can sit unnoticed
-// until Retro Games is used again. Paths are compared cleaned and absolute.
+// instead of failing the whole backup. Only rebuildable stores qualify:
+//   - the Retro Games index: rebuildable and opened lazily, so a damaged file
+//     can sit unnoticed until Retro Games is used again;
+//   - the Hugging Face job ledger: transient job records that are re-created by
+//     running the jobs again.
+//
+// Everything else holds user data and must fail the backup loudly.
+// Paths are compared cleaned and absolute.
 func IsBestEffortSQLiteBackup(cfg *Config, path string) bool {
 	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" || strings.TrimSpace(path) == "" {
-		return false
-	}
-	want, err := filepath.Abs(filepath.Join(cfg.Directories.DataDir, RetroGamesDirName, RetroGamesDBFilename))
-	if err != nil {
 		return false
 	}
 	got, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
-	return got == want
+	for _, rel := range [][]string{{RetroGamesDirName, RetroGamesDBFilename}, {HuggingFaceDBFilename}} {
+		want, err := filepath.Abs(filepath.Join(append([]string{cfg.Directories.DataDir}, rel...)...))
+		if err == nil && got == want {
+			return true
+		}
+	}
+	return false
 }
 
 // SQLiteProtectedPaths returns SQLite database paths plus WAL/SHM sidecars that

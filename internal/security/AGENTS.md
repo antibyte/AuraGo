@@ -10,6 +10,8 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- Tool evaluation and clarification reserve at most 8192 completion tokens, including provider reasoning, so a reasoning model can finish its verdict. Timeouts, spending limits, strict parsing, truncation fail-safe and cache admission stay unchanged; content-scan ceilings remain separate. Verify `TestGuardianToolVerdictBudgetLeavesRoomForReasoning` and `TestGuardianIncompleteVerdictsAreFailSafeAndNeverCached`.
+
 - Prompt provenance is assigned by the owning runtime, never inferred from role labels,
   payload tags or a copied template. Keep fixed application instructions separate from
   external interpolations; do not feed a completed system template into an outside-text

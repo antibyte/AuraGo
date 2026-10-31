@@ -283,7 +283,14 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return Response{}, NewError(openRouterFailureCode(response.StatusCode, CodeExternalOutcomeUnknown), nil)
+		code := openRouterFailureCode(response.StatusCode, CodeExternalOutcomeUnknown)
+		if code == CodeExternalOutcomeUnknown && len(request.Images) > 0 {
+			errorBody, readErr := readOpenRouterBody(response.Body, openRouterMaxErrorBodyBytes)
+			if readErr == nil && openRouterImageRejection(response.StatusCode, errorBody) {
+				return Response{}, NewError(CodeImagesUnsupported, errors.New("OpenRouter rejected image input for the selected model"))
+			}
+		}
+		return Response{}, NewError(code, nil)
 	}
 	responseBody, err := readOpenRouterBody(response.Body, openRouterMaxResponseBytes)
 	if err != nil {
@@ -326,6 +333,25 @@ func openRouterFailureCode(status int, fallback string) string {
 		return fallback
 	}
 }
+
+// A catalog-advertised image model that the service still refuses answers with a
+// client error naming image input; this is a refusal, not an unknown outcome.
+func openRouterImageRejection(status int, body []byte) bool {
+	switch status {
+	case http.StatusBadRequest, http.StatusNotFound, http.StatusUnsupportedMediaType, http.StatusUnprocessableEntity:
+	default:
+		return false
+	}
+	text := strings.ToLower(string(body))
+	for _, marker := range []string{"image", "vision", "multimodal", "modalit"} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+const openRouterMaxErrorBodyBytes = 64 << 10
 
 func findDecisionModel(models []DecisionModel, id string) (DecisionModel, bool) {
 	if !validDecisionModelID(id) {

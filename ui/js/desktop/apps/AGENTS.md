@@ -3383,6 +3383,10 @@ registration lives in `internal/desktop/types.go`.
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
   document-level overflow-menu listeners, and `message` listener.
+- Studio email export resolves its toolbar from the current window's container,
+  including queries before the shell markup exists. Verify mounting with the
+  shared email runtime and disabled export for unpublished projects in
+  `TestGameMakerEventsReconnectBrowser`.
 - Voxel is the third creation choice (`dimension: 3d, variant: voxel`), with
   localized ideas/badges/capabilities. These fields stay immutable after creation.
   `game-maker-studio-preview.js` forwards only load/save/reset from the exact

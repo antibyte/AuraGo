@@ -1123,7 +1123,7 @@ When updating AuraGo:
 | Managed Ollama | `GET /api/ollama/managed/status`, `POST /api/ollama/managed/recreate` |
 | File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, `POST /api/debug/kg-file-sync-cleanup` |
 | A2A | `GET /api/a2a/status`, `GET /api/a2a/card`, `GET /api/a2a/remote-agents`, `POST /api/a2a/test` |
-| Backup/Restore | `POST /api/backup/create`, `POST /api/backup/import` |
+| Backup/Restore | `POST /api/backup/create`, `POST /api/backup/import`, `GET /api/backup/restore-status`, `DELETE /api/backup/restore-status` |
 | go2rtc | `GET /api/go2rtc/status`, `POST /api/go2rtc/test` |
 | MeshCore | `GET /api/meshcore/status`, `POST /api/meshcore/test` |
 | Bluetooth | `GET /api/bluetooth/status`, `POST /api/bluetooth/reprobe` |

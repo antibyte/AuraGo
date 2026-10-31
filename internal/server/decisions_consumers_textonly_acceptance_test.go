@@ -448,14 +448,17 @@ func TestDecisionConsumersTextOnlyProviderAcceptance(t *testing.T) {
 		if st.Failures != 1 {
 			t.Fatalf("rejection not counted: %+v", st)
 		}
-		// A rejected image should turn this model epoch's image consumers off at once
-		// (hub: images_unsupported pins {generation, epoch}). The OpenRouter client only
-		// produces images_unsupported from its own catalog check; an HTTP 400 from the
-		// service becomes external_outcome_unknown, so the pin never fires. Recorded as a
-		// known gap instead of asserting either behaviour.
-		if st.LastCode != "external_outcome_unknown" {
-			t.Fatalf("unexpected failure code for a service-side image rejection: %q", st.LastCode)
+		if st.LastCode != decisions.CodeImagesUnsupported {
+			t.Fatalf("service-side image rejection code = %q, want %q", st.LastCode, decisions.CodeImagesUnsupported)
 		}
-		t.Skip("KNOWN GAP: a service-side image rejection maps to external_outcome_unknown, so the hub's images_unsupported pin does not engage; the consumer stays available and retries")
+		if snap.Available || snap.Code != decisions.CodeImagesUnsupported {
+			t.Fatalf("consumer should be pinned off after the rejection: %+v", snap)
+		}
+		_, imagesBefore = stub.counts()
+		suppress, hint = s2.personWakeGate(context.Background(), persondetect.AlertEvent{EventID: 3, CameraID: "door", CoverPath: cover})
+		_, imagesAfter = stub.counts()
+		if suppress || hint != "" || imagesAfter != imagesBefore {
+			t.Fatalf("second gate call: suppress=%v hint=%q image requests %d -> %d", suppress, hint, imagesBefore, imagesAfter)
+		}
 	})
 }

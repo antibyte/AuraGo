@@ -504,3 +504,37 @@ func TestOpenRouterNormalizesRoundedProbabilitiesAndRejectsNonmaxChoice(t *testi
 		t.Fatalf("normalized score answer = %#v sum=%0.15f", scoreAnswer, sum)
 	}
 }
+
+func TestOpenRouterImageRequestRejectionClassification(t *testing.T) {
+	catalog := `{"data":[{"id":"vision/decision","name":"Vision Decision","context_length":8192,"architecture":{"input_modalities":["text","image"],"output_modalities":["decisions"]}}]}`
+	for _, tc := range []struct {
+		name   string
+		images bool
+		status int
+		body   string
+		code   string
+	}{
+		{"400 image input", true, 400, `{"error":{"code":400,"message":"This model does not support image input"}}`, CodeImagesUnsupported},
+		{"404 no endpoints", true, 404, `{"error":{"code":404,"message":"No endpoints found that support image input"}}`, CodeImagesUnsupported},
+		{"400 unrelated", true, 400, `{"error":{"code":400,"message":"invalid question schema"}}`, CodeExternalOutcomeUnknown},
+		{"text-only request", false, 400, `{"error":{"code":400,"message":"This model does not support image input"}}`, CodeExternalOutcomeUnknown},
+		{"429 still rate limited", true, 429, `{"error":{"message":"image quota"}}`, CodeProviderRateLimited},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := openRouterTestClient(t, "key", func(httpRequest *http.Request) (*http.Response, error) {
+				if httpRequest.Method == http.MethodGet {
+					return openRouterHTTPResponse(http.StatusOK, catalog, nil), nil
+				}
+				return openRouterHTTPResponse(tc.status, tc.body, nil), nil
+			})
+			request := Request{State: "inspect", Questions: []Question{{ID: "q", Type: "noul", Instructions: "Ready?"}}}
+			if tc.images {
+				request.Images = []Image{decisionTestImage(t, 16, 16, false)}
+			}
+			_, err := client.Evaluate(context.Background(), "vision/decision", request)
+			if ErrorCode(err) != tc.code || !IsNonRetryable(err) || strings.Contains(err.Error(), "support image input") {
+				t.Fatalf("error = %v, want code %s", err, tc.code)
+			}
+		})
+	}
+}

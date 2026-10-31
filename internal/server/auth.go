@@ -538,6 +538,7 @@ func isAdminProtectedPath(path string) bool {
 	case "/api/admin/stop",
 		"/api/backup/create",
 		"/api/backup/import",
+		"/api/backup/restore-status",
 		"/api/debug/kg-file-sync-cleanup",
 		"/api/media-conversion/test",
 		"/api/proxy/destroy",

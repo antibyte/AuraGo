@@ -38,6 +38,14 @@ func TestGameMakerEventsReconnectBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `<!doctype html><div id="app"></div>
+<script>
+window.state={windows:new Map([['fixture',{appId:'game-maker-studio'}]])};
+window.contentEl=()=>document.getElementById('app');
+window.t=key=>key;
+window.desktopReadonly=()=>false;
+window.registerWindowCleanup=()=>{};
+</script>
+<script src="/js/desktop/core/email-export-runtime.js"></script>
 <script src="/js/desktop/apps/game-maker-studio-modals.js"></script>
 <script src="/js/desktop/apps/game-maker-studio-api.js"></script>
 <script src="/js/desktop/apps/game-maker-studio.js"></script>
@@ -61,6 +69,12 @@ GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
 	defer browser.Close()
 	page := browser.MustPage(server.URL + "/fixture").MustWaitLoad()
 	defer page.Close()
+	if !page.MustHas("#app [data-email-export]") {
+		t.Fatal("Game Maker Studio did not mount with the shared email export runtime")
+	}
+	if !page.MustEval(`()=>document.querySelector('#app [data-email-export]').disabled`).Bool() {
+		t.Fatal("email export must stay disabled for an unpublished project")
+	}
 	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`async()=>Number(await(await fetch('/connections')).text())>=2&&GameMakerStudioApp.instances.get('fixture')?.reconnecting===false&&!!document.querySelector('[data-gm-retry]')`).ByPromise()); err != nil {
 		t.Fatalf("%v; connections=%d; state=%s; DOM=%s", err, connections.Load(), page.MustEval(`()=>JSON.stringify({reconnecting:GameMakerStudioApp.instances.get('fixture').reconnecting,ready:GameMakerStudioApp.instances.get('fixture').eventSource.readyState})`).Str(), page.MustElement("body").MustText())
 	}

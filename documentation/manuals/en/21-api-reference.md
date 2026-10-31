@@ -2697,7 +2697,9 @@ GET /api/runtime
 
 ### Backup API
 
-AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They can include configuration, consistent SQLite database snapshots, vector DB data, skills, tools, selected workspace files, and separately encrypted vault secrets for cross-instance migration.
+AuraGo backup archives use the `.ago` format. Archives are ZIP-based and can be encrypted with AES-256-GCM using Argon2id-derived keys. They include configuration, prompts and tools, consistent SQLite snapshots of AuraGo's databases (among them the detective, mailer, Hugging Face (best effort), Manus, SIP call log, Docker Manager, MeshCore, Personal Radio, RTL-SDR receiver, go2rtc detection, Bookshelf catalog and newspaper databases), vector DB data, core memory, the GitHub trust list, the Speech Lab deployment file, `data/documents/`, the agent skills directory, and selected workspace files. With a password, the archive also carries separately encrypted vault secrets and the API token store for cross-instance migration.
+
+Files over 100 MiB in `data/documents/` are skipped and listed in the archive. SQLite databases may be larger than 100 MiB, up to the 1 GiB archive limit. Tailscale node state (`data/tsnet`), downloaded models, voices and caches, and the workspace search index are deliberately excluded, because node identity must not be cloned. The archive manifest records the app version and each database's `user_version`.
 
 #### Create Backup
 ```http
@@ -2711,7 +2713,7 @@ Content-Type: application/json
 }
 ```
 
-Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports.
+Returns the `.ago` archive as an `application/octet-stream` download with a `Content-Disposition` filename. Leave `password` empty for a plain ZIP-compatible `.ago`; set it to encrypt the archive and include portable vault/token exports. With a password, a failed vault or token export aborts the backup instead of silently omitting the secrets.
 
 #### Import Backup
 ```http
@@ -2726,7 +2728,77 @@ Form fields:
 | `file` | yes | `.ago` backup archive |
 | `password` | no | Password for encrypted backups |
 
-Imports are staged first, checked for path traversal, schema warnings, and archive compatibility, then restored atomically where possible. A SQLite restore returns `restart_required: true`.
+```bash
+curl -X POST http://localhost:8088/api/backup/import \
+     -F file=@aurago-backup.ago \
+     -F password=strong-passphrase
+```
+
+The import changes nothing immediately. AuraGo validates the archive (paths, size limits, SQLite integrity, password), checks versions, and stages the files, the vault secrets (re-encrypted with the local master key) and the API token store in `data/.restore-pending/`. The restore is applied at the next start (see [Restore Status](#restore-status)). Only one pending restore exists; a new import replaces it.
+
+Version checks:
+
+- An archive from a newer AuraGo version is rejected with HTTP `400`. This happens when the manifest's app version is newer than the installed one, or when any database `user_version` is newer than the live database.
+- Older archives are accepted with warnings. Migrations run at startup.
+- A corrupt manifest returns `400`. A missing manifest (very old backups) is accepted with a warning.
+
+Success returns HTTP `200`:
+
+```json
+{
+  "status": "ok",
+  "pending_restore": true,
+  "restart_required": true,
+  "staged": 1280,
+  "vault_restored": 12,
+  "tokens_restored": 3,
+  "warnings": [],
+  "message": "..."
+}
+```
+
+`status` is `partial` when the vault secrets or the token store could not be staged; the reason is listed in `warnings`. The fields `restored`, `skipped` and `schema_warning` no longer exist.
+
+Errors return JSON `{"error": "..."}`. Uploads that are too large return `413`. Encrypted archives without a password, or with a wrong one, return `password_required` or `decryption_failed`, each with a `message`.
+
+The config UI (Backup section) asks for confirmation before an import, shows the pending restore with **Restart now** and **Discard pending restore**, and shows the outcome of the last restore.
+
+#### Restore Status
+
+```http
+GET    /api/backup/restore-status
+DELETE /api/backup/restore-status
+```
+
+Both endpoints are administrator-only.
+
+`GET` reports the pending restore and the outcome of the last one:
+
+```json
+{
+  "pending": true,
+  "pending_created_at": "2026-10-31T09:00:00Z",
+  "last": {
+    "id": "...",
+    "applied_at": "...",
+    "status": "applied",
+    "message": "..."
+  }
+}
+```
+
+`last` is `null` until a restore has run. `status` is `applied`, `rolled_back` or `failed`, with an explanation in `message`.
+
+`DELETE` discards a pending restore and returns `{"discarded": true}` or `{"discarded": false}`.
+
+At the next start, before any database is opened, AuraGo applies the pending restore:
+
+1. It copies the current files (and SQLite `-wal`/`-shm` files) to `data/.restore-rollback/<id>/`.
+2. It publishes the staged files and removes stale `-wal`/`-shm` files.
+3. It validates the restored `config.yaml`.
+4. If any step fails, it restores the previous state and keeps starting.
+
+Vault secrets and tokens are applied only if the file restore succeeded. The outcome is written to `data/.restore-last.json`. If AuraGo crashes during the apply, the next start recovers from the preserved rollback copy.
 
 ### Network Shares API
 

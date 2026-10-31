@@ -4635,6 +4635,33 @@ transform:none; filter:none;
     font-size: 0.82rem;
 }
 
+.pw-page[data-workspace-page="config"] .backup-import-success-box.is-warning {
+    border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+
+.pw-page[data-workspace-page="config"] .backup-import-success-box.is-warning .backup-import-success-title {
+    color: var(--warning);
+}
+
+.pw-page[data-workspace-page="config"] .backup-import-warnings {
+    margin: 0.5rem 0 0 1.1rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.pw-page[data-workspace-page="config"] .backup-restore-status {
+    margin-bottom: 1rem;
+}
+
+.pw-page[data-workspace-page="config"] .backup-restore-status-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+}
+
 .pw-page[data-workspace-page="config"] .backup-restart-btn {
     margin-top: 0.85rem;
     padding: 0.45rem 1.1rem;

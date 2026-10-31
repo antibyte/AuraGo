@@ -55,7 +55,7 @@
             disposed: false
         };
         instances.set(windowId, state);
-        window.AuraDesktopEmail?.attach(windowId, () => host.querySelector('[data-gm-action="export"]')?.parentElement, () => ({
+        window.AuraDesktopEmail?.attach(windowId, () => container.querySelector('[data-gm-action="export"]')?.parentElement, () => ({
             key:state.project?.id,disabled:state.disposed||!state.project?.current_revision,subject:state.project?.name,formats:['zip'],
             createFiles:async(_format,signal)=>{
                 if(await window.GameMakerStudioPreview?.flush(state)===false)return false;

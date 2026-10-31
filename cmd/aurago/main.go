@@ -45,6 +45,7 @@ import (
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
 	"aurago/internal/remote"
+	"aurago/internal/restorepending"
 	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/server"
@@ -326,6 +327,38 @@ func main() {
 		os.Exit(0)
 	}
 
+	// -- Apply a pending system restore ------------------------------------
+	// Runs under the instance lock and BEFORE the config is loaded and before
+	// any SQLite database or the vault is opened, so replaced files are never
+	// held open and the whole remaining startup (config, DB paths, memory) sees
+	// the restored state. vault.bin is never part of a file restore. If the
+	// restore fails it is rolled back and the old state keeps being used.
+	restoreRoot := ""
+	if !runSetup && !initOnly {
+		if root, rootErr := restorepending.ConfigRoot(configFile); rootErr == nil {
+			restoreRoot = root
+			if res, applyErr := restorepending.Apply(restoreRoot, restorepending.Options{
+				Logger:   appLog,
+				Validate: func() error { _, err := config.Load(configFile); return err },
+				ResolveVectorRoot: func() (string, error) {
+					// Resolve against the config that is active right now (the
+					// restored config.yaml is not published yet at this point).
+					c, err := config.Load(configFile)
+					if err != nil {
+						return "", nil
+					}
+					return c.Directories.VectorDBDir, nil
+				},
+			}); applyErr != nil {
+				status := ""
+				if res != nil {
+					status = res.Status
+				}
+				appLog.Error("System restore failed; continuing with the previous state", "status", status, "error", applyErr)
+			}
+		}
+	}
+
 	// -- Early Config Load for Path Resolution -----------------------------
 	cfg, err := config.Load(configFile)
 	if err != nil && !runSetup {
@@ -406,6 +439,10 @@ func main() {
 		os.Exit(1)
 	}
 	security.RetainProcessMasterKey(masterKey)
+	// Merge staged vault secrets of a restore whose files were applied above.
+	if restoreRoot != "" {
+		restorepending.ApplyStagedVault(restoreRoot, vault, appLog)
+	}
 	if err := os.Unsetenv("AURAGO_MASTER_KEY"); err != nil {
 		appLog.Error("Cannot remove ambient master key")
 		os.Exit(1)

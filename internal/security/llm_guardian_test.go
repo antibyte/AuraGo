@@ -373,7 +373,7 @@ func TestGuardianIncompleteVerdictsAreFailSafeAndNeverCached(t *testing.T) {
 				if got := strings.Count(output, "Truncated verdict"); got != 2 {
 					t.Fatalf("truncation warnings = %d, want 2; logs=%s", got, output)
 				}
-				common := []string{"completion_tokens=2048", "max_tokens=2048", "model=test-model", method.logField}
+				common := []string{"completion_tokens=2048", "max_tokens=8192", "model=test-model", method.logField}
 				for _, field := range append(common, tc.wantLog...) {
 					if !strings.Contains(output, field) {
 						t.Fatalf("truncation warning missing %q: %s", field, output)
