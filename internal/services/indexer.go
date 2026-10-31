@@ -642,6 +642,22 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		class := fi.classifyImage(ctx, cfg, path, allowMedia)
 		if tools.VisionRequiresPublicImageURL(cfg) {
 			entry := coarseImageEntry(info.Name(), relPath, class)
+			if entry == "" && fi.decisionsImagesConfigured(cfg, allowMedia) {
+				// Decisions is configured but gave no verdict: keep the tracked state with the
+				// current fingerprint and no content, so the image is asked again only when
+				// the file or the fingerprint changes.
+				if err := fi.removeTrackedFile(path, collection); err != nil {
+					outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
+					return outcome
+				}
+				state := memory.FileIndexState{LastModified: info.ModTime(), ContentHash: rawHash, IndexFingerprint: indexFingerprint}
+				if err := fi.stm.PublishFileIndex(path, collection, memory.FileIndexState{}, nil, state, nil); err != nil {
+					outcome.err = fmt.Errorf("tracking error %s: %v", path, err)
+					return outcome
+				}
+				outcome.noContent = true
+				return outcome
+			}
 			if entry == "" {
 				fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
 				if err := fi.removeTrackedFile(path, collection); err != nil {
@@ -905,7 +921,7 @@ func (fi *FileIndexer) indexFingerprintForMode(mode string, allowMedia bool) str
 	cfg := fi.cfg
 	fi.cfgMu.RUnlock()
 	// Images re-run once when the Decisions classification is switched on or off.
-	decisionsOn := mode == fileIndexModeVision && fi.decisionsImagesActive(cfg, allowMedia)
+	decisionsOn := mode == fileIndexModeVision && fi.decisionsImagesConfigured(cfg, allowMedia)
 	fi.cfgMu.RLock()
 	defer fi.cfgMu.RUnlock()
 	switch mode {

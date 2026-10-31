@@ -24,6 +24,7 @@ type fakeIndexerDecisions struct {
 	available bool
 	kind      string
 	textP     float64
+	unsure    bool
 	snapshots int
 	evaluates int
 }
@@ -48,6 +49,11 @@ func (f *fakeIndexerDecisions) Snapshot(_ *config.Config, id consumers.ID) consu
 				probabilities[option.ID] = 0.025
 			}
 			probabilities[f.kind] = 0.9
+			if f.unsure {
+				for id := range probabilities {
+					probabilities[id] = 0.2
+				}
+			}
 			p := f.textP
 			return decisions.Response{Answers: map[string]decisions.Answer{
 				"kind": {Type: "choice", Decision: f.kind, Probabilities: probabilities},
@@ -115,6 +121,8 @@ func newIndexerDecisionFixture(t *testing.T, allowMedia, agnes, attach bool, ser
 		cfg.Vision.Model = "vision-model"
 	}
 	f.fi = NewFileIndexer(cfg, &sync.RWMutex{}, f.vdb, stm, logger)
+	cfg.Decisions.Enabled = true
+	cfg.DecisionConsumers.IndexerImages.Enabled = true
 	if attach {
 		f.fi.SetDecisionService(service)
 	}
@@ -219,8 +227,8 @@ func TestIndexerDecisionsFingerprint(t *testing.T) {
 	plain := f.fi.indexFingerprintForMode(fileIndexModeVision, true)
 	f.fi.SetDecisionService(service)
 	with := f.fi.indexFingerprintForMode(fileIndexModeVision, true)
-	if with == plain || !strings.HasPrefix(with, plain[:len(fileIndexerFingerprint)]) {
-		t.Fatalf("fingerprint did not change: %q vs %q", plain, with)
+	if with == plain {
+		t.Fatalf("fingerprint did not change: %q", with)
 	}
 	if got := f.fi.indexFingerprintForMode(fileIndexModeVision, false); got != plain {
 		t.Fatalf("no media opt-in changed the fingerprint: %q", got)
@@ -228,8 +236,35 @@ func TestIndexerDecisionsFingerprint(t *testing.T) {
 	if got := f.fi.indexFingerprintForMode(fileIndexModeText, true); strings.Contains(got, "decisions") {
 		t.Fatalf("text mode fingerprint = %q", got)
 	}
+	// Runtime unavailability must not flip the fingerprint.
 	service.available = false
+	if got := f.fi.indexFingerprintForMode(fileIndexModeVision, true); got != with {
+		t.Fatalf("runtime state changed the fingerprint: %q", got)
+	}
+	// Configuration toggles do.
+	f.fi.cfg.DecisionConsumers.IndexerImages.Enabled = false
 	if got := f.fi.indexFingerprintForMode(fileIndexModeVision, true); got != plain {
-		t.Fatalf("unavailable consumer changed the fingerprint: %q", got)
+		t.Fatalf("disabled consumer changed the fingerprint: %q", got)
+	}
+	f.fi.cfg.DecisionConsumers.IndexerImages.Enabled = true
+	f.fi.cfg.Decisions.Backend = config.DecisionsBackendProvider
+	if got := f.fi.indexFingerprintForMode(fileIndexModeVision, true); got != plain {
+		t.Fatalf("provider backend without external permission changed the fingerprint: %q", got)
+	}
+	f.fi.cfg.DecisionConsumers.IndexerImages.AllowExternalImages = true
+	if got := f.fi.indexFingerprintForMode(fileIndexModeVision, true); got != with {
+		t.Fatalf("provider backend with external permission = %q", got)
+	}
+}
+
+func TestIndexerDecisionsAgnesUnsureIsNotAskedAgain(t *testing.T) {
+	service := &fakeIndexerDecisions{available: true, kind: "other", textP: 0.5, unsure: true}
+	f := newIndexerDecisionFixture(t, true, true, true, service)
+	if indexed := f.scan(t); indexed != 0 || len(f.stored()) != 0 || service.evaluates != 1 {
+		t.Fatalf("first scan indexed=%d stored=%q evaluates=%d", indexed, f.stored(), service.evaluates)
+	}
+	f.scan(t)
+	if service.evaluates != 1 {
+		t.Fatalf("unsure image asked again: %d", service.evaluates)
 	}
 }

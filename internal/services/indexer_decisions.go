@@ -53,15 +53,18 @@ func (fi *FileIndexer) decisionService() IndexerDecisionService {
 	return fi.decisions
 }
 
-// decisionsImagesActive is the passive check behind the fingerprint suffix: the
-// consumer is on, images may be sent, and the folder allows media analysis.
-func (fi *FileIndexer) decisionsImagesActive(cfg *config.Config, allowMedia bool) bool {
-	service := fi.decisionService()
-	if service == nil || !allowMedia || cfg == nil {
+// decisionsImagesConfigured is the configuration-only check behind the fingerprint
+// suffix and the Agnes keep-state rule. It must not depend on runtime state
+// (catalog age, runtime readiness, budget), or the corpus would re-index whenever
+// that state flips.
+func (fi *FileIndexer) decisionsImagesConfigured(cfg *config.Config, allowMedia bool) bool {
+	if fi.decisionService() == nil || !allowMedia || cfg == nil {
 		return false
 	}
-	snapshot := service.Snapshot(cfg, consumers.IndexerImages)
-	return snapshot.Available && snapshot.ImagesAllowed
+	if !cfg.Decisions.Enabled || !cfg.DecisionConsumers.IndexerImages.Enabled {
+		return false
+	}
+	return cfg.Decisions.Normalize().Backend == config.DecisionsBackendLocal || cfg.DecisionConsumers.IndexerImages.AllowExternalImages
 }
 
 // classifyImage asks Decisions about one image of a folder that allows media

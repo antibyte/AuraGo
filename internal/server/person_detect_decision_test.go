@@ -108,8 +108,10 @@ func TestPersonWakeDecisionUnsure(t *testing.T) {
 	if suppress, hint := s.personWakeGate(context.Background(), ev); suppress || hint != "courier" {
 		t.Fatalf("suppress=%v hint=%q", suppress, hint)
 	}
+	// A fresh fixture (the hub defers a second call within MinInterval) exercises the error path.
+	s, d, ev = personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "no_human", 0.9), true)
 	d.err = context.DeadlineExceeded
-	if suppress, hint := s.personWakeGate(context.Background(), ev); suppress || hint != "" {
-		t.Fatalf("error: suppress=%v hint=%q", suppress, hint)
+	if suppress, hint := s.personWakeGate(context.Background(), ev); suppress || hint != "" || d.calls != 1 {
+		t.Fatalf("error: suppress=%v hint=%q calls=%d", suppress, hint, d.calls)
 	}
 }
