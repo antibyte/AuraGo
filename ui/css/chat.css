@@ -4756,64 +4756,258 @@
 
 
 /* ═══════════════════════════════════════════════════════════════════════
-   RETRO CRT THEME — Green phosphor monitor simulation
-   Global CSS filter converts entire page to monochrome green.
-   Full-page overlay adds authentic CRT scanlines & vignette.
+   RETRO CRT THEME — P31 Green Phosphor Cathode-Ray Terminal Simulation
+   Multi-tier phosphor luminance hierarchy, curved tube bezel, scanlines,
+   aperture grille, electron-beam message rasterization & reactive glow.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── CRT Design Tokens ── */
+/* ── CRT Design Tokens & Semantic Mapping ── */
 [data-theme="retro-crt"] {
-    --crt-bright:   #5fff3a;
-    --crt-medium:   #2dde0c;
-    --crt-dim:      #128a06;
-    --crt-dark:     #0a4a02;
-    --crt-bg:       #020802;
-    --crt-surface:  #040e04;
-    --crt-glow:     rgba(95, 255, 58, 0.22);
-    --crt-glow-strong: rgba(95, 255, 58, 0.5);
-    --crt-border:   #128a06;
-    --crt-text:     #4dff28;
-    --crt-text-dim: #2aad08;
-    --crt-text-muted: #166004;
-    --crt-amber:    rgba(255, 158, 64, 0.2);
-    --crt-glass:    rgba(223, 255, 214, 0.05);
-    --crt-shadow:   rgba(0, 0, 0, 0.62);
-    --crt-font-ui:  'Datatype', 'Inter', system-ui, sans-serif;
+    color-scheme: dark;
+
+    /* 5-tier P31 / P1 phosphor luminance scale */
+    --crt-peak:           #d8ffcc; /* White-hot electron beam strike */
+    --crt-bright:         #62ff3b; /* High-intensity phosphor */
+    --crt-medium:         #39e614; /* Standard beam luminance */
+    --crt-dim:            #1ca808; /* Half-tone persistence */
+    --crt-dark:           #0c5203; /* Deep persistence decay */
+    --crt-bg:             #010601; /* Cathode tube dark glass */
+    --crt-surface:        #030d03; /* Primary terminal enclosure */
+    --crt-surface-raised: #061606; /* Elevated card / keycap surface */
+    --crt-glow:           rgba(98, 255, 59, 0.24);
+    --crt-glow-strong:    rgba(98, 255, 59, 0.56);
+    --crt-border:         rgba(57, 230, 20, 0.28);
+    --crt-border-bright:  rgba(98, 255, 59, 0.62);
+    --crt-text:           #48f524;
+    --crt-text-dim:       #28b812;
+    --crt-text-muted:     #167508;
+    --crt-amber:          rgba(255, 176, 46, 0.22);
+    --crt-amber-bright:   #ffb538;
+    --crt-glass:          rgba(216, 255, 204, 0.055);
+    --crt-shadow:         rgba(0, 0, 0, 0.76);
+    --crt-font-ui:        'Datatype', 'Geist Mono', 'Cascadia Code', 'Consolas', monospace;
+    --crt-font-mono:      'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --crt-ease:           cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Core AuraGo Chat semantic tokens */
+    --accent:             #62ff3b;
+    --accent-secondary:   #39e614;
+    --accent-tertiary:    #a8ff8e;
+    --accent-warm:        #ffb538;
+    --accent-dim:         rgba(98, 255, 59, 0.14);
+    --accent-glow:        rgba(98, 255, 59, 0.34);
+    --bg-primary:         #010601;
+    --bg-secondary:       rgba(3, 12, 3, 0.96);
+    --bg-tertiary:        rgba(6, 20, 6, 0.94);
+    --bg-glass:           linear-gradient(180deg, rgba(8, 26, 8, 0.92), rgba(2, 9, 2, 0.97));
+    --header-bg:          rgba(2, 10, 2, 0.94);
+    --modal-bg:           rgba(0, 4, 0, 0.84);
+    --modal-surface:      rgba(3, 13, 3, 0.98);
+    --modal-border:       rgba(98, 255, 59, 0.34);
+    --sidebar-bg:         rgba(2, 10, 2, 0.98);
+    --card-bg:            rgba(4, 15, 4, 0.95);
+    --code-bg:            rgba(1, 7, 1, 0.98);
+    --inline-code-bg:     rgba(98, 255, 59, 0.11);
+    --input-bg:           rgba(2, 11, 2, 0.98);
+    --input-border:       rgba(57, 230, 20, 0.32);
+    --text-primary:       #48f524;
+    --text-secondary:     #28b812;
+    --text-muted:         #167508;
+    --strong-color:       #d8ffcc;
+    --border-subtle:      rgba(57, 230, 20, 0.18);
+    --border-accent:      rgba(98, 255, 59, 0.46);
+    --user-bubble:        linear-gradient(180deg, rgba(8, 28, 8, 0.96), rgba(3, 14, 3, 0.98));
+    --user-bubble-tail:   rgba(57, 230, 20, 0.42);
+    --user-bubble-shadow: rgba(98, 255, 59, 0.16);
+    --bot-bubble:         linear-gradient(180deg, rgba(4, 16, 4, 0.96), rgba(2, 8, 2, 0.99));
+    --bot-bubble-tail:    rgba(4, 16, 4, 0.96);
+    --surface-shadow:     0 18px 42px rgba(0, 0, 0, 0.72);
+    --surface-shadow-strong: 0 28px 68px rgba(0, 0, 0, 0.86);
+    --surface-highlight:  rgba(216, 255, 204, 0.06);
+    --persona-description-bg: linear-gradient(180deg, rgba(6, 22, 6, 0.96), rgba(2, 10, 2, 0.98));
+    --persona-description-border: rgba(98, 255, 59, 0.34);
+    --persona-description-text: #39e614;
+    --chat-image-opacity: 0.045;
+    --bg-logo-filter:     grayscale(100%) sepia(100%) hue-rotate(78deg) saturate(5) brightness(0.85) contrast(1.3) drop-shadow(0 0 12px rgba(98, 255, 59, 0.35));
+    --success:            #62ff3b;
+    --warning:            #ffb538;
+    --danger:             #ff6b4a;
     --chat-copy-font-size: 0.9rem;
     --chat-input-font-size: 0.9rem;
-
-    color-scheme: dark;
 }
 
-/* ── GLOBAL GREEN MONOCHROME FILTER ────────────────────────────────────
-   One filter on <body> converts ALL rendered pixels to phosphor green.
-   No white, no colors — only green luminance levels.
-   WebGL shader (crt-shader.js) adds barrel distortion + scanlines on top. */
+/* ── Keyframe Animations ── */
+@keyframes crtScanlinePhase {
+    0%   { background-position: 0 0, 0 0, 0 0, 0 0; }
+    100% { background-position: 0 0, 0 0, 0 12px, 0 0; }
+}
+
+@keyframes crtBeamSweep {
+    0% {
+        transform: translateY(-110%);
+        opacity: 0;
+    }
+    12% {
+        opacity: 0.85;
+    }
+    88% {
+        opacity: 0.85;
+    }
+    100% {
+        transform: translateY(115dvh);
+        opacity: 0;
+    }
+}
+
+@keyframes crtHeaderTraceSweep {
+    0% {
+        background-position: -30% 0, 0 0;
+    }
+    48%, 100% {
+        background-position: 130% 0, 0 0;
+    }
+}
+
+@keyframes crtLogoHum {
+    0%, 100% {
+        text-shadow:
+            0 0 6px rgba(98, 255, 59, 0.72),
+            0 0 16px rgba(98, 255, 59, 0.34),
+            0 0 32px rgba(57, 230, 20, 0.16);
+    }
+    50% {
+        text-shadow:
+            0 0 8px rgba(216, 255, 204, 0.88),
+            0 0 22px rgba(98, 255, 59, 0.48),
+            0 0 40px rgba(57, 230, 20, 0.26);
+    }
+}
+
+@keyframes crtMessageScanIn {
+    0% {
+        opacity: 0;
+        transform: translateY(8px) scaleY(0.96);
+        filter: brightness(2.1) contrast(1.3) drop-shadow(0 0 12px rgba(98, 255, 59, 0.55));
+    }
+    55% {
+        opacity: 1;
+        transform: translateY(0) scaleY(1.005);
+        filter: brightness(1.22) contrast(1.08);
+    }
+    100% {
+        opacity: 1;
+        transform: none;
+        filter: none;
+    }
+}
+
+@keyframes crtBubbleRasterSweep {
+    0% {
+        opacity: 0.95;
+        background-position: 0 -30%;
+    }
+    75% {
+        opacity: 0.65;
+    }
+    100% {
+        opacity: 0;
+        background-position: 0 130%;
+    }
+}
+
+@keyframes crtReticlePulse {
+    0%, 100% {
+        opacity: 0.72;
+        box-shadow: 0 0 10px rgba(98, 255, 59, 0.22);
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 18px rgba(98, 255, 59, 0.42);
+    }
+}
+
+@keyframes crtSendArmedPulse {
+    0%, 100% {
+        box-shadow:
+            inset 0 1px 0 rgba(216, 255, 204, 0.22),
+            0 0 12px rgba(98, 255, 59, 0.26),
+            0 0 24px rgba(57, 230, 20, 0.12);
+    }
+    50% {
+        box-shadow:
+            inset 0 1px 0 rgba(216, 255, 204, 0.34),
+            0 0 20px rgba(98, 255, 59, 0.46),
+            0 0 36px rgba(57, 230, 20, 0.24);
+    }
+}
+
+@keyframes crtStatusSweep {
+    0%   { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
+}
+
+@keyframes crtDotPulse {
+    0%, 100% {
+        transform: scale(0.88);
+        opacity: 0.55;
+        box-shadow: 0 0 6px rgba(98, 255, 59, 0.4);
+    }
+    50% {
+        transform: scale(1.18);
+        opacity: 1;
+        box-shadow: 0 0 14px rgba(98, 255, 59, 0.9), 0 0 24px rgba(216, 255, 204, 0.45);
+    }
+}
+
+@keyframes crt-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* ── Base Body & Cathode Tube Backdrop ── */
 [data-theme="retro-crt"] body {
     background:
-        radial-gradient(circle at 50% 8%, rgba(95, 255, 58, 0.04), transparent 18%),
-        radial-gradient(circle at 50% 50%, rgba(18, 138, 6, 0.08), transparent 48%),
-        linear-gradient(180deg, #000600 0%, #010801 36%, #000400 100%);
+        radial-gradient(ellipse 75% 45% at 50% 6%, rgba(98, 255, 59, 0.07), transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(28, 168, 8, 0.08), transparent 62%),
+        linear-gradient(180deg, #000500 0%, #010901 42%, #000400 100%);
     color: var(--crt-text);
     font-family: var(--crt-font-ui);
     font-size: 0.9rem;
-    filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5.8) brightness(1.08) contrast(1.16);
+    letter-spacing: 0.01em;
 }
 
-/* ── Force ALL text to inherit green ── */
-[data-theme="retro-crt"] body * {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
+/* Phosphor monochrome conversion for raster images, avatars, and icons
+   without putting a layout-breaking filter on <body>. */
+[data-theme="retro-crt"] :is(.avatar img, .greeting-icon img, .bubble img, .chat-robot-mascot, .tool-icon-stack, .status-tool-icon, .integration-icon, .attachment-thumb) {
+    filter: grayscale(100%) sepia(100%) hue-rotate(76deg) saturate(4.6) brightness(0.98) contrast(1.22) drop-shadow(0 0 8px rgba(98, 255, 59, 0.28));
+    transition: filter 0.25s ease, transform 0.25s ease;
 }
 
-/* ── Force SVGs to use currentColor ── */
-[data-theme="retro-crt"] svg,
-[data-theme="retro-crt"] svg * {
-    fill: currentColor !important;
-    stroke: currentColor !important;
+[data-theme="retro-crt"] .bubble img:hover,
+[data-theme="retro-crt"] #img-lightbox img {
+    filter: grayscale(35%) sepia(45%) hue-rotate(72deg) saturate(2.2) brightness(1.02) contrast(1.12) drop-shadow(0 0 18px rgba(98, 255, 59, 0.35));
 }
 
-/* ── CSS Vignette fallback (complements WebGL shader) ── */
+/* ── CRT Recessed Monitor Bezel & Glass Specular Rim ── */
+html[data-theme="retro-crt"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999998;
+    border-radius: 10px;
+    background:
+        radial-gradient(ellipse 90% 26% at 50% 0%, rgba(216, 255, 204, 0.045), transparent 70%),
+        linear-gradient(135deg, rgba(216, 255, 204, 0.03) 0%, transparent 26%, transparent 78%, rgba(98, 255, 59, 0.02) 100%);
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.14),
+        inset 0 0 0 3px rgba(1, 8, 1, 0.92),
+        inset 0 0 32px rgba(0, 0, 0, 0.72),
+        inset 0 0 88px rgba(0, 0, 0, 0.46),
+        inset 0 0 160px rgba(0, 10, 0, 0.34);
+}
+
+/* ── CRT Scanlines, Subpixel Aperture Grille & Tube Corner Vignette ── */
 html[data-theme="retro-crt"]::after {
     content: '';
     position: fixed;
@@ -4821,165 +5015,244 @@ html[data-theme="retro-crt"]::after {
     pointer-events: none;
     z-index: 999999;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 12%, transparent 76%, rgba(0, 0, 0, 0.16) 100%),
+        linear-gradient(180deg, rgba(216, 255, 204, 0.018), transparent 14%, transparent 78%, rgba(0, 0, 0, 0.24) 100%),
         radial-gradient(
             ellipse at 50% 50%,
-            transparent 54%,
-            rgba(0, 0, 0, 0.04) 68%,
-            rgba(0, 0, 0, 0.18) 84%,
-            rgba(0, 0, 0, 0.42) 100%
+            transparent 56%,
+            rgba(0, 0, 0, 0.08) 70%,
+            rgba(0, 0, 0, 0.26) 86%,
+            rgba(0, 0, 0, 0.56) 100%
         ),
         repeating-linear-gradient(
             to bottom,
-            rgba(120, 255, 86, 0.020) 0px,
-            rgba(120, 255, 86, 0.020) 1px,
-            rgba(0, 0, 0, 0.0) 2px,
-            rgba(0, 0, 0, 0.0) 4px
-        );
-}
-
-/* ── CRT Inner Shadow (screen bezel) ── */
-html[data-theme="retro-crt"]::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 999998;
-    box-shadow:
-        inset 0 0 28px rgba(0, 0, 0, 0.2),
-        inset 0 0 84px rgba(0, 0, 0, 0.12),
-        inset 0 0 160px rgba(0, 0, 0, 0.08);
-    border-radius: 8px;
-}
-
-/* ── CRT Subtle Flicker Animation ── */
-@keyframes crt-flicker {
-    0%   { opacity: 0.988; }
-    5%   { opacity: 1; }
-    10%  { opacity: 0.978; }
-    15%  { opacity: 1; }
-    50%  { opacity: 0.992; }
-    55%  { opacity: 1; }
-    100% { opacity: 0.988; }
-}
-
-[data-theme="retro-crt"] body {
-    animation: crt-flicker 0.15s infinite;
-}
-
-[data-theme="retro-crt"] #chat-box {
-    background:
-        radial-gradient(circle at 50% 0%, rgba(95, 255, 58, 0.05), transparent 24%),
-        radial-gradient(circle at 50% 50%, rgba(18, 138, 6, 0.06), transparent 56%),
-        linear-gradient(180deg, rgba(1, 7, 1, 0.98), rgba(0, 3, 0, 0.99));
-    box-shadow:
-        inset 0 0 0 1px rgba(95, 255, 58, 0.04),
-        inset 0 0 32px rgba(18, 138, 6, 0.08);
-}
-
-[data-theme="retro-crt"] #chat-box::before {
-    background:
-        radial-gradient(circle at 50% 8%, rgba(95, 255, 58, 0.04), transparent 20%),
-        linear-gradient(180deg, rgba(10, 18, 10, 0.12) 0%, transparent 18%, transparent 80%, rgba(0, 0, 0, 0.18) 100%),
-        repeating-linear-gradient(
-            to bottom,
-            rgba(95, 255, 58, 0.015) 0px,
-            rgba(95, 255, 58, 0.015) 1px,
-            rgba(0, 0, 0, 0.0) 2px,
+            rgba(110, 255, 80, 0.024) 0px,
+            rgba(110, 255, 80, 0.024) 1px,
+            rgba(0, 0, 0, 0.18) 2px,
             rgba(0, 0, 0, 0.0) 4px
         ),
         repeating-linear-gradient(
             to right,
-            rgba(95, 255, 58, 0.022) 0px,
-            rgba(95, 255, 58, 0.022) 1px,
-            rgba(0, 0, 0, 0.0) 2px,
-            rgba(0, 0, 0, 0.0) 6px
+            rgba(98, 255, 59, 0.016) 0px,
+            rgba(98, 255, 59, 0.016) 1px,
+            rgba(0, 0, 0, 0.08) 2px,
+            rgba(0, 0, 0, 0.0) 3px
         );
-    opacity: 1;
+    animation: crtScanlinePhase 6s linear infinite;
+}
+
+/* ── Oscilloscope / Terminal Chat Viewport ── */
+[data-theme="retro-crt"] #chat-box {
+    isolation: auto;
+    position: relative;
+    z-index: 1;
+    background:
+        radial-gradient(ellipse 68% 34% at 50% 0%, rgba(98, 255, 59, 0.075), transparent 66%),
+        radial-gradient(circle at 50% 52%, rgba(28, 168, 8, 0.065), transparent 62%),
+        repeating-linear-gradient(
+            0deg,
+            rgba(57, 230, 20, 0.028) 0px,
+            rgba(57, 230, 20, 0.028) 1px,
+            transparent 1px,
+            transparent 48px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(57, 230, 20, 0.022) 0px,
+            rgba(57, 230, 20, 0.022) 1px,
+            transparent 1px,
+            transparent 48px
+        ),
+        linear-gradient(180deg, rgba(1, 9, 1, 0.98) 0%, rgba(1, 6, 1, 0.99) 55%, rgba(0, 4, 0, 0.99) 100%);
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.07),
+        inset 0 0 42px rgba(18, 138, 6, 0.09);
+}
+
+/* Traveling horizontal electron retrace beam across the chat viewport */
+[data-theme="retro-crt"] #chat-box::before {
+    content: '';
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 110px;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(57, 230, 20, 0.02) 45%,
+        rgba(98, 255, 59, 0.07) 82%,
+        rgba(216, 255, 204, 0.14) 96%,
+        transparent 100%
+    );
+    mix-blend-mode: screen;
+    animation: crtBeamSweep 9.5s linear infinite;
+    will-change: transform;
+}
+
+/* Faint phosphor vector watermark */
+[data-theme="retro-crt"] #chat-box::after {
+    display: block;
+    opacity: var(--chat-image-opacity);
+    filter: var(--bg-logo-filter);
 }
 
 [data-theme="retro-crt"] #chat-content {
     position: relative;
-    z-index: 1;
+    z-index: 3;
+    padding-top: 1.65rem;
+    padding-bottom: 2.35rem;
     text-shadow:
-        0 0 4px rgba(95, 255, 58, 0.14),
-        0 0 9px rgba(95, 255, 58, 0.04);
+        0 0 5px rgba(98, 255, 59, 0.16),
+        0 0 14px rgba(57, 230, 20, 0.05);
 }
 
-/* ── CRT Phosphor Text Glow ── */
-[data-theme="retro-crt"] .bubble {
-    text-shadow: 0 0 5px rgba(95, 255, 58, 0.2);
-    border-radius: 4px;
-            position: relative;
-            overflow: hidden;
-        }
+/* ── Header & Footer Terminal Console Chrome ── */
+[data-theme="retro-crt"] .app-header {
+    position: relative;
+    z-index: 120;
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(98, 255, 59, 0.018) 0px,
+            rgba(98, 255, 59, 0.018) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, rgba(6, 22, 6, 0.97) 0%, rgba(2, 10, 2, 0.99) 100%) !important;
+    border-bottom: 1px solid rgba(98, 255, 59, 0.28) !important;
+    box-shadow:
+        0 14px 36px rgba(0, 0, 0, 0.72),
+        inset 0 1px 0 rgba(216, 255, 204, 0.08),
+        inset 0 -1px 0 rgba(98, 255, 59, 0.14) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
 
-        [data-theme="retro-crt"] .bubble::after {
+[data-theme="retro-crt"] .app-header::before {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(180deg, rgba(220, 255, 212, 0.03), transparent 24%),
-        linear-gradient(120deg, transparent 0%, transparent 72%, rgba(95, 255, 58, 0.035) 100%);
+        linear-gradient(105deg, transparent 36%, rgba(98, 255, 59, 0.07) 50%, transparent 64%),
+        linear-gradient(180deg, rgba(216, 255, 204, 0.04), transparent 36%);
 }
 
-[data-theme="retro-crt"] .bubble.bot {
-    background: rgba(7, 18, 7, 0.94);
-    border: 1px solid rgba(45, 222, 12, 0.22);
+/* Sweeping phosphor carrier trace under the header */
+[data-theme="retro-crt"] .app-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    opacity: 0.95;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg,
+            rgba(216, 255, 204, 0) 0%,
+            rgba(98, 255, 59, 0.9) 45%,
+            rgba(216, 255, 204, 1) 50%,
+            rgba(98, 255, 59, 0.9) 55%,
+            rgba(216, 255, 204, 0) 100%) no-repeat,
+        linear-gradient(90deg,
+            transparent 0%,
+            rgba(57, 230, 20, 0.28) 15%,
+            rgba(98, 255, 59, 0.68) 50%,
+            rgba(57, 230, 20, 0.28) 85%,
+            transparent 100%);
+    background-size: 22% 100%, 100% 100%;
+    background-position: -30% 0, 0 0;
     box-shadow:
-        inset 0 0 0 1px rgba(95, 255, 58, 0.04),
-        0 0 9px rgba(18, 138, 6, 0.08);
+        0 0 14px rgba(98, 255, 59, 0.45),
+        0 0 28px rgba(57, 230, 20, 0.22);
+    animation: crtHeaderTraceSweep 8.5s var(--crt-ease) infinite;
 }
 
-[data-theme="retro-crt"] .bubble.user {
-    background: rgba(2, 12, 2, 0.96);
-    border: 1px solid rgba(45, 222, 12, 0.34);
+[data-theme="retro-crt"] .logo .logo-wordmark-accent {
+    color: var(--crt-peak) !important;
+    -webkit-text-fill-color: var(--crt-peak) !important;
+    background: none !important;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 800;
+    animation: crtLogoHum 4.2s ease-in-out infinite;
+}
+
+[data-theme="retro-crt"] .logo .logo-wordmark-base {
     color: var(--crt-bright) !important;
+    -webkit-text-fill-color: var(--crt-bright) !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(98, 255, 59, 0.35);
+}
+
+[data-theme="retro-crt"] .logo-icon {
+    background:
+        radial-gradient(circle at 32% 28%, rgba(216, 255, 204, 0.22), transparent 52%),
+        linear-gradient(180deg, rgba(10, 36, 10, 0.96), rgba(3, 14, 3, 0.98));
+    border: 1px solid rgba(98, 255, 59, 0.46);
     box-shadow:
-        inset 0 0 0 1px rgba(95, 255, 58, 0.08),
-        0 0 12px rgba(45, 222, 12, 0.1);
+        inset 0 1px 0 rgba(216, 255, 204, 0.18),
+        0 0 14px rgba(98, 255, 59, 0.24);
+    color: var(--crt-peak);
 }
 
-[data-theme="retro-crt"] .bubble.user::before {
-    border-color: transparent transparent rgba(2, 12, 2, 0.96) transparent;
-}
-
-[data-theme="retro-crt"] .chat-emoji-glyph {
-    background: rgba(2, 10, 2, 0.86);
-    border: 1px solid rgba(45, 222, 12, 0.22);
-    color: #d8ffca !important;
-    -webkit-text-fill-color: #d8ffca !important;
+/* ── Telemetry Pills & Warning Indicators ── */
+[data-theme="retro-crt"] .app-header .pill {
+    background:
+        linear-gradient(180deg, rgba(8, 28, 8, 0.94), rgba(2, 11, 2, 0.98)) !important;
+    border: 1px solid rgba(57, 230, 20, 0.34) !important;
+    color: var(--crt-bright) !important;
+    -webkit-text-fill-color: var(--crt-bright) !important;
+    font-family: var(--crt-font-mono) !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
     box-shadow:
-        inset 0 0 0 1px rgba(95, 255, 58, 0.04),
-        0 0 8px rgba(0, 0, 0, 0.22);
-    text-shadow: 0 0 7px rgba(95, 255, 58, 0.18) !important;
+        inset 0 1px 0 rgba(216, 255, 204, 0.08),
+        0 0 10px rgba(57, 230, 20, 0.1);
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.26);
 }
 
-[data-theme="retro-crt"] .chat-theme-dropdown {
-    --theme-option-color: var(--crt-text);
+[data-theme="retro-crt"] .app-header .pill-active {
+    border-color: rgba(98, 255, 59, 0.58) !important;
+    color: var(--crt-peak) !important;
+    -webkit-text-fill-color: var(--crt-peak) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(216, 255, 204, 0.14),
+        0 0 14px rgba(98, 255, 59, 0.22);
 }
 
 [data-theme="retro-crt"] .warnings-badge {
-    background: rgba(3, 11, 3, 0.96) !important;
-    color: var(--crt-bright) !important;
-    -webkit-text-fill-color: var(--crt-bright) !important;
-    border-color: rgba(45, 222, 12, 0.5) !important;
+    background: rgba(24, 16, 2, 0.96) !important;
+    color: var(--crt-amber-bright) !important;
+    -webkit-text-fill-color: var(--crt-amber-bright) !important;
+    border: 1px solid rgba(255, 181, 56, 0.65) !important;
     box-shadow:
-        0 0 0 1px rgba(18, 138, 6, 0.2),
-        0 0 8px rgba(45, 222, 12, 0.14) !important;
-    text-shadow: 0 0 5px rgba(95, 255, 58, 0.22) !important;
+        0 0 0 1px rgba(255, 181, 56, 0.22),
+        0 0 10px rgba(255, 181, 56, 0.32) !important;
+    text-shadow: 0 0 6px rgba(255, 181, 56, 0.45) !important;
 }
 
 [data-theme="retro-crt"] .warnings-badge.seen {
-    background: rgba(8, 20, 8, 0.96) !important;
+    background: rgba(4, 16, 4, 0.96) !important;
+    color: var(--crt-text-dim) !important;
+    -webkit-text-fill-color: var(--crt-text-dim) !important;
+    border-color: rgba(57, 230, 20, 0.32) !important;
+    box-shadow: none !important;
 }
 
+/* ── Tactile Terminal Keycap Controls ── */
 [data-theme="retro-crt"] .chat-theme-btn,
 [data-theme="retro-crt"] .session-edge-tab,
+[data-theme="retro-crt"] .integrations-edge-tab,
 [data-theme="retro-crt"] .btn-speaker,
 [data-theme="retro-crt"] .btn-warnings,
 [data-theme="retro-crt"] .select-personality,
+[data-theme="retro-crt"] .personality-mobile-btn,
 [data-theme="retro-crt"] .mood-toggle,
 [data-theme="retro-crt"] .btn-header,
 [data-theme="retro-crt"] .btn-header-link,
@@ -4991,20 +5264,34 @@ html[data-theme="retro-crt"]::before {
 [data-theme="retro-crt"] .mood-btn,
 [data-theme="retro-crt"] .session-new-btn,
 [data-theme="retro-crt"] .session-drawer-close,
+[data-theme="retro-crt"] .integrations-drawer-close,
+[data-theme="retro-crt"] #img-lightbox-close,
 [data-theme="retro-crt"] .modal-btn,
 [data-theme="retro-crt"] .scroll-to-bottom-btn,
 [data-theme="retro-crt"] .copy-btn,
 [data-theme="retro-crt"] .mermaid-btn,
 [data-theme="retro-crt"] .tool-output-block summary {
-    background: rgba(4, 16, 4, 0.96) !important;
-    border: 1px solid rgba(45, 222, 12, 0.28) !important;
+    background:
+        linear-gradient(180deg, rgba(216, 255, 204, 0.06) 0%, transparent 38%),
+        linear-gradient(180deg, rgba(7, 24, 7, 0.96) 0%, rgba(2, 10, 2, 0.98) 100%) !important;
+    border: 1px solid rgba(57, 230, 20, 0.34) !important;
+    border-radius: 5px;
     color: var(--crt-bright) !important;
     -webkit-text-fill-color: var(--crt-bright) !important;
     font-family: var(--crt-font-ui) !important;
+    letter-spacing: 0.04em;
     box-shadow:
-        inset 0 0 0 1px rgba(95, 255, 58, 0.05),
-        0 0 10px rgba(18, 138, 6, 0.08) !important;
-    text-shadow: 0 0 5px rgba(95, 255, 58, 0.14) !important;
+        inset 0 1px 0 rgba(216, 255, 204, 0.12),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.65),
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 10px rgba(57, 230, 20, 0.08) !important;
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.22) !important;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.15s var(--crt-ease);
 }
 
 [data-theme="retro-crt"] .btn-send:hover,
@@ -5015,189 +5302,821 @@ html[data-theme="retro-crt"]::before {
 [data-theme="retro-crt"] .mood-btn:hover,
 [data-theme="retro-crt"] .session-new-btn:hover,
 [data-theme="retro-crt"] .session-drawer-close:hover,
+[data-theme="retro-crt"] .integrations-drawer-close:hover,
+[data-theme="retro-crt"] #img-lightbox-close:hover,
 [data-theme="retro-crt"] .modal-btn:hover,
 [data-theme="retro-crt"] .scroll-to-bottom-btn:hover,
 [data-theme="retro-crt"] .chat-theme-btn:hover,
 [data-theme="retro-crt"] .session-edge-tab:hover,
+[data-theme="retro-crt"] .integrations-edge-tab:hover,
 [data-theme="retro-crt"] .btn-speaker:hover,
 [data-theme="retro-crt"] .btn-warnings:hover,
 [data-theme="retro-crt"] .select-personality:hover,
+[data-theme="retro-crt"] .personality-mobile-btn:hover,
 [data-theme="retro-crt"] .mood-toggle:hover,
 [data-theme="retro-crt"] .btn-header:hover,
 [data-theme="retro-crt"] .btn-header-link:hover,
-[data-theme="retro-crt"] #logout-btn:hover {
-    background: rgba(7, 24, 7, 0.98) !important;
-    border-color: rgba(95, 255, 58, 0.4) !important;
-    color: #b6ff9f !important;
-    -webkit-text-fill-color: #b6ff9f !important;
-}
-
-[data-theme="retro-crt"] .btn-send {
-    background: rgba(6, 22, 6, 0.98) !important;
-}
-
-[data-theme="retro-crt"] .app-header,
-[data-theme="retro-crt"] .app-footer,
-[data-theme="retro-crt"] .session-drawer,
-[data-theme="retro-crt"] .modal-card,
-[data-theme="retro-crt"] .mermaid-modal-content,
-[data-theme="retro-crt"] .input-wrap textarea,
-[data-theme="retro-crt"] .composer-panel,
-[data-theme="retro-crt"] .mood-feedback-row,
-[data-theme="retro-crt"] .attachment-chip,
-[data-theme="retro-crt"] .attachments-panel {
+[data-theme="retro-crt"] #logout-btn:hover,
+[data-theme="retro-crt"] .copy-btn:hover,
+[data-theme="retro-crt"] .mermaid-btn:hover,
+[data-theme="retro-crt"] .tool-output-block summary:hover {
     background:
-        linear-gradient(180deg, rgba(8, 18, 8, 0.98), rgba(2, 9, 2, 0.98)) !important;
-    border-color: rgba(45, 222, 12, 0.22) !important;
+        linear-gradient(180deg, rgba(216, 255, 204, 0.12) 0%, transparent 45%),
+        linear-gradient(180deg, rgba(12, 38, 12, 0.98) 0%, rgba(4, 18, 4, 0.99) 100%) !important;
+    border-color: rgba(98, 255, 59, 0.68) !important;
+    color: var(--crt-peak) !important;
+    -webkit-text-fill-color: var(--crt-peak) !important;
     box-shadow:
-        inset 0 1px 0 rgba(210, 255, 197, 0.03),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.36),
-        0 0 0 1px rgba(18, 138, 6, 0.08),
-        0 18px 34px rgba(0, 0, 0, 0.28) !important;
+        inset 0 1px 0 rgba(216, 255, 204, 0.22),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.68),
+        0 6px 16px rgba(0, 0, 0, 0.55),
+        0 0 16px rgba(98, 255, 59, 0.24) !important;
+    text-shadow: 0 0 8px rgba(216, 255, 204, 0.45) !important;
+    transform: translateY(-1px);
 }
 
-[data-theme="retro-crt"] .app-header,
-[data-theme="retro-crt"] .app-footer,
-[data-theme="retro-crt"] .modal-card,
-[data-theme="retro-crt"] .mermaid-modal-content {
+/* Preserve vertical centering on fixed drawer edge tabs */
+[data-theme="retro-crt"] .session-edge-tab:hover,
+[data-theme="retro-crt"] .session-edge-tab:focus-visible,
+[data-theme="retro-crt"] .integrations-edge-tab:hover,
+[data-theme="retro-crt"] .integrations-edge-tab:focus-visible {
+    transform: translateY(-50%) !important;
+}
+
+[data-theme="retro-crt"] .chat-theme-icon,
+[data-theme="retro-crt"] .personality-chevron,
+[data-theme="retro-crt"] .mood-chevron,
+[data-theme="retro-crt"] .chat-ui-icon {
+    color: var(--crt-bright);
+    filter: drop-shadow(0 0 5px rgba(98, 255, 59, 0.35));
+}
+
+/* ── Greeting Boot Screen & Vector Reticle Avatars ── */
+[data-theme="retro-crt"] .greeting-row {
     position: relative;
+    border: 1px solid rgba(57, 230, 20, 0.26);
+    border-radius: 8px;
+    padding: 2rem 1.75rem;
+    background:
+        linear-gradient(90deg, var(--crt-bright) 0 10px, transparent 10px calc(100% - 10px), var(--crt-bright) calc(100% - 10px) 100%) top / 100% 2px no-repeat,
+        linear-gradient(90deg, var(--crt-bright) 0 10px, transparent 10px calc(100% - 10px), var(--crt-bright) calc(100% - 10px) 100%) bottom / 100% 2px no-repeat,
+        repeating-linear-gradient(180deg, rgba(98, 255, 59, 0.02) 0 1px, transparent 1px 4px),
+        radial-gradient(circle at 50% 24%, rgba(98, 255, 59, 0.08), transparent 65%),
+        linear-gradient(180deg, rgba(4, 16, 4, 0.92), rgba(1, 7, 1, 0.96));
+    box-shadow:
+        inset 0 0 28px rgba(57, 230, 20, 0.06),
+        0 18px 44px rgba(0, 0, 0, 0.65),
+        0 0 22px rgba(57, 230, 20, 0.08);
 }
 
-[data-theme="retro-crt"] #chat-content,
-[data-theme="retro-crt"] .greeting-text,
-[data-theme="retro-crt"] .mood-emotion,
-[data-theme="retro-crt"] .session-item,
-[data-theme="retro-crt"] .session-item-preview,
-[data-theme="retro-crt"] .modal-body,
-[data-theme="retro-crt"] .warnings-item,
-[data-theme="retro-crt"] .warnings-item-desc,
-[data-theme="retro-crt"] .thinking-block > summary,
-[data-theme="retro-crt"] .thinking-content,
-[data-theme="retro-crt"] .bubble,
-[data-theme="retro-crt"] .input-wrap textarea {
+[data-theme="retro-crt"] .greeting-text {
+    color: var(--crt-bright);
+    font-family: var(--crt-font-mono) !important;
+    letter-spacing: 0.03em;
+    text-shadow: 0 0 8px rgba(98, 255, 59, 0.32);
+}
+
+/* Blinking block cursor on the boot greeting line */
+[data-theme="retro-crt"] .greeting-text::after {
+    content: '';
+    display: inline-block;
+    width: 0.56em;
+    height: 1.05em;
+    margin-left: 0.38em;
+    vertical-align: -0.18em;
+    background: var(--crt-bright);
+    box-shadow: 0 0 10px rgba(98, 255, 59, 0.75);
+    animation: crt-blink 1.05s steps(1, end) infinite;
+}
+
+[data-theme="retro-crt"] .greeting-icon,
+[data-theme="retro-crt"] .avatar.bot,
+[data-theme="retro-crt"] .avatar.human {
+    position: relative;
+    background:
+        radial-gradient(circle at 30% 25%, rgba(98, 255, 59, 0.18), transparent 58%),
+        linear-gradient(180deg, rgba(7, 24, 7, 0.96), rgba(2, 9, 2, 0.98));
+    border: 1px solid rgba(98, 255, 59, 0.44);
+    border-radius: 6px;
+    color: var(--crt-bright);
+    box-shadow:
+        inset 0 0 10px rgba(98, 255, 59, 0.14),
+        0 0 14px rgba(57, 230, 20, 0.18);
+}
+
+[data-theme="retro-crt"] .avatar.human {
+    border-color: rgba(216, 255, 204, 0.56);
+    color: var(--crt-peak);
+}
+
+/* Vector reticle corner brackets on avatars */
+[data-theme="retro-crt"] .avatar::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 1px solid rgba(98, 255, 59, 0.68);
+    border-radius: 8px;
+    clip-path: polygon(
+        0 0, 32% 0, 0 32%, 0 0,
+        100% 0, 68% 0, 100% 32%, 100% 0,
+        100% 100%, 68% 100%, 100% 68%, 100% 100%,
+        0 100%, 32% 100%, 0 68%, 0 100%
+    );
+    pointer-events: none;
+    animation: crtReticlePulse 3.6s ease-in-out infinite;
+}
+
+/* ── Message Rows & CRT Terminal Bubbles ── */
+[data-theme="retro-crt"] .msg-row {
+    position: relative;
+    z-index: 3;
+    animation: crtMessageScanIn 0.38s var(--crt-ease) both;
+}
+
+[data-theme="retro-crt"] .bubble {
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
     font-family: var(--crt-font-ui) !important;
+    color: var(--crt-text);
+    text-shadow: 0 0 5px rgba(98, 255, 59, 0.22);
+    transition:
+        border-color 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.22s var(--crt-ease);
 }
 
-[data-theme="retro-crt"] .logo .logo-wordmark-accent,
-[data-theme="retro-crt"] .session-drawer-title,
-[data-theme="retro-crt"] .modal-title,
-[data-theme="retro-crt"] .app-header .pill,
-[data-theme="retro-crt"] .chat-theme-btn,
-[data-theme="retro-crt"] .session-edge-tab,
-[data-theme="retro-crt"] .btn-speaker,
-[data-theme="retro-crt"] .btn-warnings,
-[data-theme="retro-crt"] .select-personality,
-[data-theme="retro-crt"] .mood-toggle,
-[data-theme="retro-crt"] .btn-header,
-[data-theme="retro-crt"] .btn-header-link,
-[data-theme="retro-crt"] #logout-btn,
-[data-theme="retro-crt"] .btn-send,
-[data-theme="retro-crt"] .btn-voice,
-[data-theme="retro-crt"] .btn-more,
-[data-theme="retro-crt"] .composer-tool-btn,
-[data-theme="retro-crt"] .mood-btn,
-[data-theme="retro-crt"] .session-new-btn,
-[data-theme="retro-crt"] .session-drawer-close,
-[data-theme="retro-crt"] .modal-btn,
-[data-theme="retro-crt"] .scroll-to-bottom-btn,
-[data-theme="retro-crt"] .copy-btn,
-[data-theme="retro-crt"] .mermaid-btn,
-[data-theme="retro-crt"] .tool-output-block summary {
-    font-family: var(--crt-font-ui) !important;
-}
-
-[data-theme="retro-crt"] .session-drawer {
-    position: fixed;
-}
-
-[data-theme="retro-crt"] .app-header::before,
-[data-theme="retro-crt"] .app-footer::before,
-[data-theme="retro-crt"] .session-drawer::before,
-[data-theme="retro-crt"] .modal-card::before,
-[data-theme="retro-crt"] .mermaid-modal-content::before {
+/* Scanline sheen + glowing top signal notch inside bubbles */
+[data-theme="retro-crt"] .bubble::after {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
     border-radius: inherit;
     background:
-        linear-gradient(180deg, rgba(221, 255, 214, 0.028), rgba(221, 255, 214, 0.0) 24%),
-        linear-gradient(90deg, rgba(95, 255, 58, 0.024), transparent 18%);
+        linear-gradient(90deg, transparent, rgba(216, 255, 204, 0.72), transparent) left 18px top 0 / 64px 1px no-repeat,
+        repeating-linear-gradient(
+            180deg,
+            rgba(98, 255, 59, 0.018) 0px,
+            rgba(98, 255, 59, 0.018) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, rgba(216, 255, 204, 0.038), transparent 26%),
+        linear-gradient(125deg, transparent 0%, transparent 70%, rgba(98, 255, 59, 0.045) 100%);
 }
 
+[data-theme="retro-crt"] .bubble.user::after {
+    background:
+        linear-gradient(90deg, transparent, rgba(216, 255, 204, 0.85), transparent) right 18px top 0 / 64px 1px no-repeat,
+        repeating-linear-gradient(
+            180deg,
+            rgba(98, 255, 59, 0.022) 0px,
+            rgba(98, 255, 59, 0.022) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, rgba(216, 255, 204, 0.05), transparent 28%),
+        linear-gradient(125deg, rgba(98, 255, 59, 0.04) 0%, transparent 45%, rgba(98, 255, 59, 0.06) 100%);
+}
+
+/* One-shot vertical raster scan sweep across newly rendered bubbles */
+[data-theme="retro-crt"] .bubble.bot::before,
+[data-theme="retro-crt"] .bubble.user::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+        180deg,
+        rgba(98, 255, 59, 0) 36%,
+        rgba(98, 255, 59, 0.14) 48%,
+        rgba(216, 255, 204, 0.26) 50%,
+        rgba(98, 255, 59, 0) 54%
+    ) 0 -30% / 100% 240% no-repeat;
+    mix-blend-mode: screen;
+    opacity: 0;
+    animation: crtBubbleRasterSweep 0.88s var(--crt-ease) 0.04s 1 both;
+}
+
+/* Bot Terminal Output Frame (with left phosphor signal rail) */
+[data-theme="retro-crt"] .bubble.bot {
+    background:
+        linear-gradient(180deg, rgba(98, 255, 59, 0.65), rgba(57, 230, 20, 0.15)) left 0 top 10px / 2px calc(100% - 20px) no-repeat,
+        linear-gradient(180deg, rgba(5, 18, 5, 0.95), rgba(2, 9, 2, 0.98));
+    border: 1px solid rgba(57, 230, 20, 0.30);
+    color: var(--crt-text);
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.05),
+        inset 0 0 22px rgba(28, 168, 8, 0.05),
+        0 10px 28px rgba(0, 0, 0, 0.62),
+        0 0 12px rgba(28, 168, 8, 0.09);
+}
+
+/* User Operator Uplink Frame (with right high-intensity rail) */
+[data-theme="retro-crt"] .bubble.user {
+    background:
+        linear-gradient(180deg, rgba(216, 255, 204, 0.8), rgba(98, 255, 59, 0.25)) right 0 top 10px / 2px calc(100% - 20px) no-repeat,
+        linear-gradient(180deg, rgba(8, 28, 8, 0.96), rgba(3, 13, 3, 0.98));
+    border: 1px solid rgba(98, 255, 59, 0.48);
+    color: #9eff82;
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.28);
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.10),
+        inset 0 0 24px rgba(57, 230, 20, 0.08),
+        0 12px 30px rgba(0, 0, 0, 0.66),
+        0 0 16px rgba(57, 230, 20, 0.14);
+}
+
+[data-theme="retro-crt"] .msg-row:hover .bubble.bot {
+    border-color: rgba(98, 255, 59, 0.56);
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.10),
+        inset 0 0 26px rgba(57, 230, 20, 0.08),
+        0 14px 34px rgba(0, 0, 0, 0.68),
+        0 0 20px rgba(98, 255, 59, 0.16);
+    transform: translateY(-1px);
+}
+
+[data-theme="retro-crt"] .msg-row:hover .bubble.user {
+    border-color: rgba(216, 255, 204, 0.72);
+    box-shadow:
+        inset 0 0 0 1px rgba(216, 255, 204, 0.16),
+        inset 0 0 28px rgba(98, 255, 59, 0.12),
+        0 14px 34px rgba(0, 0, 0, 0.7),
+        0 0 24px rgba(98, 255, 59, 0.22);
+    transform: translateY(-1px);
+}
+
+/* ── Transcript Typography & Phosphor Hierarchy ── */
 [data-theme="retro-crt"] h1,
 [data-theme="retro-crt"] h2,
 [data-theme="retro-crt"] h3,
 [data-theme="retro-crt"] h4 {
-    text-shadow: 0 0 8px rgba(95, 255, 58, 0.3), 0 0 18px rgba(95, 255, 58, 0.1);
+    color: var(--crt-peak);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 8px rgba(98, 255, 59, 0.42),
+        0 0 20px rgba(57, 230, 20, 0.18);
 }
 
-/* ── CRT Code Blocks — monospace terminal feel ── */
+[data-theme="retro-crt"] .bubble h1,
+[data-theme="retro-crt"] .bubble h2,
+[data-theme="retro-crt"] .bubble h3,
+[data-theme="retro-crt"] .bubble h4 {
+    position: relative;
+    padding-left: 0.75rem;
+}
+
+[data-theme="retro-crt"] .bubble h1::before,
+[data-theme="retro-crt"] .bubble h2::before,
+[data-theme="retro-crt"] .bubble h3::before,
+[data-theme="retro-crt"] .bubble h4::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.16em;
+    bottom: 0.16em;
+    width: 3px;
+    border-radius: 1px;
+    background: var(--crt-bright);
+    box-shadow: 0 0 8px rgba(98, 255, 59, 0.75);
+}
+
+[data-theme="retro-crt"] .bubble strong {
+    color: var(--crt-peak);
+    text-shadow: 0 0 8px rgba(216, 255, 204, 0.38);
+}
+
+[data-theme="retro-crt"] .bubble em {
+    color: var(--crt-bright);
+}
+
+[data-theme="retro-crt"] .bubble a {
+    color: var(--crt-peak);
+    text-decoration: underline;
+    text-decoration-style: dashed;
+    text-decoration-color: rgba(98, 255, 59, 0.55);
+    text-underline-offset: 3px;
+    transition: color 0.18s ease, text-shadow 0.18s ease, text-decoration-color 0.18s ease;
+}
+
+[data-theme="retro-crt"] .bubble a:hover {
+    color: #ffffff;
+    text-decoration-style: solid;
+    text-decoration-color: var(--crt-peak);
+    text-shadow: 0 0 12px rgba(98, 255, 59, 0.75);
+}
+
+[data-theme="retro-crt"] .bubble blockquote {
+    margin: 0.65rem 0;
+    padding: 0.45rem 0.85rem;
+    border-left: 2px solid var(--crt-bright);
+    background: linear-gradient(90deg, rgba(98, 255, 59, 0.08), transparent 78%);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .bubble li::marker {
+    color: var(--crt-bright);
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.5);
+}
+
+[data-theme="retro-crt"] .bubble hr {
+    height: 1px;
+    margin: 0.95rem 0;
+    border: 0;
+    background: repeating-linear-gradient(90deg, rgba(98, 255, 59, 0.52) 0 8px, transparent 8px 14px);
+}
+
+[data-theme="retro-crt"] .bubble table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--crt-font-mono);
+    font-size: 0.88em;
+}
+
+[data-theme="retro-crt"] .bubble th {
+    padding: 0.45rem 0.65rem;
+    border: 1px solid rgba(98, 255, 59, 0.36);
+    background: rgba(98, 255, 59, 0.10);
+    color: var(--crt-peak);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+[data-theme="retro-crt"] .bubble td {
+    padding: 0.4rem 0.65rem;
+    border: 1px solid rgba(57, 230, 20, 0.20);
+}
+
+[data-theme="retro-crt"] .bubble tbody tr:nth-child(even) {
+    background: rgba(98, 255, 59, 0.035);
+}
+
+[data-theme="retro-crt"] .message-timestamp {
+    font-family: var(--crt-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--crt-text-dim);
+    opacity: 0.78;
+}
+
+[data-theme="retro-crt"] .msg-row:hover .message-timestamp {
+    color: var(--crt-bright);
+    opacity: 1;
+}
+
+[data-theme="retro-crt"] .chat-emoji-glyph {
+    background: rgba(3, 14, 3, 0.9);
+    border: 1px solid rgba(98, 255, 59, 0.30);
+    color: var(--crt-peak) !important;
+    -webkit-text-fill-color: var(--crt-peak) !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(98, 255, 59, 0.06),
+        0 0 8px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 0 8px rgba(98, 255, 59, 0.28) !important;
+}
+
+/* ── CRT Code Blocks, Tool Output & Thinking Enclosures ── */
 [data-theme="retro-crt"] .code-block,
 [data-theme="retro-crt"] pre,
 [data-theme="retro-crt"] code {
     border-radius: 4px;
-    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-family: var(--crt-font-mono);
 }
 
-/* ── CRT Input Focus Glow ── */
+[data-theme="retro-crt"] .bubble :not(pre) > code {
+    background: rgba(98, 255, 59, 0.11);
+    border: 1px solid rgba(98, 255, 59, 0.30);
+    color: var(--crt-peak);
+    padding: 0.08em 0.42em;
+    border-radius: 4px;
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.25);
+}
+
+[data-theme="retro-crt"] .code-block-wrapper,
+[data-theme="retro-crt"] .tool-output-block .tool-output-content,
+[data-theme="retro-crt"] .thinking-block,
+[data-theme="retro-crt"] .mermaid-container {
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(98, 255, 59, 0.014) 0px,
+            rgba(98, 255, 59, 0.014) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, rgba(2, 10, 2, 0.98), rgba(1, 5, 1, 0.99));
+    border: 1px solid rgba(57, 230, 20, 0.34);
+    border-radius: 5px;
+    box-shadow:
+        inset 0 0 22px rgba(28, 168, 8, 0.07),
+        0 10px 26px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="retro-crt"] .code-header,
+[data-theme="retro-crt"] .line-numbers {
+    background: rgba(98, 255, 59, 0.05);
+    border-color: rgba(57, 230, 20, 0.22);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .code-lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.48em;
+    color: var(--crt-peak);
+    font-family: var(--crt-font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.38);
+}
+
+[data-theme="retro-crt"] .code-lang::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--crt-bright);
+    box-shadow: 0 0 8px rgba(98, 255, 59, 0.85);
+}
+
+/* Multi-tone phosphor syntax highlighting inside code blocks */
+[data-theme="retro-crt"] .hljs,
+[data-theme="retro-crt"] .code-content,
+[data-theme="retro-crt"] .code-content pre {
+    background: transparent;
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] :is(.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-type) {
+    color: var(--crt-peak);
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(216, 255, 204, 0.32);
+}
+
+[data-theme="retro-crt"] :is(.hljs-string, .hljs-attr, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+    color: #98ff7c;
+}
+
+[data-theme="retro-crt"] :is(.hljs-number, .hljs-literal, .hljs-variable, .hljs-template-variable) {
+    color: var(--crt-amber-bright);
+    text-shadow: 0 0 6px rgba(255, 181, 56, 0.25);
+}
+
+[data-theme="retro-crt"] :is(.hljs-title, .hljs-section, .hljs-function) {
+    color: #bdffaa;
+}
+
+[data-theme="retro-crt"] :is(.hljs-comment, .hljs-quote, .hljs-meta) {
+    color: var(--crt-text-dim);
+    font-style: italic;
+}
+
+/* ── Composer Footer, Carrier Line & Armed Send Keycap ── */
+[data-theme="retro-crt"] .app-footer,
+[data-theme="retro-crt"] .session-drawer,
+[data-theme="retro-crt"] .integrations-drawer,
+[data-theme="retro-crt"] .modal-card,
+[data-theme="retro-crt"] .mermaid-modal-content,
+[data-theme="retro-crt"] .input-wrap textarea,
+[data-theme="retro-crt"] .composer-panel,
+[data-theme="retro-crt"] .mood-feedback-row,
+[data-theme="retro-crt"] .attachment-chip,
+[data-theme="retro-crt"] .attachments-panel,
+[data-theme="retro-crt"] .personality-description-card,
+[data-theme="retro-crt"] .todo-debug-panel {
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(98, 255, 59, 0.015) 0px,
+            rgba(98, 255, 59, 0.015) 1px,
+            transparent 1px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, rgba(6, 20, 6, 0.97), rgba(2, 9, 2, 0.99)) !important;
+    border-color: rgba(57, 230, 20, 0.30) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(216, 255, 204, 0.06),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(28, 168, 8, 0.12),
+        0 18px 38px rgba(0, 0, 0, 0.52) !important;
+}
+
+[data-theme="retro-crt"] .app-footer,
+[data-theme="retro-crt"] .modal-card,
+[data-theme="retro-crt"] .mermaid-modal-content {
+    position: relative;
+}
+
+[data-theme="retro-crt"] .input-wrap {
+    position: relative;
+}
+
+/* Carrier-wave beam under the active input box */
+[data-theme="retro-crt"] .input-wrap::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(98, 255, 59, 0.85) 28%,
+        rgba(216, 255, 204, 1) 50%,
+        rgba(98, 255, 59, 0.85) 72%,
+        transparent 100%
+    );
+    box-shadow: 0 0 12px rgba(98, 255, 59, 0.65);
+    transform: scaleX(0);
+    opacity: 0;
+    transition: transform 0.36s var(--crt-ease), opacity 0.25s ease;
+    pointer-events: none;
+}
+
+[data-theme="retro-crt"] .input-wrap:focus-within::after {
+    transform: scaleX(1);
+    opacity: 1;
+}
+
+[data-theme="retro-crt"] .input-wrap textarea {
+    color: var(--crt-peak) !important;
+    caret-color: var(--crt-bright);
+    font-family: var(--crt-font-ui) !important;
+    text-shadow: 0 0 6px rgba(98, 255, 59, 0.25);
+    border-radius: 6px;
+}
+
+[data-theme="retro-crt"] .input-wrap textarea::placeholder {
+    color: var(--crt-text-dim);
+    opacity: 0.72;
+}
+
 [data-theme="retro-crt"] .input-wrap textarea:focus {
-    box-shadow: 0 0 10px rgba(95, 255, 58, 0.3);
+    border-color: rgba(98, 255, 59, 0.65) !important;
+    box-shadow:
+        inset 0 0 16px rgba(98, 255, 59, 0.08),
+        0 0 18px rgba(98, 255, 59, 0.24) !important;
     outline: none;
 }
 
-/* ── CRT Selection ── */
+[data-theme="retro-crt"] .btn-send {
+    background:
+        linear-gradient(180deg, rgba(216, 255, 204, 0.14) 0%, transparent 45%),
+        linear-gradient(180deg, rgba(12, 42, 12, 0.98) 0%, rgba(4, 18, 4, 0.99) 100%) !important;
+    border-color: rgba(98, 255, 59, 0.52) !important;
+    color: var(--crt-peak) !important;
+    -webkit-text-fill-color: var(--crt-peak) !important;
+    font-weight: 700;
+}
+
+[data-theme="retro-crt"] .input-row:has(.input-wrap textarea:not(:placeholder-shown)) .btn-send:not(:disabled) {
+    border-color: rgba(216, 255, 204, 0.78) !important;
+    animation: crtSendArmedPulse 2.2s ease-in-out infinite;
+}
+
+/* ── Status Pill, Oscilloscope Sweep & Typing Indicator ── */
+[data-theme="retro-crt"] .status-pill,
+[data-theme="retro-crt"] .typing-indicator {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(8, 28, 8, 0.95), rgba(2, 10, 2, 0.98));
+    border: 1px solid rgba(98, 255, 59, 0.44);
+    border-radius: 5px;
+    color: var(--crt-peak);
+    font-family: var(--crt-font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    box-shadow:
+        inset 0 1px 0 rgba(216, 255, 204, 0.12),
+        0 0 16px rgba(57, 230, 20, 0.16);
+}
+
+[data-theme="retro-crt"] .status-pill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(98, 255, 59, 0.18), transparent);
+    animation: crtStatusSweep 2.4s linear infinite;
+}
+
+[data-theme="retro-crt"] .pulsing-dot,
+[data-theme="retro-crt"] .typing-dots span {
+    background: var(--crt-bright);
+    box-shadow: 0 0 10px rgba(98, 255, 59, 0.8);
+    animation: crtDotPulse 1.2s ease-in-out infinite;
+}
+
+[data-theme="retro-crt"] .typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+[data-theme="retro-crt"] .typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* ── Drawers, Dropdowns & Modals ── */
+[data-theme="retro-crt"] .session-drawer,
+[data-theme="retro-crt"] .integrations-drawer {
+    position: fixed;
+}
+
+[data-theme="retro-crt"] .chat-theme-dropdown,
+[data-theme="retro-crt"] .personality-dropdown,
+[data-theme="retro-crt"] .mood-panel {
+    --theme-option-color: var(--crt-text);
+    background:
+        repeating-linear-gradient(180deg, rgba(98, 255, 59, 0.016) 0 1px, transparent 1px 4px),
+        linear-gradient(180deg, rgba(6, 20, 6, 0.98), rgba(2, 8, 2, 0.99));
+    border: 1px solid rgba(98, 255, 59, 0.38);
+    border-radius: 6px;
+    box-shadow:
+        0 22px 52px rgba(0, 0, 0, 0.82),
+        0 0 24px rgba(57, 230, 20, 0.16),
+        inset 0 1px 0 rgba(216, 255, 204, 0.10);
+}
+
+[data-theme="retro-crt"] .chat-theme-option,
+[data-theme="retro-crt"] .personality-option,
+[data-theme="retro-crt"] .session-item,
+[data-theme="retro-crt"] .integration-item {
+    position: relative;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    color: var(--crt-text);
+    font-family: var(--crt-font-ui) !important;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+[data-theme="retro-crt"] .chat-theme-option:hover,
+[data-theme="retro-crt"] .personality-option:hover,
+[data-theme="retro-crt"] .session-item:hover,
+[data-theme="retro-crt"] .integration-item:hover {
+    background: rgba(98, 255, 59, 0.10);
+    border-color: rgba(98, 255, 59, 0.30);
+    color: var(--crt-peak);
+}
+
+[data-theme="retro-crt"] .chat-theme-option.active,
+[data-theme="retro-crt"] .personality-option.active,
+[data-theme="retro-crt"] .session-item.active,
+[data-theme="retro-crt"] .session-item.session-active {
+    background: linear-gradient(90deg, rgba(98, 255, 59, 0.18), rgba(57, 230, 20, 0.06));
+    border-color: rgba(98, 255, 59, 0.48);
+    color: var(--crt-peak);
+    box-shadow:
+        inset 3px 0 0 var(--crt-bright),
+        0 0 14px rgba(98, 255, 59, 0.14);
+}
+
+[data-theme="retro-crt"] .session-item::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 3px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--crt-bright), transparent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.28s var(--crt-ease);
+    pointer-events: none;
+}
+
+[data-theme="retro-crt"] .session-item:hover::after {
+    transform: scaleX(1);
+}
+
+[data-theme="retro-crt"] .session-item-preview,
+[data-theme="retro-crt"] .session-drawer-title,
+[data-theme="retro-crt"] .integrations-drawer-title,
+[data-theme="retro-crt"] .modal-title,
+[data-theme="retro-crt"] .modal-body,
+[data-theme="retro-crt"] .warnings-item,
+[data-theme="retro-crt"] .warnings-item-desc,
+[data-theme="retro-crt"] .thinking-block > summary,
+[data-theme="retro-crt"] .thinking-content,
+[data-theme="retro-crt"] .mood-emotion {
+    font-family: var(--crt-font-ui) !important;
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .session-item-meta,
+[data-theme="retro-crt"] .integration-meta,
+[data-theme="retro-crt"] .session-empty,
+[data-theme="retro-crt"] .integrations-empty {
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .scroll-to-bottom-btn.has-new {
+    border-color: var(--crt-bright) !important;
+    color: var(--crt-peak) !important;
+    animation: crtSendArmedPulse 1.6s ease-in-out infinite;
+}
+
+[data-theme="retro-crt"] .session-backdrop,
+[data-theme="retro-crt"] .integrations-backdrop,
+[data-theme="retro-crt"] .mermaid-modal-overlay,
+[data-theme="retro-crt"] #img-lightbox,
+[data-theme="retro-crt"] .modal-overlay {
+    background:
+        radial-gradient(circle at 50% 50%, rgba(57, 230, 20, 0.06), transparent 65%),
+        rgba(0, 5, 0, 0.82);
+    backdrop-filter: blur(8px);
+}
+
+/* ── Selection, Focus States, Scrollbars & Blinking Cursor ── */
 [data-theme="retro-crt"] ::selection {
-    background: rgba(57, 255, 20, 0.3);
+    background: rgba(98, 255, 59, 0.32);
+    color: var(--crt-peak);
+    text-shadow: 0 0 8px rgba(98, 255, 59, 0.65);
 }
 
 [data-theme="retro-crt"] ::-moz-selection {
-    background: rgba(57, 255, 20, 0.3);
+    background: rgba(98, 255, 59, 0.32);
+    color: var(--crt-peak);
 }
 
-/* ── CRT Focus States ── */
 [data-theme="retro-crt"] *:focus-visible {
-    outline: 2px solid rgba(45, 222, 12, 0.7);
+    outline: 2px solid rgba(98, 255, 59, 0.82);
     outline-offset: 2px;
+    box-shadow: 0 0 12px rgba(98, 255, 59, 0.32);
 }
 
-/* ── CRT Scrollbar ── */
 [data-theme="retro-crt"] ::-webkit-scrollbar {
-    width: 6px;
+    width: 7px;
+    height: 7px;
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-track {
-    background: rgba(2, 8, 2, 0.8);
+    background: rgba(1, 8, 1, 0.86);
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-thumb {
-    background: rgba(18, 138, 6, 0.6);
+    background: linear-gradient(180deg, rgba(98, 255, 59, 0.42), rgba(28, 168, 8, 0.58));
     border-radius: 3px;
+    border: 1px solid rgba(98, 255, 59, 0.25);
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-thumb:hover {
-    background: rgba(45, 222, 12, 0.8);
+    background: linear-gradient(180deg, rgba(216, 255, 204, 0.72), rgba(98, 255, 59, 0.78));
+    box-shadow: 0 0 8px rgba(98, 255, 59, 0.5);
 }
 
-/* ── CRT Cursor Blink ── */
 [data-theme="retro-crt"] .typing-cursor {
     animation: crt-blink 1s step-end infinite;
 }
 
-@keyframes crt-blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
+/* ── Mobile & Reduced Motion ── */
+@media (max-width: 767px) {
+    [data-theme="retro-crt"] #chat-box::before {
+        height: 72px;
+    }
+
+    [data-theme="retro-crt"] .greeting-row {
+        padding: 1.35rem 1.1rem;
+    }
 }
 
-/* ── Reduced Motion ── */
 @media (prefers-reduced-motion: reduce) {
     .chat-robot-mascot {
         animation: none;
     }
 
-    [data-theme="retro-crt"] body {
-        animation: none;
+    html[data-theme="retro-crt"]::after,
+    [data-theme="retro-crt"] #chat-box::before,
+    [data-theme="retro-crt"] .app-header::after,
+    [data-theme="retro-crt"] .logo .logo-wordmark-accent,
+    [data-theme="retro-crt"] .greeting-text::after,
+    [data-theme="retro-crt"] .avatar::before,
+    [data-theme="retro-crt"] .msg-row,
+    [data-theme="retro-crt"] .bubble.bot::before,
+    [data-theme="retro-crt"] .bubble.user::before,
+    [data-theme="retro-crt"] .status-pill::before,
+    [data-theme="retro-crt"] .pulsing-dot,
+    [data-theme="retro-crt"] .typing-dots span,
+    [data-theme="retro-crt"] .scroll-to-bottom-btn.has-new,
+    [data-theme="retro-crt"] .input-row:has(.input-wrap textarea:not(:placeholder-shown)) .btn-send:not(:disabled) {
+        animation: none !important;
     }
+
+    [data-theme="retro-crt"] .bubble.bot::before,
+    [data-theme="retro-crt"] .bubble.user::before,
+    [data-theme="retro-crt"] #chat-box::before {
+        display: none;
+    }
+
     [data-theme="retro-crt"] .typing-cursor {
         animation: none;
         opacity: 1;
