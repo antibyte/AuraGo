@@ -1,6 +1,12 @@
 # AuraGo LLM Guardian System
 ## Optionale Sicherheitsebene für kritische Operationen
 
+Tool evaluation and clarification use a ceiling of 8192 completion tokens, including
+provider reasoning. The configured timeout and spending limits still apply. A
+truncated or malformed verdict never becomes an approval; inspect the administrator
+log's completion metadata when a routine operation reaches the fail-safe. Do not
+disable the Guardian or create writable test fixtures while their cleanup is blocked.
+
 ## Executive Summary
 
 Das LLM Guardian System ist eine **optionale, zusätzliche Sicherheitsebene**, die ein dediziertes, kostengünstiges LLM als "Wächter" vor kritischen Operationen schaltet. Es fügt sich nahtlos in das bestehende regex-basierte Guardian-System ein und bietet tiefgehende semantische Analyse bei minimalen Token-Kosten.
