@@ -2,31 +2,15 @@ package server
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
+
+	"aurago/internal/restorepending"
 
 	"gopkg.in/yaml.v3"
 )
 
 func agoIsAllowedRestorePath(clean string) bool {
-	slash := filepath.ToSlash(filepath.Clean(clean))
-	switch slash {
-	case "config.yaml", "data", "prompts", "agent_workspace", "agent_workspace/skills", "agent_workspace/agent_skills", "agent_workspace/tools", "agent_workspace/workdir":
-		return true
-	}
-	for _, prefix := range []string{
-		"data/",
-		"prompts/",
-		"agent_workspace/skills/",
-		"agent_workspace/agent_skills/",
-		"agent_workspace/tools/",
-		"agent_workspace/workdir/",
-	} {
-		if strings.HasPrefix(slash, prefix) {
-			return true
-		}
-	}
-	return false
+	return restorepending.IsAllowedRestorePath(clean)
 }
 
 func agoConfigContainsPlaintextSecret(data []byte) bool {

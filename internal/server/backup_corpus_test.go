@@ -92,7 +92,7 @@ func TestBackupCorpusAlwaysSnapshotsAndRestoresCustomDirectory(t *testing.T) {
 			if rr.Code != 200 {
 				t.Fatal(rr.Code, rr.Body.String())
 			}
-			applyPendingRestoreForTest(t, destCfg.ConfigPath)
+			applyPendingRestoreForTest(t, destCfg.ConfigPath, destVector)
 			restored, err := sql.Open("sqlite", config.DocumentCorpusPath(destCfg))
 			if err != nil {
 				t.Fatal(err)

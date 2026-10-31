@@ -67,13 +67,26 @@ func agoJoinLabels(labels []string) string { return strings.Join(labels, ", ") }
 // outcome of the last startup apply.
 func handleBackupRestoreStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
+		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		root, err := agoArchiveBaseDir(filepath.Dir(s.Cfg.ConfigPath))
 		if err != nil {
 			jsonError(w, "Cannot determine restore root", http.StatusInternalServerError)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			// Serialize with imports so a half-written pending tree is never removed.
+			s.CfgSaveMu.Lock()
+			discarded, err := restorepending.Discard(root)
+			s.CfgSaveMu.Unlock()
+			if err != nil {
+				s.Logger.Error("[Backup] Failed to discard pending restore", "error", err)
+				jsonError(w, "Die vorgemerkte Wiederherstellung konnte nicht verworfen werden.", http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, map[string]bool{"discarded": discarded})
 			return
 		}
 		st := restorepending.ReadState(root)
