@@ -5173,6 +5173,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] {
     color-scheme: dark;
     --galaxy-gap: 16px; --galaxy-bar-height: 76px; --galaxy-bar-padding: 10px; --galaxy-rail-width: 80px;
+    --galaxy-footer-pad: 14px;
     --galaxy-lane-inset: calc(var(--galaxy-gap) * 2 + var(--galaxy-rail-width)); --galaxy-radius: 22px;
     --galaxy-mx: 50%; --galaxy-my: 18%;
     --accent: #b7afff; --accent-secondary: #ca94ff; --accent-tertiary: #81b9ff;
@@ -5188,6 +5189,8 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
     --modal-border: #a39beb; --sidebar-bg: #0c1025; --card-bg: #111731;
     --galaxy-glass: radial-gradient(560px circle at var(--galaxy-mx) var(--galaxy-my), #8ba4ff22, transparent 62%), linear-gradient(135deg, #252745a8, #05091bcc 38%, #080e24c9 80%, #303b6338);
     --galaxy-edge: inset 0 1px 1px #e2d6ff66, inset 0 -1px 6px #818aff44, 0 8px 28px #0009;
+    --galaxy-glyph-meter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.4' width='13' height='2.7' rx='1.2'/%3E%3Crect x='1.5' y='6.65' width='9.6' height='2.7' rx='1.2'/%3E%3Crect x='1.5' y='10.9' width='6.2' height='2.7' rx='1.2'/%3E%3C/svg%3E");
+    --galaxy-glyph-coin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6.2' fill='none' stroke='%23000' stroke-width='1.7'/%3E%3Cpath d='M8 4.3v7.4M5.8 6.4h4.4M5.8 9.6h4.4' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
     --galaxy-poster: url('/img/galaxy/poster-2k.webp?v=galaxy-2');
     --chat-image-opacity: 0;
 }
@@ -5248,7 +5251,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] .logo-wordmark-base { font: 650 22px/1.1 'Geist', sans-serif; letter-spacing: 4px; background: none; -webkit-text-fill-color: currentColor; filter: none; text-shadow: none; animation: none; }
 [data-theme="galaxy"] .logo-wordmark-accent { color: #fcfaff; text-shadow: 0 0 14px #c7b8ff38; }
 [data-theme="galaxy"] .logo-wordmark-base { color: #c17dff; text-shadow: 0 0 16px #b96bff4d; }
-[data-theme="galaxy"] .galaxy-brand-tag { position: absolute; left: 54px; bottom: 3px; width: max-content; white-space: pre; font-size: 7px; font-weight: 600; letter-spacing: 1.4px; line-height: 1.45; color: #b9c0ee; }
+[data-theme="galaxy"] .galaxy-brand-tag { position: absolute; left: 54px; bottom: 3px; width: max-content; white-space: pre; font-size: 8px; font-weight: 600; letter-spacing: 1.2px; line-height: 1.45; color: #b9c0ee; }
 [data-theme="galaxy"] .app-header .header-actions {
     --chat-header-control-size: 48px; --chat-header-control-radius: 12px;
     position: static; flex: 1; min-width: 0; display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center;
@@ -5296,7 +5299,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] #personality-label,
 [data-theme="galaxy"] #moodText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-theme="galaxy"] #personality-select .galaxy-control-label,
-[data-theme="galaxy"] #moodToggle .galaxy-control-label { position: absolute; left: 47px; bottom: 6px; right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 7px; letter-spacing: 1.2px; text-transform: uppercase; color: #b7bdf0; }
+[data-theme="galaxy"] #moodToggle .galaxy-control-label { position: absolute; left: 47px; bottom: 6px; right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #b7bdf0; }
 [data-theme="galaxy"] #moodToggle .galaxy-control-label { left: 36px; }
 [data-theme="galaxy"] #warnings-btn { width: auto !important; min-width: 72px; display: flex !important; gap: 8px; padding: 6px 10px !important; }
 [data-theme="galaxy"] #warnings-badge { position: static; transform: none; display: inline-flex; min-width: 24px; height: 26px; padding: 0 6px; align-items: center; justify-content: center; border-radius: 6px; font: 500 13px/1 'Geist', sans-serif; color: #ebe7ff; background: #070b1b; border: 1px solid #777da566; box-shadow: none; }
@@ -5304,7 +5307,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] #logout-btn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 14px !important; gap: 8px; white-space: nowrap; text-decoration: none; font-size: 13px; }
 [data-theme="galaxy"] .app-header .galaxy-clock { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; height: 48px; min-width: 76px; margin-left: 6px; padding: 0 4px 0 16px; border-left: 1px solid #8a93d655; color: #eef0ff; pointer-events: none; }
 [data-theme="galaxy"] .galaxy-clock time { font-size: 15px; letter-spacing: 1.6px; font-variant-numeric: tabular-nums; line-height: 1.1; text-shadow: 0 0 12px #8ca8ff44; }
-[data-theme="galaxy"] .galaxy-clock small { font-size: 7.5px; letter-spacing: .9px; text-transform: uppercase; color: #b7c5fd; margin-top: 3px; white-space: nowrap; }
+[data-theme="galaxy"] .galaxy-clock small { font-size: 8.5px; letter-spacing: .9px; text-transform: uppercase; color: #b7c5fd; margin-top: 3px; white-space: nowrap; }
 
 /* ── Rails: navigation left, status right ──────────────────────────────────── */
 /* Rails sit under the bars (footer 35, header 40) so the composer popover and header dropdowns
@@ -5326,14 +5329,19 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] .galaxy-nav > .galaxy-nav-settings::before { content: ''; position: absolute; left: 12px; right: 12px; top: -7px; border-top: 1px solid #929bd766; }
 [data-theme="galaxy"] .galaxy-nav .chat-ui-icon { width: 22px; height: 22px; transition: transform 180ms ease, filter 180ms ease; }
 [data-theme="galaxy"] .galaxy-nav > :hover .chat-ui-icon { transform: scale(1.08); filter: drop-shadow(0 0 6px #9eb2ff88); }
-[data-theme="galaxy"] .galaxy-nav .galaxy-control-label { font-size: 8px; line-height: 1.1; letter-spacing: .1px; color: #b4bdf0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-theme="galaxy"] .galaxy-nav .galaxy-control-label { font-size: 8.5px; line-height: 1.1; letter-spacing: .1px; color: #b4bdf0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-theme="galaxy"] .galaxy-nav > :hover .galaxy-control-label,
 [data-theme="galaxy"] .galaxy-nav > #session-toggle-btn .galaxy-control-label { color: #eef0ff; }
-[data-theme="galaxy"] .galaxy-status .pill { flex: 0 0 auto; width: 70px; height: auto; min-height: 48px; margin: 0; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center; white-space: normal; overflow-wrap: anywhere; background: linear-gradient(155deg, #0d132ee0, #060919e6); border: 1px solid #7274ad; border-radius: 12px; box-shadow: inset 0 1px 2px #b6beff29, 0 4px 12px #0006; color: #d2d7ff; font-size: 10px; line-height: 1.2; font-variant-numeric: tabular-nums; transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease; }
+[data-theme="galaxy"] .galaxy-status .pill { flex: 0 0 auto; width: 70px; height: auto; min-height: 48px; margin: 0; padding: 6px 4px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; text-align: center; white-space: normal; overflow-wrap: anywhere; background: linear-gradient(155deg, #0d132ee0, #060919e6); border: 1px solid #7274ad; border-radius: 12px; box-shadow: inset 0 1px 2px #b6beff29, 0 4px 12px #0006; color: #d2d7ff; font-size: 10px; line-height: 1.2; font-variant-numeric: tabular-nums; transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease; }
 [data-theme="galaxy"] .galaxy-status .pill.is-hidden { display: none !important; }
 [data-theme="galaxy"] .galaxy-status .pill.is-updated { border-color: #aeb6ff; box-shadow: inset 0 1px 2px #b6beff40, 0 0 14px #7c8bff80; color: #fff; }
-[data-theme="galaxy"] #connectionPill { color: #00e3be; border-color: #167b79; font-weight: 450; text-shadow: none; font-size: 9px; letter-spacing: -.1px; overflow-wrap: break-word; }
-[data-theme="galaxy"] #connectionPill::before { content: ''; position: static; flex: 0 0 9px; width: 9px; height: 9px; margin-bottom: 1px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
+/* The counter pills carry a glyph so the rail reads as an instrument cluster. */
+[data-theme="galaxy"] #tokenCounter::before,
+[data-theme="galaxy"] #budgetPill::before { content: ''; flex: 0 0 13px; width: 13px; height: 13px; background: currentColor; opacity: .78; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; }
+[data-theme="galaxy"] #tokenCounter::before { -webkit-mask-image: var(--galaxy-glyph-meter); mask-image: var(--galaxy-glyph-meter); }
+[data-theme="galaxy"] #budgetPill::before { -webkit-mask-image: var(--galaxy-glyph-coin); mask-image: var(--galaxy-glyph-coin); }
+[data-theme="galaxy"] #connectionPill { color: #00e3be; border-color: #167b79; font-weight: 450; text-shadow: none; font-size: 10px; letter-spacing: -.1px; overflow-wrap: break-word; }
+[data-theme="galaxy"] #connectionPill::before { content: ''; position: static; flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
 [data-theme="galaxy"] #connectionPill.pill-disconnected { color: #ff8d95; border-color: #7b3a46; }
 [data-theme="galaxy"] #connectionPill.pill-reconnecting { color: #ffce80; border-color: #7b6a3a; }
 [data-theme="galaxy"] #debug-pill { color: #ffd8a6; border-color: #7a6a4a; }
@@ -5360,8 +5368,8 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] .greeting-row > .greeting-icon { display: none; }
 [data-theme="galaxy"] .galaxy-welcome { position: relative; display: flex; flex-direction: column; align-items: center; padding: 34px 36px 30px; }
 [data-theme="galaxy"] .galaxy-welcome::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 0; width: 220px; height: 220px; transform: translateX(-50%); border-radius: 50%; pointer-events: none; filter: blur(6px); background: radial-gradient(circle, #8d6cff33 0%, #5a8cff1f 38%, transparent 68%); }
-[data-theme="galaxy"] .galaxy-welcome-status { position: absolute; top: 16px; right: 18px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #bfcaff; text-transform: uppercase; letter-spacing: .7px; }
-[data-theme="galaxy"] .galaxy-welcome-status::before { content: ""; width: 8px; height: 8px; background: #ff8494; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+[data-theme="galaxy"] .galaxy-welcome-status { position: absolute; top: 14px; right: 16px; display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 10px; border: 1px solid #7f8fd66b; border-radius: 999px; background: #0a1024a6; box-shadow: inset 0 1px 2px #b6beff26, 0 4px 12px #0006; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 9.5px; font-weight: 550; color: #bfcaff; text-transform: uppercase; letter-spacing: .7px; }
+[data-theme="galaxy"] .galaxy-welcome-status::before { content: ""; flex: 0 0 7px; width: 7px; height: 7px; background: #ff8494; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
 [data-theme="galaxy"] .galaxy-welcome-status[data-state="connected"]::before { background: #00e1b4; color: #00e1b4; }
 [data-theme="galaxy"] .galaxy-welcome-status[data-state="reconnecting"]::before { background: #ffce80; color: #ffce80; }
 [data-theme="galaxy"] .galaxy-orb { pointer-events: none; width: 150px; height: 150px; object-fit: contain; transform: none; filter: drop-shadow(0 0 18px #9253fb66) drop-shadow(0 0 34px #5695ff33); }
@@ -5420,7 +5428,13 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 [data-theme="galaxy"] #user-input { width: 100%; min-height: calc(var(--galaxy-bar-height) - 2 * var(--galaxy-bar-padding) - 2px); max-height: 180px; padding: 14px 18px; margin: 0; box-sizing: border-box; background: linear-gradient(140deg, #101a35eb, #060c1fe6); border: 1px solid #b7b5ec; border-radius: 14px; box-shadow: inset 0 1px 5px #c5cfff55, inset 0 -3px 9px #6977d944; color: #f6f1ff; font-family: inherit; font-size: 16px; line-height: 1.5; transition: border-color 180ms ease, box-shadow 200ms ease, background 200ms ease; }
 [data-theme="galaxy"] #user-input::placeholder { color: #8992b6; opacity: 1; }
 [data-theme="galaxy"] #user-input:focus { border-color: #d6cfff; box-shadow: inset 0 1px 6px #d2daff66, inset 0 -3px 10px #7a88eb55, 0 0 18px #7e88ff40; outline: 2px solid #acafff; outline-offset: 2px; }
-[data-theme="galaxy"] #composer-panel { position: absolute; inset: auto auto calc(100% + 18px) 0; display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; max-width: min(640px, calc(100vw - 2 * var(--galaxy-lane-inset))); padding: 12px; border: 1px solid #a79cde; border-radius: 18px; background: #0c1128f5; box-shadow: var(--galaxy-edge); backdrop-filter: blur(18px); z-index: 60; }
+/* The panel belongs to the chat lane: it clears the navigation rail instead of covering it.
+   The form starts after the footer margin and its horizontal padding, so the lane inset
+   has to be reduced by both to land on the same edge as the conversation column.
+   The base popover centres itself with translateX(-50%) on top of left: 50%; the Galaxy
+   panel anchors on the left instead, so that shift has to be cancelled or the panel
+   snaps sideways once the entrance animation ends. */
+[data-theme="galaxy"] #composer-panel { position: absolute; top: auto; right: auto; bottom: calc(100% + 18px); left: calc(var(--galaxy-lane-inset) - var(--galaxy-gap) - var(--galaxy-footer-pad)); transform: none; display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; max-width: min(640px, calc(100vw - 2 * var(--galaxy-lane-inset))); padding: 12px; border: 1px solid #a79cde; border-radius: 18px; background: #0c1128f5; box-shadow: var(--galaxy-edge); backdrop-filter: blur(18px); z-index: 60; }
 [data-theme="galaxy"] #composer-panel.is-hidden { display: none !important; }
 [data-theme="galaxy"] #composer-panel > button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; min-width: 70px; min-height: 60px; border-radius: 10px; border: 1px solid #717cab66; padding: 10px; background: #28325766; color: #e1e3ff; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 [data-theme="galaxy"] #composer-panel > button:hover:not(:disabled) { background: #3d4b8288; border-color: #a9b2ecaa; box-shadow: inset 0 0 12px #8ca0ff33, 0 0 10px #6d7ce044; transform: translateY(-1px); color: #fff; }
@@ -5557,7 +5571,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
     [data-theme="galaxy"] #user-input { padding: 12px 14px; font-size: 15px; }
 }
 @media (max-width: 767px) {
-    [data-theme="galaxy"] { --galaxy-gap: 12px; --galaxy-bar-height: 64px; --galaxy-bar-padding: 6px; }
+    [data-theme="galaxy"] { --galaxy-gap: 12px; --galaxy-bar-height: 64px; --galaxy-bar-padding: 6px; --galaxy-footer-pad: 10px; --galaxy-lane-inset: 64px; }
     [data-theme="galaxy"] .app-header { margin: var(--galaxy-gap) var(--galaxy-gap) 0; padding: 6px 8px; gap: 4px; border-radius: 20px; }
     [data-theme="galaxy"] body:has(#radialMenu) .app-header { padding-right: 56px; }
     [data-theme="galaxy"] .radial-menu { top: 20px; right: 20px; }
@@ -5601,7 +5615,7 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
     [data-theme="galaxy"] #send-btn .galaxy-control-label { font-size: 10px; }
     [data-theme="galaxy"] #chat-form > button .chat-ui-icon,
     [data-theme="galaxy"] .realtime-speech-launcher-wave { width: 22px; height: 22px; }
-    [data-theme="galaxy"] #composer-panel { inset: auto 0 calc(100% + 20px) 0; max-width: none; }
+    [data-theme="galaxy"] #composer-panel { top: auto; right: 0; bottom: calc(100% + 20px); left: calc(var(--galaxy-lane-inset) - var(--galaxy-gap) - var(--galaxy-footer-pad)); width: auto; max-width: none; }
     [data-theme="galaxy"] #agentStatusContainer { margin: 0 12px 10px 64px; }
     [data-theme="galaxy"] .scroll-to-bottom-btn { right: 16px; bottom: calc(var(--galaxy-footer-height, 150px) + var(--galaxy-gap) + 12px); }
     [data-theme="galaxy"] .chat-theme-dropdown,
