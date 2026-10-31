@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"html/template"
 	"io/fs"
 	"log/slog"
 	"strings"
@@ -221,7 +220,7 @@ func TestSetupTemplateI18NInsertion(t *testing.T) {
 
 	i18n.Load(uiFS, slog.Default())
 
-	tmpl, err := template.ParseFS(uiFS, "setup.html")
+	tmpl, err := parseUIPage(uiFS, "setup.html")
 	if err != nil {
 		t.Fatal("failed to parse setup.html template:", err)
 	}

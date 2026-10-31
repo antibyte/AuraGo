@@ -466,8 +466,16 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   value before label), then the primary tab strip (`pw-tabs`/`pw-tab` with
   tablist semantics), then an optional `pw-toolbar`, then content. Page
   titles live in the content area, never in the app header.
-- Every operational app header uses `.header-left` wrapping the logo link,
-  plus density and theme toggles in `.header-actions`.
+- Workspace and entry pages never hand-write the app header or the logo. The shared
+  header lives in `partials/app-header.html` (packed via the `partials` directory in
+  `assets/web-assets.json`; parsed by `parseUIPage` in `internal/server`). New workspace
+  pages must call `{{template "app-header" .}}` (data needs `Page` = the
+  `data-workspace-page` key, set by `uiTemplateData`), add `common.page_<id>` to
+  `lang/common/*.json`, and use `data-i18n-page-section="common.page_<id>"` on `<html>`
+  for the tab title. Page-specific controls go into the slot blocks
+  `app-header-lead`, `app-header-status`, `app-header-actions` (define them in the page
+  template). Entry pages use `{{template "brand-lockup" .}}`. The header carries the
+  logo, subtitle, density toggle, language slot and theme toggle.
 - Search fields on operational pages use `pw-search` (often dual-classed with
   legacy ids such as `ct-search`, `sk-search`, `kc-search`, or
   `gallery-search`). List pages expose one page-level `pw-search` in the

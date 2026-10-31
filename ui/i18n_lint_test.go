@@ -259,6 +259,7 @@ func TestFrontend_HTML_HardcodedGermanUIText(t *testing.T) {
 
 	htmlFiles := []string{
 		"index.html",
+		"partials/app-header.html",
 		"config.html",
 		"containers.html",
 		"dashboard.html",
@@ -322,6 +323,7 @@ func TestFrontend_HTML_NoTextFallbacksInsideDataI18n(t *testing.T) {
 	htmlFiles := []string{
 		"404.html",
 		"index.html",
+		"partials/app-header.html",
 		"config.html",
 		"containers.html",
 		"dashboard.html",
@@ -377,6 +379,7 @@ func TestFrontend_HTML_NoAttributeFallbacksInsideDataI18n(t *testing.T) {
 	htmlFiles := []string{
 		"404.html",
 		"index.html",
+		"partials/app-header.html",
 		"config.html",
 		"containers.html",
 		"dashboard.html",
@@ -505,6 +508,7 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 	staticHTMLFiles := []string{
 		"404.html",
 		"index.html",
+		"partials/app-header.html",
 		"config.html",
 		"containers.html",
 		"dashboard.html",

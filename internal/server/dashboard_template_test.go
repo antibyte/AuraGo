@@ -67,8 +67,10 @@ func TestDashboardTemplatePartialsAreListedAndPacked(t *testing.T) {
 		if root.Source != "ui" {
 			continue
 		}
-		if !slices.Contains(root.Directories, "dashboard") {
-			t.Fatalf("assets/web-assets.json ui directories = %v; without \"dashboard\" the release asset pack drops the section partials", root.Directories)
+		for _, dir := range []string{"dashboard", "partials"} {
+			if !slices.Contains(root.Directories, dir) {
+				t.Fatalf("assets/web-assets.json ui directories = %v; without %q the release asset pack drops the template partials", root.Directories, dir)
+			}
 		}
 		return
 	}

@@ -64,7 +64,7 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 // handleAuthLoginPage serves the embedded login page template.
 func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 	var tmpl *template.Template
-	t, err := template.ParseFS(uiFS, "login.html")
+	t, err := parseUIPage(uiFS, "login.html")
 	if err == nil {
 		tmpl = t
 	}

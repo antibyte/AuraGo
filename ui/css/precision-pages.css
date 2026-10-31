@@ -1135,3 +1135,121 @@
         border-radius: var(--pw-radius-lg) var(--pw-radius-lg) var(--pw-radius-sm) var(--pw-radius-sm);
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Shared app header (partials/app-header.html). Everything is scoped to
+   [data-app-header] / [data-ui-lang-slot] so pages with hand-written headers
+   stay untouched until they adopt the partial.
+   --------------------------------------------------------------------------- */
+
+.pw-page .app-header[data-app-header] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pw-space-3);
+    /* Clears the fixed radial menu trigger in the top-right corner. */
+    padding-right: max(64px, clamp(1rem, 2.5vw, 2rem));
+}
+
+.pw-page .app-header[data-app-header] .header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--pw-space-3);
+    min-width: 0;
+}
+
+.pw-page .app-header[data-app-header] .logo {
+    min-width: 0;
+    gap: var(--pw-space-2);
+}
+
+.pw-page .app-header[data-app-header] .logo-subtitle {
+    margin-left: var(--pw-space-2);
+    overflow: hidden;
+    color: var(--pw-muted);
+    font-size: var(--text-xs, 0.75rem);
+    font-variant: normal;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    opacity: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.pw-page .app-header[data-app-header] .header-actions {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    gap: var(--pw-space-2);
+    /* The language menu hangs below the button; a scroll container would clip it. */
+    overflow: visible;
+    padding-right: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.pw-page .app-header[data-app-header] .header-actions::after {
+    content: none;
+}
+
+.pw-page [data-ui-lang-slot] {
+    position: relative;
+    inset: auto;
+    z-index: 30;
+}
+
+.pw-page [data-ui-lang-slot] .ui-lang-btn {
+    width: auto;
+    min-width: 44px;
+    height: 44px;
+    gap: var(--pw-space-1);
+    padding: 0 var(--pw-space-2);
+    border: 1px solid var(--pw-line);
+    border-radius: 8px;
+    background: var(--pw-surface);
+    color: var(--pw-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    box-shadow: none;
+    backdrop-filter: none;
+    transition: none;
+}
+
+.pw-page [data-ui-lang-slot] .ui-lang-btn:hover {
+    transform: none;
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-soft);
+}
+
+.pw-page [data-ui-lang-slot] .ui-lang-btn svg {
+    flex: 0 0 auto;
+}
+
+.pw-page [data-ui-lang-slot] .ui-lang-menu {
+    top: calc(100% + 8px);
+    bottom: auto;
+    left: auto;
+    right: 0;
+    max-height: calc(100dvh - 88px);
+    background: var(--pw-surface);
+    border: 1px solid var(--pw-line);
+    box-shadow: none;
+    transition: none;
+}
+
+@media (max-width: 640px) {
+    .pw-page .app-header[data-app-header] .connection-status [data-i18n] {
+        display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .pw-page .app-header[data-app-header] .header-actions {
+        gap: 4px;
+    }
+
+    .pw-page [data-ui-lang-slot] .ui-lang-code {
+        display: none;
+    }
+}

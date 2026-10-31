@@ -326,5 +326,17 @@
   "common.go2rtc_source.hint_homekit": "先在 go2rtc 网页界面中配对摄像头,再粘贴其显示的 homekit:// URL。",
   "common.go2rtc_source.hint_roborock": "在 go2rtc 网页界面登录后,复制其中的 roborock:// URL。",
   "common.go2rtc_source.hint_wyze": "从 go2rtc 网页界面(Add → Wyze)复制 wyze:// URL。",
-  "common.go2rtc_source.hint_webrtc": "WHEP、AWS Kinesis、OpenIPC 或 SwitchBot 等 WebRTC 来源。格式请参阅文档。"
+  "common.go2rtc_source.hint_webrtc": "WHEP、AWS Kinesis、OpenIPC 或 SwitchBot 等 WebRTC 来源。格式请参阅文档。",
+  "common.page_config": "配置",
+  "common.page_plans": "计划",
+  "common.page_truenas": "TrueNAS 存储",
+  "common.page_knowledge": "知识中心",
+  "common.page_skills": "技能",
+  "common.page_missions": "任务控制",
+  "common.page_containers": "容器",
+  "common.page_invasion": "入侵控制",
+  "common.page_media": "媒体视图",
+  "common.page_cheatsheets": "备忘单",
+  "common.page_dashboard": "仪表盘",
+  "common.ui_language": "语言"
 }

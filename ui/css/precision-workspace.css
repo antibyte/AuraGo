@@ -269,3 +269,26 @@
         animation-iteration-count: 1 !important;
     }
 }
+
+/* Shared brand lockup (partials/app-header.html "brand-lockup"): the chat robot
+   icon plus the two-tone wordmark. Scoped to the new markup so pages that have
+   not adopted the partial keep their own logo. */
+.pw-page .logo-icon:has(> .aurago-brand-icon) {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    overflow: hidden;
+    border-radius: var(--pw-radius-sm, 8px);
+    background: var(--pw-surface-soft);
+    box-shadow: none;
+    animation: none;
+}
+
+.pw-page .aurago-brand-icon {
+    display: block;
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}

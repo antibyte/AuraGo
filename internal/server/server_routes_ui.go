@@ -117,7 +117,20 @@ var dashboardSectionPartials = []string{
 
 // parseDashboardTemplate parses ui/dashboard.html together with its section partials.
 func parseDashboardTemplate(fsys fs.FS) (*template.Template, error) {
-	return template.ParseFS(fsys, append([]string{"dashboard.html"}, dashboardSectionPartials...)...)
+	return parseUIPage(fsys, "dashboard.html", dashboardSectionPartials...)
+}
+
+// uiAppHeaderPartial is the shared workspace header (templates "app-header",
+// "brand-lockup" and the empty slot blocks). It is appended to every page that
+// may use it; pages that never call it render unchanged.
+const uiAppHeaderPartial = "partials/app-header.html"
+
+// parseUIPage parses a page template together with extra files and the shared
+// app-header partial. Use it for every page parse site.
+func parseUIPage(fsys fs.FS, file string, extra ...string) (*template.Template, error) {
+	files := append([]string{file}, extra...)
+	files = append(files, uiAppHeaderPartial)
+	return template.ParseFS(fsys, files...)
 }
 
 // uiTemplateData returns the common template data map shared by all HTML pages.
@@ -129,6 +142,7 @@ func uiTemplateData(lang string, pages ...string) map[string]interface{} {
 		"BuildVersion": uiBuildVersion,
 	}
 	if len(pages) == 1 {
+		data["Page"] = pages[0]
 		if sections, ok := uiI18NSections[pages[0]]; ok {
 			data[uiI18NSectionsDataKey] = append([]string(nil), sections...)
 		}
@@ -702,7 +716,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 		// Config page (separate template, guarded by WebConfig.Enabled)
 		if s.Cfg.WebConfig.Enabled {
-			cfgTmpl, cfgErr := template.ParseFS(uiFS, "config.html")
+			cfgTmpl, cfgErr := parseUIPage(uiFS, "config.html")
 			if cfgErr != nil {
 				s.Logger.Error("Failed to parse config UI template", "error", cfgErr)
 			}
@@ -773,7 +787,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			})
 			s.Logger.Info("Virtual Desktop UI enabled at /desktop")
 
-			plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")
+			plansTmpl, plansErr := parseUIPage(uiFS, "plans.html")
 			if plansErr != nil {
 				s.Logger.Error("Failed to parse plans UI template", "error", plansErr)
 			}
@@ -798,7 +812,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Mission Control UI /missions redirects to /missions/v2")
 
 			// Mission Control V2 page (enhanced with triggers)
-			missionV2Tmpl, missionV2Err := template.ParseFS(uiFS, "missions_v2.html")
+			missionV2Tmpl, missionV2Err := parseUIPage(uiFS, "missions_v2.html")
 			if missionV2Err != nil {
 				s.Logger.Error("Failed to parse mission V2 UI template", "error", missionV2Err)
 			}
@@ -817,7 +831,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Mission Control V2 UI enabled at /missions/v2")
 
 			// Cheat Sheet Editor page
-			cheatsheetTmpl, cheatsheetErr := template.ParseFS(uiFS, "cheatsheets.html")
+			cheatsheetTmpl, cheatsheetErr := parseUIPage(uiFS, "cheatsheets.html")
 			if cheatsheetErr != nil {
 				s.Logger.Error("Failed to parse cheatsheet UI template", "error", cheatsheetErr)
 			}
@@ -836,7 +850,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Cheat Sheet Editor UI enabled at /cheatsheets")
 
 			// ── Media View Page (replaces Gallery) ──
-			mediaTmpl, mediaTmplErr := template.ParseFS(uiFS, "media.html")
+			mediaTmpl, mediaTmplErr := parseUIPage(uiFS, "media.html")
 			if mediaTmplErr != nil {
 				s.Logger.Error("Failed to parse media UI template", "error", mediaTmplErr)
 			}
@@ -860,7 +874,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Media View UI enabled at /media (/gallery redirects here)")
 
 			// ── Knowledge Center Page ──
-			knowledgeTmpl, knowledgeTmplErr := template.ParseFS(uiFS, "knowledge.html")
+			knowledgeTmpl, knowledgeTmplErr := parseUIPage(uiFS, "knowledge.html")
 			if knowledgeTmplErr != nil {
 				s.Logger.Error("Failed to parse knowledge UI template", "error", knowledgeTmplErr)
 			}
@@ -879,7 +893,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Knowledge Center UI enabled at /knowledge")
 
 			// ── Containers Page ──
-			containersTmpl, containersTmplErr := template.ParseFS(uiFS, "containers.html")
+			containersTmpl, containersTmplErr := parseUIPage(uiFS, "containers.html")
 			if containersTmplErr != nil {
 				s.Logger.Error("Failed to parse containers UI template", "error", containersTmplErr)
 			}
@@ -898,7 +912,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("Containers UI enabled at /containers")
 
 			// ── TrueNAS Storage Page ──
-			truenasTmpl, truenasTmplErr := template.ParseFS(uiFS, "truenas.html")
+			truenasTmpl, truenasTmplErr := parseUIPage(uiFS, "truenas.html")
 			if truenasTmplErr != nil {
 				s.Logger.Error("Failed to parse TrueNAS UI template", "error", truenasTmplErr)
 			}
@@ -917,7 +931,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			s.Logger.Info("TrueNAS Storage UI enabled at /truenas")
 
 			// ── Skills Manager Page ──
-			skillsTmpl, skillsTmplErr := template.ParseFS(uiFS, "skills.html")
+			skillsTmpl, skillsTmplErr := parseUIPage(uiFS, "skills.html")
 			if skillsTmplErr != nil {
 				s.Logger.Error("Failed to parse Skills UI template", "error", skillsTmplErr)
 			}
@@ -937,7 +951,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		}
 
 		// Invasion Control UI page (always registered — same pattern as /setup)
-		invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
+		invasionTmpl, invasionErr := parseUIPage(uiFS, "invasion_control.html")
 		if invasionErr != nil {
 			s.Logger.Error("Failed to parse invasion control UI template", "error", invasionErr)
 		}
@@ -956,7 +970,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		s.Logger.Info("Invasion Control UI registered at /invasion")
 
 		// Quick Setup wizard page (always available — parsed outside WebConfig guard)
-		setupTmpl, setupErr := template.ParseFS(uiFS, "setup.html")
+		setupTmpl, setupErr := parseUIPage(uiFS, "setup.html")
 		if setupErr != nil {
 			s.Logger.Error("Failed to parse setup UI template", "error", setupErr)
 		}
@@ -987,7 +1001,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		mux.HandleFunc("/auth/logout", handleAuthLogout(s))
 
 		// 404 page template
-		notFoundTmpl, notFoundErr := template.ParseFS(uiFS, "404.html")
+		notFoundTmpl, notFoundErr := parseUIPage(uiFS, "404.html")
 		if notFoundErr != nil {
 			s.Logger.Error("Failed to parse 404 UI template", "error", notFoundErr)
 		}

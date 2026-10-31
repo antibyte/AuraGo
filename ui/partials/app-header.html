@@ -1,0 +1,13 @@
+{{define "brand-lockup"}}<span class="logo-icon"><img class="aurago-brand-icon" src="/img/chat-ui-icons/robot.png?v={{.BuildVersion}}" alt="" width="32" height="32" decoding="async"></span><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>{{end}}
+{{define "app-header"}}<header class="app-header" data-app-header>
+  <div class="header-left">{{template "app-header-lead" .}}
+    <a href="/" class="logo">{{template "brand-lockup" .}}<span class="logo-subtitle" data-i18n="common.page_{{.Page}}"></span></a>
+  </div>
+  <div class="header-actions">{{template "app-header-status" .}}{{template "app-header-actions" .}}
+    <button id="pw-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle data-i18n-title="common.workspace_density_toggle" data-i18n-aria-label="common.workspace_density_toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg><span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span></button>
+    <div class="ui-lang-switcher" id="ui-lang-switcher" data-ui-lang-slot><button type="button" class="ui-lang-btn" id="ui-lang-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="ui-lang-menu" data-i18n-title="common.ui_language" data-i18n-aria-label="common.ui_language"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span class="ui-lang-code">{{.Lang}}</span></button></div>
+    <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
+  </div>
+</header>
+<div id="radialMenuAnchor"></div>{{end}}
+{{define "app-header-lead"}}{{end}}{{define "app-header-status"}}{{end}}{{define "app-header-actions"}}{{end}}

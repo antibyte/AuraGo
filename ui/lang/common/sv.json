@@ -326,5 +326,17 @@
   "common.go2rtc_source.hint_homekit": "Para först ihop kameran i go2rtc:s webbgränssnitt och klistra sedan in homekit://-URL:en som visas där.",
   "common.go2rtc_source.hint_roborock": "Kopiera roborock://-URL:en från go2rtc:s webbgränssnitt efter att du loggat in där.",
   "common.go2rtc_source.hint_wyze": "Kopiera wyze://-URL:en från go2rtc:s webbgränssnitt (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "WebRTC-källor som WHEP, AWS Kinesis, OpenIPC eller SwitchBot. Se dokumentationen för formatet."
+  "common.go2rtc_source.hint_webrtc": "WebRTC-källor som WHEP, AWS Kinesis, OpenIPC eller SwitchBot. Se dokumentationen för formatet.",
+  "common.page_config": "Konfiguration",
+  "common.page_plans": "Planer",
+  "common.page_truenas": "TrueNAS lagring",
+  "common.page_knowledge": "Kunskapscenter",
+  "common.page_skills": "Färdigheter",
+  "common.page_missions": "Uppdragskontroll",
+  "common.page_containers": "Behållare",
+  "common.page_invasion": "Invasions Kontroll",
+  "common.page_media": "Medievy",
+  "common.page_cheatsheets": "Fuskblad",
+  "common.page_dashboard": "Instrumentpanel",
+  "common.ui_language": "Språk"
 }

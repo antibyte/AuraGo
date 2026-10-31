@@ -326,5 +326,17 @@
   "common.go2rtc_source.hint_homekit": "Emparelhe primeiro a câmara na interface web do go2rtc e depois cole o URL homekit:// apresentado.",
   "common.go2rtc_source.hint_roborock": "Copie o URL roborock:// da interface web do go2rtc depois de iniciar sessão aí.",
   "common.go2rtc_source.hint_wyze": "Copie o URL wyze:// da interface web do go2rtc (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "Origens WebRTC como WHEP, AWS Kinesis, OpenIPC ou SwitchBot. Consulte a documentação para o formato."
+  "common.go2rtc_source.hint_webrtc": "Origens WebRTC como WHEP, AWS Kinesis, OpenIPC ou SwitchBot. Consulte a documentação para o formato.",
+  "common.page_config": "configuração",
+  "common.page_plans": "Planos",
+  "common.page_truenas": "Armazenamento TrueNAS",
+  "common.page_knowledge": "Centro de Conhecimento",
+  "common.page_skills": "Habilidades",
+  "common.page_missions": "Missões",
+  "common.page_containers": "Contêineres",
+  "common.page_invasion": "Controle de Invasão",
+  "common.page_media": "Vista de mídia",
+  "common.page_cheatsheets": "Folha de dicas",
+  "common.page_dashboard": "Painel",
+  "common.ui_language": "Idioma"
 }

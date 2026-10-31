@@ -326,5 +326,17 @@
   "common.go2rtc_source.hint_homekit": "まずgo2rtcのWebインターフェースでカメラをペアリングし、表示されたhomekit:// URLを貼り付けます。",
   "common.go2rtc_source.hint_roborock": "go2rtcのWebインターフェースにログインしてから、roborock:// URLをコピーします。",
   "common.go2rtc_source.hint_wyze": "go2rtcのWebインターフェース(Add → Wyze)からwyze:// URLをコピーします。",
-  "common.go2rtc_source.hint_webrtc": "WHEP、AWS Kinesis、OpenIPC、SwitchBotなどのWebRTCソース。形式についてはドキュメントを参照してください。"
+  "common.go2rtc_source.hint_webrtc": "WHEP、AWS Kinesis、OpenIPC、SwitchBotなどのWebRTCソース。形式についてはドキュメントを参照してください。",
+  "common.page_config": "設定",
+  "common.page_plans": "プラン",
+  "common.page_truenas": "TrueNAS ストレージ",
+  "common.page_knowledge": "ナレッジセンター",
+  "common.page_skills": "スキル",
+  "common.page_missions": "ミッションコントロール",
+  "common.page_containers": "コンテナ",
+  "common.page_invasion": "インベージョンコントロール",
+  "common.page_media": "メディアビュー",
+  "common.page_cheatsheets": "チートシート",
+  "common.page_dashboard": "ダッシュボード",
+  "common.ui_language": "言語"
 }
