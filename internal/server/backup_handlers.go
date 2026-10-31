@@ -432,6 +432,14 @@ func agoValidateSQLiteDB(path string) error {
 
 // ── Create backup ────────────────────────────────────────────────────────────
 
+const (
+	backupCreateMaxBodyBytes     = 64 << 10
+	backupCreateMaxPasswordBytes = 1024
+)
+
+// exportVaultSecretsFn is a seam so tests can force vault export failures.
+var exportVaultSecretsFn = exportVaultSecrets
+
 // handleBackupCreate builds a .ago archive from the running instance's files
 // and streams it to the client as a download.
 func handleBackupCreate(s *Server) http.HandlerFunc {
@@ -446,8 +454,27 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			IncludeVectorDB bool   `json:"include_vectordb"`
 			IncludeWorkdir  bool   `json:"include_workdir"`
 		}
-		body, _ := io.ReadAll(io.LimitReader(r.Body, 1024))
-		json.Unmarshal(body, &req)
+		// Never fall back to a plaintext backup because of a malformed or
+		// truncated request: reject it instead.
+		body, err := io.ReadAll(io.LimitReader(r.Body, backupCreateMaxBodyBytes+1))
+		if err != nil {
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if len(body) > backupCreateMaxBodyBytes {
+			jsonError(w, "Request body too large", http.StatusBadRequest)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := json.Unmarshal(body, &req); err != nil {
+				jsonError(w, "Invalid JSON request body", http.StatusBadRequest)
+				return
+			}
+		}
+		if len(req.Password) > backupCreateMaxPasswordBytes {
+			jsonError(w, "Password too long", http.StatusBadRequest)
+			return
+		}
 
 		absConfig, _ := filepath.Abs(s.Cfg.ConfigPath)
 		configRoot := filepath.Dir(absConfig)
@@ -790,8 +817,10 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		vaultIncluded := false
 		tokenStoreIncluded := false
 		if req.Password != "" && s.Vault != nil {
-			if vaultBlob, err := exportVaultSecrets(s.Vault, req.Password); err != nil {
+			if vaultBlob, err := exportVaultSecretsFn(s.Vault, req.Password); err != nil {
 				s.Logger.Warn("[Backup] Could not export vault secrets", "error", err)
+				jsonError(w, "Vault secrets could not be exported; backup aborted so it is not silently incomplete.", http.StatusInternalServerError)
+				return
 			} else if len(vaultBlob) > 0 {
 				if vw, err := zw.Create("vault_secrets.enc"); err == nil {
 					if _, err := vw.Write(vaultBlob); err != nil {
@@ -809,6 +838,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 			if tokenBlob, tokenCount, err := exportTokenStore(s.Vault, filepath.Join(absData, "tokens.json"), req.Password); err != nil {
 				s.Logger.Warn("[Backup] Could not export portable token store", "error", err)
+				jsonError(w, "API token store could not be exported; backup aborted so it is not silently incomplete.", http.StatusInternalServerError)
+				return
 			} else if len(tokenBlob) > 0 {
 				if tw, err := zw.Create("token_store.enc"); err == nil {
 					if _, err := tw.Write(tokenBlob); err != nil {
