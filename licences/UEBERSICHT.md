@@ -1,5 +1,15 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Kaggle und optionale Notebook-Laufzeit
+
+Die generierten API-Verträge stammen aus Kaggle SDK 0.1.38 (Copyright 2018 Kaggle Inc,
+Apache-2.0); das Python-SDK wird nicht installiert. Das optionale Jupyter-Image
+basiert auf dem per OCI-Digest gepinnten `scipy-notebook` vom 26.10.2026.
+Jupyter Docker Stacks: BSD-3-Clause, Copyright 2001–2015 IPython Development Team
+und 2015– Jupyter Development Team. Die enthaltenen Python-Pakete behalten ihre
+eigenen Lizenzen und Hinweise im Image. Quellen und Lizenztexte:
+`THIRD_PARTY_NOTICES.md`, `texts/Apache-2.0.txt`, `texts/BSD-3-Clause.txt`.
+
 ## Optionaler Horizon-Schutz
 
 `Horizon-Labs/prompt-injection-guard-small`, Revision

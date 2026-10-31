@@ -2100,6 +2100,38 @@ evomap:
     allow_report: false                                 # prepared for future versions; MVP denies report operations
     allow_bounties: false                               # prepared for future versions; MVP denies bounty operations
     # Store node_secret as evomap_node_secret and API key as evomap_api_key in the encrypted vault.
+# Kaggle credentials are stored only in the encrypted Vault through the Config UI.
+kaggle:
+  enabled: false
+  read_only: true
+  auth_mode: token # token or explicitly selected legacy
+  username: "" # Legacy username; current tokens resolve their account on Kaggle.
+  allow_download: false
+  allow_create: false
+  allow_update: false
+  allow_publish: false
+  allow_delete: false
+  allow_submit: false
+  allow_remote_execute: false
+  allow_gpu: false
+  allow_tpu: false
+  allow_internet: false
+  allowed_owners: [] # Own account is allowed; additional owners require an explicit entry.
+  max_transfer_mb: 2048
+  max_storage_mb: 10240
+  max_remote_jobs: 1
+  remote_timeout_minutes: 60
+  request_timeout_seconds: 60
+  local:
+    enabled: false
+    allow_execute: false
+    allow_internet: false
+    max_sessions: 1
+    cpu_cores: 2
+    memory_mb: 4096
+    idle_minutes: 15
+    cell_timeout_minutes: 30
+
 huggingface:
     enabled: false                                      # platform integration; public reads can work without a token
     read_only: true                                     # blocks writes, Job starts, and cancellation; authenticated Job inspection remains available

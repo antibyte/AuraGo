@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Kaggle credentials (`kaggle_` Vault prefix) are integration-owned and blocked from Python export. Native platform operations and local notebook execution use the shared `internal/kaggle` and `internal/notebooks` services; see their cross-component contracts.
+
 - `virtualDesktopEvent` assigns one unique event ID before serializing tool
   output or sending browser events. Preserve it across SSE and the direct
   Desktop voice-action stream so the shell launches an app only once.

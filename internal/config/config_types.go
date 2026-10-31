@@ -2562,6 +2562,7 @@ type Config struct {
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
 	Manus       ManusConfig       `yaml:"manus" json:"manus"`
 	HuggingFace HuggingFaceConfig `yaml:"huggingface" json:"huggingface"`
+	Kaggle      KaggleConfig      `yaml:"kaggle" json:"kaggle"`
 	Evomap      EvomapConfig      `yaml:"evomap" json:"evomap"`
 	MCPServer   struct {
 		Enabled           bool     `yaml:"enabled"`

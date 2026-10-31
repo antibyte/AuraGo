@@ -51,6 +51,8 @@ internal/cydcreator/template/** text=auto eol=lf
 internal/cydcreator/testdata/** text=auto eol=lf
 internal/cydcreator/testdata/**/partitions.csv text eol=lf -whitespace
 deploy/docker/cyd-builder/** text=auto eol=lf
+deploy/docker/kaggle-notebook/** text=auto eol=lf
+scripts/generate-kaggle-contracts.py text eol=lf
 deploy/docker/Dockerfile.cyd-builder text eol=lf
 internal/server/testdata/cyd_builder_stub/** text eol=lf
 
