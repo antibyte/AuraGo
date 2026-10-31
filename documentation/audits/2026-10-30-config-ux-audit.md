@@ -357,6 +357,27 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 > - **Nicht erreichbare Module:** `onedrive` und `devices` sind in `SECTIONS` nicht verlinkt.
 > - **Umgebungsbedingter Hänger:** `TestConfigSpacingBrowser/browser_automation` hängt hier schon vor Welle 1, vermutlich wegen der Windows-Animationseinstellung.
 
+> **Stand Welle 2 (2026-10-31): umgesetzt** (Plan `plans/2026-10-31-config-ux-wave2.md`).
+> - **Guard:** `TestConfigEveryControlLabeledBrowser` rendert alle Sektionen (verschachtelte `enabled` an) und verlangt für jedes sichtbare
+>   Steuerelement ein eigenes Label und eine eigene Beschreibung (`.field-help` der Einzelgruppe oder `aria-describedby`). Start: 802 Lücken
+>   in 85 Sektionen, mit strengerer Prüfung weitere 49 – alle geschlossen, Baseline `ui/testdata/config_text_gaps.txt` leer.
+> - **Generische Felder:** 284 übersetzte Labels (`ui/lang/config/generic/`) und 64 neue Hilfen; alle Felder der Tabelle in §4 haben Hilfe.
+> - **Eigene Renderer:** Hilfen für SIP, Telefonagent, Echtzeit-Sprache, Lokale Modelle, LLM-Wächter (Tool-Beschreibungen jetzt übersetzt),
+>   Server, SQL, Security-Proxy, Homepage, Sandbox, TTS u. v. m.; vorhandene, nie gerenderte Hilfen angeschlossen; Platzhalter-Hilfen (U12) und
+>   hartkodierte Texte (U14) ersetzt; Sicherheitswarnungen bei `ssh_insecure_host_key`, MCP `allow_private_network`/`allow_destructive`, `behind_proxy`.
+> - **Sidebar:** alle 129 Kurzbeschreibungen als ein Satz „was der Bereich tut“ (Test `TestConfigSectionDescriptionContract`); gog/Google
+>   Workspace, die zwei MCP-Einträge, Decisions, Manifest, OmniRoute, Dograh, treg, EvoMap, RuView sind unterscheidbar beschrieben (U13).
+> - **U15:** `t(a) || t(b)` durch das gemeinsame `tOr` ersetzt, statischer Verbotstest.
+> - **Sprachen:** alle neuen und geänderten Texte in 16 Sprachen; globaler Paritätstest (`ui/lang/config/**`, `help`, `ruview`, `common`,
+>   `action_policy`) ohne Baseline-Reste; Test gegen widersprüchliche doppelte Keys.
+> - **Review-Fixes:** Hilfe zu `server.host` (leer = nur lokal), SQL-Zugangsdaten (Benutzer + Passwort zusammen), MeshCore-Grenzen, SIP-Jitter (Vielfaches von 20).
+>
+> **Offen nach Welle 2:**
+> - Der Guard sieht keine Modale und keine Felder hinter Auswahlwerten (z. B. Web-Scraper-Zusammenfassungsmodus); diese wurden per Code-Lesen
+>   versorgt, aber nicht automatisch geprüft. SIP-Provider-Assistent, MeshCore-Kanalregeln und og-Modal-Selects haben nur Labels.
+> - EvoMap-Beschreibung ist mangels Doku vage formuliert – fachlich prüfen.
+> - Neue `.field-help`-Elemente in Telefonagent-, Echtzeit-Sprache-, Homepage-, Sandbox- und MCP-Karten nicht visuell abgenommen.
+
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
    Erfolg/Fehler **inkl. Server-Grund**, `role=status`; Toast nur zusätzlich. Ersetzt die ~40 `*-test-result`-Varianten.
