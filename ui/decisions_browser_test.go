@@ -98,16 +98,16 @@ func TestDecisionsProviderConfigBrowser(t *testing.T) {
 		t.Fatal("creating an OpenRouter profile must remain available while the Decisions setup draft is incomplete")
 	}
 	page.MustEval(`()=>document.querySelector('[data-decisions-create-provider]').click()`)
-	waitForJSBool(t, page, `()=>!!document.querySelector('#provider-modal-overlay')`)
+	waitForJSBool(t, page, `()=>!!document.querySelector('#provider-dialog')`)
 	if !page.MustEval(`()=>{
-		const modal=document.querySelector('#provider-modal-overlay');
+		const modal=document.querySelector('#provider-dialog');
 		const tab=key=>modal.querySelector('[data-prov-tab="'+key+'"]');
 		return document.querySelector('#prov-usage')?.value==='decisions' && document.querySelector('#prov-type')?.value==='openrouter' && document.querySelector('#prov-type')?.disabled===true && document.querySelector('#prov-url')?.value==='https://openrouter.ai/api/v1' && document.querySelector('#prov-url')?.disabled===true && document.querySelector('#prov-model')?.value==='' && ['model','capabilities','pricing'].every(key=>tab(key)?.classList.contains('is-hidden'));
 	}`).Bool() {
 		t.Fatal("Create Decisions profile did not open a canonical OpenRouter-only form without chat model fields")
 	}
-	page.MustElement(`#provider-modal-close-btn`).MustClick()
-	if !page.MustEval(`()=>!document.querySelector('#provider-modal-overlay') && AuraConfigState.isDirty()`).Bool() {
+	page.MustElement(`#provider-dialog .modal-close`).MustClick()
+	if !page.MustEval(`()=>!document.querySelector('#provider-dialog') && AuraConfigState.isDirty()`).Bool() {
 		t.Fatal("closing the provider form lost the incomplete Decisions setup draft")
 	}
 	if !page.MustEval(`()=>document.querySelector('[data-decisions-action="test-provider"]')?.disabled===true`).Bool() {

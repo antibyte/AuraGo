@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "例如 a1b2c3d4e5f6...",
   "config.providers.add_model": "添加模型",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 API 密钥",
-  "config.providers.auth_type_api_key_option": "🔑 API 密钥",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 授权码",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2 授权码",
+  "config.providers.auth_type_api_key": "API 密钥",
+  "config.providers.auth_type_api_key_option": "API 密钥",
+  "config.providers.auth_type_oauth2": "OAuth2 授权码",
+  "config.providers.auth_type_oauth2_option": "OAuth2 授权码",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "认证",
   "config.providers.authorize": "授权",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "留空以保持现有密钥。",
   "config.providers.keep_existing_secret": "留空以保持现有密钥。",
   "config.providers.key_placeholder_existing": "•••••••• (未更改)",
-  "config.providers.key_set": "✔ 已设置",
+  "config.providers.key_set": "已设置",
   "config.providers.loading": "加载中...",
   "config.providers.meshcentral_test_title": "MeshCentral 连接测试",
   "config.providers.model_name": "模型",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "所选提供商不存在：{paths}。请在这些设置中选择现有提供商。",
   "config.providers.search_help": "按名称、类型或模型筛选提供商列表。",
   "config.providers.filter_type_help": "仅显示某一类型的提供商。",
-  "config.providers.filter_role_help": "仅显示分配给特定用途的提供商，例如主模型或嵌入。"
+  "config.providers.filter_role_help": "仅显示分配给特定用途的提供商，例如主模型或嵌入。",
+  "config.providers.copy_failed": "自动复制失败，请手动复制链接。"
 }

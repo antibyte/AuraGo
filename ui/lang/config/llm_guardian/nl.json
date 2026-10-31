@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Niveau voor uitzondering",
   "config.llm_guardian.override_level_for": "Niveau voor {tool}",
   "config.llm_guardian.override_remove": "Uitzondering verwijderen",
-  "config.llm_guardian.override_add": "Uitzondering toevoegen"
+  "config.llm_guardian.override_add": "Uitzondering toevoegen",
+  "config.llm_guardian.risk_high": "Hoog risico",
+  "config.llm_guardian.risk_elevated": "Verhoogd risico"
 }

@@ -13,12 +13,6 @@ github gh-badge-public
 github gh-badge-stars
 go2rtc source-badge
 google_workspace vault-badge
-providers free-pill
-providers provider-pill
-providers provider-pill-oauth
-rules rules-pill
-rules rules-pill-ok
-rules rules-pill-warning
 secrets system-badge
 sql_connections driver-badge
 sql_connections perm-badge

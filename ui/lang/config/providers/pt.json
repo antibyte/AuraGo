@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "ex. a1b2c3d4e5f6...",
   "config.providers.add_model": "Adicionar modelo",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 Chave API",
-  "config.providers.auth_type_api_key_option": "🔑 Chave API",
-  "config.providers.auth_type_oauth2": "🔐 Código de autorização OAuth2",
-  "config.providers.auth_type_oauth2_option": "🔐 Código de Autorização OAuth2",
+  "config.providers.auth_type_api_key": "Chave API",
+  "config.providers.auth_type_api_key_option": "Chave API",
+  "config.providers.auth_type_oauth2": "Código de autorização OAuth2",
+  "config.providers.auth_type_oauth2_option": "Código de Autorização OAuth2",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autenticação",
   "config.providers.authorize": "Autorizar",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Deixe vazio para manter a chave existente.",
   "config.providers.keep_existing_secret": "Deixe vazio para manter o segredo existente.",
   "config.providers.key_placeholder_existing": "•••••••• (inalterado)",
-  "config.providers.key_set": "✔ definido",
+  "config.providers.key_set": "definido",
   "config.providers.loading": "Carregando...",
   "config.providers.meshcentral_test_title": "Teste de conexao do MeshCentral",
   "config.providers.model_name": "Modelo",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Fornecedores selecionados em falta: {paths}. Escolhe um fornecedor existente nestas definições.",
   "config.providers.search_help": "Filtra a lista de provedores por nome, tipo ou modelo.",
   "config.providers.filter_type_help": "Mostra apenas provedores de um tipo.",
-  "config.providers.filter_role_help": "Mostra apenas provedores atribuídos a uma função específica, como o modelo principal ou embeddings."
+  "config.providers.filter_role_help": "Mostra apenas provedores atribuídos a uma função específica, como o modelo principal ou embeddings.",
+  "config.providers.copy_failed": "A cópia automática falhou. Copie a ligação manualmente."
 }

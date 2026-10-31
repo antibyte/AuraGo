@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "p.ej. a1b2c3d4e5f6...",
   "config.providers.add_model": "Añadir modelo",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 Clave API",
-  "config.providers.auth_type_api_key_option": "🔑 Clave API",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 Código de Autorización",
-  "config.providers.auth_type_oauth2_option": "🔐 Código de Autorización OAuth2",
+  "config.providers.auth_type_api_key": "Clave API",
+  "config.providers.auth_type_api_key_option": "Clave API",
+  "config.providers.auth_type_oauth2": "OAuth2 Código de Autorización",
+  "config.providers.auth_type_oauth2_option": "Código de Autorización OAuth2",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autenticación",
   "config.providers.authorize": "Autorizar",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Déjalo vacío para mantener la clave existente.",
   "config.providers.keep_existing_secret": "Déjalo vacío para mantener el secreto existente.",
   "config.providers.key_placeholder_existing": "•••••••• (sin cambios)",
-  "config.providers.key_set": "✔ configurado",
+  "config.providers.key_set": "configurado",
   "config.providers.loading": "Cargando...",
   "config.providers.meshcentral_test_title": "Prueba de conexion de MeshCentral",
   "config.providers.model_name": "Modelo",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Selecciones de proveedor inexistentes: {paths}. Selecciona un proveedor disponible en esos ajustes.",
   "config.providers.filter_role_help": "Muestra solo los proveedores asignados a una función concreta, como el modelo principal o los embeddings.",
   "config.providers.filter_type_help": "Muestra solo los proveedores de un tipo.",
-  "config.providers.search_help": "Filtra la lista de proveedores por nombre, tipo o modelo."
+  "config.providers.search_help": "Filtra la lista de proveedores por nombre, tipo o modelo.",
+  "config.providers.copy_failed": "No se pudo copiar automáticamente. Copia el enlace a mano."
 }

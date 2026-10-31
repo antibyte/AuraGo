@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Stufe für Ausnahme",
   "config.llm_guardian.override_level_for": "Stufe für {tool}",
   "config.llm_guardian.override_remove": "Ausnahme entfernen",
-  "config.llm_guardian.override_add": "Ausnahme hinzufügen"
+  "config.llm_guardian.override_add": "Ausnahme hinzufügen",
+  "config.llm_guardian.risk_high": "Hohes Risiko",
+  "config.llm_guardian.risk_elevated": "Erhöhtes Risiko"
 }

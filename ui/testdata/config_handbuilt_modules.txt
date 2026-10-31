@@ -49,7 +49,6 @@ netlify
 network_shares
 newspaper
 obsidian
-ollama
 omniroute
 onedrive
 output_compression

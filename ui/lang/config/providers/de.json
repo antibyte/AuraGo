@@ -19,7 +19,7 @@
   "config.providers.authorized": "Autorisiert",
   "config.providers.token_expired": "Token abgelaufen",
   "config.providers.not_authorized": "Nicht autorisiert",
-  "config.providers.key_set": "✔ gesetzt",
+  "config.providers.key_set": "gesetzt",
   "config.providers.id_help": "Eindeutige Kennung (z.B. main, vision-ollama, llama-3.1-8b). Kleinbuchstaben; Punkte, Bindestriche und Unterstriche erlaubt.",
   "config.providers.display_name": "Anzeigename",
   "config.providers.type_help": "Provider-Typ bestimmt API-Kompatibilität und Auto-Fill der Base URL.",
@@ -75,8 +75,8 @@
   "config.providers.field_client_id": "Client-ID",
   "config.providers.field_client_secret": "Client-Geheimnis",
   "config.providers.field_scopes": "Bereiche",
-  "config.providers.auth_type_api_key": "🔑 API Schlüssel",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2-Autorisierungscode",
+  "config.providers.auth_type_api_key": "API Schlüssel",
+  "config.providers.auth_type_oauth2": "OAuth2-Autorisierungscode",
   "config.providers.type_openai": "openai",
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_ollama": "ollama",
@@ -127,8 +127,8 @@
   "config.providers.field_model_label": "Modell",
   "config.providers.model_placeholder": "gpt-4o / llama3 / ...",
   "config.providers.account_id_placeholder": "z.B. a1b2c3d4e5f6...",
-  "config.providers.auth_type_api_key_option": "🔑 API-Schlüssel",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2-Autorisierungscode",
+  "config.providers.auth_type_api_key_option": "API-Schlüssel",
+  "config.providers.auth_type_oauth2_option": "OAuth2-Autorisierungscode",
   "config.providers.field_api_key_label": "API-Schlüssel",
   "config.providers.api_key_placeholder": "sk-...",
   "config.providers.field_auth_url_label": "Autorisierungs-URL",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Fehlende Provider-Auswahl: {paths}. Wähle dort einen vorhandenen Provider aus.",
   "config.providers.search_help": "Filtert die Anbieterliste nach Name, Typ oder Modell.",
   "config.providers.filter_type_help": "Zeigt nur Anbieter eines bestimmten Typs.",
-  "config.providers.filter_role_help": "Zeigt nur Anbieter, die einer bestimmten Aufgabe zugeordnet sind, etwa Hauptmodell oder Embeddings."
+  "config.providers.filter_role_help": "Zeigt nur Anbieter, die einer bestimmten Aufgabe zugeordnet sind, etwa Hauptmodell oder Embeddings.",
+  "config.providers.copy_failed": "Automatisches Kopieren ist fehlgeschlagen. Bitte kopiere den Link von Hand."
 }

@@ -92,5 +92,7 @@
   "config.llm_guardian.tool_treg_call": "Volání nástroje treg",
   "config.llm_guardian.tool_treg_catalog": "Procházení katalogu treg",
   "config.llm_guardian.tool_treg_status": "Dotaz na stav treg",
-  "config.llm_guardian.tool_webdav": "Přístup k souborům WebDAV"
+  "config.llm_guardian.tool_webdav": "Přístup k souborům WebDAV",
+  "config.llm_guardian.risk_high": "Vysoké riziko",
+  "config.llm_guardian.risk_elevated": "Zvýšené riziko"
 }

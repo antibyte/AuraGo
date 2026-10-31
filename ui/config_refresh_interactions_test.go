@@ -248,26 +248,26 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 
 	page.MustEval(`async () => {await selectSection('providers'); resetDirtySnapshot();}`)
 	page.MustElement(".prov-section-actions button").MustClick()
-	waitForJSBool(t, page, `() => !!document.getElementById('provider-modal-overlay')`)
+	waitForJSBool(t, page, `() => !!document.getElementById('provider-dialog')`)
 	for _, width := range []int{390, 768, 1024, 1440, 1920} {
 		page.MustSetViewport(width, 900, 1, width == 390)
 		for _, theme := range []string{"dark", "light"} {
 			for _, density := range []string{"comfortable", "compact"} {
 				page.MustEval(`(theme,density) => {document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;AuraPrecisionWorkspace.setDensity(density);}`, theme, density)
-				if page.MustEval(`() => document.documentElement.scrollWidth>innerWidth+1 || document.querySelector('.prov-modal-panel').getBoundingClientRect().right>innerWidth+1 || [...document.querySelectorAll('.prov-modal-panel .field-input')].some(el=>getComputedStyle(el).fontSize!=='16px')`).Bool() {
+				if page.MustEval(`() => document.documentElement.scrollWidth>innerWidth+1 || document.querySelector('#provider-dialog .modal').getBoundingClientRect().right>innerWidth+1 || [...document.querySelectorAll('#provider-dialog .field-input')].some(el=>getComputedStyle(el).fontSize!=='16px')`).Bool() {
 					t.Errorf("provider dialog layout fails at %d %s %s", width, theme, density)
 				}
 			}
 		}
 	}
 	page.MustEval(`() => AuraPrecisionWorkspace.setDensity('comfortable')`)
-	waitForJSBool(t, page, `() => document.getElementById('provider-modal-overlay').contains(document.activeElement)`)
+	waitForJSBool(t, page, `() => document.getElementById('provider-dialog').contains(document.activeElement)`)
 	page.MustEval(`() => {const tab=document.querySelector('[data-prov-tab="identity"]'); tab.focus(); tab.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));}`)
 	if !page.MustEval(`() => document.activeElement.dataset.provTab==='model' && document.activeElement.getAttribute('aria-selected')==='true'`).Bool() {
 		t.Fatal("provider tabs lack keyboard navigation")
 	}
 	page.MustEval(`() => {const last=document.getElementById('prov-save-btn'); last.focus(); last.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));}`)
-	if !page.MustEval(`() => document.activeElement.id==='provider-modal-close-btn'`).Bool() {
+	if !page.MustEval(`() => document.activeElement.classList.contains('modal-close')`).Bool() {
 		t.Fatal("provider dialog does not trap Tab")
 	}
 	for _, theme := range []string{"dark", "light"} {
@@ -282,15 +282,15 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 			}
 		}
 	}
-	if !page.MustEval(`() => document.querySelector('#provider-modal-overlay [role="dialog"], #provider-modal-overlay[role="dialog"]')!==null`).Bool() {
+	if !page.MustEval(`() => document.querySelector('#provider-dialog [role="dialog"], #provider-dialog[role="dialog"]')!==null`).Bool() {
 		t.Fatal("provider editor lacks dialog semantics")
 	}
 	page.MustElement("#prov-save-btn").MustClick()
 	if !page.MustEval(`() => document.activeElement.id==='prov-id' && document.activeElement.getAttribute('aria-invalid')==='true' && document.querySelector('[data-prov-tab="identity"]').getAttribute('aria-selected')==='true'`).Bool() {
 		t.Fatal("provider validation did not reveal and focus the affected tab")
 	}
-	page.MustElement("#provider-modal-cancel-btn").MustClick()
-	waitForJSBool(t, page, `() => !document.getElementById('provider-modal-overlay') && document.activeElement.matches('.prov-section-actions button')`)
+	page.MustElement("#provider-dialog-cancel-btn").MustClick()
+	waitForJSBool(t, page, `() => !document.getElementById('provider-dialog') && document.activeElement.matches('.prov-section-actions button')`)
 	page.MustElement(".prov-section-actions button").MustClick()
 	page.MustEval(`() => {
 	 window.__writes=[];
@@ -299,7 +299,7 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 	 document.getElementById('prov-url').value='https://provider.fixture.invalid/v1'; document.getElementById('prov-key').value='local-fixture-only';
 	}`)
 	page.MustElement("#prov-save-btn").MustClick()
-	waitForJSBool(t, page, `() => !document.getElementById('provider-modal-overlay')`)
+	waitForJSBool(t, page, `() => !document.getElementById('provider-dialog')`)
 	if !page.MustEval(`() => JSON.stringify(window.__writes)==='["/api/providers"]'`).Bool() {
 		t.Fatal("provider save crossed its storage boundary")
 	}

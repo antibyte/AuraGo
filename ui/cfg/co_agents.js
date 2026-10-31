@@ -18,7 +18,7 @@ async function renderCoAgentsSection(section) {
     html += '</div></div>';
 
     if (!enabledOn) {
-        html += '<div class="wh-notice"><span>\u{1F916}</span><div>';
+        html += '<div class="wh-notice"><span>' + cfgIcon('bot') + '</span><div>';
         html += '<strong>' + t('config.co_agents.disabled_notice') + '</strong><br>';
         html += '<small>' + t('config.co_agents.disabled_desc') + '</small>';
         html += '</div></div></div>';
@@ -65,16 +65,16 @@ async function renderCoAgentsSection(section) {
     html += '</div>';
 
     html += '<div class="ca-specialists-heading">';
-    html += '\u{1F9E0} ' + t('config.co_agents.specialists_title');
+    html += cfgIcon('bulb') + ' ' + t('config.co_agents.specialists_title');
     html += '</div>';
     html += '<div class="ca-specialists-desc">' + t('config.co_agents.specialists_desc') + '</div>';
 
     var roles = [
-        { key: 'researcher', icon: '\uD83D\uDD0D', color: '#4fc3f7' },
-        { key: 'coder',      icon: '\uD83D\uDCBB', color: '#81c784' },
-        { key: 'designer',   icon: '\uD83C\uDFA8', color: '#f48fb1' },
-        { key: 'security',   icon: '\uD83D\uDEE1\uFE0F', color: '#ffb74d' },
-        { key: 'writer',     icon: '\u270D\uFE0F',  color: '#ce93d8' }
+        { key: 'researcher', icon: 'search', color: '#4fc3f7' },
+        { key: 'coder',      icon: 'code', color: '#81c784' },
+        { key: 'designer',   icon: 'palette', color: '#f48fb1' },
+        { key: 'security',   icon: 'shield', color: '#ffb74d' },
+        { key: 'writer',     icon: 'edit',  color: '#ce93d8' }
     ];
 
     var specialists = cfg.specialists || {};
@@ -94,7 +94,7 @@ function _renderSpecialistCard(role, spec) {
     var html = '<div class="ca-card ca-role-' + escapeAttr(role.key) + (specEnabled ? '' : ' is-disabled') + '">';
 
     html += '<div class="ca-card-header">';
-    html += '<span class="ca-card-icon">' + role.icon + '</span>';
+    html += '<span class="ca-card-icon">' + cfgIcon(role.icon) + '</span>';
     html += '<div class="ca-card-info">';
     html += '<div class="ca-card-name">' + t('config.co_agents.spec_' + role.key + '_name') + '</div>';
     html += '<div class="ca-card-desc field-help" id="ca-card-desc-' + role.key + '">' + t('config.co_agents.spec_' + role.key + '_desc') + '</div>';
@@ -188,22 +188,25 @@ function _coAgentSmallNumber(path, label, value, describedBy) {
 var _coAgentCheatsheetCache = null;
 
 function _coAgentPickCheatsheet(roleKey) {
-    var basePath = 'co_agents.specialists.' + roleKey;
-    var modalId = 'ca-cs-modal';
+    var modalId = 'ca-cs-picker';
     var existingModal = document.getElementById(modalId);
     if (existingModal) existingModal.remove();
 
-    var modal = document.createElement('div');
-    modal.className = 'modal-overlay active';
-    modal.id = modalId;
-    modal.innerHTML = '<div class="modal"><div class="modal-header"><h2>' + escapeHtml(t('config.co_agents.spec_cheatsheet_modal_title')) + '</h2><button class="modal-close" onclick="document.getElementById(\'ca-cs-modal\').remove()">&times;</button></div><div class="ca-cs-list" id="ca-cs-list"><div class="ca-cs-loading">' + escapeHtml(t('config.co_agents.spec_cheatsheet_loading')) + '</div></div></div>';
-    document.body.appendChild(modal);
+    document.body.insertAdjacentHTML('beforeend', cfgModal({
+        id: modalId,
+        title: t('config.co_agents.spec_cheatsheet_modal_title'),
+        size: 'sm',
+        body: '<div class="ca-cs-list" id="ca-cs-list"></div>'
+    }));
+    cfgListState('ca-cs-list', { state: 'loading', title: t('config.co_agents.spec_cheatsheet_loading') });
+    openModal(modalId, { onClose: function() { var el = document.getElementById(modalId); if (el) el.remove(); } });
 
     fetch('/api/cheatsheets?active=true').then(function(r) { return r.json(); }).then(function(sheets) {
         _coAgentCheatsheetCache = sheets || [];
         var listEl = document.getElementById('ca-cs-list');
+        if (!listEl) return;
         if (!_coAgentCheatsheetCache.length) {
-            listEl.innerHTML = '<div class="ca-cs-empty">' + escapeHtml(t('config.co_agents.spec_cheatsheet_empty')) + '</div>';
+            cfgListState(listEl, { state: 'empty', title: t('config.co_agents.spec_cheatsheet_empty') });
             return;
         }
         listEl.innerHTML = _coAgentCheatsheetCache.map(function(s) {
@@ -212,7 +215,8 @@ function _coAgentPickCheatsheet(roleKey) {
                 '<span class="ca-cs-item-preview">' + escapeHtml((s.content || '').substring(0, 80)) + '</span></div>';
         }).join('');
     }).catch(function() {
-        document.getElementById('ca-cs-list').innerHTML = '<div class="ca-cs-empty">' + escapeHtml(t('config.co_agents.spec_cheatsheet_error')) + '</div>';
+        var listEl = document.getElementById('ca-cs-list');
+        if (listEl) cfgListState(listEl, { state: 'error', title: t('config.co_agents.spec_cheatsheet_error'), retry: function() { _coAgentPickCheatsheet(roleKey); } });
     });
 }
 
@@ -221,8 +225,7 @@ function _coAgentSelectCheatsheet(roleKey, id, name) {
     setNestedValue(configData, basePath + '.cheatsheet_id', id);
     setNestedValue(configData, basePath + '._cheatsheet_name', name);
     setDirty(true);
-    var modal = document.getElementById('ca-cs-modal');
-    if (modal) modal.remove();
+    closeModal('ca-cs-picker');
     renderCoAgentsSection(null);
 }
 

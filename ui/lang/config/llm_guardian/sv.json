@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Nivå för åsidosättning",
   "config.llm_guardian.override_level_for": "Nivå för {tool}",
   "config.llm_guardian.override_remove": "Ta bort åsidosättning",
-  "config.llm_guardian.override_add": "Lägg till åsidosättning"
+  "config.llm_guardian.override_add": "Lägg till åsidosättning",
+  "config.llm_guardian.risk_high": "Hög risk",
+  "config.llm_guardian.risk_elevated": "Förhöjd risk"
 }

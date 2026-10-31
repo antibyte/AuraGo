@@ -1,5 +1,5 @@
 // cfg/ollama.js — Ollama config section with managed container control
-/* global configData, t, escapeAttr, toggleBool, renderFields, schema, helpTexts, lang */
+/* global configData, t, cfgIcon, cfgActionResult, cfgStatusBanner, cfgDraftPatch */
 'use strict';
 let ollamaPollTimer = 0;
 let ollamaPollController = null;
@@ -19,65 +19,45 @@ async function renderOllamaSection(section) {
     const miData = data.managed_instance || {};
     const managedEnabled = miData.enabled === true;
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Basic Ollama settings ──
-    html += _ollamaField('ollama.enabled', t('config.ollama.enabled_label'), t('config.ollama.enabled_help'),
-        _ollamaToggle('ollama.enabled', data.enabled === true));
-
-    html += _ollamaField('ollama.readonly', t('config.ollama.readonly_label'), t('config.ollama.readonly_help'),
-        _ollamaToggle('ollama.readonly', data.readonly === true));
-
-    html += _ollamaField('ollama.url', t('config.ollama.url_label'), t('config.ollama.url_help'),
-        '<input class="field-input" type="text" data-path="ollama.url" value="' + escapeAttr(managedEnabled ? ollamaEffectiveURL(miData) : (data.url || '')) + '" placeholder="http://localhost:11434"' + (managedEnabled ? ' readonly' : '') + '>');
-
-    html += '<div class="field-help">' + t('config.ollama.endpoint_help') + '</div>';
-    html += '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="btn btn-secondary btn-sm" data-config-action-draft="true">' + t('config.ollama.test_connection') + '</button>' + cfgActionResult.html('ollama-test-result') + '</div>';
-
-    // ── Managed Instance section header ──
-    html += '<div class="pw-u-subsection-title">🐳 ' + t('config.ollama.managed_title') + '</div>';
-
-    // Status banner (only shown when managed is enabled)
-    html += cfgStatusBanner.html('ollama-managed-banner', 'checking', { detail: t('config.ollama.managed_checking') });
-
-    html += _ollamaField('ollama.managed_instance.enabled', t('config.ollama.managed_enabled_label'), t('config.ollama.managed_enabled_help'),
-        _ollamaToggle('ollama.managed_instance.enabled', managedEnabled, 'ollamaManagedToggled(this)'));
-
-    html += _ollamaField('ollama.managed_instance.container_port', t('config.ollama.managed_port_label'), t('config.ollama.managed_port_help'),
-        '<input class="field-input" type="number" data-path="ollama.managed_instance.container_port" value="' + (miData.container_port || 11434) + '" min="1" max="65535">');
-
-    html += _ollamaField('ollama.managed_instance.use_host_gpu', t('config.ollama.managed_gpu_label'), t('config.ollama.managed_gpu_help'),
-        _ollamaToggle('ollama.managed_instance.use_host_gpu', miData.use_host_gpu === true));
-
-    // GPU backend dropdown
-    const gpuVal = miData.gpu_backend || 'auto';
-    const gpuOptions = ['auto', 'nvidia', 'amd', 'intel', 'vulkan'];
-    let gpuSelect = '<select class="field-select" data-path="ollama.managed_instance.gpu_backend">';
-    for (const opt of gpuOptions) {
-        gpuSelect += '<option value="' + opt + '"' + (gpuVal === opt ? ' selected' : '') + '>' + opt + '</option>';
-    }
-    gpuSelect += '</select>';
-    html += _ollamaField('ollama.managed_instance.gpu_backend', t('config.ollama.managed_gpu_backend_label'), t('config.ollama.managed_gpu_backend_help'), gpuSelect);
-
-    html += _ollamaField('ollama.managed_instance.default_models', t('config.ollama.managed_models_label'), t('config.ollama.managed_models_help'),
-        '<input class="field-input" type="text" data-type="array" data-path="ollama.managed_instance.default_models" value="' + escapeAttr((miData.default_models || []).join(',')) + '" placeholder="llama3,mistral">');
-
-    html += _ollamaField('ollama.managed_instance.memory_limit', t('config.ollama.managed_memory_label'), t('config.ollama.managed_memory_help'),
-        '<input class="field-input" type="text" data-path="ollama.managed_instance.memory_limit" value="' + escapeAttr(miData.memory_limit || '') + '" placeholder="8g">');
-
-    html += _ollamaField('ollama.managed_instance.volume_path', t('config.ollama.managed_volume_label'), t('config.ollama.managed_volume_help'),
-        '<input class="field-input" type="text" data-path="ollama.managed_instance.volume_path" value="' + escapeAttr(miData.volume_path || '') + '" placeholder="">');
-
-    // ── Recreate button (shown when managed is enabled) ──
-    html += '<div id="ollama-recreate-wrap" class="pw-u-mt-100' + (managedEnabled ? '' : ' pw-u-hidden') + '">';
-    html += '<button class="btn-save pw-u-btn-md" id="ollama-recreate-btn" type="button" data-config-action-draft="false">';
-    html += '🔄 ' + t('config.ollama.managed_recreate_btn') + '</button>';
-    html += cfgActionResult.html('ollama-recreate-status');
-    html += '</div>';
-
-    html += '</div>';
+    const form = window.AuraConfigForm;
+    const gpuOptions = ['auto', 'nvidia', 'amd', 'intel', 'vulkan'].map(opt => ({ value: opt, label: opt }));
+    const html = form.renderSpec({
+        key: 'ollama',
+        label: section.label,
+        desc: section.desc,
+        // Managed-container status sits right under the intro (it is only meaningful when managed is on).
+        banner: { id: 'ollama-managed-banner', state: 'checking', detail: t('config.ollama.managed_checking') },
+        groups: [{
+            titleKey: 'config.refresh.connection',
+            fields: [
+                form.toggle({ label: t('config.ollama.enabled_label'), help: t('config.ollama.enabled_help'), path: 'ollama.enabled', value: data.enabled === true }),
+                form.toggle({ label: t('config.ollama.readonly_label'), help: t('config.ollama.readonly_help'), path: 'ollama.readonly', value: data.readonly === true }),
+                // The URL is fixed while the managed container is on (the container decides where it listens).
+                managedEnabled
+                    ? form.field({ type: 'url', label: t('config.ollama.url_label'), help: t('config.ollama.url_help'), path: 'ollama.url', value: ollamaEffectiveURL(miData), placeholder: 'http://localhost:11434' }).replace('<input ', '<input readonly ')
+                    : form.field({ type: 'url', label: t('config.ollama.url_label'), help: t('config.ollama.url_help'), path: 'ollama.url', value: data.url || '', placeholder: 'http://localhost:11434' }),
+                '<div class="field-help">' + t('config.ollama.endpoint_help') + '</div>',
+                '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="btn-secondary cfg-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + t('config.ollama.test_connection') + '</span></button>' + cfgActionResult.html('ollama-test-result') + '</div>'
+            ]
+        }, {
+            titleKey: 'config.ollama.managed_title',
+            fields: [
+                // Switching it on/off shows the recreate button and fixes or releases the URL.
+                form.toggle({ label: t('config.ollama.managed_enabled_label'), help: t('config.ollama.managed_enabled_help'), path: 'ollama.managed_instance.enabled', value: managedEnabled })
+                    .replace('onclick="toggleBool(this)"', 'onclick="toggleBool(this);ollamaManagedToggled(this)"'),
+                form.number({ label: t('config.ollama.managed_port_label'), help: t('config.ollama.managed_port_help'), path: 'ollama.managed_instance.container_port', value: miData.container_port || 11434, min: 1, max: 65535 }),
+                form.toggle({ label: t('config.ollama.managed_gpu_label'), help: t('config.ollama.managed_gpu_help'), path: 'ollama.managed_instance.use_host_gpu', value: miData.use_host_gpu === true }),
+                form.select({ label: t('config.ollama.managed_gpu_backend_label'), help: t('config.ollama.managed_gpu_backend_help'), path: 'ollama.managed_instance.gpu_backend', value: miData.gpu_backend || 'auto', options: gpuOptions }),
+                form.field({ label: t('config.ollama.managed_models_label'), help: t('config.ollama.managed_models_help'), path: 'ollama.managed_instance.default_models', value: (miData.default_models || []).join(','), placeholder: 'llama3,mistral' }).replace('<input ', '<input data-type="array" '),
+                form.field({ label: t('config.ollama.managed_memory_label'), help: t('config.ollama.managed_memory_help'), path: 'ollama.managed_instance.memory_limit', value: miData.memory_limit || '', placeholder: '8g' }),
+                form.field({ label: t('config.ollama.managed_volume_label'), help: t('config.ollama.managed_volume_help'), path: 'ollama.managed_instance.volume_path', value: miData.volume_path || '' }),
+                // Recreate button (shown when managed is enabled)
+                '<div id="ollama-recreate-wrap" class="pw-u-mt-100' + (managedEnabled ? '' : ' pw-u-hidden') + '">'
+                    + '<button class="btn-save pw-u-btn-md" id="ollama-recreate-btn" type="button" data-config-action-draft="false">' + cfgIcon('refresh') + '<span>' + t('config.ollama.managed_recreate_btn') + '</span></button>'
+                    + cfgActionResult.html('ollama-recreate-status') + '</div>'
+            ]
+        }]
+    });
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
@@ -108,23 +88,6 @@ async function renderOllamaSection(section) {
     if (recreate && managedDockerUnavailableReason()) { recreate.disabled = true; recreate.title = managedDockerUnavailableReason(); }
     // Auto-check status
     ollamaManagedCheckStatus(managedEnabled);
-}
-
-function _ollamaField(path, label, help, inputHtml) {
-    let h = '<div class="field-group">';
-    h += '<div class="field-label">' + label + '</div>';
-    if (help) h += '<div class="field-help">' + help + '</div>';
-    h += inputHtml;
-    h += '</div>';
-    return h;
-}
-
-function _ollamaToggle(path, isOn, extra) {
-    const onchange = extra ? ' onclick="toggleBool(this);' + extra + '"' : ' onclick="toggleBool(this)"';
-    return '<div class="toggle-wrap">'
-        + '<div class="toggle' + (isOn ? ' on' : '') + '" data-path="' + path + '"' + onchange + '></div>'
-        + '<span class="toggle-label">' + (isOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>'
-        + '</div>';
 }
 
 // eslint-disable-next-line no-unused-vars

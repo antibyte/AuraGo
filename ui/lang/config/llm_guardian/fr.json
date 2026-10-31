@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Niveau de remplacement",
   "config.llm_guardian.override_level_for": "Niveau pour {tool}",
   "config.llm_guardian.override_remove": "Supprimer le remplacement",
-  "config.llm_guardian.override_add": "Ajouter un remplacement"
+  "config.llm_guardian.override_add": "Ajouter un remplacement",
+  "config.llm_guardian.risk_high": "Risque élevé",
+  "config.llm_guardian.risk_elevated": "Risque accru"
 }

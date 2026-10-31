@@ -4,14 +4,11 @@ document_creator
 email
 github
 gog
-guardian
 meshcore
 network_shares
 newspaper
-providers
 realtime_speech
 remote_control
-rules
 s3
 sip
 speech_lab

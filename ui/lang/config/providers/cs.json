@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "např. a1b2c3d4e5f6...",
   "config.providers.add_model": "Přidat model",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 Klíč API",
-  "config.providers.auth_type_api_key_option": "🔑 API klíč",
-  "config.providers.auth_type_oauth2": "🔐 Autorizační kód OAuth2",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2 autorizační kód",
+  "config.providers.auth_type_api_key": "Klíč API",
+  "config.providers.auth_type_api_key_option": "API klíč",
+  "config.providers.auth_type_oauth2": "Autorizační kód OAuth2",
+  "config.providers.auth_type_oauth2_option": "OAuth2 autorizační kód",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autentizace",
   "config.providers.authorize": "Autorizovat",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Ponechte prázdné pro zachování stávajícího klíče.",
   "config.providers.keep_existing_secret": "Ponechte prázdné pro zachování stávajícího tajemství.",
   "config.providers.key_placeholder_existing": "•••••••• (beze změny)",
-  "config.providers.key_set": "✔ nastaveno",
+  "config.providers.key_set": "nastaveno",
   "config.providers.loading": "Načítání...",
   "config.providers.meshcentral_test_title": "Test pripojeni MeshCentral",
   "config.providers.model_name": "Model AI",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Chybějící vybraní poskytovatelé: {paths}. V těchto nastaveních vyber existujícího poskytovatele.",
   "config.providers.filter_role_help": "Zobrazí pouze poskytovatele přiřazené ke konkrétnímu úkolu, například hlavní model nebo embeddingy.",
   "config.providers.filter_type_help": "Zobrazí pouze poskytovatele jednoho typu.",
-  "config.providers.search_help": "Filtruje seznam poskytovatelů podle názvu, typu nebo modelu."
+  "config.providers.search_help": "Filtruje seznam poskytovatelů podle názvu, typu nebo modelu.",
+  "config.providers.copy_failed": "Automatické kopírování se nezdařilo. Zkopírujte odkaz ručně."
 }

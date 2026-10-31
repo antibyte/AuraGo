@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "例: a1b2c3d4e5f6...",
   "config.providers.add_model": "モデルを追加",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 APIキー",
-  "config.providers.auth_type_api_key_option": "🔑 APIキー",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 認証コード",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2認可コード",
+  "config.providers.auth_type_api_key": "APIキー",
+  "config.providers.auth_type_api_key_option": "APIキー",
+  "config.providers.auth_type_oauth2": "OAuth2 認証コード",
+  "config.providers.auth_type_oauth2_option": "OAuth2認可コード",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "認証",
   "config.providers.authorize": "承認する",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "既存のキーを保持するには、空のままにします。",
   "config.providers.keep_existing_secret": "既存のシークレットを保持するには、空のままにします。",
   "config.providers.key_placeholder_existing": "••••••••（変更なし）",
-  "config.providers.key_set": "✔セット",
+  "config.providers.key_set": "セット",
   "config.providers.loading": "読み込み中...",
   "config.providers.meshcentral_test_title": "MeshCentral 接続テスト",
   "config.providers.model_name": "モデル",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "選択したプロバイダーが見つかりません: {paths}。該当する設定で既存のプロバイダーを選択してください。",
   "config.providers.search_help": "プロバイダー一覧を名前、種類、またはモデルで絞り込みます。",
   "config.providers.filter_type_help": "1 つの種類のプロバイダーだけを表示します。",
-  "config.providers.filter_role_help": "メインモデルや埋め込みなど、特定の役割に割り当てられたプロバイダーだけを表示します。"
+  "config.providers.filter_role_help": "メインモデルや埋め込みなど、特定の役割に割り当てられたプロバイダーだけを表示します。",
+  "config.providers.copy_failed": "自動コピーに失敗しました。リンクを手動でコピーしてください。"
 }

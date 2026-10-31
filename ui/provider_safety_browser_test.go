@@ -76,8 +76,8 @@ func TestProviderRevisionAndSavedTestsBrowser(t *testing.T) {
 		}
 		page.MustSetViewport(1440, 1000, 1, false)
 	}
-	page.MustEval(`()=>{window.providerFixture.budgetBefore=JSON.stringify(configData.budget);updateProviderModelCost({id:'discarded-model',inputPerMillion:9,outputPerMillion:11});document.getElementById('provider-modal-cancel-btn').click();}`)
-	waitForJSBool(t, page, `()=>!document.getElementById('provider-modal-overlay')`)
+	page.MustEval(`()=>{window.providerFixture.budgetBefore=JSON.stringify(configData.budget);updateProviderModelCost({id:'discarded-model',inputPerMillion:9,outputPerMillion:11});document.getElementById('provider-dialog-cancel-btn').click();}`)
+	waitForJSBool(t, page, `()=>!document.getElementById('provider-dialog')`)
 	if !page.MustEval(`()=>JSON.stringify(configData.budget)===window.providerFixture.budgetBefore&&window.providerFixture.puts.length===0`).Bool() {
 		t.Fatal("cancelling provider editor changed unrelated budget draft or provider")
 	}
@@ -87,14 +87,14 @@ func TestProviderRevisionAndSavedTestsBrowser(t *testing.T) {
 		t.Fatal("background revision refresh authorized an old modal draft")
 	}
 	page.MustEval(`()=>document.querySelector('#provider-conflict-notice button').click()`)
-	waitForJSBool(t, page, `()=>!document.getElementById('provider-modal-overlay')&&!providersConflict`)
+	waitForJSBool(t, page, `()=>!document.getElementById('provider-dialog')&&!providersConflict`)
 	page.MustEval(`()=>{providerEdit(0);document.getElementById('prov-clear-api-key').click();window.providerFixture.busy=true;document.getElementById('prov-save-btn').click();document.getElementById('prov-save-btn').click();}`)
 	waitForJSBool(t, page, `()=>!!window.providerFixture.releaseSave`)
 	if !page.MustEval(`()=>window.providerFixture.puts.length===1&&window.providerFixture.puts[0].body[0].api_key===''&&window.providerFixture.puts[0].headers['If-Match']==='"fixture-r1"'`).Bool() {
 		t.Fatal("double click or explicit credential removal violated save contract")
 	}
 	page.MustEval(`()=>{window.providerFixture.busy=false;window.providerFixture.releaseSave();}`)
-	waitForJSBool(t, page, `()=>!document.getElementById('provider-modal-overlay')`)
+	waitForJSBool(t, page, `()=>!document.getElementById('provider-dialog')`)
 	page.MustEval(`()=>{providerEdit(0);const name=document.getElementById('prov-name');name.value='Conflict draft';name.dispatchEvent(new Event('input',{bubbles:true}));window.providerFixture.conflict=true;document.getElementById('prov-save-btn').click();}`)
 	waitForJSBool(t, page, `()=>!!document.getElementById('provider-conflict-notice')`)
 	if page.MustEval(`()=>document.getElementById('prov-name').value`).Str() != "Conflict draft" {
@@ -105,7 +105,7 @@ func TestProviderRevisionAndSavedTestsBrowser(t *testing.T) {
 		t.Fatal("conflicting draft retried without explicit reload")
 	}
 	page.MustEval(`()=>document.querySelector('#provider-conflict-notice button').click()`)
-	waitForJSBool(t, page, `()=>!document.getElementById('provider-modal-overlay')&&!providersConflict`)
+	waitForJSBool(t, page, `()=>!document.getElementById('provider-dialog')&&!providersConflict`)
 	if page.MustEval(`()=>providersCache[0].name`).Str() != "Saved profile" {
 		t.Fatal("conflict overwrote saved settings")
 	}

@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "उदा. a1b2c3d4e5f6...",
   "config.providers.add_model": "मॉडल जोड़ें",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 एपीआई कुंजी",
-  "config.providers.auth_type_api_key_option": "🔑 API कुंजी",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 प्राधिकरण कोड",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2 प्राधिकरण कोड",
+  "config.providers.auth_type_api_key": "एपीआई कुंजी",
+  "config.providers.auth_type_api_key_option": "API कुंजी",
+  "config.providers.auth_type_oauth2": "OAuth2 प्राधिकरण कोड",
+  "config.providers.auth_type_oauth2_option": "OAuth2 प्राधिकरण कोड",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "प्रमाणीकरण",
   "config.providers.authorize": "अधिकृत करें",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "मौजूदा कुंजी रखने के लिए खाली छोड़ दें।",
   "config.providers.keep_existing_secret": "मौजूदा रहस्य बनाए रखने के लिए खाली छोड़ें.",
   "config.providers.key_placeholder_existing": "•••••••• (अपरिवर्तित)",
-  "config.providers.key_set": "✔ सेट",
+  "config.providers.key_set": "सेट",
   "config.providers.loading": "लोड हो रहा है...",
   "config.providers.meshcentral_test_title": "MeshCentral कनेक्शन परीक्षण",
   "config.providers.model_name": "मॉडल",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "चुने गए प्रदाता नहीं मिले: {paths}। इन सेटिंग में कोई मौजूदा प्रदाता चुनें।",
   "config.providers.search_help": "प्रदाता सूची को नाम, प्रकार या मॉडल से फ़िल्टर करता है।",
   "config.providers.filter_type_help": "केवल एक प्रकार के प्रदाता दिखाता है।",
-  "config.providers.filter_role_help": "केवल वे प्रदाता दिखाता है जो किसी विशिष्ट काम को सौंपे गए हैं, जैसे मुख्य मॉडल या एम्बेडिंग।"
+  "config.providers.filter_role_help": "केवल वे प्रदाता दिखाता है जो किसी विशिष्ट काम को सौंपे गए हैं, जैसे मुख्य मॉडल या एम्बेडिंग।",
+  "config.providers.copy_failed": "स्वचालित कॉपी विफल रही। कृपया लिंक को हाथ से कॉपी करें।"
 }

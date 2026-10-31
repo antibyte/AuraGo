@@ -92,5 +92,7 @@
   "config.llm_guardian.tool_treg_call": "Llamar a una herramienta treg",
   "config.llm_guardian.tool_treg_catalog": "Explorar el catálogo de treg",
   "config.llm_guardian.tool_treg_status": "Consultar el estado de treg",
-  "config.llm_guardian.tool_webdav": "Acceso a archivos por WebDAV"
+  "config.llm_guardian.tool_webdav": "Acceso a archivos por WebDAV",
+  "config.llm_guardian.risk_high": "Riesgo alto",
+  "config.llm_guardian.risk_elevated": "Riesgo elevado"
 }

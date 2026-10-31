@@ -27,14 +27,14 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             html += '<div class="section-desc">' + section.desc + '</div>';
             if (promptsPersonalityNeedsHelper()) {
                 html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
-                    \u{26A0} ${t('personality_legacy.settings')}
+                    ${cfgIcon('alert')} ${t('personality_legacy.settings')}
                 </div>`;
             }
 
             // Additional Prompt
             html += `
             <div class="pers-section-title">
-                📝 ${t('config.prompts.additional_prompt_title')}
+                ${cfgIcon('edit')} ${t('config.prompts.additional_prompt_title')}
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.prompts.additional_prompt_label')}</div>
@@ -46,18 +46,18 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             // Personalities
             html += `
             <div class="pers-section-title pers-section-title-spaced">
-                🎭 ${t('config.prompts.personalities_title')}
+                ${cfgIcon('users')} ${t('config.prompts.personalities_title')}
             </div>
             <div class="field-group">
                 <div class="pers-toolbar">
                     <span class="field-help pers-active-label">${t('config.prompts.active_label')}<strong class="pers-active-name">${esc(active)}</strong></span>
-                    <button class="wh-btn wh-btn-primary wh-btn-sm" onclick="persNew()">+ ${t('config.prompts.new_personality')}</button>
+                    <button class="wh-btn wh-btn-primary wh-btn-sm" onclick="persNew()">${cfgIcon('plus')} ${t('config.prompts.new_personality')}</button>
                 </div>
                 <div class="pers-chips" id="pers-chips">`;
             for (const p of personalities) {
                 const isActive = p.name === active;
-                const coreLock = p.core ? ` <span class="pers-core-lock" title="${t('config.prompts.core_tooltip')}">🔒</span>` : '';
-                html += `<div class="pers-chip${isActive ? ' pers-chip-active' : ''}" onclick="persSelectForEdit('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)}">${esc(p.name)}${coreLock}${isActive ? ' ✦' : ''}</div>`;
+                const coreLock = p.core ? ` <span class="pers-core-lock" title="${escapeAttr(t('config.prompts.core_tooltip'))}">${cfgIcon('lock')}</span>` : '';
+                html += `<div class="pers-chip${isActive ? ' pers-chip-active' : ''}" onclick="persSelectForEdit('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)}">${esc(p.name)}${coreLock}${isActive ? ' ' + cfgIcon('star') : ''}</div>`;
             }
             html += `</div>
                 <div id="pers-editor" class="pers-editor is-hidden">
@@ -67,12 +67,12 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                             placeholder="${t('config.prompts.name_placeholder')}">
                     </div>
                     <div class="pers-params-title">
-                        ${t('config.prompts.params_title')}
+                        ${cfgIcon('settings')} ${t('config.prompts.params_title')}
                     </div>
                     <div class="pers-meta-grid">
                         <div class="pers-slider-row">
                             <div class="pers-slider-header">
-                                <span class="pers-slider-label">⚡ ${t('config.prompts.volatility_label')}</span>
+                                <span class="pers-slider-label">${cfgIcon('zap')} ${t('config.prompts.volatility_label')}</span>
                                 <span class="pers-slider-val" id="pers-val-volatility">1.0</span>
                             </div>
                             <div class="pers-slider-desc">${t('config.prompts.volatility_desc')}</div>
@@ -81,7 +81,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                         </div>
                         <div class="pers-slider-row">
                             <div class="pers-slider-header">
-                                <span class="pers-slider-label">💗 ${t('config.prompts.empathy_label')}</span>
+                                <span class="pers-slider-label">${cfgIcon('heart')} ${t('config.prompts.empathy_label')}</span>
                                 <span class="pers-slider-val" id="pers-val-empathy">1.0</span>
                             </div>
                             <div class="pers-slider-desc">${t('config.prompts.empathy_desc')}</div>
@@ -90,7 +90,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                         </div>
                         <div class="pers-slider-row">
                             <div class="pers-slider-header">
-                                <span class="pers-slider-label">💔 ${t('config.prompts.loneliness_label')}</span>
+                                <span class="pers-slider-label">${cfgIcon('user')} ${t('config.prompts.loneliness_label')}</span>
                                 <span class="pers-slider-val" id="pers-val-loneliness">1.0</span>
                             </div>
                             <div class="pers-slider-desc">${t('config.prompts.loneliness_desc')}</div>
@@ -99,7 +99,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                         </div>
                         <div class="pers-slider-row">
                             <div class="pers-slider-header">
-                                <span class="pers-slider-label">⏳ ${t('config.prompts.decay_label')}</span>
+                                <span class="pers-slider-label">${cfgIcon('clock')} ${t('config.prompts.decay_label')}</span>
                                 <span class="pers-slider-val" id="pers-val-decay">1.0</span>
                             </div>
                             <div class="pers-slider-desc">${t('config.prompts.decay_desc')}</div>
@@ -107,7 +107,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                                 oninput="document.getElementById('pers-val-decay').textContent=parseFloat(this.value).toFixed(1)">
                         </div>
                         <div class="pers-select-row">
-                            <div class="pers-select-label">⚔️ ${t('config.prompts.conflict_label')}</div>
+                            <div class="pers-select-label">${cfgIcon('shield')} ${t('config.prompts.conflict_label')}</div>
                             <div class="pers-select-desc">${t('config.prompts.conflict_desc')}</div>
                             <select id="pers-meta-conflict" class="field-select">
                                 <option value="neutral">${t('config.prompts.conflict_neutral')}</option>
@@ -116,14 +116,14 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                             </select>
                         </div>
                     </div>
-                    <div class="field-label pers-field-label-tight">${t('config.prompts.prompt_text_label')}</div>
+                    <div class="field-label pers-field-label-tight">${cfgIcon('edit')} ${t('config.prompts.prompt_text_label')}</div>
                     <div class="field-help pers-field-help-tight">${t('config.prompts.metadata_hint')}</div>
                     <textarea id="pers-content-input" class="field-input pers-textarea-main" rows="12"></textarea>
                     <div class="pers-editor-actions">
-                        <button class="wh-btn wh-btn-primary wh-btn-sm" id="pers-save-btn" onclick="persSave()">💾 ${t('config.prompts.save')}</button>
-                        <button class="wh-btn wh-btn-sm is-hidden" id="pers-activate-btn" onclick="persActivate()">⚡ ${t('config.prompts.set_active')}</button>
-                        <button class="wh-btn wh-btn-sm pers-delete-btn is-hidden" id="pers-delete-btn" onclick="persDelete()">🗑 ${t('config.prompts.delete')}</button>
-                        <button class="wh-btn wh-btn-sm" onclick="persCancel()">✕ ${t('config.prompts.cancel')}</button>
+                        <button class="wh-btn wh-btn-primary wh-btn-sm" id="pers-save-btn" onclick="persSave()">${cfgIcon('save')} ${t('config.prompts.save')}</button>
+                        <button class="wh-btn wh-btn-sm is-hidden" id="pers-activate-btn" onclick="persActivate()">${cfgIcon('zap')} ${t('config.prompts.set_active')}</button>
+                        ${cfgDeleteButton({ label: t('config.prompts.delete'), cls: 'is-hidden', attrs: { id: 'pers-remove-btn', onclick: 'persDelete()' } })}
+                        <button class="wh-btn wh-btn-sm" onclick="persCancel()">${cfgIcon('x')} ${t('config.prompts.cancel')}</button>
                     </div>
                     ${cfgActionResult.html('pers-editor-status', 'field-help pers-editor-status')}
                 </div>
@@ -236,7 +236,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             if (!editor) return;
             setHidden(document.getElementById('pers-editor-name-row'), false);
             setHidden(document.getElementById('pers-activate-btn'), true);
-            setHidden(document.getElementById('pers-delete-btn'), true);
+            setHidden(document.getElementById('pers-remove-btn'), true);
             document.getElementById('pers-name-input').value = '';
             document.getElementById('pers-content-input').value = '';
             cfgActionResult.show('pers-editor-status', '', '');
@@ -254,14 +254,14 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             persState.isCore = entry ? entry.core : false;
 
             document.querySelectorAll('.pers-chip').forEach(c => {
-                const chipName = c.textContent.replace(' ✦', '').replace('🔒', '').trim();
+                const chipName = c.getAttribute('title');
                 c.classList.toggle('selected', chipName === name);
             });
             const editor = document.getElementById('pers-editor');
             if (!editor) return;
             setHidden(document.getElementById('pers-editor-name-row'), true);
             setHidden(document.getElementById('pers-activate-btn'), name === persState.active);
-            setHidden(document.getElementById('pers-delete-btn'), name === persState.active);
+            setHidden(document.getElementById('pers-remove-btn'), name === persState.active);
             document.getElementById('pers-content-input').value = '';
             const status = document.getElementById('pers-editor-status');
             cfgActionResult.show(status, 'pending', t('config.prompts.loading'));
@@ -291,14 +291,14 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             });
             const saveBtn = document.querySelector('.pers-editor-actions .wh-btn-primary');
             if (saveBtn) setHidden(saveBtn, isCore);
-            const delBtn = document.getElementById('pers-delete-btn');
+            const delBtn = document.getElementById('pers-remove-btn');
             if (delBtn && isCore) setHidden(delBtn, true);
             const statusEl = document.getElementById('pers-editor-status');
             if (statusEl) {
                 if (isCore) {
-                    cfgActionResult.show(statusEl, 'warning', '🔒 ' + t('config.prompts.core_readonly'));
-                } else if (statusEl.textContent.includes('🔒')) {
-                    // Only clear if it currently shows the lock message
+                    cfgActionResult.show(statusEl, 'warning', t('config.prompts.core_readonly'));
+                } else if (statusEl.textContent.trim() === t('config.prompts.core_readonly')) {
+                    // Only clear if it currently shows the read-only message
                     cfgActionResult.show(statusEl, '', '');
                 }
             }
@@ -370,9 +370,9 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
         async function persDelete() {
             const name = persState.editName;
             if (!name) return { skipped: 'none' };
-            const confirmed = await showConfirm(t('config.prompts.delete_confirm_title', {name: name}), t('config.prompts.delete_confirm', {name: name}));
+            const { confirmed } = await showConfirmDialog({ title: t('config.prompts.delete_confirm_title', {name: name}), message: t('config.prompts.delete_confirm', {name: name}), danger: true, confirmText: t('config.prompts.delete') });
             if (!confirmed) return { skipped: 'cancelled' };
-            return cfgActionResult(document.getElementById('pers-delete-btn'), () => fetch('/api/config/personality-files?name=' + encodeURIComponent(name), { method: 'DELETE' }), {
+            return cfgActionResult(document.getElementById('pers-remove-btn'), () => fetch('/api/config/personality-files?name=' + encodeURIComponent(name), { method: 'DELETE' }), {
                 target: 'pers-editor-status',
                 pending: t('config.prompts.deleting'),
                 failure: t('config.common.error'),
