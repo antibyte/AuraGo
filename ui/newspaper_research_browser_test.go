@@ -105,7 +105,7 @@ func TestNewspaperConfigResearchBrowser(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-utilities.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/config.css"><link rel="stylesheet" href="/css/enhancements.css"><link rel="stylesheet" href="/css/precision-workspace.css"><link rel="stylesheet" href="/css/precision-pages.css"><link rel="stylesheet" href="/css/config-workspace.css">
-</head><body class="pw-page" data-workspace-page="config" data-density="comfortable"><main class="cfg-content pw-page-frame" id="content"></main><script>var configData={newspaper:{enabled:true,budget_mode:'auto',overview_sources:['google_news'],max_pages:60,max_searches:32,max_minutes:60}},labels={};window.previewRequests=[];const originalFetch=window.fetch.bind(window);window.fetch=(url,opts={})=>{if(String(url).includes('/budget-preview'))window.previewRequests.push(JSON.parse(opts.body||'{}'));return originalFetch(url,opts)};function t(k){return labels[k]||k}function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}function attachChangeListeners(){}function toggleBool(){}</script><script src="/cfg/newspaper.js"></script><script>(async()=>{labels=await(await fetch('/lang/config/newspaper/de.json')).json();renderNewspaperSection({label:'Newspaper',desc:'Recherche'});})();</script></body></html>`)
+</head><body class="pw-page" data-workspace-page="config" data-density="comfortable"><main class="cfg-content pw-page-frame" id="content"></main><script>var configData={newspaper:{enabled:true,budget_mode:'auto',overview_sources:['google_news'],max_pages:60,max_searches:32,max_minutes:60}},labels={};window.previewRequests=[];const originalFetch=window.fetch.bind(window);window.fetch=(url,opts={})=>{if(String(url).includes('/budget-preview'))window.previewRequests.push(JSON.parse(opts.body||'{}'));return originalFetch(url,opts)};function t(k){return labels[k]||k}function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}function attachChangeListeners(){}function toggleBool(){}</script><script src="/js/config/feedback.js"></script><script src="/cfg/newspaper.js"></script><script>(async()=>{labels=await(await fetch('/lang/config/newspaper/de.json')).json();renderNewspaperSection({label:'Newspaper',desc:'Recherche'});})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -179,6 +179,9 @@ return getComputedStyle(grid).display==='grid' && choices.every((choice,i)=>{con
 	}
 	page.MustElement("button.dc-test-btn").MustClick()
 	page.MustElement("#newspaper-config-status li")
+	if !page.MustEval(`()=>{const r=document.getElementById('newspaper-check-result');const b=document.getElementById('newspaper-check-btn');return r.dataset.state==='warning'&&r.textContent.includes('')&&r.textContent.length>0&&b.dataset.configActionBusy==='false'}`).Bool() {
+		t.Fatal("readiness result line missing or button still busy")
+	}
 	text := page.MustElement("#newspaper-config-status").MustText()
 	for _, want := range []string{"Netzwerkanfragen", "Brave-API-Schlüssel", "Letzter Versuch", "API-Schlüssel"} {
 		if !strings.Contains(text, want) {

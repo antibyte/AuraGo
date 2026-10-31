@@ -49,14 +49,19 @@ func TestProviderRevisionAndSavedTestsBrowser(t *testing.T) {
 	page.MustEval(`()=>document.getElementById('prov-test-metadata').click()`)
 	waitForJSBool(t, page, `()=>window.providerFixture.tests.length===1&&document.getElementById('prov-test-result').textContent.includes('Metadata')`)
 	page.MustEval(`()=>{const input=document.getElementById('prov-name');input.value='Unsaved draft';input.dispatchEvent(new Event('input',{bubbles:true}));}`)
-	if !page.MustEval(`()=>document.getElementById('prov-test-generation').disabled`).Bool() {
-		t.Fatal("unsaved settings allowed a generation test")
+	// The tests run with the form as typed in: a dirty form keeps them enabled and is sent as the draft.
+	if page.MustEval(`()=>document.getElementById('prov-test-generation').disabled`).Bool() {
+		t.Fatal("an unsaved form blocked the draft test")
 	}
-	page.MustEval(`()=>{const input=document.getElementById('prov-name');input.value='Saved profile';input.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('prov-test-generation').click();}`)
-	waitForJSBool(t, page, `()=>window.providerFixture.tests.length===2`)
-	if !page.MustEval(`()=>window.providerFixture.confirmations.some(entry=>entry.message.includes('charge'))&&window.providerFixture.tests.every(entry=>Object.keys(entry).sort().join(',')==='probe_kind,provider_id')`).Bool() {
-		t.Fatal("tests did not require explicit generation approval or sent overrides")
+	page.MustEval(`()=>document.getElementById('prov-test-generation').click()`)
+	waitForJSBool(t, page, `()=>window.providerFixture.tests.length===2&&document.getElementById('prov-test-generation').dataset.configActionBusy==='false'`)
+	if !page.MustEval(`()=>{const test=window.providerFixture.tests[1];return window.providerFixture.confirmations.some(entry=>entry.message.includes('charge'))&&window.providerFixture.tests.every(entry=>Object.keys(entry).sort().join(',')==='probe_kind,provider,provider_id')&&test.provider.name==='Unsaved draft'&&test.provider.base_url==='http://custom.local/v1'&&test.provider.api_key==='••••••••'&&test.provider.type==='openai'}`).Bool() {
+		t.Fatal("tests did not require explicit generation approval or did not send the typed form")
 	}
+	// A typed key is sent as is; clearing the stored key cannot be tested before saving.
+	page.MustEval(`()=>{const key=document.getElementById('prov-key');key.value='typed-key';key.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('prov-test-metadata').click();}`)
+	waitForJSBool(t, page, `()=>window.providerFixture.tests.length===3&&window.providerFixture.tests[2].provider.api_key==='typed-key'`)
+	page.MustEval(`()=>{const key=document.getElementById('prov-key');key.value='';key.dispatchEvent(new Event('input',{bubbles:true}));const input=document.getElementById('prov-name');input.value='Saved profile';input.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 		_ = os.MkdirAll(dir, 0o755)
 		for _, width := range []int{1440, 390} {

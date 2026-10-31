@@ -763,23 +763,15 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <div class="prov-mc-title">🔌 ${t('config.providers.meshcentral_test_title')}</div>
                 <div class="prov-mc-desc">${labelDesc}</div>
                 <div class="prov-mc-actions">
-                    <button class="btn-save prov-btn-sm" onclick="testMeshCentral()">${labelTest}</button>
-                    <span id="mc-test-spinner" class="prov-mc-spinner is-hidden">⏳ ${t('config.meshcentral.connecting')}</span>
-                </div>
-                <div id="mc-test-result" class="prov-mc-result is-hidden">
-                    <div id="mc-test-msg" class="prov-mc-msg"></div>
+                    <button id="meshcentral-test-btn" class="btn-save prov-btn-sm" data-config-action-draft="true" onclick="testMeshCentral()">${labelTest}</button>
+                    ${cfgActionResult.html('mc-test-result')}
                 </div>
             </div>`;
         }
 
         async function testMeshCentral() {
-            const spinner   = document.getElementById('mc-test-spinner');
-            const resultDiv = document.getElementById('mc-test-result');
-            const msgDiv    = document.getElementById('mc-test-msg');
-            if (!spinner) return;
-
-            setHidden(spinner, false);
-            setHidden(resultDiv, true);
+            const button = document.getElementById('meshcentral-test-btn');
+            if (!button) return;
 
             // Read values from the existing config fields on the page.
             // If the user edited them, those values are sent; otherwise they're
@@ -800,32 +792,16 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 login_token: getField('meshcentral.login_token'),
             };
 
-            try {
-                const resp = await fetch('/api/meshcentral/test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                const json = await resp.json();
-
-                setHidden(resultDiv, false);
-                if (json.status === 'ok') {
-                    msgDiv.classList.remove('is-error');
-                    msgDiv.classList.add('is-success');
-                    msgDiv.textContent = '✅ ' + (json.message || t('config.meshcentral.success'));
-                } else {
-                    msgDiv.classList.remove('is-success');
-                    msgDiv.classList.add('is-error');
-                    msgDiv.textContent = '❌ ' + (json.message || t('config.meshcentral.failed'));
-                }
-            } catch (e) {
-                setHidden(resultDiv, false);
-                msgDiv.classList.remove('is-success');
-                msgDiv.classList.add('is-error');
-                msgDiv.textContent = '❌ ' + e.message;
-            } finally {
-                setHidden(spinner, true);
-            }
+            return cfgActionResult(button, () => fetch('/api/meshcentral/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            }), {
+                target: 'mc-test-result',
+                pending: t('config.meshcentral.connecting'),
+                success: outcome => (outcome.body && outcome.body.message) || t('config.meshcentral.success'),
+                failure: t('config.meshcentral.failed')
+            });
         }
 
         function renderProvidersSection(section) {
@@ -2266,10 +2242,10 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div id="prov-runtime-status" role="status">${escapeHtml(t('config.providers.status_unknown'))}</div>
                     <p class="field-help">${escapeHtml(t('config.providers.saved_test_help'))}</p>
                     <div class="prov-type-block-actions">
-                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-metadata">${escapeHtml(t('config.providers.metadata_test'))}</button>
-                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-generation">${escapeHtml(t('config.providers.generation_test'))}</button>
+                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-metadata" data-config-action-draft="true">${escapeHtml(t('config.providers.metadata_test'))}</button>
+                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-generation" data-config-action-draft="true">${escapeHtml(t('config.providers.generation_test'))}</button>
                     </div>
-                    <p id="prov-test-result" role="status"></p>
+                    ${cfgActionResult.html('prov-test-result')}
                 </section>
                 </div>
                 <div class="prov-modal-actions">
@@ -2304,46 +2280,79 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 remove.onclick = () => { oauthSecretCleared = true; clientSecretInput.value = ''; clientSecretInput.placeholder = ''; updateTestControls(); };
                 clientSecretInput.closest('.field-group').appendChild(remove);
             }
-            let testRunning = false;
-            function testsUseSavedSettings() {
-                return data._editMode && !providerModalDirty() && !providersConflict && !providersSaving && modalRevision === providersRevision;
+            // Tests probe the form as typed in; the server uses the stored key while the endpoint is unchanged.
+            // A cleared key or "copy key from" cannot be expressed as a draft, so those wait for a save.
+            function testsUseDraft() {
+                return !providersConflict && !providersSaving && modalRevision === providersRevision
+                    && !apiKeyCleared && !oauthSecretCleared && !document.getElementById('prov-copy-key-from')?.value;
+            }
+            function providerTestDraft() {
+                const usageDecisions = document.getElementById('prov-usage').value === 'decisions';
+                const type = document.getElementById('prov-type').value;
+                const authType = document.getElementById('prov-auth-type').value;
+                const mask = '••••••••';
+                const draft = {
+                    name: document.getElementById('prov-name').value.trim(),
+                    type: usageDecisions ? 'openrouter' : type,
+                    base_url: document.getElementById('prov-url').value.trim(),
+                    model: usageDecisions ? '' : (document.getElementById('prov-model')?.value.trim() || ''),
+                    auth_type: authType,
+                    account_id: document.getElementById('prov-account-id')?.value.trim() || '',
+                    gateway_id: document.getElementById('prov-gateway-id')?.value.trim() || ''
+                };
+                if (authType === 'oauth2') {
+                    const oauth = providerOAuthConfigFromInputs(type);
+                    Object.assign(draft, {
+                        oauth_auth_url: oauth.auth_url, oauth_token_url: oauth.token_url, oauth_client_id: oauth.client_id,
+                        oauth_client_secret: oauth.client_secret || (data.oauth_client_secret === mask ? mask : ''), oauth_scopes: oauth.scopes
+                    });
+                } else {
+                    draft.api_key = document.getElementById('prov-key').value.trim() || (data.api_key === mask ? mask : '');
+                }
+                return draft;
             }
             function updateTestControls() {
                 ['prov-test-metadata', 'prov-test-generation'].forEach(id => {
                     const button = document.getElementById(id);
-                    if (button) button.disabled = testRunning || !testsUseSavedSettings();
+                    if (button && button.dataset.configActionBusy !== 'true') button.disabled = !testsUseDraft();
                 });
             }
             overlay.addEventListener('input', updateTestControls);
             overlay.addEventListener('change', updateTestControls);
-            async function runSavedTest(kind) {
-                if (!testsUseSavedSettings() || testRunning) return;
+            async function runDraftTest(kind) {
+                if (!testsUseDraft()) return;
                 if (kind === 'generation' && !(await showConfirm(t('config.providers.generation_test'), t('config.providers.generation_confirm')))) return;
-                if (!overlay.isConnected || !testsUseSavedSettings()) return;
-                testRunning = true; updateTestControls();
-                const output = document.getElementById('prov-test-result');
-                output.textContent = t('config.providers.loading');
-                try {
-                    const response = await fetch('/api/providers/test', {
-                        method: 'POST', signal: requests.signal,
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider_id: data.id, probe_kind: kind })
-                    });
-                    const result = await response.json();
-                    if (!overlay.isConnected) return;
-                    if (result.current === false || result.revision !== modalRevision) output.textContent = t('config.providers.test_stale');
-                    else if (result.code === 'metadata_probe_unavailable') output.textContent = t('config.providers.test_unsupported');
-                    else if (response.ok && result.live_status === 'ok') output.textContent = t('config.providers.test_' + kind + '_ok');
-                    else output.textContent = t('config.providers.test_failed', { code: result.code || response.status });
-                } catch (error) {
-                    if (error.name !== 'AbortError' && overlay.isConnected) output.textContent = t('config.providers.test_failed', { code: error.message });
-                } finally {
-                    testRunning = false;
-                    if (overlay.isConnected) updateTestControls();
-                }
+                if (!overlay.isConnected || !testsUseDraft()) return;
+                const other = document.getElementById(kind === 'generation' ? 'prov-test-metadata' : 'prov-test-generation');
+                await cfgActionResult(document.getElementById('prov-test-' + kind), async () => {
+                    try {
+                        return await fetch('/api/providers/test', {
+                            method: 'POST', signal: requests.signal,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider_id: data._editMode ? data.id : (document.getElementById('prov-id').value.trim() || 'draft'), probe_kind: kind, provider: providerTestDraft() })
+                        });
+                    } catch (error) {
+                        if (error.name === 'AbortError') throw error;
+                        return { status: 'error', code: error.message };
+                    }
+                }, {
+                    target: 'prov-test-result',
+                    lock: other,
+                    pending: t('config.providers.loading'),
+                    success: t('config.providers.test_' + kind + '_ok'),
+                    failure: outcome => t('config.providers.test_failed', { code: (outcome.body && outcome.body.code) || outcome.httpStatus }),
+                    // The probe answers with its own codes; the text above already names the reason.
+                    interpret: outcome => {
+                        const result = outcome.body || {};
+                        if (result.current === false || (result.revision !== undefined && result.revision !== modalRevision)) return { state: 'warning', reason: t('config.providers.test_stale') };
+                        if (result.code === 'metadata_probe_unavailable') return { state: 'warning', reason: t('config.providers.test_unsupported') };
+                        return { state: outcome.httpStatus < 400 && result.live_status === 'ok' ? 'success' : 'error', reason: '' };
+                    }
+                });
+                if (overlay.isConnected) updateTestControls();
             }
-            document.getElementById('prov-test-metadata').onclick = () => runSavedTest('metadata');
-            document.getElementById('prov-test-generation').onclick = () => runSavedTest('generation');
+            document.getElementById('prov-test-metadata').onclick = () => runDraftTest('metadata');
+            document.getElementById('prov-test-generation').onclick = () => runDraftTest('generation');
             if (data._editMode) fetch('/api/providers/status', { signal: requests.signal }).then(response => {
                 if (!response.ok) throw new Error();
                 return response.json();

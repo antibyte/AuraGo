@@ -53,6 +53,11 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"window.sipSaveUnsaved = sipSaveUnsaved",
 		"window.sipDiscardUnsaved = sipDiscardUnsaved",
 		"function sipNotifyDirty()",
+		// Wave 1: the status is a state banner; the save line stays plain text (main.js reads it).
+		"cfgStatusBanner.html('sip-status', 'checking'",
+		"cfgStatusBanner(banner, bannerState",
+		`<span id="sip-action-status" role="status" aria-live="polite"></span>`,
+		`data-sip-profile="test" data-config-action-draft="false"`,
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("SIP config UI missing contract marker %q", marker)

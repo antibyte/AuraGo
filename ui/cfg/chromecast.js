@@ -188,7 +188,7 @@ function renderChromecastSection(section) {
 
     // Discovery results area (hidden initially)
     html += '<div id="cfgdev-discover-area" class="cfgdev-discover-area is-hidden"></div>';
-    html += '<div id="cfgdev-test-status" class="field-help"></div>';
+    html += cfgActionResult.html('cfgdev-test-status');
 
     // Device table
     html += `
@@ -288,31 +288,23 @@ function ccChromecastMutable() {
     return data.enabled === true && data.read_only !== true;
 }
 
-function ccSetTestStatus(message) {
-    const status = document.getElementById('cfgdev-test-status');
-    if (status) status.textContent = message || '';
-}
-
-async function ccTestDevice(id) {
+// Plays a test sound on the cast device through the running service, so unsaved
+// settings lock the row buttons (data-config-action-draft="false").
+function ccTestDevice(id) {
     if (!ccChromecastMutable()) {
-        ccSetTestStatus(t('config.chromecast.test_disabled'));
+        cfgActionResult.show('cfgdev-test-status', 'warning', t('config.chromecast.test_disabled'));
         return;
     }
-    ccSetTestStatus(t('config.chromecast.test_working'));
-    try {
-        const resp = await fetch('/api/chromecast/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_id: id })
-        });
-        if (!resp.ok) {
-            ccSetTestStatus(t('config.chromecast.test_failed'));
-            return;
-        }
-        ccSetTestStatus(t('config.chromecast.test_ok'));
-    } catch (e) {
-        ccSetTestStatus(t('config.chromecast.test_failed'));
-    }
+    return cfgActionResult(document.getElementById('cfgdev-test-btn-' + id), () => fetch('/api/chromecast/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: id })
+    }), {
+        target: 'cfgdev-test-status',
+        pending: t('config.chromecast.test_working'),
+        success: t('config.chromecast.test_ok'),
+        failure: t('config.chromecast.test_failed')
+    });
 }
 
 function ccRenderRows(devices) {
@@ -328,7 +320,7 @@ function ccRenderRows(devices) {
             <td class="cfgdev-cell">${d.port || 8009}</td>
             <td class="cfgdev-cell cfgdev-cell-desc">${escapeHtml(d.description || '—')}</td>
             <td class="cfgdev-cell cfgdev-cell-actions">
-                <button onclick="ccTestDevice('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" ${ccChromecastMutable() ? '' : 'disabled'} title="${escapeAttr(t('config.chromecast.test_button'))}">${escapeHtml(t('config.chromecast.test_button'))}</button>
+                <button id="cfgdev-test-btn-${escapeAttr(d.id)}" data-config-action-draft="false" onclick="ccTestDevice('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" ${ccChromecastMutable() ? '' : 'disabled'} title="${escapeAttr(t('config.chromecast.test_button'))}">${escapeHtml(t('config.chromecast.test_button'))}</button>
                 <button onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
                 <button onclick="ccDeleteDevice('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="cfgdev-icon-btn cfgdev-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
             </td>`;
@@ -340,7 +332,7 @@ function ccRenderRows(devices) {
 async function ccDiscoverDevices() {
     const btn = document.getElementById('cfgdev-discover-btn');
     const area = document.getElementById('cfgdev-discover-area');
-    btn.disabled = true;
+    AuraConfigFeedback.busy(btn, true);
     btn.textContent = '⏳ ' + t('config.chromecast.discovering');
     setHidden(area, false);
     ccRenderDiscoveryState(area, 'loading', '⏳ ' + t('config.chromecast.discovering'));
@@ -366,7 +358,7 @@ async function ccDiscoverDevices() {
     } catch (e) {
         ccRenderDiscoveryState(area, 'error', '❌ ' + escapeHtml(e.message));
     } finally {
-        btn.disabled = false;
+        AuraConfigFeedback.busy(btn, false);
         btn.textContent = '🔍 ' + t('config.chromecast.discover_btn');
     }
 }
@@ -489,7 +481,7 @@ async function ccSaveDevice() {
     const editId = document.getElementById('cfgdev-edit-id').value;
     const isEdit = !!editId;
     const btn = document.getElementById('cfgdev-modal-save');
-    btn.disabled = true;
+    AuraConfigFeedback.busy(btn, true);
 
     try {
         const url = isEdit ? '/api/devices/' + editId : '/api/devices';
@@ -513,7 +505,7 @@ async function ccSaveDevice() {
         errBox.textContent = '❌ ' + e.message;
         setHidden(errBox, false);
     } finally {
-        btn.disabled = false;
+        AuraConfigFeedback.busy(btn, false);
     }
 }
 

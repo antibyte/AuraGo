@@ -48,7 +48,7 @@ func TestTregConfigBrowser(t *testing.T) {
             if(path==='/api/vault/secrets' && options.method==='POST'){window.tregTokenStored=true;return new Response(JSON.stringify({status:'ok'}));}
             if(path==='/api/config' && (!options.method||options.method==='GET')){const response=await window.tregFetch(url,options);const data=await response.json();if(window.tregTokenStored)data.treg.token='••••••••';return new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});}
             if (!path.startsWith('/api/treg/')) return window.tregFetch(url,options);
-            window.tregRequests.push({path,method:options.method||'GET'});
+            window.tregRequests.push({path,method:options.method||'GET',body:options.body||''});
             if(window.tregFail)return new Response(JSON.stringify({message:'fixture failure'}),{status:503});
             if(path.endsWith('/status'))return new Response(JSON.stringify({status:'disabled',key_present:true}));
             if(path.endsWith('/test-connection'))return new Response(JSON.stringify({status:'ok',data:{balance_micro:2000000}}));
@@ -61,18 +61,19 @@ func TestTregConfigBrowser(t *testing.T) {
 	if !page.MustEval(`() => {
 		const enabled = document.querySelector('[data-path="treg.enabled"]');
 		const readonly = document.querySelector('[data-path="treg.readonly"]');
-		const save = document.getElementById('treg-save-token').getBoundingClientRect();
+		const token = document.getElementById('treg-token').getBoundingClientRect();
 		const test = document.getElementById('treg-test-btn').getBoundingClientRect();
 		const pill = enabled.getBoundingClientRect();
 		return enabled.tagName === 'DIV' && readonly.tagName === 'DIV' && readonly.classList.contains('on')
 			&& pill.height > 0 && pill.height < 36 && pill.width > pill.height
-			&& test.left >= save.right + 12;
+			&& test.top >= token.bottom && !document.getElementById('treg-save-token');
 	}`).Bool() {
 		t.Fatal("treg switches or action buttons have the wrong geometry")
 	}
 	page.MustElement("#treg-token").MustInput("fixture-organization-token")
-	page.MustElement("#treg-save-token").MustClick()
-	waitForJSBool(t, page, `()=>window.tregTokenStored && document.getElementById('treg-token').value===''`)
+	if !page.MustEval(`()=>AuraConfigState.get('treg.token')==='fixture-organization-token'&&AuraConfigState.isDirty()`).Bool() {
+		t.Fatal("token is not part of the save dock draft")
+	}
 	page.MustElement("#treg-query").MustInput("media")
 	page.MustElement("#treg-search").MustClick()
 	waitForJSBool(t, page, `()=>document.querySelectorAll('#treg-results button').length===1`)
@@ -86,8 +87,13 @@ func TestTregConfigBrowser(t *testing.T) {
 	if !page.MustEval(`()=>AuraConfigState.isDirty()&&AuraConfigState.get('treg.allowed_endpoints').length===1`).Bool() {
 		t.Fatal("grant bypassed shared draft")
 	}
-	if !page.MustEval(`()=>document.getElementById('treg-test-btn').getAttribute('aria-disabled')==='true'`).Bool() {
-		t.Fatal("connection test enabled on an unsaved draft")
+	if !page.MustEval(`()=>document.getElementById('treg-test-btn').getAttribute('aria-disabled')!=='true'`).Bool() {
+		t.Fatal("connection test locked on an unsaved draft")
+	}
+	page.MustElement("#treg-test-btn").MustClick()
+	waitForJSBool(t, page, `()=>document.getElementById('treg-action-status').textContent.includes('2.000000')`)
+	if !page.MustEval(`()=>{const call=tregRequests.find(item=>item.path.endsWith('/test-connection'));const draft=JSON.parse(call.body).draft;return call.method==='POST'&&draft.treg.token==='fixture-organization-token'&&draft.treg.allowed_endpoints.length===1;}`).Bool() {
+		t.Fatal("connection test did not send the draft")
 	}
 	page.MustEval(`async()=>{await selectSection('server');await selectSection('treg');}`)
 	if !page.MustEval(`()=>JSON.parse(document.querySelector('[data-path="treg.allowed_endpoints"]').value).length===1`).Bool() {

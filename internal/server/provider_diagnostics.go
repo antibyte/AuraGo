@@ -47,10 +47,11 @@ func handleProviderTest(s *Server) http.HandlerFunc {
 			return
 		}
 		var request struct {
-			ProviderID string `json:"provider_id"`
-			Kind       string `json:"probe_kind"`
+			ProviderID string             `json:"provider_id"`
+			Kind       string             `json:"probe_kind"`
+			Provider   *providerTestDraft `json:"provider"`
 		}
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&request) != nil || decoder.Decode(&struct{}{}) != io.EOF {
 			writeAIGatewayError(w, nil, "invalid_request", 400, 0)
@@ -70,20 +71,87 @@ func handleProviderTest(s *Server) http.HandlerFunc {
 		saved := cfg.FindProvider(request.ProviderID)
 		if saved != nil {
 			p = *saved
-			if normalizeProviderAuthType(p.AuthType) == "oauth2" {
+			if request.Provider == nil && normalizeProviderAuthType(p.AuthType) == "oauth2" {
 				_, p.APIKey = speechLabRuntimeChatProvider(&p, s.Vault)
 			}
 		}
+		if request.Provider != nil {
+			// The form as typed in: the probed entry comes from the request, the
+			// saved entry only supplies secrets that stay valid for the same target.
+			draft := request.Provider.entry(request.ProviderID, saved)
+			if saved != nil && providerDraftSameTarget(saved, draft) && normalizeProviderAuthType(draft.AuthType) == "oauth2" {
+				_, draft.APIKey = speechLabRuntimeChatProvider(saved, s.Vault)
+			}
+			p = draft
+		}
 		s.CfgMu.RUnlock()
-		if saved == nil {
+		if saved == nil && request.Provider == nil {
 			writeAIGatewayError(w, nil, "provider_not_found", 404, 0)
 			return
 		}
-		writeSavedProviderProbe(w, s, r.Context(), cfg, p, request.Kind, map[string]any{"provider_id": p.ID, "probe_kind": request.Kind}, revision)
+		if p.ID == "" {
+			p.ID = "draft"
+		}
+		writeProviderProbe(w, s, r.Context(), cfg, p, request.Kind, map[string]any{"provider_id": p.ID, "probe_kind": request.Kind}, revision, request.Provider == nil)
 	}
 }
 
+// providerTestDraft is the provider form as typed in. Secrets are optional: an
+// empty or masked value means "the saved one", which only applies while the
+// target (type, URL, account, OAuth endpoints) is unchanged.
+type providerTestDraft struct {
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	BaseURL           string `json:"base_url"`
+	APIKey            string `json:"api_key"`
+	Model             string `json:"model"`
+	AuthType          string `json:"auth_type"`
+	AccountID         string `json:"account_id"`
+	GatewayID         string `json:"gateway_id"`
+	OAuthAuthURL      string `json:"oauth_auth_url"`
+	OAuthTokenURL     string `json:"oauth_token_url"`
+	OAuthClientID     string `json:"oauth_client_id"`
+	OAuthClientSecret string `json:"oauth_client_secret"`
+	OAuthScopes       string `json:"oauth_scopes"`
+}
+
+// entry builds the probed provider; saved may be nil (new provider).
+func (d *providerTestDraft) entry(id string, saved *config.ProviderEntry) config.ProviderEntry {
+	p := config.ProviderEntry{
+		ID: strings.TrimSpace(id), Name: d.Name, Type: strings.TrimSpace(d.Type), BaseURL: strings.TrimSpace(d.BaseURL),
+		Model: strings.TrimSpace(d.Model), AuthType: d.AuthType, AccountID: strings.TrimSpace(d.AccountID), GatewayID: strings.TrimSpace(d.GatewayID),
+		OAuthAuthURL: strings.TrimSpace(d.OAuthAuthURL), OAuthTokenURL: strings.TrimSpace(d.OAuthTokenURL),
+		OAuthClientID: strings.TrimSpace(d.OAuthClientID), OAuthScopes: d.OAuthScopes,
+	}
+	sameTarget := saved != nil && providerDraftSameTarget(saved, p)
+	if key := strings.TrimSpace(d.APIKey); key != "" && key != maskedKey {
+		p.APIKey = key
+	} else if sameTarget && normalizeProviderAuthType(p.AuthType) != "oauth2" {
+		p.APIKey = saved.APIKey
+	}
+	if secret := strings.TrimSpace(d.OAuthClientSecret); secret != "" && secret != maskedKey {
+		p.OAuthClientSecret = secret
+	} else if sameTarget {
+		p.OAuthClientSecret = saved.OAuthClientSecret
+	}
+	return p
+}
+
+// providerDraftSameTarget reports whether the draft still talks to the saved
+// endpoint, so the saved credentials may be used for it.
+func providerDraftSameTarget(saved *config.ProviderEntry, draft config.ProviderEntry) bool {
+	same := func(a, b string) bool { return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b)) }
+	return same(saved.Type, draft.Type) && same(saved.BaseURL, draft.BaseURL) && same(saved.AccountID, draft.AccountID) &&
+		same(saved.GatewayID, draft.GatewayID) && same(saved.OAuthTokenURL, draft.OAuthTokenURL) && same(saved.OAuthAuthURL, draft.OAuthAuthURL)
+}
+
 func writeSavedProviderProbe(w http.ResponseWriter, s *Server, parent context.Context, cfg *config.Config, p config.ProviderEntry, kind string, result map[string]any, revision string) {
+	writeProviderProbe(w, s, parent, cfg, p, kind, result, revision, true)
+}
+
+// writeProviderProbe runs the probe; record keeps the outcome as the provider's
+// last test (not for drafts, which describe a form and not the saved entry).
+func writeProviderProbe(w http.ResponseWriter, s *Server, parent context.Context, cfg *config.Config, p config.ProviderEntry, kind string, result map[string]any, revision string, record bool) {
 	if _, busy := s.providerTests.LoadOrStore(p.ID, true); busy {
 		writeAIGatewayError(w, result, "provider_test_busy", 409, 0)
 		return
@@ -104,8 +172,10 @@ func writeSavedProviderProbe(w http.ResponseWriter, s *Server, parent context.Co
 	if !current {
 		body["stale"] = true
 	}
-	observation := providerProbeObservation{Kind: kind, Revision: revision, Status: providerProbeStringValue(body["status"]), Code: providerProbeStringValue(body["code"]), FinishedAt: time.Now(), Current: current}
-	s.providerProbeHistory.Store(p.ID, observation)
+	if record {
+		observation := providerProbeObservation{Kind: kind, Revision: revision, Status: providerProbeStringValue(body["status"]), Code: providerProbeStringValue(body["code"]), FinishedAt: time.Now(), Current: current}
+		s.providerProbeHistory.Store(p.ID, observation)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(buffer.status)

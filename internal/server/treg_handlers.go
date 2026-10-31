@@ -14,8 +14,9 @@ import (
 
 var newTregServerClient = tools.NewTregClient
 
-// Config routes are administrative. Tests and catalog reads use only saved
-// credentials/config; these routes never proxy /call or accept a token or URL.
+// Config routes are administrative. Catalog reads use only saved credentials/config;
+// test-connection also accepts the form draft (draftTestConfig: a typed token, the
+// vault token for an empty field). These routes never proxy /call or accept a URL.
 func handleTreg(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		op := strings.TrimPrefix(r.URL.Path, "/api/treg/")
@@ -35,7 +36,17 @@ func handleTreg(s *Server) http.HandlerFunc {
 			return
 		}
 		token := ""
-		if s.Vault != nil {
+		if op == "test-connection" {
+			// The token as typed in; empty or masked means the saved one (config.Treg.Token
+			// comes from draftTestConfig, which reads the vault for it).
+			draft, err := s.draftTestConfig(r)
+			if err != nil {
+				writeDraftTestConfigError(w, err)
+				return
+			}
+			cfg = draft
+			token = cfg.Treg.Token
+		} else if s.Vault != nil {
 			token, _ = s.Vault.ReadSecret("treg_token")
 		}
 		if op == "status" {

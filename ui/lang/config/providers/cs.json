@@ -302,7 +302,7 @@
   "config.providers.url_invalid": "Zadej úplnou HTTP nebo HTTPS adresu bez uživatelského jména a hesla.",
   "config.providers.tab_diagnostics": "Stav a testy",
   "config.providers.diagnostics_help": "Stav využívá existující provozní data. Klíče zůstávají v šifrovaném Vaultu; pro smazání je výslovně odstraň.",
-  "config.providers.saved_test_help": "Testy používají uložené nastavení. Nejdřív ulož změny. Kontroly metadat nikdy negenerují odpověď.",
+  "config.providers.saved_test_help": "Testy používají hodnoty z tohoto formuláře; nic se neukládá. Uložený klíč se použije, dokud se koncový bod nezmění. Kontroly metadat nikdy nevytvářejí odpověď.",
   "config.providers.metadata_test": "Ověřit metadata",
   "config.providers.generation_test": "Otestovat model (možný poplatek)",
   "config.providers.generation_confirm": "Odeslat jeden krátký požadavek modelu? Poskytovatel jej může zpoplatnit a započítá se do rozpočtu.",
