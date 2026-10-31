@@ -1,0 +1,11 @@
+{
+  "config.retro_games.agent_access_help": "El agente puede buscar juegos e iniciarlos en el escritorio.",
+  "config.retro_games.enabled_help": "Activa la aplicación Retro Games en el escritorio virtual. Los juegos se ejecutan en el emulador de archive.org y necesitan acceso a internet.",
+  "config.video_studio.asset_limit_help": "Archivo multimedia individual más grande permitido en megabytes (por defecto 4096).",
+  "config.video_studio.enabled_help": "Activa la aplicación Video Studio en el escritorio virtual. FFmpeg y FFprobe deben estar instalados en el servidor.",
+  "config.video_studio.ffmpeg_help": "Ruta del ejecutable de FFmpeg. Déjala vacía para encontrar FFmpeg mediante el PATH del sistema.",
+  "config.video_studio.hardware_device_help": "Dispositivo de renderizado de la tarjeta gráfica, por ejemplo /dev/dri/renderD128 en Linux. Vacío = automático.",
+  "config.video_studio.project_limit_help": "Tamaño total de todos los archivos de un proyecto en megabytes (por defecto 16384).",
+  "config.video_studio.readonly_help": "Los proyectos se pueden ver pero no modificar ni exportar.",
+  "config.video_studio.timeout_help": "Tiempo máximo de renderizado de un vídeo en segundos; después se aborta (30 a 14400, por defecto 7200)."
+}

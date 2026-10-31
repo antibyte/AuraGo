@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "कनेक्शन टाइमआउट सेकंड में (डिफ़ॉल्ट: 10)",
   "help.obsidian.request_timeout": "अनुरोध टाइमआउट सेकंड में (डिफ़ॉल्ट: 30)",
   "config.obsidian.status_unknown": "Unknown status",
-  "config.obsidian.status_no_url": "No host configured"
+  "config.obsidian.status_no_url": "No host configured",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

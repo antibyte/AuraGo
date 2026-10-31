@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Última tentativa: {result}",
   "config.newspaper.max_searches": "Máximo de pesquisas por edição (incluindo novas tentativas)",
   "config.section.newspaper.label": "Jornal",
-  "config.section.newspaper.desc": "Uma edição diária pessoal, com fontes",
+  "config.section.newspaper.desc": "Cria um jornal diário pessoal a partir de pesquisas com fontes.",
   "config.newspaper.enabled": "Habilitar jornal",
   "config.newspaper.readonly": "Modo somente leitura",
   "config.newspaper.allow_email": "Permitir entrega de e-mail",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "O orçamento monetário continua valendo.",
   "config.newspaper.monetary_budget_disabled": "Nenhum orçamento monetário está configurado; os limites de pesquisa continuam valendo.",
   "config.newspaper.fixed_budget_note": "Os limites fixos compartilham {pages} páginas em toda a edição.",
-  "config.newspaper.fixed_limits_only": "Estes limites só se aplicam ao modo fixo."
+  "config.newspaper.fixed_limits_only": "Estes limites só se aplicam ao modo fixo.",
+  "config.newspaper.enabled_help": "Permite que a área de trabalho pesquise e compile todos os dias um jornal sobre seus temas. Você define os temas na área de trabalho.",
+  "config.newspaper.readonly_help": "O jornal só pode ler e exibir, mas não enviar nem alterar nada.",
+  "config.newspaper.allow_email_help": "Permite enviar edições concluídas por e-mail. Para isso, é preciso configurar uma conta de e-mail.",
+  "config.newspaper.allow_telegram_help": "Permite enviar edições concluídas pelo Telegram. Para isso, o Telegram precisa estar configurado.",
+  "config.newspaper.max_minutes_help": "Quanto tempo, no máximo, a pesquisa de uma edição pode levar (1 a 60 minutos, padrão 30).",
+  "config.newspaper.max_pages_help": "Quantas páginas da web são lidas por edição, no máximo (1 a 60, padrão 60).",
+  "config.newspaper.max_searches_help": "Quantas consultas de busca são feitas por edição, no máximo, incluindo novas tentativas (1 a 64, padrão 32).",
+  "config.newspaper.max_editions_help": "Quantas edições concluídas permanecem armazenadas; as mais antigas são excluídas (30 a 3650, padrão 365)."
 }

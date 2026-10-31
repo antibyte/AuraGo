@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "画像は、上のリストでメディア共有がオンになっているディレクトリのものだけが送信されます。",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "監視するディレクトリ",
+  "config.indexing.dir_help": "ファイルをインデックス化するフォルダーです。絶対パス、または AuraGo フォルダーからの相対パスで指定します。サブフォルダーも含まれます。ボタンまたは Enter キーで追加します。",
+  "config.indexing.chunk_max_chars_help": "1 つのテキストチャンクの最大長 (文字数) です。小さいほど検索結果が正確になり、大きいほど文脈が増えます。デフォルト: 3500。",
+  "config.indexing.chunk_overlap_help": "境界で文が途切れないよう、隣り合うチャンク間で共有する文字数です。デフォルト: 200。",
+  "config.indexing.chunk_max_chunks_help": "ファイルごとに作成するチャンクの最大数です。非常に大きなファイルの残りの部分はスキップされます。デフォルト: 200。"
 }

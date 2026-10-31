@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Místní síťová sdílení",
-  "config.section.network_shares.desc": "Spravujte sdílení SMB a NFS poskytovaná tímto hostitelem.",
+  "config.section.network_shares.desc": "Spravuje sdílení SMB a NFS, která tento hostitel poskytuje.",
   "dashboard.integration_network_shares": "Místní síťová sdílení",
   "config.network_shares.loading": "Načítají se možnosti místních SMB a NFS…",
   "config.network_shares.enabled": "Povolit integraci",

@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "As imagens só são enviadas dos diretórios que têm o envio de mídia ativado na lista acima.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "Diretório a monitorar",
+  "config.indexing.dir_help": "Pasta cujos arquivos são indexados, como caminho absoluto ou relativo à pasta do AuraGo. As subpastas são incluídas. Adicione com o botão ou Enter.",
+  "config.indexing.chunk_max_chars_help": "Comprimento máximo de um trecho de texto em caracteres. Trechos menores dão resultados mais precisos, maiores dão mais contexto. Padrão: 3500.",
+  "config.indexing.chunk_overlap_help": "Caracteres compartilhados entre trechos vizinhos para que frases nas bordas não sejam cortadas. Padrão: 200.",
+  "config.indexing.chunk_max_chunks_help": "Número máximo de trechos criados por arquivo; o restante de arquivos muito grandes é ignorado. Padrão: 200."
 }

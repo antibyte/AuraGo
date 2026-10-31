@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "लंबे टूल आउटपुट को मॉडल तक पहुँचने से पहले छोटा करता है और इस तरह टोकन बचाता है। नीचे का विकल्प चालू होने पर त्रुटि संदेश बने रहते हैं।",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW संपीड़न",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "बार-बार आने वाले टेक्स्ट के हिस्सों को उनका क्रम बदले बिना छोटे संदर्भों से बदलता है। बहुत दोहराव वाले आउटपुट पर टोकन बचाता है।",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "प्रति आउटपुट बनाए जाने वाले संदर्भों की अधिकतम संख्या। अधिक प्रविष्टियाँ अधिक दोहराव खोजती हैं लेकिन शब्दकोश के लिए अधिक जगह चाहिए।",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "इससे लंबे आउटपुट पर यह विधि लागू नहीं की जाती, ताकि कंप्यूटिंग समय बचे।",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "टेक्स्ट का कोई हिस्सा तभी बदला जाता है जब वह कम से कम इतनी बार आए।",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "इससे छोटे टेक्स्ट हिस्से कभी नहीं बदले जाते, क्योंकि तब संदर्भ टेक्स्ट से अधिक जगह लेगा।",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "परिणाम का उपयोग तभी होता है जब वह मूल से कम से कम इतने प्रतिशत छोटा हो।",
+  "help.agent.output_compression.toon_json.max_rows": "इससे अधिक पंक्तियों वाली तालिकाएँ संक्षिप्त TOON फ़ॉर्मैट में प्रस्तुत नहीं की जातीं।",
+  "help.agent.output_compression.toon_json.min_savings_percent": "संक्षिप्त तालिका रूप का उपयोग तभी होता है जब वह JSON से कम से कम इतने प्रतिशत छोटा हो।"
+}

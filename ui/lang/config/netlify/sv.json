@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Tillåter att skapa, uppdatera och ta bort Netlify-webbplatser.",
   "config.netlify.allow_env_management_help": "Tillåter hantering av miljövariabler på Netlify-webbplatser.",
   "config.netlify.default_site_id_help": "Valfritt webbplats-ID som används när agenten inte namnger en webbplats.",
-  "config.netlify.team_slug_help": "Valfri Netlify-teamslug som används för teamavgränsade API-anrop."
+  "config.netlify.team_slug_help": "Valfri Netlify-teamslug som används för teamavgränsade API-anrop.",
+  "config.netlify.vault_badge": "vault"
 }

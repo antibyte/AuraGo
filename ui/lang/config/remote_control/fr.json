@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Aucun appareil",
   "config.remote_control.no_platforms": "Aucune plateforme disponible",
   "config.remote_control.platforms_error": "Erreur de chargement des plateformes",
-  "config.remote_control.read_only_label": "Mode lecture seule (bloque les écritures, suppressions et commandes shell sur tous les appareils)",
+  "config.remote_control.read_only_label": "Mode lecture seule",
   "config.remote_control.security_desc": "Contrôlez l'enregistrement des appareils et la journalisation d'audit.",
   "config.remote_control.security_title": "Sécurité",
-  "config.remote_control.ssh_insecure_host_key_label": "Autoriser la clé d'hôte SSH non sécurisée (⚠️ désactive la protection MITM, utiliser uniquement sur des réseaux de confiance)",
+  "config.remote_control.ssh_insecure_host_key_label": "Autoriser une clé d'hôte SSH non sécurisée",
   "config.remote_control.status_connected": "Connecté",
   "config.remote_control.status_offline": "Hors ligne",
   "config.security_proxy.status_loading": "Chargement…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Mise à jour du client requise",
   "config.remote_control.confirm_removal": "Déconnecter cet appareil et annuler ses commandes en cours ? Un nouveau jeton sera nécessaire pour l’associer à nouveau.",
   "config.remote_control.paths_inherit": "Un chemin par ligne. Une liste de chemins vide pour cet appareil hérite des chemins globaux. Si les deux listes sont vides, l’accès aux fichiers est refusé.",
-  "config.remote_control.security_hint": "WSS et un certificat valide sont obligatoires, même via Tailscale. Mettez les clients classiques à jour avant le serveur. Les jetons expirent après une heure et ne servent qu’une fois."
+  "config.remote_control.security_hint": "WSS et un certificat valide sont obligatoires, même via Tailscale. Mettez les clients classiques à jour avant le serveur. Les jetons expirent après une heure et ne servent qu’une fois.",
+  "config.remote_control.enabled_help": "Active le contrôle à distance. Ce n'est qu'alors que les appareils appairés peuvent se connecter et que l'agent peut y accéder.",
+  "config.remote_control.read_only_help": "Bloque les écritures de fichiers, les suppressions et les commandes shell sur tous les appareils. La lecture reste possible.",
+  "config.remote_control.audit_log_help": "Enregistre chaque action sur les appareils distants. Recommandé pour pouvoir retracer les accès plus tard.",
+  "config.remote_control.ssh_insecure_host_key_help": "Attention : désactive la vérification de la clé d'hôte SSH et, avec elle, la protection contre les attaques de l'homme du milieu. Ne l'activez que sur un réseau en lequel vous avez entièrement confiance.",
+  "config.remote_control.max_file_size_help": "Taille maximale d'un fichier en Mo autorisée lors d'un transfert (1-500, 50 par défaut).",
+  "config.remote_control.enrollment_device_name_help": "Nom facultatif du nouvel appareil. Il est défini lors de la création du jeton d'appairage.",
+  "config.remote_control.device_name_help": "Nom facultatif de l'appareil sur lequel le client s'exécute. Il est transmis lors du téléchargement."
 }

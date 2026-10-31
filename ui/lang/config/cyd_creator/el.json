@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Διεύθυνση AuraGo για συσκευές",
   "config.cyd_creator.ota_title": "Ενημερώσεις μέσω Wi-Fi",
   "config.cyd_creator.restart_note": "Η ενεργοποίηση του CYD Creator και οι αλλαγές στο image του builder, στη μνήμη, στους πυρήνες CPU ή στη διακοπή λόγω αδράνειας ισχύουν μετά από επανεκκίνηση του AuraGo. Όλες οι άλλες ρυθμίσεις ισχύουν αμέσως.",
-  "config.section.cyd_creator.desc": "Φτιάξε εφαρμογές για πλακέτες Cheap Yellow Display με σχεδιαστή και πράκτορα. Τα builds τρέχουν σε Docker.",
+  "config.section.cyd_creator.desc": "Δημιουργεί εφαρμογές για πλακέτες Cheap Yellow Display με σχεδιαστή και πράκτορα.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Δημοσιευμένο image εργαλείων. Το AuraGo το κατεβάζει μία φορά και δεν το χτίζει ποτέ τοπικά.",
   "help.cyd_creator.cold_build_timeout_seconds": "Ισχύει όσο η cache build ενός έργου και μιας πλακέτας είναι ακόμα άδεια.",
   "help.cyd_creator.enabled": "Εμφανίζει την εφαρμογή CYD Creator στην επιφάνεια εργασίας. Για builds χρειάζεται ρυθμισμένος host Docker.",
   "help.cyd_creator.max_repair_attempts": "Πόσες φορές μπορεί ο πράκτορας να διορθώσει σφάλματα μεταγλώττισης πριν αποτύχει η εργασία.",
   "help.cyd_creator.ota_enabled": "Οι συσκευές με σύνδεση AuraGo κατεβάζουν μόνες τους νέα builds.",
-  "help.cyd_creator.ota_public_url": "URL μέσω της οποίας οι συσκευές φτάνουν το AuraGo. Κενό χρησιμοποιεί τις ρυθμίσεις του διακομιστή."
+  "help.cyd_creator.ota_public_url": "URL μέσω της οποίας οι συσκευές φτάνουν το AuraGo. Κενό χρησιμοποιεί τις ρυθμίσεις του διακομιστή.",
+  "config.cyd_creator.build_timeout_seconds_help": "Μια κανονική δόμηση διακόπτεται μετά από τόσα δευτερόλεπτα (προεπιλογή 300).",
+  "config.cyd_creator.cpu_cores_help": "Πυρήνες CPU για το κοντέινερ δόμησης, επιτρέπονται και μισές τιμές (προεπιλογή 2).",
+  "config.cyd_creator.idle_stop_minutes_help": "Το κοντέινερ δόμησης σταματά μετά από τόσα λεπτά χωρίς εργασία, ώστε να ελευθερώσει πόρους (προεπιλογή 20).",
+  "config.cyd_creator.job_timeout_minutes_help": "Συνολικός χρόνος που μπορεί να αφιερώσει ο πράκτορας σε μία εργασία, συμπεριλαμβανομένων των προσπαθειών επιδιόρθωσης (προεπιλογή 20 λεπτά).",
+  "config.cyd_creator.keep_builds_per_project_help": "Πόσες προηγούμενες δομήσεις διατηρούνται ανά έργο· οι παλαιότερες διαγράφονται (προεπιλογή 5).",
+  "config.cyd_creator.memory_mb_help": "Μνήμη για το κοντέινερ δόμησης σε megabyte (προεπιλογή 2048).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Το διάστημα με το οποίο μια συσκευή CYD ζητά ενημερώσεις από τον διακομιστή (προεπιλογή 60 δευτερόλεπτα)."
 }

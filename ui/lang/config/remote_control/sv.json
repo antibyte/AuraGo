@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Inga enheter",
   "config.remote_control.no_platforms": "Inga plattformar tillgängliga",
   "config.remote_control.platforms_error": "Fel vid laddning av plattformar",
-  "config.remote_control.read_only_label": "Skrivskyddat läge (blockerar filskrivningar, raderingar och skalkommandon på alla enheter)",
+  "config.remote_control.read_only_label": "Skrivskyddat läge",
   "config.remote_control.security_desc": "Styr enhetsregistrering och granskningslogg.",
   "config.remote_control.security_title": "Säkerhet",
-  "config.remote_control.ssh_insecure_host_key_label": "Tillåt osäker SSH-värdnyckel (⚠️ inaktiverar MITM-skydd, använd endast på betrodda nätverk)",
+  "config.remote_control.ssh_insecure_host_key_label": "Tillåt osäker SSH-värdnyckel",
   "config.remote_control.status_connected": "Ansluten",
   "config.remote_control.status_offline": "Frånkopplad",
   "config.security_proxy.status_loading": "Laddar…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Klienten måste uppdateras",
   "config.remote_control.confirm_removal": "Koppla från enheten och avbryta pågående kommandon? Ny parkoppling kräver en ny token.",
   "config.remote_control.paths_inherit": "En sökväg per rad. En tom sökvägslista för den här enheten ärver de globala sökvägarna. Om båda listorna är tomma nekas filåtkomst.",
-  "config.remote_control.security_hint": "WSS och ett giltigt certifikat krävs även via Tailscale. Uppdatera klassiska klienter före servern. Token gäller i en timme och kan bara användas en gång."
+  "config.remote_control.security_hint": "WSS och ett giltigt certifikat krävs även via Tailscale. Uppdatera klassiska klienter före servern. Token gäller i en timme och kan bara användas en gång.",
+  "config.remote_control.enabled_help": "Aktiverar fjärrstyrning. Först då kan parkopplade enheter ansluta och agenten komma åt dem.",
+  "config.remote_control.read_only_help": "Blockerar filskrivning, borttagning och shell-kommandon på alla enheter. Läsning är fortfarande möjlig.",
+  "config.remote_control.audit_log_help": "Loggar varje åtgärd på fjärrenheter. Rekommenderas så att åtkomster kan spåras i efterhand.",
+  "config.remote_control.ssh_insecure_host_key_help": "Varning: stänger av kontrollen av SSH-värdnyckeln och därmed skyddet mot man-in-the-middle-attacker. Aktivera bara i ett nätverk du litar helt på.",
+  "config.remote_control.max_file_size_help": "Största fil i MB som tillåts vid en överföring (1-500, standard 50).",
+  "config.remote_control.enrollment_device_name_help": "Valfritt namn för den nya enheten. Det anges när parkopplingstoken skapas.",
+  "config.remote_control.device_name_help": "Valfritt namn för enheten som klienten körs på. Det skickas med när du laddar ned."
 }

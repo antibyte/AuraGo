@@ -36,5 +36,6 @@
   "action_policy.unknown": "结果不确定。再次执行前请检查实际状态。",
   "action_policy.admin_only": "只有管理员可以更改规则和审批操作。",
   "action_policy.save_hint": "测试规则前请先保存更改。",
-  "action_policy.pending": "待处理审批"
+  "action_policy.pending": "待处理审批",
+  "action_policy.enabled_help": "您自己的规则会自动允许或拒绝单个操作。已禁用的功能和只读设置始终优先。"
 }

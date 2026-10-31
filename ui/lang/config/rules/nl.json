@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Regelbibliotheek",
   "config.rules.disabled": "Uitgeschakeld",
   "config.rules.targeting": "Matchdoelen",
-  "config.rules.system_status": "Regelsysteem"
+  "config.rules.system_status": "Regelsysteem",
+  "config.rules.rule_id_help": "Korte unieke naam van de regel, bijvoorbeeld homepage. Kan na het aanmaken niet meer worden gewijzigd.",
+  "config.rules.rule_title_help": "Leesbare naam die in de regelbibliotheek wordt getoond.",
+  "config.rules.priority_help": "Als meerdere regels passen, worden hogere getallen eerst geïnjecteerd. Standaard 50.",
+  "config.rules.enabled_help": "Uitgeschakelde regels worden nooit in taken geïnjecteerd.",
+  "config.rules.tools_help": "Toolnamen die deze regel activeren, gescheiden door komma's. Kies hieronder een tool om toe te voegen.",
+  "config.rules.workflows_help": "Workflownamen die deze regel activeren, gescheiden door komma's. Kies hieronder een workflow om toe te voegen.",
+  "config.rules.keywords_help": "Woorden in de tekst van de taak die deze regel activeren, gescheiden door komma's.",
+  "config.rules.body_help": "De tekst van de vangrail in Markdown. Wordt geïnjecteerd voordat een passende taak begint."
 }

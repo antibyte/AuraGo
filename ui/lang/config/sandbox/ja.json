@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "ネイティブホスト",
   "config.shell_sandbox.ready": "準備完了",
   "config.sandbox.local_python_fallback_label": "ローカル Python フォールバック",
-  "config.sandbox.local_python_fallback_warning": "サンドボックス失敗時に隔離外のローカル Python でコードを実行します。意図している場合だけ有効にしてください。"
+  "config.sandbox.local_python_fallback_warning": "サンドボックス失敗時に隔離外のローカル Python でコードを実行します。意図している場合だけ有効にしてください。",
+  "config.sandbox.local_python_fallback_help": "コンテナが利用できない場合、コードをサーバー上でローカルに実行します。警告: このコードはコンテナによる分離なしで実行されます。",
+  "config.shell_sandbox.enabled_help": "Landlock を使って、エージェントのシェルコマンドによるファイルシステムへのアクセスを制限します。適したカーネルを備えた Linux でのみ動作します。",
+  "config.shell_sandbox.max_memory_help": "1 つのコマンドが使用できるメモリの最大量 (MB) です (64-8192、デフォルト 1024)。",
+  "config.shell_sandbox.max_cpu_help": "この CPU 時間 (秒) を超えるとコマンドが中断されます (5-600、デフォルト 30)。",
+  "config.shell_sandbox.max_fsize_help": "1 つのコマンドが書き込める最大のファイルサイズ (MB) です (1-4096、デフォルト 100)。"
 }

@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "在向 Manifest 发送请求时附带额外的请求头，使 Manifest 能按您的层级选择匹配的模型。",
+  "config.manifest.routing_specificity_mode_help": "“关闭”不发送类别，“固定”始终发送下方所选的类别，“自动”由 AuraGo 针对每个请求判定类别。",
+  "config.manifest.routing_specificity_help": "在“固定”模式下，AuraGo 随每个请求发送给 Manifest 的类别。",
+  "config.manifest.routing_headers_help": "以名称和值成对形式给出的自定义请求头，AuraGo 会额外发送给 Manifest。只填写允许 Manifest 看到的值。",
+  "config.manifest.routing_header_name": "请求头名称",
+  "config.manifest.routing_header_value": "请求头值"
+}

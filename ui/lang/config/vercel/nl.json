@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Staat het toevoegen, bijwerken en verwijderen van Vercel-domeinen toe.",
   "config.vercel.default_project_id_help": "Optionele project-ID die wordt gebruikt wanneer de agent geen project noemt.",
   "config.vercel.team_id_help": "Optionele Vercel-team-ID voor teamgebonden API-aanroepen.",
-  "config.vercel.team_slug_help": "Optionele Vercel-teamslug voor teamgebonden API-aanroepen."
+  "config.vercel.team_slug_help": "Optionele Vercel-teamslug voor teamgebonden API-aanroepen.",
+  "config.vercel.vault_badge": "vault"
 }

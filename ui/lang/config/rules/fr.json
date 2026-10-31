@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Bibliothèque de règles",
   "config.rules.disabled": "Désactivé",
   "config.rules.targeting": "Cibles de correspondance",
-  "config.rules.system_status": "Système de règles"
+  "config.rules.system_status": "Système de règles",
+  "config.rules.rule_id_help": "Nom court et unique de la règle, par exemple homepage. Il ne peut plus être modifié après la création.",
+  "config.rules.rule_title_help": "Nom lisible affiché dans la bibliothèque de règles.",
+  "config.rules.priority_help": "Lorsque plusieurs règles correspondent, les nombres les plus élevés sont injectés en premier. Par défaut : 50.",
+  "config.rules.enabled_help": "Les règles désactivées ne sont jamais injectées dans les tâches.",
+  "config.rules.tools_help": "Noms d'outils qui activent cette règle, séparés par des virgules. Choisissez un outil ci-dessous pour l'ajouter.",
+  "config.rules.workflows_help": "Noms de workflows qui activent cette règle, séparés par des virgules. Choisissez un workflow ci-dessous pour l'ajouter.",
+  "config.rules.keywords_help": "Mots du texte de la tâche qui activent cette règle, séparés par des virgules.",
+  "config.rules.body_help": "Le texte du garde-fou en Markdown. Il est injecté avant le début d'une tâche correspondante."
 }

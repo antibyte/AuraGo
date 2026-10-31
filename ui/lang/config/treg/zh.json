@@ -31,5 +31,10 @@
   "config.treg.empty": "暂无条目",
   "config.treg.balance": "余额",
   "config.treg.cost_invalid": "请输入 0–1000000 USD，最多六位小数。",
-  "config.treg.token_required": "请输入绑定组织的令牌。"
+  "config.treg.token_required": "请输入绑定组织的令牌。",
+  "config.treg.currency_usd": "美元 (USD)",
+  "config.treg.enabled_help": "启用 treg 集成。它允许代理使用 treg 目录中的付费服务，范围以您在下方批准的为准。",
+  "config.treg.readonly_help": "代理只能读取目录和余额，不能触发付费调用。",
+  "config.treg.token_help": "您的 treg 账户的组织令牌。它以加密方式存储在保险库中。",
+  "config.treg.search_help": "treg 目录的搜索词（最多 500 个字符）。您可以在结果中为代理批准单个调用。"
 }

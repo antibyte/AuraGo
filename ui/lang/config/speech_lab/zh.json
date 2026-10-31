@@ -22,7 +22,7 @@
   "config.speech_lab.provider_load_failed": "无法加载提供商列表。连接恢复前请勿保存提供商更改。",
   "config.speech_lab.active_combination": "当前组合",
   "config.section.speech_lab.label": "语音实验室",
-  "config.section.speech_lab.desc": "用于电话和聊天的可选本地语音识别与语音合成。",
+  "config.section.speech_lab.desc": "运行可选的本地语音识别与合成，用于通话和聊天。",
   "config.speech_lab.ownership_note": "Speech Lab 仅提供 ASR 和 TTS。对话控制、LLM、工具和记忆均保留在 AuraGo 中。",
   "config.speech_lab.enabled": "启用 Speech Lab",
   "config.speech_lab.enabled_help": "允许 AuraGo 连接本地 Speech Lab 服务。每个通道还需单独启用。",

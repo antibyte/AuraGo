@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Tillader tilføjelse, opdatering og fjernelse af Vercel-domæner.",
   "config.vercel.default_project_id_help": "Valgfrit projekt-id, der bruges, når agenten ikke navngiver et projekt.",
   "config.vercel.team_id_help": "Valgfrit Vercel-team-id til teamafgrænsede API-kald.",
-  "config.vercel.team_slug_help": "Valgfri Vercel-teamslug til teamafgrænsede API-kald."
+  "config.vercel.team_slug_help": "Valgfri Vercel-teamslug til teamafgrænsede API-kald.",
+  "config.vercel.vault_badge": "vault"
 }

@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "允许添加、更新和移除 Vercel 域名。",
   "config.vercel.default_project_id_help": "当智能体未指定项目时使用的可选项目 ID。",
   "config.vercel.team_id_help": "可选的 Vercel 团队 ID，用于团队范围的 API 调用。",
-  "config.vercel.team_slug_help": "可选的 Vercel 团队 slug，用于团队范围的 API 调用。"
+  "config.vercel.team_slug_help": "可选的 Vercel 团队 slug，用于团队范围的 API 调用。",
+  "config.vercel.vault_badge": "保险库"
 }

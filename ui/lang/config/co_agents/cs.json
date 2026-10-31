@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Vybrat tahák",
   "config.co_agents.spec_cheatsheet_loading": "Načítání…",
   "config.co_agents.spec_cheatsheet_empty": "Žádné aktivní taháky nejsou k dispozici.",
-  "config.co_agents.spec_cheatsheet_error": "Taháky se nepodařilo načíst."
+  "config.co_agents.spec_cheatsheet_error": "Taháky se nepodařilo načíst.",
+  "config.co_agents.cb_max_tokens_help": "Horní limit tokenů na úlohu. 0 = neomezeno.",
+  "config.co_agents.cb_max_tool_calls_help": "Kolik volání nástrojů smí co-agent provést na úlohu, než je zastaven (výchozí 10).",
+  "config.co_agents.cb_timeout_help": "Maximální doba běhu co-agenta v sekundách (výchozí 300).",
+  "config.co_agents.provider_help": "Model, který co-agenti používají. Bez výběru používají hlavní LLM.",
+  "config.co_agents.spec_additional_prompt_help": "Další pokyny připojené k systémovému promptu této role.",
+  "config.co_agents.spec_provider_help": "Vlastní model pouze pro tuto roli. Bez výběru platí poskytovatel co-agentů."
 }

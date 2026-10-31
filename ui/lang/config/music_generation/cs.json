@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "Zaneprázdněno",
   "config.music_gen.state_stopped": "Zastaveno",
   "config.music_gen.state_error": "Chyba",
-  "config.music_gen.no_gpu": "V kontejneru není dostupná GPU. Zkontrolujte přístup k zařízení nebo výslovně vyberte CPU."
+  "config.music_gen.no_gpu": "V kontejneru není dostupná GPU. Zkontrolujte přístup k zařízení nebo výslovně vyberte CPU.",
+  "config.music_gen.device_help": "Grafická karta nebo výpočetní zařízení, na kterém běží místní model. „auto“ vybere samo.",
+  "config.music_gen.enabled_help": "Umožní agentovi vytvářet hudbu pomocí vybraného poskytovatele. Každé generování spotřebuje kvótu, kredit nebo místní výpočetní výkon.",
+  "config.music_gen.provider_help": "Cloudový poskytovatel ze Správy poskytovatelů nebo místní model ACE-Step, který hudbu vytváří.",
+  "config.music_gen.reserve_help": "Paměť grafické karty v GiB, kterou místní model nechává volnou pro jiné programy (0–256, výchozí 1).",
+  "config.music_gen.timeout_help": "Po této době AuraGo zruší místní generování (30–1800 sekund, výchozí 1800)."
 }

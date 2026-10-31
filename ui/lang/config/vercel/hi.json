@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Vercel डोमेन जोड़ने, अपडेट करने और हटाने की अनुमति देता है।",
   "config.vercel.default_project_id_help": "वैकल्पिक प्रोजेक्ट ID, जिसका उपयोग तब होता है जब एजेंट किसी प्रोजेक्ट का नाम नहीं बताता।",
   "config.vercel.team_id_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Vercel टीम ID।",
-  "config.vercel.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Vercel टीम स्लग।"
+  "config.vercel.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Vercel टीम स्लग।",
+  "config.vercel.vault_badge": "vault"
 }

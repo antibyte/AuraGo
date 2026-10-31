@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Port webového rozhraní",
   "config.fritzbox.insecure_skip_verify_label": "Povolit samopodepsaný certifikát",
   "help.fritzbox.web_port": "Volitelný port pro přihlášení a požadavky Smart Home. Nech 0 pro použití 80 nebo 443.",
-  "help.fritzbox.insecure_skip_verify": "Povolí HTTPS se samopodepsaným certifikátem Fritz!Boxu. Používej jen v důvěryhodné domácí síti."
+  "help.fritzbox.insecure_skip_verify": "Povolí HTTPS se samopodepsaným certifikátem Fritz!Boxu. Používej jen v důvěryhodné domácí síti.",
+  "config.fritzbox.feature_enabled_help": "Agent smí používat funkce „{feature}“ routeru Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "Pro „{feature}“ smí agent hodnoty pouze číst a na Fritz!Box nemůže nic měnit.",
+  "config.fritzbox.polling_enabled_help": "Pravidelně se ptá Fritz!Box na nové hovory, aby na ně mohlo AuraGo reagovat.",
+  "config.fritzbox.polling_interval_help": "Doba mezi dotazy v sekundách (10–3600, výchozí 60). Kratší intervaly reagují rychleji, ale více zatěžují Fritz!Box."
 }

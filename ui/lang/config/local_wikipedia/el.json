@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Με πολυμέσα",
   "config.local_wikipedia.variant_nopic": "Χωρίς πολυμέσα",
   "config.local_wikipedia.warning_size": "Ανάλογα με τη γλώσσα και την παραλλαγή, μια έκδοση χρειάζεται έως 130 GB και η λήψη μπορεί να διαρκέσει ώρες.",
-  "config.section.local_wikipedia.desc": "Wikipedia εκτός σύνδεσης για τον πράκτορα και την επιφάνεια εργασίας, από μία ληφθείσα έκδοση Kiwix.",
+  "config.section.local_wikipedia.desc": "Παρέχει στον πράκτορα και στην επιφάνεια εργασίας τη Wikipedia εκτός σύνδεσης από μια ληφθείσα έκδοση Kiwix.",
   "config.section.local_wikipedia.label": "Τοπική Wikipedia",
   "help.local_wikipedia.agent_access": "Επιτρέπει στον πράκτορα να αναζητά και να διαβάζει την εγκατεστημένη έκδοση.",
   "help.local_wikipedia.data_dir": "Απόλυτη διαδρομή για την έκδοση. Άφησέ το κενό για τον φάκελο wikipedia στον φάκελο δεδομένων του AuraGo.",

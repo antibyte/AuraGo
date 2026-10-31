@@ -31,5 +31,10 @@
   "config.treg.empty": "項目なし",
   "config.treg.balance": "残高",
   "config.treg.cost_invalid": "0～1000000 USD を小数点以下6桁以内で入力してください。",
-  "config.treg.token_required": "組織に紐づくトークンを入力してください。"
+  "config.treg.token_required": "組織に紐づくトークンを入力してください。",
+  "config.treg.currency_usd": "米ドル",
+  "config.treg.enabled_help": "treg 連携を有効にします。下で承認した範囲で、エージェントが treg カタログの有料サービスを利用できるようになります。",
+  "config.treg.readonly_help": "エージェントはカタログと残高の読み取りのみ可能で、有料の呼び出しは実行できません。",
+  "config.treg.token_help": "treg アカウントの組織トークンです。vault に暗号化して保存されます。",
+  "config.treg.search_help": "treg カタログの検索語です (500 文字まで)。結果の中から、エージェントに許可する個々の呼び出しを承認します。"
 }

@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "छवियाँ केवल उन्हीं निर्देशिकाओं के लिए भेजी जाती हैं जिनके लिए ऊपर की सूची में मीडिया साझा करना चालू है।",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "निगरानी के लिए निर्देशिका",
+  "config.indexing.dir_help": "वह फ़ोल्डर जिसकी फ़ाइलें इंडेक्स की जाती हैं, पूर्ण पथ या AuraGo फ़ोल्डर के सापेक्ष। उप-फ़ोल्डर शामिल हैं। बटन या Enter से जोड़ें।",
+  "config.indexing.chunk_max_chars_help": "एक टेक्स्ट चंक की अधिकतम लंबाई अक्षरों में। छोटे चंक अधिक सटीक परिणाम देते हैं, बड़े चंक अधिक संदर्भ। डिफ़ॉल्ट: 3500।",
+  "config.indexing.chunk_overlap_help": "पड़ोसी चंक के बीच साझा किए जाने वाले अक्षर ताकि सीमाओं पर वाक्य कटें नहीं। डिफ़ॉल्ट: 200।",
+  "config.indexing.chunk_max_chunks_help": "प्रति फ़ाइल बनाए जाने वाले चंक की अधिकतम संख्या; बहुत बड़ी फ़ाइलों का शेष भाग छोड़ दिया जाता है। डिफ़ॉल्ट: 200।"
 }

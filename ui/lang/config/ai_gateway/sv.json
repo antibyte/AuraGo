@@ -51,5 +51,6 @@
   "config.ai_gateway.route_skipped": "Den här leverantören använder ingen gatewayrutt.",
   "config.ai_gateway.metadata_invalid": "Använd högst fem fullständiga par med unika nycklar. Ange aldrig hemligheter.",
   "config.ai_gateway.provider_key_help": "API-nyckel från den valda leverantören.",
-  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save.",
+  "config.ai_gateway.provider_select_help": "Leverantör som används för de två testerna nedan. Valet sparas inte."
 }

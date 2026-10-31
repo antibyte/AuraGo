@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Google Cloud में OAuth वेब क्लाइंट बनाएँ, चुने हुए API सक्षम करें और सहमति स्क्रीन सेट करें। कनेक्ट करते समय दिखाया गया रीडायरेक्ट URL दर्ज करें।",
   "config.gog.grants_help": "हर अनुमति अलग से सक्षम करें। Office फ़ाइल बनाने और निर्यात करने के लिए संबंधित Drive अनुमति भी आवश्यक है।",
   "config.section.gog.label": "gog से Google Workspace",
-  "config.section.gog.desc": "मूल इंटीग्रेशन के साथ अलग Google खाते इस्तेमाल करें।",
+  "config.section.gog.desc": "बाहरी gog कमांड-लाइन टूल के ज़रिए अतिरिक्त Google खातों तक पहुँचता है।",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "Google खातों से gog लिंक चालू करता है। यह अंतर्निहित Google Workspace इंटीग्रेशन में और खाते जोड़ता है।",
+  "config.gog.readonly_help": "एजेंट gog के ज़रिए केवल पढ़ सकता है। बनाना, बदलना, हटाना और भेजना तब भी अवरुद्ध रहते हैं जब कोई खाता उनकी अनुमति देता हो।",
+  "config.gog.name_help": "खाते का प्रदर्शन नाम, जैसे \"व्यक्तिगत\" या \"कार्य\"।",
+  "config.gog.account_enabled_help": "केवल सक्षम खातों का उपयोग एजेंट और डेस्कटॉप कर सकते हैं।",
+  "config.gog.agent_help": "एजेंट इस खाते का उपयोग नीचे दी गई अनुमतियों के साथ कर सकता है।",
+  "config.gog.desktop_help": "डेस्कटॉप ऐप इस खाते का उपयोग कर सकते हैं, जैसे मेल या कैलेंडर के लिए।",
+  "config.gog.client_id_help": "Google Cloud Console के OAuth वेब क्लाइंट की क्लाइंट ID।",
+  "config.gog.secret_help": "OAuth क्लाइंट का क्लाइंट सीक्रेट। \"Vault में सहेजें\" इसे एन्क्रिप्ट करके संग्रहीत करता है; यह दोबारा नहीं दिखाया जाता।"
 }

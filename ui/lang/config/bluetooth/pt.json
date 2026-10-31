@@ -1,6 +1,6 @@
 {
   "config.section.bluetooth.label": "Bluetooth",
-  "config.section.bluetooth.desc": "Dispositivos Bluetooth e saída de áudio direcionada pelo Linux BlueZ.",
+  "config.section.bluetooth.desc": "Gerencia dispositivos Bluetooth e a saída de áudio por meio do BlueZ do Linux.",
   "dashboard.integration_bluetooth": "Bluetooth",
   "config.bluetooth.loading": "Dispositivos Bluetooth e saída de áudio direcionada pelo Linux BlueZ.",
   "config.bluetooth.enabled": "Ativado",

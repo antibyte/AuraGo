@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "वर्चुअल कंप्यूटर",
-  "config.section.virtual_computers.desc": "टर्मिनल, डेस्कटॉप, प्रीव्यू और एजेंट एक्सेस वाले अस्थायी microVM कंप्यूटर।",
+  "config.section.virtual_computers.desc": "टर्मिनल, डेस्कटॉप और एजेंट पहुँच वाले डिस्पोज़ेबल microVM कंप्यूटर उपलब्ध कराता है।",
   "config.virtual_computers.enabled_label": "वर्चुअल कंप्यूटर चालू करें",
   "config.virtual_computers.disabled_notice": "वर्चुअल कंप्यूटर बंद हैं।",
   "config.virtual_computers.disabled_desc": "boring-computers मशीनों को लॉन्च और प्रॉक्सी करने के लिए एकीकरण सक्षम करें।",

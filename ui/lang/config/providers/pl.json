@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Zapisano nieprawidłową maskę jako dane uwierzytelniające. Zastąp ją lub usuń.",
   "config.providers.runtime_incomplete": "Zapisany dostawca jest niekompletny lub niedostępny. Sprawdź model, adres i dane uwierzytelniające.",
   "config.providers.limit_source_model_only_fallback": "oszacowanie na podstawie modelu innego dostawcy",
-  "config.providers.missing_references": "Brakujący wybrani dostawcy: {paths}. W tych ustawieniach wybierz istniejącego dostawcę."
+  "config.providers.missing_references": "Brakujący wybrani dostawcy: {paths}. W tych ustawieniach wybierz istniejącego dostawcę.",
+  "config.providers.search_help": "Filtruje listę dostawców według nazwy, typu lub modelu.",
+  "config.providers.filter_type_help": "Pokazuje tylko dostawców jednego typu.",
+  "config.providers.filter_role_help": "Pokazuje tylko dostawców przypisanych do określonego zadania, na przykład modelu głównego lub embeddingów."
 }

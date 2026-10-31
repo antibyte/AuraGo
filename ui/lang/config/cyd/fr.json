@@ -51,5 +51,6 @@
   "config.cyd.flash_variant_cyd2usb": "CYD2USB (USB-C, ST7789)",
   "config.cyd.flash_erase_hint": "Effacez l’appareil si demandé, sinon d’anciens réglages peuvent remplacer le nouveau jeton.",
   "help.cyd.web_flasher": "Installe aurago-cyd depuis le navigateur en USB et écrit le jeton plus l’URL AuraGo dans une partition d’usine. Ensuite, seul le Wi-Fi reste à configurer.",
-  "config.cyd.flash_provision_failed": "Impossible de préparer les données de provisionnement du firmware"
+  "config.cyd.flash_provision_failed": "Impossible de préparer les données de provisionnement du firmware",
+  "config.cyd.flash_variant_help": "Choisissez la variante de votre carte. Une mauvaise variante peut laisser l'écran noir après le flashage."
 }

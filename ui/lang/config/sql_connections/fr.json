@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importer une sauvegarde SQLite",
   "config.sql_connections.sqlite_import_help": "Importe une sauvegarde cohérente et autonome (64 Mio maximum). Enregistrer la place dans le stockage protégé et conserve les originaux.",
   "config.sql_connections.sqlite_import_required": "Importation SQLite requise",
-  "config.sql_connections.allow_management_help": "L’agent peut uniquement modifier les descriptions. Configuration, identifiants et droits sont réservés à l’administrateur."
+  "config.sql_connections.allow_management_help": "L’agent peut uniquement modifier les descriptions. Configuration, identifiants et droits sont réservés à l’administrateur.",
+  "config.sql_connections.filter_label": "Filtrer les connexions",
+  "config.sql_connections.filter_help": "Filtre la liste par nom, type, hôte, base de données ou description.",
+  "config.sql_connections.name_help": "Nom unique que l'agent utilise pour désigner cette connexion.",
+  "config.sql_connections.driver_help": "Type de base de données. SQLite fonctionne sur un fichier importé, les autres se connectent à un serveur.",
+  "config.sql_connections.port_help": "Laissez vide pour utiliser le port par défaut du type de base (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Nom d'hôte ou adresse IP du serveur de base de données. Vide = localhost.",
+  "config.sql_connections.ssl_mode_help": "Chiffrement de la connexion. Désactiver envoie tout en clair, Exiger chiffre sans vérifier le certificat, Vérifier l'AC contrôle l'autorité de certification, Vérification complète contrôle aussi le nom du serveur (le plus sûr).",
+  "config.sql_connections.database_help": "Nom de la base de données du serveur à laquelle l'agent se connecte.",
+  "config.sql_connections.description_help": "Courte note pour l'agent et pour vous sur l'usage de la base de données.",
+  "config.sql_connections.username_help": "Utilisateur de la base de données. Utilisez un compte avec le moins de privilèges possible.",
+  "config.sql_connections.password_help": "Stocké chiffré dans le vault. Laissez vide pour conserver le mot de passe enregistré."
 }

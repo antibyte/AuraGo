@@ -60,5 +60,13 @@
   "config.email.load_failed": "E-postkonton kunde inte läsas in",
   "config.email.load_failed_disabled": "Att lägga till, redigera och ta bort är inaktiverat tills listan har lästs in.",
   "config.email.retry": "Försök igen",
-  "config.email.saved": "E-postkonton sparade."
+  "config.email.saved": "E-postkonton sparade.",
+  "config.email.name_help": "Visningsnamn för kontot i AuraGo, till exempel \"Privat\" eller \"Jobb\".",
+  "config.email.imap_host_help": "Adress till din e-postleverantörs server för inkommande e-post (IMAP).",
+  "config.email.smtp_host_help": "Adress till din e-postleverantörs server för utgående e-post (SMTP).",
+  "config.email.username_help": "Användarnamn för IMAP och SMTP, vanligtvis hela e-postadressen.",
+  "config.email.password_help": "Lösenord eller applösenord för kontot. Det lagras krypterat i vault.",
+  "config.email.watch_enabled_help": "AuraGo kontrollerar regelbundet mappen som väljs nedan efter nya e-postmeddelanden och kan reagera på dem.",
+  "config.email.watch_folder_help": "IMAP-mapp som bevakas efter nya e-postmeddelanden. Standard är INBOX.",
+  "config.email.interval_seconds_help": "Hur ofta mappen kontrolleras, i sekunder (standard 120). Kortare intervall belastar e-postservern mer."
 }

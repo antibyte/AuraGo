@@ -28,5 +28,6 @@
   "config.here_now.saving": "Opslaan…",
   "config.here_now.testing": "Testen…",
   "config.here_now.test_failed": "Verbinding mislukt",
-  "config.here_now.test_success": "Verbinding geslaagd"
+  "config.here_now.test_success": "Verbinding geslaagd",
+  "config.here_now.vault_badge": "vault"
 }

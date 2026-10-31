@@ -60,5 +60,13 @@
   "config.email.load_failed": "ईमेल खाते लोड नहीं हो सके",
   "config.email.load_failed_disabled": "सूची लोड होने तक जोड़ना, संपादित करना और हटाना अक्षम है।",
   "config.email.retry": "पुनः प्रयास करें",
-  "config.email.saved": "ईमेल खाते सहेजे गए।"
+  "config.email.saved": "ईमेल खाते सहेजे गए।",
+  "config.email.name_help": "AuraGo में खाते का प्रदर्शन नाम, जैसे \"व्यक्तिगत\" या \"कार्य\"।",
+  "config.email.imap_host_help": "आपके ईमेल प्रदाता के इनकमिंग मेल सर्वर (IMAP) का पता।",
+  "config.email.smtp_host_help": "आपके ईमेल प्रदाता के आउटगोइंग मेल सर्वर (SMTP) का पता।",
+  "config.email.username_help": "IMAP और SMTP के लिए उपयोगकर्ता नाम, आमतौर पर पूरा ईमेल पता।",
+  "config.email.password_help": "खाते का पासवर्ड या ऐप पासवर्ड। इसे vault में एन्क्रिप्ट करके संग्रहीत किया जाता है।",
+  "config.email.watch_enabled_help": "AuraGo नीचे चुने गए फ़ोल्डर में नए मेल की नियमित रूप से जाँच करता है और उन पर प्रतिक्रिया दे सकता है।",
+  "config.email.watch_folder_help": "नए मेल के लिए निगरानी किया जाने वाला IMAP फ़ोल्डर। डिफ़ॉल्ट INBOX है।",
+  "config.email.interval_seconds_help": "फ़ोल्डर की जाँच कितनी बार होती है, सेकंड में (डिफ़ॉल्ट 120)। छोटे अंतराल मेल सर्वर पर अधिक भार डालते हैं।"
 }

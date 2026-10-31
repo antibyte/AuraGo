@@ -59,5 +59,6 @@
   "config.updates.version": "Versione",
   "config.updates.warning_banner": "L'aggiornamento sostituisce binari, prompt e file UI. <strong>La tua configurazione e i dati sono preservati.</strong> AuraGo si riavvierà dopo l'aggiornamento.",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
-  "config.updates.confirm_install_title": "Installare l’aggiornamento?"
+  "config.updates.confirm_install_title": "Installare l’aggiornamento?",
+  "config.updates.cancel_reload": "Annulla il ricaricamento automatico"
 }

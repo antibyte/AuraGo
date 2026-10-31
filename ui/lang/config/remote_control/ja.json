@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "デバイスなし",
   "config.remote_control.no_platforms": "利用可能なプラットフォームがありません",
   "config.remote_control.platforms_error": "プラットフォームの読み込みエラー",
-  "config.remote_control.read_only_label": "読み取り専用モード（すべてのデバイスでファイル書き込み、削除、シェルコマンドをブロック）",
+  "config.remote_control.read_only_label": "読み取り専用モード",
   "config.remote_control.security_desc": "デバイス登録と監査ログを制御します。",
   "config.remote_control.security_title": "セキュリティ",
-  "config.remote_control.ssh_insecure_host_key_label": "安全でないSSHホストキーを許可（⚠️ MITM保護を無効化、信頼できるネットワークのみ）",
+  "config.remote_control.ssh_insecure_host_key_label": "安全でない SSH ホストキーを許可",
   "config.remote_control.status_connected": "接続済み",
   "config.remote_control.status_offline": "オフライン",
   "config.security_proxy.status_loading": "読み込み中…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "クライアントの更新が必要",
   "config.remote_control.confirm_removal": "このデバイスを切断して実行中のコマンドを中止しますか？再ペアリングには新しいトークンが必要です。",
   "config.remote_control.paths_inherit": "1行に1つのパスを指定します。このデバイスのパス一覧が空の場合は全体設定のパスを引き継ぎます。両方が空の場合、ファイルへのアクセスは拒否されます。",
-  "config.remote_control.security_hint": "Tailscale経由でもWSSと有効な証明書が必要です。サーバーより先に従来のクライアントを更新してください。トークンの有効期限は1時間で、使用できるのは1回だけです。"
+  "config.remote_control.security_hint": "Tailscale経由でもWSSと有効な証明書が必要です。サーバーより先に従来のクライアントを更新してください。トークンの有効期限は1時間で、使用できるのは1回だけです。",
+  "config.remote_control.enabled_help": "リモートコントロールを有効にします。有効にして初めて、ペアリング済みデバイスが接続でき、エージェントがそれらにアクセスできます。",
+  "config.remote_control.read_only_help": "すべてのデバイスで、ファイルの書き込み、削除、シェルコマンドをブロックします。読み取りは引き続き可能です。",
+  "config.remote_control.audit_log_help": "リモートデバイスでのすべての操作を記録します。後からアクセスを追跡できるよう、有効にすることをおすすめします。",
+  "config.remote_control.ssh_insecure_host_key_help": "警告: SSH ホストキーの検証を無効にし、中間者攻撃に対する保護もなくなります。完全に信頼できるネットワークでのみ有効にしてください。",
+  "config.remote_control.max_file_size_help": "1 回の転送で許可される最大のファイルサイズ (MB) です (1-500、デフォルト 50)。",
+  "config.remote_control.enrollment_device_name_help": "新しいデバイスの任意の名前です。ペアリングトークンの作成時に設定されます。",
+  "config.remote_control.device_name_help": "クライアントが動作するデバイスの任意の名前です。ダウンロード時に一緒に渡されます。"
 }

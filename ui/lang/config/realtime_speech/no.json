@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Bare aktive profiler kan velges som standard og brukes i chatten.",
+  "config.realtime_speech.profile_name_help": "Visningsnavn for profilen i valglister (maksimalt 100 tegn).",
+  "config.realtime_speech.provider_help": "Tjenesten som leverer live-talekoblingen. Hvis du endrer den, tilbakestilles modell og stemme til tjenestens standardverdier.",
+  "config.realtime_speech.model_help": "Talemodell fra tjenesten. Utdaterte modeller er merket.",
+  "config.realtime_speech.voice_help": "Stemmen svarene leses opp med.",
+  "config.realtime_speech.api_key_help": "Tilgangsnøkkel for tjenesten. Den lagres i Vault og aldri i nettleseren.",
+  "config.realtime_speech.default_profile_help": "Profilen som brukes når ingen er valgt. Bare aktive profiler tilbys."
+}

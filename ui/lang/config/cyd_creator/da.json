@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "AuraGo-adresse til enheder",
   "config.cyd_creator.ota_title": "Opdateringer via Wi-Fi",
   "config.cyd_creator.restart_note": "Aktivering af CYD Creator og ændringer af builder-image, hukommelse, CPU-kerner eller stop ved inaktivitet træder i kraft efter en genstart af AuraGo. Alle andre indstillinger gælder med det samme.",
-  "config.section.cyd_creator.desc": "Byg apps til Cheap Yellow Display-boards med en designer og en agent. Builds kører i Docker.",
+  "config.section.cyd_creator.desc": "Bygger apps til Cheap Yellow Display-boards med en designer og en agent.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Udgivet toolchain-image. AuraGo henter det én gang og bygger det aldrig lokalt.",
   "help.cyd_creator.cold_build_timeout_seconds": "Gælder, så længe build-cachen for et projekt og board stadig er tom.",
   "help.cyd_creator.enabled": "Viser appen CYD Creator på skrivebordet. For at bygge kræves en konfigureret Docker-vært.",
   "help.cyd_creator.max_repair_attempts": "Hvor mange gange agenten må rette kompileringsfejl, før jobbet mislykkes.",
   "help.cyd_creator.ota_enabled": "Enheder med AuraGo-forbindelse henter selv nye builds.",
-  "help.cyd_creator.ota_public_url": "URL, som enhederne bruger til at nå AuraGo. Tom bruger serverindstillingerne."
+  "help.cyd_creator.ota_public_url": "URL, som enhederne bruger til at nå AuraGo. Tom bruger serverindstillingerne.",
+  "config.cyd_creator.build_timeout_seconds_help": "Et normalt build afbrydes efter så mange sekunder (standard 300).",
+  "config.cyd_creator.cpu_cores_help": "CPU-kerner til build-containeren, halve værdier er mulige (standard 2).",
+  "config.cyd_creator.idle_stop_minutes_help": "Build-containeren stopper efter så mange minutter uden et job for at frigive ressourcer (standard 20).",
+  "config.cyd_creator.job_timeout_minutes_help": "Den samlede tid, agenten må bruge på ét job inklusive reparationsforsøg (standard 20 minutter).",
+  "config.cyd_creator.keep_builds_per_project_help": "Hvor mange tidligere builds der gemmes pr. projekt; ældre slettes (standard 5).",
+  "config.cyd_creator.memory_mb_help": "Hukommelse til build-containeren i megabyte (standard 2048).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Interval, hvor en CYD-enhed spørger serveren om opdateringer (standard 60 sekunder)."
 }

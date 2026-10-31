@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Ricerche con fonti verificabili",
+  "config.section.detective.desc": "Permette all'agente di ricercare un argomento e citare le fonti utilizzate.",
   "config.detective.enabled": "Attiva Detective",
   "config.detective.extra_read_operations": "Operazioni di lettura approvate",
   "config.detective.extra_read_help": "Aggiunge operazioni esatte degli strumenti che la ricerca può chiamare su servizi privati collegati. La fonte va comunque scelta nel caso.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "chiamate agli strumenti",
   "config.detective.readonly": "Modalità sicura di sola lettura",
   "config.detective.seconds": "Timeout del lavoro (secondi)",
-  "config.detective.restart": "Riavvia AuraGo dopo aver modificato i profili. Le ricerche esistenti mantengono i budget accettati."
+  "config.detective.restart": "Riavvia AuraGo dopo aver modificato i profili. Le ricerche esistenti mantengono i budget accettati.",
+  "config.detective.help_enabled": "Attiva la ricerca con fonti tracciabili. Un caso usa solo le fonti che selezioni esplicitamente.",
+  "config.detective.help_readonly": "Limita la ricerca alla sola lettura. Consigliato, a meno che tu non sia sicuro che nulla debba essere modificato.",
+  "config.detective.help_seconds": "Tempo di esecuzione massimo di un lavoro in secondi (da 30 a 7200), dopo il quale viene fermato.",
+  "config.detective.help_tools": "Numero massimo di chiamate a strumenti per lavoro (da 1 a 500).",
+  "config.detective.help_iterations": "Numero massimo di cicli di ragionamento e lavoro per lavoro (da 1 a 750).",
+  "config.detective.help_tokens": "Limite aggiuntiva ai token usati per lavoro. 0 = nessun limite aggiuntivo."
 }

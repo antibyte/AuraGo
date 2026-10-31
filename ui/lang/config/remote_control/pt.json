@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Sem dispositivos",
   "config.remote_control.no_platforms": "Nenhuma plataforma disponível",
   "config.remote_control.platforms_error": "Erro ao carregar plataformas",
-  "config.remote_control.read_only_label": "Modo somente leitura (bloqueia escritas, eliminações e comandos shell em todos os dispositivos)",
+  "config.remote_control.read_only_label": "Modo somente leitura",
   "config.remote_control.security_desc": "Controle o registo de dispositivos e o registo de auditoria.",
   "config.remote_control.security_title": "Segurança",
-  "config.remote_control.ssh_insecure_host_key_label": "Permitir chave de host SSH insegura (⚠️ desativa a proteção MITM, use apenas em redes confiáveis)",
+  "config.remote_control.ssh_insecure_host_key_label": "Permitir chave de host SSH insegura",
   "config.remote_control.status_connected": "Conectado",
   "config.remote_control.status_offline": "Offline",
   "config.security_proxy.status_loading": "Carregando…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Atualização do cliente necessária",
   "config.remote_control.confirm_removal": "Desconectar este dispositivo e cancelar os comandos em execução? Um novo token será necessário para parear novamente.",
   "config.remote_control.paths_inherit": "Um caminho por linha. Uma lista de caminhos vazia para este dispositivo herda os caminhos globais. Se ambas as listas estiverem vazias, o acesso a arquivos será negado.",
-  "config.remote_control.security_hint": "WSS e um certificado válido são obrigatórios, inclusive via Tailscale. Atualize os clientes clássicos antes do servidor. Tokens expiram após uma hora e só podem ser usados uma vez."
+  "config.remote_control.security_hint": "WSS e um certificado válido são obrigatórios, inclusive via Tailscale. Atualize os clientes clássicos antes do servidor. Tokens expiram após uma hora e só podem ser usados uma vez.",
+  "config.remote_control.enabled_help": "Ativa o controle remoto. Só então os dispositivos pareados podem se conectar e o agente acessá-los.",
+  "config.remote_control.read_only_help": "Bloqueia gravação de arquivos, exclusões e comandos de shell em todos os dispositivos. A leitura continua possível.",
+  "config.remote_control.audit_log_help": "Registra cada ação em dispositivos remotos. Recomendado para que os acessos possam ser rastreados depois.",
+  "config.remote_control.ssh_insecure_host_key_help": "Aviso: desativa a verificação da chave de host SSH e, com isso, a proteção contra ataques man-in-the-middle. Ative apenas em uma rede em que você confia totalmente.",
+  "config.remote_control.max_file_size_help": "Maior arquivo em MB permitido em uma transferência (1-500, padrão 50).",
+  "config.remote_control.enrollment_device_name_help": "Nome opcional para o novo dispositivo. É definido quando o token de pareamento é criado.",
+  "config.remote_control.device_name_help": "Nome opcional para o dispositivo em que o cliente roda. É repassado quando você faz o download."
 }

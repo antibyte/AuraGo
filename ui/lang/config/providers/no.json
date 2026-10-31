@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "En ugyldig maske er lagret som påloggingsopplysning. Erstatt eller fjern den.",
   "config.providers.runtime_incomplete": "Den lagrede leverandøren er ufullstendig eller utilgjengelig. Kontroller modell, adresse og påloggingsopplysninger.",
   "config.providers.limit_source_model_only_fallback": "modellbasert anslag fra en annen leverandør",
-  "config.providers.missing_references": "Manglende leverandørvalg: {paths}. Velg en eksisterende leverandør i disse innstillingene."
+  "config.providers.missing_references": "Manglende leverandørvalg: {paths}. Velg en eksisterende leverandør i disse innstillingene.",
+  "config.providers.search_help": "Filtrerer leverandørlisten etter navn, type eller modell.",
+  "config.providers.filter_type_help": "Viser bare leverandører av én type.",
+  "config.providers.filter_role_help": "Viser bare leverandører som er tildelt en bestemt oppgave, for eksempel hovedmodellen eller embeddings."
 }

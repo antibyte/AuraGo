@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "Adres van de beheerde RustFS-dienst. Wordt automatisch ingesteld en alleen ter informatie getoond.",
+  "config.s3.details_help": "Technische statusgegevens van de dienst in JSON-formaat, bijvoorbeeld voor probleemoplossing. Alleen-lezen.",
+  "config.s3.allow_read_help": "De agent mag objecten weergeven en downloaden.",
+  "config.s3.allow_write_help": "De agent mag objecten uploaden en bestaande overschrijven.",
+  "config.s3.allow_delete_help": "De agent mag objecten verwijderen. Verwijderde objecten kunnen niet worden hersteld.",
+  "config.s3.location_bucket_help": "Naam van de bucket waarop de toestemming van toepassing is.",
+  "config.s3.location_prefixes_help": "Eén prefix per regel. Zonder items is niets toegestaan, tenzij de hele bucket is geselecteerd.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.enabled_label": "S3-opslag inschakelen",
+  "config.s3.endpoint_label": "Endpoint-URL",
+  "config.s3.insecure_label": "Onversleutelde verbinding toestaan",
+  "config.s3.readonly_label": "Alleen-lezen",
+  "config.s3.region_label": "Regio",
+  "config.s3.use_path_style_label": "Path-style-adressering gebruiken"
+}

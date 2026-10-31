@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "メディアあり",
   "config.local_wikipedia.variant_nopic": "メディアなし",
   "config.local_wikipedia.warning_size": "言語とバリアントによって、1 つの版に最大 130 GB が必要で、ダウンロードには何時間もかかることがあります。",
-  "config.section.local_wikipedia.desc": "エージェントとデスクトップ向けのオフライン Wikipedia。ダウンロードした Kiwix 版を読み込みます。",
+  "config.section.local_wikipedia.desc": "ダウンロードした Kiwix エディションから、エージェントとデスクトップにオフラインの Wikipedia を提供します。",
   "config.section.local_wikipedia.label": "ローカル Wikipedia",
   "help.local_wikipedia.agent_access": "インストール済みの版をエージェントが検索・閲覧できるようにします。",
   "help.local_wikipedia.data_dir": "版を保存する絶対パス。空欄にすると AuraGo のデータディレクトリ内の wikipedia フォルダーを使います。",

@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "चीट शीट चुनें",
   "config.co_agents.spec_cheatsheet_loading": "लोड हो रहा है…",
   "config.co_agents.spec_cheatsheet_empty": "कोई सक्रिय चीट शीट उपलब्ध नहीं।",
-  "config.co_agents.spec_cheatsheet_error": "चीट शीट लोड करने में विफल।"
+  "config.co_agents.spec_cheatsheet_error": "चीट शीट लोड करने में विफल।",
+  "config.co_agents.provider_help": "सह-एजेंट जिस मॉडल का उपयोग करते हैं। चयन न होने पर वे मुख्य LLM का उपयोग करते हैं।",
+  "config.co_agents.cb_max_tool_calls_help": "एक सह-एजेंट रोके जाने से पहले प्रति कार्य कितनी टूल कॉल कर सकता है (डिफ़ॉल्ट 10)।",
+  "config.co_agents.cb_timeout_help": "सह-एजेंट का अधिकतम चलने का समय सेकंड में (डिफ़ॉल्ट 300)।",
+  "config.co_agents.cb_max_tokens_help": "प्रति कार्य उपयोग किए जाने वाले टोकन की अधिकतम सीमा। 0 = असीमित।",
+  "config.co_agents.spec_provider_help": "केवल इस भूमिका के लिए अलग मॉडल। चयन न होने पर सह-एजेंट प्रदाता लागू होता है।",
+  "config.co_agents.spec_additional_prompt_help": "इस भूमिका के सिस्टम प्रॉम्प्ट में जोड़े जाने वाले अतिरिक्त निर्देश।"
 }

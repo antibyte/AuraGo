@@ -60,5 +60,13 @@
   "config.email.load_failed": "Impossible de charger les comptes e-mail",
   "config.email.load_failed_disabled": "L'ajout, la modification et la suppression sont désactivés tant que la liste n'est pas chargée.",
   "config.email.retry": "Réessayer",
-  "config.email.saved": "Comptes e-mail enregistrés."
+  "config.email.saved": "Comptes e-mail enregistrés.",
+  "config.email.name_help": "Nom d'affichage du compte dans AuraGo, par exemple « Personnel » ou « Travail ».",
+  "config.email.imap_host_help": "Adresse du serveur de courrier entrant (IMAP) de votre fournisseur de messagerie.",
+  "config.email.smtp_host_help": "Adresse du serveur de courrier sortant (SMTP) de votre fournisseur de messagerie.",
+  "config.email.username_help": "Nom d'utilisateur pour IMAP et SMTP, en général l'adresse e-mail complète.",
+  "config.email.password_help": "Mot de passe ou mot de passe d'application du compte. Il est stocké chiffré dans le vault.",
+  "config.email.watch_enabled_help": "AuraGo vérifie régulièrement le dossier choisi ci-dessous pour détecter les nouveaux e-mails et peut y réagir.",
+  "config.email.watch_folder_help": "Dossier IMAP surveillé pour les nouveaux e-mails. Par défaut : INBOX.",
+  "config.email.interval_seconds_help": "Fréquence de vérification du dossier, en secondes (120 par défaut). Des intervalles plus courts sollicitent davantage le serveur de messagerie."
 }

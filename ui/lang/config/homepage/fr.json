@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Chemin de l'espace de travail",
   "config.homepage.workspace_path_missing_warning": "Le serveur web est activé mais aucun chemin d'espace de travail n'est défini. Entrez le chemin hôte absolu vers votre projet Homepage (ex. /home/aurago/aurago/agent_workspace/homepage) ou utilisez la détection automatique.",
   "config.homepage.workspace_relative_hint": "Dans les appels de l'outil Homepage, conservez project_dir et le chemin relatifs à cet espace de travail, par exemple « my-site » ou « my-site/src/app/page.tsx ».",
-  "config.homepage.workspace_title": "Espace de travail"
+  "config.homepage.workspace_title": "Espace de travail",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "Mot de passe SSH du serveur de déploiement. Il est stocké dans le vault chiffré ; préférez une clé SSH.",
+  "config.homepage.deploy_key_help": "Clé SSH privée (PEM) du serveur de déploiement. Elle est stockée dans le vault chiffré et remplace le mot de passe.",
+  "config.homepage.circuit_breaker_max_calls_help": "Nombre d'appels d'outils que l'agent peut effectuer dans une session de page d'accueil avant qu'AuraGo l'arrête (1-100, 35 par défaut)."
 }

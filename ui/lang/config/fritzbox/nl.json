@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Webinterfacepoort",
   "config.fritzbox.insecure_skip_verify_label": "Zelfondertekend certificaat toestaan",
   "help.fritzbox.web_port": "Optionele poort voor login- en Smart Home-verzoeken. Laat 0 staan om 80 of 443 te gebruiken.",
-  "help.fritzbox.insecure_skip_verify": "Staat HTTPS met een zelfondertekend Fritz!Box-certificaat toe. Gebruik dit alleen op een vertrouwd thuisnetwerk."
+  "help.fritzbox.insecure_skip_verify": "Staat HTTPS met een zelfondertekend Fritz!Box-certificaat toe. Gebruik dit alleen op een vertrouwd thuisnetwerk.",
+  "config.fritzbox.feature_enabled_help": "De agent mag de functies \"{feature}\" van de Fritz!Box gebruiken.",
+  "config.fritzbox.feature_readonly_help": "Voor \"{feature}\" mag de agent alleen waarden lezen en niets op de Fritz!Box wijzigen.",
+  "config.fritzbox.polling_enabled_help": "Vraagt de Fritz!Box regelmatig naar nieuwe gesprekken zodat AuraGo daarop kan reageren.",
+  "config.fritzbox.polling_interval_help": "Tijd tussen opvragingen in seconden (10-3600, standaard 60). Kortere intervallen reageren sneller maar belasten de Fritz!Box meer."
 }

@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Détective",
-  "config.section.detective.desc": "Des recherches aux sources vérifiables",
+  "config.section.detective.desc": "Permet à l'agent de faire des recherches sur un sujet et de citer les sources utilisées.",
   "config.detective.enabled": "Activer Detective",
   "config.detective.extra_read_operations": "Opérations de lecture approuvées",
   "config.detective.extra_read_help": "Ajoute les opérations d'outils exactes que la recherche peut appeler sur des services privés connectés. La source doit en plus être choisie dans le dossier.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "appels d’outils",
   "config.detective.readonly": "Mode sécurisé en lecture seule",
   "config.detective.seconds": "Délai d'une tâche (secondes)",
-  "config.detective.restart": "Redémarrez AuraGo après modification des profils. Les recherches existantes conservent leurs budgets acceptés."
+  "config.detective.restart": "Redémarrez AuraGo après modification des profils. Les recherches existantes conservent leurs budgets acceptés.",
+  "config.detective.help_enabled": "Active la recherche avec sources traçables. Un dossier n'utilise que les sources que vous sélectionnez explicitement.",
+  "config.detective.help_readonly": "Limite la recherche à la lecture seule. Recommandé, sauf si vous êtes certain que rien ne doit être modifié.",
+  "config.detective.help_seconds": "Durée d'exécution maximale d'une tâche en secondes (30 à 7200), après quoi elle est arrêtée.",
+  "config.detective.help_tools": "Nombre maximal d'appels d'outils par tâche (1 à 500).",
+  "config.detective.help_iterations": "Nombre maximal de cycles de réflexion et de travail par tâche (1 à 750).",
+  "config.detective.help_tokens": "Plafond supplémentaire de tokens utilisés par tâche. 0 = aucune limite supplémentaire."
 }

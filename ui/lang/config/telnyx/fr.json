@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Connecté à Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Code langue par défaut pour les messages vocaux Telnyx et la transcription d’appels."
+  "help.telnyx.voice_language": "Code langue par défaut pour les messages vocaux Telnyx et la transcription d’appels.",
+  "config.telnyx.voice_gender_help": "Voix que l'agent utilise pour parler lors des appels téléphoniques.",
+  "config.telnyx.max_concurrent_calls_help": "Nombre d'appels pouvant se dérouler en même temps (1-20, 3 par défaut). Les appels suivants sont rejetés.",
+  "config.telnyx.max_sms_per_minute_help": "Nombre maximal de SMS sortants par minute (1-60, 10 par défaut). Protège contre les envois groupés accidentels et les coûts élevés."
 }

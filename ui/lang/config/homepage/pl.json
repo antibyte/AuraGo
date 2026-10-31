@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Ścieżka przestrzeni roboczej",
   "config.homepage.workspace_path_missing_warning": "Serwer WWW jest włączony, ale ścieżka przestrzeni roboczej nie jest ustawiona. Podaj bezwzględną ścieżkę hosta do projektu (np. /home/aurago/aurago/agent_workspace/homepage) lub użyj autodetekcji.",
   "config.homepage.workspace_relative_hint": "Wewnątrz wywołań narzędzi strony głównej zachowaj katalog_projektu i ścieżkę względem tego obszaru roboczego, na przykład „moja-witryna” lub „ my-site/src / app/page.tsx”.",
-  "config.homepage.workspace_title": "Przestrzeń robocza"
+  "config.homepage.workspace_title": "Przestrzeń robocza",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "Hasło SSH do serwera wdrożeniowego. Jest przechowywane w zaszyfrowanym Vault; preferuj klucz SSH.",
+  "config.homepage.deploy_key_help": "Prywatny klucz SSH (PEM) do serwera wdrożeniowego. Jest przechowywany w zaszyfrowanym Vault i zastępuje hasło.",
+  "config.homepage.circuit_breaker_max_calls_help": "Ile wywołań narzędzi agent może wykonać w jednej sesji strony głównej, zanim AuraGo go zatrzyma (1-100, domyślnie 35)."
 }

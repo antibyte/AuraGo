@@ -60,5 +60,13 @@
   "config.email.load_failed": "无法加载电子邮件账户",
   "config.email.load_failed_disabled": "在列表加载完成之前，添加、编辑和删除功能已禁用。",
   "config.email.retry": "重试",
-  "config.email.saved": "电子邮件账户已保存。"
+  "config.email.saved": "电子邮件账户已保存。",
+  "config.email.name_help": "该账户在 AuraGo 中的显示名称，例如“个人”或“工作”。",
+  "config.email.imap_host_help": "您的邮件服务商的收件服务器（IMAP）地址。",
+  "config.email.smtp_host_help": "您的邮件服务商的发件服务器（SMTP）地址。",
+  "config.email.username_help": "IMAP 和 SMTP 的用户名，通常是完整的电子邮件地址。",
+  "config.email.password_help": "账户的密码或应用专用密码。它以加密方式存储在保险库中。",
+  "config.email.watch_enabled_help": "AuraGo 会定期检查下方所选文件夹中的新邮件，并可对其作出响应。",
+  "config.email.watch_folder_help": "监视新邮件的 IMAP 文件夹。默认是 INBOX。",
+  "config.email.interval_seconds_help": "检查文件夹的频率，单位为秒（默认 120）。间隔越短，给邮件服务器带来的负载越大。"
 }

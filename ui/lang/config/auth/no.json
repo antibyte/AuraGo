@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Skriv inn den gjeldende koden fra autentiseringsappen din.",
   "config.auth.step_up_hint": "Endringer av innloggingspassordet eller tofaktorautentiseringen krever ditt nåværende passord (og den gjeldende koden mens TOTP er aktiv).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Prøv igjen"
+  "config.auth.retry": "Prøv igjen",
+  "config.auth.new_password_help": "Bruk minst 8 tegn. En lang, unik passordfrase er tryggest.",
+  "config.auth.confirmation_code_help": "Skriv inn den 6-sifrede koden som autentiseringsappen din viser akkurat nå.",
+  "config.auth.current_totp_help": "Den 6-sifrede koden som autentiseringsappen din viser akkurat nå.",
+  "config.auth.webauthn_enabled_help": "Slår på pålogging med passkeys og sikkerhetsnøkler. Registrer en nøkkel først og test en pålogging før du stoler på den.",
+  "config.auth.webauthn_rpid_help": "Domenenavnet nøklene dine er bundet til, for eksempel aurago.example.test. Hvis du endrer det, fjernes alle registrerte nøkler.",
+  "config.auth.webauthn_key_name_help": "Et navn som hjelper deg med å gjenkjenne denne nøkkelen senere, for eksempel Laptop eller YubiKey."
 }

@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "测试图片已生成并保存到图库（消耗一次生成额度）。",
   "config.image_generation.test_failed": "生成失败",
   "config.image_generation.max_daily_label": "每日最大图像数",
-  "config.image_generation.max_daily_hint": "0 = 不限"
+  "config.image_generation.max_daily_hint": "0 = 不限",
+  "config.image_generation.enabled_help": "允许代理使用所选提供商根据文字描述生成图片。每次生成都会消耗配额或额度。",
+  "config.image_generation.provider_help": "提供商管理中负责生成图片的提供商。未选择时，此功能不起作用。",
+  "config.image_generation.size_help": "代理未指定时使用的图片尺寸（像素）。并非所有提供商都支持所有尺寸。",
+  "config.image_generation.quality_help": "代理未指定时使用的质量级别。“hd”细节更丰富，但通常费用更高。",
+  "config.image_generation.style_help": "代理未指定时使用的图片风格。“vivid”比“natural”更大胆、更具戏剧感。",
+  "config.image_generation.prompt_enhancement_help": "生成前由语言模型优化描述。这通常能得到更好的图片，但会多一次模型调用的费用。"
 }

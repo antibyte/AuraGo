@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Tillader oprettelse, opdatering og sletning af Netlify-sites.",
   "config.netlify.allow_env_management_help": "Tillader administration af miljøvariabler på Netlify-sites.",
   "config.netlify.default_site_id_help": "Valgfrit site-id, der bruges, når agenten ikke navngiver et site.",
-  "config.netlify.team_slug_help": "Valgfri Netlify-teamslug, der bruges til teamafgrænsede API-kald."
+  "config.netlify.team_slug_help": "Valgfri Netlify-teamslug, der bruges til teamafgrænsede API-kald.",
+  "config.netlify.vault_badge": "vault"
 }

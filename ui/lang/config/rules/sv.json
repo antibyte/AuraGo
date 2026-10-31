@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Regelbibliotek",
   "config.rules.disabled": "Inaktiverad",
   "config.rules.targeting": "Matchningsmål",
-  "config.rules.system_status": "Regelsystem"
+  "config.rules.system_status": "Regelsystem",
+  "config.rules.rule_id_help": "Regelns korta, unika namn, till exempel homepage. Det kan inte ändras efter att den skapats.",
+  "config.rules.rule_title_help": "Läsbart namn som visas i regelbiblioteket.",
+  "config.rules.priority_help": "När flera regler matchar injiceras högre nummer först. Standard 50.",
+  "config.rules.enabled_help": "Avstängda regler injiceras aldrig i uppgifter.",
+  "config.rules.tools_help": "Verktygsnamn som aktiverar den här regeln, avgränsade med kommatecken. Välj ett verktyg nedan för att lägga till det.",
+  "config.rules.workflows_help": "Namn på arbetsflöden som aktiverar den här regeln, avgränsade med kommatecken. Välj ett arbetsflöde nedan för att lägga till det.",
+  "config.rules.keywords_help": "Ord i uppgiftstexten som aktiverar den här regeln, avgränsade med kommatecken.",
+  "config.rules.body_help": "Skyddsregelns text i Markdown. Den injiceras innan en matchande uppgift börjar."
 }

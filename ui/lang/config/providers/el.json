@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Έχει αποθηκευτεί μη έγκυρη μάσκα ως διαπιστευτήριο. Αντικατάστησέ την ή αφαίρεσέ την.",
   "config.providers.runtime_incomplete": "Ο αποθηκευμένος πάροχος είναι ελλιπής ή μη διαθέσιμος. Έλεγξε μοντέλο, διεύθυνση και διαπιστευτήρια.",
   "config.providers.limit_source_model_only_fallback": "εκτίμηση βάσει μοντέλου άλλου παρόχου",
-  "config.providers.missing_references": "Λείπουν επιλεγμένοι πάροχοι: {paths}. Επίλεξε υπάρχοντα πάροχο σε αυτές τις ρυθμίσεις."
+  "config.providers.missing_references": "Λείπουν επιλεγμένοι πάροχοι: {paths}. Επίλεξε υπάρχοντα πάροχο σε αυτές τις ρυθμίσεις.",
+  "config.providers.filter_role_help": "Εμφανίζει μόνο παρόχους που έχουν ανατεθεί σε συγκεκριμένο ρόλο, όπως το κύριο μοντέλο ή τα embeddings.",
+  "config.providers.filter_type_help": "Εμφανίζει μόνο παρόχους ενός τύπου.",
+  "config.providers.search_help": "Φιλτράρει τη λίστα παρόχων με βάση το όνομα, τον τύπο ή το μοντέλο."
 }

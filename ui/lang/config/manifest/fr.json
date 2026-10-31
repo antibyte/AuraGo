@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Envoie des en-têtes supplémentaires avec les requêtes à Manifest afin que Manifest puisse choisir le modèle adapté selon vos niveaux.",
+  "config.manifest.routing_specificity_mode_help": "Désactivé n'envoie aucune catégorie, Fixe envoie toujours celle choisie ci-dessous, Automatique laisse AuraGo déterminer la catégorie pour chaque requête.",
+  "config.manifest.routing_specificity_help": "Catégorie qu'AuraGo envoie à Manifest avec chaque requête en mode « Fixe ».",
+  "config.manifest.routing_headers_help": "En-têtes personnalisés sous forme de paires nom/valeur qu'AuraGo envoie en plus à Manifest. N'indiquez que des valeurs que Manifest peut voir.",
+  "config.manifest.routing_header_name": "Nom de l'en-tête",
+  "config.manifest.routing_header_value": "Valeur de l'en-tête"
+}

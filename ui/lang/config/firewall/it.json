@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Abilita strumento firewall",
   "config.firewall.enable_help": "Consente all'agente AI di interagire con il firewall del sistema per leggere o modificare le regole.",
   "config.firewall.active": "Attivo",
-  "config.firewall.inactive": "Inattivo"
+  "config.firewall.inactive": "Inattivo",
+  "config.firewall.mode_label": "Modalità operativa",
+  "config.firewall.poll_interval_seconds_label": "Intervallo di controllo (secondi)"
 }

@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Opprett en OAuth-nettklient i Google Cloud, aktiver de valgte API-ene og sett opp samtykkeskjermen. Registrer omdirigeringsadressen som vises ved tilkobling.",
   "config.gog.grants_help": "Gi hver tillatelse uttrykkelig. Oppretting og eksport av Office-filer krever også den tilsvarende Drive-tillatelsen.",
   "config.section.gog.label": "Google Workspace via gog",
-  "config.section.gog.desc": "Bruk separate Google-kontoer sammen med den innebygde integrasjonen.",
+  "config.section.gog.desc": "Når flere Google-kontoer via det eksterne kommandolinjeverktøyet gog.",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "Slår på gog-koblingen til Google-kontoer. Den legger til flere kontoer i den innebygde Google Workspace-integrasjonen.",
+  "config.gog.readonly_help": "Agenten kan bare lese via gog. Opprettelse, endring, sletting og sending forblir blokkert, selv om en konto tillater det.",
+  "config.gog.name_help": "Visningsnavn for kontoen, for eksempel \"Privat\" eller \"Jobb\".",
+  "config.gog.account_enabled_help": "Bare aktiverte kontoer kan brukes av agenten og skrivebordet.",
+  "config.gog.agent_help": "Agenten kan bruke denne kontoen med tillatelsene som er gitt nedenfor.",
+  "config.gog.desktop_help": "Skrivebordsapper kan bruke denne kontoen, for eksempel til e-post eller kalender.",
+  "config.gog.client_id_help": "Klient-ID for OAuth-webklienten fra Google Cloud Console.",
+  "config.gog.secret_help": "Klienthemmeligheten til OAuth-klienten. \"Lagre i Vault\" lagrer den kryptert; den vises ikke igjen."
 }

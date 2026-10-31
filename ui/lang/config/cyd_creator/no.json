@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "AuraGo-adresse for enheter",
   "config.cyd_creator.ota_title": "Oppdateringer via Wi-Fi",
   "config.cyd_creator.restart_note": "Å slå på CYD Creator og endringer av builder-image, minne, CPU-kjerner eller stopp ved inaktivitet trer i kraft etter en omstart av AuraGo. Alle andre innstillinger gjelder med en gang.",
-  "config.section.cyd_creator.desc": "Lag apper for Cheap Yellow Display-kort med en designer og en agent. Builds kjører i Docker.",
+  "config.section.cyd_creator.desc": "Bygger apper for Cheap Yellow Display-kort med en designer og en agent.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Publisert verktøykjede-image. AuraGo henter det én gang og bygger det aldri lokalt.",
   "help.cyd_creator.cold_build_timeout_seconds": "Gjelder så lenge byggebufferen for et prosjekt og kort fortsatt er tom.",
   "help.cyd_creator.enabled": "Viser appen CYD Creator på skrivebordet. For å bygge trengs en konfigurert Docker-vert.",
   "help.cyd_creator.max_repair_attempts": "Hvor mange ganger agenten kan rette kompileringsfeil før jobben mislykkes.",
   "help.cyd_creator.ota_enabled": "Enheter med AuraGo-tilkobling laster ned nye builds selv.",
-  "help.cyd_creator.ota_public_url": "URL enhetene bruker for å nå AuraGo. Tom bruker serverinnstillingene."
+  "help.cyd_creator.ota_public_url": "URL enhetene bruker for å nå AuraGo. Tom bruker serverinnstillingene.",
+  "config.cyd_creator.memory_mb_help": "Minne for build-containeren i megabyte (standard 2048).",
+  "config.cyd_creator.cpu_cores_help": "CPU-kjerner for build-containeren, halve verdier er mulig (standard 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "En vanlig build avbrytes etter dette antallet sekunder (standard 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "Build-containeren stopper etter dette antallet minutter uten oppdrag for å frigjøre ressurser (standard 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Hvor mange tidligere builds som beholdes per prosjekt; eldre slettes (standard 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Total tid agenten kan bruke på ett oppdrag, inkludert reparasjonsforsøk (standard 20 minutter).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Intervallet som en CYD-enhet spør serveren om oppdateringer med (standard 60 sekunder)."
 }

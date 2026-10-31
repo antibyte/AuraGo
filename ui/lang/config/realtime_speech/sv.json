@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Endast aktiva profiler kan väljas som standard och användas i chatten.",
+  "config.realtime_speech.profile_name_help": "Profilens visningsnamn i urvalslistor (upp till 100 tecken).",
+  "config.realtime_speech.provider_help": "Tjänst som tillhandahåller liveröstanslutningen. Om du ändrar den återställs modell och röst till tjänstens standardvärden.",
+  "config.realtime_speech.model_help": "Röstmodell för tjänsten. Föråldrade modeller är markerade.",
+  "config.realtime_speech.voice_help": "Röst som svaren talas med.",
+  "config.realtime_speech.api_key_help": "Tjänstens åtkomstnyckel. Den lagras i vault och sparas aldrig i webbläsaren.",
+  "config.realtime_speech.default_profile_help": "Profil som används när ingen väljs. Endast aktiva profiler erbjuds."
+}

@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Med media",
   "config.local_wikipedia.variant_nopic": "Utan media",
   "config.local_wikipedia.warning_size": "Beroende på språk och variant behöver en utgåva upp till 130 GB och nedladdningen kan ta timmar.",
-  "config.section.local_wikipedia.desc": "Offline-Wikipedia för agenten och skrivbordet, läst från en nedladdad Kiwix-utgåva.",
+  "config.section.local_wikipedia.desc": "Ger agenten och skrivbordet Wikipedia offline från en nedladdad Kiwix-utgåva.",
   "config.section.local_wikipedia.label": "Lokal Wikipedia",
   "help.local_wikipedia.agent_access": "Låter agenten söka i och läsa den installerade utgåvan.",
   "help.local_wikipedia.data_dir": "Absolut sökväg för utgåvan. Lämna tom för att använda mappen wikipedia i AuraGos datamapp.",

@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Systeemeigen host",
   "config.shell_sandbox.ready": "Gereed",
   "config.sandbox.local_python_fallback_label": "Lokale Python-terugval",
-  "config.sandbox.local_python_fallback_warning": "Voert code uit in lokale Python buiten isolatie wanneer de sandbox faalt. Schakel dit alleen bewust in."
+  "config.sandbox.local_python_fallback_warning": "Voert code uit in lokale Python buiten isolatie wanneer de sandbox faalt. Schakel dit alleen bewust in.",
+  "config.sandbox.local_python_fallback_help": "Voert code lokaal op de server uit als er geen container beschikbaar is. Let op: deze code draait zonder containerisolatie.",
+  "config.shell_sandbox.enabled_help": "Beperkt de toegang tot het bestandssysteem van de shell-opdrachten van de agent met Landlock. Werkt alleen op Linux met een geschikte kernel.",
+  "config.shell_sandbox.max_memory_help": "Geheugen in MB dat een opdracht maximaal mag gebruiken (64-8192, standaard 1024).",
+  "config.shell_sandbox.max_cpu_help": "CPU-tijd in seconden waarna een opdracht wordt afgebroken (5-600, standaard 30).",
+  "config.shell_sandbox.max_fsize_help": "Grootste bestand in MB dat een opdracht mag schrijven (1-4096, standaard 100)."
 }

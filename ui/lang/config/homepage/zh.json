@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "工作区路径",
   "config.homepage.workspace_path_missing_warning": "Web服务器已启用，但未设置工作区路径。请输入项目的绝对主机路径（例如 /home/aurago/aurago/agent_workspace/homepage），或使用自动检测。",
   "config.homepage.workspace_relative_hint": "在主页工具调用内部，保留相对于该工作区的 project_dir 和路径，例如“my-site”或“my-site/src/app/page.tsx”。",
-  "config.homepage.workspace_title": "工作区"
+  "config.homepage.workspace_title": "工作区",
+  "config.homepage.vault_badge": "保险库",
+  "config.homepage.deploy_password_help": "部署服务器的 SSH 密码。它存储在加密保险库中；建议优先使用 SSH 密钥。",
+  "config.homepage.deploy_key_help": "部署服务器的 SSH 私钥（PEM）。它存储在加密保险库中，并取代密码。",
+  "config.homepage.circuit_breaker_max_calls_help": "代理在一次主页会话中最多可调用多少次工具，超过后 AuraGo 会将其停止（1-100，默认 35）。"
 }

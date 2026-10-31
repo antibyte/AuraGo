@@ -28,5 +28,6 @@
   "config.here_now.saving": "Ukládání…",
   "config.here_now.testing": "Testování…",
   "config.here_now.test_failed": "Připojení selhalo",
-  "config.here_now.test_success": "Připojení bylo úspěšné"
+  "config.here_now.test_success": "Připojení bylo úspěšné",
+  "config.here_now.vault_badge": "vault"
 }

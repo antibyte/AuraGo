@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "Włącza aplikację Video Studio na wirtualnym pulpicie. FFmpeg i FFprobe muszą być zainstalowane na serwerze.",
+  "config.video_studio.readonly_help": "Projekty można przeglądać, ale nie zmieniać ani eksportować.",
+  "config.video_studio.ffmpeg_help": "Ścieżka do pliku wykonywalnego FFmpeg. Pozostaw puste, aby znaleźć FFmpeg przez systemową zmienną PATH.",
+  "config.video_studio.asset_limit_help": "Największy dozwolony pojedynczy plik multimedialny w megabajtach (domyślnie 4096).",
+  "config.video_studio.project_limit_help": "Łączny rozmiar wszystkich plików w jednym projekcie w megabajtach (domyślnie 16384).",
+  "config.video_studio.timeout_help": "Najdłuższy czas renderowania filmu w sekundach, po którym jest przerywany (od 30 do 14400, domyślnie 7200).",
+  "config.video_studio.hardware_device_help": "Urządzenie renderujące karty graficznej, na przykład /dev/dri/renderD128 w systemie Linux. Puste = automatycznie.",
+  "config.retro_games.enabled_help": "Włącza aplikację Retro Games na wirtualnym pulpicie. Gry działają w emulatorze archive.org i wymagają dostępu do internetu.",
+  "config.retro_games.agent_access_help": "Agent może wyszukiwać gry i uruchamiać je na pulpicie."
+}

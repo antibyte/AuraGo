@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 schakelt de HTTP-listener uit. Kies 80 voor Let’s Encrypt HTTP-01 en maak de openbare poort 80 bereikbaar.",
   "config.server.restart_address": "Open na het herstarten:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "Netwerkadres waarop AuraGo luistert. Leeg of 0.0.0.0 = alle interfaces, 127.0.0.1 = alleen deze machine. Na een wijziging is een herstart nodig.",
+  "config.server.port_hint": "TCP-poort van de web-UI en API (standaard 8088). Na een wijziging is een herstart nodig.",
+  "config.server.ui_language_hint": "Taal van de web-UI en systeemberichten. Geldt voor elke gebruiker van deze instantie.",
+  "config.server.cert_mode_hint": "Waar het TLS-certificaat vandaan komt: automatisch via Let's Encrypt, je eigen bestanden of een zelfondertekend certificaat voor lokaal testen.",
+  "config.server.https_port_hint": "Poort voor versleutelde verbindingen (standaard 443). Poorten onder 1024 vereisen rootrechten of een passende capability op Linux.",
+  "config.server.domain_hint": "Publieke domeinnaam waarvoor het certificaat wordt uitgegeven. Moet naar deze server wijzen.",
+  "config.server.email_hint": "Contactadres voor Let's Encrypt, bijvoorbeeld voor waarschuwingen over verlopen certificaten. Wordt alleen naar de certificaatautoriteit gestuurd.",
+  "config.server.cert_file_hint": "Pad naar het certificaatbestand in PEM-formaat, relatief aan de AuraGo-map of absoluut.",
+  "config.server.key_file_hint": "Pad naar de privésleutel in PEM-formaat. Het bestand moet alleen leesbaar zijn voor het AuraGo-account.",
+  "config.server.behind_proxy_hint": "Schakel in als een reverse proxy TLS afhandelt. Alleen adressen in de onderstaande lijst mogen forwarded headers instellen. Bij verkeerde instelling kunnen clientadressen worden vervalst.",
+  "config.server.cert_status_sans": "Alternatieve onderwerpnamen (SAN's)"
 }

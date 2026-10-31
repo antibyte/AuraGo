@@ -36,5 +36,6 @@
   "action_policy.unknown": "Esito incerto. Verifica lo stato prima di ripetere l’azione.",
   "action_policy.admin_only": "Solo gli amministratori possono modificare regole e approvare azioni.",
   "action_policy.save_hint": "Salva le modifiche prima di verificare le regole.",
-  "action_policy.pending": "Approvazioni in attesa"
+  "action_policy.pending": "Approvazioni in attesa",
+  "action_policy.enabled_help": "Le tue regole consentono o negano automaticamente singole azioni. Le funzionalità disattivate e le impostazioni di sola lettura hanno sempre la precedenza."
 }

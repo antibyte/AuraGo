@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "在虚拟桌面中启用 Video Studio 应用。服务器上必须已安装 FFmpeg 和 FFprobe。",
+  "config.video_studio.readonly_help": "项目可以查看，但不能修改或导出。",
+  "config.video_studio.ffmpeg_help": "FFmpeg 可执行文件的路径。留空则通过系统 PATH 查找 FFmpeg。",
+  "config.video_studio.asset_limit_help": "允许的单个媒体文件的最大大小，单位为 MB（默认 4096）。",
+  "config.video_studio.project_limit_help": "单个项目中所有文件的总大小，单位为 MB（默认 16384）。",
+  "config.video_studio.timeout_help": "渲染一个视频的最长时间，单位为秒，超时则中止（30 到 14400，默认 7200）。",
+  "config.video_studio.hardware_device_help": "显卡的渲染设备，例如 Linux 上的 /dev/dri/renderD128。留空 = 自动。",
+  "config.retro_games.enabled_help": "在虚拟桌面中启用 Retro Games 应用。游戏在 archive.org 的模拟器中运行，需要访问互联网。",
+  "config.retro_games.agent_access_help": "代理可以搜索游戏并在桌面中启动它们。"
+}

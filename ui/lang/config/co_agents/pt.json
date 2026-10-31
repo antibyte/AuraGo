@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Selecionar folha de referência",
   "config.co_agents.spec_cheatsheet_loading": "Carregando…",
   "config.co_agents.spec_cheatsheet_empty": "Nenhuma folha de referência ativa disponível.",
-  "config.co_agents.spec_cheatsheet_error": "Falha ao carregar folhas de referência."
+  "config.co_agents.spec_cheatsheet_error": "Falha ao carregar folhas de referência.",
+  "config.co_agents.provider_help": "Modelo usado pelos co-agentes. Sem seleção, eles usam o LLM principal.",
+  "config.co_agents.cb_max_tool_calls_help": "Quantas chamadas de ferramenta um co-agente pode fazer por tarefa antes de ser interrompido (padrão 10).",
+  "config.co_agents.cb_timeout_help": "Tempo máximo de execução de um co-agente em segundos (padrão 300).",
+  "config.co_agents.cb_max_tokens_help": "Limite máximo de tokens usados por tarefa. 0 = ilimitado.",
+  "config.co_agents.spec_provider_help": "Modelo próprio apenas para esta função. Sem seleção, vale o provedor dos co-agentes.",
+  "config.co_agents.spec_additional_prompt_help": "Instruções extras anexadas ao prompt do sistema desta função."
 }

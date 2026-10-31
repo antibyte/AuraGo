@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "在工具的长输出到达模型之前将其缩短，从而节省令牌。下方选项开启时会保留错误消息。",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW 压缩",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "用简短引用替换重复出现的文本片段，不改变顺序。对高度重复的输出可节省令牌。",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "每次输出最多创建的引用数。条目越多，能发现的重复越多，但字典需要的空间也越大。",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "更长的输出不会用此方法处理，以节省计算时间。",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "文本片段至少出现这么多次才会被替换。",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "更短的文本片段永远不会被替换，因为引用会比原文占用更多空间。",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "只有结果比原文至少短这么多百分比时才会采用。",
+  "help.agent.output_compression.toon_json.max_rows": "行数更多的表格不会以紧凑的 TOON 格式呈现。",
+  "help.agent.output_compression.toon_json.min_savings_percent": "只有紧凑表格形式比 JSON 至少短这么多百分比时才会采用。"
+}

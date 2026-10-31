@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Biblioteca de regras",
   "config.rules.disabled": "Desativado",
   "config.rules.targeting": "Alvos de correspondência",
-  "config.rules.system_status": "Sistema de regras"
+  "config.rules.system_status": "Sistema de regras",
+  "config.rules.rule_id_help": "Nome curto e único da regra, por exemplo homepage. Não pode ser alterado depois da criação.",
+  "config.rules.rule_title_help": "Nome legível exibido na biblioteca de regras.",
+  "config.rules.priority_help": "Quando várias regras correspondem, números maiores são injetados primeiro. Padrão 50.",
+  "config.rules.enabled_help": "Regras desativadas nunca são injetadas nas tarefas.",
+  "config.rules.tools_help": "Nomes de ferramentas que ativam esta regra, separados por vírgulas. Escolha uma ferramenta abaixo para adicioná-la.",
+  "config.rules.workflows_help": "Nomes de fluxos de trabalho que ativam esta regra, separados por vírgulas. Escolha um fluxo de trabalho abaixo para adicioná-lo.",
+  "config.rules.keywords_help": "Palavras no texto da tarefa que ativam esta regra, separadas por vírgulas.",
+  "config.rules.body_help": "O texto da regra de proteção em Markdown. É injetado antes do início de uma tarefa correspondente."
 }

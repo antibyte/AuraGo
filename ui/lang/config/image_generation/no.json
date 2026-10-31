@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Testbilde generert og lagret i galleriet (én generering brukt).",
   "config.image_generation.test_failed": "Generering mislyktes",
   "config.image_generation.max_daily_label": "Maks bilder per dag",
-  "config.image_generation.max_daily_hint": "0 = ubegrenset"
+  "config.image_generation.max_daily_hint": "0 = ubegrenset",
+  "config.image_generation.enabled_help": "Lar agenten lage bilder fra tekstbeskrivelser med den valgte leverandøren. Hver generering bruker kvote eller kreditt.",
+  "config.image_generation.provider_help": "Leverandør fra leverandøradministrasjonen som lager bildene. Uten valg har funksjonen ingen effekt.",
+  "config.image_generation.size_help": "Bildestørrelse i piksler når agenten ikke angir en. Ikke alle leverandører støtter alle størrelser.",
+  "config.image_generation.quality_help": "Kvalitetsnivå når agenten ikke angir et. \"hd\" gir mer detaljer, men koster vanligvis mer.",
+  "config.image_generation.style_help": "Bildestil når agenten ikke angir en. \"vivid\" ser dristigere og mer dramatisk ut enn \"natural\".",
+  "config.image_generation.prompt_enhancement_help": "En språkmodell forbedrer beskrivelsen før generering. Dette gir ofte bedre bilder, men koster et ekstra modellkall."
 }

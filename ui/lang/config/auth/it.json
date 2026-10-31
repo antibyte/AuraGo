@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Inserisci il codice attuale della tua app di autenticazione.",
   "config.auth.step_up_hint": "Le modifiche alla password di accesso o all'autenticazione a due fattori richiedono la password attuale (e il codice attuale quando TOTP è attivo).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Riprova"
+  "config.auth.retry": "Riprova",
+  "config.auth.new_password_help": "Usa almeno 8 caratteri. Una passphrase lunga e univoca è la scelta più sicura.",
+  "config.auth.confirmation_code_help": "Inserisci il codice a 6 cifre che la tua app di autenticazione mostra in questo momento.",
+  "config.auth.current_totp_help": "Il codice a 6 cifre che la tua app di autenticazione mostra in questo momento.",
+  "config.auth.webauthn_enabled_help": "Attiva l'accesso con passkey e chiave di sicurezza. Registra prima una chiave e prova un accesso prima di farci affidamento.",
+  "config.auth.webauthn_rpid_help": "Il nome di dominio a cui sono associate le tue chiavi, ad esempio aurago.example.test. Modificarlo rimuove tutte le chiavi registrate.",
+  "config.auth.webauthn_key_name_help": "Un nome che ti aiuta a riconoscere questa chiave in seguito, ad esempio Laptop o YubiKey."
 }

@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "SQLiteバックアップをインポート",
   "config.sql_connections.sqlite_import_help": "整合性のある単独のバックアップをアップロードしてください（最大64 MiB）。保存すると保護された領域に取り込まれ、元のファイルは保持されます。",
   "config.sql_connections.sqlite_import_required": "SQLiteのインポートが必要です",
-  "config.sql_connections.allow_management_help": "エージェントは説明のみ編集できます。設定、認証情報、権限は管理者のみが変更できます。"
+  "config.sql_connections.allow_management_help": "エージェントは説明のみ編集できます。設定、認証情報、権限は管理者のみが変更できます。",
+  "config.sql_connections.filter_label": "接続を絞り込む",
+  "config.sql_connections.filter_help": "一覧を名前、種類、ホスト、データベース、または説明で絞り込みます。",
+  "config.sql_connections.name_help": "エージェントがこの接続を指すときに使う一意の名前です。",
+  "config.sql_connections.driver_help": "データベースの種類です。SQLite はインポートしたファイルを使い、それ以外はサーバーに接続します。",
+  "config.sql_connections.port_help": "データベースの種類に応じたデフォルトポートを使う場合は空欄にします (PostgreSQL 5432、MySQL 3306)。",
+  "config.sql_connections.host_help": "データベースサーバーのホスト名または IP アドレスです。空欄 = localhost。",
+  "config.sql_connections.ssl_mode_help": "接続の暗号化方式です。Disable はすべて平文で送信し、Require は証明書を検証せずに暗号化し、Verify CA は認証局を検証し、Verify Full はサーバー名も検証します (最も安全)。",
+  "config.sql_connections.database_help": "エージェントが接続する、サーバー上のデータベース名です。",
+  "config.sql_connections.description_help": "データベースの用途を示す、エージェントとあなた向けの短いメモです。",
+  "config.sql_connections.username_help": "データベースのユーザーです。可能な限り権限の少ないアカウントを使用してください。",
+  "config.sql_connections.password_help": "vault に暗号化して保存されます。保存済みのパスワードを維持するには空欄のままにします。"
 }

@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Komputery wirtualne",
-  "config.section.virtual_computers.desc": "Tymczasowe microVM z terminalem, pulpitem, podglądami i dostępem agenta.",
+  "config.section.virtual_computers.desc": "Udostępnia jednorazowe komputery microVM z terminalem, pulpitem i dostępem dla agenta.",
   "config.virtual_computers.enabled_label": "Włącz komputery wirtualne",
   "config.virtual_computers.disabled_notice": "Komputery wirtualne są wyłączone.",
   "config.virtual_computers.disabled_desc": "Włącz integrację, aby uruchamiać maszyny boring-computers i pośredniczyć w dostępie do nich.",

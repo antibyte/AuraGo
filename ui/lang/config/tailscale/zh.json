@@ -159,5 +159,11 @@
   "config.tailscale.status_no_credentials": "缺少 Tailscale API 密钥",
   "config.tailscale.status_ok": "已连接到 Tailscale API",
   "config.tailscale.status_success": "✅",
-  "config.tailscale.status_error": "❌"
+  "config.tailscale.status_error": "❌",
+  "config.tailscale.tsnet_enabled_help": "将 AuraGo 作为 tailnet 中的独立节点启动（tsnet）。这样无需在服务器上安装 Tailscale 应用，就能在 tailnet 内私密访问 Web 界面。",
+  "config.tailscale.tsnet_label_url": "URL",
+  "config.tailscale.tsnet_label_dns": "DNS",
+  "config.tailscale.tsnet_label_ips": "IP 地址",
+  "config.tailscale.tsnet_label_cert": "证书",
+  "config.tailscale.tsnet_enable_https_link": "启用 HTTPS"
 }

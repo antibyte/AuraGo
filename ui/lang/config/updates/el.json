@@ -59,5 +59,6 @@
   "config.updates.version": "Έκδοση",
   "config.updates.warning_banner": "Η ενημέρωση αντικαθιστά τα δυαδικά αρχεία, τις προτροπές και τα αρχεία διεπαφής χρήστη. <strong>Η διαμόρφωση και τα δεδομένα σας διατηρούνται.</strong> Το AuraGo θα επανεκκινήσει μετά την ενημέρωση.",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.updates.confirm_install_title": "Εγκατάσταση ενημέρωσης;"
+  "config.updates.confirm_install_title": "Εγκατάσταση ενημέρωσης;",
+  "config.updates.cancel_reload": "Ακύρωση αυτόματης επαναφόρτωσης"
 }

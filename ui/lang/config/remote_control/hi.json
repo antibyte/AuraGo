@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "कोई डिवाइस नहीं",
   "config.remote_control.no_platforms": "कोई प्लेटफॉर्म उपलब्ध नहीं",
   "config.remote_control.platforms_error": "प्लेटफॉर्म लोड करने में त्रुटि",
-  "config.remote_control.read_only_label": "केवल पढ़ने का मोड (सभी उपकरणों पर फ़ाइल लेखन, विलोपन और शेल कमांड ब्लॉक करता है)",
+  "config.remote_control.read_only_label": "केवल-पढ़ने मोड",
   "config.remote_control.security_desc": "डिवाइस पंजीकरण और ऑडिट लॉगिंग को नियंत्रित करें।",
   "config.remote_control.security_title": "सुरक्षा",
-  "config.remote_control.ssh_insecure_host_key_label": "असुरक्षित SSH होस्ट कुंजी की अनुमति दें (⚠️ MITM सुरक्षा निष्क्रिय, केवल विश्वसनीय नेटवर्क पर)",
+  "config.remote_control.ssh_insecure_host_key_label": "असुरक्षित SSH होस्ट कुंजी की अनुमति दें",
   "config.remote_control.status_connected": "कनेक्टेड",
   "config.remote_control.status_offline": "ऑफलाइन",
   "config.security_proxy.status_loading": "लोड हो रहा है…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "क्लाइंट अपडेट आवश्यक",
   "config.remote_control.confirm_removal": "डिवाइस का कनेक्शन काटकर चल रहे आदेश रद्द करें? दोबारा जोड़ने के लिए नया टोकन चाहिए।",
   "config.remote_control.paths_inherit": "हर पंक्ति में एक पथ। इस डिवाइस की पथ सूची खाली होने पर वैश्विक पथ लागू होते हैं। दोनों सूचियाँ खाली होने पर फ़ाइल पहुँच बंद रहती है।",
-  "config.remote_control.security_hint": "Tailscale पर भी WSS और मान्य प्रमाणपत्र ज़रूरी हैं। सर्वर से पहले क्लासिक क्लाइंट अपडेट करें। टोकन एक घंटे तक मान्य हैं और केवल एक बार इस्तेमाल हो सकते हैं।"
+  "config.remote_control.security_hint": "Tailscale पर भी WSS और मान्य प्रमाणपत्र ज़रूरी हैं। सर्वर से पहले क्लासिक क्लाइंट अपडेट करें। टोकन एक घंटे तक मान्य हैं और केवल एक बार इस्तेमाल हो सकते हैं।",
+  "config.remote_control.enabled_help": "रिमोट कंट्रोल चालू करता है। तभी पेयर किए गए डिवाइस जुड़ सकते हैं और एजेंट उन तक पहुँच सकता है।",
+  "config.remote_control.read_only_help": "सभी डिवाइस पर फ़ाइल लिखना, हटाना और शेल कमांड अवरुद्ध करता है। पढ़ना संभव रहता है।",
+  "config.remote_control.audit_log_help": "रिमोट डिवाइस पर की गई हर कार्रवाई दर्ज करता है। इसकी सिफ़ारिश की जाती है ताकि बाद में पहुँच का पता लगाया जा सके।",
+  "config.remote_control.ssh_insecure_host_key_help": "चेतावनी: SSH होस्ट कुंजी की जाँच बंद कर देता है और उसके साथ मैन-इन-द-मिडल हमलों से सुरक्षा भी। इसे केवल ऐसे नेटवर्क में चालू करें जिस पर आपको पूरा भरोसा हो।",
+  "config.remote_control.max_file_size_help": "एक ट्रांसफ़र में अनुमत सबसे बड़ी फ़ाइल MB में (1-500, डिफ़ॉल्ट 50)।",
+  "config.remote_control.enrollment_device_name_help": "नए डिवाइस के लिए वैकल्पिक नाम। यह पेयरिंग टोकन बनाते समय सेट होता है।",
+  "config.remote_control.device_name_help": "क्लाइंट जिस डिवाइस पर चलता है उसका वैकल्पिक नाम। यह डाउनलोड करते समय साथ भेजा जाता है।"
 }

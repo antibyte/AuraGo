@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "AuraGo-adress för enheter",
   "config.cyd_creator.ota_title": "Uppdateringar via Wi-Fi",
   "config.cyd_creator.restart_note": "Att slå på CYD Creator och ändringar av builder-avbild, minne, CPU-kärnor eller stopp vid inaktivitet börjar gälla efter en omstart av AuraGo. Alla andra inställningar gäller direkt.",
-  "config.section.cyd_creator.desc": "Bygg appar för Cheap Yellow Display-kort med en designer och en agent. Byggen körs i Docker.",
+  "config.section.cyd_creator.desc": "Bygger appar för Cheap Yellow Display-kort med en designer och en agent.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Publicerad verktygsavbild. AuraGo hämtar den en gång och bygger den aldrig lokalt.",
   "help.cyd_creator.cold_build_timeout_seconds": "Gäller så länge byggcachen för ett projekt och kort fortfarande är tom.",
   "help.cyd_creator.enabled": "Visar appen CYD Creator på skrivbordet. För att bygga krävs en konfigurerad Docker-värd.",
   "help.cyd_creator.max_repair_attempts": "Hur många gånger agenten får rätta kompileringsfel innan jobbet misslyckas.",
   "help.cyd_creator.ota_enabled": "Enheter med AuraGo-koppling laddar själva ned nya builds.",
-  "help.cyd_creator.ota_public_url": "URL som enheterna använder för att nå AuraGo. Tomt använder serverinställningarna."
+  "help.cyd_creator.ota_public_url": "URL som enheterna använder för att nå AuraGo. Tomt använder serverinställningarna.",
+  "config.cyd_creator.memory_mb_help": "Minne för build-containern i megabyte (standard 2048).",
+  "config.cyd_creator.cpu_cores_help": "CPU-kärnor för build-containern; halva värden är möjliga (standard 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Ett vanligt bygge avbryts efter så här många sekunder (standard 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "Build-containern stoppas efter så här många minuter utan jobb för att frigöra resurser (standard 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Hur många tidigare byggen som sparas per projekt; äldre tas bort (standard 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Total tid som agenten får lägga på ett jobb, inklusive reparationsförsök (standard 20 minuter).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Intervall med vilket en CYD-enhet frågar servern efter uppdateringar (standard 60 sekunder)."
 }

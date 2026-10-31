@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "क्रेडेंशियल के रूप में अमान्य मास्क सहेजा गया है। उसे बदलें या हटाएँ।",
   "config.providers.runtime_incomplete": "सहेजा गया प्रदाता अधूरा या अनुपलब्ध है। मॉडल, पता और क्रेडेंशियल जाँचें।",
   "config.providers.limit_source_model_only_fallback": "दूसरे प्रदाता के मॉडल पर आधारित अनुमान",
-  "config.providers.missing_references": "चुने गए प्रदाता नहीं मिले: {paths}। इन सेटिंग में कोई मौजूदा प्रदाता चुनें।"
+  "config.providers.missing_references": "चुने गए प्रदाता नहीं मिले: {paths}। इन सेटिंग में कोई मौजूदा प्रदाता चुनें।",
+  "config.providers.search_help": "प्रदाता सूची को नाम, प्रकार या मॉडल से फ़िल्टर करता है।",
+  "config.providers.filter_type_help": "केवल एक प्रकार के प्रदाता दिखाता है।",
+  "config.providers.filter_role_help": "केवल वे प्रदाता दिखाता है जो किसी विशिष्ट काम को सौंपे गए हैं, जैसे मुख्य मॉडल या एम्बेडिंग।"
 }

@@ -363,5 +363,12 @@
   "ruview.lab_back": "← 实验室",
   "ruview.lab_frame_title_observatory": "观测台（实验性，英文）",
   "ruview.lab_frame_title_pose_fusion": "姿态融合（实验性，英文）",
-  "ruview.lab_frame_title_dashboard": "RuView 原版仪表板（实验性，英文）"
+  "ruview.lab_frame_title_dashboard": "RuView 原版仪表板（实验性，英文）",
+  "ruview.enabled_help": "启用 RuView 集成。未启用时，基于 Wi-Fi 信号的动作检测保持关闭。",
+  "ruview.url_help": "正在运行的 RuView 服务的地址，例如 http://192.168.1.20:3000。",
+  "ruview.allow_private_help": "允许连接到私有网络中的地址。当 RuView 运行在同一家庭网络中时需要。仅在您信任目标时启用。",
+  "ruview.http_port_help": "由 AuraGo 管理的 RuView 容器提供其 Web 界面所用的端口（1024-65534，默认 3022）。",
+  "ruview.storage_help": "RuView 可用于测量数据的磁盘空间，单位为 MiB（64-1048576，默认 1024）。必要时会丢弃较旧的数据。",
+  "ruview.udp_port_help": "RuView 接收 ESP32 传感器测量数据所用的 UDP 端口（1024-65535，默认 5005）。传感器必须使用同一端口。",
+  "ruview.udp_bind_help": "接收测量数据的网卡的 IPv4 地址。留空则由 RuView 自行选择地址。"
 }

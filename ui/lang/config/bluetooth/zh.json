@@ -1,6 +1,6 @@
 {
   "config.section.bluetooth.label": "Bluetooth",
-  "config.section.bluetooth.desc": "通过 Linux BlueZ 管理蓝牙设备并定向输出音频。",
+  "config.section.bluetooth.desc": "通过 Linux BlueZ 管理蓝牙设备和音频输出。",
   "dashboard.integration_bluetooth": "Bluetooth",
   "config.bluetooth.loading": "通过 Linux BlueZ 管理蓝牙设备并定向输出音频。",
   "config.bluetooth.enabled": "已启用",

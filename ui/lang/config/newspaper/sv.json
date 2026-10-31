@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Senaste försök: {result}",
   "config.newspaper.max_searches": "Maximalt antal sökningar per utgåva (inklusive nya försök)",
   "config.section.newspaper.label": "Tidning",
-  "config.section.newspaper.desc": "En personlig, hämtad daglig utgåva",
+  "config.section.newspaper.desc": "Skapar en personlig dagstidning utifrån research med källor.",
   "config.newspaper.enabled": "Aktivera tidning",
   "config.newspaper.readonly": "Endast läsläge",
   "config.newspaper.allow_email": "Tillåt e-postleverans",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Kostnadsbudgeten gäller fortfarande.",
   "config.newspaper.monetary_budget_disabled": "Ingen kostnadsbudget är inställd; forskningsgränserna gäller ändå.",
   "config.newspaper.fixed_budget_note": "Fasta gränser delar {pages} sidor för hela utgåvan.",
-  "config.newspaper.fixed_limits_only": "Dessa gränser gäller bara i fast läge."
+  "config.newspaper.fixed_limits_only": "Dessa gränser gäller bara i fast läge.",
+  "config.newspaper.enabled_help": "Låter skrivbordet varje dag undersöka och sammanställa en tidning om dina ämnen. Du anger ämnena på skrivbordet.",
+  "config.newspaper.readonly_help": "Tidningen får bara läsa och visa, men inte skicka eller ändra något.",
+  "config.newspaper.allow_email_help": "Tillåter att färdiga utgåvor skickas med e-post. Ett e-postkonto måste ha konfigurerats för det.",
+  "config.newspaper.allow_telegram_help": "Tillåter att färdiga utgåvor skickas via Telegram. Telegram måste ha konfigurerats för det.",
+  "config.newspaper.max_minutes_help": "Hur lång tid research för en utgåva får ta som mest (1 till 60 minuter, standard 30).",
+  "config.newspaper.max_pages_help": "Hur många webbsidor som läses per utgåva som mest (1 till 60, standard 60).",
+  "config.newspaper.max_searches_help": "Hur många sökfrågor som görs per utgåva som mest, inklusive omförsök (1 till 64, standard 32).",
+  "config.newspaper.max_editions_help": "Hur många färdiga utgåvor som sparas; äldre tas bort (30 till 3650, standard 365)."
 }

@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Οι αποστολές είναι απενεργοποιημένες. Οι ροές χρειάζονται αποστολές για να εκτελεστούν.",
   "config.flows.open": "Άνοιγμα EasyDrag",
   "config.flows.run_retention_days": "Διατήρηση ιστορικού εκτελέσεων (ημέρες, 1–365)",
-  "config.section.flows.desc": "Οπτικοί αυτοματισμοί από την εφαρμογή EasyDrag",
-  "config.section.flows.label": "Ροές EasyDrag"
+  "config.section.flows.desc": "Εκτελεί οπτικές αυτοματοποιήσεις που δημιουργήθηκαν στην εφαρμογή EasyDrag.",
+  "config.section.flows.label": "Ροές EasyDrag",
+  "config.flows.enabled_help": "Ενεργοποιεί την εκτέλεση των ροών EasyDrag. Η αλλαγή ισχύει μετά από επανεκκίνηση.",
+  "config.flows.max_parallel_nodes_per_run_help": "Πόσα βήματα μιας εκτέλεσης μπορούν να εκτελούνται παράλληλα (1 έως 16, προεπιλογή 4).",
+  "config.flows.max_parallel_runs_help": "Πόσες εκτελέσεις ροών μπορούν να τρέχουν ταυτόχρονα (1 έως 32, προεπιλογή 8). Οι υπόλοιπες περιμένουν.",
+  "config.flows.max_runs_per_flow_help": "Πόσες ολοκληρωμένες εκτελέσεις διατηρούνται ανά ροή· οι παλαιότερες διαγράφονται (10 έως 5000, προεπιλογή 200).",
+  "config.flows.run_retention_days_help": "Το ιστορικό μιας εκτέλεσης διαγράφεται μετά από τόσες ημέρες (1 έως 365, προεπιλογή 30)."
 }

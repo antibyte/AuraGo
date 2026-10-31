@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "视频生成已启用：",
   "config.video_gen.aspect_ratio_label": "宽高比",
   "config.video_gen.test_btn": "测试连接",
-  "config.video_gen.disabled_desc": "打开上方开关后，代理即可生成视频。"
+  "config.video_gen.disabled_desc": "打开上方开关后，代理即可生成视频。",
+  "config.video_gen.enabled_help": "允许代理使用所选提供商生成视频。每次生成都会消耗配额或额度。",
+  "config.video_gen.provider_help": "提供商管理中负责生成视频的提供商。",
+  "config.video_gen.duration_help": "代理未指定时的视频片段时长，单位为秒（1-30，默认 6）。片段越长费用越高。",
+  "config.video_gen.resolution_help": "代理未指定时使用的分辨率。可用值取决于提供商。",
+  "config.video_gen.aspect_ratio_help": "代理未指定时使用的宽高比，例如 16:9 为横屏，9:16 为竖屏。",
+  "config.video_gen.poll_interval_help": "AuraGo 多久向提供商查询一次视频任务的状态（1-120 秒，默认 10）。",
+  "config.video_gen.timeout_help": "超过此时间后，AuraGo 将不再等待视频（30-3600 秒，默认 600）。",
+  "config.video_gen.max_daily_help": "每天最多生成的视频数。0 表示不限。"
 }

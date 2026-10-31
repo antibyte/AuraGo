@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "Zajęte",
   "config.music_gen.state_stopped": "Zatrzymane",
   "config.music_gen.state_error": "Błąd",
-  "config.music_gen.no_gpu": "Brak GPU dostępnego w kontenerze. Sprawdź dostęp do urządzenia lub jawnie wybierz CPU."
+  "config.music_gen.no_gpu": "Brak GPU dostępnego w kontenerze. Sprawdź dostęp do urządzenia lub jawnie wybierz CPU.",
+  "config.music_gen.enabled_help": "Pozwala agentowi tworzyć muzykę za pomocą wybranego dostawcy. Każde generowanie zużywa limit, kredyt lub lokalną moc obliczeniową.",
+  "config.music_gen.provider_help": "Dostawca chmurowy z zarządzania dostawcami lub lokalny model ACE-Step, który tworzy muzykę.",
+  "config.music_gen.device_help": "Karta graficzna lub urządzenie obliczeniowe, na którym działa model lokalny. \"auto\" wybiera samodzielnie.",
+  "config.music_gen.reserve_help": "Pamięć graficzna w GiB, którą model lokalny pozostawia wolną dla innych programów (0-256, domyślnie 1).",
+  "config.music_gen.timeout_help": "Po tym czasie AuraGo przerywa lokalne generowanie (30-1800 sekund, domyślnie 1800)."
 }

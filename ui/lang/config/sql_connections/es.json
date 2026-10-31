@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importar copia de SQLite",
   "config.sql_connections.sqlite_import_help": "Sube una copia coherente e independiente (hasta 64 MiB). Al guardar, se importa al almacenamiento protegido y se conservan los originales.",
   "config.sql_connections.sqlite_import_required": "Es necesario importar SQLite",
-  "config.sql_connections.allow_management_help": "El agente solo puede editar descripciones. La configuración, las credenciales y los permisos son exclusivos del administrador."
+  "config.sql_connections.allow_management_help": "El agente solo puede editar descripciones. La configuración, las credenciales y los permisos son exclusivos del administrador.",
+  "config.sql_connections.database_help": "Nombre de la base de datos del servidor a la que se conecta el agente.",
+  "config.sql_connections.description_help": "Nota breve para el agente y para ti sobre para qué se usa la base de datos.",
+  "config.sql_connections.driver_help": "Tipo de base de datos. SQLite trabaja con un archivo importado; las demás se conectan a un servidor.",
+  "config.sql_connections.filter_help": "Filtra la lista por nombre, tipo, host, base de datos o descripción.",
+  "config.sql_connections.filter_label": "Filtrar conexiones",
+  "config.sql_connections.host_help": "Nombre de host o dirección IP del servidor de base de datos. Vacío = localhost.",
+  "config.sql_connections.name_help": "Nombre único con el que el agente se refiere a esta conexión.",
+  "config.sql_connections.password_help": "Se guarda cifrada en el vault. Déjalo vacío para conservar la contraseña guardada.",
+  "config.sql_connections.port_help": "Déjalo vacío para usar el puerto por defecto del tipo de base de datos (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.ssl_mode_help": "Cifrado de la conexión. Disable lo envía todo en texto plano, Require cifra sin comprobar el certificado, Verify CA comprueba la autoridad de certificación y Verify Full comprueba además el nombre del servidor (lo más seguro).",
+  "config.sql_connections.username_help": "Usuario de la base de datos. Usa una cuenta con los mínimos privilegios posibles."
 }

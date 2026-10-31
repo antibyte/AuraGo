@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Generovani videa povoleno:",
   "config.video_gen.aspect_ratio_label": "Pomer stran",
   "config.video_gen.test_btn": "Test spojeni",
-  "config.video_gen.disabled_desc": "Zapnete prepinac vyse, aby agent mohl generovat videa."
+  "config.video_gen.disabled_desc": "Zapnete prepinac vyse, aby agent mohl generovat videa.",
+  "config.video_gen.aspect_ratio_help": "Poměr stran, když ho agent neurčí, například 16:9 na šířku a 9:16 na výšku.",
+  "config.video_gen.duration_help": "Délka klipu v sekundách (1–30, výchozí 6), pokud ji agent neurčí. Delší klipy stojí více.",
+  "config.video_gen.enabled_help": "Umožní agentovi vytvářet videa pomocí vybraného poskytovatele. Každé generování spotřebuje kvótu nebo kredit.",
+  "config.video_gen.max_daily_help": "Maximální počet videí za den. 0 znamená neomezeno.",
+  "config.video_gen.poll_interval_help": "Jak často se AuraGo ptá poskytovatele na stav úlohy videa (1–120 sekund, výchozí 10).",
+  "config.video_gen.provider_help": "Poskytovatel ze Správy poskytovatelů, který videa vytváří.",
+  "config.video_gen.resolution_help": "Rozlišení, když ho agent neurčí. Dostupné hodnoty závisejí na poskytovateli.",
+  "config.video_gen.timeout_help": "Po této době AuraGo přestane na video čekat (30–3600 sekund, výchozí 600)."
 }

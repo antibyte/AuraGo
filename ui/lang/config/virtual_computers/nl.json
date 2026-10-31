@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtuele computers",
-  "config.section.virtual_computers.desc": "Tijdelijke microVM-computers met terminal, desktop, previews en agenttoegang.",
+  "config.section.virtual_computers.desc": "Biedt wegwerp-microVM-computers met terminal, bureaublad en agenttoegang.",
   "config.virtual_computers.enabled_label": "Virtuele computers inschakelen",
   "config.virtual_computers.disabled_notice": "Virtuele computers zijn uitgeschakeld.",
   "config.virtual_computers.disabled_desc": "Schakel de integratie in om machines van boring-computers te starten en te proxyen.",

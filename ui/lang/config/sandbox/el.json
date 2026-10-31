@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Εγγενής κεντρικός υπολογιστής",
   "config.shell_sandbox.ready": "Έτοιμο",
   "config.sandbox.local_python_fallback_label": "Τοπική εφεδρεία Python",
-  "config.sandbox.local_python_fallback_warning": "Εκτελεί κώδικα στην τοπική Python εκτός απομόνωσης αν αποτύχει το sandbox. Ενεργοποίησέ το μόνο συνειδητά."
+  "config.sandbox.local_python_fallback_warning": "Εκτελεί κώδικα στην τοπική Python εκτός απομόνωσης αν αποτύχει το sandbox. Ενεργοποίησέ το μόνο συνειδητά.",
+  "config.sandbox.local_python_fallback_help": "Εκτελεί κώδικα τοπικά στον διακομιστή όταν δεν υπάρχει διαθέσιμο κοντέινερ. Προειδοποίηση: αυτός ο κώδικας εκτελείται χωρίς απομόνωση κοντέινερ.",
+  "config.shell_sandbox.enabled_help": "Περιορίζει την πρόσβαση στο σύστημα αρχείων των εντολών shell του πράκτορα με το Landlock. Λειτουργεί μόνο σε Linux με κατάλληλο πυρήνα.",
+  "config.shell_sandbox.max_cpu_help": "Χρόνος CPU σε δευτερόλεπτα μετά τον οποίο διακόπτεται μια εντολή (5-600, προεπιλογή 30).",
+  "config.shell_sandbox.max_fsize_help": "Μεγαλύτερο αρχείο σε MB που μπορεί να γράψει μια εντολή (1-4096, προεπιλογή 100).",
+  "config.shell_sandbox.max_memory_help": "Μνήμη σε MB που μπορεί να χρησιμοποιήσει το πολύ μια εντολή (64-8192, προεπιλογή 1024)."
 }

@@ -36,5 +36,6 @@
   "action_policy.unknown": "Resultatet är osäkert. Kontrollera tillståndet innan du upprepar åtgärden.",
   "action_policy.admin_only": "Endast administratörer kan ändra regler och godkänna åtgärder.",
   "action_policy.save_hint": "Spara ändringarna innan du testar reglerna.",
-  "action_policy.pending": "Väntande godkännanden"
+  "action_policy.pending": "Väntande godkännanden",
+  "action_policy.enabled_help": "Egna regler tillåter eller nekar enskilda åtgärder automatiskt. Inaktiverade funktioner och skrivskyddade inställningar har alltid företräde."
 }

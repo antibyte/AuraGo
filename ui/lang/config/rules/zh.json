@@ -43,5 +43,13 @@
   "config.rules.rule_list": "规则库",
   "config.rules.disabled": "已禁用",
   "config.rules.targeting": "匹配目标",
-  "config.rules.system_status": "规则系统"
+  "config.rules.system_status": "规则系统",
+  "config.rules.rule_id_help": "规则的简短唯一名称，例如 homepage。创建后无法更改。",
+  "config.rules.rule_title_help": "显示在规则库中的易读名称。",
+  "config.rules.priority_help": "多条规则匹配时，数字较大的先被注入。默认 50。",
+  "config.rules.enabled_help": "已关闭的规则永远不会被注入任务。",
+  "config.rules.tools_help": "激活此规则的工具名称，用逗号分隔。在下方选择工具即可添加。",
+  "config.rules.workflows_help": "激活此规则的工作流名称，用逗号分隔。在下方选择工作流即可添加。",
+  "config.rules.keywords_help": "任务文本中激活此规则的词语，用逗号分隔。",
+  "config.rules.body_help": "Markdown 格式的防护规则文本。它会在匹配的任务开始之前注入。"
 }

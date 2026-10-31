@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Misje są wyłączone. Przepływy potrzebują misji, aby działać.",
   "config.flows.open": "Otwórz EasyDrag",
   "config.flows.run_retention_days": "Przechowuj historię uruchomień (dni, 1–365)",
-  "config.section.flows.desc": "Wizualne automatyzacje z aplikacji EasyDrag",
-  "config.section.flows.label": "Przepływy EasyDrag"
+  "config.section.flows.desc": "Uruchamia wizualne automatyzacje zbudowane w aplikacji EasyDrag.",
+  "config.section.flows.label": "Przepływy EasyDrag",
+  "config.flows.enabled_help": "Włącza uruchamianie przepływów EasyDrag. Zmiana zadziała po ponownym uruchomieniu.",
+  "config.flows.max_parallel_runs_help": "Ile uruchomień przepływów może działać jednocześnie (od 1 do 32, domyślnie 8). Pozostałe czekają.",
+  "config.flows.max_parallel_nodes_per_run_help": "Ile kroków jednego uruchomienia może być wykonywanych równolegle (od 1 do 16, domyślnie 4).",
+  "config.flows.max_runs_per_flow_help": "Ile zakończonych uruchomień jest zachowywanych dla przepływu; starsze są usuwane (od 10 do 5000, domyślnie 200).",
+  "config.flows.run_retention_days_help": "Historia uruchomienia jest usuwana po tylu dniach (od 1 do 365, domyślnie 30)."
 }

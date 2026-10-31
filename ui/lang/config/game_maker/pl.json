@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "Pozwala tworzyć zarządzane projekty gier.",
   "help.game_maker.allow_edit": "Pozwala na zadania agenta, zmiany, walidację, publikację i przywracanie rewizji.",
   "help.game_maker.allow_delete": "Pozwala usuwać zarządzane projekty. Współdzielone media pozostają chronione.",
-  "help.game_maker.allow_media_generation": "Pozwala generować obrazy i muzykę projektu, gdy skonfigurowano dostawców."
+  "help.game_maker.allow_media_generation": "Pozwala generować obrazy i muzykę projektu, gdy skonfigurowano dostawców.",
+  "config.game_maker.workspace_path_help": "Folder na projekty gier, względem katalogu AuraGo. Wszystkie projekty znajdują się w nim.",
+  "config.game_maker.max_projects_help": "Maksymalna liczba jednocześnie przechowywanych projektów (domyślnie 25).",
+  "config.game_maker.max_files_per_project_help": "Maksymalna liczba plików w jednym projekcie (domyślnie 250).",
+  "config.game_maker.max_file_size_kb_help": "Największy dozwolony plik źródłowy w kilobajtach (domyślnie 2048).",
+  "config.game_maker.max_asset_size_mb_help": "Największy dozwolony zasób, na przykład obraz, dźwięk lub model, w megabajtach (domyślnie 32).",
+  "config.game_maker.max_project_size_mb_help": "Łączny rozmiar jednego projektu w megabajtach; potem nie są przyjmowane kolejne pliki (domyślnie 100).",
+  "config.game_maker.job_timeout_seconds_help": "Maksymalny czas trwania zadania agenta budującego lub zmieniającego grę (domyślnie 1800 sekund)."
 }

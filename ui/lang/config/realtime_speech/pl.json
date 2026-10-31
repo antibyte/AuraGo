@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Tylko aktywne profile można wybrać jako domyślne i używać w czacie.",
+  "config.realtime_speech.profile_name_help": "Nazwa wyświetlana profilu na listach wyboru (do 100 znaków).",
+  "config.realtime_speech.provider_help": "Usługa zapewniająca połączenie głosowe na żywo. Jej zmiana resetuje model i głos do ustawień domyślnych usługi.",
+  "config.realtime_speech.model_help": "Model głosowy usługi. Przestarzałe modele są oznaczone.",
+  "config.realtime_speech.voice_help": "Głos, którym odczytywane są odpowiedzi.",
+  "config.realtime_speech.api_key_help": "Klucz dostępu do usługi. Jest przechowywany w Vault i nigdy w przeglądarce.",
+  "config.realtime_speech.default_profile_help": "Profil używany, gdy żaden nie został wybrany. Oferowane są tylko aktywne profile."
+}

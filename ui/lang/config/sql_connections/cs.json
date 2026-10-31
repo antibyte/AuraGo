@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importovat zálohu SQLite",
   "config.sql_connections.sqlite_import_help": "Nahraj konzistentní samostatnou zálohu (do 64 MiB). Uložení ji importuje do chráněného úložiště a zachová originály.",
   "config.sql_connections.sqlite_import_required": "Je nutný import SQLite",
-  "config.sql_connections.allow_management_help": "Agent smí měnit pouze popisy. Nastavení, přihlašovací údaje a oprávnění spravuje správce."
+  "config.sql_connections.allow_management_help": "Agent smí měnit pouze popisy. Nastavení, přihlašovací údaje a oprávnění spravuje správce.",
+  "config.sql_connections.database_help": "Název databáze na serveru, ke které se agent připojuje.",
+  "config.sql_connections.description_help": "Krátká poznámka pro agenta i pro vás o tom, k čemu se databáze používá.",
+  "config.sql_connections.driver_help": "Typ databáze. SQLite pracuje s importovaným souborem, ostatní se připojují k serveru.",
+  "config.sql_connections.filter_help": "Filtruje seznam podle názvu, typu, hostitele, databáze nebo popisu.",
+  "config.sql_connections.filter_label": "Filtrovat připojení",
+  "config.sql_connections.host_help": "Název hostitele nebo adresa IP databázového serveru. Prázdné = localhost.",
+  "config.sql_connections.name_help": "Jedinečný název, kterým agent toto připojení označuje.",
+  "config.sql_connections.password_help": "Uloženo šifrovaně ve vault. Nechte prázdné, aby zůstalo uložené heslo.",
+  "config.sql_connections.port_help": "Nechte prázdné pro výchozí port typu databáze (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.ssl_mode_help": "Šifrování spojení. Disable posílá vše nešifrovaně, Require šifruje bez kontroly certifikátu, Verify CA kontroluje certifikační autoritu, Verify Full kontroluje i název serveru (nejbezpečnější).",
+  "config.sql_connections.username_help": "Uživatel databáze. Použijte účet s co nejmenšími oprávněními."
 }

@@ -1,5 +1,5 @@
 {
-  "config.backup.create_desc": "创建包含配置、提示、数据和技能的 \u003cstrong\u003e.ago\u003c/strong\u003e 归档 (ZIP)。设置密码后，所有 vault 密钥（API 密钥、令牌）也会被安全加密包含——适合迁移到新实例（如 systemd 注入主密钥）。",
+  "config.backup.create_desc": "创建包含配置、提示、数据和技能的 <strong>.ago</strong> 归档 (ZIP)。设置密码后，所有 vault 密钥（API 密钥、令牌）也会被安全加密包含——适合迁移到新实例（如 systemd 注入主密钥）。",
   "config.backup.card_create_title": "备份内容",
   "config.backup.card_encryption_title": "加密",
   "config.backup.card_import_title": "恢复备份",
@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 导入备份",
   "config.backup.import_password_label": "🔒 密码 (仅用于加密备份)",
   "config.backup.import_success": "导入成功",
-  "config.backup.import_warning": "\u003cstrong\u003e重要：\u003c/strong\u003e导入将覆盖现有文件。配置、提示和数据将被替换。导入后建议重启。",
+  "config.backup.import_warning": "<strong>重要：</strong>导入将覆盖现有文件。配置、提示和数据将被替换。导入后建议重启。",
   "config.backup.importing": "⏳ 导入中…",
   "config.backup.include_vectordb": "包含 VectorDB (embeddings — 可能很大)",
   "config.backup.include_workdir": "包含工作目录 (agent_workspace/workdir)",
@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.include_vectordb_help": "加入向量数据库（记忆嵌入）。可避免恢复后重新计算，但通常会使归档文件变得非常大。",
+  "config.backup.include_workdir_help": "加入代理的工作目录及其中所有文件。这可能占用大量空间。",
+  "config.backup.select_file_help": "之前创建的备份，扩展名为 .ago。导入会覆盖现有数据。",
+  "config.backup.import_password_help": "仅在备份已加密时需要。必须与创建时使用的密码相同。"
 }

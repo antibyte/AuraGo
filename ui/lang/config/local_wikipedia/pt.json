@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Com multimédia",
   "config.local_wikipedia.variant_nopic": "Sem multimédia",
   "config.local_wikipedia.warning_size": "Consoante a língua e a variante, uma edição ocupa até 130 GB e a transferência pode demorar horas.",
-  "config.section.local_wikipedia.desc": "Wikipédia offline para o agente e o ambiente de trabalho, lida a partir de uma edição Kiwix transferida.",
+  "config.section.local_wikipedia.desc": "Fornece a Wikipédia offline ao agente e à área de trabalho a partir de uma edição Kiwix baixada.",
   "config.section.local_wikipedia.label": "Wikipédia local",
   "help.local_wikipedia.agent_access": "Permite ao agente pesquisar e ler a edição instalada.",
   "help.local_wikipedia.data_dir": "Caminho absoluto para a edição. Deixa vazio para usar a pasta wikipedia na pasta de dados do AuraGo.",

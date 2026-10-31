@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "自动为每个任务选择合适的模型。未启用时，AuraGo 始终使用当前的主模型。",
+  "common.llm_router.area_help": "“{area}”区域内请求所用的提供商和模型。“默认模型”表示使用当前活动的模型。",
+  "common.llm_router.timeout_hint": "对任务分类最多可花费多长时间（毫秒，250 到 5000，默认 1500），超时后将采用默认选择。",
+  "common.llm_router.quota_hint": "辅助模型每小时的分类次数上限（0 到 120，默认 20）。0 表示关闭。每次调用都可能产生费用。",
+  "common.llm_router.preview_text_hint": "用您自己的话写的示例任务。它只会被分类，不会被执行。"
+}

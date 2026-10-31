@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Envía cabeceras adicionales con las solicitudes a Manifest para que Manifest pueda elegir el modelo adecuado según tus niveles.",
+  "config.manifest.routing_header_name": "Nombre de la cabecera",
+  "config.manifest.routing_header_value": "Valor de la cabecera",
+  "config.manifest.routing_headers_help": "Cabeceras personalizadas como pares de nombre y valor que AuraGo envía adicionalmente a Manifest. Introduce solo valores que Manifest pueda ver.",
+  "config.manifest.routing_specificity_help": "Categoría que AuraGo envía con cada solicitud a Manifest en el modo «Fixed».",
+  "config.manifest.routing_specificity_mode_help": "Off no envía ninguna categoría, Fixed envía siempre la elegida más abajo y Automatic deja que AuraGo determine la categoría en cada solicitud."
+}

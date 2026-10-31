@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Επιτρέπει την προσθήκη, την ενημέρωση και την αφαίρεση τομέων Vercel.",
   "config.vercel.default_project_id_help": "Προαιρετικό αναγνωριστικό έργου που χρησιμοποιείται όταν ο πράκτορας δεν κατονομάζει έργο.",
   "config.vercel.team_id_help": "Προαιρετικό αναγνωριστικό ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας.",
-  "config.vercel.team_slug_help": "Προαιρετικό slug ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας."
+  "config.vercel.team_slug_help": "Προαιρετικό slug ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας.",
+  "config.vercel.vault_badge": "vault"
 }

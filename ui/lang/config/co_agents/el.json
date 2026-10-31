@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Επιλογή σημείωσης",
   "config.co_agents.spec_cheatsheet_loading": "Φόρτωση…",
   "config.co_agents.spec_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμες ενεργές σημειώσεις.",
-  "config.co_agents.spec_cheatsheet_error": "Αποτυχία φόρτωσης σημειώσεων."
+  "config.co_agents.spec_cheatsheet_error": "Αποτυχία φόρτωσης σημειώσεων.",
+  "config.co_agents.cb_max_tokens_help": "Ανώτατο όριο tokens ανά εργασία. 0 = απεριόριστο.",
+  "config.co_agents.cb_max_tool_calls_help": "Πόσες κλήσεις εργαλείων επιτρέπεται να κάνει ένας συνεργαζόμενος πράκτορας ανά εργασία πριν σταματήσει (προεπιλογή 10).",
+  "config.co_agents.cb_timeout_help": "Μέγιστος χρόνος εκτέλεσης ενός συνεργαζόμενου πράκτορα σε δευτερόλεπτα (προεπιλογή 300).",
+  "config.co_agents.provider_help": "Το μοντέλο που χρησιμοποιούν οι συνεργαζόμενοι πράκτορες. Χωρίς επιλογή χρησιμοποιούν το κύριο LLM.",
+  "config.co_agents.spec_additional_prompt_help": "Επιπλέον οδηγίες που προστίθενται στο system prompt αυτού του ρόλου.",
+  "config.co_agents.spec_provider_help": "Δικό του μοντέλο μόνο για αυτόν τον ρόλο. Χωρίς επιλογή ισχύει ο πάροχος των συνεργαζόμενων πρακτόρων."
 }

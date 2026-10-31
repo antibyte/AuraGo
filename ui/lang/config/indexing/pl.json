@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Obrazy są wysyłane tylko z katalogów, w których na liście powyżej włączono udostępnianie multimediów.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "Katalog do monitorowania",
+  "config.indexing.dir_help": "Folder, którego pliki są indeksowane, jako ścieżka bezwzględna lub względem katalogu AuraGo. Podfoldery są uwzględniane. Dodaj przyciskiem lub klawiszem Enter.",
+  "config.indexing.chunk_max_chars_help": "Maksymalna długość jednego fragmentu tekstu w znakach. Mniejsze fragmenty dają dokładniejsze trafienia, większe więcej kontekstu. Domyślnie: 3500.",
+  "config.indexing.chunk_overlap_help": "Znaki wspólne dla sąsiednich fragmentów, aby zdania na granicach nie były ucinane. Domyślnie: 200.",
+  "config.indexing.chunk_max_chunks_help": "Maksymalna liczba fragmentów na plik; reszta bardzo dużych plików jest pomijana. Domyślnie: 200."
 }

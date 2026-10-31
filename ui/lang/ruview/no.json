@@ -363,5 +363,12 @@
   "ruview.lab_back": "← Lab",
   "ruview.lab_frame_title_observatory": "Observatorium (eksperimentelt, engelsk)",
   "ruview.lab_frame_title_pose_fusion": "Posefusjon (eksperimentelt, engelsk)",
-  "ruview.lab_frame_title_dashboard": "Originalt RuView-kontrollpanel (eksperimentelt, engelsk)"
+  "ruview.lab_frame_title_dashboard": "Originalt RuView-kontrollpanel (eksperimentelt, engelsk)",
+  "ruview.enabled_help": "Slår på RuView-integrasjonen. Uten den forblir bevegelsesdeteksjon via Wi-Fi-signaler av.",
+  "ruview.url_help": "Adressen til den kjørende RuView-tjenesten, for eksempel http://192.168.1.20:3000.",
+  "ruview.allow_private_help": "Tillater tilkoblinger til adresser i det private nettverket. Trengs når RuView kjører i samme hjemmenettverk. Slå på bare hvis du stoler på målet.",
+  "ruview.http_port_help": "Porten den AuraGo-administrerte RuView-containeren tilbyr webgrensesnittet sitt på (1024-65534, standard 3022).",
+  "ruview.storage_help": "Diskplass i MiB som RuView kan bruke til måledata (64-1048576, standard 1024). Eldre data fjernes ved behov.",
+  "ruview.udp_port_help": "UDP-porten RuView mottar målingene fra ESP32-sensorene på (1024-65535, standard 5005). Sensorene må bruke samme port.",
+  "ruview.udp_bind_help": "IPv4-adressen til nettverkskortet som mottar målinger. La stå tomt for å la RuView velge adressen."
 }

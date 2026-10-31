@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importer SQLite-sikkerhetskopi",
   "config.sql_connections.sqlite_import_help": "Last opp en konsistent, selvstendig sikkerhetskopi (opptil 64 MiB). Lagring importerer til beskyttet lagring og bevarer originalene.",
   "config.sql_connections.sqlite_import_required": "SQLite-import kreves",
-  "config.sql_connections.allow_management_help": "Agenten kan bare endre beskrivelser. Oppsett, påloggingsinformasjon og rettigheter er forbeholdt administratoren."
+  "config.sql_connections.allow_management_help": "Agenten kan bare endre beskrivelser. Oppsett, påloggingsinformasjon og rettigheter er forbeholdt administratoren.",
+  "config.sql_connections.filter_label": "Filtrer tilkoblinger",
+  "config.sql_connections.filter_help": "Filtrerer listen etter navn, type, vert, database eller beskrivelse.",
+  "config.sql_connections.name_help": "Unikt navn agenten bruker for å referere til denne tilkoblingen.",
+  "config.sql_connections.driver_help": "Databasetype. SQLite fungerer med en importert fil, de andre kobler til en server.",
+  "config.sql_connections.port_help": "La stå tomt for standardporten til databasetypen (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Vertsnavn eller IP-adresse til databaseserveren. Tom = localhost.",
+  "config.sql_connections.ssl_mode_help": "Kryptering av tilkoblingen. Disable sender alt i klartekst, Require krypterer uten å sjekke sertifikatet, Verify CA sjekker sertifikatutstederen, Verify Full sjekker også servernavnet (tryggest).",
+  "config.sql_connections.database_help": "Navnet på databasen på serveren agenten kobler til.",
+  "config.sql_connections.description_help": "Kort notat til agenten og deg om hva databasen brukes til.",
+  "config.sql_connections.username_help": "Databasebruker. Bruk en konto med færrest mulig rettigheter.",
+  "config.sql_connections.password_help": "Lagret kryptert i Vault. La stå tomt for å beholde det lagrede passordet."
 }

@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Ενεργοποίηση εργαλείου τείχους προστασίας",
   "config.firewall.enable_help": "Επιτρέπει στον πράκτορα AI να αλληλεπιδρά με το τείχος προστασίας του συστήματος για ανάγνωση ή τροποποίηση κανόνων.",
   "config.firewall.active": "Ενεργός",
-  "config.firewall.inactive": "Αδρανής"
+  "config.firewall.inactive": "Αδρανής",
+  "config.firewall.mode_label": "Λειτουργία",
+  "config.firewall.poll_interval_seconds_label": "Διάστημα ελέγχου (δευτερόλεπτα)"
 }

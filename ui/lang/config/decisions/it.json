@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Attiva il servizio decisionale locale che altre funzioni possono usare per giudizi rapidi sì/no. Qui sotto scegli quali funzioni lo usano.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

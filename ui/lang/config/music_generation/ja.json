@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "処理中",
   "config.music_gen.state_stopped": "停止中",
   "config.music_gen.state_error": "エラー",
-  "config.music_gen.no_gpu": "コンテナで使用できるGPUがありません。デバイスへのアクセスを確認するか、CPUを明示的に選択してください。"
+  "config.music_gen.no_gpu": "コンテナで使用できるGPUがありません。デバイスへのアクセスを確認するか、CPUを明示的に選択してください。",
+  "config.music_gen.enabled_help": "選択したプロバイダーを使って、エージェントが音楽を作成できるようにします。生成のたびに、クォータ、クレジット、またはローカルの計算資源を消費します。",
+  "config.music_gen.provider_help": "音楽を生成する、プロバイダー管理のクラウドプロバイダー、またはローカルの ACE-Step モデルです。",
+  "config.music_gen.device_help": "ローカルモデルを実行するグラフィックスカードまたは計算デバイスです。「auto」は自動で選択します。",
+  "config.music_gen.reserve_help": "ローカルモデルが他のプログラム用に空けておくグラフィックスメモリ (GiB) です (0-256、デフォルト 1)。",
+  "config.music_gen.timeout_help": "この時間が経過すると、AuraGo はローカルでの生成をキャンセルします (30-1800 秒、デフォルト 1800)。"
 }

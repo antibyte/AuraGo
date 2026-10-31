@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "認証情報として無効なマスク値が保存されています。置き換えるか削除してください。",
   "config.providers.runtime_incomplete": "保存済みのプロバイダーが不完全か利用できません。モデル、接続先、認証情報を確認してください。",
   "config.providers.limit_source_model_only_fallback": "他のプロバイダーのモデルに基づく推定",
-  "config.providers.missing_references": "選択したプロバイダーが見つかりません: {paths}。該当する設定で既存のプロバイダーを選択してください。"
+  "config.providers.missing_references": "選択したプロバイダーが見つかりません: {paths}。該当する設定で既存のプロバイダーを選択してください。",
+  "config.providers.search_help": "プロバイダー一覧を名前、種類、またはモデルで絞り込みます。",
+  "config.providers.filter_type_help": "1 つの種類のプロバイダーだけを表示します。",
+  "config.providers.filter_role_help": "メインモデルや埋め込みなど、特定の役割に割り当てられたプロバイダーだけを表示します。"
 }

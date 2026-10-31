@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 wyłącza nasłuchiwanie HTTP. Dla Let’s Encrypt HTTP-01 wybierz 80 i zapewnij dostęp do publicznego portu 80.",
   "config.server.restart_address": "Po ponownym uruchomieniu otwórz:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "Adres sieciowy, na którym nasłuchuje AuraGo. Puste lub 0.0.0.0 = wszystkie interfejsy, 127.0.0.1 = tylko ta maszyna. Po zmianie wymagany jest restart.",
+  "config.server.port_hint": "Port TCP interfejsu webowego i API (domyślnie 8088). Po zmianie wymagany jest restart.",
+  "config.server.ui_language_hint": "Język interfejsu webowego i komunikatów systemowych. Dotyczy każdego użytkownika tej instancji.",
+  "config.server.cert_mode_hint": "Skąd pochodzi certyfikat TLS: automatycznie z Let's Encrypt, z Twoich plików lub jako certyfikat z podpisem własnym do testów lokalnych.",
+  "config.server.https_port_hint": "Port dla połączeń szyfrowanych (domyślnie 443). Porty poniżej 1024 wymagają uprawnień roota lub odpowiedniej capability w systemie Linux.",
+  "config.server.domain_hint": "Publiczna nazwa domeny, dla której wystawiany jest certyfikat. Musi wskazywać na ten serwer.",
+  "config.server.email_hint": "Adres kontaktowy dla Let's Encrypt, na przykład do ostrzeżeń o wygaśnięciu. Jest wysyłany wyłącznie do urzędu certyfikacji.",
+  "config.server.cert_file_hint": "Ścieżka do pliku certyfikatu w formacie PEM, względem katalogu AuraGo lub bezwzględna.",
+  "config.server.key_file_hint": "Ścieżka do klucza prywatnego w formacie PEM. Plik powinien być czytelny tylko dla konta AuraGo.",
+  "config.server.behind_proxy_hint": "Włącz, gdy reverse proxy kończy TLS. Tylko adresy z poniższej listy mogą ustawiać nagłówki forwarded. Przy błędnym ustawieniu adresy klientów mogą zostać sfałszowane.",
+  "config.server.cert_status_sans": "Alternatywne nazwy podmiotu (SAN)"
 }

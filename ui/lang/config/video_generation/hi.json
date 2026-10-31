@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "वीडियो जनरेशन सक्षम:",
   "config.video_gen.aspect_ratio_label": "आस्पेक्ट अनुपात",
   "config.video_gen.test_btn": "कनेक्शन परीक्षण",
-  "config.video_gen.disabled_desc": "एजेंट को वीडियो बनाने देने के लिए ऊपर का स्विच चालू करें."
+  "config.video_gen.disabled_desc": "एजेंट को वीडियो बनाने देने के लिए ऊपर का स्विच चालू करें.",
+  "config.video_gen.enabled_help": "चुने गए प्रदाता के साथ एजेंट को वीडियो बनाने देता है। हर जनरेशन में कोटा या क्रेडिट खर्च होता है।",
+  "config.video_gen.provider_help": "प्रदाता प्रबंधन का वह प्रदाता जो वीडियो बनाता है।",
+  "config.video_gen.duration_help": "एजेंट द्वारा कुछ न बताने पर क्लिप की लंबाई सेकंड में (1-30, डिफ़ॉल्ट 6)। लंबी क्लिप अधिक खर्चीली होती हैं।",
+  "config.video_gen.resolution_help": "एजेंट द्वारा कुछ न बताने पर रिज़ॉल्यूशन। उपलब्ध मान प्रदाता पर निर्भर करते हैं।",
+  "config.video_gen.aspect_ratio_help": "एजेंट द्वारा कुछ न बताने पर आस्पेक्ट रेशियो, जैसे लैंडस्केप के लिए 16:9 और पोर्ट्रेट के लिए 9:16।",
+  "config.video_gen.poll_interval_help": "AuraGo कितनी बार प्रदाता से वीडियो जॉब की स्थिति पूछता है (1-120 सेकंड, डिफ़ॉल्ट 10)।",
+  "config.video_gen.timeout_help": "इस समय के बाद AuraGo वीडियो की प्रतीक्षा करना बंद कर देता है (30-3600 सेकंड, डिफ़ॉल्ट 600)।",
+  "config.video_gen.max_daily_help": "प्रति दिन वीडियो की अधिकतम संख्या। 0 का अर्थ असीमित है।"
 }

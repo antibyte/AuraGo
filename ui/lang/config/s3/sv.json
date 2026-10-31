@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "Adress till den hanterade RustFS-tjänsten. Den anges automatiskt och visas bara som referens.",
+  "config.s3.details_help": "Tekniska statusdata för tjänsten i JSON-format, till exempel för felsökning. Skrivskyddat.",
+  "config.s3.allow_read_help": "Agenten får lista och ladda ned objekt.",
+  "config.s3.allow_write_help": "Agenten får ladda upp objekt och skriva över befintliga.",
+  "config.s3.allow_delete_help": "Agenten får ta bort objekt. Borttagna objekt kan inte återställas.",
+  "config.s3.location_bucket_help": "Namn på den bucket som behörigheten gäller.",
+  "config.s3.location_prefixes_help": "Ett prefix per rad. Utan poster tillåts ingenting om inte hela bucketen är vald.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.enabled_label": "Aktivera S3-lagring",
+  "config.s3.endpoint_label": "Endpoint-URL",
+  "config.s3.insecure_label": "Tillåt okrypterad anslutning",
+  "config.s3.readonly_label": "Skrivskyddat",
+  "config.s3.region_label": "Region",
+  "config.s3.use_path_style_label": "Använd path-style-adressering"
+}

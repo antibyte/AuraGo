@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importar cópia SQLite",
   "config.sql_connections.sqlite_import_help": "Envia uma cópia consistente e autónoma (até 64 MiB). Guardar importa para o armazenamento protegido e preserva os originais.",
   "config.sql_connections.sqlite_import_required": "É necessário importar SQLite",
-  "config.sql_connections.allow_management_help": "O agente só pode editar descrições. Configuração, credenciais e permissões ficam reservadas ao administrador."
+  "config.sql_connections.allow_management_help": "O agente só pode editar descrições. Configuração, credenciais e permissões ficam reservadas ao administrador.",
+  "config.sql_connections.filter_label": "Filtrar conexões",
+  "config.sql_connections.filter_help": "Filtra a lista por nome, tipo, host, banco de dados ou descrição.",
+  "config.sql_connections.name_help": "Nome exclusivo que o agente usa para se referir a esta conexão.",
+  "config.sql_connections.driver_help": "Tipo de banco de dados. SQLite funciona com um arquivo importado; os demais se conectam a um servidor.",
+  "config.sql_connections.port_help": "Deixe vazio para a porta padrão do tipo de banco de dados (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Nome do host ou endereço IP do servidor de banco de dados. Vazio = localhost.",
+  "config.sql_connections.ssl_mode_help": "Criptografia da conexão. Disable envia tudo em texto simples, Require criptografa sem verificar o certificado, Verify CA verifica a autoridade certificadora, Verify Full verifica também o nome do servidor (mais seguro).",
+  "config.sql_connections.database_help": "Nome do banco de dados no servidor ao qual o agente se conecta.",
+  "config.sql_connections.description_help": "Breve nota para o agente e para você sobre para que o banco de dados é usado.",
+  "config.sql_connections.username_help": "Usuário do banco de dados. Use uma conta com o mínimo possível de privilégios.",
+  "config.sql_connections.password_help": "Armazenada criptografada no vault. Deixe vazio para manter a senha salva."
 }

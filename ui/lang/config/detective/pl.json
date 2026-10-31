@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detektyw",
-  "config.section.detective.desc": "Badania z weryfikowalnymi źródłami",
+  "config.section.detective.desc": "Pozwala agentowi zbadać temat i podać wykorzystane źródła.",
   "config.detective.enabled": "Włącz Detective",
   "config.detective.extra_read_operations": "Zatwierdzone operacje odczytu",
   "config.detective.extra_read_help": "Dodaje dokładne operacje narzędzi, które badanie może wywołać w połączonych usługach prywatnych. Źródło nadal trzeba wybrać w sprawie.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "wywołania narzędzi",
   "config.detective.readonly": "Bezpieczny tryb tylko do odczytu",
   "config.detective.seconds": "Limit czasu zadania (sekundy)",
-  "config.detective.restart": "Po zmianie profili intensywności uruchom AuraGo ponownie. Istniejące badania zachowują przyjęte budżety."
+  "config.detective.restart": "Po zmianie profili intensywności uruchom AuraGo ponownie. Istniejące badania zachowują przyjęte budżety.",
+  "config.detective.help_enabled": "Włącza badania ze źródłami, które można prześledzić. Sprawa korzysta wyłącznie ze źródeł wybranych jawnie.",
+  "config.detective.help_readonly": "Ogranicza badania do odczytu. Zalecane, chyba że masz pewność, że nic nie może być zmieniane.",
+  "config.detective.help_seconds": "Najdłuższy czas działania jednego zadania w sekundach (od 30 do 7200), po którym zostaje zatrzymane.",
+  "config.detective.help_tools": "Maksymalna liczba wywołań narzędzi na zadanie (od 1 do 500).",
+  "config.detective.help_iterations": "Maksymalna liczba rund rozumowania i pracy na zadanie (od 1 do 750).",
+  "config.detective.help_tokens": "Dodatkowy limit tokenów na zadanie. 0 = bez dodatkowego limitu."
 }

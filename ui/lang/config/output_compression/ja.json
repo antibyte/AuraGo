@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "長いツール出力をモデルに渡す前に短縮し、トークンを節約します。下のオプションが有効な場合、エラーメッセージは保持されます。",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW 圧縮",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "繰り返し現れるテキストの断片を、順序を変えずに短い参照に置き換えます。繰り返しの多い出力でトークンを節約できます。",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "1 回の出力で作成される参照の最大数です。エントリが多いほど多くの繰り返しを見つけられますが、辞書に必要な領域も増えます。",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "これより長い出力には、計算時間を節約するためこの方式を適用しません。",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "テキストの断片は、少なくともこの回数だけ現れた場合にのみ置き換えられます。",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "これより短い断片は、参照のほうがテキストより長くなってしまうため、置き換えられません。",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "結果は、元のテキストよりこの割合以上短くなる場合にのみ使用されます。",
+  "help.agent.output_compression.toon_json.max_rows": "これより行数の多い表は、コンパクトな TOON 形式では出力されません。",
+  "help.agent.output_compression.toon_json.min_savings_percent": "コンパクトな表形式は、JSON よりこの割合以上短くなる場合にのみ使用されます。"
+}

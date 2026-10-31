@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detektiv",
-  "config.section.detective.desc": "Undersøgelser med sporbare kilder",
+  "config.section.detective.desc": "Lader agenten researche et emne og citere de kilder, den har brugt.",
   "config.detective.enabled": "Aktivér Detective",
   "config.detective.extra_read_operations": "Tilladte læseoperationer",
   "config.detective.extra_read_help": "Tilføjer præcise værktøjsoperationer, som research må kalde på tilsluttede private tjenester. Kilden skal stadig vælges i sagen.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "værktøjskald",
   "config.detective.readonly": "Sikker skrivebeskyttet tilstand",
   "config.detective.seconds": "Jobtimeout (sekunder)",
-  "config.detective.restart": "Genstart AuraGo efter ændring af indsatsprofiler. Eksisterende kørsler beholder deres accepterede budgetter."
+  "config.detective.restart": "Genstart AuraGo efter ændring af indsatsprofiler. Eksisterende kørsler beholder deres accepterede budgetter.",
+  "config.detective.help_enabled": "Aktiverer research med sporbare kilder. En sag bruger kun kilder, du udtrykkeligt vælger.",
+  "config.detective.help_iterations": "Maksimalt antal ræsonnerings- og arbejdsrunder pr. job (1 til 750).",
+  "config.detective.help_readonly": "Tillader kun læseadgang under research. Anbefales, medmindre du er sikker på, at intet må ændres.",
+  "config.detective.help_seconds": "Længste køretid for ét job i sekunder (30 til 7200), hvorefter det stoppes.",
+  "config.detective.help_tokens": "Yderligere loft for tokens pr. job. 0 = ingen yderligere grænse.",
+  "config.detective.help_tools": "Maksimalt antal værktøjskald pr. job (1 til 500)."
 }

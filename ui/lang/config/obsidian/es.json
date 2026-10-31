@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "Tiempo de espera de conexión en segundos (predeterminado: 10)",
   "help.obsidian.request_timeout": "Tiempo de espera de solicitud en segundos (predeterminado: 30)",
   "config.obsidian.status_unknown": "Estado desconocido",
-  "config.obsidian.status_no_url": "Ningún host configurado"
+  "config.obsidian.status_no_url": "Ningún host configurado",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

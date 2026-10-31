@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Obraz testowy wygenerowany i zapisany w galerii (zużyto jedno generowanie).",
   "config.image_generation.test_failed": "Generowanie nie powiodło się",
   "config.image_generation.max_daily_label": "Maks. obrazów na dzień",
-  "config.image_generation.max_daily_hint": "0 = bez limitu"
+  "config.image_generation.max_daily_hint": "0 = bez limitu",
+  "config.image_generation.enabled_help": "Pozwala agentowi tworzyć obrazy z opisów tekstowych za pomocą wybranego dostawcy. Każde generowanie zużywa limit lub kredyt.",
+  "config.image_generation.provider_help": "Dostawca z zarządzania dostawcami, który tworzy obrazy. Bez wyboru funkcja nie działa.",
+  "config.image_generation.size_help": "Rozmiar obrazu w pikselach, gdy agent go nie poda. Nie każdy dostawca obsługuje wszystkie rozmiary.",
+  "config.image_generation.quality_help": "Poziom jakości, gdy agent go nie poda. \"hd\" daje więcej szczegółów, ale zwykle kosztuje więcej.",
+  "config.image_generation.style_help": "Styl obrazu, gdy agent go nie poda. \"vivid\" wygląda śmielej i bardziej dramatycznie niż \"natural\".",
+  "config.image_generation.prompt_enhancement_help": "Model językowy poprawia opis przed generowaniem. Często daje to lepsze obrazy, ale kosztuje dodatkowe wywołanie modelu."
 }

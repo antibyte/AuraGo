@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "Attiva l'app Video Studio nel desktop virtuale. FFmpeg e FFprobe devono essere installati sul server.",
+  "config.video_studio.readonly_help": "I progetti possono essere visualizzati ma non modificati né esportati.",
+  "config.video_studio.ffmpeg_help": "Percorso dell'eseguibile FFmpeg. Lascia vuoto per trovare FFmpeg tramite il PATH di sistema.",
+  "config.video_studio.asset_limit_help": "Dimensione massima consentita di un singolo file multimediale in megabyte (predefinita 4096).",
+  "config.video_studio.project_limit_help": "Dimensione totale di tutti i file di un progetto in megabyte (predefinita 16384).",
+  "config.video_studio.timeout_help": "Tempo massimo per il rendering di un video in secondi, dopo il quale viene interrotto (da 30 a 14400, predefinito 7200).",
+  "config.video_studio.hardware_device_help": "Dispositivo di rendering della scheda grafica, ad esempio /dev/dri/renderD128 su Linux. Vuoto = automatico.",
+  "config.retro_games.enabled_help": "Attiva l'app Retro Games nel desktop virtuale. I giochi girano nell'emulatore di archive.org e richiedono l'accesso a Internet.",
+  "config.retro_games.agent_access_help": "L'agente può cercare giochi e avviarli nel desktop."
+}

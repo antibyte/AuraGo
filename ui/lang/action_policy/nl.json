@@ -36,5 +36,6 @@
   "action_policy.unknown": "Uitkomst onzeker. Controleer de toestand voordat je de actie herhaalt.",
   "action_policy.admin_only": "Alleen beheerders kunnen regels wijzigen en acties goedkeuren.",
   "action_policy.save_hint": "Sla wijzigingen op voordat je de regels test.",
-  "action_policy.pending": "Openstaande goedkeuringen"
+  "action_policy.pending": "Openstaande goedkeuringen",
+  "action_policy.enabled_help": "Je eigen regels staan afzonderlijke acties automatisch toe of weigeren ze. Uitgeschakelde functies en alleen-lezeninstellingen hebben altijd voorrang."
 }

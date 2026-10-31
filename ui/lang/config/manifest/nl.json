@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Stuurt extra headers mee met verzoeken aan Manifest, zodat Manifest op basis van je tiers het passende model kan kiezen.",
+  "config.manifest.routing_specificity_mode_help": "Uit stuurt geen categorie, Vast stuurt altijd de hieronder gekozen categorie, Automatisch laat AuraGo per verzoek de categorie bepalen.",
+  "config.manifest.routing_specificity_help": "Categorie die AuraGo in de modus \"Vast\" met elk verzoek naar Manifest stuurt.",
+  "config.manifest.routing_headers_help": "Eigen headers als naam-waardeparen die AuraGo aanvullend naar Manifest stuurt. Voer alleen waarden in die Manifest mag zien.",
+  "config.manifest.routing_header_name": "Headernaam",
+  "config.manifest.routing_header_value": "Headerwaarde"
+}

@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "認証アプリに表示されている現在のコードを入力してください。",
   "config.auth.step_up_hint": "ログインパスワードまたは2要素認証を変更するには、現在のパスワード（TOTPが有効な場合は現在のコードも）が必要です。",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "再試行"
+  "config.auth.retry": "再試行",
+  "config.auth.new_password_help": "8 文字以上にしてください。長くて一意なパスフレーズが最も安全です。",
+  "config.auth.confirmation_code_help": "認証アプリに現在表示されている 6 桁のコードを入力してください。",
+  "config.auth.current_totp_help": "認証アプリに現在表示されている 6 桁のコードです。",
+  "config.auth.webauthn_enabled_help": "パスキーとセキュリティキーによるサインインを有効にします。頼りにする前に、まずキーを登録してログインを試してください。",
+  "config.auth.webauthn_rpid_help": "キーが紐づけられているドメイン名です (例: aurago.example.test)。変更すると、登録済みのキーがすべて削除されます。",
+  "config.auth.webauthn_key_name_help": "後でこのキーを見分けやすくする名前です (例: Laptop、YubiKey)。"
 }

@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Computadores virtuales",
-  "config.section.virtual_computers.desc": "MicroVM desechables con terminal, escritorio, vistas previas y acceso del agente.",
+  "config.section.virtual_computers.desc": "Ofrece equipos microVM desechables con terminal, escritorio y acceso del agente.",
   "config.virtual_computers.enabled_label": "Activar computadores virtuales",
   "config.virtual_computers.disabled_notice": "Los computadores virtuales están desactivados.",
   "config.virtual_computers.disabled_desc": "Activa la integración para lanzar máquinas de boring-computers y actuar como su proxy.",

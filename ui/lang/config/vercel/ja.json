@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Vercel ドメインの追加、更新、除去を許可します。",
   "config.vercel.default_project_id_help": "エージェントがプロジェクトを指定しないときに使用される、任意のプロジェクト ID です。",
   "config.vercel.team_id_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チーム ID です。",
-  "config.vercel.team_slug_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チームスラッグです。"
+  "config.vercel.team_slug_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チームスラッグです。",
+  "config.vercel.vault_badge": "vault"
 }

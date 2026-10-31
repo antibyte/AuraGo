@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Τελευταία προσπάθεια: {result}",
   "config.newspaper.max_searches": "Μέγιστες αναζητήσεις ανά έκδοση (με τις επαναλήψεις)",
   "config.section.newspaper.label": "Εφημερίδα",
-  "config.section.newspaper.desc": "Μια προσωπική, καθημερινή έκδοση με πηγή",
+  "config.section.newspaper.desc": "Συντάσσει μια προσωπική ημερήσια εφημερίδα από έρευνα με παραπομπές σε πηγές.",
   "config.newspaper.enabled": "Ενεργοποίηση εφημερίδας",
   "config.newspaper.readonly": "Λειτουργία μόνο για ανάγνωση",
   "config.newspaper.allow_email": "Να επιτρέπεται η παράδοση email",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Το χρηματικό όριο εξακολουθεί να ισχύει.",
   "config.newspaper.monetary_budget_disabled": "Δεν έχει ρυθμιστεί χρηματικό όριο· τα όρια έρευνας εξακολουθούν να ισχύουν.",
   "config.newspaper.fixed_budget_note": "Τα σταθερά όρια μοιράζουν {pages} σελίδες σε όλη την έκδοση.",
-  "config.newspaper.fixed_limits_only": "Αυτά τα όρια ισχύουν μόνο στη σταθερή λειτουργία."
+  "config.newspaper.fixed_limits_only": "Αυτά τα όρια ισχύουν μόνο στη σταθερή λειτουργία.",
+  "config.newspaper.allow_email_help": "Επιτρέπει την αποστολή έτοιμων εκδόσεων με email. Για αυτό πρέπει να έχει ρυθμιστεί λογαριασμός email.",
+  "config.newspaper.allow_telegram_help": "Επιτρέπει την αποστολή έτοιμων εκδόσεων μέσω Telegram. Για αυτό πρέπει να έχει ρυθμιστεί το Telegram.",
+  "config.newspaper.enabled_help": "Επιτρέπει στην επιφάνεια εργασίας να ερευνά και να συντάσσει καθημερινά μια εφημερίδα για τα θέματά σας. Τα θέματα τα ορίζετε στην επιφάνεια εργασίας.",
+  "config.newspaper.max_editions_help": "Πόσες έτοιμες εκδόσεις παραμένουν αποθηκευμένες· οι παλαιότερες διαγράφονται (30 έως 3650, προεπιλογή 365).",
+  "config.newspaper.max_minutes_help": "Πόσο το πολύ μπορεί να διαρκέσει η έρευνα μιας έκδοσης (1 έως 60 λεπτά, προεπιλογή 30).",
+  "config.newspaper.max_pages_help": "Πόσες ιστοσελίδες διαβάζονται το πολύ ανά έκδοση (1 έως 60, προεπιλογή 60).",
+  "config.newspaper.max_searches_help": "Πόσα ερωτήματα αναζήτησης γίνονται το πολύ ανά έκδοση, με τις επαναλήψεις (1 έως 64, προεπιλογή 32).",
+  "config.newspaper.readonly_help": "Η εφημερίδα μπορεί μόνο να διαβάζει και να εμφανίζει, όχι να στέλνει ή να αλλάζει κάτι."
 }

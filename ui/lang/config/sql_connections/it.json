@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importa backup SQLite",
   "config.sql_connections.sqlite_import_help": "Carica un backup coerente e autonomo (fino a 64 MiB). Salva lo importa nello spazio protetto e conserva gli originali.",
   "config.sql_connections.sqlite_import_required": "Importazione SQLite necessaria",
-  "config.sql_connections.allow_management_help": "L’agente può modificare solo le descrizioni. Configurazione, credenziali e permessi sono riservati all’amministratore."
+  "config.sql_connections.allow_management_help": "L’agente può modificare solo le descrizioni. Configurazione, credenziali e permessi sono riservati all’amministratore.",
+  "config.sql_connections.filter_label": "Filtra le connessioni",
+  "config.sql_connections.filter_help": "Filtra l'elenco per nome, tipo, host, database o descrizione.",
+  "config.sql_connections.name_help": "Nome univoco che l'agente usa per riferirsi a questa connessione.",
+  "config.sql_connections.driver_help": "Tipo di database. SQLite lavora su un file importato, gli altri si connettono a un server.",
+  "config.sql_connections.port_help": "Lascia vuoto per usare la porta predefinita del tipo di database (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Nome host o indirizzo IP del server di database. Vuoto = localhost.",
+  "config.sql_connections.ssl_mode_help": "Cifratura della connessione. Disable invia tutto in chiaro, Require cifra senza verificare il certificato, Verify CA controlla l'autorità di certificazione, Verify Full controlla anche il nome del server (la più sicura).",
+  "config.sql_connections.database_help": "Nome del database sul server a cui si connette l'agente.",
+  "config.sql_connections.description_help": "Breve nota per l'agente e per te su come viene usato il database.",
+  "config.sql_connections.username_help": "Utente del database. Usa un account con il minor numero possibile di privilegi.",
+  "config.sql_connections.password_help": "Memorizzata cifrata nel vault. Lascia vuoto per mantenere la password salvata."
 }

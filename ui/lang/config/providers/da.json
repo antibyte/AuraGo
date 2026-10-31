@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "En ugyldig maskering er gemt som legitimationsoplysning. Erstat eller fjern den.",
   "config.providers.runtime_incomplete": "Den gemte udbyder er ufuldstændig eller utilgængelig. Kontrollér model, adresse og legitimationsoplysninger.",
   "config.providers.limit_source_model_only_fallback": "modelbaseret skøn fra en anden udbyder",
-  "config.providers.missing_references": "Manglende udbydervalg: {paths}. Vælg en eksisterende udbyder i disse indstillinger."
+  "config.providers.missing_references": "Manglende udbydervalg: {paths}. Vælg en eksisterende udbyder i disse indstillinger.",
+  "config.providers.filter_role_help": "Viser kun udbydere, der er tildelt en bestemt opgave, f.eks. hovedmodellen eller embeddings.",
+  "config.providers.filter_type_help": "Viser kun udbydere af én type.",
+  "config.providers.search_help": "Filtrerer udbyderlisten efter navn, type eller model."
 }

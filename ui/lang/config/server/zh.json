@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 表示关闭 HTTP 监听。使用 Let’s Encrypt HTTP-01 时，请选择 80 并确保公网端口 80 可访问。",
   "config.server.restart_address": "重启后请打开：",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "AuraGo 监听的网络地址。留空或 0.0.0.0 = 所有网络接口，127.0.0.1 = 仅本机。更改后需要重启。",
+  "config.server.port_hint": "Web 界面和 API 的 TCP 端口（默认 8088）。更改后需要重启。",
+  "config.server.ui_language_hint": "Web 界面和系统消息的语言。适用于此实例的所有用户。",
+  "config.server.cert_mode_hint": "TLS 证书的来源：通过 Let's Encrypt 自动获取、使用您自己的文件，或使用用于本地测试的自签名证书。",
+  "config.server.https_port_hint": "加密连接使用的端口（默认 443）。在 Linux 上，1024 以下的端口需要 root 权限或相应的 capability。",
+  "config.server.domain_hint": "证书所颁发的公网域名。它必须指向此服务器。",
+  "config.server.email_hint": "Let's Encrypt 的联系邮箱，例如用于接收到期提醒。它只会发送给证书颁发机构。",
+  "config.server.cert_file_hint": "PEM 格式证书文件的路径，可以是相对于 AuraGo 目录的路径或绝对路径。",
+  "config.server.key_file_hint": "PEM 格式私钥的路径。该文件应仅对 AuraGo 账户可读。",
+  "config.server.behind_proxy_hint": "当反向代理终止 TLS 时启用。只有下方列表中的地址可以设置转发请求头。设置错误会导致客户端地址被伪造。",
+  "config.server.cert_status_sans": "使用者备用名称（SAN）"
 }

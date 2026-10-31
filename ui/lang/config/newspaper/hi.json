@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "पिछला प्रयास: {result}",
   "config.newspaper.max_searches": "हर अंक में अधिकतम खोजें (दोबारा किए गए प्रयासों सहित)",
   "config.section.newspaper.label": "समाचार पत्र",
-  "config.section.newspaper.desc": "एक व्यक्तिगत, स्रोतयुक्त दैनिक संस्करण",
+  "config.section.newspaper.desc": "स्रोत-आधारित शोध से एक व्यक्तिगत दैनिक समाचार पत्र तैयार करता है।",
   "config.newspaper.enabled": "समाचार पत्र सक्षम करें",
   "config.newspaper.readonly": "केवल पढ़ने योग्य मोड",
   "config.newspaper.allow_email": "ईमेल डिलीवरी की अनुमति दें",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "मौद्रिक बजट फिर भी लागू है।",
   "config.newspaper.monetary_budget_disabled": "मौद्रिक बजट निर्धारित नहीं है; अनुसंधान सीमाएँ फिर भी लागू हैं।",
   "config.newspaper.fixed_budget_note": "निश्चित सीमाएँ पूरे अंक में {pages} पृष्ठ साझा करती हैं।",
-  "config.newspaper.fixed_limits_only": "ये सीमाएँ केवल निश्चित मोड में लागू होती हैं।"
+  "config.newspaper.fixed_limits_only": "ये सीमाएँ केवल निश्चित मोड में लागू होती हैं।",
+  "config.newspaper.enabled_help": "डेस्कटॉप को हर दिन आपके विषयों पर शोध करके एक समाचार पत्र संकलित करने देता है। विषय आप डेस्कटॉप में सेट करते हैं।",
+  "config.newspaper.readonly_help": "समाचार पत्र केवल पढ़ और दिखा सकता है, कुछ भेज या बदल नहीं सकता।",
+  "config.newspaper.allow_email_help": "पूरे हो चुके संस्करणों को ईमेल से भेजने की अनुमति देता है। इसके लिए एक ईमेल खाता सेट होना चाहिए।",
+  "config.newspaper.allow_telegram_help": "पूरे हो चुके संस्करणों को Telegram से भेजने की अनुमति देता है। इसके लिए Telegram सेट होना चाहिए।",
+  "config.newspaper.max_minutes_help": "एक संस्करण के शोध में अधिकतम कितना समय लग सकता है (1 से 60 मिनट, डिफ़ॉल्ट 30)।",
+  "config.newspaper.max_pages_help": "प्रति संस्करण पढ़े जाने वाले वेब पेजों की अधिकतम संख्या (1 से 60, डिफ़ॉल्ट 60)।",
+  "config.newspaper.max_searches_help": "प्रति संस्करण खोज क्वेरी की अधिकतम संख्या, पुनः प्रयास सहित (1 से 64, डिफ़ॉल्ट 32)।",
+  "config.newspaper.max_editions_help": "कितने पूर्ण संस्करण संग्रहीत रहते हैं; पुराने हटा दिए जाते हैं (30 से 3650, डिफ़ॉल्ट 365)।"
 }

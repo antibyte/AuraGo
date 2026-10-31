@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Netlify साइटें बनाने, अपडेट करने और मिटाने की अनुमति देता है।",
   "config.netlify.allow_env_management_help": "Netlify साइटों पर परिवेश चर प्रबंधित करने की अनुमति देता है।",
   "config.netlify.default_site_id_help": "वैकल्पिक साइट ID, जिसका उपयोग तब होता है जब एजेंट किसी साइट का नाम नहीं बताता।",
-  "config.netlify.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Netlify टीम स्लग।"
+  "config.netlify.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Netlify टीम स्लग।",
+  "config.netlify.vault_badge": "vault"
 }

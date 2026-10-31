@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "S médii",
   "config.local_wikipedia.variant_nopic": "Bez médií",
   "config.local_wikipedia.warning_size": "Podle jazyka a varianty potřebuje vydání až 130 GB a stahování může trvat hodiny.",
-  "config.section.local_wikipedia.desc": "Offline Wikipedie pro agenta a plochu, čtená z jednoho staženého vydání Kiwix.",
+  "config.section.local_wikipedia.desc": "Poskytuje agentovi a ploše Wikipedii offline ze stažené edice Kiwix.",
   "config.section.local_wikipedia.label": "Místní Wikipedie",
   "help.local_wikipedia.agent_access": "Umožní agentovi prohledávat a číst nainstalované vydání.",
   "help.local_wikipedia.data_dir": "Absolutní cesta pro vydání. Ponech prázdné pro složku wikipedia v datovém adresáři AuraGo.",

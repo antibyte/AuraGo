@@ -22,7 +22,7 @@
   "config.speech_lab.provider_load_failed": "Leverantörslistan kunde inte läsas in. Spara ingen leverantörsändring förrän anslutningen har återställts.",
   "config.speech_lab.active_combination": "Aktiv kombination",
   "config.section.speech_lab.label": "Tallaboratorium",
-  "config.section.speech_lab.desc": "Valfri lokal taligenkänning och talsyntes för telefoni och chatt.",
+  "config.section.speech_lab.desc": "Kör valfri lokal taligenkänning och talsyntes för samtal och chatt.",
   "config.speech_lab.ownership_note": "Speech Lab tillhandahåller endast ASR och TTS. Samtalsstyrning, LLM, verktyg och minne stannar i AuraGo.",
   "config.speech_lab.enabled": "Aktivera Speech Lab",
   "config.speech_lab.enabled_help": "Låter AuraGo ansluta till den lokala tjänsten. Varje kanal måste aktiveras separat.",

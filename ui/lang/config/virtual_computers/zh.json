@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "虚拟电脑",
-  "config.section.virtual_computers.desc": "带终端、桌面、预览和代理访问的一次性 microVM 电脑。",
+  "config.section.virtual_computers.desc": "提供可随时丢弃的 microVM 计算机，支持终端、桌面和代理访问。",
   "config.virtual_computers.enabled_label": "启用虚拟电脑",
   "config.virtual_computers.disabled_notice": "虚拟电脑已停用。",
   "config.virtual_computers.disabled_desc": "启用该集成，以启动并代理 boring-computers 机器。",

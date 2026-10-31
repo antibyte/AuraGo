@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Génération vidéo activée :",
   "config.video_gen.aspect_ratio_label": "Format d'image",
   "config.video_gen.test_btn": "Tester la connexion",
-  "config.video_gen.disabled_desc": "Activez l'interrupteur ci-dessus pour autoriser l'agent à générer des vidéos."
+  "config.video_gen.disabled_desc": "Activez l'interrupteur ci-dessus pour autoriser l'agent à générer des vidéos.",
+  "config.video_gen.enabled_help": "Permet à l'agent de créer des vidéos avec le fournisseur sélectionné. Chaque génération consomme du quota ou du crédit.",
+  "config.video_gen.provider_help": "Fournisseur de la gestion des fournisseurs qui crée les vidéos.",
+  "config.video_gen.duration_help": "Durée d'un clip en secondes (1-30, 6 par défaut) lorsque l'agent n'en précise pas. Les clips plus longs coûtent plus cher.",
+  "config.video_gen.resolution_help": "Résolution lorsque l'agent n'en précise pas. Les valeurs disponibles dépendent du fournisseur.",
+  "config.video_gen.aspect_ratio_help": "Format d'image lorsque l'agent n'en précise pas, par exemple 16:9 pour le paysage et 9:16 pour le portrait.",
+  "config.video_gen.poll_interval_help": "Fréquence à laquelle AuraGo demande au fournisseur l'état d'une tâche vidéo (1-120 secondes, 10 par défaut).",
+  "config.video_gen.timeout_help": "Après ce délai, AuraGo cesse d'attendre une vidéo (30-3600 secondes, 600 par défaut).",
+  "config.video_gen.max_daily_help": "Nombre maximal de vidéos par jour. 0 signifie illimité."
 }

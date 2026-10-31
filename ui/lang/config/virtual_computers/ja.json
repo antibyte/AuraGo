@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "仮想コンピューター",
-  "config.section.virtual_computers.desc": "ターミナル、デスクトップ、プレビュー、エージェントアクセスを備えた一時 microVM。",
+  "config.section.virtual_computers.desc": "ターミナル、デスクトップ、エージェントからアクセスできる、使い捨ての microVM コンピューターを提供します。",
   "config.virtual_computers.enabled_label": "仮想コンピューターを有効化",
   "config.virtual_computers.disabled_notice": "仮想コンピューターは無効です。",
   "config.virtual_computers.disabled_desc": "boring-computers のマシンを起動しプロキシするには、連携を有効にしてください。",

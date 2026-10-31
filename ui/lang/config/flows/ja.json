@@ -13,6 +13,11 @@
   "config.flows.missions_off": "ミッションがオフです。フローの実行にはミッションが必要です。",
   "config.flows.open": "EasyDrag を開く",
   "config.flows.run_retention_days": "実行履歴の保持期間（日、1–365）",
-  "config.section.flows.desc": "EasyDrag アプリのビジュアル自動化",
-  "config.section.flows.label": "EasyDrag フロー"
+  "config.section.flows.desc": "EasyDrag アプリで作成したビジュアルオートメーションを実行します。",
+  "config.section.flows.label": "EasyDrag フロー",
+  "config.flows.enabled_help": "EasyDrag フローの実行を有効にします。変更は再起動後に反映されます。",
+  "config.flows.max_parallel_runs_help": "同時に実行できるフローの実行数です (1 ～ 32、デフォルト 8)。それ以上は待機します。",
+  "config.flows.max_parallel_nodes_per_run_help": "1 回の実行で並列に処理できるステップ数です (1 ～ 16、デフォルト 4)。",
+  "config.flows.max_runs_per_flow_help": "フローごとに保持する完了済みの実行数です。古いものは削除されます (10 ～ 5000、デフォルト 200)。",
+  "config.flows.run_retention_days_help": "実行の履歴は、この日数が経過すると削除されます (1 ～ 365、デフォルト 30)。"
 }

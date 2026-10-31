@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "启用本地决策服务，其他功能可用它做快速的是/否判断。您可以在下方选择哪些功能使用它。",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

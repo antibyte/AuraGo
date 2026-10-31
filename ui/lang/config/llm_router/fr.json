@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Choisit automatiquement un modèle adapté à chaque tâche. Sans cela, AuraGo utilise toujours le modèle principal actif.",
+  "common.llm_router.area_help": "Fournisseur et modèle pour les requêtes du domaine « {area} ». « Modèle par défaut » utilise le modèle actif.",
+  "common.llm_router.timeout_hint": "Durée maximale (en millisecondes, 250 à 5000, 1500 par défaut) de la classification d'une tâche avant que le choix par défaut ne s'applique.",
+  "common.llm_router.quota_hint": "Nombre maximal de classifications par heure effectuées par le modèle auxiliaire (0 à 120, 20 par défaut). 0 les désactive. Chaque appel peut être facturé.",
+  "common.llm_router.preview_text_hint": "Un exemple de tâche formulé avec vos propres mots. Il est seulement classifié, pas exécuté."
+}

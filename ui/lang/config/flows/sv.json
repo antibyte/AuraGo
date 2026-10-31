@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Uppdrag är avstängda. Flöden behöver uppdrag för att köras.",
   "config.flows.open": "Öppna EasyDrag",
   "config.flows.run_retention_days": "Spara körningshistorik (dagar, 1–365)",
-  "config.section.flows.desc": "Visuella automatiseringar från EasyDrag-appen",
-  "config.section.flows.label": "EasyDrag-flöden"
+  "config.section.flows.desc": "Kör visuella automatiseringar som byggts i appen EasyDrag.",
+  "config.section.flows.label": "EasyDrag-flöden",
+  "config.flows.enabled_help": "Aktiverar körning av EasyDrag-flöden. Ändringen gäller efter en omstart.",
+  "config.flows.max_parallel_runs_help": "Hur många flödeskörningar som får köras samtidigt (1 till 32, standard 8). Övriga väntar.",
+  "config.flows.max_parallel_nodes_per_run_help": "Hur många steg i en körning som får köras parallellt (1 till 16, standard 4).",
+  "config.flows.max_runs_per_flow_help": "Hur många avslutade körningar som sparas per flöde; äldre tas bort (10 till 5000, standard 200).",
+  "config.flows.run_retention_days_help": "Historiken för en körning tas bort efter så här många dagar (1 till 365, standard 30)."
 }

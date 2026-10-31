@@ -159,5 +159,11 @@
   "config.tailscale.status_no_credentials": "Falta la clave API de Tailscale",
   "config.tailscale.status_ok": "Conectado a la API de Tailscale",
   "config.tailscale.status_success": "✅",
-  "config.tailscale.status_error": "❌"
+  "config.tailscale.status_error": "❌",
+  "config.tailscale.tsnet_enable_https_link": "Activar HTTPS",
+  "config.tailscale.tsnet_enabled_help": "Inicia AuraGo como nodo propio en la tailnet (tsnet). Así la interfaz web es accesible de forma privada en la tailnet sin la aplicación Tailscale en el servidor.",
+  "config.tailscale.tsnet_label_cert": "Certificado",
+  "config.tailscale.tsnet_label_dns": "DNS",
+  "config.tailscale.tsnet_label_ips": "IP",
+  "config.tailscale.tsnet_label_url": "URL"
 }

@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Web 界面端口",
   "config.fritzbox.insecure_skip_verify_label": "允许自签名证书",
   "help.fritzbox.web_port": "登录和 Smart Home 请求的可选端口。保留 0 以使用 80 或 443。",
-  "help.fritzbox.insecure_skip_verify": "允许使用自签名 Fritz!Box 证书的 HTTPS。仅在可信家庭网络中使用。"
+  "help.fritzbox.insecure_skip_verify": "允许使用自签名 Fritz!Box 证书的 HTTPS。仅在可信家庭网络中使用。",
+  "config.fritzbox.feature_enabled_help": "代理可以使用 Fritz!Box 的“{feature}”功能。",
+  "config.fritzbox.feature_readonly_help": "对于“{feature}”，代理只能读取数值，不能更改 Fritz!Box 上的任何内容。",
+  "config.fritzbox.polling_enabled_help": "定期向 Fritz!Box 查询新来电，以便 AuraGo 对其作出响应。",
+  "config.fritzbox.polling_interval_help": "两次查询之间的时间，单位为秒（10-3600，默认 60）。间隔越短响应越快，但给 Fritz!Box 带来的负载也越大。"
 }

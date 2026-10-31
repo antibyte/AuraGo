@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Seneste forsøg: {result}",
   "config.newspaper.max_searches": "Maksimalt antal søgninger pr. udgave (inklusive genforsøg)",
   "config.section.newspaper.label": "Avis",
-  "config.section.newspaper.desc": "En personlig, hentet daglig udgave",
+  "config.section.newspaper.desc": "Sammensætter en personlig daglig avis ud fra research med kildehenvisninger.",
   "config.newspaper.enabled": "Aktiver Avis",
   "config.newspaper.readonly": "Skrivebeskyttet tilstand",
   "config.newspaper.allow_email": "Tillad levering af e-mail",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Beløbsbudgettet gælder stadig.",
   "config.newspaper.monetary_budget_disabled": "Intet beløbsbudget er konfigureret; researchgrænserne gælder stadig.",
   "config.newspaper.fixed_budget_note": "Faste grænser deler {pages} sider på tværs af udgaven.",
-  "config.newspaper.fixed_limits_only": "Disse grænser gælder kun i fast tilstand."
+  "config.newspaper.fixed_limits_only": "Disse grænser gælder kun i fast tilstand.",
+  "config.newspaper.allow_email_help": "Tillader afsendelse af færdige udgaver pr. mail. Der skal være oprettet en mailkonto til det.",
+  "config.newspaper.allow_telegram_help": "Tillader afsendelse af færdige udgaver via Telegram. Telegram skal være sat op til det.",
+  "config.newspaper.enabled_help": "Lader skrivebordet researche og sammensætte en avis om dine emner hver dag. Du indstiller emnerne på skrivebordet.",
+  "config.newspaper.max_editions_help": "Hvor mange færdige udgaver der forbliver gemt; ældre slettes (30 til 3650, standard 365).",
+  "config.newspaper.max_minutes_help": "Hvor lang tid research af én udgave højst må tage (1 til 60 minutter, standard 30).",
+  "config.newspaper.max_pages_help": "Hvor mange websider der højst læses pr. udgave (1 til 60, standard 60).",
+  "config.newspaper.max_searches_help": "Hvor mange søgeforespørgsler der højst foretages pr. udgave, genforsøg inkluderet (1 til 64, standard 32).",
+  "config.newspaper.readonly_help": "Avisen må kun læse og vise, men ikke sende eller ændre noget."
 }

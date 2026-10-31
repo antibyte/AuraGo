@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "वर्चुअल डेस्कटॉप में Video Studio ऐप चालू करता है। सर्वर पर FFmpeg और FFprobe इंस्टॉल होने चाहिए।",
+  "config.video_studio.readonly_help": "प्रोजेक्ट देखे जा सकते हैं लेकिन बदले या निर्यात नहीं किए जा सकते।",
+  "config.video_studio.ffmpeg_help": "FFmpeg निष्पादन योग्य फ़ाइल का पथ। सिस्टम PATH से FFmpeg खोजने के लिए खाली छोड़ें।",
+  "config.video_studio.asset_limit_help": "एक मीडिया फ़ाइल का अधिकतम अनुमत आकार मेगाबाइट में (डिफ़ॉल्ट 4096)।",
+  "config.video_studio.project_limit_help": "एक प्रोजेक्ट की सभी फ़ाइलों का कुल आकार मेगाबाइट में (डिफ़ॉल्ट 16384)।",
+  "config.video_studio.timeout_help": "वीडियो रेंडर करने का अधिकतम समय सेकंड में, इसके बाद उसे रोक दिया जाता है (30 से 14400, डिफ़ॉल्ट 7200)।",
+  "config.video_studio.hardware_device_help": "ग्राफ़िक्स कार्ड का रेंडर डिवाइस, जैसे Linux पर /dev/dri/renderD128। खाली = स्वचालित।",
+  "config.retro_games.enabled_help": "वर्चुअल डेस्कटॉप में Retro Games ऐप चालू करता है। गेम archive.org के एमुलेटर में चलते हैं और उन्हें इंटरनेट पहुँच चाहिए।",
+  "config.retro_games.agent_access_help": "एजेंट गेम खोज सकता है और उन्हें डेस्कटॉप में शुरू कर सकता है।"
+}

@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Avec médias",
   "config.local_wikipedia.variant_nopic": "Sans médias",
   "config.local_wikipedia.warning_size": "Selon la langue et la variante, une édition occupe jusqu'à 130 Go et le téléchargement peut durer des heures.",
-  "config.section.local_wikipedia.desc": "Wikipédia hors ligne pour l'agent et le bureau, lue depuis une édition Kiwix téléchargée.",
+  "config.section.local_wikipedia.desc": "Fournit Wikipédia hors ligne à l'agent et au bureau à partir d'une édition Kiwix téléchargée.",
   "config.section.local_wikipedia.label": "Wikipédia locale",
   "help.local_wikipedia.agent_access": "Permet à l'agent de rechercher dans l'édition installée et de la lire.",
   "help.local_wikipedia.data_dir": "Chemin absolu de l'édition. Laisse vide pour utiliser le dossier wikipedia du dossier de données d'AuraGo.",

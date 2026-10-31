@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Δημιούργησε έναν πελάτη ιστού OAuth στο Google Cloud, ενεργοποίησε τα επιλεγμένα API και ρύθμισε την οθόνη συναίνεσης. Καταχώρισε τη διεύθυνση ανακατεύθυνσης που εμφανίζεται κατά τη σύνδεση.",
   "config.gog.grants_help": "Ενεργοποίησε κάθε άδεια ξεχωριστά. Η δημιουργία και η εξαγωγή αρχείων Office απαιτούν και την αντίστοιχη άδεια Drive.",
   "config.section.gog.label": "Google Workspace μέσω gog",
-  "config.section.gog.desc": "Χρησιμοποίησε ξεχωριστούς λογαριασμούς Google μαζί με την εγγενή ενσωμάτωση.",
+  "config.section.gog.desc": "Παρέχει πρόσβαση σε επιπλέον λογαριασμούς Google μέσω του εξωτερικού εργαλείου γραμμής εντολών gog.",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.account_enabled_help": "Μόνο οι ενεργοποιημένοι λογαριασμοί μπορούν να χρησιμοποιηθούν από τον πράκτορα και την επιφάνεια εργασίας.",
+  "config.gog.agent_help": "Ο πράκτορας μπορεί να χρησιμοποιεί αυτόν τον λογαριασμό με τα δικαιώματα που δίνονται παρακάτω.",
+  "config.gog.client_id_help": "Το Client ID του web client OAuth από το Google Cloud Console.",
+  "config.gog.desktop_help": "Οι εφαρμογές της επιφάνειας εργασίας μπορούν να χρησιμοποιούν αυτόν τον λογαριασμό, π.χ. για αλληλογραφία ή ημερολόγιο.",
+  "config.gog.enabled_help": "Ενεργοποιεί τη σύνδεση gog με λογαριασμούς Google. Προσθέτει περισσότερους λογαριασμούς στην ενσωματωμένη ενσωμάτωση Google Workspace.",
+  "config.gog.name_help": "Το εμφανιζόμενο όνομα του λογαριασμού, π.χ. «Προσωπικός» ή «Εργασία».",
+  "config.gog.readonly_help": "Ο πράκτορας μπορεί μόνο να διαβάζει μέσω gog. Η δημιουργία, η αλλαγή, η διαγραφή και η αποστολή παραμένουν αποκλεισμένες ακόμη κι αν ένας λογαριασμός τις επιτρέπει.",
+  "config.gog.secret_help": "Το client secret του πελάτη OAuth. Το «Αποθήκευση στο Vault» το αποθηκεύει κρυπτογραφημένο· δεν εμφανίζεται ξανά."
 }

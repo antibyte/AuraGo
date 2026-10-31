@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "将一个小型模型下载到本机，并按需在容器中运行。它适用于测试或作为备用，而不是替代大型模型。",
+  "config.local_llm.model_family_help": "使用哪个本地模型。Spark 是实验性的，体积特别小。",
+  "config.local_llm.backend_help": "模型使用的计算加速器。“自动”会选择受支持的 GPU；CPU 速度慢且为实验性。",
+  "config.local_llm.model_variant_help": "模型的量化方式：Q8 更精确，但比 Q4 需要更多内存。显示的大小是下载大小。",
+  "config.local_llm.context_size_help": "模型一次可考虑的文本量。上下文越多，需要的内存越多。",
+  "config.local_llm.mtp_help": "多令牌预测借助额外的草稿模型加快输出。属实验性功能，且需要更多内存。",
+  "config.local_llm.idle_timeout_help": "在这么多分钟内没有请求后，模型会停止以释放内存（1 到 1440，默认 15）。",
+  "config.local_llm.listen_port_help": "模型服务器的本地端口。仅可从本机访问（默认 18081）。",
+  "config.local_llm.role_help": "仅测试：只用于试用。备用：主模型失败时接替。主要：回答所有请求。",
+  "config.local_llm.regular_provider_help": "当本地模型承担所选角色时，由这个常规提供商承担另一个角色。",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM：{size} MiB",
+  "config.local_llm.unit_seconds": "{value} 秒",
+  "config.local_llm.unit_milliseconds": "{value} 毫秒"
+}

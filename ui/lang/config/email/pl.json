@@ -60,5 +60,13 @@
   "config.email.load_failed": "Nie można wczytać kont e-mail",
   "config.email.load_failed_disabled": "Dodawanie, edycja i usuwanie są wyłączone do czasu wczytania listy.",
   "config.email.retry": "Spróbuj ponownie",
-  "config.email.saved": "Konta e-mail zapisane."
+  "config.email.saved": "Konta e-mail zapisane.",
+  "config.email.name_help": "Nazwa konta wyświetlana w AuraGo, na przykład \"Osobiste\" lub \"Praca\".",
+  "config.email.imap_host_help": "Adres serwera poczty przychodzącej (IMAP) Twojego dostawcy poczty.",
+  "config.email.smtp_host_help": "Adres serwera poczty wychodzącej (SMTP) Twojego dostawcy poczty.",
+  "config.email.username_help": "Nazwa użytkownika dla IMAP i SMTP, zwykle pełny adres e-mail.",
+  "config.email.password_help": "Hasło lub hasło aplikacji do konta. Jest przechowywane w postaci zaszyfrowanej w Vault.",
+  "config.email.watch_enabled_help": "AuraGo regularnie sprawdza wybrany poniżej folder pod kątem nowych wiadomości i może na nie reagować.",
+  "config.email.watch_folder_help": "Folder IMAP monitorowany pod kątem nowych wiadomości. Domyślnie INBOX.",
+  "config.email.interval_seconds_help": "Jak często folder jest sprawdzany, w sekundach (domyślnie 120). Krótsze odstępy bardziej obciążają serwer poczty."
 }

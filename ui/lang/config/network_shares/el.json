@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Τοπικά κοινόχρηστα δικτύου",
-  "config.section.network_shares.desc": "Διαχειρίσου κοινόχρηστα SMB και NFS αυτού του υπολογιστή.",
+  "config.section.network_shares.desc": "Διαχειρίζεται τα κοινόχρηστα SMB και NFS που παρέχει αυτός ο host.",
   "dashboard.integration_network_shares": "Τοπικά κοινόχρηστα δικτύου",
   "config.network_shares.loading": "Ανάγνωση δυνατοτήτων SMB και NFS…",
   "config.network_shares.enabled": "Ενεργοποίηση ενσωμάτωσης",

@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "ワークスペースパス",
   "config.homepage.workspace_path_missing_warning": "Webサーバーが有効ですがワークスペースパスが設定されていません。プロジェクトの絶対ホストパスを入力してください（例: /home/aurago/aurago/agent_workspace/homepage）、または自動検出を使用してください。",
   "config.homepage.workspace_relative_hint": "ホームページ ツール呼び出し内では、project_dir とこのワークスペースに対する相対パスを保持します (例: 「my-site」または「 my-site/src / app/page.tsx 」)。",
-  "config.homepage.workspace_title": "ワークスペース"
+  "config.homepage.workspace_title": "ワークスペース",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "デプロイサーバーの SSH パスワードです。暗号化された vault に保存されます。SSH キーの使用をおすすめします。",
+  "config.homepage.deploy_key_help": "デプロイサーバーの SSH 秘密鍵 (PEM) です。暗号化された vault に保存され、パスワードの代わりに使われます。",
+  "config.homepage.circuit_breaker_max_calls_help": "AuraGo が停止するまでに、エージェントが 1 回のホームページセッションで行えるツール呼び出しの回数です (1-100、デフォルト 35)。"
 }

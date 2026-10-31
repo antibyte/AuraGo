@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 deaktiverer HTTP-lytteren. Velg 80 for Let’s Encrypt HTTP-01, og gjør offentlig port 80 tilgjengelig.",
   "config.server.restart_address": "Åpne etter omstart:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "Nettverksadressen AuraGo lytter på. Tom eller 0.0.0.0 = alle grensesnitt, 127.0.0.1 = bare denne maskinen. Omstart kreves etter endring.",
+  "config.server.port_hint": "TCP-port for web-UI og API (standard 8088). Omstart kreves etter endring.",
+  "config.server.ui_language_hint": "Språk for web-UI og systemmeldinger. Gjelder for alle brukere av denne instansen.",
+  "config.server.cert_mode_hint": "Hvor TLS-sertifikatet kommer fra: automatisk via Let's Encrypt, dine egne filer eller et selvsignert sertifikat for lokal testing.",
+  "config.server.https_port_hint": "Port for krypterte tilkoblinger (standard 443). Porter under 1024 krever root-rettigheter eller en tilsvarende capability på Linux.",
+  "config.server.domain_hint": "Offentlig domenenavn sertifikatet utstedes for. Det må peke til denne serveren.",
+  "config.server.email_hint": "Kontaktadresse for Let's Encrypt, for eksempel for varsler om utløp. Den sendes bare til sertifikatutstederen.",
+  "config.server.cert_file_hint": "Sti til sertifikatfilen i PEM-format, relativ til AuraGo-mappen eller absolutt.",
+  "config.server.key_file_hint": "Sti til den private nøkkelen i PEM-format. Filen bør bare være lesbar for AuraGo-kontoen.",
+  "config.server.behind_proxy_hint": "Slå på når en reverse proxy avslutter TLS. Bare adresser i listen nedenfor kan sette forwarded-headere. Hvis det settes feil, kan klientadresser forfalskes.",
+  "config.server.cert_status_sans": "Alternative emnenavn (SAN-er)"
 }

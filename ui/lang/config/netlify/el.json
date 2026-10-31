@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Επιτρέπει τη δημιουργία, την ενημέρωση και τη διαγραφή ιστοτόπων Netlify.",
   "config.netlify.allow_env_management_help": "Επιτρέπει τη διαχείριση μεταβλητών περιβάλλοντος σε ιστοτόπους Netlify.",
   "config.netlify.default_site_id_help": "Προαιρετικό αναγνωριστικό ιστοτόπου που χρησιμοποιείται όταν ο πράκτορας δεν κατονομάζει ιστότοπο.",
-  "config.netlify.team_slug_help": "Προαιρετικό slug ομάδας Netlify που χρησιμοποιείται για κλήσεις API με εμβέλεια ομάδας."
+  "config.netlify.team_slug_help": "Προαιρετικό slug ομάδας Netlify που χρησιμοποιείται για κλήσεις API με εμβέλεια ομάδας.",
+  "config.netlify.vault_badge": "vault"
 }

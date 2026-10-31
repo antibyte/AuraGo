@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Percorso area di lavoro",
   "config.homepage.workspace_path_missing_warning": "Il server web è abilitato ma nessun percorso dell'area di lavoro è impostato. Inserisci il percorso host assoluto del progetto (es. /home/aurago/aurago/agent_workspace/homepage) o usa il rilevamento automatico.",
   "config.homepage.workspace_relative_hint": "All'interno delle chiamate allo strumento della home page, mantieni project_dir e il percorso relativi a questo workspace, ad esempio 'my-site' o 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Area di lavoro"
+  "config.homepage.workspace_title": "Area di lavoro",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "Password SSH del server di deploy. È memorizzata nel vault cifrato; preferisci una chiave SSH.",
+  "config.homepage.deploy_key_help": "Chiave SSH privata (PEM) del server di deploy. È memorizzata nel vault cifrato e sostituisce la password.",
+  "config.homepage.circuit_breaker_max_calls_help": "Quante chiamate a strumenti può effettuare l'agente in una sessione homepage prima che AuraGo lo fermi (1-100, predefinito 35)."
 }

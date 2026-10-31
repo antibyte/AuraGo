@@ -60,5 +60,13 @@
   "config.email.load_failed": "Účty e-mailu se nepodařilo načíst",
   "config.email.load_failed_disabled": "Přidávání, úpravy a mazání jsou vypnuty, dokud se seznam nenačte.",
   "config.email.retry": "Zkusit znovu",
-  "config.email.saved": "E-mailové účty uloženy."
+  "config.email.saved": "E-mailové účty uloženy.",
+  "config.email.imap_host_help": "Adresa serveru příchozí pošty (IMAP) vašeho poskytovatele e-mailu.",
+  "config.email.interval_seconds_help": "Jak často se složka kontroluje, v sekundách (výchozí 120). Kratší intervaly více zatěžují poštovní server.",
+  "config.email.name_help": "Zobrazované jméno účtu v AuraGo, například „Osobní“ nebo „Práce“.",
+  "config.email.password_help": "Heslo nebo heslo aplikace k účtu. Je uloženo šifrovaně ve vault.",
+  "config.email.smtp_host_help": "Adresa serveru odchozí pošty (SMTP) vašeho poskytovatele e-mailu.",
+  "config.email.username_help": "Uživatelské jméno pro IMAP a SMTP, obvykle celá e-mailová adresa.",
+  "config.email.watch_enabled_help": "AuraGo pravidelně kontroluje níže zvolenou složku, zda nepřišla nová pošta, a může na ni reagovat.",
+  "config.email.watch_folder_help": "Složka IMAP, která se sleduje kvůli nové poště. Výchozí je INBOX."
 }

@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Ingen enheder",
   "config.remote_control.no_platforms": "Ingen tilgængelige platforme",
   "config.remote_control.platforms_error": "Fejl ved indlæsning af platforme",
-  "config.remote_control.read_only_label": "Skrivebeskyttet tilstand (blokerer filskrivninger, sletninger og shell-kommandoer på alle enheder)",
+  "config.remote_control.read_only_label": "Skrivebeskyttet tilstand",
   "config.remote_control.security_desc": "Styr enhedsregistrering og revisionslogning.",
   "config.remote_control.security_title": "Sikkerhed",
-  "config.remote_control.ssh_insecure_host_key_label": "Tillad usikker SSH-værtsnøgle (⚠️ deaktiverer MITM-beskyttelse, brug kun på betroede netværk)",
+  "config.remote_control.ssh_insecure_host_key_label": "Tillad usikker SSH-værtsnøgle",
   "config.remote_control.status_connected": "Tilsluttet",
   "config.remote_control.status_offline": "Offline",
   "config.security_proxy.status_loading": "Indlæser…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Klienten skal opdateres",
   "config.remote_control.confirm_removal": "Afbryd enheden og annuller igangværende kommandoer? Ny parring kræver et nyt token.",
   "config.remote_control.paths_inherit": "Én sti pr. linje. En tom stiliste for denne enhed arver de globale stier. Er begge lister tomme, afvises filadgang.",
-  "config.remote_control.security_hint": "WSS og et gyldigt certifikat kræves også via Tailscale. Opdater klassiske klienter før serveren. Tokens udløber efter en time og kan kun bruges én gang."
+  "config.remote_control.security_hint": "WSS og et gyldigt certifikat kræves også via Tailscale. Opdater klassiske klienter før serveren. Tokens udløber efter en time og kan kun bruges én gang.",
+  "config.remote_control.audit_log_help": "Logger hver handling på fjernenheder. Anbefales, så adgange kan spores senere.",
+  "config.remote_control.device_name_help": "Valgfrit navn på den enhed, klienten kører på. Det sendes med ved download.",
+  "config.remote_control.enabled_help": "Aktiverer fjernstyring. Først derefter kan parrede enheder forbinde, og agenten få adgang til dem.",
+  "config.remote_control.enrollment_device_name_help": "Valgfrit navn på den nye enhed. Det sættes, når parringstokenet oprettes.",
+  "config.remote_control.max_file_size_help": "Største fil i MB, der er tilladt ved en overførsel (1-500, standard 50).",
+  "config.remote_control.read_only_help": "Blokerer filskrivning, sletning og shell-kommandoer på alle enheder. Læsning er stadig mulig.",
+  "config.remote_control.ssh_insecure_host_key_help": "Advarsel: slår kontrollen af SSH-værtsnøglen fra og dermed beskyttelsen mod man-in-the-middle-angreb. Aktivér det kun i et netværk, du fuldt ud stoler på."
 }

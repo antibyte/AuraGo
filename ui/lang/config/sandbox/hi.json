@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "मूल होस्ट",
   "config.shell_sandbox.ready": "तैयार",
   "config.sandbox.local_python_fallback_label": "स्थानीय Python fallback",
-  "config.sandbox.local_python_fallback_warning": "Sandbox विफल होने पर कोड को isolation के बाहर स्थानीय Python में चलाता है। इसे केवल जानबूझकर चालू करें।"
+  "config.sandbox.local_python_fallback_warning": "Sandbox विफल होने पर कोड को isolation के बाहर स्थानीय Python में चलाता है। इसे केवल जानबूझकर चालू करें।",
+  "config.sandbox.local_python_fallback_help": "कोई कंटेनर उपलब्ध न होने पर कोड को सर्वर पर स्थानीय रूप से चलाता है। चेतावनी: यह कोड कंटेनर आइसोलेशन के बिना चलता है।",
+  "config.shell_sandbox.enabled_help": "Landlock का उपयोग करके एजेंट के शेल कमांड की फ़ाइल सिस्टम पहुँच सीमित करता है। केवल उपयुक्त कर्नेल वाले Linux पर काम करता है।",
+  "config.shell_sandbox.max_memory_help": "एक कमांड अधिकतम कितनी मेमोरी MB में उपयोग कर सकती है (64-8192, डिफ़ॉल्ट 1024)।",
+  "config.shell_sandbox.max_cpu_help": "CPU समय सेकंड में, जिसके बाद कमांड रोक दी जाती है (5-600, डिफ़ॉल्ट 30)।",
+  "config.shell_sandbox.max_fsize_help": "एक कमांड जितनी बड़ी फ़ाइल MB में लिख सकती है उसकी अधिकतम सीमा (1-4096, डिफ़ॉल्ट 100)।"
 }

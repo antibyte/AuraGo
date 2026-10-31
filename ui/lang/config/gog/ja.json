@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Google Cloud で OAuth ウェブ クライアントを作成し、選択した API と同意画面を設定してください。接続時に表示されるリダイレクト URL を登録してください。",
   "config.gog.grants_help": "各権限を明示的に有効にしてください。Office ファイルの作成とエクスポートには、対応する Drive 権限も必要です。",
   "config.section.gog.label": "gog 経由の Google Workspace",
-  "config.section.gog.desc": "既存の連携と併せて、個別の Google アカウントを使用できます。",
+  "config.section.gog.desc": "外部のコマンドラインツール gog を通じて、追加の Google アカウントにアクセスします。",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "Google アカウントとの gog 連携を有効にします。組み込みの Google Workspace 連携に、さらにアカウントを追加できます。",
+  "config.gog.readonly_help": "エージェントは gog 経由で読み取りのみ可能です。アカウントが許可していても、作成・変更・削除・送信はブロックされたままです。",
+  "config.gog.name_help": "アカウントの表示名です (例: 「個人」「仕事」)。",
+  "config.gog.account_enabled_help": "有効なアカウントのみ、エージェントとデスクトップで使用できます。",
+  "config.gog.agent_help": "エージェントは、下で付与した権限の範囲でこのアカウントを使用できます。",
+  "config.gog.desktop_help": "デスクトップアプリは、メールやカレンダーなどでこのアカウントを使用できます。",
+  "config.gog.client_id_help": "Google Cloud Console の OAuth ウェブクライアントのクライアント ID です。",
+  "config.gog.secret_help": "OAuth クライアントのクライアントシークレットです。「Vault に保存」で暗号化して保存され、再表示はされません。"
 }

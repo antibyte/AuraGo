@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Hay una máscara inválida guardada como credencial. Sustitúyela o elimínala.",
   "config.providers.runtime_incomplete": "El proveedor guardado está incompleto o no está disponible. Revisa el modelo, la dirección y las credenciales.",
   "config.providers.limit_source_model_only_fallback": "estimación por modelo de otro proveedor",
-  "config.providers.missing_references": "Selecciones de proveedor inexistentes: {paths}. Selecciona un proveedor disponible en esos ajustes."
+  "config.providers.missing_references": "Selecciones de proveedor inexistentes: {paths}. Selecciona un proveedor disponible en esos ajustes.",
+  "config.providers.filter_role_help": "Muestra solo los proveedores asignados a una función concreta, como el modelo principal o los embeddings.",
+  "config.providers.filter_type_help": "Muestra solo los proveedores de un tipo.",
+  "config.providers.search_help": "Filtra la lista de proveedores por nombre, tipo o modelo."
 }

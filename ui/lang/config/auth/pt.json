@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Digite o código atual do seu aplicativo autenticador.",
   "config.auth.step_up_hint": "Alterações na senha de login ou na autenticação de dois fatores exigem sua senha atual (e o código atual enquanto o TOTP estiver ativo).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Tentar novamente"
+  "config.auth.retry": "Tentar novamente",
+  "config.auth.new_password_help": "Use pelo menos 8 caracteres. Uma frase-senha longa e única é a mais segura.",
+  "config.auth.confirmation_code_help": "Digite o código de 6 dígitos que seu aplicativo autenticador mostra agora.",
+  "config.auth.current_totp_help": "O código de 6 dígitos que seu aplicativo autenticador mostra agora.",
+  "config.auth.webauthn_enabled_help": "Ativa o login com passkey e chave de segurança. Registre primeiro uma chave e teste um login antes de depender dele.",
+  "config.auth.webauthn_rpid_help": "O nome de domínio ao qual suas chaves estão vinculadas, por exemplo aurago.example.test. Alterá-lo remove todas as chaves registradas.",
+  "config.auth.webauthn_key_name_help": "Um nome que ajuda a reconhecer esta chave depois, por exemplo Notebook ou YubiKey."
 }

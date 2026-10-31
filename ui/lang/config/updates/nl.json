@@ -59,5 +59,6 @@
   "config.updates.version": "Versie",
   "config.updates.warning_banner": "De update vervangt binaries, prompts en UI-bestanden. <strong>Je configuratie en gegevens blijven behouden.</strong> AuraGo herstart na de update.",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.updates.confirm_install_title": "Update installeren?"
+  "config.updates.confirm_install_title": "Update installeren?",
+  "config.updates.cancel_reload": "Automatisch herladen annuleren"
 }

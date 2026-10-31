@@ -51,5 +51,6 @@
   "config.ai_gateway.route_skipped": "Ce fournisseur ne passe pas par une route de passerelle.",
   "config.ai_gateway.metadata_invalid": "Utilise au maximum cinq paires complètes aux clés uniques. Ne saisis jamais de secrets.",
   "config.ai_gateway.provider_key_help": "Clé API du fournisseur sélectionné.",
-  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save.",
+  "config.ai_gateway.provider_select_help": "Fournisseur utilisé pour les deux tests ci-dessous. La sélection n'est pas enregistrée."
 }

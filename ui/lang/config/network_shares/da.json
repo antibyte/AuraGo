@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Lokale netværksdelinger",
-  "config.section.network_shares.desc": "Administrer SMB- og NFS-delinger fra denne vært.",
+  "config.section.network_shares.desc": "Administrerer de SMB- og NFS-shares, som denne vært udbyder.",
   "dashboard.integration_network_shares": "Lokale netværksdelinger",
   "config.network_shares.loading": "Læser lokale SMB- og NFS-funktioner…",
   "config.network_shares.enabled": "Aktivér integration",

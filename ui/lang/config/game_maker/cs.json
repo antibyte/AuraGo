@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "Umožní vytvářet spravované herní projekty.",
   "help.game_maker.allow_edit": "Povolí úlohy agenta, změny, validaci, publikování revizí a obnovení.",
   "help.game_maker.allow_delete": "Povolí mazání spravovaných projektů. Sdílená média zůstanou chráněna.",
-  "help.game_maker.allow_media_generation": "Povolí generování obrázků a hudby pro projekt, jsou-li poskytovatelé nakonfigurováni."
+  "help.game_maker.allow_media_generation": "Povolí generování obrázků a hudby pro projekt, jsou-li poskytovatelé nakonfigurováni.",
+  "config.game_maker.job_timeout_seconds_help": "Jak dlouho nejvýše smí běžet úloha agenta pro vytvoření nebo úpravu hry (výchozí 1800 sekund).",
+  "config.game_maker.max_asset_size_mb_help": "Největší povolený asset, například obrázek, zvuk nebo model, v megabajtech (výchozí 32).",
+  "config.game_maker.max_file_size_kb_help": "Největší povolený zdrojový soubor v kilobajtech (výchozí 2048).",
+  "config.game_maker.max_files_per_project_help": "Maximální počet souborů v jednom projektu (výchozí 250).",
+  "config.game_maker.max_project_size_mb_help": "Celková velikost jednoho projektu v megabajtech; poté se už nepřijímají další soubory (výchozí 100).",
+  "config.game_maker.max_projects_help": "Maximální počet projektů uložených současně (výchozí 25).",
+  "config.game_maker.workspace_path_help": "Složka pro herní projekty, relativně k adresáři AuraGo. Všechny projekty jsou pod ní."
 }

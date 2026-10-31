@@ -36,5 +36,6 @@
   "action_policy.unknown": "Výsledek je nejistý. Před opakováním ověř stav.",
   "action_policy.admin_only": "Pravidla mohou měnit a akce schvalovat jen správci.",
   "action_policy.save_hint": "Před ověřením pravidel ulož změny.",
-  "action_policy.pending": "Čekající schválení"
+  "action_policy.pending": "Čekající schválení",
+  "action_policy.enabled_help": "Vlastní pravidla automaticky povolují nebo zakazují jednotlivé akce. Vypnuté schopnosti a nastavení jen pro čtení mají vždy přednost."
 }

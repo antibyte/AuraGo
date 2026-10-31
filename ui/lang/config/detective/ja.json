@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "探偵",
-  "config.section.detective.desc": "出典を確認できる調査",
+  "config.section.detective.desc": "エージェントがトピックを調査し、使用した情報源を引用できるようにします。",
   "config.detective.enabled": "Detective を有効にする",
   "config.detective.extra_read_operations": "許可された読み取り操作",
   "config.detective.extra_read_help": "研究が接続済みのプライベートサービスで呼び出せる正確なツール操作を追加します。ケース側で情報源を選ぶ必要は残ります。",
@@ -13,5 +13,11 @@
   "config.detective.tools": "ツール呼び出し",
   "config.detective.readonly": "安全な読み取り専用モード",
   "config.detective.seconds": "ジョブのタイムアウト (秒)",
-  "config.detective.restart": "調査強度の設定を変更した後は AuraGo を再起動してください。既存の調査の予算は変わりません。"
+  "config.detective.restart": "調査強度の設定を変更した後は AuraGo を再起動してください。既存の調査の予算は変わりません。",
+  "config.detective.help_enabled": "出典を追跡できる調査を有効にします。ケースでは、明示的に選択した情報源のみが使用されます。",
+  "config.detective.help_readonly": "調査を読み取り専用にします。何も変更されないと確信できる場合を除き、有効にすることをおすすめします。",
+  "config.detective.help_seconds": "1 つのジョブの最長実行時間 (秒、30 ～ 7200) です。超過すると停止されます。",
+  "config.detective.help_tools": "ジョブごとのツール呼び出しの最大回数 (1 ～ 500) です。",
+  "config.detective.help_iterations": "ジョブごとの思考と作業のラウンドの最大数 (1 ～ 750) です。",
+  "config.detective.help_tokens": "ジョブごとに使用するトークンの追加の上限です。0 = 追加の上限なし。"
 }

@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "कार्यस्थान पथ",
   "config.homepage.workspace_path_missing_warning": "वेब सर्वर सक्षम है लेकिन कार्यस्थान पथ सेट नहीं है। अपने प्रोजेक्ट का पूर्ण होस्ट पथ दर्ज करें (जैसे /home/aurago/aurago/agent_workspace/homepage) या स्वतः पहचान का उपयोग करें।",
   "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, project_dir और path इस वर्कस्पेस के सापेक्ष रखें, उदाहरण के लिए 'my-site' या 'my-site/src/app/page.tsx'।",
-  "config.homepage.workspace_title": "कार्यस्थान"
+  "config.homepage.workspace_title": "कार्यस्थान",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "डिप्लॉय सर्वर के लिए SSH पासवर्ड। इसे एन्क्रिप्टेड vault में संग्रहीत किया जाता है; SSH कुंजी को प्राथमिकता दें।",
+  "config.homepage.deploy_key_help": "डिप्लॉय सर्वर के लिए निजी SSH कुंजी (PEM)। इसे एन्क्रिप्टेड vault में संग्रहीत किया जाता है और यह पासवर्ड की जगह लेती है।",
+  "config.homepage.circuit_breaker_max_calls_help": "AuraGo के रोकने से पहले एजेंट एक होमपेज सत्र में कितनी टूल कॉल कर सकता है (1-100, डिफ़ॉल्ट 35)।"
 }

@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "管理対象ゲームプロジェクトの作成を許可します。",
   "help.game_maker.allow_edit": "エージェントジョブ、変更、検証、リビジョン公開、復元を許可します。",
   "help.game_maker.allow_delete": "管理対象プロジェクトの削除を許可します。共有メディアは保護されます。",
-  "help.game_maker.allow_media_generation": "対応プロバイダー設定時にプロジェクト用の画像と音楽の生成を許可します。"
+  "help.game_maker.allow_media_generation": "対応プロバイダー設定時にプロジェクト用の画像と音楽の生成を許可します。",
+  "config.game_maker.workspace_path_help": "ゲームプロジェクトのフォルダーで、AuraGo ディレクトリからの相対パスです。すべてのプロジェクトがこの下に置かれます。",
+  "config.game_maker.max_projects_help": "同時に保存できるプロジェクトの最大数です (デフォルト 25)。",
+  "config.game_maker.max_files_per_project_help": "1 つのプロジェクト内のファイルの最大数です (デフォルト 250)。",
+  "config.game_maker.max_file_size_kb_help": "ソースファイルの最大サイズ (キロバイト) です (デフォルト 2048)。",
+  "config.game_maker.max_asset_size_mb_help": "画像、サウンド、モデルなどのアセットの最大サイズ (メガバイト) です (デフォルト 32)。",
+  "config.game_maker.max_project_size_mb_help": "1 つのプロジェクトの合計サイズ (メガバイト) です。これを超えるとファイルは受け付けられません (デフォルト 100)。",
+  "config.game_maker.job_timeout_seconds_help": "ゲームの作成や変更を行うエージェントのジョブが最大で実行できる時間です (デフォルト 1800 秒)。"
 }

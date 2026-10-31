@@ -36,5 +36,6 @@
   "action_policy.unknown": "Wynik jest niepewny. Sprawdź stan przed ponowieniem działania.",
   "action_policy.admin_only": "Tylko administratorzy mogą zmieniać reguły i zatwierdzać działania.",
   "action_policy.save_hint": "Zapisz zmiany przed sprawdzeniem reguł.",
-  "action_policy.pending": "Oczekujące zgody"
+  "action_policy.pending": "Oczekujące zgody",
+  "action_policy.enabled_help": "Twoje własne reguły automatycznie zezwalają na poszczególne akcje lub je blokują. Wyłączone funkcje i ustawienia tylko do odczytu zawsze mają pierwszeństwo."
 }

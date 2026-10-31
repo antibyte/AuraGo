@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Połączono z Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Domyślny kod języka używany dla komunikatów głosowych Telnyx i transkrypcji połączeń."
+  "help.telnyx.voice_language": "Domyślny kod języka używany dla komunikatów głosowych Telnyx i transkrypcji połączeń.",
+  "config.telnyx.voice_gender_help": "Głos, którym agent mówi podczas rozmów telefonicznych.",
+  "config.telnyx.max_concurrent_calls_help": "Ile rozmów może trwać jednocześnie (1-20, domyślnie 3). Kolejne są odrzucane.",
+  "config.telnyx.max_sms_per_minute_help": "Maksymalna liczba wychodzących SMS-ów na minutę (1-60, domyślnie 10). Chroni przed przypadkową masową wysyłką i wysokimi kosztami."
 }

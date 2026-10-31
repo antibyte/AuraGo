@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Seuls les profils actifs peuvent être choisis par défaut et utilisés dans le chat.",
+  "config.realtime_speech.profile_name_help": "Nom d'affichage du profil dans les listes de sélection (100 caractères maximum).",
+  "config.realtime_speech.provider_help": "Service qui fournit la connexion vocale en direct. Le modifier réinitialise le modèle et la voix aux valeurs par défaut du service.",
+  "config.realtime_speech.model_help": "Modèle vocal du service. Les modèles obsolètes sont signalés.",
+  "config.realtime_speech.voice_help": "Voix avec laquelle les réponses sont prononcées.",
+  "config.realtime_speech.api_key_help": "Clé d'accès du service. Elle est stockée dans le vault et jamais conservée dans le navigateur.",
+  "config.realtime_speech.default_profile_help": "Profil utilisé lorsqu'aucun n'est choisi. Seuls les profils actifs sont proposés."
+}

@@ -51,5 +51,6 @@
   "config.ai_gateway.route_skipped": "Tento poskytovatel nepoužívá trasu přes bránu.",
   "config.ai_gateway.metadata_invalid": "Použij nejvýše pět úplných párů s jedinečnými klíči. Nezadávej tajné údaje.",
   "config.ai_gateway.provider_key_help": "Klíč API vybraného poskytovatele.",
-  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save.",
+  "config.ai_gateway.provider_select_help": "Poskytovatel použitý pro dva testy níže. Výběr se neukládá."
 }

@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Sökväg till arbetsyta",
   "config.homepage.workspace_path_missing_warning": "Webbservern är aktiverad men ingen arbetsytesökväg har angetts. Ange den absoluta värdsökvägen till ditt Homepage-projekt (t.ex. /home/aurago/aurago/agent_workspace/homepage) eller klicka på Identifiera för att hitta den automatiskt.",
   "config.homepage.workspace_relative_hint": "I Homepage-verktygsanrop ska project_dir och sökväg vara relativa till den här arbetsytan, till exempel 'my-site' eller 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Arbetsyta"
+  "config.homepage.workspace_title": "Arbetsyta",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "SSH-lösenord för deploy-servern. Det lagras i det krypterade vaultet; föredra en SSH-nyckel.",
+  "config.homepage.deploy_key_help": "Privat SSH-nyckel (PEM) för deploy-servern. Den lagras i det krypterade vaultet och ersätter lösenordet.",
+  "config.homepage.circuit_breaker_max_calls_help": "Hur många verktygsanrop agenten får göra i en hemsidesession innan AuraGo stoppar den (1-100, standard 35)."
 }

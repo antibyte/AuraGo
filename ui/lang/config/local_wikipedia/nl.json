@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Met media",
   "config.local_wikipedia.variant_nopic": "Zonder media",
   "config.local_wikipedia.warning_size": "Afhankelijk van taal en variant heeft een editie tot 130 GB nodig en kan de download uren duren.",
-  "config.section.local_wikipedia.desc": "Offline Wikipedia voor de agent en het bureaublad, gelezen uit één gedownloade Kiwix-editie.",
+  "config.section.local_wikipedia.desc": "Biedt Wikipedia offline aan de agent en het bureaublad vanuit een gedownloade Kiwix-editie.",
   "config.section.local_wikipedia.label": "Lokale Wikipedia",
   "help.local_wikipedia.agent_access": "Laat de agent zoeken in en lezen uit de geïnstalleerde editie.",
   "help.local_wikipedia.data_dir": "Absoluut pad voor de editie. Laat leeg om de map wikipedia in de datamap van AuraGo te gebruiken.",

@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Missies staan uit. Flows hebben missies nodig om te draaien.",
   "config.flows.open": "EasyDrag openen",
   "config.flows.run_retention_days": "Uitvoeringsgeschiedenis bewaren (dagen, 1–365)",
-  "config.section.flows.desc": "Visuele automatiseringen uit de EasyDrag-app",
-  "config.section.flows.label": "EasyDrag-flows"
+  "config.section.flows.desc": "Voert visuele automatiseringen uit die in de EasyDrag-app zijn gebouwd.",
+  "config.section.flows.label": "EasyDrag-flows",
+  "config.flows.enabled_help": "Schakelt het uitvoeren van EasyDrag-flows in. De wijziging wordt na een herstart actief.",
+  "config.flows.max_parallel_runs_help": "Hoeveel flow-runs tegelijk mogen draaien (1 tot 32, standaard 8). Overige wachten.",
+  "config.flows.max_parallel_nodes_per_run_help": "Hoeveel stappen van één run parallel mogen worden uitgevoerd (1 tot 16, standaard 4).",
+  "config.flows.max_runs_per_flow_help": "Hoeveel afgeronde runs per flow worden bewaard; oudere worden verwijderd (10 tot 5000, standaard 200).",
+  "config.flows.run_retention_days_help": "De geschiedenis van een run wordt na dit aantal dagen verwijderd (1 tot 365, standaard 30)."
 }

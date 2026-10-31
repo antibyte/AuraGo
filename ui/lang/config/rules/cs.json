@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Knihovna pravidel",
   "config.rules.disabled": "Vypnuto",
   "config.rules.targeting": "Cíle shody",
-  "config.rules.system_status": "Systém pravidel"
+  "config.rules.system_status": "Systém pravidel",
+  "config.rules.body_help": "Text ochranného pravidla v Markdownu. Vkládá se před zahájením odpovídající úlohy.",
+  "config.rules.enabled_help": "Vypnutá pravidla se do úloh nikdy nevkládají.",
+  "config.rules.keywords_help": "Slova v textu úlohy, která toto pravidlo aktivují, oddělená čárkami.",
+  "config.rules.priority_help": "Když odpovídá více pravidel, vkládají se nejdřív ta s vyšším číslem. Výchozí 50.",
+  "config.rules.rule_id_help": "Krátký jedinečný název pravidla, například homepage. Po vytvoření jej nelze změnit.",
+  "config.rules.rule_title_help": "Čitelný název zobrazený v knihovně pravidel.",
+  "config.rules.tools_help": "Názvy nástrojů, které toto pravidlo aktivují, oddělené čárkami. Nástroj přidáte výběrem níže.",
+  "config.rules.workflows_help": "Názvy workflow, které toto pravidlo aktivují, oddělené čárkami. Workflow přidáte výběrem níže."
 }

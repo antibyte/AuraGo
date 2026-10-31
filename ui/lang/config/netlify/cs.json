@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Povoluje vytváření, aktualizaci a mazání webů Netlify.",
   "config.netlify.allow_env_management_help": "Povoluje správu proměnných prostředí na webech Netlify.",
   "config.netlify.default_site_id_help": "Volitelné ID webu použité, když agent neuvede web.",
-  "config.netlify.team_slug_help": "Volitelný slug týmu Netlify používaný pro volání API v rozsahu týmu."
+  "config.netlify.team_slug_help": "Volitelný slug týmu Netlify používaný pro volání API v rozsahu týmu.",
+  "config.netlify.vault_badge": "vault"
 }

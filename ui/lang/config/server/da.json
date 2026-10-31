@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 deaktiverer HTTP-lytteren. Vælg 80 til Let’s Encrypt HTTP-01, og gør den offentlige port 80 tilgængelig.",
   "config.server.restart_address": "Åbn efter genstart:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.behind_proxy_hint": "Slå til, når en reverse proxy afslutter TLS. Kun adresser på listen nedenfor må sætte forwarded headers. Hvis det er forkert indstillet, kan klientadresser forfalskes.",
+  "config.server.cert_file_hint": "Sti til certifikatfilen i PEM-format, relativt til AuraGo-mappen eller absolut.",
+  "config.server.cert_mode_hint": "Hvor TLS-certifikatet kommer fra: automatisk via Let's Encrypt, dine egne filer eller et selvsigneret certifikat til lokal test.",
+  "config.server.cert_status_sans": "Subject Alternative Names (SAN'er)",
+  "config.server.domain_hint": "Det offentlige domænenavn, certifikatet udstedes til. Det skal pege på denne server.",
+  "config.server.email_hint": "Kontaktadresse til Let's Encrypt, f.eks. til udløbsadvarsler. Den sendes kun til certifikatudstederen.",
+  "config.server.host_hint": "Netværksadressen, AuraGo lytter på. Tom eller 0.0.0.0 = alle grænseflader, 127.0.0.1 = kun denne maskine. Genstart er nødvendig efter ændring.",
+  "config.server.https_port_hint": "Port til krypterede forbindelser (standard 443). Porte under 1024 kræver root-rettigheder eller en tilsvarende capability på Linux.",
+  "config.server.key_file_hint": "Sti til den private nøgle i PEM-format. Filen bør kun kunne læses af AuraGo-kontoen.",
+  "config.server.port_hint": "TCP-port for webgrænsefladen og API'et (standard 8088). Genstart er nødvendig efter ændring.",
+  "config.server.ui_language_hint": "Sprog i webgrænsefladen og systembeskeder. Gælder for alle brugere af denne instans."
 }

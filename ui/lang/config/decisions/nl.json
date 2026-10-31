@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Schakelt de lokale beslissingsdienst in die andere functies kunnen gebruiken voor snelle ja/nee-beoordelingen. Hieronder kies je welke functies hem gebruiken.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

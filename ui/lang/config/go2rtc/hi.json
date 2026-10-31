@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "नेटवर्क कैमरा ऐप खोलें",
   "config.go2rtc.detection_hint": "व्यक्ति पहचान (घटनाएँ, ज़ोन, अलर्ट और सुरक्षा सक्रियण) नेटवर्क कैमरे ऐप में पहचान के अंतर्गत सेट की जाती है; हर कैमरे की सेटिंग्स उसके प्रबंधन के व्यक्ति पहचान टैब में हैं।",
   "config.section.go2rtc.label": "go2rtc कैमरे",
-  "config.section.go2rtc.desc": "सुरक्षित रूप से प्रबंधित कैमरा स्ट्रीम, स्नैपशॉट और लाइव दृश्य",
+  "config.section.go2rtc.desc": "go2rtc के ज़रिए सुरक्षित कैमरा स्ट्रीम, स्नैपशॉट और लाइव व्यू प्रबंधित करता है।",
   "config.go2rtc.proxy_note": "AuraGo कैमरा URL और go2rtc क्रेडेंशियल निजी रखता है। दृश्य AuraGo प्रॉक्सी से चलता है; सीधे LAN WebRTC को अलग से चालू किया जा सकता है।",
   "config.go2rtc.enabled": "go2rtc चालू करें",
   "config.go2rtc.auto_start": "कंटेनर अपने आप शुरू करें",

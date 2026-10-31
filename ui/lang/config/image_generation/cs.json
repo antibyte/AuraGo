@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Testovací obrázek vygenerován a uložen do galerie (spotřebováno jedno generování).",
   "config.image_generation.test_failed": "Generování selhalo",
   "config.image_generation.max_daily_label": "Max obrázků za den",
-  "config.image_generation.max_daily_hint": "0 = neomezeně"
+  "config.image_generation.max_daily_hint": "0 = neomezeně",
+  "config.image_generation.enabled_help": "Umožní agentovi vytvářet obrázky z textových popisů pomocí vybraného poskytovatele. Každé generování spotřebuje kvótu nebo kredit.",
+  "config.image_generation.prompt_enhancement_help": "Jazykový model před generováním vylepší popis. Často to dává lepší obrázky, ale stojí to další volání modelu.",
+  "config.image_generation.provider_help": "Poskytovatel ze Správy poskytovatelů, který obrázky vytváří. Bez výběru nemá funkce žádný účinek.",
+  "config.image_generation.quality_help": "Úroveň kvality, když ji agent neurčí. „hd“ dává více detailů, ale obvykle stojí více.",
+  "config.image_generation.size_help": "Velikost obrázku v pixelech, když ji agent neurčí. Ne každý poskytovatel podporuje všechny velikosti.",
+  "config.image_generation.style_help": "Styl obrázku, když jej agent neurčí. „vivid“ vypadá odvážněji a dramatičtěji než „natural“."
 }

@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Obrázky se odesílají jen z adresářů, u nichž je v seznamu výše zapnuto sdílení médií.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.chunk_max_chars_help": "Maximální délka jednoho textového bloku ve znacích. Menší bloky dávají přesnější zásahy, větší více kontextu. Výchozí: 3500.",
+  "config.indexing.chunk_max_chunks_help": "Maximální počet bloků vytvořených na soubor; zbytek velmi velkých souborů se přeskočí. Výchozí: 200.",
+  "config.indexing.chunk_overlap_help": "Znaky sdílené sousedními bloky, aby věty na hranicích nebyly useknuty. Výchozí: 200.",
+  "config.indexing.dir_help": "Složka, jejíž soubory se indexují, jako absolutní cesta nebo relativně ke složce AuraGo. Podsložky jsou zahrnuty. Přidejte ji tlačítkem nebo klávesou Enter.",
+  "config.indexing.dir_label": "Sledovaný adresář"
 }

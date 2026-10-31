@@ -51,5 +51,6 @@
   "config.cyd.flash_variant_cyd2usb": "CYD2USB (USB-C, ST7789)",
   "config.cyd.flash_erase_hint": "Slett enheten hvis du blir spurt, ellers kan gamle innstillinger overskrive det nye tokenet.",
   "help.cyd.web_flasher": "Flasher aurago-cyd fra nettleseren over USB og skriver token pluss AuraGo-URL til en fabrikkpartisjon. Etterpå gjenstår bare Wi‑Fi.",
-  "config.cyd.flash_provision_failed": "Could not prepare the firmware provisioning data"
+  "config.cyd.flash_provision_failed": "Could not prepare the firmware provisioning data",
+  "config.cyd.flash_variant_help": "Velg varianten av kortet ditt. En feil variant kan gjøre at skjermen forblir mørk etter flashing."
 }

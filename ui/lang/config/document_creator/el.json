@@ -29,5 +29,6 @@
   "help.document_creator.backend": "Το Maroto είναι μια καθαρή βιβλιοθήκη PDF σε Go χωρίς εξωτερικές εξαρτήσεις. Το Gotenberg είναι μια υπηρεσία Docker με πλήρη μετατροπή εγγράφων, στιγμιότυπα και υποστήριξη μορφών Office.",
   "help.document_creator.gotenberg_timeout": "Μέγιστος χρόνος αναμονής σε δευτερόλεπτα για τη δημιουργία εγγράφου.",
   "help.document_creator.gotenberg_url": "Βασική διεύθυνση URL του Gotenberg. Αν είναι κενή, χρησιμοποιείται η τοπική διεύθυνση· στο Docker χρησιμοποιείται το όνομα υπηρεσίας gotenberg.",
-  "help.document_creator.output_dir": "Κατάλογος αποθήκευσης δημιουργημένων εγγράφων."
+  "help.document_creator.output_dir": "Κατάλογος αποθήκευσης δημιουργημένων εγγράφων.",
+  "config.document_creator.enabled_help": "Επιτρέπει στον πράκτορα να δημιουργεί έγγραφα PDF και να μετατρέπει αρχεία μεταξύ μορφών."
 }

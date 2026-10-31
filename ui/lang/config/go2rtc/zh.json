@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "打开网络摄像头应用",
   "config.go2rtc.detection_hint": "人员检测（事件、区域、警报和布防）在网络摄像头应用的“检测”中设置；每个摄像头的设置位于其管理界面的“人员检测”选项卡中。",
   "config.section.go2rtc.label": "go2rtc 摄像头",
-  "config.section.go2rtc.desc": "安全管理摄像头流、快照和实时查看",
+  "config.section.go2rtc.desc": "通过 go2rtc 管理安全的摄像头视频流、快照和实时查看。",
   "config.go2rtc.proxy_note": "AuraGo 会隐藏摄像头 URL 和 go2rtc 凭据。查看通过 AuraGo 代理；局域网直连 WebRTC 可单独启用。",
   "config.go2rtc.enabled": "启用 go2rtc",
   "config.go2rtc.auto_start": "自动启动容器",

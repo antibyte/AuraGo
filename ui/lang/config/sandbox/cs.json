@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Nativní hostitel",
   "config.shell_sandbox.ready": "Připraven",
   "config.sandbox.local_python_fallback_label": "Lokální záložní Python",
-  "config.sandbox.local_python_fallback_warning": "Při selhání sandboxu spustí kód v lokálním Pythonu mimo izolaci. Používej jen vědomě."
+  "config.sandbox.local_python_fallback_warning": "Při selhání sandboxu spustí kód v lokálním Pythonu mimo izolaci. Používej jen vědomě.",
+  "config.sandbox.local_python_fallback_help": "Spouští kód lokálně na serveru, když není dostupný žádný kontejner. Varování: tento kód běží bez izolace kontejnerem.",
+  "config.shell_sandbox.enabled_help": "Omezuje přístup příkazů shellu agenta k souborovému systému pomocí Landlock. Funguje pouze na Linuxu s vhodným jádrem.",
+  "config.shell_sandbox.max_cpu_help": "Čas CPU v sekundách, po kterém se příkaz přeruší (5–600, výchozí 30).",
+  "config.shell_sandbox.max_fsize_help": "Největší soubor v MB, který smí příkaz zapsat (1–4096, výchozí 100).",
+  "config.shell_sandbox.max_memory_help": "Paměť v MB, kterou smí příkaz nejvýše použít (64–8192, výchozí 1024)."
 }

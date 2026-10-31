@@ -1,5 +1,5 @@
 {
-  "config.backup.create_desc": "\u003cstrong\u003e.ago\u003c/strong\u003e संग्रह (ZIP) बनाता है जिसमें कॉन्फ़िगरेशन, प्रॉम्प्ट, डेटा और स्किल शामिल हैं। पासवर्ड सेट करने पर vault secrets (API कुंजियां, tokens) भी सुरक्षित रूप से शामिल होते हैं — नई इंस्टेंस पर माइग्रेशन के लिए आदर्श।",
+  "config.backup.create_desc": "<strong>.ago</strong> संग्रह (ZIP) बनाता है जिसमें कॉन्फ़िगरेशन, प्रॉम्प्ट, डेटा और स्किल शामिल हैं। पासवर्ड सेट करने पर vault secrets (API कुंजियां, tokens) भी सुरक्षित रूप से शामिल होते हैं — नई इंस्टेंस पर माइग्रेशन के लिए आदर्श।",
   "config.backup.card_create_title": "बैकअप सामग्री",
   "config.backup.card_encryption_title": "एन्क्रिप्शन",
   "config.backup.card_import_title": "बैकअप पुनर्स्थापित करें",
@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 बैकअप आयात करें",
   "config.backup.import_password_label": "🔒 पासवर्ड (केवल एन्क्रिप्टेड बैकअप के लिए)",
   "config.backup.import_success": "आयात सफल",
-  "config.backup.import_warning": "\u003cstrong\u003eमहत्वपूर्ण:\u003c/strong\u003e आयात मौजूदा फ़ाइलों को अधिलेखित कर देता है। कॉन्फ़िगरेशन, संकेत और डेटा बदल दिए जाएंगे. आयात के बाद पुनः आरंभ करने की अनुशंसा की जाती है.",
+  "config.backup.import_warning": "<strong>महत्वपूर्ण:</strong> आयात मौजूदा फ़ाइलों को अधिलेखित कर देता है। कॉन्फ़िगरेशन, संकेत और डेटा बदल दिए जाएंगे. आयात के बाद पुनः आरंभ करने की अनुशंसा की जाती है.",
   "config.backup.importing": "⏳आयात हो रहा है…",
   "config.backup.include_vectordb": "वेक्टरडीबी शामिल करें (एम्बेडिंग - बड़ी हो सकती है)",
   "config.backup.include_workdir": "वर्कडिर शामिल करें (agent_workspace/workdir)",
@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.include_vectordb_help": "वेक्टर डेटाबेस (मेमोरी एम्बेडिंग) जोड़ता है। पुनर्स्थापना के बाद दोबारा गणना से बचाता है, लेकिन अक्सर आर्काइव को बहुत बड़ा बना देता है।",
+  "config.backup.include_workdir_help": "एजेंट की कार्य निर्देशिका को उसकी सभी फ़ाइलों सहित जोड़ता है। इसमें बहुत जगह लग सकती है।",
+  "config.backup.select_file_help": "पहले बनाया गया बैकअप, .ago एक्सटेंशन वाला। आयात करने से मौजूदा डेटा अधिलेखित हो जाता है।",
+  "config.backup.import_password_help": "केवल तब आवश्यक जब बैकअप एन्क्रिप्टेड हो। यह वही पासवर्ड होना चाहिए जो इसे बनाते समय था।"
 }

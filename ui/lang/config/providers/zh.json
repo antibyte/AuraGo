@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "已将无效的掩码值保存为凭据。请替换或删除。",
   "config.providers.runtime_incomplete": "已保存的提供商配置不完整或不可用。请检查模型、地址和凭据。",
   "config.providers.limit_source_model_only_fallback": "基于其他提供商模型的估算",
-  "config.providers.missing_references": "所选提供商不存在：{paths}。请在这些设置中选择现有提供商。"
+  "config.providers.missing_references": "所选提供商不存在：{paths}。请在这些设置中选择现有提供商。",
+  "config.providers.search_help": "按名称、类型或模型筛选提供商列表。",
+  "config.providers.filter_type_help": "仅显示某一类型的提供商。",
+  "config.providers.filter_role_help": "仅显示分配给特定用途的提供商，例如主模型或嵌入。"
 }

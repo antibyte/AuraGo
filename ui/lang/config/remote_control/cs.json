@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Žádná zařízení",
   "config.remote_control.no_platforms": "Žádné platformy k dispozici",
   "config.remote_control.platforms_error": "Chyba načítání platforem",
-  "config.remote_control.read_only_label": "Režim pouze pro čtení (blokuje zápisy, mazání a příkazy shellu na všech zařízeních)",
+  "config.remote_control.read_only_label": "Režim pouze pro čtení",
   "config.remote_control.security_desc": "Ovládejte registraci zařízení a protokol auditu.",
   "config.remote_control.security_title": "Zabezpečení",
-  "config.remote_control.ssh_insecure_host_key_label": "Povolit nezabezpečený hostitelský klíč SSH (⚠️ deaktivuje ochranu MITM, používat pouze v důvěryhodných sítích)",
+  "config.remote_control.ssh_insecure_host_key_label": "Povolit nezabezpečený hostitelský klíč SSH",
   "config.remote_control.status_connected": "Připojeno",
   "config.remote_control.status_offline": "Offline",
   "config.security_proxy.status_loading": "Načítám…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Je nutná aktualizace klienta",
   "config.remote_control.confirm_removal": "Odpojit zařízení a zrušit běžící příkazy? Nové spárování vyžaduje nový token.",
   "config.remote_control.paths_inherit": "Jedna cesta na řádek. Prázdný seznam cest tohoto zařízení přebírá globální cesty. Jsou-li oba seznamy prázdné, přístup k souborům je zakázán.",
-  "config.remote_control.security_hint": "WSS a platný certifikát jsou nutné i přes Tailscale. Klasické klienty aktualizujte před serverem. Token platí hodinu a lze jej použít pouze jednou."
+  "config.remote_control.security_hint": "WSS a platný certifikát jsou nutné i přes Tailscale. Klasické klienty aktualizujte před serverem. Token platí hodinu a lze jej použít pouze jednou.",
+  "config.remote_control.audit_log_help": "Zaznamenává každou akci na vzdálených zařízeních. Doporučeno, aby šlo přístupy později dohledat.",
+  "config.remote_control.device_name_help": "Volitelný název zařízení, na kterém klient běží. Předává se při stahování.",
+  "config.remote_control.enabled_help": "Zapne vzdálené ovládání. Až poté se mohou spárovaná zařízení připojovat a agent k nim přistupovat.",
+  "config.remote_control.enrollment_device_name_help": "Volitelný název nového zařízení. Nastaví se při vytvoření párovacího tokenu.",
+  "config.remote_control.max_file_size_help": "Největší soubor v MB povolený při přenosu (1–500, výchozí 50).",
+  "config.remote_control.read_only_help": "Blokuje zápis souborů, mazání a příkazy shellu na všech zařízeních. Čtení zůstává možné.",
+  "config.remote_control.ssh_insecure_host_key_help": "Varování: vypne kontrolu klíče hostitele SSH a s ní ochranu před útoky man-in-the-middle. Zapněte jen v síti, které plně důvěřujete."
 }

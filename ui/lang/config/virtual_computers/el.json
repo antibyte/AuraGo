@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Εικονικοί υπολογιστές",
-  "config.section.virtual_computers.desc": "Προσωρινοί microVM υπολογιστές με τερματικό, επιφάνεια εργασίας, προεπισκοπήσεις και πρόσβαση agent.",
+  "config.section.virtual_computers.desc": "Παρέχει εφήμερους υπολογιστές microVM με τερματικό, επιφάνεια εργασίας και πρόσβαση πράκτορα.",
   "config.virtual_computers.enabled_label": "Ενεργοποίηση εικονικών υπολογιστών",
   "config.virtual_computers.disabled_notice": "Οι εικονικοί υπολογιστές είναι απενεργοποιημένοι.",
   "config.virtual_computers.disabled_desc": "Ενεργοποιήστε την ενοποίηση για εκκίνηση και διαμεσολάβηση μηχανών boring-computers.",

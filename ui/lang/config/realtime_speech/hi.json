@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "केवल सक्रिय प्रोफ़ाइल को डिफ़ॉल्ट के रूप में चुना और चैट में उपयोग किया जा सकता है।",
+  "config.realtime_speech.profile_name_help": "चयन सूचियों में प्रोफ़ाइल का प्रदर्शन नाम (अधिकतम 100 अक्षर)।",
+  "config.realtime_speech.provider_help": "वह सेवा जो लाइव वॉइस कनेक्शन प्रदान करती है। इसे बदलने पर मॉडल और आवाज़ सेवा के डिफ़ॉल्ट पर रीसेट हो जाते हैं।",
+  "config.realtime_speech.model_help": "सेवा का वॉइस मॉडल। अप्रचलित मॉडल पर चिह्न लगा होता है।",
+  "config.realtime_speech.voice_help": "वह आवाज़ जिसमें उत्तर बोले जाते हैं।",
+  "config.realtime_speech.api_key_help": "सेवा की एक्सेस कुंजी। इसे vault में संग्रहीत किया जाता है और ब्राउज़र में कभी नहीं रखा जाता।",
+  "config.realtime_speech.default_profile_help": "कोई प्रोफ़ाइल न चुने जाने पर उपयोग की जाने वाली प्रोफ़ाइल। केवल सक्रिय प्रोफ़ाइल दिखाई जाती हैं।"
+}

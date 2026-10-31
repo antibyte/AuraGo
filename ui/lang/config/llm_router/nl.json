@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Kiest automatisch een geschikt model voor elke taak. Zonder dit gebruikt AuraGo altijd het actieve hoofdmodel.",
+  "common.llm_router.area_help": "Provider en model voor verzoeken in het gebied “{area}”. “Standaardmodel” gebruikt het actieve model.",
+  "common.llm_router.timeout_hint": "Hoe lang (in milliseconden, 250 tot 5000, standaard 1500) het classificeren van een taak mag duren voordat de standaardkeuze geldt.",
+  "common.llm_router.quota_hint": "Bovengrens van classificaties door het hulpmodel per uur (0 tot 120, standaard 20). 0 schakelt ze uit. Elke aanroep kan kosten met zich meebrengen.",
+  "common.llm_router.preview_text_hint": "Een voorbeeldtaak in je eigen woorden. Ze wordt alleen geclassificeerd, niet uitgevoerd."
+}

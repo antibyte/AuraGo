@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "अपने ऑथेंटिकेटर ऐप से वर्तमान कोड दर्ज करें।",
   "config.auth.step_up_hint": "लॉगिन पासवर्ड या टू-फ़ैक्टर ऑथेंटिकेशन में बदलाव के लिए आपका वर्तमान पासवर्ड (और TOTP सक्रिय होने पर वर्तमान कोड) आवश्यक है।",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Retry"
+  "config.auth.retry": "Retry",
+  "config.auth.new_password_help": "कम से कम 8 अक्षरों का उपयोग करें। एक लंबा और अनूठा पासफ़्रेज़ सबसे सुरक्षित है।",
+  "config.auth.confirmation_code_help": "अपने ऑथेंटिकेटर ऐप में अभी दिख रहा 6 अंकों का कोड दर्ज करें।",
+  "config.auth.current_totp_help": "आपके ऑथेंटिकेटर ऐप में अभी दिख रहा 6 अंकों का कोड।",
+  "config.auth.webauthn_enabled_help": "पासकी और सिक्योरिटी की से साइन-इन चालू करता है। इस पर निर्भर होने से पहले एक कुंजी पंजीकृत करें और लॉगिन का परीक्षण करें।",
+  "config.auth.webauthn_rpid_help": "वह डोमेन नाम जिससे आपकी कुंजियाँ जुड़ी हैं, जैसे aurago.example.test। इसे बदलने पर सभी पंजीकृत कुंजियाँ हट जाती हैं।",
+  "config.auth.webauthn_key_name_help": "एक नाम जो बाद में इस कुंजी को पहचानने में मदद करे, जैसे Laptop या YubiKey।"
 }

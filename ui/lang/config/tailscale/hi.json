@@ -159,5 +159,11 @@
   "config.tailscale.status_no_credentials": "Tailscale API कुंजी गायब है",
   "config.tailscale.status_ok": "Tailscale API से जुड़ा",
   "config.tailscale.status_success": "✅",
-  "config.tailscale.status_error": "❌"
+  "config.tailscale.status_error": "❌",
+  "config.tailscale.tsnet_enabled_help": "AuraGo को tailnet में अपने नोड के रूप में शुरू करता है (tsnet)। इससे सर्वर पर Tailscale ऐप के बिना भी वेब इंटरफ़ेस tailnet में निजी रूप से पहुँच योग्य हो जाता है।",
+  "config.tailscale.tsnet_label_url": "URL",
+  "config.tailscale.tsnet_label_dns": "DNS",
+  "config.tailscale.tsnet_label_ips": "IP",
+  "config.tailscale.tsnet_label_cert": "प्रमाणपत्र",
+  "config.tailscale.tsnet_enable_https_link": "HTTPS सक्षम करें"
 }

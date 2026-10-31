@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "डिटेक्टिव",
-  "config.section.detective.desc": "सत्यापनीय स्रोतों के साथ शोध",
+  "config.section.detective.desc": "एजेंट को किसी विषय पर शोध करने और उपयोग किए गए स्रोतों का हवाला देने देता है।",
   "config.detective.enabled": "Detective सक्षम करें",
   "config.detective.extra_read_operations": "स्वीकृत पढ़ने की संक्रियाएँ",
   "config.detective.extra_read_help": "जोड़ता है वे सटीक टूल संक्रियाएँ जिन्हें शोध जुड़े निजी सेवाओं पर कॉल कर सकता है। स्रोत को केस में अलग से चुनना होता है।",
@@ -13,5 +13,11 @@
   "config.detective.tools": "उपकरण कॉल",
   "config.detective.readonly": "सुरक्षित केवल-पठन मोड",
   "config.detective.seconds": "कार्य समय-सीमा (सेकंड)",
-  "config.detective.restart": "प्रयास प्रोफ़ाइल बदलने के बाद AuraGo पुनः शुरू करें। मौजूदा शोध अपने स्वीकृत बजट बनाए रखते हैं।"
+  "config.detective.restart": "प्रयास प्रोफ़ाइल बदलने के बाद AuraGo पुनः शुरू करें। मौजूदा शोध अपने स्वीकृत बजट बनाए रखते हैं।",
+  "config.detective.help_enabled": "ट्रेस करने योग्य स्रोतों के साथ शोध चालू करता है। कोई केस केवल उन्हीं स्रोतों का उपयोग करता है जिन्हें आप स्पष्ट रूप से चुनते हैं।",
+  "config.detective.help_readonly": "शोध को केवल पढ़ने तक सीमित करता है। इसकी सिफ़ारिश की जाती है, जब तक आप निश्चित न हों कि कुछ भी बदला नहीं जाना चाहिए।",
+  "config.detective.help_seconds": "एक जॉब का अधिकतम चलने का समय सेकंड में (30 से 7200), जिसके बाद उसे रोक दिया जाता है।",
+  "config.detective.help_tools": "प्रति जॉब टूल कॉल की अधिकतम संख्या (1 से 500)।",
+  "config.detective.help_iterations": "प्रति जॉब सोच-विचार और कार्य चक्रों की अधिकतम संख्या (1 से 750)।",
+  "config.detective.help_tokens": "प्रति जॉब उपयोग किए जाने वाले टोकन पर अतिरिक्त सीमा। 0 = कोई अतिरिक्त सीमा नहीं।"
 }

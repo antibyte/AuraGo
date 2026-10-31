@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "受管 RustFS 服务的地址。它会自动设置，仅供参考。",
+  "config.s3.details_help": "服务的技术状态数据，JSON 格式，例如用于故障排查。只读。",
+  "config.s3.allow_read_help": "代理可以列出和下载对象。",
+  "config.s3.allow_write_help": "代理可以上传对象并覆盖现有对象。",
+  "config.s3.allow_delete_help": "代理可以删除对象。已删除的对象无法恢复。",
+  "config.s3.location_bucket_help": "该权限所适用的存储桶名称。",
+  "config.s3.location_prefixes_help": "每行一个前缀。没有条目时，除非选择整个存储桶，否则什么都不允许。",
+  "config.s3.bucket_label": "存储桶",
+  "config.s3.enabled_label": "启用 S3 存储",
+  "config.s3.endpoint_label": "端点 URL",
+  "config.s3.insecure_label": "允许未加密连接",
+  "config.s3.readonly_label": "只读",
+  "config.s3.region_label": "区域",
+  "config.s3.use_path_style_label": "使用 path-style 寻址"
+}

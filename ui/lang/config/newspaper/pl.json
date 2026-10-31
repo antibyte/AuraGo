@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Ostatnia próba: {result}",
   "config.newspaper.max_searches": "Maksymalna liczba wyszukiwań na wydanie (z ponowieniami)",
   "config.section.newspaper.label": "Gazeta",
-  "config.section.newspaper.desc": "Osobiste, codzienne wydanie",
+  "config.section.newspaper.desc": "Tworzy osobistą gazetę codzienną na podstawie badań ze źródłami.",
   "config.newspaper.enabled": "Włącz gazetę",
   "config.newspaper.readonly": "Tryb tylko do odczytu",
   "config.newspaper.allow_email": "Zezwalaj na dostarczanie wiadomości e-mail",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Limit kosztów nadal obowiązuje.",
   "config.newspaper.monetary_budget_disabled": "Nie skonfigurowano limitu kosztów; limity researchu nadal obowiązują.",
   "config.newspaper.fixed_budget_note": "Stałe limity współdzielą {pages} stron w całym wydaniu.",
-  "config.newspaper.fixed_limits_only": "Te limity obowiązują tylko w trybie stałym."
+  "config.newspaper.fixed_limits_only": "Te limity obowiązują tylko w trybie stałym.",
+  "config.newspaper.enabled_help": "Pozwala pulpitowi codziennie przygotowywać gazetę na wybrane przez Ciebie tematy. Tematy ustawiasz na pulpicie.",
+  "config.newspaper.readonly_help": "Gazeta może tylko czytać i wyświetlać, ale nie może niczego wysyłać ani zmieniać.",
+  "config.newspaper.allow_email_help": "Zezwala na wysyłanie gotowych wydań e-mailem. Wymaga skonfigurowanego konta e-mail.",
+  "config.newspaper.allow_telegram_help": "Zezwala na wysyłanie gotowych wydań przez Telegram. Wymaga skonfigurowanego Telegrama.",
+  "config.newspaper.max_minutes_help": "Maksymalny czas przygotowania jednego wydania (od 1 do 60 minut, domyślnie 30).",
+  "config.newspaper.max_pages_help": "Maksymalna liczba stron internetowych czytanych na wydanie (od 1 do 60, domyślnie 60).",
+  "config.newspaper.max_searches_help": "Maksymalna liczba zapytań wyszukiwania na wydanie, wraz z ponowieniami (od 1 do 64, domyślnie 32).",
+  "config.newspaper.max_editions_help": "Ile gotowych wydań jest zachowywanych; starsze są usuwane (od 30 do 3650, domyślnie 365)."
 }

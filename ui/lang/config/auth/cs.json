@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Zadejte aktuální kód z ověřovací aplikace.",
   "config.auth.step_up_hint": "Změny přihlašovacího hesla nebo dvoufázového ověření vyžadují vaše současné heslo (a při aktivním TOTP také aktuální kód).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Zkusit znovu"
+  "config.auth.retry": "Zkusit znovu",
+  "config.auth.confirmation_code_help": "Zadejte 6místný kód, který vaše autentizační aplikace právě zobrazuje.",
+  "config.auth.current_totp_help": "6místný kód, který vaše autentizační aplikace právě zobrazuje.",
+  "config.auth.new_password_help": "Použijte alespoň 8 znaků. Nejbezpečnější je dlouhá, jedinečná přístupová fráze.",
+  "config.auth.webauthn_enabled_help": "Zapne přihlášení pomocí passkey a bezpečnostních klíčů. Nejprve zaregistrujte klíč a vyzkoušejte přihlášení, než se na něj spolehnete.",
+  "config.auth.webauthn_key_name_help": "Název, podle kterého tento klíč později poznáte, například Notebook nebo YubiKey.",
+  "config.auth.webauthn_rpid_help": "Název domény, ke které jsou vaše klíče vázány, například aurago.example.test. Změna odstraní všechny registrované klíče."
 }

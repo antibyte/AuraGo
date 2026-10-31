@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "仮想デスクトップで Video Studio アプリを有効にします。サーバーに FFmpeg と FFprobe がインストールされている必要があります。",
+  "config.video_studio.readonly_help": "プロジェクトの閲覧はできますが、変更やエクスポートはできません。",
+  "config.video_studio.ffmpeg_help": "FFmpeg 実行ファイルのパスです。空欄の場合は、システムの PATH から FFmpeg を探します。",
+  "config.video_studio.asset_limit_help": "1 つのメディアファイルに許可される最大サイズ (メガバイト) です (デフォルト 4096)。",
+  "config.video_studio.project_limit_help": "1 つのプロジェクト内のすべてのファイルの合計サイズ (メガバイト) です (デフォルト 16384)。",
+  "config.video_studio.timeout_help": "動画のレンダリングにかけられる最長時間 (秒) です。超えると中断されます (30 ～ 14400、デフォルト 7200)。",
+  "config.video_studio.hardware_device_help": "グラフィックスカードのレンダリングデバイスです (例: Linux では /dev/dri/renderD128)。空欄 = 自動。",
+  "config.retro_games.enabled_help": "仮想デスクトップで Retro Games アプリを有効にします。ゲームは archive.org のエミュレーターで動作するため、インターネット接続が必要です。",
+  "config.retro_games.agent_access_help": "エージェントはゲームを検索し、デスクトップで起動できます。"
+}

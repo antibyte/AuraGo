@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_password_help": "Απαιτείται μόνο αν το αντίγραφο ασφαλείας ήταν κρυπτογραφημένο. Πρέπει να είναι ο ίδιος κωδικός με αυτόν της δημιουργίας.",
+  "config.backup.include_vectordb_help": "Προσθέτει τη διανυσματική βάση δεδομένων (embeddings μνήμης). Γλιτώνετε τον επανυπολογισμό μετά την επαναφορά, αλλά συχνά το αρχείο γίνεται πολύ μεγάλο.",
+  "config.backup.include_workdir_help": "Προσθέτει τον φάκελο εργασίας του πράκτορα με όλα τα αρχεία του. Μπορεί να πιάσει πολύ χώρο.",
+  "config.backup.select_file_help": "Ένα αντίγραφο ασφαλείας που δημιουργήθηκε νωρίτερα, με επέκταση .ago. Η εισαγωγή αντικαθιστά τα υπάρχοντα δεδομένα."
 }

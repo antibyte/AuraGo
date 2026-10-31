@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0でHTTPリスナーを無効にします。Let’s EncryptのHTTP-01には80を選択し、公開ポート80に到達できるようにしてください。",
   "config.server.restart_address": "再起動後に開くアドレス：",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "AuraGo が待ち受けるネットワークアドレスです。空欄または 0.0.0.0 = すべてのインターフェース、127.0.0.1 = このマシンのみ。変更後は再起動が必要です。",
+  "config.server.port_hint": "Web UI と API の TCP ポートです (デフォルト 8088)。変更後は再起動が必要です。",
+  "config.server.ui_language_hint": "Web UI とシステムメッセージの言語です。このインスタンスのすべてのユーザーに適用されます。",
+  "config.server.cert_mode_hint": "TLS 証明書の入手元です。Let's Encrypt による自動取得、独自のファイル、またはローカルテスト用の自己署名証明書から選べます。",
+  "config.server.https_port_hint": "暗号化された接続用のポートです (デフォルト 443)。Linux では 1024 未満のポートに root 権限または適切な capability が必要です。",
+  "config.server.domain_hint": "証明書の発行対象となる公開ドメイン名です。このサーバーを指している必要があります。",
+  "config.server.email_hint": "Let's Encrypt の連絡先アドレスです (例: 有効期限の警告用)。認証局にのみ送信されます。",
+  "config.server.cert_file_hint": "PEM 形式の証明書ファイルのパスです。AuraGo ディレクトリからの相対パスまたは絶対パスで指定します。",
+  "config.server.key_file_hint": "PEM 形式の秘密鍵のパスです。このファイルは AuraGo のアカウントだけが読み取れるようにしてください。",
+  "config.server.behind_proxy_hint": "リバースプロキシが TLS を終端する場合に有効にします。転送ヘッダーを設定できるのは、下のリストにあるアドレスだけです。設定を誤ると、クライアントアドレスを偽装される可能性があります。",
+  "config.server.cert_status_sans": "サブジェクト代替名 (SAN)"
 }

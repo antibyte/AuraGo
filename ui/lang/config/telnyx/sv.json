@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Ansluten till Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Standardspråkkod för Telnyx röstmeddelanden och samtalstranskribering."
+  "help.telnyx.voice_language": "Standardspråkkod för Telnyx röstmeddelanden och samtalstranskribering.",
+  "config.telnyx.voice_gender_help": "Röst som agenten använder för att tala i telefonsamtal.",
+  "config.telnyx.max_concurrent_calls_help": "Hur många samtal som får pågå samtidigt (1-20, standard 3). Övriga samtal avvisas.",
+  "config.telnyx.max_sms_per_minute_help": "Maximalt antal utgående SMS per minut (1-60, standard 10). Skyddar mot oavsiktliga massutskick och höga kostnader."
 }

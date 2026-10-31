@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "Abrir a aplicação Câmaras de rede",
   "config.go2rtc.detection_hint": "A deteção de pessoas (eventos, zonas, alertas e armar) configura-se na aplicação Câmaras de rede, em Deteção; as definições de cada câmara estão no separador Deteção de pessoas da gestão da câmara.",
   "config.section.go2rtc.label": "Câmaras go2rtc",
-  "config.section.go2rtc.desc": "Transmissões, capturas e visualização ao vivo geridas com segurança",
+  "config.section.go2rtc.desc": "Gerencia streams de câmeras seguros, capturas e visualização ao vivo por meio do go2rtc.",
   "config.go2rtc.proxy_note": "O AuraGo mantém privados os URLs das câmaras e as credenciais go2rtc. A visualização usa o proxy do AuraGo; WebRTC direto na LAN é opcional.",
   "config.go2rtc.enabled": "Ativar go2rtc",
   "config.go2rtc.auto_start": "Iniciar o contentor automaticamente",

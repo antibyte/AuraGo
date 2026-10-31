@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Laatste poging: {result}",
   "config.newspaper.max_searches": "Maximaal aantal zoekopdrachten per editie (inclusief herhalingen)",
   "config.section.newspaper.label": "Krant",
-  "config.section.newspaper.desc": "Een persoonlijke, verzorgde dagelijkse editie",
+  "config.section.newspaper.desc": "Stelt een persoonlijke dagelijkse krant samen uit onderzoek met bronnen.",
   "config.newspaper.enabled": "Krant inschakelen",
   "config.newspaper.readonly": "Alleen-lezen-modus",
   "config.newspaper.allow_email": "Bezorging van e-mail toestaan",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Het geldbudget blijft gelden.",
   "config.newspaper.monetary_budget_disabled": "Er is geen geldbudget ingesteld; de onderzoeksgrenzen blijven gelden.",
   "config.newspaper.fixed_budget_note": "Vaste grenzen delen {pages} pagina’s over de hele editie.",
-  "config.newspaper.fixed_limits_only": "Deze grenzen gelden alleen in de vaste modus."
+  "config.newspaper.fixed_limits_only": "Deze grenzen gelden alleen in de vaste modus.",
+  "config.newspaper.enabled_help": "Laat het bureaublad elke dag onderzoek doen en een krant samenstellen over jouw onderwerpen. De onderwerpen stel je in op het bureaublad in.",
+  "config.newspaper.readonly_help": "De krant mag alleen lezen en tonen, maar niets verzenden of wijzigen.",
+  "config.newspaper.allow_email_help": "Staat toe dat afgeronde edities per e-mail worden verzonden. Hiervoor moet een e-mailaccount zijn ingesteld.",
+  "config.newspaper.allow_telegram_help": "Staat toe dat afgeronde edities via Telegram worden verzonden. Hiervoor moet Telegram zijn ingesteld.",
+  "config.newspaper.max_minutes_help": "Hoe lang het onderzoek voor één editie maximaal mag duren (1 tot 60 minuten, standaard 30).",
+  "config.newspaper.max_pages_help": "Hoeveel webpagina's per editie maximaal worden gelezen (1 tot 60, standaard 60).",
+  "config.newspaper.max_searches_help": "Hoeveel zoekopdrachten per editie maximaal worden gedaan, nieuwe pogingen inbegrepen (1 tot 64, standaard 32).",
+  "config.newspaper.max_editions_help": "Hoeveel afgeronde edities bewaard blijven; oudere worden verwijderd (30 tot 3650, standaard 365)."
 }

@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "Laddar ned en liten modell till den här maskinen och kör den i en container vid behov. Den är avsedd för tester eller som reserv, inte som ersättning för en stor modell.",
+  "config.local_llm.model_family_help": "Vilken lokal modell som används. Spark är experimentell och särskilt liten.",
+  "config.local_llm.backend_help": "Beräkningsaccelerator för modellen. Automatiskt väljer ett GPU som stöds; CPU är långsamt och experimentellt.",
+  "config.local_llm.model_variant_help": "Kvantisering av modellen: Q8 är mer exakt men kräver mer minne än Q4. Storleken är nedladdningsstorleken.",
+  "config.local_llm.context_size_help": "Hur mycket text modellen beaktar på en gång. Mer kontext kräver mer minne.",
+  "config.local_llm.mtp_help": "Multi-token-prediktion snabbar upp utdata med hjälp av en extra utkastmodell. Experimentell och kräver mer minne.",
+  "config.local_llm.idle_timeout_help": "Efter så här många minuter utan förfrågan stoppas modellen för att frigöra minne (1 till 1440, standard 15).",
+  "config.local_llm.listen_port_help": "Lokal port för modellservern. Den kan bara nås från den här maskinen (standard 18081).",
+  "config.local_llm.role_help": "Endast test: bara för att prova. Reserv: hoppar in när huvudmodellen misslyckas. Primär: svarar på alla förfrågningar.",
+  "config.local_llm.regular_provider_help": "Ordinarie leverantör som tar den andra rollen medan den lokala modellen har den valda rollen.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} s",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

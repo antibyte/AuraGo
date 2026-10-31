@@ -36,5 +36,6 @@
   "action_policy.unknown": "Résultat incertain. Vérifie l’état avant de recommencer.",
   "action_policy.admin_only": "Seuls les administrateurs peuvent modifier les règles et approuver les actions.",
   "action_policy.save_hint": "Enregistre les modifications avant de tester les règles.",
-  "action_policy.pending": "Approbations en attente"
+  "action_policy.pending": "Approbations en attente",
+  "action_policy.enabled_help": "Vos propres règles autorisent ou refusent automatiquement des actions individuelles. Les capacités désactivées et les paramètres en lecture seule restent toujours prioritaires."
 }

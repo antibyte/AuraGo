@@ -1,6 +1,6 @@
 {
   "config.section.bluetooth.label": "Bluetooth",
-  "config.section.bluetooth.desc": "Linux BlueZ के माध्यम से Bluetooth डिवाइस और लक्षित ऑडियो आउटपुट।",
+  "config.section.bluetooth.desc": "Linux BlueZ के ज़रिए ब्लूटूथ डिवाइस और ऑडियो आउटपुट प्रबंधित करता है।",
   "dashboard.integration_bluetooth": "Bluetooth",
   "config.bluetooth.loading": "Linux BlueZ के माध्यम से Bluetooth डिवाइस और लक्षित ऑडियो आउटपुट।",
   "config.bluetooth.enabled": "सक्रिय",

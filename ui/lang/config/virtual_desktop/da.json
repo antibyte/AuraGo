@@ -1,0 +1,11 @@
+{
+  "config.retro_games.agent_access_help": "Agenten må søge efter spil og starte dem på skrivebordet.",
+  "config.retro_games.enabled_help": "Aktiverer Retro Games-appen på det virtuelle skrivebord. Spillene kører i archive.org-emulatoren og kræver internetadgang.",
+  "config.video_studio.asset_limit_help": "Største tilladte enkelte mediefil i megabyte (standard 4096).",
+  "config.video_studio.enabled_help": "Aktiverer Video Studio-appen på det virtuelle skrivebord. FFmpeg og FFprobe skal være installeret på serveren.",
+  "config.video_studio.ffmpeg_help": "Sti til FFmpeg-programmet. Lad den stå tom for at finde FFmpeg via systemets PATH.",
+  "config.video_studio.hardware_device_help": "Grafikkortets renderingsenhed, f.eks. /dev/dri/renderD128 på Linux. Tom = automatisk.",
+  "config.video_studio.project_limit_help": "Samlet størrelse af alle filer i ét projekt i megabyte (standard 16384).",
+  "config.video_studio.readonly_help": "Projekter kan vises, men ikke ændres eller eksporteres.",
+  "config.video_studio.timeout_help": "Længste tid til rendering af en video i sekunder, derefter afbrydes den (30 til 14400, standard 7200)."
+}

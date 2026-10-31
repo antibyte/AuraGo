@@ -36,5 +36,6 @@
   "action_policy.unknown": "結果が不明です。再実行する前に状態を確認してください。",
   "action_policy.admin_only": "ルールの変更と承認は管理者のみが行えます。",
   "action_policy.save_hint": "ルールを確認する前に変更を保存してください。",
-  "action_policy.pending": "保留中の承認"
+  "action_policy.pending": "保留中の承認",
+  "action_policy.enabled_help": "独自のルールで個々のアクションを自動的に許可または拒否します。無効化された機能と読み取り専用の設定が常に優先されます。"
 }

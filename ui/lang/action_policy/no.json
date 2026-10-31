@@ -36,5 +36,6 @@
   "action_policy.unknown": "Resultatet er usikkert. Kontroller tilstanden før du gjentar handlingen.",
   "action_policy.admin_only": "Bare administratorer kan endre regler og godkjenne handlinger.",
   "action_policy.save_hint": "Lagre endringene før du tester reglene.",
-  "action_policy.pending": "Ventende godkjenninger"
+  "action_policy.pending": "Ventende godkjenninger",
+  "action_policy.enabled_help": "Dine egne regler tillater eller avslår enkelthandlinger automatisk. Deaktiverte funksjoner og skrivebeskyttede innstillinger har alltid forrang."
 }

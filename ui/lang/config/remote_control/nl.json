@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Geen apparaten",
   "config.remote_control.no_platforms": "Geen platforms beschikbaar",
   "config.remote_control.platforms_error": "Fout bij laden platforms",
-  "config.remote_control.read_only_label": "Alleen-lezen modus (blokkeert schrijfbewerkingen, verwijderingen en shell-opdrachten op alle apparaten)",
+  "config.remote_control.read_only_label": "Alleen-lezenmodus",
   "config.remote_control.security_desc": "Beheer apparaatregistratie en auditlogboek.",
   "config.remote_control.security_title": "Beveiliging",
-  "config.remote_control.ssh_insecure_host_key_label": "Onveilige SSH-hostsleutel toestaan (⚠️ schakelt MITM-beveiliging uit, alleen gebruiken op vertrouwde netwerken)",
+  "config.remote_control.ssh_insecure_host_key_label": "Onveilige SSH-hostsleutel toestaan",
   "config.remote_control.status_connected": "Verbonden",
   "config.remote_control.status_offline": "Niet verbonden",
   "config.security_proxy.status_loading": "Laden…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Clientupdate vereist",
   "config.remote_control.confirm_removal": "Dit apparaat loskoppelen en lopende opdrachten annuleren? Opnieuw koppelen vereist een nieuw token.",
   "config.remote_control.paths_inherit": "Eén pad per regel. Een lege padenlijst voor dit apparaat neemt de globale paden over. Als beide lijsten leeg zijn, wordt bestandstoegang geweigerd.",
-  "config.remote_control.security_hint": "WSS en een geldig certificaat zijn ook via Tailscale verplicht. Werk klassieke clients bij vóór de server. Tokens verlopen na één uur en kunnen maar één keer worden gebruikt."
+  "config.remote_control.security_hint": "WSS en een geldig certificaat zijn ook via Tailscale verplicht. Werk klassieke clients bij vóór de server. Tokens verlopen na één uur en kunnen maar één keer worden gebruikt.",
+  "config.remote_control.enabled_help": "Schakelt afstandsbediening in. Alleen dan kunnen gekoppelde apparaten verbinden en de agent ze benaderen.",
+  "config.remote_control.read_only_help": "Blokkeert bestandsschrijfacties, verwijderingen en shell-opdrachten op alle apparaten. Lezen blijft mogelijk.",
+  "config.remote_control.audit_log_help": "Registreert elke actie op externe apparaten. Aanbevolen zodat toegang later te herleiden is.",
+  "config.remote_control.ssh_insecure_host_key_help": "Let op: schakelt de controle van de SSH-hostsleutel uit en daarmee de bescherming tegen man-in-the-middle-aanvallen. Schakel dit alleen in op een netwerk dat je volledig vertrouwt.",
+  "config.remote_control.max_file_size_help": "Grootste bestand in MB dat bij een overdracht is toegestaan (1-500, standaard 50).",
+  "config.remote_control.enrollment_device_name_help": "Optionele naam voor het nieuwe apparaat. Wordt ingesteld wanneer het koppelingstoken wordt gemaakt.",
+  "config.remote_control.device_name_help": "Optionele naam voor het apparaat waarop de client draait. Wordt meegegeven bij het downloaden."
 }

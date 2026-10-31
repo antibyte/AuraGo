@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.api_key_help": "Přístupový klíč služby. Je uložen ve vault a nikdy se neuchovává v prohlížeči.",
+  "config.realtime_speech.default_profile_help": "Profil použitý, když žádný nevyberete. Nabízejí se pouze aktivní profily.",
+  "config.realtime_speech.model_help": "Hlasový model služby. Zastaralé modely jsou označeny.",
+  "config.realtime_speech.profile_enabled_help": "Jako výchozí a v chatu lze použít pouze aktivní profily.",
+  "config.realtime_speech.profile_name_help": "Zobrazované jméno profilu v seznamech výběru (nejvýše 100 znaků).",
+  "config.realtime_speech.provider_help": "Služba, která poskytuje živé hlasové spojení. Změna obnoví model a hlas na výchozí hodnoty služby.",
+  "config.realtime_speech.voice_help": "Hlas, kterým se odpovědi mluví."
+}

@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Lokale nettverksdelinger",
-  "config.section.network_shares.desc": "Administrer SMB- og NFS-delinger fra denne verten.",
+  "config.section.network_shares.desc": "Administrerer SMB- og NFS-delingene denne verten tilbyr.",
   "dashboard.integration_network_shares": "Lokale nettverksdelinger",
   "config.network_shares.loading": "Leser lokale SMB- og NFS-funksjoner…",
   "config.network_shares.enabled": "Aktiver integrasjon",

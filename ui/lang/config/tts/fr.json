@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Télécharger",
   "config.tts.phonon_downloading": "Téléchargement …",
   "config.tts.phonon_catalog_error": "Impossible de charger le catalogue de voix.",
-  "config.tts.phonon_download_error": "Échec du téléchargement. Votre sélection de voix précédente est conservée."
+  "config.tts.phonon_download_error": "Échec du téléchargement. Votre sélection de voix précédente est conservée.",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (Docker local)",
+  "config.tts.title_piper": "Piper TTS (Docker local)",
+  "config.tts.api_key_help": "Clé API de votre compte chez le fournisseur. Elle est stockée chiffrée dans le vault.",
+  "config.tts.cloud_voice_help": "Voix avec laquelle le fournisseur prononce le texte.",
+  "config.tts.phonon_catalog_help": "Filtre la liste des voix ci-dessous par langue. Cela ne modifie pas la voix sélectionnée ci-dessus.",
+  "config.tts.supertonic_image_help": "Image Docker à partir de laquelle le conteneur Supertonic est démarré. Ne la modifiez que si vous utilisez votre propre image.",
+  "config.tts.supertonic_port_help": "Port sur lequel le conteneur Supertonic écoute en interne (7788 par défaut).",
+  "config.tts.supertonic_data_path_help": "Dossier des modèles et des données du conteneur, relatif au répertoire AuraGo (data/supertonic par défaut).",
+  "config.tts.supertonic_container_name_help": "Nom du conteneur Docker. Ne le modifiez que si le nom par défaut est déjà pris.",
+  "config.tts.piper_port_help": "Port sur lequel le conteneur Piper écoute en interne (10200 par défaut).",
+  "config.tts.piper_image_help": "Image Docker à partir de laquelle le conteneur Piper est démarré. Ne la modifiez que si vous utilisez votre propre image.",
+  "config.tts.piper_data_path_help": "Dossier des voix téléchargées, relatif au répertoire AuraGo (data/piper par défaut)."
 }

@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Alleen actieve profielen kunnen als standaard worden gekozen en in de chat worden gebruikt.",
+  "config.realtime_speech.profile_name_help": "Weergavenaam van het profiel in keuzelijsten (maximaal 100 tekens).",
+  "config.realtime_speech.provider_help": "Dienst die de live-spraakverbinding levert. Als je dit wijzigt, worden model en stem teruggezet naar de standaardwaarden van de dienst.",
+  "config.realtime_speech.model_help": "Spraakmodel van de dienst. Verouderde modellen zijn gemarkeerd.",
+  "config.realtime_speech.voice_help": "Stem waarmee de antwoorden worden uitgesproken.",
+  "config.realtime_speech.api_key_help": "Toegangssleutel van de dienst. Wordt opgeslagen in de Vault en nooit in de browser bewaard.",
+  "config.realtime_speech.default_profile_help": "Profiel dat wordt gebruikt als er geen is gekozen. Alleen actieve profielen worden aangeboden."
+}

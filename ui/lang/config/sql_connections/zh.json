@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "导入 SQLite 备份",
   "config.sql_connections.sqlite_import_help": "上传一致且独立的备份（最大 64 MiB）。保存后将导入受保护的存储空间并保留原文件。",
   "config.sql_connections.sqlite_import_required": "需要导入 SQLite",
-  "config.sql_connections.allow_management_help": "代理只能编辑说明。配置、凭据和权限仅限管理员管理。"
+  "config.sql_connections.allow_management_help": "代理只能编辑说明。配置、凭据和权限仅限管理员管理。",
+  "config.sql_connections.filter_label": "筛选连接",
+  "config.sql_connections.filter_help": "按名称、类型、主机、数据库或描述筛选列表。",
+  "config.sql_connections.name_help": "代理用来指代此连接的唯一名称。",
+  "config.sql_connections.driver_help": "数据库类型。SQLite 使用导入的文件，其他类型则连接到服务器。",
+  "config.sql_connections.port_help": "留空则使用该数据库类型的默认端口（PostgreSQL 5432，MySQL 3306）。",
+  "config.sql_connections.host_help": "数据库服务器的主机名或 IP 地址。留空 = localhost。",
+  "config.sql_connections.ssl_mode_help": "连接加密方式。Disable 以明文发送所有内容，Require 加密但不检查证书，Verify CA 检查证书颁发机构，Verify Full 还会检查服务器名称（最安全）。",
+  "config.sql_connections.database_help": "代理所连接的服务器上的数据库名称。",
+  "config.sql_connections.description_help": "给代理和您看的简短备注，说明该数据库的用途。",
+  "config.sql_connections.username_help": "数据库用户。请使用权限尽可能少的账户。",
+  "config.sql_connections.password_help": "以加密方式存储在保险库中。留空则保留已保存的密码。"
 }

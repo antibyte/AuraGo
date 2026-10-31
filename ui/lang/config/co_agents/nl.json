@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Spiekbriefje selecteren",
   "config.co_agents.spec_cheatsheet_loading": "Laden…",
   "config.co_agents.spec_cheatsheet_empty": "Geen actieve spiekbriefjes beschikbaar.",
-  "config.co_agents.spec_cheatsheet_error": "Spiekbriefjes laden mislukt."
+  "config.co_agents.spec_cheatsheet_error": "Spiekbriefjes laden mislukt.",
+  "config.co_agents.provider_help": "Model dat de co-agents gebruiken. Zonder keuze gebruiken ze de hoofd-LLM.",
+  "config.co_agents.cb_max_tool_calls_help": "Hoeveel tool-aanroepen een co-agent per taak mag doen voordat hij wordt gestopt (standaard 10).",
+  "config.co_agents.cb_timeout_help": "Maximale looptijd van een co-agent in seconden (standaard 300).",
+  "config.co_agents.cb_max_tokens_help": "Bovengrens van tokens per taak. 0 = onbeperkt.",
+  "config.co_agents.spec_provider_help": "Eigen model alleen voor deze rol. Zonder keuze geldt de provider van de co-agents.",
+  "config.co_agents.spec_additional_prompt_help": "Extra instructies die aan de systeemprompt van deze rol worden toegevoegd."
 }

@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "Limit czasu połączenia w sekundach (domyślnie: 10)",
   "help.obsidian.request_timeout": "Limit czasu żądania w sekundach (domyślnie: 30)",
   "config.obsidian.status_unknown": "Nieznany status",
-  "config.obsidian.status_no_url": "Nie skonfigurowano hosta"
+  "config.obsidian.status_no_url": "Nie skonfigurowano hosta",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

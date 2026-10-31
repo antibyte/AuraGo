@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Skraca długie wyjście narzędzi, zanim trafi do modelu, i w ten sposób oszczędza tokeny. Komunikaty o błędach są zachowywane, gdy włączona jest opcja poniżej.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "Kompresja LZW",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Zastępuje powtarzające się fragmenty tekstu krótkimi odwołaniami bez zmiany ich kolejności. Oszczędza tokeny przy bardzo powtarzalnym wyjściu.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Maksymalna liczba odwołań tworzonych na wyjście. Więcej wpisów znajduje więcej powtórzeń, ale wymaga więcej miejsca na słownik.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Dłuższe wyjście nie jest przetwarzane tą metodą, aby oszczędzać czas obliczeń.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Fragment tekstu jest zastępowany tylko wtedy, gdy występuje co najmniej tyle razy.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Krótsze fragmenty tekstu nigdy nie są zastępowane, ponieważ odwołanie zajmowałoby wtedy więcej miejsca niż tekst.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Wynik jest używany tylko wtedy, gdy jest krótszy od oryginału o co najmniej tyle procent.",
+  "help.agent.output_compression.toon_json.max_rows": "Tabele z większą liczbą wierszy nie są renderowane w zwartym formacie TOON.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "Zwarta forma tabeli jest używana tylko wtedy, gdy jest krótsza od JSON o co najmniej tyle procent."
+}

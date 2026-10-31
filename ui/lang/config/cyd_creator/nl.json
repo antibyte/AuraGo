@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "AuraGo-adres voor apparaten",
   "config.cyd_creator.ota_title": "Updates via wifi",
   "config.cyd_creator.restart_note": "CYD Creator inschakelen en wijzigingen aan de builder-image, het geheugen, de CPU-kernen of het stoppen bij inactiviteit werken na een herstart van AuraGo. Alle andere instellingen gelden meteen.",
-  "config.section.cyd_creator.desc": "Bouw apps voor Cheap Yellow Display-boards met een designer en een agent. Builds draaien in Docker.",
+  "config.section.cyd_creator.desc": "Bouwt apps voor Cheap Yellow Display-borden met een ontwerper en een agent.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Gepubliceerde toolchain-image. AuraGo haalt hem één keer op en bouwt hem nooit lokaal.",
   "help.cyd_creator.cold_build_timeout_seconds": "Geldt zolang de buildcache van een project en board nog leeg is.",
   "help.cyd_creator.enabled": "Toont de app CYD Creator op het bureaublad. Voor bouwen is een geconfigureerde Docker-host nodig.",
   "help.cyd_creator.max_repair_attempts": "Hoe vaak de agent compileerfouten mag herstellen voordat de taak mislukt.",
   "help.cyd_creator.ota_enabled": "Apparaten met een AuraGo-koppeling downloaden nieuwe builds zelf.",
-  "help.cyd_creator.ota_public_url": "URL waarmee de apparaten AuraGo bereiken. Leeg gebruikt de serverinstellingen."
+  "help.cyd_creator.ota_public_url": "URL waarmee de apparaten AuraGo bereiken. Leeg gebruikt de serverinstellingen.",
+  "config.cyd_creator.memory_mb_help": "Geheugen voor de build-container in megabyte (standaard 2048).",
+  "config.cyd_creator.cpu_cores_help": "CPU-kernen voor de build-container, halve waarden zijn mogelijk (standaard 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Een normale build wordt na dit aantal seconden afgebroken (standaard 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "De build-container stopt na dit aantal minuten zonder opdracht om resources vrij te maken (standaard 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Hoeveel eerdere builds per project worden bewaard; oudere worden verwijderd (standaard 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Totale tijd die de agent aan één opdracht mag besteden, inclusief herstelpogingen (standaard 20 minuten).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Interval waarmee een CYD-apparaat de server om updates vraagt (standaard 60 seconden)."
 }

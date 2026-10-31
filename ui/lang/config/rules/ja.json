@@ -43,5 +43,13 @@
   "config.rules.rule_list": "ルールライブラリ",
   "config.rules.disabled": "無効",
   "config.rules.targeting": "一致ターゲット",
-  "config.rules.system_status": "ルールシステム"
+  "config.rules.system_status": "ルールシステム",
+  "config.rules.rule_id_help": "ルールの短い一意な名前です (例: homepage)。作成後は変更できません。",
+  "config.rules.rule_title_help": "ルールライブラリに表示される、わかりやすい名前です。",
+  "config.rules.priority_help": "複数のルールが一致した場合は、数値が大きいものから先に注入されます。デフォルトは 50 です。",
+  "config.rules.enabled_help": "無効にしたルールがタスクに注入されることはありません。",
+  "config.rules.tools_help": "このルールを有効にするツール名をカンマ区切りで入力します。下でツールを選ぶと追加されます。",
+  "config.rules.workflows_help": "このルールを有効にするワークフロー名をカンマ区切りで入力します。下でワークフローを選ぶと追加されます。",
+  "config.rules.keywords_help": "タスクの文章中でこのルールを有効にする単語を、カンマ区切りで入力します。",
+  "config.rules.body_help": "Markdown で書くガードレールのテキストです。一致するタスクが始まる前に注入されます。"
 }

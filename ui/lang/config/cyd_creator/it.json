@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Indirizzo di AuraGo per i dispositivi",
   "config.cyd_creator.ota_title": "Aggiornamenti via Wi-Fi",
   "config.cyd_creator.restart_note": "L’attivazione di CYD Creator e le modifiche a immagine del builder, memoria, core CPU o arresto per inattività hanno effetto dopo un riavvio di AuraGo. Le altre impostazioni valgono subito.",
-  "config.section.cyd_creator.desc": "Crea app per le schede Cheap Yellow Display con un designer e un agente. Le build girano in Docker.",
+  "config.section.cyd_creator.desc": "Crea app per le schede Cheap Yellow Display con un designer e un agente.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Immagine pubblicata con gli strumenti. AuraGo la scarica una volta e non la costruisce mai in locale.",
   "help.cyd_creator.cold_build_timeout_seconds": "Vale finché la cache di build di un progetto e di una scheda è ancora vuota.",
   "help.cyd_creator.enabled": "Mostra l’app CYD Creator sul desktop. Per compilare serve un host Docker configurato.",
   "help.cyd_creator.max_repair_attempts": "Quante volte l’agente può correggere errori di compilazione prima che l’attività fallisca.",
   "help.cyd_creator.ota_enabled": "I dispositivi con il collegamento AuraGo scaricano da soli le nuove build.",
-  "help.cyd_creator.ota_public_url": "URL con cui i dispositivi raggiungono AuraGo. Vuoto usa le impostazioni del server."
+  "help.cyd_creator.ota_public_url": "URL con cui i dispositivi raggiungono AuraGo. Vuoto usa le impostazioni del server.",
+  "config.cyd_creator.memory_mb_help": "Memoria del container di build in megabyte (predefinito 2048).",
+  "config.cyd_creator.cpu_cores_help": "Core CPU del container di build, sono possibili valori frazionari (predefinito 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Una build normale viene interrotta dopo questo numero di secondi (predefinito 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "Il container di build si ferma dopo questi minuti senza lavori, per liberare risorse (predefinito 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Quante build precedenti vengono conservate per progetto; quelle più vecchie vengono eliminate (predefinito 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Tempo totale che l'agente può dedicare a un lavoro, inclusi i tentativi di correzione (predefinito 20 minuti).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Intervallo con cui un dispositivo CYD chiede aggiornamenti al server (predefinito 60 secondi)."
 }

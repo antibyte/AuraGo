@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Z multimediami",
   "config.local_wikipedia.variant_nopic": "Bez multimediów",
   "config.local_wikipedia.warning_size": "W zależności od języka i wariantu wydanie zajmuje do 130 GB, a pobieranie może trwać godzinami.",
-  "config.section.local_wikipedia.desc": "Wikipedia offline dla agenta i pulpitu, odczytywana z jednego pobranego wydania Kiwix.",
+  "config.section.local_wikipedia.desc": "Udostępnia Wikipedię offline agentowi i pulpitowi z pobranej edycji Kiwix.",
   "config.section.local_wikipedia.label": "Lokalna Wikipedia",
   "help.local_wikipedia.agent_access": "Pozwala agentowi przeszukiwać i czytać zainstalowane wydanie.",
   "help.local_wikipedia.data_dir": "Ścieżka bezwzględna dla wydania. Zostaw puste, aby użyć folderu wikipedia w katalogu danych AuraGo.",

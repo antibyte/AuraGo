@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Regelbibliotek",
   "config.rules.disabled": "Deaktiveret",
   "config.rules.targeting": "Matchende mål",
-  "config.rules.system_status": "Regelsystem"
+  "config.rules.system_status": "Regelsystem",
+  "config.rules.body_help": "Guardrail-teksten i Markdown. Den indsættes, før en matchende opgave begynder.",
+  "config.rules.enabled_help": "Slåede regler indsættes aldrig i opgaver.",
+  "config.rules.keywords_help": "Ord i opgaveteksten, der aktiverer denne regel, adskilt med kommaer.",
+  "config.rules.priority_help": "Når flere regler matcher, indsættes de med højere tal først. Standard 50.",
+  "config.rules.rule_id_help": "Regelens korte, entydige navn, f.eks. homepage. Det kan ikke ændres efter oprettelsen.",
+  "config.rules.rule_title_help": "Læsbart navn, der vises i regelbiblioteket.",
+  "config.rules.tools_help": "Værktøjsnavne, der aktiverer denne regel, adskilt med kommaer. Vælg et værktøj nedenfor for at tilføje det.",
+  "config.rules.workflows_help": "Workflow-navne, der aktiverer denne regel, adskilt med kommaer. Vælg et workflow nedenfor for at tilføje det."
 }

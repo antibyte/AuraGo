@@ -1,0 +1,16 @@
+{
+  "config.s3.allow_delete_help": "Agenten må slette objekter. Slettede objekter kan ikke gendannes.",
+  "config.s3.allow_read_help": "Agenten må vise og downloade objekter.",
+  "config.s3.allow_write_help": "Agenten må uploade objekter og overskrive eksisterende.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.details_help": "Tekniske statusdata for tjenesten i JSON-format, f.eks. til fejlfinding. Skrivebeskyttet.",
+  "config.s3.enabled_label": "Aktivér S3-lager",
+  "config.s3.endpoint_help": "Adressen på den administrerede RustFS-tjeneste. Den indstilles automatisk og vises kun som reference.",
+  "config.s3.endpoint_label": "Endpoint-URL",
+  "config.s3.insecure_label": "Tillad ukrypteret forbindelse",
+  "config.s3.location_bucket_help": "Navnet på den bucket, tilladelsen gælder for.",
+  "config.s3.location_prefixes_help": "Ét præfiks pr. linje. Uden poster er intet tilladt, medmindre hele bucketten er valgt.",
+  "config.s3.readonly_label": "Skrivebeskyttet",
+  "config.s3.region_label": "Region",
+  "config.s3.use_path_style_label": "Brug path-style-adressering"
+}

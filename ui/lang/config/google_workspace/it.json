@@ -52,5 +52,6 @@
   "config.google_workspace.test_failed": "Test di connessione fallito",
   "config.google_workspace.confirm_disconnect_title": "Disconnect Google Workspace?",
   "config.google_workspace.confirm_disconnect_message": "The stored Google OAuth tokens are revoked and deleted. Gmail, Calendar, Drive and the other Google Workspace tools stop working until you sign in again.",
-  "config.google_workspace.disconnecting": "Disconnecting..."
+  "config.google_workspace.disconnecting": "Disconnecting...",
+  "config.google_workspace.enabled_help": "Attiva l'integrazione Google Workspace (Gmail, Calendar, Drive, Docs e altro) per l'agente. Le autorizzazioni si impostano più in basso."
 }

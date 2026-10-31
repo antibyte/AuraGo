@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Ruta del espacio de trabajo",
   "config.homepage.workspace_path_missing_warning": "El servidor web está habilitado pero no se ha establecido una ruta de espacio de trabajo. Ingresa la ruta absoluta del host (ej. /home/aurago/aurago/agent_workspace/homepage) o usa la detección automática.",
   "config.homepage.workspace_relative_hint": "Dentro de las llamadas a herramientas de la página de inicio, mantén project_dir y path relativos a este espacio de trabajo, por ejemplo 'my-site' o 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Espacio de trabajo"
+  "config.homepage.workspace_title": "Espacio de trabajo",
+  "config.homepage.circuit_breaker_max_calls_help": "Cuántas llamadas a herramientas puede hacer el agente en una sesión de homepage antes de que AuraGo lo detenga (1-100, por defecto 35).",
+  "config.homepage.deploy_key_help": "Clave SSH privada (PEM) para el servidor de despliegue. Se guarda en el vault cifrado y sustituye a la contraseña.",
+  "config.homepage.deploy_password_help": "Contraseña SSH para el servidor de despliegue. Se guarda en el vault cifrado; es preferible una clave SSH.",
+  "config.homepage.vault_badge": "vault"
 }

@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Telnyxに接続済み",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Telnyx の音声案内と通話文字起こしに使う既定の言語コードです。"
+  "help.telnyx.voice_language": "Telnyx の音声案内と通話文字起こしに使う既定の言語コードです。",
+  "config.telnyx.voice_gender_help": "エージェントが電話で話すときに使う音声です。",
+  "config.telnyx.max_concurrent_calls_help": "同時に進行できる通話の数です (1-20、デフォルト 3)。それ以上の通話は拒否されます。",
+  "config.telnyx.max_sms_per_minute_help": "1 分あたりに送信できる SMS の最大数です (1-60、デフォルト 10)。誤った一斉送信や高額な料金を防ぎます。"
 }

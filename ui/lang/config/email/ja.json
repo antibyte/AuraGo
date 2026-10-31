@@ -60,5 +60,13 @@
   "config.email.load_failed": "メールアカウントを読み込めませんでした",
   "config.email.load_failed_disabled": "一覧が読み込まれるまで、追加・編集・削除は無効です。",
   "config.email.retry": "再試行",
-  "config.email.saved": "メールアカウントを保存しました。"
+  "config.email.saved": "メールアカウントを保存しました。",
+  "config.email.name_help": "AuraGo に表示されるアカウント名です (例: 「個人」「仕事」)。",
+  "config.email.imap_host_help": "メールプロバイダーの受信メールサーバー (IMAP) のアドレスです。",
+  "config.email.smtp_host_help": "メールプロバイダーの送信メールサーバー (SMTP) のアドレスです。",
+  "config.email.username_help": "IMAP と SMTP のユーザー名です。通常はメールアドレス全体を指定します。",
+  "config.email.password_help": "アカウントのパスワードまたはアプリパスワードです。vault に暗号化して保存されます。",
+  "config.email.watch_enabled_help": "AuraGo は下で選択したフォルダーを定期的に確認して新着メールを検出し、それに対応できます。",
+  "config.email.watch_folder_help": "新着メールを監視する IMAP フォルダーです。デフォルトは INBOX です。",
+  "config.email.interval_seconds_help": "フォルダーを確認する頻度 (秒) です (デフォルト 120)。間隔を短くするほどメールサーバーの負荷が高まります。"
 }

@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Aktivera brandväggsverktyget",
   "config.firewall.enable_help": "Tillåter AI-agenten att interagera med systemets brandvägg för att läsa eller ändra regler.",
   "config.firewall.active": "Aktiv",
-  "config.firewall.inactive": "Inaktiv"
+  "config.firewall.inactive": "Inaktiv",
+  "config.firewall.mode_label": "Driftläge",
+  "config.firewall.poll_interval_seconds_label": "Kontrollintervall (sekunder)"
 }

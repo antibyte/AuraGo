@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "Το 0 απενεργοποιεί την ακρόαση HTTP. Για το HTTP-01 του Let’s Encrypt, επίλεξε 80 και κάνε τη δημόσια θύρα 80 προσβάσιμη.",
   "config.server.restart_address": "Μετά την επανεκκίνηση, άνοιξε:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.behind_proxy_hint": "Ενεργοποιήστε το όταν ένας reverse proxy τερματίζει το TLS. Μόνο οι διευθύνσεις στην παρακάτω λίστα μπορούν να ορίζουν κεφαλίδες forwarded. Αν οριστεί λάθος, οι διευθύνσεις πελατών μπορούν να πλαστογραφηθούν.",
+  "config.server.cert_file_hint": "Διαδρομή προς το αρχείο πιστοποιητικού σε μορφή PEM, σε σχέση με τον κατάλογο του AuraGo ή απόλυτη.",
+  "config.server.cert_mode_hint": "Από πού προέρχεται το πιστοποιητικό TLS: αυτόματα μέσω Let's Encrypt, από δικά σας αρχεία ή ένα αυτο-υπογεγραμμένο πιστοποιητικό για τοπικές δοκιμές.",
+  "config.server.cert_status_sans": "Εναλλακτικά ονόματα υποκειμένου (SAN)",
+  "config.server.domain_hint": "Δημόσιο όνομα τομέα για το οποίο εκδίδεται το πιστοποιητικό. Πρέπει να δείχνει σε αυτόν τον διακομιστή.",
+  "config.server.email_hint": "Διεύθυνση επικοινωνίας για το Let's Encrypt, π.χ. για προειδοποιήσεις λήξης. Αποστέλλεται μόνο στην αρχή πιστοποίησης.",
+  "config.server.host_hint": "Διεύθυνση δικτύου στην οποία ακούει το AuraGo. Κενό ή 0.0.0.0 = όλες οι διεπαφές, 127.0.0.1 = μόνο αυτό το μηχάνημα. Μετά την αλλαγή απαιτείται επανεκκίνηση.",
+  "config.server.https_port_hint": "Θύρα για κρυπτογραφημένες συνδέσεις (προεπιλογή 443). Οι θύρες κάτω από 1024 απαιτούν δικαιώματα root ή αντίστοιχο capability σε Linux.",
+  "config.server.key_file_hint": "Διαδρομή προς το ιδιωτικό κλειδί σε μορφή PEM. Το αρχείο πρέπει να είναι αναγνώσιμο μόνο από τον λογαριασμό του AuraGo.",
+  "config.server.port_hint": "Θύρα TCP του web UI και του API (προεπιλογή 8088). Μετά την αλλαγή απαιτείται επανεκκίνηση.",
+  "config.server.ui_language_hint": "Γλώσσα του web UI και των μηνυμάτων συστήματος. Ισχύει για όλους τους χρήστες αυτής της εγκατάστασης."
 }

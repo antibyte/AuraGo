@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Biblioteka reguł",
   "config.rules.disabled": "Wyłączone",
   "config.rules.targeting": "Cele dopasowania",
-  "config.rules.system_status": "System reguł"
+  "config.rules.system_status": "System reguł",
+  "config.rules.rule_id_help": "Krótka unikalna nazwa reguły, na przykład homepage. Nie można jej zmienić po utworzeniu.",
+  "config.rules.rule_title_help": "Czytelna nazwa wyświetlana w bibliotece reguł.",
+  "config.rules.priority_help": "Gdy pasuje kilka reguł, wyższe liczby są wstrzykiwane jako pierwsze. Domyślnie 50.",
+  "config.rules.enabled_help": "Wyłączone reguły nigdy nie są wstrzykiwane do zadań.",
+  "config.rules.tools_help": "Nazwy narzędzi aktywujące tę regułę, oddzielone przecinkami. Wybierz narzędzie poniżej, aby je dodać.",
+  "config.rules.workflows_help": "Nazwy przepływów pracy aktywujące tę regułę, oddzielone przecinkami. Wybierz przepływ pracy poniżej, aby go dodać.",
+  "config.rules.keywords_help": "Słowa w treści zadania aktywujące tę regułę, oddzielone przecinkami.",
+  "config.rules.body_help": "Tekst barierki w Markdown. Jest wstrzykiwany, zanim rozpocznie się pasujące zadanie."
 }

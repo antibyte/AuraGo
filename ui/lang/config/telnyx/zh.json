@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "已连接到 Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Telnyx 语音提示和通话转写使用的默认语言代码。"
+  "help.telnyx.voice_language": "Telnyx 语音提示和通话转写使用的默认语言代码。",
+  "config.telnyx.voice_gender_help": "代理在电话通话中使用的声音。",
+  "config.telnyx.max_concurrent_calls_help": "可同时进行多少通通话（1-20，默认 3）。超出的来电会被拒绝。",
+  "config.telnyx.max_sms_per_minute_help": "每分钟发出的短信数量上限（1-60，默认 10）。可防止意外群发和高额费用。"
 }

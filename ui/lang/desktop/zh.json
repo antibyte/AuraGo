@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "放大",
   "codeStudio.zoomOut": "缩小",
   "codeStudio.zoomReset": "重置缩放",
-  "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。",
+  "config.section.virtual_desktop.desc": "提供一个浏览器桌面，代理可在其中控制应用、文件和小组件。",
   "config.section.virtual_desktop.label": "虚拟桌面",
   "config.virtual_desktop.agent_control_label": "允许智能体控制",
   "config.virtual_desktop.disabled_desc": "启用后会开放桌面页面和后端工作区。",

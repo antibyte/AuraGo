@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "供设备使用的 AuraGo 地址",
   "config.cyd_creator.ota_title": "通过 Wi-Fi 更新",
   "config.cyd_creator.restart_note": "启用 CYD Creator 以及更改构建器镜像、内存、CPU 核心数或空闲停止时间，会在 AuraGo 重启后生效。其他设置立即生效。",
-  "config.section.cyd_creator.desc": "使用设计器和智能体为 Cheap Yellow Display 开发板开发应用。构建在 Docker 中运行。",
+  "config.section.cyd_creator.desc": "借助设计器和代理为 Cheap Yellow Display 开发板构建应用。",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "已发布的工具链镜像。AuraGo 只下载一次，从不在本地构建。",
   "help.cyd_creator.cold_build_timeout_seconds": "在项目和开发板的构建缓存仍为空时适用。",
   "help.cyd_creator.enabled": "在桌面上显示 CYD Creator 应用。构建需要已配置的 Docker 主机。",
   "help.cyd_creator.max_repair_attempts": "任务失败前智能体可以修复编译错误的次数。",
   "help.cyd_creator.ota_enabled": "具有 AuraGo 连接的设备会自行下载新的构建。",
-  "help.cyd_creator.ota_public_url": "设备访问 AuraGo 所用的 URL。留空则使用服务器设置。"
+  "help.cyd_creator.ota_public_url": "设备访问 AuraGo 所用的 URL。留空则使用服务器设置。",
+  "config.cyd_creator.memory_mb_help": "构建容器的内存，单位为 MB（默认 2048）。",
+  "config.cyd_creator.cpu_cores_help": "构建容器使用的 CPU 核心数，可以使用小数（默认 2）。",
+  "config.cyd_creator.build_timeout_seconds_help": "普通构建在这么多秒后会被中止（默认 300）。",
+  "config.cyd_creator.idle_stop_minutes_help": "构建容器在没有任务的情况下，经过这么多分钟后会停止以释放资源（默认 20）。",
+  "config.cyd_creator.keep_builds_per_project_help": "每个项目保留多少个历史构建，更早的会被删除（默认 5）。",
+  "config.cyd_creator.job_timeout_minutes_help": "代理在单个任务上可花费的总时间，包括修复尝试（默认 20 分钟）。",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "CYD 设备向服务器查询更新的间隔（默认 60 秒）。"
 }

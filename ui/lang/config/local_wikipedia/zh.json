@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "含媒体",
   "config.local_wikipedia.variant_nopic": "不含媒体",
   "config.local_wikipedia.warning_size": "根据语言和变体不同，一个版本最多需要 130 GB，下载可能需要数小时。",
-  "config.section.local_wikipedia.desc": "供代理和桌面使用的离线维基百科，读取一个已下载的 Kiwix 版本。",
+  "config.section.local_wikipedia.desc": "利用下载的 Kiwix 版本，为代理和桌面提供离线维基百科。",
   "config.section.local_wikipedia.label": "本地维基百科",
   "help.local_wikipedia.agent_access": "允许代理搜索并阅读已安装的版本。",
   "help.local_wikipedia.data_dir": "版本的绝对路径。留空则使用 AuraGo 数据目录中的 wikipedia 文件夹。",

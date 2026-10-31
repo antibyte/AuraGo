@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "डाउनलोड करें",
   "config.tts.phonon_downloading": "डाउनलोड हो रहा है …",
   "config.tts.phonon_catalog_error": "आवाज़ों की सूची लोड नहीं हो सकी।",
-  "config.tts.phonon_download_error": "डाउनलोड विफल रहा। पहले चुनी गई आवाज़ बनी रहेगी।"
+  "config.tts.phonon_download_error": "डाउनलोड विफल रहा। पहले चुनी गई आवाज़ बनी रहेगी।",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (स्थानीय Docker)",
+  "config.tts.title_piper": "Piper TTS (स्थानीय Docker)",
+  "config.tts.api_key_help": "प्रदाता के पास आपके खाते की API कुंजी। इसे vault में एन्क्रिप्ट करके संग्रहीत किया जाता है।",
+  "config.tts.cloud_voice_help": "वह आवाज़ जिसमें प्रदाता टेक्स्ट बोलता है।",
+  "config.tts.phonon_catalog_help": "नीचे की आवाज़ों की सूची को भाषा के अनुसार फ़िल्टर करता है। इससे ऊपर चुनी गई आवाज़ नहीं बदलती।",
+  "config.tts.supertonic_image_help": "वह Docker इमेज जिससे Supertonic कंटेनर शुरू होता है। इसे केवल तभी बदलें जब आप अपनी इमेज उपयोग करते हों।",
+  "config.tts.supertonic_port_help": "वह पोर्ट जिस पर Supertonic कंटेनर आंतरिक रूप से सुनता है (डिफ़ॉल्ट 7788)।",
+  "config.tts.supertonic_data_path_help": "मॉडल और कंटेनर डेटा के लिए फ़ोल्डर, AuraGo निर्देशिका के सापेक्ष (डिफ़ॉल्ट data/supertonic)।",
+  "config.tts.supertonic_container_name_help": "Docker कंटेनर का नाम। इसे केवल तभी बदलें जब डिफ़ॉल्ट नाम पहले से लिया जा चुका हो।",
+  "config.tts.piper_port_help": "वह पोर्ट जिस पर Piper कंटेनर आंतरिक रूप से सुनता है (डिफ़ॉल्ट 10200)।",
+  "config.tts.piper_image_help": "वह Docker इमेज जिससे Piper कंटेनर शुरू होता है। इसे केवल तभी बदलें जब आप अपनी इमेज उपयोग करते हों।",
+  "config.tts.piper_data_path_help": "डाउनलोड की गई आवाज़ों का फ़ोल्डर, AuraGo निर्देशिका के सापेक्ष (डिफ़ॉल्ट data/piper)।"
 }

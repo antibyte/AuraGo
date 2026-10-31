@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Activer l'outil de pare-feu",
   "config.firewall.enable_help": "Permet à l'agent AI d'interagir avec le pare-feu du système pour lire ou modifier les règles.",
   "config.firewall.active": "Actif",
-  "config.firewall.inactive": "Inactif"
+  "config.firewall.inactive": "Inactif",
+  "config.firewall.mode_label": "Mode de fonctionnement",
+  "config.firewall.poll_interval_seconds_label": "Intervalle de vérification (secondes)"
 }

@@ -1,0 +1,16 @@
+{
+  "config.s3.allow_delete_help": "El agente puede eliminar objetos. Los objetos eliminados no se pueden recuperar.",
+  "config.s3.allow_read_help": "El agente puede listar y descargar objetos.",
+  "config.s3.allow_write_help": "El agente puede subir objetos y sobrescribir los existentes.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.details_help": "Datos técnicos de estado del servicio en formato JSON, por ejemplo para solucionar problemas. Solo lectura.",
+  "config.s3.enabled_label": "Activar el almacenamiento S3",
+  "config.s3.endpoint_help": "Dirección del servicio RustFS gestionado. Se define automáticamente y se muestra solo como referencia.",
+  "config.s3.endpoint_label": "URL del endpoint",
+  "config.s3.insecure_label": "Permitir conexión sin cifrar",
+  "config.s3.location_bucket_help": "Nombre del bucket al que se aplica el permiso.",
+  "config.s3.location_prefixes_help": "Un prefijo por línea. Sin entradas no se permite nada, salvo que se seleccione el bucket entero.",
+  "config.s3.readonly_label": "Solo lectura",
+  "config.s3.region_label": "Región",
+  "config.s3.use_path_style_label": "Usar direccionamiento path-style"
+}

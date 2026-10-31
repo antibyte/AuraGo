@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Sceglie automaticamente un modello adatto a ogni attività. Senza questa opzione AuraGo usa sempre il modello principale attivo.",
+  "common.llm_router.area_help": "Provider e modello per le richieste nell'area \"{area}\". \"Modello predefinito\" usa il modello attivo.",
+  "common.llm_router.timeout_hint": "Quanto può durare (in millisecondi, da 250 a 5000, predefinito 1500) la classificazione di un'attività prima che si applichi la scelta predefinita.",
+  "common.llm_router.quota_hint": "Limite massimo di classificazioni all'ora da parte del modello ausiliario (da 0 a 120, predefinito 20). 0 le disattiva. Ogni chiamata può comportare costi.",
+  "common.llm_router.preview_text_hint": "Un'attività di esempio con parole tue. Viene solo classificata, non eseguita."
+}

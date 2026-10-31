@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "App Netwerkcamera’s openen",
   "config.go2rtc.detection_hint": "Persoonsdetectie (gebeurtenissen, zones, alarmen en inschakeling) stel je in de app Netwerkcamera’s in onder Detectie; de instellingen per camera staan op het tabblad Persoonsdetectie van het camerabeheer.",
   "config.section.go2rtc.label": "go2rtc-camera's",
-  "config.section.go2rtc.desc": "Veilig beheerde camerastreams, snapshots en liveweergave",
+  "config.section.go2rtc.desc": "Beheert beveiligde camerastreams, snapshots en liveweergave via go2rtc.",
   "config.go2rtc.proxy_note": "AuraGo houdt camera-URL's en go2rtc-inloggegevens privé. Weergave loopt via de AuraGo-proxy; directe LAN-WebRTC is optioneel.",
   "config.go2rtc.enabled": "go2rtc inschakelen",
   "config.go2rtc.auto_start": "Container automatisch starten",

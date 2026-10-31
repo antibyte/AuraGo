@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Ordinateurs virtuels",
-  "config.section.virtual_computers.desc": "MicroVM jetables avec terminal, bureau, aperçus et accès agent.",
+  "config.section.virtual_computers.desc": "Fournit des ordinateurs microVM jetables avec accès terminal, bureau et agent.",
   "config.virtual_computers.enabled_label": "Activer les ordinateurs virtuels",
   "config.virtual_computers.disabled_notice": "Les ordinateurs virtuels sont désactivés.",
   "config.virtual_computers.disabled_desc": "Activez l'intégration pour lancer et proxifier les machines boring-computers.",

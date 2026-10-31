@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "Zoom inn",
   "codeStudio.zoomOut": "Zoom ut",
   "codeStudio.zoomReset": "Tilbakestill zoom",
-  "config.section.virtual_desktop.desc": "Nettleserskrivebord med agentstyrte apper, filer og widgeter.",
+  "config.section.virtual_desktop.desc": "Tilbyr et nettleserskrivebord der agenten styrer apper, filer og widgeter.",
   "config.section.virtual_desktop.label": "Virtuelt skrivebord",
   "config.virtual_desktop.agent_control_label": "Tillat agentkontroll",
   "config.virtual_desktop.disabled_desc": "Aktiver det for å gjøre skrivebordssiden og backendområdet tilgjengelig.",

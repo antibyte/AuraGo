@@ -1,0 +1,16 @@
+{
+  "config.s3.allow_delete_help": "Ο πράκτορας μπορεί να διαγράφει αντικείμενα. Τα διαγραμμένα αντικείμενα δεν μπορούν να ανακτηθούν.",
+  "config.s3.allow_read_help": "Ο πράκτορας μπορεί να απαριθμεί και να κατεβάζει αντικείμενα.",
+  "config.s3.allow_write_help": "Ο πράκτορας μπορεί να ανεβάζει αντικείμενα και να αντικαθιστά υπάρχοντα.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.details_help": "Τεχνικά δεδομένα κατάστασης της υπηρεσίας σε μορφή JSON, π.χ. για αντιμετώπιση προβλημάτων. Μόνο για ανάγνωση.",
+  "config.s3.enabled_label": "Ενεργοποίηση αποθήκευσης S3",
+  "config.s3.endpoint_help": "Διεύθυνση της διαχειριζόμενης υπηρεσίας RustFS. Ορίζεται αυτόματα και εμφανίζεται μόνο για αναφορά.",
+  "config.s3.endpoint_label": "URL endpoint",
+  "config.s3.insecure_label": "Να επιτρέπεται μη κρυπτογραφημένη σύνδεση",
+  "config.s3.location_bucket_help": "Όνομα του bucket στο οποίο ισχύει το δικαίωμα.",
+  "config.s3.location_prefixes_help": "Ένα πρόθεμα ανά γραμμή. Χωρίς καταχωρίσεις δεν επιτρέπεται τίποτα, εκτός αν επιλεγεί ολόκληρο το bucket.",
+  "config.s3.readonly_label": "Μόνο για ανάγνωση",
+  "config.s3.region_label": "Περιοχή",
+  "config.s3.use_path_style_label": "Χρήση διευθυνσιοδότησης path-style"
+}

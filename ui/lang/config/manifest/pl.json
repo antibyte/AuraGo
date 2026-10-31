@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Wysyła dodatkowe nagłówki z żądaniami do Manifest, aby Manifest mógł wybrać odpowiedni model zgodnie z Twoimi poziomami.",
+  "config.manifest.routing_specificity_mode_help": "Wyłączone nie wysyła kategorii, Stała zawsze wysyła wybraną poniżej, Automatyczna pozwala AuraGo ustalić kategorię dla każdego żądania.",
+  "config.manifest.routing_specificity_help": "Kategoria, którą AuraGo wysyła do Manifest z każdym żądaniem w trybie \"Stała\".",
+  "config.manifest.routing_headers_help": "Własne nagłówki jako pary nazwa-wartość, które AuraGo dodatkowo wysyła do Manifest. Wpisuj tylko wartości, które Manifest może widzieć.",
+  "config.manifest.routing_header_name": "Nazwa nagłówka",
+  "config.manifest.routing_header_value": "Wartość nagłówka"
+}

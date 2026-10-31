@@ -22,7 +22,7 @@
   "config.speech_lab.provider_load_failed": "De providerlijst kon niet worden geladen. Sla geen providerwijziging op totdat de verbinding is hersteld.",
   "config.speech_lab.active_combination": "Actieve combinatie",
   "config.section.speech_lab.label": "Spraaklab",
-  "config.section.speech_lab.desc": "Optionele lokale spraakherkenning en spraaksynthese voor telefonie en chat.",
+  "config.section.speech_lab.desc": "Draait optionele lokale spraakherkenning en spraaksynthese voor gesprekken en chat.",
   "config.speech_lab.ownership_note": "Speech Lab levert alleen ASR en TTS. Gespreksbesturing, LLM, tools en geheugen blijven in AuraGo.",
   "config.speech_lab.enabled": "Speech Lab inschakelen",
   "config.speech_lab.enabled_help": "Laat AuraGo verbinden met de lokale dienst. Elk kanaal moet apart worden ingeschakeld.",

@@ -1,0 +1,11 @@
+{
+  "config.retro_games.agent_access_help": "Agent smí vyhledávat hry a spouštět je na ploše.",
+  "config.retro_games.enabled_help": "Zapne aplikaci Retro Games ve virtuální ploše. Hry běží v emulátoru archive.org a potřebují přístup k internetu.",
+  "config.video_studio.asset_limit_help": "Největší povolený jednotlivý mediální soubor v megabajtech (výchozí 4096).",
+  "config.video_studio.enabled_help": "Zapne aplikaci Video Studio ve virtuální ploše. Na serveru musí být nainstalovány FFmpeg a FFprobe.",
+  "config.video_studio.ffmpeg_help": "Cesta ke spustitelnému souboru FFmpeg. Nechte prázdné, aby se FFmpeg našel přes systémovou proměnnou PATH.",
+  "config.video_studio.hardware_device_help": "Zařízení pro vykreslování grafické karty, například /dev/dri/renderD128 na Linuxu. Prázdné = automaticky.",
+  "config.video_studio.project_limit_help": "Celková velikost všech souborů v jednom projektu v megabajtech (výchozí 16384).",
+  "config.video_studio.readonly_help": "Projekty lze zobrazit, ale ne měnit ani exportovat.",
+  "config.video_studio.timeout_help": "Nejdelší doba vykreslování videa v sekundách, poté se přeruší (30 až 14400, výchozí 7200)."
+}

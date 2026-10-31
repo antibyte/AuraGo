@@ -60,5 +60,13 @@
   "config.email.load_failed": "E-postkontoer kunne ikke lastes",
   "config.email.load_failed_disabled": "Legge til, redigere og slette er deaktivert til listen er lastet.",
   "config.email.retry": "Prøv igjen",
-  "config.email.saved": "E-postkontoer lagret."
+  "config.email.saved": "E-postkontoer lagret.",
+  "config.email.name_help": "Visningsnavn for kontoen i AuraGo, for eksempel \"Privat\" eller \"Jobb\".",
+  "config.email.imap_host_help": "Adressen til e-postleverandørens innkommende e-postserver (IMAP).",
+  "config.email.smtp_host_help": "Adressen til e-postleverandørens utgående e-postserver (SMTP).",
+  "config.email.username_help": "Brukernavn for IMAP og SMTP, vanligvis hele e-postadressen.",
+  "config.email.password_help": "Passord eller app-passord for kontoen. Det lagres kryptert i Vault.",
+  "config.email.watch_enabled_help": "AuraGo sjekker jevnlig mappen som er valgt nedenfor for ny e-post og kan reagere på den.",
+  "config.email.watch_folder_help": "IMAP-mappen som overvåkes for ny e-post. Standard er INBOX.",
+  "config.email.interval_seconds_help": "Hvor ofte mappen sjekkes, i sekunder (standard 120). Kortere intervaller belaster e-postserveren mer."
 }

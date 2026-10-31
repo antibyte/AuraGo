@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "允许创建、更新和删除 Netlify 站点。",
   "config.netlify.allow_env_management_help": "允许管理 Netlify 站点上的环境变量。",
   "config.netlify.default_site_id_help": "当智能体未指定站点时使用的可选站点 ID。",
-  "config.netlify.team_slug_help": "可选的 Netlify 团队 slug，用于团队范围的 API 调用。"
+  "config.netlify.team_slug_help": "可选的 Netlify 团队 slug，用于团队范围的 API 调用。",
+  "config.netlify.vault_badge": "保险库"
 }

@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "En ogiltig maskering har sparats som inloggningsuppgift. Ersätt eller ta bort den.",
   "config.providers.runtime_incomplete": "Den sparade leverantören är ofullständig eller otillgänglig. Kontrollera modell, adress och inloggningsuppgifter.",
   "config.providers.limit_source_model_only_fallback": "modellbaserad uppskattning från en annan leverantör",
-  "config.providers.missing_references": "Saknade leverantörsval: {paths}. Välj en befintlig leverantör i dessa inställningar."
+  "config.providers.missing_references": "Saknade leverantörsval: {paths}. Välj en befintlig leverantör i dessa inställningar.",
+  "config.providers.search_help": "Filtrerar leverantörslistan efter namn, typ eller modell.",
+  "config.providers.filter_type_help": "Visar bara leverantörer av en viss typ.",
+  "config.providers.filter_role_help": "Visar bara leverantörer som tilldelats en viss uppgift, till exempel huvudmodellen eller embeddings."
 }

@@ -22,7 +22,7 @@
   "config.speech_lab.provider_load_failed": "Nie udało się wczytać listy dostawców. Nie zapisuj zmiany dostawcy, dopóki połączenie nie zostanie przywrócone.",
   "config.speech_lab.active_combination": "Aktywna kombinacja",
   "config.section.speech_lab.label": "Laboratorium mowy",
-  "config.section.speech_lab.desc": "Opcjonalne lokalne rozpoznawanie i synteza mowy dla telefonii i czatu.",
+  "config.section.speech_lab.desc": "Uruchamia opcjonalne lokalne rozpoznawanie i syntezę mowy dla rozmów i czatu.",
   "config.speech_lab.ownership_note": "Speech Lab udostępnia tylko ASR i TTS. Sterowanie rozmową, LLM, narzędzia i pamięć pozostają w AuraGo.",
   "config.speech_lab.enabled": "Włącz Speech Lab",
   "config.speech_lab.enabled_help": "Pozwala AuraGo połączyć się z usługą lokalną. Każdy kanał trzeba włączyć oddzielnie.",

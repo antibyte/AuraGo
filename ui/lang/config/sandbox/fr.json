@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Hôte natif",
   "config.shell_sandbox.ready": "Prêt",
   "config.sandbox.local_python_fallback_label": "Repli Python local",
-  "config.sandbox.local_python_fallback_warning": "Exécute le code dans Python local hors isolation si le sandbox échoue. À activer seulement volontairement."
+  "config.sandbox.local_python_fallback_warning": "Exécute le code dans Python local hors isolation si le sandbox échoue. À activer seulement volontairement.",
+  "config.sandbox.local_python_fallback_help": "Exécute le code localement sur le serveur lorsqu'aucun conteneur n'est disponible. Attention : ce code s'exécute sans isolation par conteneur.",
+  "config.shell_sandbox.enabled_help": "Restreint l'accès au système de fichiers des commandes shell de l'agent grâce à Landlock. Fonctionne uniquement sous Linux avec un noyau adapté.",
+  "config.shell_sandbox.max_memory_help": "Mémoire en Mo qu'une commande peut utiliser au maximum (64-8192, 1024 par défaut).",
+  "config.shell_sandbox.max_cpu_help": "Temps CPU en secondes après lequel une commande est interrompue (5-600, 30 par défaut).",
+  "config.shell_sandbox.max_fsize_help": "Taille maximale en Mo d'un fichier qu'une commande peut écrire (1-4096, 100 par défaut)."
 }

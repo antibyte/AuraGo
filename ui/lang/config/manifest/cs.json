@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Odesílá s požadavky na Manifest další hlavičky, aby Manifest mohl podle vašich úrovní vybrat odpovídající model.",
+  "config.manifest.routing_header_name": "Název hlavičky",
+  "config.manifest.routing_header_value": "Hodnota hlavičky",
+  "config.manifest.routing_headers_help": "Vlastní hlavičky jako dvojice název a hodnota, které AuraGo navíc posílá do Manifestu. Zadávejte jen hodnoty, které smí Manifest vidět.",
+  "config.manifest.routing_specificity_help": "Kategorie, kterou AuraGo posílá s každým požadavkem do Manifestu v režimu „Fixed“.",
+  "config.manifest.routing_specificity_mode_help": "Off neposílá žádnou kategorii, Fixed vždy pošle níže zvolenou, Automatic nechá AuraGo určit kategorii pro každý požadavek."
+}

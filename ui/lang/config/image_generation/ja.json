@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "テスト画像を生成し、ギャラリーに保存しました（1回分を消費）。",
   "config.image_generation.test_failed": "生成に失敗しました",
   "config.image_generation.max_daily_label": "1日あたり最大画像数",
-  "config.image_generation.max_daily_hint": "0 = 無制限"
+  "config.image_generation.max_daily_hint": "0 = 無制限",
+  "config.image_generation.enabled_help": "選択したプロバイダーを使って、エージェントがテキストの説明から画像を作成できるようにします。生成のたびにクォータまたはクレジットを消費します。",
+  "config.image_generation.provider_help": "画像を生成する、プロバイダー管理のプロバイダーです。未選択の場合、この機能は動作しません。",
+  "config.image_generation.size_help": "エージェントが指定しない場合の画像サイズ (ピクセル) です。すべてのプロバイダーがすべてのサイズに対応しているわけではありません。",
+  "config.image_generation.quality_help": "エージェントが指定しない場合の品質レベルです。「hd」はより細部まで描写されますが、通常はコストが高くなります。",
+  "config.image_generation.style_help": "エージェントが指定しない場合の画像スタイルです。「vivid」は「natural」よりも大胆でドラマチックな仕上がりになります。",
+  "config.image_generation.prompt_enhancement_help": "生成の前に言語モデルが説明文を改善します。多くの場合、より良い画像になりますが、モデル呼び出しが 1 回余分にかかります。"
 }

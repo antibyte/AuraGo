@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Raccourcit les longues sorties d'outils avant qu'elles n'atteignent le modèle et économise ainsi des tokens. Les messages d'erreur sont conservés si l'option ci-dessous est activée.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "Compression LZW",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Remplace les morceaux de texte récurrents par de courtes références sans modifier leur ordre. Économise des tokens sur les sorties très répétitives.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Nombre maximal de références créées par sortie. Plus d'entrées trouvent plus de répétitions mais demandent plus de place pour le dictionnaire.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Les sorties plus longues ne sont pas traitées avec cette méthode, afin d'économiser du temps de calcul.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Un morceau de texte n'est remplacé que s'il apparaît au moins ce nombre de fois.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Les morceaux de texte plus courts ne sont jamais remplacés, car la référence prendrait alors plus de place que le texte.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Le résultat n'est utilisé que s'il est plus court que l'original d'au moins ce pourcentage.",
+  "help.agent.output_compression.toon_json.max_rows": "Les tableaux comptant plus de lignes ne sont pas rendus dans le format compact TOON.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "La forme compacte du tableau n'est utilisée que si elle est plus courte que le JSON d'au moins ce pourcentage."
+}

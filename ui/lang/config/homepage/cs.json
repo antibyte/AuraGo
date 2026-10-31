@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Cesta k pracovnímu prostoru",
   "config.homepage.workspace_path_missing_warning": "Webový server je povolen, ale cesta k pracovnímu prostoru není nastavena. Zadejte absolutní cestu hostitele k projektu (např. /home/aurago/aurago/agent_workspace/homepage) nebo použijte automatické rozpoznání.",
   "config.homepage.workspace_relative_hint": "Uvnitř volání nástrojů domovské stránky ponechte project_dir a cestu relativně k tomuto pracovnímu prostoru, například 'my-site' nebo 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Pracovní prostor"
+  "config.homepage.workspace_title": "Pracovní prostor",
+  "config.homepage.circuit_breaker_max_calls_help": "Kolik volání nástrojů smí agent provést v jedné relaci homepage, než ho AuraGo zastaví (1–100, výchozí 35).",
+  "config.homepage.deploy_key_help": "Soukromý klíč SSH (PEM) pro nasazovací server. Je uložen v šifrovaném vault a nahrazuje heslo.",
+  "config.homepage.deploy_password_help": "Heslo SSH pro nasazovací server. Je uloženo v šifrovaném vault; raději použijte klíč SSH.",
+  "config.homepage.vault_badge": "vault"
 }

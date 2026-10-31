@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "前回の試行：{result}",
   "config.newspaper.max_searches": "1号あたりの検索上限（再試行を含む）",
   "config.section.newspaper.label": "新聞",
-  "config.section.newspaper.desc": "個人的な情報源に基づいた日刊版",
+  "config.section.newspaper.desc": "出典付きの調査から、パーソナルな日刊新聞を作成します。",
   "config.newspaper.enabled": "新聞を有効にする",
   "config.newspaper.readonly": "読み取り専用モード",
   "config.newspaper.allow_email": "メール配信を許可する",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "金額上限は引き続き適用されます。",
   "config.newspaper.monetary_budget_disabled": "金額上限は未設定ですが、調査上限は適用されます。",
   "config.newspaper.fixed_budget_note": "固定上限では紙面全体で {pages} ページを共有します。",
-  "config.newspaper.fixed_limits_only": "この上限は固定モードでのみ適用されます。"
+  "config.newspaper.fixed_limits_only": "この上限は固定モードでのみ適用されます。",
+  "config.newspaper.enabled_help": "デスクトップが毎日、指定したトピックについて調査して新聞を編集できるようにします。トピックはデスクトップで設定します。",
+  "config.newspaper.readonly_help": "新聞は読み取りと表示のみ可能で、送信や変更はできません。",
+  "config.newspaper.allow_email_help": "完成した号をメールで送信できるようにします。そのためにはメールアカウントの設定が必要です。",
+  "config.newspaper.allow_telegram_help": "完成した号を Telegram で送信できるようにします。そのためには Telegram の設定が必要です。",
+  "config.newspaper.max_minutes_help": "1 号分の調査にかけられる最大時間です (1 ～ 60 分、デフォルト 30)。",
+  "config.newspaper.max_pages_help": "1 号あたりに読み込む Web ページの最大数です (1 ～ 60、デフォルト 60)。",
+  "config.newspaper.max_searches_help": "再試行を含め、1 号あたりに実行する検索クエリの最大数です (1 ～ 64、デフォルト 32)。",
+  "config.newspaper.max_editions_help": "保存しておく完成済みの号の数です。古いものは削除されます (30 ～ 3650、デフォルト 365)。"
 }

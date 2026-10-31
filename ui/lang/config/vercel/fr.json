@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Autorise l’ajout, la mise à jour et la suppression de domaines Vercel.",
   "config.vercel.default_project_id_help": "ID de projet optionnel utilisé si l’agent ne précise pas de projet.",
   "config.vercel.team_id_help": "ID d’équipe Vercel optionnel pour les appels API d’équipe.",
-  "config.vercel.team_slug_help": "Slug d’équipe Vercel optionnel pour les appels API d’équipe."
+  "config.vercel.team_slug_help": "Slug d’équipe Vercel optionnel pour les appels API d’équipe.",
+  "config.vercel.vault_badge": "vault"
 }

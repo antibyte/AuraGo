@@ -22,7 +22,7 @@
   "config.speech_lab.provider_load_failed": "Seznam poskytovatelů se nepodařilo načíst. Než se připojení obnoví, změnu poskytovatele neukládejte.",
   "config.speech_lab.active_combination": "Aktivní kombinace",
   "config.section.speech_lab.label": "Laboratoř řeči",
-  "config.section.speech_lab.desc": "Volitelné místní rozpoznávání a syntéza řeči pro telefonii a chat.",
+  "config.section.speech_lab.desc": "Provozuje volitelné místní rozpoznávání a syntézu řeči pro hovory a chat.",
   "config.speech_lab.ownership_note": "Speech Lab poskytuje pouze ASR a TTS. Řízení konverzace, LLM, nástroje a paměť zůstávají v AuraGo.",
   "config.speech_lab.enabled": "Povolit Speech Lab",
   "config.speech_lab.enabled_help": "Umožní AuraGo připojit se k místní službě. Každý kanál je nutné povolit samostatně.",

@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 desactiva el servidor HTTP. Para HTTP-01 de Let’s Encrypt, elige 80 y permite el acceso al puerto público 80.",
   "config.server.restart_address": "Después de reiniciar, abre:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.behind_proxy_hint": "Actívalo cuando un proxy inverso termina el TLS. Solo las direcciones de la lista de abajo pueden establecer cabeceras forwarded. Si se configura mal, las direcciones de cliente pueden falsificarse.",
+  "config.server.cert_file_hint": "Ruta del archivo de certificado en formato PEM, relativa al directorio de AuraGo o absoluta.",
+  "config.server.cert_mode_hint": "De dónde procede el certificado TLS: automáticamente de Let's Encrypt, de tus propios archivos o un certificado autofirmado para pruebas locales.",
+  "config.server.cert_status_sans": "Nombres alternativos del sujeto (SAN)",
+  "config.server.domain_hint": "Nombre de dominio público para el que se emite el certificado. Debe apuntar a este servidor.",
+  "config.server.email_hint": "Dirección de contacto para Let's Encrypt, por ejemplo para avisos de caducidad. Solo se envía a la autoridad de certificación.",
+  "config.server.host_hint": "Dirección de red en la que escucha AuraGo. Vacío o 0.0.0.0 = todas las interfaces, 127.0.0.1 = solo esta máquina. Tras cambiarla hace falta reiniciar.",
+  "config.server.https_port_hint": "Puerto para conexiones cifradas (por defecto 443). Los puertos por debajo de 1024 requieren permisos de root o una capability adecuada en Linux.",
+  "config.server.key_file_hint": "Ruta de la clave privada en formato PEM. El archivo solo debería ser legible por la cuenta de AuraGo.",
+  "config.server.port_hint": "Puerto TCP de la interfaz web y la API (por defecto 8088). Tras cambiarlo hace falta reiniciar.",
+  "config.server.ui_language_hint": "Idioma de la interfaz web y de los mensajes del sistema. Se aplica a todos los usuarios de esta instancia."
 }

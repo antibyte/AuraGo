@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Regelbibliotek",
   "config.rules.disabled": "Deaktivert",
   "config.rules.targeting": "Matchende mål",
-  "config.rules.system_status": "Regelsystem"
+  "config.rules.system_status": "Regelsystem",
+  "config.rules.rule_id_help": "Kort unikt navn på regelen, for eksempel homepage. Det kan ikke endres etter opprettelsen.",
+  "config.rules.rule_title_help": "Lesbart navn som vises i regelbiblioteket.",
+  "config.rules.priority_help": "Når flere regler passer, injiseres høyere tall først. Standard 50.",
+  "config.rules.enabled_help": "Avslåtte regler injiseres aldri i oppgaver.",
+  "config.rules.tools_help": "Verktøynavn som aktiverer denne regelen, adskilt med komma. Velg et verktøy nedenfor for å legge det til.",
+  "config.rules.workflows_help": "Arbeidsflytnavn som aktiverer denne regelen, adskilt med komma. Velg en arbeidsflyt nedenfor for å legge den til.",
+  "config.rules.keywords_help": "Ord i oppgaveteksten som aktiverer denne regelen, adskilt med komma.",
+  "config.rules.body_help": "Teksten til rekkverket i Markdown. Den injiseres før en passende oppgave begynner."
 }

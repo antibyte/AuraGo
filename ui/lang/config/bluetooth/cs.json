@@ -1,6 +1,6 @@
 {
   "config.section.bluetooth.label": "Bluetooth",
-  "config.section.bluetooth.desc": "Zařízení Bluetooth a cílený zvukový výstup přes Linux BlueZ.",
+  "config.section.bluetooth.desc": "Spravuje zařízení Bluetooth a zvukový výstup přes Linux BlueZ.",
   "dashboard.integration_bluetooth": "Bluetooth",
   "config.bluetooth.loading": "Zařízení Bluetooth a cílený zvukový výstup přes Linux BlueZ.",
   "config.bluetooth.enabled": "Povoleno",

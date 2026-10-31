@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Sin dispositivos",
   "config.remote_control.no_platforms": "No hay plataformas disponibles",
   "config.remote_control.platforms_error": "Error al cargar plataformas",
-  "config.remote_control.read_only_label": "Modo solo lectura (bloquea escrituras, eliminaciones y comandos shell en todos los dispositivos)",
+  "config.remote_control.read_only_label": "Modo de solo lectura",
   "config.remote_control.security_desc": "Controla el registro de dispositivos y el registro de auditoría.",
   "config.remote_control.security_title": "Seguridad",
-  "config.remote_control.ssh_insecure_host_key_label": "Permitir clave de host SSH insegura (⚠️ deshabilita protección MITM, usar solo en redes de confianza)",
+  "config.remote_control.ssh_insecure_host_key_label": "Permitir clave de host SSH insegura",
   "config.remote_control.status_connected": "Conectado",
   "config.remote_control.status_offline": "Desconectado",
   "config.security_proxy.status_loading": "Cargando…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Se requiere actualizar el cliente",
   "config.remote_control.confirm_removal": "¿Desconectar el dispositivo y cancelar sus órdenes en curso? Para volver a vincularlo se necesita un token nuevo.",
   "config.remote_control.paths_inherit": "Una ruta por línea. Una lista de rutas vacía para este dispositivo hereda las rutas globales. Si ambas listas están vacías, se deniega el acceso a archivos.",
-  "config.remote_control.security_hint": "Se requieren WSS y un certificado válido, también con Tailscale. Actualiza los clientes clásicos antes del servidor. Los tokens caducan en una hora y solo pueden usarse una vez."
+  "config.remote_control.security_hint": "Se requieren WSS y un certificado válido, también con Tailscale. Actualiza los clientes clásicos antes del servidor. Los tokens caducan en una hora y solo pueden usarse una vez.",
+  "config.remote_control.audit_log_help": "Registra cada acción en los dispositivos remotos. Se recomienda para poder rastrear los accesos más adelante.",
+  "config.remote_control.device_name_help": "Nombre opcional del dispositivo en el que se ejecuta el cliente. Se transmite al descargar.",
+  "config.remote_control.enabled_help": "Activa el control remoto. Solo entonces pueden conectarse los dispositivos emparejados y acceder a ellos el agente.",
+  "config.remote_control.enrollment_device_name_help": "Nombre opcional del dispositivo nuevo. Se define al crear el token de emparejamiento.",
+  "config.remote_control.max_file_size_help": "Archivo más grande en MB permitido en una transferencia (1-500, por defecto 50).",
+  "config.remote_control.read_only_help": "Bloquea la escritura de archivos, los borrados y los comandos de shell en todos los dispositivos. La lectura sigue siendo posible.",
+  "config.remote_control.ssh_insecure_host_key_help": "Advertencia: desactiva la comprobación de la clave de host SSH y con ella la protección contra ataques de intermediario. Actívalo solo en una red de total confianza."
 }

@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "Timeout připojení v sekundách (výchozí: 10)",
   "help.obsidian.request_timeout": "Timeout požadavku v sekundách (výchozí: 30)",
   "config.obsidian.status_unknown": "Neznámý stav",
-  "config.obsidian.status_no_url": "Není nastaven hostitel"
+  "config.obsidian.status_no_url": "Není nastaven hostitel",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

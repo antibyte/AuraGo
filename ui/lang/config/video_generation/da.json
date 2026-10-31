@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Videogenerering aktiveret:",
   "config.video_gen.aspect_ratio_label": "Billedformat",
   "config.video_gen.test_btn": "Test forbindelse",
-  "config.video_gen.disabled_desc": "Aktiver kontakten ovenfor, så agenten kan generere videoer."
+  "config.video_gen.disabled_desc": "Aktiver kontakten ovenfor, så agenten kan generere videoer.",
+  "config.video_gen.aspect_ratio_help": "Billedformat, når agenten ikke angiver et, f.eks. 16:9 for landskab og 9:16 for portræt.",
+  "config.video_gen.duration_help": "Klippets længde i sekunder (1-30, standard 6), når agenten ikke angiver en. Længere klip koster mere.",
+  "config.video_gen.enabled_help": "Lader agenten oprette videoer med den valgte udbyder. Hver generering bruger kvote eller kredit.",
+  "config.video_gen.max_daily_help": "Maksimalt antal videoer pr. dag. 0 betyder ubegrænset.",
+  "config.video_gen.poll_interval_help": "Hvor ofte AuraGo spørger udbyderen om status på et videojob (1-120 sekunder, standard 10).",
+  "config.video_gen.provider_help": "Udbyder fra Udbyderstyring, som opretter videoerne.",
+  "config.video_gen.resolution_help": "Opløsning, når agenten ikke angiver en. De tilgængelige værdier afhænger af udbyderen.",
+  "config.video_gen.timeout_help": "Efter denne tid holder AuraGo op med at vente på en video (30-3600 sekunder, standard 600)."
 }

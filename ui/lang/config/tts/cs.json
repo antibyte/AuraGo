@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Stáhnout",
   "config.tts.phonon_downloading": "Stahování …",
   "config.tts.phonon_catalog_error": "Katalog hlasů se nepodařilo načíst.",
-  "config.tts.phonon_download_error": "Stahování selhalo. Předchozí volba hlasu zůstává zachována."
+  "config.tts.phonon_download_error": "Stahování selhalo. Předchozí volba hlasu zůstává zachována.",
+  "config.tts.api_key_help": "Klíč API z vašeho účtu u poskytovatele. Je uložen šifrovaně ve vault.",
+  "config.tts.cloud_voice_help": "Hlas, kterým poskytovatel text mluví.",
+  "config.tts.phonon_catalog_help": "Filtruje níže uvedený seznam hlasů podle jazyka. Nemění hlas zvolený výše.",
+  "config.tts.piper_data_path_help": "Složka pro stažené hlasy, relativně k adresáři AuraGo (výchozí data/piper).",
+  "config.tts.piper_image_help": "Image Dockeru, ze kterého se spouští kontejner Piper. Měňte jen při použití vlastního image.",
+  "config.tts.piper_port_help": "Port, na kterém kontejner Piper interně naslouchá (výchozí 10200).",
+  "config.tts.supertonic_container_name_help": "Název kontejneru Docker. Měňte jen tehdy, pokud je výchozí název již obsazen.",
+  "config.tts.supertonic_data_path_help": "Složka pro modely a data kontejneru, relativně k adresáři AuraGo (výchozí data/supertonic).",
+  "config.tts.supertonic_image_help": "Image Dockeru, ze kterého se spouští kontejner Supertonic. Měňte jen při použití vlastního image.",
+  "config.tts.supertonic_port_help": "Port, na kterém kontejner Supertonic interně naslouchá (výchozí 7788).",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_piper": "Piper TTS (místní Docker)",
+  "config.tts.title_supertonic": "Supertonic TTS (místní Docker)"
 }

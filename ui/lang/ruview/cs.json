@@ -363,5 +363,12 @@
   "ruview.lab_back": "← Laboratoř",
   "ruview.lab_frame_title_observatory": "Observatoř (experimentální, anglicky)",
   "ruview.lab_frame_title_pose_fusion": "Fúze pozic (experimentální, anglicky)",
-  "ruview.lab_frame_title_dashboard": "Původní přehled dat RuView (experimentální, anglicky)"
+  "ruview.lab_frame_title_dashboard": "Původní přehled dat RuView (experimentální, anglicky)",
+  "ruview.enabled_help": "Zapne integraci RuView. Bez ní zůstává detekce pohybu ze signálů Wi-Fi vypnutá.",
+  "ruview.url_help": "Adresa běžící služby RuView, například http://192.168.1.20:3000.",
+  "ruview.allow_private_help": "Povolí připojení na adresy v soukromé síti. Potřebné, pokud RuView běží ve stejné domácí síti. Povolte jen tehdy, pokud cíli důvěřujete.",
+  "ruview.http_port_help": "Port, na kterém kontejner RuView spravovaný AuraGo poskytuje své webové rozhraní (1024–65534, výchozí 3022).",
+  "ruview.storage_help": "Místo na disku v MiB, které smí RuView použít pro naměřená data (64–1048576, výchozí 1024). Starší data se podle potřeby zahazují.",
+  "ruview.udp_port_help": "Port UDP, na kterém RuView přijímá měření ze senzorů ESP32 (1024–65535, výchozí 5005). Senzory musí používat stejný port.",
+  "ruview.udp_bind_help": "Adresa IPv4 síťové karty, která přijímá měření. Nechte prázdné, aby adresu zvolil RuView."
 }

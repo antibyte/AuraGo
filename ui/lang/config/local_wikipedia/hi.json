@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "मीडिया के साथ",
   "config.local_wikipedia.variant_nopic": "मीडिया के बिना",
   "config.local_wikipedia.warning_size": "भाषा और प्रकार के अनुसार एक संस्करण को 130 GB तक चाहिए और डाउनलोड में घंटों लग सकते हैं।",
-  "config.section.local_wikipedia.desc": "एजेंट और डेस्कटॉप के लिए ऑफ़लाइन विकिपीडिया, एक डाउनलोड किए गए Kiwix संस्करण से पढ़ा गया।",
+  "config.section.local_wikipedia.desc": "डाउनलोड किए गए Kiwix संस्करण से एजेंट और डेस्कटॉप को ऑफ़लाइन Wikipedia उपलब्ध कराता है।",
   "config.section.local_wikipedia.label": "स्थानीय विकिपीडिया",
   "help.local_wikipedia.agent_access": "एजेंट को इंस्टॉल किए गए संस्करण में खोजने और उसे पढ़ने देता है।",
   "help.local_wikipedia.data_dir": "संस्करण के लिए पूर्ण पथ। AuraGo के डेटा फ़ोल्डर में wikipedia फ़ोल्डर उपयोग करने के लिए खाली छोड़ें।",

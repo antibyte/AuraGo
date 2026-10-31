@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Nativ värd",
   "config.shell_sandbox.ready": "Redo",
   "config.sandbox.local_python_fallback_label": "Lokal Python-reserv",
-  "config.sandbox.local_python_fallback_warning": "Kör kod i lokal Python utanför isoleringen om sandlådan misslyckas. Aktivera bara medvetet."
+  "config.sandbox.local_python_fallback_warning": "Kör kod i lokal Python utanför isoleringen om sandlådan misslyckas. Aktivera bara medvetet.",
+  "config.sandbox.local_python_fallback_help": "Kör kod lokalt på servern när ingen container är tillgänglig. Varning: koden körs utan containerisolering.",
+  "config.shell_sandbox.enabled_help": "Begränsar filsystemsåtkomsten för agentens shell-kommandon med hjälp av Landlock. Fungerar bara på Linux med en lämplig kärna.",
+  "config.shell_sandbox.max_memory_help": "Minne i MB som ett kommando får använda som mest (64-8192, standard 1024).",
+  "config.shell_sandbox.max_cpu_help": "CPU-tid i sekunder efter vilken ett kommando avbryts (5-600, standard 30).",
+  "config.shell_sandbox.max_fsize_help": "Största fil i MB som ett kommando får skriva (1-4096, standard 100)."
 }

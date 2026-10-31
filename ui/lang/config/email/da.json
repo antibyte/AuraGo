@@ -60,5 +60,13 @@
   "config.email.load_failed": "E-mailkonti kunne ikke indlæses",
   "config.email.load_failed_disabled": "Tilføjelse, redigering og sletning er deaktiveret, indtil listen er indlæst.",
   "config.email.retry": "Prøv igen",
-  "config.email.saved": "E-mailkonti gemt."
+  "config.email.saved": "E-mailkonti gemt.",
+  "config.email.imap_host_help": "Adressen på din mailudbyders indgående mailserver (IMAP).",
+  "config.email.interval_seconds_help": "Hvor ofte mappen kontrolleres, i sekunder (standard 120). Kortere intervaller belaster mailserveren mere.",
+  "config.email.name_help": "Kontoens visningsnavn i AuraGo, f.eks. \"Privat\" eller \"Arbejde\".",
+  "config.email.password_help": "Kontoens adgangskode eller app-adgangskode. Den gemmes krypteret i vault.",
+  "config.email.smtp_host_help": "Adressen på din mailudbyders udgående mailserver (SMTP).",
+  "config.email.username_help": "Brugernavn til IMAP og SMTP, normalt den fulde mailadresse.",
+  "config.email.watch_enabled_help": "AuraGo tjekker jævnligt den mappe, du vælger nedenfor, for ny mail og kan reagere på den.",
+  "config.email.watch_folder_help": "IMAP-mappe, der overvåges for ny mail. Standard er INBOX."
 }

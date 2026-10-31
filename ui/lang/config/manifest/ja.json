@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Manifest へのリクエストに追加ヘッダーを付けて送信し、Manifest がティア設定に従って適切なモデルを選べるようにします。",
+  "config.manifest.routing_specificity_mode_help": "「オフ」はカテゴリを送信せず、「固定」は下で選んだカテゴリを常に送信し、「自動」はリクエストごとに AuraGo がカテゴリを判定します。",
+  "config.manifest.routing_specificity_help": "「固定」モードで、AuraGo がリクエストごとに Manifest へ送信するカテゴリです。",
+  "config.manifest.routing_headers_help": "AuraGo が Manifest に追加で送信する、名前と値のペアのカスタムヘッダーです。Manifest に見せてよい値だけを入力してください。",
+  "config.manifest.routing_header_name": "ヘッダー名",
+  "config.manifest.routing_header_value": "ヘッダーの値"
+}

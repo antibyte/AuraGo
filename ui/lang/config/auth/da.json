@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Indtast den aktuelle kode fra din godkendelsesapp.",
   "config.auth.step_up_hint": "Ændringer af login-adgangskoden eller totrinsgodkendelsen kræver din nuværende adgangskode (og den aktuelle kode, mens TOTP er aktiv).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Prøv igen"
+  "config.auth.retry": "Prøv igen",
+  "config.auth.confirmation_code_help": "Indtast den 6-cifrede kode, som din autentificeringsapp viser lige nu.",
+  "config.auth.current_totp_help": "Den 6-cifrede kode, som din autentificeringsapp viser lige nu.",
+  "config.auth.new_password_help": "Brug mindst 8 tegn. En lang, unik adgangssætning er sikrest.",
+  "config.auth.webauthn_enabled_help": "Aktiverer login med passkey og sikkerhedsnøgler. Registrer en nøgle først, og test et login, før du stoler på det.",
+  "config.auth.webauthn_key_name_help": "Et navn, der hjælper dig med at genkende denne nøgle senere, f.eks. Laptop eller YubiKey.",
+  "config.auth.webauthn_rpid_help": "Det domænenavn, dine nøgler er bundet til, f.eks. aurago.example.test. Hvis du ændrer det, fjernes alle registrerede nøgler."
 }

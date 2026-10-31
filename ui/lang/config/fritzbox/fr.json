@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Port de l’interface web",
   "config.fritzbox.insecure_skip_verify_label": "Autoriser le certificat autosigné",
   "help.fritzbox.web_port": "Port optionnel pour la connexion et les requêtes Smart Home. Laisse 0 pour utiliser 80 ou 443.",
-  "help.fritzbox.insecure_skip_verify": "Autorise HTTPS avec un certificat Fritz!Box autosigné. À utiliser seulement sur ton réseau domestique de confiance."
+  "help.fritzbox.insecure_skip_verify": "Autorise HTTPS avec un certificat Fritz!Box autosigné. À utiliser seulement sur ton réseau domestique de confiance.",
+  "config.fritzbox.feature_enabled_help": "L'agent peut utiliser les fonctions « {feature} » de la Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "Pour « {feature} », l'agent ne peut que lire des valeurs et ne peut rien modifier sur la Fritz!Box.",
+  "config.fritzbox.polling_enabled_help": "Interroge régulièrement la Fritz!Box pour détecter de nouveaux appels afin qu'AuraGo puisse y réagir.",
+  "config.fritzbox.polling_interval_help": "Intervalle entre les requêtes en secondes (10-3600, 60 par défaut). Des intervalles plus courts réagissent plus vite mais sollicitent davantage la Fritz!Box."
 }

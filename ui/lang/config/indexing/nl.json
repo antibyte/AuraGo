@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Afbeeldingen worden alleen verzonden voor mappen waarvoor mediadeling in de lijst hierboven is ingeschakeld.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "Te bewaken map",
+  "config.indexing.dir_help": "Map waarvan de bestanden worden geïndexeerd, als absoluut pad of relatief aan de AuraGo-map. Submappen worden meegenomen. Voeg toe met de knop of Enter.",
+  "config.indexing.chunk_max_chars_help": "Maximale lengte van één tekstchunk in tekens. Kleinere chunks geven nauwkeurigere treffers, grotere meer context. Standaard: 3500.",
+  "config.indexing.chunk_overlap_help": "Tekens die naburige chunks delen, zodat zinnen aan de randen niet worden afgekapt. Standaard: 200.",
+  "config.indexing.chunk_max_chunks_help": "Maximaal aantal chunks per bestand; de rest van zeer grote bestanden wordt overgeslagen. Standaard: 200."
 }

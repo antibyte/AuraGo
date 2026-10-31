@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Välj fusklapp",
   "config.co_agents.spec_cheatsheet_loading": "Laddar…",
   "config.co_agents.spec_cheatsheet_empty": "Inga aktiva fusklappar tillgängliga.",
-  "config.co_agents.spec_cheatsheet_error": "Kunde inte ladda fusklappar."
+  "config.co_agents.spec_cheatsheet_error": "Kunde inte ladda fusklappar.",
+  "config.co_agents.provider_help": "Modell som sam-agenterna använder. Utan val använder de huvud-LLM:en.",
+  "config.co_agents.cb_max_tool_calls_help": "Hur många verktygsanrop en sam-agent får göra per uppgift innan den stoppas (standard 10).",
+  "config.co_agents.cb_timeout_help": "Maximal körtid för en sam-agent i sekunder (standard 300).",
+  "config.co_agents.cb_max_tokens_help": "Övre gräns för antal tokens per uppgift. 0 = obegränsat.",
+  "config.co_agents.spec_provider_help": "Egen modell enbart för den här rollen. Utan val gäller sam-agenternas leverantör.",
+  "config.co_agents.spec_additional_prompt_help": "Extra instruktioner som läggs till i systemprompten för den här rollen."
 }

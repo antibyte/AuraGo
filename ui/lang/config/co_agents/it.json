@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Seleziona foglio di riferimento",
   "config.co_agents.spec_cheatsheet_loading": "Caricamento…",
   "config.co_agents.spec_cheatsheet_empty": "Nessun foglio di riferimento attivo disponible.",
-  "config.co_agents.spec_cheatsheet_error": "Impossibile caricare i fogli di riferimento."
+  "config.co_agents.spec_cheatsheet_error": "Impossibile caricare i fogli di riferimento.",
+  "config.co_agents.provider_help": "Modello usato dai co-agenti. Senza selezione usano l'LLM principale.",
+  "config.co_agents.cb_max_tool_calls_help": "Quante chiamate a strumenti può effettuare un co-agente per attività prima di essere fermato (predefinito 10).",
+  "config.co_agents.cb_timeout_help": "Tempo di esecuzione massimo di un co-agente in secondi (predefinito 300).",
+  "config.co_agents.cb_max_tokens_help": "Limite massimo di token usati per attività. 0 = illimitato.",
+  "config.co_agents.spec_provider_help": "Modello dedicato solo a questo ruolo. Senza selezione vale il provider dei co-agenti.",
+  "config.co_agents.spec_additional_prompt_help": "Istruzioni aggiuntive accodate al prompt di sistema di questo ruolo."
 }

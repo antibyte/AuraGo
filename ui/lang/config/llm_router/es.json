@@ -1,0 +1,7 @@
+{
+  "common.llm_router.area_help": "Proveedor y modelo para las solicitudes del área «{area}». «Modelo predeterminado» usa el modelo activo.",
+  "common.llm_router.enabled_hint": "Elige automáticamente un modelo adecuado para cada tarea. Sin esto AuraGo usa siempre el modelo principal activo.",
+  "common.llm_router.preview_text_hint": "Una tarea de ejemplo con tus propias palabras. Solo se clasifica, no se ejecuta.",
+  "common.llm_router.quota_hint": "Límite máximo de clasificaciones por hora del modelo auxiliar (0 a 120, por defecto 20). 0 las desactiva. Cada llamada puede generar cargos.",
+  "common.llm_router.timeout_hint": "Cuánto tiempo (en milisegundos, 250 a 5000, por defecto 1500) puede tardar la clasificación de una tarea antes de que se aplique la elección por defecto."
+}

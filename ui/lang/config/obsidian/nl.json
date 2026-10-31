@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "Verbindingstime-out in seconden (standaard: 10)",
   "help.obsidian.request_timeout": "Aanvraagtime-out in seconden (standaard: 30)",
   "config.obsidian.status_unknown": "Onbekende status",
-  "config.obsidian.status_no_url": "Geen host geconfigureerd"
+  "config.obsidian.status_no_url": "Geen host geconfigureerd",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

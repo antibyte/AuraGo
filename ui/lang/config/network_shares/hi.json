@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "स्थानीय नेटवर्क शेयर",
-  "config.section.network_shares.desc": "इस होस्ट द्वारा दिए गए SMB और NFS शेयर प्रबंधित करें।",
+  "config.section.network_shares.desc": "इस होस्ट द्वारा उपलब्ध कराए गए SMB और NFS शेयर प्रबंधित करता है।",
   "dashboard.integration_network_shares": "स्थानीय नेटवर्क शेयर",
   "config.network_shares.loading": "स्थानीय SMB और NFS क्षमताएँ पढ़ी जा रही हैं…",
   "config.network_shares.enabled": "एकीकरण सक्षम करें",

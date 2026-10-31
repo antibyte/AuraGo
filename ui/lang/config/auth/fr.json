@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Saisissez le code actuel de votre application d'authentification.",
   "config.auth.step_up_hint": "Les modifications du mot de passe de connexion ou de l'authentification à deux facteurs nécessitent votre mot de passe actuel (et le code actuel lorsque TOTP est actif).",
   "config.auth.status_load_failed": "Impossible de charger l'état de connexion",
-  "config.auth.retry": "Réessayer"
+  "config.auth.retry": "Réessayer",
+  "config.auth.new_password_help": "Utilisez au moins 8 caractères. Une phrase secrète longue et unique est la plus sûre.",
+  "config.auth.confirmation_code_help": "Saisissez le code à 6 chiffres que votre application d'authentification affiche en ce moment.",
+  "config.auth.current_totp_help": "Le code à 6 chiffres que votre application d'authentification affiche en ce moment.",
+  "config.auth.webauthn_enabled_help": "Active la connexion par clé d'accès et clé de sécurité. Enregistrez d'abord une clé et testez une connexion avant de vous y fier.",
+  "config.auth.webauthn_rpid_help": "Le nom de domaine auquel vos clés sont liées, par exemple aurago.example.test. Le modifier supprime toutes les clés enregistrées.",
+  "config.auth.webauthn_key_name_help": "Un nom qui vous aide à reconnaître cette clé plus tard, par exemple Laptop ou YubiKey."
 }

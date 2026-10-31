@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Introduce el código actual de tu aplicación de autenticación.",
   "config.auth.step_up_hint": "Los cambios en la contraseña de inicio de sesión o en la autenticación de dos factores requieren tu contraseña actual (y el código actual mientras TOTP esté activo).",
   "config.auth.status_load_failed": "No se pudo cargar el estado de inicio de sesión",
-  "config.auth.retry": "Reintentar"
+  "config.auth.retry": "Reintentar",
+  "config.auth.confirmation_code_help": "Introduce el código de 6 dígitos que muestra ahora tu aplicación de autenticación.",
+  "config.auth.current_totp_help": "El código de 6 dígitos que muestra ahora tu aplicación de autenticación.",
+  "config.auth.new_password_help": "Usa al menos 8 caracteres. Una frase de contraseña larga y única es lo más seguro.",
+  "config.auth.webauthn_enabled_help": "Activa el inicio de sesión con passkey y llaves de seguridad. Registra primero una llave y prueba un inicio de sesión antes de depender de ello.",
+  "config.auth.webauthn_key_name_help": "Un nombre que te ayude a reconocer esta llave más adelante, por ejemplo Portátil o YubiKey.",
+  "config.auth.webauthn_rpid_help": "El nombre de dominio al que están vinculadas tus llaves, por ejemplo aurago.example.test. Cambiarlo elimina todas las llaves registradas."
 }

@@ -1,0 +1,12 @@
+{
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "Συμπίεση LZW",
+  "config.output_compression.enabled_help": "Συντομεύει μεγάλες εξόδους εργαλείων πριν φτάσουν στο μοντέλο και έτσι εξοικονομεί tokens. Τα μηνύματα σφάλματος διατηρούνται όταν η παρακάτω επιλογή είναι ενεργή.",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Αντικαθιστά επαναλαμβανόμενα τμήματα κειμένου με σύντομες αναφορές χωρίς να αλλάζει η σειρά τους. Εξοικονομεί tokens σε έξοδο με πολλές επαναλήψεις.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Μέγιστος αριθμός αναφορών που δημιουργούνται ανά έξοδο. Περισσότερες καταχωρίσεις βρίσκουν περισσότερες επαναλήψεις αλλά χρειάζονται περισσότερο χώρο για το λεξικό.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Οι μεγαλύτερες έξοδοι δεν επεξεργάζονται με αυτή τη μέθοδο, για εξοικονόμηση υπολογιστικού χρόνου.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Ένα τμήμα κειμένου αντικαθίσταται μόνο αν εμφανίζεται τουλάχιστον τόσες φορές.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Τα μικρότερα τμήματα κειμένου δεν αντικαθίστανται ποτέ, επειδή η αναφορά θα έπιανε περισσότερο χώρο από το κείμενο.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Το αποτέλεσμα χρησιμοποιείται μόνο αν είναι τουλάχιστον τόσο τοις εκατό μικρότερο από το πρωτότυπο.",
+  "help.agent.output_compression.toon_json.max_rows": "Πίνακες με περισσότερες γραμμές δεν αποδίδονται στη συμπαγή μορφή TOON.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "Η συμπαγής μορφή πίνακα χρησιμοποιείται μόνο αν είναι τουλάχιστον τόσο τοις εκατό μικρότερη από το JSON."
+}

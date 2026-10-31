@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "没有设备",
   "config.remote_control.no_platforms": "没有可用的平台",
   "config.remote_control.platforms_error": "加载平台时出错",
-  "config.remote_control.read_only_label": "只读模式（阻止所有设备上的文件写入、删除和 Shell 命令）",
+  "config.remote_control.read_only_label": "只读模式",
   "config.remote_control.security_desc": "控制设备注册和审计日志。",
   "config.remote_control.security_title": "安全",
-  "config.remote_control.ssh_insecure_host_key_label": "允许不安全的SSH主机密钥（⚠️ 禁用MITM防护，仅在受信任网络中使用）",
+  "config.remote_control.ssh_insecure_host_key_label": "允许不安全的 SSH 主机密钥",
   "config.remote_control.status_connected": "已连接",
   "config.remote_control.status_offline": "离线",
   "config.security_proxy.status_loading": "加载中…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "需要更新客户端",
   "config.remote_control.confirm_removal": "断开此设备并取消正在执行的命令？重新配对需要新的令牌。",
   "config.remote_control.paths_inherit": "每行一个路径。此设备的路径列表为空时继承全局路径。两个路径列表都为空时，禁止访问文件。",
-  "config.remote_control.security_hint": "即使通过 Tailscale，也必须使用 WSS 和有效证书。请先更新传统客户端，再更新服务器。令牌一小时后过期，并且只能使用一次。"
+  "config.remote_control.security_hint": "即使通过 Tailscale，也必须使用 WSS 和有效证书。请先更新传统客户端，再更新服务器。令牌一小时后过期，并且只能使用一次。",
+  "config.remote_control.enabled_help": "启用远程控制。只有这样，已配对的设备才能连接，代理才能访问它们。",
+  "config.remote_control.read_only_help": "在所有设备上阻止文件写入、删除和 Shell 命令。仍可读取。",
+  "config.remote_control.audit_log_help": "记录对远程设备执行的每项操作。建议启用，以便日后追溯访问记录。",
+  "config.remote_control.ssh_insecure_host_key_help": "警告：关闭 SSH 主机密钥检查，同时也就关闭了对中间人攻击的防护。仅在您完全信任的网络中启用。",
+  "config.remote_control.max_file_size_help": "一次传输允许的最大文件，单位为 MB（1-500，默认 50）。",
+  "config.remote_control.enrollment_device_name_help": "新设备的可选名称。它在创建配对令牌时设置。",
+  "config.remote_control.device_name_help": "客户端所在设备的可选名称。下载时会一并传递。"
 }

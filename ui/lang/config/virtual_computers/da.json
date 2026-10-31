@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtuelle computere",
-  "config.section.virtual_computers.desc": "Engangs-microVM-computere med terminal, skrivebord, forhåndsvisninger og agentadgang.",
+  "config.section.virtual_computers.desc": "Giver engangs-microVM-computere med terminal, skrivebord og agentadgang.",
   "config.virtual_computers.enabled_label": "Aktivér virtuelle computere",
   "config.virtual_computers.disabled_notice": "Virtuelle computere er deaktiveret.",
   "config.virtual_computers.disabled_desc": "Aktivér integrationen for at starte og proxye boring-computers-maskiner.",

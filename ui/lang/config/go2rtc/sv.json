@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "Öppna appen Nätverkskameror",
   "config.go2rtc.detection_hint": "Personidentifiering (händelser, zoner, larm och larmläge) ställs in i appen Nätverkskameror under Detektering; inställningarna för varje kamera finns på fliken Personidentifiering i kamerahanteringen.",
   "config.section.go2rtc.label": "go2rtc-kameror",
-  "config.section.go2rtc.desc": "Säkert hanterade kameraflöden, ögonblicksbilder och livevisning",
+  "config.section.go2rtc.desc": "Hanterar säkra kamerabilder, ögonblicksbilder och livevisning via go2rtc.",
   "config.go2rtc.proxy_note": "AuraGo håller kamera-URL:er och go2rtc-uppgifter privata. Visningen använder AuraGo-proxyn; direkt WebRTC i LAN är valfritt.",
   "config.go2rtc.enabled": "Aktivera go2rtc",
   "config.go2rtc.auto_start": "Starta containern automatiskt",

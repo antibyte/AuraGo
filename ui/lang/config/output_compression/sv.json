@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Förkortar långa verktygsutdata innan de når modellen och sparar därmed tokens. Felmeddelanden behålls när alternativet nedan är aktiverat.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW-komprimering",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Ersätter återkommande textavsnitt med korta referenser utan att ändra ordningen. Sparar tokens vid mycket repetitiva utdata.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Maximalt antal referenser per utdata. Fler poster hittar fler upprepningar men kräver mer utrymme för ordlistan.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Längre utdata bearbetas inte med den här metoden, för att spara beräkningstid.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Ett textavsnitt ersätts bara om det förekommer minst så här många gånger.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Kortare textavsnitt ersätts aldrig, eftersom referensen då skulle ta mer plats än texten.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Resultatet används bara om det är minst så här många procent kortare än originalet.",
+  "help.agent.output_compression.toon_json.max_rows": "Tabeller med fler rader återges inte i det kompakta TOON-formatet.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "Den kompakta tabellformen används bara om den är minst så här många procent kortare än JSON."
+}

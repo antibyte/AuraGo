@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "他の機能が素早い「はい/いいえ」の判断に使えるローカル判断サービスを有効にします。どの機能で使うかは下で選択します。",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

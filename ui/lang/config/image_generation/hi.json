@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "परीक्षण छवि बनाई गई और गैलरी में सहेजी गई (एक जनरेशन खर्च हुआ)।",
   "config.image_generation.test_failed": "जनरेशन विफल हुआ",
   "config.image_generation.max_daily_label": "प्रति दिन अधिकतम इमेज",
-  "config.image_generation.max_daily_hint": "0 = असीमित"
+  "config.image_generation.max_daily_hint": "0 = असीमित",
+  "config.image_generation.enabled_help": "चुने गए प्रदाता के साथ एजेंट को टेक्स्ट विवरण से छवियाँ बनाने देता है। हर जनरेशन में कोटा या क्रेडिट खर्च होता है।",
+  "config.image_generation.provider_help": "प्रदाता प्रबंधन का वह प्रदाता जो छवियाँ बनाता है। चयन न होने पर यह सुविधा कोई असर नहीं करती।",
+  "config.image_generation.size_help": "एजेंट द्वारा कुछ न बताने पर छवि का आकार पिक्सेल में। हर प्रदाता सभी आकारों का समर्थन नहीं करता।",
+  "config.image_generation.quality_help": "एजेंट द्वारा कुछ न बताने पर गुणवत्ता स्तर। \"hd\" अधिक विवरण देता है लेकिन आमतौर पर अधिक खर्च होता है।",
+  "config.image_generation.style_help": "एजेंट द्वारा कुछ न बताने पर छवि की शैली। \"vivid\" \"natural\" की तुलना में अधिक चटख और नाटकीय दिखती है।",
+  "config.image_generation.prompt_enhancement_help": "जनरेशन से पहले एक भाषा मॉडल विवरण को बेहतर बनाता है। इससे अक्सर बेहतर छवियाँ मिलती हैं, लेकिन एक अतिरिक्त मॉडल कॉल का खर्च होता है।"
 }

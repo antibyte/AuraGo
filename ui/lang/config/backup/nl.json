@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.include_vectordb_help": "Voegt de vectordatabase toe (geheugen-embeddings). Bespaart herberekenen na een herstel, maar maakt het archief vaak erg groot.",
+  "config.backup.include_workdir_help": "Voegt de werkmap van de agent met alle bestanden erin toe. Dit kan veel ruimte innemen.",
+  "config.backup.select_file_help": "Een eerder gemaakte back-up met de extensie .ago. Importeren overschrijft bestaande gegevens.",
+  "config.backup.import_password_help": "Alleen nodig als de back-up versleuteld was. Het moet hetzelfde wachtwoord zijn als bij het maken."
 }

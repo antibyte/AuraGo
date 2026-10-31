@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "Downloadt een klein model naar deze machine en draait het op verzoek in een container. Bedoeld voor testen of als terugvaloptie, niet als vervanging van een groot model.",
+  "config.local_llm.model_family_help": "Welk lokaal model wordt gebruikt. Spark is experimenteel en bijzonder klein.",
+  "config.local_llm.backend_help": "Rekenversneller voor het model. Automatisch kiest een ondersteunde GPU; CPU is traag en experimenteel.",
+  "config.local_llm.model_variant_help": "Kwantisatie van het model: Q8 is nauwkeuriger maar heeft meer geheugen nodig dan Q4. De grootte is de download.",
+  "config.local_llm.context_size_help": "Hoeveel tekst het model tegelijk in aanmerking neemt. Meer context vraagt meer geheugen.",
+  "config.local_llm.mtp_help": "Multi-token prediction versnelt de uitvoer met een extra conceptmodel. Experimenteel en vraagt meer geheugen.",
+  "config.local_llm.idle_timeout_help": "Na dit aantal minuten zonder verzoek wordt het model gestopt om geheugen vrij te maken (1 tot 1440, standaard 15).",
+  "config.local_llm.listen_port_help": "Lokale poort van de modelserver. Alleen bereikbaar vanaf deze machine (standaard 18081).",
+  "config.local_llm.role_help": "Alleen test: gewoon om uit te proberen. Fallback: springt in als het hoofdmodel uitvalt. Primair: beantwoordt elk verzoek.",
+  "config.local_llm.regular_provider_help": "Gewone provider die de andere rol overneemt terwijl het lokale model de gekozen rol heeft.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} s",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

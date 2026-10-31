@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detektiv",
-  "config.section.detective.desc": "Undersøkelser med sporbare kilder",
+  "config.section.detective.desc": "Lar agenten researche et tema og oppgi kildene den brukte.",
   "config.detective.enabled": "Aktiver Detective",
   "config.detective.extra_read_operations": "Godkjente leseoperasjoner",
   "config.detective.extra_read_help": "Legger til nøyaktige verktøyoperasjoner som research kan kalle på tilkoblede private tjenester. Kilden må fortsatt velges i saken.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "verktøykall",
   "config.detective.readonly": "Sikker skrivebeskyttet modus",
   "config.detective.seconds": "Tidsavbrudd for jobb (sekunder)",
-  "config.detective.restart": "Start AuraGo på nytt etter endring av innsatsprofiler. Eksisterende kjøringer beholder sine budsjetter."
+  "config.detective.restart": "Start AuraGo på nytt etter endring av innsatsprofiler. Eksisterende kjøringer beholder sine budsjetter.",
+  "config.detective.help_enabled": "Slår på research med sporbare kilder. En sak bruker bare kilder du velger eksplisitt.",
+  "config.detective.help_readonly": "Lar research kun lese. Anbefalt med mindre du er sikker på at ingenting skal endres.",
+  "config.detective.help_seconds": "Lengste kjøretid for ett oppdrag i sekunder (30 til 7200), deretter stoppes det.",
+  "config.detective.help_tools": "Maksimalt antall verktøykall per oppdrag (1 til 500).",
+  "config.detective.help_iterations": "Maksimalt antall tenke- og arbeidsrunder per oppdrag (1 til 750).",
+  "config.detective.help_tokens": "Ekstra øvre grense for tokens per oppdrag. 0 = ingen ekstra grense."
 }

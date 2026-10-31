@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "请输入身份验证器应用中的当前验证码。",
   "config.auth.step_up_hint": "更改登录密码或双重身份验证需要提供当前密码（TOTP 启用时还需要当前验证码）。",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "重试"
+  "config.auth.retry": "重试",
+  "config.auth.new_password_help": "至少使用 8 个字符。长且唯一的口令短语最安全。",
+  "config.auth.confirmation_code_help": "输入您的验证器应用当前显示的 6 位验证码。",
+  "config.auth.current_totp_help": "您的验证器应用当前显示的 6 位验证码。",
+  "config.auth.webauthn_enabled_help": "启用通行密钥和安全密钥登录。请先注册密钥并测试登录，再依赖此方式。",
+  "config.auth.webauthn_rpid_help": "您的密钥所绑定的域名，例如 aurago.example.test。更改后会移除所有已注册的密钥。",
+  "config.auth.webauthn_key_name_help": "帮助您日后识别这把密钥的名称，例如“笔记本电脑”或 YubiKey。"
 }

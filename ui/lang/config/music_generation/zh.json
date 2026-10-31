@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "忙碌",
   "config.music_gen.state_stopped": "已停止",
   "config.music_gen.state_error": "错误",
-  "config.music_gen.no_gpu": "容器中没有可用的 GPU。请检查设备访问权限，或明确选择 CPU。"
+  "config.music_gen.no_gpu": "容器中没有可用的 GPU。请检查设备访问权限，或明确选择 CPU。",
+  "config.music_gen.enabled_help": "允许代理使用所选提供商创作音乐。每次生成都会消耗配额、额度或本地算力。",
+  "config.music_gen.provider_help": "负责创作音乐的云端提供商（来自提供商管理）或本地 ACE-Step 模型。",
+  "config.music_gen.device_help": "本地模型运行所用的显卡或计算设备。“auto”会自动选择。",
+  "config.music_gen.reserve_help": "本地模型为其他程序保留的显存，单位为 GiB（0-256，默认 1）。",
+  "config.music_gen.timeout_help": "超过此时间后，AuraGo 会取消本地生成（30-1800 秒，默认 1800）。"
 }

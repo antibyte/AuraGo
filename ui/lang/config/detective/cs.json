@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detektiv",
-  "config.section.detective.desc": "Průzkumy s ověřitelnými zdroji",
+  "config.section.detective.desc": "Umožní agentovi prozkoumat téma a citovat použité zdroje.",
   "config.detective.enabled": "Zapnout Detective",
   "config.detective.extra_read_operations": "Povolené čtecí operace",
   "config.detective.extra_read_help": "Přidává přesné operace nástrojů, které výzkum smí volat na připojených soukromých službách. Zdroj je stále nutné vybrat v případu.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "volání nástrojů",
   "config.detective.readonly": "Bezpečný režim jen pro čtení",
   "config.detective.seconds": "Časový limit úlohy (sekundy)",
-  "config.detective.restart": "Po změně profilů intenzity restartujte AuraGo. Stávající běhy si zachovají přijaté rozpočty."
+  "config.detective.restart": "Po změně profilů intenzity restartujte AuraGo. Stávající běhy si zachovají přijaté rozpočty.",
+  "config.detective.help_enabled": "Zapne výzkum s dohledatelnými zdroji. Případ používá pouze zdroje, které výslovně vyberete.",
+  "config.detective.help_iterations": "Maximální počet kol uvažování a práce na úlohu (1 až 750).",
+  "config.detective.help_readonly": "Povolí výzkumu pouze čtení. Doporučeno, pokud si nejste jisti, že se nic nesmí měnit.",
+  "config.detective.help_seconds": "Nejdelší doba běhu jedné úlohy v sekundách (30 až 7200), poté je zastavena.",
+  "config.detective.help_tokens": "Dodatečný strop tokenů na úlohu. 0 = bez dodatečného limitu.",
+  "config.detective.help_tools": "Maximální počet volání nástrojů na úlohu (1 až 500)."
 }

@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "Optaget",
   "config.music_gen.state_stopped": "Stoppet",
   "config.music_gen.state_error": "Fejl",
-  "config.music_gen.no_gpu": "Ingen GPU kan bruges i containeren. Kontrollér enhedsadgang, eller vælg CPU udtrykkeligt."
+  "config.music_gen.no_gpu": "Ingen GPU kan bruges i containeren. Kontrollér enhedsadgang, eller vælg CPU udtrykkeligt.",
+  "config.music_gen.device_help": "Grafikkort eller beregningsenhed, som den lokale model kører på. \"auto\" vælger selv.",
+  "config.music_gen.enabled_help": "Lader agenten oprette musik med den valgte udbyder. Hver generering bruger kvote, kredit eller lokal beregningskraft.",
+  "config.music_gen.provider_help": "Cloududbyder fra Udbyderstyring eller den lokale ACE-Step-model, der opretter musikken.",
+  "config.music_gen.reserve_help": "Grafikhukommelse i GiB, som den lokale model lader stå fri til andre programmer (0-256, standard 1).",
+  "config.music_gen.timeout_help": "Efter denne tid annullerer AuraGo en lokal generering (30-1800 sekunder, standard 1800)."
 }

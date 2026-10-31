@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "Staat het maken van beheerde gameprojecten toe.",
   "help.game_maker.allow_edit": "Staat agentjobs, wijzigingen, validatie, revisiepublicatie en herstel toe.",
   "help.game_maker.allow_delete": "Staat verwijderen van beheerde projecten toe. Gedeelde media blijven beschermd.",
-  "help.game_maker.allow_media_generation": "Staat projectgebonden beeld- en muziekgeneratie toe wanneer providers zijn ingesteld."
+  "help.game_maker.allow_media_generation": "Staat projectgebonden beeld- en muziekgeneratie toe wanneer providers zijn ingesteld.",
+  "config.game_maker.workspace_path_help": "Map voor de gameprojecten, relatief aan de AuraGo-map. Alle projecten staan daaronder.",
+  "config.game_maker.max_projects_help": "Maximaal aantal projecten dat tegelijk wordt opgeslagen (standaard 25).",
+  "config.game_maker.max_files_per_project_help": "Maximaal aantal bestanden in één project (standaard 250).",
+  "config.game_maker.max_file_size_kb_help": "Grootste toegestane bronbestand in kilobyte (standaard 2048).",
+  "config.game_maker.max_asset_size_mb_help": "Grootste toegestane asset, zoals een afbeelding, geluid of model, in megabyte (standaard 32).",
+  "config.game_maker.max_project_size_mb_help": "Totale grootte van één project in megabyte; daarna worden geen bestanden meer geaccepteerd (standaard 100).",
+  "config.game_maker.job_timeout_seconds_help": "Hoe lang een agentopdracht voor het bouwen of wijzigen van een game maximaal mag duren (standaard 1800 seconden)."
 }

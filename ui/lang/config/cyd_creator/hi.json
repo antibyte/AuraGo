@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "डिवाइस के लिए AuraGo पता",
   "config.cyd_creator.ota_title": "Wi-Fi से अपडेट",
   "config.cyd_creator.restart_note": "CYD Creator को चालू करना और बिल्डर इमेज, मेमोरी, CPU कोर या निष्क्रिय कंटेनर रोकने के समय में बदलाव AuraGo के रीस्टार्ट के बाद लागू होते हैं। बाकी सभी सेटिंग तुरंत लागू होती हैं।",
-  "config.section.cyd_creator.desc": "डिज़ाइनर और एजेंट के साथ Cheap Yellow Display बोर्ड के लिए ऐप बनाएँ। बिल्ड Docker में चलते हैं।",
+  "config.section.cyd_creator.desc": "डिज़ाइनर और एजेंट की मदद से Cheap Yellow Display बोर्ड के लिए ऐप बनाता है।",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "प्रकाशित टूलचेन इमेज। AuraGo इसे एक बार डाउनलोड करता है और कभी लोकल रूप से बिल्ड नहीं करता।",
   "help.cyd_creator.cold_build_timeout_seconds": "तब लागू होती है जब किसी प्रोजेक्ट और बोर्ड का बिल्ड कैश अभी खाली हो।",
   "help.cyd_creator.enabled": "डेस्कटॉप पर CYD Creator ऐप दिखाता है। बिल्ड के लिए कॉन्फ़िगर किया गया Docker होस्ट चाहिए।",
   "help.cyd_creator.max_repair_attempts": "काम विफल होने से पहले एजेंट कितनी बार कंपाइल त्रुटियाँ ठीक कर सकता है।",
   "help.cyd_creator.ota_enabled": "AuraGo लिंक वाले डिवाइस नए बिल्ड ख़ुद डाउनलोड करते हैं।",
-  "help.cyd_creator.ota_public_url": "वह URL जिससे डिवाइस AuraGo तक पहुँचते हैं। ख़ाली छोड़ने पर सर्वर सेटिंग उपयोग होती हैं।"
+  "help.cyd_creator.ota_public_url": "वह URL जिससे डिवाइस AuraGo तक पहुँचते हैं। ख़ाली छोड़ने पर सर्वर सेटिंग उपयोग होती हैं।",
+  "config.cyd_creator.memory_mb_help": "बिल्ड कंटेनर की मेमोरी मेगाबाइट में (डिफ़ॉल्ट 2048)।",
+  "config.cyd_creator.cpu_cores_help": "बिल्ड कंटेनर के CPU कोर; आधे मान भी संभव हैं (डिफ़ॉल्ट 2)।",
+  "config.cyd_creator.build_timeout_seconds_help": "सामान्य बिल्ड इतने सेकंड बाद रोक दिया जाता है (डिफ़ॉल्ट 300)।",
+  "config.cyd_creator.idle_stop_minutes_help": "संसाधन खाली करने के लिए, बिना किसी कार्य के इतने मिनट बाद बिल्ड कंटेनर रुक जाता है (डिफ़ॉल्ट 20)।",
+  "config.cyd_creator.keep_builds_per_project_help": "प्रति प्रोजेक्ट कितने पिछले बिल्ड रखे जाते हैं; पुराने हटा दिए जाते हैं (डिफ़ॉल्ट 5)।",
+  "config.cyd_creator.job_timeout_minutes_help": "एजेंट एक जॉब पर कुल कितना समय लगा सकता है, मरम्मत के प्रयासों सहित (डिफ़ॉल्ट 20 मिनट)।",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "CYD डिवाइस कितने अंतराल पर सर्वर से अपडेट मांगता है (डिफ़ॉल्ट 60 सेकंड)।"
 }

@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "デバイス向けの AuraGo アドレス",
   "config.cyd_creator.ota_title": "Wi-Fi 経由の更新",
   "config.cyd_creator.restart_note": "CYD Creator のオンと、ビルダーイメージ・メモリ・CPU コア・アイドル停止の変更は AuraGo の再起動後に反映されます。その他の設定はすぐに適用されます。",
-  "config.section.cyd_creator.desc": "デザイナーとエージェントで Cheap Yellow Display ボード向けのアプリを作ります。ビルドは Docker で実行されます。",
+  "config.section.cyd_creator.desc": "デザイナーとエージェントを使って Cheap Yellow Display ボード向けのアプリを作成します。",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "公開済みのツールチェーンイメージです。AuraGo は一度だけダウンロードし、ローカルでビルドすることはありません。",
   "help.cyd_creator.cold_build_timeout_seconds": "プロジェクトとボードのビルドキャッシュがまだ空の間に適用されます。",
   "help.cyd_creator.enabled": "デスクトップに CYD Creator アプリを表示します。ビルドには設定済みの Docker ホストが必要です。",
   "help.cyd_creator.max_repair_attempts": "ジョブが失敗するまでに、エージェントがコンパイルエラーを修正できる回数です。",
   "help.cyd_creator.ota_enabled": "AuraGo 連携のあるデバイスは、新しいビルドを自分でダウンロードします。",
-  "help.cyd_creator.ota_public_url": "デバイスが AuraGo に接続するための URL です。空欄ならサーバー設定を使います。"
+  "help.cyd_creator.ota_public_url": "デバイスが AuraGo に接続するための URL です。空欄ならサーバー設定を使います。",
+  "config.cyd_creator.memory_mb_help": "ビルドコンテナのメモリ (メガバイト) です (デフォルト 2048)。",
+  "config.cyd_creator.cpu_cores_help": "ビルドコンテナの CPU コア数です。小数も指定できます (デフォルト 2)。",
+  "config.cyd_creator.build_timeout_seconds_help": "通常のビルドは、この秒数が経過すると中断されます (デフォルト 300)。",
+  "config.cyd_creator.idle_stop_minutes_help": "ジョブがない状態がこの分数続くと、リソースを解放するためにビルドコンテナが停止します (デフォルト 20)。",
+  "config.cyd_creator.keep_builds_per_project_help": "プロジェクトごとに保持する過去のビルド数です。古いものは削除されます (デフォルト 5)。",
+  "config.cyd_creator.job_timeout_minutes_help": "修復の試行を含め、エージェントが 1 つのジョブに費やせる合計時間です (デフォルト 20 分)。",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "CYD デバイスがサーバーに更新を問い合わせる間隔です (デフォルト 60 秒)。"
 }

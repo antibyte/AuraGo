@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "Inzoomen",
   "codeStudio.zoomOut": "Uitzoomen",
   "codeStudio.zoomReset": "Zoom resetten",
-  "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets.",
+  "config.section.virtual_desktop.desc": "Biedt een browserbureaublad waarop de agent apps, bestanden en widgets bedient.",
   "config.section.virtual_desktop.label": "Virtueel bureaublad",
   "config.virtual_desktop.agent_control_label": "Agentbesturing toestaan",
   "config.virtual_desktop.disabled_desc": "Schakel het in om de bureaubladpagina en backendwerkruimte beschikbaar te maken.",

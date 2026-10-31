@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "Acercar",
   "codeStudio.zoomOut": "Alejar",
   "codeStudio.zoomReset": "Restablecer zoom",
-  "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente.",
+  "config.section.virtual_desktop.desc": "Ofrece un escritorio en el navegador donde el agente controla aplicaciones, archivos y widgets.",
   "config.section.virtual_desktop.label": "Escritorio virtual",
   "config.virtual_desktop.agent_control_label": "Permitir control del agente",
   "config.virtual_desktop.disabled_desc": "Actívalo para exponer la página del escritorio y el espacio backend.",

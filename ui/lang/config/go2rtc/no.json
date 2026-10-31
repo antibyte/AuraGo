@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "Åpne appen Nettverkskameraer",
   "config.go2rtc.detection_hint": "Persongjenkjenning (hendelser, soner, alarmer og aktivering) settes opp i appen Nettverkskameraer under Gjenkjenning; innstillingene for hvert kamera ligger i fanen Persongjenkjenning i kamerabehandlingen.",
   "config.section.go2rtc.label": "go2rtc-kameraer",
-  "config.section.go2rtc.desc": "Sikkert administrerte kamerastreamer, øyeblikksbilder og livevisning",
+  "config.section.go2rtc.desc": "Administrerer sikre kamerastrømmer, øyeblikksbilder og direktevisning via go2rtc.",
   "config.go2rtc.proxy_note": "AuraGo holder kamera-URL-er og go2rtc-legitimasjon privat. Visning bruker AuraGo-proxyen; direkte LAN-WebRTC er valgfritt.",
   "config.go2rtc.enabled": "Aktiver go2rtc",
   "config.go2rtc.auto_start": "Start containeren automatisk",

@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "只有在上方列表中开启了媒体共享的目录，其图像才会被发送。",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "要监视的目录",
+  "config.indexing.dir_help": "其文件会被索引的文件夹，可填绝对路径或相对于 AuraGo 文件夹的路径。包含子文件夹。使用按钮或回车键添加。",
+  "config.indexing.chunk_max_chars_help": "单个文本块的最大长度（字符）。较小的块命中更精确，较大的块上下文更多。默认：3500。",
+  "config.indexing.chunk_overlap_help": "相邻文本块之间共享的字符数，避免边界处的句子被截断。默认：200。",
+  "config.indexing.chunk_max_chunks_help": "每个文件最多创建的文本块数；超大文件的其余部分将被跳过。默认：200。"
 }

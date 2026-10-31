@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Endereço do AuraGo para os dispositivos",
   "config.cyd_creator.ota_title": "Atualizações por Wi-Fi",
   "config.cyd_creator.restart_note": "Ligar o CYD Creator e alterar a imagem do builder, a memória, os núcleos de CPU ou a parada por ociosidade passam a valer após reiniciar o AuraGo. As demais configurações valem na hora.",
-  "config.section.cyd_creator.desc": "Crie apps para placas Cheap Yellow Display com um designer e um agente. Os builds rodam no Docker.",
+  "config.section.cyd_creator.desc": "Cria aplicativos para placas Cheap Yellow Display com um designer e um agente.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Imagem publicada com as ferramentas. O AuraGo a baixa uma vez e nunca a constrói localmente.",
   "help.cyd_creator.cold_build_timeout_seconds": "Vale enquanto o cache de build de um projeto e de uma placa ainda estiver vazio.",
   "help.cyd_creator.enabled": "Mostra o app CYD Creator na área de trabalho. Para compilar, é preciso um host Docker configurado.",
   "help.cyd_creator.max_repair_attempts": "Quantas vezes o agente pode corrigir erros de compilação antes de a tarefa falhar.",
   "help.cyd_creator.ota_enabled": "Dispositivos com conexão ao AuraGo baixam novos builds sozinhos.",
-  "help.cyd_creator.ota_public_url": "URL que os dispositivos usam para acessar o AuraGo. Vazio usa as configurações do servidor."
+  "help.cyd_creator.ota_public_url": "URL que os dispositivos usam para acessar o AuraGo. Vazio usa as configurações do servidor.",
+  "config.cyd_creator.memory_mb_help": "Memória para o contêiner de build em megabytes (padrão 2048).",
+  "config.cyd_creator.cpu_cores_help": "Núcleos de CPU para o contêiner de build; valores fracionários são possíveis (padrão 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Um build normal é interrompido após este número de segundos (padrão 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "O contêiner de build é parado após este número de minutos sem tarefa, para liberar recursos (padrão 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Quantos builds anteriores são mantidos por projeto; os mais antigos são excluídos (padrão 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Tempo total que o agente pode gastar em uma tarefa, incluindo tentativas de correção (padrão 20 minutos).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Intervalo em que um dispositivo CYD consulta o servidor por atualizações (padrão 60 segundos)."
 }

@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.api_key_help": "Clave de acceso del servicio. Se guarda en el vault y nunca se conserva en el navegador.",
+  "config.realtime_speech.default_profile_help": "Perfil que se usa cuando no se elige ninguno. Solo se ofrecen perfiles activos.",
+  "config.realtime_speech.model_help": "Modelo de voz del servicio. Los modelos obsoletos están marcados.",
+  "config.realtime_speech.profile_enabled_help": "Solo los perfiles activos se pueden elegir como predeterminado y usar en el chat.",
+  "config.realtime_speech.profile_name_help": "Nombre visible del perfil en las listas de selección (hasta 100 caracteres).",
+  "config.realtime_speech.provider_help": "Servicio que ofrece la conexión de voz en directo. Cambiarlo restablece el modelo y la voz a los valores por defecto del servicio.",
+  "config.realtime_speech.voice_help": "La voz con la que se pronuncian las respuestas."
+}

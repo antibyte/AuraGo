@@ -60,5 +60,13 @@
   "config.email.load_failed": "No se pudieron cargar las cuentas de correo",
   "config.email.load_failed_disabled": "Añadir, editar y eliminar está desactivado hasta que se cargue la lista.",
   "config.email.retry": "Reintentar",
-  "config.email.saved": "Cuentas de correo guardadas."
+  "config.email.saved": "Cuentas de correo guardadas.",
+  "config.email.imap_host_help": "Dirección del servidor de correo entrante (IMAP) de tu proveedor de correo.",
+  "config.email.interval_seconds_help": "Con qué frecuencia se revisa la carpeta, en segundos (por defecto 120). Intervalos más cortos cargan más el servidor de correo.",
+  "config.email.name_help": "Nombre visible de la cuenta en AuraGo, por ejemplo \"Personal\" o \"Trabajo\".",
+  "config.email.password_help": "Contraseña o contraseña de aplicación de la cuenta. Se guarda cifrada en el vault.",
+  "config.email.smtp_host_help": "Dirección del servidor de correo saliente (SMTP) de tu proveedor de correo.",
+  "config.email.username_help": "Nombre de usuario para IMAP y SMTP, normalmente la dirección de correo completa.",
+  "config.email.watch_enabled_help": "AuraGo revisa con regularidad la carpeta elegida más abajo en busca de correo nuevo y puede reaccionar a él.",
+  "config.email.watch_folder_help": "Carpeta IMAP que se vigila para detectar correo nuevo. Por defecto es INBOX."
 }

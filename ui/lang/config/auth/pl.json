@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Wpisz aktualny kod z aplikacji uwierzytelniającej.",
   "config.auth.step_up_hint": "Zmiana hasła logowania lub uwierzytelniania dwuskładnikowego wymaga podania obecnego hasła (oraz aktualnego kodu, gdy TOTP jest aktywne).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Ponów"
+  "config.auth.retry": "Ponów",
+  "config.auth.new_password_help": "Użyj co najmniej 8 znaków. Najbezpieczniejsze jest długie, unikalne hasło wielowyrazowe.",
+  "config.auth.confirmation_code_help": "Wpisz 6-cyfrowy kod, który aplikacja uwierzytelniająca pokazuje w tej chwili.",
+  "config.auth.current_totp_help": "6-cyfrowy kod, który aplikacja uwierzytelniająca pokazuje w tej chwili.",
+  "config.auth.webauthn_enabled_help": "Włącza logowanie za pomocą kluczy dostępu i kluczy bezpieczeństwa. Zarejestruj najpierw klucz i przetestuj logowanie, zanim na nim polegasz.",
+  "config.auth.webauthn_rpid_help": "Nazwa domeny, z którą powiązane są Twoje klucze, na przykład aurago.example.test. Jej zmiana usuwa wszystkie zarejestrowane klucze.",
+  "config.auth.webauthn_key_name_help": "Nazwa, która pomoże Ci później rozpoznać ten klucz, na przykład Laptop lub YubiKey."
 }

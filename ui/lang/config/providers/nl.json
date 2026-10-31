@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Er is een ongeldig masker als inloggegeven opgeslagen. Vervang of verwijder het.",
   "config.providers.runtime_incomplete": "De opgeslagen provider is onvolledig of niet beschikbaar. Controleer model, adres en inloggegevens.",
   "config.providers.limit_source_model_only_fallback": "schatting op basis van het model van een andere provider",
-  "config.providers.missing_references": "Ontbrekende providerselecties: {paths}. Kies bij deze instellingen een bestaande provider."
+  "config.providers.missing_references": "Ontbrekende providerselecties: {paths}. Kies bij deze instellingen een bestaande provider.",
+  "config.providers.search_help": "Filtert de providerlijst op naam, type of model.",
+  "config.providers.filter_type_help": "Toont alleen providers van één type.",
+  "config.providers.filter_role_help": "Toont alleen providers die aan een bepaalde taak zijn toegewezen, zoals het hoofdmodel of embeddings."
 }

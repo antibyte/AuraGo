@@ -60,5 +60,13 @@
   "config.email.load_failed": "E-mailaccounts konden niet worden geladen",
   "config.email.load_failed_disabled": "Toevoegen, bewerken en verwijderen is uitgeschakeld totdat de lijst is geladen.",
   "config.email.retry": "Opnieuw proberen",
-  "config.email.saved": "E-mailaccounts opgeslagen."
+  "config.email.saved": "E-mailaccounts opgeslagen.",
+  "config.email.name_help": "Weergavenaam van het account in AuraGo, bijvoorbeeld \"Privé\" of \"Werk\".",
+  "config.email.imap_host_help": "Adres van de inkomende mailserver (IMAP) van je mailprovider.",
+  "config.email.smtp_host_help": "Adres van de uitgaande mailserver (SMTP) van je mailprovider.",
+  "config.email.username_help": "Gebruikersnaam voor IMAP en SMTP, meestal het volledige e-mailadres.",
+  "config.email.password_help": "Wachtwoord of app-wachtwoord van het account. Wordt versleuteld opgeslagen in de Vault.",
+  "config.email.watch_enabled_help": "AuraGo controleert regelmatig de hieronder gekozen map op nieuwe e-mail en kan daarop reageren.",
+  "config.email.watch_folder_help": "IMAP-map die op nieuwe e-mail wordt gecontroleerd. De standaard is INBOX.",
+  "config.email.interval_seconds_help": "Hoe vaak de map wordt gecontroleerd, in seconden (standaard 120). Kortere intervallen belasten de mailserver meer."
 }

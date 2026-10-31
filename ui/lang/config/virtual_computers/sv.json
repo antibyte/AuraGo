@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtuella datorer",
-  "config.section.virtual_computers.desc": "Tillfälliga microVM-datorer med terminal, skrivbord, förhandsvisningar och agentåtkomst.",
+  "config.section.virtual_computers.desc": "Erbjuder engångsdatorer i form av microVM med terminal-, skrivbords- och agentåtkomst.",
   "config.virtual_computers.enabled_label": "Aktivera virtuella datorer",
   "config.virtual_computers.disabled_notice": "Virtuella datorer är inaktiverade.",
   "config.virtual_computers.disabled_desc": "Aktivera integrationen för att starta och proxya boring-computers-maskiner.",

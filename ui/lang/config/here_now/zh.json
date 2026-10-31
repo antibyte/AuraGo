@@ -28,5 +28,6 @@
   "config.here_now.saving": "正在保存…",
   "config.here_now.testing": "正在测试…",
   "config.here_now.test_failed": "连接失败",
-  "config.here_now.test_success": "连接成功"
+  "config.here_now.test_success": "连接成功",
+  "config.here_now.vault_badge": "保险库"
 }

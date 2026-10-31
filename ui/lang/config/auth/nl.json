@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Voer de huidige code uit je authenticator-app in.",
   "config.auth.step_up_hint": "Wijzigingen aan het inlogwachtwoord of aan tweestapsverificatie vereisen je huidige wachtwoord (en de huidige code zolang TOTP actief is).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Opnieuw proberen"
+  "config.auth.retry": "Opnieuw proberen",
+  "config.auth.new_password_help": "Gebruik minimaal 8 tekens. Een lange, unieke wachtzin is het veiligst.",
+  "config.auth.confirmation_code_help": "Voer de 6-cijferige code in die je authenticator-app nu toont.",
+  "config.auth.current_totp_help": "De 6-cijferige code die je authenticator-app nu toont.",
+  "config.auth.webauthn_enabled_help": "Schakelt inloggen met passkeys en beveiligingssleutels in. Registreer eerst een sleutel en test een login voordat je erop vertrouwt.",
+  "config.auth.webauthn_rpid_help": "De domeinnaam waaraan je sleutels zijn gebonden, bijvoorbeeld aurago.example.test. Als je dit wijzigt, worden alle geregistreerde sleutels verwijderd.",
+  "config.auth.webauthn_key_name_help": "Een naam waarmee je deze sleutel later herkent, bijvoorbeeld Laptop of YubiKey."
 }

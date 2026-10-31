@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "動画生成を有効化:",
   "config.video_gen.aspect_ratio_label": "アスペクト比",
   "config.video_gen.test_btn": "接続テスト",
-  "config.video_gen.disabled_desc": "上の切り替えを有効にすると、エージェントが動画を生成できます。"
+  "config.video_gen.disabled_desc": "上の切り替えを有効にすると、エージェントが動画を生成できます。",
+  "config.video_gen.enabled_help": "選択したプロバイダーを使って、エージェントが動画を作成できるようにします。生成のたびにクォータまたはクレジットを消費します。",
+  "config.video_gen.provider_help": "動画を生成する、プロバイダー管理のプロバイダーです。",
+  "config.video_gen.duration_help": "エージェントが指定しない場合のクリップの長さ (秒) です (1-30、デフォルト 6)。長いクリップほどコストがかかります。",
+  "config.video_gen.resolution_help": "エージェントが指定しない場合の解像度です。選べる値はプロバイダーによって異なります。",
+  "config.video_gen.aspect_ratio_help": "エージェントが指定しない場合のアスペクト比です (例: 横向きは 16:9、縦向きは 9:16)。",
+  "config.video_gen.poll_interval_help": "AuraGo が動画ジョブの状態をプロバイダーに問い合わせる間隔です (1-120 秒、デフォルト 10)。",
+  "config.video_gen.timeout_help": "この時間が経過すると、AuraGo は動画の完成を待つのをやめます (30-3600 秒、デフォルト 600)。",
+  "config.video_gen.max_daily_help": "1 日に作成できる動画の最大数です。0 は無制限を意味します。"
 }

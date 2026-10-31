@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Forbundet til Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Standard sprogkode til Telnyx-stemmemeddelelser og opkaldstransskription."
+  "help.telnyx.voice_language": "Standard sprogkode til Telnyx-stemmemeddelelser og opkaldstransskription.",
+  "config.telnyx.max_concurrent_calls_help": "Hvor mange opkald der må køre samtidigt (1-20, standard 3). Yderligere opkald afvises.",
+  "config.telnyx.max_sms_per_minute_help": "Maksimalt antal udgående SMS'er pr. minut (1-60, standard 10). Beskytter mod utilsigtet masseudsendelse og høje omkostninger.",
+  "config.telnyx.voice_gender_help": "Stemme, agenten bruger til at tale i telefonopkald."
 }

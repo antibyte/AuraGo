@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας",
   "config.homepage.workspace_path_missing_warning": "Ο διακομιστής ιστού είναι ενεργός αλλά δεν έχει οριστεί διαδρομή χώρου εργασίας. Εισάγετε την απόλυτη διαδρομή κεντρικού υπολογιστή (π.χ. /home/aurago/aurago/agent_workspace/homepage) ή χρησιμοποιήστε αυτόματη ανίχνευση.",
   "config.homepage.workspace_relative_hint": "Μέσα στις κλήσεις εργαλείων αρχικής σελίδας, διατηρήστε το project_dir και τη διαδρομή σε σχέση με αυτόν τον χώρο εργασίας, για παράδειγμα \"my-site\" ή \" my-site/src / app/page.tsx\".",
-  "config.homepage.workspace_title": "Χώρος εργασίας"
+  "config.homepage.workspace_title": "Χώρος εργασίας",
+  "config.homepage.circuit_breaker_max_calls_help": "Πόσες κλήσεις εργαλείων μπορεί να κάνει ο πράκτορας σε μία συνεδρία homepage πριν τον σταματήσει το AuraGo (1-100, προεπιλογή 35).",
+  "config.homepage.deploy_key_help": "Ιδιωτικό κλειδί SSH (PEM) για τον διακομιστή ανάπτυξης. Αποθηκεύεται στο κρυπτογραφημένο vault και αντικαθιστά τον κωδικό πρόσβασης.",
+  "config.homepage.deploy_password_help": "Κωδικός SSH για τον διακομιστή ανάπτυξης. Αποθηκεύεται στο κρυπτογραφημένο vault· προτιμήστε ένα κλειδί SSH.",
+  "config.homepage.vault_badge": "vault"
 }

@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "ローカルネットワーク共有",
-  "config.section.network_shares.desc": "このホストが提供する SMB と NFS の共有を管理します。",
+  "config.section.network_shares.desc": "このホストが提供する SMB および NFS 共有を管理します。",
   "dashboard.integration_network_shares": "ローカルネットワーク共有",
   "config.network_shares.loading": "ローカル SMB/NFS 機能を読み取っています…",
   "config.network_shares.enabled": "連携を有効化",

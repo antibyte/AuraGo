@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Host natywny",
   "config.shell_sandbox.ready": "Gotowy",
   "config.sandbox.local_python_fallback_label": "Lokalny fallback Pythona",
-  "config.sandbox.local_python_fallback_warning": "Uruchamia kod w lokalnym Pythonie poza izolacją, gdy sandbox zawiedzie. Włączaj tylko świadomie."
+  "config.sandbox.local_python_fallback_warning": "Uruchamia kod w lokalnym Pythonie poza izolacją, gdy sandbox zawiedzie. Włączaj tylko świadomie.",
+  "config.sandbox.local_python_fallback_help": "Uruchamia kod lokalnie na serwerze, gdy żaden kontener nie jest dostępny. Uwaga: ten kod działa bez izolacji kontenera.",
+  "config.shell_sandbox.enabled_help": "Ogranicza dostęp poleceń powłoki agenta do systemu plików za pomocą Landlock. Działa tylko w systemie Linux z odpowiednim jądrem.",
+  "config.shell_sandbox.max_memory_help": "Pamięć w MB, której polecenie może użyć maksymalnie (64-8192, domyślnie 1024).",
+  "config.shell_sandbox.max_cpu_help": "Czas CPU w sekundach, po którym polecenie jest przerywane (5-600, domyślnie 30).",
+  "config.shell_sandbox.max_fsize_help": "Największy plik w MB, który polecenie może zapisać (1-4096, domyślnie 100)."
 }

@@ -1,0 +1,11 @@
+{
+  "config.retro_games.agent_access_help": "Ο πράκτορας μπορεί να αναζητά παιχνίδια και να τα ξεκινά στην επιφάνεια εργασίας.",
+  "config.retro_games.enabled_help": "Ενεργοποιεί την εφαρμογή Retro Games στην εικονική επιφάνεια εργασίας. Τα παιχνίδια εκτελούνται στον εξομοιωτή του archive.org και χρειάζονται πρόσβαση στο διαδίκτυο.",
+  "config.video_studio.asset_limit_help": "Μεγαλύτερο επιτρεπόμενο μεμονωμένο αρχείο πολυμέσων σε megabyte (προεπιλογή 4096).",
+  "config.video_studio.enabled_help": "Ενεργοποιεί την εφαρμογή Video Studio στην εικονική επιφάνεια εργασίας. Τα FFmpeg και FFprobe πρέπει να είναι εγκατεστημένα στον διακομιστή.",
+  "config.video_studio.ffmpeg_help": "Διαδρομή προς το εκτελέσιμο του FFmpeg. Αφήστε κενό για να βρεθεί το FFmpeg μέσω του PATH του συστήματος.",
+  "config.video_studio.hardware_device_help": "Συσκευή απόδοσης της κάρτας γραφικών, π.χ. /dev/dri/renderD128 σε Linux. Κενό = αυτόματα.",
+  "config.video_studio.project_limit_help": "Συνολικό μέγεθος όλων των αρχείων σε ένα έργο σε megabyte (προεπιλογή 16384).",
+  "config.video_studio.readonly_help": "Τα έργα μπορούν να προβληθούν αλλά όχι να αλλαχθούν ή να εξαχθούν.",
+  "config.video_studio.timeout_help": "Μέγιστος χρόνος απόδοσης ενός βίντεο σε δευτερόλεπτα, μετά τον οποίο διακόπτεται (30 έως 14400, προεπιλογή 7200)."
+}

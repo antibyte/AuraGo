@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Computer virtuali",
-  "config.section.virtual_computers.desc": "MicroVM temporanee con terminale, desktop, anteprime e accesso agente.",
+  "config.section.virtual_computers.desc": "Offre computer microVM usa e getta con accesso a terminale, desktop e agente.",
   "config.virtual_computers.enabled_label": "Abilita computer virtuali",
   "config.virtual_computers.disabled_notice": "I computer virtuali sono disabilitati.",
   "config.virtual_computers.disabled_desc": "Abilita l'integrazione per avviare e fare da proxy alle macchine boring-computers.",

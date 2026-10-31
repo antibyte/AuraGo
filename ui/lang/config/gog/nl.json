@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Maak een OAuth-webclient in Google Cloud, schakel de gekozen API’s in en stel het toestemmingsscherm in. Registreer de omleidings-URL die bij het verbinden verschijnt.",
   "config.gog.grants_help": "Schakel elke machtiging expliciet in. Voor het maken en exporteren van Office-bestanden is ook de bijbehorende Drive-machtiging nodig.",
   "config.section.gog.label": "Google Workspace via gog",
-  "config.section.gog.desc": "Gebruik afzonderlijke Google-accounts naast de ingebouwde integratie.",
+  "config.section.gog.desc": "Bereikt extra Google-accounts via het externe opdrachtregelprogramma gog.",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "Schakelt de gog-koppeling met Google-accounts in. Voegt extra accounts toe aan de ingebouwde Google Workspace-integratie.",
+  "config.gog.readonly_help": "De agent mag via gog alleen lezen. Aanmaken, wijzigen, verwijderen en verzenden blijven geblokkeerd, ook als een account ze toestaat.",
+  "config.gog.name_help": "Weergavenaam van het account, bijvoorbeeld \"Privé\" of \"Werk\".",
+  "config.gog.account_enabled_help": "Alleen ingeschakelde accounts kunnen door de agent en het bureaublad worden gebruikt.",
+  "config.gog.agent_help": "De agent mag dit account gebruiken met de hieronder verleende rechten.",
+  "config.gog.desktop_help": "Bureaubladapps mogen dit account gebruiken, bijvoorbeeld voor e-mail of agenda.",
+  "config.gog.client_id_help": "Client-ID van de OAuth-webclient uit de Google Cloud Console.",
+  "config.gog.secret_help": "Client secret van de OAuth-client. \"Opslaan in Vault\" slaat het versleuteld op; het wordt niet opnieuw getoond."
 }

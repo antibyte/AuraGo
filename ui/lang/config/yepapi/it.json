@@ -1,1 +1,3 @@
-{}
+{
+  "config.yepapi.enabled_help": "Attiva i servizi YepAPI. L'agente può quindi usare i servizi selezionati qui sotto (SEO, ricerca, scraping e piattaforme social) tramite il provider selezionato."
+}

@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Un masque invalide est enregistré comme identifiant. Remplacez-le ou supprimez-le.",
   "config.providers.runtime_incomplete": "Le fournisseur enregistré est incomplet ou indisponible. Vérifiez le modèle, l’adresse et les identifiants.",
   "config.providers.limit_source_model_only_fallback": "estimation fondée sur le modèle d’un autre fournisseur",
-  "config.providers.missing_references": "Fournisseurs sélectionnés introuvables : {paths}. Choisissez un fournisseur existant dans ces réglages."
+  "config.providers.missing_references": "Fournisseurs sélectionnés introuvables : {paths}. Choisissez un fournisseur existant dans ces réglages.",
+  "config.providers.search_help": "Filtre la liste des fournisseurs par nom, type ou modèle.",
+  "config.providers.filter_type_help": "Affiche uniquement les fournisseurs d'un type.",
+  "config.providers.filter_role_help": "Affiche uniquement les fournisseurs affectés à une tâche précise, comme le modèle principal ou les embeddings."
 }

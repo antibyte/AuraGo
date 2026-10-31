@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Εισαγωγή αντιγράφου SQLite",
   "config.sql_connections.sqlite_import_help": "Ανέβασε συνεπές, αυτοτελές αντίγραφο (έως 64 MiB). Η αποθήκευση το εισάγει σε προστατευμένο χώρο και διατηρεί τα πρωτότυπα.",
   "config.sql_connections.sqlite_import_required": "Απαιτείται εισαγωγή SQLite",
-  "config.sql_connections.allow_management_help": "Ο πράκτορας αλλάζει μόνο περιγραφές. Ρυθμίσεις, διαπιστευτήρια και δικαιώματα ανήκουν στον διαχειριστή."
+  "config.sql_connections.allow_management_help": "Ο πράκτορας αλλάζει μόνο περιγραφές. Ρυθμίσεις, διαπιστευτήρια και δικαιώματα ανήκουν στον διαχειριστή.",
+  "config.sql_connections.database_help": "Όνομα της βάσης δεδομένων στον διακομιστή στην οποία συνδέεται ο πράκτορας.",
+  "config.sql_connections.description_help": "Σύντομη σημείωση για τον πράκτορα και για εσάς σχετικά με το σε τι χρησιμεύει η βάση δεδομένων.",
+  "config.sql_connections.driver_help": "Τύπος βάσης δεδομένων. Το SQLite λειτουργεί σε ένα εισαγόμενο αρχείο, οι υπόλοιπες συνδέονται σε διακομιστή.",
+  "config.sql_connections.filter_help": "Φιλτράρει τη λίστα με βάση το όνομα, τον τύπο, τον host, τη βάση δεδομένων ή την περιγραφή.",
+  "config.sql_connections.filter_label": "Φιλτράρισμα συνδέσεων",
+  "config.sql_connections.host_help": "Όνομα host ή διεύθυνση IP του διακομιστή βάσης δεδομένων. Κενό = localhost.",
+  "config.sql_connections.name_help": "Μοναδικό όνομα με το οποίο ο πράκτορας αναφέρεται σε αυτή τη σύνδεση.",
+  "config.sql_connections.password_help": "Αποθηκεύεται κρυπτογραφημένο στο vault. Αφήστε κενό για να διατηρηθεί ο αποθηκευμένος κωδικός πρόσβασης.",
+  "config.sql_connections.port_help": "Αφήστε κενό για την προεπιλεγμένη θύρα του τύπου βάσης δεδομένων (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.ssl_mode_help": "Κρυπτογράφηση της σύνδεσης. Το Disable στέλνει τα πάντα ως απλό κείμενο, το Require κρυπτογραφεί χωρίς έλεγχο του πιστοποιητικού, το Verify CA ελέγχει την αρχή πιστοποίησης, το Verify Full ελέγχει και το όνομα του διακομιστή (το πιο ασφαλές).",
+  "config.sql_connections.username_help": "Χρήστης της βάσης δεδομένων. Χρησιμοποιήστε λογαριασμό με όσο το δυνατόν λιγότερα δικαιώματα."
 }

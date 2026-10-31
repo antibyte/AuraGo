@@ -1,0 +1,7 @@
+{
+  "common.llm_router.area_help": "Udbyder og model til forespørgsler i området \"{area}\". \"Standardmodel\" bruger den aktive model.",
+  "common.llm_router.enabled_hint": "Vælger automatisk en passende model til hver opgave. Uden det bruger AuraGo altid den aktive hovedmodel.",
+  "common.llm_router.preview_text_hint": "En eksempelopgave med dine egne ord. Den klassificeres kun, den udføres ikke.",
+  "common.llm_router.quota_hint": "Øvre grænse for klassificeringer foretaget af hjælpemodellen pr. time (0 til 120, standard 20). 0 slår dem fra. Hvert kald kan medføre omkostninger.",
+  "common.llm_router.timeout_hint": "Hvor længe (i millisekunder, 250 til 5000, standard 1500) klassificeringen af en opgave må tage, før standardvalget gælder."
+}

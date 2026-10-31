@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "チートシートを選択",
   "config.co_agents.spec_cheatsheet_loading": "読み込み中…",
   "config.co_agents.spec_cheatsheet_empty": "利用可能なアクティブなチートシートがありません。",
-  "config.co_agents.spec_cheatsheet_error": "チートシートの読み込みに失敗しました。"
+  "config.co_agents.spec_cheatsheet_error": "チートシートの読み込みに失敗しました。",
+  "config.co_agents.provider_help": "コエージェントが使用するモデルです。未選択の場合はメイン LLM を使用します。",
+  "config.co_agents.cb_max_tool_calls_help": "コエージェントが停止されるまでにタスクごとに行えるツール呼び出しの回数です (デフォルト 10)。",
+  "config.co_agents.cb_timeout_help": "コエージェントの最大実行時間 (秒) です (デフォルト 300)。",
+  "config.co_agents.cb_max_tokens_help": "タスクごとに使用できるトークンの上限です。0 = 無制限。",
+  "config.co_agents.spec_provider_help": "このロール専用のモデルです。未選択の場合はコエージェントのプロバイダーが適用されます。",
+  "config.co_agents.spec_additional_prompt_help": "このロールのシステムプロンプトに追加される指示です。"
 }

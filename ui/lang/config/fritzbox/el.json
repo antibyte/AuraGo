@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Θύρα διεπαφής web",
   "config.fritzbox.insecure_skip_verify_label": "Να επιτρέπεται αυτοϋπογεγραμμένο πιστοποιητικό",
   "help.fritzbox.web_port": "Προαιρετική θύρα για σύνδεση και αιτήματα Smart Home. Άφησε 0 για χρήση 80 ή 443.",
-  "help.fritzbox.insecure_skip_verify": "Επιτρέπει HTTPS με αυτοϋπογεγραμμένο πιστοποιητικό Fritz!Box. Χρησιμοποίησέ το μόνο σε αξιόπιστο οικιακό δίκτυο."
+  "help.fritzbox.insecure_skip_verify": "Επιτρέπει HTTPS με αυτοϋπογεγραμμένο πιστοποιητικό Fritz!Box. Χρησιμοποίησέ το μόνο σε αξιόπιστο οικιακό δίκτυο.",
+  "config.fritzbox.feature_enabled_help": "Ο πράκτορας μπορεί να χρησιμοποιεί τις λειτουργίες «{feature}» του Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "Για «{feature}» ο πράκτορας μπορεί μόνο να διαβάζει τιμές και δεν μπορεί να αλλάξει τίποτα στο Fritz!Box.",
+  "config.fritzbox.polling_enabled_help": "Ρωτά τακτικά το Fritz!Box για νέες κλήσεις, ώστε το AuraGo να μπορεί να αντιδρά σε αυτές.",
+  "config.fritzbox.polling_interval_help": "Χρόνος μεταξύ των ερωτημάτων σε δευτερόλεπτα (10-3600, προεπιλογή 60). Τα μικρότερα διαστήματα αντιδρούν ταχύτερα αλλά επιβαρύνουν περισσότερο το Fritz!Box."
 }

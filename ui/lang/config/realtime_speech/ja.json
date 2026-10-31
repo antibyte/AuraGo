@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "アクティブなプロファイルのみ、デフォルトとして選択したりチャットで使用したりできます。",
+  "config.realtime_speech.profile_name_help": "選択リストに表示されるプロファイル名です (100 文字まで)。",
+  "config.realtime_speech.provider_help": "ライブ音声接続を提供するサービスです。変更すると、モデルと音声がサービスのデフォルトにリセットされます。",
+  "config.realtime_speech.model_help": "サービスの音声モデルです。非推奨のモデルには印が付きます。",
+  "config.realtime_speech.voice_help": "応答の読み上げに使う音声です。",
+  "config.realtime_speech.api_key_help": "サービスのアクセスキーです。vault に保存され、ブラウザーには保持されません。",
+  "config.realtime_speech.default_profile_help": "何も選択されていないときに使われるプロファイルです。アクティブなプロファイルのみ選べます。"
+}

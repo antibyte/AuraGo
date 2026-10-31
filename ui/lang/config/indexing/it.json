@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Le immagini vengono inviate solo per le directory per cui è attivata la condivisione dei media nell'elenco qui sopra.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "Directory da monitorare",
+  "config.indexing.dir_help": "Cartella i cui file vengono indicizzati, come percorso assoluto o relativo alla cartella di AuraGo. Le sottocartelle sono incluse. Aggiungila con il pulsante o con Invio.",
+  "config.indexing.chunk_max_chars_help": "Lunghezza massima di un singolo chunk di testo in caratteri. Chunk più piccoli danno risultati più precisi, quelli più grandi più contesto. Predefinito: 3500.",
+  "config.indexing.chunk_overlap_help": "Caratteri condivisi tra chunk adiacenti, così che le frasi ai bordi non vengano tagliate. Predefinito: 200.",
+  "config.indexing.chunk_max_chunks_help": "Numero massimo di chunk creati per file; il resto dei file molto grandi viene saltato. Predefinito: 200."
 }

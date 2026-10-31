@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "Bezig",
   "config.music_gen.state_stopped": "Gestopt",
   "config.music_gen.state_error": "Fout",
-  "config.music_gen.no_gpu": "Geen GPU bruikbaar in de container. Controleer de apparaattoegang of selecteer expliciet CPU."
+  "config.music_gen.no_gpu": "Geen GPU bruikbaar in de container. Controleer de apparaattoegang of selecteer expliciet CPU.",
+  "config.music_gen.enabled_help": "Laat de agent met de gekozen provider muziek maken. Elke generatie gebruikt quotum, tegoed of lokale rekenkracht.",
+  "config.music_gen.provider_help": "Cloudprovider uit het providerbeheer of het lokale ACE-Step-model dat de muziek maakt.",
+  "config.music_gen.device_help": "Grafische kaart of rekenapparaat waarop het lokale model draait. \"auto\" kiest zelf.",
+  "config.music_gen.reserve_help": "Grafisch geheugen in GiB dat het lokale model vrijlaat voor andere programma's (0-256, standaard 1).",
+  "config.music_gen.timeout_help": "Na deze tijd breekt AuraGo een lokale generatie af (30-1800 seconden, standaard 1800)."
 }

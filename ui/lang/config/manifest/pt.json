@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Envia cabeçalhos extras com as solicitações ao Manifest para que ele escolha o modelo adequado de acordo com seus níveis.",
+  "config.manifest.routing_specificity_mode_help": "Desativado não envia categoria, Fixa sempre envia a escolhida abaixo, Automática deixa o AuraGo determinar a categoria por solicitação.",
+  "config.manifest.routing_specificity_help": "Categoria que o AuraGo envia ao Manifest em cada solicitação no modo \"Fixa\".",
+  "config.manifest.routing_headers_help": "Cabeçalhos personalizados como pares de nome e valor que o AuraGo envia adicionalmente ao Manifest. Informe apenas valores que o Manifest possa ver.",
+  "config.manifest.routing_header_name": "Nome do cabeçalho",
+  "config.manifest.routing_header_value": "Valor do cabeçalho"
+}

@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Las misiones están desactivadas. Los flujos necesitan misiones para ejecutarse.",
   "config.flows.open": "Abrir EasyDrag",
   "config.flows.run_retention_days": "Conservar historial de ejecuciones (días, 1–365)",
-  "config.section.flows.desc": "Automatizaciones visuales de la app EasyDrag",
-  "config.section.flows.label": "Flujos de EasyDrag"
+  "config.section.flows.desc": "Ejecuta automatizaciones visuales creadas en la aplicación EasyDrag.",
+  "config.section.flows.label": "Flujos de EasyDrag",
+  "config.flows.enabled_help": "Activa la ejecución de flujos de EasyDrag. El cambio se aplica tras reiniciar.",
+  "config.flows.max_parallel_nodes_per_run_help": "Cuántos pasos de una ejecución pueden ejecutarse en paralelo (1 a 16, por defecto 4).",
+  "config.flows.max_parallel_runs_help": "Cuántas ejecuciones de flujos pueden ejecutarse a la vez (1 a 32, por defecto 8). Las demás esperan.",
+  "config.flows.max_runs_per_flow_help": "Cuántas ejecuciones terminadas se conservan por flujo; las más antiguas se borran (10 a 5000, por defecto 200).",
+  "config.flows.run_retention_days_help": "El historial de una ejecución se borra tras estos días (1 a 365, por defecto 30)."
 }

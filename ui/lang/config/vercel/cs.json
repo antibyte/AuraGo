@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Povoluje přidávání, aktualizaci a odebírání domén Vercel.",
   "config.vercel.default_project_id_help": "Volitelné ID projektu použité, když agent neuvede projekt.",
   "config.vercel.team_id_help": "Volitelné ID týmu Vercel pro volání API v rozsahu týmu.",
-  "config.vercel.team_slug_help": "Volitelný slug týmu Vercel pro volání API v rozsahu týmu."
+  "config.vercel.team_slug_help": "Volitelný slug týmu Vercel pro volání API v rozsahu týmu.",
+  "config.vercel.vault_badge": "vault"
 }

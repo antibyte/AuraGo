@@ -1,6 +1,6 @@
 {
   "config.section.bluetooth.label": "Bluetooth",
-  "config.section.bluetooth.desc": "Linux BlueZ による Bluetooth デバイスと出力先を指定した音声再生。",
+  "config.section.bluetooth.desc": "Linux BlueZ を介して Bluetooth デバイスとオーディオ出力を管理します。",
   "dashboard.integration_bluetooth": "Bluetooth",
   "config.bluetooth.loading": "Linux BlueZ による Bluetooth デバイスと出力先を指定した音声再生。",
   "config.bluetooth.enabled": "有効",

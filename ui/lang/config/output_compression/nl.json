@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Verkort lange tooluitvoer voordat die het model bereikt en bespaart zo tokens. Foutmeldingen blijven behouden als de onderstaande optie aan staat.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW-compressie",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Vervangt terugkerende stukken tekst door korte verwijzingen zonder de volgorde te wijzigen. Bespaart tokens bij zeer repetitieve uitvoer.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Maximaal aantal verwijzingen per uitvoer. Meer items vinden meer herhalingen, maar vragen meer ruimte voor het woordenboek.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Langere uitvoer wordt niet met deze methode verwerkt, om rekentijd te besparen.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Een stuk tekst wordt alleen vervangen als het minstens zo vaak voorkomt.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Kortere stukken tekst worden nooit vervangen, omdat de verwijzing dan meer ruimte zou innemen dan de tekst.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Het resultaat wordt alleen gebruikt als het minstens zoveel procent korter is dan het origineel.",
+  "help.agent.output_compression.toon_json.max_rows": "Tabellen met meer rijen worden niet in het compacte TOON-formaat weergegeven.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "De compacte tabelvorm wordt alleen gebruikt als die minstens zoveel procent korter is dan de JSON."
+}

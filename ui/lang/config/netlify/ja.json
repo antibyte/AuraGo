@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Netlify サイトの作成、更新、削除を許可します。",
   "config.netlify.allow_env_management_help": "Netlify サイトの環境変数の管理を許可します。",
   "config.netlify.default_site_id_help": "エージェントがサイトを指定しないときに使用される、任意のサイト ID です。",
-  "config.netlify.team_slug_help": "チームスコープの API 呼び出しに使用される、任意の Netlify チームスラッグです。"
+  "config.netlify.team_slug_help": "チームスコープの API 呼び出しに使用される、任意の Netlify チームスラッグです。",
+  "config.netlify.vault_badge": "vault"
 }

@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Arbejdsområdesti",
   "config.homepage.workspace_path_missing_warning": "Webserveren er aktiveret, men der er ikke angivet nogen arbejdsområdesti. Indtast den absolutte værtssti til dit homepage-projekt (f.eks. /home/aurago/aurago/agent_workspace/homepage), eller klik på Find automatisk for at finde det automatisk.",
   "config.homepage.workspace_relative_hint": "Inde i startsideværktøjskald, behold project_dir og sti i forhold til dette arbejdsområde, for eksempel 'my-site' eller 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Arbejdsområde"
+  "config.homepage.workspace_title": "Arbejdsområde",
+  "config.homepage.circuit_breaker_max_calls_help": "Hvor mange værktøjskald agenten må foretage i én homepage-session, før AuraGo stopper den (1-100, standard 35).",
+  "config.homepage.deploy_key_help": "Privat SSH-nøgle (PEM) til deploy-serveren. Den gemmes i den krypterede vault og erstatter adgangskoden.",
+  "config.homepage.deploy_password_help": "SSH-adgangskode til deploy-serveren. Den gemmes i den krypterede vault; foretræk en SSH-nøgle.",
+  "config.homepage.vault_badge": "vault"
 }

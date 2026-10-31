@@ -31,5 +31,10 @@
   "config.treg.empty": "Geen items",
   "config.treg.balance": "Saldo",
   "config.treg.cost_invalid": "Voer 0–1000000 USD in met maximaal zes decimalen.",
-  "config.treg.token_required": "Voer een organisatiegebonden token in."
+  "config.treg.token_required": "Voer een organisatiegebonden token in.",
+  "config.treg.currency_usd": "US-dollar",
+  "config.treg.enabled_help": "Schakelt de treg-integratie in. Hiermee kan de agent betaalde diensten uit de treg-catalogus gebruiken, voor zover je ze hieronder goedkeurt.",
+  "config.treg.readonly_help": "De agent mag alleen de catalogus en het saldo lezen en kan geen betaalde aanroepen starten.",
+  "config.treg.token_help": "Organisatietoken van je treg-account. Wordt versleuteld opgeslagen in de Vault.",
+  "config.treg.search_help": "Zoekterm voor de treg-catalogus (max. 500 tekens). Uit de resultaten keur je afzonderlijke aanroepen voor de agent goed."
 }

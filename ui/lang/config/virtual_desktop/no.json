@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "Slår på Video Studio-appen på det virtuelle skrivebordet. FFmpeg og FFprobe må være installert på serveren.",
+  "config.video_studio.readonly_help": "Prosjekter kan vises, men ikke endres eller eksporteres.",
+  "config.video_studio.ffmpeg_help": "Sti til FFmpeg-kjørbar fil. La stå tomt for å finne FFmpeg via systemets PATH.",
+  "config.video_studio.asset_limit_help": "Største tillatte enkelt mediefil i megabyte (standard 4096).",
+  "config.video_studio.project_limit_help": "Total størrelse på alle filer i ett prosjekt i megabyte (standard 16384).",
+  "config.video_studio.timeout_help": "Lengste tid for å rendre en video i sekunder, deretter avbrytes det (30 til 14400, standard 7200).",
+  "config.video_studio.hardware_device_help": "Renderenhet for grafikkortet, for eksempel /dev/dri/renderD128 på Linux. Tom = automatisk.",
+  "config.retro_games.enabled_help": "Slår på Retro Games-appen på det virtuelle skrivebordet. Spillene kjører i archive.org-emulatoren og trenger internettilgang.",
+  "config.retro_games.agent_access_help": "Agenten kan søke etter spill og starte dem på skrivebordet."
+}

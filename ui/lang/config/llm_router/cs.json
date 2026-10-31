@@ -1,0 +1,7 @@
+{
+  "common.llm_router.area_help": "Poskytovatel a model pro požadavky v oblasti „{area}“. „Výchozí model“ používá aktivní model.",
+  "common.llm_router.enabled_hint": "Automaticky vybere vhodný model pro každou úlohu. Bez toho AuraGo vždy používá aktivní hlavní model.",
+  "common.llm_router.preview_text_hint": "Ukázková úloha vlastními slovy. Pouze se klasifikuje, nespouští se.",
+  "common.llm_router.quota_hint": "Horní limit klasifikací pomocným modelem za hodinu (0 až 120, výchozí 20). 0 je vypne. Každé volání může být zpoplatněno.",
+  "common.llm_router.timeout_hint": "Jak dlouho (v milisekundách, 250 až 5000, výchozí 1500) smí klasifikace úlohy trvat, než se použije výchozí volba."
+}

@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Imagem de teste gerada e guardada na galeria (uma geração consumida).",
   "config.image_generation.test_failed": "Falha na geração",
   "config.image_generation.max_daily_label": "Máximo de imagens por dia",
-  "config.image_generation.max_daily_hint": "0 = ilimitado"
+  "config.image_generation.max_daily_hint": "0 = ilimitado",
+  "config.image_generation.enabled_help": "Permite que o agente crie imagens a partir de descrições em texto com o provedor selecionado. Cada geração consome cota ou crédito.",
+  "config.image_generation.provider_help": "Provedor do Gerenciamento de provedores que cria as imagens. Sem seleção, o recurso não tem efeito.",
+  "config.image_generation.size_help": "Tamanho da imagem em pixels quando o agente não especifica um. Nem todo provedor aceita todos os tamanhos.",
+  "config.image_generation.quality_help": "Nível de qualidade quando o agente não especifica um. \"hd\" dá mais detalhes, mas geralmente custa mais.",
+  "config.image_generation.style_help": "Estilo da imagem quando o agente não especifica um. \"vivid\" parece mais ousado e dramático que \"natural\".",
+  "config.image_generation.prompt_enhancement_help": "Um modelo de linguagem melhora a descrição antes da geração. Isso costuma gerar imagens melhores, mas custa uma chamada extra ao modelo."
 }

@@ -1,0 +1,16 @@
+{
+  "config.s3.allow_delete_help": "Agent smí mazat objekty. Smazané objekty nelze obnovit.",
+  "config.s3.allow_read_help": "Agent smí vypisovat a stahovat objekty.",
+  "config.s3.allow_write_help": "Agent smí nahrávat objekty a přepisovat existující.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.details_help": "Technické stavové údaje služby ve formátu JSON, například pro řešení potíží. Pouze pro čtení.",
+  "config.s3.enabled_label": "Povolit úložiště S3",
+  "config.s3.endpoint_help": "Adresa spravované služby RustFS. Nastavuje se automaticky a zobrazuje se pouze pro informaci.",
+  "config.s3.endpoint_label": "URL koncového bodu",
+  "config.s3.insecure_label": "Povolit nešifrované připojení",
+  "config.s3.location_bucket_help": "Název bucketu, na který se oprávnění vztahuje.",
+  "config.s3.location_prefixes_help": "Jedna předpona na řádek. Bez záznamů není nic povoleno, pokud není vybrán celý bucket.",
+  "config.s3.readonly_label": "Jen pro čtení",
+  "config.s3.region_label": "Region",
+  "config.s3.use_path_style_label": "Použít adresování path-style"
+}

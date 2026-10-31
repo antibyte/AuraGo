@@ -13,6 +13,11 @@
   "config.flows.missions_off": "मिशन बंद हैं। फ़्लो चलाने के लिए मिशन ज़रूरी हैं।",
   "config.flows.open": "EasyDrag खोलें",
   "config.flows.run_retention_days": "रन इतिहास रखें (दिन, 1–365)",
-  "config.section.flows.desc": "EasyDrag ऐप के विज़ुअल ऑटोमेशन",
-  "config.section.flows.label": "EasyDrag फ़्लो"
+  "config.section.flows.desc": "EasyDrag ऐप में बनाए गए विज़ुअल ऑटोमेशन चलाता है।",
+  "config.section.flows.label": "EasyDrag फ़्लो",
+  "config.flows.enabled_help": "EasyDrag फ़्लो चलाना चालू करता है। परिवर्तन पुनः आरंभ के बाद लागू होता है।",
+  "config.flows.max_parallel_runs_help": "एक साथ कितने फ़्लो रन चल सकते हैं (1 से 32, डिफ़ॉल्ट 8)। बाकी प्रतीक्षा करते हैं।",
+  "config.flows.max_parallel_nodes_per_run_help": "एक रन के कितने चरण समानांतर रूप से चल सकते हैं (1 से 16, डिफ़ॉल्ट 4)।",
+  "config.flows.max_runs_per_flow_help": "प्रति फ़्लो कितने पूर्ण रन रखे जाते हैं; पुराने हटा दिए जाते हैं (10 से 5000, डिफ़ॉल्ट 200)।",
+  "config.flows.run_retention_days_help": "किसी रन का इतिहास इतने दिनों के बाद हटा दिया जाता है (1 से 365, डिफ़ॉल्ट 30)।"
 }

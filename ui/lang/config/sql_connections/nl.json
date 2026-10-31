@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "SQLite-back-up importeren",
   "config.sql_connections.sqlite_import_help": "Upload een consistente, zelfstandige back-up (maximaal 64 MiB). Opslaan importeert deze in beschermde opslag en behoudt originelen.",
   "config.sql_connections.sqlite_import_required": "SQLite-import vereist",
-  "config.sql_connections.allow_management_help": "De agent mag alleen beschrijvingen wijzigen. Instellingen, inloggegevens en rechten zijn voorbehouden aan de beheerder."
+  "config.sql_connections.allow_management_help": "De agent mag alleen beschrijvingen wijzigen. Instellingen, inloggegevens en rechten zijn voorbehouden aan de beheerder.",
+  "config.sql_connections.filter_label": "Verbindingen filteren",
+  "config.sql_connections.filter_help": "Filtert de lijst op naam, type, host, database of beschrijving.",
+  "config.sql_connections.name_help": "Unieke naam waarmee de agent naar deze verbinding verwijst.",
+  "config.sql_connections.driver_help": "Type database. SQLite werkt met een geïmporteerd bestand, de andere maken verbinding met een server.",
+  "config.sql_connections.port_help": "Laat leeg voor de standaardpoort van het databasetype (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Hostnaam of IP-adres van de databaseserver. Leeg = localhost.",
+  "config.sql_connections.ssl_mode_help": "Versleuteling van de verbinding. Disable verstuurt alles in platte tekst, Require versleutelt zonder het certificaat te controleren, Verify CA controleert de certificaatautoriteit, Verify Full controleert ook de servernaam (veiligst).",
+  "config.sql_connections.database_help": "Naam van de database op de server waarmee de agent verbinding maakt.",
+  "config.sql_connections.description_help": "Korte notitie voor de agent en voor jou over waarvoor de database wordt gebruikt.",
+  "config.sql_connections.username_help": "Databasegebruiker. Gebruik een account met zo min mogelijk rechten.",
+  "config.sql_connections.password_help": "Versleuteld opgeslagen in de Vault. Laat leeg om het opgeslagen wachtwoord te behouden."
 }

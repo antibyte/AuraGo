@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "Ativa o aplicativo Video Studio na área de trabalho virtual. FFmpeg e FFprobe precisam estar instalados no servidor.",
+  "config.video_studio.readonly_help": "Os projetos podem ser visualizados, mas não alterados nem exportados.",
+  "config.video_studio.ffmpeg_help": "Caminho do executável do FFmpeg. Deixe vazio para encontrar o FFmpeg pelo PATH do sistema.",
+  "config.video_studio.asset_limit_help": "Maior arquivo de mídia individual permitido em megabytes (padrão 4096).",
+  "config.video_studio.project_limit_help": "Tamanho total de todos os arquivos de um projeto em megabytes (padrão 16384).",
+  "config.video_studio.timeout_help": "Tempo máximo para renderizar um vídeo em segundos; depois disso ele é interrompido (30 a 14400, padrão 7200).",
+  "config.video_studio.hardware_device_help": "Dispositivo de renderização da placa de vídeo, por exemplo /dev/dri/renderD128 no Linux. Vazio = automático.",
+  "config.retro_games.enabled_help": "Ativa o aplicativo Retro Games na área de trabalho virtual. Os jogos rodam no emulador do archive.org e precisam de acesso à internet.",
+  "config.retro_games.agent_access_help": "O agente pode procurar jogos e iniciá-los na área de trabalho."
+}

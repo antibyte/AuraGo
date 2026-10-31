@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "允许创建受管理的游戏项目。",
   "help.game_maker.allow_edit": "允许智能体任务、修改、验证、发布和恢复修订。",
   "help.game_maker.allow_delete": "允许删除受管理项目。共享媒体仍受保护。",
-  "help.game_maker.allow_media_generation": "配置相应提供商后，允许为项目生成图像和音乐。"
+  "help.game_maker.allow_media_generation": "配置相应提供商后，允许为项目生成图像和音乐。",
+  "config.game_maker.workspace_path_help": "游戏项目的文件夹，相对于 AuraGo 目录。所有项目都存放在其下。",
+  "config.game_maker.max_projects_help": "同时存储的项目数量上限（默认 25）。",
+  "config.game_maker.max_files_per_project_help": "单个项目中的文件数量上限（默认 250）。",
+  "config.game_maker.max_file_size_kb_help": "允许的最大源文件，单位为 KB（默认 2048）。",
+  "config.game_maker.max_asset_size_mb_help": "允许的最大资源（如图片、声音或模型），单位为 MB（默认 32）。",
+  "config.game_maker.max_project_size_mb_help": "单个项目的总大小，单位为 MB；达到后不再接受新文件（默认 100）。",
+  "config.game_maker.job_timeout_seconds_help": "代理用于构建或修改游戏的任务最长可运行多久（默认 1800 秒）。"
 }

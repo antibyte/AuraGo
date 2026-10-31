@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Videogenerering aktiverad:",
   "config.video_gen.aspect_ratio_label": "Bildförhållande",
   "config.video_gen.test_btn": "Testa anslutning",
-  "config.video_gen.disabled_desc": "Aktivera reglaget ovan så att agenten kan generera videor."
+  "config.video_gen.disabled_desc": "Aktivera reglaget ovan så att agenten kan generera videor.",
+  "config.video_gen.enabled_help": "Låter agenten skapa videor med vald leverantör. Varje generering förbrukar kvot eller kredit.",
+  "config.video_gen.provider_help": "Leverantör från Leverantörshantering som skapar videorna.",
+  "config.video_gen.duration_help": "Längd på ett klipp i sekunder (1-30, standard 6) när agenten inte anger någon. Längre klipp kostar mer.",
+  "config.video_gen.resolution_help": "Upplösning när agenten inte anger någon. Tillgängliga värden beror på leverantören.",
+  "config.video_gen.aspect_ratio_help": "Bildformat när agenten inte anger något, till exempel 16:9 för liggande och 9:16 för stående.",
+  "config.video_gen.poll_interval_help": "Hur ofta AuraGo frågar leverantören om statusen för ett videojobb (1-120 sekunder, standard 10).",
+  "config.video_gen.timeout_help": "Efter den här tiden slutar AuraGo vänta på en video (30-3600 sekunder, standard 600).",
+  "config.video_gen.max_daily_help": "Maximalt antal videor per dag. 0 betyder obegränsat."
 }

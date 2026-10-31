@@ -60,5 +60,13 @@
   "config.email.load_failed": "Impossibile caricare gli account e-mail",
   "config.email.load_failed_disabled": "Aggiunta, modifica ed eliminazione sono disabilitate finché l'elenco non è caricato.",
   "config.email.retry": "Riprova",
-  "config.email.saved": "Account e-mail salvati."
+  "config.email.saved": "Account e-mail salvati.",
+  "config.email.name_help": "Nome visualizzato dell'account in AuraGo, ad esempio \"Personale\" o \"Lavoro\".",
+  "config.email.imap_host_help": "Indirizzo del server di posta in arrivo (IMAP) del tuo provider di posta.",
+  "config.email.smtp_host_help": "Indirizzo del server di posta in uscita (SMTP) del tuo provider di posta.",
+  "config.email.username_help": "Nome utente per IMAP e SMTP, di solito l'indirizzo e-mail completo.",
+  "config.email.password_help": "Password o password per app dell'account. È memorizzata cifrata nel vault.",
+  "config.email.watch_enabled_help": "AuraGo controlla regolarmente la cartella scelta qui sotto per nuova posta e può reagire.",
+  "config.email.watch_folder_help": "Cartella IMAP monitorata per la nuova posta. Il valore predefinito è INBOX.",
+  "config.email.interval_seconds_help": "Ogni quanto viene controllata la cartella, in secondi (predefinito 120). Intervalli più brevi gravano di più sul server di posta."
 }

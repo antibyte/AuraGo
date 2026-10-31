@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "本地网络共享",
-  "config.section.network_shares.desc": "管理此主机提供的 SMB 和 NFS 共享。",
+  "config.section.network_shares.desc": "管理本主机提供的 SMB 和 NFS 共享。",
   "dashboard.integration_network_shares": "本地网络共享",
   "config.network_shares.loading": "正在读取本地 SMB 和 NFS 功能…",
   "config.network_shares.enabled": "启用集成",

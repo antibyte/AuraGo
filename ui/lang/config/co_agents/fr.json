@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Sélectionner un aide-mémoire",
   "config.co_agents.spec_cheatsheet_loading": "Chargement…",
   "config.co_agents.spec_cheatsheet_empty": "Aucun aide-mémoire actif disponible.",
-  "config.co_agents.spec_cheatsheet_error": "Impossible de charger les aide-mémoires."
+  "config.co_agents.spec_cheatsheet_error": "Impossible de charger les aide-mémoires.",
+  "config.co_agents.provider_help": "Modèle utilisé par les co-agents. Sans sélection, ils utilisent le LLM principal.",
+  "config.co_agents.cb_max_tool_calls_help": "Nombre d'appels d'outils qu'un co-agent peut effectuer par tâche avant d'être arrêté (10 par défaut).",
+  "config.co_agents.cb_timeout_help": "Durée d'exécution maximale d'un co-agent en secondes (300 par défaut).",
+  "config.co_agents.cb_max_tokens_help": "Limite supérieure de tokens utilisés par tâche. 0 = illimité.",
+  "config.co_agents.spec_provider_help": "Modèle propre à ce rôle uniquement. Sans sélection, le fournisseur des co-agents s'applique.",
+  "config.co_agents.spec_additional_prompt_help": "Instructions supplémentaires ajoutées au prompt système de ce rôle."
 }

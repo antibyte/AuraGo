@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Port for webgrensesnitt",
   "config.fritzbox.insecure_skip_verify_label": "Tillat selvsignert sertifikat",
   "help.fritzbox.web_port": "Valgfri port for innlogging og Smart Home-forespørsler. La 0 stå for å bruke 80 eller 443.",
-  "help.fritzbox.insecure_skip_verify": "Tillater HTTPS med et selvsignert Fritz!Box-sertifikat. Bruk bare på et klarert hjemmenettverk."
+  "help.fritzbox.insecure_skip_verify": "Tillater HTTPS med et selvsignert Fritz!Box-sertifikat. Bruk bare på et klarert hjemmenettverk.",
+  "config.fritzbox.feature_enabled_help": "Agenten kan bruke funksjonene \"{feature}\" i Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "For \"{feature}\" kan agenten bare lese verdier og ikke endre noe på Fritz!Box.",
+  "config.fritzbox.polling_enabled_help": "Spør Fritz!Box jevnlig etter nye samtaler slik at AuraGo kan reagere på dem.",
+  "config.fritzbox.polling_interval_help": "Tid mellom forespørsler i sekunder (10-3600, standard 60). Kortere intervaller reagerer raskere, men belaster Fritz!Box mer."
 }

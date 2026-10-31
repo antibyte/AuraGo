@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "Baixa um modelo pequeno para esta máquina e o executa em um contêiner sob demanda. Serve para testes ou como fallback, não como substituto de um modelo grande.",
+  "config.local_llm.model_family_help": "Qual modelo local é usado. O Spark é experimental e especialmente pequeno.",
+  "config.local_llm.backend_help": "Acelerador de computação do modelo. Automático escolhe uma GPU compatível; a CPU é lenta e experimental.",
+  "config.local_llm.model_variant_help": "Quantização do modelo: Q8 é mais preciso, mas precisa de mais memória que Q4. O tamanho é o do download.",
+  "config.local_llm.context_size_help": "Quanto texto o modelo considera de uma vez. Mais contexto exige mais memória.",
+  "config.local_llm.mtp_help": "A previsão multi-token acelera a saída usando um modelo de rascunho adicional. Experimental e exige mais memória.",
+  "config.local_llm.idle_timeout_help": "Após este número de minutos sem solicitação, o modelo é parado para liberar memória (1 a 1440, padrão 15).",
+  "config.local_llm.listen_port_help": "Porta local do servidor do modelo. Só é acessível a partir desta máquina (padrão 18081).",
+  "config.local_llm.role_help": "Somente teste: apenas para experimentar. Fallback: entra em ação quando o modelo principal falha. Principal: responde a todas as solicitações.",
+  "config.local_llm.regular_provider_help": "Provedor regular que assume a outra função enquanto o modelo local tem a função escolhida.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} s",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

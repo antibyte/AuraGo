@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Στέλνει επιπλέον κεφαλίδες με τα αιτήματα προς το Manifest ώστε το Manifest να επιλέγει το κατάλληλο μοντέλο σύμφωνα με τα επίπεδά σας.",
+  "config.manifest.routing_header_name": "Όνομα κεφαλίδας",
+  "config.manifest.routing_header_value": "Τιμή κεφαλίδας",
+  "config.manifest.routing_headers_help": "Προσαρμοσμένες κεφαλίδες ως ζεύγη ονόματος και τιμής που το AuraGo στέλνει επιπλέον στο Manifest. Εισαγάγετε μόνο τιμές που επιτρέπεται να δει το Manifest.",
+  "config.manifest.routing_specificity_help": "Κατηγορία που το AuraGo στέλνει με κάθε αίτημα προς το Manifest στη λειτουργία «Fixed».",
+  "config.manifest.routing_specificity_mode_help": "Το Off δεν στέλνει κατηγορία, το Fixed στέλνει πάντα αυτήν που επιλέγεται παρακάτω, το Automatic αφήνει το AuraGo να καθορίζει την κατηγορία ανά αίτημα."
+}

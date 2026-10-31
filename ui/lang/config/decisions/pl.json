@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Włącza lokalną usługę decyzyjną, której inne funkcje mogą używać do szybkich ocen tak/nie. Poniżej wybierasz, które funkcje z niej korzystają.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

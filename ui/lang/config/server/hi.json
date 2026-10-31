@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 HTTP लिसनर बंद करता है। Let’s Encrypt HTTP-01 के लिए 80 चुनें और सार्वजनिक पोर्ट 80 को पहुँच योग्य बनाएँ।",
   "config.server.restart_address": "दोबारा शुरू होने के बाद खोलें:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "वह नेटवर्क पता जिस पर AuraGo सुनता है। खाली या 0.0.0.0 = सभी इंटरफ़ेस, 127.0.0.1 = केवल यही मशीन। बदलने के बाद पुनः आरंभ आवश्यक है।",
+  "config.server.port_hint": "वेब UI और API का TCP पोर्ट (डिफ़ॉल्ट 8088)। बदलने के बाद पुनः आरंभ आवश्यक है।",
+  "config.server.ui_language_hint": "वेब UI और सिस्टम संदेशों की भाषा। यह इस इंस्टेंस के सभी उपयोगकर्ताओं पर लागू होती है।",
+  "config.server.cert_mode_hint": "TLS प्रमाणपत्र कहाँ से आता है: Let's Encrypt के ज़रिए स्वचालित, आपकी अपनी फ़ाइलें, या स्थानीय परीक्षण के लिए स्व-हस्ताक्षरित प्रमाणपत्र।",
+  "config.server.https_port_hint": "एन्क्रिप्टेड कनेक्शन के लिए पोर्ट (डिफ़ॉल्ट 443)। 1024 से नीचे के पोर्ट के लिए Linux पर root अधिकार या उपयुक्त capability चाहिए।",
+  "config.server.domain_hint": "वह सार्वजनिक डोमेन नाम जिसके लिए प्रमाणपत्र जारी होता है। यह इसी सर्वर की ओर इंगित होना चाहिए।",
+  "config.server.email_hint": "Let's Encrypt के लिए संपर्क पता, जैसे समाप्ति की चेतावनियों के लिए। यह केवल प्रमाणपत्र प्राधिकरण को भेजा जाता है।",
+  "config.server.cert_file_hint": "PEM फ़ॉर्मैट वाली प्रमाणपत्र फ़ाइल का पथ, AuraGo निर्देशिका के सापेक्ष या पूर्ण।",
+  "config.server.key_file_hint": "PEM फ़ॉर्मैट वाली निजी कुंजी का पथ। फ़ाइल केवल AuraGo खाते द्वारा पढ़ी जा सकनी चाहिए।",
+  "config.server.behind_proxy_hint": "तब चालू करें जब कोई रिवर्स प्रॉक्सी TLS समाप्त करता हो। केवल नीचे की सूची के पते फ़ॉरवर्ड किए गए हेडर सेट कर सकते हैं। गलत सेट होने पर क्लाइंट पतों की जालसाज़ी हो सकती है।",
+  "config.server.cert_status_sans": "सब्जेक्ट वैकल्पिक नाम (SAN)"
 }

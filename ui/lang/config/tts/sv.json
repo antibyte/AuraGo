@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Hämta",
   "config.tts.phonon_downloading": "Hämtar …",
   "config.tts.phonon_catalog_error": "Röstkatalogen kunde inte läsas in.",
-  "config.tts.phonon_download_error": "Hämtningen misslyckades. Ditt tidigare röstval behålls."
+  "config.tts.phonon_download_error": "Hämtningen misslyckades. Ditt tidigare röstval behålls.",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (lokal Docker)",
+  "config.tts.title_piper": "Piper TTS (lokal Docker)",
+  "config.tts.api_key_help": "API-nyckel från ditt konto hos leverantören. Den lagras krypterad i vault.",
+  "config.tts.cloud_voice_help": "Röst som leverantören använder för att tala texten.",
+  "config.tts.phonon_catalog_help": "Filtrerar röstlistan nedan efter språk. Ändrar inte rösten som valts ovan.",
+  "config.tts.supertonic_image_help": "Docker-avbild som Supertonic-containern startas från. Ändra bara om du använder en egen avbild.",
+  "config.tts.supertonic_port_help": "Port som Supertonic-containern lyssnar på internt (standard 7788).",
+  "config.tts.supertonic_data_path_help": "Mapp för modeller och containerdata, relativ till AuraGo-katalogen (standard data/supertonic).",
+  "config.tts.supertonic_container_name_help": "Namn på Docker-containern. Ändra bara om standardnamnet redan är upptaget.",
+  "config.tts.piper_port_help": "Port som Piper-containern lyssnar på internt (standard 10200).",
+  "config.tts.piper_image_help": "Docker-avbild som Piper-containern startas från. Ändra bara om du använder en egen avbild.",
+  "config.tts.piper_data_path_help": "Mapp för nedladdade röster, relativ till AuraGo-katalogen (standard data/piper)."
 }

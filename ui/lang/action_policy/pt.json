@@ -36,5 +36,6 @@
   "action_policy.unknown": "Resultado incerto. Verifica o estado antes de repetir a ação.",
   "action_policy.admin_only": "Só os administradores podem alterar regras e aprovar ações.",
   "action_policy.save_hint": "Guarda as alterações antes de testar as regras.",
-  "action_policy.pending": "Aprovações pendentes"
+  "action_policy.pending": "Aprovações pendentes",
+  "action_policy.enabled_help": "Regras próprias permitem ou negam ações individuais automaticamente. Recursos desativados e configurações somente leitura sempre têm prioridade."
 }

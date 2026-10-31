@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "选择速查表",
   "config.co_agents.spec_cheatsheet_loading": "加载中…",
   "config.co_agents.spec_cheatsheet_empty": "没有可用的活动速查表。",
-  "config.co_agents.spec_cheatsheet_error": "加载速查表失败。"
+  "config.co_agents.spec_cheatsheet_error": "加载速查表失败。",
+  "config.co_agents.provider_help": "协同代理使用的模型。未选择时，它们使用主 LLM。",
+  "config.co_agents.cb_max_tool_calls_help": "协同代理每个任务最多可调用多少次工具，超过后会被停止（默认 10）。",
+  "config.co_agents.cb_timeout_help": "协同代理的最长运行时间，单位为秒（默认 300）。",
+  "config.co_agents.cb_max_tokens_help": "每个任务使用的令牌数上限。0 = 不限制。",
+  "config.co_agents.spec_provider_help": "仅用于此角色的专用模型。未选择时，使用协同代理的提供商。",
+  "config.co_agents.spec_additional_prompt_help": "附加到此角色系统提示词的额外指令。"
 }

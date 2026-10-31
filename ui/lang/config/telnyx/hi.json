@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Telnyx से जुड़ा",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Telnyx वॉइस प्रॉम्प्ट और कॉल ट्रांसक्रिप्शन के लिए प्रयुक्त डिफ़ॉल्ट भाषा कोड।"
+  "help.telnyx.voice_language": "Telnyx वॉइस प्रॉम्प्ट और कॉल ट्रांसक्रिप्शन के लिए प्रयुक्त डिफ़ॉल्ट भाषा कोड।",
+  "config.telnyx.voice_gender_help": "वह आवाज़ जिसमें एजेंट फ़ोन कॉल पर बोलता है।",
+  "config.telnyx.max_concurrent_calls_help": "एक साथ कितने कॉल चल सकते हैं (1-20, डिफ़ॉल्ट 3)। अन्य कॉल अस्वीकार कर दिए जाते हैं।",
+  "config.telnyx.max_sms_per_minute_help": "प्रति मिनट आउटगोइंग SMS की अधिकतम संख्या (1-60, डिफ़ॉल्ट 10)। गलती से थोक में भेजने और ऊँची लागत से बचाता है।"
 }

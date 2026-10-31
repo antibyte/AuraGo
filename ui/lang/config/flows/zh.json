@@ -13,6 +13,11 @@
   "config.flows.missions_off": "任务功能已关闭。流程需要任务功能才能运行。",
   "config.flows.open": "打开 EasyDrag",
   "config.flows.run_retention_days": "保留运行记录（天，1–365）",
-  "config.section.flows.desc": "来自 EasyDrag 应用的可视化自动化",
-  "config.section.flows.label": "EasyDrag 流程"
+  "config.section.flows.desc": "运行在 EasyDrag 应用中创建的可视化自动化流程。",
+  "config.section.flows.label": "EasyDrag 流程",
+  "config.flows.enabled_help": "启用 EasyDrag 流程的运行。更改在重启后生效。",
+  "config.flows.max_parallel_runs_help": "可同时运行多少个流程（1 到 32，默认 8）。其余的会排队等待。",
+  "config.flows.max_parallel_nodes_per_run_help": "单次运行中可并行执行多少个步骤（1 到 16，默认 4）。",
+  "config.flows.max_runs_per_flow_help": "每个流程保留多少次已完成的运行，更早的会被删除（10 到 5000，默认 200）。",
+  "config.flows.run_retention_days_help": "运行记录在这么多天后会被删除（1 到 365，默认 30）。"
 }

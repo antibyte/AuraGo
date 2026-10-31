@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtuální počítače",
-  "config.section.virtual_computers.desc": "Jednorázové microVM počítače s terminálem, plochou, náhledy a přístupem agenta.",
+  "config.section.virtual_computers.desc": "Poskytuje jednorázové počítače microVM s terminálem, plochou a přístupem agenta.",
   "config.virtual_computers.enabled_label": "Zapnout virtuální počítače",
   "config.virtual_computers.disabled_notice": "Virtuální počítače jsou vypnuté.",
   "config.virtual_computers.disabled_desc": "Zapněte integraci pro spouštění a proxyování strojů boring-computers.",

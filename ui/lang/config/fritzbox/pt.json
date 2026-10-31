@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Porta da interface web",
   "config.fritzbox.insecure_skip_verify_label": "Permitir certificado autoassinado",
   "help.fritzbox.web_port": "Porta opcional para login e pedidos Smart Home. Deixa 0 para usar 80 ou 443.",
-  "help.fritzbox.insecure_skip_verify": "Permite HTTPS com um certificado Fritz!Box autoassinado. Usa apenas numa rede doméstica de confiança."
+  "help.fritzbox.insecure_skip_verify": "Permite HTTPS com um certificado Fritz!Box autoassinado. Usa apenas numa rede doméstica de confiança.",
+  "config.fritzbox.feature_enabled_help": "O agente pode usar as funções de \"{feature}\" da Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "Em \"{feature}\", o agente só pode ler valores e não pode alterar nada na Fritz!Box.",
+  "config.fritzbox.polling_enabled_help": "Consulta regularmente a Fritz!Box sobre novas chamadas para que o AuraGo possa reagir a elas.",
+  "config.fritzbox.polling_interval_help": "Tempo entre as consultas em segundos (10-3600, padrão 60). Intervalos menores reagem mais rápido, mas sobrecarregam mais a Fritz!Box."
 }

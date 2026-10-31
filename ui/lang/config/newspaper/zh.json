@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "上次尝试：{result}",
   "config.newspaper.max_searches": "每期最大搜索次数（含重试）",
   "config.section.newspaper.label": "报纸",
-  "config.section.newspaper.desc": "个人每日来源版本",
+  "config.section.newspaper.desc": "根据带来源的调研生成个人每日报纸。",
   "config.newspaper.enabled": "启用报纸",
   "config.newspaper.readonly": "只读模式",
   "config.newspaper.allow_email": "允许电子邮件传送",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "金额预算仍然适用。",
   "config.newspaper.monetary_budget_disabled": "未配置金额预算；研究限制仍然适用。",
   "config.newspaper.fixed_budget_note": "固定限制由整期内容共享 {pages} 个页面。",
-  "config.newspaper.fixed_limits_only": "这些限制仅在固定模式下适用。"
+  "config.newspaper.fixed_limits_only": "这些限制仅在固定模式下适用。",
+  "config.newspaper.enabled_help": "让桌面每天针对您的主题调研并编排一份报纸。主题在桌面中设置。",
+  "config.newspaper.readonly_help": "报纸只能读取和显示，不能发送或更改任何内容。",
+  "config.newspaper.allow_email_help": "允许通过电子邮件发送完成的各期报纸。需要先设置好电子邮件账户。",
+  "config.newspaper.allow_telegram_help": "允许通过 Telegram 发送完成的各期报纸。需要先设置好 Telegram。",
+  "config.newspaper.max_minutes_help": "调研一期报纸最多可花费多长时间（1 到 60 分钟，默认 30）。",
+  "config.newspaper.max_pages_help": "每期最多阅读多少个网页（1 到 60，默认 60）。",
+  "config.newspaper.max_searches_help": "每期最多执行多少次搜索查询，包括重试（1 到 64，默认 32）。",
+  "config.newspaper.max_editions_help": "保留多少期已完成的报纸；更早的会被删除（30 到 3650，默认 365）。"
 }

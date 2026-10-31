@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Una maschera non valida è salvata come credenziale. Sostituiscila o rimuovila.",
   "config.providers.runtime_incomplete": "Il provider salvato è incompleto o non disponibile. Controlla modello, indirizzo e credenziali.",
   "config.providers.limit_source_model_only_fallback": "stima basata sul modello di un altro provider",
-  "config.providers.missing_references": "Provider selezionati mancanti: {paths}. Scegli un provider esistente in queste impostazioni."
+  "config.providers.missing_references": "Provider selezionati mancanti: {paths}. Scegli un provider esistente in queste impostazioni.",
+  "config.providers.search_help": "Filtra l'elenco dei provider per nome, tipo o modello.",
+  "config.providers.filter_type_help": "Mostra solo i provider di un tipo.",
+  "config.providers.filter_role_help": "Mostra solo i provider assegnati a un compito specifico, come il modello principale o gli embedding."
 }

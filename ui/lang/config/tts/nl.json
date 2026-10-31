@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Downloaden",
   "config.tts.phonon_downloading": "Downloaden …",
   "config.tts.phonon_catalog_error": "De stemmencatalogus kon niet worden geladen.",
-  "config.tts.phonon_download_error": "Download mislukt. Je vorige stemkeuze blijft behouden."
+  "config.tts.phonon_download_error": "Download mislukt. Je vorige stemkeuze blijft behouden.",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (lokale Docker)",
+  "config.tts.title_piper": "Piper TTS (lokale Docker)",
+  "config.tts.api_key_help": "API-sleutel van je account bij de provider. Wordt versleuteld opgeslagen in de Vault.",
+  "config.tts.cloud_voice_help": "Stem waarmee de provider de tekst uitspreekt.",
+  "config.tts.phonon_catalog_help": "Filtert de onderstaande stemmenlijst op taal. De hierboven gekozen stem verandert niet.",
+  "config.tts.supertonic_image_help": "Docker-image waarmee de Supertonic-container wordt gestart. Wijzig alleen als je een eigen image gebruikt.",
+  "config.tts.supertonic_port_help": "Poort waarop de Supertonic-container intern luistert (standaard 7788).",
+  "config.tts.supertonic_data_path_help": "Map voor modellen en containergegevens, relatief aan de AuraGo-map (standaard data/supertonic).",
+  "config.tts.supertonic_container_name_help": "Naam van de Docker-container. Wijzig alleen als de standaardnaam al in gebruik is.",
+  "config.tts.piper_port_help": "Poort waarop de Piper-container intern luistert (standaard 10200).",
+  "config.tts.piper_image_help": "Docker-image waarmee de Piper-container wordt gestart. Wijzig alleen als je een eigen image gebruikt.",
+  "config.tts.piper_data_path_help": "Map voor gedownloade stemmen, relatief aan de AuraGo-map (standaard data/piper)."
 }

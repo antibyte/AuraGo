@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Las imágenes solo se envían de los directorios que tienen activado el envío de contenido multimedia en la lista de arriba.",
   "config.indexing.rescan_starting": "Iniciando el análisis…",
   "config.indexing.rescan_started": "Análisis iniciado",
-  "config.indexing.rescan_failed": "No se pudo iniciar el análisis"
+  "config.indexing.rescan_failed": "No se pudo iniciar el análisis",
+  "config.indexing.chunk_max_chars_help": "Longitud máxima de un fragmento de texto en caracteres. Los fragmentos más pequeños dan resultados más precisos, los grandes más contexto. Por defecto: 3500.",
+  "config.indexing.chunk_max_chunks_help": "Número máximo de fragmentos creados por archivo; el resto de los archivos muy grandes se omite. Por defecto: 200.",
+  "config.indexing.chunk_overlap_help": "Caracteres compartidos entre fragmentos vecinos para que las frases en los bordes no queden cortadas. Por defecto: 200.",
+  "config.indexing.dir_help": "Carpeta cuyos archivos se indexan, como ruta absoluta o relativa a la carpeta de AuraGo. Se incluyen las subcarpetas. Añádela con el botón o con Intro.",
+  "config.indexing.dir_label": "Directorio a vigilar"
 }

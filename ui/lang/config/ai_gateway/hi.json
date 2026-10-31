@@ -51,5 +51,6 @@
   "config.ai_gateway.route_skipped": "यह प्रदाता गेटवे रूट का उपयोग नहीं करता है।",
   "config.ai_gateway.metadata_invalid": "अलग कुंजियों वाले अधिकतम पाँच पूरे जोड़े उपयोग करो। गोपनीय जानकारी कभी न भरो।",
   "config.ai_gateway.provider_key_help": "चुने गए प्रदाता की API कुंजी।",
-  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save.",
+  "config.ai_gateway.provider_select_help": "नीचे दिए गए दोनों परीक्षणों के लिए उपयोग किया जाने वाला प्रदाता। यह चयन सहेजा नहीं जाता।"
 }

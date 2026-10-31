@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Ultimo tentativo: {result}",
   "config.newspaper.max_searches": "Ricerche massime per edizione (tentativi ripetuti inclusi)",
   "config.section.newspaper.label": "Giornale",
-  "config.section.newspaper.desc": "Un'edizione quotidiana personale e di provenienza",
+  "config.section.newspaper.desc": "Crea un quotidiano personale a partire da ricerche con fonti.",
   "config.newspaper.enabled": "Abilita Giornale",
   "config.newspaper.readonly": "Modalità di sola lettura",
   "config.newspaper.allow_email": "Consenti il recapito della posta elettronica",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Il budget monetario resta attivo.",
   "config.newspaper.monetary_budget_disabled": "Nessun budget monetario configurato; i limiti di ricerca restano attivi.",
   "config.newspaper.fixed_budget_note": "I limiti fissi condividono {pages} pagine per l’intera edizione.",
-  "config.newspaper.fixed_limits_only": "Questi limiti si applicano solo in modalità fissa."
+  "config.newspaper.fixed_limits_only": "Questi limiti si applicano solo in modalità fissa.",
+  "config.newspaper.enabled_help": "Permette al desktop di ricercare e compilare ogni giorno un quotidiano sui tuoi argomenti. Gli argomenti si impostano nel desktop.",
+  "config.newspaper.readonly_help": "Il quotidiano può solo leggere e mostrare, ma non inviare né modificare nulla.",
+  "config.newspaper.allow_email_help": "Consente l'invio per e-mail delle edizioni completate. Per questo deve essere configurato un account e-mail.",
+  "config.newspaper.allow_telegram_help": "Consente l'invio delle edizioni completate tramite Telegram. Per questo deve essere configurato Telegram.",
+  "config.newspaper.max_minutes_help": "Durata massima della ricerca per un'edizione (da 1 a 60 minuti, predefinito 30).",
+  "config.newspaper.max_pages_help": "Numero massimo di pagine web lette per edizione (da 1 a 60, predefinito 60).",
+  "config.newspaper.max_searches_help": "Numero massimo di ricerche per edizione, tentativi inclusi (da 1 a 64, predefinito 32).",
+  "config.newspaper.max_editions_help": "Quante edizioni completate restano memorizzate; quelle più vecchie vengono eliminate (da 30 a 3650, predefinito 365)."
 }

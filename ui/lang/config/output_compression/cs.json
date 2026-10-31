@@ -1,0 +1,12 @@
+{
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "Komprese LZW",
+  "config.output_compression.enabled_help": "Zkracuje dlouhý výstup nástrojů, než se dostane k modelu, a šetří tak tokeny. Chybové zprávy se zachovají, pokud je zapnutá níže uvedená volba.",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Nahrazuje opakující se části textu krátkými odkazy beze změny jejich pořadí. Šetří tokeny u silně opakujícího se výstupu.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Maximální počet odkazů vytvořených na jeden výstup. Více položek najde více opakování, ale potřebuje více místa pro slovník.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Delší výstupy se touto metodou nezpracovávají, aby se ušetřil výpočetní čas.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Část textu se nahradí, pouze pokud se vyskytuje alespoň tolikrát.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Kratší části textu se nikdy nenahrazují, protože odkaz by pak zabral více místa než text.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Výsledek se použije, pouze pokud je alespoň o tolik procent kratší než originál.",
+  "help.agent.output_compression.toon_json.max_rows": "Tabulky s větším počtem řádků se nevykreslují v kompaktním formátu TOON.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "Kompaktní tvar tabulky se použije, pouze pokud je alespoň o tolik procent kratší než JSON."
+}

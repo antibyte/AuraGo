@@ -38,5 +38,7 @@
   "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
   "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
   "config.mcp_server.token_error": "Token generation failed",
-  "config.mcp_server.preset_applied": "Ustawienie wstępne zastosowane. Zapisz, aby zachować wybór narzędzi."
+  "config.mcp_server.preset_applied": "Ustawienie wstępne zastosowane. Zapisz, aby zachować wybór narzędzi.",
+  "config.mcp_server.endpoint_url_help": "Adres, który klienci MCP wpisują, aby połączyć się z wbudowanym serwerem AuraGo.",
+  "config.mcp_server.token_help": "Token bearer dla klientów MCP. Nowo wygenerowany token jest wyświetlany tylko raz; skopiuj go od razu."
 }

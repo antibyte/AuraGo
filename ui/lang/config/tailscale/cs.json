@@ -159,5 +159,11 @@
   "config.tailscale.status_no_credentials": "Chybí API klíč Tailscale",
   "config.tailscale.status_ok": "Připojeno k API Tailscale",
   "config.tailscale.status_success": "✅",
-  "config.tailscale.status_error": "❌"
+  "config.tailscale.status_error": "❌",
+  "config.tailscale.tsnet_enable_https_link": "Zapnout HTTPS",
+  "config.tailscale.tsnet_enabled_help": "Spustí AuraGo jako vlastní uzel v tailnetu (tsnet). Webové rozhraní je pak soukromě dostupné v tailnetu bez aplikace Tailscale na serveru.",
+  "config.tailscale.tsnet_label_cert": "Certifikát",
+  "config.tailscale.tsnet_label_dns": "DNS",
+  "config.tailscale.tsnet_label_ips": "IP adresy",
+  "config.tailscale.tsnet_label_url": "URL"
 }

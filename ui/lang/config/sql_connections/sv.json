@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Importera SQLite-säkerhetskopia",
   "config.sql_connections.sqlite_import_help": "Ladda upp en konsekvent, fristående säkerhetskopia (högst 64 MiB). Spara importerar till skyddad lagring och bevarar originalen.",
   "config.sql_connections.sqlite_import_required": "SQLite-import krävs",
-  "config.sql_connections.allow_management_help": "Agenten får bara ändra beskrivningar. Inställningar, inloggningsuppgifter och behörigheter är för administratören."
+  "config.sql_connections.allow_management_help": "Agenten får bara ändra beskrivningar. Inställningar, inloggningsuppgifter och behörigheter är för administratören.",
+  "config.sql_connections.filter_label": "Filtrera anslutningar",
+  "config.sql_connections.filter_help": "Filtrerar listan efter namn, typ, värd, databas eller beskrivning.",
+  "config.sql_connections.name_help": "Unikt namn som agenten använder för att hänvisa till den här anslutningen.",
+  "config.sql_connections.driver_help": "Typ av databas. SQLite arbetar mot en importerad fil, de andra ansluter till en server.",
+  "config.sql_connections.port_help": "Lämna tomt för databastypens standardport (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Värdnamn eller IP-adress till databasservern. Tomt = localhost.",
+  "config.sql_connections.ssl_mode_help": "Kryptering av anslutningen. Disable skickar allt i klartext, Require krypterar utan att kontrollera certifikatet, Verify CA kontrollerar certifikatutfärdaren, Verify Full kontrollerar även servernamnet (säkrast).",
+  "config.sql_connections.database_help": "Namn på databasen på servern som agenten ansluter till.",
+  "config.sql_connections.description_help": "Kort anteckning till agenten och dig om vad databasen används till.",
+  "config.sql_connections.username_help": "Databasanvändare. Använd ett konto med så få behörigheter som möjligt.",
+  "config.sql_connections.password_help": "Lagras krypterat i vault. Lämna tomt för att behålla det sparade lösenordet."
 }

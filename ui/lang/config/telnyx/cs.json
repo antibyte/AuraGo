@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Připojeno k Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Výchozí kód jazyka používaný pro hlasové výzvy Telnyx a přepis hovorů."
+  "help.telnyx.voice_language": "Výchozí kód jazyka používaný pro hlasové výzvy Telnyx a přepis hovorů.",
+  "config.telnyx.max_concurrent_calls_help": "Kolik hovorů může probíhat současně (1–20, výchozí 3). Další hovory jsou odmítnuty.",
+  "config.telnyx.max_sms_per_minute_help": "Maximální počet odchozích SMS za minutu (1–60, výchozí 10). Chrání před nechtěným hromadným odesíláním a vysokými náklady.",
+  "config.telnyx.voice_gender_help": "Hlas, kterým agent mluví při telefonních hovorech."
 }

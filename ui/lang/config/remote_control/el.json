@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Χωρίς συσκευές",
   "config.remote_control.no_platforms": "Δεν υπάρχουν διαθέσιμες πλατφόρμες",
   "config.remote_control.platforms_error": "Σφάλμα φόρτωσης πλατφόρμων",
-  "config.remote_control.read_only_label": "Λειτουργία μόνο ανάγνωσης (αποκλείει εγγραφές, διαγραφές και εντολές shell σε όλες τις συσκευές)",
+  "config.remote_control.read_only_label": "Λειτουργία μόνο για ανάγνωση",
   "config.remote_control.security_desc": "Ελέγξτε την εγγραφή συσκευών και το αρχείο ελέγχου.",
   "config.remote_control.security_title": "Ασφάλεια",
-  "config.remote_control.ssh_insecure_host_key_label": "Αποδοχή μη ασφαλούς κλειδιού SSH (⚠️ απενεργοποιεί προστασία MITM, χρήση μόνο σε αξιόπιστα δίκτυα)",
+  "config.remote_control.ssh_insecure_host_key_label": "Να επιτρέπεται μη ασφαλές host key SSH",
   "config.remote_control.status_connected": "Συνδεδεμένο",
   "config.remote_control.status_offline": "Εκτός σύνδεσης",
   "config.security_proxy.status_loading": "Φόρτωση…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Απαιτείται ενημέρωση πελάτη",
   "config.remote_control.confirm_removal": "Αποσύνδεση συσκευής και ακύρωση εντολών που εκτελούνται; Η νέα σύζευξη απαιτεί νέο διακριτικό.",
   "config.remote_control.paths_inherit": "Μία διαδρομή ανά γραμμή. Μια κενή λίστα διαδρομών για αυτή τη συσκευή κληρονομεί τις καθολικές διαδρομές. Αν και οι δύο λίστες είναι κενές, η πρόσβαση αρχείων απαγορεύεται.",
-  "config.remote_control.security_hint": "Απαιτούνται WSS και έγκυρο πιστοποιητικό, ακόμη και μέσω Tailscale. Ενημερώστε τους κλασικούς πελάτες πριν από τον διακομιστή. Τα διακριτικά ισχύουν για μία ώρα και χρησιμοποιούνται μόνο μία φορά."
+  "config.remote_control.security_hint": "Απαιτούνται WSS και έγκυρο πιστοποιητικό, ακόμη και μέσω Tailscale. Ενημερώστε τους κλασικούς πελάτες πριν από τον διακομιστή. Τα διακριτικά ισχύουν για μία ώρα και χρησιμοποιούνται μόνο μία φορά.",
+  "config.remote_control.audit_log_help": "Καταγράφει κάθε ενέργεια σε απομακρυσμένες συσκευές. Συνιστάται ώστε οι προσβάσεις να μπορούν να εντοπιστούν αργότερα.",
+  "config.remote_control.device_name_help": "Προαιρετικό όνομα για τη συσκευή στην οποία εκτελείται ο πελάτης. Μεταβιβάζεται κατά τη λήψη.",
+  "config.remote_control.enabled_help": "Ενεργοποιεί τον απομακρυσμένο έλεγχο. Μόνο τότε μπορούν να συνδέονται οι συζευγμένες συσκευές και να έχει πρόσβαση σε αυτές ο πράκτορας.",
+  "config.remote_control.enrollment_device_name_help": "Προαιρετικό όνομα για τη νέα συσκευή. Ορίζεται όταν δημιουργείται το διακριτικό σύζευξης.",
+  "config.remote_control.max_file_size_help": "Μεγαλύτερο αρχείο σε MB που επιτρέπεται σε μια μεταφορά (1-500, προεπιλογή 50).",
+  "config.remote_control.read_only_help": "Αποκλείει εγγραφές αρχείων, διαγραφές και εντολές shell σε όλες τις συσκευές. Η ανάγνωση παραμένει δυνατή.",
+  "config.remote_control.ssh_insecure_host_key_help": "Προειδοποίηση: απενεργοποιεί τον έλεγχο του host key SSH και μαζί την προστασία από επιθέσεις man-in-the-middle. Ενεργοποιήστε το μόνο σε δίκτυο που εμπιστεύεστε πλήρως."
 }

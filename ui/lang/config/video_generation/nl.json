@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Videogeneratie ingeschakeld:",
   "config.video_gen.aspect_ratio_label": "Beeldverhouding",
   "config.video_gen.test_btn": "Verbinding testen",
-  "config.video_gen.disabled_desc": "Zet de schakelaar hierboven aan zodat de agent video's kan genereren."
+  "config.video_gen.disabled_desc": "Zet de schakelaar hierboven aan zodat de agent video's kan genereren.",
+  "config.video_gen.enabled_help": "Laat de agent met de gekozen provider video's maken. Elke generatie gebruikt quotum of tegoed.",
+  "config.video_gen.provider_help": "Provider uit het providerbeheer die de video's maakt.",
+  "config.video_gen.duration_help": "Lengte van een clip in seconden (1-30, standaard 6) als de agent er geen opgeeft. Langere clips kosten meer.",
+  "config.video_gen.resolution_help": "Resolutie als de agent er geen opgeeft. De beschikbare waarden hangen af van de provider.",
+  "config.video_gen.aspect_ratio_help": "Beeldverhouding als de agent er geen opgeeft, bijvoorbeeld 16:9 voor liggend en 9:16 voor staand.",
+  "config.video_gen.poll_interval_help": "Hoe vaak AuraGo de provider naar de status van een videotaak vraagt (1-120 seconden, standaard 10).",
+  "config.video_gen.timeout_help": "Na deze tijd stopt AuraGo met wachten op een video (30-3600 seconden, standaard 600).",
+  "config.video_gen.max_daily_help": "Maximaal aantal video's per dag. 0 betekent onbeperkt."
 }

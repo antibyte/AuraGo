@@ -59,5 +59,6 @@
   "config.updates.version": "Verze",
   "config.updates.warning_banner": "Aktualizace nahrazuje binární soubory, prompty a soubory uživatelského rozhraní. <strong>Vaše konfigurace a data jsou zachována.</strong> AuraGo se po aktualizaci restartuje.",
   "config.web_scraper.summary_mode": "Režim shrnutí",
-  "config.updates.confirm_install_title": "Nainstalovat aktualizaci?"
+  "config.updates.confirm_install_title": "Nainstalovat aktualizaci?",
+  "config.updates.cancel_reload": "Zrušit automatické načtení"
 }

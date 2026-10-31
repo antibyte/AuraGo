@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Investigaciones con fuentes verificables",
+  "config.section.detective.desc": "Permite que el agente investigue un tema y cite las fuentes que ha usado.",
   "config.detective.enabled": "Activar Detective",
   "config.detective.extra_read_operations": "Operaciones de lectura aprobadas",
   "config.detective.extra_read_help": "Añade operaciones exactas de herramientas que la investigación puede llamar en servicios privados conectados. La fuente debe seleccionarse además en el caso.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "llamadas a herramientas",
   "config.detective.readonly": "Modo seguro de solo lectura",
   "config.detective.seconds": "Tiempo límite del trabajo (segundos)",
-  "config.detective.restart": "Reinicia AuraGo tras cambiar los perfiles de esfuerzo. Las ejecuciones existentes conservan sus presupuestos."
+  "config.detective.restart": "Reinicia AuraGo tras cambiar los perfiles de esfuerzo. Las ejecuciones existentes conservan sus presupuestos.",
+  "config.detective.help_enabled": "Activa la investigación con fuentes rastreables. Un caso solo usa las fuentes que selecciones de forma explícita.",
+  "config.detective.help_iterations": "Número máximo de rondas de razonamiento y trabajo por trabajo (1 a 750).",
+  "config.detective.help_readonly": "Permite que la investigación solo lea. Se recomienda salvo que estés seguro de que no hay nada que modificar.",
+  "config.detective.help_seconds": "Tiempo máximo de ejecución de un trabajo en segundos (30 a 7200); después se detiene.",
+  "config.detective.help_tokens": "Tope adicional de tokens por trabajo. 0 = sin límite adicional.",
+  "config.detective.help_tools": "Número máximo de llamadas a herramientas por trabajo (1 a 500)."
 }

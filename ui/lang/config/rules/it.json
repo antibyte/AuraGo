@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Libreria regole",
   "config.rules.disabled": "Disattivato",
   "config.rules.targeting": "Destinazioni di matching",
-  "config.rules.system_status": "Sistema regole"
+  "config.rules.system_status": "Sistema regole",
+  "config.rules.rule_id_help": "Nome breve e univoco della regola, ad esempio homepage. Non può essere modificato dopo la creazione.",
+  "config.rules.rule_title_help": "Nome leggibile mostrato nella libreria delle regole.",
+  "config.rules.priority_help": "Quando più regole corrispondono, quelle con numeri più alti vengono iniettate per prime. Predefinito 50.",
+  "config.rules.enabled_help": "Le regole disattivate non vengono mai iniettate nelle attività.",
+  "config.rules.tools_help": "Nomi degli strumenti che attivano questa regola, separati da virgole. Scegli uno strumento qui sotto per aggiungerlo.",
+  "config.rules.workflows_help": "Nomi dei workflow che attivano questa regola, separati da virgole. Scegli un workflow qui sotto per aggiungerlo.",
+  "config.rules.keywords_help": "Parole nel testo dell'attività che attivano questa regola, separate da virgole.",
+  "config.rules.body_help": "Il testo della guardrail in Markdown. Viene iniettato prima dell'inizio di un'attività corrispondente."
 }

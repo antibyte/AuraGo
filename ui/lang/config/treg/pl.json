@@ -31,5 +31,10 @@
   "config.treg.empty": "Brak wpisów",
   "config.treg.balance": "Saldo",
   "config.treg.cost_invalid": "Wpisz 0–1000000 USD z maksymalnie sześcioma miejscami po przecinku.",
-  "config.treg.token_required": "Wpisz token przypisany do organizacji."
+  "config.treg.token_required": "Wpisz token przypisany do organizacji.",
+  "config.treg.currency_usd": "dolarów amerykańskich",
+  "config.treg.enabled_help": "Włącza integrację treg. Pozwala agentowi korzystać z płatnych usług z katalogu treg, o ile zatwierdzisz je poniżej.",
+  "config.treg.readonly_help": "Agent może tylko czytać katalog i saldo i nie może uruchamiać płatnych wywołań.",
+  "config.treg.token_help": "Token organizacji Twojego konta treg. Jest przechowywany w postaci zaszyfrowanej w Vault.",
+  "config.treg.search_help": "Fraza wyszukiwania w katalogu treg (maks. 500 znaków). Z wyników zatwierdzasz pojedyncze wywołania dla agenta."
 }

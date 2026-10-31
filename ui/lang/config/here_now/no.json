@@ -28,5 +28,6 @@
   "config.here_now.saving": "Lagrer…",
   "config.here_now.testing": "Tester…",
   "config.here_now.test_failed": "Tilkoblingen mislyktes",
-  "config.here_now.test_success": "Tilkoblingen var vellykket"
+  "config.here_now.test_success": "Tilkoblingen var vellykket",
+  "config.here_now.vault_badge": "vault"
 }

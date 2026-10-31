@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "在 Google Cloud 中创建 OAuth 网页客户端，启用选定的 API 并配置授权同意界面。请登记连接时显示的重定向网址。",
   "config.gog.grants_help": "请逐项启用权限。创建和导出 Office 文件还需要对应的 Drive 权限。",
   "config.section.gog.label": "通过 gog 访问 Google Workspace",
-  "config.section.gog.desc": "在原生集成之外使用独立的 Google 账号。",
+  "config.section.gog.desc": "通过外部命令行工具 gog 访问其他 Google 账户。",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",
@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "启用 gog 与 Google 账户的连接。它会为内置的 Google Workspace 集成添加更多账户。",
+  "config.gog.readonly_help": "代理通过 gog 只能读取。即使某个账户允许，创建、修改、删除和发送仍会被阻止。",
+  "config.gog.name_help": "账户的显示名称，例如“个人”或“工作”。",
+  "config.gog.account_enabled_help": "只有已启用的账户才能被代理和桌面使用。",
+  "config.gog.agent_help": "代理可以使用此账户，权限以下方授予的为准。",
+  "config.gog.desktop_help": "桌面应用可以使用此账户，例如用于邮件或日历。",
+  "config.gog.client_id_help": "来自 Google Cloud Console 的 OAuth Web 客户端的客户端 ID。",
+  "config.gog.secret_help": "OAuth 客户端的客户端密钥。“保存到保险库”会将其加密存储；之后不会再次显示。"
 }

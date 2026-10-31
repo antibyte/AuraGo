@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "启用防火墙工具",
   "config.firewall.enable_help": "允许AI代理与系统防火墙交互以读取或修改规则。",
   "config.firewall.active": "活跃",
-  "config.firewall.inactive": "非活跃"
+  "config.firewall.inactive": "非活跃",
+  "config.firewall.mode_label": "运行模式",
+  "config.firewall.poll_interval_seconds_label": "检查间隔（秒）"
 }

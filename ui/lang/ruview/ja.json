@@ -363,5 +363,12 @@
   "ruview.lab_back": "← ラボ",
   "ruview.lab_frame_title_observatory": "観測所（実験的、英語）",
   "ruview.lab_frame_title_pose_fusion": "ポーズ融合（実験的、英語）",
-  "ruview.lab_frame_title_dashboard": "オリジナルのRuViewダッシュボード（実験的、英語）"
+  "ruview.lab_frame_title_dashboard": "オリジナルのRuViewダッシュボード（実験的、英語）",
+  "ruview.enabled_help": "RuView 連携を有効にします。無効の場合、Wi-Fi 信号による動き検出はオフのままです。",
+  "ruview.url_help": "稼働中の RuView サービスのアドレスです (例: http://192.168.1.20:3000)。",
+  "ruview.allow_private_help": "プライベートネットワーク上のアドレスへの接続を許可します。RuView が同じ家庭内ネットワークで動作している場合に必要です。接続先を信頼できる場合のみ有効にしてください。",
+  "ruview.http_port_help": "AuraGo が管理する RuView コンテナが Web インターフェースを提供するポートです (1024-65534、デフォルト 3022)。",
+  "ruview.storage_help": "RuView が測定データに使えるディスク容量 (MiB) です (64-1048576、デフォルト 1024)。必要に応じて古いデータから破棄されます。",
+  "ruview.udp_port_help": "RuView が ESP32 センサーの測定値を受信する UDP ポートです (1024-65535、デフォルト 5005)。センサー側も同じポートを使う必要があります。",
+  "ruview.udp_bind_help": "測定値を受信するネットワークカードの IPv4 アドレスです。RuView にアドレスを選ばせる場合は空欄にします。"
 }

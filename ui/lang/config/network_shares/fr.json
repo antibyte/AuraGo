@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Partages réseau locaux",
-  "config.section.network_shares.desc": "Gérez les partages SMB et NFS fournis par cet hôte.",
+  "config.section.network_shares.desc": "Gère les partages SMB et NFS fournis par cet hôte.",
   "dashboard.integration_network_shares": "Partages réseau locaux",
   "config.network_shares.loading": "Lecture des capacités SMB et NFS locales…",
   "config.network_shares.enabled": "Activer l’intégration",

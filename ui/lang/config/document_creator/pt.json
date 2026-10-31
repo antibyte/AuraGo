@@ -29,5 +29,6 @@
   "help.document_creator.backend": "Maroto é uma biblioteca PDF pura em Go sem dependências externas. Gotenberg é um serviço Docker com conversão completa de documentos, capturas de tela e suporte a formatos Office.",
   "help.document_creator.gotenberg_timeout": "Tempo máximo em segundos para a geração de documentos.",
   "help.document_creator.gotenberg_url": "URL base do serviço Gotenberg. Um valor vazio utiliza o endereço local; o Docker utiliza o nome de serviço gotenberg.",
-  "help.document_creator.output_dir": "Diretório onde os documentos gerados são salvos."
+  "help.document_creator.output_dir": "Diretório onde os documentos gerados são salvos.",
+  "config.document_creator.enabled_help": "Permite que o agente crie documentos PDF e converta arquivos entre formatos."
 }

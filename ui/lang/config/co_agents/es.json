@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Seleccionar hoja de referencia",
   "config.co_agents.spec_cheatsheet_loading": "Cargando…",
   "config.co_agents.spec_cheatsheet_empty": "No hay hojas de referencia activas.",
-  "config.co_agents.spec_cheatsheet_error": "Error al cargar hojas de referencia."
+  "config.co_agents.spec_cheatsheet_error": "Error al cargar hojas de referencia.",
+  "config.co_agents.cb_max_tokens_help": "Límite máximo de tokens por tarea. 0 = sin límite.",
+  "config.co_agents.cb_max_tool_calls_help": "Cuántas llamadas a herramientas puede hacer un coagente por tarea antes de que se detenga (por defecto 10).",
+  "config.co_agents.cb_timeout_help": "Tiempo máximo de ejecución de un coagente en segundos (por defecto 300).",
+  "config.co_agents.provider_help": "Modelo que usan los coagentes. Sin selección usan el LLM principal.",
+  "config.co_agents.spec_additional_prompt_help": "Instrucciones adicionales que se añaden al prompt del sistema de este rol.",
+  "config.co_agents.spec_provider_help": "Modelo propio solo para este rol. Sin selección se aplica el proveedor de los coagentes."
 }

@@ -1,0 +1,16 @@
+{
+  "config.local_llm.backend_help": "Akcelerátor výpočtů pro model. Automaticky vybere podporované GPU; CPU je pomalé a experimentální.",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.context_size_help": "Kolik textu model zohledňuje najednou. Větší kontext vyžaduje více paměti.",
+  "config.local_llm.enabled_help": "Stáhne do tohoto počítače malý model a podle potřeby jej spouští v kontejneru. Je určen k testování nebo jako záloha, ne jako náhrada velkého modelu.",
+  "config.local_llm.idle_timeout_help": "Po tolika minutách bez požadavku se model zastaví, aby uvolnil paměť (1 až 1440, výchozí 15).",
+  "config.local_llm.listen_port_help": "Místní port serveru modelu. Je dostupný pouze z tohoto počítače (výchozí 18081).",
+  "config.local_llm.model_family_help": "Který místní model se používá. Spark je experimentální a obzvlášť malý.",
+  "config.local_llm.model_variant_help": "Kvantizace modelu: Q8 je přesnější, ale potřebuje více paměti než Q4. Uvedená velikost je velikost stahování.",
+  "config.local_llm.mtp_help": "Multi-token prediction urychluje výstup pomocí dalšího návrhového modelu. Experimentální a vyžaduje více paměti.",
+  "config.local_llm.regular_provider_help": "Běžný poskytovatel, který přebírá druhou roli, zatímco místní model má zvolenou roli.",
+  "config.local_llm.role_help": "Test only: jen na vyzkoušení. Fallback: zaskočí, když selže hlavní model. Primary: odpovídá na každý požadavek.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.unit_milliseconds": "{value} ms",
+  "config.local_llm.unit_seconds": "{value} s"
+}

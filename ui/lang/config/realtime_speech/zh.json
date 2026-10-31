@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "只有处于启用状态的配置文件才能被选为默认并在聊天中使用。",
+  "config.realtime_speech.profile_name_help": "配置文件在选择列表中的显示名称（最多 100 个字符）。",
+  "config.realtime_speech.provider_help": "提供实时语音连接的服务。更改后，模型和声音会重置为该服务的默认值。",
+  "config.realtime_speech.model_help": "该服务的语音模型。已弃用的模型会被标记。",
+  "config.realtime_speech.voice_help": "朗读回复所用的声音。",
+  "config.realtime_speech.api_key_help": "该服务的访问密钥。它存储在保险库中，绝不会保存在浏览器里。",
+  "config.realtime_speech.default_profile_help": "未选择时使用的配置文件。只提供处于启用状态的配置文件。"
+}

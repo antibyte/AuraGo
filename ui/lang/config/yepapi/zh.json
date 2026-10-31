@@ -1,1 +1,3 @@
-{}
+{
+  "config.yepapi.enabled_help": "启用 YepAPI 服务。之后代理可通过所选提供商使用下方选中的服务（SEO、搜索、抓取和社交平台）。"
+}

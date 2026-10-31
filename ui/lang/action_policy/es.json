@@ -36,5 +36,6 @@
   "action_policy.unknown": "Resultado incierto. Comprueba el estado antes de repetir la acción.",
   "action_policy.admin_only": "Solo los administradores pueden cambiar reglas y aprobar acciones.",
   "action_policy.save_hint": "Guarda los cambios antes de probar las reglas.",
-  "action_policy.pending": "Aprobaciones pendientes"
+  "action_policy.pending": "Aprobaciones pendientes",
+  "action_policy.enabled_help": "Tus propias reglas permiten o deniegan automáticamente acciones concretas. Las capacidades desactivadas y los ajustes de solo lectura siempre tienen prioridad."
 }

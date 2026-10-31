@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "स्थानीय निर्णय सेवा चालू करता है, जिसे अन्य सुविधाएँ त्वरित हाँ/नहीं निर्णयों के लिए उपयोग कर सकती हैं। नीचे आप चुनते हैं कि कौन-सी सुविधाएँ इसका उपयोग करें।",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

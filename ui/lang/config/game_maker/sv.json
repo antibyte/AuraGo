@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "Tillåter skapande av hanterade spelprojekt.",
   "help.game_maker.allow_edit": "Tillåter agentjobb, ändringar, validering, publicering och återställning av revisioner.",
   "help.game_maker.allow_delete": "Tillåter radering av hanterade projekt. Delade medier förblir skyddade.",
-  "help.game_maker.allow_media_generation": "Tillåter projektbunden bild- och musikgenerering när leverantörer är konfigurerade."
+  "help.game_maker.allow_media_generation": "Tillåter projektbunden bild- och musikgenerering när leverantörer är konfigurerade.",
+  "config.game_maker.workspace_path_help": "Mapp för spelprojekten, relativ till AuraGo-katalogen. Alla projekt ligger under den.",
+  "config.game_maker.max_projects_help": "Maximalt antal projekt som lagras samtidigt (standard 25).",
+  "config.game_maker.max_files_per_project_help": "Maximalt antal filer i ett projekt (standard 250).",
+  "config.game_maker.max_file_size_kb_help": "Största tillåtna källfil i kilobyte (standard 2048).",
+  "config.game_maker.max_asset_size_mb_help": "Största tillåtna resurs, till exempel bild, ljud eller modell, i megabyte (standard 32).",
+  "config.game_maker.max_project_size_mb_help": "Total storlek för ett projekt i megabyte; därefter accepteras inga fler filer (standard 100).",
+  "config.game_maker.job_timeout_seconds_help": "Hur länge ett agentjobb för att bygga eller ändra ett spel får köras som mest (standard 1800 sekunder)."
 }

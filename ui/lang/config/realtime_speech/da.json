@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.api_key_help": "Tjenestens adgangsnøgle. Den gemmes i vault og opbevares aldrig i browseren.",
+  "config.realtime_speech.default_profile_help": "Profil, der bruges, når ingen er valgt. Kun aktive profiler tilbydes.",
+  "config.realtime_speech.model_help": "Tjenestens stemmemodel. Forældede modeller er markeret.",
+  "config.realtime_speech.profile_enabled_help": "Kun aktive profiler kan vælges som standard og bruges i chatten.",
+  "config.realtime_speech.profile_name_help": "Profilens visningsnavn i valglister (op til 100 tegn).",
+  "config.realtime_speech.provider_help": "Tjenesten, der leverer live-stemmeforbindelsen. Hvis du ændrer den, nulstilles model og stemme til tjenestens standarder.",
+  "config.realtime_speech.voice_help": "Den stemme, som svarene tales med."
+}

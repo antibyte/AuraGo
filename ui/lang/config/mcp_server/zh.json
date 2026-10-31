@@ -38,5 +38,7 @@
   "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
   "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
   "config.mcp_server.token_error": "Token generation failed",
-  "config.mcp_server.preset_applied": "预设已应用。请保存以保留工具选择。"
+  "config.mcp_server.preset_applied": "预设已应用。请保存以保留工具选择。",
+  "config.mcp_server.endpoint_url_help": "MCP 客户端用来连接 AuraGo 内置服务器的地址。",
+  "config.mcp_server.token_help": "MCP 客户端使用的 Bearer 令牌。新生成的令牌只显示一次，请立即复制。"
 }

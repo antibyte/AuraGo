@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Ange den aktuella koden från din autentiseringsapp.",
   "config.auth.step_up_hint": "Ändringar av inloggningslösenordet eller tvåfaktorsautentiseringen kräver ditt nuvarande lösenord (och den aktuella koden när TOTP är aktivt).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Försök igen"
+  "config.auth.retry": "Försök igen",
+  "config.auth.new_password_help": "Använd minst 8 tecken. En lång, unik lösenfras är säkrast.",
+  "config.auth.confirmation_code_help": "Ange den 6-siffriga kod som din autentiseringsapp visar just nu.",
+  "config.auth.current_totp_help": "Den 6-siffriga kod som din autentiseringsapp visar just nu.",
+  "config.auth.webauthn_enabled_help": "Aktiverar inloggning med passkey och säkerhetsnyckel. Registrera först en nyckel och testa en inloggning innan du förlitar dig på den.",
+  "config.auth.webauthn_rpid_help": "Domännamnet som dina nycklar är knutna till, till exempel aurago.example.test. Om du ändrar det tas alla registrerade nycklar bort.",
+  "config.auth.webauthn_key_name_help": "Ett namn som hjälper dig att känna igen nyckeln senare, till exempel Laptop eller YubiKey."
 }

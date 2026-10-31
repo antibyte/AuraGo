@@ -705,7 +705,7 @@
   "codeStudio.zoomIn": "Μεγέθυνση",
   "codeStudio.zoomOut": "Σμίκρυνση",
   "codeStudio.zoomReset": "Επαναφορά ζουμ",
-  "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent.",
+  "config.section.virtual_desktop.desc": "Παρέχει μια επιφάνεια εργασίας στο πρόγραμμα περιήγησης όπου ο πράκτορας ελέγχει εφαρμογές, αρχεία και widgets.",
   "config.section.virtual_desktop.label": "Εικονική επιφάνεια εργασίας",
   "config.virtual_desktop.agent_control_label": "Να επιτρέπεται ο έλεγχος agent",
   "config.virtual_desktop.disabled_desc": "Ενεργοποιήστε τη για να εμφανιστεί η σελίδα και ο backend χώρος εργασίας.",

@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detektiv",
-  "config.section.detective.desc": "Undersökningar med spårbara källor",
+  "config.section.detective.desc": "Låter agenten undersöka ett ämne och ange de källor den använt.",
   "config.detective.enabled": "Aktivera Detective",
   "config.detective.extra_read_operations": "Godkända läsoperationer",
   "config.detective.extra_read_help": "Lägger till exakta verktygsoperationer som research får anropa på anslutna privata tjänster. Källan måste fortfarande väljas i ärendet.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "verktygsanrop",
   "config.detective.readonly": "Säkert skrivskyddat läge",
   "config.detective.seconds": "Tidsgräns för jobb (sekunder)",
-  "config.detective.restart": "Starta om AuraGo efter ändring av insatsprofiler. Befintliga körningar behåller sina budgetar."
+  "config.detective.restart": "Starta om AuraGo efter ändring av insatsprofiler. Befintliga körningar behåller sina budgetar.",
+  "config.detective.help_enabled": "Aktiverar research med spårbara källor. Ett ärende använder bara källor som du uttryckligen väljer.",
+  "config.detective.help_readonly": "Tillåter att research endast läser. Rekommenderas om du inte är säker på att inget får ändras.",
+  "config.detective.help_seconds": "Längsta körtid för ett jobb i sekunder (30 till 7200); därefter stoppas det.",
+  "config.detective.help_tools": "Maximalt antal verktygsanrop per jobb (1 till 500).",
+  "config.detective.help_iterations": "Maximalt antal resonemangs- och arbetsrundor per jobb (1 till 750).",
+  "config.detective.help_tokens": "Ytterligare tak för tokens per jobb. 0 = ingen ytterligare gräns."
 }

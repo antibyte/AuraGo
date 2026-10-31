@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Poslední pokus: {result}",
   "config.newspaper.max_searches": "Maximum vyhledávání na vydání (včetně opakování)",
   "config.section.newspaper.label": "Noviny",
-  "config.section.newspaper.desc": "Osobní, zdrojové denní vydání",
+  "config.section.newspaper.desc": "Sestavuje osobní denní noviny z výzkumu s uvedenými zdroji.",
   "config.newspaper.enabled": "Povolit noviny",
   "config.newspaper.readonly": "Režim pouze pro čtení",
   "config.newspaper.allow_email": "Povolit doručování e-mailů",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Peněžní limit stále platí.",
   "config.newspaper.monetary_budget_disabled": "Peněžní limit není nastaven; limity rešerše přesto platí.",
   "config.newspaper.fixed_budget_note": "Pevné limity sdílejí {pages} stránek pro celé vydání.",
-  "config.newspaper.fixed_limits_only": "Tyto limity platí pouze v pevném režimu."
+  "config.newspaper.fixed_limits_only": "Tyto limity platí pouze v pevném režimu.",
+  "config.newspaper.allow_email_help": "Povolí odesílání hotových vydání e-mailem. Musí být nastaven e-mailový účet.",
+  "config.newspaper.allow_telegram_help": "Povolí odesílání hotových vydání přes Telegram. Musí být nastaven Telegram.",
+  "config.newspaper.enabled_help": "Nechá plochu každý den zpracovat a sestavit noviny na vaše témata. Témata nastavíte na ploše.",
+  "config.newspaper.max_editions_help": "Kolik hotových vydání zůstává uloženo; starší se mažou (30 až 3650, výchozí 365).",
+  "config.newspaper.max_minutes_help": "Jak dlouho může zpracování jednoho vydání nejvýše trvat (1 až 60 minut, výchozí 30).",
+  "config.newspaper.max_pages_help": "Kolik webových stránek se nejvýše přečte na vydání (1 až 60, výchozí 60).",
+  "config.newspaper.max_searches_help": "Kolik vyhledávacích dotazů se nejvýše provede na vydání včetně opakování (1 až 64, výchozí 32).",
+  "config.newspaper.readonly_help": "Noviny smí pouze číst a zobrazovat, ale nic odesílat ani měnit."
 }

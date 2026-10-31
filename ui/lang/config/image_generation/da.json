@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Testbillede genereret og gemt i galleriet (én generering brugt).",
   "config.image_generation.test_failed": "Generering mislykkedes",
   "config.image_generation.max_daily_label": "Maks billeder pr. dag",
-  "config.image_generation.max_daily_hint": "0 = ubegrænset"
+  "config.image_generation.max_daily_hint": "0 = ubegrænset",
+  "config.image_generation.enabled_help": "Lader agenten oprette billeder ud fra tekstbeskrivelser med den valgte udbyder. Hver generering bruger kvote eller kredit.",
+  "config.image_generation.prompt_enhancement_help": "En sprogmodel forbedrer beskrivelsen før generering. Det giver ofte bedre billeder, men koster et ekstra modelkald.",
+  "config.image_generation.provider_help": "Udbyder fra Udbyderstyring, som opretter billederne. Uden et valg har funktionen ingen effekt.",
+  "config.image_generation.quality_help": "Kvalitetsniveau, når agenten ikke angiver et. \"hd\" giver flere detaljer, men koster normalt mere.",
+  "config.image_generation.size_help": "Billedstørrelse i pixel, når agenten ikke angiver en. Ikke alle udbydere understøtter alle størrelser.",
+  "config.image_generation.style_help": "Billedstil, når agenten ikke angiver en. \"vivid\" ser mere dristig og dramatisk ud end \"natural\"."
 }

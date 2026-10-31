@@ -363,5 +363,12 @@
   "ruview.lab_back": "← Labo",
   "ruview.lab_frame_title_observatory": "Observatoire (expérimental, anglais)",
   "ruview.lab_frame_title_pose_fusion": "Fusion des poses (expérimental, anglais)",
-  "ruview.lab_frame_title_dashboard": "Tableau de bord RuView d’origine (expérimental, anglais)"
+  "ruview.lab_frame_title_dashboard": "Tableau de bord RuView d’origine (expérimental, anglais)",
+  "ruview.enabled_help": "Active l'intégration RuView. Sans cela, la détection de mouvement par signaux Wi-Fi reste désactivée.",
+  "ruview.url_help": "Adresse du service RuView en cours d'exécution, par exemple http://192.168.1.20:3000.",
+  "ruview.allow_private_help": "Autorise les connexions vers des adresses du réseau privé. Nécessaire lorsque RuView s'exécute dans le même réseau domestique. N'activez cette option que si vous faites confiance à la cible.",
+  "ruview.http_port_help": "Port sur lequel le conteneur RuView géré par AuraGo sert son interface web (1024-65534, 3022 par défaut).",
+  "ruview.storage_help": "Espace disque en Mio que RuView peut utiliser pour les données de mesure (64-1048576, 1024 par défaut). Les données les plus anciennes sont supprimées si nécessaire.",
+  "ruview.udp_port_help": "Port UDP sur lequel RuView reçoit les mesures des capteurs ESP32 (1024-65535, 5005 par défaut). Les capteurs doivent utiliser le même port.",
+  "ruview.udp_bind_help": "Adresse IPv4 de la carte réseau qui reçoit les mesures. Laissez vide pour laisser RuView choisir l'adresse."
 }

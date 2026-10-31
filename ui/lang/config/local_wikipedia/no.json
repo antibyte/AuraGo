@@ -81,7 +81,7 @@
   "config.local_wikipedia.variant_maxi": "Med medier",
   "config.local_wikipedia.variant_nopic": "Uten medier",
   "config.local_wikipedia.warning_size": "Avhengig av språk og variant trenger en utgave opptil 130 GB, og nedlastingen kan ta timer.",
-  "config.section.local_wikipedia.desc": "Frakoblet Wikipedia for agenten og skrivebordet, lest fra én nedlastet Kiwix-utgave.",
+  "config.section.local_wikipedia.desc": "Gir agenten og skrivebordet Wikipedia offline fra en nedlastet Kiwix-utgave.",
   "config.section.local_wikipedia.label": "Lokal Wikipedia",
   "help.local_wikipedia.agent_access": "Lar agenten søke i og lese den installerte utgaven.",
   "help.local_wikipedia.data_dir": "Absolutt sti for utgaven. La stå tom for å bruke mappen wikipedia i AuraGos datamappe.",

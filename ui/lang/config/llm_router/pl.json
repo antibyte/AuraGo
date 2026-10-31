@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Automatycznie wybiera odpowiedni model dla każdego zadania. Bez tego AuraGo zawsze używa aktywnego modelu głównego.",
+  "common.llm_router.area_help": "Dostawca i model dla zapytań w obszarze „{area}”. „Model domyślny” używa aktywnego modelu.",
+  "common.llm_router.timeout_hint": "Jak długo (w milisekundach, od 250 do 5000, domyślnie 1500) może trwać klasyfikacja zadania, zanim zostanie zastosowany wybór domyślny.",
+  "common.llm_router.quota_hint": "Górny limit klasyfikacji wykonywanych przez model pomocniczy na godzinę (od 0 do 120, domyślnie 20). 0 wyłącza je. Każde wywołanie może generować koszty.",
+  "common.llm_router.preview_text_hint": "Przykładowe zadanie własnymi słowami. Jest tylko klasyfikowane, nie wykonywane."
+}

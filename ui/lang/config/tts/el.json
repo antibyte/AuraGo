@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Λήψη",
   "config.tts.phonon_downloading": "Γίνεται λήψη …",
   "config.tts.phonon_catalog_error": "Δεν ήταν δυνατή η φόρτωση του καταλόγου φωνών.",
-  "config.tts.phonon_download_error": "Η λήψη απέτυχε. Η προηγούμενη επιλογή φωνής διατηρείται."
+  "config.tts.phonon_download_error": "Η λήψη απέτυχε. Η προηγούμενη επιλογή φωνής διατηρείται.",
+  "config.tts.api_key_help": "Κλειδί API από τον λογαριασμό σας στον πάροχο. Αποθηκεύεται κρυπτογραφημένο στο vault.",
+  "config.tts.cloud_voice_help": "Φωνή με την οποία ο πάροχος εκφωνεί το κείμενο.",
+  "config.tts.phonon_catalog_help": "Φιλτράρει την παρακάτω λίστα φωνών ανά γλώσσα. Δεν αλλάζει τη φωνή που έχει επιλεγεί παραπάνω.",
+  "config.tts.piper_data_path_help": "Φάκελος για τις φωνές που κατεβάζονται, σε σχέση με τον κατάλογο του AuraGo (προεπιλογή data/piper).",
+  "config.tts.piper_image_help": "Image Docker από το οποίο εκκινεί το κοντέινερ Piper. Αλλάξτε το μόνο αν χρησιμοποιείτε δικό σας image.",
+  "config.tts.piper_port_help": "Θύρα στην οποία ακούει εσωτερικά το κοντέινερ Piper (προεπιλογή 10200).",
+  "config.tts.supertonic_container_name_help": "Όνομα του κοντέινερ Docker. Αλλάξτε το μόνο αν το προεπιλεγμένο όνομα χρησιμοποιείται ήδη.",
+  "config.tts.supertonic_data_path_help": "Φάκελος για μοντέλα και δεδομένα κοντέινερ, σε σχέση με τον κατάλογο του AuraGo (προεπιλογή data/supertonic).",
+  "config.tts.supertonic_image_help": "Image Docker από το οποίο εκκινεί το κοντέινερ Supertonic. Αλλάξτε το μόνο αν χρησιμοποιείτε δικό σας image.",
+  "config.tts.supertonic_port_help": "Θύρα στην οποία ακούει εσωτερικά το κοντέινερ Supertonic (προεπιλογή 7788).",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_piper": "Piper TTS (τοπικό Docker)",
+  "config.tts.title_supertonic": "Supertonic TTS (τοπικό Docker)"
 }

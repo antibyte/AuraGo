@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Vælg snydeark",
   "config.co_agents.spec_cheatsheet_loading": "Indlæser…",
   "config.co_agents.spec_cheatsheet_empty": "Ingen aktive snydeark tilgængelige.",
-  "config.co_agents.spec_cheatsheet_error": "Kunne ikke indlæse snydeark."
+  "config.co_agents.spec_cheatsheet_error": "Kunne ikke indlæse snydeark.",
+  "config.co_agents.cb_max_tokens_help": "Øvre grænse for tokens pr. opgave. 0 = ubegrænset.",
+  "config.co_agents.cb_max_tool_calls_help": "Hvor mange værktøjskald en co-agent må foretage pr. opgave, før den stoppes (standard 10).",
+  "config.co_agents.cb_timeout_help": "Maksimal køretid for en co-agent i sekunder (standard 300).",
+  "config.co_agents.provider_help": "Den model, som co-agenterne bruger. Uden valg bruger de hoved-LLM'en.",
+  "config.co_agents.spec_additional_prompt_help": "Ekstra instruktioner, der tilføjes til denne rolles systemprompt.",
+  "config.co_agents.spec_provider_help": "Egen model kun til denne rolle. Uden valg gælder co-agenternes udbyder."
 }

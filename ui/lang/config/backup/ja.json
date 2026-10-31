@@ -1,5 +1,5 @@
 {
-  "config.backup.create_desc": "設定、プロンプト、データ、スキルを包む \u003cstrong\u003e.ago\u003c/strong\u003e アーカイブ (ZIP) を作成します。パスワードを設定すると、vault secrets (APIキー、トークン) も安全に含まれます — systemd でマスターキーを注入する新しいインスタンスへの移行に最適です。",
+  "config.backup.create_desc": "設定、プロンプト、データ、スキルを包む <strong>.ago</strong> アーカイブ (ZIP) を作成します。パスワードを設定すると、vault secrets (APIキー、トークン) も安全に含まれます — systemd でマスターキーを注入する新しいインスタンスへの移行に最適です。",
   "config.backup.card_create_title": "バックアップ内容",
   "config.backup.card_encryption_title": "暗号化",
   "config.backup.card_import_title": "バックアップを復元",
@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 バックアップをインポート",
   "config.backup.import_password_label": "🔒 パスワード (暗号化されたバックアップのみ)",
   "config.backup.import_success": "インポート成功",
-  "config.backup.import_warning": "\u003cstrong\u003e重要:\u003c/strong\u003e インポートすると、既存のファイルが上書きされます。設定、プロンプト、データは置き換えられます。インポート後に再起動することをお勧めします。",
+  "config.backup.import_warning": "<strong>重要:</strong> インポートすると、既存のファイルが上書きされます。設定、プロンプト、データは置き換えられます。インポート後に再起動することをお勧めします。",
   "config.backup.importing": "⏳ インポート中…",
   "config.backup.include_vectordb": "VectorDB を含める (埋め込み - サイズが大きい場合があります)",
   "config.backup.include_workdir": "workdir (agent_workspace/workdir) を含める",
@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.include_vectordb_help": "ベクトルデータベース (メモリの埋め込み) を追加します。復元後の再計算を省けますが、アーカイブが非常に大きくなることがよくあります。",
+  "config.backup.include_workdir_help": "エージェントの作業ディレクトリをすべてのファイルごと追加します。大量の容量を使うことがあります。",
+  "config.backup.select_file_help": "以前に作成した .ago 拡張子のバックアップです。インポートすると既存のデータが上書きされます。",
+  "config.backup.import_password_help": "バックアップが暗号化されている場合のみ必要です。作成時と同じパスワードを入力してください。"
 }

@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 inaktiverar HTTP-lyssnaren. Välj 80 för Let’s Encrypt HTTP-01 och gör den publika porten 80 nåbar.",
   "config.server.restart_address": "Öppna efter omstart:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "Nätverksadress som AuraGo lyssnar på. Tomt eller 0.0.0.0 = alla gränssnitt, 127.0.0.1 = endast den här maskinen. En omstart krävs efter ändring.",
+  "config.server.port_hint": "TCP-port för webbgränssnittet och API:et (standard 8088). En omstart krävs efter ändring.",
+  "config.server.ui_language_hint": "Språk för webbgränssnittet och systemmeddelanden. Gäller alla användare av den här instansen.",
+  "config.server.cert_mode_hint": "Varifrån TLS-certifikatet kommer: automatiskt via Let's Encrypt, dina egna filer eller ett självsignerat certifikat för lokala tester.",
+  "config.server.https_port_hint": "Port för krypterade anslutningar (standard 443). Portar under 1024 kräver root-rättigheter eller en motsvarande capability på Linux.",
+  "config.server.domain_hint": "Offentligt domännamn som certifikatet utfärdas för. Det måste peka på den här servern.",
+  "config.server.email_hint": "Kontaktadress för Let's Encrypt, till exempel för utgångsvarningar. Den skickas endast till certifikatutfärdaren.",
+  "config.server.cert_file_hint": "Sökväg till certifikatfilen i PEM-format, relativ till AuraGo-katalogen eller absolut.",
+  "config.server.key_file_hint": "Sökväg till den privata nyckeln i PEM-format. Filen bör endast vara läsbar för AuraGo-kontot.",
+  "config.server.behind_proxy_hint": "Aktivera när en omvänd proxy avslutar TLS. Endast adresser i listan nedan får sätta vidarebefordrade headers. Vid felaktig inställning kan klientadresser förfalskas.",
+  "config.server.cert_status_sans": "Alternativa ämnesnamn (SAN)"
 }

@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Manifest को भेजे जाने वाले अनुरोधों के साथ अतिरिक्त हेडर भेजता है, ताकि Manifest आपके टियर के अनुसार उपयुक्त मॉडल चुन सके।",
+  "config.manifest.routing_specificity_mode_help": "बंद कोई श्रेणी नहीं भेजता, निश्चित हमेशा नीचे चुनी गई श्रेणी भेजता है, स्वचालित में AuraGo हर अनुरोध के लिए श्रेणी स्वयं तय करता है।",
+  "config.manifest.routing_specificity_help": "\"निश्चित\" मोड में AuraGo हर अनुरोध के साथ Manifest को जो श्रेणी भेजता है।",
+  "config.manifest.routing_headers_help": "नाम और मान के जोड़ों के रूप में कस्टम हेडर, जिन्हें AuraGo Manifest को अतिरिक्त रूप से भेजता है। केवल वही मान दर्ज करें जिन्हें Manifest देख सकता है।",
+  "config.manifest.routing_header_name": "हेडर नाम",
+  "config.manifest.routing_header_value": "हेडर मान"
+}

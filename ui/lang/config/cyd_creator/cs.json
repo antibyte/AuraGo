@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Adresa AuraGo pro zařízení",
   "config.cyd_creator.ota_title": "Aktualizace přes Wi-Fi",
   "config.cyd_creator.restart_note": "Zapnutí CYD Creatoru a změny image builderu, paměti, jader CPU nebo zastavení při nečinnosti se projeví po restartu AuraGo. Ostatní nastavení platí okamžitě.",
-  "config.section.cyd_creator.desc": "Vytvářej aplikace pro desky Cheap Yellow Display pomocí designeru a agenta. Buildy běží v Dockeru.",
+  "config.section.cyd_creator.desc": "Vytváří aplikace pro desky Cheap Yellow Display pomocí návrháře a agenta.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Publikovaný image s nástroji. AuraGo ho jednou stáhne a nikdy ho nesestavuje lokálně.",
   "help.cyd_creator.cold_build_timeout_seconds": "Platí, dokud je mezipaměť buildu pro projekt a desku prázdná.",
   "help.cyd_creator.enabled": "Zobrazí aplikaci CYD Creator na ploše. Pro sestavování je potřeba nakonfigurovaný hostitel Docker.",
   "help.cyd_creator.max_repair_attempts": "Kolikrát smí agent opravit chyby kompilace, než úloha selže.",
   "help.cyd_creator.ota_enabled": "Zařízení s propojením s AuraGo si nové buildy stahují sama.",
-  "help.cyd_creator.ota_public_url": "URL, přes kterou zařízení AuraGo dosáhnou. Prázdné použije nastavení serveru."
+  "help.cyd_creator.ota_public_url": "URL, přes kterou zařízení AuraGo dosáhnou. Prázdné použije nastavení serveru.",
+  "config.cyd_creator.build_timeout_seconds_help": "Běžný build se po tolika sekundách přeruší (výchozí 300).",
+  "config.cyd_creator.cpu_cores_help": "Jádra CPU pro kontejner buildu, možné jsou i poloviční hodnoty (výchozí 2).",
+  "config.cyd_creator.idle_stop_minutes_help": "Kontejner buildu se po tolika minutách bez úlohy zastaví, aby uvolnil zdroje (výchozí 20).",
+  "config.cyd_creator.job_timeout_minutes_help": "Celkový čas, který může agent strávit jednou úlohou včetně pokusů o opravu (výchozí 20 minut).",
+  "config.cyd_creator.keep_builds_per_project_help": "Kolik dřívějších buildů se uchovává na projekt, starší se mažou (výchozí 5).",
+  "config.cyd_creator.memory_mb_help": "Paměť pro kontejner buildu v megabajtech (výchozí 2048).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Interval, v jakém se zařízení CYD ptá serveru na aktualizace (výchozí 60 sekund)."
 }

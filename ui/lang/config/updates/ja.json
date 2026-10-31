@@ -59,5 +59,6 @@
   "config.updates.version": "バージョン",
   "config.updates.warning_banner": "このアップデートにより、バイナリ、プロンプト、UI ファイルが置き換えられます。 <strong>設定とデータは保持されます。</strong> アップデート後に AuraGo が再起動します。",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.updates.confirm_install_title": "更新をインストールしますか？"
+  "config.updates.confirm_install_title": "更新をインストールしますか？",
+  "config.updates.cancel_reload": "自動再読み込みをキャンセル"
 }

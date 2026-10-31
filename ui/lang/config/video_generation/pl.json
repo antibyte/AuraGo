@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Generowanie wideo włączone:",
   "config.video_gen.aspect_ratio_label": "Proporcje",
   "config.video_gen.test_btn": "Test połączenia",
-  "config.video_gen.disabled_desc": "Włącz przełącznik powyżej, aby agent mógł generować filmy."
+  "config.video_gen.disabled_desc": "Włącz przełącznik powyżej, aby agent mógł generować filmy.",
+  "config.video_gen.enabled_help": "Pozwala agentowi tworzyć filmy za pomocą wybranego dostawcy. Każde generowanie zużywa limit lub kredyt.",
+  "config.video_gen.provider_help": "Dostawca z zarządzania dostawcami, który tworzy filmy.",
+  "config.video_gen.duration_help": "Długość klipu w sekundach (1-30, domyślnie 6), gdy agent jej nie poda. Dłuższe klipy kosztują więcej.",
+  "config.video_gen.resolution_help": "Rozdzielczość, gdy agent jej nie poda. Dostępne wartości zależą od dostawcy.",
+  "config.video_gen.aspect_ratio_help": "Proporcje obrazu, gdy agent ich nie poda, na przykład 16:9 dla poziomu i 9:16 dla pionu.",
+  "config.video_gen.poll_interval_help": "Jak często AuraGo pyta dostawcę o stan zadania wideo (1-120 sekund, domyślnie 10).",
+  "config.video_gen.timeout_help": "Po tym czasie AuraGo przestaje czekać na film (30-3600 sekund, domyślnie 600).",
+  "config.video_gen.max_daily_help": "Maksymalna liczba filmów dziennie. 0 oznacza brak limitu."
 }

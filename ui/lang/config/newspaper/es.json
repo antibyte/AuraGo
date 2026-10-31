@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Último intento: {result}",
   "config.newspaper.max_searches": "Máximo de búsquedas por edición (incluidos los reintentos)",
   "config.section.newspaper.label": "Periódico",
-  "config.section.newspaper.desc": "Una edición diaria personal y con fuentes",
+  "config.section.newspaper.desc": "Compone un periódico diario personal a partir de una investigación con fuentes citadas.",
   "config.newspaper.enabled": "Habilitar Periódico",
   "config.newspaper.readonly": "Modo de solo lectura",
   "config.newspaper.allow_email": "Permitir la entrega de correo electrónico",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "El presupuesto monetario sigue aplicándose.",
   "config.newspaper.monetary_budget_disabled": "No hay un presupuesto monetario configurado; los límites de investigación siguen vigentes.",
   "config.newspaper.fixed_budget_note": "Los límites fijos comparten {pages} páginas en toda la edición.",
-  "config.newspaper.fixed_limits_only": "Estos límites solo se aplican en el modo fijo."
+  "config.newspaper.fixed_limits_only": "Estos límites solo se aplican en el modo fijo.",
+  "config.newspaper.allow_email_help": "Permite enviar por correo las ediciones terminadas. Para ello debe haber una cuenta de correo configurada.",
+  "config.newspaper.allow_telegram_help": "Permite enviar por Telegram las ediciones terminadas. Para ello debe estar configurado Telegram.",
+  "config.newspaper.enabled_help": "Permite que el escritorio investigue y componga cada día un periódico sobre tus temas. Los temas se configuran en el escritorio.",
+  "config.newspaper.max_editions_help": "Cuántas ediciones terminadas se conservan; las más antiguas se borran (30 a 3650, por defecto 365).",
+  "config.newspaper.max_minutes_help": "Cuánto puede durar como máximo la investigación de una edición (1 a 60 minutos, por defecto 30).",
+  "config.newspaper.max_pages_help": "Cuántas páginas web se leen como máximo por edición (1 a 60, por defecto 60).",
+  "config.newspaper.max_searches_help": "Cuántas consultas de búsqueda se hacen como máximo por edición, reintentos incluidos (1 a 64, por defecto 32).",
+  "config.newspaper.readonly_help": "El periódico solo puede leer y mostrar, pero no enviar ni modificar nada."
 }

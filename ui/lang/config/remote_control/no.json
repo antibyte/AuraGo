@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Ingen enheter",
   "config.remote_control.no_platforms": "Ingen tilgjengelige plattformer",
   "config.remote_control.platforms_error": "Feil ved lasting av plattformer",
-  "config.remote_control.read_only_label": "Skrivebeskyttet modus (blokkerer filskrivinger, slettinger og shell-kommandoer på alle enheter)",
+  "config.remote_control.read_only_label": "Skrivebeskyttet modus",
   "config.remote_control.security_desc": "Styr enhetsregistrering og revisjonslogging.",
   "config.remote_control.security_title": "Sikkerhet",
-  "config.remote_control.ssh_insecure_host_key_label": "Tillat usikker SSH-vertsnøkkel (⚠️ deaktiverer MITM-beskyttelse, bruk kun på betrodde nettverk)",
+  "config.remote_control.ssh_insecure_host_key_label": "Tillat usikker SSH-vertsnøkkel",
   "config.remote_control.status_connected": "Tilkoblet",
   "config.remote_control.status_offline": "Frakoblet",
   "config.security_proxy.status_loading": "Laster…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Klientoppdatering kreves",
   "config.remote_control.confirm_removal": "Koble fra enheten og avbryte kjørende kommandoer? Ny sammenkobling krever et nytt token.",
   "config.remote_control.paths_inherit": "Én sti per linje. En tom stiliste for denne enheten arver globale stier. Er begge listene tomme, nektes filtilgang.",
-  "config.remote_control.security_hint": "WSS og et gyldig sertifikat kreves også via Tailscale. Oppdater klassiske klienter før serveren. Tokener utløper etter én time og kan bare brukes én gang."
+  "config.remote_control.security_hint": "WSS og et gyldig sertifikat kreves også via Tailscale. Oppdater klassiske klienter før serveren. Tokener utløper etter én time og kan bare brukes én gang.",
+  "config.remote_control.enabled_help": "Slår på fjernkontroll. Bare da kan sammenkoblede enheter koble til og agenten få tilgang til dem.",
+  "config.remote_control.read_only_help": "Blokkerer filskriving, sletting og shell-kommandoer på alle enheter. Lesing er fortsatt mulig.",
+  "config.remote_control.audit_log_help": "Registrerer hver handling på eksterne enheter. Anbefalt slik at tilganger kan spores senere.",
+  "config.remote_control.ssh_insecure_host_key_help": "Advarsel: slår av kontrollen av SSH-vertsnøkkelen og dermed beskyttelsen mot man-in-the-middle-angrep. Slå på bare i et nettverk du stoler helt på.",
+  "config.remote_control.max_file_size_help": "Største fil i MB som er tillatt i en overføring (1-500, standard 50).",
+  "config.remote_control.enrollment_device_name_help": "Valgfritt navn på den nye enheten. Det settes når paringstokenet opprettes.",
+  "config.remote_control.device_name_help": "Valgfritt navn på enheten klienten kjører på. Det sendes med ved nedlasting."
 }

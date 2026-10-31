@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Jako přihlašovací údaj je uložen neplatný maskovací text. Nahraď jej nebo odstraň.",
   "config.providers.runtime_incomplete": "Uložený poskytovatel je neúplný nebo nedostupný. Zkontroluj model, adresu a přihlašovací údaje.",
   "config.providers.limit_source_model_only_fallback": "odhad podle modelu jiného poskytovatele",
-  "config.providers.missing_references": "Chybějící vybraní poskytovatelé: {paths}. V těchto nastaveních vyber existujícího poskytovatele."
+  "config.providers.missing_references": "Chybějící vybraní poskytovatelé: {paths}. V těchto nastaveních vyber existujícího poskytovatele.",
+  "config.providers.filter_role_help": "Zobrazí pouze poskytovatele přiřazené ke konkrétnímu úkolu, například hlavní model nebo embeddingy.",
+  "config.providers.filter_type_help": "Zobrazí pouze poskytovatele jednoho typu.",
+  "config.providers.search_help": "Filtruje seznam poskytovatelů podle názvu, typu nebo modelu."
 }

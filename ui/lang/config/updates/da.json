@@ -59,5 +59,6 @@
   "config.updates.version": "Version",
   "config.updates.warning_banner": "Opdateringen erstatter binære filer, prompts og UI-filer. <strong>Din konfiguration og dine data bevares.</strong> AuraGo genstarter efter opdateringen.",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.updates.confirm_install_title": "Installer opdatering?"
+  "config.updates.confirm_install_title": "Installer opdatering?",
+  "config.updates.cancel_reload": "Annuller automatisk genindlæsning"
 }

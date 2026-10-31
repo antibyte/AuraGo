@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "管理対象の RustFS サービスのアドレスです。自動で設定され、参照用にのみ表示されます。",
+  "config.s3.details_help": "トラブルシューティングなどに使える、JSON 形式のサービスの技術的なステータスデータです。読み取り専用。",
+  "config.s3.allow_read_help": "エージェントはオブジェクトの一覧表示とダウンロードができます。",
+  "config.s3.allow_write_help": "エージェントはオブジェクトのアップロードと、既存のオブジェクトの上書きができます。",
+  "config.s3.allow_delete_help": "エージェントはオブジェクトを削除できます。削除したオブジェクトは復元できません。",
+  "config.s3.location_bucket_help": "権限が適用されるバケットの名前です。",
+  "config.s3.location_prefixes_help": "1 行に 1 つのプレフィックスを入力します。何も入力しない場合は、バケット全体を選択しない限り何も許可されません。",
+  "config.s3.bucket_label": "バケット",
+  "config.s3.enabled_label": "S3 ストレージを有効化",
+  "config.s3.endpoint_label": "エンドポイント URL",
+  "config.s3.insecure_label": "暗号化されていない接続を許可",
+  "config.s3.readonly_label": "読み取り専用",
+  "config.s3.region_label": "リージョン",
+  "config.s3.use_path_style_label": "パス形式のアドレス指定を使用"
+}

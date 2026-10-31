@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Adres AuraGo dla urządzeń",
   "config.cyd_creator.ota_title": "Aktualizacje przez Wi-Fi",
   "config.cyd_creator.restart_note": "Włączenie CYD Creator oraz zmiany obrazu buildera, pamięci, rdzeni CPU lub zatrzymywania bezczynnego kontenera zadziałają po ponownym uruchomieniu AuraGo. Pozostałe ustawienia obowiązują od razu.",
-  "config.section.cyd_creator.desc": "Twórz aplikacje dla płytek Cheap Yellow Display z projektantem i agentem. Buildy działają w Dockerze.",
+  "config.section.cyd_creator.desc": "Tworzy aplikacje dla płytek Cheap Yellow Display za pomocą projektanta i agenta.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Opublikowany obraz z narzędziami. AuraGo pobiera go raz i nigdy nie buduje go lokalnie.",
   "help.cyd_creator.cold_build_timeout_seconds": "Obowiązuje, dopóki pamięć podręczna buildu dla projektu i płytki jest pusta.",
   "help.cyd_creator.enabled": "Pokazuje aplikację CYD Creator na pulpicie. Do budowania potrzebny jest skonfigurowany host Docker.",
   "help.cyd_creator.max_repair_attempts": "Ile razy agent może poprawiać błędy kompilacji, zanim zadanie się nie powiedzie.",
   "help.cyd_creator.ota_enabled": "Urządzenia z połączeniem z AuraGo same pobierają nowe buildy.",
-  "help.cyd_creator.ota_public_url": "URL, pod którym urządzenia łączą się z AuraGo. Puste pole oznacza ustawienia serwera."
+  "help.cyd_creator.ota_public_url": "URL, pod którym urządzenia łączą się z AuraGo. Puste pole oznacza ustawienia serwera.",
+  "config.cyd_creator.memory_mb_help": "Pamięć dla kontenera budowania w megabajtach (domyślnie 2048).",
+  "config.cyd_creator.cpu_cores_help": "Rdzenie CPU dla kontenera budowania, możliwe są wartości połówkowe (domyślnie 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Zwykły build jest przerywany po tylu sekundach (domyślnie 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "Kontener budowania zatrzymuje się po tylu minutach bez zadania, aby zwolnić zasoby (domyślnie 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Ile wcześniejszych buildów jest zachowywanych dla projektu; starsze są usuwane (domyślnie 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Łączny czas, jaki agent może poświęcić na jedno zadanie, wraz z próbami naprawy (domyślnie 20 minut).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Odstęp, w jakim urządzenie CYD pyta serwer o aktualizacje (domyślnie 60 sekund)."
 }

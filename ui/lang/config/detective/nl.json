@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Onderzoek met controleerbare bronnen",
+  "config.section.detective.desc": "Laat de agent een onderwerp onderzoeken en de gebruikte bronnen vermelden.",
   "config.detective.enabled": "Detective inschakelen",
   "config.detective.extra_read_operations": "Goedgekeurde leesbewerkingen",
   "config.detective.extra_read_help": "Voegt exacte gereedschapsbewerkingen toe die het onderzoek mag aanroepen op verbonden privédiensten. De bron moet daarnaast in de zaak worden gekozen.",
@@ -13,5 +13,11 @@
   "config.detective.tools": "toolaanroepen",
   "config.detective.readonly": "Veilige alleen-lezenmodus",
   "config.detective.seconds": "Jobtime-out (seconden)",
-  "config.detective.restart": "Herstart AuraGo na het wijzigen van de inspanningsprofielen. Bestaande onderzoeken behouden hun budgetten."
+  "config.detective.restart": "Herstart AuraGo na het wijzigen van de inspanningsprofielen. Bestaande onderzoeken behouden hun budgetten.",
+  "config.detective.help_enabled": "Schakelt onderzoek met traceerbare bronnen in. Een zaak gebruikt alleen bronnen die je expliciet selecteert.",
+  "config.detective.help_readonly": "Laat onderzoek alleen lezen. Aanbevolen, tenzij je zeker weet dat er niets gewijzigd mag worden.",
+  "config.detective.help_seconds": "Langste looptijd van één opdracht in seconden (30 tot 7200), daarna wordt hij gestopt.",
+  "config.detective.help_tools": "Maximaal aantal tool-aanroepen per opdracht (1 tot 500).",
+  "config.detective.help_iterations": "Maximaal aantal denk- en werkrondes per opdracht (1 tot 750).",
+  "config.detective.help_tokens": "Extra bovengrens voor tokens per opdracht. 0 = geen extra limiet."
 }

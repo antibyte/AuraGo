@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Ενεργοποιεί την τοπική υπηρεσία αποφάσεων που μπορούν να χρησιμοποιούν άλλες λειτουργίες για γρήγορες κρίσεις ναι/όχι. Παρακάτω επιλέγετε ποιες λειτουργίες τη χρησιμοποιούν.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

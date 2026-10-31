@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "小型のモデルをこのマシンにダウンロードし、必要に応じてコンテナで実行します。テストやフォールバック用であり、大規模モデルの代わりにはなりません。",
+  "config.local_llm.model_family_help": "使用するローカルモデルです。Spark は実験的で、特に小型です。",
+  "config.local_llm.backend_help": "モデルの演算アクセラレーターです。「自動」は対応する GPU を選択します。CPU は低速で実験的です。",
+  "config.local_llm.model_variant_help": "モデルの量子化設定です。Q8 のほうが精度は高いものの、Q4 よりメモリを多く必要とします。サイズはダウンロードサイズです。",
+  "config.local_llm.context_size_help": "モデルが一度に考慮するテキストの量です。コンテキストを増やすほどメモリが必要になります。",
+  "config.local_llm.mtp_help": "マルチトークン予測は、追加のドラフトモデルを使って出力を高速化します。実験的な機能で、より多くのメモリが必要です。",
+  "config.local_llm.idle_timeout_help": "リクエストがない状態がこの分数続くと、メモリを解放するためにモデルが停止します (1 ～ 1440、デフォルト 15)。",
+  "config.local_llm.listen_port_help": "モデルサーバーのローカルポートです。このマシンからのみアクセスできます (デフォルト 18081)。",
+  "config.local_llm.role_help": "テストのみ: 試用専用です。フォールバック: メインモデルが失敗したときに代わりに動作します。プライマリ: すべてのリクエストに応答します。",
+  "config.local_llm.regular_provider_help": "ローカルモデルが選択した役割を担っている間、もう一方の役割を引き受ける通常のプロバイダーです。",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} 秒",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

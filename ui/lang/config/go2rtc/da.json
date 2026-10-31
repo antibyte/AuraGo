@@ -2,7 +2,7 @@
   "config.go2rtc.open_camera_app": "Åbn appen Netværkskameraer",
   "config.go2rtc.detection_hint": "Personregistrering (hændelser, zoner, alarmer og tilkobling) sættes op i appen Netværkskameraer under Registrering; indstillingerne for hvert kamera ligger på fanen Personregistrering i kameraets administration.",
   "config.section.go2rtc.label": "go2rtc-kameraer",
-  "config.section.go2rtc.desc": "Sikkert administrerede kamerastreams, snapshots og livevisning",
+  "config.section.go2rtc.desc": "Administrerer sikre kamerastreams, snapshots og live-visning via go2rtc.",
   "config.go2rtc.proxy_note": "AuraGo holder kamera-URL'er og go2rtc-legitimationsoplysninger private. Visning bruger AuraGo-proxyen; direkte LAN-WebRTC er valgfrit.",
   "config.go2rtc.enabled": "Aktivér go2rtc",
   "config.go2rtc.auto_start": "Start containeren automatisk",

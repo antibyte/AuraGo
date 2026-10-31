@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Billeder sendes kun fra mapper, hvor mediedeling er slået til i listen ovenfor.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.chunk_max_chars_help": "Maksimal længde af ét tekststykke i tegn. Mindre stykker giver mere præcise hits, større giver mere kontekst. Standard: 3500.",
+  "config.indexing.chunk_max_chunks_help": "Maksimalt antal stykker, der oprettes pr. fil; resten af meget store filer springes over. Standard: 200.",
+  "config.indexing.chunk_overlap_help": "Tegn, der deles mellem nabostykker, så sætninger ved grænserne ikke skæres over. Standard: 200.",
+  "config.indexing.dir_help": "Mappe, hvis filer indekseres, som absolut sti eller relativt til AuraGo-mappen. Undermapper er med. Tilføj den med knappen eller Enter.",
+  "config.indexing.dir_label": "Mappe, der overvåges"
 }

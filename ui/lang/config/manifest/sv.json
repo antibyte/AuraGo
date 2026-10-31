@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Skickar extra headers med förfrågningar till Manifest så att Manifest kan välja rätt modell enligt dina nivåer.",
+  "config.manifest.routing_specificity_mode_help": "Av skickar ingen kategori, Fast skickar alltid den som väljs nedan, Automatisk låter AuraGo bestämma kategorin per förfrågan.",
+  "config.manifest.routing_specificity_help": "Kategori som AuraGo skickar till Manifest med varje förfrågan i läget \"Fast\".",
+  "config.manifest.routing_headers_help": "Egna headers som namn- och värdepar som AuraGo dessutom skickar till Manifest. Ange bara värden som Manifest får se.",
+  "config.manifest.routing_header_name": "Header-namn",
+  "config.manifest.routing_header_value": "Header-värde"
+}

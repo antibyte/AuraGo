@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Biblioteca de reglas",
   "config.rules.disabled": "Desactivado",
   "config.rules.targeting": "Objetivos de coincidencia",
-  "config.rules.system_status": "Sistema de reglas"
+  "config.rules.system_status": "Sistema de reglas",
+  "config.rules.body_help": "El texto del guardrail en Markdown. Se inserta antes de que empiece una tarea coincidente.",
+  "config.rules.enabled_help": "Las reglas desactivadas nunca se insertan en las tareas.",
+  "config.rules.keywords_help": "Palabras del texto de la tarea que activan esta regla, separadas por comas.",
+  "config.rules.priority_help": "Cuando coinciden varias reglas, se insertan primero las de números más altos. Por defecto 50.",
+  "config.rules.rule_id_help": "Nombre corto y único de la regla, por ejemplo homepage. No se puede cambiar tras crearla.",
+  "config.rules.rule_title_help": "Nombre legible que se muestra en la biblioteca de reglas.",
+  "config.rules.tools_help": "Nombres de herramientas que activan esta regla, separados por comas. Elige una herramienta más abajo para añadirla.",
+  "config.rules.workflows_help": "Nombres de workflows que activan esta regla, separados por comas. Elige un workflow más abajo para añadirlo."
 }

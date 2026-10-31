@@ -22,12 +22,19 @@
   "config.cyd_creator.ota_public_url_label": "Dirección de AuraGo para los dispositivos",
   "config.cyd_creator.ota_title": "Actualizaciones por wifi",
   "config.cyd_creator.restart_note": "Activar CYD Creator y cambiar la imagen del compilador, la memoria, los núcleos de CPU o la parada por inactividad surte efecto tras reiniciar AuraGo. Los demás ajustes se aplican al instante.",
-  "config.section.cyd_creator.desc": "Crea apps para placas Cheap Yellow Display con un diseñador y un agente. Los builds se ejecutan en Docker.",
+  "config.section.cyd_creator.desc": "Crea aplicaciones para placas Cheap Yellow Display con un diseñador y un agente.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Imagen publicada con las herramientas. AuraGo la descarga una vez y nunca la construye localmente.",
   "help.cyd_creator.cold_build_timeout_seconds": "Se aplica mientras la caché de compilación de un proyecto y una placa siga vacía.",
   "help.cyd_creator.enabled": "Muestra la app CYD Creator en el escritorio. Para compilar necesitas un host Docker configurado.",
   "help.cyd_creator.max_repair_attempts": "Cuántas veces puede el agente corregir errores de compilación antes de que la tarea falle.",
   "help.cyd_creator.ota_enabled": "Los dispositivos con el enlace con AuraGo descargan por sí solos los builds nuevos.",
-  "help.cyd_creator.ota_public_url": "URL con la que los dispositivos llegan a AuraGo. Vacío usa los ajustes del servidor."
+  "help.cyd_creator.ota_public_url": "URL con la que los dispositivos llegan a AuraGo. Vacío usa los ajustes del servidor.",
+  "config.cyd_creator.build_timeout_seconds_help": "Una compilación normal se aborta tras estos segundos (por defecto 300).",
+  "config.cyd_creator.cpu_cores_help": "Núcleos de CPU para el contenedor de compilación; se admiten valores a medias (por defecto 2).",
+  "config.cyd_creator.idle_stop_minutes_help": "El contenedor de compilación se detiene tras estos minutos sin trabajo para liberar recursos (por defecto 20).",
+  "config.cyd_creator.job_timeout_minutes_help": "Tiempo total que el agente puede dedicar a un trabajo, incluidos los intentos de reparación (por defecto 20 minutos).",
+  "config.cyd_creator.keep_builds_per_project_help": "Cuántas compilaciones anteriores se conservan por proyecto; las más antiguas se borran (por defecto 5).",
+  "config.cyd_creator.memory_mb_help": "Memoria para el contenedor de compilación en megabytes (por defecto 2048).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Intervalo con el que un dispositivo CYD pregunta al servidor por actualizaciones (por defecto 60 segundos)."
 }

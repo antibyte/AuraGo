@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Nativ vert",
   "config.shell_sandbox.ready": "Klar",
   "config.sandbox.local_python_fallback_label": "Lokal Python-reserve",
-  "config.sandbox.local_python_fallback_warning": "Kjører kode i lokal Python utenfor isoleringen hvis sandkassen feiler. Slå det bare på bevisst."
+  "config.sandbox.local_python_fallback_warning": "Kjører kode i lokal Python utenfor isoleringen hvis sandkassen feiler. Slå det bare på bevisst.",
+  "config.sandbox.local_python_fallback_help": "Kjører kode lokalt på serveren når ingen container er tilgjengelig. Advarsel: denne koden kjører uten containerisolasjon.",
+  "config.shell_sandbox.enabled_help": "Begrenser filsystemtilgangen til agentens shell-kommandoer ved hjelp av Landlock. Fungerer bare på Linux med en passende kjerne.",
+  "config.shell_sandbox.max_memory_help": "Minne i MB som en kommando maksimalt kan bruke (64-8192, standard 1024).",
+  "config.shell_sandbox.max_cpu_help": "CPU-tid i sekunder før en kommando avbrytes (5-600, standard 30).",
+  "config.shell_sandbox.max_fsize_help": "Største fil i MB som en kommando kan skrive (1-4096, standard 100)."
 }

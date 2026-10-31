@@ -23,5 +23,13 @@
   "config.video_gen.enabled_label": "Generazione video attiva:",
   "config.video_gen.aspect_ratio_label": "Formato",
   "config.video_gen.test_btn": "Test connessione",
-  "config.video_gen.disabled_desc": "Attiva l'interruttore sopra per permettere all'agente di generare video."
+  "config.video_gen.disabled_desc": "Attiva l'interruttore sopra per permettere all'agente di generare video.",
+  "config.video_gen.enabled_help": "Permette all'agente di creare video con il provider selezionato. Ogni generazione consuma quota o credito.",
+  "config.video_gen.provider_help": "Provider della gestione dei provider che crea i video.",
+  "config.video_gen.duration_help": "Durata di una clip in secondi (1-30, predefinito 6) quando l'agente non ne specifica una. Le clip più lunghe costano di più.",
+  "config.video_gen.resolution_help": "Risoluzione quando l'agente non ne specifica una. I valori disponibili dipendono dal provider.",
+  "config.video_gen.aspect_ratio_help": "Proporzioni quando l'agente non ne specifica una, ad esempio 16:9 per l'orizzontale e 9:16 per il verticale.",
+  "config.video_gen.poll_interval_help": "Ogni quanto AuraGo chiede al provider lo stato di un lavoro video (1-120 secondi, predefinito 10).",
+  "config.video_gen.timeout_help": "Dopo questo tempo AuraGo smette di attendere un video (30-3600 secondi, predefinito 600).",
+  "config.video_gen.max_daily_help": "Numero massimo di video al giorno. 0 significa illimitato."
 }

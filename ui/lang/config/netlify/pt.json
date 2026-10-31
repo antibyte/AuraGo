@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Permite criar, atualizar e eliminar sites Netlify.",
   "config.netlify.allow_env_management_help": "Permite gerir variáveis de ambiente nos sites Netlify.",
   "config.netlify.default_site_id_help": "ID opcional do site utilizado quando o agente não nomeia um site.",
-  "config.netlify.team_slug_help": "Slug opcional da equipa Netlify utilizado para chamadas de API com âmbito de equipa."
+  "config.netlify.team_slug_help": "Slug opcional da equipa Netlify utilizado para chamadas de API com âmbito de equipa.",
+  "config.netlify.vault_badge": "vault"
 }

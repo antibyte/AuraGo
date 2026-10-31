@@ -1,1 +1,8 @@
-{}
+{
+  "config.manifest.routing_enabled_help": "Invia intestazioni aggiuntive con le richieste a Manifest, così che Manifest possa scegliere il modello adatto in base ai tuoi livelli.",
+  "config.manifest.routing_specificity_mode_help": "Disattivato non invia alcuna categoria, Fisso invia sempre quella scelta qui sotto, Automatico lascia che AuraGo determini la categoria per ogni richiesta.",
+  "config.manifest.routing_specificity_help": "Categoria che AuraGo invia a Manifest con ogni richiesta in modalità \"Fisso\".",
+  "config.manifest.routing_headers_help": "Intestazioni personalizzate come coppie nome e valore che AuraGo invia in aggiunta a Manifest. Inserisci solo valori che Manifest può vedere.",
+  "config.manifest.routing_header_name": "Nome dell'intestazione",
+  "config.manifest.routing_header_value": "Valore dell'intestazione"
+}

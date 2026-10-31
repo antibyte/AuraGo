@@ -13,6 +13,11 @@
   "config.flows.missions_off": "Mise jsou vypnuté. Toky ke svému běhu mise potřebují.",
   "config.flows.open": "Otevřít EasyDrag",
   "config.flows.run_retention_days": "Uchovávat historii běhů (dny, 1–365)",
-  "config.section.flows.desc": "Vizuální automatizace z aplikace EasyDrag",
-  "config.section.flows.label": "Toky EasyDrag"
+  "config.section.flows.desc": "Spouští vizuální automatizace vytvořené v aplikaci EasyDrag.",
+  "config.section.flows.label": "Toky EasyDrag",
+  "config.flows.enabled_help": "Zapne spouštění flow EasyDrag. Změna se projeví po restartu.",
+  "config.flows.max_parallel_nodes_per_run_help": "Kolik kroků jednoho běhu se smí provádět paralelně (1 až 16, výchozí 4).",
+  "config.flows.max_parallel_runs_help": "Kolik běhů flow může probíhat současně (1 až 32, výchozí 8). Další čekají.",
+  "config.flows.max_runs_per_flow_help": "Kolik dokončených běhů se uchovává na flow; starší se mažou (10 až 5000, výchozí 200).",
+  "config.flows.run_retention_days_help": "Historie běhu se smaže po tolika dnech (1 až 365, výchozí 30)."
 }

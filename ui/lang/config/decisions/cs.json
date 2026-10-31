@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Zapne místní rozhodovací službu, kterou mohou ostatní funkce používat pro rychlá posouzení ano/ne. Níže zvolíte, které funkce ji využijí.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

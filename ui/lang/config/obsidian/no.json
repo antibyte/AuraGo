@@ -30,5 +30,6 @@
   "help.obsidian.connect_timeout": "Tilkoblingstimeout i sekunder (standard: 10)",
   "help.obsidian.request_timeout": "Forespørselstimeout i sekunder (standard: 30)",
   "config.obsidian.status_unknown": "Ukjent status",
-  "config.obsidian.status_no_url": "Ingen vert konfigurert"
+  "config.obsidian.status_no_url": "Ingen vert konfigurert",
+  "config.obsidian.status_online": "Obsidian REST API v{api} - Obsidian {obsidian}"
 }

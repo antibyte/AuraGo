@@ -1,0 +1,11 @@
+{
+  "config.video_studio.enabled_help": "Schakelt de Video Studio-app op het virtuele bureaublad in. FFmpeg en FFprobe moeten op de server zijn geïnstalleerd.",
+  "config.video_studio.readonly_help": "Projecten kunnen worden bekeken maar niet gewijzigd of geëxporteerd.",
+  "config.video_studio.ffmpeg_help": "Pad naar het FFmpeg-uitvoerbare bestand. Laat leeg om FFmpeg via het systeem-PATH te vinden.",
+  "config.video_studio.asset_limit_help": "Grootste toegestane enkele mediabestand in megabyte (standaard 4096).",
+  "config.video_studio.project_limit_help": "Totale grootte van alle bestanden in één project in megabyte (standaard 16384).",
+  "config.video_studio.timeout_help": "Langste tijd voor het renderen van een video in seconden, daarna wordt het afgebroken (30 tot 14400, standaard 7200).",
+  "config.video_studio.hardware_device_help": "Renderapparaat van de grafische kaart, bijvoorbeeld /dev/dri/renderD128 op Linux. Leeg = automatisch.",
+  "config.retro_games.enabled_help": "Schakelt de Retro Games-app op het virtuele bureaublad in. De games draaien in de archive.org-emulator en hebben internettoegang nodig.",
+  "config.retro_games.agent_access_help": "De agent mag games zoeken en ze op het bureaublad starten."
+}

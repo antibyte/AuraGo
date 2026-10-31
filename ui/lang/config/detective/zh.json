@@ -1,6 +1,6 @@
 {
   "config.section.detective.label": "侦探",
-  "config.section.detective.desc": "来源可追溯的研究",
+  "config.section.detective.desc": "让代理调研某个主题并注明所用的来源。",
   "config.detective.enabled": "启用 Detective",
   "config.detective.extra_read_operations": "已批准的读取操作",
   "config.detective.extra_read_help": "添加研究可在已连接的私有服务上调用的精确工具操作。仍需在案例中选择来源。",
@@ -13,5 +13,11 @@
   "config.detective.tools": "工具调用",
   "config.detective.readonly": "安全只读模式",
   "config.detective.seconds": "任务超时（秒）",
-  "config.detective.restart": "更改研究强度配置后请重启 AuraGo。现有研究保留已接受的预算。"
+  "config.detective.restart": "更改研究强度配置后请重启 AuraGo。现有研究保留已接受的预算。",
+  "config.detective.help_enabled": "启用带可追溯来源的调研。案件只会使用您明确选择的来源。",
+  "config.detective.help_readonly": "让调研只读。除非您确定允许更改内容，否则建议启用。",
+  "config.detective.help_seconds": "单个任务的最长运行时间，单位为秒（30 到 7200），超时后会被停止。",
+  "config.detective.help_tools": "每个任务的最大工具调用次数（1 到 500）。",
+  "config.detective.help_iterations": "每个任务的最大推理与工作轮数（1 到 750）。",
+  "config.detective.help_tokens": "每个任务使用令牌数的额外上限。0 = 无额外限制。"
 }

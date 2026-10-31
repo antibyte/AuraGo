@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Accorcia gli output lunghi degli strumenti prima che raggiungano il modello e così risparmia token. I messaggi di errore vengono mantenuti se l'opzione qui sotto è attiva.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "Compressione LZW",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Sostituisce le parti di testo ricorrenti con brevi riferimenti senza cambiarne l'ordine. Risparmia token su output molto ripetitivi.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Numero massimo di riferimenti creati per output. Più voci trovano più ripetizioni ma richiedono più spazio per il dizionario.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Gli output più lunghi non vengono elaborati con questo metodo, per risparmiare tempo di calcolo.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "Una parte di testo viene sostituita solo se compare almeno questo numero di volte.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Le parti di testo più brevi non vengono mai sostituite, perché il riferimento occuperebbe più spazio del testo.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "Il risultato viene usato solo se è più corto dell'originale di almeno questa percentuale.",
+  "help.agent.output_compression.toon_json.max_rows": "Le tabelle con più righe non vengono rese nel formato compatto TOON.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "La forma compatta della tabella viene usata solo se è più corta del JSON di almeno questa percentuale."
+}

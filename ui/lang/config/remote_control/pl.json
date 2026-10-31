@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Brak urządzeń",
   "config.remote_control.no_platforms": "Brak dostępnych platform",
   "config.remote_control.platforms_error": "Błąd ładowania platform",
-  "config.remote_control.read_only_label": "Tryb tylko do odczytu (blokuje zapisy, usuwanie i polecenia shell na wszystkich urządzeniach)",
+  "config.remote_control.read_only_label": "Tryb tylko do odczytu",
   "config.remote_control.security_desc": "Kontroluj rejestrację urządzeń i dziennik audytu.",
   "config.remote_control.security_title": "Bezpieczeństwo",
-  "config.remote_control.ssh_insecure_host_key_label": "Zezwól na niezabezpieczony klucz hosta SSH (⚠️ wyłącza ochronę MITM, używać tylko w zaufanych sieciach)",
+  "config.remote_control.ssh_insecure_host_key_label": "Zezwalaj na niezabezpieczony klucz hosta SSH",
   "config.remote_control.status_connected": "Połączono",
   "config.remote_control.status_offline": "Niedostępny",
   "config.security_proxy.status_loading": "Ładowanie…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Wymagana aktualizacja klienta",
   "config.remote_control.confirm_removal": "Odłączyć urządzenie i anulować wykonywane polecenia? Ponowne parowanie wymaga nowego tokenu.",
   "config.remote_control.paths_inherit": "Jedna ścieżka w wierszu. Pusta lista ścieżek tego urządzenia dziedziczy ścieżki globalne. Jeśli obie listy są puste, dostęp do plików jest zabroniony.",
-  "config.remote_control.security_hint": "WSS i prawidłowy certyfikat są wymagane także przez Tailscale. Zaktualizuj klasycznych klientów przed serwerem. Tokeny wygasają po godzinie i można ich użyć tylko raz."
+  "config.remote_control.security_hint": "WSS i prawidłowy certyfikat są wymagane także przez Tailscale. Zaktualizuj klasycznych klientów przed serwerem. Tokeny wygasają po godzinie i można ich użyć tylko raz.",
+  "config.remote_control.enabled_help": "Włącza zdalne sterowanie. Tylko wtedy sparowane urządzenia mogą się łączyć, a agent uzyskać do nich dostęp.",
+  "config.remote_control.read_only_help": "Blokuje zapisy plików, usuwanie i polecenia powłoki na wszystkich urządzeniach. Odczyt pozostaje możliwy.",
+  "config.remote_control.audit_log_help": "Rejestruje każdą akcję na urządzeniach zdalnych. Zalecane, aby można było później prześledzić dostęp.",
+  "config.remote_control.ssh_insecure_host_key_help": "Uwaga: wyłącza sprawdzanie klucza hosta SSH, a tym samym ochronę przed atakami typu man-in-the-middle. Włączaj tylko w sieci, której w pełni ufasz.",
+  "config.remote_control.max_file_size_help": "Największy plik w MB dozwolony w transferze (1-500, domyślnie 50).",
+  "config.remote_control.enrollment_device_name_help": "Opcjonalna nazwa nowego urządzenia. Jest ustawiana podczas tworzenia tokenu parowania.",
+  "config.remote_control.device_name_help": "Opcjonalna nazwa urządzenia, na którym działa klient. Jest przekazywana podczas pobierania."
 }

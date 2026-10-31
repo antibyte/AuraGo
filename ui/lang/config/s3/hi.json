@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "प्रबंधित RustFS सेवा का पता। यह अपने आप सेट होता है और केवल संदर्भ के लिए दिखाया जाता है।",
+  "config.s3.details_help": "JSON फ़ॉर्मैट में सेवा का तकनीकी स्थिति डेटा, जैसे समस्या निवारण के लिए। केवल पढ़ने योग्य।",
+  "config.s3.allow_read_help": "एजेंट ऑब्जेक्ट की सूची देख सकता है और उन्हें डाउनलोड कर सकता है।",
+  "config.s3.allow_write_help": "एजेंट ऑब्जेक्ट अपलोड कर सकता है और मौजूदा ऑब्जेक्ट को अधिलेखित कर सकता है।",
+  "config.s3.allow_delete_help": "एजेंट ऑब्जेक्ट हटा सकता है। हटाए गए ऑब्जेक्ट वापस नहीं पाए जा सकते।",
+  "config.s3.location_bucket_help": "बकेट का नाम जिस पर अनुमति लागू होती है।",
+  "config.s3.location_prefixes_help": "प्रति पंक्ति एक प्रीफ़िक्स। कोई प्रविष्टि न होने पर कुछ भी अनुमत नहीं है, जब तक पूरा बकेट न चुना गया हो।",
+  "config.s3.bucket_label": "बकेट",
+  "config.s3.enabled_label": "S3 स्टोरेज चालू करें",
+  "config.s3.endpoint_label": "एंडपॉइंट URL",
+  "config.s3.insecure_label": "अनएन्क्रिप्टेड कनेक्शन की अनुमति दें",
+  "config.s3.readonly_label": "केवल-पढ़ने",
+  "config.s3.region_label": "क्षेत्र",
+  "config.s3.use_path_style_label": "पाथ-स्टाइल एड्रेसिंग का उपयोग करें"
+}

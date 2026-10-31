@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Włącz narzędzie zapory sieciowej",
   "config.firewall.enable_help": "Umożliwia agentowi AI interakcję z zaporą systemową w celu odczytania lub zmodyfikowania reguł.",
   "config.firewall.active": "Aktywny",
-  "config.firewall.inactive": "Nieaktywny"
+  "config.firewall.inactive": "Nieaktywny",
+  "config.firewall.mode_label": "Tryb działania",
+  "config.firewall.poll_interval_seconds_label": "Interwał sprawdzania (sekundy)"
 }

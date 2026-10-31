@@ -5,5 +5,7 @@
   "config.firewall.enable_label": "Firewalltool inschakelen",
   "config.firewall.enable_help": "Hiermee kan de AI-agent communiceren met de systeemfirewall om regels te lezen of te wijzigen.",
   "config.firewall.active": "Actief",
-  "config.firewall.inactive": "Inactief"
+  "config.firewall.inactive": "Inactief",
+  "config.firewall.mode_label": "Bedrijfsmodus",
+  "config.firewall.poll_interval_seconds_label": "Controle-interval (seconden)"
 }

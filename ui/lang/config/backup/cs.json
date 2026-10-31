@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_password_help": "Potřebné pouze tehdy, pokud byla záloha zašifrována. Musí to být stejné heslo jako při jejím vytvoření.",
+  "config.backup.include_vectordb_help": "Přidá vektorovou databázi (embeddingy paměti). Ušetří přepočítání po obnovení, ale archiv bývá velmi velký.",
+  "config.backup.include_workdir_help": "Přidá pracovní adresář agenta se všemi soubory v něm. Může zabrat hodně místa.",
+  "config.backup.select_file_help": "Dříve vytvořená záloha s příponou .ago. Import přepíše existující data."
 }

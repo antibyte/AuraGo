@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "SQLite बैकअप आयात करें",
   "config.sql_connections.sqlite_import_help": "सुसंगत, स्वतंत्र बैकअप अपलोड करें (64 MiB तक)। सहेजने पर यह सुरक्षित भंडारण में आयात होगा और मूल फ़ाइलें सुरक्षित रहेंगी।",
   "config.sql_connections.sqlite_import_required": "SQLite आयात आवश्यक है",
-  "config.sql_connections.allow_management_help": "एजेंट केवल विवरण बदल सकता है। सेटअप, लॉगिन जानकारी और अनुमतियाँ व्यवस्थापक के लिए हैं।"
+  "config.sql_connections.allow_management_help": "एजेंट केवल विवरण बदल सकता है। सेटअप, लॉगिन जानकारी और अनुमतियाँ व्यवस्थापक के लिए हैं।",
+  "config.sql_connections.filter_label": "कनेक्शन फ़िल्टर करें",
+  "config.sql_connections.filter_help": "सूची को नाम, प्रकार, होस्ट, डेटाबेस या विवरण से फ़िल्टर करता है।",
+  "config.sql_connections.name_help": "अनूठा नाम जिससे एजेंट इस कनेक्शन का संदर्भ देता है।",
+  "config.sql_connections.driver_help": "डेटाबेस का प्रकार। SQLite आयात की गई फ़ाइल पर काम करता है, बाकी किसी सर्वर से जुड़ते हैं।",
+  "config.sql_connections.port_help": "डेटाबेस प्रकार के डिफ़ॉल्ट पोर्ट के लिए खाली छोड़ें (PostgreSQL 5432, MySQL 3306)।",
+  "config.sql_connections.host_help": "डेटाबेस सर्वर का होस्टनाम या IP पता। खाली = localhost।",
+  "config.sql_connections.ssl_mode_help": "कनेक्शन का एन्क्रिप्शन। Disable सब कुछ सादे टेक्स्ट में भेजता है, Require प्रमाणपत्र जाँचे बिना एन्क्रिप्ट करता है, Verify CA प्रमाणपत्र प्राधिकरण जाँचता है, Verify Full सर्वर नाम भी जाँचता है (सबसे सुरक्षित)।",
+  "config.sql_connections.database_help": "सर्वर पर उस डेटाबेस का नाम जिससे एजेंट जुड़ता है।",
+  "config.sql_connections.description_help": "एजेंट और आपके लिए एक संक्षिप्त नोट कि डेटाबेस किस काम आता है।",
+  "config.sql_connections.username_help": "डेटाबेस उपयोगकर्ता। यथासंभव कम विशेषाधिकार वाला खाता उपयोग करें।",
+  "config.sql_connections.password_help": "vault में एन्क्रिप्ट करके संग्रहीत। सहेजा गया पासवर्ड रखने के लिए खाली छोड़ें।"
 }

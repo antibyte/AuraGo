@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Dernier essai : {result}",
   "config.newspaper.max_searches": "Nombre maximal de recherches par édition (nouvelles tentatives incluses)",
   "config.section.newspaper.label": "Journal",
-  "config.section.newspaper.desc": "Une édition quotidienne personnelle et sourcée",
+  "config.section.newspaper.desc": "Compose un journal quotidien personnel à partir de recherches sourcées.",
   "config.newspaper.enabled": "Activer le journal",
   "config.newspaper.readonly": "Mode lecture seule",
   "config.newspaper.allow_email": "Autoriser l'envoi d'e-mails",
@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Le budget monétaire reste applicable.",
   "config.newspaper.monetary_budget_disabled": "Aucun budget monétaire n’est configuré ; les limites de recherche restent applicables.",
   "config.newspaper.fixed_budget_note": "Les limites fixes partagent {pages} pages pour toute l’édition.",
-  "config.newspaper.fixed_limits_only": "Ces limites ne s’appliquent qu’en mode fixe."
+  "config.newspaper.fixed_limits_only": "Ces limites ne s’appliquent qu’en mode fixe.",
+  "config.newspaper.enabled_help": "Permet au bureau de rechercher et de compiler chaque jour un journal sur vos sujets. Vous définissez les sujets dans le bureau.",
+  "config.newspaper.readonly_help": "Le journal peut seulement lire et afficher, sans rien envoyer ni modifier.",
+  "config.newspaper.allow_email_help": "Autorise l'envoi des éditions terminées par e-mail. Un compte e-mail doit être configuré.",
+  "config.newspaper.allow_telegram_help": "Autorise l'envoi des éditions terminées via Telegram. Telegram doit être configuré.",
+  "config.newspaper.max_minutes_help": "Durée maximale de la recherche pour une édition (1 à 60 minutes, 30 par défaut).",
+  "config.newspaper.max_pages_help": "Nombre maximal de pages web lues par édition (1 à 60, 60 par défaut).",
+  "config.newspaper.max_searches_help": "Nombre maximal de requêtes de recherche par édition, nouvelles tentatives comprises (1 à 64, 32 par défaut).",
+  "config.newspaper.max_editions_help": "Nombre d'éditions terminées conservées ; les plus anciennes sont supprimées (30 à 3650, 365 par défaut)."
 }

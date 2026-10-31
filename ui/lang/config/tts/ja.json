@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "ダウンロード",
   "config.tts.phonon_downloading": "ダウンロード中 …",
   "config.tts.phonon_catalog_error": "音声カタログを読み込めませんでした。",
-  "config.tts.phonon_download_error": "ダウンロードに失敗しました。以前の音声選択は維持されます。"
+  "config.tts.phonon_download_error": "ダウンロードに失敗しました。以前の音声選択は維持されます。",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (ローカル Docker)",
+  "config.tts.title_piper": "Piper TTS (ローカル Docker)",
+  "config.tts.api_key_help": "プロバイダーのアカウントで発行された API キーです。vault に暗号化して保存されます。",
+  "config.tts.cloud_voice_help": "プロバイダーがテキストの読み上げに使う音声です。",
+  "config.tts.phonon_catalog_help": "下の音声一覧を言語で絞り込みます。上で選択した音声は変わりません。",
+  "config.tts.supertonic_image_help": "Supertonic コンテナの起動に使う Docker イメージです。独自のイメージを使う場合のみ変更してください。",
+  "config.tts.supertonic_port_help": "Supertonic コンテナが内部で待ち受けるポートです (デフォルト 7788)。",
+  "config.tts.supertonic_data_path_help": "モデルとコンテナデータを保存するフォルダーで、AuraGo ディレクトリからの相対パスです (デフォルト data/supertonic)。",
+  "config.tts.supertonic_container_name_help": "Docker コンテナの名前です。デフォルトの名前がすでに使われている場合のみ変更してください。",
+  "config.tts.piper_port_help": "Piper コンテナが内部で待ち受けるポートです (デフォルト 10200)。",
+  "config.tts.piper_image_help": "Piper コンテナの起動に使う Docker イメージです。独自のイメージを使う場合のみ変更してください。",
+  "config.tts.piper_data_path_help": "ダウンロードした音声を保存するフォルダーで、AuraGo ディレクトリからの相対パスです (デフォルト data/piper)。"
 }
