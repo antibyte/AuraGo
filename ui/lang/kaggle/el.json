@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Χειροκίνητη διευθέτηση · άγνωστο αποτέλεσμα",
+  "kaggle.resolve_unknown": "Αποδέσμευση θέσης",
+  "kaggle.resolve_unknown_help": "Έλεγξε στο Kaggle ότι αυτή η εργασία δεν εκτελείται πλέον. Η αποδέσμευση δεν σταματά την εργασία ούτε επιβεβαιώνει το αποτέλεσμά της. Η αρχική καταγραφή διατηρείται.",
+  "kaggle.resolve_unknown_confirm": "Έλεγξα στο Kaggle ότι η εργασία δεν εκτελείται πλέον.",
+  "config.kaggle.state_resolved_unknown": "Χειροκίνητη διευθέτηση · άγνωστο αποτέλεσμα",
+  "config.kaggle.resolve_unknown": "Αποδέσμευση θέσης",
+  "config.kaggle.resolve_unknown_help": "Έλεγξε στο Kaggle ότι αυτή η εργασία δεν εκτελείται πλέον. Η αποδέσμευση δεν σταματά την εργασία ούτε επιβεβαιώνει το αποτέλεσμά της. Η αρχική καταγραφή διατηρείται.",
+  "config.kaggle.resolve_unknown_confirm": "Έλεγξα στο Kaggle ότι η εργασία δεν εκτελείται πλέον.",
   "kaggle.filters": "Περισσότερα φίλτρα και επιλογές",
   "kaggle.required": "Συμπλήρωσε αυτό το πεδίο.",
   "kaggle.overview": "Επισκόπηση",

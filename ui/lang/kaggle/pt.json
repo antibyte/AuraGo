@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Resolvido manualmente · resultado desconhecido",
+  "kaggle.resolve_unknown": "Liberar vaga",
+  "kaggle.resolve_unknown_help": "Verifica no Kaggle que esta tarefa já não está em execução. Liberar a vaga não interrompe a tarefa nem confirma o resultado. O registo original é preservado.",
+  "kaggle.resolve_unknown_confirm": "Verifiquei no Kaggle que a tarefa já não está em execução.",
+  "config.kaggle.state_resolved_unknown": "Resolvido manualmente · resultado desconhecido",
+  "config.kaggle.resolve_unknown": "Liberar vaga",
+  "config.kaggle.resolve_unknown_help": "Verifica no Kaggle que esta tarefa já não está em execução. Liberar a vaga não interrompe a tarefa nem confirma o resultado. O registo original é preservado.",
+  "config.kaggle.resolve_unknown_confirm": "Verifiquei no Kaggle que a tarefa já não está em execução.",
   "kaggle.filters": "Mais filtros e opções",
   "kaggle.required": "Preenche este campo.",
   "kaggle.overview": "Visão Geral",

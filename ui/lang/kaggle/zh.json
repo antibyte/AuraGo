@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "已手动确认 · 结果未知",
+  "kaggle.resolve_unknown": "释放运行名额",
+  "kaggle.resolve_unknown_help": "请在 Kaggle 上确认此任务已不再运行。释放名额不会停止任务，也不会确认任务结果。原始记录将保留。",
+  "kaggle.resolve_unknown_confirm": "我已在 Kaggle 上确认此任务已不再运行。",
+  "config.kaggle.state_resolved_unknown": "已手动确认 · 结果未知",
+  "config.kaggle.resolve_unknown": "释放运行名额",
+  "config.kaggle.resolve_unknown_help": "请在 Kaggle 上确认此任务已不再运行。释放名额不会停止任务，也不会确认任务结果。原始记录将保留。",
+  "config.kaggle.resolve_unknown_confirm": "我已在 Kaggle 上确认此任务已不再运行。",
   "kaggle.filters": "更多筛选条件和选项",
   "kaggle.required": "请填写此字段。",
   "kaggle.overview": "概览",

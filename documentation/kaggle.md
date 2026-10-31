@@ -61,9 +61,13 @@ Closing a window detaches observers and timers. Jobs continue, and local session
 
 ### Cancellation and uncertain outcomes
 
-Mutations are never retried after a lost response. An optional 32-hex request `id` binds the account and canonical arguments; repeating it returns the existing receipt. `unknown` remains visible until its outcome can be established. Do not create a replacement job merely to hide uncertainty.
+Mutations are never retried after a lost response. An optional 32-hex request `id` binds the account and canonical arguments; repeating it returns the existing receipt. `unknown` remains visible and retains a remote compute slot when applicable. Do not create a replacement job merely to hide uncertainty.
+
+An administrator can open **Jobs → Release slot** for an `unknown` receipt after checking on Kaggle that no execution remains active. The confirmation checkbox is required. This changes only the local status to `resolved_unknown`: it does **not** stop a Kaggle job or establish success/cancellation. The original account, request, idempotency key, result and error remain intact, and the release emits a job event. Repeating the release returns the same receipt; other job states cannot be released this way. The action works with Kaggle disabled/read-only, without credentials or network access. There is no automatic release or agent-tool equivalent.
 
 Benchmark cancellation uses recorded run IDs only. Its request is durably claimed before sending, and completion requires a remote terminal state. A configured remote timeout requests cancellation of a tracked benchmark run. Failed/uncertain cancellations remain visible and are not automatically repeated.
+
+Remote cancel buttons show a disabled reason when credentials or global network access are missing. Local job cancellation stays available; administrative cancellation does not require Kaggle execution/write grants to remain enabled.
 
 The pinned SDK's `SaveKernel` response does **not** promise a `kernelSessionId`, while its cancellation endpoint requires one. AuraGo does not derive or guess that ID from a kernel ID or version number. A run without a verifiable session ID offers **Cancel on Kaggle**. If a session ID is supplied, AuraGo can request cancellation and follow the confirmed state. Notebook timeouts are also sent in the run request. This upstream limitation must not be presented as automatic cancellation support.
 
@@ -74,6 +78,8 @@ Tools: `kaggle_datasets`, `kaggle_models`, `kaggle_notebooks`, `kaggle_competiti
 The runtime tool manages projects, revisioned notebook files and local sessions. `events` takes an `after` cursor and returns up to 100 events plus `next_cursor` and `gap`; use it to observe local cell output in chat. `read_file` returns a bounded UTF-8 preview. `jobs` returns durable remote receipts. All external results pass the agent's existing protection/isolation path.
 
 HTTP routes under `/api/kaggle/` include `status`, `capabilities`, `test`, `quotas`, `operations`, `runtime`, `projects`, `jobs` and `events`. They use existing Desktop authentication/scopes and browser CSRF rules. POST operation classification is semantic: Kaggle also uses POST for reads. Credential changes require global administrator permission. Notebook PUT uses `If-Match` or create-only `If-None-Match: *`. SSE supports `Last-Event-ID`; credentials are rechecked during long connections.
+
+`POST /api/kaggle/jobs/{id}/resolve-unknown` accepts `{"confirmed_inactive":true}`. It requires Desktop write access (`desktop:write` or `desktop:admin` for tokens) **and** global `admin`; authenticated browser owners use the existing admin identity and same-origin CSRF check. `status.can_resolve_unknown` exposes this capability. Missing confirmation returns 400, a missing receipt 404 and any state other than `unknown`/`resolved_unknown` 409. It performs no Kaggle request.
 
 State is held in `data/kaggle.db` and `data/kaggle/projects/`. The database is part of the existing protected SQLite inventory and backup handling. Upload receipt secrets remain in the Vault. Preserve both the project files and normal encrypted Vault/database backups when migrating an installation.
 
@@ -93,7 +99,8 @@ docker build -t aurago/kaggle-notebook:test deploy/docker/kaggle-notebook
 python scripts/test-kaggle-runtime.py --image aurago/kaggle-notebook:test
 # Optional real Docker manager and browser fixtures:
 AURAGO_KAGGLE_DOCKER_SMOKE=1 AURAGO_KAGGLE_TEST_IMAGE=aurago/kaggle-notebook:test go test ./internal/notebooks
-AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestKaggleNotebookBrowser
+AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run 'TestKaggle.*Browser'
+AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run Kaggle
 # Linux:
 go test -race -p 1 ./internal/kaggle ./internal/notebooks
 node scripts/build-ui-bundles.js --check

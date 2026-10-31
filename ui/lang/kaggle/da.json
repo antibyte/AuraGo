@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Afklaret manuelt · resultat ukendt",
+  "kaggle.resolve_unknown": "Frigiv plads",
+  "kaggle.resolve_unknown_help": "Kontrollér på Kaggle, at denne opgave ikke længere kører. Frigivelse af pladsen stopper ikke opgaven og bekræfter ikke resultatet. Den oprindelige registrering bevares.",
+  "kaggle.resolve_unknown_confirm": "Jeg har kontrolleret på Kaggle, at opgaven ikke længere kører.",
+  "config.kaggle.state_resolved_unknown": "Afklaret manuelt · resultat ukendt",
+  "config.kaggle.resolve_unknown": "Frigiv plads",
+  "config.kaggle.resolve_unknown_help": "Kontrollér på Kaggle, at denne opgave ikke længere kører. Frigivelse af pladsen stopper ikke opgaven og bekræfter ikke resultatet. Den oprindelige registrering bevares.",
+  "config.kaggle.resolve_unknown_confirm": "Jeg har kontrolleret på Kaggle, at opgaven ikke længere kører.",
   "kaggle.filters": "Flere filtre og indstillinger",
   "kaggle.required": "Udfyld dette felt.",
   "kaggle.overview": "Oversigt",

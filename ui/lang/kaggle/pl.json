@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Wyjaśniono ręcznie · wynik nieznany",
+  "kaggle.resolve_unknown": "Zwolnij miejsce",
+  "kaggle.resolve_unknown_help": "Sprawdź na Kaggle, czy to zadanie już nie działa. Zwolnienie miejsca nie zatrzymuje zadania ani nie potwierdza jego wyniku. Oryginalny zapis zostaje zachowany.",
+  "kaggle.resolve_unknown_confirm": "Sprawdziłem(-am) na Kaggle, że zadanie już nie działa.",
+  "config.kaggle.state_resolved_unknown": "Wyjaśniono ręcznie · wynik nieznany",
+  "config.kaggle.resolve_unknown": "Zwolnij miejsce",
+  "config.kaggle.resolve_unknown_help": "Sprawdź na Kaggle, czy to zadanie już nie działa. Zwolnienie miejsca nie zatrzymuje zadania ani nie potwierdza jego wyniku. Oryginalny zapis zostaje zachowany.",
+  "config.kaggle.resolve_unknown_confirm": "Sprawdziłem(-am) na Kaggle, że zadanie już nie działa.",
   "kaggle.filters": "Więcej filtrów i opcji",
   "kaggle.required": "Wypełnij to pole.",
   "kaggle.overview": "Przegląd",

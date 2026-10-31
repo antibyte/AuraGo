@@ -9,6 +9,7 @@
 - HTML outputs use DOMPurify plus an opaque sandboxed iframe/CSP. Notebook JavaScript, widgets and remote resources stay inert. On close dispose editors, requests, modal promises and SSE observers; backend jobs/kernels remain owned by their services. Conflicting drafts stay exportable.
 - All copy belongs to the sixteen `lang/kaggle` locale sets. Container queries use the window host, not the app's own container. Verify `TestKaggleNotebookBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`, both themes and concurrent narrow/wide windows. Domain contracts: `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md`.
 - `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
+- Jobs expose manual slot release only for `unknown` receipts when `status.can_resolve_unknown` is true. Require an unchecked confirmation that the administrator verified inactivity on Kaggle; explain that release stops no remote work and proves no outcome. Preserve dialog input on failure and prevent duplicate submissions. Remote cancel buttons require credentials/network; local cancellation and administrative cleanup remain possible with Kaggle disabled/read-only. Verify `TestKaggleJobControlsBrowser` in both themes.
 
 ## Email exports
 

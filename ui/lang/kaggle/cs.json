@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Ručně vyřešeno · výsledek neznámý",
+  "kaggle.resolve_unknown": "Uvolnit místo",
+  "kaggle.resolve_unknown_help": "Ověř na Kaggle, že tato úloha už neběží. Uvolnění místa úlohu nezastaví ani nepotvrdí její výsledek. Původní záznam zůstane zachován.",
+  "kaggle.resolve_unknown_confirm": "Ověřil(a) jsem na Kaggle, že úloha už neběží.",
+  "config.kaggle.state_resolved_unknown": "Ručně vyřešeno · výsledek neznámý",
+  "config.kaggle.resolve_unknown": "Uvolnit místo",
+  "config.kaggle.resolve_unknown_help": "Ověř na Kaggle, že tato úloha už neběží. Uvolnění místa úlohu nezastaví ani nepotvrdí její výsledek. Původní záznam zůstane zachován.",
+  "config.kaggle.resolve_unknown_confirm": "Ověřil(a) jsem na Kaggle, že úloha už neběží.",
   "kaggle.filters": "Další filtry a možnosti",
   "kaggle.required": "Vyplň toto pole.",
   "kaggle.overview": "Přehled",

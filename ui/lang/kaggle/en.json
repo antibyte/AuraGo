@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Manually resolved · outcome unknown",
+  "kaggle.resolve_unknown": "Release slot",
+  "kaggle.resolve_unknown_help": "Check on Kaggle that this job is no longer running. Releasing the slot does not stop the job or confirm its outcome. The original receipt is preserved.",
+  "kaggle.resolve_unknown_confirm": "I checked on Kaggle that the job is no longer running.",
+  "config.kaggle.state_resolved_unknown": "Manually resolved · outcome unknown",
+  "config.kaggle.resolve_unknown": "Release slot",
+  "config.kaggle.resolve_unknown_help": "Check on Kaggle that this job is no longer running. Releasing the slot does not stop the job or confirm its outcome. The original receipt is preserved.",
+  "config.kaggle.resolve_unknown_confirm": "I checked on Kaggle that the job is no longer running.",
   "kaggle.filters": "More filters and options",
   "kaggle.required": "Fill in this field.",
   "kaggle.overview": "Overview",
