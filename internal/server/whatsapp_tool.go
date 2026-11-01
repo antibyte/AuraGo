@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 	"aurago/internal/whatsapp"
 )
@@ -25,4 +26,35 @@ func (w whatsAppOwnerSender) SendOwnerMessage(ctx context.Context, text, filePat
 		return tools.WhatsAppSendResult{}, whatsapp.ErrNotConnected
 	}
 	return bot.SendOwnerMessage(ctx, text, filePath)
+}
+
+// whatsAppOwnerAPI is the part of the running Bot that server features other than the agent
+// tools send through: camera alert photos and newspaper editions. Every method passes the
+// Bot's own gate (ownerSendAllowed: live readonly, egg mode, generation) and reaches the owners
+// only.
+type whatsAppOwnerAPI interface {
+	OwnerSendReady() bool
+	SendOwnerMessage(ctx context.Context, text, filePath string) (tools.WhatsAppSendResult, error)
+	SendOwnerAttachment(ctx context.Context, caption string, att whatsapp.OwnerAttachment) (tools.WhatsAppSendResult, error)
+}
+
+var _ whatsAppOwnerAPI = (*whatsapp.Bot)(nil)
+
+// serverWhatsAppOwner returns the running Bot, or nil (never a typed nil). Tests replace it.
+var serverWhatsAppOwner = func(s *Server) whatsAppOwnerAPI {
+	if bot := s.whatsAppBot.Load(); bot != nil {
+		return bot
+	}
+	return nil
+}
+
+// whatsAppOwnerReady reports that a server feature may send to WhatsApp now: the section is
+// enabled and writable and a linked generation runs. The owner API checks readonly again on
+// the live configuration, so a toggle between this check and the send still wins.
+func (s *Server) whatsAppOwnerReady(cfg *config.Config) bool {
+	if cfg == nil || !cfg.WhatsApp.Enabled || cfg.WhatsApp.ReadOnly {
+		return false
+	}
+	api := serverWhatsAppOwner(s)
+	return api != nil && api.OwnerSendReady()
 }
