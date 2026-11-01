@@ -661,7 +661,7 @@ personality:
 | `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt |
 | `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis for responses |
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
-| `inner_voice.enabled` | `false` | Optional short first-person agent thought after each chat turn, injected into the next system prompt as untrusted, tone-only data |
+| `inner_voice.enabled` | `false` | Optional short first-person agent thought after each chat turn, injected into the next system prompt as untrusted, tone-only data; its category may add one fixed working-style hint |
 
 ### Adaptive Dynamics
 

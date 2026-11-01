@@ -248,7 +248,7 @@ Wenn `personality.emotion_synthesizer.enabled: true` gesetzt ist, erzeugt der He
 
 ## Inner Voice (V2)
 
-Die Inner Voice ist ein kurzer, privater Gedanke des Agenten. Nach einer Chat-Runde schreibt der Helper höchstens einen kurzen Gedanken in der Ich-Form, oder keinen, wenn nichts Erwähnenswertes anfällt. Dieser Gedanke wird im nächsten System-Prompt als nicht vertrauenswürdige Daten injiziert, die nur den Tonfall beeinflussen dürfen, nie Absicht, Sicherheit oder Tool-Nutzung. Während der Wiederherstellung nach Tool-Fehlern wird er ausgelassen.
+Die Inner Voice ist ein kurzer, privater Gedanke des Agenten. Nach einer Chat-Runde schreibt der Helper höchstens einen kurzen Gedanken in der Ich-Form, oder keinen, wenn nichts Erwähnenswertes anfällt. Dieser Gedanke wird im nächsten System-Prompt als nicht vertrauenswürdige Daten injiziert, die nur den Tonfall beeinflussen dürfen, nie Absicht, Sicherheit oder Tool-Nutzung. Während der Wiederherstellung nach Tool-Fehlern wird er ausgelassen. Solange der Gedanke injiziert ist, wählt seine Kategorie (zum Beispiel `caution` oder `focus`) einen von zwölf festen Haltungshinweisen, die AuraGo selbst formuliert, nicht das Modell; dieser geht in den vertrauenswürdigen Abschnitt PERSONA STATE des Prompts ein. Die Hinweise betreffen nur den Arbeitsstil, etwa das Benennen des Hauptrisikos oder einen ruhigen Schritt-für-Schritt-Ton, und verändern nie Tools, Bestätigungen, Absicht oder Sicherheit; unbekannte Kategorien erzeugen keinen Hinweis.
 
 | Einstellung | Standard | Beschreibung |
 |-------------|----------|--------------|
@@ -345,7 +345,7 @@ Schnelle Infos  → terminator
 | **Basispersönlichkeit** | `personality.core_personality` | Auswahl des Stils |
 | **User Profiling** | `personality.user_profiling: true` | Personalisierung |
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natürlichsprachliche Emotionsnotizen |
-| **Inner Voice** | `personality.inner_voice.enabled: true` | Kurzer privater Gedanke, der den Tonfall färbt |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Privater Gedanke, der Tonfall und Arbeitsstil färbt |
 
 > [!TIP]
 > Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.

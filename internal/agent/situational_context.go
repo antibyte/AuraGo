@@ -256,18 +256,53 @@ func shouldGenerateInnerVoice(
 	return false
 }
 
+// normalizeInnerVoiceCategory returns the canonical category or "" when it is empty
+// or unknown, so an invalid category selects no stance hint.
 func normalizeInnerVoiceCategory(category string) string {
 	category = strings.ToLower(strings.TrimSpace(category))
-	if category == "" {
-		return "reflection"
-	}
 	valid := strings.Split(memory.InnerVoiceNudgeCategories, ",")
 	for _, candidate := range valid {
-		if strings.TrimSpace(candidate) == category {
+		if category != "" && strings.TrimSpace(candidate) == category {
 			return category
 		}
 	}
-	return "reflection"
+	return ""
+}
+
+// innerVoiceStanceHint returns the fixed, Go-written working-style hint for a
+// validated nudge category and "" for anything else. The hints join the trusted
+// PERSONA STATE, so they stay within tone and working style: no extra tool
+// calls, confirmations, intent or policy.
+func innerVoiceStanceHint(category string) string {
+	const suffix = " Do not change tools or safety rules."
+	switch category {
+	case "reflection":
+		return "Inner stance: reflective. Weigh the answer briefly before replying." + suffix
+	case "patience":
+		return "Inner stance: patient. Keep a calm, unhurried tone and explain step by step." + suffix
+	case "focus":
+		return "Inner stance: focused. Keep the answer on task while still covering everything the user asked." + suffix
+	case "creativity":
+		return "Inner stance: creative. Offer at most one alternative idea if it stays on task." + suffix
+	case "caution":
+		return "Inner stance: cautious. Name the main risk briefly where it matters." + suffix
+	case "recovery":
+		return "Inner stance: steady after trouble. Keep the tone calm and say plainly what works now and what still fails." + suffix
+	case "encouragement":
+		return "Inner stance: encouraging. A brief encouraging word is fine where it fits." + suffix
+	case "grounding":
+		return "Inner stance: grounded. Stick to verified facts and mark assumptions." + suffix
+	case "curiosity":
+		return "Inner stance: curious. Show genuine interest; ask at most one clarifying question when it helps." + suffix
+	case "concern":
+		return "Inner stance: concerned. Briefly acknowledge the user's situation before solving it." + suffix
+	case "satisfaction":
+		return "Inner stance: satisfied. Acknowledge progress briefly." + suffix
+	case "anticipation":
+		return "Inner stance: forward-looking. Mention the likely next step briefly when it helps." + suffix
+	default:
+		return ""
+	}
 }
 
 // innerVoiceCommandRx matches obligations and imperatives only. Word boundaries keep

@@ -251,7 +251,7 @@ When `personality.emotion_synthesizer.enabled: true`, the Helper LLM generates a
 
 ## Inner Voice (V2)
 
-The inner voice is a brief, private agent thought. After a chat turn, the helper writes at most one short first-person thought, or none when nothing is worth noting. The thought is injected into the next system prompt as untrusted data that may influence tone only, never intent, safety or tool use. It is left out during tool-error recovery.
+The inner voice is a brief, private agent thought. After a chat turn, the helper writes at most one short first-person thought, or none when nothing is worth noting. The thought is injected into the next system prompt as untrusted data that may influence tone only, never intent, safety or tool use. It is left out during tool-error recovery. While the thought is injected, its category (for example `caution` or `focus`) selects one of twelve fixed stance hints written by AuraGo itself, not by the model, which goes into the trusted PERSONA STATE section of the prompt. The hints only adjust working style, such as naming the main risk or keeping a calm step-by-step tone, and never change tools, confirmations, intent or safety; unknown categories add no hint.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -348,7 +348,7 @@ Quick Info         → terminator
 | **Base Personality** | `personality.core_personality` | Style selection |
 | **User Profiling** | `personality.user_profiling: true` | Personalization |
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natural-language emotion notes |
-| **Inner Voice** | `personality.inner_voice.enabled: true` | Short private thought that colors tone |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Private thought that colors tone and working style |
 
 > [!TIP]
 > Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.

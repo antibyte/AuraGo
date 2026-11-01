@@ -408,6 +408,27 @@ func TestNormalizeInnerVoiceAcceptsSubtleThought(t *testing.T) {
 	}
 }
 
+func TestInnerVoiceStanceHint(t *testing.T) {
+	const suffix = " Do not change tools or safety rules."
+	for _, category := range strings.Split(memory.InnerVoiceNudgeCategories, ",") {
+		category = strings.TrimSpace(category)
+		if hint := innerVoiceStanceHint(category); hint == "" || !strings.HasSuffix(hint, suffix) {
+			t.Fatalf("innerVoiceStanceHint(%q) = %q, want a hint ending with the safety suffix", category, hint)
+		}
+	}
+	for _, category := range []string{"", "bogus", "reflection, patience"} {
+		if hint := innerVoiceStanceHint(category); hint != "" {
+			t.Fatalf("innerVoiceStanceHint(%q) = %q, want no hint", category, hint)
+		}
+	}
+	if got := normalizeInnerVoiceCategory("bogus"); got != "" {
+		t.Fatalf("normalizeInnerVoiceCategory(bogus) = %q, want empty", got)
+	}
+	if got := normalizeInnerVoiceCategory(" Caution "); got != "caution" {
+		t.Fatalf("normalizeInnerVoiceCategory(\" Caution \") = %q, want caution", got)
+	}
+}
+
 func TestNormalizeInnerVoiceRejectsChecklists(t *testing.T) {
 	for _, thought := range []string{"I feel fine.\n- check logs", "I feel fine.\n1. restart"} {
 		ResetInnerVoiceState()

@@ -1387,9 +1387,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent, lastResponseWasTool) {
 				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
+					// The category selects a fixed Go-written hint for the trusted
+					// persona line; the free-text thought stays untrusted.
+					hint := innerVoiceStanceHint(ivCategory)
+					flags.PersonalityLine = mergeAdditionalPrompt(flags.PersonalityLine, hint)
 					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
 						"session_id", sessionID,
 						"category", ivCategory,
+						"stance_hint", hint != "",
 						"content_len", len(iv))
 				}
 			}

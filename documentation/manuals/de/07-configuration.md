@@ -457,7 +457,7 @@ personality:
 | `engine_v2` | `true` | LLM-basierte Stimmungsanalyse |
 | `user_profiling` | `false` | Präferenzen aus Gesprächen lernen |
 | `emotion_synthesizer.enabled` | `false` | Emotionssynthese für Antworten |
-| `inner_voice.enabled` | `false` | Optionaler kurzer Gedanke des Agenten in der Ich-Form nach jeder Chat-Runde, als nicht vertrauenswürdige, nur tonwirksame Daten in den nächsten System-Prompt injiziert |
+| `inner_voice.enabled` | `false` | Optionaler kurzer Gedanke des Agenten in der Ich-Form nach jeder Chat-Runde, als nicht vertrauenswürdige, nur tonwirksame Daten in den nächsten System-Prompt injiziert; seine Kategorie kann einen festen, von AuraGo formulierten Hinweis zum Arbeitsstil hinzufügen |
 
 ### Adaptive Dynamik
 
