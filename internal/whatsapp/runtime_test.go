@@ -192,6 +192,9 @@ func TestBotBackoffReconnectAndTerminalStates(t *testing.T) {
 	sleeps := &recordedSleeps{hold: make(chan struct{})}
 	startTestBot(t, testBotConfig(config.WhatsAppModeDedicated, "+491701234567"), &fakeStore{linked: true, own: testOwn, client: client}, sleeps)
 	waitFor(t, "third connect", func() bool { return connectsOf(client) == 3 })
+	if n := clientCount(client, func(f *fakeClient) int { return f.disconnects }); n != 2 {
+		t.Fatalf("a failed connect left the socket open: %d disconnects before the third attempt, want 2", n)
+	}
 	if got := sleeps.list(); !slices.Equal(got, []time.Duration{5 * time.Second, 10 * time.Second}) {
 		t.Fatalf("backoff = %v, want [5s 10s]", got)
 	}
@@ -247,8 +250,11 @@ func TestBotSendTestMessageReachesOnlyOwners(t *testing.T) {
 	if _, err := ownerRecipients(config.WhatsAppConfig{Mode: config.WhatsAppModeSelfChat}, types.EmptyJID); !errors.Is(err, ErrNoRecipient) {
 		t.Fatalf("self chat without own JID: %v", err)
 	}
-	if _, err := ownerRecipients(config.WhatsAppConfig{Mode: config.WhatsAppModeDedicated}, testOwn); !errors.Is(err, ErrNoRecipient) {
-		t.Fatalf("dedicated without owners: %v", err)
+	if _, err := ownerRecipients(config.WhatsAppConfig{Mode: config.WhatsAppModeDedicated}, testOwn); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("dedicated without owners: %v, want ErrNotConfigured", err)
+	}
+	if _, err := ownerRecipients(config.WhatsAppConfig{Mode: config.WhatsAppModeDedicated, OwnerNumbers: []string{"not a number"}}, testOwn); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("dedicated with only invalid owners: %v, want ErrNotConfigured", err)
 	}
 	offline := &fakeClient{own: testOwn}
 	b := startTestBot(t, testBotConfig(config.WhatsAppModeDedicated, "+491701234567"), &fakeStore{linked: true, own: testOwn, client: offline}, &recordedSleeps{})

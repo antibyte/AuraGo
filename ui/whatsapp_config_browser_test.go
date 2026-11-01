@@ -197,8 +197,10 @@ func TestWhatsAppConfigSwitchMethodAndLeaveBrowser(t *testing.T) {
 	}
 }
 
-// TestWhatsAppConfigStatesUnlinkAndTestBrowser renders every runtime state,
-// then runs the test message (sent, rate limited) and unlink actions.
+// TestWhatsAppConfigStatesUnlinkAndTestBrowser runs the test message (sent,
+// rate limited; other actions locked while it is in flight) and unlink
+// actions, then renders every runtime state, the visible reasons and a refused
+// status request.
 func TestWhatsAppConfigStatesUnlinkAndTestBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	var de map[string]string
@@ -206,19 +208,32 @@ func TestWhatsAppConfigStatesUnlinkAndTestBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stateMu sync.Mutex
-	state, linked := "healthy", true
+	state, linked, denied := "healthy", true, false
 	var tests atomic.Int32
+	release := make(chan struct{})
 	origin := whatsAppFixtureOrigin(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/whatsapp/status":
 			stateMu.Lock()
-			current, isLinked := state, linked
+			current, isLinked, isDenied := state, linked, denied
 			stateMu.Unlock()
-			writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"status": current, "whatsapp": map[string]any{"enabled": current != "disabled", "state": current, "linked": isLinked, "linked_jid_masked": "***4567"}})
+			if isDenied {
+				writeWhatsAppFixtureJSON(w, http.StatusForbidden, map[string]any{"error": "admin_required", "message": "Admin scope is required for this endpoint."})
+				return
+			}
+			status := map[string]any{"enabled": current != "disabled", "state": current, "linked": isLinked, "linked_jid_masked": "***4567"}
+			if current == "temp_banned" {
+				status["temp_ban_expires_at"], status["last_error"] = "2026-11-01T12:00:00Z", "temp_ban_101"
+			}
+			writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"status": current, "whatsapp": status})
 		case "/api/whatsapp/link":
 			writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"state": "idle"})
 		case "/api/whatsapp/test":
 			if tests.Add(1) == 1 {
+				select { // the first request stays in flight until the test releases it
+				case <-release:
+				case <-time.After(10 * time.Second):
+				}
 				writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"status": "sent"})
 				return
 			}
@@ -244,7 +259,11 @@ func TestWhatsAppConfigStatesUnlinkAndTestBrowser(t *testing.T) {
 	}
 	waitForJSBool(t, page, `()=>{const b=document.getElementById('whatsapp-test');return !!b&&!b.disabled}`)
 	page.MustElement("#whatsapp-test").MustClick()
+	// While the test message is in flight no other action may start.
+	waitForJSBool(t, page, `()=>['link-qr','link-phone','unlink','test'].every(id=>document.getElementById('whatsapp-'+id).disabled)`)
+	close(release)
 	waitForJSBool(t, page, resultHas("config.whatsapp.test_sent"))
+	waitForJSBool(t, page, `()=>!document.getElementById('whatsapp-link-qr').disabled`)
 	waitForJSBool(t, page, `()=>!document.getElementById('whatsapp-test').disabled`)
 	page.MustElement("#whatsapp-test").MustClick()
 	waitForJSBool(t, page, resultHas("config.whatsapp.err_rate_limited"))
@@ -257,6 +276,10 @@ func TestWhatsAppConfigStatesUnlinkAndTestBrowser(t *testing.T) {
 		t.Error("a completed unlink is not reported as success")
 	}
 	waitForJSBool(t, page, `()=>document.getElementById('whatsapp-unlink').disabled&&!!document.getElementById('whatsapp-status').dataset.state&&document.getElementById('whatsapp-status').dataset.state!=='checking'`)
+	// Nothing is linked now: the visible line names a reason for the disabled actions.
+	if page.MustEval(`()=>{const n=document.getElementById('whatsapp-action-reason');return n.hidden||n.textContent===''}`).Bool() {
+		t.Error("disabled actions show no visible reason")
+	}
 
 	for _, want := range []struct{ state, banner, label, detail string }{
 		{"disabled", "off", "", ""},
@@ -282,11 +305,79 @@ func TestWhatsAppConfigStatesUnlinkAndTestBrowser(t *testing.T) {
 		if want.label != "" && got["label"].Str() != de[want.label] {
 			t.Errorf("state %s: label %q, want %q", want.state, got["label"].Str(), de[want.label])
 		}
-		if got["detail"].Str() != de[want.detail] {
-			t.Errorf("state %s: detail %q, want %q", want.state, got["detail"].Str(), de[want.detail])
+		wantDetail := de[want.detail]
+		if want.state == "temp_banned" { // expiry in the page's date format, then the reason code
+			when := page.MustEval(`()=>new Date('2026-11-01T12:00:00Z').toLocaleString()`).Str()
+			wantDetail += " " + strings.Replace(de["config.whatsapp.state_temp_banned_until"], "{time}", when, 1) + " (temp_ban_101)"
+		}
+		if got["detail"].Str() != wantDetail {
+			t.Errorf("state %s: detail %q, want %q", want.state, got["detail"].Str(), wantDetail)
 		}
 		if got["test"].Bool() != (want.state != "healthy") {
 			t.Errorf("state %s: test button disabled = %v", want.state, got["test"].Bool())
 		}
 	}
+
+	// Linked but not connected: the visible line explains the empty phone field first,
+	// then the disabled Send test once the number is valid.
+	stateMu.Lock()
+	state, linked = "degraded", true
+	stateMu.Unlock()
+	page.MustEval(`async()=>{await selectSection('whatsapp',{scrollBehavior:'auto'})}`)
+	visibleReason := func(key string) string {
+		quoted, _ := json.Marshal(de[key])
+		return fmt.Sprintf(`()=>{const n=document.getElementById('whatsapp-action-reason');return !n.hidden&&n.textContent===%s}`, quoted)
+	}
+	waitForJSBool(t, page, visibleReason("config.whatsapp.err_invalid_phone"))
+	page.MustElement("#whatsapp-phone").MustInput("+491701234567")
+	waitForJSBool(t, page, visibleReason("config.whatsapp.err_not_connected"))
+	if title := page.MustEval(`()=>document.getElementById('whatsapp-test').title`).Str(); title != de["config.whatsapp.err_not_connected"] {
+		t.Errorf("Send test title = %q", title)
+	}
+
+	// A refused status request shows translated text, never the raw code.
+	stateMu.Lock()
+	denied = true
+	stateMu.Unlock()
+	page.MustEval(`async()=>{await selectSection('whatsapp',{scrollBehavior:'auto'})}`)
+	got := page.MustEval(`()=>{const b=document.getElementById('whatsapp-status');return {state:b.dataset.state,detail:b.querySelector('.cfg-state-detail').textContent}}`).Map()
+	if got["state"].Str() != "error" || got["detail"].Str() != de["config.whatsapp.err_forbidden"] {
+		t.Errorf("refused status request: banner %q, detail %q, want error with the translated forbidden text", got["state"].Str(), got["detail"].Str())
+	}
+}
+
+// TestWhatsAppConfigLinkInProgressAdoptsSessionBrowser: when the server
+// refuses a link because another session runs, the panel shows that session.
+func TestWhatsAppConfigLinkInProgressAdoptsSessionBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	var gets atomic.Int32
+	origin := whatsAppFixtureOrigin(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/whatsapp/status":
+			writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"status": "not_linked", "whatsapp": map[string]any{"enabled": true, "state": "not_linked", "linked": false}})
+		case "/api/whatsapp/link":
+			if r.Method == http.MethodPost {
+				writeWhatsAppFixtureJSON(w, http.StatusConflict, map[string]any{"error": "link_in_progress"})
+				return
+			}
+			if gets.Add(1) == 1 { // the resume probe finds nothing; the session starts elsewhere afterwards
+				writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"state": "idle"})
+				return
+			}
+			writeWhatsAppFixtureJSON(w, http.StatusOK, map[string]any{"state": "code", "pairing_code": "ZXCV-1234"})
+		default:
+			writeWhatsAppFixtureJSON(w, http.StatusNotFound, map[string]any{"error": "not_found"})
+		}
+	})
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(origin + "/config#whatsapp")
+	defer func() {
+		page.MustEval(`()=>window.removeEventListener('beforeunload',handleConfigBeforeUnload)`)
+		page.MustClose()
+	}()
+	waitForJSBool(t, page, `()=>{const b=document.getElementById('whatsapp-link-qr');return !!b&&!b.disabled}`)
+	waitForWhatsAppCount(t, &gets, 1, "resume probes")
+	page.MustElement("#whatsapp-link-qr").MustClick()
+	waitForJSBool(t, page, `()=>{const c=document.getElementById('whatsapp-code');return !c.hidden&&c.textContent==='ZXCV-1234'}`)
+	waitForJSBool(t, page, `()=>document.getElementById('whatsapp-result').textContent.includes('bereits')`)
 }

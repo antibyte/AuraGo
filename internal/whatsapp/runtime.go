@@ -270,6 +270,8 @@ func (b *Bot) connectLoop(client waClient, signals <-chan eventEffect) {
 			}
 			integrationstatus.MarkWhatsAppError(integrationstatus.WhatsAppStateDegraded, "connect_failed")
 			b.logger.Warn("WhatsApp connect failed", "retry_in", backoff.String(), "error", maskDigits(security.Scrub(err.Error())))
+			// A failed dial can leave a half-open socket; drop it before the next attempt.
+			client.Disconnect()
 			if !b.deps.sleep(b.ctx, backoff) {
 				return
 			}

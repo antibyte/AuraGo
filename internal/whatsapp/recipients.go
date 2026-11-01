@@ -28,7 +28,8 @@ func ownerRecipients(cfg config.WhatsAppConfig, own types.JID) ([]types.JID, err
 		out = append(out, types.NewJID(strings.TrimPrefix(number, "+"), types.DefaultUserServer))
 	}
 	if len(out) == 0 {
-		return nil, ErrNoRecipient
+		// Dedicated mode needs an owner number: a settings problem, not a connection one.
+		return nil, ErrNotConfigured
 	}
 	return out, nil
 }

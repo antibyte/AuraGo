@@ -64,7 +64,7 @@ function renderWhatsAppSection(section) {
     // Literal maps keep every key visible to the static i18n lint. Codes that are
     // not listed (invalid_method, invalid_request, request_too_large,
     // method_not_allowed, whatsapp_failed, link_failed, connect_failed,
-    // pair_failed, qr_failed, admin_required) show err_failed.
+    // pair_failed, qr_failed) show err_failed.
     const ERRORS = {
         link_in_progress: () => t('config.whatsapp.err_link_in_progress'),
         already_linked: () => t('config.whatsapp.err_already_linked'),
@@ -73,6 +73,9 @@ function renderWhatsAppSection(section) {
         not_connected: () => t('config.whatsapp.err_not_connected'),
         rate_limited: () => t('config.whatsapp.err_rate_limited'),
         csrf_check_failed: () => t('config.whatsapp.err_csrf'),
+        admin_required: () => t('config.whatsapp.err_forbidden'),
+        unauthorized: () => t('config.whatsapp.err_forbidden'),
+        login_required_for_host: () => t('config.whatsapp.err_forbidden'),
         passkey_unsupported: () => t('config.whatsapp.err_passkey_unsupported'),
         cancelled: () => t('config.whatsapp.err_cancelled'),
         outdated: () => t('config.whatsapp.state_outdated')
@@ -88,10 +91,21 @@ function renderWhatsAppSection(section) {
         degraded: () => ({ state: 'degraded', detail: t('config.whatsapp.state_degraded') }),
         logged_out: () => ({ state: 'error', detail: t('config.whatsapp.state_logged_out') }),
         conflict: () => ({ state: 'error', detail: t('config.whatsapp.state_conflict') }),
-        temp_banned: () => ({ state: 'error', detail: t('config.whatsapp.state_temp_banned') }),
+        temp_banned: () => ({ state: 'error', detail: tempBanDetail() }),
         outdated: () => ({ state: 'error', detail: t('config.whatsapp.state_outdated') })
     };
     const ACTIVE = ['waiting', 'qr', 'code'];
+    const ACTIONS = ['link-qr', 'link-phone', 'unlink', 'test'];
+    // Every action locks the others while it runs, so link, unlink and test never overlap.
+    const LOCK = '#whatsapp-config .whatsapp-link-panel .cfg-actions-row button';
+    // Expiry and reason code of a temporary ban; the code is a fixed machine code such as temp_ban_101.
+    function tempBanDetail() {
+        const parts = [t('config.whatsapp.state_temp_banned')];
+        const until = Date.parse(status.temp_ban_expires_at);
+        if (Number.isFinite(until)) parts.push(t('config.whatsapp.state_temp_banned_until').replace('{time}', new Date(until).toLocaleString()));
+        if (/^[a-z0-9_]{1,40}$/.test(status.last_error || '')) parts.push('(' + status.last_error + ')');
+        return parts.join(' ');
+    }
     const errorText = code => (typeof code === 'string' && Object.hasOwn(ERRORS, code) ? ERRORS[code]() : t('config.whatsapp.err_failed'));
     const reasonText = body => (body && body.error ? errorText(body.error) : '');
 
@@ -113,13 +127,15 @@ function renderWhatsAppSection(section) {
         root.querySelector('#whatsapp-linked').textContent = status.linked
             ? t('config.whatsapp.linked_as').replace('{number}', status.linked_jid_masked || '')
             : t('config.whatsapp.not_linked');
-        for (const action of ['link-qr', 'link-phone', 'unlink', 'test']) {
+        const busy = !!root.querySelector('[data-config-action-busy="true"]');
+        const reasons = ACTIONS.map(action => reason(action));
+        ACTIONS.forEach((action, index) => {
             const control = root.querySelector('#whatsapp-' + action);
-            const why = reason(action);
-            control.disabled = !!why || control.getAttribute('aria-busy') === 'true';
-            control.title = why;
-        }
-        const why = reason('link-qr');
+            control.disabled = !!reasons[index] || busy;
+            control.title = reasons[index];
+        });
+        // The visible line names the first reason that disables an action; each button's title carries its own.
+        const why = reasons.find(Boolean) || '';
         const note = root.querySelector('#whatsapp-action-reason');
         note.textContent = why;
         note.hidden = !why;
@@ -159,7 +175,9 @@ function renderWhatsAppSection(section) {
     async function refreshStatus() {
         if (!alive()) return;
         settleCount = 0;
-        await cfgStatusBanner.check(root.querySelector('#whatsapp-status'), signal => fetch('/api/whatsapp/status', { signal, credentials: 'same-origin', cache: 'no-store' }), describeStatus);
+        // A refused request (admin_required, ...) shows its translated text, never the raw code.
+        await cfgStatusBanner.check(root.querySelector('#whatsapp-status'), signal => fetch('/api/whatsapp/status', { signal, credentials: 'same-origin', cache: 'no-store' }), describeStatus,
+            { reasonText: body => errorText(body && body.error) });
         sync();
         armSettle();
     }
@@ -207,11 +225,13 @@ function renderWhatsAppSection(section) {
     }
 
     // force replaces a running session (switching method) and an existing device (relinking).
+    const act = (control, run, options) => cfgActionResult(control, run, { lock: LOCK, ...options }).then(outcome => { sync(); return outcome; });
+
     function startLink(control, method) {
         const linked = !!status.linked;
         const body = { method, force: linked || ACTIVE.includes(linkState) };
         if (method === 'phone') body.phone = root.querySelector('#whatsapp-phone').value.trim();
-        return cfgActionResult(control, () => fetch('/api/whatsapp/link', {
+        return act(control, () => fetch('/api/whatsapp/link', {
             method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
         }), {
             target: 'whatsapp-result',
@@ -225,13 +245,17 @@ function renderWhatsAppSection(section) {
                 refreshStatus();
                 poll(700);
             },
-            onError: () => refreshStatus()
+            onError: outcome => {
+                refreshStatus();
+                // Another tab or browser owns the running session: show its code instead of only the error.
+                if (alive() && outcome.body && outcome.body.error === 'link_in_progress') poll(0);
+            }
         });
     }
 
     root.querySelector('#whatsapp-link-qr').addEventListener('click', event => startLink(event.currentTarget, 'qr'));
     root.querySelector('#whatsapp-link-phone').addEventListener('click', event => startLink(event.currentTarget, 'phone'));
-    root.querySelector('#whatsapp-unlink').addEventListener('click', event => cfgActionResult(event.currentTarget,
+    root.querySelector('#whatsapp-unlink').addEventListener('click', event => act(event.currentTarget,
         () => fetch('/api/whatsapp/logout', { method: 'POST', credentials: 'same-origin' }), {
             target: 'whatsapp-result',
             confirm: { message: t('config.whatsapp.unlink_confirm') },
@@ -242,7 +266,7 @@ function renderWhatsAppSection(section) {
             onSuccess: () => { if (alive()) { showLink({ state: 'idle' }); refreshStatus(); } },
             onError: () => refreshStatus()
         }));
-    root.querySelector('#whatsapp-test').addEventListener('click', event => cfgActionResult(event.currentTarget,
+    root.querySelector('#whatsapp-test').addEventListener('click', event => act(event.currentTarget,
         () => fetch('/api/whatsapp/test', { method: 'POST', credentials: 'same-origin' }), {
             target: 'whatsapp-result',
             reasonText,
