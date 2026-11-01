@@ -1,0 +1,14 @@
+{
+  "calc": "wheatstone",
+  "sets": [
+    {"values": {"vs": 12, "r1": 1000, "r2": 2000, "r3": 3000, "r4": 1000, "vd": 5, "r4bal": 6000}, "ref": "hand: V_D = 12 V * (2000/3000 - 1000/4000) = 12 V * (2/3 - 1/4) = 12 V * 5/12 = 5 V; balance R4 = 2000 * 3000 / 1000 = 6000 ohm"},
+    {"values": {"vs": 10, "r1": 1000, "r2": 1000, "r3": 1000, "r4": 3000, "vd": -2.5, "r4bal": 1000}, "ref": "hand: V_D = 10 V * (1/2 - 3/4) = -2.5 V; balance R4 = 1000 * 1000 / 1000 = 1000 ohm"},
+    {"values": {"vs": 5, "r1": 1000, "r2": 1000, "r3": 1000, "r4": 1100, "vd": -0.11904761904761904, "r4bal": 1000}, "ref": "hand: V_D = 5 V * (1/2 - 1100/2100) = 5 V * (1/2 - 11/21) = 5 V * (-1/42) = -5/42 V = -0.119047619 V; balance R4 = 1000 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"vs": 5, "r1": 1000, "r2": 1000, "r3": 1000, "r4": 1100}, "expect": {"vd": -0.11904761904761904, "r4bal": 1000}, "ref": "hand: V_D = -5/42 V (see the third set)"},
+    {"inputs": {"vs": 5, "r1": 1000, "r2": 1000, "r3": 1000, "r4": 1000}, "expect": {"vd": 0, "r4bal": 1000}, "ref": "hand: R1 * R4 = R2 * R3, so the bridge is balanced and V_D = 0"},
+    {"inputs": {"vs": 12, "vd": 5, "r1": 1000, "r2": 2000, "r3": 3000}, "expect": {"r4": 1000, "r4bal": 6000}, "ref": "hand: x = 2/3 - 5/12 = 1/4; R4 = 3000 * (1/4) / (3/4) = 1000 ohm; balance R4 = 6000 ohm"},
+    {"inputs": {"vd": 0, "r1": 1000, "r2": 1000, "r3": 1000, "r4": 1000}, "errors": {"vs": "nonfinite"}, "ref": "hand: a balanced bridge (V_D = 0) does not determine V_S: 0 / 0"}
+  ]
+}

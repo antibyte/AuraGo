@@ -1,0 +1,16 @@
+{
+  "calc": "rms_waveform",
+  "sets": [
+    {"choices": {"wave": "sine"}, "values": {"vrms": 7.0710678118654755, "vpk": 10, "vpp": 20, "vavg": 6.366197723675813}, "ref": "definition: sine with V_pk = 10 V: V_rms = 10 / sqrt(2) = 7.0710678 V, V_pp = 20 V, rectified average 2 * 10 / pi = 6.3661977 V"},
+    {"choices": {"wave": "sine"}, "values": {"vrms": 0.7071067811865476, "vpk": 1, "vpp": 2, "vavg": 0.6366197723675814}, "ref": "definition: sine with V_pk = 1 V: V_rms = 1 / sqrt(2) = 0.70710678 V, V_pp = 2 V, rectified average 2 / pi = 0.63661977 V"},
+    {"choices": {"wave": "square"}, "values": {"vrms": 5, "vpk": 5, "vpp": 10, "vavg": 5}, "ref": "definition: a symmetric square wave of +-5 V has V_rms = V_pk = rectified average = 5 V"},
+    {"choices": {"wave": "square"}, "values": {"vrms": 12, "vpk": 12, "vpp": 24, "vavg": 12}, "ref": "definition: a symmetric square wave of +-12 V has V_rms = V_pk = rectified average = 12 V"},
+    {"choices": {"wave": "triangle"}, "values": {"vrms": 1.7320508075688772, "vpk": 3, "vpp": 6, "vavg": 1.5}, "ref": "definition: triangle with V_pk = 3 V: V_rms = 3 / sqrt(3) = sqrt(3) V, V_pp = 6 V, rectified average = V_pk / 2 = 1.5 V"},
+    {"choices": {"wave": "triangle"}, "values": {"vrms": 5.773502691896257, "vpk": 10, "vpp": 20, "vavg": 5}, "ref": "definition: triangle with V_pk = 10 V: V_rms = 10 / sqrt(3) = 5.7735027 V, V_pp = 20 V, rectified average = 5 V"}
+  ],
+  "solve": [
+    {"inputs": {"vrms": 230}, "expect": {"vpk": 325.2691193458119, "vpp": 650.5382386916237, "vavg": 207.0727527161344}, "ref": "hand: sine: V_pk = 230 * sqrt(2) = 325.2691 V; V_pp = 650.5382 V; rectified average = 230 * 2 * sqrt(2) / pi = 207.0728 V"},
+    {"inputs": {"vpp": 2}, "choices": {"wave": "square"}, "expect": {"vrms": 1, "vpk": 1, "vavg": 1}, "ref": "definition: square wave, V_pp = 2 V means +-1 V and V_rms = V_pk = average = 1 V"},
+    {"inputs": {"vavg": 1.5}, "choices": {"wave": "triangle"}, "expect": {"vpk": 3, "vrms": 1.7320508075688772, "vpp": 6}, "ref": "definition: triangle, rectified average = V_pk / 2 so V_pk = 3 V; V_rms = sqrt(3) V; V_pp = 6 V"}
+  ]
+}

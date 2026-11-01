@@ -1,0 +1,13 @@
+{
+  "calc": "star_delta",
+  "sets": [
+    {"values": {"rab": 30, "rbc": 60, "rca": 90, "ra": 15, "rb": 10, "rc": 30}, "ref": "hand: sum = 180; R_A = 30 * 90 / 180 = 15; R_B = 30 * 60 / 180 = 10; R_C = 60 * 90 / 180 = 30"},
+    {"values": {"rab": 100, "rbc": 100, "rca": 100, "ra": 33.333333333333336, "rb": 33.333333333333336, "rc": 33.333333333333336}, "ref": "hand: a balanced delta of 100 ohm is a balanced star of 100 / 3 = 33.333 ohm"},
+    {"values": {"rab": 20, "rbc": 30, "rca": 50, "ra": 10, "rb": 6, "rc": 15}, "ref": "hand: sum = 100; R_A = 20 * 50 / 100 = 10; R_B = 20 * 30 / 100 = 6; R_C = 30 * 50 / 100 = 15"}
+  ],
+  "solve": [
+    {"inputs": {"rab": 30, "rbc": 60, "rca": 90}, "expect": {"ra": 15, "rb": 10, "rc": 30}, "ref": "hand: see the first set"},
+    {"inputs": {"ra": 15, "rb": 10, "rc": 30}, "expect": {"rab": 30, "rbc": 60, "rca": 90}, "ref": "hand: (15*10 + 10*30 + 30*15) = 900; R_AB = 900 / 30 = 30; R_BC = 900 / 15 = 60; R_CA = 900 / 10 = 90"},
+    {"inputs": {"rab": 30, "rbc": 60, "ra": 15}, "errors": {"rca": "undetermined", "rb": "undetermined", "rc": "undetermined"}, "ref": "a mix of delta and star values has no explicit rule"}
+  ]
+}
