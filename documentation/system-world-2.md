@@ -2,8 +2,8 @@
 
 System World is a local Three.js city with seven fixed districts. The second
 version adds three accessible annexes, a seven-stop tram, an optional drone tour,
-discoveries, articulated residents, time/weather controls and a shared recorded
-system view. Exploration and decorative life never call an LLM.
+discoveries, articulated residents, five hover-pack docks, time/weather controls
+and a shared recorded system view. Exploration and decorative life never call an LLM.
 
 ## World and interaction
 
@@ -48,7 +48,7 @@ tracks, and drones respect roof heights and each other. The visitor slides along
 obstacles; tours and overview flights also use checked paths. Only the vehicle
 currently carrying the visitor is exempted from their collision checks.
 
-The 40-design expansion has 120 exported GLBs. New installations start at LOD2;
+The 41-design expansion has 123 exported GLBs. New installations start at LOD2;
 medium and fine detail load within 55 and 32 metres, subject to quality. Exported
 workpoints, collider boxes and interaction markers remain invariant. Model assets
 have a 12 MiB ceiling; first display remains 12 MiB and the full app 48 MiB. Local
@@ -64,8 +64,8 @@ is limited to the actual gallery and a docked lift; the open atrium is not a flo
 On the sky deck it is the terrace ring and, with the cab docked, the lift bridge.
 
 WASD/arrow keys move in focused street view; E or the visible interaction button
-opens a door, uses a lift, looks through a viewer, visits a discovery, boards a tram
-or starts a drone tour.
+opens a door, uses a lift, looks through a viewer, visits a discovery, boards a tram,
+starts a drone tour or straps on a hover pack at a dock.
 The exploration panel also offers explicit district/interior destinations. Tram
 exit while moving requests the next stop; mode changes end a ride safely. The
 drone tour can be stopped at any time. Seven optional discoveries persist locally.
@@ -74,12 +74,14 @@ Five hover-pack docks stand on open pavement (`hoverPads` in `sysworld-layout.js
 the southern boulevard by the operations stop, the harbour promenade between the
 pavilions, the west and east edges and the north side of the agent tower). E at a
 dock straps the pack on: it lifts the visitor about 1.5 m, then WASD flies along the
-camera heading (12 m/s, Shift 26 m/s), Space climbs and C descends, up to 150 m
-inside the island's sea. Flight uses the shared collision world and slides along
-buildings. E glides down to the nearest walkable street spot; Escape, mode changes,
-destinations and reduced motion land at once and the pack returns to its own dock.
-Motion-reduced visitors are not offered a pack. A glass readout shows altitude and
-speed. The flight itself is pure (`sysworld-hover.js`).
+camera heading (12 m/s; left Shift 26 m/s), Space climbs and C descends, to a 150 m
+ceiling inside a 280 m square around the island. While flying, the movement pad also
+shows climb and descend buttons (larger on touch screens). Flight uses the shared
+collision world and slides along buildings. E glides down to the nearest walkable
+street spot; Escape, mode changes, destinations and reduced motion land at once and
+the pack returns to its own dock. Motion-reduced visitors are not offered a pack. A
+glass readout shows altitude (m) and speed (km/h). The flight itself is pure
+(`sysworld-hover.js`).
 
 High quality permits five original white robots, nineteen new robots, six drones
 and two trams. Low permits eight robots total, two drones and one tram. Residents
@@ -198,12 +200,14 @@ management app rather than claiming success. Rejected actions remain failures.
 
 ## Assets and lifecycle
 
-`assets/system-world/build_expansion.py` and its saved Blender scene produce 33
-designs and 99 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
-names and real articulated clips. Manifests include navigation, sizes and hashes.
-Robot motion envelopes are sampled during export and checked against every GLB
-clip, so raised arms retain the same safe clearance as walking residents.
-Original new content is MIT; the white robot retains its existing provenance.
+`assets/system-world/build_expansion.py` and its saved Blender scene produce 41
+designs and 123 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
+names and real articulated clips; the residents and the hover-pack dock also keep one
+material list per part at every LOD, so LODs swap by mesh name. Manifests include
+navigation, sizes and hashes. Robot motion envelopes are sampled across every exported
+clip and are narrower than before, while raised arms keep the same safe clearance as
+walking residents. Original new content is MIT; the white robot retains its existing
+provenance.
 
 All System World runtime files together must remain below 48 MiB; first display
 must remain below 12 MiB. Interior furnishings and alternate LODs load on demand. Static
@@ -258,7 +262,7 @@ Run separately with exactly one additional flag for each extended scenario:
 | Flag | Coverage |
 | --- | --- |
 | none | 1080p, 1366x768, touch, Standard/Fruity themes, audio, reduced motion, Spaces, context loss |
-| `AURAGO_SYSTEM_WORLD_EXPANSION=1` | Actual walking through three interiors, doors/lift, sky deck viewer and tower lift, all seven tram stops, drone and weather |
+| `AURAGO_SYSTEM_WORLD_EXPANSION=1` | Actual walking through three interiors, doors/lift, sky deck viewer and tower lift, all seven tram stops, drone, weather and a hover-pack flight |
 | `AURAGO_SYSTEM_WORLD_STRESS=1` | 1,000 containers, 10,000-node source with bounded loading, confirmed/deduplicated action, replay, repeated lifecycle, frame timings |
 | `AURAGO_SYSTEM_WORLD_MODELS=1` | Every exported LOD and clip rendered from the GLBs in Chrome |
 | `AURAGO_SYSTEM_WORLD_LIVING=1` | Six close-up installations, local greeting/guide, touch and reduced motion |

@@ -2,17 +2,18 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 40 additional modular designs and their articulated
+`build_expansion.py` authors 41 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
-120 self-contained GLBs (three separately loadable LODs per design) plus a versioned
-manifest and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
+123 self-contained GLBs (three separately loadable LODs per design) plus a versioned
+manifest (2.4.0) and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
 the agent tower's open sky lift and crown terrace, public telescopes,
 stairs, ramps, bridges, gallery railings, arcades, gardens and quays; a tram, stop, service cart and
 landing pad; courier, technician and archivist robots; consoles, hologram tables,
-chargers, cargo, coolers, benches and archive shelves. Human-readable clip names,
-pivots, portals, colliders and walk surfaces are exported, not guessed at runtime.
+chargers, cargo, coolers, benches, archive shelves and the `hover-pack` charging dock.
+Human-readable clip names, pivots, portals, colliders and walk surfaces are exported,
+not guessed at runtime.
 The existing white robot and its provenance below are unchanged.
 
 `living_assets.py` supplies the repair bay, parcel sorter, relay antenna, kinetic
@@ -30,10 +31,25 @@ imitated at runtime. The turbine stands on the harbour water, the gateway stands
 on the pavement so its arch clears the road, and the others are placed on city
 plots by `sysworld-places.js`.
 
+`robot_assets.py` authors the courier, technician and archivist residents as
+detailed articulated humanoids with a real parent hierarchy: structure, torso and
+head; arms and forearms; legs, shins and feet; plus the courier's `parcel` and the
+archivist's `halo` and `slate`. Their six clips (idle, walk, turn, greet, work and
+carry) are keyed on every frame and exported on every second frame. Legs and carried
+hands are solved with two-bone IK, and the walk is calibrated so planted feet move
+backwards at the residents' 1.65 m/s walking speed (1.15 scale). Every LOD of a part
+has the same material list, so the runtime can swap LODs by mesh name; the rubber
+parts use the robot-local `city.robot-rubber` material.
+
+`hover_assets.py` authors the `hover-pack` charging dock: a removable `pack` node
+(straps, charge bars and two fans) that hides while the visitor flies, an `idle` clip
+that spins the fans, and one collider with a `take` interaction spot.
+
 ```powershell
 & 'D:/Blender 5.2/blender.exe' --background --factory-startup --python assets/system-world/build_expansion.py
 node scripts/test-system-world-expansion.mjs
 node scripts/test-system-world-layout.mjs
+node scripts/test-system-world-hover.mjs
 node scripts/build-system-world.js
 ```
 
