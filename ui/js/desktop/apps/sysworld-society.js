@@ -3,7 +3,7 @@ import {bodyShape} from './sysworld-traffic.js';
 import {createSocialSignals} from './sysworld-signals.js';
 
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
-export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active}) {
+export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait}) {
   const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor),signals=createSocialSignals(scene);
   let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='';
   const limit=()=>tier==='low'?3:tier==='medium'?10:19;
@@ -20,11 +20,11 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       body=traffic.register(id,shape,p,1);if(body)break;
     }
     if(!body){model.node.visible=false;return null;}
-    const a={...model,id,index,body,role,state:'idle',path:[],until:index*.3,trip:index,cooldown:8+index*.7,source:'ambient',carrying:false,parcels:[]};
+    const a={...model,id,index,body,role,state:'idle',path:[],until:index*.3,trip:index,cooldown:8+index*.7,source:'ambient',carrying:false,parcels:[],soundX:body.x,soundZ:body.z};
     model.node.traverse(n=>{if(n.isMesh&&/parcel/.test(n.name)){a.parcels.push(n);n.visible=false;}});
     actors.push(a);model.node.position.set(body.x,body.y,body.z);return a;
   }
-  function patrol(id,body,node,pause) {const a={id,body,node,pause,role:'patrol',state:'patrol',cooldown:7+actors.length,path:[]};actors.push(a);return a;}
+  function patrol(id,body,node,pause) {const a={id,body,node,pause,role:'patrol',state:'patrol',cooldown:7+actors.length,path:[],soundX:body.x,soundZ:body.z};actors.push(a);return a;}
   function choose(a) {
     release(a);a.source='ambient';a.state='idle';a.until=clock+2;
     const eligible=slots.filter(s=>!s.owner&&(a.role==='courier'?s.place===(a.carrying?'meeting-charge':'parcel-sorter'):s.role===a.role||s.place==='meeting-charge'));
@@ -53,7 +53,14 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       const enabled=a.pause||a.index<limit();
       if(enabled&&!a.body.enabled){if(!traffic.relocate(a.body,a.body)){a.node.visible=false;continue;}a.body.enabled=true;a.node.position.set(a.body.x,a.body.y,a.body.z);}
       if(!enabled&&a.body.enabled){release(a);a.body.enabled=false;if(a.meeting)endMeeting(a.meeting);}
-      a.node.visible=!!enabled;if(!enabled||!animated)continue;
+      a.node.visible=!!enabled;
+      // The travelled distance is the honest cue for a footfall: a resident that
+      // stands still is silent, a resident that walks is heard at its own pace.
+      if(a.soundX==null){a.soundX=a.body.x;a.soundZ=a.body.z;}
+      const moved=Math.hypot(a.body.x-a.soundX,a.body.z-a.soundZ);
+      a.soundX=a.body.x;a.soundZ=a.body.z;
+      onGait?.(a.id,a.body.x,a.body.y,a.body.z,moved>.004,!!a.carrying,a.role==='patrol'?'glide':'');
+      if(!enabled||!animated)continue;
       const tram=traffic.neighbors(a.body,22).sort((b,c)=>Math.hypot(b.x-a.body.x,b.z-a.body.z)-Math.hypot(c.x-a.body.x,c.z-a.body.z)).find(b=>{
         if(!b.id.startsWith('tram-'))return false;const dx=a.body.x-b.x,dz=a.body.z-b.z,c=Math.cos(b.heading),s=Math.sin(b.heading);
         return Math.abs(dx*c-dz*s)<a.body.reach+(a.trafficYield?4:2.3)&&dx*s+dz*c>-8-a.body.reach&&dx*s+dz*c<14;

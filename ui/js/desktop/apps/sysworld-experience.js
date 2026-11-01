@@ -26,12 +26,12 @@ export function createExperience(scene,options){
     for(const place of livingPlaces)for(const s of manifest?.assets.find(a=>a.id===place.id)?.navigation.surfaces||[]){const [x0,z0,x1,z1]=s.rect;if(x>=place.x+x0&&x<=place.x+x1&&z>=place.z+z0&&z<=place.z+z1)height=Math.max(height,groundHeight(place.x,place.z)+s.height);}
     return height;
   }
-  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active});
+  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait});
   let placementSequence=0,lodClock=0;
   try{visited=new Set(JSON.parse(localStorage.getItem('aurago.desktop.sysworld.discoveries')||'[]').filter(id=>stations.some(s=>s.id===id)));}catch(_){}
   const route=streetCurve(tramWaypoints),length=route.getLength();
   const stops=stations.map(s=>{let best=Infinity,u=0;for(let i=0;i<3000;i++){route.getPointAt(i/3000,tmp);const d=Math.hypot(tmp.x-s.x,tmp.z-s.z);if(d<best){best=d;u=i/3000;}}return {...s,u};});
-  const callSound=(kind,position)=>options.onSound?.(kind,position?.x||0,position?.y||0,position?.z||0,!!room);
+  const callSound=(kind,position,id)=>options.onSound?.(kind,position?.x||0,position?.y||0,position?.z||0,id);
   // The visible rails use the exact bounded curve followed by both trams.
   const railMaterial=new THREE.MeshStandardMaterial({color:0xb49360,metalness:.8,roughness:.35});materials.add(railMaterial);
   for(const side of[-1,1]){
@@ -67,12 +67,18 @@ export function createExperience(scene,options){
     for(const [index,b]of(entry.navigation.colliders||[]).entries())traffic.solid(owner+':'+index,{owner,x,z,heading:angle,min:[b[0]*scale[0],y+b[1]*scale[1],b[2]*scale[2]],max:[b[3]*scale[0],y+b[4]*scale[1],b[5]*scale[2]]});
     const mixer=gltf.animations.length?new THREE.AnimationMixer(node):null;
     if(mixer)mixers.push(mixer);
-    let current=null;
+    let current=null,currentName=null;
+    const articulated=/^robot-/.test(id);
     return {node,mixer,owner,bounds:entry.motion_bounds||entry.lods[0].bounds,clips:gltf.animations,play(name,once=false){
       if(!mixer)return;const clip=gltf.animations.find(c=>c.name===name);if(!clip)return;
       const action=mixer.clipAction(clip);if(current===action)return action;
+      const previous=currentName;
       action.reset();if(once){action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true;}
-      action.play();if(current)action.crossFadeFrom(current,.25,false);current=action;return action;
+      action.play();if(current)action.crossFadeFrom(current,.25,false);current=action;currentName=name;
+      // A changed pose is the one honest cue that a resident does something. Walking
+      // stays with the footstep cadence, which follows the travelled distance.
+      if(articulated&&previous&&name!==previous&&name!=='walk')options.onSound?.('robot_'+name,node.position.x,node.position.y,node.position.z,owner);
+      return action;
     }};
   }
   // Batch static furnishings by shared primitive and material, retaining no per-instance draws.

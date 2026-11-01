@@ -229,7 +229,7 @@ export async function createCity(host, options) {
   experience=createExperience(scene,{
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
     assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),surfaces,
-    onInteraction:options.onInteraction,onScope:state=>options.onScope?.(state),onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,onSociety:options.onSociety,
+    onInteraction:options.onInteraction,onScope:state=>options.onScope?.(state),onDiscover:options.onDiscover,onSound:options.onSound,onGait:options.onGait,onTerminal:options.onTerminal,onSociety:options.onSociety,
     onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
     onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
   });

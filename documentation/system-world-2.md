@@ -117,6 +117,18 @@ or release audio. The existing tower voice and memory excerpt safeguards remain
 authoritative; excerpts are drawn only on canvases, never added to diagnostics or
 recorded history.
 
+The city itself answers in two layers. The soundscape keeps its sub drone, chord pad
+and air bed and adds harbour water near the quay, a low population murmur and a
+weighted event table that changes with time of day and weather: gulls and pigeons by
+day, crickets and the harbour horn at night, rain drips in rain, a civic bell, distant
+construction and evening sirens. Every event comes from a fixed city anchor or from a
+ring around the listener, so the stereo pan matches the direction it arrives from.
+The residents answer for themselves: a changed animation clip starts a quiet action
+sound (servo settle, parcel rustle, tool tap, greeting chirp) and the footstep cadence
+follows the distance a resident actually walks. Both layers are bounded, synthesized
+without assets, and silent while the city is muted, hidden, unfocused, in map mode or
+under reduced motion.
+
 ## Shared system view
 
 The existing server metrics worker records once per ten seconds regardless of
