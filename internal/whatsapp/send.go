@@ -163,7 +163,14 @@ func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what s
 			}
 			return context.Canceled
 		}
-		resp, err := client.SendMessage(ctx, recipient, &waE2E.Message{Conversation: proto.String(prefix + chunk)})
+		// The ID is fixed and registered before the call: an echo of this message can reach
+		// the inbound filter before SendMessage returns. A failed send leaves its ID in the
+		// cache, which is harmless.
+		id := client.GenerateMessageID()
+		if s.sent != nil {
+			s.sent.Add(string(id))
+		}
+		_, err := client.SendMessage(ctx, recipient, &waE2E.Message{Conversation: proto.String(prefix + chunk)}, id)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -174,9 +181,6 @@ func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what s
 				return fmt.Errorf("%w: %w", ErrRecipientNotOnWhatsApp, err)
 			}
 			return fmt.Errorf("send whatsapp %s: %w", what, err)
-		}
-		if s.sent != nil {
-			s.sent.Add(string(resp.ID))
 		}
 		integrationstatus.MarkWhatsAppOutbound(s.now())
 	}

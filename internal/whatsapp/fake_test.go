@@ -17,6 +17,7 @@ import (
 type sentMessage struct {
 	to   types.JID
 	text string
+	id   types.MessageID // the ID the sender passed
 }
 
 type readCall struct {
@@ -56,6 +57,10 @@ type fakeClient struct {
 	reads       []readCall
 	chatStates  []chatStateCall
 	sendErrs    []error // SendMessage consumes one per call before it falls back to sendErr
+	idSeq       int     // GenerateMessageID hands out fake-1, fake-2, ...
+	// beforeSend runs at the start of every SendMessage, outside the lock, with the ID the
+	// sender passed.
+	beforeSend func(id types.MessageID)
 }
 
 func (f *fakeClient) with(fn func(f *fakeClient)) {
@@ -126,7 +131,21 @@ func (f *fakeClient) Logout(context.Context) error {
 	return f.logoutErr
 }
 
-func (f *fakeClient) SendMessage(_ context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
+func (f *fakeClient) GenerateMessageID() types.MessageID {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.idSeq++
+	return types.MessageID("fake-" + strconv.Itoa(f.idSeq))
+}
+
+// SendMessage records the call and answers with the ID it was given, like whatsmeow.
+func (f *fakeClient) SendMessage(_ context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error) {
+	f.mu.Lock()
+	hook := f.beforeSend
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if len(f.sendErrs) > 0 {
@@ -138,8 +157,8 @@ func (f *fakeClient) SendMessage(_ context.Context, to types.JID, msg *waE2E.Mes
 	} else if f.sendErr != nil {
 		return whatsmeow.SendResponse{}, f.sendErr
 	}
-	f.sent = append(f.sent, sentMessage{to: to, text: msg.GetConversation()})
-	return whatsmeow.SendResponse{ID: types.MessageID("fake-" + strconv.Itoa(len(f.sent)))}, nil
+	f.sent = append(f.sent, sentMessage{to: to, text: msg.GetConversation(), id: id})
+	return whatsmeow.SendResponse{ID: id}, nil
 }
 
 func (f *fakeClient) SendPresence(_ context.Context, state types.Presence) error {

@@ -32,7 +32,11 @@ type waClient interface {
 	GetQRChannel(ctx context.Context) (<-chan whatsmeow.QRChannelItem, error)
 	PairPhone(ctx context.Context, phone string) (string, error)
 	Logout(ctx context.Context) error
-	SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error)
+	// GenerateMessageID returns a fresh message ID. The sender registers it as sent before
+	// SendMessage, so an echo that races the call is already recognised.
+	GenerateMessageID() types.MessageID
+	// SendMessage sends msg under id, which comes from GenerateMessageID.
+	SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error)
 	SendPresence(ctx context.Context, state types.Presence) error
 	OwnJID() types.JID
 	MarkRead(ctx context.Context, ids []types.MessageID, timestamp time.Time, chat, sender types.JID) error
@@ -128,8 +132,10 @@ func (c *whatsmeowClient) PairPhone(ctx context.Context, phone string) (string, 
 
 func (c *whatsmeowClient) Logout(ctx context.Context) error { return c.cli.Logout(ctx) }
 
-func (c *whatsmeowClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
-	return c.cli.SendMessage(ctx, to, msg)
+func (c *whatsmeowClient) GenerateMessageID() types.MessageID { return c.cli.GenerateMessageID() }
+
+func (c *whatsmeowClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error) {
+	return c.cli.SendMessage(ctx, to, msg, whatsmeow.SendRequestExtra{ID: id})
 }
 
 func (c *whatsmeowClient) SendPresence(ctx context.Context, state types.Presence) error {

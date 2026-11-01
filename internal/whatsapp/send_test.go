@@ -132,7 +132,7 @@ type cancelOnSendClient struct {
 	cancel context.CancelFunc
 }
 
-func (c cancelOnSendClient) SendMessage(context.Context, types.JID, *waE2E.Message) (whatsmeow.SendResponse, error) {
+func (c cancelOnSendClient) SendMessage(context.Context, types.JID, *waE2E.Message, types.MessageID) (whatsmeow.SendResponse, error) {
 	c.cancel()
 	return whatsmeow.SendResponse{}, context.Canceled
 }
@@ -154,8 +154,9 @@ func TestSenderRegistersSentIDsAndCountsFailures(t *testing.T) {
 	if err := s.deliverText(ctx, ownerJID, "hello", "reply"); err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("a failed send = %v, want the cause", err)
 	}
-	if deliveryFailures() != before+1 || sent.Len() != 1 {
-		t.Fatalf("failures %d (want %d), cached IDs %d (want 1)", deliveryFailures(), before+1, sent.Len())
+	// The ID is registered before the call, so the failed message's ID stays in the cache.
+	if deliveryFailures() != before+1 || sent.Len() != 2 || !sent.Contains("fake-2") {
+		t.Fatalf("failures %d (want %d), cached IDs %d (want 2)", deliveryFailures(), before+1, sent.Len())
 	}
 
 	// A cancelled context, before the send or during it, is not a delivery failure.
@@ -175,6 +176,46 @@ func TestSenderRegistersSentIDsAndCountsFailures(t *testing.T) {
 	}
 }
 
+// An echo of our own message can reach the inbound filter before SendMessage returns, so the
+// sender fixes the ID first, registers it, and sends under exactly that ID.
+func TestSenderRegistersEachIDBeforeSending(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	s, sent := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, fake)
+	var inCache []bool // per SendMessage call: was the ID already in the cache when it began?
+	fake.with(func(f *fakeClient) {
+		f.beforeSend = func(id types.MessageID) { inCache = append(inCache, sent.Contains(string(id))) }
+	})
+
+	if err := s.deliverText(ctx, ownerJID, strings.Repeat("word ", 1200), "reply"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	got := sentTexts(fake)
+	if len(got) < 2 || len(inCache) != len(got) {
+		t.Fatalf("sends = %d, hook calls = %d, want the same number, at least 2 chunks", len(got), len(inCache))
+	}
+	ids := map[types.MessageID]bool{}
+	for i, m := range got {
+		if !inCache[i] || m.id == "" || ids[m.id] {
+			t.Fatalf("chunk %d: id %q, registered before the call = %v, repeated = %v", i, m.id, inCache[i], ids[m.id])
+		}
+		ids[m.id] = true
+	}
+
+	// A failed send keeps its ID registered.
+	inCache = nil
+	fake.with(func(f *fakeClient) { f.sendErrs = []error{errors.New("boom")} })
+	if err := s.deliverText(ctx, ownerJID, "hello", "reply"); err == nil {
+		t.Fatal("a failed send must report its error")
+	}
+	if len(inCache) != 1 || !inCache[0] {
+		t.Fatalf("failed send: registered before the call = %v", inCache)
+	}
+	if want := len(got) + 1; sent.Len() != want {
+		t.Fatalf("cached IDs = %d, want %d (the failed one stays)", sent.Len(), want)
+	}
+}
+
 // blockingClient holds every send until release is closed.
 type blockingClient struct {
 	*fakeClient
@@ -183,10 +224,10 @@ type blockingClient struct {
 	once    sync.Once
 }
 
-func (c *blockingClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
+func (c *blockingClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error) {
 	c.once.Do(func() { close(c.started) })
 	<-c.release
-	return c.fakeClient.SendMessage(ctx, to, msg)
+	return c.fakeClient.SendMessage(ctx, to, msg, id)
 }
 
 func TestSenderQueueWaitHonoursContext(t *testing.T) {
