@@ -134,6 +134,10 @@ Memory retrieval, hygiene, indexing, and maintenance.
   stage owned documents invisibly, commit metadata/source/identity/expiry together,
   activate compatible saved vectors, then release the journal fence. Never use an
   unsafe backend fallback for guarded writes. Existing reused metadata retains curation.
+- Before embedding a repeated fact, defer a matching unfinished publication by durable
+  identity or content digest and verify corpus ownership. Do not fence a foreign or
+  recycled ID from a stale receipt; unrelated facts remain writable. Verify
+  `TestAutomaticMemoryPublicationRetry*`.
 - Expiry options are explicit: nil preserves, zero clears, and a timestamp sets the
   deadline. SQL failure rolls back the whole metadata transaction, including a reused
   document's old expiry. Serialize expiry updates and archival with automatic writes;

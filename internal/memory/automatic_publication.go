@@ -19,6 +19,10 @@ const (
 	automaticMemoryPublicationPending = "memory_publication_pending"
 )
 
+// ErrAutomaticMemoryPublicationPending defers a repeated fact until its own
+// earlier publication is resolved, without blocking unrelated memory writes.
+var ErrAutomaticMemoryPublicationPending = errors.New("automatic memory publication is pending")
+
 // AutomaticMemoryWriteOptions carries optional publication-time checks and a
 // fact expiry. A nil ExpiresAt leaves existing expiry unchanged; a non-nil
 // zero value clears it.
@@ -194,6 +198,9 @@ func storePreparedAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, 
 		}
 	}
 	storedIdentity := memoryDocumentIdentity(buildContentString(concept, storedContent), "")
+	if err := ensureAutomaticMemoryPublicationNotPending(ctx, s, ltm, storedIdentity, contentSHA256(buildContentString(concept, storedContent))); err != nil {
+		return result, err
+	}
 	prepared, err := backend.PrepareAutomaticMemoryWriteContext(ctx, concept, storedContent)
 	if err != nil {
 		return result, err
@@ -319,6 +326,55 @@ func storePreparedAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, 
 		result.Writes = append(result.Writes, AutomaticMemoryWrite{DocID: document.ID, ContentHash: contentSHA256(document.Content), Metadata: &meta, Sources: sources})
 	}
 	return result, nil
+}
+
+func ensureAutomaticMemoryPublicationNotPending(ctx context.Context, s *SQLiteMemory, vector VectorDB, identity, contentHash string) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT p.key,json_extract(d.value,'$.id'),json_extract(d.value,'$.hash')
+		FROM memory_maintenance_meta p,json_each(p.value,'$.documents') d
+		LEFT JOIN memory_document_identities i ON i.doc_id=json_extract(d.value,'$.id')
+		WHERE p.key LIKE ? AND (i.identity=? OR json_extract(d.value,'$.hash')=?)`, automaticMemoryPublicationPrefix+"%", identity, contentHash)
+	if err != nil {
+		return fmt.Errorf("check pending automatic memory identity: %w", err)
+	}
+	type candidate struct {
+		key      string
+		document MemoryPublicationDocument
+	}
+	var candidates []candidate
+	for rows.Next() {
+		var item candidate
+		if err := rows.Scan(&item.key, &item.document.ID, &item.document.Hash); err != nil {
+			rows.Close()
+			return fmt.Errorf("read pending automatic memory identity: %w", err)
+		}
+		candidates = append(candidates, item)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("finish pending automatic memory identity check: %w", err)
+	}
+	corpus, canReadCorpus := vector.(memoryPublicationCorpusEligibility)
+	reader, canReadContent := vector.(automaticMemoryPublicationDocumentReader)
+	for _, item := range candidates {
+		if !canReadCorpus || !canReadContent {
+			return ErrAutomaticMemoryPublicationPending
+		}
+		states, err := corpus.ReadAutomaticMemoryPublicationCorpusStateContext(ctx, []string{item.document.ID})
+		if err != nil {
+			return err
+		}
+		// A stale receipt must not fence a foreign or recycled document ID.
+		if states[item.document.ID].publicationID != item.key {
+			continue
+		}
+		content, err := reader.ReadAutomaticMemoryPublicationDocumentContext(ctx, item.document.ID)
+		if err != nil {
+			return err
+		}
+		if contentSHA256(content) == item.document.Hash {
+			return ErrAutomaticMemoryPublicationPending
+		}
+	}
+	return nil
 }
 
 func publishPreparedAutomaticMemoryMetadata(ctx context.Context, s *SQLiteMemory, ids []string, details MemoryMetaUpdate, session, storedIdentity, incomingIdentity, correctionFact string, expiresAt *time.Time, publicationKey, stagedValue, readyValue string) error {

@@ -70,11 +70,16 @@ metadata or expiry writes are reported as failures, never as permanent saved fac
 Reusing an existing document preserves its manual curation. A fresh human statement
 without an expiry removes the old deadline only after the complete transaction succeeds.
 
-On restart, AuraGo removes provably owned unfinished preparations or finishes confirmed
-publications using compatible stored embeddings. Current permissions and deletion fences
-still apply. Uncertain or incompatible publications remain hidden and prevent a complete
-snapshot; their receipts are preserved for diagnosis. No automatic repair of unrelated
-or legacy documents is attempted.
+On restart and in the existing background retry worker, AuraGo removes provably owned
+unfinished preparations or finishes confirmed publications using compatible stored
+embeddings. The worker runs immediately and every five minutes, independently of nightly
+maintenance, so a transient failure does not require another restart. Current permissions,
+deletion fences, shutdown cancellation and a thirty-second recovery limit still apply.
+Uncertain or incompatible publications remain hidden and prevent a complete snapshot;
+their receipts are preserved for diagnosis. A matching new statement is deferred before
+embedding instead of creating another copy; unrelated queued facts can proceed. Revoking
+write permission during a retry preserves its queue entry and remaining attempts.
+No automatic repair of unrelated or legacy documents is attempted.
 
 Search and direct recall share current archive, expiry and publication checks. Expired
 facts are unavailable immediately, before nightly archival, and failed recall does not

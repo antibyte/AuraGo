@@ -54,6 +54,20 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 	if ctx.Err() != nil {
 		return 0, 0
 	}
+	if _, prepared := ltm.(memory.PreparedAutomaticMemoryVectorDB); prepared {
+		var cfg *config.Config
+		if len(configs) > 0 {
+			cfg = configs[0]
+		}
+		if err := RecoverMemoryPublications(ctx, cfg, stm, ltm); err != nil {
+			if logger != nil {
+				logger.Warn("[Memory Retry] Publication recovery remains pending; matching queued facts will be deferred", "error", err)
+			}
+			if ctx.Err() != nil {
+				return 0, 0
+			}
+		}
+	}
 	writes, err := stm.GetDuePendingMemoryWritesContext(ctx, time.Now().UTC(), 20)
 	if err != nil {
 		if logger != nil {
@@ -102,6 +116,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			continue
 		}
 		var stored memory.AutomaticMemoryStoreResult
+		permissionRevoked := false
 		if details.SourceType == "memory_analysis" {
 			// Analysis retries only contain permanent facts. Reaffirming one
 			// must clear its previous expiry in the publication transaction.
@@ -110,6 +125,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			if len(configs) > 0 {
 				options.Validate = func() error {
 					if !runtimeMemoryWriteAllowed(configs[0], "memory", details.SourceSessionID) {
+						permissionRevoked = true
 						return fmt.Errorf("%w: memory is not writable", memory.ErrAutomaticMemorySkipped)
 					}
 					return ctx.Err()
@@ -124,8 +140,20 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			stored, err = memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, write.Concept, write.Content, details)
 		}
 		if err != nil {
+			if errors.Is(err, memory.ErrAutomaticMemoryPublicationPending) {
+				if deferErr := stm.DeferPendingMemoryWriteContext(ctx, write.ID, time.Now().UTC()); deferErr != nil && logger != nil {
+					logger.Warn("[Memory Retry] Failed to defer fact with unresolved publication", "id", write.ID, "error", deferErr)
+				}
+				continue
+			}
 			if errors.Is(err, memory.ErrAutomaticMemorySkipped) {
-				_ = stm.CompletePendingMemoryWriteContext(ctx, write.ID)
+				if permissionRevoked {
+					if deferErr := stm.DeferPendingMemoryWriteContext(ctx, write.ID, time.Now().UTC()); deferErr != nil && logger != nil {
+						logger.Warn("[Memory Retry] Failed to defer policy-revoked write", "id", write.ID, "error", deferErr)
+					}
+				} else {
+					_ = stm.CompletePendingMemoryWriteContext(ctx, write.ID)
+				}
 				continue
 			}
 			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes, ctx); rollbackErr != nil {

@@ -312,6 +312,37 @@ func TestAutomaticSnapshotRetentionKeepsCandidateWithUnexpectedFile(t *testing.T
 	}
 }
 
+func TestAutomaticSnapshotInventoryPreservesSymlinkedUnknownArtifact(t *testing.T) {
+	cfg, _, _ := publicationSnapshotFixture(t)
+	firstAt := time.Now().UTC().AddDate(0, 0, -1)
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, firstAt); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(cfg.Directories.DataDir, "memory_backups")
+	snapshots, err := verifiedAutomaticSnapshots(root)
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("initial inventory=%d err=%v", len(snapshots), err)
+	}
+	foreignTarget := filepath.Join(cfg.Directories.DataDir, "foreign-backup-payload")
+	if err := os.WriteFile(foreignTarget, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	foreignLink := filepath.Join(root, snapshots[0].name, "notes-link")
+	if err := os.Symlink(foreignTarget, foreignLink); err != nil {
+		t.Skipf("symlink creation is unavailable: %v", err)
+	}
+
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, firstAt.AddDate(0, 0, 1)); err != nil {
+		t.Fatalf("unrelated damaged backup blocked a new snapshot: %v", err)
+	}
+	if info, err := os.Lstat(foreignLink); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("unknown symlink artifact was removed or followed: info=%v err=%v", info, err)
+	}
+	if payload, err := os.ReadFile(foreignTarget); err != nil || string(payload) != "keep" {
+		t.Fatalf("symlink target changed: %q err=%v", payload, err)
+	}
+}
+
 func TestAutomaticSnapshotRetentionKeepsCandidateWithChangedIdentity(t *testing.T) {
 	root := t.TempDir()
 	now := time.Now().UTC()

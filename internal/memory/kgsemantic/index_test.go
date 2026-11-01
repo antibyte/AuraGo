@@ -85,6 +85,45 @@ func TestQueryEmbeddingOneWaiterCancelDoesNotStopSharedCall(t *testing.T) {
 	}
 }
 
+func TestQueryEmbeddingDoesNotReuseExpiredFlightWithRemainingWaiters(t *testing.T) {
+	providerCtx, cancelProvider := context.WithCancel(context.Background())
+	cancelProvider()
+	expiredFlight := &queryFlight{
+		ctx:     providerCtx,
+		cancel:  cancelProvider,
+		done:    make(chan struct{}),
+		waiters: 2,
+	}
+	idx := &Index{
+		QueryCache:    make(map[string]QueryCacheEntry),
+		QueryCacheTTL: QueryCacheTTL,
+		queryFlights:  map[string]*queryFlight{"same": expiredFlight},
+	}
+	var calls atomic.Int32
+
+	embedding, err := idx.QueryEmbedding(context.Background(), "same", func(ctx context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return []float32{7}, nil
+	})
+	if err != nil {
+		t.Fatalf("query after expired flight: %v", err)
+	}
+	if len(embedding) != 1 || embedding[0] != 7 {
+		t.Fatalf("query embedding = %v, want [7] from a fresh flight", embedding)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("provider calls = %d, want one fresh call", got)
+	}
+	select {
+	case <-expiredFlight.done:
+	default:
+		t.Fatal("expired flight was not completed while detaching it")
+	}
+}
+
 func TestQueryEmbeddingLastCancelDetachesAndIgnoresLateProviderReturn(t *testing.T) {
 	idx := &Index{QueryCache: make(map[string]QueryCacheEntry), QueryCacheTTL: QueryCacheTTL}
 	started := make(chan context.Context, 2)

@@ -81,6 +81,16 @@ func (idx *Index) QueryEmbedding(ctx context.Context, query string, embed chrome
 		idx.queryFlights = make(map[string]*queryFlight)
 	}
 	flight := idx.queryFlights[query]
+	if flight != nil && flight.ctx.Err() != nil {
+		// A provider deadline can fire before every waiter gets scheduled to
+		// leave. Detach the expired flight here so new callers do not join a
+		// request that can no longer produce a result.
+		flight.err = flight.ctx.Err()
+		delete(idx.queryFlights, query)
+		close(flight.done)
+		flight.cancel()
+		flight = nil
+	}
 	if flight != nil {
 		flight.waiters++
 		idx.queryMu.Unlock()
