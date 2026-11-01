@@ -13,6 +13,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/llm"
 	"aurago/internal/media"
 	"aurago/internal/memory"
 	"aurago/internal/security"
@@ -21,14 +22,16 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
 )
 
 const pipelineAnswer = "**Done** with `x`"
 
 type agentCall struct {
-	req    openai.ChatCompletionRequest
-	runCfg agent.RunConfig
+	req             openai.ChatCompletionRequest
+	runCfg          agent.RunConfig
+	voiceSuppressed bool // the ctx the agent loop received hides voice output
 }
 
 // pipelineFixture is a pipeline over an in-memory store, the fake client and an agent stub.
@@ -75,7 +78,7 @@ func newPipelineFixture(t *testing.T, cfg *config.Config) *pipelineFixture {
 
 func (f *pipelineFixture) stub(ctx context.Context, req openai.ChatCompletionRequest, runCfg agent.RunConfig, _ bool, _ agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
 	f.mu.Lock()
-	f.calls = append(f.calls, agentCall{req: req, runCfg: runCfg})
+	f.calls = append(f.calls, agentCall{req: req, runCfg: runCfg, voiceSuppressed: agent.VoiceOutputSuppressed(ctx)})
 	delay := f.delay
 	f.mu.Unlock()
 	if delay > 0 {
@@ -134,6 +137,10 @@ func TestPipelineRunsTheAgentInTheDefaultSession(t *testing.T) {
 	run := calls[0].runCfg
 	if run.SessionID != "default" || run.MessageSource != "whatsapp" {
 		t.Fatalf("session = %q, source = %q", run.SessionID, run.MessageSource)
+	}
+	// Stage 2 cannot deliver audio: the loop must not expose or run TTS.
+	if !calls[0].voiceSuppressed || run.VoiceOutputActive {
+		t.Fatalf("voice output suppressed = %v, VoiceOutputActive = %v, want true and false", calls[0].voiceSuppressed, run.VoiceOutputActive)
 	}
 	if run.TaskRoutingText == nil || *run.TaskRoutingText != "hi" {
 		t.Fatalf("routing text = %v, want hi", run.TaskRoutingText)
@@ -231,6 +238,13 @@ func TestPipelineMarksForwardedMessagesAndSkipsHumanInputCommandsAndAnswers(t *t
 			IsForwarded:                    proto.Bool(true),
 			ForwardedNewsletterMessageInfo: &waE2E.ContextInfo_ForwardedNewsletterMessageInfo{NewsletterName: proto.String("Daily News")},
 		}, "[Forwarded from Daily News; third-party content]"},
+		// Neither the flag nor a score: the newsletter info alone still marks a forward.
+		{"newsletter info only", &waE2E.ContextInfo{
+			ForwardedNewsletterMessageInfo: &waE2E.ContextInfo_ForwardedNewsletterMessageInfo{NewsletterName: proto.String("Daily News")},
+		}, "[Forwarded from Daily News; third-party content]"},
+		{"newsletter info without a name", &waE2E.ContextInfo{
+			ForwardedNewsletterMessageInfo: &waE2E.ContextInfo_ForwardedNewsletterMessageInfo{},
+		}, marker},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f := newPipelineFixture(t, dedicatedPipelineConfig())
@@ -389,7 +403,13 @@ func TestPipelineStartsNoTurnWithoutTopLevelText(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			f := newPipelineFixture(t, dedicatedPipelineConfig())
 			filter, _, _ := newTestFilter(config.WhatsAppModeDedicated, "+"+inboundOwnerUser)
-			in, reason := filter.accept(context.Background(), f.fake, msgEvent(dmInfo("W1", inboundOwnerJID), c.msg), time.Time{})
+			// The event is built the way whatsmeow builds it: UnwrapRaw peels one wrapper
+			// layer, so the nested content stays hidden below the top level.
+			evt := (&events.Message{Info: dmInfo("W1", inboundOwnerJID), RawMessage: c.msg}).UnwrapRaw()
+			if messageText(evt.Message) != "" || evt.Message.GetProtocolMessage() != nil {
+				t.Fatalf("fixture: the unwrapped message exposes its content at the top level: %+v", evt.Message)
+			}
+			in, reason := filter.accept(context.Background(), f.fake, evt, time.Time{})
 			if reason != "" {
 				t.Fatalf("the filter dropped it (%q); this test needs a message that passes", reason)
 			}
@@ -405,6 +425,121 @@ func TestPipelineStartsNoTurnWithoutTopLevelText(t *testing.T) {
 			}
 		})
 	}
+}
+
+// handle does not trust its input: an inbound whose Owner is not an owner recipient does
+// nothing at all. Operator commands, the agent's tools and pending questions depend on it.
+func TestPipelineIgnoresInboundThatIsNotFromAnOwnerRecipient(t *testing.T) {
+	before := agent.GetVoiceMode()
+	agent.SetVoiceMode(false)
+	t.Cleanup(func() { agent.SetVoiceMode(before) })
+
+	from := func(owner types.JID, text string) inboundMessage {
+		in := ownerText("S1", text)
+		in.Chat, in.Sender, in.Owner = owner, owner, owner
+		return in
+	}
+	for _, c := range []struct {
+		name     string
+		in       inboundMessage
+		question bool // a question is waiting for an answer
+	}{
+		{"stranger operator command", from(strangerJID, "/voice on"), false},
+		{"stranger text", from(strangerJID, "run the agent"), false},
+		{"empty owner", from(types.EmptyJID, "/voice on"), false},
+		{"stranger answering a pending question", from(strangerJID, "continue"), true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := newPipelineFixture(t, dedicatedPipelineConfig())
+			var response <-chan tools.QuestionResponse
+			if c.question {
+				response = tools.RegisterQuestion("default", &tools.PendingQuestion{Question: "Continue?", AllowFreeText: true})
+			}
+
+			f.p.handle(context.Background(), c.in)
+
+			if agent.GetVoiceMode() {
+				t.Fatal("a non-owner switched the voice mode")
+			}
+			if c.question {
+				select {
+				case answer := <-response:
+					t.Fatalf("a non-owner answered the question: %+v", answer)
+				default:
+				}
+				if !tools.HasPendingQuestion("default") {
+					t.Fatal("a non-owner closed the question")
+				}
+			}
+			var reads []readCall
+			f.fake.with(func(f *fakeClient) { reads = slices.Clone(f.reads) })
+			if len(f.callList()) != 0 || len(f.stored(t)) != 0 || len(sentTexts(f.fake)) != 0 || len(reads) != 0 || len(chatStatesOf(f.fake)) != 0 {
+				t.Fatalf("a non-owner message had an effect: calls=%d stored=%q sent=%+v reads=%+v", len(f.callList()), f.stored(t), sentTexts(f.fake), reads)
+			}
+			out := f.logs.String()
+			if strings.Contains(out, "Received authorized") || strings.Contains(out, "run the agent") || strings.Contains(out, inboundStrangerUser) {
+				t.Fatalf("log claims the message was authorized or leaks it: %q", out)
+			}
+		})
+	}
+}
+
+func chatStatesOf(f *fakeClient) []chatStateCall {
+	var out []chatStateCall
+	f.with(func(f *fakeClient) { out = slices.Clone(f.chatStates) })
+	return out
+}
+
+// A message that arrives while a newer generation takes over is dropped with a log line.
+func TestPipelineLogsAMessageDroppedForAReplacedGeneration(t *testing.T) {
+	f := newPipelineFixture(t, dedicatedPipelineConfig())
+	changed := dedicatedPipelineConfig()
+	changed.WhatsApp.OwnerNumbers = []string{"+4917099998888"}
+	f.p.deps.Snapshot = func() (*config.Config, llm.ChatClient) { return changed, nil }
+
+	f.p.handle(context.Background(), ownerText("R1", "run the agent"))
+
+	if len(f.callList()) != 0 || len(sentTexts(f.fake)) != 0 || len(f.stored(t)) != 0 {
+		t.Fatal("a message for a replaced generation was handled")
+	}
+	if out := f.logs.String(); !strings.Contains(out, "reason=config_changed") || !strings.Contains(out, "***5678") || strings.Contains(out, "run the agent") {
+		t.Fatalf("log = %q, want the drop reason, a masked sender and no text", out)
+	}
+}
+
+// The typing indicator ends in "paused", with its goroutine joined, and the session gates
+// are released even when the agent loop panics.
+func TestPipelineEndsTypingAndReleasesTheSessionAfterAnAgentPanic(t *testing.T) {
+	f := newPipelineFixture(t, dedicatedPipelineConfig())
+	f.p.agentLoop = func(context.Context, openai.ChatCompletionRequest, agent.RunConfig, bool, agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+		time.Sleep(30 * time.Millisecond) // typing is refreshing meanwhile
+		panic("agent loop failed")
+	}
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		f.p.handle(context.Background(), ownerText("P1", "hi"))
+	}()
+	if recovered != "agent loop failed" {
+		t.Fatalf("recovered = %v, want the agent's panic to propagate", recovered)
+	}
+
+	states := chatStatesOf(f.fake)
+	if len(states) < 2 || states[len(states)-1].state != types.ChatPresencePaused {
+		t.Fatalf("chat states = %+v, want typing that ends in paused", states)
+	}
+	time.Sleep(6 * f.p.typingEvery) // a goroutine that was not joined would send more updates
+	if got := chatStatesOf(f.fake); len(got) != len(states) {
+		t.Fatalf("typing continued after handle returned: %d updates, then %d", len(states), len(got))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	release, err := f.stm.LockSessionTurn(ctx, "default")
+	if err != nil {
+		t.Fatalf("the session turn gate was not released: %v", err)
+	}
+	release()
 }
 
 func TestAppendImageLinesFoldsCaptionsOntoOneLine(t *testing.T) {

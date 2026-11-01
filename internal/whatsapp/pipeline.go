@@ -63,8 +63,9 @@ const (
 )
 
 // pipeline hands accepted owner messages to the agent, the way telegram.processUpdate does,
-// for text. Every reply goes through the sender to in.Owner, an entry of ownerRecipients;
-// the chat the message came from is only used for receipts and typing.
+// for text. handle verifies that in.Owner is an entry of ownerRecipients before it does
+// anything, and every reply goes through the sender to that entry; the chat the message came
+// from is only used for receipts and typing.
 type pipeline struct {
 	base        *config.Config // the generation's config clone
 	deps        AgentDeps
@@ -100,17 +101,44 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	if p.deps.Snapshot != nil {
 		cfg, llmClient = p.deps.Snapshot()
 	}
-	if cfg == nil || p.base == nil || cfg.EggMode.Enabled || !cfg.WhatsApp.Equal(p.base.WhatsApp) || ctx.Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
+	dropReason := ""
+	switch {
+	case cfg == nil || p.base == nil:
+		dropReason = "no_config"
+	case cfg.EggMode.Enabled:
+		dropReason = "egg_mode"
+	case !cfg.WhatsApp.Equal(p.base.WhatsApp):
+		dropReason = "config_changed"
+	}
+	if dropReason != "" {
+		logger.Info("WhatsApp message dropped", "reason", dropReason, "sender", maskJID(in.Owner))
+		return
+	}
+
+	// The pipeline does not trust its input: the reply target must be an owner recipient of
+	// this generation before anything else happens (receipt, history, commands, a pending
+	// question, the agent). Operator commands and the agent's tools depend on this.
+	var wa waClient
+	if p.client != nil {
+		wa = p.client()
+	}
+	if wa == nil || p.sender == nil {
+		logger.Warn("WhatsApp message dropped: no client to verify the owner", "sender", maskJID(in.Owner))
+		return
+	}
+	owner, err := p.sender.ownerRecipient(wa, in.Owner)
+	if err != nil {
+		logger.Warn("WhatsApp message dropped: not from an owner recipient", "sender", maskJID(in.Owner), "error", maskedError(err))
+		return
+	}
+
 	stm := p.deps.ShortTermMem
 	if stm == nil {
 		logger.Error("WhatsApp message dropped: no short-term memory configured")
 		return
-	}
-	var wa waClient
-	if p.client != nil {
-		wa = p.client()
 	}
 
 	// 2. Read receipt. A failed one loses no content, so it is only logged.
@@ -156,7 +184,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	}
 
 	// 5.
-	logger.Info("Received authorized WhatsApp message", "sender", maskJID(in.Owner))
+	logger.Info("Received authorized WhatsApp message", "sender", maskJID(owner))
 
 	// 6. The platform message ID is hashed into the evidence turn ID, so the number is not
 	// stored in clear.
@@ -169,7 +197,8 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	// routing reads the marked text, the text no longer counts as the owner's own words,
 	// and it can neither answer a pending question nor run a slash command.
 	forwardMarker := ""
-	if ci := in.Message.GetExtendedTextMessage().GetContextInfo(); ci.GetIsForwarded() || ci.GetForwardingScore() > 0 {
+	ci := in.Message.GetExtendedTextMessage().GetContextInfo()
+	if ci.GetIsForwarded() || ci.GetForwardingScore() > 0 || ci.GetForwardedNewsletterMessageInfo() != nil {
 		forwardMarker = telegram.ForwardedContentMarker(ci.GetForwardedNewsletterMessageInfo().GetNewsletterName())
 		inputText = forwardMarker + "\n" + inputText
 		routingText = forwardedRoutingText(forwardMarker, routingText)
@@ -186,7 +215,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 				return
 			}
 		}
-		p.deliver(ctx, in.Owner, replyPromptText, "reply prompt")
+		p.deliver(ctx, owner, replyPromptText, "reply prompt")
 		return
 	}
 
@@ -197,8 +226,8 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	}
 	defer releaseTurn()
 
-	// 10. Slash commands. The filter lets only the owner's direct chat through, so operator
-	// commands are allowed.
+	// 10. Slash commands. handle verified the owner recipient above, so operator commands
+	// are allowed.
 	if forwardMarker == "" && strings.HasPrefix(text, "/") {
 		cmdResult, isCmd, err := commands.Handle(text, commands.Context{
 			STM:           stm,
@@ -212,18 +241,18 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		})
 		if err != nil {
 			logger.Error("WhatsApp command execution failed", "error", maskedError(err))
-			p.deliver(ctx, in.Owner, commandErrorText, "command error notice")
+			p.deliver(ctx, owner, commandErrorText, "command error notice")
 			return
 		}
 		if isCmd {
-			p.deliver(ctx, in.Owner, cmdResult, "command result")
+			p.deliver(ctx, owner, cmdResult, "command result")
 			return
 		}
 	}
 
 	// 11.
-	if shouldBlockWhatsAppPromptInjection(inputText, p.deps.Guardian, logger, in.Owner) {
-		p.deliver(ctx, in.Owner, guardianBlockText, "security block notice")
+	if shouldBlockWhatsAppPromptInjection(inputText, p.deps.Guardian, logger, owner) {
+		p.deliver(ctx, owner, guardianBlockText, "security block notice")
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -259,7 +288,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		BudgetTracker:     budgetTracker,
 		SessionID:         sessionID,
 		MessageSource:     "whatsapp",
-		VoiceOutputActive: agent.GetVoiceMode(),
+		VoiceOutputActive: false, // stage 2 sends no audio (the broker drops it); stage 3 sets it from agent.GetVoiceMode()
 	}
 	finalMessages := buildAgentMessages(historyManager)
 	if historyManager == nil {
@@ -279,15 +308,16 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	// 13. and 14. Typing while the agent works, then the agent itself.
 	stopTyping := startTyping(ctx, wa, in.Chat, typingEvery)
 	defer stopTyping()
-	broker := &whatsAppBroker{ctx: ctx, sender: p.sender, to: in.Owner, now: now}
-	resp, err := agentLoop(ctx, req, runCfg, false, broker)
+	broker := &whatsAppBroker{ctx: ctx, sender: p.sender, to: owner, now: now}
+	// Stage 2 cannot deliver audio, so the loop neither exposes nor runs TTS; stage 3 removes this when voice notes land.
+	resp, err := agentLoop(agent.WithVoiceOutputSuppressed(ctx), req, runCfg, false, broker)
 	stopTyping()
 	if ctx.Err() != nil {
 		return
 	}
 	if err != nil {
 		logger.Error("WhatsApp agent loop failed", "error", maskedError(err))
-		p.deliver(ctx, in.Owner, agentErrorText, "error notice")
+		p.deliver(ctx, owner, agentErrorText, "error notice")
 		return
 	}
 
@@ -297,7 +327,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		cleanText, images := media.ExtractMarkdownImages(answer)
 		cleanText = appendImageLines(cleanText, images)
 		if cleanText != "" {
-			p.deliver(ctx, in.Owner, cleanText, "answer")
+			p.deliver(ctx, owner, cleanText, "answer")
 		}
 	}
 }
