@@ -13,7 +13,7 @@ import (
 	"aurago/internal/memory"
 )
 
-const consolidationProgressPromptVersion = "source-bound-v2"
+const consolidationProgressPromptVersion = "human-grounded-v3"
 const consolidationMaxClaimPage = 1000
 const consolidationMaxPublishedFactsPerRun = 100
 const consolidationStaleClaimAge = 30 * time.Minute
@@ -145,7 +145,7 @@ func consolidateSTMtoLTMWithDurableProgress(ctx context.Context, cfg *config.Con
 		} else {
 			for _, part := range persisted {
 				var facts []helperConsolidationFact
-				if err := json.Unmarshal([]byte(part.FactsJSON), &facts); err != nil || facts == nil || countValidConsolidationFacts(facts) != len(facts) || len(facts) > 10 {
+				if err := json.Unmarshal([]byte(part.FactsJSON), &facts); err != nil || !validConsolidationFactResponse(facts) {
 					item.failed = errors.New("checkpoint_invalid")
 					break
 				}
@@ -209,11 +209,14 @@ func consolidateSTMtoLTMWithDurableProgress(ctx context.Context, cfg *config.Con
 					break
 				}
 				var partFacts []helperConsolidationFact
-				if err := json.Unmarshal([]byte(part.FactsJSON), &partFacts); err != nil || partFacts == nil || countValidConsolidationFacts(partFacts) != len(partFacts) || len(partFacts) > 10 {
+				if err := json.Unmarshal([]byte(part.FactsJSON), &partFacts); err != nil || !validConsolidationFactResponse(partFacts) {
 					item.failed = errors.New("checkpoint_invalid")
 					break
 				}
-				item.facts = append(item.facts, partFacts...)
+				for _, fact := range partFacts {
+					fact.grounded = consolidationFactGrounded(item.message, fact)
+					item.facts = append(item.facts, fact)
+				}
 			}
 			if item.failed != nil {
 				result.Errors = append(result.Errors, item.failed)
@@ -406,11 +409,18 @@ func consolidateSTMtoLTMWithDurableProgress(ctx context.Context, cfg *config.Con
 				if item.failed != nil || item.blocked {
 					continue
 				}
-				if !ok || facts == nil || len(facts) > 10 || countValidConsolidationFacts(facts) != len(facts) {
+				if !ok || !validConsolidationFactResponse(facts) {
 					item.failed = errors.New("extraction_invalid")
 					result.Errors = append(result.Errors, item.failed)
 					continue
 				}
+				grounded := make([]helperConsolidationFact, 0, len(facts))
+				for _, fact := range facts {
+					if consolidationFactGrounded(item.message, fact) {
+						grounded = append(grounded, fact)
+					}
+				}
+				facts = grounded
 				encoded, err := json.Marshal(facts)
 				if err == nil {
 					err = stm.SaveConsolidationPartResult(ctx, item.key, partIndex, string(encoded))

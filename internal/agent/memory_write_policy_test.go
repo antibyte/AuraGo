@@ -134,7 +134,7 @@ func TestHelperCompressionRetainsCompleteSource(t *testing.T) {
 func TestConsolidationFilteredFactKeepsHealthyFact(t *testing.T) {
 	stm, logger := maintenanceRegressionStores(t)
 	vdb := &fakeVectorDB{}
-	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{{Concept: "credential", Content: "api_key=synthetic-secret-123456"}, {Concept: "profile", Content: "User prefers clear German explanations."}})
+	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{{Concept: "credential", Content: "api_key=synthetic-secret-123456", grounded: true}, {Concept: "profile", Content: "User prefers clear German explanations.", grounded: true}})
 	if err != nil || stored != 1 || skipped != 1 {
 		t.Fatalf("healthy fact rolled back: stored=%d skipped=%d err=%v", stored, skipped, err)
 	}

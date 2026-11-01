@@ -23,7 +23,7 @@ func TestMaintenanceBriefingWaitsForCatchupAndKeepsMainDeadlineIndependent(t *te
 	synctest.Test(t, func(t *testing.T) {
 		stm, logger := maintenanceRegressionStores(t)
 		for range 5 {
-			if _, err := stm.InsertMessage("direct", "user", "Remember the NAS backup target.", false, false); err != nil {
+			if _, err := stm.InsertMessage("direct", "user", "The backup target is the NAS.", false, false); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -78,7 +78,7 @@ func TestMaintenanceBriefingWaitsForCatchupAndKeepsMainDeadlineIndependent(t *te
 func TestMaintenanceCatchupCountsFactsAndOutstandingWorkOnce(t *testing.T) {
 	stm, logger := maintenanceRegressionStores(t)
 	for range 5 {
-		if _, err := stm.InsertMessage("direct", "user", "Remember the NAS backup target.", false, false); err != nil {
+		if _, err := stm.InsertMessage("direct", "user", "The backup target is the NAS.", false, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -103,7 +103,7 @@ func TestMaintenanceCatchupCountsFactsAndOutstandingWorkOnce(t *testing.T) {
 	ledger.addDeferred("entity_extraction", 1)
 	ledger.finishPhase("entity_extraction", true)
 	client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-		return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)}.CreateChatCompletion(ctx, req)
+		return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS.","quote":"The backup target is the NAS."}]`)}.CreateChatCompletion(ctx, req)
 	}}
 	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, ledger)
 	results := ledger.results()

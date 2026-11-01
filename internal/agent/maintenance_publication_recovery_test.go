@@ -43,7 +43,7 @@ func (c *publicationRecoveryClient) CreateChatCompletion(ctx context.Context, re
 		return openai.ChatCompletionResponse{}, err
 	}
 	c.requests++
-	content := maintenanceConsolidationResponseForRequest(request, `"facts":[{"concept":"Fact One","content":"first durable fact"},{"concept":"Fact Two","content":"second durable fact"}]`)
+	content := maintenanceConsolidationResponseForRequest(request, `"facts":[{"concept":"Fact One","content":"first durable fact","quote":"first durable fact"},{"concept":"Fact Two","content":"second durable fact","quote":"second durable fact"}]`)
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
 		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content},
 		FinishReason: openai.FinishReasonStop,
@@ -64,7 +64,7 @@ func TestDurableConsolidationResumesPublicationAfterCancellationAndRestart(t *te
 	if err := stm.InitJournalTables(); err != nil {
 		t.Fatalf("InitJournalTables: %v", err)
 	}
-	messages := insertPendingConsolidationSources(t, stm, 1, "Remember both durable publication facts.")
+	messages := insertPendingConsolidationSources(t, stm, 1, "The first durable fact and the second durable fact are confirmed.")
 	message := messages[0]
 	key := memory.ConsolidationCheckpointKey{
 		MessageID: message.ID, SourceHash: memory.ConsolidationSourceHash(message),

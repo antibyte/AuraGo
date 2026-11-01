@@ -319,7 +319,7 @@ func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, 
 }
 
 const consolidationCandidateEligibilitySQL = `
-	LOWER(TRIM(COALESCE(role, ''))) IN ('user', 'assistant')
+	LOWER(TRIM(COALESCE(role, ''))) = 'user'
 	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT IN ('heartbeat', 'maintenance', 'space-agent-bridge')
 	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT LIKE 'mission-%'
 	AND COALESCE(is_internal, 0) = 0

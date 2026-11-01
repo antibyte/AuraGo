@@ -61,19 +61,6 @@ by private identity markers that prevent automatic re-enqueue.
 All these changes are local software behavior. Deploying the binary and repairing
 production data are separate operations.
 
-## Backup failure and retention
-
-Only verified, complete v2 snapshots are eligible for retention deletion. AuraGo keeps
-snapshots from the last 30 days and at least three complete snapshots. Old v1, unknown,
-incomplete and damaged snapshot directories, including extra user files, are preserved.
-Only a failed backup attempt's own newly created directory can be removed by that attempt.
-Retention inventories the directory once and revalidates each selected deletion candidate.
-
-When persistence is active and the backup fails or its paths are incomplete, maintenance
-records diagnostics and marks later phases skipped. It performs no archival, budget
-cleanup, automatic curation, graph synchronization or consolidation catch-up in that run.
-The next successful backup allows the normal phases to process outstanding work.
-
 ## Safe publication and expiry
 
 New automatic memories are prepared before they become searchable. A durable journal
@@ -107,3 +94,22 @@ long-term Memory is disabled or read-only.
 **Historical limit:** Previously stored orphan summaries without source provenance remain
 untouched. Deleting their old chat cannot reliably locate those copies. This change does
 not backfill, infer ownership or repair that historical data.
+
+Nightly consolidation now requires a quote from the sanitized human message. Assistant
+claims, quoted third-party content and durable tool instructions cannot independently
+become facts. Unsupported archive candidates are finalized without repeated extraction.
+Unfinished checkpoints from the previous extractor format are re-extracted; completed
+historical facts are not changed retroactively.
+
+## Backup failure and retention
+
+Only verified, complete v2 snapshots are eligible for retention deletion. AuraGo keeps
+snapshots from the last 30 days and at least three complete snapshots. Old v1, unknown,
+incomplete and damaged snapshot directories, including extra user files, are preserved.
+Only a failed backup attempt's own newly created directory can be removed by that attempt.
+Retention inventories the directory once and revalidates each selected deletion candidate.
+
+When persistence is active and the backup fails or its paths are incomplete, maintenance
+records diagnostics and marks later phases skipped. It performs no archival, budget
+cleanup, automatic curation, graph synchronization or consolidation catch-up in that run.
+The next successful backup allows the normal phases to process outstanding work.

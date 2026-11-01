@@ -32,7 +32,7 @@ func TestConsolidationStorageDeadlineReleasesClaims(t *testing.T) {
 				defer ResetGlobalHelperLLMManager()
 				stm, logger := maintenanceRegressionStores(t)
 				for range 4 {
-					if _, err := stm.InsertMessage("direct", "user", strings.Repeat("Remember the backup target. ", 100), false, false); err != nil {
+					if _, err := stm.InsertMessage("direct", "user", strings.Repeat("The backup target is the NAS. ", 100), false, false); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -44,7 +44,7 @@ func TestConsolidationStorageDeadlineReleasesClaims(t *testing.T) {
 				cfg.Tools.KnowledgeGraph.Enabled = true
 				cfg.LLM.Model = "test-model"
 				vdb := &consolidationDeadlineVector{}
-				const facts = `"facts":[{"concept":"Backup","content":"The backup target is the NAS."}]`
+				const facts = `"facts":[{"concept":"Backup","content":"The backup target is the NAS.","quote":"The backup target is the NAS."}]`
 				client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 					response := maintenanceConsolidationResponseForRequest(req, facts)
 					paired := strings.Contains(req.Messages[len(req.Messages)-1].Content, "=== batch_2 ===")

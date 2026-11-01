@@ -44,7 +44,7 @@ func (c *consolidationProgressTestClient) CreateChatCompletion(_ context.Context
 		}
 	}
 	c.requests++
-	content := maintenanceConsolidationResponseForRequest(request, `"facts":[{"concept":"stable fact","content":"a durable fact"}]`)
+	content := maintenanceConsolidationResponseForRequest(request, `"facts":[{"concept":"stable fact","content":"Durable source fact","quote":"Durable source fact"}]`)
 	response := openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
 		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content},
 		FinishReason: openai.FinishReasonStop,
@@ -68,7 +68,7 @@ func TestDurableConsolidationProcessesPartsFairlyAcrossMessages(t *testing.T) {
 		t.Fatalf("InitJournalTables: %v", err)
 	}
 	t.Cleanup(func() { _ = stm.Close() })
-	messages := insertPendingConsolidationSources(t, stm, 2, strings.Repeat("source ", 1200))
+	messages := insertPendingConsolidationSources(t, stm, 2, strings.Repeat("Durable source fact. ", 1200))
 	if len(serializeConsolidationSources(messages[:1])) < 2 {
 		t.Fatal("test source did not split into multiple parts")
 	}
@@ -98,7 +98,7 @@ func TestDurableConsolidationResumesSavedPartAfterCancellationAndRestart(t *test
 	if err := stm.InitJournalTables(); err != nil {
 		t.Fatalf("InitJournalTables: %v", err)
 	}
-	messages := insertPendingConsolidationSources(t, stm, 1, strings.Repeat("source ", 1200))
+	messages := insertPendingConsolidationSources(t, stm, 1, strings.Repeat("Durable source fact. ", 1200))
 	message := messages[0]
 	parts := serializeConsolidationSources([]memory.ArchivedMessage{message})
 	if len(parts) < 2 {
@@ -157,7 +157,7 @@ func TestDurableConsolidationPublishesReadySmallMessageBeforeContinuingLargeSour
 	}
 	t.Cleanup(func() { _ = stm.Close() })
 	const sessionID = "maintenance-fair-publication"
-	for _, content := range []string{"small ready source", strings.Repeat("large source ", 1200), "retained newest source"} {
+	for _, content := range []string{"Durable source fact.", strings.Repeat("Durable source fact. ", 1200), "retained newest source"} {
 		if _, err := stm.InsertMessage(sessionID, "user", content, false, false); err != nil {
 			t.Fatalf("insert mixed-size source: %v", err)
 		}

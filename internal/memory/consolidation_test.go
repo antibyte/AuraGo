@@ -170,11 +170,11 @@ func TestArchivedMessagesPreserveInternalOrigin(t *testing.T) {
 	if err := archived.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if count, err := stm.CountConsolidationCandidates(3); err != nil || count != 3 {
-		t.Fatalf("candidate count = %d, %v; want 3", count, err)
+	if count, err := stm.CountConsolidationCandidates(3); err != nil || count != 1 {
+		t.Fatalf("candidate count = %d, %v; want the one public user-origin message", count, err)
 	}
-	if excluded, err := stm.FinalizeIneligibleConsolidationCandidates(); err != nil || excluded != 2 {
-		t.Fatalf("excluded = %d, %v; want 2", excluded, err)
+	if excluded, err := stm.FinalizeIneligibleConsolidationCandidates(); err != nil || excluded != 4 {
+		t.Fatalf("excluded = %d, %v; want 4 non-user or internal messages", excluded, err)
 	}
 }
 

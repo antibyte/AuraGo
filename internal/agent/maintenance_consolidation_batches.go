@@ -80,7 +80,7 @@ func extractConsolidationPartGroup(
 	}
 	byMessage := make(map[int64][]helperConsolidationFact, len(items))
 	for _, batch := range batchResult.Batches {
-		if len(batch.Facts) > 10 || countValidConsolidationFacts(batch.Facts) != len(batch.Facts) {
+		if !validConsolidationFactResponse(batch.Facts) {
 			return nil, fmt.Errorf("consolidation batch contains invalid facts")
 		}
 		byMessage[inputIDs[batch.BatchID]] = batch.Facts

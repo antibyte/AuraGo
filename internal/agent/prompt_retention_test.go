@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/dbutil"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 
@@ -340,7 +341,16 @@ func TestCompressionCrashBoundaryRetainsHistorySourcesAcrossRestart(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(archived) < len(archivedIDs) {
-		t.Fatalf("SQLite archive retained %d sources, want at least %d", len(archived), len(archivedIDs))
+	if len(archived) != 1 || archived[0].Role != "user" || archived[0].Content != "source user turn" {
+		t.Fatalf("consolidation candidates=%+v, want only the user source", archived)
+	}
+	rawArchive, err := dbutil.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rawArchive.Close()
+	var retainedRawSources int
+	if err := rawArchive.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE session_id='default' AND content IN (?,?)`, "source user turn", "source assistant turn").Scan(&retainedRawSources); err != nil || retainedRawSources != len(archivedIDs) {
+		t.Fatalf("raw archive retained %d sources, want %d (including assistant context): %v", retainedRawSources, len(archivedIDs), err)
 	}
 }

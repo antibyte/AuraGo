@@ -187,8 +187,8 @@ func TestStoreConsolidationFactsRollsBackOnPartialFailure(t *testing.T) {
 
 	vdb := &partialFailConsolidationVectorDB{}
 	facts := []helperConsolidationFact{
-		{Concept: "fact-one", Content: "First fact."},
-		{Concept: "fact-two", Content: "Second fact."},
+		{Concept: "fact-one", Content: "First fact.", grounded: true},
+		{Concept: "fact-two", Content: "Second fact.", grounded: true},
 	}
 
 	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, facts)
@@ -226,8 +226,8 @@ func TestStoreConsolidationFactsCountsDedupAsSkipped(t *testing.T) {
 
 	vdb := &dedupConsolidationVectorDB{}
 	facts := []helperConsolidationFact{
-		{Concept: "nas-backup", Content: "Backup target is the NAS."},
-		{Concept: "nas-backup", Content: "Backup target is the NAS."},
+		{Concept: "nas-backup", Content: "Backup target is the NAS.", grounded: true},
+		{Concept: "nas-backup", Content: "Backup target is the NAS.", grounded: true},
 	}
 
 	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, facts)
@@ -309,7 +309,7 @@ func TestFinalizeConsolidationBatchAcceptsDedupOnlyFacts(t *testing.T) {
 		{"assistant", "noted"},
 		{"user", "backup target"},
 	})
-	facts := []helperConsolidationFact{{Concept: "nas-backup", Content: "Backup target is the NAS."}}
+	facts := []helperConsolidationFact{{Concept: "nas-backup", Content: "Backup target is the NAS.", grounded: true}}
 
 	ok, storedCount, err := finalizeConsolidationBatch(logger, stm, item, facts, 0, 1, nil, 1, 1)
 	if err != nil {
@@ -343,7 +343,7 @@ func TestFinalizeConsolidationBatchReturnsFalseWhenMarkSuccessFails(t *testing.T
 		{"user", "hello"},
 		{"assistant", "hi"},
 	})
-	facts := []helperConsolidationFact{{Concept: "greeting", Content: "User said hello."}}
+	facts := []helperConsolidationFact{{Concept: "greeting", Content: "User said hello.", grounded: true}}
 
 	if err := stm.Close(); err != nil {
 		t.Fatalf("Close: %v", err)

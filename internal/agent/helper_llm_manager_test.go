@@ -252,7 +252,7 @@ func TestHelperLLMManagerAnalyzeMaintenanceSummaryAndKGUsesSharedModel(t *testin
 }
 
 func TestParseHelperConsolidationBatchResultStripsCodeFences(t *testing.T) {
-	raw := "```json\n{\"batches\":[{\"batch_id\":\"batch_1\",\"facts\":[{\"concept\":\"Backup schedule\",\"content\":\"The nightly backup runs against the NAS target and needs review.\"}]},{\"batch_id\":\"batch_2\",\"facts\":[]}]}\n```"
+	raw := "```json\n{\"batches\":[{\"batch_id\":\"batch_1\",\"facts\":[{\"concept\":\"Backup schedule\",\"content\":\"The nightly backup runs against the NAS target and needs review.\",\"quote\":\"The nightly backup runs against the NAS target and needs review.\"}]},{\"batch_id\":\"batch_2\",\"facts\":[]}]}\n```"
 
 	got, err := parseHelperConsolidationBatchResult(raw)
 	if err != nil {
@@ -271,7 +271,7 @@ func TestParseHelperConsolidationBatchResultStripsCodeFences(t *testing.T) {
 
 func TestHelperLLMManagerAnalyzeConsolidationBatchesUsesSharedModel(t *testing.T) {
 	client := &mockChatClient{
-		response: `{"batches":[{"batch_id":"batch_1","facts":[{"concept":"Backup target","content":"The backup target is the NAS device."}]},{"batch_id":"batch_2","facts":[]}]}`,
+		response: `{"batches":[{"batch_id":"batch_1","facts":[{"concept":"Backup target","content":"The backup target is the NAS device.","quote":"The backup target is the NAS device."}]},{"batch_id":"batch_2","facts":[]}]}`,
 	}
 	manager := &helperLLMManager{
 		client: client,
@@ -295,7 +295,7 @@ func TestHelperLLMManagerAnalyzeConsolidationBatchesUsesSharedModel(t *testing.T
 
 func TestHelperLLMManagerAnalyzeConsolidationBatchesRejectsMissingBatchIDs(t *testing.T) {
 	client := &mockChatClient{
-		response: `{"batches":[{"batch_id":"batch_1","facts":[{"concept":"Backup target","content":"The backup target is the NAS device."}]}]}`,
+		response: `{"batches":[{"batch_id":"batch_1","facts":[{"concept":"Backup target","content":"The backup target is the NAS device.","quote":"The backup target is the NAS device."}]}]}`,
 	}
 	manager := &helperLLMManager{
 		client: client,

@@ -55,7 +55,7 @@ func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				stm, logger := maintenanceRegressionStores(t)
 				for range 92 {
-					if _, err := stm.InsertMessage("direct", "user", "Remember the NAS backup target.", false, false); err != nil {
+					if _, err := stm.InsertMessage("direct", "user", "The backup target is the NAS.", false, false); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -106,11 +106,11 @@ func TestConsolidationRequiresExplicitValidFacts(t *testing.T) {
 		valid  bool
 	}{
 		{"empty", `"facts":[]`, true},
-		{"fact", `"facts":[{"concept":"Backup","content":"Backups target the NAS."}]`, true},
+		{"fact", `"facts":[{"concept":"Backup","content":"Backups target the NAS.","quote":"Backups target the NAS."}]`, true},
 		{"missing", `"other":[]`, false},
 		{"null", `"facts":null`, false},
 		{"malformed", `"facts":{}`, false},
-		{"invalid fact", `"facts":[{"concept":"Backup","content":" "}]`, false},
+		{"invalid fact", `"facts":[{"concept":"Backup","content":" ","quote":" "}]`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, logger := maintenanceRegressionStores(t)
@@ -161,7 +161,7 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 					lastMessage := req.Messages[len(req.Messages)-1].Content
 					if strings.Contains(lastMessage, "source message_id=") || strings.Contains(lastMessage, "=== batch_") {
 						phase = "consolidation"
-						content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)
+						content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS.","quote":"The backup target is the NAS."}]`)
 					}
 					calls = append(calls, phase)
 					if phase == slow {
@@ -255,7 +255,7 @@ func TestMaintenanceCompletionsReserveReasoningWithinProviderLimits(t *testing.T
 		t.Fatal(err)
 	}
 	for range 3 {
-		if _, err := stm.InsertMessage("direct", "user", "Remember the NAS backup target.", false, false); err != nil {
+		if _, err := stm.InsertMessage("direct", "user", "The backup target is the NAS.", false, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -268,7 +268,7 @@ func TestMaintenanceCompletionsReserveReasoningWithinProviderLimits(t *testing.T
 		}
 		content := "Configured NAS backups."
 		if strings.Contains(req.Messages[0].Content, "knowledge extraction engine") {
-			content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)
+			content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS.","quote":"The backup target is the NAS."}]`)
 		}
 		return skillQualityTestClient{response: content}.CreateChatCompletion(ctx, req)
 	}}

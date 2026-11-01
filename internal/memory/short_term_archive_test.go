@@ -25,8 +25,14 @@ func TestDeleteMessagesByIDArchives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUnconsolidatedMessages: %v", err)
 	}
-	if len(archived) != 2 {
-		t.Fatalf("expected 2 archived messages, got %d", len(archived))
+	if got := countArchivedMessages(t, stm); got != 2 {
+		t.Fatalf("expected both messages archived, got %d", got)
+	}
+	if got := countArchivedMessage(t, stm, "assistant", "old assistant"); got != 1 {
+		t.Fatalf("assistant archive row was lost: count=%d", got)
+	}
+	if len(archived) != 1 || archived[0].Content != "old user" {
+		t.Fatalf("expected only user-origin messages eligible for consolidation, got %+v", archived)
 	}
 
 	msgs, err := stm.GetSessionMessages("default")
@@ -56,8 +62,14 @@ func TestClearArchives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUnconsolidatedMessages: %v", err)
 	}
-	if len(archived) != 2 {
-		t.Fatalf("expected 2 archived messages after clear, got %d", len(archived))
+	if got := countArchivedMessages(t, stm); got != 2 {
+		t.Fatalf("expected both messages retained in archive after clear, got %d", got)
+	}
+	if got := countArchivedMessage(t, stm, "assistant", "ack"); got != 1 {
+		t.Fatalf("assistant archive row was lost by clear: count=%d", got)
+	}
+	if len(archived) != 1 || archived[0].Content != "remember this" {
+		t.Fatalf("expected only user-origin messages eligible after clear, got %+v", archived)
 	}
 }
 
@@ -121,7 +133,31 @@ func TestEnforceSTMPRetention(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUnconsolidatedMessages: %v", err)
 	}
-	if len(archived) < 3 {
-		t.Fatalf("expected at least 3 archived messages, got %d", len(archived))
+	if got := countArchivedMessages(t, stm); got != 3 {
+		t.Fatalf("expected all three evicted messages preserved in archive, got %d", got)
 	}
+	if got := countArchivedMessage(t, stm, "assistant", "msg"); got != 1 {
+		t.Fatalf("evicted assistant row was lost: count=%d", got)
+	}
+	if len(archived) != 2 {
+		t.Fatalf("expected the two archived user-origin messages eligible for consolidation, got %d", len(archived))
+	}
+}
+
+func countArchivedMessages(t *testing.T, stm *SQLiteMemory) int {
+	t.Helper()
+	var count int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count
+}
+
+func countArchivedMessage(t *testing.T, stm *SQLiteMemory, role, content string) int {
+	t.Helper()
+	var count int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE role=? AND content=?`, role, content).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count
 }

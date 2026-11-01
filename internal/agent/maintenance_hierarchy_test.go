@@ -112,8 +112,8 @@ func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
 
 	vdb := &hierarchyVectorDB{}
 	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{
-		{Concept: "ok:backup", Content: "The backup target is the NAS."},
-		{Concept: "fail:backup", Content: "This store should fail."},
+		{Concept: "ok:backup", Content: "The backup target is the NAS.", grounded: true},
+		{Concept: "fail:backup", Content: "This store should fail.", grounded: true},
 	})
 	if err == nil {
 		t.Fatal("expected store failure to be reported")

@@ -62,7 +62,7 @@ func TestMaintenanceConsolidationPreservesReusedMemoryOnPartialWrite(t *testing.
 		t.Fatal(err)
 	}
 	vdb := &maintenanceOwnedVector{hierarchyVectorDB: hierarchyVectorDB{stored: map[string]string{"existing": "preserved content"}}, fail: true}
-	_, _, err = storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{{Concept: "existing", Content: "duplicate"}, {Concept: "new", Content: "new content"}})
+	_, _, err = storeConsolidationFacts(logger, stm, vdb, []helperConsolidationFact{{Concept: "existing", Content: "duplicate", grounded: true}, {Concept: "new", Content: "new content", grounded: true}})
 	if err == nil {
 		t.Fatal("expected partial write error")
 	}
