@@ -289,6 +289,18 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	if state("vin") != "input" || state("r2") != "input" || state("vout") != "input" {
 		t.Fatalf("with V_in locked the states are vin=%s r2=%s vout=%s, want inputs", state("vin"), state("r2"), state("vout"))
 	}
+	// With every input locked, typing into the computed R1 would have to unlock one: the edit is refused and says so,
+	// and leaving the field shows the computed value again.
+	page.MustElement(field("r2") + " .ec-lock").MustClick()
+	page.MustElement(field("vout") + " .ec-lock").MustClick()
+	lockedOut := value("vout")
+	typeInto("r1", "1k")
+	wait(fmt.Sprintf(`()=>{const f=document.querySelector('.ec-field[data-var="r1"]');return f.dataset.state==='error'&&f.querySelector('.ec-field-msg').textContent===%q}`, readMergedLangMap(t, "de")["desktop.ecalc_error_locked"]))
+	page.MustElement(field("vin") + " .ec-input").MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="r1"]').dataset.state==='computed'`)
+	if state("vin") != "input" || state("r2") != "input" || state("vout") != "input" || value("vout") != lockedOut || value("r1") == "1k" {
+		t.Fatalf("after the refused edit the states are vin=%s r2=%s vout=%s, V_out %q (was %q), R1 %q; want the locked inputs unchanged and R1 computed again", state("vin"), state("r2"), state("vout"), value("vout"), lockedOut, value("r1"))
+	}
 	page.MustElement(`[data-action="reset"]`).MustClick()
 	wait(`()=>document.querySelector('.ec-field[data-var="r2"] .ec-input').value==='2,2 kΩ' && document.querySelector('.ec-field[data-var="vin"] .ec-lock').getAttribute('aria-pressed')==='false'`)
 
