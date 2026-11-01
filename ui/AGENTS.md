@@ -583,6 +583,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
+- Config WhatsApp (`cfg/whatsapp.js`) acts only on saved settings. Link, unlink and test show a visible reason when they are unavailable.
+  - The QR code is the server-rendered PNG data URI from `GET /api/whatsapp/link`; the browser never renders a QR itself. The QR and the pairing code live only in the panel DOM and are cleared on section leave.
+  - The panel polls `GET /api/whatsapp/link` every 2 s (0.7 s right after a start) only while the session is `waiting`, `qr` or `code`. While the status is `linking` or `connecting`, it re-reads `/api/whatsapp/status` every 3 s, at most 20 times. Both stop on section leave.
+  - Relinking and unlinking are confirmed in a dialog.
+  - The pairing-phone input is not a config field: `data-cfg-dirty-bound` keeps it out of the save dock.
+  - Verify the `TestWhatsAppConfig*` browser tests with `AURAGO_RUN_BROWSER_SMOKE=1`.
 - Config owns form presentation in `config-workspace.css` and
   `js/config/presentation.js`, scoped to `data-workspace-page="config"`.
   Shared Precision Workspace owns the blue/slate `--pw-*` palette in
@@ -596,7 +602,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
   `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
   inline symbol, so a missing one renders blank; it must match the sprite cell.
-  The sprite has 11 columns and 12 rows (slots 0–131; `gog` 121, `ruview` 122, `cyd_creator` 123, `decisions` 124):
+  The sprite has 11 columns and 12 rows (slots 0–131; `gog` 121, `ruview` 122, `cyd_creator` 123, `decisions` 124, `whatsapp` 128):
   x = column × 10 %, y = row × 100 / 11 %. A thirteenth row needs the same
   growth in `main.js`, the CSS, the SVG canvas, the metadata and the test
   constants. Keep all slot rules in one ordered CSS block and the sprite

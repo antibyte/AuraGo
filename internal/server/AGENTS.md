@@ -908,6 +908,27 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - Generation image inputs are private project image assets normalized locally to bounded PNG bytes. Only the configured provider's supported image mode is exposed; external image URLs are never fetched automatically. Render staging skips muted, hidden, and zero-volume audio clips but retains visual inputs regardless of clip volume. Verify `TestVideoStudio*` and the browser export flow.
 - Media removal is recorded before any file is deleted and finishes on a retry, at worker start or in the background sweep a media listing queues; that sweep and the poster backfill of older media run in one upkeep goroutine with a bounded queue beside the job queue (the backfill runs FFmpeg only while no job is queued or running) (`video_studio_media_upkeep.go`). The rules live in `internal/videostudio/AGENTS.md` (Media and projects).
 
+### WhatsApp Runtime Contract
+- `whatsapp_runtime.go` owns one `whatsapp.Bot` and at most one `whatsapp.LinkSession` behind `whatsAppLifecycleMu`. Both pointers are atomic, so reads never take the lock.
+  - `replaceConfigSnapshot` calls `CancelIfConfigChanged` on the live Bot. `configureWhatsAppBot` drains it outside the config lock and starts the replacement. Startup, the Config save hot reload (`whatsAppChanged`: WhatsApp section, egg mode or data dir) and `afterWhatsAppLink` call it. `Logout` restarts it with `force`; a failed link start restarts it too (`force` off, since the Bot was already stopped).
+  - No Bot starts while a link session is active. Egg mode, a disabled section or a missing owner (`whatsapp.ConfigState`) never run one.
+  - `stopWhatsApp` in `closeRuntimeResources` cancels the session, drains the Bot and sets `whatsAppClosed`; nothing restarts afterwards.
+- Link sessions:
+  - `Link` validates the request before anything is unlinked or stopped. A running session needs `force`: it is cancelled and awaited, then replaced. A linked device needs `force` too and is unlinked first, remotely when connected.
+  - Each session has a generation (`whatsAppLinkGen`). `onWhatsAppLinkFinished` only hands off to a goroutine, so it never waits for the lifecycle lock; `afterWhatsAppLink` ignores finishes from replaced generations.
+  - A remote unlink is bounded to 10 s (`whatsAppRemoteLogoutTimeout`). When it fails, local keys are removed; if that removal fails under the 10 s deadline, it is retried with the request context.
+  - `LinkSnapshot` never takes the lifecycle lock. It reads the atomic session pointer and the session's own snapshot.
+- `/api/whatsapp/status|link|logout|test` (`whatsapp_handlers.go`):
+  - Admin only through `requireAdmin`. Every response is `Cache-Control: no-store`.
+  - Errors carry fixed codes only (for example `not_configured`, `already_linked`, `link_in_progress`, `not_connected`, `invalid_phone`, `invalid_method`, `rate_limited`, `csrf_check_failed`, `whatsapp_failed`), never `err.Error()`, because runtime errors can carry JIDs. Server logs use `maskedWhatsAppError`.
+  - POSTs require a same-origin `Origin` header (`checkCSRFOriginWithPolicy(r, true)`). Bearer clients skip that check.
+  - `POST /api/whatsapp/link` takes one JSON object of at most 4 KiB with known fields only (`invalid_request`, `request_too_large`) and answers 202 with the snapshot.
+  - `GET /api/whatsapp/link` returns the snapshot, or `idle`. Its QR PNG and pairing code work as link credentials for up to three minutes, so the response stays admin-only and `no-store`.
+  - `POST /api/whatsapp/test` is owner-only and allows one attempt per minute. The minute starts before the send, so a failed send counts too.
+- With `auth.enabled: false`, `requireAdmin` passes every request. POSTs then rely on the Origin check. All four routes therefore go through `whatsAppGuard` (`requireAdmin` plus `requireRebindingSafeHostWithoutLogin`), so a DNS-rebinding page can neither read the link snapshot nor post mutations. Verify `TestWhatsAppRoutesRefuseUntrustedHostsWithoutLogin`. Backup walks skip the WhatsApp store directory (`whatsAppStoreSkipper`).
+- `handleUpdateConfig` rejects invalid `whatsapp` sections with `config.ValidateWhatsAppConfig` before saving. Backups never include `data/whatsapp` (`backup_handlers.go`).
+- Verify `./internal/server/ -run 'WhatsApp'`; the set covers `TestWhatsAppRuntime*`, `TestServerWhatsAppController*`, `TestHandleUpdateConfigWhatsApp*`, `TestWhatsAppHandlers*` and `TestWhatsAppRoutesRequireAdmin`.
+
 ### Rocket.Chat Runtime Contract
 - One server-owned consumer processes history chronologically with bounded pagination, including messages sharing a timestamp. Accept ISO timestamps and the legacy date object.
 - Every turn uses a current immutable config/client snapshot. Publishing changed Rocket.Chat credentials, channel, allowlist or enablement cancels the old generation immediately; drain outside config locks before starting its replacement. Egg mode and shutdown forbid restart.
