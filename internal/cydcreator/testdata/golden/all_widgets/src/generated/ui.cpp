@@ -318,6 +318,8 @@ static void ui__scr_home_create(void) {
   lv_obj_set_pos(ui_img_logo, 8, 100);
   lv_obj_set_size(ui_img_logo, 24, 16);
   lv_image_set_src(ui_img_logo, &ui_img_a_logo);
+  lv_image_set_scale(ui_img_logo, 256);
+  lv_image_set_antialias(ui_img_logo, false);
   lv_image_set_inner_align(ui_img_logo, LV_IMAGE_ALIGN_CENTER);
   lv_obj_add_flag(ui_img_logo, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(ui_img_logo, on_img_logo_clicked, LV_EVENT_CLICKED, NULL);
@@ -327,6 +329,8 @@ static void ui__scr_home_create(void) {
     lv_obj_set_pos(obj, 40, 100);
     lv_obj_set_size(obj, 16, 12);
     lv_image_set_src(obj, &ui_img_a_photo);
+    lv_image_set_scale(obj, 256);
+    lv_image_set_antialias(obj, false);
     lv_image_set_inner_align(obj, LV_IMAGE_ALIGN_CENTER);
   }
 

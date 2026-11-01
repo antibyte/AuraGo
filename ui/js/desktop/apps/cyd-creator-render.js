@@ -292,10 +292,13 @@
             if (ELEMENT_ID.test(id) && typeof x.assetUrl === 'function') {
                 const a = (x.assets || []).find(a => a.id === id);
                 if (P.iconLibrary && a && (a.icon || a.encoding === 'a8' || x.bool('icon_animate'))) {
-                    return h('div', { style: box(center({ background: x.c.bg || 'transparent' })) }, P.iconLibrary.node(a, x.w.props, x.assetUrl, x.c.text));
+                    const art = P.iconLibrary.node(a, x.w.props, x.assetUrl, x.c.text);
+                    // Follow the widget box during a live resize, independently of source resolution.
+                    Object.assign(art.attrs.style, { width: '100%', height: '100%' });
+                    return h('div', { style: box(center({ background: x.c.bg || 'transparent' })) }, art);
                 }
                 return h('div', { style: box({ background: x.c.bg || 'transparent', 'border-radius': own(x.c.ownRadius, 0) + 'px' }) },
-                    h('img', { src: x.assetUrl(id), alt: '', draggable: 'false', style: { width: '100%', height: '100%', 'object-fit': 'none', 'object-position': 'center', 'image-rendering': 'pixelated', 'pointer-events': 'none' } }));
+                    h('img', { src: x.assetUrl(id), alt: '', draggable: 'false', style: { width: '100%', height: '100%', 'object-fit': 'contain', 'object-position': 'center', 'image-rendering': 'pixelated', 'pointer-events': 'none' } }));
             }
             return h('div', { class: 'cydc-wv-placeholder', style: box(center({ color: x.c.tk.text_muted, border: '1px dashed ' + x.c.tk.text_muted, 'font-size': '18px' })) }, symbolGlyph('image'));
         },

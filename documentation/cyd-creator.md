@@ -15,7 +15,10 @@ Select an image or button in the designer and open **Icon library** in its
 inspector. The library contains 110 common motifs in playful, modern, comic
 and sober styles, each in colour/monochrome and still/animated form (1,760
 variants). Search by translated name or motif ID, filter by category, and
-choose 24/32/48/64 px. The two previews show actual device pixels after RGB565
+choose a source resolution of 24/32/48/64 px. Image widgets scale proportionally
+using their canvas handles or inspector width/height. Changing the selected
+icon or resolution preserves the widget rectangle, including concurrent edits.
+The two picker previews show the source pixels after RGB565
 conversion; monochrome masks inherit the device theme text colour unless an
 explicit icon colour is set. System reduced-motion preferences show posters.
 
@@ -29,8 +32,8 @@ count once. The picker displays image bytes and the current project budget;
 an oversized import is refused atomically, leaving size and still-image
 controls available. Flash budgets remain 256 KiB below 8 MB and 4 MiB on larger
 profiles, including PSRAM boards. Frames, tint and origin metadata survive
-undo/redo, revisions and project ZIP export/import. Ordinary images with no
-icon metadata retain their previous behaviour.
+undo/redo, revisions and project ZIP export/import. Ordinary uploaded images
+use the same proportional scaling. Button icons use the selected source size.
 
 Library API under `/api/desktop/cyd-creator/`:
 

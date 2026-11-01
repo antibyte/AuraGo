@@ -1533,6 +1533,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   motion, and dispose observers with the dialog. Names/filters/errors belong
   to all 16 CYD locales. Browser test: `TestDesktopCYDCreatorIconsBrowser`.
   Shared motif/artwork/export rules live in `assets/cyd-icons/AGENTS.md`; category translations follow the catalog's category IDs.
+- Image widgets fit their source proportionally into the current widget rectangle, including live resize previews, masks and all animation frames. Icon insertion/replacement preserves that rectangle, including edits made during import. The picker size selects source resolution and memory use; it is independent of image widget geometry. Button icons retain their selected source size.
 - The eleven designer modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
   `TestCYDCreatorDesignerModulesLoadInOrder`): `cyd-creator-geometry`, `-model`, `-render` (pure, run in Node),
   `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-icons`, `-inspector`, `-screens`, `-designer` last; each stays

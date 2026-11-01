@@ -138,8 +138,10 @@ static void ui__scr_home_create(void) {
   {
     lv_obj_t *obj = lv_image_create(ui_scr_home);
     lv_obj_set_pos(obj, 8, 30);
-    lv_obj_set_size(obj, 32, 32);
+    lv_obj_set_size(obj, 64, 64);
     lv_image_set_src(obj, &ui_img_a_icon_80c34ef6f0131c567e0b41c695185a93);
+    lv_image_set_scale(obj, 512);
+    lv_image_set_antialias(obj, false);
     {
       static const lv_image_dsc_t *const frames[] = {&ui_img_a_icon_80c34ef6f0131c567e0b41c695185a93, &ui_img_a_icon_5e763245a6ccd5f18e8e13ee264cb4af, &ui_img_a_icon_da5e868fca2b70e4066eb995d6139c07, &ui_img_a_icon_77f6f8f0542635a5857a6d4f4f66177a, &ui_img_a_icon_f1cb2db45f48335b9745f73c33d3bf46, &ui_img_a_icon_485ecdaac54364b9fe13d0acbc4f89d5};
       ui__icon_start(obj, frames, 6, 3);
@@ -150,8 +152,10 @@ static void ui__scr_home_create(void) {
   {
     lv_obj_t *obj = lv_image_create(ui_scr_home);
     lv_obj_set_pos(obj, 48, 30);
-    lv_obj_set_size(obj, 32, 32);
+    lv_obj_set_size(obj, 80, 48);
     lv_image_set_src(obj, &ui_img_a_icon_34bf2045f22e01f76eaf6eef920dec1d);
+    lv_image_set_scale(obj, 384);
+    lv_image_set_antialias(obj, false);
     lv_obj_set_style_image_recolor(obj, lv_obj_get_style_text_color(obj, LV_PART_MAIN), 0);
     lv_obj_set_style_image_recolor_opa(obj, LV_OPA_COVER, 0);
     {
@@ -166,6 +170,8 @@ static void ui__scr_home_create(void) {
     lv_obj_set_pos(obj, 88, 30);
     lv_obj_set_size(obj, 24, 24);
     lv_image_set_src(obj, &ui_img_a_icon_4bd47d184ea9bb172d05b3d30b6aed45);
+    lv_image_set_scale(obj, 256);
+    lv_image_set_antialias(obj, false);
     lv_obj_set_style_image_recolor(obj, lv_obj_get_style_text_color(obj, LV_PART_MAIN), 0);
     lv_obj_set_style_image_recolor_opa(obj, LV_OPA_COVER, 0);
     {
@@ -180,6 +186,8 @@ static void ui__scr_home_create(void) {
     lv_obj_set_pos(obj, 128, 30);
     lv_obj_set_size(obj, 48, 48);
     lv_image_set_src(obj, &ui_img_a_icon_6ed25efeb8b1e25e7addef7fc65f2eb7);
+    lv_image_set_scale(obj, 256);
+    lv_image_set_antialias(obj, false);
     {
       static const lv_image_dsc_t *const frames[] = {&ui_img_a_icon_6ed25efeb8b1e25e7addef7fc65f2eb7};
       ui__icon_start(obj, frames, 1, 1);
@@ -192,6 +200,8 @@ static void ui__scr_home_create(void) {
     lv_obj_set_pos(obj, 168, 30);
     lv_obj_set_size(obj, 64, 64);
     lv_image_set_src(obj, &ui_img_a_icon_4f2070760ac4470a876962f0992e7afb);
+    lv_image_set_scale(obj, 256);
+    lv_image_set_antialias(obj, false);
     lv_obj_set_style_image_recolor(obj, lv_obj_get_style_text_color(obj, LV_PART_MAIN), 0);
     lv_obj_set_style_image_recolor_opa(obj, LV_OPA_COVER, 0);
     {

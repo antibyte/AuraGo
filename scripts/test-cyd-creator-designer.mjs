@@ -522,6 +522,21 @@ const styled = R.html(R.tree(specs.get('label'), { type: 'label', w: 100, h: 20,
 check('label overrides and font', styled.includes('color:#FF0000') && styled.includes('rgba(0,0,0,0.502)') && styled.includes('font-size:28px') && styled.includes("'Inter'") && styled.includes('text-align:center'), styled);
 const img = R.html(R.tree(specs.get('image'), { type: 'image', w: 48, h: 48, props: { asset: 'a_sun' } }, night, { assetUrl: id => '/x/' + id }));
 check('image uses assetUrl and pixelated rendering', img.includes('src="/x/a_sun"') && img.includes('image-rendering:pixelated'), img);
+check('ordinary images fit the resized widget without stretching', img.includes('object-fit:contain') && img.includes('object-position:center'), img);
+{
+    const previous = P.iconLibrary;
+    const full = path.join(apps, 'cyd-creator-icons.js');
+    vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
+    for (const encoding of ['', 'a8']) {
+        const asset = { id: 'a_icon', w: 32, h: 32, icon: '1/modern/color/gopher/32/0.png', encoding };
+        const props = { asset: asset.id, icon_animate: true, icon_motion: 'frames', icon_frames: Array.from({ length: 6 }, (_, n) => 'a_frame_' + n) };
+        const preview = R.tree(specs.get('image'), { type: 'image', w: 80, h: 48, props }, night, { assets: [asset], assetUrl: id => '/x/' + id });
+        const art = preview.children[0];
+        check('icon frames follow live widget resizing ' + encoding,
+            art.attrs.style.width === '100%' && art.attrs.style.height === '100%' && art.children.length === 6, R.html(preview));
+    }
+    P.iconLibrary = previous;
+}
 const tabs = R.html(R.tree(specs.get('tabview'), { type: 'tabview', w: 300, h: 200, props: { tabs: ['A', 'B'] } }, night, { activeTab: 1 }));
 check('tabview bar with tab hooks', tabs.includes('data-cc-tab="0"') && tabs.includes('data-cc-tab="1"') && tabs.includes('>B<'), tabs);
 const spin = R.html(R.tree(specs.get('spinbox'), { type: 'spinbox', w: 140, h: 40, props: { value: 1234, digits: 5, decimals: 2 } }, night, {}));

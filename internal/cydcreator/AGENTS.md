@@ -827,6 +827,10 @@ OTA updates and the ZIP export and import.
   owns flash frame arrays, theme/default tint and visible-only bounded updates;
   widget deletion releases timer/state. Keep `TestIcon*`, `TestGenerateIconGolden`
   and the nine `icons@board` compile fixtures aligned with the exporter.
+  Image widgets scale their source proportionally to fit the widget rectangle,
+  with nearest-neighbour sampling. Keep LVGL CENTER plus explicit scale: automatic
+  CONTAIN disables rotation effects. Source resolution and asset budgets stay independent
+  of widget dimensions; button icons retain their selected source size.
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
 - A new board profile records its source URL and must pass `TestEveryEmbeddedBoardLoads`.

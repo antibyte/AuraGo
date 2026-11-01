@@ -148,7 +148,10 @@ fingerprint, but the key travels unencrypted; the device still checks the update
 Select an image or button and open **Icon library** in its inspector. Choose
 from 110 motifs in four styles, each in colour or monochrome and still or
 animated form: 1,760 variants. Search by name, filter by category and select
-24, 32, 48 or 64 pixels. Light/dark previews show device pixels and the memory
+24, 32, 48 or 64 pixels as the source resolution. Resize image widgets using
+the canvas handles or inspector width/height; the image keeps its proportions.
+Choosing another icon or resolution preserves the widget frame. Button icons
+use the selected source size. Light/dark previews show source pixels and the memory
 display helps you choose. Monochrome icons inherit the device theme text
 colour; an explicit icon colour can be set in the inspector.
 

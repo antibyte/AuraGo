@@ -2,7 +2,9 @@
 
 1,760 selectable variants: 110 shared motif IDs × four styles (`playful`, `modern`,
 `comic`, `sober`) × two colour modes (`color`, `mono`) × still/animated.
-The four export sizes are 24, 32, 48 and 64 device pixels.
+The four source resolutions are 24, 32, 48 and 64 pixels. Image widgets scale
+them proportionally with their canvas frame; changing the selected icon or
+resolution preserves the frame. Higher resolutions use more image memory.
 
 ![All eight base sets at 32 pixels](preview.png)
 
