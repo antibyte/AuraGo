@@ -2,6 +2,7 @@ package ecalc
 
 import (
 	"math"
+	"reflect"
 	"sort"
 	"strconv"
 	"testing"
@@ -24,6 +25,7 @@ func TestESeriesVectors(t *testing.T) {
 			Series string `json:"series"`
 			V      any    `json:"v"`
 		} `json:"eseries_error"`
+		Tables map[string][]float64 `json:"eseries_tables"`
 	}
 	readJSON(t, "testdata/vectors/core.json", &f)
 	if len(f.RoundSig) == 0 || len(f.Nearest) == 0 {
@@ -47,6 +49,14 @@ func TestESeriesVectors(t *testing.T) {
 	for _, v := range f.NearestError {
 		if got, _, err := Nearest(v.Series, vecNum(t, v.V)); err == nil {
 			t.Errorf("Nearest(%s, %v) = %v, want an error", v.Series, v.V, got)
+		}
+	}
+	if len(f.Tables) != len(ESeriesIDs) {
+		t.Errorf("core.json carries %d eseries_tables, want %d", len(f.Tables), len(ESeriesIDs))
+	}
+	for id, want := range f.Tables {
+		if got, _ := ESeriesValues(id); !reflect.DeepEqual(got, want) {
+			t.Errorf("eseries_tables[%s] differs from the Go table", id)
 		}
 	}
 }
