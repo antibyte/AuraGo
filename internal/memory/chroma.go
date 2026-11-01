@@ -626,7 +626,9 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			fileCtx, cancelFile := context.WithTimeout(ctx, indexFileTimeout(len(f.docs)))
 			_, err := cv.replaceIndexedDocuments(fileCtx, stm, collection, f.path, collectionName, state, f.docs)
 			cancelFile()
-			updateErr = errors.Join(updateErr, err)
+			if err != nil {
+				updateErr = errors.Join(updateErr, fmt.Errorf("index file %s in %s: %w", f.path, collectionName, err))
+			}
 			switch {
 			case err == nil:
 				providerFailures = 0

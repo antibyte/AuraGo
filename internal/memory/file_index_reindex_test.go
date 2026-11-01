@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,5 +73,98 @@ func TestDocumentCorpusAvailableMultimodalSourceReindexKeepsRawIDs(t *testing.T)
 	tracked, err := stm.GetFileEmbeddingDocIDs(path, "file_index")
 	if err != nil || !slices.Equal(ids, tracked) {
 		t.Fatalf("reindex changed file pointer: %v %v", tracked, err)
+	}
+}
+
+func TestDocumentCorpusMissingFileChunksRebuildFromSource(t *testing.T) {
+	for _, missing := range []string{"one", "all"} {
+		t.Run(missing, func(t *testing.T) {
+			cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
+			stm := cv.fileIndexMemory.Load()
+			path := filepath.Join(t.TempDir(), "guide.md")
+			content := strings.Repeat("An available source file can restore its missing search documents.\n", 150)
+			state := FileIndexState{LastModified: time.Now().UTC(), ContentHash: contentSHA256(content), IndexFingerprint: "old-model"}
+			old, err := cv.ReplaceIndexedFile(t.Context(), stm, path, "documentation", "Guide", content, nil, chunking.DefaultOptions(), nil, state)
+			if err != nil || len(old) < 2 {
+				t.Fatalf("initial chunks: %v, %v", old, err)
+			}
+			if err := stm.EnsureMemoryMetaWithDetails(old[1], MemoryMetaUpdate{VerificationStatus: "confirmed", SourceType: "user"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := stm.SetMemoryMetaProtection(old[1], true, true); err != nil {
+				t.Fatal(err)
+			}
+			lost := old[:1]
+			if missing == "all" {
+				lost = old
+			}
+			for _, id := range lost {
+				if _, err := cv.corpus.db.Exec(`DELETE FROM documents WHERE collection=? AND id=?`, "documentation", id); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cv.embeddingFingerprint = "new-model"
+			state.IndexFingerprint = "new-model"
+			updated, err := cv.ReplaceIndexedFile(t.Context(), stm, path, "documentation", "Guide", content, nil, chunking.DefaultOptions(), nil, state)
+			if err != nil || len(updated) != len(old) || slices.Equal(updated, old) {
+				t.Fatalf("rebuild: old=%v updated=%v err=%v", old, updated, err)
+			}
+			tracked, err := stm.GetFileEmbeddingDocIDs(path, "documentation")
+			if err != nil || !slices.Equal(updated, tracked) {
+				t.Fatalf("published IDs = %v, %v; want %v", tracked, err, updated)
+			}
+			for _, id := range updated {
+				doc, err := cv.corpusDocument(t.Context(), "documentation", id)
+				if err != nil || doc.Metadata["embedding_fingerprint"] != "new-model" || len(doc.Embedding) == 0 {
+					t.Fatalf("missing rebuilt chunk %s: %v", id, err)
+				}
+			}
+			meta, err := stm.GetMemoryMeta(old[1])
+			if err != nil || !meta.Protected || !meta.KeepForever || meta.VerificationStatus != "confirmed" {
+				t.Fatalf("lost old curation: %+v, %v", meta, err)
+			}
+			if missing == "one" {
+				if _, err := cv.corpusDocument(t.Context(), "documentation", old[1]); err != nil {
+					t.Fatalf("removed surviving protected document: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestDocumentCorpusUnreadableFileChunksKeepTracking(t *testing.T) {
+	for _, failure := range []string{"closed store", "missing chunk and unreadable survivor"} {
+		t.Run(failure, func(t *testing.T) {
+			cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
+			stm := cv.fileIndexMemory.Load()
+			path := filepath.Join(t.TempDir(), "guide.md")
+			content := strings.Repeat("The complete source remains available.\n", 250)
+			state := FileIndexState{LastModified: time.Now().UTC(), ContentHash: contentSHA256(content), IndexFingerprint: "old-model"}
+			old, err := cv.ReplaceIndexedFile(t.Context(), stm, path, "documentation", "Guide", content, nil, chunking.DefaultOptions(), nil, state)
+			if err != nil || len(old) < 2 {
+				t.Fatalf("initial chunks: %v, %v", old, err)
+			}
+			if failure == "closed store" {
+				if err := cv.corpus.db.Close(); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := cv.corpus.db.Exec(`DELETE FROM documents WHERE collection=? AND id=?`, "documentation", old[0]); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := cv.corpus.db.Exec(`UPDATE documents SET metadata='{' WHERE collection=? AND id=?`, "documentation", old[1]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			state.IndexFingerprint = "new-model"
+			_, err = cv.ReplaceIndexedFile(t.Context(), stm, path, "documentation", "Guide", content, nil, chunking.DefaultOptions(), nil, state)
+			if err == nil || !strings.Contains(err.Error(), "retain unchanged file") {
+				t.Fatalf("unreadable corpus error = %v", err)
+			}
+			tracked, err := stm.GetFileEmbeddingDocIDs(path, "documentation")
+			if err != nil || !slices.Equal(old, tracked) {
+				t.Fatalf("changed file pointer after read failure: %v, %v", tracked, err)
+			}
+		})
 	}
 }

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -16,12 +17,22 @@ func (cv *ChromemVectorDB) reindexUnchangedFileDocuments(ctx context.Context, st
 		return nil, false, nil
 	}
 	old := make([]chromem.Document, 0, len(oldIDs))
+	missing := false
 	for _, id := range oldIDs {
 		doc, err := cv.readCollectionDocument(ctx, col, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			missing = true
+			continue
+		}
 		if err != nil {
 			return oldIDs, true, fmt.Errorf("retain unchanged file until source documents are readable: %w", err)
 		}
 		old = append(old, doc)
+	}
+	if missing {
+		// Rebuild missing chunks through journaled replacement, but only once
+		// every surviving source was read successfully.
+		return nil, false, nil
 	}
 	used := map[string]bool{}
 	stable := make([]chromem.Document, 0, len(docs))

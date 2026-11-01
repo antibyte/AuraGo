@@ -452,6 +452,10 @@ Server-owned HTTP and cross-component integration contracts.
 - Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
 
 ### HTTPS installation and transitions
+- All three TLS modes route `net/http` diagnostics through the supplied logger.
+  Only an exact TLS-handshake `EOF` is Debug; truncated handshakes, certificate
+  alerts and other server errors remain Error. Redirect listeners share the same
+  logger. Verify `TestHTTPServerErrorLog*`.
 - HTTPS defaults belong only to fresh configuration creation. Never enable it
   globally in `config.Load`; config-merger preserves the legacy effective
   enabled/mode/ports when fields are absent. Native initialization chooses a

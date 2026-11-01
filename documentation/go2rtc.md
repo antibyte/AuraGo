@@ -33,7 +33,7 @@ Every source is validated against one catalog (`internal/config/go2rtc_source_ty
 | DoorBird | `doorbird` | form |
 | GoPro | `gopro` | form |
 | Home Assistant | `hass://host:port?entity_id=...&token=...` | form |
-| Ring | `ring:?device_id=...&refresh_token=...` | form |
+| Ring | `ring` | form |
 | Google Nest | `nest:?client_id=...` | form |
 | Apple HomeKit | `homekit` | URL |
 | Roborock | `roborock` | URL |

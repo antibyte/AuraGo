@@ -31,7 +31,7 @@ certificate warning does not establish WebAuthn capability. See
 For `https://aurago.example.net:8443`:
 
 ```yaml
-auth:
+auth: # Login configuration
   webauthn:
     enabled: false
     login_mode: second_factor

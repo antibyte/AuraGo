@@ -129,7 +129,7 @@ prioritizes reachability when the viewport is smaller than an app's minimum size
 
 ## Retro Games (`/api/desktop/retro-games/`)
 
-Desktop auth: the read scope for GET and HEAD, the write scope plus the desktop write operation for
+Desktop authentication: the read scope for GET and HEAD, the write scope plus the desktop write operation for
 PUT/POST/DELETE. Errors are `{"error","code"}` (`error` is a readable message, `code` the stable
 identifier). After authentication the handler answers 503 `desktop_unavailable` while the Desktop is off
 and then 503 `disabled` while `retro_games.enabled` is off. Other codes: 400 `invalid_request` (bad

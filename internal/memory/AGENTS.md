@@ -10,6 +10,18 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Directory indexing
+
+- A confirmed missing canonical chunk (`sql.ErrNoRows`) falls back to journaled
+  replacement from the current authorized file source. Other corpus read errors
+  preserve the old IDs and tracking. Never treat an unreadable store as empty.
+- Directory errors name their file and collection. Shipped documentation must
+  pass the existing credential policy without an exemption; keep credential
+  examples Vault-based and prose labels unambiguous.
+- Verify `TestDocumentCorpusMissingFileChunksRebuildFromSource`,
+  `TestDocumentCorpusUnreadableFileChunksKeepTracking` and
+  `TestIndexDirectoryAcceptsShippedDocumentation`.
+
 ### Personality evidence
 
 - Only ingress-owned `HumanInput` supplies current human evidence. Missing or

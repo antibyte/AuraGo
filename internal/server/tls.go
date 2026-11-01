@@ -135,16 +135,26 @@ func SetupServers(tlsCfg *TLSConfig, handler http.Handler, logger Logger) (*http
 		return nil, nil, fmt.Errorf("TLS not enabled")
 	}
 
+	var httpsServer, httpServer *http.Server
+	var err error
 	switch tlsCfg.Mode {
 	case TLSModeAuto:
-		return setupAutoTLS(tlsCfg, handler, logger)
+		httpsServer, httpServer, err = setupAutoTLS(tlsCfg, handler, logger)
 	case TLSModeCustom:
-		return setupCustomTLS(tlsCfg, handler, logger)
+		httpsServer, httpServer, err = setupCustomTLS(tlsCfg, handler, logger)
 	case TLSModeSelfSigned:
-		return setupSelfSignedTLS(tlsCfg, handler, logger)
+		httpsServer, httpServer, err = setupSelfSignedTLS(tlsCfg, handler, logger)
 	default:
 		return nil, nil, fmt.Errorf("unknown TLS mode: %d", tlsCfg.Mode)
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+	httpsServer.ErrorLog = newHTTPServerErrorLog(logger)
+	if httpServer != nil {
+		httpServer.ErrorLog = httpsServer.ErrorLog
+	}
+	return httpsServer, httpServer, nil
 }
 
 // setupAutoTLS creates servers with Let's Encrypt auto-TLS.

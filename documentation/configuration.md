@@ -600,7 +600,7 @@ Für erste Experimente eignen sich folgende `:free`-Modelle:
 llm:
   provider: openrouter
   base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-IHRER_KEY_HIER"
+  # Set the provider key through Setup or Config into the encrypted Vault.
   model: "arcee-ai/trinity-large-preview:free"  # Standard: kostenlos, gute Tool-Ausführung
 
 # Alternative kostenlose Optionen:
@@ -633,7 +633,7 @@ providers:
     type: minimax
     name: "MiniMax"
     base_url: "https://api.minimax.io/v1"      # China: https://api.minimaxi.com/v1
-    api_key: "IHR_MINIMAX_KEY"
+    # Set the provider key through Config into the encrypted Vault.
     model: "MiniMax-M2.7"
 
 llm:
@@ -679,7 +679,7 @@ Die **Co-Agenten** sind parallele Sub-Agenten, die komplexe Aufgaben in kleinere
 llm:
   provider: openrouter
   base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-..."
+  # Credentials come from the selected provider's encrypted Vault entry.
   model: "google/gemini-2.0-flash-001"
 
 # Co-Agenten: Preiswert & schnell
@@ -689,14 +689,14 @@ co_agents:
   llm:
     provider: openrouter
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "sk-or-v1-..."
+    # Credentials come from the selected provider's encrypted Vault entry.
     model: "google/gemini-2.0-flash-lite-preview-06-17"  # Günstiger Flash-Variante
 
 # Vision: Schnelles Bildverständnis
 vision:
   provider: openrouter
   base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-..."
+  # Credentials come from the selected provider's encrypted Vault entry.
   model: "google/gemini-2.0-flash-lite-preview-09-2025"
 ```
 
