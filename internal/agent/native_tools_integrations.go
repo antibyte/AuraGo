@@ -1264,12 +1264,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 
 	if ff.NotificationEnabled {
-		channels := []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "all"}
+		channels := []string{"ntfy", "pushover", "telegram", "whatsapp", "discord", "push", "telnyx", "all"}
 		if ff.CydEnabled {
-			channels = []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "cyd", "all"}
+			channels = []string{"ntfy", "pushover", "telegram", "whatsapp", "discord", "push", "telnyx", "cyd", "all"}
 		}
 		tools = append(tools, tool("send_notification",
-			"Send a push notification to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or a Cheap Yellow Display. Use channel cyd for the desk display overlay.",
+			"Send a push notification to ntfy, Pushover, Telegram, WhatsApp, Discord, Web Push, SMS, or a Cheap Yellow Display. Use channel cyd for the desk display overlay.",
 			schema(map[string]interface{}{
 				"channel":  map[string]interface{}{"type": "string", "description": "Target channel", "enum": channels},
 				"title":    prop("string", "Optional title (default AuraGo)"),

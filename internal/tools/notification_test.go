@@ -131,3 +131,55 @@ func TestSendTelegramNotificationStopsAtTheRetryBudget(t *testing.T) {
 		t.Fatalf("requests = %d, want at most 2", got)
 	}
 }
+
+// Not parallel: the owner sender is process-wide state.
+func TestSendNotificationReachesWhatsAppAndJoinsAll(t *testing.T) {
+	t.Cleanup(func() { SetWhatsAppOwnerSender(nil) })
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := whatsAppToolConfig(true, false)
+	const sent = `"channel":"whatsapp","status":"sent"`
+
+	fake := &scriptedWhatsAppSender{ready: true}
+	SetWhatsAppOwnerSender(fake)
+	result := SendNotification(cfg, logger, "whatsapp", "T", "m", "normal", nil)
+	if fake.calls != 1 || fake.text != "**T**\nm" || fake.file != "" {
+		t.Fatalf("sender got calls=%d text=%q file=%q", fake.calls, fake.text, fake.file)
+	}
+	if !strings.Contains(result, sent) {
+		t.Fatalf("result = %s", result)
+	}
+
+	// Read-only sends nothing and says so.
+	fake.calls = 0
+	result = SendNotification(whatsAppToolConfig(true, true), logger, "whatsapp", "T", "m", "normal", nil)
+	if fake.calls != 0 || !strings.Contains(result, `"detail":"whatsapp is in read-only mode"`) {
+		t.Fatalf("read-only: calls=%d result=%s", fake.calls, result)
+	}
+	result = SendNotification(whatsAppToolConfig(false, false), logger, "whatsapp", "T", "m", "normal", nil)
+	if fake.calls != 0 || !strings.Contains(result, "whatsapp is not enabled") {
+		t.Fatalf("disabled: calls=%d result=%s", fake.calls, result)
+	}
+
+	// "all" includes WhatsApp while it is enabled and a linked device runs, and reports a
+	// read-only WhatsApp as an error entry, as it does for Telegram.
+	result = SendNotification(cfg, logger, "all", "T", "m", "normal", nil)
+	if fake.calls != 1 || !strings.Contains(result, sent) {
+		t.Fatalf("all: calls=%d result=%s", fake.calls, result)
+	}
+	fake.calls = 0
+	result = SendNotification(whatsAppToolConfig(true, true), logger, "all", "T", "m", "normal", nil)
+	if fake.calls != 0 || !strings.Contains(result, `"detail":"whatsapp is in read-only mode"`) {
+		t.Fatalf("all read-only: calls=%d result=%s", fake.calls, result)
+	}
+
+	// Not available: "all" has no WhatsApp entry, and a direct send reports it is not running.
+	fake.ready = false
+	result = SendNotification(cfg, logger, "all", "T", "m", "normal", nil)
+	if strings.Contains(result, "whatsapp") || fake.calls != 0 {
+		t.Fatalf("all without a linked device: calls=%d result=%s", fake.calls, result)
+	}
+	result = SendNotification(cfg, logger, "whatsapp", "T", "m", "normal", nil)
+	if !strings.Contains(result, "not linked or not running") {
+		t.Fatalf("direct send without a linked device: %s", result)
+	}
+}

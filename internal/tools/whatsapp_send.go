@@ -4,9 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"aurago/internal/config"
 )
+
+// whatsAppNotifyBudget bounds one WhatsApp notification, as telegramSendTotalBudget does for
+// Telegram. A notification is sent from a goroutine of the caller's, which must not hang on a
+// stuck connection.
+const whatsAppNotifyBudget = 30 * time.Second
 
 var (
 	errWhatsAppDisabled   = errors.New("whatsapp is not enabled")
@@ -72,4 +78,18 @@ func whatsAppJSON(v map[string]any) string {
 		return ErrorJSON("whatsapp result could not be encoded")
 	}
 	return string(data)
+}
+
+// sendWhatsAppNotification sends a notification to the owner's WhatsApp chat: the title in bold
+// above the message, which the Bot converts to WhatsApp formatting. The caller has checked
+// enabled and read-only. The error comes masked from the Bot.
+func sendWhatsAppNotification(ctx context.Context, title, message string) error {
+	sender := currentWhatsAppOwnerSender()
+	if sender == nil || !sender.Ready() {
+		return errWhatsAppNotRunning
+	}
+	ctx, cancel := context.WithTimeout(ctx, whatsAppNotifyBudget)
+	defer cancel()
+	_, err := sender.SendOwnerMessage(ctx, "**"+title+"**\n"+message, "")
+	return err
 }

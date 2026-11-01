@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"slices"
 	"strings"
@@ -224,5 +225,47 @@ func TestGuardianSeesSendWhatsAppMessageAndFile(t *testing.T) {
 	}
 	if both := c06GuardianParams(t, "send_whatsapp", `{"message":"m","path":"secrets/keys.txt","file_path":"notes/todo.txt"}`); both["file_path"] != "notes/todo.txt" {
 		t.Errorf("file_path next to a stray path: %#v", both)
+	}
+}
+
+// TestSendNotificationOffersTheWhatsAppChannel proves that the send_notification schema names
+// the channel, with and without the CYD channel, and says so in its description.
+func TestSendNotificationOffersTheWhatsAppChannel(t *testing.T) {
+	for name, ff := range map[string]ToolFeatureFlags{
+		"notification": {NotificationEnabled: true},
+		"with cyd":     {NotificationEnabled: true, CydEnabled: true},
+	} {
+		var found bool
+		for _, s := range builtinToolSchemas(ff) {
+			if s.Function == nil || s.Function.Name != "send_notification" {
+				continue
+			}
+			found = true
+			if !strings.Contains(s.Function.Description, "WhatsApp") {
+				t.Errorf("%s: description = %q", name, s.Function.Description)
+			}
+			raw, err := json.Marshal(s.Function.Parameters)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var params struct {
+				Properties struct {
+					Channel struct {
+						Enum []string `json:"enum"`
+					} `json:"channel"`
+				} `json:"properties"`
+			}
+			if err := json.Unmarshal(raw, &params); err != nil {
+				t.Fatal(err)
+			}
+			enum := params.Properties.Channel.Enum
+			at := slices.Index(enum, "whatsapp")
+			if at < 0 || at > slices.Index(enum, "all") {
+				t.Errorf("%s: channel enum = %v, want whatsapp before all", name, enum)
+			}
+		}
+		if !found {
+			t.Errorf("%s: send_notification is not offered", name)
+		}
 	}
 }

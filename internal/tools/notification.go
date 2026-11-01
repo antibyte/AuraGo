@@ -23,6 +23,7 @@ const (
 	ChannelNtfy     NotificationChannel = "ntfy"
 	ChannelPushover NotificationChannel = "pushover"
 	ChannelTelegram NotificationChannel = "telegram"
+	ChannelWhatsApp NotificationChannel = "whatsapp"
 	ChannelDiscord  NotificationChannel = "discord"
 	ChannelPush     NotificationChannel = "push"
 	ChannelTelnyx   NotificationChannel = "telnyx"
@@ -56,7 +57,7 @@ type DiscordSendFunc func(channelID, content string) error
 type TelnyxSendFunc func(to, message string) error
 
 // SendNotification dispatches a notification to the specified channel(s).
-// channel may be "ntfy", "pushover", "telegram", "discord", "telnyx", or "all".
+// channel may be "ntfy", "pushover", "telegram", "whatsapp", "discord", "telnyx", or "all".
 // discordSend may be nil if Discord is not available.
 func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, message, priority string, discordSend DiscordSendFunc, telnyxSend ...TelnyxSendFunc) string {
 	return SendNotificationContext(context.Background(), cfg, logger, channel, title, message, priority, discordSend, telnyxSend...)
@@ -106,6 +107,16 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 				break
 			}
 			err = sendTelegramNotification(cfg, title, message, ctx)
+		case ChannelWhatsApp:
+			if !cfg.WhatsApp.Enabled {
+				err = errWhatsAppDisabled
+				break
+			}
+			if cfg.WhatsApp.ReadOnly {
+				err = errWhatsAppReadOnly
+				break
+			}
+			err = sendWhatsAppNotification(ctx, title, message)
 		case ChannelDiscord:
 			if cfg.Discord.ReadOnly {
 				err = fmt.Errorf("discord is in read-only mode")
@@ -145,6 +156,10 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 		}
 		if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 {
 			send(ChannelTelegram)
+		}
+		// Read-only reports an error entry, as it does for Telegram.
+		if cfg.WhatsApp.Enabled && WhatsAppAvailable() {
+			send(ChannelWhatsApp)
 		}
 		if cfg.Discord.Enabled && cfg.Discord.DefaultChannelID != "" && discordSend != nil {
 			send(ChannelDiscord)

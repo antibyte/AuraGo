@@ -331,7 +331,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"send_email", "Send emails via configured SMTP accounts"},
 		{"send_telegram", "Send messages through Telegram"},
 		{"send_whatsapp", "Send messages and files to the owner through WhatsApp"},
-		{"send_notification", "Send notifications to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or CYD"},
+		{"send_notification", "Send notifications to ntfy, Pushover, Telegram, WhatsApp, Discord, Web Push, SMS, or CYD"},
 		{"cyd_display", "Show overlays and status on a Cheap Yellow Display"},
 		{"fetch_email", "Fetch and read emails from IMAP accounts"},
 		{"list_email_accounts", "List configured email accounts"},
