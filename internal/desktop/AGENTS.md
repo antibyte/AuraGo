@@ -12,6 +12,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 - FindIt is a built-in optional physical inventory app with app-owned artwork at `/img/findit`. Its backend/storage/agent contract belongs to `../findit/AGENTS.md`; its large component atlas never changes the global Desktop sprite grid.
 
+- ECalc (`ecalc`, category `dev`) is a built-in electronics formula app with no capability gate. Its icon is app-owned artwork, `logo_path` `/img/desktop-icons/ecalc.svg`, and its `Icon` value `ecalc` is deliberately absent from `desktopPreferredIconNames` and every icon theme (as for Synth Studio), so every theme shows the logo; adding a themed `ecalc` icon would replace it. Its catalog route is `GET /api/ecalc/catalog` (`../server/AGENTS.md`). Verify `TestBuiltinECalcApp*` and `go test ./ui -run TestDesktopECalc`.
+
 - Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
   `CreateStorageDirectory` for exclusive directory creation,
   `WriteFileStreamConditional` for bounded publication, and

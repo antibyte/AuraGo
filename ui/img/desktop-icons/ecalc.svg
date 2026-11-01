@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="ECalc">
+  <defs>
+    <linearGradient id="g" x1="18" y1="15" x2="108" y2="115" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0e5a78"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#g)"/>
+  <path d="M19 58h21M88 58h21" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+  <rect x="36" y="43" width="56" height="30" rx="13" fill="#fff7e6"/>
+  <rect x="49" y="43" width="7" height="30" fill="#f59e0b"/>
+  <rect x="61" y="43" width="7" height="30" fill="#e11d48"/>
+  <rect x="73" y="43" width="7" height="30" fill="#0e5a78"/>
+  <path d="M28 94v12M49.7 94v12M78.3 94v12M100 94v12" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M40.7 94v7M62.4 94v7M71.4 94v7M84 94v7M88.9 94v7M93 94v7M96.7 94v7" stroke="#d6f7f2" stroke-width="3" stroke-linecap="round"/>
+  <path d="m98 20 2.8 7.4 7.4 2.8-7.4 2.8L98 40.4l-2.8-7.4-7.4-2.8 7.4-2.8L98 20Z" fill="#fff4a8"/>
+</svg>
