@@ -84,6 +84,7 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "virtual_desktop", Operation: "open_app"}, {Action: "virtual_desktop", Operation: "show_notification"},
 		{Action: "virtual_desktop", Operation: "bootstrap"}, {Action: "virtual_desktop", Operation: "set_pet"},
 		{Action: "virtual_desktop"}, // An unreadable operation fails closed.
+		{Action: "findit", Operation: "search"},
 		{Action: "virtual_desktop_files", Operation: "write_file"}, {Action: "virtual_desktop_widgets", Operation: "upsert_widget"},
 		{Action: "virtual_desktop_apps", Operation: "install_app"}, {Action: "virtual_desktop_app_install"},
 		{Action: "homepage", Operation: "write_file"}, {Action: "homepage", Operation: "edit_file"},
@@ -103,6 +104,7 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 	// Local runs keep code, desktop and homepage tools.
 	for _, call := range []ToolCall{
 		{Action: "execute_shell"}, {Action: "execute_python"}, {Action: "run_tool"}, {Action: "execute_skill"},
+		{Action: "findit", Operation: "search"},
 		{Action: "virtual_desktop", Operation: "write_file"}, {Action: "virtual_desktop", Operation: "install_app"},
 		{Action: "homepage", Operation: "write_file"}, {Action: "homepage", Operation: "deploy_netlify"},
 	} {

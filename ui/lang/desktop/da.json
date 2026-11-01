@@ -10651,6 +10651,7 @@
   "game_maker.guided_base_change": "Flyt spillet til en guidet 3D-skabelon, der passer til forløbet: udforskning, kørsel, flyvning, rum eller FPS. Frit three lader reglerne være uverificerede.",
   "game_maker.retry_keeps_pending_selection": "Prøv igen beholder dette løbs asset-valg, fordi ingen plan er godkendt endnu.",
   "game_maker.compact_opt_in": "Brug kompakt tilstand til denne ukendte model. Planen bliver kortere, og en ny skabelon rettes i små trin.",
+  "desktop.app_findit": "FindIt",
   "desktop.app_kaggle": "Kaggle",
   "codeStudio.diffWorktree": "Arbejdskopi",
   "codeStudio.diffIndex": "Indeks (klargjort)",

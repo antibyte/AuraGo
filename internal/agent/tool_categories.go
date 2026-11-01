@@ -248,6 +248,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"infrastructure": {
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},
+		{"findit", "Read physical inventory, locations, templates, stock availability, project BOMs, and shortages"},
 		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, snapshots)"},
 		{"frigate", "Query Frigate NVR cameras, detection events, reviews, media, and health"},
 		{"go2rtc", "Inspect configured camera streams, snapshots, analysis, live viewers and person detection events"},

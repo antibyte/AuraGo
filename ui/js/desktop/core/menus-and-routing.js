@@ -1747,6 +1747,18 @@ if (appId === 'system-info') {
                 return window.NotesApp.render(contentEl(id), id, { ...officeAppContext(context), recordRecentFile });
             }
         }
+        if (appId === 'findit') {
+            if (!window.FindItApp) {
+                window.AuraDesktopModules.loadAppScript('findit').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.FindItApp.render === 'function') {
+                return window.FindItApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
+                    modalDialog, updateWindowContext, registerWindowCleanup
+                }));
+            }
+        }
         if (appId === 'tresor') {
             if (!window.TresorApp) {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

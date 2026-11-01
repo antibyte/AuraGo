@@ -161,7 +161,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 
 func readActionOperation(op string) bool {
 	switch op {
-	case "get", "list", "status", "read", "query", "search", "inspect", "info", "capabilities", "logs", "history", "preview", "validate", "test", "test_connection", "discover", "browse", "download", "hash":
+	case "get", "list", "status", "read", "query", "search", "inspect", "info", "capabilities", "logs", "history", "preview", "validate", "test", "test_connection", "discover", "browse", "download", "hash", "availability", "shortages":
 		return true
 	}
 	return strings.HasPrefix(op, "get_") || strings.HasPrefix(op, "list_") || strings.HasPrefix(op, "read_") || strings.HasPrefix(op, "query_") || strings.HasPrefix(op, "search_")

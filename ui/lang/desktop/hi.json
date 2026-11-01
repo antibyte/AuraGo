@@ -10651,6 +10651,7 @@
   "game_maker.guided_base_change": "खेल को ऐसे निर्देशित 3D साँचे पर ले जाओ जो प्रवाह से मेल खाए: अन्वेषण, वाहन, उड़ान, अंतरिक्ष या FPS। मुक्त three नियमों को बिना जाँच छोड़ता है।",
   "game_maker.retry_keeps_pending_selection": "फिर से कोशिश इस दौड़ की एसेट-चुनाव रखती है, क्योंकि अभी कोई योजना स्वीकृत नहीं हुई।",
   "game_maker.compact_opt_in": "इस अज्ञात मॉडल के लिए संक्षिप्त मोड चुनो। योजना छोटी रहती है और नया साँचा छोटे कदमों में बदलता है।",
+  "desktop.app_findit": "FindIt",
   "desktop.app_kaggle": "Kaggle",
   "codeStudio.diffWorktree": "कार्यशील प्रति",
   "codeStudio.diffIndex": "इंडेक्स (स्टेज किया गया)",

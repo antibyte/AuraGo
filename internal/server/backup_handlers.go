@@ -731,6 +731,17 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		}
 
 		// 4. SQLite databases + sidecars
+		// Hold the inventory snapshot boundary through both immutable images and
+		// the database snapshot so every recorded photo is included in the archive.
+		s.findItMu.Lock()
+		defer s.findItMu.Unlock()
+		if added, err := addDir("data/findit-images/", filepath.Join(absData, "findit-images")); err != nil {
+			jsonError(w, agoBackupFailMsg("Failed to add FindIt images to backup", err), http.StatusInternalServerError)
+			return
+		} else if added > 0 {
+			contents = append(contents, "data/findit-images/")
+		}
+
 		sqlitePaths := config.SQLiteDatabasePaths(s.Cfg)
 		sqliteStagingDir, err := os.MkdirTemp("", "aurago-sqlite-backup-*")
 		if err != nil {

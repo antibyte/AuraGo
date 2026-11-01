@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "atlas": "/img/findit/atlas.webp",
+  "columns": 8,
+  "rows": 8,
+  "cell_size": 128,
+  "source_sha256": "9ff037549e6bdb3c06e44ae11bd0efdc46f53eec4cb4425c4a60712cb57a1425",
+  "atlas_sha256": "46425e72404ff395b5a1b6c9e2b1fe485240e9fe30fa09b632fa73ee0077add9",
+  "icons": [
+    {
+      "id": "resistor",
+      "index": 0
+    },
+    {
+      "id": "capacitor",
+      "index": 1
+    },
+    {
+      "id": "inductor",
+      "index": 2
+    },
+    {
+      "id": "potentiometer",
+      "index": 3
+    },
+    {
+      "id": "diode",
+      "index": 4
+    },
+    {
+      "id": "led",
+      "index": 5
+    },
+    {
+      "id": "transistor",
+      "index": 6
+    },
+    {
+      "id": "mosfet",
+      "index": 7
+    },
+    {
+      "id": "opamp",
+      "index": 8
+    },
+    {
+      "id": "comparator",
+      "index": 9
+    },
+    {
+      "id": "regulator",
+      "index": 10
+    },
+    {
+      "id": "logic",
+      "index": 11
+    },
+    {
+      "id": "microcontroller",
+      "index": 12
+    },
+    {
+      "id": "memory",
+      "index": 13
+    },
+    {
+      "id": "adc",
+      "index": 14
+    },
+    {
+      "id": "interface",
+      "index": 15
+    },
+    {
+      "id": "sensor",
+      "index": 16
+    },
+    {
+      "id": "optocoupler",
+      "index": 17
+    },
+    {
+      "id": "relay",
+      "index": 18
+    },
+    {
+      "id": "switch",
+      "index": 19
+    },
+    {
+      "id": "connector",
+      "index": 20
+    },
+    {
+      "id": "fuse",
+      "index": 21
+    },
+    {
+      "id": "crystal",
+      "index": 22
+    },
+    {
+      "id": "oscillator",
+      "index": 23
+    },
+    {
+      "id": "display",
+      "index": 24
+    },
+    {
+      "id": "motor",
+      "index": 25
+    },
+    {
+      "id": "fan",
+      "index": 26
+    },
+    {
+      "id": "devboard",
+      "index": 27
+    },
+    {
+      "id": "radio",
+      "index": 28
+    },
+    {
+      "id": "cpu",
+      "index": 29
+    },
+    {
+      "id": "mainboard",
+      "index": 30
+    },
+    {
+      "id": "ram",
+      "index": 31
+    },
+    {
+      "id": "gpu",
+      "index": 32
+    },
+    {
+      "id": "ssd",
+      "index": 33
+    },
+    {
+      "id": "hdd",
+      "index": 34
+    },
+    {
+      "id": "psu",
+      "index": 35
+    },
+    {
+      "id": "cooler",
+      "index": 36
+    },
+    {
+      "id": "case",
+      "index": 37
+    },
+    {
+      "id": "expansion",
+      "index": 38
+    },
+    {
+      "id": "network",
+      "index": 39
+    },
+    {
+      "id": "sbc",
+      "index": 40
+    },
+    {
+      "id": "cable",
+      "index": 41
+    },
+    {
+      "id": "adapter",
+      "index": 42
+    },
+    {
+      "id": "tool",
+      "index": 43
+    },
+    {
+      "id": "meter",
+      "index": 44
+    },
+    {
+      "id": "battery",
+      "index": 45
+    },
+    {
+      "id": "fastener",
+      "index": 46
+    },
+    {
+      "id": "generic",
+      "index": 47
+    },
+    {
+      "id": "dip",
+      "index": 48
+    },
+    {
+      "id": "sip",
+      "index": 49
+    },
+    {
+      "id": "soic",
+      "index": 50
+    },
+    {
+      "id": "tssop",
+      "index": 51
+    },
+    {
+      "id": "sot",
+      "index": 52
+    },
+    {
+      "id": "to",
+      "index": 53
+    },
+    {
+      "id": "dpak",
+      "index": 54
+    },
+    {
+      "id": "qfp",
+      "index": 55
+    },
+    {
+      "id": "qfn",
+      "index": 56
+    },
+    {
+      "id": "bga",
+      "index": 57
+    },
+    {
+      "id": "lga",
+      "index": 58
+    },
+    {
+      "id": "plcc",
+      "index": 59
+    },
+    {
+      "id": "axial",
+      "index": 60
+    },
+    {
+      "id": "radial",
+      "index": 61
+    },
+    {
+      "id": "chip",
+      "index": 62
+    },
+    {
+      "id": "storage",
+      "index": 63
+    }
+  ]
+}

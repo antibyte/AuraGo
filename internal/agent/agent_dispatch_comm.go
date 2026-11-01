@@ -345,6 +345,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 	result := func() string {
 		switch tc.Action {
+		case "findit":
+			return dispatchFindIt(ctx, tc, dc)
+
 		case "invoke_tool":
 			return dispatchInvokeTool(ctx, tc, dc)
 

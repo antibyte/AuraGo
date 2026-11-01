@@ -206,6 +206,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
 | HTTP streams | `internal/httpstream/AGENTS.md` | Finite write budgets/HTTP writer compatibility. |
 | Infra | `internal/infra/AGENTS.md` | Homelab atlas/source identity/layout/durable action outcomes. |
+| FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |
 | Invasion | `internal/invasion/AGENTS.md` | Egg/nest protocol/auth/connection generations/key rotation/private deployment. |
 | LLM transport | `internal/llm/AGENTS.md` | Trust/URL logging/failover state. |
 | Managed local models | `internal/localllm/AGENTS.md` | Lifecycle/routing/attestation/qualification. |

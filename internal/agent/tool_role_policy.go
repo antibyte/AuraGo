@@ -139,10 +139,13 @@ func a2aFilesystemWrite(tc ToolCall) bool {
 // with the policy_denied output of its class, "" otherwise. A2A runs carry no
 // tool allowlist (a default-deny a2a.server setting is a product decision, see
 // internal/agent/AGENTS.md), so this list is what keeps a peer from changing the
-// owner's files, desktop or homepage projects and from running code. Reads of
-// memory, the knowledge graph, the journal and notes stay open to it.
+// owner's files, desktop or homepage projects and from running code. The
+// physical FindIt inventory is owner-local and remains unavailable to A2A.
+// Reads of memory, the knowledge graph, the journal and notes stay open to it.
 func a2aRestriction(tc ToolCall) string {
 	switch {
+	case canonicalActionName(tc.Action) == "findit":
+		return `Tool Output: {"status":"policy_denied","message":"A2A requests cannot read the owner's FindIt inventory."}`
 	case a2aFilesystemWrite(tc):
 		return `Tool Output: {"status": "policy_denied", "message": "A2A requests cannot change files. Only read operations are allowed."}`
 	case a2aCodeExecution(tc):

@@ -185,6 +185,8 @@ type Server struct {
 	infraMu              sync.Mutex
 	infraRuntime         *desktopInfraRuntime
 	infraRuntimeErr      error
+	findItMu             sync.RWMutex
+	findIt               *findItRuntime
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 
@@ -567,6 +569,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	// runtime after cancellation will fail its admission check.
 	s.infraConfigAdmission.Store(cfg)
 	previous := s.ConfigSnapshot()
+	if previous != nil && (previous.FindIt != cfg.FindIt || previous.Directories.DataDir != cfg.Directories.DataDir) {
+		s.revokeDesktopRuns()
+	}
 	if previous != nil && (previous.LLMRouter.Enabled != cfg.LLMRouter.Enabled || previous.LLMRouter.DecisionsFallback != cfg.LLMRouter.DecisionsFallback) {
 		s.routingDecisionEpoch.Add(1)
 	}
@@ -888,6 +893,7 @@ func Start(opts StartOptions) error {
 		logger.Warn("[Kaggle] Service initialization failed")
 	}
 	defer s.closeKaggleServices()
+	defer s.closeFindIt()
 	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
 	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
 	queueOptionalInjectionGuardNotice(s)

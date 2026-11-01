@@ -601,6 +601,7 @@
             'code-studio': 'CodeStudioApp',
             terminal: 'TerminalApp',
             notes: 'NotesApp',
+            findit: 'FindItApp',
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
@@ -1248,7 +1249,13 @@
         state._initialAppOpened = true;
         const params = new URLSearchParams(window.location.search || '');
         const appId = (params.get('app') || '').trim();
-        if (appId && isBuiltinApp(appId)) openApp(appId);
+        if (appId && isBuiltinApp(appId)) {
+            const itemId = appId === 'findit' ? (params.get('item') || '').trim() : '';
+            const locationId = appId === 'findit' ? (params.get('location') || '').trim() : '';
+            const context = itemId && /^[A-Za-z0-9_-]{1,128}$/.test(itemId) ? { item_id: itemId }
+                : locationId && /^[A-Za-z0-9_-]{1,128}$/.test(locationId) ? { location_id: locationId } : {};
+            openApp(appId, context);
+        }
     }
 
     function refreshPetRuntime() {

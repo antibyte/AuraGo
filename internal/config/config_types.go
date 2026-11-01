@@ -1135,6 +1135,7 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
+	FindIt FindItConfig `yaml:"findit" json:"findit"`
 	// Callbacks retain server-owned runtime identity through Config.Clone.
 	AcquireS3      func(context.Context, *Config, bool) (*RustFSS3Lease, error) `yaml:"-" json:"-"`
 	S3Availability func(*Config) FeatureAvailability                            `yaml:"-" json:"-"`

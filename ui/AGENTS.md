@@ -1197,6 +1197,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   the UI bundle check. Device/proxy acceptance remains separate from virtual
   authenticator browser tests. See `../documentation/webauthn.md`.
 
+## FindIt desktop app
+
+- FindIt is an optional built-in desktop workbench registered through the desktop app loader. Its feature modules and stylesheet are lazy-loaded from `js/desktop/apps/findit*.js` and `css/desktop-app-findit.css`; visible text belongs to `lang/findit/` in all sixteen locales.
+- Preserve server pagination, validated item/location QR deep links, explicit stock and reservation actions, and per-window request disposal. The electronic package field describes the physical IC body (for example DIP-16), never a shipping carton. Runtime and persistence contracts live in `../internal/findit/AGENTS.md`.
+- Verify `go test ./ui -run TestDesktopFindIt -count=1`; the real-handler flow is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`.
+
 ## Child DOX Index
 
 - `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,

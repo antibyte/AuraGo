@@ -91,6 +91,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			filepath.Join(dataDir, "rtl-sdr", "receiver.db"),
 			filepath.Join(dataDir, "go2rtc", "detections.db"),
 			filepath.Join(dataDir, "bookshelf", "catalog.sqlite"),
+			filepath.Join(dataDir, "findit.db"),
 		)
 	}
 

@@ -795,6 +795,7 @@ func DesktopAppCategories() []AppCategory {
 
 func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
+		{ID: "findit", Name: "FindIt", Version: "1.0.0", Icon: "search", Entry: "builtin://findit", Runtime: BuiltinRuntime, Category: "office", Description: "Find parts, equipment and storage locations; manage stock and project reservations.", Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/findit/icon.webp"}},
 		{ID: "kaggle", Name: "Kaggle", Version: "1.0.0", Icon: "code", Entry: "builtin://kaggle", Runtime: BuiltinRuntime, Category: "ai", Description: "Explore Kaggle resources and edit notebooks with local Python or complete Kaggle runs.", Permissions: []string{"files:read", "files:write"}},
 		{ID: "video-studio", Name: "Video Studio", Version: "1.0.0", Icon: "video-studio", Entry: "builtin://video-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Edit multitrack videos with transitions, titles, stickers and optional AI clips.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Category: "comms", Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},

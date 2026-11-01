@@ -11,6 +11,9 @@ docker:
 frigate:
   en: ["Frigate NVR", "camera events", "person detected on camera", "security camera recordings", "doorbell events", "Frigate snapshot", "review summary", "surveillance clips"]
   de: ["Frigate Kamera", "Kameraaufnahmen ansehen", "Überwachungskamera Ereignisse", "wer war an der Tür", "Bewegungserkennung Kamera", "Aufnahme exportieren", "Frigate Schnappschuss", "Videorekorder NVR"]
+findit:
+  en: ["homelab inventory", "find a physical part", "where is this item stored", "stock availability", "project BOM shortages", "search component templates"]
+  de: ["Homelab Inventar", "Bauteil finden", "wo liegt der Artikel", "Lagerbestand prüfen", "Projekt Fehlteile", "Bauteilvorlagen durchsuchen"]
 github:
   en: ["GitHub", "GitHub repo", "create issue", "pull requests", "list branches", "recent commits", "workflow runs", "GitHub Actions status", "push file to repo"]
   de: ["GitHub Repository", "Issue erstellen", "Pull Requests anzeigen", "Branches auflisten", "letzte Commits", "Workflow Läufe", "CI Status prüfen", "Datei im Repo ändern", "lokales Projekt tracken"]

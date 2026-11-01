@@ -273,6 +273,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		RemoteControlEnabled: true, ImageGenerationEnabled: true, VideoGenerationEnabled: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
 		SchedulerEnabled: true, StopProcessEnabled: true,
+		FindItEnabled:            true,
 		MemoryMaintenanceEnabled: true, MemoryAnalysisEnabled: true,
 		DocumentCreatorEnabled: true, HomepageAllowLocalServer: true,
 		WebCaptureEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,

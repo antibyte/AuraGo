@@ -10,6 +10,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- FindIt is a built-in optional physical inventory app with app-owned artwork at `/img/findit`. Its backend/storage/agent contract belongs to `../findit/AGENTS.md`; its large component atlas never changes the global Desktop sprite grid.
+
 - Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
   `CreateStorageDirectory` for exclusive directory creation,
   `WriteFileStreamConditional` for bounded publication, and

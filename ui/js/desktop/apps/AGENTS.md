@@ -11,6 +11,22 @@
 - `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
 - Jobs expose manual slot release only for `unknown` receipts when `status.can_resolve_unknown` is true. Require an unchecked confirmation that the administrator verified inactivity on Kaggle; explain that release stops no remote work and proves no outcome. Preserve dialog input on failure and prevent duplicate submissions. Remote cancel buttons require credentials/network; local cancellation and administrative cleanup remain possible with Kaggle disabled/read-only. Verify `TestKaggleJobControlsBrowser` in both themes.
 
+## FindIt
+
+- `findit.js` composes the lazy-loaded `findit-model.js`, dialogs, item, project, template, CSV and workflow modules. Each window owns its AbortController, drafts and observers; narrow mode follows the app host width, and close/disposal ignores late responses. Keep the list server-paginated and load complete location/template catalogs through bounded pages.
+- API calls use `/api/desktop/findit`. Keep quantity values as decimal strings, send a stable
+  `request_id` for every command, and retain it for an exact uncertain retry. Project/location,
+  BOM and reservation forms keep submitted drafts open for an explicit retry or cancel after
+  an unacknowledged write failure; replay the same payload with the same request ID. Once a
+  write is acknowledged, a later refresh error must not retry the mutation. Create the item and opening
+  stock separately; preserve the item ID and offer stock retry if the second command fails.
+  Photo uploads accept JPEG, PNG or WebP within the server size limit; explicit photos/icons
+  override the bundled realistic sprite atlas.
+- Item package names refer to the physical electronic package (DIP-16, TQFP-100), not carton size. Typed template fields drive property filters and editor controls. Locations form the storage tree. Project edits require the backend lifecycle; only released BOMs can reserve stock, cancellation releases remaining holds, and completion does not consume them. The pick list groups active reservations by storage path; release and consume remain explicit.
+- QR labels cover both items and locations. Accept only validated same-origin FindIt deep links or printed I-/L- identifiers; opening a record never mutates stock. Label visibility uses `status.can_print`, independently of FindIt read-only status. Camera/upload scanning uses the shared QR dialog. Keep print layouts at 50×30 mm and A4.
+- Import/export flows preview and validate mapped CSV before all-or-nothing import. Keep row skip/resolution decisions explicit, paginate the full preview, and preserve request IDs for uncertain retries. Admin activation uses the status `config_revision`; settings drafts do not alter other desktop configuration.
+- Keep visible copy in `ui/lang/findit/*.json` across all sixteen locales. Verify `go test ./ui -run TestDesktopFindIt -count=1`, JavaScript syntax checks for every `findit*.js`, and the real-handler browser flow `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`. The backend contract is `internal/findit/AGENTS.md`.
+
 ## Email exports
 
 - First-party file producers/viewers register `AuraDesktopEmail.attach(windowId, toolbar, getOptions[, scope])`. The main-bundle owner is `core/email-export-runtime.js`; app contexts also expose `emailExport`. Store apps and Tresor are excluded. A scoped dialog binding must dispose with its dialog. Native modal dialogs pass `dialogHost` so format/setup choices remain in their active focus scope; QR closes through `onHandoff` after the Mailer owns the files, or `onSetup` after explicit settings navigation.

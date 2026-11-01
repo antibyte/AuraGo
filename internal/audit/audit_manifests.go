@@ -299,6 +299,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "contacts", PackagePath: "internal/contacts", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "credentials", PackagePath: "internal/credentials", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "inventory", PackagePath: "internal/inventory", SchemaVersioned: true, OwnsRuntimeData: true},
+		{Domain: "findit", PackagePath: "internal/findit", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "infra", PackagePath: "internal/infra", SchemaVersioned: true, OwnsRuntimeData: false},
 		{Domain: "manus", PackagePath: "internal/manus", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "planner", PackagePath: "internal/planner", SchemaVersioned: true, HasLegacyFixtureTest: true, OwnsRuntimeData: true},

@@ -45,6 +45,7 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, "rtl-sdr", "receiver.db"):      true,
 		filepath.Join(dataDir, "go2rtc", "detections.db"):     true,
 		filepath.Join(dataDir, "bookshelf", "catalog.sqlite"): true,
+		filepath.Join(dataDir, "findit.db"):                   true,
 	}
 
 	for _, path := range got {

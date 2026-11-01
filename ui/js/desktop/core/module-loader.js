@@ -22,6 +22,10 @@
     const DESKTOP_APP_ASSETS = {
         kaggle: { styles: appStyles('/css/desktop-app-kaggle.css'), scripts: ['/js/vendor/purify.min.js', '/js/desktop/apps/kaggle-notebook.js', '/js/desktop/apps/kaggle.js'] },
         qr: { styles: ['/css/desktop-qr.css'], scripts: ['/js/desktop/shared/qr-dialog.js'] },
+        findit: {
+            styles: appStyles('/css/desktop-app-findit.css'),
+            scripts: ['/js/desktop/apps/findit-model.js', '/js/desktop/apps/findit-dialogs.js', '/js/desktop/apps/findit-csv.js', '/js/desktop/apps/findit-items.js', '/js/desktop/apps/findit-projects.js', '/js/desktop/apps/findit-templates.js', '/js/desktop/apps/findit-workflows.js', '/js/desktop/apps/findit.js']
+        },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
@@ -657,6 +661,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'bookshelf': ['bookshelf'],
+        findit: ['findit'],
         'mailer': ['mailer', 'stickers'],
         'personal-radio': ['personalRadio'],
         'layerling': ['layerling'],

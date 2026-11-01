@@ -10651,6 +10651,7 @@
   "game_maker.guided_base_change": "Převeď hru na vedenou 3D šablonu, která sedí k průběhu: průzkum, jízda, let, vesmír nebo FPS. Volné three nechává pravidla neověřená.",
   "game_maker.retry_keeps_pending_selection": "Zkusit znovu ponechá výběr assetů tohoto běhu, protože plán ještě nebyl přijat.",
   "game_maker.compact_opt_in": "Použij kompaktní režim pro tento neznámý model. Plán zůstane kratší a nová šablona se mění po malých krocích.",
+  "desktop.app_findit": "FindIt",
   "desktop.app_kaggle": "Kaggle",
   "codeStudio.diffWorktree": "Pracovní kopie",
   "codeStudio.diffIndex": "Index (připravené změny)",

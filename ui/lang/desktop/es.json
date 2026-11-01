@@ -10651,6 +10651,7 @@
   "game_maker.guided_base_change": "Pasa el juego a una plantilla 3D guiada que encaje con el recorrido: exploración, conducción, vuelo, espacio o FPS. El three libre deja las reglas sin comprobar.",
   "game_maker.retry_keeps_pending_selection": "Reintentar conserva la selección de recursos de este intento, porque aún no se aceptó un plan.",
   "game_maker.compact_opt_in": "Usa el modo compacto para este modelo desconocido. El plan queda más corto y una plantilla nueva se cambia en pasos pequeños.",
+  "desktop.app_findit": "FindIt",
   "desktop.app_kaggle": "Kaggle",
   "codeStudio.diffWorktree": "Copia de trabajo",
   "codeStudio.diffIndex": "Índice (preparado)",

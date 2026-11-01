@@ -47,6 +47,23 @@
         ...(type === 'wifi' ? { security: 'WPA', hidden: false } : {}), ...(type === 'vcard' ? { version: '3.0' } : {}),
         ...(type === 'epc' ? { version: '002' } : {}), ...(type === 'calendar' ? { created_at: new Date().toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', all_day: false } : {})
     } };
+    function normalizeInitialSpec(value) {
+        const fallback = { schema_version: 1, content: defaultContent('text'), style: defaultStyle(), output: { format: 'png', quality: 92, jpeg_background: '#ffffff', text_mode: 'unicode_half' } };
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
+        try {
+            const content = value.content && typeof value.content === 'object' ? clone(value.content) : fallback.content;
+            if (!templates[content.type]) return fallback;
+            const result = {
+                schema_version: 1,
+                content,
+                style: Object.assign(defaultStyle(), value.style && typeof value.style === 'object' ? clone(value.style) : {}),
+                output: Object.assign({}, fallback.output, value.output && typeof value.output === 'object' ? clone(value.output) : {})
+            };
+            if (value.frame && typeof value.frame === 'object') result.frame = Object.assign(defaultFrame(), clone(value.frame));
+            if (value.logo && typeof value.logo === 'object') result.logo = Object.assign({ enabled: false }, clone(value.logo));
+            return result;
+        } catch (_) { return fallback; }
+    }
     const get = (obj, path) => path.split('.').reduce((value, key) => value?.[key], obj);
     function set(obj, path, value) {
         const parts = path.split('.'), last = parts.pop();
@@ -97,7 +114,7 @@
                 '<button type="button" data-action="insert" class="vd-qr-primary" data-output' + (options.onInsert ? '' : ' hidden') + '>' + esc(tr('insert')) + '</button></footer>';
         host.append(node);
         const find = selector => node.querySelector(selector), settings = find('[data-settings]');
-        let dead = false, catalog, spec = { schema_version: 1, content: defaultContent('text'), style: defaultStyle(), output: { format: 'png', quality: 92, jpeg_background: '#ffffff', text_mode: 'unicode_half' } };
+        let dead = false, catalog, spec = normalizeInitialSpec(options.initialSpec);
         let tab = 'content', revision = 0, previewRevision = -1, preview, previewMeta, previewController, operation, resourceController, scanController, previewTimer, cameraTimer, stream;
         let frameDraft = defaultFrame(), logoDraft = { size_percent: 20, margin: 4, hide_background_modules: true }, drafts = {}, batchCSV = '', batchType = 'text', batchResult, batchRevision = -1;
         let cameraGeneration = 0, scanText = '', activeScan = false, resourceGeneration = 0, csvGeneration = 0, busy = false, resourceBusy = false, resolveClose;
@@ -275,6 +292,10 @@
                     (result.meta.modules ? '\n' + tr('capacity', { version: result.meta.qr_version, modules: result.meta.modules }) : '');
                 displayDiagnostics(find('[data-diagnostics]'), result.meta.diagnostics);
                 updateInsertion(); status('ready');
+                if (typeof options.onPreview === 'function') {
+                    try { options.onPreview({ blob: result.blob, meta: clone(result.meta), spec: clone(spec) }); }
+                    catch (error) { console.warn('QR preview callback failed', error); }
+                }
             } catch (error) {
                 if (token === revision && !controller.signal.aborted) { previewRevision = -1; failure(error); }
             } finally { if (!dead && token === revision) { find('[data-preview]').setAttribute('aria-busy', 'false'); syncButtons(); } }
@@ -413,6 +434,10 @@
                 find('[data-scan-type]').textContent = tr('scan_type', { type: tr('type_' + (templates[result.type] ? result.type : 'text')) });
                 displayDiagnostics(find('[data-scan-diagnostics]'), result.diagnostics);
                 if (camera) stopCamera(); status('scan_found');
+                if (scanText && typeof options.onScan === 'function') {
+                    try { options.onScan({ text: scanText, type: templates[result.type] ? result.type : 'text', diagnostics: clone(result.diagnostics || []) }); }
+                    catch (error) { console.warn('QR scan callback failed', error); }
+                }
             } catch (error) { if (!camera && error.name !== 'AbortError') status('no_code', true); }
             finally { if (scanController === controller) activeScan = false; }
         }
@@ -601,8 +626,8 @@
                 if (!current()) { if (!dead) status('stale', true); return; }
                 if (catalog.schema_version !== 1 || !Array.isArray(catalog.content_types)) throw new Error('catalog');
                 find('[data-format]').innerHTML = catalog.output_formats.map(format => '<option value="' + esc(format) + '">' + esc(['png', 'jpeg', 'svg'].includes(format) ? format.toUpperCase() : tr('format_' + format)) + '</option>').join('');
-                renderControls(); status('no_preview');
-                await renderPreview();
+                if (options.initialTab === 'scan') { switchTab('scan'); }
+                else { renderControls(); status('no_preview'); await renderPreview(); }
                 emailBinding = window.AuraDesktopEmail?.attach(options.windowId, '.vd-qr-footer', () => {
                     const batchReady=!!batchResult&&batchRevision===revision&&!batchResult.errors?.length;
                     const previewReady=previewRevision===revision&&!!preview;

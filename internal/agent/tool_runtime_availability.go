@@ -24,6 +24,10 @@ func toolRuntimeUnavailable(dc *DispatchContext, name string) string {
 		if dc.ContactsDB == nil {
 			return "Contacts database not available."
 		}
+	case "findit":
+		if !tools.FindItAvailable() {
+			return "FindIt storage is not enabled or available for agent access."
+		}
 	case "manage_todos", "manage_appointments":
 		if dc.PlannerDB == nil {
 			return "Planner database not available."

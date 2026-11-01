@@ -747,6 +747,9 @@ func naturalTaskClause(choice fixtureChoice, language string) string {
 		}
 	}
 	details := argumentSummaryExcluding(choice.Arguments, choice.Selector, "operation", "action", "mode")
+	if choice.Tool.Name == "findit" {
+		return findItTrainingTask(operation, language, choice.Arguments)
+	}
 	if language == "de" {
 		label = germanBareLabel(label)
 		var task string
@@ -815,6 +818,77 @@ func naturalTaskClause(choice fixtureChoice, language string) string {
 	return task
 }
 
+func findItTrainingTask(operation, language string, arguments map[string]interface{}) string {
+	entity, _ := arguments["entity"].(string)
+	id, _ := arguments["id"].(string)
+	query, _ := arguments["query"].(string)
+	templateID, _ := arguments["template_id"].(string)
+	filters, _ := arguments["filters"].([]interface{})
+	if language == "de" {
+		switch operation {
+		case "search":
+			if entity == "templates" {
+				return "Durchsuche die FindIt-Vorlagen und zeige ihre verfügbaren Eigenschaftsfelder."
+			}
+			if templateID != "" && len(filters) > 0 {
+				return fmt.Sprintf("Suche im physischen Inventar nach %q und filtere die Vorlage %q anhand ihrer typisierten Eigenschaftswerte.", query, templateID)
+			}
+			return fmt.Sprintf("Suche im physischen Inventar nach %q.", query)
+		case "get":
+			return fmt.Sprintf("Lies den FindIt-Eintrag vom Typ %s mit der Inventar-ID %q.", findItEntityLabel(entity, language), id)
+		case "availability":
+			return fmt.Sprintf("Prüfe für das Bauteil mit der Inventar-ID %q den Lagerbestand, reservierte und frei verfügbare Menge.", id)
+		case "shortages":
+			return fmt.Sprintf("Zeige für das Projekt mit der ID %q die Fehlmengen der Stückliste anhand des frei verfügbaren Lagerbestands.", id)
+		}
+		return "Lies die FindIt-Bestandsdaten."
+	}
+	switch operation {
+	case "search":
+		if entity == "templates" {
+			return "Search FindIt templates and show their available property fields."
+		}
+		if templateID != "" && len(filters) > 0 {
+			return fmt.Sprintf("Search the physical inventory for %q and filter template %q by its typed property values.", query, templateID)
+		}
+		return fmt.Sprintf("Search the physical inventory for %q.", query)
+	case "get":
+		return fmt.Sprintf("Read the %s inventory record with id %q.", findItEntityLabel(entity, language), id)
+	case "availability":
+		return fmt.Sprintf("Check on-hand, reserved, and free stock for the item with inventory id %q.", id)
+	case "shortages":
+		return fmt.Sprintf("List shortages in the BOM for project %q using free stock quantities.", id)
+	}
+	return "Read FindIt inventory data."
+}
+
+func findItEntityLabel(entity, language string) string {
+	if language == "de" {
+		switch entity {
+		case "items":
+			return "Artikel"
+		case "locations":
+			return "Lagerort"
+		case "projects":
+			return "Projekt"
+		case "templates":
+			return "Vorlage"
+		}
+	} else {
+		switch entity {
+		case "items":
+			return "item"
+		case "locations":
+			return "location"
+		case "projects":
+			return "project"
+		case "templates":
+			return "template"
+		}
+	}
+	return "inventory"
+}
+
 func hasOperationPrefix(operation string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
 		if operation == prefix ||
@@ -847,6 +921,7 @@ func humanToolLabel(name, language string) string {
 		"docker":              "der Containerverwaltung",
 		"evomap":              "dem Wissensaustausch",
 		"firewall":            "dem Paketfilter",
+		"findit":              "dem physischen Inventar",
 		"manage_appointments": "der Terminverwaltung",
 		"manage_memory":       "dem dauerhaften Speicher",
 		"manage_todos":        "der Aufgabenliste",
@@ -892,6 +967,7 @@ func humanToolLabel(name, language string) string {
 		"evomap":          "the knowledge exchange",
 		"filesystem":      "the workspace files",
 		"firewall":        "the packet filter",
+		"findit":          "the physical inventory",
 		"frigate":         "the camera NVR",
 		"github":          "the Git hosting platform",
 		"go2rtc":          "the camera stream proxy",
