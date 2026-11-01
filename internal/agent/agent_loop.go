@@ -519,6 +519,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	loopIterationCount := 0
 	personalityPrepared := false
 	var personalityBasis *memory.PersonalitySnapshot
+	personaBoosterTicked := false
+	var personaBoosterTurnPrompt personaBoosterPrompt
 	for {
 		if err := ctx.Err(); err != nil {
 			return openai.ChatCompletionResponse{}, err
@@ -1399,6 +1401,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 		}
+
+		// Persona booster: one tick per user turn. The phase text stays fixed for
+		// all iterations of this turn; flags may be reloaded from s.flags, so the
+		// fields are applied again on every iteration.
+		if !personaBoosterTicked {
+			personaBoosterTicked = true
+			personaBoosterTurnPrompt = preparePersonaBoosterTurn(runCfg, flags, s.currentLogger, personaBoosterTurn{
+				Now:             time.Now(),
+				InactivityHours: userInactivityHours,
+				MoodAvailable:   personalityEnabled && shortTermMem != nil,
+			})
+		}
+		personaBoosterTurnPrompt.apply(&flags)
 
 		// User Profiling: inject behavioral instruction + collected profile data
 		if !runCfg.IsMission && !isAutonomousRun && cfg.Personality.UserProfiling {
@@ -2420,6 +2435,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Turn-end snapshot of the live recovery state for the post-turn work below;
 		// the closures launched via sideEffects.Go must not read s.recoveryState later.
 		turnConsecutiveErrors, turnTotalErrors := s.recoveryState.ConsecutiveErrorCount, s.recoveryState.TotalErrorCount
+		rememberPersonaBoosterToolErrors(sessionID, turnConsecutiveErrors)
 
 		if isAutonomousRun && !isRelayAutonomousRun(runCfg, sessionID) && personalityEnabled && shortTermMem != nil {
 			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, turnConsecutiveErrors, s.toolCallCount)
