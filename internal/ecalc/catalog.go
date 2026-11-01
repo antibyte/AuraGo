@@ -119,6 +119,9 @@ type Calculator struct {
 	Formula    []string
 	FormulaAST []*Node
 	Schematic  string
+	// Sets lists every combination of dof input variables from which all variables can be computed, in declaration
+	// order (see SolvableSets). Load fills it in.
+	Sets [][]string
 
 	varByID map[string]*Var
 }
@@ -663,6 +666,9 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		fail("dof is %d, so exactly %d input variables need a default, found %d", c.DOF, c.DOF, withDefault)
 	}
 
+	if len(l.errs) == before {
+		l.solvableSets(fail, c)
+	}
 	if len(l.errs) > before {
 		return nil
 	}
