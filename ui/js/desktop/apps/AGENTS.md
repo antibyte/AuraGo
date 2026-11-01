@@ -1525,6 +1525,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   RGB565 PNGs or alpha masks; animate only the selection, respect reduced
   motion, and dispose observers with the dialog. Names/filters/errors belong
   to all 16 CYD locales. Browser test: `TestDesktopCYDCreatorIconsBrowser`.
+  Shared motif/artwork/export rules live in `assets/cyd-icons/AGENTS.md`; category translations follow the catalog's category IDs.
 - The eleven designer modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
   `TestCYDCreatorDesignerModulesLoadInOrder`): `cyd-creator-geometry`, `-model`, `-render` (pure, run in Node),
   `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-icons`, `-inspector`, `-screens`, `-designer` last; each stays

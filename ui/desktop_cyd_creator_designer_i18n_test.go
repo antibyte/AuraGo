@@ -98,6 +98,7 @@ func TestCYDCreatorDesignerKeysExistInAllLocales(t *testing.T) {
 	}
 	for _, motif := range cydcreator.Icons().Motifs {
 		families["cyd_creator.icons."] = append(families["cyd_creator.icons."], "motif."+motif.ID)
+		families["cyd_creator.icons."] = append(families["cyd_creator.icons."], "category_"+motif.Category)
 	}
 	for prefix := range prefixes {
 		if _, ok := families[prefix]; !ok {

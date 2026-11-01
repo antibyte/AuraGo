@@ -814,7 +814,8 @@ OTA updates and the ZIP export and import.
 ## Work Guidance
 
 - Icon assets: `icons.go` owns the immutable catalog and strict external-resource
-  manifest; `ImportIcon` validates every selected frame before publishing under
+  manifest. Artwork, motif parity and export preservation follow `assets/cyd-icons/AGENTS.md`.
+  `ImportIcon` validates every selected frame before publishing under
   the project lock and required layout version. IDs deduplicate encoding plus
   content. Optional asset `encoding: a8` counts one byte per pixel; empty keeps
   the old RGB565/RGB565A8 path. `icon` records provenance and is never a disk

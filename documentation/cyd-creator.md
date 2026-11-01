@@ -12,12 +12,17 @@ config page); the two share only the hardware.
 ## Icon library
 
 Select an image or button in the designer and open **Icon library** in its
-inspector. The library contains 60 common motifs in playful, modern, comic
-and sober styles, each in colour/monochrome and still/animated form (960
+inspector. The library contains 110 common motifs in playful, modern, comic
+and sober styles, each in colour/monochrome and still/animated form (1,760
 variants). Search by translated name or motif ID, filter by category, and
 choose 24/32/48/64 px. The two previews show actual device pixels after RGB565
 conversion; monochrome masks inherit the device theme text colour unless an
 explicit icon colour is set. System reduced-motion preferences show posters.
+
+The 50 additional motifs cover home appliances, energy/weather/nature, network
+and security, media/everyday life and characters/animals. Twenty have new
+six-frame animations, bringing the total to 32; the other 30 use single images
+with optional pulse motion. Every style/tone has the same subjects.
 
 Only selected images enter the project. Repeated imports and identical frames
 count once. The picker displays image bytes and the current project budget;

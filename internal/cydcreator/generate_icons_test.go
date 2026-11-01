@@ -21,8 +21,8 @@ func iconFixture(t *testing.T, board string) Project {
 		t.Fatal(err)
 	}
 	requests := []IconRequest{
-		{Style: "modern", Tone: "color", Motif: "fan", Size: 32, Animated: true},
-		{Style: "playful", Tone: "mono", Motif: "wifi", Size: 32, Animated: true},
+		{Style: "modern", Tone: "color", Motif: "gopher", Size: 32, Animated: true},
+		{Style: "playful", Tone: "mono", Motif: "coffee_machine", Size: 32, Animated: true},
 		{Style: "modern", Tone: "mono", Motif: "settings", Size: 24, Animated: true},
 		{Style: "comic", Tone: "color", Motif: "back", Size: 48, Animated: true},
 		{Style: "sober", Tone: "mono", Motif: "home", Size: 64, Animated: true},
