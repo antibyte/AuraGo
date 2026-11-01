@@ -38,17 +38,14 @@ func (b *Bot) OwnerSendReady() bool {
 // ownerSendAllowed is the gate every agent- or system-initiated send passes. It returns the
 // live configuration, which OpenOutgoingAttachment needs for the current workspace and
 // document roots. The read-only switch is read from that live configuration on every call, so a
-// toggle takes effect before the generation is replaced.
+// toggle takes effect before the generation is replaced. Without a live configuration (no
+// snapshot function, or one that returns none) the gate fails closed: the generation's own
+// copy may be stale, and read-only could have been switched on since.
 func (b *Bot) ownerSendAllowed() (*config.Config, error) {
-	if b == nil || b.ctx.Err() != nil || b.pipeline == nil {
+	if b == nil || b.ctx.Err() != nil || b.pipeline == nil || b.deps.agent.Snapshot == nil {
 		return nil, ErrNotConnected
 	}
-	cfg := b.pipeline.base
-	if b.deps.agent.Snapshot != nil {
-		if live, _ := b.deps.agent.Snapshot(); live != nil {
-			cfg = live
-		}
-	}
+	cfg, _ := b.deps.agent.Snapshot()
 	switch {
 	case cfg == nil || cfg.EggMode.Enabled:
 		return nil, ErrNotConnected
@@ -66,6 +63,18 @@ type safeOwnerError struct{ err error }
 
 func (e safeOwnerError) Error() string { return maskedError(e.err) }
 func (e safeOwnerError) Unwrap() error { return e.err }
+
+// ownerContext derives the context of an owner send that has passed the gate. It ends with the
+// caller's context and also when this generation ends, so a Bot that is stopped or replaced
+// never leaves a send running on its connection. The returned function releases both.
+func (b *Bot) ownerContext(ctx context.Context) (context.Context, func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(b.ctx, cancel)
+	return ctx, func() {
+		stop()
+		cancel()
+	}
+}
 
 // maskOwnerError wraps err for the caller of the owner API; nil stays nil.
 func maskOwnerError(err error) error {
@@ -91,6 +100,8 @@ func (b *Bot) sendOwnerMessage(ctx context.Context, text, filePath string) (tool
 	if err != nil {
 		return tools.WhatsAppSendResult{}, err
 	}
+	ctx, release := b.ownerContext(ctx)
+	defer release()
 	if strings.TrimSpace(text) == "" && strings.TrimSpace(filePath) == "" {
 		return tools.WhatsAppSendResult{}, errMessageRequired
 	}
@@ -126,6 +137,8 @@ func (b *Bot) sendOwnerAttachment(ctx context.Context, caption string, att Owner
 	if _, err := b.ownerSendAllowed(); err != nil {
 		return tools.WhatsAppSendResult{}, err
 	}
+	ctx, release := b.ownerContext(ctx)
+	defer release()
 	switch {
 	case len(att.Data) == 0:
 		return tools.WhatsAppSendResult{}, errors.New("the attachment is empty")
@@ -139,15 +152,29 @@ func (b *Bot) sendOwnerAttachment(ctx context.Context, caption string, att Owner
 // Without a file the text goes to every owner. With one, the file is uploaded once and then sent
 // to each owner, preceded by the text when it does not fit as a caption or when the file is audio
 // (audio has no caption). A failure for one owner does not stop the others; the first error
-// is returned.
+// is returned, and TextSent says that the text reached at least one owner as a message of its own.
 func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tools.WhatsAppSendResult, error) {
 	client := b.currentClient()
 	if client == nil || !client.IsLoggedIn() {
 		return tools.WhatsAppSendResult{}, ErrNotConnected
 	}
 	if file == nil {
-		err := b.sender.deliverToOwners(ctx, text, "owner message")
-		return tools.WhatsAppSendResult{Kind: "text", TextSent: err == nil}, err
+		res := tools.WhatsAppSendResult{Kind: "text"}
+		owners, err := ownerRecipients(b.initial, client.OwnJID())
+		if err != nil {
+			return res, err
+		}
+		var first error
+		for _, to := range owners {
+			if err := b.sender.deliverText(ctx, to, text, "owner message"); err != nil {
+				if first == nil {
+					first = err
+				}
+				continue
+			}
+			res.TextSent = true
+		}
+		return res, first
 	}
 
 	head := make([]byte, 512)

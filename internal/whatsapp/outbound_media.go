@@ -3,11 +3,16 @@ package whatsapp
 import (
 	"bytes"
 	"context"
+	"errors"
+	"image"
+	_ "image/gif" // decoders for image.DecodeConfig in sendAnswerImage
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -15,6 +20,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/media"
 	"aurago/internal/telegram"
+	"aurago/internal/tools"
 
 	"go.mau.fi/whatsmeow/types"
 )
@@ -139,65 +145,109 @@ func (p *pipeline) convertVoice(ctx context.Context, f *os.File, size int64) ([]
 	return voiceNote(ctx, tmp.Name())
 }
 
+const (
+	// maxAnswerImages is how many Markdown images of one reply are fetched. The rest become
+	// "[Image: alt]" lines without a fetch: the model decides the number, and each one is a file
+	// open or an HTTP download.
+	maxAnswerImages = 5
+	// maxAnswerImagePixels is the decode limit media.StageWorkspaceImage applied to workspace
+	// images.
+	maxAnswerImagePixels = 40_000_000
+)
+
+// errNotAnImage means a /files/ file did not decode as an image within the pixel limit.
+var errNotAnImage = errors.New("the file is not a supported image")
+
 // deliverAnswerImages sends each Markdown image as an image message with its alt text as
-// caption (sender.caption, cut=true). /files/ URLs go through media.StageWorkspaceImage (the
-// staged copy is removed afterwards); http(s) URLs through media.DownloadAndSanitizeImageContext
-// into <workspace>/images; anything else is not fetched (bot.go:699-730). A content that is not
-// an image goes out as a document. Images that could not be sent come back as appendImageLines
-// lines, with the alt text only.
+// caption (sender.caption, cut=true), the first maxAnswerImages of a reply. /files/ URLs name a
+// workspace file, opened through tools.OpenOutgoingAttachment like every file that leaves AuraGo;
+// http(s) URLs go through the pipeline's fetchImage (media.DownloadAndSanitizeImageContext) into
+// <workspace>/images, and the fetched copy is removed after the send; anything else is not
+// fetched (bot.go:699-730). A content that is not a JPEG or PNG goes out as a document. Images
+// that were not sent come back as appendImageLines lines, with the alt text only.
 func (p *pipeline) deliverAnswerImages(ctx context.Context, cfg *config.Config, owner types.JID, text string, images []media.ImageRef) string {
 	wa := p.liveClient()
 	var failed []media.ImageRef
-	for _, img := range images {
+	for i, img := range images {
 		if ctx.Err() != nil {
 			return text
+		}
+		if i >= maxAnswerImages {
+			failed = append(failed, img) // over the cap: never fetched
+			continue
 		}
 		if wa == nil || !p.sendAnswerImage(ctx, cfg, wa, owner, img) {
 			failed = append(failed, img)
 		}
 	}
+	if len(images) > maxAnswerImages {
+		p.log().Warn("WhatsApp answer images over the cap were not fetched", "skipped", len(images)-maxAnswerImages)
+	}
 	return appendImageLines(text, failed)
 }
 
-// sendAnswerImage stages, opens and sends one answer image. It reports whether it went out.
-// Logs carry the kind and a fixed code, never the URL or the path.
+// openWorkspaceImage opens the workspace file a /files/ URL names. The URL is checked like
+// media.StageWorkspaceImage checks it, and the file opens through tools.OpenOutgoingAttachment,
+// which keeps out roots that hold data_dir, protected names (.env, vault, master key, config,
+// device store) and hard links to them. The caller closes the file.
+func openWorkspaceImage(cfg *config.Config, rawURL string) (*os.File, string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/files/") {
+		return nil, "", errors.New("invalid workspace image URL")
+	}
+	rel := strings.TrimPrefix(parsed.Path, "/files/")
+	if !fs.ValidPath(rel) || strings.ContainsAny(rel, "\\:\x00") {
+		return nil, "", errors.New("invalid workspace image path")
+	}
+	workspace := strings.TrimSpace(cfg.Directories.WorkspaceDir)
+	if workspace == "" {
+		return nil, "", errors.New("no workspace")
+	}
+	abs, err := filepath.Abs(filepath.Join(workspace, filepath.FromSlash(rel)))
+	if err != nil {
+		return nil, "", err
+	}
+	return tools.OpenOutgoingAttachment(abs, cfg)
+}
+
+// sendAnswerImage opens and sends one answer image. It reports whether it went out. Logs carry
+// the kind and a fixed code, never the URL or the path.
 func (p *pipeline) sendAnswerImage(ctx context.Context, cfg *config.Config, wa waClient, owner types.JID, img media.ImageRef) bool {
-	var localPath, name string
+	var file *os.File
+	var name string
 	switch {
 	case strings.HasPrefix(img.URL, "/files/"):
-		staged, err := media.StageWorkspaceImage(cfg.Directories.WorkspaceDir, img.URL)
+		f, resolved, err := openWorkspaceImage(cfg, img.URL)
 		if err != nil {
 			p.logMediaFailure("image", err)
 			return false
 		}
-		defer os.Remove(staged)
-		localPath = staged
-		if parsed, err := url.Parse(img.URL); err == nil {
-			name = path.Base(parsed.Path)
-		}
+		file, name = f, filepath.Base(resolved)
 	case strings.HasPrefix(img.URL, "http://"), strings.HasPrefix(img.URL, "https://"):
-		sanitized, err := media.DownloadAndSanitizeImageContext(ctx, img.URL, filepath.Join(cfg.Directories.WorkspaceDir, "images"))
+		fetch := p.fetchImage
+		if fetch == nil {
+			fetch = media.DownloadAndSanitizeImageContext
+		}
+		fetched, err := fetch(ctx, img.URL, filepath.Join(cfg.Directories.WorkspaceDir, "images"))
 		if err != nil {
 			if ctx.Err() == nil {
 				p.logMediaFailure("image", err)
 			}
 			return false
 		}
-		localPath = sanitized
+		defer os.Remove(fetched) // after the Close below: the copy was made for this send only
+		f, err := os.Open(fetched)
+		if err != nil {
+			p.logMediaFailure("image", err)
+			return false
+		}
+		file, name = f, filepath.Base(fetched)
 	default:
 		p.log().Warn("WhatsApp answer image skipped", "reason", "unsupported_url")
 		return false
 	}
-	if name == "" {
-		name = filepath.Base(localPath)
-	}
-
-	file, err := os.Open(localPath)
-	if err != nil {
-		p.logMediaFailure("image", err)
-		return false
-	}
 	defer file.Close()
+
 	info, err := file.Stat()
 	if err != nil || !info.Mode().IsRegular() {
 		p.logMediaFailure("image", err)
@@ -206,6 +256,15 @@ func (p *pipeline) sendAnswerImage(ctx context.Context, cfg *config.Config, wa w
 	if info.Size() > maxMediaBytes {
 		p.logMediaFailure("image", ErrMediaTooLarge)
 		return false
+	}
+	if strings.HasPrefix(img.URL, "/files/") {
+		// A workspace file is whatever the agent or the user put there: it must decode as an
+		// image of sane size. A fetched copy has been decoded and re-encoded already.
+		conf, _, err := image.DecodeConfig(io.NewSectionReader(file, 0, info.Size()))
+		if err != nil || conf.Width <= 0 || conf.Height <= 0 || int64(conf.Width)*int64(conf.Height) > maxAnswerImagePixels {
+			p.logMediaFailure("image", errNotAnImage)
+			return false
+		}
 	}
 	head := make([]byte, 512)
 	n, _ := file.ReadAt(head, 0)

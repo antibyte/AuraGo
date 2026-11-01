@@ -17,6 +17,10 @@ import (
 // statusCoalesceWindow is the shortest gap between two status messages of one turn.
 const statusCoalesceWindow = 10 * time.Second
 
+// maxCapturedMedia bounds the audio files and the YouTube videos a broker keeps for one run, each
+// list on its own. The model decides how often it calls the tools; the extra ones are dropped.
+const maxCapturedMedia = 5
+
 // Status prefixes, the same as TelegramBroker writes (internal/telegram/bot.go).
 const (
 	statusPrefix   = "⚙️ "
@@ -49,8 +53,8 @@ type whatsAppBroker struct {
 //   - tool_start, error_recovery, api_retry and progress are status updates: at most
 //     one per statusCoalesceWindow, the others are dropped.
 //   - audio (with a file_path, which only the tts action sets) and youtube_video (with a
-//     url) are captured, as TelegramBroker does (internal/telegram/bot.go:948-978). Nothing
-//     is sent during the run. send_audio and generate_music events carry web paths only and
+//     url) are captured, at most maxCapturedMedia of each per run, as TelegramBroker does
+//     (internal/telegram/bot.go:948-978). Nothing is sent during the run. send_audio and generate_music events carry web paths only and
 //     are ignored.
 //   - every other event is ignored.
 func (b *whatsAppBroker) Send(event, message string) {
@@ -66,9 +70,11 @@ func (b *whatsAppBroker) Send(event, message string) {
 		}
 		if json.Unmarshal([]byte(message), &audio) == nil && audio.FilePath != "" {
 			b.mu.Lock()
-			b.audio = append(b.audio, telegram.CapturedAudio{
-				FilePath: audio.FilePath, Title: audio.Title, MimeType: audio.MimeType, Filename: audio.Filename,
-			})
+			if len(b.audio) < maxCapturedMedia {
+				b.audio = append(b.audio, telegram.CapturedAudio{
+					FilePath: audio.FilePath, Title: audio.Title, MimeType: audio.MimeType, Filename: audio.Filename,
+				})
+			}
 			b.mu.Unlock()
 		}
 	case "youtube_video":
@@ -79,7 +85,9 @@ func (b *whatsAppBroker) Send(event, message string) {
 		}
 		if json.Unmarshal([]byte(message), &video) == nil && video.URL != "" {
 			b.mu.Lock()
-			b.videos = append(b.videos, telegram.CapturedYouTubeVideo{URL: video.URL, Title: video.Title, VideoID: video.VideoID})
+			if len(b.videos) < maxCapturedMedia {
+				b.videos = append(b.videos, telegram.CapturedYouTubeVideo{URL: video.URL, Title: video.Title, VideoID: video.VideoID})
+			}
 			b.mu.Unlock()
 		}
 	case "tool_start", "error_recovery", "api_retry", "progress":

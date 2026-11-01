@@ -348,7 +348,43 @@ func TestSenderPrefixesEveryChunkInSelfChat(t *testing.T) {
 	}
 }
 
+// referencesSendMessage reports whether the file names the transport's SendMessage in a way
+// that could reach it: a selector (a call, or a method value or expression such as
+// `send := client.SendMessage`) or a string literal (reflection). Declarations of the method
+// are not references.
+func referencesSendMessage(file *ast.File) bool {
+	found := false
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectorExpr:
+			found = found || x.Sel.Name == "SendMessage"
+		case *ast.BasicLit:
+			found = found || (x.Kind == token.STRING && strings.Trim(x.Value, "\"`") == "SendMessage")
+		}
+		return true
+	})
+	return found
+}
+
 func TestOnlyTheSenderCallsSendMessage(t *testing.T) {
+	// The scan must see every way to reach the method before it is trusted on the real files.
+	for src, want := range map[string]bool{
+		"package p\nfunc f(c C) { c.SendMessage(1) }":                                     true,
+		"package p\nfunc f(c C) { send := c.SendMessage; send(1) }":                       true,
+		"package p\nfunc f() { g := C.SendMessage; g(c, 1) }":                             true,
+		"package p\nfunc f(c C) { reflect.ValueOf(c).MethodByName(\"SendMessage\") }":     true,
+		"package p\nfunc f(c C) { c.Send(1); _ = SendMessage }":                           false,
+		"package p\ntype I interface{ SendMessage(int) }\nfunc (c T) SendMessage(int) {}": false,
+	} {
+		file, err := parser.ParseFile(token.NewFileSet(), "snippet.go", src, 0)
+		if err != nil {
+			t.Fatalf("parse %q: %v", src, err)
+		}
+		if got := referencesSendMessage(file); got != want {
+			t.Fatalf("referencesSendMessage(%q) = %v, want %v", src, got, want)
+		}
+	}
+
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
@@ -363,18 +399,13 @@ func TestOnlyTheSenderCallsSendMessage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			if call, ok := n.(*ast.CallExpr); ok {
-				if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "SendMessage" && !slices.Contains(callers, name) {
-					callers = append(callers, name)
-				}
-			}
-			return true
-		})
+		if referencesSendMessage(file) {
+			callers = append(callers, name)
+		}
 	}
 	slices.Sort(callers)
 	if want := []string{"client.go", "send.go"}; !slices.Equal(callers, want) {
-		t.Fatalf("SendMessage is called from %v, want only %v (the adapter and the sender)", callers, want)
+		t.Fatalf("SendMessage is referenced from %v, want only %v (the adapter and the sender)", callers, want)
 	}
 }
 

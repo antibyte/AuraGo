@@ -12,8 +12,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/config"
@@ -21,6 +23,7 @@ import (
 	"aurago/internal/security"
 
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -35,10 +38,34 @@ type ownerAPI struct {
 	bot            *Bot
 	fake           *fakeClient
 	root, ws, data string
-	live           atomic.Pointer[config.Config] // what the agent snapshot returns; nil = no snapshot
+	live           atomic.Pointer[config.Config] // what the agent snapshot returns; starts as the Bot's own config
 }
 
+// ownerAPIOptions vary the fixture: noSnapshot starts the Bot without a snapshot function, wrap
+// puts a client around the fake.
+type ownerAPIOptions struct {
+	noSnapshot bool
+	wrap       func(*fakeClient) waClient
+}
+
+// clientStore is a linked device store whose client is c.
+type clientStore struct {
+	*fakeStore
+	c waClient
+}
+
+func (s clientStore) NewClient() waClient { return s.c }
+
+type storeBackend struct{ st deviceStore }
+
+func (b storeBackend) open(context.Context, string) (deviceStore, error) { return b.st, nil }
+
 func newOwnerAPI(t *testing.T, mutate func(*config.Config), owners ...string) *ownerAPI {
+	t.Helper()
+	return newOwnerAPIWith(t, ownerAPIOptions{}, mutate, owners...)
+}
+
+func newOwnerAPIWith(t *testing.T, opts ownerAPIOptions, mutate func(*config.Config), owners ...string) *ownerAPI {
 	t.Helper()
 	if len(owners) == 0 {
 		owners = []string{"+4917012345678"}
@@ -56,10 +83,17 @@ func newOwnerAPI(t *testing.T, mutate func(*config.Config), owners ...string) *o
 	if mutate != nil {
 		mutate(cfg)
 	}
+	a.live.Store(cfg.Clone())
 	a.fake = &fakeClient{own: testOwn, loggedIn: true}
 	st := &fakeStore{linked: true, own: testOwn, client: a.fake}
-	deps := runtimeDeps{backend: &fakeBackend{store: st}, sleep: (&recordedSleeps{}).sleep, now: fixedNow}
-	deps.agent.Snapshot = func() (*config.Config, llm.ChatClient) { return a.live.Load(), nil }
+	var backend backend = &fakeBackend{store: st}
+	if opts.wrap != nil {
+		backend = storeBackend{clientStore{st, opts.wrap(a.fake)}}
+	}
+	deps := runtimeDeps{backend: backend, sleep: (&recordedSleeps{}).sleep, now: fixedNow}
+	if !opts.noSnapshot {
+		deps.agent.Snapshot = func() (*config.Config, llm.ChatClient) { return a.live.Load(), nil }
+	}
 	a.bot = start(context.Background(), cfg, quietLogger(), deps)
 	if a.bot == nil {
 		t.Fatal("start returned no Bot")
@@ -255,8 +289,8 @@ func TestSendOwnerMessageReachesEveryOwnerAndNobodyElse(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("text send with a failing first owner = %v, want the first error", err)
 	}
-	if got := sentTexts(a.fake); len(got) != before+1 || got[before].to != owners[1] || res.TextSent {
-		t.Fatalf("sends after the failure = %+v, result = %+v; want the second owner served", got[before:], res)
+	if got := sentTexts(a.fake); len(got) != before+1 || got[before].to != owners[1] || !res.TextSent {
+		t.Fatalf("sends after the failure = %+v, result = %+v; want the second owner served and TextSent set", got[before:], res)
 	}
 }
 
@@ -408,5 +442,72 @@ func TestOwnerAPIOpensNoPathItself(t *testing.T) {
 	})
 	if outgoing != 1 {
 		t.Fatalf("outbound_api.go calls tools.OpenOutgoingAttachment %d times, want exactly 1", outgoing)
+	}
+}
+
+// Without a live configuration the gate cannot tell whether read-only was switched on since the
+// generation started, so it refuses instead of trusting the generation's own copy.
+func TestSendOwnerFailsClosedWithoutALiveConfig(t *testing.T) {
+	ctx := context.Background()
+	check := func(t *testing.T, a *ownerAPI) {
+		t.Helper()
+		if _, err := a.bot.SendOwnerMessage(ctx, "hi", ""); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("text send = %v, want ErrNotConnected", err)
+		}
+		if _, err := a.bot.SendOwnerAttachment(ctx, "hi", OwnerAttachment{Name: "p.jpg", Data: jpegBytes}); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("attachment send = %v, want ErrNotConnected", err)
+		}
+		a.nothingSent(t)
+	}
+	t.Run("no snapshot function", func(t *testing.T) {
+		check(t, newOwnerAPIWith(t, ownerAPIOptions{noSnapshot: true}, nil))
+	})
+	t.Run("a snapshot without a config", func(t *testing.T) {
+		a := newOwnerAPI(t, nil)
+		a.live.Store(nil)
+		check(t, a)
+	})
+}
+
+// ctxHoldingClient holds every SendMessage until its context ends.
+type ctxHoldingClient struct {
+	*fakeClient
+	started chan struct{}
+	once    sync.Once
+}
+
+func (c *ctxHoldingClient) SendMessage(ctx context.Context, _ types.JID, _ *waE2E.Message, _ types.MessageID) (whatsmeow.SendResponse, error) {
+	c.once.Do(func() { close(c.started) })
+	<-ctx.Done()
+	return whatsmeow.SendResponse{}, ctx.Err()
+}
+
+// A send that passed the gate belongs to its generation: when the Bot stops, the send stops,
+// whatever context the caller gave it.
+func TestOwnerSendEndsWithTheGeneration(t *testing.T) {
+	var holder *ctxHoldingClient
+	a := newOwnerAPIWith(t, ownerAPIOptions{wrap: func(f *fakeClient) waClient {
+		holder = &ctxHoldingClient{fakeClient: f, started: make(chan struct{})}
+		return holder
+	}}, nil)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := a.bot.SendOwnerMessage(context.Background(), "hi", "")
+		done <- err
+	}()
+	select {
+	case <-holder.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the send never reached the client")
+	}
+	a.bot.Stop()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("send after Stop = %v, want context.Canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a send outlived its generation")
 	}
 }

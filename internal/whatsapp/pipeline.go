@@ -81,6 +81,7 @@ type pipeline struct {
 	analyzeImage func(ctx context.Context, path string, cfg *config.Config) (string, error)              // telegram.AnalyzeImageContext
 	toMP3        func(ctx context.Context, in, out string) error                                         // convertToMP3: out is a fresh os.CreateTemp file
 	voiceNote    func(ctx context.Context, in string) ([]byte, uint32, error)                            // convertToVoiceNote: Ogg Opus bytes and seconds
+	fetchImage   func(ctx context.Context, rawURL, destDir string) (string, error)                       // media.DownloadAndSanitizeImageContext
 }
 
 // handle runs one accepted owner message to its reply. It logs the owner's masked JID and
@@ -335,6 +336,11 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	}
 	if err != nil {
 		logger.Error("WhatsApp agent loop failed", "error", maskedError(err))
+		// Captured audio and YouTube links belong to a run that did not finish: they are not
+		// delivered, but they are not dropped silently either.
+		if audio, videos := broker.captured(); len(audio)+len(videos) > 0 {
+			logger.Warn("WhatsApp captured media dropped after a failed agent run", "audio", len(audio), "videos", len(videos))
+		}
 		p.deliver(ctx, owner, agentErrorText, "error notice")
 		return
 	}

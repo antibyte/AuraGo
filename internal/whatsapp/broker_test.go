@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -97,5 +98,22 @@ func TestBrokerCapturesAudioAndYouTubeForAfterTheRun(t *testing.T) {
 	audio[0].FilePath = "changed"
 	if again, _ := b.captured(); again[0].FilePath != "/data/tts/a.mp3" {
 		t.Fatal("captured must return copies")
+	}
+}
+
+func TestBrokerCapsCapturedMediaPerRun(t *testing.T) {
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	clock := fixedNow()
+	b := newTestBroker(fake, &clock)
+	for i := 0; i < 8; i++ {
+		b.Send("audio", fmt.Sprintf(`{"file_path":"/data/tts/%d.mp3"}`, i))
+		b.Send("youtube_video", fmt.Sprintf(`{"url":"https://youtu.be/%d"}`, i))
+	}
+	audio, videos := b.captured()
+	if len(audio) != 5 || len(videos) != 5 {
+		t.Fatalf("captured %d audio files and %d videos, want 5 of each", len(audio), len(videos))
+	}
+	if audio[0].FilePath != "/data/tts/0.mp3" || audio[4].FilePath != "/data/tts/4.mp3" || videos[4].URL != "https://youtu.be/4" {
+		t.Fatalf("the cap must keep the first five: %+v %+v", audio, videos)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"os"
@@ -15,7 +16,9 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 
+	"github.com/sashabaranov/go-openai"
 	"go.mau.fi/whatsmeow"
 )
 
@@ -312,5 +315,139 @@ func TestPipelineAppendsMissingYouTubeLinks(t *testing.T) {
 				t.Fatalf("sent = %q, want one text ending in %q with the link %d time(s)", sent, c.wantSuffix, c.wantCount)
 			}
 		})
+	}
+}
+
+// A /files/ image opens like every other file that leaves AuraGo: a protected name and a root that
+// holds data_dir are refused, and the model only gets its "[Image: alt]" line.
+func TestPipelineSendsNoProtectedOrDataDirAnswerImages(t *testing.T) {
+	data := onePixelPNG(t)
+	for _, c := range []struct {
+		name, url string
+		setup     func(t *testing.T, cfg *config.Config)
+	}{
+		{"protected name", "/files/vault.env", func(t *testing.T, cfg *config.Config) {
+			writePNG(t, filepath.Join(cfg.Directories.WorkspaceDir, "vault.env"), data)
+		}},
+		{"data_dir below the workspace root", "/files/data/camera_snapshot.png", func(t *testing.T, cfg *config.Config) {
+			cfg.Directories.DataDir = filepath.Join(cfg.Directories.WorkspaceDir, "data")
+			writePNG(t, filepath.Join(cfg.Directories.DataDir, "camera_snapshot.png"), data)
+		}},
+		{"path out of the workspace", "/files/../secret.png", func(t *testing.T, cfg *config.Config) {
+			writePNG(t, filepath.Join(filepath.Dir(cfg.Directories.WorkspaceDir), "secret.png"), data)
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := dedicatedPipelineConfig()
+			cfg.Directories.WorkspaceDir = filepath.Join(t.TempDir(), "workspace")
+			if err := os.MkdirAll(cfg.Directories.WorkspaceDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			c.setup(t, cfg)
+			f := newPipelineFixture(t, cfg)
+			f.answer = "Here ![alt text](" + c.url + ") done"
+			f.p.handle(context.Background(), ownerText("I9", "show it"))
+
+			if up := uploadsOf(f.fake); len(up) != 0 {
+				t.Fatalf("%d uploads: a refused file reached WhatsApp", len(up))
+			}
+			sent := sentTexts(f.fake)
+			if len(sent) != 1 || sent[0].msg.GetImageMessage() != nil || !strings.Contains(sent[0].text, "[Image: alt text]") {
+				t.Fatalf("sent = %+v, want one text with the [Image: alt text] line", sent)
+			}
+			if out := f.logs.String(); strings.Contains(out, "vault.env") || strings.Contains(out, "camera_snapshot") || strings.Contains(out, "secret.png") {
+				t.Fatalf("log names the refused file: %q", out)
+			}
+		})
+	}
+}
+
+func writePNG(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Only the first five images of a reply are fetched; the rest are lines. A fetched copy is
+// removed from <workspace>/images once it has been sent, or has failed to send.
+func TestPipelineFetchesAtMostFiveAnswerImages(t *testing.T) {
+	data := onePixelPNG(t)
+	for _, c := range []struct {
+		name      string
+		uploadErr error
+		wantSent  int // image messages that went out
+	}{
+		{"sent", nil, 5},
+		{"upload fails", errors.New("boom"), 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := dedicatedPipelineConfig()
+			cfg.Directories.WorkspaceDir = t.TempDir()
+			f := newPipelineFixture(t, cfg)
+			f.fake.with(func(fc *fakeClient) { fc.uploadErr = c.uploadErr })
+			var fetched []string
+			f.p.fetchImage = func(_ context.Context, rawURL, destDir string) (string, error) {
+				fetched = append(fetched, rawURL)
+				path := filepath.Join(destDir, fmt.Sprintf("fetched%d.png", len(fetched)))
+				writePNG(t, path, data)
+				return path, nil
+			}
+			var answer strings.Builder
+			for i := 0; i < 7; i++ {
+				fmt.Fprintf(&answer, "![pic %d](https://img.example/%d.png)\n", i, i)
+			}
+			f.answer = answer.String()
+			f.p.handle(context.Background(), ownerText("I8", "show them"))
+
+			if len(fetched) != 5 {
+				t.Fatalf("fetch attempts = %d, want 5", len(fetched))
+			}
+			images, text := 0, ""
+			for _, m := range sentTexts(f.fake) {
+				if m.msg.GetImageMessage() != nil {
+					images++
+				} else {
+					text += m.text
+				}
+			}
+			if images != c.wantSent {
+				t.Fatalf("image messages = %d, want %d", images, c.wantSent)
+			}
+			for i := 0; i < 7; i++ {
+				line := fmt.Sprintf("[Image: pic %d]", i)
+				if wantLine := i >= 5 || c.wantSent == 0; strings.Contains(text, line) != wantLine {
+					t.Fatalf("line %q present = %v, want %v in %q", line, !wantLine, wantLine, text)
+				}
+			}
+			if left := entriesOf(t, filepath.Join(cfg.Directories.WorkspaceDir, "images")); len(left) != 0 {
+				t.Fatalf("fetched copies left in the workspace: %v", left)
+			}
+		})
+	}
+}
+
+// Audio and links a run captured are not delivered when the run fails, and the log says so.
+func TestPipelineDropsCapturedMediaAfterAFailedRunWithALogLine(t *testing.T) {
+	f, _ := ttsFixture(t, "")
+	f.p.agentLoop = func(_ context.Context, _ openai.ChatCompletionRequest, _ agent.RunConfig, _ bool, b agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+		f.script(b)
+		b.Send("youtube_video", `{"url":"https://youtu.be/x","title":"Title"}`)
+		return openai.ChatCompletionResponse{}, errors.New("model unavailable")
+	}
+	f.p.handle(context.Background(), ownerText("E1", "say hi"))
+
+	if up := uploadsOf(f.fake); len(up) != 0 {
+		t.Fatalf("%d uploads after a failed run", len(up))
+	}
+	if got := sentBodies(f.fake); !slices.Equal(got, []string{agentErrorText}) {
+		t.Fatalf("sent %q, want only the error notice", got)
+	}
+	out := f.logs.String()
+	if !strings.Contains(out, "captured media dropped after a failed agent run") || !strings.Contains(out, "audio=1") || !strings.Contains(out, "videos=1") || strings.Contains(out, "a.mp3") {
+		t.Fatalf("log = %q, want one line with the counts and no file name", out)
 	}
 }
