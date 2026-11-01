@@ -6,7 +6,7 @@ FindIt is AuraGo's local physical inventory for electronic parts, PC components,
 
 Open **FindIt** from the Desktop. An administrator enables it in the app's settings; the separate **Agent access** setting exposes read operations only. Both settings default off. Desktop read-only and FindIt read-only each prevent human mutations. Agent access does not require permission to control Desktop windows. External A2A agents cannot use FindIt.
 
-The list combines text search with category, template, package, location, availability and minimum-stock filters. Select an item to inspect its properties and stock. Locations may be nested, for example Workshop → Shelf A → Organizer → Drawer 12. A small window uses one pane at a time. List and card views use the same records.
+The list combines text search with category, template, package, location, availability and minimum-stock filters. Engineering values such as `4k7` and `4,7 kΩ` search numeric specifications; SI prefixes distinguish `M` (mega) from `m` (milli) and `u`/`µ` (micro). Select a template when a custom field name has different types or units across templates. Select an item to inspect its properties and stock. Locations may be nested, for example Workshop → Shelf A → Organizer → Drawer 12. A small window uses one pane at a time. List and card views use the same records.
 
 Templates provide typed fields without inventing specifications. Electronic function, package family, pin count, pitch and dimensions are independent. Check technical values against the actual manufacturer datasheet; miniature artwork illustrates a family, not an exact footprint. Missing values remain unknown. Custom templates retain stable field keys and do not overwrite existing article values.
 
@@ -16,13 +16,17 @@ Archiving preserves history. An archived custom template remains readable on exi
 
 Stock quantities use exact decimals with up to six fractional digits. Pieces require integers; serialized stock is one piece per unique serial number. An item has one unit. On-hand minus active reservations is available stock.
 
-Use Receive, Issue, Transfer, Adjust or Return to change stock. Adjust means the counted target quantity. Transfers preserve the item's specifications, lot, condition and serial. Movements remain in the ledger. A repeated request with the same request ID replays its receipt; changing the request under that ID is rejected.
+Use Receive, Issue, Transfer, Adjust or Return to change stock. Adjust means the counted target quantity. Transfers preserve the item's specifications, lot, condition and serial. Movements remain in the ledger. If an existing stock position changes after the Desktop preview, its version check rejects the stale booking; review the refreshed quantities before retrying. A repeated request with the same request ID replays its receipt; changing the request under that ID is rejected.
+
+If a response to stock or reservation changes is lost, FindIt keeps the exact pending request across app windows in the current browser session. Retry confirms the original values and reuses its receipt ID. Resolve it before making another change for that item or project; pending opening stock also pauses new item entry. Definitive rejection keeps the saved item and permits a new booking with corrected values. Returning an issued serial uses Return; archived storage locations cannot receive stock, and archived projects cannot change status.
 
 Create a project and its bill of materials, then release it before reserving stock. Reservations use specific stock positions and never reduce on-hand quantity. Partial reservation is supported. Consume reduces both stock and reservation; Release returns held quantity to availability. Cancelling releases outstanding reservations. Completing never consumes implicitly and requires outstanding reservations to be resolved. Reopen a released project to edit its BOM revision after resolving holds. Substitutions require explicit item selection.
 
 ## CSV
 
 CSV import is available for catalog items and project lines. It accepts UTF-8 (including a BOM), comma or semicolon separators, and explicit column mappings. Preview every row before import. Duplicate items require an explicit skip; ambiguous project matches require explicit resolution. Invalid or unresolved rows block the entire import. Catalog import does not alter stock. Items, stock and project lines can be exported as CSV.
+
+Imports accept at most 10 MiB, 25,000 rows and 256 columns. Exported text that could be interpreted as a spreadsheet formula receives a literal apostrophe prefix. The reserved `findit_csv_encoding=literal-v1` column declares this encoding, allowing FindIt to recover the original values on reimport. Keep the original export and its marker for a round trip; spreadsheet editors may alter that encoding when saving. Ordinary unmarked CSV retains its apostrophes unchanged.
 
 ## Photos and labels
 
@@ -32,7 +36,7 @@ Print item or location labels in the default 50 × 30 mm format, individually or
 
 ## Agent reads
 
-The native `findit` tool has four operations: `search`, `get`, `availability` and `shortages`. Search/get cover items, projects, locations and templates, including custom field definitions. Answers can include current quantities, location paths and shortages. The service owns all calculations. The tool never writes stock or records and has no SQL interface.
+The native `findit` tool has four operations: `search`, `get`, `availability` and `shortages`. Search/get cover items, projects, locations and templates, including custom field definitions. Answers can include current quantities, location paths and shortages. Both the agent run's original permissions and the current settings must permit access; enabling access does not retroactively grant it to a running turn, while disabling it suppresses pending results. The service owns all calculations. The tool never writes stock or records and has no SQL interface.
 
 ## Persistence and delivery
 

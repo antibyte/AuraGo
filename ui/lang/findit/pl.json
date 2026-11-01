@@ -450,8 +450,8 @@
   "findit.initial_location": "Początkowa lokalizacja",
   "findit.initial_location_required": "Wybierz miejsce przechowywania zapasów początkowych.",
   "findit.initial_quantity": "Ilość początkowa",
-  "findit.initial_stock_pending": "Artykuł został zapisany, ale jego stan początkowy nadal oczekuje na realizację. Spróbuj ponownie wprowadzić poniższy wpis zapasów, zanim utworzysz kolejny przedmiot.",
-  "findit.initial_stock_retry_intro": "Element już istnieje. Dostosuj szczegóły zapasów i spróbuj ponownie; nie spowoduje to utworzenia kolejnego elementu.",
+  "findit.initial_stock_pending": "Artykuł zapisano, ale wynik stanu początkowego nie jest potwierdzony. Rozstrzygnij zapisane żądanie poniżej przed utworzeniem kolejnego artykułu.",
+  "findit.initial_stock_retry_intro": "Zapisana operacja przyjęcia zostanie dokładnie powtórzona z pierwotnym identyfikatorem żądania. Jeśli już się powiodła, to samo żądanie nie doda zapasów ponownie.",
   "findit.initial_stock_saved": "Zapasy początkowe zapisane",
   "findit.invalid_quantity": "Wprowadź liczbę dodatnią z dokładnością do sześciu miejsc po przecinku. Ilości sztuk muszą być liczbami całkowitymi.",
   "findit.invalid_template_fields": "Nieprawidłowe pola szablonu",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Ten wpis został zmieniony. Wczytaj go ponownie przed zapisaniem.",
   "findit.error_disabled": "Dostęp do FindIt jest obecnie wyłączony.",
   "findit.error_invalid": "Sprawdź wprowadzone dane i spróbuj ponownie.",
-  "findit.error_retry_conflict": "Ta próba różni się od poprzedniego żądania. Najpierw ponownie wczytaj wpis."
+  "findit.error_retry_conflict": "Ta próba różni się od poprzedniego żądania. Najpierw ponownie wczytaj wpis.",
+  "findit.serial_initial_stock_rules": "Dla artykułów z numerem seryjnym użyj jednostki „sztuka”. Stan początkowy musi wynosić dokładnie 1 i zawierać numer seryjny.",
+  "findit.initial_stock_rejected": "Stan początkowy został jednoznacznie odrzucony. Artykuł jest zapisany; dodaj stan przez zwykłe przyjęcie.",
+  "findit.pending_command_intro": "Wynik tej zmiany stanu lub rezerwacji jest nieznany. Odtwórz dokładnie zapisane żądanie, zanim rozpoczniesz kolejną zmianę dla tego artykułu lub projektu.",
+  "findit.retry_exact_command": "Ponów dokładnie to żądanie",
+  "findit.pending_command_queue_full": "W tej karcie jest zbyt wiele nierozstrzygniętych zmian stanu lub rezerwacji. Rozstrzygnij oczekujące żądanie przed kolejną zmianą.",
+  "findit.pending_command_storage_unavailable": "Ta karta nie mogła zapisać oczekującego żądania, więc zmiana nie została wysłana. Włącz pamięć sesji i spróbuj ponownie.",
+  "findit.pending_command": "Rozwiąż oczekującą zmianę"
 }

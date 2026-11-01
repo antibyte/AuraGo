@@ -447,8 +447,8 @@
   "findit.initial_location": "Anfangslagerort",
   "findit.initial_location_required": "Wähle für den Anfangsbestand einen Lagerort aus.",
   "findit.initial_quantity": "Anfangsbestand",
-  "findit.initial_stock_pending": "Der Artikel wurde gespeichert, aber sein Anfangsbestand ist noch nicht gebucht. Wiederhole die Buchung unten, bevor du einen weiteren Artikel anlegst.",
-  "findit.initial_stock_retry_intro": "Der Artikel ist bereits angelegt. Passe die Bestandsdaten an und versuche es erneut. Dabei wird kein weiterer Artikel erstellt.",
+  "findit.initial_stock_pending": "Der Artikel wurde gespeichert, aber die Bestätigung des Anfangsbestands fehlt. Kläre die gespeicherte Anfrage unten, bevor Du einen weiteren Artikel anlegst.",
+  "findit.initial_stock_retry_intro": "Der gespeicherte Lagerzugang wird mit derselben Anfrage-ID unverändert wiederholt. Falls er schon gebucht wurde, wird der Bestand nicht doppelt erhöht.",
   "findit.initial_stock_saved": "Anfangsbestand gespeichert",
   "findit.invalid_quantity": "Gib eine positive Menge mit höchstens sechs Nachkommastellen ein. Stückzahlen müssen ganzzahlig sein.",
   "findit.invalid_template_fields": "Vorlagenfelder sind ungültig",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Dieser Eintrag wurde geändert. Lade ihn vor dem Speichern neu.",
   "findit.error_disabled": "Der Zugriff auf FindIt ist derzeit deaktiviert.",
   "findit.error_invalid": "Prüfe Deine Eingaben und versuche es erneut.",
-  "findit.error_retry_conflict": "Diese Wiederholung weicht von der vorherigen Anfrage ab. Lade den Eintrag zuerst neu."
+  "findit.error_retry_conflict": "Diese Wiederholung weicht von der vorherigen Anfrage ab. Lade den Eintrag zuerst neu.",
+  "findit.serial_initial_stock_rules": "Verwende bei Artikeln mit Seriennummer die Einheit „Stück“. Der Anfangsbestand muss genau 1 betragen und eine Seriennummer enthalten.",
+  "findit.initial_stock_rejected": "Der Anfangsbestand wurde eindeutig abgelehnt. Der Artikel ist gespeichert; buche den Bestand über einen normalen Zugang.",
+  "findit.pending_command_intro": "Das Ergebnis der Lager- oder Reservierungsänderung ist unbekannt. Wiederhole exakt die gespeicherte Anfrage, bevor Du eine weitere Änderung für Artikel oder Projekt startest.",
+  "findit.retry_exact_command": "Exakte Anfrage wiederholen",
+  "findit.pending_command_queue_full": "Zu viele Lageränderungen oder Reservierungen in diesem Tab sind ungeklärt. Kläre eine offene Anfrage vor einer weiteren Änderung.",
+  "findit.pending_command_storage_unavailable": "Dieser Browser-Tab konnte die offene Anfrage nicht speichern. Die Änderung wurde deshalb nicht gesendet. Aktiviere den Sitzungsspeicher und versuche es erneut.",
+  "findit.pending_command": "Offene Änderung klären"
 }

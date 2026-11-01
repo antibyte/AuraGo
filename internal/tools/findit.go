@@ -51,11 +51,20 @@ func FindItAvailable() bool {
 	return store != nil && currentConfig != nil && findItAgentAllowed(currentConfig())
 }
 
+// FindItAvailableFor requires both the run's captured grant and the live grant.
+func FindItAvailableFor(runConfig *config.Config) bool {
+	return findItAgentAllowed(runConfig) && FindItAvailable()
+}
+
 // ExecuteFindIt performs one strictly read-only FindIt query. It holds the
 // publication read lock for the full query so server shutdown cannot close the
-// database while a read is in progress. The live config is checked on both
-// sides of the query so revocation suppresses stale-run results.
+// database while a read is in progress. Both the run's captured grant and live
+// config are checked so stale runs cannot gain a grant after they start.
 func ExecuteFindIt(ctx context.Context, cfg *config.Config, req findit.QueryRequest) string {
+	runConfig := cfg
+	if !findItAgentAllowed(runConfig) {
+		return findItFailure("policy_denied", "FindIt is not enabled for this agent run.")
+	}
 	findItPublished.RLock()
 	defer findItPublished.RUnlock()
 
@@ -66,8 +75,8 @@ func ExecuteFindIt(ctx context.Context, cfg *config.Config, req findit.QueryRequ
 	if current == nil {
 		return findItFailure("unavailable", "FindIt access policy is not available right now.")
 	}
-	cfg = current()
-	if !findItAgentAllowed(cfg) {
+	liveConfig := current()
+	if !findItAgentAllowed(liveConfig) {
 		return findItFailure("policy_denied", "FindIt is not enabled for agent access.")
 	}
 	if !validFindItReadRequest(req) {
@@ -77,6 +86,9 @@ func ExecuteFindIt(ctx context.Context, cfg *config.Config, req findit.QueryRequ
 	result, err := findItPublished.store.Query(ctx, req)
 	// Recheck even when the query failed, so a newly revoked grant does not
 	// retain a stale store result or error in an already-running turn.
+	if !findItAgentAllowed(runConfig) {
+		return findItFailure("policy_denied", "FindIt is not enabled for this agent run.")
+	}
 	if !findItAgentAllowed(current()) {
 		return findItFailure("policy_denied", "FindIt agent access was disabled while the query was running.")
 	}

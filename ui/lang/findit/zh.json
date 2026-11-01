@@ -450,8 +450,8 @@
   "findit.initial_location": "起始位置",
   "findit.initial_location_required": "选择起始库存的存储位置。",
   "findit.initial_quantity": "起始数量",
-  "findit.initial_stock_pending": "该商品已保存，但其期初库存仍待处理。在创建另一个项目之前重试下面的库存条目。",
-  "findit.initial_stock_retry_intro": "该项目已存在。调整库存详情并重试；这不会创建另一个项目。",
+  "findit.initial_stock_pending": "商品已保存，但初始库存结果尚未确认。创建另一件商品前，请先解决下方保存的请求。",
+  "findit.initial_stock_retry_intro": "系统会使用原始请求 ID 原样重试已保存的库存记录。如果此前已成功，同一请求不会再次增加库存。",
   "findit.initial_stock_saved": "已保存起始库存",
   "findit.invalid_quantity": "输入最多六位小数的正数。件数必须是整数。",
   "findit.invalid_template_fields": "模板字段无效",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "此记录已更改。请重新加载后再保存。",
   "findit.error_disabled": "目前已禁用 FindIt 访问。",
   "findit.error_invalid": "请检查输入内容后重试。",
-  "findit.error_retry_conflict": "本次重试与之前的请求不同。请先重新加载记录。"
+  "findit.error_retry_conflict": "本次重试与之前的请求不同。请先重新加载记录。",
+  "findit.serial_initial_stock_rules": "跟踪序列号的物品请使用“件”作为单位。初始库存必须正好为 1 件，并填写序列号。",
+  "findit.initial_stock_rejected": "初始库存已被明确拒绝。物品仍已保存；请通过普通入库添加库存。",
+  "findit.pending_command_intro": "此库存或预留变更的结果未知。在为此物品或项目开始其他变更前，请重放完全相同的已保存请求。",
+  "findit.retry_exact_command": "重试完全相同的请求",
+  "findit.pending_command_queue_full": "此标签页中有太多尚未解决的库存变更或预留。请先解决待处理请求，再进行其他变更。",
+  "findit.pending_command_storage_unavailable": "此浏览器标签页无法保存待处理请求，因此没有发送变更。请启用会话存储后重试。",
+  "findit.pending_command": "解决待处理的变更"
 }

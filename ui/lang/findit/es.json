@@ -447,8 +447,8 @@
   "findit.initial_location": "Ubicación inicial",
   "findit.initial_location_required": "Elija una ubicación de almacenamiento para el stock inicial.",
   "findit.initial_quantity": "Cantidad inicial",
-  "findit.initial_stock_pending": "El artículo fue guardado, pero aún está pendiente su stock inicial. Vuelva a intentar esa entrada de stock a continuación antes de crear otro artículo.",
-  "findit.initial_stock_retry_intro": "El artículo ya existe. Ajuste los detalles del stock y vuelva a intentarlo; esto no creará otro elemento.",
+  "findit.initial_stock_pending": "El artículo se guardó, pero no se confirmó el resultado del stock inicial. Resuelve la solicitud guardada a continuación antes de crear otro artículo.",
+  "findit.initial_stock_retry_intro": "Se repetirá exactamente la entrada de stock guardada con su ID de solicitud original. Si ya se registró, la misma solicitud no volverá a añadir existencias.",
   "findit.initial_stock_saved": "Stock inicial guardado",
   "findit.invalid_quantity": "Introduzca una cantidad positiva con hasta seis decimales. Las cantidades de piezas deben ser números enteros.",
   "findit.invalid_template_fields": "Campos de plantilla no válidos",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Este registro ha cambiado. Vuelve a cargarlo antes de guardar.",
   "findit.error_disabled": "El acceso a FindIt está desactivado actualmente.",
   "findit.error_invalid": "Revisa los datos e inténtalo de nuevo.",
-  "findit.error_retry_conflict": "Este intento difiere de la solicitud anterior. Vuelve a cargar el registro primero."
+  "findit.error_retry_conflict": "Este intento difiere de la solicitud anterior. Vuelve a cargar el registro primero.",
+  "findit.serial_initial_stock_rules": "En los artículos con número de serie, usa la unidad «pieza». El stock inicial debe ser exactamente 1 e incluir el número de serie.",
+  "findit.initial_stock_rejected": "El stock inicial se rechazó definitivamente. El artículo sigue guardado; añade existencias con una recepción normal.",
+  "findit.pending_command_intro": "El resultado de este cambio de stock o reserva es desconocido. Repite exactamente la solicitud guardada antes de iniciar otro cambio para el artículo o proyecto.",
+  "findit.retry_exact_command": "Repetir solicitud exacta",
+  "findit.pending_command_queue_full": "Hay demasiados cambios de stock o reservas sin resolver en esta pestaña. Resuelve una solicitud pendiente antes de otro cambio.",
+  "findit.pending_command_storage_unavailable": "Esta pestaña no pudo guardar la solicitud pendiente, así que no se envió el cambio. Activa el almacenamiento de sesión e inténtalo de nuevo.",
+  "findit.pending_command": "Resolver cambio pendiente"
 }

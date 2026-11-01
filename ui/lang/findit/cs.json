@@ -447,8 +447,8 @@
   "findit.initial_location": "Výchozí místo",
   "findit.initial_location_required": "Vyberte místo skladování pro počáteční zásoby.",
   "findit.initial_quantity": "Počáteční množství",
-  "findit.initial_stock_pending": "Položka byla uložena, ale její otevření na skladě stále čeká. Před vytvořením další položky zopakujte níže uvedený skladový záznam.",
-  "findit.initial_stock_retry_intro": "Položka již existuje. Upravte podrobnosti o akciích a zkuste to znovu; tím se nevytvoří další položka.",
+  "findit.initial_stock_pending": "Položka je uložena, ale potvrzení počátečního stavu chybí. Níže bezpečně vyřešte uložený požadavek před vytvořením další položky.",
+  "findit.initial_stock_retry_intro": "Tím se přesně zopakuje uložený skladový příjem se stejným ID požadavku. Pokud již proběhl, opakovaný požadavek zásobu znovu nepřidá.",
   "findit.initial_stock_saved": "Počáteční sklad byl uložen",
   "findit.invalid_quantity": "Zadejte kladné množství až na šest desetinných míst. Množství kusů musí být celá čísla.",
   "findit.invalid_template_fields": "Neplatná pole šablony",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Tento záznam se změnil. Před uložením jej znovu načtěte.",
   "findit.error_disabled": "Přístup k FindIt je nyní zakázán.",
   "findit.error_invalid": "Zkontrolujte zadané údaje a zkuste to znovu.",
-  "findit.error_retry_conflict": "Tento pokus se liší od předchozího požadavku. Nejprve znovu načtěte záznam."
+  "findit.error_retry_conflict": "Tento pokus se liší od předchozího požadavku. Nejprve znovu načtěte záznam.",
+  "findit.serial_initial_stock_rules": "Pro položky se sériovým číslem použij jednotku „kus“. Počáteční stav musí být přesně 1 a musí mít sériové číslo.",
+  "findit.initial_stock_rejected": "Počáteční stav byl jednoznačně odmítnut. Položka je uložena; sklad doplň běžným příjmem.",
+  "findit.pending_command_intro": "Výsledek změny skladu nebo rezervace není známý. Před další změnou této položky nebo projektu zopakuj přesně uložený požadavek.",
+  "findit.retry_exact_command": "Zopakovat přesný požadavek",
+  "findit.pending_command_queue_full": "V této kartě čeká na vyřešení příliš mnoho změn skladu nebo rezervací. Před další změnou vyřeš čekající požadavek.",
+  "findit.pending_command_storage_unavailable": "Karta prohlížeče nemohla uložit čekající požadavek, proto změna nebyla odeslána. Povol úložiště relace a zkus to znovu.",
+  "findit.pending_command": "Vyřešit čekající změnu"
 }

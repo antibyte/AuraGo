@@ -13,12 +13,19 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
 const (
-	maxCSVBytes = 10 << 20
-	maxCSVRows  = 25_000
+	maxCSVBytes   = 10 << 20
+	maxCSVRows    = 25_000
+	maxCSVColumns = 256
+	// findit_csv_encoding is a reserved dialect marker. Only a CSV that
+	// explicitly declares literal-v1 gets the exporter's formula-escape
+	// apostrophes removed; unmarked cells are always imported literally.
+	csvEncodingColumn  = "findit_csv_encoding"
+	csvEncodingVersion = "literal-v1"
 )
 
 var itemCSVFields = []string{
@@ -356,10 +363,17 @@ func exportCSV(ctx context.Context, db queryDB, entity, projectID string) ([]byt
 	default:
 		return nil, domainError("invalid", "CSV export entity must be items, stocks, or project_lines")
 	}
+	// The explicit marker makes literal-cell protection reversible without
+	// guessing whether apostrophes in third-party imports were user content.
+	header = append(header, csvEncodingColumn)
 	if err := writer.Write(header); err != nil {
 		return nil, wrapError("unavailable", "write FindIt CSV header", err)
 	}
 	for _, row := range rows {
+		for i := range row {
+			row[i] = literalCSVCell(row[i])
+		}
+		row = append(row, csvEncodingVersion)
 		if err := writer.Write(row); err != nil {
 			return nil, wrapError("unavailable", "write FindIt CSV row", err)
 		}
@@ -377,26 +391,39 @@ type parsedCSV struct {
 	records     [][]string
 }
 
+func literalCSVCell(value string) string {
+	leading := strings.TrimLeft(value, " \t\r\n")
+	if leading != "" && (strings.ContainsRune("=+-@＝＋－＠'", []rune(leading)[0]) || strings.HasPrefix(value, "\t") || strings.HasPrefix(value, "\r") || strings.HasPrefix(value, "\n")) {
+		return "'" + value
+	}
+	return value
+}
+
 func parseCSV(content string) (parsedCSV, error) {
 	if len(content) == 0 || len(content) > maxCSVBytes || !utf8.ValidString(content) {
 		return parsedCSV{}, domainError("invalid", "CSV must be non-empty valid UTF-8 and no larger than 10 MiB")
 	}
 	content = strings.TrimPrefix(content, "\uFEFF")
 	parseWith := func(delimiter rune) (parsedCSV, error) {
+		if headerTooWide, rowTooWide := csvColumnLimitExceeded(content, delimiter); headerTooWide {
+			return parsedCSV{}, domainError("invalid", "CSV header must contain between 1 and 256 columns")
+		} else if rowTooWide {
+			return parsedCSV{}, domainError("invalid", "CSV row contains too many columns")
+		}
 		reader := csv.NewReader(strings.NewReader(content))
 		reader.Comma = delimiter
 		reader.FieldsPerRecord = -1
 		reader.TrimLeadingSpace = true
-		all, err := reader.ReadAll()
+		first, err := reader.Read()
 		if err != nil {
 			return parsedCSV{}, domainError("invalid", "CSV syntax is invalid")
 		}
-		if len(all) < 2 || len(all[0]) == 0 {
-			return parsedCSV{}, domainError("invalid", "CSV needs a header and at least one data row")
+		if len(first) == 0 || len(first) > maxCSVColumns {
+			return parsedCSV{}, domainError("invalid", "CSV header must contain between 1 and 256 columns")
 		}
-		headers := make([]string, len(all[0]))
-		index := make(map[string]int, len(all[0]))
-		for i, value := range all[0] {
+		headers := make([]string, len(first))
+		index := make(map[string]int, len(first))
+		for i, value := range first {
 			value = strings.TrimSpace(value)
 			if value == "" {
 				return parsedCSV{}, domainError("invalid", "CSV header names cannot be blank")
@@ -408,9 +435,109 @@ func parseCSV(content string) (parsedCSV, error) {
 			headers[i] = value
 			index[key] = i
 		}
-		return parsedCSV{headers: headers, headerIndex: index, records: all[1:]}, nil
+		records := make([][]string, 0)
+		encodingColumn, encoded := index[csvEncodingColumn]
+		for {
+			record, err := reader.Read()
+			if err == io.EOF {
+				break
+			}
+			if len(records) >= maxCSVRows {
+				return parsedCSV{}, domainError("invalid", "CSV import contains too many rows")
+			}
+			if err != nil {
+				return parsedCSV{}, domainError("invalid", "CSV syntax is invalid")
+			}
+			if len(record) > maxCSVColumns {
+				return parsedCSV{}, domainError("invalid", "CSV row contains too many columns")
+			}
+			if encoded {
+				if encodingColumn >= len(record) || record[encodingColumn] != csvEncodingVersion {
+					return parsedCSV{}, domainError("invalid", "CSV literal encoding is invalid")
+				}
+				for i := range record {
+					if i != encodingColumn {
+						record[i] = strings.TrimPrefix(record[i], "'")
+					}
+				}
+			}
+			records = append(records, record)
+		}
+		if len(records) == 0 {
+			return parsedCSV{}, domainError("invalid", "CSV needs a header and at least one data row")
+		}
+		return parsedCSV{headers: headers, headerIndex: index, records: records}, nil
 	}
 	return parseWith(detectCSVDelimiter(content))
+}
+
+// csvColumnLimitExceeded scans CSV syntax without materializing fields so an
+// over-wide logical record is rejected before encoding/csv allocates a slice
+// and strings for every column. This is only a bound check: csv.Reader remains
+// the authority for syntax validation after a bounded record passes.
+func csvColumnLimitExceeded(content string, delimiter rune) (headerTooWide, rowTooWide bool) {
+	columns := 1
+	firstRecord := true
+	quoted := false
+	fieldStart := true
+	recordHasContent := false
+	for offset := 0; offset < len(content); {
+		current := content[offset]
+		if quoted {
+			if current == '"' {
+				if offset+1 < len(content) && content[offset+1] == '"' {
+					offset += 2
+					continue
+				}
+				quoted = false
+				fieldStart = false
+			}
+			recordHasContent = true
+			offset++
+			continue
+		}
+		if current == '"' && fieldStart {
+			quoted = true
+			recordHasContent = true
+			offset++
+			continue
+		}
+		if rune(current) == delimiter {
+			columns++
+			fieldStart = true
+			recordHasContent = true
+			if columns > maxCSVColumns {
+				return firstRecord, !firstRecord
+			}
+			offset++
+			continue
+		}
+		if current == '\n' {
+			if recordHasContent {
+				firstRecord = false
+			}
+			columns = 1
+			fieldStart = true
+			recordHasContent = false
+			offset++
+			continue
+		}
+		if fieldStart {
+			r, size := utf8.DecodeRuneInString(content[offset:])
+			if unicode.IsSpace(r) {
+				recordHasContent = true
+				offset += size
+				continue
+			}
+			fieldStart = false
+		}
+		// A final carriage return is stripped by csv.Reader as part of CRLF.
+		if current != '\r' || offset+1 < len(content) && content[offset+1] != '\n' {
+			recordHasContent = true
+		}
+		offset++
+	}
+	return false, false
 }
 
 func detectCSVDelimiter(content string) rune {

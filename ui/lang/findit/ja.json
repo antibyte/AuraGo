@@ -447,8 +447,8 @@
   "findit.initial_location": "Starting 保管場所",
   "findit.initial_location_required": "初期在庫を置く保管場所を選択してください。",
   "findit.initial_quantity": "Starting 数量",
-  "findit.initial_stock_pending": "品目は保存されましたが、初期在庫の登録は保留中です。別の品目を作成する前に、下から在庫登録を再試行してください。",
-  "findit.initial_stock_retry_intro": "この品目はすでに存在します。在庫の詳細を修正して再試行してください。品目は重複して作成されません。",
+  "findit.initial_stock_pending": "品目は保存されましたが、初期在庫の結果は未確認です。別の品目を作成する前に、下の保存済みリクエストを解決してください。",
+  "findit.initial_stock_retry_intro": "保存済みの在庫登録を元のリクエストIDでそのまま再送します。すでに成功している場合、同じリクエストで在庫が重複して増えることはありません。",
   "findit.initial_stock_saved": "Starting 在庫 保存済み",
   "findit.invalid_quantity": "小数点以下6桁までの正の数量を入力してください。個数単位は整数で入力します。",
   "findit.invalid_template_fields": "テンプレート項目を確認してください。",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "このレコードは変更されています。保存する前に再読み込みしてください。",
   "findit.error_disabled": "現在、FindIt へのアクセスは無効です。",
   "findit.error_invalid": "入力内容を確認して、もう一度お試しください。",
-  "findit.error_retry_conflict": "今回の再試行は前のリクエストと異なります。先にレコードを再読み込みしてください。"
+  "findit.error_retry_conflict": "今回の再試行は前のリクエストと異なります。先にレコードを再読み込みしてください。",
+  "findit.serial_initial_stock_rules": "シリアル番号を管理する品目では、単位に「個」を選択してください。初期在庫は正確に1個で、シリアル番号が必要です。",
+  "findit.initial_stock_rejected": "初期在庫は明確に拒否されました。品目は保存済みです。通常の入庫で在庫を追加してください。",
+  "findit.pending_command_intro": "この在庫または予約変更の結果は不明です。この品目またはプロジェクトに別の変更を始める前に、保存済みの同じリクエストを再実行してください。",
+  "findit.retry_exact_command": "同じリクエストを再実行",
+  "findit.pending_command_queue_full": "このタブには未解決の在庫変更または予約が多すぎます。次の変更を行う前に、保留中のリクエストを解決してください。",
+  "findit.pending_command_storage_unavailable": "このブラウザータブでは保留中のリクエストを保存できず、変更は送信されませんでした。セッションストレージを有効にして再試行してください。",
+  "findit.pending_command": "保留中の変更を解決"
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 )
 
@@ -35,6 +36,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 		if err := validateID(input.StockID, "stock id", true); err != nil {
 			return nil, err
 		}
+	}
+	if input.StockVersion < 0 || input.StockVersion > 0 && input.StockID == "" {
+		return nil, domainError("invalid", "stock_version requires a stock id and cannot be negative")
 	}
 	quantity, err := ParseQuantity(input.Quantity)
 	if err != nil || kind != "adjust" && quantity <= 0 {
@@ -104,6 +108,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 	switch kind {
 	case "receive":
 		if input.StockID == "" {
+			if err := ensureItemStockIncrease(ctx, tx, input.ItemID, quantity); err != nil {
+				return nil, err
+			}
 			stock = stockState{ID: newID(), ItemID: input.ItemID, LocationID: locationID, Lot: lot, Condition: condition, Serial: serial, Version: 1, TrackSerials: item.TrackSerials, Unit: item.Unit}
 			if err := createStockRow(ctx, tx, stock, quantity); err != nil {
 				return nil, mapWriteError(err, "receive stock")
@@ -115,11 +122,20 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 			if err != nil {
 				return nil, err
 			}
+			if err := checkStockVersion(input.StockVersion, stock); err != nil {
+				return nil, err
+			}
 			if stock.ItemID != input.ItemID || stock.LocationID != locationID || stock.Lot != lot && lot != "" || stock.Condition != condition || stock.Serial != serial && serial != "" {
 				return nil, ErrConflict
 			}
-			if stock.TrackSerials && stock.Quantity > 0 {
-				return nil, domainError("conflict", "serial is already in stock; use return only after issue")
+			if stock.TrackSerials {
+				if stock.Quantity > 0 {
+					return nil, domainError("conflict", "serial is already in stock; use return only after issue")
+				}
+				return nil, domainError("conflict", "issued serial stock must be restored with return")
+			}
+			if err := ensureItemStockIncrease(ctx, tx, input.ItemID, quantity); err != nil {
+				return nil, err
 			}
 			if err := addStock(ctx, tx, stock, quantity); err != nil {
 				return nil, err
@@ -135,6 +151,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 		if err != nil {
 			return nil, err
 		}
+		if err := checkStockVersion(input.StockVersion, stock); err != nil {
+			return nil, err
+		}
 		if stock.ItemID != input.ItemID || stock.TrackSerials && stock.Quantity != 0 || stock.TrackSerials && serial != "" && stock.Serial != serial || !stock.TrackSerials && serial != "" {
 			return nil, ErrConflict
 		}
@@ -146,9 +165,14 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 				return nil, domainError("conflict", "return location differs from the stock location; transfer stock separately")
 			}
 			stock.LocationID = locationID
+		} else if err := requireActiveLocation(ctx, tx, stock.LocationID); err != nil {
+			return nil, err
 		}
 		if stock.TrackSerials && quantity != quantityScale || stock.Unit == "piece" && quantity%quantityScale != 0 {
 			return nil, domainError("invalid", "returned stock quantity is invalid")
+		}
+		if err := ensureItemStockIncrease(ctx, tx, input.ItemID, quantity); err != nil {
+			return nil, err
 		}
 		if err := setStock(ctx, tx, stock, stock.Quantity+quantity, stock.Version); err != nil {
 			return nil, err
@@ -158,6 +182,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 	case "issue":
 		stock, err = requireStock(ctx, tx, input.StockID, input.ItemID)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkStockVersion(input.StockVersion, stock); err != nil {
 			return nil, err
 		}
 		if stock.Unit == "piece" && quantity%quantityScale != 0 || stock.TrackSerials && quantity != quantityScale {
@@ -171,6 +198,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 	case "adjust":
 		stock, err = loadStock(ctx, tx, input.StockID)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkStockVersion(input.StockVersion, stock); err != nil {
 			return nil, err
 		}
 		if stock.ItemID != input.ItemID {
@@ -188,6 +218,13 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 			if quantity < reserved {
 				return nil, domainError("conflict", "adjustment would reduce stock below active reservations")
 			}
+		} else if delta > 0 {
+			if err := requireActiveLocation(ctx, tx, stock.LocationID); err != nil {
+				return nil, err
+			}
+			if err := ensureItemStockIncrease(ctx, tx, input.ItemID, delta); err != nil {
+				return nil, err
+			}
 		}
 		if err := setStock(ctx, tx, stock, quantity, stock.Version); err != nil {
 			return nil, err
@@ -196,6 +233,9 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 	case "transfer":
 		stock, err = requireStock(ctx, tx, input.StockID, input.ItemID)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkStockVersion(input.StockVersion, stock); err != nil {
 			return nil, err
 		}
 		if targetLocation == "" || targetLocation == stock.LocationID {
@@ -307,11 +347,52 @@ func requireStock(ctx context.Context, tx *sql.Tx, stockID, itemID string) (stoc
 	return stock, nil
 }
 
+func checkStockVersion(expected int64, stock stockState) error {
+	if expected > 0 && expected != stock.Version {
+		return ErrConflict
+	}
+	return nil
+}
+
 func addStock(ctx context.Context, tx *sql.Tx, stock stockState, quantity int64) error {
 	if quantity < 0 || stock.Quantity > int64(^uint64(0)>>1)-quantity {
 		return domainError("invalid", "stock quantity is outside the supported range")
 	}
 	return setStock(ctx, tx, stock, stock.Quantity+quantity, stock.Version)
+}
+
+func ensureItemStockIncrease(ctx context.Context, tx *sql.Tx, itemID string, increase int64) error {
+	if increase <= 0 {
+		return nil
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT quantity_micro FROM stocks WHERE item_id=?`, itemID)
+	if err != nil {
+		return wrapError("unavailable", "read FindIt item stock total", err)
+	}
+	var total int64
+	for rows.Next() {
+		var quantity int64
+		if err := rows.Scan(&quantity); err != nil {
+			_ = rows.Close()
+			return wrapError("unavailable", "read FindIt item stock total", err)
+		}
+		if quantity < 0 || total > math.MaxInt64-quantity {
+			_ = rows.Close()
+			return domainError("conflict", "item stock total exceeds the supported range")
+		}
+		total += quantity
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return wrapError("unavailable", "read FindIt item stock total", err)
+	}
+	if err := rows.Close(); err != nil {
+		return wrapError("unavailable", "close FindIt item stock total", err)
+	}
+	if total > math.MaxInt64-increase {
+		return domainError("conflict", "item stock total exceeds the supported range")
+	}
+	return nil
 }
 
 func setStock(ctx context.Context, tx *sql.Tx, stock stockState, quantity, expected int64) error {
@@ -568,6 +649,9 @@ func updateProjectStatus(ctx context.Context, tx *sql.Tx, req CommandRequest, in
 	if err != nil {
 		return nil, err
 	}
+	if project.Archived {
+		return nil, ErrNotFound
+	}
 	if project.Version != req.ExpectedVersion {
 		return nil, ErrConflict
 	}
@@ -599,11 +683,13 @@ func updateProjectStatus(ctx context.Context, tx *sql.Tx, req CommandRequest, in
 			return nil, mapWriteError(err, "release project")
 		}
 	case project.Status == "released" && wanted == "draft":
-		var active, consumed int64
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(quantity_micro-consumed_micro-released_micro),0),COALESCE(sum(consumed_micro),0) FROM reservations WHERE project_id=?`, req.ID).Scan(&active, &consumed); err != nil {
+		var active, consumed int
+		if err := tx.QueryRowContext(ctx, `SELECT
+			EXISTS(SELECT 1 FROM reservations WHERE project_id=? AND quantity_micro>consumed_micro+released_micro),
+			EXISTS(SELECT 1 FROM reservations WHERE project_id=? AND consumed_micro>0)`, req.ID, req.ID).Scan(&active, &consumed); err != nil {
 			return nil, wrapError("unavailable", "check FindIt project reservations", err)
 		}
-		if active > 0 || consumed > 0 {
+		if active != 0 || consumed != 0 {
 			return nil, domainError("conflict", "a project with active reservations or consumption cannot reopen its BOM")
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE projects SET status='draft',bom_revision=MAX(bom_revision,released_revision)+1,version=version+1,updated_at=? WHERE id=? AND version=?`, now, req.ID, req.ExpectedVersion); err != nil {
@@ -617,11 +703,11 @@ func updateProjectStatus(ctx context.Context, tx *sql.Tx, req CommandRequest, in
 			return nil, mapWriteError(err, "cancel project")
 		}
 	case project.Status == "released" && wanted == "completed":
-		var active int64
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(quantity_micro-consumed_micro-released_micro),0) FROM reservations WHERE project_id=?`, req.ID).Scan(&active); err != nil {
+		var active int
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM reservations WHERE project_id=? AND quantity_micro>consumed_micro+released_micro)`, req.ID).Scan(&active); err != nil {
 			return nil, wrapError("unavailable", "check FindIt project reservations", err)
 		}
-		if active > 0 {
+		if active != 0 {
 			return nil, domainError("conflict", "release or consume reservations before completing the project")
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE projects SET status='completed',version=version+1,updated_at=? WHERE id=? AND version=?`, now, req.ID, req.ExpectedVersion); err != nil {

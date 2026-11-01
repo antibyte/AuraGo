@@ -450,8 +450,8 @@
   "findit.initial_location": "Startplats",
   "findit.initial_location_required": "Välj en förvaringsplats för startlager.",
   "findit.initial_quantity": "Startmängd",
-  "findit.initial_stock_pending": "Objektet har sparats, men dess öppningslager väntar fortfarande. Försök igen att lagerposten nedan innan du skapar en annan vara.",
-  "findit.initial_stock_retry_intro": "Objektet finns redan. Justera lagerinformationen och försök igen; detta kommer inte att skapa ett annat objekt.",
+  "findit.initial_stock_pending": "Artikeln har sparats, men resultatet för ingående lager är inte bekräftat. Lös den sparade begäran nedan innan du skapar en ny artikel.",
+  "findit.initial_stock_retry_intro": "Den sparade lagerposten upprepas exakt med sitt ursprungliga förfrågnings-ID. Om den redan har lyckats lägger samma förfrågan inte till lagret igen.",
   "findit.initial_stock_saved": "Startlager sparat",
   "findit.invalid_quantity": "Ange en positiv kvantitet med upp till sex decimaler. Styckkvantiteter måste vara heltal.",
   "findit.invalid_template_fields": "Ogiltiga mallfält",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Den här posten har ändrats. Läs in den igen innan du sparar.",
   "findit.error_disabled": "Åtkomst till FindIt är för närvarande avstängd.",
   "findit.error_invalid": "Kontrollera dina uppgifter och försök igen.",
-  "findit.error_retry_conflict": "Det här försöket skiljer sig från den tidigare begäran. Läs in posten igen först."
+  "findit.error_retry_conflict": "Det här försöket skiljer sig från den tidigare begäran. Läs in posten igen först.",
+  "findit.serial_initial_stock_rules": "Använd enheten ”styck” för artiklar med serienummer. Ingående lager måste vara exakt 1 och ha ett serienummer.",
+  "findit.initial_stock_rejected": "Det ingående lagret avvisades definitivt. Artikeln är fortfarande sparad; lägg till lagret med en vanlig inleverans.",
+  "findit.pending_command_intro": "Resultatet av lagerändringen eller reservationen är okänt. Kör exakt den sparade begäran igen innan du startar en ny ändring för artikeln eller projektet.",
+  "findit.retry_exact_command": "Försök igen med exakt begäran",
+  "findit.pending_command_queue_full": "För många lagerändringar eller reservationer är olösta i den här fliken. Lös en väntande begäran innan en ny ändring.",
+  "findit.pending_command_storage_unavailable": "Den här fliken kunde inte spara den väntande begäran, så ändringen skickades inte. Aktivera sessionslagring och försök igen.",
+  "findit.pending_command": "Lös väntande ändring"
 }

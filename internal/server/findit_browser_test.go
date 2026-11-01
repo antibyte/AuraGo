@@ -84,6 +84,16 @@ func TestDesktopFindItBrowser(t *testing.T) {
 		t.Fatalf("FindIt lifecycle: %v", err)
 	}
 	t.Log("FindIt lifecycle:", lifecycleResult.Value.JSON("", ""))
+	audit, err := os.ReadFile(filepath.Join("..", "..", "ui", "testdata", "findit-audit.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditResult, err := page.Eval(string(audit))
+	if err != nil {
+		page.MustScreenshot(filepath.Join(out, "failure-audit.png"))
+		t.Fatalf("FindIt audit: %v; diagnostics=%s", err, page.MustEval(`()=>({errors:window.errors,requests:window.failedRequests,appError:window.app.error})`).JSON("", ""))
+	}
+	t.Log("FindIt audit:", auditResult.Value.JSON("", ""))
 	page.MustElement(`[data-action="new-item"]`).MustClick()
 	page.MustElement(`dialog[open] input[name="name"]`).MustFocus()
 	page.Keyboard.MustType(input.Tab)
@@ -128,8 +138,8 @@ func TestDesktopFindItBrowser(t *testing.T) {
 func installFindItBrowserFonts(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
-	stage := filepath.Join(root, "stage")
 	manifest := webassets.Manifest{Version: 1}
+	files := make(map[string][]byte)
 	source := filepath.Join("..", "..", "ui", "fonts", "qr")
 	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
@@ -144,13 +154,7 @@ func installFindItBrowserFonts(t *testing.T) {
 			return err
 		}
 		name := "ui/fonts/qr/" + filepath.ToSlash(rel)
-		target := filepath.Join(stage, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(target, data, 0600); err != nil {
-			return err
-		}
+		files[name] = data
 		manifest.Files = append(manifest.Files, webassets.Entry{Path: name, Size: int64(len(data)), SHA256: webassets.Digest(data)})
 		return nil
 	})
@@ -162,10 +166,19 @@ func installFindItBrowserFonts(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := webassets.Digest(data)
-	if err := os.WriteFile(filepath.Join(stage, webassets.ManifestName), data, 0600); err != nil {
-		t.Fatal(err)
+	// This private fixture needs no directory publication. Write directly under
+	// the known digest to avoid Windows antivirus locks during directory rename.
+	stage := filepath.Join(root, id)
+	for name, content := range files {
+		target := filepath.Join(stage, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, content, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.Rename(stage, filepath.Join(root, id)); err != nil {
+	if err := os.WriteFile(filepath.Join(stage, webassets.ManifestName), data, 0600); err != nil {
 		t.Fatal(err)
 	}
 	previous := webassets.Default

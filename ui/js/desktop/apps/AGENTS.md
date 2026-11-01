@@ -20,6 +20,12 @@
   an unacknowledged write failure; replay the same payload with the same request ID. Once a
   write is acknowledged, a later refresh error must not retry the mutation. Create the item and opening
   stock separately; preserve the item ID and offer stock retry if the second command fails.
+  Opening-stock receipts and uncertain stock/reservation commands survive FindIt window recreation
+  in tab session storage with their exact immutable payloads and request IDs. Opening stock is keyed
+  by item and request ID; remove only the matching acknowledged receipt. The bounded command queue
+  never evicts unresolved writes, blocks a new mutation for the same item/project scope, and resolves
+  only after acknowledgement or a definitive domain rejection. Other command request IDs remain
+  window-scoped.
   Photo uploads accept JPEG, PNG or WebP within the server size limit; explicit photos/icons
   override the bundled realistic sprite atlas.
 - Item package names refer to the physical electronic package (DIP-16, TQFP-100), not carton size. Typed template fields drive property filters and editor controls. Locations form the storage tree. Project edits require the backend lifecycle; only released BOMs can reserve stock, cancellation releases remaining holds, and completion does not consume them. The pick list groups active reservations by storage path; release and consume remain explicit.

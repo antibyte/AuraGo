@@ -450,8 +450,8 @@
   "findit.initial_location": "Starting location",
   "findit.initial_location_required": "Choose a storage location for starting stock.",
   "findit.initial_quantity": "Starting quantity",
-  "findit.initial_stock_pending": "The item was saved, but its opening stock is still pending. Retry that stock entry below before creating another item.",
-  "findit.initial_stock_retry_intro": "The item already exists. Adjust the stock details and retry; this will not create another item.",
+  "findit.initial_stock_pending": "The item was saved, but the opening-stock result is unconfirmed. Resolve the saved request below before creating another item.",
+  "findit.initial_stock_retry_intro": "This retries the saved stock entry exactly with its original request ID. If it already succeeded, the same request will not add the stock again.",
   "findit.initial_stock_saved": "Starting stock saved",
   "findit.invalid_quantity": "Enter a positive quantity with up to six decimal places. Piece quantities must be whole numbers.",
   "findit.invalid_template_fields": "Invalid template fields",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "This record changed. Reload it before saving.",
   "findit.error_disabled": "FindIt access is currently disabled.",
   "findit.error_invalid": "Check your entries and try again.",
-  "findit.error_retry_conflict": "This retry differs from the previous request. Reload before trying again."
+  "findit.error_retry_conflict": "This retry differs from the previous request. Reload before trying again.",
+  "findit.serial_initial_stock_rules": "For serialized items, use the piece unit. Opening stock must be exactly 1 and include its serial number.",
+  "findit.initial_stock_rejected": "The opening stock entry was definitively rejected. The item is still saved; add stock through a normal receipt.",
+  "findit.pending_command_intro": "The result of this stock or reservation change is unknown. Replay the exact saved request before starting another change for this item or project.",
+  "findit.retry_exact_command": "Retry exact request",
+  "findit.pending_command_queue_full": "Too many stock changes or reservations are unresolved in this tab. Resolve a pending request before making another change.",
+  "findit.pending_command_storage_unavailable": "This browser tab could not save the pending request, so the change was not sent. Enable session storage and try again.",
+  "findit.pending_command": "Resolve pending change"
 }
