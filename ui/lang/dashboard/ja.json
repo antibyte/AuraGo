@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Webスクレイパー",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "エントリがありません。",
   "dashboard.journal_key_topics": "トピック",
   "dashboard.journal_sentiment_trend": "センチメントトレンド",

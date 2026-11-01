@@ -71,12 +71,13 @@ func TestWhatsAppHandlersUseNoStoreAndMapErrors(t *testing.T) {
 		code   int
 		reason string
 	}{
-		whatsapp.ErrAlreadyLinked:      {http.StatusConflict, "already_linked"},
-		whatsapp.ErrLinkInProgress:     {http.StatusConflict, "link_in_progress"},
-		whatsapp.ErrNotConfigured:      {http.StatusConflict, "not_configured"},
-		whatsapp.ErrInvalidPhone:       {http.StatusBadRequest, "invalid_phone"},
-		whatsapp.ErrInvalidLinkMethod:  {http.StatusBadRequest, "invalid_method"},
-		errors.New("websocket closed"): {http.StatusInternalServerError, "whatsapp_failed"},
+		whatsapp.ErrAlreadyLinked:          {http.StatusConflict, "already_linked"},
+		whatsapp.ErrLinkInProgress:         {http.StatusConflict, "link_in_progress"},
+		whatsapp.ErrNotConfigured:          {http.StatusConflict, "not_configured"},
+		whatsapp.ErrInvalidPhone:           {http.StatusBadRequest, "invalid_phone"},
+		whatsapp.ErrInvalidLinkMethod:      {http.StatusBadRequest, "invalid_method"},
+		whatsapp.ErrRecipientNotOnWhatsApp: {http.StatusConflict, "recipient_not_on_whatsapp"},
+		errors.New("websocket closed"):     {http.StatusInternalServerError, "whatsapp_failed"},
 	} {
 		fake.linkErr = err
 		rec = httptest.NewRecorder()
@@ -115,6 +116,8 @@ func TestWhatsAppHandlersNeverEchoWrappedErrors(t *testing.T) {
 	const number = "491701234567"
 	leak := fmt.Errorf("send whatsapp test message: %w", errors.New("websocket closed while sending to "+number+"@s.whatsapp.net"))
 	wrappedSentinel := fmt.Errorf("resolve "+number+"@s.whatsapp.net: %w", whatsapp.ErrNotConnected)
+	// Like the sender's wrap of whatsmeow's error: the text embeds the owner JID.
+	notOnWhatsApp := fmt.Errorf("%w: no LID found for %s@s.whatsapp.net from server", whatsapp.ErrRecipientNotOnWhatsApp, number)
 
 	originalNow, originalLast := whatsAppTestNow, whatsAppTestLast
 	t.Cleanup(func() { whatsAppTestNow, whatsAppTestLast = originalNow, originalLast })
@@ -140,6 +143,10 @@ func TestWhatsAppHandlersNeverEchoWrappedErrors(t *testing.T) {
 			whatsAppTestLast = time.Time{}
 			handleWhatsAppTest(s).ServeHTTP(rec, whatsAppPost("/api/whatsapp/test", nil))
 		}, wrappedSentinel, http.StatusConflict, "not_connected"},
+		{"test, owner not on WhatsApp", func(e error) { fake.testErr = e }, func(rec *httptest.ResponseRecorder) {
+			whatsAppTestLast = time.Time{}
+			handleWhatsAppTest(s).ServeHTTP(rec, whatsAppPost("/api/whatsapp/test", nil))
+		}, notOnWhatsApp, http.StatusConflict, "recipient_not_on_whatsapp"},
 		{"logout", func(e error) { fake.logoutErr = e }, func(rec *httptest.ResponseRecorder) {
 			handleWhatsAppLogout(s).ServeHTTP(rec, whatsAppPost("/api/whatsapp/logout", nil))
 		}, leak, http.StatusInternalServerError, "whatsapp_failed"},

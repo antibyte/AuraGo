@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Schakel WhatsApp in, voeg voor het eigen AuraGo-nummer een eigenaarsnummer toe en sla op.",
   "config.whatsapp.err_invalid_phone": "Voer het nummer in internationaal formaat in, bijv. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp is niet verbonden.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Dit eigenaarsnummer is niet geregistreerd bij WhatsApp. Controleer het nummer in de instellingen.",
   "config.whatsapp.err_rate_limited": "Wacht een minuut tot het volgende testbericht.",
   "config.whatsapp.err_failed": "WhatsApp reageerde niet. Probeer het opnieuw.",
   "config.whatsapp.err_passkey_unsupported": "De telefoon vroeg om koppelen met een toegangssleutel, wat AuraGo nog niet ondersteunt. Gebruik de QR-code.",

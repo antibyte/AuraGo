@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "WhatsApp を有効にし、専用番号の場合は所有者の番号を追加して保存してください。",
   "config.whatsapp.err_invalid_phone": "番号は国際形式で入力してください（例：+491701234567）。",
   "config.whatsapp.err_not_connected": "WhatsApp に接続されていません。",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "この所有者の番号は WhatsApp に登録されていません。設定で番号を確認してください。",
   "config.whatsapp.err_rate_limited": "次のテストメッセージまで 1 分お待ちください。",
   "config.whatsapp.err_failed": "WhatsApp から応答がありません。もう一度お試しください。",
   "config.whatsapp.err_passkey_unsupported": "スマートフォンがパスキーによるリンクを求めましたが、AuraGo はまだ対応していません。QR コードを使ってください。",

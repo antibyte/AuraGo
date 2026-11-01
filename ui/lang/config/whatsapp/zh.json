@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "请启用 WhatsApp，在专用号码模式下添加所有者号码并保存。",
   "config.whatsapp.err_invalid_phone": "请使用国际格式输入号码，例如 +491701234567。",
   "config.whatsapp.err_not_connected": "WhatsApp 未连接。",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "此所有者号码未在 WhatsApp 上注册，请在设置中检查该号码。",
   "config.whatsapp.err_rate_limited": "请等待一分钟再发送下一条测试消息。",
   "config.whatsapp.err_failed": "WhatsApp 没有响应，请重试。",
   "config.whatsapp.err_passkey_unsupported": "手机要求使用通行密钥关联，AuraGo 暂不支持。请使用二维码。",

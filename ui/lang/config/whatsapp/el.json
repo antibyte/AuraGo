@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Ενεργοποίησε το WhatsApp, πρόσθεσε αριθμό κατόχου για τον ξεχωριστό αριθμό και αποθήκευσε.",
   "config.whatsapp.err_invalid_phone": "Γράψε τον αριθμό σε διεθνή μορφή, π.χ. +491701234567.",
   "config.whatsapp.err_not_connected": "Το WhatsApp δεν είναι συνδεδεμένο.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Αυτός ο αριθμός κατόχου δεν είναι καταχωρημένος στο WhatsApp. Έλεγξε τον αριθμό στις ρυθμίσεις.",
   "config.whatsapp.err_rate_limited": "Περίμενε ένα λεπτό πριν από το επόμενο δοκιμαστικό μήνυμα.",
   "config.whatsapp.err_failed": "Το WhatsApp δεν απάντησε. Δοκίμασε ξανά.",
   "config.whatsapp.err_passkey_unsupported": "Το κινητό ζήτησε σύνδεση με κλειδί πρόσβασης, που το AuraGo δεν υποστηρίζει ακόμη. Χρησιμοποίησε τον κωδικό QR.",

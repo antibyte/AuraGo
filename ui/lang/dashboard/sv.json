@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Webbskrapare",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook-anrop",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "Inga poster ännu.",
   "dashboard.journal_key_topics": "Ämnen",
   "dashboard.journal_sentiment_trend": "Sentimenttrend",

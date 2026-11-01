@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "WhatsApp चालू करें, अलग नंबर के लिए मालिक का नंबर जोड़ें और सहेजें।",
   "config.whatsapp.err_invalid_phone": "नंबर अंतरराष्ट्रीय प्रारूप में डालें, जैसे +491701234567।",
   "config.whatsapp.err_not_connected": "WhatsApp कनेक्ट नहीं है।",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "यह मालिक का नंबर WhatsApp पर पंजीकृत नहीं है। सेटिंग्स में नंबर जाँचें।",
   "config.whatsapp.err_rate_limited": "अगले परीक्षण संदेश से पहले एक मिनट रुकें।",
   "config.whatsapp.err_failed": "WhatsApp ने जवाब नहीं दिया। फिर से कोशिश करें।",
   "config.whatsapp.err_passkey_unsupported": "फ़ोन ने पासकी से लिंक माँगा, जिसे AuraGo अभी समर्थित नहीं करता। QR कोड का उपयोग करें।",

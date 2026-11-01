@@ -10,6 +10,7 @@ import (
 func dashboardIntegrationFlags(cfg *config.Config) map[string]bool {
 	return map[string]bool{
 		"telegram":          cfg.Telegram.BotToken != "",
+		"whatsapp":          cfg.WhatsApp.Enabled,
 		"discord":           cfg.Discord.Enabled,
 		"email":             cfg.Email.Enabled,
 		"home_assistant":    cfg.HomeAssistant.Enabled,

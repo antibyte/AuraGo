@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Turn WhatsApp on, add an owner number for dedicated mode and save.",
   "config.whatsapp.err_invalid_phone": "Enter the number in international format, e.g. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp is not connected.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "This owner number is not registered on WhatsApp. Check the number in the settings.",
   "config.whatsapp.err_rate_limited": "Wait a minute before the next test message.",
   "config.whatsapp.err_failed": "WhatsApp did not respond. Try again.",
   "config.whatsapp.err_passkey_unsupported": "The phone asked for a passkey link, which AuraGo does not support yet. Use the QR code.",

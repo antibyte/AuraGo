@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Slå på WhatsApp, legg til et eiernummer for eget AuraGo-nummer, og lagre.",
   "config.whatsapp.err_invalid_phone": "Skriv nummeret i internasjonalt format, f.eks. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp er ikke tilkoblet.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Dette eiernummeret er ikke registrert på WhatsApp. Sjekk nummeret i innstillingene.",
   "config.whatsapp.err_rate_limited": "Vent ett minutt før neste testmelding.",
   "config.whatsapp.err_failed": "WhatsApp svarte ikke. Prøv igjen.",
   "config.whatsapp.err_passkey_unsupported": "Telefonen ba om tilknytning med tilgangsnøkkel, som AuraGo ikke støtter ennå. Bruk QR-koden.",

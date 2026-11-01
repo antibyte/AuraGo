@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Grattoir Web",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhooks",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "Aucune entrée pour l'instant.",
   "dashboard.journal_key_topics": "Sujets",
   "dashboard.journal_sentiment_trend": "Tendance humeur",

@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Webschraper",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook-aanroepen",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "Nog geen vermeldingen.",
   "dashboard.journal_key_topics": "Onderwerpen",
   "dashboard.journal_sentiment_trend": "Stemming-trend",

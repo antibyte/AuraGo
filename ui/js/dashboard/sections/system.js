@@ -152,7 +152,7 @@
             if (!overview || !overview.integrations) return;
             const grid = document.getElementById('integration-grid');
             const icons = {
-                telegram: dashIcon('chat'), discord: dashIcon('chat'), email: dashIcon('email'), home_assistant: dashIcon('home'),
+                telegram: dashIcon('chat'), whatsapp: dashIcon('chat'), discord: dashIcon('chat'), email: dashIcon('email'), home_assistant: dashIcon('home'),
                 docker: dashIcon('docker'), co_agents: dashIcon('bot'), webhooks: dashIcon('link'), webdav: dashIcon('cloud'),
                 koofr: dashIcon('cloud'), chromecast: dashIcon('monitor'), bluetooth: dashIcon('speaker'), network_shares: dashIcon('folder'), proxmox: dashIcon('device'), frigate: dashIcon('video'), go2rtc: dashIcon('video'), ruview: dashIcon('wifi'), three_d_printers: dashIcon('printer'), ollama: dashIcon('brain'),
                 rocketchat: dashIcon('chat'), tailscale: dashIcon('lock'), ansible: dashIcon('wrench'), invasion: dashIcon('egg'),
@@ -173,7 +173,7 @@
                 skill_manager: dashIcon('puzzle')
             };
             const names = {
-                telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),
+                telegram: t('dashboard.integration_telegram'), whatsapp: t('dashboard.integration_whatsapp'), discord: t('dashboard.integration_discord'),
                 email: t('dashboard.integration_email'), home_assistant: t('dashboard.integration_home_assistant'),
                 docker: t('dashboard.integration_docker'), co_agents: t('dashboard.integration_co_agents'),
                 webhooks: t('dashboard.integration_webhooks'), webdav: t('dashboard.integration_webdav'),

@@ -71,6 +71,7 @@ function renderWhatsAppSection(section) {
         not_configured: () => t('config.whatsapp.err_not_configured'),
         invalid_phone: () => t('config.whatsapp.err_invalid_phone'),
         not_connected: () => t('config.whatsapp.err_not_connected'),
+        recipient_not_on_whatsapp: () => t('config.whatsapp.err_recipient_not_on_whatsapp'),
         rate_limited: () => t('config.whatsapp.err_rate_limited'),
         csrf_check_failed: () => t('config.whatsapp.err_csrf'),
         admin_required: () => t('config.whatsapp.err_forbidden'),

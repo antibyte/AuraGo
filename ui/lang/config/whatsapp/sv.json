@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Slå på WhatsApp, lägg till ett ägarnummer för eget AuraGo-nummer och spara.",
   "config.whatsapp.err_invalid_phone": "Ange numret i internationellt format, t.ex. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp är inte anslutet.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Det här ägarnumret är inte registrerat på WhatsApp. Kontrollera numret i inställningarna.",
   "config.whatsapp.err_rate_limited": "Vänta en minut innan nästa testmeddelande.",
   "config.whatsapp.err_failed": "WhatsApp svarade inte. Försök igen.",
   "config.whatsapp.err_passkey_unsupported": "Telefonen bad om länkning med nyckel, vilket AuraGo inte stöder än. Använd QR-koden.",

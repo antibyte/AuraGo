@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Zapněte WhatsApp, pro vlastní číslo AuraGo zadejte číslo vlastníka a uložte.",
   "config.whatsapp.err_invalid_phone": "Zadejte číslo v mezinárodním formátu, např. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp není připojen.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Toto číslo vlastníka není registrováno na WhatsAppu. Zkontrolujte číslo v nastavení.",
   "config.whatsapp.err_rate_limited": "Před další testovací zprávou počkejte minutu.",
   "config.whatsapp.err_failed": "WhatsApp neodpověděl. Zkuste to znovu.",
   "config.whatsapp.err_passkey_unsupported": "Telefon požaduje propojení přes passkey, které AuraGo zatím nepodporuje. Použijte QR kód.",

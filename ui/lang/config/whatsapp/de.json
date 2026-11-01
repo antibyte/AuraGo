@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Schalte WhatsApp ein, trage für die eigene AuraGo-Nummer eine Besitzernummer ein und speichere.",
   "config.whatsapp.err_invalid_phone": "Gib die Nummer im internationalen Format ein, z. B. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp ist nicht verbunden.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Diese Besitzernummer ist nicht bei WhatsApp registriert. Prüfe die Nummer in den Einstellungen.",
   "config.whatsapp.err_rate_limited": "Warte eine Minute bis zur nächsten Testnachricht.",
   "config.whatsapp.err_failed": "WhatsApp hat nicht geantwortet. Versuche es erneut.",
   "config.whatsapp.err_passkey_unsupported": "Das Handy verlangt eine Verknüpfung per Passkey, die AuraGo noch nicht unterstützt. Nutze den QR-Code.",

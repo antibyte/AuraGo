@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Activez WhatsApp, ajoutez un numéro du propriétaire pour le numéro dédié et enregistrez.",
   "config.whatsapp.err_invalid_phone": "Saisissez le numéro au format international, par ex. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp n'est pas connecté.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Ce numéro du propriétaire n'est pas enregistré sur WhatsApp. Vérifiez le numéro dans les paramètres.",
   "config.whatsapp.err_rate_limited": "Attendez une minute avant le prochain message de test.",
   "config.whatsapp.err_failed": "WhatsApp n'a pas répondu. Réessayez.",
   "config.whatsapp.err_passkey_unsupported": "Le téléphone demande une connexion par clé d'accès, qu'AuraGo ne prend pas encore en charge. Utilisez le code QR.",

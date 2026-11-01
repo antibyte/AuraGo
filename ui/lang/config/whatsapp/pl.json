@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Włącz WhatsApp, dodaj numer właściciela dla osobnego numeru i zapisz.",
   "config.whatsapp.err_invalid_phone": "Wpisz numer w formacie międzynarodowym, np. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp nie jest połączony.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Ten numer właściciela nie ma konta WhatsApp. Sprawdź numer w ustawieniach.",
   "config.whatsapp.err_rate_limited": "Odczekaj minutę przed kolejną wiadomością testową.",
   "config.whatsapp.err_failed": "WhatsApp nie odpowiedział. Spróbuj ponownie.",
   "config.whatsapp.err_passkey_unsupported": "Telefon poprosił o połączenie kluczem dostępu, którego AuraGo jeszcze nie obsługuje. Użyj kodu QR.",
