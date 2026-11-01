@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Faste grenser deler {pages} sider for hele utgaven.",
   "newspaper.research_progress": "Godkjent {accepted} av {stories} artikler · dekket {covered} av {topics} emner.",
   "newspaper.research_activity": "Oversikter {overviews} · søk {searches} · sideforsøk {pages} · leste sider {read} · kandidater {candidates}",
+  "newspaper.unsaved_changes": "Ulagrede endringer",
+  "newspaper.archive_count": "{count} i arkivet",
   "synthStudio.untitled": "Sang uten navn",
   "synthStudio.new": "Ny sang",
   "synthStudio.open": "Åpne prosjekt",

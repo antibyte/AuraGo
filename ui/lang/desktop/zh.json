@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "固定限制由整期内容共享 {pages} 个页面。",
   "newspaper.research_progress": "已采用 {accepted}/{stories} 篇故事 · 已覆盖 {covered}/{topics} 个主题。",
   "newspaper.research_activity": "概览 {overviews} · 搜索 {searches} · 页面获取尝试 {pages} · 已读页面 {read} · 候选 {candidates}",
+  "newspaper.unsaved_changes": "未保存的更改",
+  "newspaper.archive_count": "归档 {count} 期",
   "synthStudio.untitled": "无标题歌曲",
   "synthStudio.new": "新建歌曲",
   "synthStudio.open": "打开项目",

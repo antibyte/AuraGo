@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Fasta gränser delar {pages} sidor för hela utgåvan.",
   "newspaper.research_progress": "{accepted} av {stories} artiklar accepterade · {covered} av {topics} ämnen täckta.",
   "newspaper.research_activity": "Översikter {overviews} · sökningar {searches} · sidladdningsförsök {pages} · lästa sidor {read} · kandidater {candidates}",
+  "newspaper.unsaved_changes": "Osparade ändringar",
+  "newspaper.archive_count": "{count} i arkivet",
   "synthStudio.untitled": "Namnlös låt",
   "synthStudio.new": "Ny låt",
   "synthStudio.open": "Öppna projekt",

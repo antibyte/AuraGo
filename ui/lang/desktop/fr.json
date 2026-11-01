@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Les limites fixes partagent {pages} pages pour toute l’édition.",
   "newspaper.research_progress": "{accepted} articles retenus sur {stories} · sujets couverts : {covered} sur {topics}.",
   "newspaper.research_activity": "Synthèses {overviews} · recherches {searches} · tentatives de chargement de page {pages} · pages lues {read} · candidats {candidates}",
+  "newspaper.unsaved_changes": "Modifications non enregistrées",
+  "newspaper.archive_count": "{count} dans les archives",
   "synthStudio.untitled": "Chanson sans titre",
   "synthStudio.new": "Nouvelle chanson",
   "synthStudio.open": "Ouvrir un projet",

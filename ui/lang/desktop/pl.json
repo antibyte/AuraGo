@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Stałe limity współdzielą {pages} stron w całym wydaniu.",
   "newspaper.research_progress": "Przyjęto {accepted} z {stories} artykułów · objęto {covered} z {topics} tematów.",
   "newspaper.research_activity": "Przeglądy {overviews} · wyszukiwania {searches} · próby pobrania stron {pages} · przeczytane strony {read} · kandydaci {candidates}",
+  "newspaper.unsaved_changes": "Niezapisane zmiany",
+  "newspaper.archive_count": "{count} w archiwum",
   "synthStudio.untitled": "Utwór bez nazwy",
   "synthStudio.new": "Nowy utwór",
   "synthStudio.open": "Otwórz projekt",

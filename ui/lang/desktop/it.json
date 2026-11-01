@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "I limiti fissi condividono {pages} pagine per l’intera edizione.",
   "newspaper.research_progress": "Accettati {accepted} articoli su {stories} · argomenti coperti {covered} su {topics}.",
   "newspaper.research_activity": "Riepiloghi {overviews} · ricerche {searches} · tentativi di caricamento pagina {pages} · pagine lette {read} · candidati {candidates}",
+  "newspaper.unsaved_changes": "Modifiche non salvate",
+  "newspaper.archive_count": "{count} nell'archivio",
   "synthStudio.untitled": "Brano senza titolo",
   "synthStudio.new": "Nuovo brano",
   "synthStudio.open": "Apri progetto",

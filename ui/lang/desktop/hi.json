@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "निश्चित सीमाएँ पूरे अंक में {pages} पृष्ठ साझा करती हैं।",
   "newspaper.research_progress": "{stories} में से {accepted} लेख स्वीकार · {topics} में से {covered} विषय कवर।",
   "newspaper.research_activity": "सारांश {overviews} · खोजें {searches} · पृष्ठ लोड प्रयास {pages} · पढ़े पृष्ठ {read} · उम्मीदवार {candidates}",
+  "newspaper.unsaved_changes": "सहेजे न गए बदलाव",
+  "newspaper.archive_count": "{count} पुरालेख में",
   "synthStudio.untitled": "बिना नाम का गीत",
   "synthStudio.new": "नया गीत",
   "synthStudio.open": "प्रोजेक्ट खोलें",

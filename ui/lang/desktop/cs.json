@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Pevné limity sdílejí {pages} stránek pro celé vydání.",
   "newspaper.research_progress": "Převzato {accepted} z {stories} článků · pokrytá témata {covered} z {topics}.",
   "newspaper.research_activity": "Přehledy {overviews} · hledání {searches} · pokusy o načtení stránek {pages} · přečtené stránky {read} · kandidáti {candidates}",
+  "newspaper.unsaved_changes": "Neuložené změny",
+  "newspaper.archive_count": "{count} v archivu",
   "synthStudio.untitled": "Bezejmenná skladba",
   "synthStudio.new": "Nová skladba",
   "synthStudio.open": "Otevřít projekt",

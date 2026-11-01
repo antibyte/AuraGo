@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "固定上限では紙面全体で {pages} ページを共有します。",
   "newspaper.research_progress": "記事を {stories} 件中 {accepted} 件採用 · トピックを {topics} 件中 {covered} 件カバー。",
   "newspaper.research_activity": "概要 {overviews} · 検索 {searches} · ページ取得試行 {pages} · 読み取りページ {read} · 候補 {candidates}",
+  "newspaper.unsaved_changes": "未保存の変更",
+  "newspaper.archive_count": "アーカイブ {count} 件",
   "synthStudio.untitled": "無題の曲",
   "synthStudio.new": "新しい曲",
   "synthStudio.open": "プロジェクトを開く",

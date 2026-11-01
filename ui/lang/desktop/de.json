@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Feste Limits teilen {pages} Seiten auf die Ausgabe auf.",
   "newspaper.research_progress": "{accepted} von {stories} Artikeln übernommen · Themen abgedeckt: {covered} von {topics}.",
   "newspaper.research_activity": "Übersichten {overviews} · Suchen {searches} · Ladeversuche {pages} · Seiten gelesen {read} · Kandidaten {candidates}",
+  "newspaper.unsaved_changes": "Ungespeicherte Änderungen",
+  "newspaper.archive_count": "{count} im Archiv",
   "synthStudio.untitled": "Unbenannter Song",
   "synthStudio.new": "Neuer Song",
   "synthStudio.open": "Projekt öffnen",

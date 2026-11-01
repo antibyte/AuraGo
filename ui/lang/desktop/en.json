@@ -7271,6 +7271,8 @@
   "newspaper.fixed_budget_note": "Fixed limits share {pages} pages across the issue.",
   "newspaper.research_progress": "Accepted {accepted} of {stories} stories · topics covered {covered} of {topics}.",
   "newspaper.research_activity": "Overviews {overviews} · searches {searches} · page attempts {pages} · pages read {read} · candidates {candidates}",
+  "newspaper.unsaved_changes": "Unsaved changes",
+  "newspaper.archive_count": "{count} in the archive",
   "synthStudio.untitled": "Untitled song",
   "synthStudio.new": "New song",
   "synthStudio.open": "Open project",

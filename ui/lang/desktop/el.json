@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Τα σταθερά όρια μοιράζουν {pages} σελίδες σε όλη την έκδοση.",
   "newspaper.research_progress": "Εγκρίθηκαν {accepted} από {stories} άρθρα · καλύφθηκαν {covered} από {topics} θέματα.",
   "newspaper.research_activity": "Επισκοπήσεις {overviews} · αναζητήσεις {searches} · προσπάθειες φόρτωσης σελίδων {pages} · αναγνωσμένες σελίδες {read} · υποψήφια {candidates}",
+  "newspaper.unsaved_changes": "Μη αποθηκευμένες αλλαγές",
+  "newspaper.archive_count": "{count} στο αρχείο",
   "synthStudio.untitled": "Τραγούδι χωρίς τίτλο",
   "synthStudio.new": "Νέο τραγούδι",
   "synthStudio.open": "Άνοιγμα έργου",

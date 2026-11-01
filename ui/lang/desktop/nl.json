@@ -6001,6 +6001,8 @@
   "newspaper.fixed_budget_note": "Vaste grenzen delen {pages} pagina’s over de hele editie.",
   "newspaper.research_progress": "{accepted} van {stories} artikelen geaccepteerd · onderwerpen gedekt: {covered} van {topics}.",
   "newspaper.research_activity": "Overzichten {overviews} · zoekopdrachten {searches} · laadpogingen van pagina’s {pages} · gelezen pagina’s {read} · kandidaten {candidates}",
+  "newspaper.unsaved_changes": "Niet-opgeslagen wijzigingen",
+  "newspaper.archive_count": "{count} in het archief",
   "synthStudio.untitled": "Naamloos nummer",
   "synthStudio.new": "Nieuw nummer",
   "synthStudio.open": "Project openen",
