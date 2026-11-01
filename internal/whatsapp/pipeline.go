@@ -79,7 +79,7 @@ type pipeline struct {
 	// Media seams; nil means production (as agentLoop does).
 	transcribe   func(ctx context.Context, name string, data []byte, cfg *config.Config) (string, error) // tools.TranscribeAudio without the score
 	analyzeImage func(ctx context.Context, path string, cfg *config.Config) (string, error)              // telegram.AnalyzeImageContext
-	toMP3        func(ctx context.Context, in, out string) error                                         // telegram.ConvertOggToMp3Context
+	toMP3        func(ctx context.Context, in, out string) error                                         // convertToMP3: out is a fresh os.CreateTemp file
 	voiceNote    func(ctx context.Context, in string) ([]byte, uint32, error)                            // convertToVoiceNote: Ogg Opus bytes and seconds
 }
 
@@ -216,7 +216,9 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		inputText = c.Marker + "\n" + inputText
 		routingText = forwardedRoutingText(c.Marker, routingText)
 	}
-	if c.ThirdParty {
+	// A message without words of the owner's own (a caption-less image, a document, a
+	// location) has no HumanInput either: downstream code reads its text directly.
+	if c.ThirdParty || strings.TrimSpace(c.OwnerText) == "" {
 		humanInput = nil
 	}
 

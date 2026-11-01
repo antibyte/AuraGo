@@ -12,13 +12,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"aurago/internal/integrationstatus"
+	"aurago/internal/media"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -170,9 +171,9 @@ type cappedFile struct {
 }
 
 // check trips the cap when a write of n bytes at off would end past limit, or when it
-// tripped before.
+// tripped before. The comparison is written so that a huge off cannot overflow.
 func (c *cappedFile) check(off int64, n int) error {
-	if c.over.Load() || off+int64(n) > c.limit {
+	if c.over.Load() || off > c.limit-int64(n) {
 		c.over.Store(true)
 		c.cancel()
 		return ErrMediaTooLarge
@@ -198,10 +199,17 @@ func (c *cappedFile) WriteAt(p []byte, off int64) (int, error) {
 	return c.f.WriteAt(p, off)
 }
 
+// Truncate can grow a file, so it checks the new size like a write that ends there.
+func (c *cappedFile) Truncate(size int64) error {
+	if err := c.check(size, 0); err != nil {
+		return err
+	}
+	return c.f.Truncate(size)
+}
+
 func (c *cappedFile) Read(p []byte) (int, error)                { return c.f.Read(p) }
 func (c *cappedFile) Seek(off int64, whence int) (int64, error) { return c.f.Seek(off, whence) }
 func (c *cappedFile) ReadAt(p []byte, off int64) (int, error)   { return c.f.ReadAt(p, off) }
-func (c *cappedFile) Truncate(size int64) error                 { return c.f.Truncate(size) }
 func (c *cappedFile) Stat() (os.FileInfo, error)                { return c.f.Stat() }
 
 // mediaErrorCode is the fixed code a media failure logs; the error text can carry file
@@ -303,22 +311,16 @@ func optSeconds(n uint32) *uint32 {
 	return proto.Uint32(n)
 }
 
-// documentName is the base name a document is sent under. Control characters cannot reach
-// the message; a name without a usable base becomes "document". It copies
-// telegramDocumentName (internal/tools/telegram_document.go:392-405).
+// documentName is the base name a document is stored and sent under. It is
+// media.SanitizeFileName (base name only; reserved characters, control and format
+// characters replaced; trailing dots and spaces removed; about 100 bytes at most); a name
+// without a usable base becomes "document". telegramDocumentName
+// (internal/tools/telegram_document.go:392-405) is the weaker ancestor.
 func documentName(name string) string {
-	name = filepath.Base(strings.ToValidUTF8(name, string(utf8.RuneError)))
-	name = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return '_'
-		}
-		return r
-	}, name)
-	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || name == string(filepath.Separator) {
-		return "document"
+	if safe := media.SanitizeFileName(name); safe != "" {
+		return safe
 	}
-	return name
+	return "document"
 }
 
 // boundRunes cuts s to n runes, a trailing "…" included, like boundPhotoCaption
@@ -334,13 +336,94 @@ func boundRunes(s string, n int) string {
 	return string([]rune(s)[:n-1]) + "…"
 }
 
+const (
+	// ffmpeg runs on files a remote party sent, so it may open local files and pipes only,
+	// and only audio and video containers: no playlists, concat scripts or network demuxers.
+	// This follows internal/videostudio/probe.go (allowedProtocols, allowedDemuxers) and
+	// internal/tools/media_conversion.go (mediaConversionProtocols).
+	ffmpegProtocols = "file,pipe"
+	ffmpegDemuxers  = "ogg,mp3,mov,matroska,wav,aac,flac,amr,mpeg,mpegts,asf,avi,flv,webm"
+)
+
+var errEmptyConversion = errors.New("ffmpeg produced no audio")
+
+// ffmpegBaseArgs starts every conversion: quiet, no stdin, and the protocol and container
+// whitelists, which apply to the input that follows.
+func ffmpegBaseArgs() []string {
+	return []string{"-nostdin", "-hide_banner", "-loglevel", "error",
+		"-protocol_whitelist", ffmpegProtocols, "-format_whitelist", ffmpegDemuxers}
+}
+
+// outputLimitArgs stops ffmpeg from writing more than maxMediaBytes (-fs allows "slightly
+// more"; convertedSize treats a result at the limit as cut short).
+func outputLimitArgs() []string { return []string{"-fs", strconv.FormatInt(maxMediaBytes, 10)} }
+
 // voiceNoteArgs is the ffmpeg command line for a WhatsApp voice note: Ogg Opus, mono,
-// 16 kHz, voip tuning, no input metadata.
+// 16 kHz, voip tuning, no input metadata, at most 50 MB of output. out is a file the caller
+// created with os.CreateTemp.
 func voiceNoteArgs(in, out string) []string {
-	return []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", in,
+	args := append(ffmpegBaseArgs(), "-y", "-i", in,
 		"-vn", "-map_metadata", "-1",
-		"-c:a", "libopus", "-application", "voip", "-ac", "1", "-ar", "16000", "-b:a", "24k",
-		"-f", "ogg", out}
+		"-c:a", "libopus", "-application", "voip", "-ac", "1", "-ar", "16000", "-b:a", "24k")
+	args = append(args, outputLimitArgs()...)
+	return append(args, "-f", "ogg", out)
+}
+
+// mp3Args is the ffmpeg command line that turns an inbound voice message or audio file into
+// the MP3 the speech-to-text call reads: mono, 16 kHz and 64 kbit/s are plenty for speech
+// and keep the result small. The input is restricted like voiceNoteArgs', and the output is
+// at most 50 MB. out is a file the caller created with os.CreateTemp.
+func mp3Args(in, out string) []string {
+	args := append(ffmpegBaseArgs(), "-y", "-i", in,
+		"-vn", "-map_metadata", "-1", "-ac", "1", "-ar", "16000", "-b:a", "64k")
+	args = append(args, outputLimitArgs()...)
+	return append(args, "-f", "mp3", out)
+}
+
+// runFFmpeg runs ffmpeg within ffmpegTimeout. Stdout and Stderr stay nil, so ffmpeg's output is
+// discarded and never logged (it can echo the input path).
+func runFFmpeg(ctx context.Context, args []string) error {
+	cctx, cancel := context.WithTimeout(ctx, ffmpegTimeout)
+	defer cancel()
+	if err := exec.CommandContext(cctx, "ffmpeg", args...).Run(); err != nil {
+		if cerr := cctx.Err(); cerr != nil {
+			return fmt.Errorf("ffmpeg conversion stopped: %w", cerr)
+		}
+		return fmt.Errorf("ffmpeg conversion failed: %w", err)
+	}
+	return nil
+}
+
+// convertedSize is the size of a conversion result. A result at or above maxMediaBytes was cut
+// short by -fs: that is ErrMediaTooLarge, never a truncated success. An empty result is a
+// failure too.
+func convertedSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, fmt.Errorf("read converted audio: %w", err)
+	}
+	switch size := info.Size(); {
+	case size >= maxMediaBytes:
+		return 0, ErrMediaTooLarge
+	case size == 0:
+		return 0, errEmptyConversion
+	default:
+		return size, nil
+	}
+}
+
+// convertToMP3 converts an inbound audio file to MP3 for transcription. WhatsApp has its own
+// converter, not telegram.ConvertOggToMp3Context: that one has no input whitelist and no
+// output limit. outputPath must be a fresh file from os.CreateTemp.
+func convertToMP3(ctx context.Context, inputPath, outputPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := runFFmpeg(ctx, mp3Args(inputPath, outputPath)); err != nil {
+		return err
+	}
+	_, err := convertedSize(outputPath)
+	return err
 }
 
 // convertToVoiceNote runs ffmpeg with voiceNoteArgs within ffmpegTimeout and returns the Ogg Opus
@@ -357,21 +440,11 @@ func convertToVoiceNote(ctx context.Context, inputPath string) ([]byte, uint32, 
 	_ = out.Close()
 	defer os.Remove(outPath)
 
-	cctx, cancel := context.WithTimeout(ctx, ffmpegTimeout)
-	defer cancel()
-	// Stdout and Stderr stay nil: ffmpeg's output is discarded.
-	if err := exec.CommandContext(cctx, "ffmpeg", voiceNoteArgs(inputPath, outPath)...).Run(); err != nil {
-		if cerr := cctx.Err(); cerr != nil {
-			return nil, 0, fmt.Errorf("ffmpeg voice conversion stopped: %w", cerr)
-		}
-		return nil, 0, fmt.Errorf("ffmpeg voice conversion failed: %w", err)
+	if err := runFFmpeg(ctx, voiceNoteArgs(inputPath, outPath)); err != nil {
+		return nil, 0, err
 	}
-	info, err := os.Stat(outPath)
-	if err != nil {
-		return nil, 0, fmt.Errorf("read converted voice note: %w", err)
-	}
-	if info.Size() > maxMediaBytes {
-		return nil, 0, ErrMediaTooLarge
+	if _, err := convertedSize(outPath); err != nil {
+		return nil, 0, err
 	}
 	data, err := os.ReadFile(outPath)
 	if err != nil {

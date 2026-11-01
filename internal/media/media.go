@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // SaveAttachment downloads a URL and saves it persistently to destDir with a
@@ -145,7 +147,9 @@ func saveAttachmentReader(ctx context.Context, r io.Reader, originalFilename, de
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create attachments dir: %w", err)
 	}
-	dst, destPath, err := createExclusive(destDir, attachmentFileName(originalFilename, now))
+	// The name comes from a remote party: reduce it to one safe base name before the shared
+	// naming policy runs (which stays as it is for URL downloads).
+	dst, destPath, err := createExclusive(destDir, attachmentFileName(SanitizeFileName(originalFilename), now))
 	if err != nil {
 		return "", err
 	}
@@ -164,6 +168,45 @@ func saveAttachmentReader(ctx context.Context, r io.Reader, originalFilename, de
 		return "", err
 	}
 	return destPath, nil
+}
+
+const (
+	maxSanitizedNameBytes = 100 // the base name, extension included
+	maxSanitizedExtBytes  = 16  // a longer "extension" is just part of the name
+)
+
+// SanitizeFileName reduces a file name chosen by a remote party to one base name that is safe
+// on every file system AuraGo runs on, or "" when nothing usable is left:
+//   - only the part after the last "/" or "\" stays;
+//   - the characters < > : " / \ | ? * (":" starts an NTFS alternate data stream), all control
+//     characters (Cc) and all format characters (Cf, such as U+202E) become "_";
+//   - leading and trailing white space and trailing dots are removed (Windows drops them);
+//   - the name is cut to about 100 bytes on a rune boundary, keeping a short extension.
+func SanitizeFileName(name string) string {
+	name = strings.ToValidUTF8(name, "_")
+	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
+		name = name[i+1:]
+	}
+	name = strings.Map(func(r rune) rune {
+		if strings.ContainsRune(`<>:"/\|?*`, r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return '_'
+		}
+		return r
+	}, name)
+	name = strings.TrimRight(strings.TrimSpace(name), ". ")
+	if len(name) <= maxSanitizedNameBytes {
+		return name
+	}
+	ext := filepath.Ext(name)
+	if len(ext) > maxSanitizedExtBytes || ext == name {
+		ext = ""
+	}
+	stem := name[:len(name)-len(ext)]
+	cut := maxSanitizedNameBytes - len(ext)
+	for cut > 0 && !utf8.RuneStart(stem[cut]) {
+		cut--
+	}
+	return strings.TrimRight(stem[:cut], ". ") + ext
 }
 
 // createExclusive creates name in dir with O_EXCL. A taken name gets "_1" … "_9" before the

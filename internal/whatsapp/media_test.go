@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -134,6 +136,32 @@ func TestCappedFileTripsForGoodAndCancels(t *testing.T) {
 	}
 	if cancelled == 0 {
 		t.Fatal("the trip did not cancel the download")
+	}
+
+	// Truncate can grow the file, and an offset near the end of int64 must not wrap around.
+	for name, trip := range map[string]func(c *cappedFile) error{
+		"Truncate past the limit": func(c *cappedFile) error { return c.Truncate(11) },
+		"WriteAt near MaxInt64":   func(c *cappedFile) error { _, err := c.WriteAt([]byte("x"), math.MaxInt64); return err },
+	} {
+		g, err := os.CreateTemp(t.TempDir(), "capped-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fresh := &cappedFile{f: g, limit: 10, cancel: func() {}}
+		if err := trip(fresh); !errors.Is(err, ErrMediaTooLarge) || !fresh.over.Load() {
+			t.Errorf("%s = %v, tripped=%v, want ErrMediaTooLarge and a tripped cap", name, err, fresh.over.Load())
+		}
+		_ = g.Close()
+	}
+	// Shrinking within the limit is what decryption does and stays allowed.
+	h, err := os.CreateTemp(t.TempDir(), "capped-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	ok := &cappedFile{f: h, limit: 10, cancel: func() {}}
+	if err := ok.Truncate(10); err != nil {
+		t.Errorf("Truncate to the limit = %v, want nil", err)
 	}
 }
 
@@ -286,12 +314,67 @@ func TestMediaMessageCopiesTheUploadAndMarksVoiceNotes(t *testing.T) {
 }
 
 func TestVoiceNoteArgsAreOpusMonoSixteenKilohertzVoip(t *testing.T) {
-	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", "in.wav",
+	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error",
+		"-protocol_whitelist", "file,pipe",
+		"-format_whitelist", "ogg,mp3,mov,matroska,wav,aac,flac,amr,mpeg,mpegts,asf,avi,flv,webm",
+		"-y", "-i", "in.wav",
 		"-vn", "-map_metadata", "-1",
 		"-c:a", "libopus", "-application", "voip", "-ac", "1", "-ar", "16000", "-b:a", "24k",
+		"-fs", "52428800",
 		"-f", "ogg", "out.ogg"}
 	if got := voiceNoteArgs("in.wav", "out.ogg"); !slices.Equal(got, want) {
 		t.Fatalf("voiceNoteArgs = %v, want %v", got, want)
+	}
+}
+
+// The inbound converter reads files a remote party sent: local files and audio/video
+// containers only, and at most 50 MB of output.
+func TestMP3ArgsRestrictTheInputAndBoundTheOutput(t *testing.T) {
+	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error",
+		"-protocol_whitelist", "file,pipe",
+		"-format_whitelist", "ogg,mp3,mov,matroska,wav,aac,flac,amr,mpeg,mpegts,asf,avi,flv,webm",
+		"-y", "-i", "in.bin",
+		"-vn", "-map_metadata", "-1", "-ac", "1", "-ar", "16000", "-b:a", "64k",
+		"-fs", "52428800",
+		"-f", "mp3", "out.mp3"}
+	if got := mp3Args("in.bin", "out.mp3"); !slices.Equal(got, want) {
+		t.Fatalf("mp3Args = %v, want %v", got, want)
+	}
+	// Both whitelists belong to the input: they must come before -i.
+	for _, args := range [][]string{mp3Args("a", "b"), voiceNoteArgs("a", "b")} {
+		if slices.Index(args, "-protocol_whitelist") > slices.Index(args, "-i") || slices.Index(args, "-format_whitelist") > slices.Index(args, "-i") {
+			t.Fatalf("a whitelist follows -i: %v", args)
+		}
+	}
+}
+
+// ffmpeg's -fs stops "slightly more" than the limit: a result at or above it was cut short.
+func TestConvertedSizeNeverReportsATruncatedResultAsSuccess(t *testing.T) {
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		size int64
+		want error // nil: accepted
+	}{
+		{0, errEmptyConversion},
+		{1, nil},
+		{maxMediaBytes - 1, nil},
+		{maxMediaBytes, ErrMediaTooLarge},
+		{maxMediaBytes + 4096, ErrMediaTooLarge},
+	} {
+		path := filepath.Join(dir, fmt.Sprintf("out-%d", tc.size))
+		f, err := os.Create(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Truncate(tc.size); err != nil {
+			t.Fatal(err)
+		}
+		_ = f.Close()
+		size, err := convertedSize(path)
+		if !errors.Is(err, tc.want) || (tc.want == nil && (err != nil || size != tc.size)) {
+			t.Errorf("convertedSize(%d bytes) = (%d, %v), want error %v", tc.size, size, err, tc.want)
+		}
+		_ = os.Remove(path)
 	}
 }
 
@@ -340,20 +423,70 @@ func TestOggOpusSecondsReadsTheLastGranule(t *testing.T) {
 	}
 }
 
-func TestConvertToVoiceNoteWithFFmpeg(t *testing.T) {
+// ffmpegInput skips the test without ffmpeg (or without the libopus and MP3 encoders) and
+// otherwise returns the ffmpeg path and a one-second sine wave in a fresh directory.
+func ffmpegInput(t *testing.T) (ffmpeg, dir, wav string) {
+	t.Helper()
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
 		t.Skip("ffmpeg is not installed")
 	}
-	if encoders, _ := exec.Command(ffmpeg, "-hide_banner", "-encoders").Output(); !bytes.Contains(encoders, []byte("libopus")) {
-		t.Skip("this ffmpeg has no libopus encoder")
+	encoders, _ := exec.Command(ffmpeg, "-hide_banner", "-encoders").Output()
+	for _, encoder := range []string{"libopus", "libmp3lame"} {
+		if !bytes.Contains(encoders, []byte(encoder)) {
+			t.Skipf("this ffmpeg has no %s encoder", encoder)
+		}
 	}
-	in := filepath.Join(t.TempDir(), "in.wav")
+	dir = t.TempDir()
+	wav = filepath.Join(dir, "in.wav")
 	gen := exec.Command(ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-		"-f", "lavfi", "-i", "sine=frequency=440:duration=1", in)
+		"-f", "lavfi", "-i", "sine=frequency=440:duration=1", wav)
 	if out, err := gen.CombinedOutput(); err != nil {
 		t.Fatalf("building the input: %v: %s", err, out)
 	}
+	return ffmpeg, dir, wav
+}
+
+func TestConvertToMP3WithFFmpegRefusesContainersOutsideTheWhitelist(t *testing.T) {
+	ffmpeg, dir, wav := ffmpegInput(t)
+	isolateTempDir(t) // the test's own outputs land in a directory the framework removes
+	newOutput := func() string {
+		f, err := os.CreateTemp("", "aurago-test-*.mp3")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = f.Close()
+		return f.Name()
+	}
+
+	// A plain WAV file converts.
+	out := newOutput()
+	if err := convertToMP3(context.Background(), wav, out); err != nil {
+		t.Fatalf("convertToMP3: %v", err)
+	}
+	if data, _ := os.ReadFile(out); len(data) < 100 || !(bytes.HasPrefix(data, []byte("ID3")) || data[0] == 0xFF) {
+		t.Fatalf("the result is not an MP3 stream: % x", data[:min(len(data), 8)])
+	}
+
+	// A concat script reads other files: without the whitelist ffmpeg follows it. The control
+	// run proves that this ffmpeg does; the converter must then refuse it.
+	script := filepath.Join(dir, "list.ffconcat")
+	if err := os.WriteFile(script, []byte("ffconcat version 1.0\nfile 'in.wav'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command(ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-i", script, "-f", "null", "-").Run(); err != nil {
+		t.Skipf("this ffmpeg does not follow a concat script by default (%v); nothing to refuse", err)
+	}
+	if err := convertToMP3(context.Background(), script, newOutput()); err == nil {
+		t.Fatal("convertToMP3 followed a concat script")
+	}
+	if _, _, err := convertToVoiceNote(context.Background(), script); err == nil {
+		t.Fatal("convertToVoiceNote followed a concat script")
+	}
+}
+
+func TestConvertToVoiceNoteWithFFmpeg(t *testing.T) {
+	_, _, in := ffmpegInput(t)
 	tmp := isolateTempDir(t)
 
 	data, seconds, err := convertToVoiceNote(context.Background(), in)

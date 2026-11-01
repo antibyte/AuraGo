@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"aurago/internal/config"
 	"aurago/internal/media"
@@ -30,6 +31,7 @@ const (
 	stickerReceivedText     = "[Sticker received]"
 	fileTooLargeText        = "[File not saved: larger than 50 MB]"
 	fileFailedText          = "[File could not be downloaded]"
+	fileNotSavedText        = "[File could not be saved]"
 	contactHeaderText       = "[Contact card shared; the card is third-party data]"
 
 	maxQuoteRunes        = 200
@@ -71,9 +73,17 @@ func (p *pipeline) logMediaFailure(kind string, err error) {
 // telegram.processUpdate (internal/telegram/bot.go:324-500): the caption joins the text, a
 // voice message is transcribed, an image is described, a document is saved, and the rest
 // becomes a short placeholder. When ctx ends it returns early; the caller checks ctx.
+//
+// Forwarded and quoted are read from the ContextInfo of every content type the message
+// carries, not from the first one: a forwarded document next to an innocent image is still a
+// forward. A slash command is read only from a message that carries nothing but text.
 func (p *pipeline) readContent(ctx context.Context, cfg *config.Config, wa waClient, m *waE2E.Message) inboundContent {
-	c := inboundContent{Kind: messageKind(m), CommandText: messageText(m)}
-	input := c.CommandText
+	c := inboundContent{Kind: messageKind(m)}
+	text := messageText(m)
+	if contentTypes(m) <= 1 {
+		c.CommandText = text
+	}
+	input := text
 	caption := mediaCaption(m)
 	if caption != "" {
 		if input == "" {
@@ -152,22 +162,40 @@ func (p *pipeline) readContent(ctx context.Context, cfg *config.Config, wa waCli
 		}
 	}
 
-	// A quoted reply gets a one-line prefix. HumanInput and routing keep the owner's words.
-	ci := contextInfoOf(m)
-	if q := ci.GetQuotedMessage(); q != nil && input != "" {
-		quote := messageText(q)
-		if quote == "" {
-			quote = mediaCaption(q)
+	// A quoted reply gets a one-line prefix, from the first content type that quotes.
+	// HumanInput and routing keep the owner's words.
+	infos := contextInfosOf(m)
+	for _, ci := range infos {
+		q := ci.GetQuotedMessage()
+		if q == nil {
+			continue
 		}
-		if quote == "" {
-			quote = "[" + messageKind(q) + "]"
+		if input != "" {
+			quote := messageText(q)
+			if quote == "" {
+				quote = mediaCaption(q)
+			}
+			if quote == "" {
+				quote = "[" + messageKind(q) + "]"
+			}
+			input = "[Reply to: " + boundRunes(oneLine(quote), maxQuoteRunes) + "]\n" + input
 		}
-		input = "[Reply to: " + boundRunes(oneLine(quote), maxQuoteRunes) + "]\n" + input
+		break
 	}
 
-	// A forwarded message arrives from the owner's account, but a third party wrote it.
-	if ci.GetIsForwarded() || ci.GetForwardingScore() > 0 || ci.GetForwardedNewsletterMessageInfo() != nil {
-		c.Marker = telegram.ForwardedContentMarker(ci.GetForwardedNewsletterMessageInfo().GetNewsletterName())
+	// A forwarded message arrives from the owner's account, but a third party wrote it. One
+	// forwarded content type is enough; the newsletter name comes from the first that has one.
+	forwarded, origin := false, ""
+	for _, ci := range infos {
+		if ci.GetIsForwarded() || ci.GetForwardingScore() > 0 || ci.GetForwardedNewsletterMessageInfo() != nil {
+			forwarded = true
+			if origin == "" {
+				origin = ci.GetForwardedNewsletterMessageInfo().GetNewsletterName()
+			}
+		}
+	}
+	if forwarded {
+		c.Marker = telegram.ForwardedContentMarker(origin)
 		c.ThirdParty = true
 	}
 
@@ -175,33 +203,54 @@ func (p *pipeline) readContent(ctx context.Context, cfg *config.Config, wa waCli
 	return c
 }
 
-// contextInfoOf returns the ContextInfo of the first content type present: ExtendedText,
-// Image, Video, Audio, Document, Sticker, Location, LiveLocation, Contact, ContactsArray (M6).
-// Every content type carries its own, so a forwarded image is marked like a forwarded text.
-func contextInfoOf(m *waE2E.Message) *waE2E.ContextInfo {
-	switch {
-	case m.GetExtendedTextMessage() != nil:
-		return m.GetExtendedTextMessage().GetContextInfo()
-	case m.GetImageMessage() != nil:
-		return m.GetImageMessage().GetContextInfo()
-	case m.GetVideoMessage() != nil:
-		return m.GetVideoMessage().GetContextInfo()
-	case m.GetAudioMessage() != nil:
-		return m.GetAudioMessage().GetContextInfo()
-	case m.GetDocumentMessage() != nil:
-		return m.GetDocumentMessage().GetContextInfo()
-	case m.GetStickerMessage() != nil:
-		return m.GetStickerMessage().GetContextInfo()
-	case m.GetLocationMessage() != nil:
-		return m.GetLocationMessage().GetContextInfo()
-	case m.GetLiveLocationMessage() != nil:
-		return m.GetLiveLocationMessage().GetContextInfo()
-	case m.GetContactMessage() != nil:
-		return m.GetContactMessage().GetContextInfo()
-	case m.GetContactsArrayMessage() != nil:
-		return m.GetContactsArrayMessage().GetContextInfo()
+// contextInfosOf returns the ContextInfo of every content type the message carries: ExtendedText,
+// Image, Video, Audio, Document, Sticker, Location, LiveLocation, Contact and ContactsArray (M6).
+// Types without one are left out. Every content type has its own, so a forwarded image is
+// marked like a forwarded text, and no content type can hide a forward from another.
+func contextInfosOf(m *waE2E.Message) []*waE2E.ContextInfo {
+	var infos []*waE2E.ContextInfo
+	for _, ci := range []*waE2E.ContextInfo{
+		m.GetExtendedTextMessage().GetContextInfo(),
+		m.GetImageMessage().GetContextInfo(),
+		m.GetVideoMessage().GetContextInfo(),
+		m.GetAudioMessage().GetContextInfo(),
+		m.GetDocumentMessage().GetContextInfo(),
+		m.GetStickerMessage().GetContextInfo(),
+		m.GetLocationMessage().GetContextInfo(),
+		m.GetLiveLocationMessage().GetContextInfo(),
+		m.GetContactMessage().GetContextInfo(),
+		m.GetContactsArrayMessage().GetContextInfo(),
+	} {
+		if ci != nil {
+			infos = append(infos, ci)
+		}
 	}
-	return nil
+	return infos
+}
+
+// contentTypes counts the content types readContent reads that the message carries: plain
+// text, extended text, and each media, location and contact type. One is normal; a message
+// with more is hand-built, and its text never runs as a slash command.
+func contentTypes(m *waE2E.Message) int {
+	n := 0
+	for _, present := range []bool{
+		m.GetConversation() != "",
+		m.GetExtendedTextMessage() != nil,
+		m.GetImageMessage() != nil,
+		m.GetVideoMessage() != nil,
+		m.GetAudioMessage() != nil,
+		m.GetDocumentMessage() != nil,
+		m.GetStickerMessage() != nil,
+		m.GetLocationMessage() != nil,
+		m.GetLiveLocationMessage() != nil,
+		m.GetContactMessage() != nil,
+		m.GetContactsArrayMessage() != nil,
+	} {
+		if present {
+			n++
+		}
+	}
+	return n
 }
 
 // mediaCaption is the caption of an image, video, document or live location.
@@ -229,6 +278,17 @@ func placeholderFirst(placeholder, input string) string {
 
 // oneLine folds all whitespace, line breaks included, into single spaces.
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// stripInvisible removes format characters (Cf, such as U+202E and the zero-width ones) and
+// control characters, which a sender could use to disguise what a note says.
+func stripInvisible(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) || unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
 
 func coordinates(lat, lon float64) string {
 	return strconv.FormatFloat(lat, 'f', 6, 64) + ", " + strconv.FormatFloat(lon, 'f', 6, 64)
@@ -288,7 +348,7 @@ func longestBacktickRun(s string) int {
 func (p *pipeline) transcribeAudio(ctx context.Context, cfg *config.Config, wa waClient, audio *waE2E.AudioMessage) (string, error) {
 	toMP3, transcribe := p.toMP3, p.transcribe
 	if toMP3 == nil {
-		toMP3 = telegram.ConvertOggToMp3Context
+		toMP3 = convertToMP3
 	}
 	if transcribe == nil {
 		transcribe = func(ctx context.Context, name string, data []byte, cfg *config.Config) (string, error) {
@@ -304,17 +364,20 @@ func (p *pipeline) transcribeAudio(ctx context.Context, cfg *config.Config, wa w
 	in := f.Name()
 	_ = f.Close()
 	defer os.Remove(in)
-	mp3 := in + ".mp3"
+	// The output is a fresh unpredictable file (O_EXCL), not a name derived from the input.
+	out, err := os.CreateTemp("", "aurago-whatsapp-voice-*.mp3")
+	if err != nil {
+		return "", err
+	}
+	mp3 := out.Name()
+	_ = out.Close()
 	defer os.Remove(mp3)
 	if err := toMP3(ctx, in, mp3); err != nil {
 		return "", err
 	}
-	info, err := os.Stat(mp3)
-	if err != nil {
+	// Whatever the converter was, a result at the limit was cut short.
+	if _, err := convertedSize(mp3); err != nil {
 		return "", err
-	}
-	if info.Size() > maxMediaBytes {
-		return "", ErrMediaTooLarge
 	}
 	data, err := os.ReadFile(mp3)
 	if err != nil {
@@ -394,8 +457,9 @@ func imageExtension(sniffed string) string {
 }
 
 // saveDocument stores a document in the workspace's attachments folder and returns the note
-// the model reads. The name is the sender's, reduced to a base name without control
-// characters; media.SaveAttachmentReaderContext adds the timestamp and never overwrites.
+// the model reads. The name is the sender's, reduced by documentName to a safe base name;
+// media.SaveAttachmentReaderContext adds the timestamp and never overwrites. A download that
+// fails and a file that cannot be stored are told apart.
 func (p *pipeline) saveDocument(ctx context.Context, cfg *config.Config, wa waClient, doc *waE2E.DocumentMessage) string {
 	f, err := downloadMedia(ctx, wa, doc)
 	if err != nil {
@@ -418,10 +482,10 @@ func (p *pipeline) saveDocument(ctx context.Context, cfg *config.Config, wa waCl
 		if ctx.Err() == nil {
 			p.logMediaFailure("document", err)
 		}
-		return fileFailedText
+		return fileNotSavedText
 	}
 	note := "[DATEI ANGEHÄNGT]: agent_workspace/workdir/attachments/" + filepath.Base(saved)
-	if mimeType := boundRunes(oneLine(doc.GetMimetype()), maxMIMERunes); mimeType != "" {
+	if mimeType := boundRunes(stripInvisible(oneLine(doc.GetMimetype())), maxMIMERunes); mimeType != "" {
 		note += " (" + mimeType + ")"
 	}
 	return note
