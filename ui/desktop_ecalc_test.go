@@ -165,3 +165,40 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		}
 	}
 }
+
+// The stylesheet takes every colour from tokens and gates its motion.
+func TestECalcStylesheetUsesOnlyTokens(t *testing.T) {
+	t.Parallel()
+	css := readDesktopAssetText(t, "css/desktop-app-ecalc.css")
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	for label, pattern := range map[string]string{
+		"hex colour":          `#[0-9a-fA-F]{3,8}\b`,
+		"colour function":     `\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(\s*[\d.]`,
+		"named colour":        `(?i)[:\s(,](?:white|black|red|green|blue|gray|grey|orange|yellow|purple)\b\s*[;,)]`,
+		"external url":        `url\(`,
+		"import":              `@import`,
+		"theme id":            `data-theme=`,
+		"cookie banner class": `\.cc-`,
+	} {
+		if match := regexp.MustCompile(pattern).FindString(body); match != "" {
+			t.Errorf("css/desktop-app-ecalc.css has a %s: %q", label, match)
+		}
+	}
+	if strings.Count(body, "!important") != 1 || !strings.Contains(body, ".ec-app [hidden] { display: none !important; }") {
+		t.Error("the only !important allowed is the [hidden] rule")
+	}
+	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("css/desktop-app-ecalc.css is missing %q", marker)
+		}
+	}
+	gate := strings.Index(body, "@media (prefers-reduced-motion: no-preference)")
+	if gate < 0 {
+		t.Fatal("css/desktop-app-ecalc.css has no reduced-motion gate")
+	}
+	for _, motion := range regexp.MustCompile(`\b(?:transition|animation)\s*:`).FindAllStringIndex(body, -1) {
+		if motion[0] < gate {
+			t.Errorf("a transition or animation at offset %d sits outside @media (prefers-reduced-motion: no-preference)", motion[0])
+		}
+	}
+}
