@@ -80,6 +80,9 @@ type systemPromptCacheKey struct {
 	PersonalityLine          string   `json:"personality_line"`
 	CharacterNotes           string   `json:"character_notes"`
 	NarrativeVisible         bool     `json:"narrative_visible"`
+	PersonaBoosterEnabled    bool     `json:"persona_booster_enabled"`
+	PersonaAmplifier         string   `json:"persona_amplifier"`
+	PersonaPhase             string   `json:"persona_phase"`
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
@@ -161,6 +164,9 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		PersonalityLine:          flags.PersonalityLine,
 		CharacterNotes:           flags.CharacterNotes,
 		NarrativeVisible:         flags.NarrativeVisible,
+		PersonaBoosterEnabled:    flags.PersonaBoosterEnabled,
+		PersonaAmplifier:         flags.PersonaAmplifier,
+		PersonaPhase:             flags.PersonaPhase,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {
@@ -270,6 +276,10 @@ func computePromptSourceFingerprint(cleanDir, profile string) string {
 	writePart("dir", cleanDir)
 	embeddedRootDigest, personalityDigests := embeddedPromptSourceDigests()
 	writePart("embed-root-digest", embeddedRootDigest)
+	if profile != "" {
+		_, phaseRevision, _ := prompts.LoadPersonaPhaseCatalog(cleanDir, profile, nil)
+		writePart("persona-phases", phaseRevision)
+	}
 
 	if cleanDir != "" {
 		entries, err := os.ReadDir(cleanDir)
@@ -369,6 +379,11 @@ func diskPromptSourceRevision(cleanDir, profile string) string {
 				writeInfo("personality:"+profile, info)
 			} else {
 				_, _ = h.Write([]byte("personality-missing:" + profile))
+			}
+			for _, name := range []string{profile, "_generic"} {
+				if info, err := os.Stat(filepath.Join(cleanDir, "persona_phases", name+".yaml")); err == nil {
+					writeInfo("persona-phases:"+name, info)
+				}
 			}
 		}
 	}
