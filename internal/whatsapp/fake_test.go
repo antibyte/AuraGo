@@ -19,6 +19,16 @@ type sentMessage struct {
 	text string
 }
 
+type readCall struct {
+	ids          []types.MessageID
+	chat, sender types.JID
+}
+
+type chatStateCall struct {
+	chat  types.JID
+	state types.ChatPresence
+}
+
 // fakeClient records every call and lets a test emit whatsmeow events.
 type fakeClient struct {
 	mu          sync.Mutex
@@ -38,6 +48,14 @@ type fakeClient struct {
 	sent        []sentMessage
 	presences   []types.Presence
 	presenceErr error
+
+	ownLID      types.JID
+	lidPN       map[types.JID]types.JID // keyed by the non-AD LID
+	lidErr      error
+	lastConnect time.Time
+	reads       []readCall
+	chatStates  []chatStateCall
+	sendErrs    []error // SendMessage consumes one per call before it falls back to sendErr
 }
 
 func (f *fakeClient) with(fn func(f *fakeClient)) {
@@ -111,7 +129,13 @@ func (f *fakeClient) Logout(context.Context) error {
 func (f *fakeClient) SendMessage(_ context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.sendErr != nil {
+	if len(f.sendErrs) > 0 {
+		err := f.sendErrs[0]
+		f.sendErrs = f.sendErrs[1:]
+		if err != nil {
+			return whatsmeow.SendResponse{}, err
+		}
+	} else if f.sendErr != nil {
 		return whatsmeow.SendResponse{}, f.sendErr
 	}
 	f.sent = append(f.sent, sentMessage{to: to, text: msg.GetConversation()})
@@ -129,6 +153,45 @@ func (f *fakeClient) OwnJID() types.JID {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.own
+}
+
+func (f *fakeClient) MarkRead(_ context.Context, ids []types.MessageID, _ time.Time, chat, sender types.JID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads = append(f.reads, readCall{ids: slices.Clone(ids), chat: chat, sender: sender})
+	return nil
+}
+
+func (f *fakeClient) SendChatPresence(_ context.Context, chat types.JID, state types.ChatPresence, _ types.ChatPresenceMedia) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.chatStates = append(f.chatStates, chatStateCall{chat: chat, state: state})
+	return nil
+}
+
+func (f *fakeClient) OwnLID() types.JID {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ownLID
+}
+
+// PNForLID answers from lidPN; an unknown LID is EmptyJID without an error, like sqlstore.
+func (f *fakeClient) PNForLID(_ context.Context, lid types.JID) (types.JID, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.lidErr != nil {
+		return types.EmptyJID, f.lidErr
+	}
+	if pn, ok := f.lidPN[lid.ToNonAD()]; ok {
+		return pn, nil
+	}
+	return types.EmptyJID, nil
+}
+
+func (f *fakeClient) LastSuccessfulConnect() time.Time {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastConnect
 }
 
 // emit delivers evt to every handler, like whatsmeow's dispatcher.

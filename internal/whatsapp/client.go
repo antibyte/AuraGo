@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"context"
 	"sync"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waCompanionReg"
@@ -20,8 +21,8 @@ const linkedDeviceName = "AuraGo"
 const pairClientDisplay = "Chrome (Linux)"
 
 // waClient is the narrow transport the channel uses. whatsmeowClient wraps the
-// library; tests use fakeClient. Later stages add receipts, chat presence, LID
-// lookups and media here.
+// library; tests use fakeClient. Stage 2 adds receipts, chat presence, LID
+// lookups and the login time; stage 3 adds media.
 type waClient interface {
 	AddEventHandler(handler func(evt any)) uint32
 	ConnectContext(ctx context.Context) error
@@ -34,6 +35,15 @@ type waClient interface {
 	SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error)
 	SendPresence(ctx context.Context, state types.Presence) error
 	OwnJID() types.JID
+	MarkRead(ctx context.Context, ids []types.MessageID, timestamp time.Time, chat, sender types.JID) error
+	SendChatPresence(ctx context.Context, chat types.JID, state types.ChatPresence, media types.ChatPresenceMedia) error
+	// OwnLID is the linked account's LID without a device part, or EmptyJID before the first login.
+	OwnLID() types.JID
+	// PNForLID maps a LID to its phone JID through Store.LIDs. An unknown LID returns EmptyJID and no error.
+	PNForLID(ctx context.Context, lid types.JID) (types.JID, error)
+	// LastSuccessfulConnect is the time whatsmeow accepted the current login. Read it only from an
+	// event handler: whatsmeow writes it on its handler queue without a lock (connectionevents.go:164).
+	LastSuccessfulConnect() time.Time
 }
 
 // deviceStore is one opened linked-device database.
@@ -127,3 +137,20 @@ func (c *whatsmeowClient) SendPresence(ctx context.Context, state types.Presence
 }
 
 func (c *whatsmeowClient) OwnJID() types.JID { return c.cli.Store.GetJID().ToNonAD() }
+
+func (c *whatsmeowClient) MarkRead(ctx context.Context, ids []types.MessageID, timestamp time.Time, chat, sender types.JID) error {
+	return c.cli.MarkRead(ctx, ids, timestamp, chat, sender)
+}
+
+func (c *whatsmeowClient) SendChatPresence(ctx context.Context, chat types.JID, state types.ChatPresence, media types.ChatPresenceMedia) error {
+	return c.cli.SendChatPresence(ctx, chat, state, media)
+}
+
+func (c *whatsmeowClient) OwnLID() types.JID { return c.cli.Store.GetLID().ToNonAD() }
+
+func (c *whatsmeowClient) PNForLID(ctx context.Context, lid types.JID) (types.JID, error) {
+	pn, err := c.cli.Store.LIDs.GetPNForLID(ctx, lid.ToNonAD())
+	return pn.ToNonAD(), err
+}
+
+func (c *whatsmeowClient) LastSuccessfulConnect() time.Time { return c.cli.LastSuccessfulConnect }
