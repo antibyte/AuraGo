@@ -40,6 +40,31 @@ func TestChunkTextEdgeCases(t *testing.T) {
 	if got := chunkText(exact, 40); len(got) != 1 || got[0] != exact {
 		t.Fatalf("text of exactly the limit must be one part, got %q", got)
 	}
+
+	// Invalid UTF-8 becomes U+FFFD, on the single-part path and on the split path.
+	if got := chunkText("ok\xff\xfe text", 40); len(got) != 1 || got[0] != "ok\xef\xbf\xbd text" {
+		t.Fatalf("invalid bytes in a short text: %q", got)
+	}
+	for i, part := range chunkText(strings.Repeat("ab \xc3 ", 30), 40) {
+		if !utf8.ValidString(part) {
+			t.Fatalf("part %d is not valid UTF-8: %q", i, part)
+		}
+	}
+}
+
+func TestChunkTextKeepsBlankLinesInsideFences(t *testing.T) {
+	// The long line cannot share the part with the opening line, so the part is
+	// cut inside the fence. The blank lines between the two are code and stay.
+	text := "```go\n\n\n" + strings.Repeat("x", 60) + "\n```"
+	parts := chunkText(text, 40)
+	if len(parts) < 2 || !strings.HasPrefix(parts[0], "```go\n\n\nxxx") {
+		t.Fatalf("the blank lines inside the fence must stay, got %q", parts)
+	}
+	for i, part := range parts {
+		if utf8.RuneCountInString(part) > 40 || fenceLineCount(part)%2 != 0 {
+			t.Fatalf("part %d breaks the rules: %q", i, part)
+		}
+	}
 }
 
 func TestChunkTextPrefersParagraphThenLine(t *testing.T) {

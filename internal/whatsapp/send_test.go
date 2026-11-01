@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
+	"aurago/internal/security"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -170,6 +172,92 @@ func TestSenderRegistersSentIDsAndCountsFailures(t *testing.T) {
 	}
 	if deliveryFailures() != before {
 		t.Fatal("a cancelled send must not be counted as a delivery failure")
+	}
+}
+
+// blockingClient holds every send until release is closed.
+type blockingClient struct {
+	*fakeClient
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (c *blockingClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
+	c.once.Do(func() { close(c.started) })
+	<-c.release
+	return c.fakeClient.SendMessage(ctx, to, msg)
+}
+
+func TestSenderQueueWaitHonoursContext(t *testing.T) {
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	holder := &blockingClient{fakeClient: fake, started: make(chan struct{}), release: make(chan struct{})}
+	s, _ := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, holder)
+
+	first := make(chan error, 1)
+	go func() { first <- s.deliverText(context.Background(), ownerJID, "first", "reply") }()
+	select {
+	case <-holder.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the first send never reached the client")
+	}
+
+	before := deliveryFailures()
+	ctx, cancel := context.WithCancel(context.Background())
+	second := make(chan error, 1)
+	go func() { second <- s.deliverText(ctx, ownerJID, "second", "reply") }()
+	time.Sleep(50 * time.Millisecond) // let the second send queue up behind the first
+	cancel()
+	select {
+	case err := <-second:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("a cancelled wait = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a cancelled send stayed blocked behind the running one")
+	}
+	select {
+	case err := <-first:
+		t.Fatalf("the first send ended early: %v", err)
+	default:
+	}
+	if deliveryFailures() != before {
+		t.Fatal("a send that never got the queue slot must not count as a delivery failure")
+	}
+
+	close(holder.release)
+	select {
+	case err := <-first:
+		if err != nil {
+			t.Fatalf("first send: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the first send never finished")
+	}
+	if got := sentBodies(fake); !slices.Equal(got, []string{"first"}) {
+		t.Fatalf("sent %q, want only the first message", got)
+	}
+}
+
+func TestSenderScrubsBeforeFormatting(t *testing.T) {
+	// The formatter rewrites a pipe in a table row and a doubled asterisk pair, so a
+	// registered value holding one must be redacted first.
+	pipeSecret, starSecret := "pass|word-secret", "tok**en-secret"
+	defer security.RegisterScopedSensitiveExact(pipeSecret)()
+	defer security.RegisterScopedSensitiveExact(starSecret)()
+
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	s, _ := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, fake)
+	table := "| name | value |\n|---|---|\n| user | " + pipeSecret + " |"
+	stars := "first " + starSecret + " and again " + starSecret + " done"
+	for _, text := range []string{table, stars} {
+		if err := s.deliverText(context.Background(), ownerJID, text, "reply"); err != nil {
+			t.Fatalf("send: %v", err)
+		}
+	}
+	want := []string{"• name — value\n• user — [redacted]", "first [redacted] and again [redacted] done"}
+	if got := sentBodies(fake); !slices.Equal(got, want) {
+		t.Fatalf("sent %q, want %q", got, want)
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -25,11 +24,13 @@ const (
 	sendInterval = 3 * time.Second // 20 messages per minute
 )
 
-// tokenBucket paces the send queue. The caller holds sender.mu, so take runs serially.
+// tokenBucket paces the send queue. The caller holds the sender's queue slot, so take
+// runs serially.
 type tokenBucket struct {
 	tokens float64
 	last   time.Time
-	// skew is the sleep time that a frozen clock did not show; see take.
+	// skew is the sleep time that the clock did not show; see take. It stays zero with
+	// a real clock: time.Now is monotonic, so it always moves during a sleep.
 	skew  time.Duration
 	now   func() time.Time
 	sleep func(ctx context.Context, d time.Duration) bool
@@ -53,12 +54,16 @@ func (b *tokenBucket) take(ctx context.Context) bool {
 			b.tokens--
 			return true
 		}
+		// The 1 ms floor keeps a token count just below 1 from rounding the wait to 0,
+		// which would spin on a clock that has not ticked yet.
 		wait := max(time.Duration((1-b.tokens)*float64(sendInterval)), time.Millisecond)
 		if !b.sleep(ctx, wait) {
 			return false
 		}
 		// A clock that did not move during a sleep (a frozen test clock) would never
 		// refill the bucket. Count the sleep as elapsed instead of waiting forever.
+		// With time.Now this never fires: the monotonic reading always advances during
+		// a real sleep, so production pacing runs on the clock alone.
 		if !b.now().Add(b.skew).After(now) {
 			b.skew += wait
 		}
@@ -69,7 +74,9 @@ func (b *tokenBucket) take(ctx context.Context) bool {
 // deliverText: owner guard, formatting, scrubbing, chunking, self-chat prefix, pacing,
 // echo-cache registration and delivery accounting.
 type sender struct {
-	mu     sync.Mutex // held for all chunks of one message, so chunks stay together
+	// sem is the one queue slot, held for all chunks of one message so chunks stay
+	// together. A channel instead of a mutex lets a waiting send give up with its ctx.
+	sem    chan struct{}
 	cfg    config.WhatsAppConfig
 	client func() waClient
 	sent   *idCache
@@ -91,7 +98,7 @@ func newSender(cfg config.WhatsAppConfig, client func() waClient, sent *idCache,
 	if sleep == nil {
 		sleep = sleepContext
 	}
-	return &sender{cfg: cfg, client: client, sent: sent, bucket: tokenBucket{now: now, sleep: sleep}, now: now, logger: logger}
+	return &sender{sem: make(chan struct{}, 1), cfg: cfg, client: client, sent: sent, bucket: tokenBucket{now: now, sleep: sleep}, now: now, logger: logger}
 }
 
 // ownerRecipient returns the owner entry that to stands for, or errNotOwnerRecipient.
@@ -116,23 +123,36 @@ func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what s
 	if err := ctx.Err(); err != nil {
 		return err // a cancelled send is never counted
 	}
+	// The broker discards the error of a reply, so each early refusal leaves a log
+	// line. It names the label only, never the text, and none of them counts as a
+	// delivery failure.
 	client := s.client()
 	if client == nil || !client.IsLoggedIn() {
+		s.logger.Warn("Cannot send WhatsApp " + what + ": not connected")
 		return ErrNotConnected
 	}
 	recipient, err := s.ownerRecipient(client, to)
 	if err != nil {
+		if !errors.Is(err, errNotOwnerRecipient) { // the guard has logged its own refusal
+			s.logger.Warn("Cannot send WhatsApp " + what + ": no owner recipient")
+		}
 		return err
 	}
 	prefix := ""
 	if s.cfg.Mode == config.WhatsAppModeSelfChat {
 		prefix = s.cfg.SelfChatPrefix
 	}
-	body := security.Scrub(toWhatsApp(markdown))
+	// Scrub first: a registered value is matched as written, and the formatter would
+	// break one that holds a pipe or a doubled asterisk.
+	body := toWhatsApp(security.Scrub(markdown))
 	chunks := chunkText(body, maxChunkRunes-utf8.RuneCountInString(prefix))
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	select {
+	case s.sem <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err() // a send that never got the slot is not a delivery failure
+	}
+	defer func() { <-s.sem }()
 	for _, chunk := range chunks {
 		if err := ctx.Err(); err != nil {
 			return err

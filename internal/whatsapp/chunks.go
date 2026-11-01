@@ -17,6 +17,9 @@ const (
 	// minFenceChunkRunes is the smallest limit at which fences are tracked. A
 	// smaller one cannot hold a reopened fence line, its close and a line of code.
 	minFenceChunkRunes = 32
+
+	// utf8Replacement is U+FFFD, written as bytes so the source needs no escape.
+	utf8Replacement = "\xef\xbf\xbd"
 )
 
 // chunkText splits text into parts of at most limit runes. Leading blank lines and
@@ -28,7 +31,8 @@ const (
 // with a fence line and the next part starts with the fence's opening line again,
 // info string included.
 func chunkText(text string, limit int) []string {
-	text = trimBlankEdges(text)
+	// Invalid UTF-8 would count as one rune per byte and could reach WhatsApp as is.
+	text = trimBlankEdges(strings.ToValidUTF8(text, utf8Replacement))
 	if text == "" {
 		return nil
 	}
@@ -223,10 +227,10 @@ func (c *chunker) emit(k int) {
 }
 
 // trimTrailingBlanks drops blank lines from the end of the current part and
-// reports whether it dropped any.
+// reports whether it dropped any. A blank line inside a fence is code and stays.
 func (c *chunker) trimTrailingBlanks() bool {
 	trimmed := false
-	for len(c.lines) > 0 && isBlank(c.lines[len(c.lines)-1].text) {
+	for len(c.lines) > 0 && isBlank(c.lines[len(c.lines)-1].text) && c.lines[len(c.lines)-1].open == "" {
 		c.lines = c.lines[:len(c.lines)-1]
 		trimmed = true
 	}
