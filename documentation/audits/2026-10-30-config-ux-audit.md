@@ -424,7 +424,7 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 > - 67 Module bleiben handgebaut (große Widgets: providers, sip, webhooks, mcp …), nutzen aber die Helfer.
 > - `danger_zone` zeigt Emoji und eine Checkbox aus `js/shared/action-policy.js` (geteilt, nicht Config).
 > - Composio „Auswahl speichern“ schreibt weiter die ganze Sektion; Preis-Auswahl über dem Provider-Dialog nicht browsergetestet.
-> - Dialoge, Fritz!Box-Überschriften und neue Layouts nicht visuell abgenommen.
+> - Visuell abgenommen am 2026-11-01 (Scratch-Instanz, 29 Szenen, hell/dunkel, 800/1000 px); Befunde behoben in `1f3d669be` (Dialoghöhe, HTTPS-Schalter, Leerzustände, Lösch-Icons, TTS-Reihenfolge, gelber Punkt für „eingeschränkt“), Kopfzeile in `f4afbc7c8`.
 
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
