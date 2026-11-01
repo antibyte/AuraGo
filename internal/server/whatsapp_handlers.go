@@ -108,17 +108,57 @@ type whatsAppLinkBody struct {
 	Force  bool   `json:"force"`
 }
 
+// whatsAppLinkBodyLimit caps the link request body.
+const whatsAppLinkBodyLimit = 4 << 10
+
+// whatsAppSameOrigin requires the Origin header on browser-driven mutations,
+// even when ordinary authentication is off, like the Kaggle and Decisions POST
+// handlers. A Bearer client carries no ambient credential and skips the check.
+func whatsAppSameOrigin(w http.ResponseWriter, r *http.Request) bool {
+	if _, bearer := bearerCredential(r.Header.Get("Authorization")); bearer || checkCSRFOriginWithPolicy(r, true) {
+		return true
+	}
+	writeWhatsAppJSON(w, http.StatusForbidden, map[string]string{"error": "csrf_check_failed"})
+	return false
+}
+
+// decodeWhatsAppLinkBody reads exactly one bounded JSON object with known
+// fields. Trailing data is rejected with 400 invalid_request, an oversize body
+// with 413 request_too_large. It writes the failure response itself.
+func decodeWhatsAppLinkBody(w http.ResponseWriter, r *http.Request) (whatsAppLinkBody, bool) {
+	var body whatsAppLinkBody
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, whatsAppLinkBodyLimit))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&body)
+	if err == nil {
+		// A second Decode must find the end of the body.
+		var extra struct{}
+		if err = decoder.Decode(&extra); err == io.EOF {
+			return body, true
+		} else if err == nil {
+			err = errors.New("trailing data after the JSON object")
+		}
+	}
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		writeWhatsAppJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "request_too_large"})
+		return whatsAppLinkBody{}, false
+	}
+	writeWhatsAppJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+	return whatsAppLinkBody{}, false
+}
+
 func handleWhatsAppLink(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			writeWhatsAppJSON(w, http.StatusOK, s.whatsApp().LinkSnapshot())
 		case http.MethodPost:
-			var body whatsAppLinkBody
-			decoder := json.NewDecoder(io.LimitReader(r.Body, 4<<10))
-			decoder.DisallowUnknownFields()
-			if err := decoder.Decode(&body); err != nil {
-				writeWhatsAppJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+			if !whatsAppSameOrigin(w, r) {
+				return
+			}
+			body, ok := decodeWhatsAppLinkBody(w, r)
+			if !ok {
 				return
 			}
 			ctx, cancel := context.WithTimeout(r.Context(), whatsAppActionTimeout)
@@ -141,6 +181,9 @@ func handleWhatsAppLogout(s *Server) http.HandlerFunc {
 			whatsAppMethodNotAllowed(w, http.MethodPost)
 			return
 		}
+		if !whatsAppSameOrigin(w, r) {
+			return
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), whatsAppActionTimeout)
 		defer cancel()
 		result, err := s.whatsApp().Logout(ctx)
@@ -158,6 +201,10 @@ func handleWhatsAppTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			whatsAppMethodNotAllowed(w, http.MethodPost)
+			return
+		}
+		// Before the rate limit, so a forged request cannot use up the minute.
+		if !whatsAppSameOrigin(w, r) {
 			return
 		}
 		now := whatsAppTestNow()

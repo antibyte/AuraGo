@@ -407,7 +407,7 @@ type Server struct {
 	telegramOffsets       telegram.UpdateOffsets
 	whatsAppLifecycleMu   sync.Mutex
 	whatsAppBot           atomic.Pointer[whatsapp.Bot]
-	whatsAppLink          *whatsapp.LinkSession // guarded by whatsAppLifecycleMu
+	whatsAppLink          atomic.Pointer[whatsAppLinkRef] // stored under whatsAppLifecycleMu; read lock-free
 	whatsAppClosed        bool
 	whatsAppCtl           whatsAppController // tests only; nil uses serverWhatsApp
 	haPollerMu            sync.Mutex

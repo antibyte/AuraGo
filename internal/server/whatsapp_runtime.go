@@ -2,11 +2,44 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
 	"aurago/internal/whatsapp"
+)
+
+// whatsAppRemoteLogoutTimeout bounds the remote unlink, which runs under
+// whatsAppLifecycleMu and so stalls config saves while it waits.
+const whatsAppRemoteLogoutTimeout = 10 * time.Second
+
+// whatsAppLinkSession is what the server needs from a link session.
+// *whatsapp.LinkSession satisfies it; tests substitute a fake.
+type whatsAppLinkSession interface {
+	Snapshot() whatsapp.LinkSnapshot
+	Active() bool
+	Cancel()
+	Done() <-chan struct{}
+}
+
+// whatsAppLinkRef lets an atomic.Pointer hold the interface.
+type whatsAppLinkRef struct{ whatsAppLinkSession }
+
+// Test seams, like telegramTestSend. Production keeps the real implementations.
+var (
+	whatsAppDeviceLinked = whatsapp.DeviceLinked
+	whatsAppStartLink    = func(parent context.Context, cfg *config.Config, req whatsapp.LinkRequest, logger *slog.Logger, onFinish func(linked bool)) (whatsAppLinkSession, error) {
+		session, err := whatsapp.StartLink(parent, cfg, req, logger, onFinish)
+		if err != nil {
+			return nil, err
+		}
+		return session, nil
+	}
+	whatsAppBotLogout = func(ctx context.Context, bot *whatsapp.Bot) (whatsapp.LogoutResult, error) {
+		return bot.Logout(ctx)
+	}
 )
 
 // whatsAppController is what the WhatsApp HTTP handlers need from the
@@ -38,7 +71,7 @@ func (s *Server) configureWhatsAppBot() {
 // connection. While a link session owns the device, no Bot starts. The
 // caller holds whatsAppLifecycleMu.
 func (s *Server) configureWhatsAppBotLocked(force bool) {
-	if s.whatsAppClosed || (s.whatsAppLink != nil && s.whatsAppLink.Active()) {
+	if s.whatsAppClosed || s.activeWhatsAppLink() != nil {
 		return
 	}
 	s.CfgMu.RLock()
@@ -78,10 +111,19 @@ func (s *Server) stopWhatsApp() {
 // that callback must never wait for whatsAppLifecycleMu, which the caller
 // holds here. The caller holds whatsAppLifecycleMu.
 func (s *Server) cancelWhatsAppLinkLocked() {
-	if link := s.whatsAppLink; link != nil && link.Active() {
+	if link := s.activeWhatsAppLink(); link != nil {
 		link.Cancel()
 		<-link.Done()
 	}
+}
+
+// activeWhatsAppLink returns the running link session, or nil. It reads
+// lock-free; only writes need whatsAppLifecycleMu.
+func (s *Server) activeWhatsAppLink() whatsAppLinkSession {
+	if ref := s.whatsAppLink.Load(); ref != nil && ref.Active() {
+		return ref.whatsAppLinkSession
+	}
+	return nil
 }
 
 // onWhatsAppLinkFinished is the link session's onFinish callback. It runs on
@@ -123,10 +165,10 @@ func (w serverWhatsApp) Link(ctx context.Context, req whatsapp.LinkRequest, forc
 	if s.whatsAppClosed || whatsapp.ConfigState(cfg) != "" {
 		return whatsapp.LinkSnapshot{}, whatsapp.ErrNotConfigured
 	}
-	if s.whatsAppLink != nil && s.whatsAppLink.Active() {
+	if s.activeWhatsAppLink() != nil {
 		return whatsapp.LinkSnapshot{}, whatsapp.ErrLinkInProgress
 	}
-	linked, err := whatsapp.DeviceLinked(ctx, cfg.Directories.DataDir)
+	linked, err := whatsAppDeviceLinked(ctx, cfg.Directories.DataDir)
 	if err != nil {
 		return whatsapp.LinkSnapshot{}, err
 	}
@@ -146,22 +188,23 @@ func (w serverWhatsApp) Link(ctx context.Context, req whatsapp.LinkRequest, forc
 	if parent == nil {
 		parent = context.Background()
 	}
-	session, err := whatsapp.StartLink(parent, cfg, req, s.Logger, s.onWhatsAppLinkFinished)
+	session, err := whatsAppStartLink(parent, cfg, req, s.Logger, s.onWhatsAppLinkFinished)
 	if err != nil {
 		s.configureWhatsAppBotLocked(false)
 		return whatsapp.LinkSnapshot{}, err
 	}
-	s.whatsAppLink = session
+	s.whatsAppLink.Store(&whatsAppLinkRef{session})
 	return session.Snapshot(), nil
 }
 
+// LinkSnapshot is polled by the Config UI. It reads the session lock-free, so
+// a slow unlink or config save never delays it.
 func (w serverWhatsApp) LinkSnapshot() whatsapp.LinkSnapshot {
-	w.s.whatsAppLifecycleMu.Lock()
-	defer w.s.whatsAppLifecycleMu.Unlock()
-	if w.s.whatsAppLink == nil {
+	ref := w.s.whatsAppLink.Load()
+	if ref == nil {
 		return whatsapp.LinkSnapshot{State: whatsapp.LinkStateIdle}
 	}
-	return w.s.whatsAppLink.Snapshot()
+	return ref.Snapshot()
 }
 
 // Logout unlinks the device and starts a fresh generation, which reports
@@ -184,10 +227,20 @@ func (w serverWhatsApp) Logout(ctx context.Context) (whatsapp.LogoutResult, erro
 func (w serverWhatsApp) logoutLocked(ctx context.Context) (whatsapp.LogoutResult, error) {
 	s := w.s
 	s.cancelWhatsAppLinkLocked()
+	dataDir := s.ConfigSnapshot().Directories.DataDir
 	if bot := s.whatsAppBot.Swap(nil); bot != nil {
-		return bot.Logout(ctx)
+		// The remote unlink holds the lifecycle lock, so it gets a short
+		// deadline. Bot.Logout uses the same context for its local fallback,
+		// which a hung remote call would leave expired; the Bot is stopped by
+		// then, so the keys are removed here with the request's own context.
+		remoteCtx, cancel := context.WithTimeout(ctx, whatsAppRemoteLogoutTimeout)
+		defer cancel()
+		result, err := whatsAppBotLogout(remoteCtx, bot)
+		if err == nil {
+			return result, nil
+		}
 	}
-	if err := whatsapp.RemoveLocalDevice(ctx, s.ConfigSnapshot().Directories.DataDir); err != nil {
+	if err := whatsapp.RemoveLocalDevice(ctx, dataDir); err != nil {
 		return whatsapp.LogoutResult{}, err
 	}
 	integrationstatus.SetWhatsAppLinked(false, "")

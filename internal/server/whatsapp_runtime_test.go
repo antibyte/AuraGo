@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,7 +149,7 @@ func TestServerWhatsAppLinkNeedsAnOwnerInDedicatedMode(t *testing.T) {
 	if _, statErr := os.Stat(config.WhatsAppStoreDir(s.ConfigSnapshot().Directories.DataDir)); !os.IsNotExist(statErr) {
 		t.Fatalf("the refused link touched the device store: %v", statErr)
 	}
-	if s.whatsAppLink != nil || s.whatsAppBot.Load() != nil {
+	if s.whatsAppLink.Load() != nil || s.whatsAppBot.Load() != nil {
 		t.Fatal("the refused link left a session or a Bot behind")
 	}
 }
@@ -268,5 +269,189 @@ func TestHandleUpdateConfigWhatsAppValidatesAndHotReloads(t *testing.T) {
 	}
 	if s.ConfigSnapshot().WhatsApp.Mode != config.WhatsAppModeSelfChat || s.whatsAppBot.Load() == nil {
 		t.Fatal("the WhatsApp change was not hot-reloaded")
+	}
+}
+
+// fakeWhatsAppLinkSession ends like whatsapp.LinkSession: inactive first, then
+// onFinish on the session goroutine, then Done closes.
+type fakeWhatsAppLinkSession struct {
+	mu        sync.Mutex
+	active    bool
+	cancelled bool
+	onFinish  func(linked bool)
+	once      sync.Once
+	done      chan struct{}
+}
+
+func newFakeWhatsAppLinkSession(onFinish func(bool)) *fakeWhatsAppLinkSession {
+	return &fakeWhatsAppLinkSession{active: true, onFinish: onFinish, done: make(chan struct{})}
+}
+
+func (f *fakeWhatsAppLinkSession) Snapshot() whatsapp.LinkSnapshot {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.active {
+		return whatsapp.LinkSnapshot{State: whatsapp.LinkStateWaiting}
+	}
+	return whatsapp.LinkSnapshot{State: whatsapp.LinkStateSuccess}
+}
+
+func (f *fakeWhatsAppLinkSession) Active() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.active
+}
+
+func (f *fakeWhatsAppLinkSession) Cancel() {
+	f.mu.Lock()
+	f.cancelled = true
+	f.mu.Unlock()
+	go f.finish(false)
+}
+
+func (f *fakeWhatsAppLinkSession) Done() <-chan struct{} { return f.done }
+
+func (f *fakeWhatsAppLinkSession) finish(linked bool) {
+	f.once.Do(func() {
+		f.mu.Lock()
+		f.active = false
+		f.mu.Unlock()
+		f.onFinish(linked)
+		close(f.done)
+	})
+}
+
+func (f *fakeWhatsAppLinkSession) wasCancelled() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cancelled
+}
+
+// One walk through the session rules of the server: a linked device needs
+// force, one session at a time, a forced relink replaces the finished session,
+// and shutdown cancels a running session and waits for it.
+func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
+	ctx := context.Background()
+	s := whatsAppRuntimeServer(t, func(cfg *config.Config) {
+		cfg.WhatsApp.Enabled = true
+		cfg.WhatsApp.Mode = config.WhatsAppModeSelfChat
+	})
+	ctl := serverWhatsApp{s: s}
+	linked := false
+	var started []*fakeWhatsAppLinkSession
+	originalLinked, originalStart := whatsAppDeviceLinked, whatsAppStartLink
+	t.Cleanup(func() { whatsAppDeviceLinked, whatsAppStartLink = originalLinked, originalStart })
+	whatsAppDeviceLinked = func(context.Context, string) (bool, error) { return linked, nil }
+	whatsAppStartLink = func(_ context.Context, _ *config.Config, _ whatsapp.LinkRequest, _ *slog.Logger, onFinish func(bool)) (whatsAppLinkSession, error) {
+		session := newFakeWhatsAppLinkSession(onFinish)
+		started = append(started, session)
+		return session, nil
+	}
+	qr := whatsapp.LinkRequest{Method: whatsapp.LinkMethodQR}
+
+	// A linked device is refused without force: 409 already_linked, no session.
+	linked = true
+	_, err := ctl.Link(ctx, qr, false)
+	if code, reason := whatsAppErrorStatus(err); !errors.Is(err, whatsapp.ErrAlreadyLinked) || code != http.StatusConflict || reason != "already_linked" {
+		t.Fatalf("linked without force = %v (%d %s)", err, code, reason)
+	}
+	if len(started) != 0 {
+		t.Fatal("a refused link started a session")
+	}
+
+	// An unlinked device starts one session; a second request is refused, with
+	// or without force.
+	linked = false
+	snap, err := ctl.Link(ctx, qr, false)
+	if err != nil || snap.State != whatsapp.LinkStateWaiting || len(started) != 1 {
+		t.Fatalf("first link = %+v, %v, sessions=%d", snap, err, len(started))
+	}
+	for _, force := range []bool{false, true} {
+		if _, err := ctl.Link(ctx, qr, force); !errors.Is(err, whatsapp.ErrLinkInProgress) || len(started) != 1 {
+			t.Fatalf("second link (force=%v) = %v, sessions=%d, want ErrLinkInProgress", force, err, len(started))
+		}
+	}
+
+	// Polling the session never waits for the lifecycle lock.
+	s.whatsAppLifecycleMu.Lock()
+	polled := make(chan whatsapp.LinkSnapshot, 1)
+	go func() { polled <- ctl.LinkSnapshot() }()
+	select {
+	case got := <-polled:
+		if got.State != whatsapp.LinkStateWaiting {
+			t.Errorf("polled snapshot = %+v", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("LinkSnapshot waited for the lifecycle lock")
+	}
+	s.whatsAppLifecycleMu.Unlock()
+
+	// The first session links the device; the server then runs a Bot for it.
+	linked = true
+	started[0].finish(true)
+	deadline := time.Now().Add(5 * time.Second)
+	for s.whatsAppBot.Load() == nil {
+		if time.Now().After(deadline) {
+			t.Fatal("a finished link started no Bot")
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	// Force unlinks the device and replaces the finished session with a new one.
+	if _, err := ctl.Link(ctx, qr, true); err != nil || len(started) != 2 {
+		t.Fatalf("forced relink = %v, sessions=%d", err, len(started))
+	}
+	if current := s.whatsAppLink.Load(); current == nil || current.whatsAppLinkSession != whatsAppLinkSession(started[1]) {
+		t.Fatal("the forced relink did not replace the session")
+	}
+
+	// Shutdown cancels the running session and waits until it is done.
+	stopped := make(chan struct{})
+	go func() { s.stopWhatsApp(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stopWhatsApp did not return")
+	}
+	select {
+	case <-started[1].Done():
+	default:
+		t.Fatal("stopWhatsApp returned before the session was done")
+	}
+	if !started[1].wasCancelled() || s.whatsAppBot.Load() != nil {
+		t.Fatal("shutdown left the session or the Bot running")
+	}
+	if _, err := ctl.Link(ctx, qr, false); !errors.Is(err, whatsapp.ErrNotConfigured) {
+		t.Fatalf("link after shutdown = %v", err)
+	}
+}
+
+// The remote unlink runs under the lifecycle lock, so it gets a short deadline.
+// When it fails, the keys are still removed with the request's own context.
+func TestServerWhatsAppLogoutBoundsTheRemoteUnlink(t *testing.T) {
+	s := whatsAppRuntimeServer(t, func(cfg *config.Config) {
+		cfg.WhatsApp.Enabled = true
+		cfg.WhatsApp.Mode = config.WhatsAppModeSelfChat
+	})
+	s.configureWhatsAppBot()
+	var deadline time.Time
+	var bounded bool
+	original := whatsAppBotLogout
+	t.Cleanup(func() { whatsAppBotLogout = original })
+	whatsAppBotLogout = func(ctx context.Context, bot *whatsapp.Bot) (whatsapp.LogoutResult, error) {
+		deadline, bounded = ctx.Deadline()
+		bot.Stop() // the real Logout stops the Bot before it removes the keys
+		return whatsapp.LogoutResult{}, errors.New("open whatsapp device store: context deadline exceeded")
+	}
+	begin := time.Now()
+	result, err := serverWhatsApp{s: s}.Logout(context.Background())
+	if err != nil || result.RemoteRemoved {
+		t.Fatalf("logout after a failed remote unlink = %+v, %v", result, err)
+	}
+	if !bounded || deadline.After(begin.Add(whatsAppRemoteLogoutTimeout+time.Second)) {
+		t.Fatalf("remote unlink deadline = %v (bounded=%v), want within %v", deadline, bounded, whatsAppRemoteLogoutTimeout)
+	}
+	if s.whatsAppBot.Load() == nil {
+		t.Fatal("logout did not start a fresh generation")
 	}
 }
