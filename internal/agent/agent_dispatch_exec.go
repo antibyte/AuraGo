@@ -348,7 +348,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeQueryMemory(tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+			result, err := executeQueryMemoryContext(ctx, tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"query_memory failed: %v"}`, err)
 			}
@@ -368,7 +368,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeContextMemoryQuery(tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+			result, err := executeContextMemoryQueryContext(ctx, tc, dc.SessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
 			}

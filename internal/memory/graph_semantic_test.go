@@ -240,6 +240,59 @@ func TestKGSemanticQueryEmbeddingDedupesConcurrentQueries(t *testing.T) {
 	}
 }
 
+func TestKGSemanticIndexReplacementCancelsOldQueryWaiters(t *testing.T) {
+	kg := newTestKG(t)
+	defer kg.Close()
+	oldStarted := make(chan struct{}, 1)
+	oldEmbedding := func(ctx context.Context, query string) ([]float32, error) {
+		if query == "knowledge graph semantic validation" {
+			return []float32{1, 0}, nil
+		}
+		oldStarted <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	if err := kg.EnableSemanticSearchShared(chromem.NewDB(), oldEmbedding); err != nil {
+		t.Fatalf("EnableSemanticSearchShared(old): %v", err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+	oldIndex := kg.semanticIndex()
+	queryDone := make(chan error, 1)
+	go func() {
+		_, err := kg.getSemanticQueryEmbeddingContext(context.Background(), "replacement query")
+		queryDone <- err
+	}()
+	select {
+	case <-oldStarted:
+	case <-time.After(time.Second):
+		t.Fatal("old index provider did not start")
+	}
+
+	newDB := chromem.NewDB()
+	newEmbedding := func(context.Context, string) ([]float32, error) { return []float32{1, 0}, nil }
+	collection, err := newDB.GetOrCreateCollection(kgsemantic.CollectionName, nil, newEmbedding)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection(new): %v", err)
+	}
+	if err := collection.AddDocument(context.Background(), chromem.Document{ID: "seed", Content: "seed", Embedding: []float32{1, 0}}); err != nil {
+		t.Fatalf("AddDocument(new): %v", err)
+	}
+	if err := kg.enableSemanticSearchWithCollection(newDB, newEmbedding, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection(new): %v", err)
+	}
+	if kg.semanticIndex() == oldIndex {
+		t.Fatal("semantic index replacement retained the old index")
+	}
+	select {
+	case err := <-queryDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("old query error = %v, want context canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("replacing the semantic index did not wake its query waiter")
+	}
+}
+
 func TestEnableSemanticSearchWithCollectionReturnsBeforeDirtyBacklogReindex(t *testing.T) {
 	kg := newTestKG(t)
 	if err := kg.AddNode("slow-node", "Slow Node", map[string]string{"kind": "slow"}); err != nil {

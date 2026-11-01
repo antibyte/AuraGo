@@ -67,6 +67,14 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Graph Search Patterns
 
+- Runtime graph context searches propagate the caller context through lexical SQL,
+  node/edge expansion and semantic embedding. Compatibility wrappers are bounded.
+  Shared query embeddings count active waiters: one cancellation releases only that
+  waiter; the last cancels the provider. Removed flights cannot be reused, and late
+  completions cannot overwrite a newer flight or cache entry. Closing or replacing
+  the index cancels flights and releases every waiter; preserve cache/timeout bounds.
+  Verify `TestKGSemanticIndexReplacementCancelsOldQueryWaiters`.
+
 - Every knowledge-graph `LIKE` parameter is escaped with `dbutil.EscapeLike` or the equivalent package-local `escapeLike`, and its predicate carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally. Lexical search ORs independently escaped terms and ranks relevance; context type exclusions precede FTS/LIKE/important-node limits. Semantic search keeps the full query and backfills past excluded nodes/edges before applying its result limit. Verify `TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally`, `TestKGSearchLikeTreatsBackslashLiterally`, `TestKGContextExclusionsPrecedeLexicalLimit` and `TestKGSemanticExpandsPastExcludedCandidatesAndUsesFullQuery`.
 
 ### Model remember provenance

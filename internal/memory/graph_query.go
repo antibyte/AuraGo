@@ -12,6 +12,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	"aurago/internal/memory/kgsemantic"
 )
 
 type semanticEdgeIdentity struct {
@@ -22,6 +25,23 @@ type semanticEdgeIdentity struct {
 
 type knowledgeGraphQueryer interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+type knowledgeGraphContextQueryer interface {
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+}
+
+func queryKnowledgeGraphContext(ctx context.Context, q knowledgeGraphQueryer, query string, args ...interface{}) (*sql.Rows, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if contextQueryer, ok := q.(knowledgeGraphContextQueryer); ok {
+		return contextQueryer.QueryContext(ctx, query, args...)
+	}
+	return q.Query(query, args...)
 }
 
 type KnowledgeGraphQueryOptions struct {
@@ -143,7 +163,14 @@ type KnowledgeGraphCleanupOptions struct {
 }
 
 func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
-	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	return kg.beginReadTxContext(context.Background(), operation)
+}
+
+func (kg *KnowledgeGraph) beginReadTxContext(ctx context.Context, operation string) (*sql.Tx, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	tx, err := kg.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		if kg.logger != nil {
 			kg.logger.Warn(operation+": begin read transaction failed", "error", err)
@@ -166,6 +193,7 @@ func (r KnowledgeGraphSearchResult) Empty() bool {
 
 // knowledgeGraphSearchLimit caps nodes and edges per explicit search.
 const knowledgeGraphSearchLimit = 50
+const knowledgeGraphContextTimeout = kgsemantic.QueryTimeout + 5*time.Second
 
 func (kg *KnowledgeGraph) Search(query string) string {
 	return kg.SearchWithOptions(query, KnowledgeGraphQueryOptions{})
@@ -574,12 +602,22 @@ func (kg *KnowledgeGraph) hideLowConfidenceEdge(edge Edge, options KnowledgeGrap
 }
 
 func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars int) string {
-	result := kg.SearchForContextStructured(query, maxNodes, maxChars)
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	result, _ := kg.SearchForContextContext(ctx, query, maxNodes, maxChars)
+	return result
+}
+
+func (kg *KnowledgeGraph) SearchForContextContext(ctx context.Context, query string, maxNodes int, maxChars int) (string, error) {
+	result, err := kg.SearchForContextStructuredContext(ctx, query, maxNodes, maxChars)
+	if err != nil {
+		return "", err
+	}
 	if len(result.Nodes) == 0 {
-		return ""
+		return "", nil
 	}
 	kg.RecordContextAccess(result)
-	return result.FormatContext(maxChars)
+	return result.FormatContext(maxChars), nil
 }
 
 // Apply exclusions in SQL before a lexical candidate can consume the limit.
@@ -601,8 +639,21 @@ func (kg *KnowledgeGraph) contextNodeTypeFilter(alias string) (string, []interfa
 }
 
 func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int, maxChars int) KnowledgeGraphContextResult {
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	result, _ := kg.SearchForContextStructuredContext(ctx, query, maxNodes, maxChars)
+	return result
+}
+
+func (kg *KnowledgeGraph) SearchForContextStructuredContext(ctx context.Context, query string, maxNodes int, maxChars int) (KnowledgeGraphContextResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return KnowledgeGraphContextResult{}, err
+	}
 	if query == "" || maxNodes <= 0 {
-		return KnowledgeGraphContextResult{}
+		return KnowledgeGraphContextResult{}, nil
 	}
 	if maxChars <= 0 {
 		maxChars = 2000
@@ -610,7 +661,7 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 
 	// Wildcard fallback: return important nodes instead of trying to FTS-match "*".
 	if strings.TrimSpace(query) == "*" {
-		return kg.searchForContextImportantNodesStructured(maxNodes, maxChars)
+		return kg.searchForContextImportantNodesStructuredContext(ctx, maxNodes, maxChars)
 	}
 
 	var nodeIDs []string
@@ -620,11 +671,22 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 	}
 	hits := make(map[string]float32)
 
-	semScores := kg.semanticSearchNodeScores(query, maxNodes*2)
+	semScores, semErr := kg.semanticSearchNodeScoresContext(ctx, query, maxNodes*2)
+	if semErr != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
+		if kg.logger != nil {
+			kg.logger.Debug("SearchForContext: semantic search failed", "error", semErr)
+		}
+	}
 
-	tx, err := kg.beginReadTx("SearchForContext")
+	tx, err := kg.beginReadTxContext(ctx, "SearchForContext")
 	if err != nil {
-		return KnowledgeGraphContextResult{}
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
+		return KnowledgeGraphContextResult{}, nil
 	}
 	defer tx.Rollback()
 
@@ -633,8 +695,11 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 		for id := range semScores {
 			semIDs = append(semIDs, id)
 		}
-		semNodes, loadErr := loadNodesByIDs(tx, semIDs, kg.logger, "SearchForContext")
+		semNodes, loadErr := loadNodesByIDsContext(ctx, tx, semIDs, kg.logger, "SearchForContext")
 		if loadErr != nil {
+			if ctx.Err() != nil {
+				return KnowledgeGraphContextResult{}, ctx.Err()
+			}
 			kg.logger.Warn("SearchForContext: filter semantic hits failed", "error", loadErr)
 		} else {
 			allowed := make(map[string]struct{}, len(semNodes))
@@ -655,7 +720,7 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 	typeFilter, typeArgs := kg.contextNodeTypeFilter("n")
 	ftsArgs := append([]interface{}{ftsQuery}, typeArgs...)
 	ftsArgs = append(ftsArgs, maxNodes)
-	rows, err := tx.Query(`
+	rows, err := tx.QueryContext(ctx, `
 		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
 		WHERE kg_nodes_fts MATCH ? AND `+typeFilter+`
@@ -665,6 +730,9 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 
 	count := 0
 	if err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
 		kg.logger.Warn("SearchForContext: FTS5 query failed", "error", err)
 	} else {
 		for rows.Next() {
@@ -689,6 +757,10 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 			count++
 		}
 		if err := rows.Err(); err != nil {
+			if ctx.Err() != nil {
+				rows.Close()
+				return KnowledgeGraphContextResult{}, ctx.Err()
+			}
 			kg.logger.Warn("SearchForContext: iterate FTS hits failed", "error", err)
 		}
 		rows.Close()
@@ -698,8 +770,11 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 		score, likeArgs := lexicalLikeScore(query, "id", "label", "properties")
 		likeArgs = append(likeArgs, typeArgs...)
 		likeArgs = append(likeArgs, maxNodes)
-		likeRows, err := tx.Query(`SELECT id,access_count FROM (SELECT *, `+score+` AS match_score FROM kg_nodes) n WHERE match_score>0 AND `+typeFilter+` ORDER BY match_score DESC, updated_at DESC, access_count DESC LIMIT ?`, likeArgs...)
+		likeRows, err := tx.QueryContext(ctx, `SELECT id,access_count FROM (SELECT *, `+score+` AS match_score FROM kg_nodes) n WHERE match_score>0 AND `+typeFilter+` ORDER BY match_score DESC, updated_at DESC, access_count DESC LIMIT ?`, likeArgs...)
 		if err != nil {
+			if ctx.Err() != nil {
+				return KnowledgeGraphContextResult{}, ctx.Err()
+			}
 			kg.logger.Warn("SearchForContext: LIKE fallback query failed", "error", err)
 		} else {
 			for likeRows.Next() {
@@ -717,6 +792,10 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 				count++
 			}
 			if err := likeRows.Err(); err != nil {
+				if ctx.Err() != nil {
+					likeRows.Close()
+					return KnowledgeGraphContextResult{}, ctx.Err()
+				}
 				kg.logger.Warn("SearchForContext: iterate LIKE hits failed", "error", err)
 			}
 			likeRows.Close()
@@ -740,17 +819,29 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 	}
 
 	if len(nodeIDs) == 0 {
-		return KnowledgeGraphContextResult{}
+		if err := ctx.Err(); err != nil {
+			return KnowledgeGraphContextResult{}, err
+		}
+		return KnowledgeGraphContextResult{}, nil
 	}
 
-	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
+	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextDataContext(ctx, tx, nodeIDs)
 	if err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
 		kg.logger.Warn("SearchForContext: load context data failed", "error", err)
-		return KnowledgeGraphContextResult{}
+		return KnowledgeGraphContextResult{}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return KnowledgeGraphContextResult{}, err
 	}
 	if err := tx.Commit(); err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
 		kg.logger.Warn("SearchForContext: commit read transaction failed", "error", err)
-		return KnowledgeGraphContextResult{}
+		return KnowledgeGraphContextResult{}, nil
 	}
 
 	nodes := make([]Node, 0, len(nodeIDs))
@@ -777,7 +868,7 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 		nodeOrder:     filteredOrder,
 		nodeScores:    nodeScores,
 		accessHits:    accessHits,
-	}
+	}, nil
 }
 
 // searchForContextImportantNodes returns a formatted context string built from
@@ -792,6 +883,19 @@ func (kg *KnowledgeGraph) searchForContextImportantNodes(maxNodes int, maxChars 
 }
 
 func (kg *KnowledgeGraph) searchForContextImportantNodesStructured(maxNodes int, maxChars int) KnowledgeGraphContextResult {
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	result, _ := kg.searchForContextImportantNodesStructuredContext(ctx, maxNodes, maxChars)
+	return result
+}
+
+func (kg *KnowledgeGraph) searchForContextImportantNodesStructuredContext(ctx context.Context, maxNodes int, maxChars int) (KnowledgeGraphContextResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return KnowledgeGraphContextResult{}, err
+	}
 	if maxNodes <= 0 {
 		maxNodes = 20
 	}
@@ -799,9 +903,15 @@ func (kg *KnowledgeGraph) searchForContextImportantNodesStructured(maxNodes int,
 		maxChars = 2000
 	}
 
-	nodes, err := kg.GetImportantNodes(maxNodes, 15)
-	if err != nil || len(nodes) == 0 {
-		return KnowledgeGraphContextResult{}
+	nodes, err := kg.GetImportantNodesContext(ctx, maxNodes, 15)
+	if err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
+		return KnowledgeGraphContextResult{}, nil
+	}
+	if len(nodes) == 0 {
+		return KnowledgeGraphContextResult{}, nil
 	}
 
 	nodeIDs := make([]string, len(nodes))
@@ -811,20 +921,32 @@ func (kg *KnowledgeGraph) searchForContextImportantNodesStructured(maxNodes int,
 		nodeScores[n.ID] = 1
 	}
 
-	tx, err := kg.beginReadTx("SearchForContextImportantNodes")
+	tx, err := kg.beginReadTxContext(ctx, "SearchForContextImportantNodes")
 	if err != nil {
-		return KnowledgeGraphContextResult{}
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
+		return KnowledgeGraphContextResult{}, nil
 	}
 	defer tx.Rollback()
 
-	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextData(tx, nodeIDs)
+	nodesByID, edgesByNodeID, accessHits, err := kg.loadSearchContextDataContext(ctx, tx, nodeIDs)
 	if err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
 		kg.logger.Warn("SearchForContext: load important nodes context data failed", "error", err)
-		return KnowledgeGraphContextResult{}
+		return KnowledgeGraphContextResult{}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return KnowledgeGraphContextResult{}, err
 	}
 	if err := tx.Commit(); err != nil {
+		if ctx.Err() != nil {
+			return KnowledgeGraphContextResult{}, ctx.Err()
+		}
 		kg.logger.Warn("SearchForContext: commit important nodes read transaction failed", "error", err)
-		return KnowledgeGraphContextResult{}
+		return KnowledgeGraphContextResult{}, nil
 	}
 
 	formattedNodes := make([]Node, 0, len(nodes))
@@ -847,10 +969,17 @@ func (kg *KnowledgeGraph) searchForContextImportantNodesStructured(maxNodes int,
 		nodeOrder:     filteredOrder,
 		nodeScores:    nodeScores,
 		accessHits:    accessHits,
-	}
+	}, nil
 }
 
 func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {
+	return kg.loadSearchContextDataContext(context.Background(), q, nodeIDs)
+}
+
+func (kg *KnowledgeGraph) loadSearchContextDataContext(ctx context.Context, q knowledgeGraphQueryer, nodeIDs []string) (map[string]Node, map[string][]Edge, []knowledgeGraphAccessHit, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	nodesByID := make(map[string]Node, len(nodeIDs))
 	edgesByNodeID := make(map[string][]Edge, len(nodeIDs))
 	accessHits := make([]knowledgeGraphAccessHit, 0, len(nodeIDs)*6)
@@ -867,7 +996,7 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 		nodeIDSet[nodeID] = struct{}{}
 	}
 
-	nodeRows, err := q.Query(
+	nodeRows, err := queryKnowledgeGraphContext(ctx, q,
 		fmt.Sprintf("SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s)", strings.Join(placeholders, ",")),
 		nodeArgs...,
 	)
@@ -895,7 +1024,7 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 	edgeArgs := make([]interface{}, 0, len(nodeIDs)*2)
 	edgeArgs = append(edgeArgs, nodeArgs...)
 	edgeArgs = append(edgeArgs, nodeArgs...)
-	edgeRows, err := q.Query(
+	edgeRows, err := queryKnowledgeGraphContext(ctx, q,
 		fmt.Sprintf(`
 			SELECT source, target, relation, properties
 			FROM kg_edges
@@ -953,7 +1082,7 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 		for nodeID := range missingEndpointIDs {
 			missing = append(missing, nodeID)
 		}
-		endpointNodes, err := loadNodesByIDs(q, missing, kg.logger, "SearchForContextEndpoints")
+		endpointNodes, err := loadNodesByIDsContext(ctx, q, missing, kg.logger, "SearchForContextEndpoints")
 		if err != nil {
 			return nodesByID, edgesByNodeID, accessHits, fmt.Errorf("batch edge endpoint node query: %w", err)
 		}

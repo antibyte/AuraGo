@@ -490,6 +490,18 @@ func (kg *KnowledgeGraph) GetNodesByType(nodeType string, limit int) ([]Node, er
 }
 
 func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]ImportantNode, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	return kg.GetImportantNodesContext(ctx, limit, minScore)
+}
+
+func (kg *KnowledgeGraph) GetImportantNodesContext(ctx context.Context, limit int, minScore int) ([]ImportantNode, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if limit <= 0 {
 		limit = 20
 	}
@@ -503,7 +515,7 @@ func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]Importan
 	typeFilter, typeArgs := kg.contextNodeTypeFilter("n")
 	args := append([]interface{}{minScore}, typeArgs...)
 	args = append(args, limit)
-	rows, err := kg.db.Query(`
+	rows, err := kg.db.QueryContext(ctx, `
 		SELECT n.id, n.label, n.properties, n.protected,
 			(CASE WHEN n.protected = 1 THEN 50 ELSE 0 END) +
 			(CASE WHEN json_extract(n.properties, '$.source') = 'manual' THEN 30 ELSE 0 END) +
@@ -893,6 +905,10 @@ func (kg *KnowledgeGraph) batchGetNodes(ids []string) []Node {
 }
 
 func loadNodesByIDs(q knowledgeGraphQueryer, ids []string, logger *slog.Logger, op string) ([]Node, error) {
+	return loadNodesByIDsContext(context.Background(), q, ids, logger, op)
+}
+
+func loadNodesByIDsContext(ctx context.Context, q knowledgeGraphQueryer, ids []string, logger *slog.Logger, op string) ([]Node, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -909,7 +925,7 @@ func loadNodesByIDs(q knowledgeGraphQueryer, ids []string, logger *slog.Logger, 
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := q.Query(fmt.Sprintf(
+		rows, err := queryKnowledgeGraphContext(ctx, q, fmt.Sprintf(
 			"SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s) ORDER BY id",
 			placeholders,
 		), args...)

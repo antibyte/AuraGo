@@ -108,8 +108,12 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 		return err
 	}
 	kg.semanticMu.Lock()
+	oldIndex := kg.semantic
 	kg.semantic = index
 	kg.semanticMu.Unlock()
+	if oldIndex != nil && oldIndex != index {
+		oldIndex.Close()
+	}
 	kg.startSemanticReindexBacklogDrain()
 	return nil
 }
@@ -958,7 +962,9 @@ func (kg *KnowledgeGraph) semanticSearchNodesWithQueryer(q knowledgeGraphQueryer
 		return nil
 	}
 
-	embedding, err := kg.getSemanticQueryEmbedding(query)
+	queryCtx, queryCancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
+	defer queryCancel()
+	embedding, err := getSemanticQueryEmbeddingFromIndexContext(queryCtx, idx, query)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic query embedding failed", "error", err)
@@ -969,10 +975,11 @@ func (kg *KnowledgeGraph) semanticSearchNodesWithQueryer(q knowledgeGraphQueryer
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if idx.Collection.Count() == 0 {
+	collection := semanticCollection(idx)
+	if collection == nil || collection.Count() == 0 {
 		return nil
 	}
-	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxNodes)
+	results, err := queryKGCollection(ctx, collection, embedding, maxNodes)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic search failed", "error", err)
@@ -1016,7 +1023,9 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 		return nil
 	}
 
-	embedding, err := kg.getSemanticQueryEmbedding(query)
+	queryCtx, queryCancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
+	defer queryCancel()
+	embedding, err := getSemanticQueryEmbeddingFromIndexContext(queryCtx, idx, query)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic query embedding failed", "error", err)
@@ -1027,10 +1036,11 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if idx.Collection.Count() == 0 {
+	collection := semanticCollection(idx)
+	if collection == nil || collection.Count() == 0 {
 		return nil
 	}
-	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxNodes)
+	results, err := queryKGCollection(ctx, collection, embedding, maxNodes)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic search failed", "error", err)
@@ -1059,34 +1069,45 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 }
 
 func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) map[string]float32 {
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	scores, _ := kg.semanticSearchNodeScoresContext(ctx, query, maxNodes)
+	return scores
+}
+
+func (kg *KnowledgeGraph) semanticSearchNodeScoresContext(ctx context.Context, query string, maxNodes int) (map[string]float32, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	idx := kg.semanticIndex()
 	if idx == nil || maxNodes <= 0 || kgsemantic.ShouldSkipQuery(query) {
-		return nil
+		return nil, nil
 	}
-	embedding, err := kg.getSemanticQueryEmbedding(query)
+	embedding, err := getSemanticQueryEmbeddingFromIndexContext(ctx, idx, query)
 	if err != nil {
-		if idx.Logger != nil {
-			idx.Logger.Debug("KG semantic query embedding failed", "error", err)
-		}
-		return nil
+		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	searchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	count := idx.Collection.Count()
+	collection := semanticCollection(idx)
+	if collection == nil {
+		return nil, context.Canceled
+	}
+	count := collection.Count()
 	if count == 0 {
-		return nil
+		return nil, nil
 	}
 	minSim := kg.getMinSemanticSimilarity()
 	// Expand only when excluded nodes or edges consumed the candidate budget.
 	for limit := min(maxNodes, count); ; limit = min(count, limit*2) {
 		// The helper clamps limit to the live count, so a collection that shrank
 		// since count was read returns fewer results instead of failing.
-		results, err := queryKGCollection(ctx, idx.Collection, embedding, limit)
+		results, err := queryKGCollection(searchCtx, collection, embedding, limit)
 		if err != nil {
-			if idx.Logger != nil {
-				idx.Logger.Debug("KG semantic search failed", "error", err)
-			}
-			return nil
+			return nil, err
 		}
 		ids := make([]string, 0, len(results))
 		for _, result := range results {
@@ -1094,7 +1115,10 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 				ids = append(ids, result.ID)
 			}
 		}
-		allowed := kg.filterExcludedKnowledgeGraphNodeTypes(ids)
+		allowed, err := kg.filterExcludedKnowledgeGraphNodeTypesContext(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
 		out := make(map[string]float32, min(len(allowed), maxNodes))
 		for _, result := range results {
 			if _, ok := allowed[result.ID]; ok && len(out) < maxNodes {
@@ -1104,9 +1128,16 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 		// Fewer results than requested means the collection is exhausted (or
 		// shrank below limit); a larger window cannot find more.
 		if len(out) >= maxNodes || limit >= count || len(results) < limit || (len(results) > 0 && results[len(results)-1].Similarity < minSim) {
-			return out
+			return out, nil
 		}
 	}
+}
+
+func semanticCollection(idx *kgsemantic.Index) *chromem.Collection {
+	idx.Mu.Lock()
+	collection := idx.Collection
+	idx.Mu.Unlock()
+	return collection
 }
 
 func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []string {
@@ -1114,16 +1145,19 @@ func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []st
 	if idx == nil || maxEdges <= 0 || kgsemantic.ShouldSkipQuery(query) {
 		return nil
 	}
-	embedding, err := kg.getSemanticQueryEmbedding(query)
+	queryCtx, queryCancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
+	defer queryCancel()
+	embedding, err := getSemanticQueryEmbeddingFromIndexContext(queryCtx, idx, query)
 	if err != nil {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if idx.Collection.Count() == 0 {
+	collection := semanticCollection(idx)
+	if collection == nil || collection.Count() == 0 {
 		return nil
 	}
-	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxEdges)
+	results, err := queryKGCollection(ctx, collection, embedding, maxEdges)
 	if err != nil {
 		return nil
 	}
@@ -1140,72 +1174,46 @@ func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []st
 }
 
 func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
+	defer cancel()
+	return kg.getSemanticQueryEmbeddingContext(ctx, query)
+}
+
+func (kg *KnowledgeGraph) getSemanticQueryEmbeddingContext(ctx context.Context, query string) ([]float32, error) {
 	idx := kg.semanticIndex()
 	if idx == nil {
 		return nil, fmt.Errorf("semantic search is disabled")
 	}
+	return getSemanticQueryEmbeddingFromIndexContext(ctx, idx, query)
+}
 
-	// Fast path: check cache under read-lock
-	idx.Mu.Lock()
-	if entry, ok := idx.QueryCache[query]; ok && time.Since(entry.Timestamp) < idx.QueryCacheTTL {
-		embedding := cloneFloat32Slice(entry.Embedding)
-		idx.Mu.Unlock()
-		return embedding, nil
+func getSemanticQueryEmbeddingFromIndexContext(ctx context.Context, idx *kgsemantic.Index, query string) ([]float32, error) {
+	if idx == nil {
+		return nil, fmt.Errorf("semantic search is disabled")
 	}
-	idx.Mu.Unlock()
-
-	// Slow path: call embedding API WITHOUT holding the lock to avoid blocking other goroutines.
-	result, err, _ := idx.QueryGroup.Do(query, func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
-		defer cancel()
-		embedding, err := idx.EmbeddingFunc(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		return cloneFloat32Slice(embedding), nil
-	})
-	if err != nil {
-		idx.QueryGroup.Forget(query)
-		return nil, err
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	embedding := result.([]float32)
-
-	// Store result under lock; re-check cache in case another goroutine raced us.
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
-	if existing, ok := idx.QueryCache[query]; ok && time.Since(existing.Timestamp) < idx.QueryCacheTTL {
-		return cloneFloat32Slice(existing.Embedding), nil
-	}
-	cachedEmbedding := cloneFloat32Slice(embedding)
-	idx.QueryCache[query] = kgsemantic.QueryCacheEntry{Embedding: cachedEmbedding, Timestamp: time.Now()}
-	if len(idx.QueryCache) > kgsemantic.QueryCacheMaxSize {
-		now := time.Now()
-		var toDelete []string
-		var oldestKey string
-		var oldestTime time.Time
-		for k, v := range idx.QueryCache {
-			if now.Sub(v.Timestamp) > idx.QueryCacheTTL {
-				toDelete = append(toDelete, k)
-			} else if oldestKey == "" || v.Timestamp.Before(oldestTime) {
-				oldestKey = k
-				oldestTime = v.Timestamp
-			}
-		}
-		if len(toDelete) > 0 {
-			for _, k := range toDelete {
-				delete(idx.QueryCache, k)
-			}
-		} else if oldestKey != "" {
-			delete(idx.QueryCache, oldestKey)
-		}
-	}
-	return cloneFloat32Slice(cachedEmbedding), nil
+	return idx.QueryEmbedding(ctx, query, idx.EmbeddingFunc)
 }
 
 // filterExcludedKnowledgeGraphNodeTypes returns the subset of ids whose node_type
 // is not considered low-signal noise (e.g. activity_entity, unknown).
 func (kg *KnowledgeGraph) filterExcludedKnowledgeGraphNodeTypes(ids []string) map[string]struct{} {
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphContextTimeout)
+	defer cancel()
+	allowed, _ := kg.filterExcludedKnowledgeGraphNodeTypesContext(ctx, ids)
+	return allowed
+}
+
+func (kg *KnowledgeGraph) filterExcludedKnowledgeGraphNodeTypesContext(ctx context.Context, ids []string) (map[string]struct{}, error) {
 	allowed := make(map[string]struct{}, len(ids))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	for start := 0; start < len(ids); start += 500 {
 		end := min(start+500, len(ids))
 		placeholders := make([]string, end-start)
@@ -1214,18 +1222,18 @@ func (kg *KnowledgeGraph) filterExcludedKnowledgeGraphNodeTypes(ids []string) ma
 			placeholders[i] = "?"
 			args[i] = id
 		}
-		rows, err := kg.db.Query("SELECT id, COALESCE(json_extract(properties, '$.type'), '') FROM kg_nodes WHERE id IN ("+strings.Join(placeholders, ",")+")", args...)
+		rows, err := kg.db.QueryContext(ctx, "SELECT id, COALESCE(json_extract(properties, '$.type'), '') FROM kg_nodes WHERE id IN ("+strings.Join(placeholders, ",")+")", args...)
 		if err != nil {
 			if idx := kg.semanticIndex(); idx != nil && idx.Logger != nil {
 				idx.Logger.Warn("filterExcludedKnowledgeGraphNodeTypes: query failed", "error", err)
 			}
-			return nil
+			return nil, err
 		}
 		for rows.Next() {
 			var id, nodeType string
 			if err = rows.Scan(&id, &nodeType); err != nil {
 				rows.Close()
-				return nil
+				return nil, err
 			}
 			if !kg.isExcludedNodeType(nodeType) {
 				allowed[id] = struct{}{}
@@ -1234,10 +1242,10 @@ func (kg *KnowledgeGraph) filterExcludedKnowledgeGraphNodeTypes(ids []string) ma
 		err = rows.Err()
 		rows.Close()
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
-	return allowed
+	return allowed, nil
 }
 
 func (kg *KnowledgeGraph) retrySemanticEmbedding(op string, fn func(ctx context.Context) error) error {

@@ -1231,7 +1231,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if searchNodes < maxNodes {
 						searchNodes = maxNodes
 					}
-					kgResult := kg.SearchForContextStructured(lastUserMsg, searchNodes, maxChars+availableChars)
+					kgResult, kgErr := kg.SearchForContextStructuredContext(ctx, lastUserMsg, searchNodes, maxChars+availableChars)
+					if kgErr != nil {
+						return openai.ChatCompletionResponse{}, kgErr
+					}
 					if len(kgResult.Nodes) > 0 {
 						kg.RecordContextAccess(kgResult)
 						if kgContext := kgResult.LimitNodes(0, 1).FormatContext(maxChars); kgContext != "" {
@@ -1245,7 +1248,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						s.currentLogger.Debug("[Sync] KG: Injected on-demand knowledge context", "direct_nodes", 1, "available_nodes", len(kgResult.Nodes)-1)
 					}
 				} else {
-					kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
+					kgContext, kgErr := kg.SearchForContextContext(ctx, lastUserMsg, maxNodes, maxChars)
+					if kgErr != nil {
+						return openai.ChatCompletionResponse{}, kgErr
+					}
 					if kgContext != "" {
 						flags.KnowledgeContext = kgContext
 						s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))

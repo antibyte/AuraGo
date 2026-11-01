@@ -34,7 +34,18 @@ type LocalAgentTurnSync struct {
 // QueryMemoryForLocalAgent exposes the same memory search implementation used
 // by the native query_memory tool without exposing the agent loop.
 func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, cfg ...*config.Config) (map[string]interface{}, error) {
-	raw, err := executeQueryMemory(ToolCall{
+	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+	defer cancel()
+	return QueryMemoryForLocalAgentContext(ctx, query, limit, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB, cfg...)
+}
+
+// QueryMemoryForLocalAgentContext runs the local-agent memory search under the
+// caller's lifetime, including Knowledge Graph retrieval.
+func QueryMemoryForLocalAgentContext(ctx context.Context, query string, limit int, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, cfg ...*config.Config) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	raw, err := executeQueryMemoryContext(ctx, ToolCall{
 		Content: strings.TrimSpace(query),
 		Limit:   limit,
 	}, "", shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
@@ -44,7 +55,7 @@ func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLi
 	// Paired clients have no server-owned project registration. Client paths
 	// cannot authorize access to another project's memory.
 	if len(cfg) > 0 {
-		raw = appendLearningQuery(context.Background(), ToolCall{Content: query, Limit: limit}, &DispatchContext{Cfg: cfg[0], ShortTermMem: shortTermMem}, raw)
+		raw = appendLearningQuery(ctx, ToolCall{Content: query, Limit: limit}, &DispatchContext{Cfg: cfg[0], ShortTermMem: shortTermMem}, raw)
 	}
 	return decodeLocalAgentToolOutput(raw)
 }
@@ -52,7 +63,18 @@ func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLi
 // RecallMemoryForLocalAgent exposes the same identifier lookup and secret
 // scrubbing and successful-access accounting used by the native recall_memory tool.
 func RecallMemoryForLocalAgent(id string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (map[string]interface{}, error) {
-	raw, err := executeRecallMemory(ToolCall{ID: strings.TrimSpace(id)}, "", shortTermMem, longTermMem)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return RecallMemoryForLocalAgentContext(ctx, id, shortTermMem, longTermMem)
+}
+
+// RecallMemoryForLocalAgentContext uses the caller's cancellation for metadata
+// and vector-backed reads.
+func RecallMemoryForLocalAgentContext(ctx context.Context, id string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	raw, err := executeRecallMemoryContext(ctx, ToolCall{ID: strings.TrimSpace(id)}, "", shortTermMem, longTermMem)
 	if err != nil {
 		return nil, err
 	}

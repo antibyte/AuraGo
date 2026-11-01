@@ -130,8 +130,8 @@ func applyRetrievalFusionWithBudget(
 			if query == "" {
 				continue
 			}
-			kgResult := kg.SearchForContextStructured(query, 2, maxChars)
-			if ctx.Err() != nil {
+			kgResult, searchErr := kg.SearchForContextStructuredContext(ctx, query, 2, maxChars)
+			if searchErr != nil || ctx.Err() != nil {
 				break
 			}
 			if len(kgResult.Nodes) == 0 {

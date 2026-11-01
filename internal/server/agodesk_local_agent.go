@@ -352,7 +352,7 @@ func handleAgodeskLocalMemorySearch(s *Server, conn *websocket.Conn, state *agod
 	ctx, cancel := context.WithTimeout(context.Background(), agodeskLocalMemoryTimeout)
 	defer cancel()
 	result, err := runAgodeskLocalOperation(ctx, func() (map[string]interface{}, error) {
-		return agent.QueryMemoryForLocalAgent(query, limit, s.ShortTermMem, s.LongTermMem, s.KG, s.PlannerDB, s.CheatsheetDB, s.ConfigSnapshot())
+		return agent.QueryMemoryForLocalAgentContext(ctx, query, limit, s.ShortTermMem, s.LongTermMem, s.KG, s.PlannerDB, s.CheatsheetDB, s.ConfigSnapshot())
 	})
 	if err != nil {
 		code, message := agodeskLocalOperationError(err)
@@ -375,7 +375,7 @@ func handleAgodeskLocalMemoryGet(s *Server, conn *websocket.Conn, state *agodesk
 	ctx, cancel := context.WithTimeout(context.Background(), agodeskLocalMemoryTimeout)
 	defer cancel()
 	result, err := runAgodeskLocalOperation(ctx, func() (map[string]interface{}, error) {
-		return agent.RecallMemoryForLocalAgent(id, s.ShortTermMem, s.LongTermMem)
+		return agent.RecallMemoryForLocalAgentContext(ctx, id, s.ShortTermMem, s.LongTermMem)
 	})
 	if err != nil {
 		code, message := agodeskLocalOperationError(err)
@@ -404,7 +404,7 @@ func handleAgodeskLocalQueryAuraGo(s *Server, conn *websocket.Conn, state *agode
 	ctx, cancel := context.WithTimeout(agodeskLocalProviderContext(state), agodeskLocalQueryTimeout)
 	defer cancel()
 	memoryResult, err := runAgodeskLocalOperation(ctx, func() (map[string]interface{}, error) {
-		return agent.QueryMemoryForLocalAgent(question, 5, s.ShortTermMem, s.LongTermMem, s.KG, s.PlannerDB, s.CheatsheetDB, s.ConfigSnapshot())
+		return agent.QueryMemoryForLocalAgentContext(ctx, question, 5, s.ShortTermMem, s.LongTermMem, s.KG, s.PlannerDB, s.CheatsheetDB, s.ConfigSnapshot())
 	})
 	if err != nil {
 		code, message := agodeskLocalOperationError(err)

@@ -270,6 +270,53 @@ func TestReadyAutomaticMemoryPublicationRecoversWithoutReembedding(t *testing.T)
 }
 
 func TestCompletedAutomaticMemoryPublicationRebuildsAfterModelChange(t *testing.T) {
+	var initialCalls atomic.Int32
+	stm, vector, vectorDir := automaticPublicationFixture(t, func(context.Context, string) ([]float32, error) {
+		initialCalls.Add(1)
+		return []float32{1, 0, 0}, nil
+	})
+	written, err := publishTestMemory(t, stm, vector, "A completed memory survives embedding model changes.", nil)
+	if err != nil || len(written.CreatedIDs) != 1 {
+		t.Fatalf("completed write=%+v err=%v", written, err)
+	}
+	id := written.CreatedIDs[0]
+	if initialCalls.Load() != 1 {
+		t.Fatalf("initial write embedded %d times", initialCalls.Load())
+	}
+	if err := vector.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var rebuildCalls atomic.Int32
+	restarted := newAutomaticPublicationVectorWithFingerprint(t, vectorDir, stm, func(context.Context, string) ([]float32, error) {
+		rebuildCalls.Add(1)
+		return []float32{0, 1, 0}, nil
+	}, "test|changed-model|3")
+	if restarted.collection.Count() != 0 {
+		t.Fatal("restart loaded an embedding from the previous model")
+	}
+	if err := stm.RecoverAutomaticMemoryPublicationsContext(t.Context(), restarted, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.reconcileCorpus(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if rebuildCalls.Load() != 1 || restarted.collection.Count() != 1 {
+		t.Fatalf("model rebuild embedded=%d indexed=%d", rebuildCalls.Load(), restarted.collection.Count())
+	}
+	eligibility, err := stm.CheckMemoryEligibility(t.Context(), []string{id})
+	if err != nil || !eligibility[id].Visible() {
+		t.Fatalf("completed model-rebuilt memory became ineligible: state=%+v err=%v", eligibility[id], err)
+	}
+	var metadata string
+	if err := restarted.corpus.db.QueryRow(`SELECT metadata FROM documents WHERE collection='aurago_memories' AND id=?`, id).Scan(&metadata); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(metadata, "memory_publication_id") {
+		t.Fatalf("completed write retained publication token after rebuild: %s", metadata)
+	}
+}
+
+func TestCompletedAutomaticMemoryPublicationCrashGapRebuildsAfterModelChange(t *testing.T) {
 	stm, vector, vectorDir := automaticPublicationFixture(t, func(context.Context, string) ([]float32, error) { return []float32{1, 0, 0}, nil })
 	key, receipts := prepareReadyPublicationForRecovery(t, stm, vector, "default")
 	if err := vector.ActivateAutomaticMemoryWriteContext(t.Context(), key, receipts); err != nil {

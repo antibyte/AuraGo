@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -43,6 +44,19 @@ func TestLocalAgentMemoryAdaptersReuseNativeMemoryResults(t *testing.T) {
 	}
 	if vectorDB.documents["memory-1"] != "remembered content" {
 		t.Fatal("recall rewrote the original vector content")
+	}
+}
+
+func TestRecallMemoryForLocalAgentContextHonorsCallerCancellation(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := RecallMemoryForLocalAgentContext(ctx, "memory-1", stm, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecallMemoryForLocalAgentContext error = %v, want context canceled", err)
 	}
 }
 

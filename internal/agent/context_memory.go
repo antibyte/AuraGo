@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -354,6 +355,15 @@ func gatherMemoryInventoryResults(tc ToolCall, shortTermMem *memory.SQLiteMemory
 }
 
 func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool, explicitRange memory.TemporalQueryRange) memorySearchBundle {
+	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+	defer cancel()
+	return gatherMemorySourceResultsContext(ctx, searchContent, tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB, perSourceLimit, defaults, sourceLabels, includeActivityRollups, explicitRange)
+}
+
+func gatherMemorySourceResultsContext(ctx context.Context, searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool, explicitRange memory.TemporalQueryRange) memorySearchBundle {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	bundle := memorySearchBundle{
 		Results:   make([]memorySourceResult, 0, 8),
 		Errors:    make([]string, 0, 4),
@@ -409,7 +419,7 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 				bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 			}
 			if len(results) > 0 {
-				results, err = filterArchivedMemoryResults(results, docIDs, shortTermMem)
+				results, err = filterArchivedMemoryResultsContext(ctx, results, docIDs, shortTermMem)
 				if err != nil {
 					bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 				} else if len(results) > 0 {
@@ -419,8 +429,11 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 		}
 	}
 
-	if bundle.SourceMap["kg"] && kg != nil && hasSemanticQuery {
-		structured := kg.SearchForContextStructured(searchContent, perSourceLimit, 2000)
+	if bundle.SourceMap["kg"] && kg != nil && hasSemanticQuery && ctx.Err() == nil {
+		structured, err := kg.SearchForContextStructuredContext(ctx, searchContent, perSourceLimit, 2000)
+		if err != nil {
+			return bundle
+		}
 		kgResult := structured.FormatContext(2000)
 		if kgResult != "" && kgResult != "No matching entities found." {
 			bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("kg"), Count: 1, Data: kgResult, References: correctionGraphReferences(structured)})
@@ -539,6 +552,15 @@ func firstMemoryQueryText(values ...string) string {
 }
 
 func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+	defer cancel()
+	return executeQueryMemoryContext(ctx, tc, sessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+}
+
+func executeQueryMemoryContext(ctx context.Context, tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	searchContent := tc.Content
 	if searchContent == "" {
 		searchContent = tc.Query
@@ -556,7 +578,7 @@ func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLi
 	if inventoryMode {
 		bundle = gatherMemoryInventoryResults(tc, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB, tc.Limit, defaults, sourceLabels)
 	} else {
-		bundle = gatherMemorySourceResults(
+		bundle = gatherMemorySourceResultsContext(ctx,
 			searchContent,
 			tc,
 			shortTermMem,
@@ -570,6 +592,9 @@ func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLi
 			true,
 			memory.TemporalQueryRange{},
 		)
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 	if bundle.SourceMap["conversation"] && shortTermMem != nil && strings.TrimSpace(sessionID) != "" && !inventoryMode {
 		entries, err := shortTermMem.SearchSessionConversationEntries(sessionID, searchContent, tc.Limit)
@@ -862,6 +887,15 @@ func executeExploreKG(tc ToolCall, kg *memory.KnowledgeGraph) (string, error) {
 }
 
 func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+	defer cancel()
+	return executeContextMemoryQueryContext(ctx, tc, sessionID, shortTermMem, longTermMem, kg, plannerDB, cheatsheetDB)
+}
+
+func executeContextMemoryQueryContext(ctx context.Context, tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if shortTermMem == nil && longTermMem == nil && kg == nil && plannerDB == nil && cheatsheetDB == nil {
 		return `Tool Output: {"status":"error","message":"short-term memory unavailable"}`, nil
 	}
@@ -939,7 +973,7 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 		}
 	}
 
-	bundle := gatherMemorySourceResults(
+	bundle := gatherMemorySourceResultsContext(ctx,
 		query,
 		tc,
 		shortTermMem,
@@ -953,6 +987,9 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 		false,
 		memory.TemporalQueryRange{FromDate: fromDate, ToDate: toDate, Label: tc.TimeRange},
 	)
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 
 	for _, result := range bundle.Results {
 		switch result.Source {
