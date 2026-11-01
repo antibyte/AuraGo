@@ -498,6 +498,9 @@ func (s *SQLiteMemory) ResetPersonalityDynamics(now time.Time) (PersonalitySnaps
 	if err = insertMoodLogWith(tx, affect.Mood, "dynamics_reset"); err != nil {
 		return PersonalitySnapshot{}, err
 	}
+	if err = clearPersonaBoosterStateWith(tx); err != nil {
+		return PersonalitySnapshot{}, err
+	}
 	traits, err := loadPersonalityTraits(tx)
 	if err != nil {
 		return PersonalitySnapshot{}, err
