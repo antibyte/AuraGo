@@ -201,26 +201,24 @@ func TestRetryPendingMemoryWritesCompletesRecoveredWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = stm.Close() })
-	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: "fact", Content: "content", Domain: "memory_analysis"}, errors.New("down")); err != nil {
+	details := memory.MemoryMetaUpdate{VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: .6, SourceSessionID: "retry-session", SourceRole: "user_and_assistant"}
+	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: "fact", Content: "source:memory_analysis session:retry-session", Domain: "memory_analysis", Metadata: &details}, errors.New("down")); err != nil {
 		t.Fatal(err)
 	}
-	vdb := &fakeVectorDB{}
+	vdb := newPublicationAgentVector(t, stm, nil)
 
-	succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb)
+	succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb, enabledMemoryTestConfig())
 	if succeeded != 1 || failed != 0 {
 		t.Fatalf("succeeded=%d failed=%d", succeeded, failed)
 	}
 	if count, _ := stm.CountPendingMemoryWrites(); count != 0 {
 		t.Fatalf("pending count after retry = %d", count)
 	}
-	if len(vdb.storedConcepts) != 1 || vdb.storedConcepts[0] != "fact" {
-		t.Fatalf("stored concepts = %v", vdb.storedConcepts)
-	}
 	metas, err := stm.GetAllMemoryMeta(10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(metas) != 1 || metas[0].DocID != "stored-doc" || metas[0].SourceType != "memory_analysis" || metas[0].VerificationStatus != "unverified" {
+	if len(metas) != 1 || metas[0].SourceType != "memory_analysis" || metas[0].VerificationStatus != "unverified" {
 		t.Fatalf("retried memory metadata = %+v", metas)
 	}
 }

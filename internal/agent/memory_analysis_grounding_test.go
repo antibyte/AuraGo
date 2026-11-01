@@ -87,13 +87,13 @@ func TestMemoryAnalysisDropsItemsWithoutHumanQuote(t *testing.T) {
 			if name == "pending action" {
 				good = item{realQuote, "backup schedule", "Follow up on the backup schedule."}
 			}
-			vdb := &fakeVectorDB{}
+			vdb := newPublicationAgentVector(t, stm, nil)
 			result := build(good)
 			result.human = human
 			applyMemoryAnalysisResult(enabledMemoryTestConfig(), logger, stm, vdb, "session-1", result)
 			pending, err := stm.GetPendingEpisodicActionsForQuery("backup schedule", 5)
-			if err != nil || len(vdb.storedConcepts)+len(pending) != 1 {
-				t.Fatalf("grounded item was not stored: ltm=%v pending=%d err=%v", vdb.storedConcepts, len(pending), err)
+			if err != nil || vdb.Count()+len(pending) != 1 {
+				t.Fatalf("grounded item was not stored: ltm=%d pending=%d err=%v", vdb.Count(), len(pending), err)
 			}
 		})
 	}
@@ -183,10 +183,11 @@ func TestAnalyzeTurnBindsExtractionToTheHumanRequest(t *testing.T) {
 		t.Fatalf("AnalyzeTurn: %v", err)
 	}
 	stm, logger := groundingTestStore(t)
-	vdb := &fakeVectorDB{}
+	vdb := newPublicationAgentVector(t, stm, nil)
 	applyMemoryAnalysisResult(enabledMemoryTestConfig(), logger, stm, vdb, "session-1", got.MemoryAnalysis)
-	if len(vdb.storedConcepts) != 1 || !strings.Contains(vdb.storedConcepts[0], "User runs Proxmox") {
-		t.Fatalf("stored = %v, want only the human-quoted fact", vdb.storedConcepts)
+	texts, _, err := vdb.SearchMemoriesOnly("Proxmox", 10)
+	if err != nil || len(texts) != 1 || !strings.Contains(texts[0], "User runs Proxmox") {
+		t.Fatalf("stored = %v err=%v, want only the human-quoted fact", texts, err)
 	}
 }
 

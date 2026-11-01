@@ -101,7 +101,28 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			}
 			continue
 		}
-		stored, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, write.Concept, write.Content, details)
+		var stored memory.AutomaticMemoryStoreResult
+		if details.SourceType == "memory_analysis" {
+			// Analysis retries only contain permanent facts. Reaffirming one
+			// must clear its previous expiry in the publication transaction.
+			zero := time.Time{}
+			options := memory.AutomaticMemoryWriteOptions{ExpiresAt: &zero}
+			if len(configs) > 0 {
+				options.Validate = func() error {
+					if !runtimeMemoryWriteAllowed(configs[0], "memory", details.SourceSessionID) {
+						return fmt.Errorf("%w: memory is not writable", memory.ErrAutomaticMemorySkipped)
+					}
+					return ctx.Err()
+				}
+			}
+			err = stm.WithSessionWrite(ctx, details.SourceSessionID, func() error {
+				var writeErr error
+				stored, writeErr = memory.StoreAutomaticMemoryDocumentWithOptionsContext(ctx, stm, ltm, write.Concept, write.Content, details, options)
+				return writeErr
+			})
+		} else {
+			stored, err = memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, write.Concept, write.Content, details)
+		}
 		if err != nil {
 			if errors.Is(err, memory.ErrAutomaticMemorySkipped) {
 				_ = stm.CompletePendingMemoryWriteContext(ctx, write.ID)

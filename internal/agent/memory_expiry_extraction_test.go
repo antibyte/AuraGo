@@ -31,16 +31,20 @@ func TestMemoryFactExpiry(t *testing.T) {
 
 func TestMemoryAnalysisStoresFactExpiry(t *testing.T) {
 	stm, logger := groundingTestStore(t)
-	vdb := &fakeVectorDB{}
+	vdb := newPublicationAgentVector(t, stm, nil)
 	tomorrow := time.Now().AddDate(0, 0, 1)
 	result := memoryAnalysisResult{
 		Facts: []extractedFact{{Content: "User is on vacation until tomorrow", Category: "personal", Confidence: 0.95, Quote: "I am on vacation until tomorrow", ExpiresOn: tomorrow.Format("2006-01-02")}},
 		human: "I am on vacation until tomorrow, so keep answers short.",
 	}
 	if stored := applyMemoryAnalysisResult(enabledMemoryTestConfig(), logger, stm, vdb, "session-1", result); stored != 1 {
-		t.Fatalf("stored=%d concepts=%v", stored, vdb.storedConcepts)
+		t.Fatalf("stored=%d documents=%d", stored, vdb.Count())
 	}
-	got, ok, err := stm.MemoryExpiry(context.Background(), "stored-doc")
+	metadata, err := stm.GetAllMemoryMeta(10, 0)
+	if err != nil || len(metadata) != 1 {
+		t.Fatalf("published metadata=%+v err=%v", metadata, err)
+	}
+	got, ok, err := stm.MemoryExpiry(context.Background(), metadata[0].DocID)
 	want := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 23, 59, 59, 0, time.Local)
 	if err != nil || !ok || !got.Equal(want) {
 		t.Fatalf("expiry=%v ok=%v err=%v, want %v", got, ok, err, want)

@@ -94,3 +94,16 @@ facts are unavailable immediately, before nightly archival, and failed recall do
 increase access statistics. Protected and keep-forever records retain their existing
 exception. Extending or removing an expiry is serialized with archival, whose transaction
 also checks that the observed deadline is still current and due.
+
+## Summary provenance and human evidence
+
+New persistent conversation summaries remain separately searchable, marked as unverified
+model derivations with mixed human/assistant origin and the exact source session. They
+are screened before storage, obey current Memory permissions and participate in chat
+privacy deletion. Deleting a chat **with derived memories** removes eligible new copies;
+deleting only the transcript preserves them. Normal history compression continues when
+long-term Memory is disabled or read-only.
+
+**Historical limit:** Previously stored orphan summaries without source provenance remain
+untouched. Deleting their old chat cannot reliably locate those copies. This change does
+not backfill, infer ownership or repair that historical data.

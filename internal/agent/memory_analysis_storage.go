@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 )
 
@@ -21,4 +23,12 @@ func storeMemoryAnalysisDocument(logger *slog.Logger, stm *memory.SQLiteMemory, 
 		return nil, errors.Join(err, rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes, ctx))
 	}
 	return ids, nil
+}
+
+func storeMemoryAnalysisDocumentWithExpiry(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, ltm memory.VectorDB, concept, content string, details memory.MemoryMetaUpdate, expiry time.Time) ([]string, error) {
+	stored, err := publishModelMemory(ctx, cfg, stm, ltm, concept, content, details, &expiry)
+	if err != nil {
+		return nil, err
+	}
+	return append(append([]string(nil), stored.CreatedIDs...), stored.ReusedIDs...), nil
 }

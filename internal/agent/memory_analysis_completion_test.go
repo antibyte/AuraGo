@@ -125,7 +125,7 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 	cfg.MemoryAnalysis.BaseURL, cfg.MemoryAnalysis.ResolvedModel = server.URL+"/v1", model
 	cfg.Providers = []config.ProviderEntry{{ID: "analysis", Type: "openai", Model: model, ContextWindow: contextLimit, MaxOutputTokens: outputLimit}, {ID: "main", MaxOutputTokens: 1}}
 	cfg.LLM.Provider = "main"
-	vdb := &fakeVectorDB{}
+	vdb := newPublicationAgentVector(t, stm, nil)
 	if test.cancelBefore {
 		cancel()
 	}
@@ -138,8 +138,8 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 		assistantSource = strings.Repeat("Full assistant source. ", 300) + "FINAL_REALTIME_ASSISTANT Assistant source marker"
 	}
 	runMemoryAnalysis(ctx, cfg, logger, stm, nil, vdb, userSource, assistantSource, "synthetic-extraction")
-	if int(calls.Load()) != test.wantCalls || len(vdb.storedConcepts) != test.wantWrites {
-		t.Fatalf("calls=%d writes=%d want=%d/%d logs=%s", calls.Load(), len(vdb.storedConcepts), test.wantCalls, test.wantWrites, extractionLog.String())
+	if int(calls.Load()) != test.wantCalls || vdb.Count() != test.wantWrites {
+		t.Fatalf("calls=%d writes=%d want=%d/%d logs=%s", calls.Load(), vdb.Count(), test.wantCalls, test.wantWrites, extractionLog.String())
 	}
 	if count, err := stm.CountPendingMemoryWrites(); err != nil || count != 0 {
 		t.Fatalf("unusable extraction queued work: count=%d err=%v", count, err)

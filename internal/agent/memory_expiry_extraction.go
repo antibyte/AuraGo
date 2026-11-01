@@ -1,12 +1,8 @@
 package agent
 
 import (
-	"context"
-	"log/slog"
 	"strings"
 	"time"
-
-	"aurago/internal/memory"
 )
 
 // memoryPromptDate is the date line the extractors resolve "until Friday" against.
@@ -36,14 +32,4 @@ func memoryFactExpiry(expiresOn string, now time.Time) (expiry time.Time, keep b
 		return time.Time{}, true
 	}
 	return end, true
-}
-
-// recordMemoryExpiry also clears an older expiry when the restated fact has none.
-func recordMemoryExpiry(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ids []string, expiry time.Time) {
-	if stm == nil || len(ids) == 0 {
-		return
-	}
-	if err := stm.SetMemoryExpiry(ctx, ids, expiry); err != nil && logger != nil {
-		logger.Warn("[Memory Analysis] Failed to record memory expiry", "error", err)
-	}
 }

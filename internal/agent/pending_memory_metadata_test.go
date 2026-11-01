@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,14 +50,18 @@ func TestAuditQueuedAnalysisPreservesExtractionConfidence(t *testing.T) {
 			if err != nil || len(queued) != 1 || queued[0].Metadata == nil || queued[0].Metadata.SourceRole != "user_and_assistant" || queued[0].Metadata.SourceSessionID != "synthetic-session" {
 				t.Fatalf("source provenance lost after restart: %+v %v", queued, err)
 			}
-			vdb.storeErr = nil
-			if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb); succeeded != 1 || failed != 0 {
+			vector := newPublicationAgentVector(t, stm, nil)
+			if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vector); succeeded != 1 || failed != 0 {
 				t.Fatalf("retry %d successful, %d failed", succeeded, failed)
 			}
-			meta, err := stm.GetMemoryMeta("stored-doc")
+			metas, err := stm.GetAllMemoryMeta(10, 0)
 			wantReliability := .6 // Assistant context must never imply human confirmation.
-			if err != nil || meta.ExtractionConfidence != .99 || meta.SourceReliability != wantReliability || meta.SourceType != "memory_analysis" || meta.VerificationStatus != "unverified" {
-				t.Fatalf("retry metadata=%+v err=%v", meta, err)
+			if err != nil || len(metas) != 1 || metas[0].ExtractionConfidence != .99 || metas[0].SourceReliability != wantReliability || metas[0].SourceType != "memory_analysis" || metas[0].VerificationStatus != "unverified" {
+				t.Fatalf("retry metadata=%+v err=%v", metas, err)
+			}
+			texts, _, err := vector.SearchMemoriesOnly("NAS filesystem", 10)
+			if err != nil || len(texts) != 1 || !strings.Contains(texts[0], "role:user_and_assistant") {
+				t.Fatalf("retry source role=%v err=%v", texts, err)
 			}
 		})
 	}
@@ -82,9 +87,9 @@ func TestPendingMemoryMetadataRetryRejectsCorruptionAndPreservesCuration(t *test
 	if _, err := db.Exec(`UPDATE pending_memory_writes SET metadata_json='broken'`); err != nil {
 		t.Fatal(err)
 	}
-	vdb := &fakeVectorDB{}
-	if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb); succeeded != 0 || failed != 1 || len(vdb.storedConcepts) != 0 {
-		t.Fatalf("corrupt retry wrote vectors: %d/%d %v", succeeded, failed, vdb.storedConcepts)
+	corruptVector := &fakeVectorDB{}
+	if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, corruptVector); succeeded != 0 || failed != 1 || len(corruptVector.storedConcepts) != 0 {
+		t.Fatalf("corrupt retry wrote vectors: %d/%d %v", succeeded, failed, corruptVector.storedConcepts)
 	}
 	if _, err := db.Exec(`DELETE FROM pending_memory_writes`); err != nil {
 		t.Fatal(err)
@@ -92,24 +97,78 @@ func TestPendingMemoryMetadataRetryRejectsCorruptionAndPreservesCuration(t *test
 	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: "fact", Content: "content", Metadata: &details}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := stm.UpsertMemoryMetaWithDetails("stored-doc", memory.MemoryMetaUpdate{ExtractionConfidence: .88, VerificationStatus: "confirmed", SourceType: "user", SourceReliability: 1}); err != nil {
+	vdb := newPublicationAgentVector(t, stm, nil)
+	existing, err := memory.StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vdb, "fact", "content", memory.MemoryMetaUpdate{
+		ExtractionConfidence: .88, VerificationStatus: "confirmed", SourceType: "user", SourceReliability: 1,
+	})
+	if err != nil || len(existing.CreatedIDs) != 1 {
+		t.Fatalf("store curated source fixture=%+v err=%v", existing, err)
+	}
+	storedID := existing.CreatedIDs[0]
+	if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{DocID: storedID, Action: memory.MemoryCurationActionProtect}, "admin", false); err != nil {
 		t.Fatal(err)
 	}
-	if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{DocID: "stored-doc", Action: memory.MemoryCurationActionProtect}, "admin", false); err != nil {
-		t.Fatal(err)
-	}
-	before, err := stm.GetMemoryMeta("stored-doc")
+	before, err := stm.GetMemoryMeta(storedID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb); succeeded != 1 || failed != 0 {
 		t.Fatalf("curated retry = %d/%d", succeeded, failed)
 	}
-	after, err := stm.GetMemoryMeta("stored-doc")
+	after, err := stm.GetMemoryMeta(storedID)
 	if err != nil || before.ExtractionConfidence != after.ExtractionConfidence || !after.Protected || after.VerificationStatus != "confirmed" || after.SourceType != "user" {
 		t.Fatalf("retry overwrote curation: before=%+v after=%+v err=%v", before, after, err)
 	}
 	if due, err := stm.GetDuePendingMemoryWrites(time.Now().Add(time.Hour), 20); err != nil || len(due) != 0 {
 		t.Fatalf("completed queue=%v err=%v", due, err)
+	}
+}
+
+func TestPendingAnalysisRetryClearsTemporaryExpiry(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(":memory:", testLogger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	vector := newPublicationAgentVector(t, stm, nil)
+	const sessionID = "retry-expiry-session"
+	concept := "[personal] User is on vacation until tomorrow"
+	content := "source:memory_analysis session:" + sessionID
+	details := memory.MemoryMetaUpdate{
+		ExtractionConfidence: .95,
+		VerificationStatus:   "unverified",
+		SourceType:           "memory_analysis",
+		SourceReliability:    .6,
+		SourceSessionID:      sessionID,
+		SourceRole:           "user_and_assistant",
+	}
+	seedExpiresAt := time.Now().UTC().Add(24 * time.Hour)
+	seed, err := memory.StoreAutomaticMemoryDocumentWithOptionsContext(t.Context(), stm, vector, concept, content, details, memory.AutomaticMemoryWriteOptions{ExpiresAt: &seedExpiresAt})
+	if err != nil || len(seed.CreatedIDs) != 1 {
+		t.Fatalf("store expired memory fixture=%+v err=%v", seed, err)
+	}
+	docID := seed.CreatedIDs[0]
+	if got, ok, err := stm.MemoryExpiry(t.Context(), docID); err != nil || !ok || !got.Equal(seedExpiresAt.Truncate(time.Second)) {
+		t.Fatalf("seed expiry=%v present=%v err=%v", got, ok, err)
+	}
+	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: concept, Content: content, Domain: "memory_analysis", Metadata: &details}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if succeeded, failed := retryPendingMemoryWrites(t.Context(), testLogger, stm, vector, enabledMemoryTestConfig()); succeeded != 1 || failed != 0 {
+		t.Fatalf("retry=%d/%d", succeeded, failed)
+	}
+	remainingExpiry, ok, err := stm.MemoryExpiry(t.Context(), docID)
+	if err != nil || ok {
+		metas, _ := stm.GetAllMemoryMeta(10, 0)
+		texts, vectorIDs, _ := vector.SearchMemoriesOnly("vacation", 10)
+		t.Fatalf("permanent retry left expiry=%v present=%v err=%v; original=%s metadata=%+v vector_count=%d ids=%v texts=%v", remainingExpiry, ok, err, docID, metas, vector.Count(), vectorIDs, texts)
+	}
+	if vector.Count() != 1 {
+		t.Fatalf("retry created a duplicate vector document: %d", vector.Count())
+	}
+	states, err := stm.CheckMemoryEligibility(t.Context(), []string{docID})
+	if err != nil || !states[docID].Visible() {
+		t.Fatalf("retried permanent fact is not visible: %+v err=%v", states[docID], err)
 	}
 }

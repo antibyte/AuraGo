@@ -382,14 +382,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: f.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
+				if ids, err := storeMemoryAnalysisDocumentWithExpiry(ctx, cfg, stm, ltm, concept, content, details, expiry); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 					// A queued retry carries no expiry; a short-lived item is not worth one.
 					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
-					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
 					}
@@ -432,14 +431,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: p.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
+				if ids, err := storeMemoryAnalysisDocumentWithExpiry(ctx, cfg, stm, ltm, concept, content, details, expiry); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 					// A queued retry carries no expiry; a short-lived item is not worth one.
 					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
-					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
 					}
@@ -466,14 +464,13 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: c.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.6, SourceSessionID: sessionID, SourceRole: "user_and_assistant",
 				}
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
+				if ids, err := storeMemoryAnalysisDocumentWithExpiry(ctx, cfg, stm, ltm, concept, content, details, expiry); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 					// A queued retry carries no expiry; a short-lived item is not worth one.
 					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
-					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
 					}

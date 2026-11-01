@@ -520,8 +520,7 @@ func ScheduleProactiveHistoryCompression(runCfg RunConfig) bool {
 		if !result.Compressed || runCfg.LongTermMem == nil || runCfg.LongTermMem.IsDisabled() {
 			return
 		}
-		concept := fmt.Sprintf("Conversation summary %s", time.Now().Format("2006-01-02 15:04"))
-		if _, err := runCfg.LongTermMem.StoreDocument(concept, result.Summary); err != nil && runCfg.Logger != nil {
+		if err := publishProactiveHistorySummary(ctx, runCfg, result.Summary); err != nil && runCfg.Logger != nil {
 			runCfg.Logger.Warn("[Compression] VectorDB archive of summary failed", "error", err)
 		}
 	})

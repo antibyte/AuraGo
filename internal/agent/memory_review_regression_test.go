@@ -95,34 +95,17 @@ func TestTypedVectorOutagesDeferWithoutSpendingRetries(t *testing.T) {
 	}
 }
 
-type cancelAnalysisVector struct {
-	fakeVectorDB
-	cancel context.CancelFunc
-	calls  int
-}
-
-func (v *cancelAnalysisVector) DeleteDocumentIfContentMatches(string, string) (bool, error) {
-	return false, nil
-}
-
-var _ memory.ContextOwnershipAwareVectorDB = (*cancelAnalysisVector)(nil)
-
-func (v *cancelAnalysisVector) StoreDocumentOwned(string, string, memory.VectorStoreMode) (memory.VectorStoreResult, error) {
-	return memory.VectorStoreResult{}, errors.New("unexpected context-free write")
-}
-func (v *cancelAnalysisVector) StoreDocumentOwnedContext(ctx context.Context, _, _ string, _ memory.VectorStoreMode) (memory.VectorStoreResult, error) {
-	v.calls++
-	v.cancel()
-	return memory.VectorStoreResult{}, ctx.Err()
-}
-
 func TestCancelledAnalysisWriteNeverEnqueuesDurableRetry(t *testing.T) {
 	for _, kind := range []string{"fact", "preference", "correction"} {
 		t.Run(kind, func(t *testing.T) {
 			stm, logger := maintenanceRegressionStores(t)
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			vector := &cancelAnalysisVector{cancel: cancel}
+			embedCalls := 0
+			vector := newPublicationAgentVector(t, stm, func() {
+				embedCalls++
+				cancel()
+			})
 			fact := extractedFact{Content: "The user prefers complete German explanations.", Category: "communication", Confidence: .99, Quote: "complete German explanations"}
 			result := memoryAnalysisResult{human: "I want complete German explanations from now on."}
 			switch kind {
@@ -133,11 +116,14 @@ func TestCancelledAnalysisWriteNeverEnqueuesDurableRetry(t *testing.T) {
 			case "correction":
 				result.Corrections = []extractedFact{fact}
 			}
-			if count := applyMemoryAnalysisResultWithContext(ctx, enabledMemoryTestConfig(), logger, stm, vector, "cancel-session", result); count != 0 || vector.calls != 1 {
-				t.Fatalf("write result=%d calls=%d", count, vector.calls)
+			if count := applyMemoryAnalysisResultWithContext(ctx, enabledMemoryTestConfig(), logger, stm, vector, "cancel-session", result); count != 0 || embedCalls != 1 {
+				t.Fatalf("write result=%d embedding calls=%d", count, embedCalls)
 			}
 			if count, err := stm.CountPendingMemoryWrites(); err != nil || count != 0 {
 				t.Fatalf("cancelled payload queued: %d %v", count, err)
+			}
+			if vector.Count() != 0 {
+				t.Fatalf("cancelled publication stored %d vectors", vector.Count())
 			}
 		})
 	}
