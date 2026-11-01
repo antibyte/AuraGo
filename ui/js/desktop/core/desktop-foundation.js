@@ -97,7 +97,6 @@
         Shared: 'share'
     };
     const appIconKeys = {
-        kaggle: 'code',
         'ha-switchboard': 'ha-switchboard',
         'ruview': 'ruview',
         analytics: 'analytics',
@@ -182,6 +181,14 @@
         'mission-control': 'workflow'
     };
     appIconKeys['code-studio'] = 'code-studio';
+    const appLogoPaths = {
+        detective: '/img/desktop-icons/detective.svg',
+        kaggle: '/img/desktop-icons/kaggle.svg',
+        'pet-picker': '/img/desktop-icons/pet-picker.svg',
+        'retro-games': '/img/desktop-icons/retro-games.svg',
+        'store-bytestash': '/img/desktop-icons/bytestash.svg',
+        'store-code-server': '/img/desktop-icons/code-server.svg'
+    };
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -451,7 +458,7 @@
     function symbolFallbackMarkup(key, fallback, className, size) { const pixels = Number(size || 16) || 16; const label = String(fallback || key || '').slice(0, 3).toUpperCase(); return `<span class="${esc(className)} vd-symbol-fallback" aria-hidden="true" style="width:${pixels}px;height:${pixels}px">${esc(label)}</span>`; }
 
     function appLogoIconKey(app) {
-        const path = app && app.metadata && String(app.metadata.logo_path || '').trim();
+        const path = app && (appLogoPaths[app.id] || (app.metadata && String(app.metadata.logo_path || '').trim()));
         return path && (/^https?:\/\//i.test(path) || path.startsWith('/')) ? 'logo:' + path : '';
     }
 
@@ -486,7 +493,7 @@
         if (logoPath) {
             const pixels = Number(size || 42) || 42;
             const fallbackMarkup = iconMarkup('apps', fallback, className, size);
-            return `<span class="${esc(className)} vd-app-logo-icon" aria-hidden="true" style="width:${pixels}px;height:${pixels}px"><img src="${esc(logoPath)}" alt="" loading="lazy" draggable="false" data-vd-logo-img="true" ondragstart="return false" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallbackMarkup.replace('aria-hidden="true"', 'aria-hidden="true" hidden')}</span>`;
+            return `<span class="${esc(className)} vd-app-logo-icon" aria-hidden="true" style="width:${pixels}px;height:${pixels}px"><img src="${esc(logoPath.startsWith('/') ? versionedIconAssetPath(logoPath) : logoPath)}" alt="" loading="lazy" draggable="false" data-vd-logo-img="true" ondragstart="return false" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallbackMarkup.replace('aria-hidden="true"', 'aria-hidden="true" hidden')}</span>`;
         }
         const source = resolveIconSource(key, usage);
         if (source.type === 'theme') {
@@ -496,10 +503,12 @@
     }
     function themeBackedAppIconKey(app) {
         if (!app) return '';
-        for (const key of [appIconKeys[app.id], app.icon]) {
+        for (const key of [appIconKeys[app.id], app.id]) {
             const candidate = String(key || '').trim();
             if (candidate && themeIconPath(candidate)) return candidate;
         }
+        // A generic search/code/heart icon must not hide an app's own artwork.
+        if (!appLogoIconKey(app) && app.icon && themeIconPath(app.icon)) return app.icon;
         return '';
     }
     function iconForApp(app) {
