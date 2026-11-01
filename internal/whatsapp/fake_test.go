@@ -26,6 +26,7 @@ type fakeClient struct {
 	connectErrs []error
 	connects    int
 	disconnects int
+	connected   bool // set by a successful ConnectContext, cleared by Disconnect
 	loggedIn    bool
 	own         types.JID
 	qr          chan whatsmeow.QRChannelItem
@@ -61,6 +62,7 @@ func (f *fakeClient) ConnectContext(context.Context) error {
 		f.connectErrs = f.connectErrs[1:]
 		return err
 	}
+	f.connected = true
 	return nil
 }
 
@@ -68,12 +70,13 @@ func (f *fakeClient) Disconnect() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.disconnects++
+	f.connected = false
 }
 
 func (f *fakeClient) IsConnected() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.connects > f.disconnects
+	return f.connected
 }
 
 func (f *fakeClient) IsLoggedIn() bool {
@@ -171,6 +174,7 @@ func (s *fakeStore) DeleteLocal(context.Context) error {
 	defer s.mu.Unlock()
 	s.deleted++
 	s.linked = false
+	s.own = types.EmptyJID
 	return nil
 }
 

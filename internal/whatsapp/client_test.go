@@ -7,6 +7,17 @@ import (
 	"go.mau.fi/whatsmeow/store"
 )
 
+func TestCapAutoReconnectErrorsClampsTheRetryDelay(t *testing.T) {
+	errs := 200
+	if !capAutoReconnectErrors(&errs) || errs != 150 {
+		t.Fatalf("errors = %d, want 150 and a true result", errs)
+	}
+	errs = 10
+	if !capAutoReconnectErrors(&errs) || errs != 10 {
+		t.Fatalf("errors below the cap changed to %d", errs)
+	}
+}
+
 func TestSQLiteBackendOpensUnlinkedStoreAndNamesDevice(t *testing.T) {
 	var _ waClient = (*fakeClient)(nil)
 	var _ deviceStore = (*fakeStore)(nil)

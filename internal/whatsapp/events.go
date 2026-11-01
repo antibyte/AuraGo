@@ -33,6 +33,12 @@ type eventEffect struct {
 func classifyEvent(evt any, synced bool) eventEffect {
 	switch e := evt.(type) {
 	case *events.Connected:
+		// whatsmeow dispatches events from goroutines, so OfflineSyncCompleted
+		// can be handled before Connected. The sync is then already done and
+		// the connection must not fall back to "connecting".
+		if synced {
+			return eventEffect{State: integrationstatus.WhatsAppStateHealthy, Connected: true, Healthy: true}
+		}
 		return eventEffect{State: integrationstatus.WhatsAppStateConnecting, Connected: true}
 	case *events.OfflineSyncCompleted:
 		return eventEffect{State: integrationstatus.WhatsAppStateHealthy, Synced: true, Healthy: true, SendPresence: true}

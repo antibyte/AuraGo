@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -38,5 +39,25 @@ func TestWALoggerMasksAndDropsDebug(t *testing.T) {
 	}
 	if strings.Contains(out, "4917012345678") || !strings.Contains(out, "***5678") || !strings.Contains(out, "Client/Socket") {
 		t.Fatalf("log = %q", out)
+	}
+}
+
+func TestWALoggerNeverLogsNodeContent(t *testing.T) {
+	node := waBinary.Node{
+		Tag:     "iq",
+		Content: []waBinary.Node{{Tag: "ref", Content: []byte("pairing-ref-bytes")}},
+	}
+	var buf bytes.Buffer
+	log := newWALogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})), "Client")
+	log.Warnf("unexpected %s", &node)
+	log.Errorf("unexpected %v", node)
+	log.Infof("unexpected %s", &node)
+	log.Debugf("unexpected %s", &node)
+	out := buf.String()
+	if strings.Contains(out, "pairing-ref-bytes") || strings.Contains(out, "ref") {
+		t.Fatalf("node content reached the log: %q", out)
+	}
+	if strings.Count(out, "<node iq>") != 3 {
+		t.Fatalf("want the node tag three times, got %q", out)
 	}
 }

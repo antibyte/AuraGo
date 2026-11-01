@@ -20,13 +20,14 @@ func TestClassifyEventMapsStatesAndPolicies(t *testing.T) {
 		synced bool
 		want   eventEffect
 	}{
-		"connected":                      {&events.Connected{}, true, eventEffect{State: connecting, Connected: true}},
-		"offline sync":                   {&events.OfflineSyncCompleted{Count: 3}, false, eventEffect{State: healthy, Synced: true, Healthy: true, SendPresence: true}},
-		"keepalive restored before sync": {&events.KeepAliveRestored{}, false, eventEffect{}},
-		"keepalive restored after sync":  {&events.KeepAliveRestored{}, true, eventEffect{State: healthy, Healthy: true}},
-		"disconnected":                   {&events.Disconnected{}, true, eventEffect{State: degraded, ErrorCode: "disconnected"}},
-		"keepalive timeout":              {&events.KeepAliveTimeout{ErrorCount: 2}, true, eventEffect{State: degraded, ErrorCode: "keepalive_timeout"}},
-		"stream error":                   {&events.StreamError{Code: "999"}, true, eventEffect{State: degraded, ErrorCode: "stream_error"}},
+		"connected":                          {&events.Connected{}, false, eventEffect{State: connecting, Connected: true}},
+		"connected after sync stays healthy": {&events.Connected{}, true, eventEffect{State: healthy, Connected: true, Healthy: true}},
+		"offline sync":                       {&events.OfflineSyncCompleted{Count: 3}, false, eventEffect{State: healthy, Synced: true, Healthy: true, SendPresence: true}},
+		"keepalive restored before sync":     {&events.KeepAliveRestored{}, false, eventEffect{}},
+		"keepalive restored after sync":      {&events.KeepAliveRestored{}, true, eventEffect{State: healthy, Healthy: true}},
+		"disconnected":                       {&events.Disconnected{}, true, eventEffect{State: degraded, ErrorCode: "disconnected"}},
+		"keepalive timeout":                  {&events.KeepAliveTimeout{ErrorCount: 2}, true, eventEffect{State: degraded, ErrorCode: "keepalive_timeout"}},
+		"stream error":                       {&events.StreamError{Code: "999"}, true, eventEffect{State: degraded, ErrorCode: "stream_error"}},
 		"logged out": {&events.LoggedOut{Reason: events.ConnectFailureLoggedOut}, true,
 			eventEffect{State: integrationstatus.WhatsAppStateLoggedOut, ErrorCode: "logged_out", Terminal: true}},
 		"stream replaced": {&events.StreamReplaced{}, true,

@@ -124,5 +124,6 @@ func (s *sqliteDeviceStore) DeleteLocal(ctx context.Context) error {
 	return nil
 }
 
-// Close releases the database handle.
+// Close releases the database handle. Callers must Disconnect every client
+// obtained from NewClient first: a connected client keeps using the database.
 func (s *sqliteDeviceStore) Close() error { return s.db.Close() }

@@ -77,10 +77,25 @@ func configureDeviceProps() {
 
 type whatsmeowClient struct{ cli *whatsmeow.Client }
 
+// maxAutoReconnectErrors caps whatsmeow's own reconnect backoff. The library
+// waits AutoReconnectErrors*2s between attempts without an upper bound, so 150
+// keeps the delay at or below 300 s, the same five-minute cap the Bot uses.
+const maxAutoReconnectErrors = 150
+
+// capAutoReconnectErrors clamps whatsmeow's reconnect counter and tells it to
+// keep retrying.
+func capAutoReconnectErrors(errs *int) bool {
+	if *errs > maxAutoReconnectErrors {
+		*errs = maxAutoReconnectErrors
+	}
+	return true
+}
+
 func newWhatsmeowClient(device *store.Device, log waLog.Logger) *whatsmeowClient {
 	configureDeviceProps()
 	cli := whatsmeow.NewClient(device, log)
 	cli.EnableAutoReconnect = true
+	cli.AutoReconnectHook = func(error) bool { return capAutoReconnectErrors(&cli.AutoReconnectErrors) }
 	return &whatsmeowClient{cli: cli}
 }
 
