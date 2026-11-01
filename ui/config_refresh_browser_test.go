@@ -230,6 +230,8 @@ func configRefreshFixtureOriginWith(t *testing.T, locale string, populated bool,
 		"/api/sip/config":    map[string]any{}, "/api/sip/providers": map[string]any{"providers": []any{}},
 		"/api/sip/status": map[string]any{"registered": false}, "/api/sip/app/state": map[string]any{"blockers": []any{}},
 		"/api/local-llm/status": map[string]any{"state": "disabled", "release_manifest_ready": false},
+		"/api/whatsapp/status":  map[string]any{"status": "disabled", "whatsapp": map[string]any{"enabled": false, "state": "disabled"}},
+		"/api/whatsapp/link":    map[string]any{"state": "idle"},
 	}
 	configuration["_effective_tool_policy"] = map[string]any{"provider_profile": "fixture", "max_tools": 20, "max_tool_calls": 15, "schema_tokens": 6500, "max_guides": 3, "output_bytes": 50000}
 	configuration["_config_migrations"] = []string{"guardian.promptsec.spotlight (retired; forced off)"}

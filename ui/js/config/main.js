@@ -153,6 +153,7 @@ const SECTIONS = [
         group: t('config.group.communication'),
         items: [
             { key: 'telegram', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
+            { key: 'whatsapp', label: t('config.section.whatsapp.label'), desc: t('config.section.whatsapp.desc') },
             { key: 'discord', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
             { key: 'rocketchat', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') },
             { key: 'email', label: t('config.section.email.label'), desc: t('config.section.email.desc') },
@@ -684,6 +685,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     cloudflare_tunnel: 57,
     homepage: 58,
     telegram: 59,
+    whatsapp: 128,
     discord: 60,
     rocketchat: 61,
     telnyx: 62,
@@ -748,6 +750,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     kaggle: "<rect x=\"30\" y=\"22\" width=\"68\" height=\"84\" rx=\"8\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\"/><path d=\"M44 22v84M58 46v38M80 46 58 65 80 84\" fill=\"none\" stroke=\"#6fca8f\" stroke-width=\"6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+    whatsapp: '<path d="M64 24a38 38 0 0 0-33 57l-6 21 22-6a38 38 0 1 0 17-72z" fill="#25d366" opacity=".22"/><path d="M64 24a38 38 0 0 0-33 57l-6 21 22-6a38 38 0 1 0 17-72z" fill="none" stroke="#25d366" stroke-width="6" stroke-linejoin="round"/><path d="M50 46c-3 11 9 28 24 33l6-7-9-6-4 4c-5-2-10-7-12-12l4-4-6-9z" fill="#25d366"/>',
     decisions: "<path d=\"M64 17 86 39 64 61 42 39z\" fill=\"#35c7d3\" opacity=\".25\"/><path d=\"M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><rect x=\"20\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#6fca8f\"/><rect x=\"84\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#7da3c8\"/>",
     onedrive: '<path d="M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z" fill="#4f8ee8" opacity=".22"/><path d="M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#4f8ee8"/><path d="M64 78V58m-8 8 8-8 8 8" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
     devices: '<rect x="26" y="32" width="76" height="52" rx="8" fill="#7da3c8" opacity=".22"/><rect x="26" y="32" width="76" height="52" rx="8" fill="none" stroke="#7da3c8" stroke-width="6"/><path d="M50 100h28M64 84v16" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="58" r="7" fill="#35c7d3"/>',
@@ -3847,6 +3850,7 @@ const SECTION_MODULES = {
     manus: { m: 'manus', fn: 'renderManusSection' },
     huggingface: { m: 'huggingface', fn: 'renderHuggingFaceSection' },
     kaggle: { m: 'kaggle', fn: 'renderKaggleSection' },
+    whatsapp: { m: 'whatsapp', fn: 'renderWhatsAppSection' },
     evomap: { m: 'evomap', fn: 'renderEvomapSection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },

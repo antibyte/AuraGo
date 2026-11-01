@@ -559,6 +559,7 @@
 .pw-page[data-workspace-page="config"] .config-icon-slot-125 { background-position: 40% 100%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-126 { background-position: 50% 100%; }
 .pw-page[data-workspace-page="config"] .config-icon-slot-127 { background-position: 60% 100%; }
+.pw-page[data-workspace-page="config"] .config-icon-slot-128 { background-position: 70% 100%; }
 
 .pw-page[data-workspace-page="config"] .cyd-token-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -2011,3 +2012,14 @@
     transform: none;
     box-shadow: none;
 }
+
+/* WhatsApp link panel: server-rendered QR code and pairing code. */
+.pw-page[data-workspace-page="config"] .whatsapp-link-view { display: grid; justify-items: start; gap: 12px; margin-top: 16px; }
+.pw-page[data-workspace-page="config"] .whatsapp-link-view[hidden],
+.pw-page[data-workspace-page="config"] .whatsapp-qr[hidden],
+.pw-page[data-workspace-page="config"] .whatsapp-pairing-code[hidden] { display: none; }
+.pw-page[data-workspace-page="config"] .whatsapp-qr { width: min(256px, 100%); height: auto; aspect-ratio: 1; border-radius: 12px; image-rendering: pixelated; }
+.pw-page[data-workspace-page="config"] .whatsapp-pairing-code { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--pw-font-2xl); font-weight: 700; letter-spacing: .12em; }
+/* The narrow-viewport .btn-save rule (flex: 1, width: 100%) collapses a primary button next to wide siblings. */
+.pw-page[data-workspace-page="config"] .whatsapp-link-panel .cfg-actions-row > button { flex: 0 0 auto; width: auto; max-width: 100%; }
+.pw-page[data-workspace-page="config"] .whatsapp-link-panel .btn-secondary:disabled { opacity: .45; cursor: not-allowed; }

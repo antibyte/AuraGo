@@ -1029,6 +1029,14 @@
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "whatsapp",
+      "slot": 128,
+      "column": 7,
+      "row": 11,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }
