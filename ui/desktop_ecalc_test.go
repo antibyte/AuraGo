@@ -113,7 +113,7 @@ func TestECalcSearchShortcutStopsPropagation(t *testing.T) {
 		"event.stopPropagation();",
 		"shell.focusSearch()",
 	})
-	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose };", "ctx.api(catalogURL(lang))", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
+	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose };", "ctx.api(catalogURL(lang), { cache: 'no-cache' })", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
 		if !strings.Contains(root, marker) {
 			t.Errorf("ecalc.js is missing %q", marker)
 		}

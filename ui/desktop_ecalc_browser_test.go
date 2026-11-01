@@ -94,21 +94,22 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	page.MustWaitLoad()
 	page.MustSetViewport(1366, 900, 1, false)
 	// The fixture answers every /api/ request with an empty object; the catalog route gets the real catalog of the
-	// requested language, or a failure while window.ecalcCatalogDown is set. The English catalog (the background request
-	// that feeds the search) names the voltage divider "Zzyzx divider", a word no German name or tag contains.
+	// requested language, or a failure while window.ecalcCatalogDown is set. The served German catalog names the voltage
+	// divider "Zzyzx divider" in its name_en field, a word no German name or tag contains. The cache mode of every
+	// catalog request is recorded: the app must ask with 'no-cache' so the browser revalidates the ETag of the route.
 	page.MustEval(`async()=>{
 		await fixtureReady;
 		window.ecalcCatalogRequests=[];
+		window.ecalcCatalogCaches=[];
 		const base=window.fetch;
 		window.fetch=(url,options)=>{
 			const text=String(url);
 			if(!text.startsWith('/api/ecalc/catalog'))return base(url,options);
 			window.ecalcCatalogRequests.push(text);
+			window.ecalcCatalogCaches.push(String(options&&options.cache));
 			if(window.ecalcCatalogDown)return Promise.resolve(new Response('{"error":"down"}',{status:500,headers:{'Content-Type':'application/json'}}));
-			const reply=base('/ecalc-catalog.json'+text.slice('/api/ecalc/catalog'.length));
-			if(!text.includes('lang=en'))return reply;
-			return reply.then(r=>r.json()).then(j=>{
-				j.items.find(i=>i.id==='voltage_divider').name='Zzyzx divider';
+			return base('/ecalc-catalog.json'+text.slice('/api/ecalc/catalog'.length)).then(r=>r.json()).then(j=>{
+				j.items.find(i=>i.id==='voltage_divider').name_en='Zzyzx divider';
 				return new Response(JSON.stringify(j),{headers:{'Content-Type':'application/json'}});
 			});
 		};
@@ -197,8 +198,12 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="basics"] .ec-rail-label').textContent`).Str(); got != deCategories["basics"] {
 		t.Fatalf("the rail shows %q, want the German category %q", got, deCategories["basics"])
 	}
-	if got := page.MustEval(`()=>JSON.stringify(window.ecalcCatalogRequests.filter(u=>!u.includes('lang=de')&&!u.includes('lang=en')))`).Str(); got != "[]" {
-		t.Fatalf("the app asked for catalogs in languages other than the desktop's: %s", got)
+	// One request per open (the failing one and the retry so far), all in the desktop's language, all revalidating.
+	if got := page.MustEval(`()=>JSON.stringify(window.ecalcCatalogRequests)`).Str(); got != `["/api/ecalc/catalog?lang=de","/api/ecalc/catalog?lang=de"]` {
+		t.Fatalf("the failed open and its retry asked for %s, want exactly two German catalog requests", got)
+	}
+	if got := page.MustEval(`()=>JSON.stringify(window.ecalcCatalogCaches)`).Str(); got != `["no-cache","no-cache"]` {
+		t.Fatalf("the catalog requests use the cache modes %s, want no-cache so that the ETag is revalidated", got)
 	}
 	// Every rail label of every language wraps instead of being cut off.
 	labels := map[string][]string{}
@@ -346,14 +351,14 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	search := page.MustElement(".ec-search-input")
 	search.MustInput("teiler")
 	wait(`()=>[...document.querySelectorAll('.ec-items .ec-item')].some(b=>b.dataset.id==='voltage_divider')`)
-	// The English name finds the item although the catalog and the page are German (the background English request).
+	// The English name (name_en of the German catalog) finds the item although the catalog and the page are German.
 	search.MustSelectAllText().MustInput("zzyzx")
 	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===1 && document.querySelector('.ec-items .ec-item').dataset.id==='voltage_divider'`)
 	if got := page.MustEval(`()=>document.querySelector('.ec-items .ec-item .ec-item-name').textContent`).Str(); got != deItems["voltage_divider"] {
 		t.Fatalf("the English-name hit shows %q, want the German name %q", got, deItems["voltage_divider"])
 	}
-	if got := page.MustEval(`()=>window.ecalcCatalogRequests.some(u=>u.includes('lang=en'))`).Bool(); !got {
-		t.Fatal("the app never asked for the English catalog that feeds the search")
+	if got := page.MustEval(`()=>window.ecalcCatalogRequests.some(u=>!u.includes('lang=de'))`).Bool(); got {
+		t.Fatal("the app asked for a catalog in a language other than the desktop's (there is no English feed any more)")
 	}
 	search.MustSelectAllText().MustInput("star delta")
 	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===1 && document.querySelector('.ec-items .ec-item').dataset.id==='star_delta'`)
@@ -413,6 +418,11 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	typeInto("r2", "10k")
 	wait(`()=>document.querySelector('.ec-field[data-var="vout"] .ec-input').value==='8,163 V'`)
 
+	// Three opens (the failing one, its retry and the compact window) made exactly three German catalog requests.
+	const german = `"/api/ecalc/catalog?lang=de"`
+	if got := page.MustEval(`()=>JSON.stringify(window.ecalcCatalogRequests)`).Str(); got != "["+german+","+german+","+german+"]" {
+		t.Fatalf("the catalog requests were %s, want one German request per open", got)
+	}
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}

@@ -74,12 +74,14 @@ type checkJSON struct {
 	Warn string `json:"warn"`
 }
 
-// itemJSON is a calculator. Phase 3 adds the other item kinds next to it.
+// itemJSON is a calculator. Phase 3 adds the other item kinds next to it. NameEN is the English name in every
+// language (equal to Name for English), so that the app can find "voltage divider" in a German catalog.
 type itemJSON struct {
 	Kind      string        `json:"kind"`
 	ID        string        `json:"id"`
 	Category  string        `json:"category"`
 	Name      string        `json:"name"`
+	NameEN    string        `json:"name_en"`
 	Doc       string        `json:"doc"`
 	Tags      []string      `json:"tags"`
 	Source    string        `json:"source"`
@@ -173,7 +175,7 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 	}
 	for _, calc := range c.Calculators {
 		it := itemJSON{
-			Kind: calc.Kind, ID: calc.ID, Category: calc.Category, Name: calc.Name.in(lang), Doc: calc.Doc.in(lang),
+			Kind: calc.Kind, ID: calc.ID, Category: calc.Category, Name: calc.Name.in(lang), NameEN: calc.Name.in("en"), Doc: calc.Doc.in(lang),
 			Tags: orEmpty(calc.Tags), Source: calc.Source, DOF: calc.DOF, Formula: orEmpty(calc.Formula),
 			Schematic: calc.Schematic, Sets: orEmpty(calc.Sets),
 			Vars: []varJSON{}, Choices: []choiceJSON{}, Rules: []ruleJSON{}, Derived: []derivedJSON{}, Checks: []checkJSON{},

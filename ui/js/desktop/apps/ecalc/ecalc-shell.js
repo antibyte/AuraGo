@@ -30,7 +30,6 @@
         const itemById = new Map(items.map(item => [item.id, item]));
         const categories = (catalog.categories || []).filter(category => items.some(item => item.category === category.id));
         const categoryName = new Map((catalog.categories || []).map(category => [category.id, category.name]));
-        let englishNames = new Map();
         const ui = { rail: '', query: '', selected: '', view: 'page', compact: false };
         let page = null, popoverOpen = false, observer = null, hostObserver = null;
         const mac = /mac|iphone|ipad/i.test(String(navigator.platform || ''));
@@ -60,7 +59,7 @@
         function search(query) {
             const words = query.toLowerCase().split(/\s+/).filter(Boolean), found = [];
             items.forEach((item, index) => {
-                const haystack = [item.name, englishNames.get(item.id) || '', (item.tags || []).join(' '), item.id.replace(/_/g, ' ')].join(' ').toLowerCase();
+                const haystack = [item.name, item.name_en || '', (item.tags || []).join(' '), item.id.replace(/_/g, ' ')].join(' ').toLowerCase();
                 if (!words.every(word => haystack.includes(word))) return;
                 const name = item.name.toLowerCase();
                 found.push({ item, index, rank: name.startsWith(words[0]) ? 0 : name.includes(words[0]) ? 1 : 2 });
@@ -264,10 +263,6 @@
         return {
             openItem,
             focusSearch() { showResults(); searchEl.focus(); searchEl.select(); },
-            setEnglishNames(names) {
-                englishNames = names;
-                if (ui.query.trim()) paintList();
-            },
             dispose() {
                 closePopover();
                 if (observer) observer.disconnect();

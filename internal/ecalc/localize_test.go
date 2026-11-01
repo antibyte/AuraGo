@@ -22,10 +22,11 @@ type catalogDoc struct {
 		Name string `json:"name"`
 	} `json:"categories"`
 	Items []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		Doc  string `json:"doc"`
-		Vars []struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		NameEN string `json:"name_en"`
+		Doc    string `json:"doc"`
+		Vars   []struct {
 			ID          string    `json:"id"`
 			Name        string    `json:"name"`
 			Default     *float64  `json:"default"`
@@ -123,6 +124,32 @@ func TestLocalizedJSONLanguagesAndFallback(t *testing.T) {
 	for lang, want := range map[string][]byte{"de-DE": deBody, "DE_de": deBody, " de ": deBody, "nb": noBody} {
 		if _, body, _ := fetch(t, lang); !bytes.Equal(body, want) {
 			t.Errorf("LocalizedJSON(%q) was not normalized", lang)
+		}
+	}
+}
+
+// Every item carries its English name, in every language and also in the English catalog itself, so that the app
+// finds "voltage divider" in a German catalog without a second request.
+func TestLocalizedJSONCarriesTheEnglishName(t *testing.T) {
+	en, _, _ := fetch(t, "en")
+	if len(en.Items) == 0 {
+		t.Fatal("the English catalog has no items")
+	}
+	for _, lang := range Locales {
+		doc, _, _ := fetch(t, lang)
+		if len(doc.Items) != len(en.Items) {
+			t.Fatalf("%s: %d items, want %d", lang, len(doc.Items), len(en.Items))
+		}
+		for i, it := range doc.Items {
+			if it.NameEN == "" || it.NameEN != en.Items[i].Name || en.Items[i].NameEN != en.Items[i].Name {
+				t.Errorf("%s %s: name_en = %q, want the English name %q", lang, it.ID, it.NameEN, en.Items[i].Name)
+			}
+		}
+	}
+	de, _, _ := fetch(t, "de")
+	for _, it := range de.Items {
+		if it.ID == "voltage_divider" && (it.Name != "Spannungsteiler" || it.NameEN != "Voltage divider") {
+			t.Errorf("de voltage_divider: name %q, name_en %q", it.Name, it.NameEN)
 		}
 	}
 }

@@ -38,26 +38,18 @@
         host.replaceChildren(root);
         let disposed = false, shell = null;
 
-        // English names make the search find "voltage divider" in every language; the catalog of the language
-        // itself has the translated names only. A failure here only narrows the search.
-        function loadEnglishNames() {
-            if (lang === 'en') return;
-            Promise.resolve(ctx.api(catalogURL('en'))).then(english => {
-                if (disposed || !shell || !english || !Array.isArray(english.items)) return;
-                shell.setEnglishNames(new Map(english.items.map(item => [item.id, String(item.name || '')])));
-            }).catch(() => {});
-        }
-
         async function load() {
             root.dataset.state = 'loading';
             root.innerHTML = '<div class="ec-status" role="status" aria-busy="true"><span class="ec-spinner"></span></div>';
             try {
-                const catalog = await ctx.api(catalogURL(lang));
+                // The desktop api() defaults to cache:'no-store', which would skip the ETag of the route: 'no-cache' keeps
+                // the response in the browser cache and revalidates it, so an unchanged catalog costs a 304. Every item
+                // carries its English name (name_en), which the search uses, so one request is enough.
+                const catalog = await ctx.api(catalogURL(lang), { cache: 'no-cache' });
                 if (disposed) return;
                 if (!catalog || !Array.isArray(catalog.items) || !catalog.units) throw new Error('unexpected catalog');
                 root.dataset.state = 'ready';
                 shell = window.ECalcShell.create({ root, catalog, t, store, schematics: window.ECalcSchematics || {}, decimalComma: COMMA_LANGUAGES.includes(lang), uid });
-                loadEnglishNames();
             } catch (error) {
                 if (disposed) return;
                 shell = null;

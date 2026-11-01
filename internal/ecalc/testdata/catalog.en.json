@@ -259,6 +259,7 @@
       "id": "ohms_law",
       "category": "basics",
       "name": "Ohm's law and power",
+      "name_en": "Ohm's law and power",
       "doc": "Ohm's law relates voltage, current and resistance (U = R × I); the electrical power is P = U × I. Any two of the four values determine the other two.",
       "tags": [
         "ohm",
@@ -400,6 +401,7 @@
       "id": "voltage_divider",
       "category": "basics",
       "name": "Voltage divider",
+      "name_en": "Voltage divider",
       "doc": "Two resistors in series divide the input voltage: V_out = V_in × R2 / (R1 + R2). The output is unloaded; for a divider that drives a load use the loaded voltage divider. The current and power are those of the divider chain itself.",
       "tags": [
         "divider",
@@ -549,6 +551,7 @@
       "id": "loaded_divider",
       "category": "basics",
       "name": "Loaded voltage divider",
+      "name_en": "Loaded voltage divider",
       "doc": "A voltage divider that drives a load R_L. The load is in parallel with R2, so V_out = V_in × R_P / (R1 + R_P) with R_P = R2 ∥ R_L. The unloaded output V_nl shows how much the load pulls the voltage down.",
       "tags": [
         "divider",
@@ -742,6 +745,7 @@
       "id": "current_divider",
       "category": "basics",
       "name": "Current divider",
+      "name_en": "Current divider",
       "doc": "Two resistors in parallel share the total current in inverse proportion to their resistance: I_1 = I × R2 / (R1 + R2) and I_2 = I × R1 / (R1 + R2). The voltage across both is U = I_1 × R1. The two branch currents alone cannot fix the resistors, only their ratio.",
       "tags": [
         "current divider",
@@ -927,6 +931,7 @@
       "id": "series_parallel",
       "category": "basics",
       "name": "Series and parallel resistors",
+      "name_en": "Series and parallel resistors",
       "doc": "Resistors in series add up: R_S = R_1 + R_2 + …. Resistors in parallel combine as 1/R_P = 1/R_1 + 1/R_2 + …. Enter the values as a list, for example 4k7, 10k, 2k2.",
       "tags": [
         "series",
@@ -999,6 +1004,7 @@
       "id": "decibel_ratio",
       "category": "basics",
       "name": "Decibel ratio",
+      "name_en": "Decibel ratio",
       "doc": "The decibel expresses a ratio on a logarithmic scale: G = 20 × log10(A_2 / A_1) for voltages and currents (field quantities) and G = 10 × log10(A_2 / A_1) for power. Choose the quantity first: +20 dB is a factor of 10 for voltages but a factor of 100 for power.",
       "tags": [
         "decibel",
@@ -1133,6 +1139,7 @@
       "id": "db_levels",
       "category": "basics",
       "name": "dB levels",
+      "name_en": "dB levels",
       "doc": "Absolute levels in decibels: dBm is relative to 1 mW, dBV to 1 V and dBu to 0.7746 V, the voltage that dissipates 1 mW in 600 Ω. From a voltage and a load resistance the power follows; the derived values are shown as dBm, dBV and dBu.",
       "tags": [
         "dbm",
@@ -1262,6 +1269,7 @@
       "id": "wheatstone",
       "category": "basics",
       "name": "Wheatstone bridge",
+      "name_en": "Wheatstone bridge",
       "doc": "A Wheatstone bridge is two voltage dividers side by side: R1 over R2 on the left and R3 over R4 on the right. The bridge voltage V_D between the two midpoints is V_D = V_S × (R2 / (R1 + R2) − R4 / (R3 + R4)). It is zero when R1 × R4 = R2 × R3; R_4b shows the R4 that balances the bridge.",
       "tags": [
         "bridge",
@@ -1457,6 +1465,7 @@
       "id": "star_delta",
       "category": "basics",
       "name": "Star-delta transform",
+      "name_en": "Star-delta transform",
       "doc": "Converts between a star (Y) network of three resistors R_A, R_B, R_C and the equivalent delta (Δ) network R_AB, R_BC, R_CA. Delta to star: R_A = R_AB × R_CA / (R_AB + R_BC + R_CA), and cyclically. Star to delta: R_AB = (R_A R_B + R_B R_C + R_C R_A) / R_C, and cyclically. Enter either the three delta or the three star resistors.",
       "tags": [
         "star delta",
@@ -1611,6 +1620,7 @@
       "id": "rms_waveform",
       "category": "basics",
       "name": "RMS, peak and average",
+      "name_en": "RMS, peak and average",
       "doc": "Converts between the RMS value, the peak value, the peak-to-peak value and the average of the rectified waveform for a sine, square or triangle wave. The crest factor is V_pk / V_rms and the form factor is V_rms / V_avg; for a sine wave they are √2 and π / (2√2) ≈ 1.1107. The average is the mean of the absolute value (the rectified average), not the mean of the signal, which is zero for a symmetric wave.",
       "tags": [
         "rms",
@@ -1774,6 +1784,7 @@
       "id": "charge_energy",
       "category": "basics",
       "name": "Charge and energy",
+      "name_en": "Charge and energy",
       "doc": "Charge Q in ampere-hours (1 Ah = 3600 C) and energy E in watt-hours (1 Wh = 3600 J) are related by the voltage: E = Q × U. A 2 Ah cell at 3.7 V holds 7.4 Wh. The nominal voltage is only an average; real batteries deliver less energy at high load.",
       "tags": [
         "charge",
