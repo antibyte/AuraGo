@@ -202,3 +202,40 @@ func TestECalcStylesheetUsesOnlyTokens(t *testing.T) {
 		}
 	}
 }
+
+// ECalc is registered in the loader, the router, the global-name table and the window presets, and the bundle holds them.
+func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
+	t.Parallel()
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	start := strings.Index(loader, "        ecalc: {")
+	if start < 0 {
+		t.Fatal("module-loader.js has no ecalc entry in DESKTOP_APP_ASSETS")
+	}
+	entry := loader[start : start+strings.Index(loader[start:], "\n        },")]
+	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
+		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
+	}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-schematics.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	offset := 0
+	for _, script := range order {
+		index := strings.Index(entry[offset:], script)
+		if index < 0 {
+			t.Fatalf("the ecalc loader entry lists %s out of order or not at all (the core first, the composition root last)", script)
+		}
+		offset += index + len(script)
+	}
+	for _, check := range []struct{ file, marker string }{
+		{"js/desktop/core/menus-and-routing.js", "if (appId === 'ecalc') {"},
+		{"js/desktop/core/menus-and-routing.js", "window.ECalcApp.render(contentEl(id), id,"},
+		{"js/desktop/core/desktop-foundation.js", "ecalc: 'ECalcApp',"},
+		{"js/desktop/core/window-shell-runtime.js", "ecalc: { width: 1100, height: 760 },"},
+		{"js/desktop/core/window-shell-runtime.js", "if (appId === 'ecalc') return { width: 640, height: 480 };"},
+		{"js/desktop/bundles/main.bundle.js", "ecalc: 'ECalcApp',"},
+		{"js/desktop/bundles/main.bundle.js", "window.ECalcApp.render(contentEl(id), id,"},
+		{"js/desktop/bundles/main.bundle.js", "if (appId === 'ecalc') return { width: 640, height: 480 };"},
+	} {
+		if !strings.Contains(readDesktopAssetText(t, check.file), check.marker) {
+			t.Errorf("%s is missing %q", check.file, check.marker)
+		}
+	}
+}

@@ -602,6 +602,7 @@
             terminal: 'TerminalApp',
             notes: 'NotesApp',
             findit: 'FindItApp',
+            ecalc: 'ECalcApp',
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',

@@ -1319,6 +1319,7 @@
             terminal: { width: 960, height: 720 },
             notes: { width: 1060, height: 680 },
             findit: { width: 1320, height: 820 },
+            ecalc: { width: 1100, height: 760 },
             tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
@@ -1361,6 +1362,7 @@
         if (appId === 'docker-manager') return { width: 440, height: 400 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'findit') return { width: 360, height: 480 };
+        if (appId === 'ecalc') return { width: 640, height: 480 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };

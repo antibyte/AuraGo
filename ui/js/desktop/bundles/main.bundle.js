@@ -871,6 +871,7 @@
             terminal: 'TerminalApp',
             notes: 'NotesApp',
             findit: 'FindItApp',
+            ecalc: 'ECalcApp',
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
@@ -7117,6 +7118,7 @@
             terminal: { width: 960, height: 720 },
             notes: { width: 1060, height: 680 },
             findit: { width: 1320, height: 820 },
+            ecalc: { width: 1100, height: 760 },
             tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
@@ -7159,6 +7161,7 @@
         if (appId === 'docker-manager') return { width: 440, height: 400 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'findit') return { width: 360, height: 480 };
+        if (appId === 'ecalc') return { width: 640, height: 480 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
@@ -18835,6 +18838,15 @@ if (appId === 'system-info') {
                     esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
                     modalDialog, updateWindowContext, registerWindowCleanup
                 }));
+            }
+        }
+        if (appId === 'ecalc') {
+            if (!window.ECalcApp) {
+                window.AuraDesktopModules.loadAppScript('ecalc').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ECalcApp.render === 'function') {
+                return window.ECalcApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t }));
             }
         }
         if (appId === 'tresor') {
