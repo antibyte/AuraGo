@@ -14,10 +14,8 @@ import (
 	"aurago/internal/security"
 
 	"go.mau.fi/whatsmeow"
-	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
-	"google.golang.org/protobuf/proto"
 )
 
 // Connect backoff for startup failures and for disconnects whatsmeow does not
@@ -106,6 +104,11 @@ type Bot struct {
 	logger  *slog.Logger
 	deps    runtimeDeps
 
+	// sent holds the IDs of our own outgoing messages, the inbound filter's echo
+	// guard. sender is the one serialized, owner-only outbound queue.
+	sent   *idCache
+	sender *sender
+
 	mu     sync.Mutex
 	client waClient
 
@@ -149,6 +152,8 @@ func start(parent context.Context, cfg *config.Config, logger *slog.Logger, deps
 	ctx, cancel := context.WithCancel(parent)
 	b := &Bot{ctx: ctx, cancel: cancel, done: make(chan struct{}), initial: cfg.WhatsApp,
 		dataDir: cfg.Directories.DataDir, logger: logger, deps: deps}
+	b.sent = newIDCache(sentIDCacheSize, sentIDCacheTTL, deps.now)
+	b.sender = newSender(cfg.WhatsApp, b.currentClient, b.sent, deps, logger)
 	integrationstatus.SetWhatsAppConfigState(integrationstatus.WhatsAppStateConnecting, cfg.WhatsApp.Mode)
 	go b.run()
 	return b
@@ -404,29 +409,11 @@ func (b *Bot) sendUnavailable(client waClient) {
 	}
 }
 
-// SendTestMessage sends the manual test message to the owners only. Stage 2
-// moves it onto the serialized send queue.
+// SendTestMessage sends the manual test message to the owners only, through the
+// Bot's send queue.
 func (b *Bot) SendTestMessage(ctx context.Context, now time.Time) error {
-	client := b.currentClient()
-	if client == nil || !client.IsLoggedIn() {
-		return ErrNotConnected
-	}
-	recipients, err := ownerRecipients(b.initial, client.OwnJID())
-	if err != nil {
+	if err := b.sender.deliverToOwners(ctx, testMessageText(now), "test message"); err != nil {
 		return err
-	}
-	text := testMessageText(b.initial, now)
-	var failed error
-	for _, to := range recipients {
-		if _, err := client.SendMessage(ctx, to, &waE2E.Message{Conversation: proto.String(text)}); err != nil {
-			integrationstatus.MarkWhatsAppDeliveryFailure()
-			failed = fmt.Errorf("send whatsapp test message: %w", err)
-			continue
-		}
-		integrationstatus.MarkWhatsAppOutbound(now)
-	}
-	if failed != nil {
-		return failed
 	}
 	integrationstatus.MarkWhatsAppTest(now)
 	return nil

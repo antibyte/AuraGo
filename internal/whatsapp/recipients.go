@@ -34,12 +34,8 @@ func ownerRecipients(cfg config.WhatsAppConfig, own types.JID) ([]types.JID, err
 	return out, nil
 }
 
-// testMessageText is the manual test message. In self_chat mode it carries
-// the prefix so it stands out from the owner's own notes.
-func testMessageText(cfg config.WhatsAppConfig, now time.Time) string {
-	text := "AuraGo WhatsApp test (manual) — " + now.UTC().Format(time.RFC3339)
-	if cfg.Mode == config.WhatsAppModeSelfChat {
-		return cfg.SelfChatPrefix + text
-	}
-	return text
+// testMessageText is the manual test message. It carries no self-chat prefix:
+// the sender adds self_chat_prefix to every outgoing text, this one included.
+func testMessageText(now time.Time) string {
+	return "AuraGo WhatsApp test (manual) — " + now.UTC().Format(time.RFC3339)
 }
