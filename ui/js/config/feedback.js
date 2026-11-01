@@ -421,7 +421,7 @@
         if (typeof opts.retry === 'function' && (state === 'error' || state === 'unknown' || state === 'degraded')) {
             const retry = document.createElement('button');
             retry.type = 'button';
-            retry.className = 'cfg-state-retry';
+            retry.className = 'btn-secondary cfg-state-retry';
             retry.textContent = text('config.status.retry', 'Check again');
             retry.addEventListener('click', event => {
                 event.preventDefault();

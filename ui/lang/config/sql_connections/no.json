@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "Tilkoblingsnavn",
   "config.sql_connections.name_placeholder": "f.eks. Produksjon DB",
   "config.sql_connections.name_required": "Tilkoblingsnavn er påkrevd.",
-  "config.sql_connections.new_connection": "＋ Ny tilkobling",
+  "config.sql_connections.new_connection": "Ny tilkobling",
   "config.sql_connections.password_label": "Passord",
   "config.sql_connections.password_placeholder": "Databasepassord",
   "config.sql_connections.perm_change": "Endre (UPDATE)",

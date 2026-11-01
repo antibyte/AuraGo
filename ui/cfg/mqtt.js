@@ -306,7 +306,7 @@ async function renderMQTTSection(section) {
         mqttCheckStatus();
         mqttRefreshMessages();
     } else {
-        cfgListState('mqtt-messages-list', { state: 'empty', title: t('config.mqtt.messages_empty') });
+        cfgListState('mqtt-messages-list', { state: 'empty', icon: 'chat', title: t('config.mqtt.messages_empty') });
     }
 }
 
@@ -359,7 +359,7 @@ function mqttRefreshMessages() {
         .then(r => r.json())
         .then(res => {
             if (!res.messages || res.messages.length === 0) {
-                cfgListState(list, { state: 'empty', title: t('config.mqtt.messages_empty') });
+                cfgListState(list, { state: 'empty', icon: 'chat', title: t('config.mqtt.messages_empty') });
                 return;
             }
             const html = res.messages.map(m => {

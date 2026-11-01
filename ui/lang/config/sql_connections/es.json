@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "Nombre de la conexión",
   "config.sql_connections.name_placeholder": "ej. BD Producción",
   "config.sql_connections.name_required": "El nombre de la conexión es obligatorio.",
-  "config.sql_connections.new_connection": "＋ Nueva conexión",
+  "config.sql_connections.new_connection": "Nueva conexión",
   "config.sql_connections.password_label": "Contraseña",
   "config.sql_connections.password_placeholder": "Contraseña de la base de datos",
   "config.sql_connections.perm_change": "Cambiar (UPDATE)",

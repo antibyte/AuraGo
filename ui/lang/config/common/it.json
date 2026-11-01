@@ -154,6 +154,7 @@
   "config.state.active": "Attiva",
   "config.state.configured": "Configurata, ma disattivata",
   "config.state.error": "Errore all’ultimo controllo",
+  "config.state.degraded": "Limitato all'ultimo controllo",
   "config.state.restart": "Riavvio necessario",
   "config.state.restart_reason": "La modifica ha effetto solo dopo un riavvio.",
   "config.overview.active_title": "Attive",

@@ -154,6 +154,7 @@
   "config.state.active": "Aktywna",
   "config.state.configured": "Skonfigurowana, ale wyłączona",
   "config.state.error": "Błąd podczas ostatniego sprawdzenia",
+  "config.state.degraded": "Ograniczone podczas ostatniego sprawdzenia",
   "config.state.restart": "Wymagany restart",
   "config.state.restart_reason": "Zmiana zacznie działać po restarcie.",
   "config.overview.active_title": "Aktywne",

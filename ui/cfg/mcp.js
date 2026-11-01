@@ -158,7 +158,7 @@ function mcpServerRenderCards() {
         return;
     }
     if (mcpServersCache.length === 0) {
-        cfgListState(wrap, { state: 'empty', title: t('config.mcp.empty') });
+        cfgListState(wrap, { state: 'empty', icon: 'plug', title: t('config.mcp.empty') });
         return;
     }
 

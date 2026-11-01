@@ -154,6 +154,7 @@
   "config.state.active": "Aktiv",
   "config.state.configured": "Eingerichtet, aber aus",
   "config.state.error": "Fehler bei der letzten Prüfung",
+  "config.state.degraded": "Eingeschränkt bei der letzten Prüfung",
   "config.state.restart": "Neustart nötig",
   "config.state.restart_reason": "Die Änderung wird erst nach einem Neustart wirksam.",
   "config.overview.active_title": "Aktiv",

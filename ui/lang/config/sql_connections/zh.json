@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "连接名称",
   "config.sql_connections.name_placeholder": "例如 生产数据库",
   "config.sql_connections.name_required": "连接名称为必填项。",
-  "config.sql_connections.new_connection": "＋ 新建连接",
+  "config.sql_connections.new_connection": "新建连接",
   "config.sql_connections.password_label": "密码",
   "config.sql_connections.password_placeholder": "数据库密码",
   "config.sql_connections.perm_change": "修改 (UPDATE)",

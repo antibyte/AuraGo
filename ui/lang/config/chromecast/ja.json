@@ -1,5 +1,6 @@
 {
   "config.chromecast.add_device": "追加",
+  "config.chromecast.add_device_title": "デバイスを追加",
   "config.chromecast.add_manual_btn": "手動で追加",
   "config.chromecast.already_added": "追加済み",
   "config.chromecast.cancel": "キャンセル",

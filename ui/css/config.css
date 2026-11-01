@@ -1466,6 +1466,8 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .wh-field-hint {
+    display: block;
+    margin: 0.25rem 0 0.75rem;
     font-size: var(--text-xs);
     color: var(--text-secondary);
 }

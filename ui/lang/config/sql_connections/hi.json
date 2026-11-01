@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "कनेक्शन का नाम",
   "config.sql_connections.name_placeholder": "उदा. प्रोडक्शन DB",
   "config.sql_connections.name_required": "कनेक्शन का नाम आवश्यक है।",
-  "config.sql_connections.new_connection": "＋ नया कनेक्शन",
+  "config.sql_connections.new_connection": "नया कनेक्शन",
   "config.sql_connections.password_label": "पासवर्ड",
   "config.sql_connections.password_placeholder": "डेटाबेस पासवर्ड",
   "config.sql_connections.perm_change": "बदलना (UPDATE)",

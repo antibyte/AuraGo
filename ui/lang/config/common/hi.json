@@ -154,6 +154,7 @@
   "config.state.active": "सक्रिय",
   "config.state.configured": "सेट अप है, पर बंद है",
   "config.state.error": "पिछली जाँच में त्रुटि",
+  "config.state.degraded": "पिछली जाँच में सीमित",
   "config.state.restart": "रीस्टार्ट ज़रूरी है",
   "config.state.restart_reason": "बदलाव रीस्टार्ट के बाद लागू होगा।",
   "config.overview.active_title": "सक्रिय",

@@ -403,7 +403,7 @@ function ccDialogBody() {
 
 // ── Show dialog (edit existing or add new); built fresh on every open and removed on close ──
 function ccShowEditModal(id, prefill) {
-    let titleText = t('config.chromecast.add_device');
+    let titleText = t('config.chromecast.add_device_title');
     let device = null;
     if (id) {
         device = ccDevicesCache.find(x => x.id === id);

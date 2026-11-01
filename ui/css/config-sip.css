@@ -860,3 +860,16 @@
         transition: none;
     }
 }
+
+/* The enable row spans the section like the other sections' enable rows: label + help left, switch right. */
+.pw-page[data-workspace-page="config"] .sip-settings-grid.sip-enable-row {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 1rem;
+}
+
+.pw-page[data-workspace-page="config"] .sip-enable-row > .sip-toggle-field {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+}

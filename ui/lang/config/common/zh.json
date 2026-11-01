@@ -154,6 +154,7 @@
   "config.state.active": "已启用",
   "config.state.configured": "已设置，但已关闭",
   "config.state.error": "上次检查出错",
+  "config.state.degraded": "上次检查时受限",
   "config.state.restart": "需要重启",
   "config.state.restart_reason": "更改将在重启后生效。",
   "config.overview.active_title": "已启用",

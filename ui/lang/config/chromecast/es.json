@@ -1,5 +1,6 @@
 {
   "config.chromecast.add_device": "Añadir",
+  "config.chromecast.add_device_title": "Añadir dispositivo",
   "config.chromecast.add_manual_btn": "Añadir manualmente",
   "config.chromecast.already_added": "Ya añadido",
   "config.chromecast.cancel": "Cancelar",

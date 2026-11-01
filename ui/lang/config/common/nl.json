@@ -154,6 +154,7 @@
   "config.state.active": "Actief",
   "config.state.configured": "Ingesteld, maar uit",
   "config.state.error": "Fout bij de laatste controle",
+  "config.state.degraded": "Beperkt bij de laatste controle",
   "config.state.restart": "Herstart nodig",
   "config.state.restart_reason": "De wijziging gaat pas in na een herstart.",
   "config.overview.active_title": "Actief",

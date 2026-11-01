@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "Όνομα σύνδεσης",
   "config.sql_connections.name_placeholder": "π.χ. Παραγωγική ΒΔ",
   "config.sql_connections.name_required": "Το όνομα σύνδεσης είναι υποχρεωτικό.",
-  "config.sql_connections.new_connection": "＋ Νέα σύνδεση",
+  "config.sql_connections.new_connection": "Νέα σύνδεση",
   "config.sql_connections.password_label": "Κωδικός πρόσβασης",
   "config.sql_connections.password_placeholder": "Κωδικός βάσης δεδομένων",
   "config.sql_connections.perm_change": "Αλλαγή (UPDATE)",

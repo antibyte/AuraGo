@@ -288,7 +288,7 @@ function sqlConnApplyFilter() {
     });
     sqlConnRenderRows(filtered);
     table.classList.toggle('is-hidden', filtered.length === 0);
-    if (filtered.length === 0) cfgListState('sqlconn-state', { state: 'empty', title: t('config.sql_connections.empty') });
+    if (filtered.length === 0) cfgListState('sqlconn-state', { state: 'empty', icon: 'database', title: t('config.sql_connections.empty') });
     else document.getElementById('sqlconn-state').replaceChildren();
 }
 

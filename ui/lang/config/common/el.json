@@ -154,6 +154,7 @@
   "config.state.active": "Ενεργό",
   "config.state.configured": "Ρυθμισμένο, αλλά ανενεργό",
   "config.state.error": "Σφάλμα στον τελευταίο έλεγχο",
+  "config.state.degraded": "Περιορισμένο στον τελευταίο έλεγχο",
   "config.state.restart": "Απαιτείται επανεκκίνηση",
   "config.state.restart_reason": "Η αλλαγή ισχύει μετά από επανεκκίνηση.",
   "config.overview.active_title": "Ενεργά",

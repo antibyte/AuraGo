@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "Verbindingsnaam",
   "config.sql_connections.name_placeholder": "bijv. Productie DB",
   "config.sql_connections.name_required": "Verbindingsnaam is vereist.",
-  "config.sql_connections.new_connection": "＋ Nieuwe verbinding",
+  "config.sql_connections.new_connection": "Nieuwe verbinding",
   "config.sql_connections.password_label": "Wachtwoord",
   "config.sql_connections.password_placeholder": "Databasewachtwoord",
   "config.sql_connections.perm_change": "Wijzigen (UPDATE)",

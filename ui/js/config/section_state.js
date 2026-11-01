@@ -1,6 +1,6 @@
 // State of a Config section for the sidebar dot and the overview:
-// active | configured | error | restart | off | none (precedence in that order
-// of urgency: error > restart > active > configured > off). The rules live in
+// active | configured | error | degraded | restart | off | none (precedence in that order
+// of urgency: error > degraded > restart > active > configured > off). The rules live in
 // AuraConfigCatalog.sectionStatePaths; values are read from the DRAFT, so a
 // switch that was just toggled changes the state before it is saved.
 (function () {
@@ -116,7 +116,7 @@
                 delete status[key];
                 writeJSON(STATUS_KEY, status);
             } else {
-                return { state: 'error', reason: String(failed.reason || '') };
+                return { state: failed.state === 'degraded' ? 'degraded' : 'error', reason: String(failed.reason || '') };
             }
         }
         const restart = readRestart();
@@ -127,7 +127,7 @@
     }
 
     function stateLabel(state) {
-        const fallback = { active: 'Active', configured: 'Set up, but off', error: 'Error at the last check', restart: 'Restart needed', off: 'Off', none: '' };
+        const fallback = { active: 'Active', configured: 'Set up, but off', error: 'Error at the last check', degraded: 'Limited at the last check', restart: 'Restart needed', off: 'Off', none: '' };
         return text('config.state.' + state, fallback[state] || '');
     }
 

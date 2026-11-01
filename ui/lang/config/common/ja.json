@@ -154,6 +154,7 @@
   "config.state.active": "有効",
   "config.state.configured": "設定済み（オフ）",
   "config.state.error": "前回のチェックでエラー",
+  "config.state.degraded": "前回のチェックで制限あり",
   "config.state.restart": "再起動が必要",
   "config.state.restart_reason": "変更は再起動後に反映されます。",
   "config.overview.active_title": "有効",

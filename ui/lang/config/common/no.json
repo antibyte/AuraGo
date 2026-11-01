@@ -154,6 +154,7 @@
   "config.state.active": "Aktiv",
   "config.state.configured": "Konfigurert, men av",
   "config.state.error": "Feil ved siste kontroll",
+  "config.state.degraded": "Begrenset ved siste kontroll",
   "config.state.restart": "Omstart nødvendig",
   "config.state.restart_reason": "Endringen trer først i kraft etter en omstart.",
   "config.overview.active_title": "Aktive",

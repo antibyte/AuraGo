@@ -20,7 +20,7 @@ async function renderServerSection(section) {
     const httpsEnabled = https.enabled === true;
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
-        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-describedby="server-https-desc" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
+        <div class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-describedby="server-https-desc" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></div>
     </div>`;
 
     if (httpsEnabled) {

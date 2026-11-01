@@ -100,7 +100,7 @@ function emailAccountRenderCards() {
         return;
     }
     if (emailAccountsCache.length === 0) {
-        cfgListState(wrap, { state: 'empty', title: t('config.email.empty') });
+        cfgListState(wrap, { state: 'empty', icon: 'mail', title: t('config.email.empty') });
         return;
     }
 

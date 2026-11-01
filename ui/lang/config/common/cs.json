@@ -154,6 +154,7 @@
   "config.state.active": "Aktivní",
   "config.state.configured": "Nastaveno, ale vypnuto",
   "config.state.error": "Chyba při poslední kontrole",
+  "config.state.degraded": "Omezeno při poslední kontrole",
   "config.state.restart": "Je nutný restart",
   "config.state.restart_reason": "Změna se projeví až po restartu.",
   "config.overview.active_title": "Aktivní",

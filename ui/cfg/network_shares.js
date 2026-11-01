@@ -301,7 +301,7 @@ function nsRenderShares() {
     const area = document.getElementById('ns-share-table');
     if (!area) return;
     if (!nsShares.length) {
-        cfgListState(area, { state: 'empty', title: t('config.network_shares.no_shares') });
+        cfgListState(area, { state: 'empty', icon: 'folder', title: t('config.network_shares.no_shares') });
         return;
     }
     area.innerHTML = `<div class="cfgdev-table-wrap"><table class="cfgdev-table">

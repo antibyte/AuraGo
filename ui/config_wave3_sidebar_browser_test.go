@@ -88,6 +88,14 @@ func TestConfigWave3SidebarStateBrowser(t *testing.T) {
 	}`)
 	waitForJSBool(t, page, `() => !document.querySelector('.pw-attention-item') && document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'active'`)
 
+	// A degraded banner result gets the amber dot, not the red one, and is still listed as needing attention.
+	page.MustEval(`() => window.cfgStatusBanner(document.getElementById('wave3-banner'), 'degraded', { detail: 'partly', section: 'adguard' })`)
+	if got := dot("adguard"); !strings.HasPrefix(got, "degraded|cfg-state-degraded|true|Limited at the last check: partly") {
+		t.Fatalf("banner degraded dot = %q", got)
+	}
+	page.MustEval(`() => window.cfgStatusBanner(document.getElementById('wave3-banner'), 'connected', { section: 'adguard' })`)
+	waitForJSBool(t, page, `() => document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'active'`)
+
 	// A stored failure of a section that is switched off is stale: no red dot, not in the overview.
 	page.MustEval(`() => {
 		sessionStorage.setItem('aurago.config.sectionStatus.v1', JSON.stringify({ adguard: { state: 'error', reason: 'old', at: Date.now() } }));

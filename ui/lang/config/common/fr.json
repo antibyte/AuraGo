@@ -154,6 +154,7 @@
   "config.state.active": "Actif",
   "config.state.configured": "Configuré, mais désactivé",
   "config.state.error": "Erreur lors de la dernière vérification",
+  "config.state.degraded": "Limité lors de la dernière vérification",
   "config.state.restart": "Redémarrage nécessaire",
   "config.state.restart_reason": "La modification ne prend effet qu’après un redémarrage.",
   "config.overview.active_title": "Actifs",

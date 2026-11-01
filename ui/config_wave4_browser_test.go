@@ -32,6 +32,11 @@ const configEnableFirstJS = `key => {
 	return {has: false};
 }`
 
+// Sections whose enable control is deliberately not the first control. Each entry needs a reason.
+var configEnableFirstExceptions = map[string]string{
+	"tts": "no master switch: the provider select is the switch, tts.piper.enabled only starts the optional local Piper container and lives in the Piper group",
+}
+
 func TestConfigEnableControlFirstBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	browser := newSmokeBrowser(t)
@@ -47,6 +52,9 @@ func TestConfigEnableControlFirstBrowser(t *testing.T) {
 	for _, section := range sections {
 		key := section.Str()
 		if _, skip := configGuardUnrenderable[key]; skip {
+			continue
+		}
+		if _, skip := configEnableFirstExceptions[key]; skip {
 			continue
 		}
 		page.MustEval(`async key => { await selectSection(key, {scrollBehavior:'auto', history:'replace'}); document.querySelectorAll('#content details').forEach(details => details.open = true); resetDirtySnapshot(); await new Promise(resolve => setTimeout(resolve, 350)); }`, key)

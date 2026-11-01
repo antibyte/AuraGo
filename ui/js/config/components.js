@@ -79,7 +79,13 @@
 
     // Loading / empty / error state inside a list container (element or id). Replaces its content.
     // state 'loading' | 'empty' | 'error'; title and text optional (defaults come from config.common.*);
-    // retry (function) adds "Try again" to the error state. Returns the element.
+    // retry (function) adds "Try again" to the error state; icon (cfgIcon name) overrides the muted
+    // state icon (empty: list, error: alert). Returns the element.
+    function stateIcon(name) {
+        const svg = icon(name);
+        return svg ? '<span class="cfg-list-state-icon" aria-hidden="true">' + svg + '</span>' : '';
+    }
+
     function cfgListState(target, opts) {
         const el = typeof target === 'string' ? document.getElementById(target) : target;
         if (!el) return null;
@@ -90,12 +96,12 @@
             html = '<div class="pw-loading-state cfg-list-state" role="status"><span class="pw-skeleton skeleton" aria-hidden="true"></span><span>'
                 + esc(opts.title || text('config.common.loading', 'Loading...')) + '</span></div>';
         } else if (state === 'error') {
-            html = '<div class="pw-error-state cfg-list-state" role="alert"><strong>' + esc(opts.title || text('config.common.load_failed', 'This list could not be loaded.')) + '</strong>'
+            html = '<div class="pw-error-state cfg-list-state" role="alert">' + stateIcon(opts.icon || 'alert') + '<strong>' + esc(opts.title || text('config.common.load_failed', 'This list could not be loaded.')) + '</strong>'
                 + (opts.text ? '<p>' + esc(opts.text) + '</p>' : '')
                 + (typeof opts.retry === 'function' ? '<button type="button" class="btn-secondary" data-cfg-retry>' + icon('refresh') + '<span>' + esc(text('config.common.retry', 'Try again')) + '</span></button>' : '')
                 + '</div>';
         } else {
-            html = '<div class="pw-empty-state cfg-list-state" role="status"><h3>' + esc(opts.title || text('config.common.empty', 'Nothing here yet.')) + '</h3>'
+            html = '<div class="pw-empty-state cfg-list-state" role="status">' + stateIcon(opts.icon || 'list') + '<h3>' + esc(opts.title || text('config.common.empty', 'Nothing here yet.')) + '</h3>'
                 + (opts.text ? '<p>' + esc(opts.text) + '</p>' : '') + (opts.actionHTML || '') + '</div>';
         }
         el.innerHTML = html;

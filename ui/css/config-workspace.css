@@ -1695,6 +1695,7 @@
 .pw-page[data-workspace-page="config"] .cfg-state-active { --cfg-state-color: var(--pw-success, #4ade80); }
 .pw-page[data-workspace-page="config"] .cfg-state-configured { --cfg-state-color: var(--pw-muted); }
 .pw-page[data-workspace-page="config"] .cfg-state-error { --cfg-state-color: var(--pw-danger, #fb7185); }
+.pw-page[data-workspace-page="config"] .cfg-state-degraded { --cfg-state-color: var(--pw-warning, #f6c453); }
 .pw-page[data-workspace-page="config"] .cfg-state-restart { --cfg-state-color: var(--pw-warning, #f6c453); }
 
 .pw-page[data-workspace-page="config"] .cfg-state-dot.cfg-state-configured {
@@ -1916,3 +1917,97 @@
     color: var(--pw-muted);
 }
 
+
+/* Config dialogs fit the viewport: header and actions stay put, only the body scrolls. */
+.pw-page[data-workspace-page="config"] .cfg-modal-overlay {
+    align-items: center;
+    overflow-y: hidden;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-modal-overlay .modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2 * var(--pw-space-5));
+    margin: 0;
+    overflow: hidden;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-modal-overlay .modal > :is(.modal-header, .modal-actions) {
+    flex: none;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-modal-overlay .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="config"] .cfg-modal-overlay {
+        align-items: flex-end;
+    }
+
+    .pw-page[data-workspace-page="config"] .cfg-modal-overlay .modal {
+        max-height: calc(100dvh - 1rem);
+    }
+}
+
+/* Status banner retry uses the shared secondary button; keep it compact inside the banner. */
+.pw-page[data-workspace-page="config"] .cfg-state-banner .cfg-state-retry {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: var(--pw-help-size);
+}
+
+/* Compact, centred empty and error states with a muted icon. */
+.pw-page[data-workspace-page="config"] :is(.pw-empty-state, .pw-error-state).cfg-list-state {
+    min-height: 0;
+    place-items: center;
+    gap: 0.35rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-list-state .cfg-list-state-icon {
+    display: inline-grid;
+    place-items: center;
+    color: var(--pw-subtle, var(--pw-muted));
+}
+
+.pw-page[data-workspace-page="config"] .cfg-list-state .cfg-list-state-icon .cfg-ui-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.pw-page[data-workspace-page="config"] .pw-error-state.cfg-list-state .cfg-list-state-icon {
+    color: var(--pw-danger);
+}
+
+.pw-page[data-workspace-page="config"] .cfg-list-state :is(h3, strong) {
+    margin: 0;
+    font-size: var(--pw-help-size, 0.875rem);
+    font-weight: 600;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-list-state p {
+    margin: 0;
+    font-size: var(--pw-help-size, 0.875rem);
+}
+
+/* Icon-only delete: ghost danger button, same footprint as the neighbouring icon buttons. */
+.pw-page[data-workspace-page="config"] .cfg-delete-btn.is-icon-only {
+    padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--pw-danger);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-delete-btn.is-icon-only:is(:hover, :focus-visible) {
+    border-color: var(--pw-danger);
+    background: color-mix(in srgb, var(--pw-danger) 14%, transparent);
+    transform: none;
+    box-shadow: none;
+}

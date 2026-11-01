@@ -22,10 +22,8 @@ function renderTTSSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    // E5: the Piper container switch is the section's enable control (tts.piper.enabled), so it comes first with its status.
-    html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
-    html += AuraConfigForm.toggle({ label: t('config.tts.piper_enabled_label'), help: t('config.tts.piper_enabled_help'), path: 'tts.piper.enabled', value: piperEnabled });
-
+    // TTS has no master switch: the provider choice is the switch. The Piper container switch (tts.piper.enabled)
+    // belongs to the Piper group further down and is the documented exception of the enable-first guard.
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.provider_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.provider_help') + '</div>';
@@ -275,6 +273,8 @@ function renderTTSSection(section) {
     html += '</div>';
 
     html += '<div class="tts-subsection-title">' + cfgIcon('speaker') + ' ' + t('config.tts.title_piper') + '</div>';
+    html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
+    html += AuraConfigForm.toggle({ label: t('config.tts.piper_enabled_label'), help: t('config.tts.piper_enabled_help'), path: 'tts.piper.enabled', value: piperEnabled });
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_voice_label') + '</div>';

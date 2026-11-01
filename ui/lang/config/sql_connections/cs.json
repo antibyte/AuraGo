@@ -33,7 +33,7 @@
   "config.sql_connections.name_label": "Název připojení",
   "config.sql_connections.name_placeholder": "např. Produkční DB",
   "config.sql_connections.name_required": "Název připojení je povinný.",
-  "config.sql_connections.new_connection": "＋ Nové připojení",
+  "config.sql_connections.new_connection": "Nové připojení",
   "config.sql_connections.password_label": "Heslo",
   "config.sql_connections.password_placeholder": "Heslo k databázi",
   "config.sql_connections.perm_change": "Změna (UPDATE)",

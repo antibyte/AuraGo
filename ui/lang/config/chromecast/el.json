@@ -1,5 +1,6 @@
 {
   "config.chromecast.add_device": "Προσθήκη",
+  "config.chromecast.add_device_title": "Προσθήκη συσκευής",
   "config.chromecast.add_manual_btn": "Χειροκίνητη προσθήκη",
   "config.chromecast.already_added": "Ήδη προστέθηκε",
   "config.chromecast.cancel": "Ακύρωση",

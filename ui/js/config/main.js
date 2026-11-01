@@ -1068,7 +1068,7 @@ function updateSidebarStates() {
         const key = item.dataset.section;
         if (key === 'overview') return;
         const { state, reason } = configSectionStateOf(key);
-        const shown = state === 'active' || state === 'configured' || state === 'error' || state === 'restart';
+        const shown = state === 'active' || state === 'configured' || state === 'error' || state === 'degraded' || state === 'restart';
         const dot = item.querySelector('.cfg-state-dot');
         const hidden = item.querySelector('.cfg-state-text');
         item.dataset.state = state;
@@ -1093,7 +1093,7 @@ function applySidebarFilter() {
         let groupShown = 0;
         groupEl.querySelectorAll('.sidebar-item').forEach(item => {
             const state = item.dataset.state || 'none';
-            const keep = !only || item.dataset.section === activeSection || state === 'active' || state === 'error' || state === 'restart';
+            const keep = !only || item.dataset.section === activeSection || state === 'active' || state === 'error' || state === 'degraded' || state === 'restart';
             item.classList.toggle('cfg-filter-hidden', !keep);
             if (keep && !item.classList.contains('hidden')) groupShown++;
         });
@@ -1602,7 +1602,7 @@ function overviewStateBlocks() {
     const attention = [];
     SECTIONS.forEach(group => group.items.forEach(section => {
         const { state, reason, blocked } = configSectionStateOf(section.key);
-        if (state === 'error' || state === 'restart') attention.push({ section, state, reason });
+        if (state === 'error' || state === 'degraded' || state === 'restart') attention.push({ section, state, reason });
         else if (blocked) attention.push({ section, state: 'blocked', reason: blocked });
         else if (state === 'active') active.push(section);
     }));

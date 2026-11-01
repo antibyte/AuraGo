@@ -154,6 +154,7 @@
   "config.state.active": "Active",
   "config.state.configured": "Set up, but off",
   "config.state.error": "Error at the last check",
+  "config.state.degraded": "Limited at the last check",
   "config.state.restart": "Restart needed",
   "config.state.restart_reason": "The change takes effect after a restart.",
   "config.overview.active_title": "Active",
