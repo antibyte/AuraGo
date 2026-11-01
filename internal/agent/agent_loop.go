@@ -1380,11 +1380,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.EmotionDescription = emotionDescription
 			}
 
-			// Inner Voice: inject if available and not decayed. During active
-			// tool recovery, keep the next prompt strictly procedural. The flags
-			// outlive the iteration, so the gate decides afresh every time.
+			// Inner Voice: inject if available and not decayed. Excluded during
+			// active tool-error recovery (strictly procedural prompt); successful
+			// tool rounds keep it so the final answer sees it. The flags outlive
+			// the iteration, so the gate decides afresh every time. The local
+			// recoveryState is a snapshot from loop start; tool results update
+			// s.recoveryState, which holds the live error count.
 			flags.InnerVoice = ""
-			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent, lastResponseWasTool) {
+			if shouldInjectInnerVoiceIntoPrompt(cfg, s.recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent) {
 				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
 					// The category selects a fixed Go-written hint for the trusted

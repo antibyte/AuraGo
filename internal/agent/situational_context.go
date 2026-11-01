@@ -153,14 +153,14 @@ func getInnerVoiceForPrompt(sessionID string, decayTurns, decayMaxAgeSecs int) (
 	return state.currentThought, state.nudgeCategory
 }
 
-func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int, isMission bool, isCoAgent bool, lastResponseWasTool bool) bool {
+// shouldInjectInnerVoiceIntoPrompt gates the prompt injection of the stored thought
+// and its stance hint. Active tool-error recovery (consecutive errors) stays
+// procedural; successful tool rounds keep the thought so the final answer sees it.
+func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int, isMission bool, isCoAgent bool) bool {
 	if cfg == nil || !cfg.Personality.InnerVoice.Enabled {
 		return false
 	}
 	if isMission || isCoAgent {
-		return false
-	}
-	if lastResponseWasTool {
 		return false
 	}
 	return consecutiveErrors == 0
