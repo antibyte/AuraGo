@@ -8,6 +8,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
+	"aurago/internal/tools"
 	"aurago/internal/whatsapp"
 )
 
@@ -59,10 +60,15 @@ func (s *Server) whatsApp() whatsAppController {
 	return serverWhatsApp{s: s}
 }
 
-// configureWhatsAppBot publishes the Bot generation for the current config.
+// configureWhatsAppBot publishes the Bot generation for the current config. It also publishes
+// the owner-send hook to internal/tools once; the hook reads the running Bot on every call, so a
+// later generation needs no republication. After shutdown nothing is published.
 func (s *Server) configureWhatsAppBot() {
 	s.whatsAppLifecycleMu.Lock()
 	defer s.whatsAppLifecycleMu.Unlock()
+	if !s.whatsAppClosed {
+		tools.SetWhatsAppOwnerSender(whatsAppOwnerSender{s})
+	}
 	s.configureWhatsAppBotLocked(false)
 }
 
@@ -129,6 +135,8 @@ func (s *Server) stopWhatsApp() {
 	if previous := s.whatsAppBot.Swap(nil); previous != nil {
 		previous.Stop()
 	}
+	// The Bot is drained; only now does the owner-send hook go, and only while it is ours.
+	tools.WithdrawWhatsAppOwnerSender(whatsAppOwnerSender{s})
 }
 
 // cancelWhatsAppLinkLocked cancels a running link session and waits for its
