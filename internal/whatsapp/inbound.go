@@ -22,7 +22,8 @@ const (
 	dropNewsletter        = "newsletter"
 	dropGroup             = "group"
 	dropEmpty             = "empty"
-	dropEdit              = "edit" // edits, pins and revokes (Info.Edit)
+	dropEmptyID           = "empty_id" // no message ID: neither echo nor duplicate can be judged
+	dropEdit              = "edit"     // edits, pins and revokes (Info.Edit)
 	dropProtocol          = "protocol"
 	dropReaction          = "reaction"
 	dropPoll              = "poll"
@@ -101,14 +102,20 @@ func (f *inboundFilter) accept(ctx context.Context, client waClient, evt *events
 		return inboundMessage{}, dropNewsletter
 	case info.IsGroup || chat.Server == types.GroupServer:
 		return inboundMessage{}, dropGroup
+	case info.Sender.IsBot(): // bot accounts never reach owner resolution
+		return inboundMessage{}, dropUnsupportedSender
 	}
 	if evt.Message == nil && evt.RawMessage != nil { // 3. whatsmeow unwraps already (UnwrapRaw)
 		evt.UnwrapRaw()
+		info = evt.Info // UnwrapRaw fills DeviceSentMeta, which the self-chat check reads
 	}
 	if reason := kindDropReason(evt); reason != "" {
 		return inboundMessage{}, reason
 	}
 	id := string(info.ID)
+	if id == "" { // an empty ID would be accepted again and again
+		return inboundMessage{}, dropEmptyID
+	}
 	if f.sent.Contains(id) { // 4.
 		return inboundMessage{}, dropEcho
 	}
@@ -120,7 +127,7 @@ func (f *inboundFilter) accept(ctx context.Context, client waClient, evt *events
 	}
 	var owner types.JID
 	var reason string
-	if f.mode == config.WhatsAppModeSelfChat { // 8. before any content is read
+	if f.mode == config.WhatsAppModeSelfChat { // 8. decided from the message source, never from its text
 		owner, reason = selfChatOwner(info, client.OwnJID(), client.OwnLID())
 	} else { // 7.
 		owner, reason = f.dedicatedOwner(ctx, client, info)
@@ -232,9 +239,36 @@ func selfChatOwner(info types.MessageInfo, own, ownLID types.JID) (types.JID, st
 	switch {
 	case !info.IsFromMe || own.IsEmpty():
 		return types.EmptyJID, dropNotSelfChat
+	case info.DeviceSentMeta != nil && !deviceSentToOwnAccount(info.DeviceSentMeta.DestinationJID, own, ownLID):
+		// whatsmeow falls back to the own account as Chat when the stanza has no
+		// recipient. The end-to-end destination of an own-device copy decides.
+		return types.EmptyJID, dropNotSelfChat
 	case chat.Server == types.DefaultUserServer && chat.User == own.User,
 		chat.Server == types.HiddenUserServer && !ownLID.IsEmpty() && chat.User == ownLID.User:
 		return own.ToNonAD(), ""
 	}
 	return types.EmptyJID, dropNotSelfChat
+}
+
+// deviceSentToOwnAccount reports whether the destination of an own-device copy
+// is the account itself. An empty destination leaves the chat as whatsmeow
+// derived it; one that does not parse never counts.
+func deviceSentToOwnAccount(destination string, own, ownLID types.JID) bool {
+	if destination == "" {
+		return true
+	}
+	jid, err := types.ParseJID(destination)
+	if err != nil {
+		return false
+	}
+	jid = jid.ToNonAD()
+	switch {
+	case jid.User == "":
+		return false
+	case jid.Server == types.DefaultUserServer:
+		return jid.User == own.User
+	case jid.Server == types.HiddenUserServer:
+		return !ownLID.IsEmpty() && jid.User == ownLID.User
+	}
+	return false
 }

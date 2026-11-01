@@ -152,6 +152,7 @@ func TestInboundDropsChatsAuraGoNeverServes(t *testing.T) {
 	newsletter := dmInfo("n1", inboundOwnerJID)
 	newsletter.Chat = types.NewJID("120363111111111111", types.NewsletterServer)
 	newsletter.Sender = newsletter.Chat
+	bot := dmInfo("bot1", types.NewJID("13135550123", types.DefaultUserServer)) // Meta AI bot account shape
 	for _, c := range []struct {
 		info types.MessageInfo
 		want string
@@ -160,6 +161,7 @@ func TestInboundDropsChatsAuraGoNeverServes(t *testing.T) {
 		{list, dropBroadcast},
 		{status, dropStatusBroadcast},
 		{newsletter, dropNewsletter},
+		{bot, dropUnsupportedSender},
 	} {
 		if _, reason := f.accept(context.Background(), client, msgEvent(c.info, textMsg("x")), time.Time{}); reason != c.want {
 			t.Errorf("chat %s: reason = %q, want %q", c.info.Chat.Server, reason, c.want)
@@ -215,6 +217,12 @@ func TestInboundEchoDedupeAndOfflineCutoff(t *testing.T) {
 	accept := func(info types.MessageInfo, cutoff time.Time) string {
 		_, reason := f.accept(ctx, client, msgEvent(info, textMsg("x")), cutoff)
 		return reason
+	}
+
+	for i := 0; i < 2; i++ { // an empty ID is never accepted, however often it arrives
+		if reason := accept(dmInfo("", inboundOwnerJID), time.Time{}); reason != dropEmptyID {
+			t.Fatalf("empty ID, delivery %d: reason = %q, want %q", i+1, reason, dropEmptyID)
+		}
 	}
 
 	sent.Add("echo-1")
@@ -280,5 +288,49 @@ func TestInboundSelfChatAcceptsOnlyTheOwnChat(t *testing.T) {
 	noLID := &fakeClient{own: testOwn}
 	if _, reason := f.accept(ctx, noLID, msgEvent(own("s5", lidJID(inboundOwnLID), true), textMsg("note")), time.Time{}); reason != dropNotSelfChat {
 		t.Fatalf("LID chat without an own LID: reason = %q, want %q", reason, dropNotSelfChat)
+	}
+}
+
+func TestInboundSelfChatRejectsDeviceSentToContact(t *testing.T) {
+	f, _, _ := newTestFilter(config.WhatsAppModeSelfChat)
+	client := &fakeClient{own: testOwn, ownLID: lidJID(inboundOwnLID)}
+	ctx := context.Background()
+	// whatsmeow derives Chat from the stanza's recipient and falls back to the own
+	// account, so an own-device copy without a recipient looks like a self-chat note.
+	// The end-to-end destination in the DeviceSentMessage wrapper tells the truth.
+	copyTo := func(destination string) *waE2E.Message {
+		return &waE2E.Message{DeviceSentMessage: &waE2E.DeviceSentMessage{DestinationJID: proto.String(destination), Message: textMsg("note")}}
+	}
+	own := dmInfo("", testOwn)
+	own.IsFromMe = true
+	info := func(id string) types.MessageInfo {
+		i := own
+		i.ID = types.MessageID(id)
+		return i
+	}
+
+	for _, c := range []struct {
+		name        string
+		destination string
+		want        string
+	}{
+		{"a contact's phone", inboundStrangerUser + "@s.whatsapp.net", dropNotSelfChat},
+		{"a contact's LID", inboundStrangerLID + "@lid", dropNotSelfChat},
+		{"an unparsable destination", "1.2.3@s.whatsapp.net", dropNotSelfChat},
+		{"the own phone", "4917099990000@s.whatsapp.net", ""},
+		{"the own phone with a device", "4917099990000:7@s.whatsapp.net", ""},
+		{"the own LID", inboundOwnLID + "@lid", ""},
+		{"no destination", "", ""},
+	} {
+		id := "ds-" + c.name
+		if _, reason := f.accept(ctx, client, msgEvent(info(id), copyTo(c.destination)), time.Time{}); reason != c.want {
+			t.Errorf("destination %s: reason = %q, want %q", c.name, reason, c.want)
+		}
+	}
+
+	// An event nobody unwrapped yet (the filter unwraps it) must be judged on the same destination.
+	handBuilt := &events.Message{Info: info("ds-hand-built"), RawMessage: copyTo(inboundStrangerUser + "@s.whatsapp.net")}
+	if _, reason := f.accept(ctx, client, handBuilt, time.Time{}); reason != dropNotSelfChat {
+		t.Errorf("hand-built event with a contact destination: reason = %q, want %q", reason, dropNotSelfChat)
 	}
 }
