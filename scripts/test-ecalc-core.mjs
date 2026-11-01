@@ -294,6 +294,64 @@ for (const item of calculators) {
     count += 9;
 }
 
+// ---- the store: every change is a read-modify-write, so two windows never overwrite each other -------------------------
+{
+    const storeWindow = {}, listeners = [];
+    storeWindow.addEventListener = (type, fn) => listeners.push({ type, fn });
+    storeWindow.removeEventListener = (type, fn) => { const at = listeners.findIndex(entry => entry.type === type && entry.fn === fn); if (at >= 0) listeners.splice(at, 1); };
+    vm.runInNewContext(read('ui/js/desktop/apps/ecalc/ecalc-store.js'), { window: storeWindow, setTimeout, clearTimeout });
+    const Store = storeWindow.ECalcStore;
+    const backing = new Map();
+    const fake = { getItem: key => (backing.has(key) ? backing.get(key) : null), setItem: (key, value) => backing.set(key, String(value)) };
+    const saved = () => JSON.parse(backing.get(Store.KEY));
+    const entry = (inputs, recency) => ({ inputs, recency, locked: [], choices: {} });
+
+    const a = Store.create(fake), b = Store.create(fake);   // two windows opened on an empty storage
+    a.toggleFavorite('ohms_law');
+    b.saveCalc('voltage_divider', entry({ vin: '12 V', r1: '1k', r2: '1k' }, ['vin', 'r1', 'r2']));
+    b.flush();
+    eq(saved().favorites, ['ohms_law'], 'B saving a value keeps the favorite A added');
+    eq(Object.keys(saved().values), ['voltage_divider'], 'a value saved by B does not drop the favorite of A');
+    a.setUnit('voltage_divider', 'vout', 'prefix:m');
+    b.pushRecent('star_delta');
+    a.set('sig', 5);
+    b.set('eseries', 'E96');
+    b.toggleFavorite('star_delta');
+    const mixed = saved();
+    eq([mixed.favorites, mixed.recents, mixed.last, mixed.units, mixed.sig, mixed.eseries, Object.keys(mixed.values)],
+        [['ohms_law', 'star_delta'], ['star_delta'], 'star_delta', { 'voltage_divider.vout': 'prefix:m' }, 5, 'E96', ['voltage_divider']], 'every setting of either window survives');
+    a.saveCalc('ohms_law', entry({ u: '5 V', i: '1 mA' }, ['u', 'i']));
+    b.toggleFavorite('ohms_law');   // storage is read again: the pending value of A is not lost and A's favorites are not restored
+    eq(saved().favorites, ['star_delta'], 'B removes the favorite A added');
+    a.flush();
+    eq([saved().favorites, Object.keys(saved().values).sort()], [['star_delta'], ['ohms_law', 'voltage_divider']], 'the pending value of A is written without reviving the removed favorite');
+    const fresh = Store.create(fake);
+    eq([fresh.isFavorite('star_delta'), fresh.isFavorite('ohms_law'), fresh.unitOf('voltage_divider', 'vout'), fresh.calcState('ohms_law').inputs], [true, false, 'prefix:m', { u: '5 V', i: '1 mA' }], 'a window opened later sees the merged result');
+    assert.equal(b.toggleFavorite('star_delta'), false, 'toggleFavorite reports the direction');
+    assert.equal(b.isFavorite('star_delta'), false);
+    a.dispose(); b.dispose(); fresh.dispose();
+
+    // The default storage listens to the storage event of the other windows; dispose stops that.
+    storeWindow.localStorage = fake;
+    const c = Store.create();
+    assert.equal(listeners.length, 1, 'the default storage listens for the storage event');
+    backing.set(Store.KEY, JSON.stringify(Object.assign(saved(), { sig: 6 })));
+    listeners[0].fn({ key: 'unrelated' });
+    assert.equal(c.prefs().sig, 5, 'a foreign key is ignored');
+    listeners[0].fn({ key: Store.KEY });
+    assert.equal(c.prefs().sig, 6, 'the change of the other window is picked up');
+    c.dispose();
+    assert.equal(listeners.length, 0, 'dispose removes the listener');
+
+    // Blocked storage: the store keeps working in memory.
+    const blocked = Store.create({ getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } });
+    blocked.toggleFavorite('ohms_law');
+    blocked.set('sig', 3);
+    eq([blocked.prefs().favorites, blocked.prefs().sig], [['ohms_law'], 3], 'blocked storage keeps the changes in memory');
+    blocked.dispose();
+    count += 12;
+}
+
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------
 {
     const ctx = { labelOf: name => ({ vout: 'V_out', vin: 'V_in', r2: 'R_2', r1: 'R_1' }[name] || ''), constOf: name => (name === 'k' ? '20' : undefined) };

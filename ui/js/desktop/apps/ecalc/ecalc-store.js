@@ -42,56 +42,94 @@
 
     // `storage` is injectable for tests; the default is window.localStorage, looked up inside the try block because
     // merely touching it can throw when the browser blocks storage.
+    //
+    // Several ECalc windows share one key, so no window may write back what it loaded at the start: every change is a
+    // read-modify-write (read and normalize what storage holds now, apply only that change, save). prefs() is the
+    // in-memory copy, refreshed by each change and, for the default storage, by the storage event of the other windows.
     function create(storage) {
         const backend = () => storage || window.localStorage;
-        let prefs;
-        try {
-            const raw = backend().getItem(KEY);
-            prefs = normalize(raw ? JSON.parse(raw) : {});
-        } catch (error) {
-            prefs = normalize({});
+        // What storage holds now, normalized; null when it cannot be read.
+        function stored() {
+            try {
+                const raw = backend().getItem(KEY);
+                return normalize(raw ? JSON.parse(raw) : {});
+            } catch (error) {
+                return null;
+            }
         }
+        let prefs = stored() || normalize({});
+        // Inputs of calculators wait for the typing pause; they are laid over whatever storage holds when they are written.
+        const pending = new Map();
         let timer = 0;
-        function save() {
+        function overlay(base) {
+            for (const [id, entry] of pending) base.values[id] = entry;
+            return base;
+        }
+        function commit(change) {
+            const base = overlay(stored() || prefs);
+            change(base);
+            prefs = base;
+            pending.clear();
+            clearTimeout(timer);
+            timer = 0;
             try { backend().setItem(KEY, JSON.stringify(prefs)); } catch (error) { /* blocked or full storage: keep going in memory */ }
         }
         // Keystrokes persist after a short pause; everything else saves at once.
         function saveSoon() {
             clearTimeout(timer);
-            timer = setTimeout(() => { timer = 0; save(); }, 250);
+            timer = setTimeout(flush, 250);
         }
         function flush() {
-            if (timer) { clearTimeout(timer); timer = 0; save(); }
+            if (pending.size) commit(() => {});
         }
+        // Another window changed the shared key.
+        function onStorage(event) {
+            if (event.key !== null && event.key !== KEY) return;
+            const fresh = stored();
+            if (fresh) prefs = overlay(fresh);
+        }
+        const listening = !storage && typeof window.addEventListener === 'function';
+        if (listening) window.addEventListener('storage', onStorage);
         return {
             prefs: () => prefs,
             set(key, value) {
-                prefs = normalize(Object.assign({}, prefs, { [key]: value }));
-                save();
+                commit(base => {
+                    const next = normalize(Object.assign({}, base, { [key]: value }));
+                    if (Object.prototype.hasOwnProperty.call(next, key)) base[key] = next[key];
+                });
             },
             isFavorite: id => prefs.favorites.includes(id),
+            // The direction follows what this window shows; the list it is applied to is the one in storage.
             toggleFavorite(id) {
                 const on = !prefs.favorites.includes(id);
-                prefs.favorites = on ? textList(prefs.favorites.concat([id]), MAX_FAVORITES) : prefs.favorites.filter(entry => entry !== id);
-                save();
+                commit(base => { base.favorites = on ? textList(base.favorites.concat([id]), MAX_FAVORITES) : base.favorites.filter(entry => entry !== id); });
                 return on;
             },
             pushRecent(id) {
-                prefs.recents = [id].concat(prefs.recents.filter(entry => entry !== id)).slice(0, MAX_RECENTS);
-                prefs.last = id;
-                save();
+                commit(base => {
+                    base.recents = [id].concat(base.recents.filter(entry => entry !== id)).slice(0, MAX_RECENTS);
+                    base.last = id;
+                });
             },
             unitOf: (calcId, varId) => prefs.units[calcId + '.' + varId],
             setUnit(calcId, varId, unit) {
-                if (unit) prefs.units[calcId + '.' + varId] = unit; else delete prefs.units[calcId + '.' + varId];
-                save();
+                commit(base => { if (unit) base.units[calcId + '.' + varId] = unit; else delete base.units[calcId + '.' + varId]; });
             },
             calcState: id => prefs.values[id] || null,
             saveCalc(id, state) {
-                prefs.values[id] = { inputs: textMap(state.inputs), recency: textList(state.recency, 50), locked: textList(state.locked, 50), choices: textMap(state.choices) };
+                const entry = { inputs: textMap(state.inputs), recency: textList(state.recency, 50), locked: textList(state.locked, 50), choices: textMap(state.choices) };
+                pending.set(id, entry);
+                prefs.values[id] = entry;
                 saveSoon();
             },
-            flush
+            flush,
+            // Writes what is pending and stops listening to the other windows.
+            dispose() {
+                flush();
+                clearTimeout(timer);
+                timer = 0;
+                if (listening) window.removeEventListener('storage', onStorage);
+            }
         };
     }
 

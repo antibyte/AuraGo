@@ -83,7 +83,7 @@
             disposed = true;
             if (shell) shell.dispose();
             shell = null;
-            store.flush();
+            store.dispose();
             root.replaceChildren();
         });
         void load();
