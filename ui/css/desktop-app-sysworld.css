@@ -190,6 +190,10 @@
 .sw-flight-stat strong { font-size: 15px; font-weight: 600; }
 .sw-flight-hint { grid-column: 1 / -1; font-size: 10px; color: var(--sw-muted); }
 .sysworld.sw-flying .sw-street-help > span:first-child { display: none; }
+/* Climb and descend sit on the movement pad, only while a hover-pack flight runs. */
+.sysworld:not(.sw-flying) .sw-flight-key { display: none; }
+.sw-flight-key { touch-action: none; }
+.sw-flight-key[data-sw-action="flight-up"] { margin-left: 8px; }
 .sw-rail .sw-rail-toggle { display: none; }
 .sw-pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 4px 8px; background: #081925c7; border: 1px solid #8ac9d855; border-radius: 5px; color: #c7e9ef !important; font-size: 10px !important; white-space: nowrap; box-shadow: 0 2px 15px #0003; transition: opacity 180ms ease, visibility 0s, border-color 140ms, background-color 140ms; }
 .sw-pin::after { content: ''; position: absolute; height: 14px; width: 1px; background: #8ac9d888; left: 50%; top: 100%; }
@@ -302,6 +306,7 @@
 @media(pointer:coarse) {
     .sysworld .sw-btn, .sw-entity, .sw-quality { min-height: 44px; }
     .sw-interaction kbd, .sw-flight-hint { display: none; }
+    .sw-movement .sw-flight-key { min-width: 44px; min-height: 44px; }
     .sw-world>summary { min-height: 52px; }
 }
 @media(prefers-reduced-motion:reduce) {

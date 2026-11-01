@@ -97,8 +97,8 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-audio.js":      {"export function createCityAmbience", "createConvolver", "clearTimeout(eventTimer)", "thunder(", "setMood("},
 		"js/desktop/apps/sysworld-drones.js":     {"export function createDrones", "CatmullRomCurve3", "/^rotor_/", "dispose()"},
 		"js/desktop/apps/sysworld-data.js":       {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/desktop/integrations/dashboard/overview", "/api/desktop/integrations/knowledge-graph/nodes?limit=300"},
-		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()", "NS.map", "sw-map-camera", "sw-rail-toggle", "aria-expanded", "sw-scope", "sysworld.city.scope_idle", "flight(state)", "sysworld.city.flight_landing"},
-		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done", ".sw-map-board", ".sw-rail.sw-open", "data-mode=\"map\"", ".sw-scope-lens", ".sysworld.sw-scoping", ".sw-flight", ".sysworld.sw-flying"},
+		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()", "NS.map", "sw-map-camera", "sw-rail-toggle", "aria-expanded", "sw-scope", "sysworld.city.scope_idle", "flight(state)", "sysworld.city.flight_landing", "sysworld.city.flight_up", "sysworld.city.flight_down", "moveKey(key,false)"},
+		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done", ".sw-map-board", ".sw-rail.sw-open", "data-mode=\"map\"", ".sw-scope-lens", ".sysworld.sw-scoping", ".sw-flight", ".sysworld.sw-flying", ".sw-flight-key"},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, want := range markers {
@@ -233,6 +233,8 @@ func TestDesktopSysWorldTranslations(t *testing.T) {
 		"sysworld.city.flight_speed",
 		"sysworld.city.flight_landing",
 		"sysworld.city.flight_hint",
+		"sysworld.city.flight_up",
+		"sysworld.city.flight_down",
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {

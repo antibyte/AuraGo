@@ -151,6 +151,14 @@
             button.addEventListener('pointerdown',e=>{button.setPointerCapture(e.pointerId);inst.city?.moveKey(key,true);});
             ['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>inst.city?.moveKey(key,false)));
             movement.append(button);
+        }
+        // Hover-pack climb and descend on the same pad (Space and C for the scene), shown by CSS only while flying.
+        const flightKeys=[];
+        for(const [key,action,symbol,name]of[['Space','flight-up','▲','sysworld.city.flight_up'],['KeyC','flight-down','▼','sysworld.city.flight_down']]){
+            const button=btn(action,symbol,''),text=L(name);button.classList.add('sw-flight-key');button.title=text;button.setAttribute('aria-label',text);
+            button.addEventListener('pointerdown',e=>{button.setPointerCapture(e.pointerId);inst.city?.moveKey(key,true);});
+            ['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>inst.city?.moveKey(key,false)));
+            movement.append(button);flightKeys.push(key);
         }help.append(movement);shell.append(help);
         const message=el('div','sw-message sw-glass');message.setAttribute('role','status');message.hidden=true;shell.append(message);
         // Loading card fed by real byte progress (models of the tier plus surface textures).
@@ -367,7 +375,8 @@
             // Hover pack: `{altitude m, speed km/h, landing}` while flying, null once the ride has ended.
             flight(state){
                 const on=!!state;if(flightView.hidden===on){flightView.hidden=!on;root.classList.toggle('sw-flying',on);}
-                if(!on)return;
+                // The buttons vanish with the flight: a key still held then must not carry into the next one.
+                if(!on){for(const key of flightKeys)inst.city?.moveKey(key,false);return;}
                 const altitude=state.altitude.toLocaleString()+' m',speed=state.speed.toLocaleString()+' km/h',note=state.landing?L('sysworld.city.flight_landing'):'';
                 if(flightAltitude.textContent!==altitude)flightAltitude.textContent=altitude;
                 if(flightSpeed.textContent!==speed)flightSpeed.textContent=speed;

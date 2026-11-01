@@ -138,6 +138,41 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(190 * time.Second).MustWait(`()=>{const s=SysWorldApp.inspect(cityId).experience;world2Stops.add(s.station);return world2Stops.size===7;}`)
 	page.MustElement(".sw-interaction").MustClick()
 	page.Timeout(45 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.ride===null`)
+	// Hover pack at the southern dock (hoverPads[0], front towards the boulevard): strap it on, climb, fly,
+	// glide down and find the pack back in its dock. All seven discoveries are done, so the operations stop
+	// arrives at (0, 64.5) facing south: W walks south (+Z), A east (+X), D west (-X), S north (-Z).
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.hover.pads===5`)
+	page.MustEval(`()=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-station="operations"]').click();}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.ride===null&&Math.abs(SysWorldApp.inspect(cityId).position[2]-64.5)<.5`)
+	// West along the platform, north to the dock's row, west again: the dock itself fills x -11.7..-10.3, z 63.8..64.8.
+	axis(0, -8, input.KeyA, input.KeyD)
+	axis(2, 62.9, input.KeyW, input.KeyS)
+	axis(0, -10.5, input.KeyA, input.KeyD)
+	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='hoverpack'`)
+	hold(input.KeyE, 60*time.Millisecond)
+	page.Timeout(5 * time.Second).MustWait(`()=>{const s=SysWorldApp.inspect(cityId).experience;return s.ride==='hover'&&s.hover.docked===4&&s.hover.flying;}`)
+	hold(input.Space, 1500*time.Millisecond)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),f=document.querySelector('.sw-flight'),k=document.querySelector('[data-sw-action="flight-up"]');
+        if(s.experience.hover.altitude<3||s.position[1]<5)throw Error('Space must lift the visitor: '+JSON.stringify(s.experience.hover));
+        if(f.hidden||!f.getBoundingClientRect().width||!/ m$/.test(f.querySelector('.sw-flight-stat strong').textContent))throw Error('The flight readout must show while flying');
+        if(getComputedStyle(k).display==='none'||k.getBoundingClientRect().width<30)throw Error('Climb and descend buttons belong to the flight');
+        window.hoverFrom=s.position;}`)
+	hold(input.KeyW, 600*time.Millisecond)
+	page.MustEval(`()=>{const p=SysWorldApp.inspect(cityId).position,q=window.hoverFrom;if(Math.hypot(p[0]-q[0],p[2]-q[2])<2.5)throw Error('W must fly forward: '+JSON.stringify([q,p]));window.hoverFrom=p;}`)
+	// The touch climb button is the same pointer-capture pad as the arrows.
+	up := page.MustEval(`()=>{const r=document.querySelector('[data-sw-action="flight-up"]').getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]}`).Arr()
+	page.Mouse.MustMoveTo(up[0].Num(), up[1].Num()).MustDown(proto.InputMouseButtonLeft)
+	time.Sleep(700 * time.Millisecond)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).position[1]<window.hoverFrom[1]+1)throw Error('The climb button must lift the visitor');}`)
+	page.MustScreenshot(filepath.Join(dir, "city-hover-flight.png"))
+	hold(input.KeyE, 60*time.Millisecond)
+	page.Timeout(5 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.hover.landing&&document.querySelector('.sw-flight-state').textContent!==''&&!document.querySelector('.sw-interaction').offsetParent`)
+	page.Timeout(60 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.ride===null`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),y=s.position[1];
+        if(s.experience.hover.docked!==5||s.experience.hover.flying)throw Error('The pack must be back in its dock: '+JSON.stringify(s.experience.hover));
+        if(y<2.3||y>3.4)throw Error('Landing must end at street eye height: '+y);
+        if(!document.querySelector('.sw-flight').hidden||getComputedStyle(document.querySelector('[data-sw-action="flight-up"]')).display!=='none')throw Error('The flight panel and its buttons must be gone');}`)
 	page.MustEval(`()=>{document.querySelector('.sw-world').open=true;[...document.querySelectorAll('.sw-world-destinations>button')][0].click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='drone'`)
 	page.MustElement(".sw-interaction").MustClick()
