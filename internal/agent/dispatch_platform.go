@@ -465,6 +465,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}
 			req := decodeTTSArgs(tc)
+			// The text becomes audio that leaves AuraGo (a cloud provider, a voice note in a chat),
+			// so a registered secret must not be spoken.
+			req.Text = security.Scrub(req.Text)
 			ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
 			var meta tools.TTSSynthesisMeta
 			ttsCfg.Result = &meta
