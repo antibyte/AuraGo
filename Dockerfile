@@ -51,7 +51,7 @@ RUN mkdir -p /deploy && \
 # Stage 2: Runtime
 # ============================================================
 # python:3.12-slim already ships Python 3 + pip.
-# We add ffmpeg (needed for Telegram voice conversion).
+# We add ffmpeg (needed for Telegram and WhatsApp voice conversion).
 FROM python:3.12-slim-bookworm AS runtime
 
 # ----- system dependencies -----

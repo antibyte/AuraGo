@@ -2152,7 +2152,7 @@ ensure_ffmpeg() {
             warn "ffmpeg installation failed. Install it manually for your distro and rerun the installer if you need voice conversion."
         fi
     else
-        warn "Skipping ffmpeg. Telegram voice messages will not work."
+        warn "Skipping ffmpeg. Telegram and WhatsApp voice messages will not work."
     fi
 }
 

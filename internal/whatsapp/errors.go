@@ -14,6 +14,10 @@ var (
 	// ErrRecipientNotOnWhatsApp wraps whatsmeow's error when WhatsApp does not
 	// know an owner number.
 	ErrRecipientNotOnWhatsApp = errors.New("whatsapp owner number is not registered on WhatsApp")
+	// ErrMediaTooLarge is returned for a file over the 50 MB WhatsApp limit, declared or real.
+	ErrMediaTooLarge = errors.New("the file is larger than 50 MB, the WhatsApp limit")
+	// ErrReadOnly is returned for a send while read_only is on (used from Task 4).
+	ErrReadOnly = errors.New("whatsapp is in read-only mode")
 )
 
 // errNotOwnerRecipient is internal: no API takes a recipient, so it means a bug

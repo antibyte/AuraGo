@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
@@ -22,7 +23,7 @@ const pairClientDisplay = "Chrome (Linux)"
 
 // waClient is the narrow transport the channel uses. whatsmeowClient wraps the
 // library; tests use fakeClient. Stage 2 adds receipts, chat presence, LID
-// lookups and the login time; stage 3 adds media.
+// lookups and the login time; stage 3 adds media download and upload.
 type waClient interface {
 	AddEventHandler(handler func(evt any)) uint32
 	ConnectContext(ctx context.Context) error
@@ -48,6 +49,10 @@ type waClient interface {
 	// LastSuccessfulConnect is the time whatsmeow accepted the current login. Read it only from an
 	// event handler: whatsmeow writes it on its handler queue without a lock (connectionevents.go:164).
 	LastSuccessfulConnect() time.Time
+	// DownloadToFile writes the decrypted attachment of msg into file (download-to-file.go:41).
+	DownloadToFile(ctx context.Context, msg whatsmeow.DownloadableMessage, file whatsmeow.File) error
+	// Upload encrypts r and uploads it through UploadReader (upload.go:115).
+	Upload(ctx context.Context, r io.Reader, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error)
 }
 
 // deviceStore is one opened linked-device database.
@@ -160,3 +165,11 @@ func (c *whatsmeowClient) PNForLID(ctx context.Context, lid types.JID) (types.JI
 }
 
 func (c *whatsmeowClient) LastSuccessfulConnect() time.Time { return c.cli.LastSuccessfulConnect }
+
+func (c *whatsmeowClient) DownloadToFile(ctx context.Context, msg whatsmeow.DownloadableMessage, file whatsmeow.File) error {
+	return c.cli.DownloadToFile(ctx, msg, file)
+}
+
+func (c *whatsmeowClient) Upload(ctx context.Context, r io.Reader, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error) {
+	return c.cli.UploadReader(ctx, r, nil, mediaType)
+}

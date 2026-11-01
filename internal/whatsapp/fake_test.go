@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"context"
 	"errors"
+	"io"
 	"slices"
 	"strconv"
 	"sync"
@@ -18,7 +19,17 @@ type sentMessage struct {
 	to   types.JID
 	text string
 	id   types.MessageID // the ID the sender passed
+	msg  *waE2E.Message  // the whole message, for media tests
 }
+
+// uploadCall is one Upload the fake received.
+type uploadCall struct {
+	mediaType whatsmeow.MediaType
+	data      []byte
+}
+
+// fakeDownloadChunk is the size of the writes DownloadToFile makes into the file.
+const fakeDownloadChunk = 32 << 10
 
 type readCall struct {
 	ids          []types.MessageID
@@ -61,6 +72,13 @@ type fakeClient struct {
 	// beforeSend runs at the start of every SendMessage, outside the lock, with the ID the
 	// sender passed.
 	beforeSend func(id types.MessageID)
+
+	media          map[string][]byte // attachment bytes keyed by direct path
+	downloadErr    error
+	downloads      []string // direct paths DownloadToFile was called with
+	downloadCtxErr []error  // ctx.Err() when each DownloadToFile returned
+	uploads        []uploadCall
+	uploadErr      error
 }
 
 func (f *fakeClient) with(fn func(f *fakeClient)) {
@@ -157,7 +175,7 @@ func (f *fakeClient) SendMessage(_ context.Context, to types.JID, msg *waE2E.Mes
 	} else if f.sendErr != nil {
 		return whatsmeow.SendResponse{}, f.sendErr
 	}
-	f.sent = append(f.sent, sentMessage{to: to, text: msg.GetConversation(), id: id})
+	f.sent = append(f.sent, sentMessage{to: to, text: msg.GetConversation(), id: id, msg: msg})
 	return whatsmeow.SendResponse{ID: id}, nil
 }
 
@@ -211,6 +229,70 @@ func (f *fakeClient) LastSuccessfulConnect() time.Time {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.lastConnect
+}
+
+// DownloadToFile records the direct path and writes the stored bytes through file.Write in
+// 32 KiB chunks, checking ctx before each one, like a streaming download. An unknown path
+// answers 404 (expired media).
+func (f *fakeClient) DownloadToFile(ctx context.Context, msg whatsmeow.DownloadableMessage, file whatsmeow.File) (err error) {
+	f.mu.Lock()
+	path := msg.GetDirectPath()
+	f.downloads = append(f.downloads, path)
+	data, ok := f.media[path]
+	downloadErr := f.downloadErr
+	f.mu.Unlock()
+	defer func() {
+		f.mu.Lock()
+		f.downloadCtxErr = append(f.downloadCtxErr, ctx.Err())
+		f.mu.Unlock()
+	}()
+	if downloadErr != nil {
+		return downloadErr
+	}
+	if !ok {
+		return whatsmeow.ErrMediaDownloadFailedWith404
+	}
+	for len(data) > 0 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		n := min(len(data), fakeDownloadChunk)
+		if _, err := file.Write(data[:n]); err != nil {
+			return err
+		}
+		data = data[n:]
+	}
+	return nil
+}
+
+// Upload reads r completely and answers with a canned response, plus a streaming sidecar for
+// video.
+func (f *fakeClient) Upload(ctx context.Context, r io.Reader, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return whatsmeow.UploadResponse{}, err
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return whatsmeow.UploadResponse{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.uploads = append(f.uploads, uploadCall{mediaType: mediaType, data: data})
+	if f.uploadErr != nil {
+		return whatsmeow.UploadResponse{}, f.uploadErr
+	}
+	up := whatsmeow.UploadResponse{
+		URL:           "https://mmg.example/u",
+		DirectPath:    "/v/fake",
+		MediaKey:      []byte{1},
+		FileSHA256:    []byte{2},
+		FileEncSHA256: []byte{3},
+		FileLength:    uint64(len(data)),
+	}
+	if mediaType == whatsmeow.MediaVideo {
+		up.StreamingSidecar = []byte{4}
+	}
+	return up, nil
 }
 
 // emit delivers evt to every handler, like whatsmeow's dispatcher.
