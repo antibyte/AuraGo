@@ -273,7 +273,7 @@ locally served resource set included by the installer and Docker image.
 
 Want to tinker? Start with [AGENTS.md](AGENTS.md), follow the build steps above, and test with `go test ./...`.
 
-**[MIT licensed](LICENSE).** Have fun. Mind the permissions.
+**Source code: [MIT licensed](LICENSE).** The release binaries link the GPL-3.0 WhatsApp stack, so the binaries we ship are GPL-3.0 combined works ([notices](THIRD_PARTY_NOTICES.md)). Have fun. Mind the permissions.
 
 *The illustrations are hand-inked-style renders. Prompts and provenance are in [assets/readme/imagegen-prompts.md](assets/readme/imagegen-prompts.md).*
 

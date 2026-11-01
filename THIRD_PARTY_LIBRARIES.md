@@ -28,8 +28,8 @@ Its third-party components retain their own licenses. The complete notices,
 original/adapted checksums and local adaptation script are recorded in
 `internal/desktop/bundled_apps/nasscad/` and `scripts/vendor-nasscad.mjs`.
 
-- **AuraGo project license:** [MIT](LICENSE)
-- **Reviewed:** 2026-10-14
+- **AuraGo project license:** [MIT](LICENSE) for the source code; distributed binaries are GPL-3.0 combined works because the WhatsApp channel links GPL-3.0 code (see §9)
+- **Reviewed:** 2026-10-31
 - **Sources:** `go.mod`, root `package.json`, `browser_automation_sidecar/package.json`, `ui/js/vendor/`, `ui/fonts/`, `ui/img/`, `THIRD_PARTY_NOTICES.md`
 
 > **Note:** Upstream license texts are authoritative. This document is an attribution inventory. Versions may drift; check `go.mod` / `package.json` / vendored file headers for the exact pin in your checkout.
@@ -106,6 +106,7 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/vishen/go-chromecast` | v0.3.4 | Apache-2.0 | https://github.com/vishen/go-chromecast |
 | `github.com/xeipuuv/gojsonschema` | v1.2.0 | Apache-2.0 | https://github.com/xeipuuv/gojsonschema |
 | `github.com/xuri/excelize/v2` | v2.11.1-0.20261003002531-6258dcebc4e2 | BSD-3-Clause | https://github.com/qax-os/excelize |
+| `go.mau.fi/whatsmeow` | v0.0.0-20261030195514-56e5ad0581ce | MPL-2.0 | https://github.com/tulir/whatsmeow |
 | `golang.org/x/crypto` | v0.58.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
 | `golang.org/x/image` | v0.47.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
 | `golang.org/x/net` | v0.62.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
@@ -128,6 +129,14 @@ Selected transitive modules that matter operationally (not exhaustive):
 | `github.com/google/uuid` | v1.6.0 | https://github.com/google/uuid |
 | `github.com/phpdave11/gofpdf` | v1.4.3 | https://github.com/phpdave11/gofpdf |
 | `github.com/ysmood/*` (rod ecosystem) | MIT | https://github.com/ysmood |
+| `go.mau.fi/libsignal` | GPL-3.0 | https://github.com/tulir/libsignal-protocol-go |
+| `go.mau.fi/util` | MPL-2.0 | https://github.com/mautrix/go-util |
+| `github.com/beeper/argo-go` | MIT | https://github.com/beeper/argo-go |
+| `github.com/elliotchance/orderedmap/v3` | MIT | https://github.com/elliotchance/orderedmap |
+| `github.com/mattn/go-colorable` | MIT | https://github.com/mattn/go-colorable |
+| `github.com/petermattis/goid` | Apache-2.0 | https://github.com/petermattis/goid |
+| `github.com/rs/zerolog` | MIT | https://github.com/rs/zerolog |
+| `github.com/vektah/gqlparser/v2` | MIT | https://github.com/vektah/gqlparser |
 | `golang.org/x/oauth2` | v0.37.0 | https://pkg.go.dev/golang.org/x/oauth2 |
 | `golang.org/x/text` | v0.43.0 | https://pkg.go.dev/golang.org/x/text |
 | `google.golang.org/protobuf` | v1.36.12 | https://github.com/protocolbuffers/protobuf-go |
@@ -349,6 +358,9 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | Diago | MPL-2.0 | Native SIP endpoint and RTP media handling |
 | go-sql-driver/mysql | MPL-2.0 | MySQL client |
 | chromem-go | MPL-2.0 | Embedded vector DB |
+| whatsmeow | MPL-2.0 | WhatsApp channel |
+| go.mau.fi/util | MPL-2.0 | WhatsApp channel (whatsmeow dependency) |
+| go.mau.fi/libsignal | GPL-3.0 | WhatsApp channel (whatsmeow dependency); makes distributed AuraGo binaries GPL-3.0 combined works |
 | Eclipse Paho MQTT | EPL-2.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
 | Arduino-ESP32 core | LGPL-2.1-or-later | CYD Creator builder image; linked into CYD firmware |

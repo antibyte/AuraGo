@@ -1,5 +1,19 @@
 # Third-party notices
 
+## WhatsApp channel (whatsmeow and libsignal)
+
+The WhatsApp channel compiles `go.mau.fi/whatsmeow` (MPL-2.0, Copyright Tulir
+Asokan and contributors), `go.mau.fi/util` (MPL-2.0) and `go.mau.fi/libsignal`
+(GPL-3.0, Go port of the Signal protocol library, libsignal-protocol-go
+Copyright (C) 2017 RadicalApp LLC, maintained fork by Tulir Asokan at
+https://github.com/tulir/libsignal-protocol-go) into the AuraGo binary.
+AuraGo's own source code stays under the MIT license in `LICENSE`. Because the
+binary links GPL-3.0 code, distributed AuraGo binaries are combined works under
+the GNU General Public License version 3. Their corresponding source is the tagged
+AuraGo commit of the release plus the module versions pinned in `go.mod` and
+`go.sum`. The modules are used unmodified. License texts:
+`licences/texts/GPL-3.0-only.txt` and `licences/texts/MPL-2.0.txt`.
+
 ## Kaggle wire contracts and optional Jupyter runtime
 
 The generated Go request types and JSON contracts are adapted from Kaggle SDK

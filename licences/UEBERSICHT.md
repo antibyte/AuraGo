@@ -91,6 +91,7 @@ Diese Einträge binden enger als MIT.
 | OpenSCAD | GPL-2.0 plus CGAL-Ausnahme | Store- und Desktop-Laufzeit, Digest in `internal/desktopstore/catalog.go`. Die Ausnahme steht in `texts/OpenSCAD-CGAL-exception.txt`. |
 | QuakeJS / ioquake3 | GPL-2.0 für die Engine | Spieldaten sind Werke von id Software und keine Open-Source-Lizenz. |
 | noVNC, Diago, go-sql-driver/mysql, chromem-go | MPL-2.0 | Dateiweise Copyleft. Text: `texts/MPL-2.0.txt`. |
+| whatsmeow, go.mau.fi/util, go.mau.fi/libsignal | MPL-2.0, MPL-2.0, GPL-3.0 | WhatsApp-Kanal, in die AuraGo-Binärdatei kompiliert. Der Quellcode von AuraGo bleibt MIT. Weitergegebene Binärdateien sind dadurch GPL-3.0-Gesamtwerke und kommen mit Lizenztext und dem Quellcode des getaggten Commits. Texte: `texts/GPL-3.0-only.txt`, `texts/MPL-2.0.txt`. |
 | Eclipse Paho MQTT | EPL-2.0 OR BSD-3-Clause | MQTT-Client. Text: `texts/EPL-2.0.txt`. |
 | elkjs | EPL-2.0 | Transitiv über Mermaid im Browser-Bundle. |
 | espeak-ng | GPL-3.0 | Wird für sanoTTS getrennt installiert, nicht im Wheel. |
@@ -248,6 +249,8 @@ Aus dem ersten `require`-Block in `go.mod`. Transitive Module, vor allem über
 Tailscale, stehen in `go.sum` und sind hier nicht Zeile für Zeile wiederholt.
 `modernc.org/sqlite` ist BSD-3-Clause und enthält SQLite als Public Domain.
 
+Neu über den WhatsApp-Kanal (transitiv): `go.mau.fi/libsignal` (GPL-3.0), `go.mau.fi/util` (MPL-2.0), `github.com/beeper/argo-go` (MIT), `github.com/elliotchance/orderedmap/v3` (MIT), `github.com/mattn/go-colorable` (MIT), `github.com/petermattis/goid` (Apache-2.0), `github.com/rs/zerolog` (MIT) und `github.com/vektah/gqlparser/v2` (MIT).
+
 ### Apache-2.0
 
 `github.com/a2aproject/a2a-go/v2` v2.6.0,
@@ -336,6 +339,7 @@ BSD-Text in `THIRD_PARTY_NOTICES.md`.
 
 ### MPL-2.0
 
+`go.mau.fi/whatsmeow` v0.0.0-20261030195514-56e5ad0581ce,
 `github.com/emiago/diago` v0.40.0,
 `github.com/go-sql-driver/mysql` v1.10.1,
 `github.com/philippgille/chromem-go` v0.7.0.

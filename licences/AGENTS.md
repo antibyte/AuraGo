@@ -19,11 +19,14 @@ This folder owns `UEBERSICHT.md` and `licences/texts/`. AuraGo's own license sta
 - Copyleft and the special terms for n8n, Open WebUI, Redis, C64 Pro Mono, and CanvasUI stay visible in the Sonderfälle section.
 - Running an unmodified container does not relicense AuraGo's own MIT code.
 - Desktop icon notices are generated into `ui/img/{tela,candy,fluent,buuf-nestort}/` for the external resource set. Preserve imported GPL-3.0 artwork and noncommercial CC BY-NC-SA 2.5 Buuf separately from original MIT supplements; see `../assets/desktop-icon-themes/AGENTS.md`.
+- WhatsApp: `go.mau.fi/libsignal` (GPL-3.0) is linked into the binary through whatsmeow (MPL-2.0). `LICENSE` stays MIT; `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARIES.md` §9, the Sonderfälle row here and the README license line state that distributed binaries are GPL-3.0 combined works. A GPL-3.0-incompatible module linked into the binary blocks a release. Guard: `internal/audit` `TestWhatsAppLicenseNoticesStayAligned`.
 
 ## Work Guidance
 
 ## Verification
 
 Compare new direct dependencies and Store catalog entries with `UEBERSICHT.md` when those files change.
+
+Modules linked into the binary: `go list -deps -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' ./cmd/aurago | sort -u`.
 
 ## Child DOX Index
