@@ -1312,6 +1312,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.WhatsAppEnabled {
+		tools = append(tools, tool("send_whatsapp",
+			"Send a WhatsApp message, and optionally one file, to the owner's WhatsApp chat. It reaches only the configured owner; there is no recipient parameter.",
+			schema(map[string]interface{}{
+				"message":   prop("string", "Message text; Markdown is converted to WhatsApp formatting"),
+				"file_path": prop("string", "Optional file in the workspace or the documents folder, up to 50 MB. JPEG/PNG go out as images, MP4 as video, MP3/M4A/OGG as audio, anything else as a document; the message becomes its caption (a longer text goes out first)"),
+			}, "message"),
+		))
+	}
+
 	if ff.AgoDeskChatEnabled {
 		tools = append(tools, tool("send_agodesk_chat",
 			"Send a proactive text message to a connected AgoChat/AgoDesk desktop companion.",

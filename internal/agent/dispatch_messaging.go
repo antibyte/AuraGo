@@ -46,6 +46,23 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		logger.Info("LLM requested telegram message", "title", boundedRunes(req.Title, logTextRunes))
 		return "Tool Output: " + tools.SendNotificationContext(ctx, cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
 
+	case "send_whatsapp":
+		if !cfg.WhatsApp.Enabled {
+			return `Tool Output: {"status":"error","message":"WhatsApp is not enabled."}`, true
+		}
+		if cfg.WhatsApp.ReadOnly {
+			return `Tool Output: {"status":"error","message":"WhatsApp is in read-only mode. Disable whatsapp.readonly to allow sending."}`, true
+		}
+		req := decodeSendWhatsAppArgs(tc)
+		if msg := telegramFilePathArgError(tc.Params); msg != "" { // the same file_path rule as send_telegram
+			return toolErrorJSON(msg), true
+		}
+		if strings.TrimSpace(req.Message) == "" && strings.TrimSpace(req.FilePath) == "" {
+			return `Tool Output: {"status":"error","message":"message is required"}`, true
+		}
+		logger.Info("LLM requested WhatsApp message", "has_file", strings.TrimSpace(req.FilePath) != "")
+		return "Tool Output: " + tools.SendWhatsAppMessage(ctx, cfg, req.Message, req.FilePath), true
+
 	case "send_agodesk_chat":
 		req := decodeAgoDeskChatArgs(tc)
 		return "Tool Output: " + sendAgoDeskChatMessage(ctx, dc, req), true

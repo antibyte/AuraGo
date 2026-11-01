@@ -2169,11 +2169,13 @@ func toolCallParams(tc ToolCall) map[string]string {
 		addGuardianEmailParams(m, tc)
 	case "send_telegram":
 		addGuardianTelegramParams(m, tc)
+	case "send_whatsapp":
+		addGuardianWhatsAppParams(m, tc)
 	}
 	return m
 }
 
-// Bounds, in bytes, of the send_email and send_telegram parameters the LLM Guardian sees.
+// Bounds, in bytes, of the send_email, send_telegram and send_whatsapp parameters the LLM Guardian sees.
 // The values are also part of its cache key, so calls that differ in one of them are judged
 // and cached apart; each cut keeps the head and the tail (truncateUTF8HeadTail).
 const (
@@ -2236,6 +2238,24 @@ func addGuardianTelegramParams(m map[string]string, tc ToolCall) {
 	}
 	// Only the file the call sends: the generic file_path above also takes tc.Path (a
 	// stray path argument), which send_telegram ignores.
+	delete(m, "file_path")
+	delete(m, "path_scope")
+	if req.FilePath != "" {
+		m["file_path"] = truncateUTF8HeadTail(guardianDisplayPath(tc, req.FilePath), guardianRecipientBytes)
+		if scope := guardianPathScope(tc, req.FilePath); scope != "" {
+			m["path_scope"] = scope
+		}
+	}
+}
+
+// addGuardianWhatsAppParams adds the text and the file of a send_whatsapp with the bounds of
+// send_telegram. There is no recipient to show: the message always goes to the owner.
+func addGuardianWhatsAppParams(m map[string]string, tc ToolCall) {
+	req := decodeSendWhatsAppArgs(tc)
+	if req.Message != "" {
+		m["message"] = truncateUTF8HeadTail(req.Message, guardianBodyBytes)
+	}
+	// Only the file the call sends, as for send_telegram: a stray path argument is no file.
 	delete(m, "file_path")
 	delete(m, "path_scope")
 	if req.FilePath != "" {

@@ -61,6 +61,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "secrets_vault", ConfigGate: "tools.secrets_vault.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityDelete}},
 		{Name: "send_discord", ConfigGate: "discord.enabled", ReadOnlyGate: "discord.readonly", Capabilities: []Capability{CapabilityWrite, CapabilityNetwork}},
 		{Name: "send_telegram", ConfigGate: "telegram.bot_token + telegram.telegram_user_id", ReadOnlyGate: "telegram.readonly", Capabilities: []Capability{CapabilityWrite, CapabilityNetwork}},
+		{Name: "send_whatsapp", ConfigGate: "whatsapp.enabled + linked device", ReadOnlyGate: "whatsapp.readonly", Capabilities: []Capability{CapabilityWrite, CapabilityNetwork}},
 		{Name: "fetch_discord", ConfigGate: "discord.enabled", ReadOnlyGate: "discord.readonly (blocks sending, not reading)", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "list_discord_channels", ConfigGate: "discord.enabled + discord.guild_id", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "transfer_remote_file", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},

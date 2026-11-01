@@ -858,6 +858,17 @@ func sendTelegramFilePath(tc ToolCall) string {
 	return tc.FilePath
 }
 
+// sendWhatsAppArgs are the two arguments of send_whatsapp. The recipient is always the owner, so
+// there is no recipient, title or priority.
+type sendWhatsAppArgs struct{ Message, FilePath string }
+
+func decodeSendWhatsAppArgs(tc ToolCall) sendWhatsAppArgs {
+	return sendWhatsAppArgs{
+		Message:  firstNonEmptyToolString(tc.Message, tc.Content, tc.Body, toolArgString(tc.Params, "message", "content", "body")),
+		FilePath: sendTelegramFilePath(tc), // only file_path names the file (FF1 rule)
+	}
+}
+
 func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
 	return emailFetchArgs{
 		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),

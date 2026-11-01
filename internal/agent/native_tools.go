@@ -260,6 +260,9 @@ type ToolFeatureFlags struct {
 	DiscordEnabled bool
 	// Telegram messaging
 	TelegramEnabled bool
+	// WhatsApp owner messaging: the config part (enabled, not readonly) and, in
+	// resolveToolFeatureState, a linked device
+	WhatsAppEnabled bool
 	// AgoDesk chat push messaging
 	AgoDeskChatEnabled bool
 	// TrueNAS storage

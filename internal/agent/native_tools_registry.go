@@ -96,7 +96,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
 		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
 		SIPPhoneEnabled: true, SIPPhoneDialEnabled: true, SIPPhoneAnswerEnabled: true, SIPPhoneDTMFEnabled: true, SIPPhoneHangupEnabled: true,
-		DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
+		DiscordEnabled: true, TelegramEnabled: true, WhatsAppEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
@@ -251,6 +251,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("sip_phone_hangup", ff.SIPPhoneHangupEnabled)
 	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
 	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
+	appendToolFeatureKeyPart("whatsapp", ff.WhatsAppEnabled)
 	appendToolFeatureKeyPart("agodesk_chat", ff.AgoDeskChatEnabled)
 	appendToolFeatureKeyPart("truenas", ff.TrueNASEnabled)
 	appendToolFeatureKeyPart("koofr", ff.KoofrEnabled)

@@ -28,7 +28,7 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		"composio_call", "execute_shell", "execute_sudo", "file_editor", "filesystem",
 		"home_assistant", "homepage", "here_now_sites", "here_now_site", "invasion_control", "json_editor", "manage_outgoing_webhooks",
 		"manus", "meshcentral", "netlify", "remote_execution", "secrets_vault",
-		"send_discord", "send_telegram", "fetch_discord", "list_discord_channels",
+		"send_discord", "send_telegram", "send_whatsapp", "fetch_discord", "list_discord_channels",
 		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}
 	matrix := ToolPermissionMatrix()

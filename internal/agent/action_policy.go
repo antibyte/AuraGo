@@ -91,7 +91,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 		if tc.Action == "execute_sudo" || tc.Action == "execute_remote_shell" {
 			a.Operation, a.Mutating = "execute", true
 		}
-	case "send_email", "send_telegram", "send_discord", "send_rocketchat", "send_push", "send_push_notification", "send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video":
+	case "send_email", "send_telegram", "send_whatsapp", "send_discord", "send_rocketchat", "send_push", "send_push_notification", "send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video":
 		a.Operation, a.Mutating, a.HighRisk = "execute", true, true
 	case "agentmail", "agentmail_messages", "agentmail_drafts":
 		switch a.Operation {

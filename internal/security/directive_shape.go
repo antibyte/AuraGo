@@ -93,7 +93,7 @@ var directiveRepeatMarkers = []string{
 // names the agent dispatches. A bare "shell" or "terminal" is an everyday word
 // and no tool name.
 var directiveTools = []string{
-	"execute_*", "run_tool", "api_request", "send_email", "send_telegram", "send_discord", "send_sms",
+	"execute_*", "run_tool", "api_request", "send_email", "send_telegram", "send_whatsapp", "send_discord", "send_sms",
 	"manage_missions", "manage_webhooks", "call_webhook", "save_tool",
 }
 
