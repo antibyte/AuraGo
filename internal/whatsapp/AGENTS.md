@@ -8,14 +8,14 @@ Owner-only WhatsApp channel over `go.mau.fi/whatsmeow` (WhatsApp Web multi-devic
 
 - `client.go`: `waClient`, `deviceStore`, `backend`, the whatsmeow adapter (`newWhatsmeowClient` is the only `whatsmeow.NewClient` call), the auto-reconnect cap and the linked-device name and props.
 - `errors.go`: sentinel errors that the server maps to fixed HTTP codes.
-- `store.go`: `<data_dir>/whatsapp/device.db`, modernc SQLite with `_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` and the `sqlstore` dialect `sqlite`.
+- `store.go`: `<data_dir>/whatsapp/device.db`, modernc SQLite with `_pragma=foreign_keys(1)`, `_pragma=busy_timeout(5000)` and `_pragma=secure_delete(1)`, and the `sqlstore` dialect `sqlite`.
 - `events.go`: `classifyEvent`, which maps a whatsmeow event to status state, error code, terminal and reconnect policy.
 - `runtime.go`: the `Bot` generation (connect loop, backoff, health, owner test message, `Logout`) and `ConfigState`.
 - `recipients.go`: `ownerRecipients`, the single owner-recipient resolver, and the test message text.
 - `link.go`, `qr.go`: `LinkSession` (one at a time, 3-minute TTL) and QR PNG data URIs through `internal/qrcode`.
 - `log.go`, `mask.go`: whatsmeow-to-slog adapter and digit masking.
 - Owned elsewhere:
-  - `internal/server/whatsapp_runtime.go`, `whatsapp_handlers.go`: lifecycle and HTTP.
+  - `internal/server/whatsapp_runtime.go`, `whatsapp_handlers.go`: lifecycle and HTTP; `whatsapp_backup.go`: the backup-walk skipper for the store directory.
   - `internal/integrationstatus/whatsapp.go`: passive status snapshot.
   - `internal/config/whatsapp.go`: the `whatsapp:` section, E.164 rules, store and protected paths.
   - `internal/tools/protected_paths.go`: agent file-tool protection.
@@ -29,6 +29,7 @@ Owner-only WhatsApp channel over `go.mau.fi/whatsmeow` (WhatsApp Web multi-devic
   - `<data_dir>/whatsapp/` is 0700 and `device.db` is 0600, both set by `fileutil.RestrictToOwner` (protected owner-only DACL on Windows).
   - Never in `config.SQLiteDatabasePaths` or backups. `device.db` is a documented entry in `internal/audit` `sqliteBackupExclusions`.
   - `config.WhatsAppProtectedPaths` lists `device.db` with `-wal`, `-shm` and `-journal`. `protectedSystemFilesFromConfig` returns them for agent file tools, outgoing attachments and Compose protection.
+  - Shell and Python tools get no WhatsApp-specific deny: they keep exactly the vault's existing boundary (sandbox scope and the Danger Zone `allow_unsafe_host_execution` risk, which applies to `vault.bin` equally). The design's "file tools and the Python sandbox" wording is met through that equal treatment, recorded as a stage-1 deviation.
   - The store connection runs with `secure_delete`, and local removal (`removeLocalDevice`) deletes the device row, closes the store and then removes `device.db` and its `-wal`, `-shm` and `-journal` sidecars. Verify `local_removal_test.go`.
 - **Owner-only sends.** Every send resolves recipients through `ownerRecipients`: dedicated mode sends to `owner_numbers`, self-chat mode to the linked own JID. No API accepts arbitrary numbers. The test message in self-chat mode starts with `self_chat_prefix`.
 - **Reconnects have one owner per failure kind.**

@@ -5540,3 +5540,8 @@ The user must do this with a real second number; never claim it without a phone.
 13. The maintenance-briefing hook moves to stage 4, because it touches `internal/agent` files other sessions are editing right now.
 14. The `MessagingIngressManifest` update moves to stage 2, where the ingress lands.
 15. The device platform type is set to CHROME to match the pairing-code client type. The phone lists the device as "AuraGo" via `store.SetOSInfo`.
+16. The design says file tools and the Python sandbox deny `<DataDir>/whatsapp` like the vault. File tools, outgoing attachments and Compose protection do (via `protectedSystemFilesFromConfig` plus the `whatsapp/device.db*` name rule). Shell and Python get no WhatsApp-specific deny, because the vault has none there either: both rely on the sandbox scope, and both are readable under the Danger Zone `allow_unsafe_host_execution`. That shared risk is accepted; stage 4 names the WhatsApp keys in the unsafe-execution warning.
+
+### Executed (2026-11-01)
+
+Branch `claude/whatsapp-stage1`. Review fixes beyond the plan: whatsmeow auto-reconnect capped at 300 s; healthy after a late `Connected`; node-redacting logs; store-open retry; silent stopped generations; forced link replaces a running session (link generation counter); 10 s remote unlink with local fallback; strict 4 KiB POST body; same-origin `Origin` on POSTs; rebinding-safe host guard; `secure_delete` and file removal on local unlink; backup walks skip the store; `whatsapp/device.db*` name rule. Found in passing and split off: the pre-existing `send_*` agent tools copy protected files by absolute path (separate session).

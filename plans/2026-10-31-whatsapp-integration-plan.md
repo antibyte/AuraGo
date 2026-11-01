@@ -248,7 +248,7 @@ The detailed plan `plans/2026-10-31-whatsapp-3-media-tools.md` is written after 
 The detailed plan `plans/2026-10-31-whatsapp-4-finish.md` is written after stage 3 lands.
 
 1. **Operator docs** — Files: `documentation/whatsapp_setup.md`, `documentation/manuals/{en,de}/08-integrations.md`, `README.md`. Test focus: the existing README and docs audit tests. Acceptance: the 14-day rule, the 4-device limit, the dedicated-number advice and the no-bulk rule are documented.
-2. **Security check** — Files: `internal/server/security_check.go` (+test). Test focus: both warnings. Acceptance: shown on the security page.
+2. **Security check** — Files: `internal/server/security_check.go` (+test). Test focus: both warnings. Acceptance: shown on the security page. Also name the WhatsApp device keys next to the vault in the Danger Zone unsafe-host-execution warning (16 locales), since shell/Python can read both there (stage-1 deviation 16).
 3. **Maintenance briefing** — Files: `internal/agent/maintenance_briefing.go` (+test). Test focus: skipped, passed and failed states. Acceptance: it appears in the briefing.
 4. **Locale review** — Files: `ui/lang/**`. Test focus: `TestTranslations_*`. Acceptance: all 16 locales are complete.
 5. **Audit re-verification** — Files: `internal/audit/*`. Test focus: route, ingress, tool and network manifests. Acceptance: green.
