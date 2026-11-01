@@ -98,7 +98,7 @@
             if (NUMBER.test(text)) value = Number(text);
             else if ((match = NUMBER_PREFIX.exec(text))) { value = Number(match[1]); prefix = inputPrefix(match[2]); }
             else if ((match = INFIX.exec(text))) { value = Number(match[1] + '.' + match[3]); prefix = inputPrefix(match[2]); }
-            else if (d.id === 'resistance' && (match = INFIX_R.exec(text))) value = Number(match[1] + '.' + match[2]);
+            else if (d.aliases.includes('R') && (match = INFIX_R.exec(text))) value = Number(match[1] + '.' + match[2]);
             if (Number.isNaN(value)) throw fail('cannot read ' + JSON.stringify(input) + ' as a ' + dimId + ' value');
             if (prefix !== '' && !d.prefixes.some(entry => entry.id === prefix)) throw fail('the prefix ' + prefix + ' does not fit ' + dimId);
 

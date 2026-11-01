@@ -121,3 +121,23 @@ func TestLoadUnitsRejectsBrokenDefinitions(t *testing.T) {
 		}
 	}
 }
+
+// The R infix ("4R7") reads on every dimension that has the alias R, not on one dimension by name; the JavaScript
+// mirror makes the same decision (scripts/test-ecalc-core.mjs runs the same inputs).
+func TestUnitsRInfixFollowsTheAlias(t *testing.T) {
+	u, err := loadUnits([]byte("prefixes: [{id: k, factor: 1e3}]\ndims:\n  withr: {symbol: X, aliases: [R], prefixes: [k]}\n  without: {symbol: X, aliases: [Q], prefixes: [k]}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for in, want := range map[string]float64{"4R7": 4.7, "47R": 47, "4k7": 4700} {
+		if got, err := u.Parse(in, "withr", ""); err != nil || !near(got, want, 1e-12) {
+			t.Errorf("Parse(%q, withr) = %v, %v, want %v", in, got, err, want)
+		}
+	}
+	if got, err := u.Parse("4R7", "without", ""); err == nil {
+		t.Errorf("Parse(4R7, without) = %v, want an error (no alias R)", got)
+	}
+	if got, err := u.ParseList("4R7 1e400", "withr", ""); err == nil {
+		t.Errorf("ParseList with an infinite item = %v, want an error", got)
+	}
+}

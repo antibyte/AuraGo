@@ -315,7 +315,20 @@ func (u *Units) ParseList(input, dimID, unitID string) ([]float64, error) {
 	return out, nil
 }
 
+// parseNormalized reads one value from folded text without blanks (a decimal comma already turned into a point). The
+// result must be finite, like in the ECMAScript twin: "1e400" or a product that overflows is a parse error.
 func (u *Units) parseNormalized(d *Dim, s, unitID string) (float64, error) {
+	v, err := u.parseValue(d, s, unitID)
+	if err != nil {
+		return 0, err
+	}
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0, fmt.Errorf("the value %q is out of range", s)
+	}
+	return v, nil
+}
+
+func (u *Units) parseValue(d *Dim, s, unitID string) (float64, error) {
 	if s == "" {
 		return 0, errors.New("empty value")
 	}

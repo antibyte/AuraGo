@@ -352,6 +352,20 @@ for (const item of calculators) {
     count += 12;
 }
 
+// ---- the R infix follows the alias R of the dimension (the Go twin: TestUnitsRInfixFollowsTheAlias) -----------------------
+{
+    const custom = core.units.create({ prefixes: [{ id: 'k', factor: 1000 }], dims: [
+        { id: 'withr', symbol: 'X', aliases: ['R'], prefixes: ['k'], units: [] },
+        { id: 'without', symbol: 'X', aliases: ['Q'], prefixes: ['k'], units: [] }
+    ] });
+    same(custom.parse('4R7', 'withr', ''), 4.7, 'a dimension with the alias R reads 4R7');
+    same(custom.parse('47R', 'withr', ''), 47);
+    same(custom.parse('4k7', 'withr', ''), 4700);
+    throwsCode(() => custom.parse('4R7', 'without', ''), 'parse', 'no alias R, no R infix');
+    throwsCode(() => custom.parseList('4R7 1e400', 'withr', ''), 'parse', 'an infinite item is a parse error');
+    count += 5;
+}
+
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------
 {
     const ctx = { labelOf: name => ({ vout: 'V_out', vin: 'V_in', r2: 'R_2', r1: 'R_1' }[name] || ''), constOf: name => (name === 'k' ? '20' : undefined) };

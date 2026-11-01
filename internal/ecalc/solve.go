@@ -96,6 +96,22 @@ func valueError(d *Dim, x float64) string {
 	return ""
 }
 
+// listError is the error code of a list variable. Finiteness is checked for every element before the range, so a list
+// with a negative and an infinite element is "nonfinite" whatever their order (the ECMAScript twin does the same).
+func listError(d *Dim, list []float64) string {
+	for _, x := range list {
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return ErrNonFinite
+		}
+	}
+	for _, x := range list {
+		if code := valueError(d, x); code != "" {
+			return code
+		}
+	}
+	return ""
+}
+
 // Solve computes every variable that the inputs determine: the constants of the selected choice options and the
 // inputs are known; rules and derived quantities are applied as a fixpoint; then errors and checks are evaluated.
 func (c *Calculator) Solve(in Inputs) Result {
@@ -139,11 +155,8 @@ func (c *Calculator) Solve(in Inputs) Result {
 				res.Values[v.ID] = math.NaN()
 			}
 		case v.List:
-			for _, x := range env.Lists[v.ID] {
-				if code := valueError(v.dim, x); code != "" {
-					res.Errors[v.ID] = code
-					break
-				}
+			if code := listError(v.dim, env.Lists[v.ID]); code != "" {
+				res.Errors[v.ID] = code
 			}
 		default:
 			x := env.Vals[v.ID]

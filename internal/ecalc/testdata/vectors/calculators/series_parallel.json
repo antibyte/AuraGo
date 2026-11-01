@@ -10,6 +10,9 @@
     {"inputs": {"rs": [4700, 10000, 2200]}, "expect": {"rser": 16900, "rpar": 1303.2518275775145}, "ref": "hand: 4700 + 10000 + 2200 = 16900; 1/(1/4700 + 1/10000 + 1/2200) = 5170000/3967 = 1303.2518275775 ohm"},
     {"inputs": {"rs": [5000]}, "expect": {"rser": 5000, "rpar": 5000}, "ref": "hand: a single resistor is its own series and parallel value"},
     {"inputs": {"rs": [1000, 0]}, "expect": {"rser": 1000, "rpar": 0}, "errors": {"rs": "range"}, "ref": "hand: a zero element is out of range for a resistance; a short in parallel gives 0 ohm, in series it adds nothing"},
+    {"inputs": {"rs": [-5, "inf"]}, "errors": {"rs": "nonfinite"}, "ref": "contract: a list is checked for finiteness before its range, so a negative and an infinite element give nonfinite"},
+    {"inputs": {"rs": ["inf", -5]}, "errors": {"rs": "nonfinite"}, "ref": "contract: the order of the elements does not matter for the error code"},
+    {"inputs": {"rs": [-5, 100]}, "errors": {"rs": "range"}, "ref": "contract: a negative element alone is a range error"},
     {"inputs": {}, "errors": {"rs": "undetermined"}, "ref": "the list is the only input"}
   ]
 }
