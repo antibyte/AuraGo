@@ -126,21 +126,27 @@ func (s *Server) activeWhatsAppLink() whatsAppLinkSession {
 	return nil
 }
 
-// onWhatsAppLinkFinished is the link session's onFinish callback. It runs on
-// the session goroutine before Done closes, so it only hands off to a new
-// goroutine and never takes whatsAppLifecycleMu itself.
-func (s *Server) onWhatsAppLinkFinished(linked bool) {
-	go s.afterWhatsAppLink(linked)
+// onWhatsAppLinkFinished is the onFinish callback of the link session with the
+// given generation. It runs on the session goroutine before Done closes, so it
+// only hands off to a new goroutine and never takes whatsAppLifecycleMu itself.
+func (s *Server) onWhatsAppLinkFinished(gen uint64, linked bool) {
+	go s.afterWhatsAppLink(gen, linked)
 }
 
-// afterWhatsAppLink runs on its own goroutine when a link session ends. A
-// linked device always gets a fresh Bot generation. When the configuration no
-// longer allows one (disabled, not configured, egg mode), Start publishes the
-// matching state instead, so the status never stays "linking". After
-// shutdown nothing starts, and the status still leaves "linking".
-func (s *Server) afterWhatsAppLink(linked bool) {
+// afterWhatsAppLink runs on its own goroutine when the link session of
+// generation gen ends. A finish from a session that a forced link has since
+// replaced is ignored: it must neither restart the Bot nor change the status of
+// the current session. Otherwise a linked device always gets a fresh Bot
+// generation. When the configuration no longer allows one (disabled, not
+// configured, egg mode), Start publishes the matching state instead, so the
+// status never stays "linking". After shutdown nothing starts, and the status
+// still leaves "linking".
+func (s *Server) afterWhatsAppLink(gen uint64, linked bool) {
 	s.whatsAppLifecycleMu.Lock()
 	defer s.whatsAppLifecycleMu.Unlock()
+	if gen != s.whatsAppLinkGen {
+		return
+	}
 	s.configureWhatsAppBotLocked(linked)
 	if s.whatsAppClosed && integrationstatus.WhatsAppStatus().State == integrationstatus.WhatsAppStateLinking {
 		integrationstatus.SetWhatsAppState(integrationstatus.WhatsAppStateNotLinked)
@@ -149,9 +155,10 @@ func (s *Server) afterWhatsAppLink(linked bool) {
 
 type serverWhatsApp struct{ s *Server }
 
-// Link starts one link session. An existing device is refused unless force is
-// set; then it is unlinked first, remotely when connected. The request is
-// validated before anything is unlinked or stopped.
+// Link starts one link session. A running session and an existing device are
+// refused unless force is set; then the session is cancelled and the device is
+// unlinked first, remotely when connected. The request is validated before
+// anything is unlinked or stopped.
 func (w serverWhatsApp) Link(ctx context.Context, req whatsapp.LinkRequest, force bool) (whatsapp.LinkSnapshot, error) {
 	if err := req.Validate(); err != nil {
 		return whatsapp.LinkSnapshot{}, err
@@ -166,7 +173,13 @@ func (w serverWhatsApp) Link(ctx context.Context, req whatsapp.LinkRequest, forc
 		return whatsapp.LinkSnapshot{}, whatsapp.ErrNotConfigured
 	}
 	if s.activeWhatsAppLink() != nil {
-		return whatsapp.LinkSnapshot{}, whatsapp.ErrLinkInProgress
+		if !force {
+			return whatsapp.LinkSnapshot{}, whatsapp.ErrLinkInProgress
+		}
+		// A forced link replaces the running session (say, QR code to phone
+		// code). The session's onFinish never takes the lifecycle lock, so
+		// waiting for Done here is safe; its hand-off turns stale below.
+		s.cancelWhatsAppLinkLocked()
 	}
 	linked, err := whatsAppDeviceLinked(ctx, cfg.Directories.DataDir)
 	if err != nil {
@@ -188,7 +201,9 @@ func (w serverWhatsApp) Link(ctx context.Context, req whatsapp.LinkRequest, forc
 	if parent == nil {
 		parent = context.Background()
 	}
-	session, err := whatsAppStartLink(parent, cfg, req, s.Logger, s.onWhatsAppLinkFinished)
+	s.whatsAppLinkGen++
+	gen := s.whatsAppLinkGen
+	session, err := whatsAppStartLink(parent, cfg, req, s.Logger, func(linked bool) { s.onWhatsAppLinkFinished(gen, linked) })
 	if err != nil {
 		s.configureWhatsAppBotLocked(false)
 		return whatsapp.LinkSnapshot{}, err

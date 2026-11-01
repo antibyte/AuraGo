@@ -181,7 +181,7 @@ func TestAfterWhatsAppLinkNeverLeavesLinkingStatus(t *testing.T) {
 			s := whatsAppRuntimeServer(t, tc.mutate)
 			s.whatsAppClosed = tc.closed
 			integrationstatus.SetWhatsAppState(integrationstatus.WhatsAppStateLinking)
-			s.afterWhatsAppLink(true)
+			s.afterWhatsAppLink(0, true)
 			if tc.wantState == "" {
 				if s.whatsAppBot.Load() == nil {
 					t.Fatal("a linked device with a valid config started no Bot")
@@ -210,7 +210,7 @@ func TestWhatsAppLinkFinishedCallbackDoesNotWaitForTheLifecycleLock(t *testing.T
 	integrationstatus.SetWhatsAppState(integrationstatus.WhatsAppStateLinking)
 	s.whatsAppLifecycleMu.Lock()
 	returned := make(chan struct{})
-	go func() { s.onWhatsAppLinkFinished(true); close(returned) }()
+	go func() { s.onWhatsAppLinkFinished(0, true); close(returned) }()
 	select {
 	case <-returned:
 	case <-time.After(2 * time.Second):
@@ -316,6 +316,9 @@ func (f *fakeWhatsAppLinkSession) finish(linked bool) {
 		f.mu.Lock()
 		f.active = false
 		f.mu.Unlock()
+		if !linked {
+			integrationstatus.SetWhatsAppState(integrationstatus.WhatsAppStateNotLinked) // like LinkSession.run
+		}
 		f.onFinish(linked)
 		close(f.done)
 	})
@@ -345,6 +348,7 @@ func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
 	whatsAppStartLink = func(_ context.Context, _ *config.Config, _ whatsapp.LinkRequest, _ *slog.Logger, onFinish func(bool)) (whatsAppLinkSession, error) {
 		session := newFakeWhatsAppLinkSession(onFinish)
 		started = append(started, session)
+		integrationstatus.SetWhatsAppState(integrationstatus.WhatsAppStateLinking) // like StartLink
 		return session, nil
 	}
 	qr := whatsapp.LinkRequest{Method: whatsapp.LinkMethodQR}
@@ -359,17 +363,15 @@ func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
 		t.Fatal("a refused link started a session")
 	}
 
-	// An unlinked device starts one session; a second request is refused, with
-	// or without force.
+	// An unlinked device starts one session; without force a second request is
+	// refused.
 	linked = false
 	snap, err := ctl.Link(ctx, qr, false)
 	if err != nil || snap.State != whatsapp.LinkStateWaiting || len(started) != 1 {
 		t.Fatalf("first link = %+v, %v, sessions=%d", snap, err, len(started))
 	}
-	for _, force := range []bool{false, true} {
-		if _, err := ctl.Link(ctx, qr, force); !errors.Is(err, whatsapp.ErrLinkInProgress) || len(started) != 1 {
-			t.Fatalf("second link (force=%v) = %v, sessions=%d, want ErrLinkInProgress", force, err, len(started))
-		}
+	if _, err := ctl.Link(ctx, qr, false); !errors.Is(err, whatsapp.ErrLinkInProgress) || len(started) != 1 {
+		t.Fatalf("second link without force = %v, sessions=%d, want ErrLinkInProgress", err, len(started))
 	}
 
 	// Polling the session never waits for the lifecycle lock.
@@ -386,9 +388,35 @@ func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
 	}
 	s.whatsAppLifecycleMu.Unlock()
 
-	// The first session links the device; the server then runs a Bot for it.
+	// Force while a session runs (QR code to phone code) cancels it, waits for
+	// its cleanup and starts a new one. The status stays "linking".
+	if _, err := ctl.Link(ctx, qr, true); err != nil || len(started) != 2 {
+		t.Fatalf("forced link over a running session = %v, sessions=%d", err, len(started))
+	}
+	select {
+	case <-started[0].Done():
+	default:
+		t.Fatal("the forced link did not wait for the old session")
+	}
+	if !started[0].wasCancelled() || started[0].Active() || !started[1].Active() {
+		t.Fatal("the forced link did not cancel the old session and start the new one")
+	}
+	if current := s.whatsAppLink.Load(); current == nil || current.whatsAppLinkSession != whatsAppLinkSession(started[1]) {
+		t.Fatal("the forced link did not replace the session")
+	}
+	if state := integrationstatus.WhatsAppStatus().State; state != integrationstatus.WhatsAppStateLinking {
+		t.Fatalf("state after the forced link = %q, want linking", state)
+	}
+	// The old session's own hand-off (asynchronous, from the cancel) is stale. It
+	// must not touch the new session or the status, however late it runs.
+	s.afterWhatsAppLink(1, false)
+	if state := integrationstatus.WhatsAppStatus().State; state != integrationstatus.WhatsAppStateLinking || s.whatsAppBot.Load() != nil || s.activeWhatsAppLink() == nil {
+		t.Fatalf("a stale finish disturbed the new session: state=%q bot=%v", state, s.whatsAppBot.Load())
+	}
+
+	// The second session links the device; the server then runs a Bot for it.
 	linked = true
-	started[0].finish(true)
+	started[1].finish(true)
 	deadline := time.Now().Add(5 * time.Second)
 	for s.whatsAppBot.Load() == nil {
 		if time.Now().After(deadline) {
@@ -396,12 +424,19 @@ func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
+	// A late linked finish of the replaced session would force a new Bot
+	// generation. It is ignored.
+	first := s.whatsAppBot.Load()
+	s.afterWhatsAppLink(1, true)
+	if s.whatsAppBot.Load() != first {
+		t.Fatal("a stale finish replaced the Bot")
+	}
 
 	// Force unlinks the device and replaces the finished session with a new one.
-	if _, err := ctl.Link(ctx, qr, true); err != nil || len(started) != 2 {
+	if _, err := ctl.Link(ctx, qr, true); err != nil || len(started) != 3 {
 		t.Fatalf("forced relink = %v, sessions=%d", err, len(started))
 	}
-	if current := s.whatsAppLink.Load(); current == nil || current.whatsAppLinkSession != whatsAppLinkSession(started[1]) {
+	if current := s.whatsAppLink.Load(); current == nil || current.whatsAppLinkSession != whatsAppLinkSession(started[2]) {
 		t.Fatal("the forced relink did not replace the session")
 	}
 
@@ -414,11 +449,11 @@ func TestServerWhatsAppLinkSessionLifecycle(t *testing.T) {
 		t.Fatal("stopWhatsApp did not return")
 	}
 	select {
-	case <-started[1].Done():
+	case <-started[2].Done():
 	default:
 		t.Fatal("stopWhatsApp returned before the session was done")
 	}
-	if !started[1].wasCancelled() || s.whatsAppBot.Load() != nil {
+	if !started[2].wasCancelled() || s.whatsAppBot.Load() != nil {
 		t.Fatal("shutdown left the session or the Bot running")
 	}
 	if _, err := ctl.Link(ctx, qr, false); !errors.Is(err, whatsapp.ErrNotConfigured) {

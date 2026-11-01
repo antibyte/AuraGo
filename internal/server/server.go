@@ -408,6 +408,7 @@ type Server struct {
 	whatsAppLifecycleMu   sync.Mutex
 	whatsAppBot           atomic.Pointer[whatsapp.Bot]
 	whatsAppLink          atomic.Pointer[whatsAppLinkRef] // stored under whatsAppLifecycleMu; read lock-free
+	whatsAppLinkGen       uint64                          // guarded by whatsAppLifecycleMu; counts link sessions
 	whatsAppClosed        bool
 	whatsAppCtl           whatsAppController // tests only; nil uses serverWhatsApp
 	haPollerMu            sync.Mutex
