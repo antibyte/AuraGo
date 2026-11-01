@@ -5545,3 +5545,5 @@ The user must do this with a real second number; never claim it without a phone.
 ### Executed (2026-11-01)
 
 Branch `claude/whatsapp-stage1`. Review fixes beyond the plan: whatsmeow auto-reconnect capped at 300 s; healthy after a late `Connected`; node-redacting logs; store-open retry; silent stopped generations; forced link replaces a running session (link generation counter); 10 s remote unlink with local fallback; strict 4 KiB POST body; same-origin `Origin` on POSTs; rebinding-safe host guard; `secure_delete` and file removal on local unlink; backup walks skip the store; `whatsapp/device.db*` name rule. Found in passing and split off: the pre-existing `send_*` agent tools copy protected files by absolute path (separate session).
+
+Landed on `main` on 2026-11-01 at the user's request, before Task 15. The real-device acceptance (Task 15, including the step 10 hand-off fallback) is still open and gates stage 2.
