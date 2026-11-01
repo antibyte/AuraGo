@@ -357,7 +357,13 @@ func launchAsyncPersonalityV2Analysis(
 	isCoAgent bool,
 	basisSnapshots ...*memory.PersonalitySnapshot,
 ) {
-	if stm == nil || cfg == nil || !runCfg.HumanInput.Valid() || runCfg.HumanInput.SessionID != sessionID || strings.TrimSpace(runCfg.HumanInput.Text) == "" || isMission || isCoAgent || runCfg.BudgetTracker == nil || runCfg.BudgetTracker.IsBlocked("personality") {
+	if stm == nil || cfg == nil || !runCfg.HumanInput.Valid() || runCfg.HumanInput.SessionID != sessionID || strings.TrimSpace(runCfg.HumanInput.Text) == "" || isMission || isCoAgent {
+		return
+	}
+	// A nil tracker is expected with budgeting disabled (run untracked) and a
+	// wiring bug with budgeting enabled (fail closed). IsBlocked is nil-safe.
+	if (runCfg.BudgetTracker == nil && cfg.Budget.Enabled) || runCfg.BudgetTracker.IsBlocked("personality") {
+		logger.Info("[Personality V2] Skipped: budget tracker missing or personality budget exhausted")
 		return
 	}
 

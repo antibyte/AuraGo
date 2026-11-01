@@ -721,12 +721,15 @@ func isTransientHelperError(err error) bool {
 	return false
 }
 
-func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, tracker *budget.Tracker, learningsEnabled ...bool) (helperTurnBatchResult, error) {
+func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, tracker *budget.Tracker, budgetEnabled bool, learningsEnabled ...bool) (helperTurnBatchResult, error) {
 	if m == nil || m.client == nil || m.model == "" {
 		return helperTurnBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
 
-	if tracker == nil {
+	// With budgeting disabled the tracker is nil by design and the turn runs
+	// untracked; with budgeting enabled a nil tracker is a wiring bug and fails
+	// closed. The flag is a per-call argument: the singleton retains no budget state.
+	if tracker == nil && budgetEnabled {
 		return helperTurnBatchResult{}, fmt.Errorf("%w: tracker missing", errHelperBudgetUnavailable)
 	}
 	category := "helper_turn"

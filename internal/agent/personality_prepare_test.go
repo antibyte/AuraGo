@@ -232,6 +232,29 @@ func TestPersonalityBudgetCancellationAndSingleMainFallback(t *testing.T) {
 	}
 }
 
+// A nil tracker is the by-design state with budgeting disabled (run untracked)
+// and a wiring bug with budgeting enabled (fail closed).
+func TestEmotionCompletionClientNilTrackerFollowsBudgetSwitch(t *testing.T) {
+	request := openai.ChatCompletionRequest{Model: "test-model", Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Return JSON."}}}
+	for _, budgetEnabled := range []bool{false, true} {
+		cfg := &config.Config{}
+		cfg.Budget.Enabled = budgetEnabled
+		cfg.LLM.Provider = "main"
+		cfg.LLM.ProviderType = "openai"
+		cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", ContextWindow: 32768, MaxOutputTokens: 2048}}
+		client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
+			return helperRecoveryResponse(`{}`, openai.FinishReasonStop), nil
+		}}
+		_, err := (&emotionCompletionClient{cfg: cfg, client: client}).CreateChatCompletion(t.Context(), request)
+		switch {
+		case budgetEnabled && (err == nil || client.calls != 0):
+			t.Fatalf("budgeting enabled: nil tracker must fail closed, calls=%d err=%v", client.calls, err)
+		case !budgetEnabled && (err != nil || client.calls != 1):
+			t.Fatalf("budgeting disabled: nil tracker must run untracked, calls=%d err=%v", client.calls, err)
+		}
+	}
+}
+
 func TestPersonalityRuntimeMainFallbackIsVisibleBoundedAndSingle(t *testing.T) {
 	oldFailures, oldPause := v2FailCount.Swap(0), v2PausedUntil.Swap(0)
 	defer func() { v2FailCount.Store(oldFailures); v2PausedUntil.Store(oldPause) }()

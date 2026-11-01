@@ -41,7 +41,7 @@ func TestHelperRecoveryPreservesRequiredSources(t *testing.T) {
 			return err
 		}},
 		{"turn", `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{},"personality_analysis":{}}`, "query_memory", func(m *helperLLMManager) error {
-			_, err := m.AnalyzeTurn(context.Background(), source, source, []string{"query_memory"}, []string{source}, &helperTurnPersonalityInput{CurrentUserMessage: source, RecentHistory: source}, newHelperTurnBudget(t))
+			_, err := m.AnalyzeTurn(context.Background(), source, source, []string{"query_memory"}, []string{source}, &helperTurnPersonalityInput{CurrentUserMessage: source, RecentHistory: source}, newHelperTurnBudget(t), true)
 			return err
 		}},
 		{"maintenance", `{"daily_summary":"A useful summary","kg_extraction":{"nodes":[],"edges":[]}}`, "node-identifier", func(m *helperLLMManager) error {

@@ -121,7 +121,7 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 	if err := ctx.Err(); err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
-	if c.cfg == nil || c.client == nil || c.tracker == nil {
+	if c.cfg == nil || c.client == nil || (c.tracker == nil && c.cfg.Budget.Enabled) {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("personality budget tracker or client unavailable")
 	}
 	if c.tracker.IsBlocked("personality") {

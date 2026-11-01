@@ -135,7 +135,7 @@ func TestTurnExtractionPreservesFullSourceAcrossRetryAndDefersOversize(t *testin
 	valid := `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{}}`
 	client := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(`{broken`, openai.FinishReasonLength), helperRecoveryResponse(valid, openai.FinishReasonStop)}}
 	manager := &helperLLMManager{client: client, model: "test-model", contextWindow: 64000}
-	if _, err := manager.AnalyzeTurn(t.Context(), source, assistant, nil, nil, nil, newHelperTurnBudget(t)); err != nil {
+	if _, err := manager.AnalyzeTurn(t.Context(), source, assistant, nil, nil, nil, newHelperTurnBudget(t), true); err != nil {
 		t.Fatal(err)
 	}
 	if len(client.requests) != 2 || client.requests[0].Messages[1].Content != client.requests[1].Messages[1].Content || !strings.Contains(client.requests[1].Messages[1].Content, "FINAL_USER_SOURCE") || !strings.Contains(client.requests[1].Messages[1].Content, "FINAL_ASSISTANT_SOURCE") {
@@ -143,7 +143,7 @@ func TestTurnExtractionPreservesFullSourceAcrossRetryAndDefersOversize(t *testin
 	}
 	oversizeClient := &helperRecoveryClient{responses: []openai.ChatCompletionResponse{helperRecoveryResponse(valid, openai.FinishReasonStop)}}
 	manager = &helperLLMManager{client: oversizeClient, model: "test-model", contextWindow: 512}
-	if _, err := manager.AnalyzeTurn(t.Context(), source, assistant, nil, nil, nil, newHelperTurnBudget(t)); err == nil || len(oversizeClient.requests) != 0 {
+	if _, err := manager.AnalyzeTurn(t.Context(), source, assistant, nil, nil, nil, newHelperTurnBudget(t), true); err == nil || len(oversizeClient.requests) != 0 {
 		t.Fatal("oversize source was truncated and partially analyzed")
 	}
 }

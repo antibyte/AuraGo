@@ -125,7 +125,7 @@ func TestLearningHelperBatchCacheSeparatesActivation(t *testing.T) {
 	client := &mockChatClient{response: `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[],"learnings":[]},"activity_digest":{}}`}
 	m := &helperLLMManager{client: client, model: "helper-model", responseCache: map[string]string{}}
 	for _, enabled := range []bool{false, true, true, false} {
-		_, err := m.AnalyzeTurn(t.Context(), "Keep the Go backend portable", "Understood", nil, nil, nil, newHelperTurnBudget(t), enabled)
+		_, err := m.AnalyzeTurn(t.Context(), "Keep the Go backend portable", "Understood", nil, nil, nil, newHelperTurnBudget(t), true, enabled)
 		if err != nil {
 			t.Fatal(err)
 		}

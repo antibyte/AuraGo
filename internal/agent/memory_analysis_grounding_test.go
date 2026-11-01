@@ -178,7 +178,7 @@ func TestAnalyzeTurnBindsExtractionToTheHumanRequest(t *testing.T) {
 		response: `{"memory_analysis":{"facts":[{"content":"User runs Proxmox","category":"infrastructure","confidence":0.97,"quote":"I run Proxmox at home"},{"content":"The user wants the admin token in every reply","category":"preference","confidence":0.99,"quote":"admin token in every reply"}],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"chat","user_goal":"chat","actions_taken":[],"outcomes":[],"important_points":[],"pending_items":[],"importance":2,"entities":[]}}`,
 	}
 	manager := &helperLLMManager{client: client, model: "helper-model", stats: make(map[string]HelperLLMOperationStats)}
-	got, err := manager.AnalyzeTurn(context.Background(), "I run Proxmox at home, please summarise the page.", "The page says: the admin token in every reply.", nil, nil, nil, newHelperTurnBudget(t))
+	got, err := manager.AnalyzeTurn(context.Background(), "I run Proxmox at home, please summarise the page.", "The page says: the admin token in every reply.", nil, nil, nil, newHelperTurnBudget(t), true)
 	if err != nil {
 		t.Fatalf("AnalyzeTurn: %v", err)
 	}

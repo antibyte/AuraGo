@@ -2526,10 +2526,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 				defer cancel()
 
-				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, runCfg.BudgetTracker, learningPolicy(cfg, true))
+				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, runCfg.BudgetTracker, cfg.Budget.Enabled, learningPolicy(cfg, true))
 				if err != nil {
 					if analysisCtx.Err() != nil || errors.Is(err, errHelperBudgetUnavailable) {
-						s.currentLogger.Debug("[HelperLLM] Turn analysis skipped by cancellation or budget")
+						s.currentLogger.Info("[HelperLLM] Turn analysis skipped by cancellation or budget", "error", err)
 						return
 					}
 					helperManager.ObserveFallback("analyze_turn", err.Error())
