@@ -1,0 +1,14 @@
+{
+  "calc": "loaded_divider",
+  "sets": [
+    {"values": {"vin": 12, "r1": 10000, "r2": 10000, "rl": 10000, "vout": 4, "rp": 5000, "vnl": 6, "i": 0.0008}, "ref": "hand: R_P = 10k || 10k = 5k; V_out = 12 V * 5k / 15k = 4 V; unloaded 12 V * 10k / 20k = 6 V; I = 12 V / 15k = 0.8 mA"},
+    {"values": {"vin": 9, "r1": 1000, "r2": 3000, "rl": 6000, "vout": 6, "rp": 2000, "vnl": 6.75, "i": 0.003}, "ref": "hand: R_P = 3k * 6k / 9k = 2k; V_out = 9 V * 2k / 3k = 6 V; unloaded 9 V * 3k / 4k = 6.75 V; I = 9 V / 3k = 3 mA"},
+    {"values": {"vin": 5, "r1": 2200, "r2": 3300, "rl": 3300, "vout": 2.142857142857143, "rp": 1650, "vnl": 3, "i": 0.0012987012987013}, "ref": "hand: R_P = 3k3 || 3k3 = 1650 ohm; V_out = 5 V * 1650 / 3850 = 15/7 V; unloaded 5 V * 3300 / 5500 = 3 V; I = 5 V / 3850 ohm = 1/770 A"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 12, "r1": 10000, "r2": 10000, "rl": 10000}, "expect": {"vout": 4, "vnl": 6, "rp": 5000, "i": 0.0008}, "ref": "hand: R_P = 5k; V_out = 12 V * 5k / 15k = 4 V; unloaded 6 V; I = 0.8 mA"},
+    {"inputs": {"vin": 9, "vout": 6, "r1": 1000, "r2": 3000}, "expect": {"rl": 6000, "rp": 2000}, "ref": "hand: R_P = 6 V * 1k / (9 V - 6 V) = 2k; R_L = 2k * 3k / (3k - 2k) = 6k"},
+    {"inputs": {"vin": 12, "vout": 8, "r1": 10000, "r2": 10000}, "errors": {"rl": "range"}, "warnings": [1], "ref": "hand: R_P = 8 V * 10k / 4 V = 20k is not below R2 = 10k, so R_L = 20k * 10k / (10k - 20k) = -20k is out of range; the R_P >= R2 check (index 1) fires"},
+    {"inputs": {"vin": 12, "r1": 10000, "r2": 10000}, "errors": {"rl": "undetermined", "vout": "undetermined"}, "ref": "neither the load nor the output voltage is known"}
+  ]
+}

@@ -1,0 +1,131 @@
+# Basics calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in English
+# and German (other languages fall back to English). Rules are written out for every direction, in the order the
+# solver tries them: the first alternative whose variables are all known wins.
+
+- id: ohms_law
+  kind: calculator
+  category: basics
+  name: {cs: "Ohmův zákon a výkon", da: "Ohms lov og effekt", de: "Ohmsches Gesetz und Leistung", el: "Νόμος του Ωμ και ισχύς", en: "Ohm's law and power", es: "Ley de Ohm y potencia", fr: "Loi d'Ohm et puissance", hi: "ओम का नियम और शक्ति", it: "Legge di Ohm e potenza", ja: "オームの法則と電力", nl: "Wet van Ohm en vermogen", no: "Ohms lov og effekt", pl: "Prawo Ohma i moc", pt: "Lei de Ohm e potência", sv: "Ohms lag och effekt", zh: "欧姆定律与功率"}
+  doc:
+    en: "Ohm's law relates voltage, current and resistance (U = R × I); the electrical power is P = U × I. Any two of the four values determine the other two."
+    de: "Das Ohmsche Gesetz verknüpft Spannung, Strom und Widerstand (U = R · I); die elektrische Leistung ist P = U · I. Je zwei der vier Größen bestimmen die beiden anderen."
+  tags: [ohm, ohms law, voltage, current, resistance, power, watt, ohmsches gesetz, spannung, strom, widerstand, leistung]
+  source: "Ohm's law and Joule's law (P = U·I); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    u: {dim: voltage, label: U, name: {en: "Voltage", de: "Spannung"}, default: "12 V"}
+    i: {dim: current, label: I, name: {en: "Current", de: "Strom"}, default: "20 mA"}
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, eseries: true}
+    p: {dim: power, label: P, name: {en: "Power", de: "Leistung"}}
+  dof: 2
+  rules:
+    u: ["i*r", "p/i", "sqrt(p*r)"]
+    i: ["u/r", "p/u", "sqrt(p/r)"]
+    r: ["u/i", "u^2/p", "p/i^2"]
+    p: ["u*i", "i^2*r", "u^2/r"]
+  formula: ["u = r * i", "p = u * i"]
+  schematic: ohms_law
+
+- id: voltage_divider
+  kind: calculator
+  category: basics
+  name: {cs: "Napěťový dělič", da: "Spændingsdeler", de: "Spannungsteiler", el: "Διαιρέτης τάσης", en: "Voltage divider", es: "Divisor de tensión", fr: "Diviseur de tension", hi: "वोल्टेज विभाजक", it: "Partitore di tensione", ja: "分圧回路", nl: "Spanningsdeler", no: "Spenningsdeler", pl: "Dzielnik napięcia", pt: "Divisor de tensão", sv: "Spänningsdelare", zh: "分压器"}
+  doc:
+    en: "Two resistors in series divide the input voltage: V_out = V_in × R2 / (R1 + R2). The output is unloaded; for a divider that drives a load use the loaded voltage divider. The current and power are those of the divider chain itself."
+    de: "Zwei in Reihe geschaltete Widerstände teilen die Eingangsspannung: V_out = V_in · R2 / (R1 + R2). Der Ausgang ist unbelastet; für einen Teiler mit Last den belasteten Spannungsteiler verwenden. Strom und Leistung sind die der Teilerkette selbst."
+  tags: [divider, voltage divider, potentiometer, attenuator, teiler, spannungsteiler, widerstand]
+  source: "Voltage divider rule; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 2"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    r1: {dim: resistance, label: R_1, name: {en: "Upper resistor", de: "Oberer Widerstand"}, default: "4k7", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Lower resistor", de: "Unterer Widerstand"}, default: "2k2", eseries: true}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    vout: ["vin*r2/(r1+r2)"]
+    r2: ["vout*r1/(vin-vout)"]
+    r1: ["r2*(vin-vout)/vout"]
+    vin: ["vout*(r1+r2)/r2"]
+  derived:
+    i: {dim: current, label: I, name: {en: "Divider current", de: "Querstrom"}, expr: "vin/(r1+r2)"}
+    p: {dim: power, label: P, name: {en: "Divider power", de: "Verlustleistung"}, expr: "vin*i"}
+  checks:
+    - {when: "vout >= vin", warn: {en: "V_out is not below V_in: a passive divider can only attenuate.", de: "V_out liegt nicht unter V_in: Ein passiver Teiler kann nur abschwächen."}}
+  formula: ["vout = vin * r2 / (r1 + r2)"]
+  schematic: voltage_divider
+
+- id: loaded_divider
+  kind: calculator
+  category: basics
+  name: {cs: "Zatížený napěťový dělič", da: "Belastet spændingsdeler", de: "Belasteter Spannungsteiler", el: "Φορτισμένος διαιρέτης τάσης", en: "Loaded voltage divider", es: "Divisor de tensión con carga", fr: "Diviseur de tension chargé", hi: "भारित वोल्टेज विभाजक", it: "Partitore di tensione con carico", ja: "負荷付き分圧回路", nl: "Belaste spanningsdeler", no: "Belastet spenningsdeler", pl: "Obciążony dzielnik napięcia", pt: "Divisor de tensão com carga", sv: "Belastad spänningsdelare", zh: "带负载分压器"}
+  doc:
+    en: "A voltage divider that drives a load R_L. The load is in parallel with R2, so V_out = V_in × R_P / (R1 + R_P) with R_P = R2 ∥ R_L. The unloaded output V_nl shows how much the load pulls the voltage down."
+    de: "Ein Spannungsteiler, der eine Last R_L speist. Die Last liegt parallel zu R2, daher gilt V_out = V_in · R_P / (R1 + R_P) mit R_P = R2 ∥ R_L. Die Leerlaufspannung V_nl zeigt, wie stark die Last die Spannung herunterzieht."
+  tags: [divider, loaded divider, load, voltage divider, teiler, belasteter spannungsteiler, last]
+  source: "Voltage divider with a load (R2 in parallel with R_L); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    r1: {dim: resistance, label: R_1, name: {en: "Upper resistor", de: "Oberer Widerstand"}, default: "10k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Lower resistor", de: "Unterer Widerstand"}, default: "10k", eseries: true}
+    rl: {dim: resistance, label: R_L, name: {en: "Load resistance", de: "Lastwiderstand"}, default: "10k", eseries: true}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage under load", de: "Ausgangsspannung unter Last"}}
+  dof: 4
+  rules:
+    vout: ["vin*rp/(r1+rp)"]
+    vin: ["vout*(r1+rp)/rp"]
+    r1: ["rp*(vin-vout)/vout"]
+    r2: ["rp*rl/(rl-rp)"]
+    rl: ["rp*r2/(r2-rp)"]
+  derived:
+    rp: {dim: resistance, label: R_P, name: {en: "R2 ∥ RL", de: "R2 ∥ RL"}, expr: ["r2*rl/(r2+rl)", "vout*r1/(vin-vout)"]}
+    vnl: {dim: voltage, label: V_nl, name: {en: "Unloaded output voltage", de: "Leerlaufspannung"}, expr: "vin*r2/(r1+r2)"}
+    i: {dim: current, label: I, name: {en: "Input current", de: "Eingangsstrom"}, expr: "vin/(r1+rp)"}
+  checks:
+    - {when: "vout >= vin", warn: {en: "V_out is not below V_in: a passive divider can only attenuate.", de: "V_out liegt nicht unter V_in: Ein passiver Teiler kann nur abschwächen."}}
+    - {when: "rp >= r2", warn: {en: "R_P must be smaller than R2; these values do not fit together (a load always pulls the lower resistance down).", de: "R_P muss kleiner als R2 sein; diese Werte passen nicht zusammen (eine Last verkleinert den unteren Widerstand immer)."}}
+  formula: ["vout = vin * rp / (r1 + rp)", "rp = r2 * rl / (r2 + rl)"]
+  schematic: loaded_divider
+
+- id: current_divider
+  kind: calculator
+  category: basics
+  name: {cs: "Proudový dělič", da: "Strømdeler", de: "Stromteiler", el: "Διαιρέτης ρεύματος", en: "Current divider", es: "Divisor de corriente", fr: "Diviseur de courant", hi: "धारा विभाजक", it: "Partitore di corrente", ja: "分流回路", nl: "Stroomdeler", no: "Strømdeler", pl: "Dzielnik prądu", pt: "Divisor de corrente", sv: "Strömdelare", zh: "分流电路"}
+  doc:
+    en: "Two resistors in parallel share the total current in inverse proportion to their resistance: I_1 = I × R2 / (R1 + R2) and I_2 = I × R1 / (R1 + R2). The voltage across both is U = I_1 × R1. The two branch currents alone cannot fix the resistors, only their ratio."
+    de: "Zwei parallele Widerstände teilen den Gesamtstrom umgekehrt proportional zu ihrem Widerstand: I_1 = I · R2 / (R1 + R2) und I_2 = I · R1 / (R1 + R2). Die Spannung an beiden beträgt U = I_1 · R1. Die beiden Zweigströme allein legen die Widerstände nicht fest, nur ihr Verhältnis."
+  tags: [current divider, parallel, shunt, branch current, stromteiler, parallelschaltung, strom, zweigstrom]
+  source: "Current divider rule (Kirchhoff's current law with Ohm's law); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 2"
+  vars:
+    i: {dim: current, label: I, name: {en: "Total current", de: "Gesamtstrom"}, default: "100 mA"}
+    r1: {dim: resistance, label: R_1, name: {en: "Resistor 1", de: "Widerstand 1"}, default: "100", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Resistor 2", de: "Widerstand 2"}, default: "220", eseries: true}
+    i1: {dim: current, label: I_1, name: {en: "Current through R1", de: "Strom durch R1"}}
+    i2: {dim: current, label: I_2, name: {en: "Current through R2", de: "Strom durch R2"}}
+  dof: 3
+  rules:
+    i1: ["i*r2/(r1+r2)", "i-i2", "i2*r2/r1"]
+    i2: ["i*r1/(r1+r2)", "i-i1", "i1*r1/r2"]
+    i: ["i1+i2", "i1*(r1+r2)/r2", "i2*(r1+r2)/r1"]
+    r1: ["i2*r2/i1"]
+    r2: ["i1*r1/i2"]
+  derived:
+    u: {dim: voltage, label: U, name: {en: "Voltage across both", de: "Spannung an beiden"}, expr: "i1*r1"}
+  formula: ["i1 = i * r2 / (r1 + r2)", "i2 = i * r1 / (r1 + r2)"]
+  schematic: current_divider
+
+- id: series_parallel
+  kind: calculator
+  category: basics
+  name: {cs: "Sériové a paralelní zapojení rezistorů", da: "Serie- og parallelforbundne modstande", de: "Reihen- und Parallelschaltung von Widerständen", el: "Σύνδεση αντιστάσεων σε σειρά και παράλληλα", en: "Series and parallel resistors", es: "Resistencias en serie y en paralelo", fr: "Résistances en série et en parallèle", hi: "श्रेणी और समानांतर प्रतिरोधक", it: "Resistori in serie e in parallelo", ja: "抵抗の直列・並列接続", nl: "Weerstanden in serie en parallel", no: "Seriekoblede og parallellkoblede motstander", pl: "Rezystory połączone szeregowo i równolegle", pt: "Resistências em série e em paralelo", sv: "Seriekopplade och parallellkopplade resistorer", zh: "电阻串联与并联"}
+  doc:
+    en: "Resistors in series add up: R_S = R_1 + R_2 + …. Resistors in parallel combine as 1/R_P = 1/R_1 + 1/R_2 + …. Enter the values as a list, for example 4k7, 10k, 2k2."
+    de: "In Reihe geschaltete Widerstände addieren sich: R_S = R_1 + R_2 + …. Parallel geschaltete Widerstände ergeben 1/R_P = 1/R_1 + 1/R_2 + …. Die Werte als Liste eingeben, zum Beispiel 4k7, 10k, 2k2."
+  tags: [series, parallel, resistors, combination, reihenschaltung, parallelschaltung, widerstände, ersatzwiderstand]
+  source: "Series and parallel resistor combination; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    rs: {dim: resistance, label: R, name: {en: "Resistors", de: "Widerstände"}, list: true, default: ["4k7", "10k", "2k2"]}
+  dof: 1
+  derived:
+    rser: {dim: resistance, label: R_S, name: {en: "Series resistance", de: "Reihenwiderstand"}, expr: "sum(rs)"}
+    rpar: {dim: resistance, label: R_P, name: {en: "Parallel resistance", de: "Parallelwiderstand"}, expr: "par(rs)"}
+  formula: ["rser = sum(rs)", "rpar = par(rs)"]
+  schematic: series_parallel

@@ -1,0 +1,13 @@
+{
+  "calc": "current_divider",
+  "sets": [
+    {"values": {"i": 0.1, "r1": 100, "r2": 220, "i1": 0.06875, "i2": 0.03125, "u": 6.875}, "ref": "hand: I_1 = 0.1 A * 220 / 320 = 68.75 mA; I_2 = 0.1 A * 100 / 320 = 31.25 mA; U = 68.75 mA * 100 ohm = 6.875 V"},
+    {"values": {"i": 0.3, "r1": 100, "r2": 200, "i1": 0.2, "i2": 0.1, "u": 20}, "ref": "hand: I_1 = 0.3 A * 200 / 300 = 0.2 A; I_2 = 0.3 A * 100 / 300 = 0.1 A; U = 0.2 A * 100 ohm = 20 V = 0.1 A * 200 ohm"},
+    {"values": {"i": 0.5, "r1": 300, "r2": 100, "i1": 0.125, "i2": 0.375, "u": 37.5}, "ref": "hand: I_1 = 0.5 A * 100 / 400 = 0.125 A; I_2 = 0.5 A * 300 / 400 = 0.375 A; U = 0.125 A * 300 ohm = 37.5 V = 0.375 A * 100 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"i": 0.1, "r1": 100, "r2": 220}, "expect": {"i1": 0.06875, "i2": 0.03125, "u": 6.875}, "ref": "hand: see the first set"},
+    {"inputs": {"i1": 0.2, "i2": 0.1, "r1": 100}, "expect": {"r2": 200, "i": 0.3, "u": 20}, "ref": "hand: R2 = I_1 * R1 / I_2 = 0.2 * 100 / 0.1 = 200 ohm; I = I_1 + I_2 = 0.3 A; U = 20 V"},
+    {"inputs": {"i": 0.3, "i1": 0.2, "i2": 0.1}, "errors": {"r1": "undetermined", "r2": "undetermined"}, "ref": "the currents alone only fix the ratio R1 : R2, not the resistors"}
+  ]
+}

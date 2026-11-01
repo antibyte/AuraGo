@@ -1,0 +1,27 @@
+# The category rail of the ECalc app, in display order. Every name is written in all 16 desktop locales.
+basics:
+  name: {cs: "Základy", da: "Grundlæggende", de: "Grundlagen", el: "Βασικά", en: "Basics", es: "Fundamentos", fr: "Bases", hi: "बुनियादी", it: "Fondamenti", ja: "基礎", nl: "Basis", no: "Grunnleggende", pl: "Podstawy", pt: "Fundamentos", sv: "Grunder", zh: "基础"}
+passive:
+  name: {cs: "Pasivní součástky", da: "Passive komponenter", de: "Passive Bauteile", el: "Παθητικά εξαρτήματα", en: "Passive", es: "Componentes pasivos", fr: "Composants passifs", hi: "निष्क्रिय घटक", it: "Componenti passivi", ja: "受動部品", nl: "Passieve componenten", no: "Passive komponenter", pl: "Elementy bierne", pt: "Componentes passivos", sv: "Passiva komponenter", zh: "无源元件"}
+filters:
+  name: {cs: "Filtry", da: "Filtre", de: "Filter", el: "Φίλτρα", en: "Filters", es: "Filtros", fr: "Filtres", hi: "फ़िल्टर", it: "Filtri", ja: "フィルタ", nl: "Filters", no: "Filtre", pl: "Filtry", pt: "Filtros", sv: "Filter", zh: "滤波器"}
+semiconductors:
+  name: {cs: "Polovodiče", da: "Halvledere", de: "Halbleiter", el: "Ημιαγωγοί", en: "Semiconductors", es: "Semiconductores", fr: "Semi-conducteurs", hi: "अर्धचालक", it: "Semiconduttori", ja: "半導体", nl: "Halfgeleiders", no: "Halvledere", pl: "Półprzewodniki", pt: "Semicondutores", sv: "Halvledare", zh: "半导体"}
+power:
+  name: {cs: "Napájení", da: "Strømforsyning", de: "Stromversorgung", el: "Τροφοδοσία", en: "Power supply", es: "Fuentes de alimentación", fr: "Alimentation", hi: "बिजली आपूर्ति", it: "Alimentazione", ja: "電源", nl: "Voeding", no: "Strømforsyning", pl: "Zasilanie", pt: "Fontes de alimentação", sv: "Strömförsörjning", zh: "电源"}
+opamps:
+  name: {cs: "Operační zesilovače", da: "Operationsforstærkere", de: "OpAmps", el: "Τελεστικοί ενισχυτές", en: "Op-amps", es: "Amplificadores operacionales", fr: "Amplificateurs opérationnels", hi: "ऑप-एम्प", it: "Amplificatori operazionali", ja: "オペアンプ", nl: "Operationele versterkers", no: "Operasjonsforsterkere", pl: "Wzmacniacze operacyjne", pt: "Amplificadores operacionais", sv: "Operationsförstärkare", zh: "运算放大器"}
+timers:
+  name: {cs: "Časovače", da: "Timere", de: "Timer", el: "Χρονιστές", en: "Timers", es: "Temporizadores", fr: "Temporisateurs", hi: "टाइमर", it: "Temporizzatori", ja: "タイマー", nl: "Timers", no: "Timere", pl: "Timery", pt: "Temporizadores", sv: "Timers", zh: "定时器"}
+rf:
+  name: {cs: "Vysoké frekvence", da: "Højfrekvens", de: "HF", el: "Ραδιοσυχνότητες (RF)", en: "RF", es: "Radiofrecuencia", fr: "Radiofréquence", hi: "आरएफ", it: "Radiofrequenza", ja: "高周波", nl: "Radiofrequentie", no: "Høyfrekvens", pl: "Wysoka częstotliwość", pt: "Radiofrequência", sv: "Radiofrekvens", zh: "射频"}
+digital:
+  name: {cs: "Digitální technika", da: "Digital", de: "Digital", el: "Ψηφιακά", en: "Digital", es: "Digital", fr: "Numérique", hi: "डिजिटल", it: "Digitale", ja: "デジタル", nl: "Digitaal", no: "Digital", pl: "Cyfrowe", pt: "Digital", sv: "Digital", zh: "数字电路"}
+wiring:
+  name: {cs: "Vodiče a DPS", da: "Ledninger og print", de: "Leitungen & PCB", el: "Καλωδίωση & PCB", en: "Wiring & PCB", es: "Cableado y PCB", fr: "Câblage et PCB", hi: "वायरिंग और पीसीबी", it: "Cablaggio e PCB", ja: "配線とプリント基板", nl: "Bedrading en pcb", no: "Ledninger og kretskort", pl: "Okablowanie i PCB", pt: "Cablagem e PCB", sv: "Kablage och kretskort", zh: "布线与PCB"}
+tables:
+  name: {cs: "Tabulky", da: "Tabeller", de: "Tabellen", el: "Πίνακες", en: "Tables", es: "Tablas", fr: "Tableaux", hi: "तालिकाएँ", it: "Tabelle", ja: "表", nl: "Tabellen", no: "Tabeller", pl: "Tabele", pt: "Tabelas", sv: "Tabeller", zh: "表格"}
+codes:
+  name: {cs: "Kódy součástek", da: "Komponentkoder", de: "Bauteilcodes", el: "Κωδικοί εξαρτημάτων", en: "Codes", es: "Códigos de componentes", fr: "Codes des composants", hi: "घटक कोड", it: "Codici dei componenti", ja: "部品コード", nl: "Componentcodes", no: "Komponentkoder", pl: "Kody elementów", pt: "Códigos de componentes", sv: "Komponentkoder", zh: "元件代码"}
+pinouts:
+  name: {cs: "Zapojení pinů", da: "Benforbindelser", de: "Pinbelegungen", el: "Αντιστοίχιση ακροδεκτών", en: "Pinouts", es: "Distribución de pines", fr: "Brochages", hi: "पिनआउट", it: "Piedinature", ja: "ピン配置", nl: "Pinbezetting", no: "Pinnekonfigurasjon", pl: "Rozmieszczenie wyprowadzeń", pt: "Pinagens", sv: "Stiftkonfiguration", zh: "引脚定义"}
