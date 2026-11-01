@@ -6,11 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -55,12 +57,48 @@ func testIconLibrary(t *testing.T) (*IconLibrary, fstest.MapFS) {
 
 func TestIconCatalogAndShippedLibrary(t *testing.T) {
 	c := Icons()
-	if len(c.Styles)*len(c.Tones)*2*len(c.Motifs) != 960 {
-		t.Fatal("catalog does not contain 960 variants")
+	if len(c.Styles)*len(c.Tones)*2*len(c.Motifs) != 1760 || len(c.Motifs) != 110 {
+		t.Fatal("catalog does not contain 110 motifs and 1760 variants")
+	}
+	seen, animated := map[string]bool{}, 0
+	for i, motif := range c.Motifs {
+		if seen[motif.ID] {
+			t.Fatalf("duplicate motif %s", motif.ID)
+		}
+		seen[motif.ID] = true
+		if motif.Motion == "frames" {
+			animated++
+		} else if i >= 60 && motif.Motion != "pulse" {
+			t.Fatalf("new single-frame motif %s lost its optional pulse", motif.ID)
+		}
+	}
+	if animated != 32 {
+		t.Fatalf("got %d frame animations, want 32", animated)
 	}
 	library, err := LoadIconLibrary(os.DirFS("../../ui"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(library.manifest.Files) != 8640 {
+		t.Fatal("shipped library does not contain 8640 PNGs")
+	}
+	legacy := map[string]bool{}
+	for _, motif := range c.Motifs[:60] {
+		legacy[motif.ID] = true
+	}
+	var oldKeys []string
+	for key := range library.manifest.Files {
+		if legacy[strings.Split(key, "/")[2]] {
+			oldKeys = append(oldKeys, key)
+		}
+	}
+	sort.Strings(oldKeys)
+	oldHash := sha256.New()
+	for _, key := range oldKeys {
+		fmt.Fprintf(oldHash, "%s %s\n", key, library.manifest.Files[key].SHA256)
+	}
+	if len(oldKeys) != 3840 || hex.EncodeToString(oldHash.Sum(nil)) != "d717b8525928bb3ed78f3b1cb5bc6efb2c4019e4bf1e64c0be10c01078e19df9" {
+		t.Fatal("the original 3840 PNG paths or hashes changed")
 	}
 	for _, style := range c.Styles {
 		for _, tone := range c.Tones {
@@ -90,12 +128,76 @@ func TestIconCatalogAndShippedLibrary(t *testing.T) {
 	}
 }
 
+func TestIconExpansionExportParityAndMotion(t *testing.T) {
+	var exported struct {
+		Motifs   []string `json:"motifs"`
+		Variants int      `json:"variants"`
+		PNGFiles int      `json:"png_files"`
+	}
+	raw, err := os.ReadFile("../../assets/cyd-icons/export-manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &exported); err != nil {
+		t.Fatal(err)
+	}
+	c := Icons()
+	var ids []string
+	for _, motif := range c.Motifs {
+		ids = append(ids, motif.ID)
+	}
+	if !reflect.DeepEqual(ids, exported.Motifs) || exported.Variants != 1760 || exported.PNGFiles != 8640 {
+		t.Fatal("Go catalog and deterministic exporter disagree")
+	}
+	library, err := LoadIconLibrary(os.DirFS("../../ui"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, style := range c.Styles {
+		for _, tone := range c.Tones {
+			for _, motif := range c.Motifs[60:] {
+				if motif.Motion != "frames" {
+					continue
+				}
+				for _, size := range c.Sizes {
+					phases := map[[32]byte]bool{}
+					for frame := 0; frame < 6; frame++ {
+						r := IconRequest{Style: style, Tone: tone, Motif: motif.ID, Size: size}
+						raw, _, err := library.read(r, frame)
+						if err != nil {
+							t.Fatal(err)
+						}
+						img, _, err := image.Decode(bytes.NewReader(raw))
+						if err != nil {
+							t.Fatal(err)
+						}
+						var pixels []byte
+						for y := 0; y < size; y++ {
+							for x := 0; x < size; x++ {
+								red, green, blue, alpha := img.At(x, y).RGBA()
+								if tone != "mono" {
+									pixels = append(pixels, byte(red>>8), byte(green>>8), byte(blue>>8))
+								}
+								pixels = append(pixels, byte(alpha>>8))
+							}
+						}
+						phases[sha256.Sum256(pixels)] = true
+					}
+					if len(phases) < 2 {
+						t.Fatalf("%s/%s/%s/%d has no visible frame motion", style, tone, motif.ID, size)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestIconImportAtomicDeduplicatedAndPortable(t *testing.T) {
 	env := newTestService(t)
 	ctx := context.Background()
 	p := env.createProject(t, "Icons")
 	library, files := testIconLibrary(t)
-	r := IconRequest{Style: "modern", Tone: "mono", Motif: "fan", Size: 32, Animated: true}
+	r := IconRequest{Style: "modern", Tone: "mono", Motif: "coffee_machine", Size: 32, Animated: true}
 	// A damaged last frame must not publish the first five.
 	last := "img/cyd-icons/" + r.key(5)
 	good := files[last].Data
@@ -175,7 +277,7 @@ func TestIconImportBudgetAndAllowlist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := IconRequest{Style: "modern", Tone: "color", Motif: "fan", Size: 64, Animated: true}
+	r := IconRequest{Style: "modern", Tone: "color", Motif: "gopher", Size: 64, Animated: true}
 	_, err = env.svc.ImportIcon(ctx, p.ID, version, r, library)
 	wantCode(t, err, CodeAssetTooLarge)
 	layout, v, _, _ := env.svc.GetLayout(ctx, p.ID)

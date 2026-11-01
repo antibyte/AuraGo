@@ -189,6 +189,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Bookshelf | `internal/bookshelf/AGENTS.md` | Library/sources, reader isolation, conversion. |
 | CYD notification devices | `internal/cyd/AGENTS.md`, `internal/server/AGENTS.md` | Glass notifications, MeshCore announcements and shared TTS/PCM playback. |
 | CYD Creator | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md` | Board/device profiles/themes/widgets/layout ops/validation/partitions/config blob; `cyd_template` runtime, builder image/deterministic generator, SQLite/storage, diagnostics/events/service, queue/jobs/revisions/tools/HTTP API. |
+| CYD Creator icon artwork | `assets/cyd-icons/AGENTS.md`, `internal/cydcreator/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Shared motif IDs, ImageGen masters/prompts, deterministic sprite exports, translated picker and firmware frame acceptance. |
 | Decisions service | `internal/decisions/AGENTS.md` | Optional shared service, verified artifacts/device placement/CPU permission/bounded scoring. |
 | Decisions runtime | `decisions_runtime/AGENTS.md` | Pinned llama.cpp/mtmd scorer, private protocol/offload evidence/native-Docker packaging, HTTP `runtime_busy`. |
 | Desktop files/archives | `internal/desktop/AGENTS.md` | Rooted operations; owns pets-assets child index. |

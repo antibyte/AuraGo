@@ -15,12 +15,12 @@ func TestCYDCreatorIconAPI(t *testing.T) {
 	t.Cleanup(func() { uiFiles = old })
 	var catalog cydcreator.IconCatalog
 	f.json(t, f.read, http.MethodGet, "icons", "", nil, http.StatusOK, &catalog)
-	if len(catalog.Motifs) != 60 || len(catalog.Styles) != 4 {
+	if len(catalog.Motifs) != 110 || len(catalog.Styles) != 4 {
 		t.Fatal("incomplete catalog")
 	}
 	p := f.createProject(t, "Icons")
 	path := "projects/" + p.ID + "/icons"
-	body := `{"style":"modern","tone":"mono","motif":"wifi","size":32,"animated":true}`
+	body := `{"style":"modern","tone":"mono","motif":"coffee_machine","size":32,"animated":true}`
 	wantCYDError(t, f.do(f.admin, http.MethodPost, path, strings.NewReader(body), nil), http.StatusBadRequest, cydcreator.CodeBadRequest)
 	var result cydcreator.IconImport
 	f.json(t, f.admin, http.MethodPost, path, body, map[string]string{"If-Match": "1"}, http.StatusOK, &result)
