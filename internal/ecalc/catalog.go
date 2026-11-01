@@ -136,6 +136,9 @@ type Catalog struct {
 	Calculators []*Calculator
 
 	byID map[string]*Calculator
+
+	locMu sync.Mutex
+	loc   map[string]localized // LocalizedJSON cache, by normalized language
 }
 
 // Calculator returns the calculator with the given id, or nil.
