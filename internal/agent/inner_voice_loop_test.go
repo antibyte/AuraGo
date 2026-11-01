@@ -4,6 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"aurago/internal/memory"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -97,6 +100,96 @@ func TestInnerVoiceInjectionIsGatedPerLoopIteration(t *testing.T) {
 	}
 	for i, name := range []string{"the first request", "the request after the recovery round", "the request after a successful tool result"} {
 		requireInnerVoiceCarried(t, name, requests[i], hint)
+	}
+}
+
+// A turn that ends inside an error streak reports its real error count to the
+// helper batch and neither reserves nor requests an inner voice.
+func TestTurnEndingInAnErrorStreakReportsErrorsAndRequestsNoInnerVoice(t *testing.T) {
+	const sessionID = "inner-voice-error-streak-session"
+	const text = "Please stop process 1."
+	const helperResponse = `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"Stop","user_goal":"Stop a process","actions_taken":["Tried"],"outcomes":["Failed"],"important_points":[],"pending_items":[],"importance":1,"entities":[]},"personality_analysis":{"mood_analysis":{"user_sentiment":"neutral","agent_appropriate_response_mood":"focused","relationship_delta":0.0,"trait_deltas":{},"user_profile_updates":[]},"emotion_state":{"description":"I feel steady.","primary_mood":"focused","secondary_mood":"","valence":0.1,"arousal":0.3,"confidence":0.8,"cause":"a failed tool call","recommended_response_style":"calm"}}}`
+
+	oldFailures, oldPause := v2FailCount.Swap(0), v2PausedUntil.Swap(0)
+	ResetGlobalHelperLLMManager()
+	ResetInnerVoiceState()
+	t.Cleanup(func() {
+		v2FailCount.Store(oldFailures)
+		v2PausedUntil.Store(oldPause)
+		ResetGlobalHelperLLMManager()
+		ResetInnerVoiceState()
+	})
+
+	failing := gameMakerCacheToolResponse("failing", "status")
+	failing.Choices[0].Message.ToolCalls[0].Function = openai.FunctionCall{Name: "stop_process", Arguments: `{"pid":1}`}
+	mainClient := &gameMakerCacheClient{circuitBreakerSequenceClient: circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{failing, gameMakerCacheFinalResponse()}}}
+	run, _, cleanup := newPromptPipelineTestRunConfig(t, sessionID, "web_chat")
+	t.Cleanup(cleanup)
+	run.LLMClient = mainClient
+	run.AllowedTools = []string{"stop_process"} // disabled in the test config: calling it is a tool error
+	run.NativeToolSchemas = []openai.Tool{{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{
+		Name: "stop_process", Description: "Stop a managed process.", Parameters: map[string]any{"type": "object", "properties": map[string]any{"pid": map[string]any{"type": "integer"}}},
+	}}}
+	cfg := run.Config
+	cfg.LLM.UseNativeFunctions = true
+	cfg.Personality.Engine, cfg.Personality.EngineV2 = true, true
+	cfg.Personality.CorePersonality = "punk"
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EmotionSynthesizer.MinIntervalSecs = 60
+	cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange = true
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.InnerVoice.MinIntervalSecs = 60
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.DecayTurns = 3
+	cfg.Personality.InnerVoice.DecayMaxAgeSecs = 300
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProviderType = "openai"
+	cfg.LLM.HelperBaseURL = "https://helper.invalid/v1"
+	cfg.LLM.HelperAPIKey = "k"
+	cfg.LLM.HelperResolvedModel = "helper-model"
+	if cfg.Budget.Enabled || run.BudgetTracker != nil {
+		t.Fatal("fixture must model disabled budgeting: no tracker")
+	}
+
+	helper := &recordingHelperClient{response: helperResponse}
+	manager := newHelperLLMManager(cfg, run.Logger)
+	if manager == nil {
+		t.Fatal("helper manager unavailable")
+	}
+	manager.client = helper
+
+	sideEffects := NewAsyncTaskGroup(context.Background())
+	t.Cleanup(func() { _ = sideEffects.Shutdown(5 * time.Second) })
+	run.SideEffects = sideEffects
+	run.HumanInput = memory.NewHumanInput(text, sessionID)
+	request := openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: text}}}
+	if _, err := ExecuteAgentLoop(context.Background(), request, run, false, NoopBroker{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(mainClient.requests) != 2 {
+		t.Fatalf("main requests=%d, want the failing tool round and the final answer", len(mainClient.requests))
+	}
+
+	// Do not Shutdown here: it cancels the group context of the running analysis.
+	var requests []openai.ChatCompletionRequest
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if requests = helper.recorded(); len(requests) > 0 {
+			break
+		}
+	}
+	if len(requests) != 1 {
+		t.Fatalf("helper requests=%d, want the single batched turn request", len(requests))
+	}
+	var prompt strings.Builder
+	for _, message := range requests[0].Messages {
+		prompt.WriteString(message.Content)
+		prompt.WriteString("\n")
+	}
+	if !strings.Contains(prompt.String(), "Errors: 1") {
+		t.Fatalf("batched turn request must report the real error count:\n%s", prompt.String())
+	}
+	if strings.Contains(prompt.String(), "INNER VOICE REQUESTED") {
+		t.Fatal("a turn that ends inside an error streak must not request an inner voice")
 	}
 }
 
