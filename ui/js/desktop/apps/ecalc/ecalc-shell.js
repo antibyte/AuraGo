@@ -139,6 +139,11 @@
             paintList();
             if (ui.compact) setView('page');
         }
+        // In the single-column layout the results of a query live in the list: searching from the rail or from a page
+        // moves there.
+        function showResults() {
+            if (ui.compact && ui.query.trim() && ui.view !== 'list') setView('list');
+        }
         function pickRail(id) {
             ui.rail = id;
             ui.query = '';
@@ -193,7 +198,7 @@
             ui.query = searchEl.value;
             paintRail();
             paintList();
-            if (ui.compact && ui.query.trim() && ui.view === 'rail') setView('list');
+            showResults();
         });
         searchEl.addEventListener('keydown', event => {
             if (event.key === 'Escape' && searchEl.value) {
@@ -258,7 +263,7 @@
 
         return {
             openItem,
-            focusSearch() { searchEl.focus(); searchEl.select(); },
+            focusSearch() { showResults(); searchEl.focus(); searchEl.select(); },
             setEnglishNames(names) {
                 englishNames = names;
                 if (ui.query.trim()) paintList();

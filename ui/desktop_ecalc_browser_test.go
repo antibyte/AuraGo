@@ -379,6 +379,22 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>{const p=document.querySelector('.ec-page-host');return p.scrollWidth>p.clientWidth+1?'the page scrolls sideways':'';}`).Str(); got != "" {
 		t.Fatal(got)
 	}
+	// Searching from the page view moves to the list with the results; Ctrl+K with a query still in the box does too.
+	page.MustElement(".ec-search-input").MustInput("teiler")
+	wait(`()=>document.querySelector('.ec-app').dataset.view==='list' && [...document.querySelectorAll('.ec-items .ec-item')].some(b=>b.dataset.id==='voltage_divider')`)
+	if !visible(".ec-list") || visible(".ec-page-host") || visible(".ec-rail") {
+		t.Fatal("typing a query on the page must show the list with the results")
+	}
+	page.MustElement(".ec-search-input").MustType(input.Enter)
+	wait(`()=>document.querySelector('.ec-app').dataset.view==='page'`)
+	page.MustElement(".ec-back").MustFocus()
+	page.KeyActions().Press(input.ControlLeft).Type('k').MustDo()
+	wait(`()=>document.querySelector('.ec-app').dataset.view==='list' && document.activeElement&&document.activeElement.classList.contains('ec-search-input')`)
+	if !visible(".ec-list") || visible(".ec-page-host") {
+		t.Fatal("Ctrl+K with a query must show the list with the results")
+	}
+	page.MustElement(".ec-search-input").MustType(input.Enter)
+	wait(`()=>document.querySelector('.ec-app').dataset.view==='page'`)
 	page.MustElement(".ec-back").MustClick()
 	if !visible(".ec-list") || visible(".ec-page-host") || visible(".ec-rail") {
 		t.Fatal("back from the page must show the list")
