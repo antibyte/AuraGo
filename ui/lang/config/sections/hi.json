@@ -257,6 +257,8 @@
   "config.section.webdav.label": "वेबडीएवी",
   "config.section.webhooks.desc": "आने वाले वेबहुक प्राप्त करता है और उनके एक्सेस टोकन प्रबंधित करता है।",
   "config.section.webhooks.label": "वेबहुक",
+  "config.section.whatsapp.desc": "AuraGo को लिंक किए गए डिवाइस के रूप में WhatsApp से जोड़ता है, ताकि आप वहाँ एजेंट से चैट कर सकें।",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "वाक् को टेक्स्ट में बदलने के लिए Whisper सेट करता है।",
   "config.section.whisper.label": "भाषण",
   "config.tts.elevenlabs_model_id_label": "मॉडल ID",

@@ -268,6 +268,24 @@
       "description": "The bot still answers incoming messages, but the agent may not send on its own."
     }
   },
+  "whatsapp": {
+    "mode": {
+      "title": "Number",
+      "description": "Dedicated: AuraGo has its own number (recommended because of ban risk). Own number: only your Message yourself chat reaches AuraGo."
+    },
+    "owner_numbers": {
+      "title": "Owner numbers",
+      "description": "International format such as +491701234567. Everyone else is ignored and never gets a reply."
+    },
+    "readonly": {
+      "title": "Read-only",
+      "description": "Replies to the owner still work, but the agent may not send on its own."
+    },
+    "send_read_receipts": {
+      "title": "Send read receipts",
+      "description": "Marks accepted owner messages as read. Dedicated mode only."
+    }
+  },
   "discord": {
     "bot_token": {
       "title": "Bot Token",

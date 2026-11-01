@@ -257,6 +257,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "受信 Webhook を受け付け、そのアクセストークンを管理します。",
   "config.section.webhooks.label": "Webhook",
+  "config.section.whatsapp.desc": "AuraGo をリンク済みデバイスとして WhatsApp に接続し、そこでエージェントとチャットできるようにします。",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "音声をテキストに変換する Whisper を設定します。",
   "config.section.whisper.label": "音声",
   "config.tts.elevenlabs_model_id_label": "モデルID",

@@ -257,6 +257,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "Odbiera przychodzące webhooki i zarządza ich tokenami dostępu.",
   "config.section.webhooks.label": "Webhooki",
+  "config.section.whatsapp.desc": "Łączy AuraGo z WhatsApp jako połączone urządzenie, aby można było tam rozmawiać z agentem.",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "Konfiguruje Whisper do zamiany mowy na tekst.",
   "config.section.whisper.label": "Mowa",
   "config.tts.elevenlabs_model_id_label": "ID Modelu",

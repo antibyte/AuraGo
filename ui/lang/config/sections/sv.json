@@ -254,6 +254,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "Tar emot inkommande webhooks och hanterar deras åtkomsttokens.",
   "config.section.webhooks.label": "Webhook-anrop",
+  "config.section.whatsapp.desc": "Ansluter AuraGo till WhatsApp som länkad enhet så att du kan chatta med agenten där.",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "Konfigurerar Whisper för att omvandla tal till text.",
   "config.section.whisper.label": "Tal",
   "config.tts.elevenlabs_model_id_label": "Modell-ID",

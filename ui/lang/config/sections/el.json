@@ -257,6 +257,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "Λαμβάνει εισερχόμενα webhooks και διαχειρίζεται τα διακριτικά πρόσβασής τους.",
   "config.section.webhooks.label": "Webhook",
+  "config.section.whatsapp.desc": "Συνδέει το AuraGo με το WhatsApp ως συνδεδεμένη συσκευή, ώστε να συνομιλείς εκεί με τον πράκτορα.",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "Ρυθμίζει το Whisper για μετατροπή ομιλίας σε κείμενο.",
   "config.section.whisper.label": "Ομιλία",
   "config.tts.elevenlabs_model_id_label": "ID Μοντέλου",

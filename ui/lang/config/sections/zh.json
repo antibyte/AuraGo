@@ -254,6 +254,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "接收传入的 webhook 并管理其访问令牌。",
   "config.section.webhooks.label": "Webhook",
+  "config.section.whatsapp.desc": "将 AuraGo 作为关联设备连接到 WhatsApp，让你可以在那里与代理聊天。",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "设置 Whisper，用于将语音转为文字。",
   "config.section.whisper.label": "语音",
   "config.tts.elevenlabs_model_id_label": "模型 ID",

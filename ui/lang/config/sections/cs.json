@@ -257,6 +257,8 @@
   "config.section.webdav.label": "WebDAV",
   "config.section.webhooks.desc": "Přijímá příchozí webhooky a spravuje jejich přístupové tokeny.",
   "config.section.webhooks.label": "Webhooky",
+  "config.section.whatsapp.desc": "Propojí AuraGo s WhatsAppem jako propojené zařízení, abyste tam mohli chatovat s agentem.",
+  "config.section.whatsapp.label": "WhatsApp",
   "config.section.whisper.desc": "Nastavuje Whisper pro převod řeči na text.",
   "config.section.whisper.label": "Whisper",
   "config.tts.elevenlabs_model_id_label": "ID modelu",
