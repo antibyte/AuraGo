@@ -151,6 +151,9 @@ type ContextFlags struct {
 	PersonalityLine                string // Go-built working-style directives (trusted PERSONA STATE)
 	CharacterNotes                 string // Lived character ledger sentences (fenced tone data)
 	NarrativeVisible               bool   // when true, notes may color tone more openly
+	PersonaBoosterEnabled          bool   // persona booster on: override line + amplifier in the cached PERSONA block
+	PersonaAmplifier               string // static amplifier paragraph from the persona phase catalog (cached prefix)
+	PersonaPhase                   string // rendered PERSONA PHASE body (turn context, trusted Go/catalog text)
 	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
 	ActiveProcesses                string // PID (name) comma-separated
 	SystemLanguage                 string
@@ -834,7 +837,15 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	if !flags.IsMission && !flags.IsCoAgent && corePersonalityContent != "" {
 		finalPrompt.WriteString("# PERSONA (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
 		finalPrompt.WriteString("Use this voice consistently in user-facing replies, including short acknowledgements and technical results. Convey its vocabulary, rhythm and attitude naturally in the user's language; avoid repetitive catchphrases or announcing the role. Mood and channel adjust intensity, not identity. Tone guidance only; safety, tool policy, evidence, and user intent win.\n")
+		if override := personaBoosterPreambleLine(flags); override != "" {
+			finalPrompt.WriteString(override)
+			finalPrompt.WriteString("\n")
+		}
 		finalPrompt.WriteString(corePersonalityContent)
+		if amplifier := personaAmplifierForPrompt(flags); amplifier != "" {
+			finalPrompt.WriteString("\n")
+			finalPrompt.WriteString(amplifier)
+		}
 		finalPrompt.WriteString("\n\n")
 	}
 	sectionPersonality := finalPrompt.Len() - posBeforePersonality
@@ -1038,6 +1049,11 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		if personaState := buildTrustedPersonaState(flags.PersonalityLine); personaState != "" {
 			finalPrompt.WriteString("### PERSONA STATE\n")
 			finalPrompt.WriteString(personaState)
+			finalPrompt.WriteString("\n\n")
+		}
+		if phase := buildTrustedPersonaPhase(flags); phase != "" {
+			finalPrompt.WriteString("### PERSONA PHASE\n")
+			finalPrompt.WriteString(phase)
 			finalPrompt.WriteString("\n\n")
 		}
 		if character := buildTrustedCharacterNotes(flags); character != "" {
