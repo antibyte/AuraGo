@@ -2,10 +2,10 @@
 // collision (`clear`), the street level (`ground`), where a visitor may stand (`walkable`) and the
 // motion preference. Positions are eye positions in metres, Y up; `yaw` is the camera heading
 // (forward = -sin, -cos), so a forward input flies where the visitor looks.
-export const hoverLimits={cruise:12,boost:26,climb:7,sink:7,ease:5,eye:2.4,takeoff:1.5,takeoffTime:.7,ceiling:150,minX:-140,maxX:140,minZ:-150,maxZ:130,glide:8,descend:6,reach:40,bob:.03};
+export const hoverLimits={cruise:12,boost:26,climb:7,sink:7,ease:5,eye:2.4,takeoff:1.5,takeoffTime:.7,ceiling:150,minX:-140,maxX:140,minZ:-150,maxZ:130,glide:8,descend:6,reach:40,bob:.03,slack:15};
 const hover=hoverLimits,clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),smooth=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
 export function createHoverFlight({clear,ground,walkable,reduced=()=>false}){
-  let phase='idle',done=false,x=0,y=0,z=0,vx=0,vy=0,vz=0,t=0,base=0,clock=0,plan=null,bobY=0;
+  let phase='idle',done=false,x=0,y=0,z=0,vx=0,vy=0,vz=0,t=0,base=0,clock=0,plan=null,bobY=0,armed=false,landTime=0,landLimit=0;
   const floorAt=(px,pz)=>ground(px,pz)+hover.eye,pose=()=>({x,y:y+bobY,z}),stop=()=>{vx=vy=vz=0;};
   const ease=(v,to,dt)=>{v+=(to-v)*(1-Math.exp(-hover.ease*dt));return Math.abs(v)<.01&&!to?0:v;};
   // Nearest standable street-level spot: 1.5 m rings up to `reach`, coarser rings out to the flight
@@ -18,35 +18,39 @@ export function createHoverFlight({clear,ground,walkable,reduced=()=>false}){
         if(sx<hover.minX||sx>hover.maxX||sz<hover.minZ||sz>hover.maxZ||avoid.some(s=>Math.hypot(s.x-sx,s.z-sz)<1)||!walkable(sx,sz))continue;
         const sy=floorAt(sx,sz);
         if(column&&!clear({x:sx,y:Math.max(y,sy),z:sz},{x:sx,y:sy,z:sz}))continue;
-        return {x:sx,y:sy,z:sz,blocked:0,time:0,skipped:avoid};
+        return {x:sx,y:sy,z:sz,blocked:0,skipped:avoid};
       }
     }
     return null;
   }
   const arrive=spot=>{x=spot.x;y=spot.y;z=spot.z;stop();bobY=0;phase='idle';done=true;plan=null;};
   function slide(dt){
-    const nx=clamp(x+vx*dt,hover.minX,hover.maxX),nz=clamp(z+vz*dt,hover.minZ,hover.maxZ);
+    const ox=x,oz=z,nx=clamp(x+vx*dt,hover.minX,hover.maxX),nz=clamp(z+vz*dt,hover.minZ,hover.maxZ);
     if(nx!==x+vx*dt)vx=0;if(nz!==z+vz*dt)vz=0;
     if(nx!==x){if(clear({x,y,z},{x:nx,y,z}))x=nx;else vx=0;}
     if(nz!==z){if(clear({x,y,z},{x,y,z:nz}))z=nz;else vz=0;}
-    const floor=floorAt(x,z),ny=clamp(y+vy*dt,floor,hover.ceiling);
+    // Rising ground (a ramp) lifts the flight with it only through free space; otherwise this step is refused.
+    let floor=floorAt(x,z);
+    if(y<floor){if(clear({x,y,z},{x,y:floor,z}))y=floor;else{x=ox;z=oz;vx=vz=0;floor=floorAt(x,z);}}
+    const ny=clamp(y+vy*dt,floor,hover.ceiling);
     if(ny!==y+vy*dt)vy=0;
     if(ny!==y){if(clear({x,y,z},{x,y:ny,z}))y=ny;else vy=0;}
-    if(y<floor){y=floor;vy=Math.max(0,vy);}
   }
   function glide(dt){
-    const p=plan,dx=p.x-x,dz=p.z-z,dist=Math.hypot(dx,dz),drop=y-p.y;p.time+=dt;
-    // A landing that cannot finish in a minute settles on its spot instead of hovering forever.
-    if(dist<.05&&drop<.02||p.time>60){arrive(p);return;}
+    const p=plan,dx=p.x-x,dz=p.z-z,dist=Math.hypot(dx,dz),drop=y-p.y;landTime+=dt;
+    // A landing that outlasts its unobstructed estimate by `slack` seconds ends on the nearest standable spot.
+    if(landTime>landLimit){const spot=findSpot(false);if(spot)arrive(spot);else{phase='flying';plan=null;}return;}
+    if(dist<.05&&drop<.02){arrive(p);return;}
     const sh=dist>.05?Math.min(hover.glide,Math.max(.8,dist*1.4)):0,sv=drop>.02?Math.min(hover.descend,Math.max(.6,drop*1.8)):0;
     const mx=dist>.05?dx/dist*Math.min(sh*dt,dist):0,mz=dist>.05?dz/dist*Math.min(sh*dt,dist):0,my=-Math.min(sv*dt,Math.max(0,drop)),here={x,y,z};
     if(clear(here,{x:x+mx,y:y+my,z:z+mz})){x+=mx;y+=my;z+=mz;vx=mx/dt;vz=mz/dt;vy=my/dt;p.blocked=0;}
     else if((mx||mz)&&clear(here,{x:x+mx,y,z:z+mz})){x+=mx;z+=mz;vx=mx/dt;vz=mz/dt;vy=0;p.blocked=0;}
     else{
-      // Walled in: rise above the obstacle, or choose another spot when the column itself is blocked.
+      // Walled in: rise above the obstacle. When that is refused too, or the column below the spot is blocked,
+      // choose another spot after a second; with none left the visitor gets the controls back.
       stop();
-      if(dist>=.05){if(y<hover.ceiling&&clear(here,{x,y:y+hover.descend*dt,z})){y+=hover.descend*dt;vy=hover.descend;}}
-      else if((p.blocked+=dt)>.5){const next=findSpot(true,[...p.skipped,p]);if(next)plan=next;else{phase='flying';plan=null;}}
+      if(dist>=.05&&y<hover.ceiling&&clear(here,{x,y:y+hover.descend*dt,z})){y+=hover.descend*dt;vy=hover.descend;p.blocked=0;}
+      else if((p.blocked+=dt)>1){const next=findSpot(true,[...p.skipped,p]);if(next)plan=next;else{phase='flying';plan=null;}}
     }
   }
   return {
@@ -56,6 +60,8 @@ export function createHoverFlight({clear,ground,walkable,reduced=()=>false}){
     place(position){x=position.x;y=position.y;z=position.z;stop();bobY=0;},
     step(dt,input={},yaw=0){
       dt=clamp(dt,0,.1);
+      // Controls pressed after the landing began (not ones still held from before) hand the flight back.
+      if(phase==='landing'){if(!(+input.forward||+input.right||+input.up))armed=true;else if(armed){phase='flying';plan=null;}}
       if(phase==='takeoff'){
         t=reduced()?hover.takeoffTime:Math.min(hover.takeoffTime,t+dt);
         const ny=base+hover.takeoff*smooth(t/hover.takeoffTime);
@@ -77,10 +83,13 @@ export function createHoverFlight({clear,ground,walkable,reduced=()=>false}){
       const now=instant||reduced();if(phase==='idle')return false;if(phase==='landing'&&!now)return true;
       const spot=findSpot(!now);if(!spot)return false;
       if(now){arrive(spot);return true;}
-      plan=spot;phase='landing';bobY=0;return true;
+      plan=spot;phase='landing';bobY=0;armed=false;landTime=0;
+      landLimit=hover.slack+Math.max(Math.hypot(spot.x-x,spot.z-z)/hover.glide,Math.max(0,y-spot.y)/hover.descend);return true;
     },
+    // A second E: give up the landing and fly freely again.
+    cancel(){if(phase!=='landing')return false;phase='flying';plan=null;return true;},
     // Leave the flight where it is (used when the ride ends for another reason).
     reset(){phase='idle';done=false;plan=null;stop();bobY=0;},
-    state(){return {phase,flying:phase!=='idle',landing:phase==='landing',done,x,y:y+bobY,z,altitude:Math.max(0,y-floorAt(x,z)),speed:Math.hypot(vx,vz),climb:vy};},
+    state(){return {phase,flying:phase!=='idle',landing:phase==='landing',target:plan?{x:plan.x,z:plan.z}:null,done,x,y:y+bobY,z,altitude:Math.max(0,y-floorAt(x,z)),speed:Math.hypot(vx,vz),climb:vy};},
   };
 }

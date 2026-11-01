@@ -366,7 +366,7 @@ export async function createCity(host, options) {
     rippleMaterial.uniforms.alpha.value = 0; rippleTime = 0; ripple.visible = !reduced;
     hoverRing.visible = !!hovered && hovered !== selected;
     if (mode === 'street') {
-      options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
+      experience.endRide(); options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
       settleCamera();
     } else {
       flyTo(new THREE.Vector3(d.x + d.radius * 2.7, d.height * .7 + 18, d.z + d.radius * 4),

@@ -11,7 +11,7 @@ Own the original Blender city kit, deterministic generator and source scene.
   periodic RGB WebP data maps plus manifest and MIT license).
 
 ## Local Contracts
-- Blender 5.2.1 LTS; original geometry and materials under MIT.
+- Blender 5.2.2 LTS; original geometry and materials under MIT.
 - Each asset has three isolated GLBs, Y up, metre units and base-centred origins.
 - The complete runtime model directory must stay below 12 MiB; first display
   stays below 12 MiB and the full app below 48 MiB.

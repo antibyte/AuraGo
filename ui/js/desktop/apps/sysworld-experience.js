@@ -279,13 +279,16 @@ export function createExperience(scene,options){
     const pad=pads.find(p=>p.id===ride?.id);if(pad){pad.docked=true;if(pad.pack)pad.pack.visible=true;}
     ride=null;hoverKey='';options.onRide?.(null);options.onFlight?.(null);if(landed)callSound('hover',camera.position);
   }
+  // A landing that teleports (instant, reduced motion, ride cut short) seats the visitor body too: the next traffic
+  // step must not sweep from the air and be refused, which would snap the camera back up.
+  function seat(){const b=visitorBody();if(b&&traffic.relocate(b,camera.position))camera.position.set(b.x,b.y,b.z);}
   function reportHover(){
-    const s=flight.state();if(s.done){camera.position.set(s.x,s.y,s.z);endHover(true);return;}
+    const s=flight.state();if(s.done){camera.position.set(s.x,s.y,s.z);seat();endHover(true);return;}
     const key=[Math.round(s.altitude),Math.round(s.speed*3.6),s.landing].join();
     if(key!==hoverKey){hoverKey=key;options.onFlight?.({altitude:Math.round(s.altitude),speed:Math.round(s.speed*3.6),landing:s.landing});}
   }
   function interact(){
-    if(ride?.kind==='hover'){if(flight.land())reportHover();return;}
+    if(ride?.kind==='hover'){if(flight.state().landing)flight.cancel();else flight.land();reportHover();return;}
     if(ride){if(ride.kind==='tram'&&trams[ride.index].dwell<=1){ride.exitRequested=true;return;}endRide();return;}
     if(!near)return;
     if(near.kind==='telescope'){startScope(near.id);return;}
@@ -313,7 +316,7 @@ export function createExperience(scene,options){
       const pad=pads.find(p=>p.id===ride.id);
       if(flight.land(true)){const s=flight.state();camera.position.set(s.x,s.y,s.z);}
       else if(pad)camera.position.set(pad.ix,groundAt(pad.ix,pad.iz)+2.4,pad.iz);
-      flight.reset();endHover(false);return;
+      seat();flight.reset();endHover(false);return;
     }
     if(ride.kind==='lift'){const r=rooms.get(ride.id),plot=interiors.find(p=>p.id===ride.id);r.liftTarget=r.liftValue<2?0:4;camera.position.set(plot.x+1.5,2.4+surfaces.room+r.liftTarget,plot.liftZ);}
     if(ride.kind==='tram'){const s=stations.find(s=>s.id===ride.station)||stations[0];camera.position.set(s.platformX,2.4+surfaces.pavement+.3,s.platformZ);}

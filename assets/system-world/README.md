@@ -150,7 +150,7 @@ Rebuild with:
 
 ## Rebuild
 
-Use **Blender 5.2.1 LTS**. From the repository root:
+Use **Blender 5.2.2 LTS**. From the repository root:
 
 ```powershell
 & 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/system-world/build_city.py

@@ -102,6 +102,37 @@ const takeoff=(flight,at)=>{flight.start(at);return run(flight,hoverLimits.takeo
   const none=world([],{walkable:()=>false});takeoff(none.flight,{x:0,y:2.9,z:0});assert.equal(none.flight.land(),false,'No spot: the visitor keeps flying');assert.equal(none.flight.state().phase,'flying');
   assert.equal(none.flight.land(true),false);assert.equal(flight.land(),false,'Nothing to land when grounded');
 }
+// Rising ground lifts the flight only through free space: a refused rise undoes the step instead of forcing the visitor into a solid.
+{
+  const ramp=x=>x>10?2.5:.5,{flight,traffic,body}=world([{x:15,z:0,min:[-5,5,-20],max:[5,9,20]}],{ground:ramp}),xs=[];
+  takeoff(flight,{x:0,y:2.9,z:0});
+  run(flight,4,{right:1},0,p=>{assert.ok(traffic.clear(body,pose(p),pose(p),false),'The refused rise never pushes the visitor into the ceiling: '+JSON.stringify(p));xs.push(p.x);});
+  assert.ok(Math.max(...xs)<=10+1e-9,'The step onto the low ramp is refused: '+Math.max(...xs));
+  run(flight,2,{right:-1});run(flight,3,{up:1});run(flight,3,{right:1});assert.ok(flight.state().x>12,'High enough, the flight rides up the ramp');assert.ok(flight.state().y>=ramp(flight.state().x)+hoverLimits.eye);
+}
+// A landing hands the controls back on fresh input or a second E; a walled-in glide re-plans, then gives up; a slow one ends at the nearest spot.
+{
+  const {flight}=world([],{walkable:x=>Math.abs(x)>30});takeoff(flight,{x:0,y:2.9,z:0});run(flight,2,{up:1});
+  assert.ok(flight.land());run(flight,.3,{forward:1});assert.equal(flight.state().landing,true,'Keys already held when the landing began do not cancel it');
+  run(flight,.1,{});assert.equal(flight.state().landing,true);const z0=flight.step(dt,{forward:1},0).z;
+  assert.equal(flight.state().phase,'flying','Fresh input hands the flight back');assert.ok(run(flight,1,{forward:1}).z<z0-3,'...and the visitor steers again');
+  assert.ok(flight.land());run(flight,.2,{});assert.equal(flight.cancel(),true);assert.equal(flight.state().phase,'flying','A second E cancels the landing');assert.equal(flight.cancel(),false);
+  const walled={on:false},stuck=createHoverFlight({clear:()=>!walled.on,ground:()=>.5,walkable:x=>x>5});
+  stuck.start({x:0,y:2.9,z:0});run(stuck,1,{});run(stuck,1,{up:1});assert.ok(stuck.land());walled.on=true;run(stuck,2,{});
+  assert.equal(stuck.state().phase,'flying','A landing that cannot move gives the controls back');walled.on=false;assert.ok(run(stuck,1,{forward:1}).z<-3);
+  const {flight:detour,traffic,body}=world([],{walkable:x=>x>8});takeoff(detour,{x:0,y:2.9,z:0});run(detour,3,{up:1});
+  assert.ok(detour.land());const first=detour.state().target;traffic.solid('door',{x:9,z:0,min:[-1,0,-1],max:[1,30,1]});
+  let steps=0;while(!detour.state().done&&steps++<60*30){const p=detour.step(dt,{});assert.ok(traffic.clear(body,pose(p),pose(p),false),'The glide never enters the solid: '+JSON.stringify(p));}
+  const end=detour.state();assert.ok(end.done,'A walled-in glide re-plans and finishes: '+steps*dt+' s');assert.ok(Math.hypot(end.x-first.x,end.z-first.z)>=1&&end.x>8,'...on another spot');
+  const slack=hoverLimits.slack,tall={x:0,z:0,min:[-10,0,-10],max:[10,30,10]},standable=(x,z)=>Math.abs(x)>11||Math.abs(z)>11,landFrom=()=>{
+    const w=world([tall],{walkable:standable});w.flight.start({x:0,y:40,z:0});run(w.flight,1,{});w.flight.place({x:0,y:40,z:0});assert.ok(w.flight.land());
+    const t=w.flight.state().target;let n=0;while(!w.flight.state().done&&n++<60*40)w.flight.step(dt,{});return {seconds:n*dt,end:w.flight.state(),estimate:Math.max(Math.hypot(t.x,t.z)/hoverLimits.glide,(40-.5-hoverLimits.eye)/hoverLimits.descend)};};
+  try{
+    hoverLimits.slack=15;const free=landFrom();assert.ok(free.end.done&&free.seconds>free.estimate,'A real glide is slower than its estimate: '+free.seconds+' vs '+free.estimate);
+    hoverLimits.slack=0;const capped=landFrom();assert.ok(capped.end.done&&capped.seconds<=capped.estimate+.1,'Past the estimate plus slack the landing ends at the nearest spot: '+capped.seconds+' vs '+capped.estimate);
+    assert.equal(capped.end.y,.5+hoverLimits.eye);assert.ok(standable(capped.end.x,capped.end.z));
+  }finally{hoverLimits.slack=slack;}
+}
 // Reduced motion: takeoff and landing are instant.
 {
   const {flight}=world([],{reduced:true,walkable:(x,z)=>Math.abs(z)>8});
@@ -218,6 +249,8 @@ try{
     const counted=c.flights.length;c.tick(.5,{});c.tick(.5,{});assert.ok(c.flights.length-counted<=60,'Reports only when the rounded values change');
     c.experience.interact();assert.equal(c.experience.stats().hover.landing,true);assert.equal(c.flights.at(-1).landing,true);
     c.tick(dt);assert.equal(c.experience.interaction(),null,'No prompt while landing');
+    c.tick(.3);c.experience.interact();assert.equal(c.experience.stats().hover.landing,false,'A second E cancels the landing');assert.equal(c.flights.at(-1).landing,false);
+    c.tick(dt);assert.equal(c.experience.interaction()?.kind,'land','...and the Land prompt is back');c.experience.interact();assert.equal(c.experience.stats().hover.landing,true);
     for(let i=0;i<4000&&c.experience.stats().ride;i++)c.tick(.05);
     hover=c.experience.stats();assert.equal(hover.ride,null,'Landing ends the ride');assert.equal(hover.hover.docked,5,'The pack is back on its own dock');assert.ok(packs().every(n=>n.visible));
     assert.equal(c.flights.at(-1),null,'The HUD is told when the flight ends');
@@ -225,12 +258,17 @@ try{
     assert.ok(c.experience.move(end.x,end.z,end),'The landing spot is walkable');assert.equal(c.sounds.filter(k=>k==='hover').length,2,'Takeoff and landing sounds');
     // Another ride ends cleanly from the outside (Escape, a visit, reduced motion): instant landing, pack docked.
     c.put(c.stand(hoverPads[2]).x,2.9,c.stand(hoverPads[2]).z);c.tick(dt);c.experience.interact();c.tick(2.5,{forward:1,up:1});
-    assert.ok(c.camera.position.y>8,'Airborne before the ride ends: '+c.camera.position.y);c.experience.endRide();
+    // A teleporting landing writes its pose into the visitor body, so the next traffic step does not sweep from the air.
+    const seated=what=>{const p=c.camera.position,b=c.visitor;assert.ok(Math.abs(b.x-p.x)+Math.abs(b.y-p.y)+Math.abs(b.z-p.z)<1e-6,what+': the body stays in the air: '+JSON.stringify([b.x,b.y,b.z,p.toArray()]));c.tick(.1);assert.ok(Math.abs(p.y-(groundHeight(p.x,p.z)+hoverLimits.eye))<1e-6,what+': the camera snapped back up: '+p.y);};
+    assert.ok(c.camera.position.y>8,'Airborne before the ride ends: '+c.camera.position.y);assert.ok(c.visitor.y>8,'The body followed the flight');c.experience.endRide();seated('endRide');
     hover=c.experience.stats();assert.equal(hover.ride,null);assert.equal(hover.hover.docked,5,'endRide re-docks the pack');assert.equal(c.flights.at(-1),null);
     const after=c.camera.position;assert.ok(Math.abs(after.y-(groundHeight(after.x,after.z)+hoverLimits.eye))<1e-6&&c.experience.move(after.x,after.z,after),'endRide puts the visitor on walkable ground');
     // A visit from the air and the reduced-motion switch behave the same.
     c.put(c.stand(hoverPads[3]).x,2.9,c.stand(hoverPads[3]).z);c.tick(dt);c.experience.interact();c.tick(1,{up:1});c.experience.visit('infra');assert.equal(c.experience.stats().hover.docked,5);assert.equal(c.experience.stats().ride,null);
-    c.put(c.stand(hoverPads[4]).x,2.9,c.stand(hoverPads[4]).z);c.tick(dt);c.experience.interact();c.tick(1,{up:1});c.state.reduced=true;c.experience.endRide();assert.equal(c.experience.stats().hover.docked,5);
+    c.put(c.stand(hoverPads[4]).x,2.9,c.stand(hoverPads[4]).z);c.tick(dt);c.experience.interact();c.tick(1,{up:1});c.state.reduced=true;c.experience.endRide();assert.equal(c.experience.stats().hover.docked,5);seated('reduced-motion switch');
+    // E under reduced motion (the preference changed in flight) lands at once, with the body seated too.
+    c.put(c.stand(hoverPads[0]).x,2.9,c.stand(hoverPads[0]).z);c.state.reduced=false;c.tick(dt);c.experience.interact();c.tick(2,{up:1});c.state.reduced=true;c.experience.interact();
+    assert.equal(c.experience.stats().ride,null,'E under reduced motion lands at once');seated('instant E');c.state.reduced=false;
     assert.equal(c.errors.length,0);c.experience.dispose();
   }
   console.log('Hover pack: takeoff, easing, boost, collision sliding, floor/ceiling/limits, landing glide, reduced motion, 5 docks on open pavement (rules checked against the real colliders), prompt, ride, re-docking passed'+(realAsset?' with the exported asset.':' with the synthetic asset contract.'));
