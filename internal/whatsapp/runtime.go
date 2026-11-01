@@ -120,6 +120,9 @@ type Bot struct {
 	resumeSynced bool
 	// connectedAt is the current connection's login time, shown while healthy.
 	connectedAt time.Time
+	// stopped is set when the generation has torn down; handleEvent then
+	// writes nothing.
+	stopped bool
 }
 
 // Start returns a running generation, or nil when the configuration does not
@@ -186,14 +189,43 @@ func (b *Bot) currentClient() waClient {
 	return b.client
 }
 
-func (b *Bot) run() {
-	defer close(b.done)
-	store, err := b.deps.backend.open(b.ctx, b.dataDir)
-	if err != nil {
-		if b.ctx.Err() == nil {
-			integrationstatus.MarkWhatsAppError(integrationstatus.WhatsAppStateDegraded, "store_unavailable")
-			b.logger.Error("WhatsApp device store unavailable", "error", maskDigits(security.Scrub(err.Error())))
+// finish ends the generation. Once stopped is set, a dispatch goroutine that
+// is still inside handleEvent can no longer write status, so it cannot
+// overwrite the successor generation.
+func (b *Bot) finish() {
+	b.eventMu.Lock()
+	b.stopped = true
+	b.eventMu.Unlock()
+	close(b.done)
+}
+
+// openStore opens the device store. A failure leaves the status degraded and
+// retries with backoff until the Bot stops. It returns nil when the Bot
+// stopped first.
+func (b *Bot) openStore() deviceStore {
+	backoff := minBackoff
+	for b.ctx.Err() == nil {
+		store, err := b.deps.backend.open(b.ctx, b.dataDir)
+		if err == nil {
+			return store
 		}
+		if b.ctx.Err() != nil {
+			return nil
+		}
+		integrationstatus.MarkWhatsAppError(integrationstatus.WhatsAppStateDegraded, "store_unavailable")
+		b.logger.Error("WhatsApp device store unavailable", "retry_in", backoff.String(), "error", maskDigits(security.Scrub(err.Error())))
+		if !b.deps.sleep(b.ctx, backoff) {
+			return nil
+		}
+		backoff = nextBackoff(backoff)
+	}
+	return nil
+}
+
+func (b *Bot) run() {
+	defer b.finish()
+	store := b.openStore()
+	if store == nil {
 		return
 	}
 	defer store.Close()
@@ -305,13 +337,17 @@ func (b *Bot) trackSync(evt any) {
 }
 
 // handleEvent runs on whatsmeow's dispatcher and must not block. A stopped
-// generation never overwrites its successor's status.
+// generation never overwrites its successor's status: a handler that passed
+// the context check before teardown finds stopped set under eventMu.
 func (b *Bot) handleEvent(client waClient, evt any, signals chan<- eventEffect) {
 	if b.ctx.Err() != nil {
 		return
 	}
 	b.eventMu.Lock()
 	defer b.eventMu.Unlock()
+	if b.stopped {
+		return
+	}
 	b.trackSync(evt)
 	eff := classifyEvent(evt, b.synced)
 	now := b.deps.now()

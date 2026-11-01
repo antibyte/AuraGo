@@ -311,3 +311,71 @@ func TestBotLogoutPrefersRemoteAndFallsBackToLocal(t *testing.T) {
 		t.Fatalf("status after logout = %+v", s)
 	}
 }
+
+func TestBotRetriesAnUnavailableDeviceStore(t *testing.T) {
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	st := &fakeStore{linked: true, own: testOwn, client: client}
+	disk := errors.New("disk i/o error")
+	backend := &fakeBackend{store: st, openErrs: []error{disk, disk}}
+	sleeps := &recordedSleeps{}
+	b := start(context.Background(), testBotConfig(config.WhatsAppModeDedicated, "+491701234567"), quietLogger(),
+		runtimeDeps{backend: backend, sleep: sleeps.sleep, now: fixedNow})
+	if b == nil {
+		t.Fatal("start returned no Bot")
+	}
+	t.Cleanup(b.Stop)
+	waitFor(t, "connect after the store opened", func() bool { return connectsOf(client) == 1 })
+	if got := sleeps.list(); !slices.Equal(got, []time.Duration{5 * time.Second, 10 * time.Second}) {
+		t.Fatalf("store retry backoff = %v, want [5s 10s]", got)
+	}
+}
+
+func TestStoppedBotNeverWritesStatus(t *testing.T) {
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	b := startTestBot(t, testBotConfig(config.WhatsAppModeDedicated, "+491701234567"), &fakeStore{linked: true, own: testOwn, client: client}, &recordedSleeps{})
+	waitFor(t, "connect", func() bool { return connectsOf(client) == 1 })
+	b.Stop()
+	b.eventMu.Lock()
+	stopped := b.stopped
+	b.eventMu.Unlock()
+	if !stopped {
+		t.Fatal("Stop returned before the generation was marked stopped")
+	}
+	// A successor generation owns the status now. Drop the cancelled context
+	// so only the stopped flag can keep a late dispatch goroutine out.
+	integrationstatus.SetWhatsAppConfigState(integrationstatus.WhatsAppStateConnecting, config.WhatsAppModeDedicated)
+	before := integrationstatus.WhatsAppStatus()
+	b.ctx = context.Background()
+	client.emit(&events.LoggedOut{})
+	client.emit(&events.Disconnected{})
+	client.emit(&events.Message{})
+	if after := integrationstatus.WhatsAppStatus(); after != before {
+		t.Fatalf("a stopped Bot changed the status: %+v -> %+v", before, after)
+	}
+}
+
+func TestNextBackoffDoublesUpToTheCap(t *testing.T) {
+	d := minBackoff
+	for i, want := range []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second,
+		80 * time.Second, 160 * time.Second, 300 * time.Second, 300 * time.Second, 300 * time.Second} {
+		if d != want {
+			t.Fatalf("step %d: backoff = %v, want %v", i, d, want)
+		}
+		d = nextBackoff(d)
+	}
+}
+
+func TestSleepContextStopsWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	began := time.Now()
+	if sleepContext(ctx, time.Hour) {
+		t.Fatal("a cancelled context finished the sleep")
+	}
+	if time.Since(began) > time.Second {
+		t.Fatalf("a cancelled sleep took %v", time.Since(began))
+	}
+	if !sleepContext(context.Background(), time.Millisecond) {
+		t.Fatal("an uncancelled sleep reported cancellation")
+	}
+}

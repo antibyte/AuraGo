@@ -163,15 +163,11 @@ func (l *LinkSession) run(ctx context.Context, store deviceStore, deps linkDeps,
 	for {
 		select {
 		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				l.set(LinkSnapshot{State: LinkStateTimeout})
-			} else {
-				l.set(LinkSnapshot{State: LinkStateError, Error: "cancelled"})
-			}
+			l.settle(ctx)
 			return
 		case item, ok := <-items:
 			if !ok {
-				l.set(LinkSnapshot{State: LinkStateTimeout})
+				l.settle(ctx)
 				return
 			}
 			switch item.Event {
@@ -218,6 +214,18 @@ func (l *LinkSession) run(ctx context.Context, store deviceStore, deps linkDeps,
 			}
 		}
 	}
+}
+
+// settle records how a session ended without a pairing result. A cancelled
+// context (the caller or shutdown) is "cancelled"; a deadline, or a QR channel
+// that ran out of codes, is a timeout. The QR channel closes itself when the
+// context ends, so both select cases must agree.
+func (l *LinkSession) settle(ctx context.Context) {
+	if errors.Is(ctx.Err(), context.Canceled) {
+		l.set(LinkSnapshot{State: LinkStateError, Error: "cancelled"})
+		return
+	}
+	l.set(LinkSnapshot{State: LinkStateTimeout})
 }
 
 // set replaces the snapshot but keeps the session expiry.

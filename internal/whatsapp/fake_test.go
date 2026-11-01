@@ -186,13 +186,22 @@ func (s *fakeStore) Close() error {
 }
 
 type fakeBackend struct {
-	store *fakeStore
-	err   error
+	store    *fakeStore
+	err      error
+	mu       sync.Mutex
+	openErrs []error // consumed one per open call, before store is returned
 }
 
 func (b *fakeBackend) open(context.Context, string) (deviceStore, error) {
 	if b.err != nil {
 		return nil, b.err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.openErrs) > 0 {
+		err := b.openErrs[0]
+		b.openErrs = b.openErrs[1:]
+		return nil, err
 	}
 	return b.store, nil
 }

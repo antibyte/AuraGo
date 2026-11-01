@@ -17,7 +17,7 @@ func TestWhatsAppStatusTransitions(t *testing.T) {
 	MarkWhatsAppTempBan("temp_ban_101", now.Add(time.Hour))
 	s := WhatsAppStatus()
 	if !s.Enabled || s.State != WhatsAppStateTempBanned || s.LastError != "temp_ban_101" ||
-		s.TempBanExpiresAt != "2026-10-31T13:00:00Z" || s.ConnectedSince != "2026-10-31T12:00:00Z" ||
+		s.TempBanExpiresAt != "2026-10-31T13:00:00Z" || s.ConnectedSince != "" ||
 		!s.Linked || s.LinkedJIDMasked != "***5678" || s.Mode != "dedicated" {
 		t.Fatalf("temp ban status = %+v", s)
 	}

@@ -6,8 +6,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"image/png"
+	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -83,7 +85,21 @@ func TestStartLinkRejectsInvalidRequests(t *testing.T) {
 func TestLinkSessionQRSuccessHandsOverTheDevice(t *testing.T) {
 	client := &fakeClient{qr: make(chan whatsmeow.QRChannelItem, 4)}
 	st := &fakeStore{client: client}
-	l, finished := startTestLink(t, LinkRequest{Method: LinkMethodQR}, st)
+	// onFinish is where the server starts the next Bot, so the session must
+	// already have disconnected and released the store by then.
+	var closedAtFinish, disconnectsAtFinish int
+	finished := make(chan bool, 1)
+	l, err := startLink(context.Background(), testBotConfig(config.WhatsAppModeSelfChat), LinkRequest{Method: LinkMethodQR}, quietLogger(), func(linked bool) {
+		st.mu.Lock()
+		closedAtFinish = st.closed
+		st.mu.Unlock()
+		disconnectsAtFinish = clientCount(client, func(f *fakeClient) int { return f.disconnects })
+		finished <- linked
+	}, fakeLinkDeps(st))
+	if err != nil {
+		t.Fatalf("startLink: %v", err)
+	}
+	t.Cleanup(func() { l.Cancel(); <-l.Done() })
 	if snap := l.Snapshot(); snap.State != LinkStateWaiting || snap.ExpiresAt != "2026-10-31T12:03:00Z" {
 		t.Fatalf("initial snapshot = %+v", snap)
 	}
@@ -99,12 +115,12 @@ func TestLinkSessionQRSuccessHandsOverTheDevice(t *testing.T) {
 	if !waitFinished(t, finished) {
 		t.Fatal("success reported as not linked")
 	}
+	if closedAtFinish != 1 || disconnectsAtFinish == 0 {
+		t.Fatalf("onFinish ran before the hand-over: store closed %d times, client disconnected %d times", closedAtFinish, disconnectsAtFinish)
+	}
 	<-l.Done()
-	st.mu.Lock()
-	closed := st.closed
-	st.mu.Unlock()
-	if l.Active() || l.Snapshot().State != LinkStateSuccess || clientCount(client, func(f *fakeClient) int { return f.disconnects }) == 0 || closed != 1 {
-		t.Fatalf("the link session still holds the device: snapshot=%+v closed=%d", l.Snapshot(), closed)
+	if l.Active() || l.Snapshot().State != LinkStateSuccess {
+		t.Fatalf("the link session still holds the device: snapshot=%+v", l.Snapshot())
 	}
 }
 
@@ -162,5 +178,82 @@ func TestRenderQRDataURIProducesVerifiedPNG(t *testing.T) {
 	cfg, err := png.DecodeConfig(bytes.NewReader(raw))
 	if err != nil || cfg.Width != linkQRSize || cfg.Height != linkQRSize {
 		t.Fatalf("png = %+v, %v", cfg, err)
+	}
+}
+
+func TestLinkSessionClosedQRChannelFollowsTheContext(t *testing.T) {
+	cfg := testBotConfig(config.WhatsAppModeSelfChat)
+	run := func(parent context.Context) LinkSnapshot {
+		qr := make(chan whatsmeow.QRChannelItem)
+		close(qr) // whatsmeow closes the channel when the QR codes run out or ctx ends
+		finished := make(chan bool, 1)
+		l, err := startLink(parent, cfg, LinkRequest{Method: LinkMethodQR}, quietLogger(), func(linked bool) { finished <- linked },
+			fakeLinkDeps(&fakeStore{client: &fakeClient{qr: qr}}))
+		if err != nil {
+			t.Fatalf("startLink: %v", err)
+		}
+		waitFinished(t, finished)
+		<-l.Done()
+		return l.Snapshot()
+	}
+	if snap := run(context.Background()); snap.State != LinkStateTimeout {
+		t.Fatalf("an exhausted QR channel = %+v, want timeout", snap)
+	}
+	// With the context already cancelled, the closed channel and ctx.Done are
+	// both ready and select picks either one: the answer must not depend on it.
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := 0; i < 30; i++ {
+		if snap := run(cancelled); snap.State != LinkStateError || snap.Error != "cancelled" {
+			t.Fatalf("run %d: a cancelled session = %+v, want error/cancelled", i, snap)
+		}
+	}
+}
+
+// syncBuffer is a log sink that other goroutines may write while a test reads.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestLinkSessionNeverLogsTheQRPayload(t *testing.T) {
+	const payload = "2@SECRETREF9f3a,SECRETNOISEKEY,SECRETIDENTITYKEY,SECRETADVKEY"
+	var logs syncBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	previous := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	client := &fakeClient{qr: make(chan whatsmeow.QRChannelItem, 4)}
+	finished := make(chan bool, 1)
+	deps := fakeLinkDeps(&fakeStore{client: client})
+	deps.render = renderQRDataURI
+	l, err := startLink(context.Background(), testBotConfig(config.WhatsAppModeSelfChat), LinkRequest{Method: LinkMethodQR}, logger, func(linked bool) { finished <- linked }, deps)
+	if err != nil {
+		t.Fatalf("startLink: %v", err)
+	}
+	t.Cleanup(func() { l.Cancel(); <-l.Done() })
+	client.qr <- whatsmeow.QRChannelItem{Event: whatsmeow.QRChannelEventCode, Code: payload}
+	waitLinkState(t, l, LinkStateQR)
+	client.qr <- whatsmeow.QRChannelItem{Event: whatsmeow.QRChannelEventError, Error: errors.New("pair error for +491701234567")}
+	waitFinished(t, finished)
+	out := logs.String()
+	if !strings.Contains(out, "WhatsApp link failed") {
+		t.Fatalf("the failure was not logged, so this test proves nothing: %q", out)
+	}
+	if strings.Contains(out, "SECRET") || strings.Contains(out, "491701234567") {
+		t.Fatalf("the log leaks the QR payload or a full number: %s", out)
 	}
 }

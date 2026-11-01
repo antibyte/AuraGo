@@ -148,13 +148,13 @@ func MarkWhatsAppError(state, code string) {
 	whatsAppRuntime.status.LastError = code
 }
 
-// MarkWhatsAppTempBan records a temporary ban and keeps the last login time.
-// A zero expiry means WhatsApp sent none.
+// MarkWhatsAppTempBan records a temporary ban. Like every non-healthy state it
+// drops the login time. A zero expiry means WhatsApp sent none.
 func MarkWhatsAppTempBan(code string, expires time.Time) {
 	whatsAppRuntime.Lock()
 	defer whatsAppRuntime.Unlock()
 	s := &whatsAppRuntime.status
-	s.State = WhatsAppStateTempBanned
+	enterWhatsAppState(s, WhatsAppStateTempBanned)
 	s.LastError = code
 	s.TempBanExpiresAt = ""
 	if !expires.IsZero() {
