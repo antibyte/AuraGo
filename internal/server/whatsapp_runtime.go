@@ -91,7 +91,32 @@ func (s *Server) configureWhatsAppBotLocked(force bool) {
 	if parent == nil {
 		parent = context.Background()
 	}
-	s.whatsAppBot.Store(whatsapp.Start(parent, s.ConfigSnapshot(), s.Logger))
+	s.whatsAppBot.Store(whatsapp.Start(parent, s.ConfigSnapshot(), s.Logger, s.whatsAppAgentDeps()))
+}
+
+// whatsAppAgentDeps hands the Bot the collaborators configureTelegramBot passes to the
+// Telegram bot, as one struct. The knowledge graph is left out: Telegram runs the agent
+// without it. Budget tracker and config/client are read per message, so a config reload
+// reaches a running generation. The caller holds CfgMu.RLock; this reads fields only and
+// takes no lock itself.
+func (s *Server) whatsAppAgentDeps() whatsapp.AgentDeps {
+	return whatsapp.AgentDeps{
+		LLMClient:        s.LLMClient,
+		ShortTermMem:     s.ShortTermMem,
+		LongTermMem:      s.LongTermMem,
+		Vault:            s.Vault,
+		Registry:         s.Registry,
+		CronManager:      s.CronManager,
+		HistoryManager:   s.HistoryManager,
+		InventoryDB:      s.InventoryDB,
+		MissionManagerV2: s.MissionManagerV2,
+		RemoteHub:        s.RemoteHub,
+		Guardian:         s.Guardian,
+		BudgetTracker:    s.budgetTrackerSnapshot,
+		WebhookManager:   s.WebhookManager,
+		Snapshot:         s.chatRuntimeSnapshot,
+		RoutingDecisions: taskDecisionService{s},
+	}
 }
 
 // stopWhatsApp ends the link session and the Bot at shutdown. Nothing

@@ -18,6 +18,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
+	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/whatsapp"
 )
@@ -107,6 +108,38 @@ func TestWhatsAppRuntimeGenerationsFollowConfigAndShutdown(t *testing.T) {
 	s.configureWhatsAppBot()
 	if s.whatsAppBot.Load() != nil {
 		t.Fatal("shutdown allowed a new generation")
+	}
+}
+
+// The Bot gets the same collaborators the Telegram bot gets, as one struct. The two
+// snapshot functions are read per message, so a config reload reaches a running generation.
+func TestWhatsAppAgentDepsCarryServerCollaborators(t *testing.T) {
+	s := whatsAppRuntimeServer(t, func(cfg *config.Config) {
+		cfg.WhatsApp.Enabled = true
+		cfg.WhatsApp.Mode = config.WhatsAppModeSelfChat
+	})
+	stm, err := memory.NewSQLiteMemory(":memory:", s.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	hm := memory.NewEphemeralHistoryManager()
+	t.Cleanup(hm.Close)
+	s.ShortTermMem, s.HistoryManager = stm, hm
+
+	deps := s.whatsAppAgentDeps()
+	if deps.ShortTermMem != s.ShortTermMem || deps.HistoryManager != s.HistoryManager {
+		t.Fatal("the agent deps do not carry the server's memory stores")
+	}
+	if deps.Snapshot == nil || deps.BudgetTracker == nil || deps.RoutingDecisions == nil {
+		t.Fatalf("missing collaborators: snapshot=%v budget=%v routing=%v", deps.Snapshot != nil, deps.BudgetTracker != nil, deps.RoutingDecisions != nil)
+	}
+	cfg, _ := deps.Snapshot()
+	if cfg == nil || !cfg.WhatsApp.Equal(s.ConfigSnapshot().WhatsApp) {
+		t.Fatalf("snapshot config = %+v", cfg)
+	}
+	if deps.BudgetTracker() != s.BudgetTracker {
+		t.Fatal("the budget snapshot is not the server's tracker")
 	}
 }
 

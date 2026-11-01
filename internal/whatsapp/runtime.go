@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
 	"aurago/internal/security"
@@ -25,6 +26,15 @@ const (
 	maxBackoff = 5 * time.Minute
 )
 
+const (
+	// offlineCutoff is how far before the login a message may be stamped and still count
+	// as live while the connection's offline sync runs.
+	offlineCutoff = 10 * time.Minute
+	// pipelineWorkers bounds the agent turns that run at once; it is Telegram's default
+	// MaxConcurrentWorkers (internal/telegram/runtime.go).
+	pipelineWorkers = 5
+)
+
 func nextBackoff(d time.Duration) time.Duration {
 	if d*2 > maxBackoff {
 		return maxBackoff
@@ -37,10 +47,14 @@ type runtimeDeps struct {
 	backend backend
 	sleep   func(ctx context.Context, d time.Duration) bool
 	now     func() time.Time
+	// agent holds the collaborators of the agent pipeline; agentLoop runs one turn and
+	// defaults to agent.ExecuteAgentLoop.
+	agent     AgentDeps
+	agentLoop agentLoopFunc
 }
 
 func defaultRuntimeDeps(logger *slog.Logger) runtimeDeps {
-	return runtimeDeps{backend: sqliteBackend{log: newWALogger(logger, "whatsmeow")}, sleep: sleepContext, now: time.Now}
+	return runtimeDeps{backend: sqliteBackend{log: newWALogger(logger, "whatsmeow")}, sleep: sleepContext, now: time.Now, agentLoop: agent.ExecuteAgentLoop}
 }
 
 // sleepContext waits for d. It returns false if ctx ends first.
@@ -63,17 +77,28 @@ type LogoutResult struct {
 
 // ConfigState returns "disabled" or "not_configured" when the configuration
 // does not allow a Bot, and "" when it does. It does not check the device
-// store.
+// store. Dedicated mode needs an owner number that survives config.NormalizeE164:
+// a Bot without one would drop every message as a stranger's.
 func ConfigState(cfg *config.Config) string {
 	switch {
 	case cfg == nil || cfg.EggMode.Enabled || !cfg.WhatsApp.Enabled:
 		return integrationstatus.WhatsAppStateDisabled
 	case strings.TrimSpace(cfg.Directories.DataDir) == "":
 		return integrationstatus.WhatsAppStateNotConfigured
-	case cfg.WhatsApp.Mode != config.WhatsAppModeSelfChat && len(cfg.WhatsApp.OwnerNumbers) == 0:
+	case cfg.WhatsApp.Mode != config.WhatsAppModeSelfChat && !hasValidOwnerNumber(cfg.WhatsApp.OwnerNumbers):
 		return integrationstatus.WhatsAppStateNotConfigured
 	}
 	return ""
+}
+
+// hasValidOwnerNumber reports whether at least one entry is a usable E.164 number.
+func hasValidOwnerNumber(numbers []string) bool {
+	for _, raw := range numbers {
+		if _, err := config.NormalizeE164(raw); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func configMode(cfg *config.Config) string {
@@ -109,6 +134,14 @@ type Bot struct {
 	sent   *idCache
 	sender *sender
 
+	// filter and pipeline are this generation's inbound path; both are built over the
+	// same sent cache and the same config clone as sender. Agent turns run on workers,
+	// at most pipelineWorkers at once (slots), and run() waits for them (workers).
+	filter   *inboundFilter
+	pipeline *pipeline
+	workers  sync.WaitGroup
+	slots    chan struct{}
+
 	mu     sync.Mutex
 	client waClient
 
@@ -130,11 +163,14 @@ type Bot struct {
 
 // Start returns a running generation, or nil when the configuration does not
 // allow one; the status then says why. The device store opens asynchronously.
-func Start(parent context.Context, cfg *config.Config, logger *slog.Logger) *Bot {
+// agentDeps are the collaborators the agent turns of owner messages run with.
+func Start(parent context.Context, cfg *config.Config, logger *slog.Logger, agentDeps AgentDeps) *Bot {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return start(parent, cfg, logger, defaultRuntimeDeps(logger))
+	deps := defaultRuntimeDeps(logger)
+	deps.agent = agentDeps
+	return start(parent, cfg, logger, deps)
 }
 
 func start(parent context.Context, cfg *config.Config, logger *slog.Logger, deps runtimeDeps) *Bot {
@@ -148,12 +184,22 @@ func start(parent context.Context, cfg *config.Config, logger *slog.Logger, deps
 	if parent.Err() != nil {
 		return nil
 	}
+	if deps.agentLoop == nil {
+		deps.agentLoop = agent.ExecuteAgentLoop
+	}
 	cfg = cfg.Clone()
 	ctx, cancel := context.WithCancel(parent)
 	b := &Bot{ctx: ctx, cancel: cancel, done: make(chan struct{}), initial: cfg.WhatsApp,
 		dataDir: cfg.Directories.DataDir, logger: logger, deps: deps}
 	b.sent = newIDCache(sentIDCacheSize, sentIDCacheTTL, deps.now)
 	b.sender = newSender(cfg.WhatsApp, b.currentClient, b.sent, deps, logger)
+	// The filter shares the sender's sent cache (its echo guard); the pipeline gets this
+	// generation's config clone and sender, so a stale generation never replies with
+	// another generation's owners.
+	b.filter = newInboundFilter(cfg.WhatsApp, b.sent, logger)
+	b.pipeline = &pipeline{base: cfg, deps: deps.agent, sender: b.sender, client: b.currentClient,
+		agentLoop: deps.agentLoop, now: deps.now, logger: logger}
+	b.slots = make(chan struct{}, pipelineWorkers)
 	integrationstatus.SetWhatsAppConfigState(integrationstatus.WhatsAppStateConnecting, cfg.WhatsApp.Mode)
 	go b.run()
 	return b
@@ -244,11 +290,21 @@ func (b *Bot) run() {
 	}
 	client := store.NewClient()
 	signals := make(chan eventEffect, 16)
-	client.AddEventHandler(func(evt any) { b.handleEvent(client, evt, signals) })
+	client.AddEventHandler(func(evt any) {
+		b.handleEvent(client, evt, signals) // counts the message before the filter sees it
+		if m, ok := evt.(*events.Message); ok {
+			b.handleMessage(client, m)
+		}
+	})
 	b.setClient(client)
 	defer func() {
+		b.eventMu.Lock()
+		b.stopped = true // no new workers, no status writes (finish sets it again; idempotent)
+		b.eventMu.Unlock()
+		b.cancel() // the pipeline and broker contexts end with the generation
 		b.setClient(nil)
 		client.Disconnect()
+		b.workers.Wait() // workers end on b.ctx; the store closes only after them
 	}()
 	b.connectLoop(client, signals)
 }
@@ -396,6 +452,50 @@ func (b *Bot) handleEvent(client waClient, evt any, signals chan<- eventEffect) 
 			b.logger.Warn("WhatsApp event signal dropped", "state", eff.State)
 		}
 	}
+}
+
+// handleMessage runs on whatsmeow's handler queue, after handleEvent has counted the message.
+// The filter reads the client's own JID, LID and login time without a lock, so it must run
+// here, inline, and it is cheap (map lookups, at most one LID-store read). It runs under
+// eventMu like handleEvent, so a stopped generation neither counts a drop nor starts work.
+// Only the agent turn goes to a worker.
+func (b *Bot) handleMessage(client waClient, evt *events.Message) {
+	if b.ctx.Err() != nil {
+		return
+	}
+	b.eventMu.Lock()
+	defer b.eventMu.Unlock()
+	if b.stopped {
+		return
+	}
+	var cutoff time.Time
+	if !b.synced && !b.resumeSynced {
+		// Missed messages arrive after the login and before OfflineSyncCompleted on the
+		// same queue, and whatsmeow sets LastSuccessfulConnect before any of them. Live
+		// messages (after the sync) never meet the cutoff, so local clock skew cannot
+		// drop them. A keepalive timeout keeps the connection and its finished sync.
+		ref := client.LastSuccessfulConnect()
+		if ref.IsZero() {
+			ref = b.deps.now()
+		}
+		cutoff = ref.Add(-offlineCutoff)
+	}
+	in, reason := b.filter.accept(b.ctx, client, evt, cutoff)
+	if reason != "" {
+		integrationstatus.CountWhatsAppDrop(reason)
+		return
+	}
+	b.workers.Add(1)
+	go func() {
+		defer b.workers.Done()
+		select {
+		case b.slots <- struct{}{}:
+		case <-b.ctx.Done():
+			return
+		}
+		defer func() { <-b.slots }()
+		b.pipeline.handle(b.ctx, in)
+	}()
 }
 
 // sendUnavailable keeps AuraGo "offline" so the phone still shows
