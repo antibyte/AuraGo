@@ -1662,6 +1662,7 @@ func TestMessagingIngressManifestDeclaresEachIngressPolicy(t *testing.T) {
 	}
 	required := map[string]expectedIngress{
 		"telegram":            {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/telegram/bot.go"},
+		"whatsapp":            {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/whatsapp/pipeline.go"},
 		"discord":             {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/discord/bot.go"},
 		"rocketchat":          {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/rocketchat/bot.go"},
 		"telnyx_sms":          {IngressHighThreatBlock, IngressQuarantineAuthorizedAgent, true, "internal/telnyx/broker.go"},

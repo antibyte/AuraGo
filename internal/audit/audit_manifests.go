@@ -489,6 +489,10 @@ func MessagingIngressManifest() []MessagingIngressBoundary {
 			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
 		{
+			Channel: "whatsapp", SourcePath: "internal/whatsapp/pipeline.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
+		},
+		{
 			Channel: "discord", SourcePath: "internal/discord/bot.go",
 			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
