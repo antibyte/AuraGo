@@ -3935,37 +3935,10 @@ transform:none; filter:none;
     overflow: hidden;
 }
 
-.pw-page[data-workspace-page="config"] .bck-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pw-page[data-workspace-page="config"] .bck-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
-
 .pw-page[data-workspace-page="config"] .bck-card:hover {
     border-color: var(--accent);
     box-shadow: none;
     transform: translateY(-2px);
-}
-
-.pw-page[data-workspace-page="config"] .bck-card:hover::before,
-.pw-page[data-workspace-page="config"] .bck-card:hover::after {
-    opacity: 1;
 }
 
 .pw-page[data-workspace-page="config"] .bck-card-header {
@@ -4195,37 +4168,10 @@ transform:none; filter:none;
     overflow: hidden;
 }
 
-.pw-page[data-workspace-page="config"] .idx-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pw-page[data-workspace-page="config"] .idx-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
-
 .pw-page[data-workspace-page="config"] .idx-card:hover {
     border-color: var(--accent);
     box-shadow: none;
     transform: translateY(-2px);
-}
-
-.pw-page[data-workspace-page="config"] .idx-card:hover::before,
-.pw-page[data-workspace-page="config"] .idx-card:hover::after {
-    opacity: 1;
 }
 
 .pw-page[data-workspace-page="config"] .idx-card-header {
@@ -5511,37 +5457,10 @@ transform:none; filter:none;
     overflow: hidden;
 }
 
-.pw-page[data-workspace-page="config"] .sb-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pw-page[data-workspace-page="config"] .sb-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--pw-surface-elevated);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
-
 .pw-page[data-workspace-page="config"] .sb-card:hover {
     border-color: var(--accent);
     box-shadow: none;
     transform: translateY(-2px);
-}
-
-.pw-page[data-workspace-page="config"] .sb-card:hover::before,
-.pw-page[data-workspace-page="config"] .sb-card:hover::after {
-    opacity: 1;
 }
 
 .pw-page[data-workspace-page="config"] .sb-card-header {

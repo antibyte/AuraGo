@@ -621,6 +621,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   (0 6px 20px, 16% dark / 7% light); dialogs use `--surface-shadow-strong`.
   Interactive entry cards may lift at most 2px; switches/disclosures use 140–180ms
   feedback and save success may animate once. Reduced motion disables these effects.
+  Paint card backgrounds on the card itself; full-card hover pseudo-elements must
+  never cover headings, content or rounded corners.
   The overview has no save dock; independent saves identify their scope.
 - Every Config topic has one `.pw-panel-body` owning all four content insets;
   do not simulate body padding with margins on individual card children. Keep
