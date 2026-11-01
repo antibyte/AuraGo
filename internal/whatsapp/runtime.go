@@ -513,7 +513,17 @@ func (b *Bot) handleMessage(client waClient, evt *events.Message) {
 	}
 	b.workers.Add(1)
 	go func() {
-		defer b.workers.Done()
+		defer b.workers.Done() // runs last: the slot is back and the panic is logged before
+		// A panic in a media path (download, ffmpeg, vision, a malformed proto) would end
+		// the whole process from this goroutine. Log a fixed line only: the panic value
+		// can carry message text, so just its type and the masked sender are recorded.
+		// The pipeline's own defers (typing, session gates) have run by the time it lands.
+		defer func() {
+			if r := recover(); r != nil {
+				b.logger.Error("WhatsApp pipeline worker recovered from a panic",
+					"sender", maskJID(in.Sender), "panic_type", fmt.Sprintf("%T", r))
+			}
+		}()
 		select {
 		case b.slots <- struct{}{}:
 		case <-b.ctx.Done():

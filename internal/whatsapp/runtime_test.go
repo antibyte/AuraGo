@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"reflect"
@@ -658,5 +659,57 @@ func TestBotStaleGenerationRoutesNothing(t *testing.T) {
 	f.bot.Stop()
 	if got := sentTexts(client); len(got) != 0 {
 		t.Fatalf("a revoked generation replied: %+v", got)
+	}
+}
+
+// A panic in a pipeline worker (a media path, a malformed proto) must not end the process:
+// the worker logs one fixed line without the panic value or the message, gives its slot
+// back, and later messages are still handled.
+func TestBotSurvivesAPipelinePanicAndReleasesTheSlot(t *testing.T) {
+	const secret = "panic-secret-text"
+	const panics = pipelineWorkers + 1 // more than the slots: a leaked slot would block the last one
+	var started, panicked atomic.Int32
+	var ok atomic.Int32
+	loop := func(context.Context, openai.ChatCompletionRequest, agent.RunConfig, bool, agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+		if started.Add(1) <= panics {
+			panicked.Add(1)
+			panic("media path failed on " + secret)
+		}
+		ok.Add(1)
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{
+			{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: fixtureAnswer}},
+		}}, nil
+	}
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, loop)
+
+	for i := 0; i < panics; i++ {
+		client.emit(inboundEvent(fmt.Sprintf("PANIC%d", i), ownerJID, secret, fixedNow()))
+	}
+	waitFor(t, "every panicking turn", func() bool { return panicked.Load() == panics })
+
+	client.emit(inboundEvent("AFTER1", ownerJID, secret, fixedNow()))
+	waitFor(t, "a message after the panics", func() bool { return ok.Load() == 1 })
+	waitFor(t, "the reply", func() bool { return len(sentTexts(client)) == 1 })
+
+	stopped := make(chan struct{})
+	go func() { f.bot.Stop(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop did not return after worker panics")
+	}
+
+	out := f.logs.String()
+	if n := strings.Count(out, "WhatsApp pipeline worker recovered from a panic"); n != panics {
+		t.Fatalf("recovered-panic log lines = %d, want %d: %s", n, panics, out)
+	}
+	if !strings.Contains(out, "panic_type=string") || !strings.Contains(out, "sender=***5678") {
+		t.Fatalf("log lacks the panic type or the masked sender: %s", out)
+	}
+	for _, leak := range []string{secret, "media path failed", "4917012345678"} {
+		if strings.Contains(out, leak) {
+			t.Fatalf("log leaks %q: %s", leak, out)
+		}
 	}
 }
