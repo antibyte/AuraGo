@@ -232,6 +232,10 @@
     max-height: 100%;
 }
 
+.vd-start-item > .vd-app-logo-icon {
+    padding: 0;
+}
+
 .vd-icon > .vd-app-logo-icon {
     padding: clamp(3px, 12%, 7px);
     overflow: visible;

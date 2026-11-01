@@ -41,7 +41,7 @@ func TestDesktopAppIdentityIconsBrowser(t *testing.T) {
 				auditTest.renderIcons(); auditTest.renderStartApps();
 				if (document.getElementById('vd-start-menu').hidden) document.getElementById('vd-start-button').click();
 			}`)
-			s.waitFor(t, "distinct app artwork in the menu and shortcuts", 15*time.Second, `(want) => {
+			s.waitFor(t, "distinct app artwork in the menu and shortcuts", 15*time.Second, `(want,size) => {
 				if (document.getElementById('vd-start-menu').hidden) return false;
 				const paths = new Set();
 				for (const [id,path] of Object.entries(want)) {
@@ -50,10 +50,12 @@ func TestDesktopAppIdentityIconsBrowser(t *testing.T) {
 					for (const img of [menu,shortcut]) {
 						if (!img || !img.complete || !img.naturalWidth || img.hidden || new URL(img.src).pathname !== path || new URL(img.src).searchParams.get('v') !== 'dev') return false;
 					}
+					const frame = menu.parentElement;
+					if (Math.abs(frame.getBoundingClientRect().width-size)>1 || getComputedStyle(frame).padding !== '0px') return false;
 					paths.add(new URL(menu.src).pathname);
 				}
 				return paths.size === Object.keys(want).length;
-			}`, want)
+			}`, want, map[string]int{"standard": 30, "fruity": 38}[surface.theme])
 			if !s.eval(t, `() => {
 				const custom = document.querySelector('.vd-start-item[data-app-id="fixture-logo"] img');
 				const studio = document.querySelector('.vd-start-item[data-app-id="code-studio"] img');
