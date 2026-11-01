@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Spenning",
   "desktop.ecalc_empty_favorites": "Ingen favoritter ennå. Merk en kalkulator som favoritt for å finne den her.",
   "desktop.ecalc_empty_recent": "Ingenting åpnet ennå. Nylig brukte kalkulatorer vises her.",
+  "desktop.ecalc_error_locked": "Lås opp et felt først for å endre denne verdien.",
   "desktop.ecalc_error_nonfinite": "Disse verdiene gir ikke noe endelig resultat.",
   "desktop.ecalc_error_parse": "Verdien kunne ikke leses. Eksempler: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Verdien må være større enn null.",

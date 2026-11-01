@@ -84,16 +84,15 @@
         return { values, computed, errors, warnings };
     }
 
-    // The user typed into `edited`. Among the solvable sets that contain it (and every locked variable, when any
-    // set does) the set wins that keeps the most recently edited variables as inputs; a tie goes to the first set.
-    // recency lists the current inputs from the oldest edit to the newest. Returns {set, recency} or null when no
-    // set contains `edited`.
+    // The user typed into `edited`. Among the solvable sets that contain it and every locked variable the set wins
+    // that keeps the most recently edited variables as inputs; a tie goes to the first set. A locked field stays an
+    // input until the user unlocks it, so locks are never dropped to make room: when no set holds `edited` together
+    // with all locks the edit is refused. recency lists the current inputs from the oldest edit to the newest.
+    // Returns {set, recency}, or null when no set contains `edited` and every locked variable.
     function chooseInputs(sets, recency, edited, locked) {
-        const withEdited = sets.filter(set => set.includes(edited));
-        if (!withEdited.length) return null;
         const pinned = (locked || []).filter(Boolean);
-        const withLocks = withEdited.filter(set => pinned.every(name => set.includes(name)));
-        const candidates = withLocks.length ? withLocks : withEdited;
+        const candidates = sets.filter(set => set.includes(edited) && pinned.every(name => set.includes(name)));
+        if (!candidates.length) return null;
         let best = null, bestScore = -1;
         for (const set of candidates) {
             let score = 0;
@@ -132,13 +131,13 @@
     }
 
     // A stored state is only used when its inputs are one of the solvable sets; anything else falls back to the defaults.
+    // Only inputs can be locked: a stored lock on any other variable is dropped.
     function restoreState(calc, stored, units, unitOf) {
         const base = defaultState(calc, units, unitOf);
         if (!stored || typeof stored !== 'object' || !stored.inputs || typeof stored.inputs !== 'object') return base;
         const names = Object.keys(stored.inputs);
         const sameSet = calc.sets.some(set => set.length === names.length && set.every(name => names.includes(name)));
         if (!sameSet || !names.every(name => typeof stored.inputs[name] === 'string')) return base;
-        const known = new Set(calc.vars.map(v => v.id));
         const recency = (Array.isArray(stored.recency) ? stored.recency : []).filter(name => names.includes(name));
         for (const name of names) if (!recency.includes(name)) recency.unshift(name);
         const choices = Object.assign({}, base.choices);
@@ -149,7 +148,7 @@
         return {
             inputs: Object.assign({}, stored.inputs),
             recency,
-            locked: (Array.isArray(stored.locked) ? stored.locked : []).filter(name => known.has(name)),
+            locked: (Array.isArray(stored.locked) ? stored.locked : []).filter(name => names.includes(name)),
             choices
         };
     }
@@ -169,7 +168,8 @@
     }
 
     // The user entered `raw` into `edited`. `lastValues` are the base-unit results shown so far; a computed variable
-    // that becomes an input keeps the value it showed. Returns the new state (the argument is not changed).
+    // that becomes an input keeps the value it showed. Returns the new state (the argument is not changed), or the
+    // very same `state` object when the edit is refused (a locked field would have to give way).
     function applyEdit(calc, state, edited, raw, units, unitOf, lastValues) {
         const chosen = chooseInputs(calc.sets, state.recency, edited, state.locked);
         if (!chosen) return state;
@@ -182,7 +182,7 @@
             if (v && shown != null && isFiniteValue(shown)) inputs[name] = exactText(v, shown, units, unitOf);
             else if (v && hasDefault(v)) inputs[name] = exactText(v, v.list ? v.default_list : v.default, units, unitOf);
         }
-        return { inputs, recency: chosen.recency, locked: state.locked.slice(), choices: Object.assign({}, state.choices) };
+        return { inputs, recency: chosen.recency, locked: state.locked.filter(name => chosen.set.includes(name)), choices: Object.assign({}, state.choices) };
     }
 
     function toggleLock(state, name) {

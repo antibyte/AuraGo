@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "电压",
   "desktop.ecalc_empty_favorites": "暂无收藏。将计算器标记为收藏后，可在此处找到。",
   "desktop.ecalc_empty_recent": "尚未打开任何内容。最近使用的计算器会显示在这里。",
+  "desktop.ecalc_error_locked": "请先解锁一个字段，再修改此值。",
   "desktop.ecalc_error_nonfinite": "这些数值无法得出有限的结果。",
   "desktop.ecalc_error_parse": "无法识别此数值。示例：4k7、10 mA、1e-6。",
   "desktop.ecalc_error_range": "此值必须大于零。",

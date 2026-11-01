@@ -18,7 +18,7 @@ var ecalcLocaleKeys = []string{
 	"desktop.ecalc_derived", "desktop.ecalc_eseries_nearest", "desktop.ecalc_eseries_series",
 	"desktop.ecalc_lock", "desktop.ecalc_unlock", "desktop.ecalc_unit_auto",
 	"desktop.ecalc_error_undetermined", "desktop.ecalc_error_nonfinite", "desktop.ecalc_error_range",
-	"desktop.ecalc_error_parse", "desktop.ecalc_settings", "desktop.ecalc_settings_digits",
+	"desktop.ecalc_error_parse", "desktop.ecalc_error_locked", "desktop.ecalc_settings", "desktop.ecalc_settings_digits",
 	"desktop.ecalc_settings_symbols", "desktop.ecalc_symbols_iec", "desktop.ecalc_symbols_ansi",
 	"desktop.ecalc_back", "desktop.ecalc_load_failed", "desktop.ecalc_retry", "desktop.ecalc_warnings",
 	"desktop.ecalc_inputs", "desktop.ecalc_computed",

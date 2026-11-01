@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Spänning",
   "desktop.ecalc_empty_favorites": "Inga favoriter än. Markera en kalkylator som favorit för att hitta den här.",
   "desktop.ecalc_empty_recent": "Inget har öppnats än. Nyligen använda kalkylatorer visas här.",
+  "desktop.ecalc_error_locked": "Lås upp ett fält först för att ändra värdet.",
   "desktop.ecalc_error_nonfinite": "De här värdena ger inget ändligt resultat.",
   "desktop.ecalc_error_parse": "Värdet kunde inte läsas. Exempel: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Värdet måste vara större än noll.",

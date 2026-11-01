@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Napięcie",
   "desktop.ecalc_empty_favorites": "Brak ulubionych. Oznacz kalkulator jako ulubiony, aby znaleźć go tutaj.",
   "desktop.ecalc_empty_recent": "Nic jeszcze nie otwarto. Ostatnio używane kalkulatory pojawią się tutaj.",
+  "desktop.ecalc_error_locked": "Najpierw odblokuj jedno pole, aby zmienić tę wartość.",
   "desktop.ecalc_error_nonfinite": "Dla tych wartości nie ma skończonego wyniku.",
   "desktop.ecalc_error_parse": "Nie można odczytać tej wartości. Przykłady: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Ta wartość musi być większa od zera.",

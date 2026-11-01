@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Voltage",
   "desktop.ecalc_empty_favorites": "No favorites yet. Mark a calculator as a favorite to find it here.",
   "desktop.ecalc_empty_recent": "Nothing opened yet. Recently used calculators will show up here.",
+  "desktop.ecalc_error_locked": "Unlock a field to change this value.",
   "desktop.ecalc_error_nonfinite": "These values give no finite result.",
   "desktop.ecalc_error_parse": "Could not read this value. Examples: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "This value must be greater than zero.",

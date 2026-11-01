@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Spænding",
   "desktop.ecalc_empty_favorites": "Ingen favoritter endnu. Markér en lommeregner som favorit for at finde den her.",
   "desktop.ecalc_empty_recent": "Intet åbnet endnu. Senest brugte lommeregnere vises her.",
+  "desktop.ecalc_error_locked": "Lås et felt op for at ændre denne værdi.",
   "desktop.ecalc_error_nonfinite": "Disse værdier giver intet endeligt resultat.",
   "desktop.ecalc_error_parse": "Værdien kunne ikke læses. Eksempler: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Værdien skal være større end nul.",

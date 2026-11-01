@@ -52,6 +52,7 @@
                 case 'nonfinite': return t('desktop.ecalc_error_nonfinite');
                 case 'range': return t('desktop.ecalc_error_range');
                 case 'undetermined': return t('desktop.ecalc_error_undetermined');
+                case 'locked': return t('desktop.ecalc_error_locked');
                 default: return '';
             }
         }
@@ -249,7 +250,10 @@
             }
             delete typing[v.id];
             if (has(state.inputs, v.id) && state.inputs[v.id] === text) { paintField(refs, true); return; }
-            state = S.applyEdit(calc, state, v.id, text, units, unitOf, result.values);
+            const next = S.applyEdit(calc, state, v.id, text, units, unitOf, result.values);
+            // A locked field stays an input: when it would have to give way the edit is refused and says so.
+            if (next === state) { typing[v.id] = 'locked'; paintField(refs, true); return; }
+            state = next;
             persist();
             paint(v.id);
         }

@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "वोल्टेज",
   "desktop.ecalc_empty_favorites": "अभी कोई पसंदीदा नहीं है। किसी कैलकुलेटर को पसंदीदा के रूप में चिह्नित करें, वह यहाँ दिखाई देगा।",
   "desktop.ecalc_empty_recent": "अभी कुछ नहीं खोला गया है। हाल में इस्तेमाल किए गए कैलकुलेटर यहाँ दिखाई देंगे।",
+  "desktop.ecalc_error_locked": "इस मान को बदलने के लिए पहले कोई फ़ील्ड अनलॉक करें।",
   "desktop.ecalc_error_nonfinite": "इन मानों से कोई सीमित परिणाम नहीं मिलता।",
   "desktop.ecalc_error_parse": "यह मान पढ़ा नहीं जा सका। उदाहरण: 4k7, 10 mA, 1e-6।",
   "desktop.ecalc_error_range": "यह मान शून्य से बड़ा होना चाहिए।",

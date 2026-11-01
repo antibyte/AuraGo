@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Spannung",
   "desktop.ecalc_empty_favorites": "Noch keine Favoriten. Markiere einen Rechner als Favorit, um ihn hier zu finden.",
   "desktop.ecalc_empty_recent": "Noch nichts geöffnet. Zuletzt benutzte Rechner erscheinen hier.",
+  "desktop.ecalc_error_locked": "Entsperre zuerst ein Feld, um diesen Wert zu ändern.",
   "desktop.ecalc_error_nonfinite": "Mit diesen Werten gibt es kein endliches Ergebnis.",
   "desktop.ecalc_error_parse": "Dieser Wert ist nicht lesbar. Beispiele: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Dieser Wert muss größer als null sein.",

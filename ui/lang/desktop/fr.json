@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Tension",
   "desktop.ecalc_empty_favorites": "Aucun favori pour l’instant. Marque une calculatrice comme favorite pour la retrouver ici.",
   "desktop.ecalc_empty_recent": "Rien d’ouvert pour l’instant. Les calculatrices utilisées récemment apparaissent ici.",
+  "desktop.ecalc_error_locked": "Déverrouille d’abord un champ pour modifier cette valeur.",
   "desktop.ecalc_error_nonfinite": "Ces valeurs ne donnent pas de résultat fini.",
   "desktop.ecalc_error_parse": "Impossible de lire cette valeur. Exemples : 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Cette valeur doit être supérieure à zéro.",

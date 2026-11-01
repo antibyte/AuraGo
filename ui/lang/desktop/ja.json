@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "電圧",
   "desktop.ecalc_empty_favorites": "お気に入りはまだありません。計算機をお気に入りに登録すると、ここに表示されます。",
   "desktop.ecalc_empty_recent": "まだ何も開いていません。最近使った計算機がここに表示されます。",
+  "desktop.ecalc_error_locked": "この値を変更するには、先にいずれかの欄のロックを解除してください。",
   "desktop.ecalc_error_nonfinite": "この値では有限の結果になりません。",
   "desktop.ecalc_error_parse": "この値を読み取れません。例: 4k7、10 mA、1e-6",
   "desktop.ecalc_error_range": "この値は 0 より大きくする必要があります。",

@@ -134,7 +134,7 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 	for _, key := range strings.Fields(`app_ecalc ecalc_search_placeholder ecalc_favorites ecalc_recent ecalc_empty_favorites ecalc_empty_recent
 		ecalc_no_results ecalc_favorite_add ecalc_favorite_remove ecalc_copy_results ecalc_copied ecalc_reset ecalc_explanation ecalc_source
 		ecalc_derived ecalc_eseries_nearest ecalc_eseries_series ecalc_lock ecalc_unlock ecalc_unit_auto ecalc_error_undetermined
-		ecalc_error_nonfinite ecalc_error_range ecalc_error_parse ecalc_settings ecalc_settings_digits ecalc_settings_symbols ecalc_symbols_iec
+		ecalc_error_nonfinite ecalc_error_range ecalc_error_parse ecalc_error_locked ecalc_settings ecalc_settings_digits ecalc_settings_symbols ecalc_symbols_iec
 		ecalc_symbols_ansi ecalc_back ecalc_load_failed ecalc_retry ecalc_warnings ecalc_inputs ecalc_computed ecalc_dim_voltage ecalc_dim_current
 		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain`) {
 		allowed["desktop."+key] = true

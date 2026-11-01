@@ -171,7 +171,8 @@ for (const item of calculators) {
     eq(choose(divider, ['vin', 'r1', 'r2'], 'r1', []), { set: ['vin', 'r1', 'r2'], recency: ['vin', 'r2', 'r1'] }, 'editing an input keeps the set and makes it the newest');
     eq(choose(divider, ['vin', 'r1', 'r2'], 'vout', ['vin']), { set: ['vin', 'r2', 'vout'], recency: ['vin', 'r2', 'vout'] }, 'a locked input never yields');
     eq(choose(divider, ['vin', 'r1', 'r2'], 'vout', ['vin', 'r1']), { set: ['vin', 'r1', 'vout'], recency: ['vin', 'r1', 'vout'] }, 'two locks');
-    eq(choose(divider, ['vin', 'r1', 'r2'], 'vout', ['vin', 'r1', 'r2']).set, ['r1', 'r2', 'vout'], 'locks that no set can honour are ignored');
+    eq(choose(divider, ['vin', 'r1', 'r2'], 'vout', ['vin', 'r1', 'r2']), null, 'locks that no set can honour refuse the edit');
+    eq(choose(divider, ['vin', 'r1', 'r2'], 'r1', ['vin', 'r1', 'r2']).set, ['vin', 'r1', 'r2'], 'editing a locked input is fine');
     eq(choose(divider, ['vin', 'r1', 'r2'], 'nothing', []), null, 'a variable in no set');
     eq(choose([['x', 'b'], ['x', 'c']], ['a'], 'x', []).set, ['x', 'b'], 'a tie goes to the first set');
     const starDelta = [['rab', 'rbc', 'rca'], ['ra', 'rb', 'rc']];
@@ -179,7 +180,7 @@ for (const item of calculators) {
     eq(choose(starDelta, ['rab', 'rbc', 'rca'], 'ra', []), { set: ['ra', 'rb', 'rc'], recency: ['rb', 'rc', 'ra'] }, 'star-delta switches the whole set');
     eq(choose(starDelta, ['rb', 'rc', 'ra'], 'rbc', []), { set: ['rab', 'rbc', 'rca'], recency: ['rab', 'rca', 'rbc'] }, 'and back');
     eq(choose(calcOf('ohms_law').sets, ['u', 'i'], 'p', []).set, ['i', 'p'], 'ohms law: typing a power keeps the newer current');
-    count += 12;
+    count += 13;
 }
 
 // ---- the input bookkeeping of a page ------------------------------------------------------------------------------
@@ -210,6 +211,34 @@ for (const item of calculators) {
         { inputs: { vin: '5 V', r1: '1k', r2: '1k' }, recency: ['r2', 'vin', 'r1'], locked: ['r1'], choices: {} }, 'a stored state is restored');
     eq(S.restoreState(divider, { inputs: { vin: '5 V', r1: '1k' } }, units, auto), S.defaultState(divider, units, auto), 'a stored state that is no solvable set falls back to the defaults');
     eq(S.restoreState(divider, 'junk', units, auto), S.defaultState(divider, units, auto));
+
+    // A locked field stays an input until the user unlocks it: an edit that would need its place is refused.
+    {
+        const ohm = calcOf('ohms_law');
+        let ohmState = S.toggleLock(S.toggleLock(S.defaultState(ohm, units, auto), 'u'), 'i');
+        eq(ohmState.locked, ['u', 'i']);
+        const ohmShown = S.solve(ohm, S.readInputs(ohm, ohmState, units, auto).values, ohmState.choices, units).values;
+        const refused = S.applyEdit(ohm, ohmState, 'r', '100', units, auto, ohmShown);
+        assert.equal(refused, ohmState, 'Ohm: typing R with U and I locked is refused (the state object is returned unchanged)');
+        eq(refused, { inputs: { u: '12 V', i: '20 mA' }, recency: ['u', 'i'], locked: ['u', 'i'], choices: {} }, 'Ohm: inputs, recency and locks stay as they were');
+        assert.equal(S.applyEdit(ohm, ohmState, 'p', '1', units, auto, ohmShown), ohmState, 'Ohm: so is typing P');
+        ohmState = S.toggleLock(ohmState, 'i');
+        assert.notEqual(S.applyEdit(ohm, ohmState, 'p', '1', units, auto, ohmShown), ohmState, 'Ohm: typing P with only U locked is fine');
+        eq(S.applyEdit(ohm, ohmState, 'p', '1', units, auto, ohmShown).inputs, { u: '12 V', p: '1' }, 'Ohm: the unlocked current yields, the locked U stays');
+        eq(S.applyEdit(ohm, ohmState, 'p', '1', units, auto, ohmShown).locked, ['u'], 'Ohm: the locks follow the inputs');
+
+        const rms = calcOf('rms_waveform');
+        let rmsState = S.toggleLock(S.defaultState(rms, units, auto), 'vrms');
+        const rmsShown = S.solve(rms, S.readInputs(rms, rmsState, units, auto).values, rmsState.choices, units).values;
+        assert.equal(S.applyEdit(rms, rmsState, 'vpk', '10', units, auto, rmsShown), rmsState, 'RMS: typing V_pk with V_rms locked is refused');
+        assert.notEqual(S.applyEdit(rms, rmsState, 'vrms', '10', units, auto, rmsShown), rmsState, 'RMS: editing the locked V_rms itself is fine');
+        rmsState = S.toggleLock(rmsState, 'vrms');
+        eq(S.applyEdit(rms, rmsState, 'vpk', '10', units, auto, rmsShown).inputs, { vpk: '10' }, 'RMS: unlocked, V_pk takes over');
+
+        eq(S.restoreState(divider, { inputs: { vin: '5 V', r1: '1k', r2: '1k' }, recency: [], locked: ['vout', 'r2'], choices: {} }, units, auto).locked, ['r2'], 'a stored lock on a variable that is not an input is dropped');
+        eq(S.restoreState(divider, { locked: ['vout'] }, units, auto).locked, [], 'and the defaults carry no lock');
+        count += 13;
+    }
 
     // A computed variable that becomes an input keeps the value it showed.
     const star = calcOf('star_delta');

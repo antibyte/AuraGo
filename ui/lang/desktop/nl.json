@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Spanning",
   "desktop.ecalc_empty_favorites": "Nog geen favorieten. Markeer een rekenmachine als favoriet om deze hier terug te vinden.",
   "desktop.ecalc_empty_recent": "Nog niets geopend. Onlangs gebruikte rekenmachines verschijnen hier.",
+  "desktop.ecalc_error_locked": "Ontgrendel eerst een veld om deze waarde te wijzigen.",
   "desktop.ecalc_error_nonfinite": "Deze waarden geven geen eindig resultaat.",
   "desktop.ecalc_error_parse": "Deze waarde kan niet worden gelezen. Voorbeelden: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Deze waarde moet groter zijn dan nul.",

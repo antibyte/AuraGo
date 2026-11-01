@@ -1141,6 +1141,7 @@
   "desktop.ecalc_dim_voltage": "Napětí",
   "desktop.ecalc_empty_favorites": "Zatím žádné oblíbené. Označte kalkulačku jako oblíbenou, aby se zobrazila zde.",
   "desktop.ecalc_empty_recent": "Zatím nic otevřeno. Naposledy použité kalkulačky se zobrazí zde.",
+  "desktop.ecalc_error_locked": "Pro změnu této hodnoty nejdřív odemkněte některé pole.",
   "desktop.ecalc_error_nonfinite": "Pro tyto hodnoty neexistuje konečný výsledek.",
   "desktop.ecalc_error_parse": "Hodnotu se nepodařilo přečíst. Příklady: 4k7, 10 mA, 1e-6.",
   "desktop.ecalc_error_range": "Hodnota musí být větší než nula.",
