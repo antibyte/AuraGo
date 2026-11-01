@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -355,7 +356,7 @@ func TestStoppedBotNeverWritesStatus(t *testing.T) {
 	client.emit(&events.LoggedOut{})
 	client.emit(&events.Disconnected{})
 	client.emit(&events.Message{})
-	if after := integrationstatus.WhatsAppStatus(); after != before {
+	if after := integrationstatus.WhatsAppStatus(); !reflect.DeepEqual(after, before) { // the status holds a map now
 		t.Fatalf("a stopped Bot changed the status: %+v -> %+v", before, after)
 	}
 }

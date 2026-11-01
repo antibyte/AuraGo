@@ -85,3 +85,43 @@ func TestWhatsAppStatusDropsStaleFields(t *testing.T) {
 		}
 	}
 }
+
+func TestWhatsAppDropCountersAreSeparatedAndCopied(t *testing.T) {
+	before := WhatsAppStatus()
+	CountWhatsAppDrop(WhatsAppDropNonOwner)
+	CountWhatsAppDrop(WhatsAppDropUnresolvedLID)
+	CountWhatsAppDrop(WhatsAppDropUnresolvedLID)
+	CountWhatsAppDrop("group")
+	CountWhatsAppDrop("group")
+	CountWhatsAppDrop("group")
+	CountWhatsAppDrop("") // no reason, no count
+	s := WhatsAppStatus()
+	if s.DroppedNonOwner != before.DroppedNonOwner+1 || s.DroppedUnresolvedLID != before.DroppedUnresolvedLID+2 {
+		t.Fatalf("own-field counters = %d/%d, before %d/%d", s.DroppedNonOwner, s.DroppedUnresolvedLID, before.DroppedNonOwner, before.DroppedUnresolvedLID)
+	}
+	if got, want := s.DroppedFiltered["group"], before.DroppedFiltered["group"]+3; got != want {
+		t.Fatalf("DroppedFiltered[group] = %d, want %d", got, want)
+	}
+	for _, own := range []string{WhatsAppDropNonOwner, WhatsAppDropUnresolvedLID, ""} {
+		if _, ok := s.DroppedFiltered[own]; ok {
+			t.Fatalf("reason %q leaked into DroppedFiltered: %v", own, s.DroppedFiltered)
+		}
+	}
+
+	// The snapshot is a copy: changing it changes neither the next snapshot nor the counter.
+	s.DroppedFiltered["group"] = 9999
+	s.DroppedFiltered["injected"] = 1
+	next := WhatsAppStatus()
+	if next.DroppedFiltered["group"] != before.DroppedFiltered["group"]+3 {
+		t.Fatalf("a mutated snapshot changed the counter: %v", next.DroppedFiltered)
+	}
+	if _, ok := next.DroppedFiltered["injected"]; ok {
+		t.Fatal("a key added to a snapshot reached the next one")
+	}
+
+	// A new generation does not reset the counters.
+	SetWhatsAppConfigState(WhatsAppStateConnecting, "dedicated")
+	if after := WhatsAppStatus(); after.DroppedFiltered["group"] != next.DroppedFiltered["group"] || after.DroppedNonOwner != next.DroppedNonOwner {
+		t.Fatalf("SetWhatsAppConfigState reset the drop counters: %+v", after)
+	}
+}
