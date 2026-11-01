@@ -12,28 +12,31 @@ func TestSolvableSetsOfBasics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string][][]string{
-		"ohms_law":        {{"u", "i"}, {"u", "r"}, {"u", "p"}, {"i", "r"}, {"i", "p"}, {"r", "p"}},
-		"voltage_divider": {{"vin", "r1", "r2"}, {"vin", "r1", "vout"}, {"vin", "r2", "vout"}, {"r1", "r2", "vout"}},
-		"loaded_divider": {
+	want := []struct {
+		id   string
+		sets [][]string
+	}{
+		{"ohms_law", [][]string{{"u", "i"}, {"u", "r"}, {"u", "p"}, {"i", "r"}, {"i", "p"}, {"r", "p"}}},
+		{"voltage_divider", [][]string{{"vin", "r1", "r2"}, {"vin", "r1", "vout"}, {"vin", "r2", "vout"}, {"r1", "r2", "vout"}}},
+		{"loaded_divider", [][]string{
 			{"vin", "r1", "r2", "rl"}, {"vin", "r1", "r2", "vout"}, {"vin", "r1", "rl", "vout"},
 			{"vin", "r2", "rl", "vout"}, {"r1", "r2", "rl", "vout"},
-		},
+		}},
 		// The three currents {i, i1, i2} cannot fix the resistors, only their ratio, so that set is absent.
-		"current_divider": {
+		{"current_divider", [][]string{
 			{"i", "r1", "r2"}, {"i", "r1", "i1"}, {"i", "r1", "i2"}, {"i", "r2", "i1"}, {"i", "r2", "i2"},
 			{"r1", "r2", "i1"}, {"r1", "r2", "i2"}, {"r1", "i1", "i2"}, {"r2", "i1", "i2"},
-		},
-		"series_parallel": {{"rs"}},
+		}},
+		{"series_parallel", [][]string{{"rs"}}},
 	}
-	for id, sets := range want {
-		c := cat.Calculator(id)
+	for _, w := range want {
+		c := cat.Calculator(w.id)
 		if c == nil {
-			t.Errorf("calculator %s is missing", id)
+			t.Errorf("calculator %s is missing", w.id)
 			continue
 		}
-		if !reflect.DeepEqual(c.Sets, sets) {
-			t.Errorf("%s: solvable sets\n got %v\nwant %v", id, c.Sets, sets)
+		if !reflect.DeepEqual(c.Sets, w.sets) {
+			t.Errorf("%s: solvable sets\n got %v\nwant %v", w.id, c.Sets, w.sets)
 		}
 	}
 }
