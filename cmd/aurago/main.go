@@ -794,6 +794,11 @@ func main() {
 		os.Exit(1)
 	}
 	longTermMem.BindMemoryMetadata(shortTermMem)
+	publicationCtx, cancelPublicationRecovery := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := agent.RecoverMemoryPublications(publicationCtx, cfg, shortTermMem, longTermMem); err != nil {
+		appLog.Warn("Memory publication recovery remains pending", "error", err)
+	}
+	cancelPublicationRecovery()
 	defer func() {
 		if err := longTermMem.Close(); err != nil {
 			appLog.Warn("Failed to close Long-Term memory (VectorDB)", "error", err)

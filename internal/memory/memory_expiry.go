@@ -28,6 +28,18 @@ func migrateMemoryExpiry(ctx context.Context, tx *sql.Tx) error {
 // SetMemoryExpiry records when the given memories stop being true. A zero time
 // removes the expiry: the latest statement of a fact decides how long it holds.
 func (s *SQLiteMemory) SetMemoryExpiry(ctx context.Context, docIDs []string, expiresAt time.Time) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("memory expiry store is unavailable")
+	}
+	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+		return err
+	}
+	defer s.automaticMemoryMu.Unlock()
+	ctx, release, err := s.BeginMemoryPublication(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -38,13 +50,7 @@ func (s *SQLiteMemory) SetMemoryExpiry(ctx context.Context, docIDs []string, exp
 		if id == "" {
 			continue
 		}
-		if expiresAt.IsZero() {
-			_, err = tx.ExecContext(ctx, `DELETE FROM memory_expiry WHERE doc_id=?`, id)
-		} else {
-			_, err = tx.ExecContext(ctx, `INSERT INTO memory_expiry(doc_id,expires_at) VALUES(?,?)
-				ON CONFLICT(doc_id) DO UPDATE SET expires_at=excluded.expires_at`, id, expiresAt.UTC().Format(memoryExpiryLayout))
-		}
-		if err != nil {
+		if err := setMemoryExpiryTx(ctx, tx, id, expiresAt); err != nil {
 			return fmt.Errorf("record memory expiry: %w", err)
 		}
 	}
@@ -92,18 +98,20 @@ func (s *SQLiteMemory) ArchiveExpiredMemoriesContext(ctx context.Context, vector
 			OR verification_status='archived' OR COALESCE(archived_at,'')<>'')`); err != nil {
 		return 0, fmt.Errorf("prune memory expiry: %w", err)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT doc_id FROM memory_expiry WHERE expires_at<=CURRENT_TIMESTAMP ORDER BY expires_at, doc_id LIMIT 500`)
+	rows, err := s.db.QueryContext(ctx, `SELECT doc_id,expires_at FROM memory_expiry WHERE expires_at<=CURRENT_TIMESTAMP ORDER BY expires_at, doc_id LIMIT 500`)
 	if err != nil {
 		return 0, err
 	}
 	var ids []string
+	expiryAt := make(map[string]string)
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var id, expires string
+		if err := rows.Scan(&id, &expires); err != nil {
 			rows.Close()
 			return 0, err
 		}
 		ids = append(ids, id)
+		expiryAt[id] = expires
 	}
 	err = rows.Err()
 	rows.Close()
@@ -122,6 +130,7 @@ func (s *SQLiteMemory) ArchiveExpiredMemoriesContext(ctx context.Context, vector
 			}
 			return 0, err
 		}
+		candidate.expiryAt = expiryAt[id]
 		candidate.identity, candidate.hash, err = s.archiveDocumentIdentity(ctx, vector, id)
 		if err != nil {
 			// The retrieval filter keeps the document hidden; the next night retries it.
@@ -136,6 +145,14 @@ func (s *SQLiteMemory) ArchiveExpiredMemoriesContext(ctx context.Context, vector
 	defer tx.Rollback()
 	applied := 0
 	for _, candidate := range candidates {
+		var expiryStillCurrent bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM memory_expiry WHERE doc_id=? AND expires_at=? AND expires_at<=CURRENT_TIMESTAMP
+			AND NOT EXISTS(SELECT 1 FROM memory_meta WHERE doc_id=? AND (protected=1 OR keep_forever=1)))`, candidate.meta.DocID, candidate.expiryAt, candidate.meta.DocID).Scan(&expiryStillCurrent); err != nil {
+			return 0, fmt.Errorf("recheck expired memory lifetime: %w", err)
+		}
+		if !expiryStillCurrent {
+			continue
+		}
 		var current MemoryMeta
 		err := scanMemoryMeta(tx.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, candidate.meta.DocID), &current)
 		if errors.Is(err, sql.ErrNoRows) {

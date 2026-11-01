@@ -2,10 +2,8 @@ package agent
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -21,13 +19,17 @@ func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLite
 }
 
 func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similarities []float64, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) ([]rankedMemory, error) {
+	return rankMemoryCandidatesWithScoresContext(context.Background(), memories, docIDs, similarities, stm, usedDocIDs, now)
+}
+
+func rankMemoryCandidatesWithScoresContext(ctx context.Context, memories []string, docIDs []string, similarities []float64, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) ([]rankedMemory, error) {
 	if len(memories) == 0 {
 		return nil, nil
 	}
 	if len(docIDs) != len(memories) {
 		return nil, fmt.Errorf("memory results are missing document IDs")
 	}
-	metaMap, err := loadMemoryMetaMap(stm, docIDs)
+	states, err := stm.CheckMemoryEligibility(ctx, docIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -46,15 +48,11 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 			sim = memory.ExtractSimilarityScore(mem)
 		}
 
-		meta := memory.MemoryMeta{}
-		if docID != "" {
-			if storedMeta, hasMeta := metaMap[docID]; hasMeta {
-				if memory.IsMemoryArchived(storedMeta) {
-					continue
-				}
-				meta = storedMeta
-			}
+		state := states[docID]
+		if !state.Visible() {
+			continue
 		}
+		meta := state.Metadata
 		finalScore := calculateMemoryRankingScore(sim, meta, usedDocIDs[docID], now)
 		results = append(results, rankedMemory{text: memoryTextWithTrust(mem, meta), docID: docID, score: finalScore})
 	}
@@ -110,7 +108,7 @@ func searchRankedMemoriesOnly(
 	if len(memories) == 0 {
 		return nil, searchErr
 	}
-	ranked, err := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now)
+	ranked, err := rankMemoryCandidatesWithScoresContext(ctx, memories, docIDs, similarities, stm, usedDocIDs, now)
 	if err != nil {
 		return nil, errors.Join(searchErr, err)
 	}
@@ -154,35 +152,18 @@ func splitScoredMemoryResults(results []memory.SearchResult) ([]string, []string
 	return memories, docIDs, similarities, nil
 }
 
-func loadMemoryMetaMap(stm *memory.SQLiteMemory, docIDs []string) (metaMap map[string]memory.MemoryMeta, resultErr error) {
-	defer func() {
-		if resultErr != nil {
-			slog.Warn("[RAG] Memory metadata enrichment skipped", "error", resultErr)
-		}
-	}()
-	metaMap = make(map[string]memory.MemoryMeta)
-	if stm == nil {
-		return nil, fmt.Errorf("memory metadata store is unavailable")
+func loadMemoryMetaMap(stm *memory.SQLiteMemory, docIDs []string) (map[string]memory.MemoryMeta, error) {
+	states, err := stm.CheckMemoryEligibility(context.Background(), docIDs)
+	if err != nil {
+		return nil, err
 	}
-	seen := make(map[string]bool, len(docIDs))
-	for _, id := range docIDs {
-		if strings.TrimSpace(id) == "" {
-			return nil, fmt.Errorf("memory result has an empty document ID")
+	meta := make(map[string]memory.MemoryMeta, len(states))
+	for id, state := range states {
+		if state.MetadataExists {
+			meta[id] = state.Metadata
 		}
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		meta, err := stm.GetMemoryMeta(id)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("load memory candidate metadata: %w", err)
-		}
-		metaMap[id] = meta
 	}
-	return metaMap, nil
+	return meta, nil
 }
 
 func calculateMemoryRankingScore(similarity float64, meta memory.MemoryMeta, reuseCount int, now time.Time) float64 {
@@ -255,7 +236,7 @@ func memoryTextWithTrust(text string, meta memory.MemoryMeta) string {
 		trust = "agent-extracted"
 	}
 	switch strings.ToLower(strings.TrimSpace(meta.SourceType)) {
-	case "memory_analysis", "auto_extraction", "consolidation", "hierarchical_consolidation":
+	case "memory_analysis", "auto_extraction", "consolidation", "hierarchical_consolidation", "chat":
 		trust = "agent-extracted"
 	case "user":
 		trust = "user-recorded"

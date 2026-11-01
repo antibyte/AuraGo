@@ -77,9 +77,11 @@ func (cv *ChromemVectorDB) memoryRetrievalEligible(ctx context.Context, id strin
 		}
 		return false, fmt.Errorf("memory metadata is unavailable")
 	}
-	var eligible bool
-	err := stm.db.QueryRowContext(ctx, `SELECT NOT EXISTS(SELECT 1 FROM memory_meta WHERE doc_id=? AND (verification_status='archived' OR COALESCE(archived_at,'')<>''))`, id).Scan(&eligible)
-	return eligible, err
+	states, err := stm.CheckMemoryEligibility(ctx, []string{id})
+	if err != nil {
+		return false, err
+	}
+	return states[id].Visible(), nil
 }
 
 func openDocumentCorpus(dir string) (*documentCorpus, error) {
@@ -157,7 +159,8 @@ func (c *documentCorpus) documentPage(ctx context.Context, collection, afterID s
 	query := `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? ORDER BY id LIMIT ?`
 	args := []any{collection, afterID, corpusPageSize}
 	if pendingOnly {
-		query = `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND pending<>0 ORDER BY id LIMIT ?`
+		query = `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND pending<>0 AND blocked_reason<>? ORDER BY id LIMIT ?`
+		args = []any{collection, afterID, automaticMemoryPublicationPending, corpusPageSize}
 	}
 	rows, err := c.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -371,7 +374,12 @@ func (cv *ChromemVectorDB) loadCorpusIndex(ctx context.Context) error {
 				if snapshot.pending == 0 && len(doc.Embedding) == int(cv.embeddingDimension.Load()) && len(doc.Embedding) > 0 && doc.Metadata["embedding_fingerprint"] == cv.EmbeddingFingerprint() {
 					docs = append(docs, doc)
 				} else if snapshot.pending == 0 {
-					invalidate = append(invalidate, doc.ID)
+					if doc.Metadata["memory_publication_id"] == "" {
+						invalidate = append(invalidate, doc.ID)
+					}
+					// Token-bearing completed documents are resolved only after
+					// SQLite metadata binds and publication recovery distinguishes
+					// committed rows from active ready journals.
 				}
 			}
 			if len(docs) > 0 {

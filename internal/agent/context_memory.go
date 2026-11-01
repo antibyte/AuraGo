@@ -610,6 +610,12 @@ func executeQueryMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLi
 }
 
 func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return executeRecallMemoryContext(ctx, tc, sessionID, shortTermMem, longTermMem)
+}
+
+func executeRecallMemoryContext(ctx context.Context, tc ToolCall, sessionID string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (string, error) {
 	ids := memoryIDsFromToolCall(tc)
 	if len(ids) == 0 {
 		return `Tool Output: {"status":"error","message":"ids are required"}`, nil
@@ -623,12 +629,25 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 			vectorIDs = append(vectorIDs, id)
 		}
 	}
-	var metaMap map[string]memory.MemoryMeta
+	var states map[string]memory.MemoryEligibility
+	contents := make(map[string]string)
 	if len(vectorIDs) > 0 {
 		var err error
-		metaMap, err = loadMemoryMetaMap(shortTermMem, vectorIDs)
+		states, err = shortTermMem.CheckMemoryEligibility(ctx, vectorIDs)
 		if err != nil {
 			return `Tool Output: {"status":"error","message":"Memory metadata is unavailable"}`, fmt.Errorf("recall memory metadata: %w", err)
+		}
+		eligible := make([]memory.MemoryEligibility, 0, len(vectorIDs))
+		for _, id := range vectorIDs {
+			if states[id].Visible() {
+				eligible = append(eligible, states[id])
+			}
+		}
+		if longTermMem != nil && len(eligible) > 0 {
+			contents, err = shortTermMem.ReadEligibleMemoriesByID(ctx, longTermMem, eligible)
+			if err != nil {
+				return `Tool Output: {"status":"error","message":"Memory eligibility is unavailable"}`, fmt.Errorf("recall memory eligibility: %w", err)
+			}
 		}
 	}
 	type recalledMemory struct {
@@ -662,16 +681,12 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 			missing = append(missing, id)
 			continue
 		}
-		if meta, ok := metaMap[id]; ok && memory.IsMemoryArchived(meta) {
+		content, ok := contents[id]
+		if !ok || strings.TrimSpace(content) == "" {
 			missing = append(missing, id)
 			continue
 		}
-		content, err := longTermMem.GetByID(id)
-		if err != nil || strings.TrimSpace(content) == "" {
-			missing = append(missing, id)
-			continue
-		}
-		results = append(results, recalledMemory{ID: id, Content: security.Scrub(memoryTextWithTrust(content, metaMap[id]))})
+		results = append(results, recalledMemory{ID: id, Content: security.Scrub(memoryTextWithTrust(content, states[id].Metadata))})
 		if shortTermMem != nil {
 			_ = shortTermMem.UpdateMemoryAccess(id)
 			_ = shortTermMem.RecordMemoryUsage(id, "ltm_recalled", sessionID, 1, false)
@@ -1098,22 +1113,26 @@ func scrubConversationEntry(entry memory.ConversationEntry) memory.ConversationE
 }
 
 func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.SQLiteMemory) ([]string, error) {
+	return filterArchivedMemoryResultsContext(context.Background(), results, docIDs, stm)
+}
+
+func filterArchivedMemoryResultsContext(ctx context.Context, results []string, docIDs []string, stm *memory.SQLiteMemory) ([]string, error) {
 	if len(results) == 0 {
 		return nil, nil
 	}
 	if len(results) != len(docIDs) {
 		return nil, fmt.Errorf("memory results are missing document IDs")
 	}
-	metaMap, err := loadMemoryMetaMap(stm, docIDs)
+	states, err := stm.CheckMemoryEligibility(ctx, docIDs)
 	if err != nil {
 		return nil, err
 	}
 	filtered := make([]string, 0, len(results))
 	for i, result := range results {
-		if meta, ok := metaMap[docIDs[i]]; ok && memory.IsMemoryArchived(meta) {
+		if !states[docIDs[i]].Visible() {
 			continue
 		}
-		filtered = append(filtered, memoryTextWithTrust(result, metaMap[docIDs[i]]))
+		filtered = append(filtered, memoryTextWithTrust(result, states[docIDs[i]].Metadata))
 	}
 	return filtered, nil
 }

@@ -598,69 +598,45 @@ func (cv *ChromemVectorDB) visibleCandidates(ctx context.Context, collection str
 	}
 
 	if collection == "aurago_memories" {
-		archiveCandidates := make([]int, 0, len(results))
+		memoryCandidates := make([]int, 0, len(results))
 		for i := range results {
 			if states[i].active {
-				archiveCandidates = append(archiveCandidates, i)
+				memoryCandidates = append(memoryCandidates, i)
 			}
 		}
 		if stm == nil {
 			if cv.corpus != nil {
-				for _, index := range archiveCandidates {
+				for _, index := range memoryCandidates {
 					states[index].active = false
 					states[index].err = fmt.Errorf("memory metadata is unavailable")
 					allErr = errors.Join(allErr, states[index].err)
 				}
 			}
 		} else {
-			for start := 0; start < len(archiveCandidates); start += corpusSQLChunkSize {
-				end := min(start+corpusSQLChunkSize, len(archiveCandidates))
-				chunk := archiveCandidates[start:end]
-				args := make([]any, 0, len(chunk)*2)
+			for start := 0; start < len(memoryCandidates); start += maxMemoryEligibilityIDs {
+				end := min(start+maxMemoryEligibilityIDs, len(memoryCandidates))
+				chunk := memoryCandidates[start:end]
+				candidates := make([]MemoryEligibilityCandidate, 0, len(chunk))
 				for _, index := range chunk {
-					args = append(args, results[index].ID)
+					result := results[index]
+					candidates = append(candidates, MemoryEligibilityCandidate{
+						DocID:         result.ID,
+						PublicationID: result.Metadata["memory_publication_id"],
+						ContentHash:   contentSHA256(result.Content),
+					})
 				}
-				args = append(args, args...)
-				// Expired memories leave retrieval at once; the nightly run archives them.
-				rows, err := stm.db.QueryContext(ctx, `SELECT doc_id FROM memory_meta WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND (verification_status='archived' OR COALESCE(archived_at,'')<>'')
-					UNION SELECT doc_id FROM memory_expiry WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND expires_at<=CURRENT_TIMESTAMP
-						AND doc_id NOT IN (SELECT doc_id FROM memory_meta WHERE protected=1 OR keep_forever=1)`, args...)
+				eligibility, err := stm.CheckMemoryDocumentEligibility(ctx, candidates)
 				if err != nil {
-					wrapped := fmt.Errorf("check archived memory candidates: %w", err)
+					wrapped := fmt.Errorf("check memory candidate eligibility: %w", err)
 					for _, index := range chunk {
 						states[index].active = false
 						states[index].err = wrapped
 						allErr = errors.Join(allErr, wrapped)
-					}
-					continue
-				}
-				archived := make(map[string]struct{}, len(chunk))
-				for rows.Next() {
-					var id string
-					if err := rows.Scan(&id); err != nil {
-						wrapped := fmt.Errorf("read archived memory candidates: %w", err)
-						allErr = errors.Join(allErr, wrapped)
-						for _, index := range chunk {
-							states[index].active = false
-							states[index].err = wrapped
-						}
-						break
-					}
-					archived[id] = struct{}{}
-				}
-				rowsErr := rows.Err()
-				closeErr := rows.Close()
-				if err := errors.Join(rowsErr, closeErr); err != nil {
-					wrapped := fmt.Errorf("finish archived memory lookup: %w", err)
-					allErr = errors.Join(allErr, wrapped)
-					for _, index := range chunk {
-						states[index].active = false
-						states[index].err = wrapped
 					}
 					continue
 				}
 				for _, index := range chunk {
-					if _, ok := archived[results[index].ID]; ok {
+					if !eligibility[results[index].ID].Visible() {
 						states[index].active = false
 					}
 				}

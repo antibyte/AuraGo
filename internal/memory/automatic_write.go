@@ -55,28 +55,13 @@ func (s *SQLiteMemory) initializeAutomaticMemoryMeta(id string, details MemoryMe
 func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
-		if _, ok := ltm.(*ChromemVectorDB); ok {
-			return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
-		}
-		if err := startMemoryPublication(ctx); err != nil {
-			return VectorStoreResult{}, err
-		}
-		return StoreDocumentWithOwnership(ltm, concept, content)
-	})
+	return StoreAutomaticMemoryDocumentWithOptionsContext(ctx, s, ltm, concept, content, details, AutomaticMemoryWriteOptions{})
 }
 
 // StoreAutomaticMemoryDocumentWithContext propagates the run deadline through
 // embedding and vector storage. Receipts and metadata still describe any writes.
 func StoreAutomaticMemoryDocumentWithContext(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
-	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
-		if _, ok := ltm.(*ChromemVectorDB); !ok {
-			if err := startMemoryPublication(ctx); err != nil {
-				return VectorStoreResult{}, err
-			}
-		}
-		return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
-	})
+	return StoreAutomaticMemoryDocumentWithOptionsContext(ctx, s, ltm, concept, content, details, AutomaticMemoryWriteOptions{})
 }
 
 func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate, store func(context.Context, VectorDB, string, string) (VectorStoreResult, error)) (result AutomaticMemoryStoreResult, resultErr error) {

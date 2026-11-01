@@ -971,7 +971,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					searchLimit = 8
 				}
 				memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
-				ranked, rankErr := rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
+				ranked, rankErr := rankMemoryCandidatesWithScoresContext(ctx, memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
 				err = errors.Join(err, rankErr)
 				failedMemorySearch = err != nil && len(ranked) == 0
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
@@ -999,7 +999,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 									RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
 								}
 								if ctx.Err() == nil && len(extraMemories) > 0 {
-									extraRanked, rankErr := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
+									extraRanked, rankErr := rankMemoryCandidatesWithScoresContext(ctx, extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
 									if rankErr != nil {
 										s.currentLogger.Warn("[RAG] Additional memory retrieval skipped", "error", rankErr)
 										RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")

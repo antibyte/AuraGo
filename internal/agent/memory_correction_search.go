@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -34,13 +35,13 @@ func appendCorrectionProfileResults(stm *memory.SQLiteMemory, query string, limi
 }
 
 func correctionVectorReferences(ids []string, stm *memory.SQLiteMemory, ltm memory.VectorDB) []memory.MemoryReference {
-	meta, err := loadMemoryMetaMap(stm, ids)
+	states, err := stm.CheckMemoryEligibility(context.Background(), ids)
 	if err != nil {
 		return nil
 	}
 	var refs []memory.MemoryReference
 	for _, id := range ids {
-		if memory.IsMemoryArchived(meta[id]) {
+		if !states[id].Visible() {
 			continue
 		}
 		// SearchSimilar also includes documents that must never be edited as memories.

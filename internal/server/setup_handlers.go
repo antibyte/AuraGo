@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
@@ -382,6 +383,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				newCfg.Embeddings.Provider != "" && newCfg.Embeddings.Provider != "disabled" {
 				if newVDB, vdbErr := memory.NewChromemVectorDB(newCfg, s.Logger); vdbErr == nil {
 					newVDB.BindMemoryMetadata(s.ShortTermMem)
+					if recoveryErr := agent.RecoverMemoryPublications(r.Context(), newCfg, s.ShortTermMem, newVDB); recoveryErr != nil {
+						s.Logger.Warn("[Setup] Memory publication recovery remains pending", "error", recoveryErr)
+					}
 					if closeErr := s.LongTermMem.Close(); closeErr != nil {
 						s.Logger.Warn("[Setup] Failed to close previous disabled VectorDB during re-initialization", "error", closeErr)
 					}

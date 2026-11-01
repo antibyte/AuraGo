@@ -358,7 +358,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeRecallMemory(tc, dc.SessionID, shortTermMem, longTermMem)
+			result, err := executeRecallMemoryContext(ctx, tc, dc.SessionID, shortTermMem, longTermMem)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"recall_memory failed: %v"}`, err)
 			}

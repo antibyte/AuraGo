@@ -189,6 +189,7 @@ func FreezeMemorySnapshots(ctx context.Context, cfg *config.Config) (func(), err
 	type reservation struct {
 		db   *sql.DB
 		conn *sql.Conn
+		path string
 	}
 	var reservations []reservation
 	var once sync.Once
@@ -203,6 +204,7 @@ func FreezeMemorySnapshots(ctx context.Context, cfg *config.Config) (func(), err
 			unfreeze()
 		})
 	}
+	corpusPath := snapshotPathKey(config.DocumentCorpusPath(cfg))
 	paths := []string{cfg.SQLite.ShortTermPath, cfg.SQLite.KnowledgeGraphPath, config.DocumentCorpusPath(cfg)}
 	sort.Strings(paths)
 	seen := map[string]bool{}
@@ -252,7 +254,7 @@ func FreezeMemorySnapshots(ctx context.Context, cfg *config.Config) (func(), err
 			release()
 			return nil, fmt.Errorf("reserve memory snapshot source: %w", err)
 		}
-		reservations = append(reservations, reservation{db, conn})
+		reservations = append(reservations, reservation{db: db, conn: conn, path: key})
 	}
 	// Only explicit publication journals are checked; legacy metadata gaps are
 	// not guessed at or repaired by the backup path.
@@ -264,13 +266,31 @@ func FreezeMemorySnapshots(ctx context.Context, cfg *config.Config) (func(), err
 		}
 		if hasLedger {
 			var pending int
-			if err := r.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'snapshot.publication.%' OR key LIKE 'file_index.replacement.%'`).Scan(&pending); err != nil {
+			if err := r.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'snapshot.publication.%' OR key LIKE 'memory.publication.%' OR key LIKE 'file_index.replacement.%'`).Scan(&pending); err != nil {
 				release()
 				return nil, err
 			}
 			if pending != 0 {
 				release()
 				return nil, fmt.Errorf("%w (%d pending)", ErrMemorySnapshotBlocked, pending)
+			}
+		}
+		if r.path == corpusPath {
+			var hasDocuments bool
+			if err := r.conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='documents')`).Scan(&hasDocuments); err != nil {
+				release()
+				return nil, err
+			}
+			if hasDocuments {
+				var pending int
+				if err := r.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents WHERE collection='aurago_memories' AND pending<>0 AND (blocked_reason=? OR instr(metadata,'"memory_publication_id"')>0)`, automaticMemoryPublicationPending).Scan(&pending); err != nil {
+					release()
+					return nil, err
+				}
+				if pending != 0 {
+					release()
+					return nil, fmt.Errorf("%w (%d pending corpus documents)", ErrMemorySnapshotBlocked, pending)
+				}
 			}
 		}
 	}

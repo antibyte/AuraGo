@@ -140,7 +140,7 @@ func TestBlockedEmbeddingDoesNotHoldSnapshotLease(t *testing.T) {
 	}
 }
 
-func TestPartialAutomaticPublicationPreventsSnapshotCertification(t *testing.T) {
+func TestCleanedAutomaticPublicationFailureAllowsSnapshotCertification(t *testing.T) {
 	cfg, stm, vector := publicationSnapshotFixture(t)
 	if _, err := stm.db.Exec(`CREATE TRIGGER fail_metadata BEFORE INSERT ON memory_meta BEGIN SELECT RAISE(ABORT,'injected metadata failure'); END`); err != nil {
 		t.Fatal(err)
@@ -149,12 +149,25 @@ func TestPartialAutomaticPublicationPreventsSnapshotCertification(t *testing.T) 
 	if err == nil || len(result.CreatedIDs) != 1 {
 		t.Fatalf("receipt=%+v err=%v", result, err)
 	}
-	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); err == nil {
-		t.Fatal("partial publication certified")
+	var corpusDocs, journals int
+	if err := vector.corpus.db.QueryRow(`SELECT COUNT(*) FROM documents WHERE collection='aurago_memories' AND id=?`, result.CreatedIDs[0]).Scan(&corpusDocs); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'memory.publication.%'`).Scan(&journals); err != nil {
+		t.Fatal(err)
+	}
+	if corpusDocs != 0 || journals != 0 {
+		t.Fatalf("confirmed abort left corpusDocs=%d publicationJournals=%d", corpusDocs, journals)
+	}
+	if _, err := vector.GetByID(result.CreatedIDs[0]); err == nil {
+		t.Fatal("confirmed abort left the derived vector indexed")
+	}
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); err != nil {
+		t.Fatalf("snapshot after confirmed cleanup: %v", err)
 	}
 	root := filepath.Join(cfg.Directories.DataDir, "memory_backups")
 	snapshots, err := verifiedAutomaticSnapshots(root)
-	if err != nil || len(snapshots) != 0 {
+	if err != nil || len(snapshots) != 1 {
 		t.Fatalf("snapshots=%d err=%v", len(snapshots), err)
 	}
 }
@@ -280,14 +293,39 @@ func TestReusedPublicationLeavesNoMarker(t *testing.T) {
 
 func TestUncertainPublicationBlocksSnapshotWithSentinel(t *testing.T) {
 	cfg, stm, vector := publicationSnapshotFixture(t)
-	if _, err := stm.db.Exec(`CREATE TRIGGER fail_metadata BEFORE INSERT ON memory_meta BEGIN SELECT RAISE(ABORT,'injected metadata failure'); END`); err != nil {
+	if _, err := vector.corpus.db.Exec(`CREATE TRIGGER fail_activation BEFORE UPDATE OF pending ON documents WHEN NEW.pending=0 BEGIN SELECT RAISE(ABORT,'injected activation failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "partial fact", "body", MemoryMetaUpdate{}); err == nil {
-		t.Fatal("expected partial failure")
+	result, err := StoreAutomaticMemoryDocumentWithContext(t.Context(), stm, vector, "pending fact", "body", MemoryMetaUpdate{})
+	if err == nil || len(result.CreatedIDs) != 1 {
+		t.Fatalf("receipt=%+v err=%v, want activation failure", result, err)
 	}
 	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); !errors.Is(err, ErrMemorySnapshotBlocked) {
 		t.Fatalf("err=%v, want ErrMemorySnapshotBlocked", err)
+	}
+	var journals, pending int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM memory_maintenance_meta WHERE key LIKE 'memory.publication.%'`).Scan(&journals); err != nil {
+		t.Fatal(err)
+	}
+	if err := vector.corpus.db.QueryRow(`SELECT COUNT(*) FROM documents WHERE id=? AND pending=1 AND blocked_reason=?`, result.CreatedIDs[0], automaticMemoryPublicationPending).Scan(&pending); err != nil {
+		t.Fatal(err)
+	}
+	if journals != 1 || pending != 1 {
+		t.Fatalf("unresolved publication journals=%d pendingCorpusDocuments=%d", journals, pending)
+	}
+	if _, err := vector.corpus.db.Exec(`DROP TRIGGER fail_activation`); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.RecoverAutomaticMemoryPublicationsContext(t.Context(), vector, nil); err != nil {
+		t.Fatalf("recover ready publication: %v", err)
+	}
+	if err := CreateAutomaticSnapshot(t.Context(), cfg, time.Now()); err != nil {
+		t.Fatalf("snapshot after publication recovery: %v", err)
+	}
+	root := filepath.Join(cfg.Directories.DataDir, "memory_backups")
+	snapshots, err := verifiedAutomaticSnapshots(root)
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("snapshots after recovery=%d err=%v", len(snapshots), err)
 	}
 }
 

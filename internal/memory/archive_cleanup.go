@@ -11,6 +11,7 @@ type memoryArchiveCandidate struct {
 	meta     MemoryMeta
 	identity string
 	hash     string
+	expiryAt string
 }
 
 // ApplyMemoryBudgetEnforcementContext first commits the actual archive decisions

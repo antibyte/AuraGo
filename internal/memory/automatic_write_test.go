@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io"
@@ -206,7 +207,11 @@ type pausedAutomaticReuse struct {
 }
 
 func (v *pausedAutomaticReuse) StoreDocumentOwned(concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
-	result, err := v.ChromemVectorDB.StoreDocumentOwned(concept, content, mode)
+	return v.StoreDocumentOwnedContext(context.Background(), concept, content, mode)
+}
+
+func (v *pausedAutomaticReuse) StoreDocumentOwnedContext(ctx context.Context, concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
+	result, err := v.ChromemVectorDB.StoreDocumentOwnedContext(ctx, concept, content, mode)
 	if len(result.ReusedIDs) > 0 {
 		close(v.reused)
 		<-v.resume
@@ -217,6 +222,9 @@ func (v *pausedAutomaticReuse) StoreDocumentOwned(concept, content string, mode 
 func TestAutomaticMemoryRollbackWaitsForConcurrentReuse(t *testing.T) {
 	s := automaticTestStore(t)
 	v := &pausedAutomaticReuse{ChromemVectorDB: newTestChromemVectorDB(t, nearIdenticalMemoryEmbeddings), reused: make(chan struct{}), resume: make(chan struct{})}
+	if availability, ok := VectorDB(v).(canonicalMemoryCorpusAvailability); !ok || availability.hasCanonicalMemoryCorpus() {
+		t.Fatal("legacy fixture must select the unguarded compatibility path")
+	}
 	concept := "[preference] User prefers Vim"
 	first, err := StoreAutomaticMemoryDocument(s, v, concept, "source:memory_analysis session:A", MemoryMetaUpdate{SourceType: "memory_analysis"})
 	if err != nil {
@@ -227,7 +235,13 @@ func TestAutomaticMemoryRollbackWaitsForConcurrentReuse(t *testing.T) {
 		_, err := StoreAutomaticMemoryDocument(s, v, concept, "source:memory_analysis session:B", MemoryMetaUpdate{SourceType: "memory_analysis"})
 		storeDone <- err
 	}()
-	<-v.reused
+	select {
+	case err := <-storeDone:
+		t.Fatalf("concurrent reuse returned before the fixture pause: %v", err)
+	case <-v.reused:
+	case <-time.After(5 * time.Second):
+		t.Fatal("concurrent store neither reused the document nor returned")
+	}
 	rollbackDone := make(chan error, 1)
 	go func() { rollbackDone <- s.RollbackAutomaticMemoryWrites(v, first.Writes) }()
 	select {

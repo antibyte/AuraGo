@@ -73,3 +73,24 @@ When persistence is active and the backup fails or its paths are incomplete, mai
 records diagnostics and marks later phases skipped. It performs no archival, budget
 cleanup, automatic curation, graph synchronization or consolidation catch-up in that run.
 The next successful backup allows the normal phases to process outstanding work.
+
+## Safe publication and expiry
+
+New automatic memories are prepared before they become searchable. A durable journal
+binds new corpus IDs to content checksums; metadata, provenance, document identity and
+expiry commit together before the prepared embeddings enter the search index. Failed
+metadata or expiry writes are reported as failures, never as permanent saved facts.
+Reusing an existing document preserves its manual curation. A fresh human statement
+without an expiry removes the old deadline only after the complete transaction succeeds.
+
+On restart, AuraGo removes provably owned unfinished preparations or finishes confirmed
+publications using compatible stored embeddings. Current permissions and deletion fences
+still apply. Uncertain or incompatible publications remain hidden and prevent a complete
+snapshot; their receipts are preserved for diagnosis. No automatic repair of unrelated
+or legacy documents is attempted.
+
+Search and direct recall share current archive, expiry and publication checks. Expired
+facts are unavailable immediately, before nightly archival, and failed recall does not
+increase access statistics. Protected and keep-forever records retain their existing
+exception. Extending or removing an expiry is serialized with archival, whose transaction
+also checks that the observed deadline is still current and due.
