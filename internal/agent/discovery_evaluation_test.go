@@ -81,7 +81,7 @@ func TestDiscoveryTaskEvaluationV1(t *testing.T) {
 }
 
 // TestDiscoveryTaskEvaluationV2 measures how well the all-features catalog
-// finds the tool for 100 task phrasings (50 en, 50 de), and how many of them
+// finds the tool for 102 task phrasings (51 en, 51 de), and how many of them
 // would find that tool already in the first-turn tool list of the agent loop.
 //
 // Recall@k is the share of tasks whose expected tool is among the first k

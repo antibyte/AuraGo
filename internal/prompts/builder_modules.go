@@ -421,6 +421,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.DiscordEnabled
 	case "telegram_enabled":
 		return flags.TelegramEnabled
+	case "whatsapp_enabled":
+		return flags.WhatsAppEnabled
 	case "email_enabled":
 		return flags.EmailEnabled
 	case "docker_enabled":

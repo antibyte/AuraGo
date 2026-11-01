@@ -1317,7 +1317,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			"Send a WhatsApp message, and optionally one file, to the owner's WhatsApp chat. It reaches only the configured owner; there is no recipient parameter.",
 			schema(map[string]interface{}{
 				"message":   prop("string", "Message text; Markdown is converted to WhatsApp formatting"),
-				"file_path": prop("string", "Optional file in the workspace or the documents folder, up to 50 MB. JPEG/PNG go out as images, MP4 as video, MP3/M4A/OGG as audio, anything else as a document; the message becomes its caption (a longer text goes out first)"),
+				"file_path": prop("string", "Optional file in the workspace or the documents folder, up to 50 MB. A JPEG/PNG goes out as an image, an MP4/M4V as video, an MP3/M4A/AAC/OGG/OPUS as audio, each only when its content matches its type; anything else is sent as a document. The message becomes the caption; a longer text, and the text of an audio file, goes out first"),
 			}, "message"),
 		))
 	}

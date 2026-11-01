@@ -483,6 +483,14 @@ Send a message, or a file as a document, via the configured Telegram bot.
 | `priority` | string | Optional: priority (normal, high, low) |
 | `file_path` | string | Optional: a file in the workspace or the documents folder, sent as a Telegram document. `title` and `message` become its caption (a longer text goes out as a message first). Up to 50 MB. A missing file, a path outside both folders, or Telegram not being configured fails the call |
 
+### `send_whatsapp`
+Send a message, or a file with the message as its caption, to the owner's WhatsApp chat through the linked device. There is no recipient parameter, so the message always goes to the configured owner.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `message` | string | Message text. Markdown is converted to WhatsApp formatting. With a file it becomes the caption (up to 1024 characters; a longer text goes out first as its own message) |
+| `file_path` | string | Optional: a file in the workspace or the documents folder, up to 50 MB. JPEG/PNG go out as images, MP4 as video, MP3, M4A and OGG (also Opus and AAC) as audio, anything else as a document. Audio has no caption, so its text always goes out first. A missing file, a path outside both folders, or WhatsApp that is disabled, not linked or read-only fails the call |
+
 ### `send_agodesk_chat`
 Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
 

@@ -550,6 +550,14 @@ Sendet eine Nachricht oder eine Datei als Dokument über den konfigurierten Tele
 | `priority` | string | Optional: Priorität (normal, high, low) |
 | `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, die als Telegram-Dokument gesendet wird. `title` und `message` werden ihre Bildunterschrift (ein längerer Text wird zuerst als eigene Nachricht gesendet). Bis 50 MB. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein nicht konfiguriertes Telegram lässt den Aufruf fehlschlagen |
 
+### `send_whatsapp`
+Sendet eine Nachricht, oder eine Datei mit dem Text als Bildunterschrift, über das verknüpfte WhatsApp-Gerät an den Besitzer-Chat. Es gibt keinen Empfänger-Parameter; die Nachricht geht immer nur an den konfigurierten Besitzer. Wenn du eine Datei mitschickst, wird der Text ihre Bildunterschrift.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `message` | string | Nachrichtentext. Markdown wird in WhatsApp-Formatierung umgewandelt. Mit einer Datei wird der Text zur Bildunterschrift (höchstens 1024 Zeichen; ein längerer Text geht vorher als eigene Nachricht) |
+| `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, bis 50 MB. JPEG/PNG gehen als Bild, MP4 als Video, MP3, M4A und OGG (auch Opus und AAC) als Audio, alles andere als Dokument. Audio hat keine Bildunterschrift, daher geht sein Text immer vorher. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein deaktiviertes, nicht verknüpftes oder schreibgeschütztes WhatsApp lässt den Aufruf fehlschlagen |
+
 ### `send_youtube_video`
 Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
 

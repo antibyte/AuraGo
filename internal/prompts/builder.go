@@ -186,6 +186,7 @@ type ContextFlags struct {
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
 	TelegramEnabled          bool
+	WhatsAppEnabled          bool
 	JellyfinEnabled          bool
 	ObsidianEnabled          bool
 	TrueNASEnabled           bool
@@ -2694,6 +2695,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"network_shares", "network_shares", func(f *ContextFlags) bool { return f.NetworkSharesEnabled }},
 	{"discord", "discord", func(f *ContextFlags) bool { return f.DiscordEnabled }},
 	{"telegram", "telegram", func(f *ContextFlags) bool { return f.TelegramEnabled }},
+	{"whatsapp", "whatsapp", func(f *ContextFlags) bool { return f.WhatsAppEnabled }},
 	{"truenas", "truenas", func(f *ContextFlags) bool { return f.TrueNASEnabled }},
 	{"jellyfin", "jellyfin", func(f *ContextFlags) bool { return f.JellyfinEnabled }},
 	{"obsidian", "obsidian", func(f *ContextFlags) bool { return f.ObsidianEnabled }},

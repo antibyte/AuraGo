@@ -572,6 +572,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,
 		TelegramEnabled:          flags.TelegramEnabled,
+		WhatsAppEnabled:          flags.WhatsAppEnabled,
 		JellyfinEnabled:          flags.JellyfinEnabled,
 		ObsidianEnabled:          flags.ObsidianEnabled,
 		TrueNASEnabled:           flags.TrueNASEnabled,

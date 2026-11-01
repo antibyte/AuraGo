@@ -47,6 +47,7 @@ func pythonToolBridgeRecommendedGroups() []pythonToolBridgeGroupDef {
 		{Key: "mqtt", Icon: "📡", ToolList: []string{"mqtt_publish", "mqtt_subscribe", "mqtt_unsubscribe", "mqtt_get_messages"}},
 		{Key: "email", Icon: "✉️", ToolList: []string{"fetch_email", "send_email", "list_email_accounts"}},
 		{Key: "telegram", Icon: "📱", ToolList: []string{"send_telegram"}},
+		{Key: "whatsapp", Icon: "📱", ToolList: []string{"send_whatsapp"}},
 		{Key: "discord", Icon: "💬", ToolList: []string{"send_discord", "fetch_discord", "list_discord_channels"}},
 		{Key: "webhooks", Icon: "🔗", ToolList: []string{"call_webhook", "manage_outgoing_webhooks"}},
 		{Key: "netlify", Icon: "🔺", ToolList: []string{"netlify"}},

@@ -96,7 +96,7 @@ var toolFamilyTermSets = []toolFamilyTermSet{
 	{
 		family: "communication",
 		terms: []string{
-			"email", "mail", "webhook", "sms", "call", "contact", "telegram", "discord", "telnyx", "phone", "inbox", "address book",
+			"email", "mail", "webhook", "sms", "call", "contact", "telegram", "whatsapp", "discord", "telnyx", "phone", "inbox", "address book",
 			"adressbuch", "posteingang",
 		},
 		heads: []string{"anruf", "kontakt", "telefon"},

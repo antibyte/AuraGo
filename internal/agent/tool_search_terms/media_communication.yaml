@@ -93,8 +93,8 @@ send_email:
   en: ["send email", "write an email", "send mail via SMTP", "email someone", "compose email", "email to recipient"]
   de: ["E-Mail senden", "Mail schicken", "E-Mail schreiben", "Mail verschicken", "per Mail senden", "SMTP Mail", "jemandem mailen"]
 send_image:
-  en: ["send image", "show picture in chat", "send photo", "image lightbox", "post image to Telegram", "share chart image", "send screenshot"]
-  de: ["Bild senden", "Foto schicken", "Bild im Chat zeigen", "Bild anzeigen", "Screenshot schicken", "Diagramm als Bild senden", "Foto an Telegram"]
+  en: ["send image", "show picture in chat", "send photo", "image lightbox", "post image to Telegram", "post image to WhatsApp", "share chart image", "send screenshot"]
+  de: ["Bild senden", "Foto schicken", "Bild im Chat zeigen", "Bild anzeigen", "Screenshot schicken", "Diagramm als Bild senden", "Foto an Telegram", "Foto an WhatsApp"]
 send_notification:
   en: ["push notification", "ntfy", "Pushover", "notify my phone", "send alert", "web push", "notification to all channels", "SMS notification"]
   de: ["Push-Benachrichtigung", "Benachrichtigung aufs Handy", "Alarm senden", "Meldung an alle Kanäle", "Handy benachrichtigen", "Web-Push"]
@@ -104,6 +104,9 @@ send_telegram:
 send_video:
   en: ["send video file", "video player in chat", "show video in chat", "share mp4", "play clip in chat", "send video clip"]
   de: ["Videodatei senden", "Video im Chat zeigen", "Videoplayer im Chat", "MP4 schicken", "Videoclip senden", "Video im Chat abspielen"]
+send_whatsapp:
+  en: ["send WhatsApp message", "WhatsApp", "message me on WhatsApp", "send file via WhatsApp", "WhatsApp voice note", "write to my WhatsApp"]
+  de: ["WhatsApp Nachricht senden", "per WhatsApp schreiben", "auf WhatsApp schicken", "Datei per WhatsApp", "Sprachnachricht WhatsApp", "Nachricht an WhatsApp"]
 send_youtube_video:
   en: ["send YouTube video", "play YouTube in chat", "YouTube link", "embed YouTube", "share YouTube video", "YouTube player", "show YouTube Short", "YouTube start at timestamp"]
   de: ["YouTube Video senden", "YouTube im Chat abspielen", "YouTube Link teilen", "YouTube einbetten", "YouTube Short zeigen", "YouTube ab Minute", "Video von YouTube zeigen"]

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 
@@ -142,6 +143,12 @@ func TestSendWhatsAppIsOfferedOnlyWhenEnabledLinkedAndWritable(t *testing.T) {
 	}
 	if !state.ToolFlags.NotificationEnabled {
 		t.Fatal("WhatsApp as the only channel must still offer send_notification")
+	}
+	// The prompt sees the same flag, and it takes part in the prompt cache key.
+	cfg := whatsAppDispatchConfig(false)
+	promptFlags := buildPromptContextFlags(RunConfig{Config: cfg}, buildToolingPolicy(cfg, ""), promptContextOptions{})
+	if !promptFlags.WhatsAppEnabled || !slices.Contains(collectEnabledTools(&promptFlags), "whatsapp") {
+		t.Fatal("the prompt flags do not carry WhatsAppEnabled")
 	}
 	if state := resolve(whatsAppDispatchConfig(true)); state.ToolFlags.WhatsAppEnabled || offered(state) {
 		t.Fatal("a read-only WhatsApp offers send_whatsapp")

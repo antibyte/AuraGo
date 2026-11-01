@@ -2529,6 +2529,7 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"virustotal_enabled":         func() *ContextFlags { return &ContextFlags{VirusTotalEnabled: true} },
 		"web_scraper_enabled":        func() *ContextFlags { return &ContextFlags{WebScraperEnabled: true} },
 		"webdav_enabled":             func() *ContextFlags { return &ContextFlags{WebDAVEnabled: true} },
+		"whatsapp_enabled":           func() *ContextFlags { return &ContextFlags{WhatsAppEnabled: true} },
 		"wol_enabled":                func() *ContextFlags { return &ContextFlags{WOLEnabled: true} },
 	}
 
@@ -2576,6 +2577,7 @@ func TestMatchPromptConditionCoversAuditToolToggles(t *testing.T) {
 		{"network_scan_enabled", &ContextFlags{NetworkScanEnabled: true}},
 		{"upnp_scan_enabled", &ContextFlags{UPnPScanEnabled: true}},
 		{"telegram_enabled", &ContextFlags{TelegramEnabled: true}},
+		{"whatsapp_enabled", &ContextFlags{WhatsAppEnabled: true}},
 		{"space_agent_enabled", &ContextFlags{SpaceAgentEnabled: true}},
 	}
 
