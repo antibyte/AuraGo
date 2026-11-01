@@ -51,6 +51,9 @@ var genericExcluded = map[string]bool{
 	// fully covered by curated nodes
 	"ddg_search": true, "brave_search": true, "web_scraper": true, "api_request": true, "send_telegram": true,
 	"send_email": true, "send_notification": true, "send_discord": true, "mqtt_publish": true,
+	// closed until the curated notify.whatsapp node exists (stage 3b): a generic node has no
+	// duplicate-text guard on a retry, which send_telegram gets in flows_tool_invoker.go
+	"send_whatsapp": true,
 	// curated nodes whose rules a generic node would bypass
 	"home_assistant":   true, // home.assistant: the service is a literal; a template could pick shell_command.*
 	"document_creator": true, // doc.pdf_create: no URL fetch; url_to_pdf renders any URL in Gotenberg without an SSRF guard

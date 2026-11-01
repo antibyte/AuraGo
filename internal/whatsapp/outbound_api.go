@@ -152,7 +152,8 @@ func (b *Bot) sendOwnerAttachment(ctx context.Context, caption string, att Owner
 // Without a file the text goes to every owner. With one, the file is uploaded once and then sent
 // to each owner, preceded by the text when it does not fit as a caption or when the file is audio
 // (audio has no caption). A failure for one owner does not stop the others; the first error
-// is returned, and TextSent says that the text reached at least one owner as a message of its own.
+// is returned, and TextSent says that at least the first part of the text reached one owner as a
+// message of its own (also when a later part failed, because a retry would send that part twice).
 func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tools.WhatsAppSendResult, error) {
 	client := b.currentClient()
 	if client == nil || !client.IsLoggedIn() {
@@ -166,13 +167,12 @@ func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tool
 		}
 		var first error
 		for _, to := range owners {
-			if err := b.sender.deliverText(ctx, to, text, "owner message"); err != nil {
-				if first == nil {
-					first = err
-				}
-				continue
+			// Part of a long text may have gone out before a later part failed.
+			sent, err := b.sender.deliverTextParts(ctx, to, text, "owner message")
+			res.TextSent = res.TextSent || sent
+			if err != nil && first == nil {
+				first = err
 			}
-			res.TextSent = true
 		}
 		return res, first
 	}
@@ -200,13 +200,14 @@ func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tool
 	var first error
 	for _, to := range owners {
 		if textFirst {
-			if err := b.sender.deliverText(ctx, to, text, "owner message"); err != nil {
+			sent, err := b.sender.deliverTextParts(ctx, to, text, "owner message")
+			res.TextSent = res.TextSent || sent // also when a later part failed: a retry repeats the earlier ones
+			if err != nil {
 				if first == nil {
 					first = err
 				}
 				continue // this owner gets no file without its text
 			}
-			res.TextSent = true
 		}
 		if err := b.sender.deliverMedia(ctx, to, mediaMessage(kind, up, meta), "owner attachment"); err != nil && first == nil {
 			first = err

@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 )
@@ -13,6 +16,11 @@ import (
 // Telegram. A notification is sent from a goroutine of the caller's, which must not hang on a
 // stuck connection.
 const whatsAppNotifyBudget = 30 * time.Second
+
+// WhatsAppMaxMessageRunes is the longest text the Bot sends as one WhatsApp message. It mirrors
+// internal/whatsapp maxChunkRunes, which a test there pins. A notification above it would go
+// out as several paced messages, so it is refused, as Telegram refuses a text above its limit.
+const WhatsAppMaxMessageRunes = 4000
 
 var (
 	errWhatsAppDisabled   = errors.New("whatsapp is not enabled")
@@ -82,14 +90,31 @@ func whatsAppJSON(v map[string]any) string {
 
 // sendWhatsAppNotification sends a notification to the owner's WhatsApp chat: the title in bold
 // above the message, which the Bot converts to WhatsApp formatting. The caller has checked
-// enabled and read-only. The error comes masked from the Bot.
+// enabled and read-only. A text that would not fit one WhatsApp message is refused, as Telegram
+// refuses one above its limit. The error comes masked from the Bot.
 func sendWhatsAppNotification(ctx context.Context, title, message string) error {
 	sender := currentWhatsAppOwnerSender()
 	if sender == nil || !sender.Ready() {
 		return errWhatsAppNotRunning
 	}
+	title = whatsAppNotificationTitle(title)
+	// The bold markers are formatting, not text: the raw title and message decide, as for Telegram.
+	if n := utf8.RuneCountInString(title) + 1 + utf8.RuneCountInString(message); n > WhatsAppMaxMessageRunes {
+		return fmt.Errorf("whatsapp message is too long: %d characters, the limit is %d - shorten the message", n, WhatsAppMaxMessageRunes)
+	}
 	ctx, cancel := context.WithTimeout(ctx, whatsAppNotifyBudget)
 	defer cancel()
 	_, err := sender.SendOwnerMessage(ctx, "**"+title+"**\n"+message, "")
 	return err
+}
+
+// whatsAppNotificationTitle makes a title safe to wrap in bold markers on one line: it joins
+// the lines and drops the asterisks that would end the bold early. A title that is empty
+// afterwards becomes the default one.
+func whatsAppNotificationTitle(title string) string {
+	title = strings.Join(strings.Fields(strings.ReplaceAll(title, "*", "")), " ")
+	if title == "" {
+		return defaultNotificationTitle
+	}
+	return title
 }

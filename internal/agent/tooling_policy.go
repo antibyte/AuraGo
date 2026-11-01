@@ -390,7 +390,8 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		MQTTEnabled:                cfg.MQTT.Enabled,
 		CydEnabled:                 cfg.Cyd.Enabled,
 		NotificationEnabled: cfg.Cyd.Enabled || cfg.Notifications.Ntfy.Enabled || cfg.Notifications.Pushover.Enabled ||
-			(cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0) || cfg.Discord.Enabled || cfg.Telnyx.Enabled,
+			(cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0) || cfg.Discord.Enabled || cfg.Telnyx.Enabled ||
+			(cfg.WhatsApp.Enabled && !cfg.WhatsApp.ReadOnly),
 		AdGuardEnabled:               cfg.AdGuard.Enabled,
 		UptimeKumaEnabled:            cfg.UptimeKuma.Enabled,
 		GrafanaEnabled:               cfg.Grafana.Enabled,

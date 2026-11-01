@@ -163,9 +163,17 @@ func (s *sender) selfChatPrefix() string {
 // deliverText sends markdown to one owner as WhatsApp text. what names the message
 // in log lines and errors ("reply", "test message"); it is never user content.
 func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what string) error {
+	_, err := s.deliverTextParts(ctx, to, markdown, what)
+	return err
+}
+
+// deliverTextParts is deliverText that also reports whether at least one chunk reached WhatsApp.
+// A long text goes out as several messages; when a later one fails, the earlier ones are
+// delivered, and a caller that retries would send them twice.
+func (s *sender) deliverTextParts(ctx context.Context, to types.JID, markdown, what string) (sent bool, err error) {
 	client, recipient, err := s.prepare(ctx, to, what)
 	if err != nil {
-		return err
+		return false, err
 	}
 	prefix := s.selfChatPrefix()
 	// Scrub first: a registered value is matched as written, and the formatter would
@@ -175,15 +183,16 @@ func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what s
 
 	release, err := s.acquire(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer release()
 	for _, chunk := range chunks {
 		if err := s.sendOne(ctx, client, recipient, &waE2E.Message{Conversation: proto.String(prefix + chunk)}, what); err != nil {
-			return err
+			return sent, err
 		}
+		sent = true
 	}
-	return nil
+	return sent, nil
 }
 
 // deliverMedia sends one media message to one owner through the same guard, slot, bucket,

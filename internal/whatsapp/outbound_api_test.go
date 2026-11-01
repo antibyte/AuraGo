@@ -21,6 +21,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -509,5 +510,44 @@ func TestOwnerSendEndsWithTheGeneration(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("a send outlived its generation")
+	}
+}
+
+// A long text goes out in several messages. When a later one fails, the earlier ones are already
+// delivered, so the result must say the text was sent: a retry would send them twice.
+func TestSendOwnerMessageReportsTextSentWhenALaterPartFails(t *testing.T) {
+	ctx := context.Background()
+	long := strings.Repeat("word ", 1700) // 8500 runes: three messages
+	a := newOwnerAPI(t, nil)
+	a.writeWorkspace(t, "photo.jpg", jpegBytes)
+
+	a.fake.with(func(f *fakeClient) { f.sendErrs = []error{nil, errors.New("boom")} })
+	res, err := a.bot.SendOwnerMessage(ctx, long, "")
+	if err == nil || !res.TextSent || len(sentTexts(a.fake)) != 1 {
+		t.Fatalf("text only: result = %+v, error = %v, sent = %d; want TextSent after the first part", res, err, len(sentTexts(a.fake)))
+	}
+
+	// The same with a file: its text goes first, a later part fails, the file is not sent.
+	before := len(sentTexts(a.fake))
+	a.fake.with(func(f *fakeClient) { f.sendErrs = []error{nil, errors.New("boom")} })
+	res, err = a.bot.SendOwnerMessage(ctx, long, "photo.jpg")
+	sent := sentTexts(a.fake)[before:]
+	if err == nil || !res.TextSent || len(sent) != 1 || sent[0].msg.GetImageMessage() != nil {
+		t.Fatalf("with file: result = %+v, error = %v, sent = %+v; want TextSent and no image", res, err, sent)
+	}
+
+	// A first part that fails delivered nothing.
+	a.fake.with(func(f *fakeClient) { f.sendErrs = []error{errors.New("boom")} })
+	res, err = a.bot.SendOwnerMessage(ctx, long, "")
+	if err == nil || res.TextSent {
+		t.Fatalf("first part: result = %+v, error = %v; want no TextSent", res, err)
+	}
+}
+
+// A notification is refused above tools.WhatsAppMaxMessageRunes so that it goes out as one
+// message; the sender splits at maxChunkRunes. The two must stay the same number.
+func TestNotificationLimitIsTheChunkLimit(t *testing.T) {
+	if tools.WhatsAppMaxMessageRunes != maxChunkRunes {
+		t.Fatalf("tools.WhatsAppMaxMessageRunes = %d, maxChunkRunes = %d", tools.WhatsAppMaxMessageRunes, maxChunkRunes)
 	}
 }

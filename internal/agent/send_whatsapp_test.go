@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"slices"
 	"strings"
@@ -267,5 +268,27 @@ func TestSendNotificationOffersTheWhatsAppChannel(t *testing.T) {
 		if !found {
 			t.Errorf("%s: send_notification is not offered", name)
 		}
+	}
+}
+
+// Not parallel: the owner sender is process-wide state.
+func TestSendWhatsAppConfiguredButNotLinkedNeedsSetup(t *testing.T) {
+	publishWhatsAppSender(t, nil)
+	call := func(cfg *config.Config) ToolDispatchResult {
+		cfg.Directories.SkillsDir = t.TempDir()
+		dc := &DispatchContext{Cfg: cfg, SessionID: t.Name(), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		tc := ToolCall{Action: "send_whatsapp", Params: map[string]interface{}{"message": "m"}}
+		return DispatchToolCallResult(context.Background(), &tc, dc, "fixture")
+	}
+
+	// Enabled but not linked: needs setup, and the text says what is missing.
+	result := call(whatsAppDispatchConfig(false))
+	if result.Status != ToolResultNeedsSetup || !strings.Contains(result.Output, "not linked or not running") || strings.Contains(result.Output, "administrator") {
+		t.Fatalf("enabled, not linked: %+v", result)
+	}
+	// Switched off in the configuration: the tool is disabled, and that is for an administrator.
+	result = call(&config.Config{})
+	if result.Status != ToolResultDenied || !strings.Contains(result.Output, "tool_disabled") {
+		t.Fatalf("disabled: %+v", result)
 	}
 }

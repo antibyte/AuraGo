@@ -224,6 +224,8 @@ func flowToolConfigSection(tool string) string {
 		return "document_creator"
 	case "send_telegram":
 		return "telegram"
+	case "send_whatsapp":
+		return "whatsapp"
 	case "send_email":
 		return "email"
 	case "send_discord":

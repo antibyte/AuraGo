@@ -183,3 +183,48 @@ func TestSendNotificationReachesWhatsAppAndJoinsAll(t *testing.T) {
 		t.Fatalf("direct send without a linked device: %s", result)
 	}
 }
+
+// Not parallel: the owner sender is process-wide state.
+func TestSendNotificationRefusesAnOversizeWhatsAppText(t *testing.T) {
+	t.Cleanup(func() { SetWhatsAppOwnerSender(nil) })
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := whatsAppToolConfig(true, false)
+	fake := &scriptedWhatsAppSender{ready: true}
+	SetWhatsAppOwnerSender(fake)
+	const tooLong = `"detail":"whatsapp message is too long`
+
+	// A one-rune title, the newline and the message fill exactly one message; runes count, not bytes.
+	fits := strings.Repeat("ä", WhatsAppMaxMessageRunes-2)
+	if result := SendNotification(cfg, logger, "whatsapp", "T", fits, "normal", nil); fake.calls != 1 || strings.Contains(result, tooLong) {
+		t.Fatalf("a text that fits was refused: calls=%d result=%.200s", fake.calls, result)
+	}
+
+	fake.calls = 0
+	over := fits + "ä"
+	for _, channel := range []string{"whatsapp", "all"} {
+		result := SendNotification(cfg, logger, channel, "T", over, "normal", nil)
+		if fake.calls != 0 || !strings.Contains(result, tooLong) || !strings.Contains(result, `"channel":"whatsapp","status":"error"`) {
+			t.Fatalf("%s: calls=%d result=%.300s", channel, fake.calls, result)
+		}
+	}
+}
+
+// Not parallel: the owner sender is process-wide state.
+func TestSendNotificationKeepsTheWhatsAppTitleOnOneBoldLine(t *testing.T) {
+	t.Cleanup(func() { SetWhatsAppOwnerSender(nil) })
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	fake := &scriptedWhatsAppSender{ready: true}
+	SetWhatsAppOwnerSender(fake)
+	for title, want := range map[string]string{
+		"Backup\nfinished": "**Backup finished**\nm",
+		"a\r\n**b**\n\n c": "**a b c**\nm",
+		"***":              "**" + defaultNotificationTitle + "**\nm",
+		"  padded  ":       "**padded**\nm",
+		"Ünïcode ✓ stays":  "**Ünïcode ✓ stays**\nm",
+	} {
+		SendNotification(whatsAppToolConfig(true, false), logger, "whatsapp", title, "m", "normal", nil)
+		if fake.text != want {
+			t.Errorf("title %q: sender got %q, want %q", title, fake.text, want)
+		}
+	}
+}
