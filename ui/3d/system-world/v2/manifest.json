@@ -3857,15 +3857,117 @@
         "nav_surfaces_0",
         "structure"
       ]
+    },
+    {
+      "id": "hover-pack",
+      "lods": [
+        {
+          "level": 0,
+          "file": "hover-pack.lod0.glb",
+          "bytes": 160912,
+          "sha256": "6e9a3b68b295c1576fa49a259815bd64e119f10b5dbe660728407c034f6bef7c",
+          "bounds": {
+            "min": [
+              -0.6550000309944153,
+              0.0,
+              -0.45571428537368774
+            ],
+            "max": [
+              0.6800000071525574,
+              2.0769999027252197,
+              1.600000023841858
+            ]
+          },
+          "triangles": 3428
+        },
+        {
+          "level": 1,
+          "file": "hover-pack.lod1.glb",
+          "bytes": 86440,
+          "sha256": "c5e84e07b2c0a7d03972d05ebfc34cb8c7896ba321e1d3a294ad1f44c1d18f9e",
+          "bounds": {
+            "min": [
+              -0.6499999761581421,
+              0.0,
+              -0.46000000834465027
+            ],
+            "max": [
+              0.6800000071525574,
+              2.0769999027252197,
+              1.600000023841858
+            ]
+          },
+          "triangles": 1722
+        },
+        {
+          "level": 2,
+          "file": "hover-pack.lod2.glb",
+          "bytes": 44760,
+          "sha256": "25304a654bca15abf38d20a4f59b54a9e09fcf51b2e87c7702c9cc6a10fff7e4",
+          "bounds": {
+            "min": [
+              -0.6499999761581421,
+              0.0,
+              -0.46000000834465027
+            ],
+            "max": [
+              0.6800000071525574,
+              2.0769999027252197,
+              1.600000023841858
+            ]
+          },
+          "triangles": 636
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.7,
+            0,
+            -0.5,
+            0.7,
+            2.1,
+            0.5
+          ]
+        ],
+        "surfaces": [],
+        "portals": [],
+        "interaction": [
+          {
+            "name": "take",
+            "position": [
+              0,
+              0,
+              1.2
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "idle"
+      ],
+      "components": [
+        "kiosk",
+        "nav_colliders_0",
+        "nav_interaction_0",
+        "pack",
+        "charge",
+        "fan_l",
+        "fan_r",
+        "straps",
+        "structure",
+        "trim"
+      ]
     }
   ],
   "budget_bytes": 50331648,
   "model_budget_bytes": 12582912,
   "sources": {
     "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
-    "build_expansion.py": "1a2216e90bf16d6a8720633eea672c967b1db0413d97542a4faa632407a398e8",
+    "build_expansion.py": "8db115b7306ece41eb0c84ae9eac913ae3670b6a85d7a3b8d7a8d2c4fd2441c1",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b",
     "landmark_assets.py": "4cf53ff1a292e5316751f39f8c73688c2efc8929911a4765651072eb922b0159",
-    "robot_assets.py": "fbefc791b9211e78920307c0d4f3ff4cdfbb58a5dc1e88f612d865af3f96d117"
+    "robot_assets.py": "fbefc791b9211e78920307c0d4f3ff4cdfbb58a5dc1e88f612d865af3f96d117",
+    "hover_assets.py": "e2ebc5dd224fedd0fccbf52e71d133e08b9319c03728c0aa8025f1f7718a84a3"
   }
 }

@@ -17,6 +17,7 @@ from living_assets import ASSETS as LIVING_ASSETS, build_living, living_navigati
 from landmark_assets import ASSETS as LANDMARK_ASSETS, PIVOTS as LANDMARK_PIVOTS, build_landmark, landmark_navigation
 from robot_assets import (KINDS as ROBOT_KINDS, create_robot_asset, animate_robot, robot_materials,
                           bounds_and_triangles_tree, motion_bounds_tree)
+from hover_assets import ASSETS as HOVER_ASSETS, create_hover_asset, animate_hover, hover_navigation
 
 OUT = ROOT / 'ui/3d/system-world/v2'
 PIVOTS = {}
@@ -282,6 +283,7 @@ def navigation(asset):
     # named Blender empties so authors can inspect movement separately from art.
     if asset in LIVING_ASSETS: return living_navigation(asset)
     if asset in LANDMARK_ASSETS: return landmark_navigation(asset)
+    if asset in HOVER_ASSETS: return hover_navigation(asset)
     data={'colliders':[], 'surfaces':[], 'portals':[]}
     if asset in ('floor','ceiling'):
         if asset=='floor': data['surfaces']=[{'rect':[-2,-2,2,2], 'height':0}]
@@ -334,14 +336,16 @@ def build():
     factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
     factories.update({k:(lambda g,k=k:build_landmark(g,k)) for k in LANDMARK_ASSETS})
     factories.update({k:(lambda g,k=k:lookout(g,k)) for k in ['telescope','sky-deck','sky-lift']})
+    factories.update({k:None for k in HOVER_ASSETS})
     for asset,factory in factories.items():
         entry={'id':asset,'lods':[], 'navigation':navigation(asset)}
-        robot=asset.startswith('robot-');signature=None
+        robot=asset.startswith('robot-');hover=asset in HOVER_ASSETS;rigged=robot or hover;signature=None
         for lod in range(3):
             if robot:
                 # Residents are articulated: a real parent hierarchy, keyed by the gait solver.
                 root=create_robot_asset(asset,asset[6:],lod,collection,mats);clips=animate_robot(root,asset[6:])
                 if lod==0: entry['motion_bounds']=motion_bounds_tree(root,clips)
+            elif hover: root=create_hover_asset(asset,lod,collection,mats);clips=animate_hover(root)
             else: root=create_asset(asset,factory,lod,collection,mats);clips=animate(root,asset)
             for kind,items in entry['navigation'].items():
                 for i,item in enumerate(items):
@@ -350,7 +354,7 @@ def build():
             bpy.ops.object.select_all(action='DESELECT');root.select_set(True)
             for obj in root.children_recursive: obj.select_set(True)
             bpy.context.view_layer.objects.active=root;bpy.context.view_layer.update()
-            bounds,triangles=bounds_and_triangles_tree(root) if robot else bounds_and_triangles(root)
+            bounds,triangles=bounds_and_triangles_tree(root) if rigged else bounds_and_triangles(root)
             output=OUT/f'{asset}.lod{lod}.glb'
             # Resident clips are keyed on every frame but exported every second frame (smaller files).
             bpy.ops.export_scene.gltf(filepath=str(output),export_format='GLB',use_selection=True,
@@ -358,7 +362,7 @@ def build():
                 export_extras=True,export_yup=True,export_cameras=False,export_lights=False,**({'export_frame_step':2} if robot else {}))
             data=output.read_bytes();jlen=struct.unpack_from('<I',data,12)[0];doc=json.loads(data[20:20+jlen])
             for n in doc.get('nodes',[]): n['name']=n.get('extras',{}).get('component',n.get('extras',{}).get('asset_id',n.get('name')))
-            if robot:
+            if rigged:
                 # Stable mesh names (the runtime swaps LODs per mesh name) and identical, ordered
                 # material lists per part at every LOD: one draw call per part x material.
                 for n in doc['nodes']:
@@ -381,7 +385,7 @@ def build():
         entries.append(entry);print('WORLD2',asset)
     manifest={'schema_version':2,'version':'2.4.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
-              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py']}}
+              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py','hover_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)
