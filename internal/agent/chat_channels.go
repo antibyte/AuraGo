@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"aurago/internal/remote"
+	"aurago/internal/tools"
 )
 
 func buildReachableChatChannelsContext(runCfg RunConfig) string {
@@ -17,6 +18,16 @@ func buildReachableChatChannelsContext(runCfg RunConfig) string {
 	var lines []string
 	if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 {
 		lines = append(lines, "- Telegram: reachable via `send_telegram` to the configured default Telegram chat.")
+	}
+	if cfg.WhatsApp.Enabled {
+		switch {
+		case cfg.WhatsApp.ReadOnly:
+			lines = append(lines, "- WhatsApp: the owner can write to you there; proactive sends (`send_whatsapp`, notification channel `whatsapp`) are blocked by config.")
+		case tools.WhatsAppAvailable():
+			lines = append(lines, "- WhatsApp: reachable via `send_whatsapp` (text and files) to the owner's WhatsApp chat, or `send_notification` with channel `whatsapp`.")
+		default:
+			lines = append(lines, "- WhatsApp: enabled but not linked or not running; do not try to send there.")
+		}
 	}
 	if cfg.Discord.Enabled {
 		target := "configured Discord server"

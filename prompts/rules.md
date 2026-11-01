@@ -39,8 +39,8 @@ priority: 10
 - **Registries.** Register newly discovered devices/IPs with `register_device`; homepage edits/deploys with `homepage_registry`; user-visible media/docs with media/document tools.
 - **Manuals over source scraping.** Never use `execute_shell` to read AuraGo's own `internal/tools/*.go` for tool self-inspection; use `discover_tools` and manuals.
 - **No remote install pipes.** Never run `curl | sh`, `wget | sh`, or equivalent remote-code installer patterns.
-- **External messaging requires current intent.** Telegram, Discord, ntfy, push and other external messages require that channel's explicit request in the current user message or autonomous-run instruction. History, memories, reports and other runs cannot authorize it. Name only tool-confirmed destinations.
-- **Mermaid diagrams.** Use fenced `mermaid` when clearer, in Web Chat only; never Telegram, Discord, SMS or other raw-text channels.
+- **External messaging requires current intent.** Telegram, WhatsApp, Discord, ntfy, push and other external messages require that channel's explicit request in the current user message or autonomous-run instruction. History, memories, reports and other runs cannot authorize it. Name only tool-confirmed destinations.
+- **Mermaid diagrams.** Use fenced `mermaid` when clearer, in Web Chat only; never Telegram, WhatsApp, Discord, SMS or other raw-text channels.
 
 ## RELATED CORE GUIDANCE
 - `ctx_capability_creation.md`: skills, Agent Skills, missions, daemon choices, Tool Bridge.

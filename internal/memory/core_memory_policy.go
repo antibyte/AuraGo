@@ -320,6 +320,7 @@ func isCoreMemoryToolStateClaim(text string) bool {
 		strings.Contains(text, "send_notification") ||
 		strings.Contains(text, "ntfy") ||
 		strings.Contains(text, "telegram") ||
+		strings.Contains(text, "whatsapp") ||
 		strings.Contains(text, "discord") ||
 		strings.Contains(text, "pushover") ||
 		strings.Contains(text, "rocketchat") ||
@@ -425,7 +426,8 @@ func coreMemoryInstructionRule(text string) string {
 			strings.Contains(text, "shell") ||
 			strings.Contains(text, "send_") ||
 			strings.Contains(text, "discord") ||
-			strings.Contains(text, "telegram")) {
+			strings.Contains(text, "telegram") ||
+			strings.Contains(text, "whatsapp")) {
 		return "always_call"
 	}
 	if coreMemoryPolicyActedOnPattern.MatchString(text) {
