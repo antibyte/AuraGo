@@ -263,6 +263,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Auswahl der animierten Persona-Haustiere (OpenPets) |
 | **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
 | **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
+| **ECalc** | Elektronik-Formelsammlung: interaktive Rechner mit Schaltplänen, gesetzten Formeln und Live-Ergebnissen, dazu E-Reihen-Werte für Widerstände. Läuft im Browser und braucht keine Einrichtung ([Kapitel 32](32-ecalc.md)) |
 | **Galaxa Deluxe / Chess / NASSCAD / Systemwelt** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und begehbare 3D-Systemstadt mit Robotern, Telemetrie und Turm-Stimme |
 | **Newspaper** | Persönliche Tageszeitung: serverseitige Recherche mit geprüften Quellen, Ressorts, Archiv aller Ausgaben und optionaler E-Mail-/Telegram-Zustellung |
 | **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
