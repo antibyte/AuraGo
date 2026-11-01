@@ -298,7 +298,7 @@ type ContextFlags struct {
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 	InnerVoice               string // Inner voice thought (1-3 sentences, first person, from Inner Voice System)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
-	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	MessageSource            string // origin channel: "web_chat", "telegram", "whatsapp", "discord", "a2a", "sms", "mission"
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 	AgentSkillsCatalog       string // enabled Agent Skill names/descriptions; full SKILL.md loads via activate_agent_skill
@@ -1065,6 +1065,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			label = "Web Chat"
 		case "telegram":
 			label = "Telegram"
+		case "whatsapp":
+			label = "WhatsApp"
 		case "discord":
 			label = "Discord"
 		case "agodesk_chat":

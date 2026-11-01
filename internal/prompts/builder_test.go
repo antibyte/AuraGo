@@ -1254,6 +1254,21 @@ func TestBuildSystemPromptLabelsAgoDeskChatSource(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptLabelsWhatsAppSource(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage: "en",
+		MessageSource:  "whatsapp",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "> **Channel:** WhatsApp") {
+		t.Fatalf("prompt should label whatsapp as WhatsApp, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "> **Channel:** whatsapp") {
+		t.Fatalf("prompt exposed raw whatsapp source instead of a user-facing channel label:\n%s", prompt)
+	}
+}
+
 func TestBuildSystemPromptLabelsCameraDetectionSource(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en", MessageSource: "camera_detection"}
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())

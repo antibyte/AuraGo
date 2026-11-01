@@ -52,7 +52,7 @@ func shouldUseSupervisorToolRoute(runCfg RunConfig) bool {
 		return false
 	}
 	switch strings.ToLower(strings.TrimSpace(runCfg.MessageSource)) {
-	case "", "web_chat", "telegram", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
+	case "", "web_chat", "telegram", "whatsapp", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
 		return true
 	default:
 		return false

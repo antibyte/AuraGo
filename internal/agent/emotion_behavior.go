@@ -113,7 +113,7 @@ func intentLooksAmbiguous(userMsg string) bool {
 
 func isShortChannel(source string) bool {
 	switch strings.ToLower(strings.TrimSpace(source)) {
-	case "telegram", "sms", "discord", "rocketchat", "telnyx":
+	case "telegram", "whatsapp", "sms", "discord", "rocketchat", "telnyx":
 		return true
 	default:
 		return false
@@ -122,7 +122,7 @@ func isShortChannel(source string) bool {
 
 func channelToneHint(source string) string {
 	switch strings.ToLower(strings.TrimSpace(source)) {
-	case "telegram", "sms", "discord", "rocketchat", "telnyx":
+	case "telegram", "whatsapp", "sms", "discord", "rocketchat", "telnyx":
 		return "Channel style: keep replies short and scannable while preserving the active persona's voice. Do not change tools or safety rules."
 	case "virtual_desktop_chat":
 		return "Channel style: use the active persona's natural register for desktop conversation. Do not change tools or safety rules."

@@ -1176,7 +1176,7 @@ type RunConfig struct {
 	UntrustedProvenance bool
 	IsMission           bool   // true when triggered by a mission (skips RAG, personality, profiling)
 	MissionID           string // mission ID for logging/tracking
-	MessageSource       string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	MessageSource       string // origin channel: "web_chat", "telegram", "whatsapp", "discord", "a2a", "sms", "mission"
 	VoiceOutputActive   bool   // true when the user's speaker toggle is on
 	// SuppressOperationalNotices leaves the daily notice for ordinary chat
 	// instead of interrupting an embedded app assistant.
