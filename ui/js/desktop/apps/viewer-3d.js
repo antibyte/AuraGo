@@ -26,6 +26,7 @@
             createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:fileUrl,name:fileName}],signal)
         }));
 
+        // Icon sizes are explicit: a sizeless icon would change size when the desktop refreshes its icons.
         host.innerHTML = `<div class="vd-viewer vd-viewer-3d" data-viewer-3d="${esc(windowId)}">
             <div class="vd-viewer-toolbar">
                 <div class="vd-viewer-toolbar-left">
@@ -33,10 +34,10 @@
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W')}<span>${esc(t('desktop.stl_wireframe'))}</span></button>
-                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R')}<span>${esc(t('desktop.stl_auto_rotate'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="fullscreen">${iconMarkup('maximize', 'F')}<span>${esc(t('stl_expand'))}</span></button>
-                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D')}<span>${esc(t('desktop.stl_download'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="wireframe">${iconMarkup('grid', 'W', 'vd-tool-icon', 15)}<span>${esc(t('desktop.stl_wireframe'))}</span></button>
+                    <button class="vd-tool-button is-active" type="button" data-action="rotate">${iconMarkup('refresh', 'R', 'vd-tool-icon', 15)}<span>${esc(t('desktop.stl_auto_rotate'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="fullscreen">${iconMarkup('maximize', 'F', 'vd-tool-icon', 15)}<span>${esc(t('stl_expand'))}</span></button>
+                    <button class="vd-tool-button" type="button" data-action="download">${iconMarkup('download', 'D', 'vd-tool-icon', 15)}<span>${esc(t('desktop.stl_download'))}</span></button>
                 </div>
             </div>
             <div class="vd-viewer-3d-stage" data-stage>

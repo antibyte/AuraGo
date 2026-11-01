@@ -4,7 +4,9 @@
     }
 
     function trackedIconMarkup(markup, key, fallback, className, size, usage) {
-        const attributes = ` data-vd-icon-key="${esc(key)}" data-vd-icon-fallback="${esc(fallback || '')}" data-vd-icon-class="${esc(className || '')}" data-vd-icon-size="${Number(size) || 16}" data-vd-icon-usage="${esc(usage || 'icon')}"`;
+        // The size is recorded only when there is one: a refresh renders a sizeless icon with the default of its render path, like the first render did.
+        const pixels = Number(size) || 0;
+        const attributes = ` data-vd-icon-key="${esc(key)}" data-vd-icon-fallback="${esc(fallback || '')}" data-vd-icon-class="${esc(className || '')}"${pixels ? ` data-vd-icon-size="${pixels}"` : ''} data-vd-icon-usage="${esc(usage || 'icon')}"`;
         return markup.replace(/^(<span|<svg)\b/, '$1' + attributes);
     }
 
@@ -12,7 +14,7 @@
         (root || document).querySelectorAll('[data-vd-icon-key]').forEach(icon => {
             const data = icon.dataset;
             const template = document.createElement('template');
-            template.innerHTML = iconMarkup(data.vdIconKey, data.vdIconFallback, data.vdIconClass, Number(data.vdIconSize), data.vdIconUsage);
+            template.innerHTML = iconMarkup(data.vdIconKey, data.vdIconFallback, data.vdIconClass, Number(data.vdIconSize) || undefined, data.vdIconUsage);
             const replacement = template.content.firstElementChild;
             if (replacement) {
                 if (icon.hasAttribute('hidden')) replacement.setAttribute('hidden', '');

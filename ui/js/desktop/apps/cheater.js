@@ -117,7 +117,7 @@
 
     function renderEmpty(state) {
         const { host, windowId, esc, t, iconMarkup } = state;
-        const icon = iconMarkup ? iconMarkup('cheater', '🗂️') : '🗂️';
+        const icon = iconMarkup ? iconMarkup('cheater', '🗂️', 'cheater-hero-icon', 48) : '🗂️';
         host.innerHTML = `<section class="cheater-app" data-cheater="${esc(windowId)}" data-state="empty" tabindex="-1">
             <div class="cheater-empty" data-empty>
                 <div class="cheater-empty-icon" aria-hidden="true">${icon}</div>

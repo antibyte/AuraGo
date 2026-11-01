@@ -308,7 +308,7 @@
             tbody.innerHTML = filteredEntries.map((e, i) => {
                 const name = displayName(e);
                 const checked = selected.has(e.name) ? 'checked' : '';
-                const icon = iconMarkup(entryIconKey(e), e.is_dir ? 'Dir' : 'File');
+                const icon = iconMarkup(entryIconKey(e), e.is_dir ? 'Dir' : 'File', 'zipper-entry-icon', 42);
                 return `<tr data-idx="${i}" class="${selected.has(e.name) ? 'zipper-selected' : ''}">
                     <td class="zipper-col-check"><input type="checkbox" data-check="${esc(e.name)}" ${checked}></td>
                     <td class="zipper-col-name"><span class="zipper-icon">${icon}</span> ${esc(name)}</td>

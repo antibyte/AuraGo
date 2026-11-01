@@ -3,6 +3,41 @@
     min-height: 0;
 }
 
+/* Layout the desktop 3D viewer owns. Its app assets are only this file, so desktop-app-viewer.css (the 2D viewer's
+   stylesheet) is not loaded and left the toolbar a plain block: file name and tool buttons stacked and the export
+   button sat lower than the tool buttons. Same values as desktop-app-viewer.css, so it looks alike whichever of the
+   two files is loaded. */
+.desktop-body .vd-viewer.vd-viewer-3d {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.desktop-body .vd-viewer-3d .vd-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: var(--vd-toolbar-padding);
+    flex-shrink: 0;
+    min-height: 42px;
+}
+
+.desktop-body .vd-viewer-3d .vd-viewer-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.desktop-body .vd-viewer-3d .vd-viewer-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 /* App materials (desktop only, the tokens live on .desktop-body): canvas, toolbar bar and file name follow the
    theme material. The chat preview never sees these rules. */
 .desktop-body .vd-viewer.vd-viewer-3d {

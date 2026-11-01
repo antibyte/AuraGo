@@ -473,9 +473,13 @@
 
     function iconMarkup(key, fallback, className, size, usage) {
         usage = usage || (miniIconRole(className) ? 'action' : 'icon');
-        const track = markup => trackedIconMarkup(markup, key, fallback, className, size || (usage === 'action' ? 16 : 42), usage);
+        // Action icons are mini icons: 16 px on every render path. Any other sizeless icon takes the default of its render
+        // path (symbol fallback 16, themed artwork and sprites 42), and is tracked sizeless: refreshThemeIconElements renders
+        // it again from what is recorded here, so recording a guessed size would resize the icon on the next refresh.
+        const px = size || (usage === 'action' ? 16 : 0);
+        const track = markup => trackedIconMarkup(markup, key, fallback, className, px, usage);
         if (usage === 'action') {
-            const miniature = miniIconMarkup(key, className, size);
+            const miniature = miniIconMarkup(key, className, px);
             if (miniature) return track(miniature);
         }
         const logoPath = String(key || '').startsWith('logo:') ? String(key).slice(5).replace(/[\r\n"<>]/g, '').trim() : '';
@@ -486,9 +490,9 @@
         }
         const source = resolveIconSource(key, usage);
         if (source.type === 'theme') {
-            return track(themedArtworkMarkup(source.path, key, fallback, className, size, usage === 'action'));
+            return track(themedArtworkMarkup(source.path, key, fallback, className, px, usage === 'action'));
         }
-        return track(spriteMarkup(source.key || key, fallback, className, size));
+        return track(spriteMarkup(source.key || key, fallback, className, px));
     }
     function themeBackedAppIconKey(app) {
         if (!app) return '';

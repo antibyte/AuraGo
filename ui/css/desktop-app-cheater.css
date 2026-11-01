@@ -67,6 +67,13 @@
     color: var(--cheater-accent);
 }
 
+/* No icon theme has art for the Cheater key, so the hero is the emoji fallback glyph: scale it to its 48px box and keep
+   it on the text's left edge (the fallback centres its glyph by default). */
+.cheater-empty-icon .vd-symbol-fallback {
+    font-size: 2.6rem;
+    place-items: center start;
+}
+
 .cheater-empty-title {
     font-family: var(--vd-mat-heading-font, inherit);
     font-size: 1.75rem;

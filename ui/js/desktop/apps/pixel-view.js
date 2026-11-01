@@ -207,12 +207,12 @@
                     </div>`;
             }),
             buildTransformPanelHTML: Pixel.bindRuntime(runtime, function buildTransformPanelHTML() {
-                return `<div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('redo', 'CW')} ${this.esc(this.t('pixel.rotate_cw'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('undo', 'CCW')} ${this.esc(this.t('pixel.rotate_ccw'))}</button></div>
-                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H')} ${this.esc(this.t('pixel.flip_h'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V')} ${this.esc(this.t('pixel.flip_v'))}</button></div>
+                return `<div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="rotate-cw">${this.iconMarkup('redo', 'CW', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.rotate_cw'))}</button><button class="pixel-btn" type="button" data-action="rotate-ccw">${this.iconMarkup('undo', 'CCW', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.rotate_ccw'))}</button></div>
+                    <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.flip_h'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.flip_v'))}</button></div>
                     <hr class="pixel-divider">
-                    <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C')} ${this.esc(this.t('pixel.crop'))}</button>
+                    <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.crop'))}</button>
                     <hr class="pixel-divider">
-                    <button class="pixel-btn" type="button" data-action="resize">${this.iconMarkup('maximize', 'R')} ${this.esc(this.t('pixel.resize'))}</button>`;
+                    <button class="pixel-btn" type="button" data-action="resize">${this.iconMarkup('maximize', 'R', 'pixel-transform-icon', 16)} ${this.esc(this.t('pixel.resize'))}</button>`;
             }),
             buildHistoryPanelHTML: Pixel.bindRuntime(runtime, function buildHistoryPanelHTML() {
                 return '<div class="pixel-history-list" data-history-list></div>';
