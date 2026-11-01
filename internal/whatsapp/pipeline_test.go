@@ -43,6 +43,9 @@ type pipelineFixture struct {
 	mu    sync.Mutex
 	calls []agentCall
 	delay time.Duration // how long the agent stub works
+
+	answer string                            // the stub's answer; pipelineAnswer when empty
+	script func(broker agent.FeedbackBroker) // runs inside the stub, like the tool events of a real run
 }
 
 func newPipelineFixture(t *testing.T, cfg *config.Config) *pipelineFixture {
@@ -76,10 +79,10 @@ func newPipelineFixture(t *testing.T, cfg *config.Config) *pipelineFixture {
 	return f
 }
 
-func (f *pipelineFixture) stub(ctx context.Context, req openai.ChatCompletionRequest, runCfg agent.RunConfig, _ bool, _ agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+func (f *pipelineFixture) stub(ctx context.Context, req openai.ChatCompletionRequest, runCfg agent.RunConfig, _ bool, broker agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
 	f.mu.Lock()
 	f.calls = append(f.calls, agentCall{req: req, runCfg: runCfg, voiceSuppressed: agent.VoiceOutputSuppressed(ctx)})
-	delay := f.delay
+	delay, answer, script := f.delay, f.answer, f.script
 	f.mu.Unlock()
 	if delay > 0 {
 		select {
@@ -87,8 +90,14 @@ func (f *pipelineFixture) stub(ctx context.Context, req openai.ChatCompletionReq
 		case <-ctx.Done():
 		}
 	}
+	if script != nil {
+		script(broker)
+	}
+	if answer == "" {
+		answer = pipelineAnswer
+	}
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{
-		{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: pipelineAnswer}},
+		{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: answer}},
 	}}, nil
 }
 
@@ -138,9 +147,9 @@ func TestPipelineRunsTheAgentInTheDefaultSession(t *testing.T) {
 	if run.SessionID != "default" || run.MessageSource != "whatsapp" {
 		t.Fatalf("session = %q, source = %q", run.SessionID, run.MessageSource)
 	}
-	// Stage 2 cannot deliver audio: the loop must not expose or run TTS.
-	if !calls[0].voiceSuppressed || run.VoiceOutputActive {
-		t.Fatalf("voice output suppressed = %v, VoiceOutputActive = %v, want true and false", calls[0].voiceSuppressed, run.VoiceOutputActive)
+	// Stage 3 delivers audio: the loop may expose TTS, and voice mode decides whether it does.
+	if calls[0].voiceSuppressed || run.VoiceOutputActive != agent.GetVoiceMode() {
+		t.Fatalf("voice output suppressed = %v, VoiceOutputActive = %v, want false and %v", calls[0].voiceSuppressed, run.VoiceOutputActive, agent.GetVoiceMode())
 	}
 	if run.TaskRoutingText == nil || *run.TaskRoutingText != "hi" {
 		t.Fatalf("routing text = %v, want hi", run.TaskRoutingText)

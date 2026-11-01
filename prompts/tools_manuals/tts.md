@@ -31,6 +31,6 @@ Generate speech audio from text. Max 500 characters per call.
 - OpenAI Speech API models retire on 2027-01-06; use OpenAI Realtime for new long-term integrations. Resemble's former hosted voice platform is archived; its adapter requires access that still works. See `documentation/tts-providers.md`.
 - Returns `{"status": "success", "file": "hash.ext", "url": "http://...", "local_path": "/abs/path/to/file"}`
 - Audio files are cached by content hash — the cache may be evicted over time
-- Audio is automatically sent as native attachment in Telegram/Discord
+- Audio is automatically sent as native attachment in Telegram/Discord; a voice note in WhatsApp voice mode
 - Combine with `chromecast` action `speak` to play on speakers
 - **⚠️ TTS audio is automatically posted to the WebUI chat when generated.** Do NOT call `send_audio` after `tts` — that would send it twice. Only use `send_audio` for audio files that are NOT from the `tts` tool.

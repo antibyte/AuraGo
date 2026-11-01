@@ -17,6 +17,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/telegram"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 
@@ -79,6 +80,7 @@ type pipeline struct {
 	transcribe   func(ctx context.Context, name string, data []byte, cfg *config.Config) (string, error) // tools.TranscribeAudio without the score
 	analyzeImage func(ctx context.Context, path string, cfg *config.Config) (string, error)              // telegram.AnalyzeImageContext
 	toMP3        func(ctx context.Context, in, out string) error                                         // telegram.ConvertOggToMp3Context
+	voiceNote    func(ctx context.Context, in string) ([]byte, uint32, error)                            // convertToVoiceNote: Ogg Opus bytes and seconds
 }
 
 // handle runs one accepted owner message to its reply. It logs the owner's masked JID and
@@ -303,7 +305,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		BudgetTracker:     budgetTracker,
 		SessionID:         sessionID,
 		MessageSource:     "whatsapp",
-		VoiceOutputActive: false, // stage 2 sends no audio (the broker drops it); stage 3 sets it from agent.GetVoiceMode()
+		VoiceOutputActive: agent.GetVoiceMode(),
 	}
 	finalMessages := buildAgentMessages(historyManager)
 	if historyManager == nil {
@@ -324,8 +326,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	stopTyping := startTyping(ctx, wa, in.Chat, typingEvery)
 	defer stopTyping()
 	broker := &whatsAppBroker{ctx: ctx, sender: p.sender, to: owner, now: now}
-	// Stage 2 cannot deliver audio, so the loop neither exposes nor runs TTS; stage 3 removes this when voice notes land.
-	resp, err := agentLoop(agent.WithVoiceOutputSuppressed(ctx), req, runCfg, false, broker)
+	resp, err := agentLoop(ctx, req, runCfg, false, broker)
 	stopTyping()
 	if ctx.Err() != nil {
 		return
@@ -336,11 +337,17 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		return
 	}
 
-	// 15. The answer. Images are not sent as pictures yet (stage 3): each becomes a line.
+	// 15. Captured TTS audio, then the answer in Telegram's order (bot.go:672-735): each
+	// Markdown image becomes an image message, and one that could not be sent a line.
+	audio, videos := broker.captured()
+	for _, af := range audio {
+		p.deliverCapturedAudio(ctx, cfg, owner, af)
+	}
 	if len(resp.Choices) > 0 {
 		answer := security.StripThinkingTags(resp.Choices[0].Message.Content)
 		cleanText, images := media.ExtractMarkdownImages(answer)
-		cleanText = appendImageLines(cleanText, images)
+		cleanText = p.deliverAnswerImages(ctx, cfg, owner, cleanText, images)
+		cleanText = telegram.AppendMissingYouTubeLinks(cleanText, videos)
 		if cleanText != "" {
 			p.deliver(ctx, owner, cleanText, "answer")
 		}

@@ -2,11 +2,14 @@ package whatsapp
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/telegram"
 
 	"go.mau.fi/whatsmeow/types"
 )
@@ -24,10 +27,10 @@ const (
 
 var _ agent.FeedbackBroker = (*whatsAppBroker)(nil)
 
-// whatsAppBroker implements agent.FeedbackBroker for one owner turn (TelegramBroker parity
-// for text events; audio and YouTube capture arrive in stage 3). It sends only through the
-// sender, whose owner guard also covers to: the pipeline takes it from ownerRecipients.
-// It logs nothing, so no message content reaches a log.
+// whatsAppBroker implements agent.FeedbackBroker for one owner turn (TelegramBroker parity).
+// It sends text events through the sender, whose owner guard also covers to: the pipeline
+// takes it from ownerRecipients. It captures audio and YouTube events for the pipeline to
+// deliver after the run. It logs nothing, so no message content reaches a log.
 type whatsAppBroker struct {
 	ctx        context.Context
 	sender     *sender
@@ -35,18 +38,50 @@ type whatsAppBroker struct {
 	now        func() time.Time
 	mu         sync.Mutex
 	lastStatus time.Time
+	audio      []telegram.CapturedAudio
+	videos     []telegram.CapturedYouTubeVideo
 }
 
-// Send delivers the events a chat user needs and ignores the rest.
+// Send delivers the events a chat user needs and captures what the pipeline sends after
+// the run.
 //
 //   - question_user, budget_warning and budget_blocked are delivered at once.
 //   - tool_start, error_recovery, api_retry and progress are status updates: at most
 //     one per statusCoalesceWindow, the others are dropped.
-//   - audio, youtube_video and every other event are ignored.
+//   - audio (with a file_path, which only the tts action sets) and youtube_video (with a
+//     url) are captured, as TelegramBroker does (internal/telegram/bot.go:948-978). Nothing
+//     is sent during the run. send_audio and generate_music events carry web paths only and
+//     are ignored.
+//   - every other event is ignored.
 func (b *whatsAppBroker) Send(event, message string) {
 	switch event {
 	case "question_user":
 		b.deliver(message, "question")
+	case "audio":
+		var audio struct {
+			FilePath string `json:"file_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+		}
+		if json.Unmarshal([]byte(message), &audio) == nil && audio.FilePath != "" {
+			b.mu.Lock()
+			b.audio = append(b.audio, telegram.CapturedAudio{
+				FilePath: audio.FilePath, Title: audio.Title, MimeType: audio.MimeType, Filename: audio.Filename,
+			})
+			b.mu.Unlock()
+		}
+	case "youtube_video":
+		var video struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			VideoID string `json:"video_id"`
+		}
+		if json.Unmarshal([]byte(message), &video) == nil && video.URL != "" {
+			b.mu.Lock()
+			b.videos = append(b.videos, telegram.CapturedYouTubeVideo{URL: video.URL, Title: video.Title, VideoID: video.VideoID})
+			b.mu.Unlock()
+		}
 	case "tool_start", "error_recovery", "api_retry", "progress":
 		text := statusPrefix + strings.ToUpper(event) + ": " + message
 		if event == "progress" {
@@ -60,6 +95,13 @@ func (b *whatsAppBroker) Send(event, message string) {
 	case "budget_blocked":
 		b.deliver(budgetBlocked+message, "budget notice")
 	}
+}
+
+// captured returns copies of the audio files and YouTube videos the run produced.
+func (b *whatsAppBroker) captured() ([]telegram.CapturedAudio, []telegram.CapturedYouTubeVideo) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.audio), slices.Clone(b.videos)
 }
 
 // takeStatusSlot reports whether a status update may go out now, and claims the slot.

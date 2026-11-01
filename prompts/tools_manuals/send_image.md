@@ -1,6 +1,6 @@
 ## Tool: Send Image (`send_image`)
 
-Send an image to the user. In the Web UI it appears inline in the chat with a click-to-zoom lightbox. In Telegram it arrives as a native photo. In Discord it is sent as a file attachment.
+Send an image to the user. In the Web UI it appears inline in the chat with a click-to-zoom lightbox. In Telegram it arrives as a native photo. In WhatsApp it arrives as an image message. In Discord it is sent as a file attachment.
 
 ### Schema
 

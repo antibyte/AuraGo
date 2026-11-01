@@ -22,6 +22,7 @@ import (
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -374,5 +375,102 @@ func TestOnlyTheSenderCallsSendMessage(t *testing.T) {
 	slices.Sort(callers)
 	if want := []string{"client.go", "send.go"}; !slices.Equal(callers, want) {
 		t.Fatalf("SendMessage is called from %v, want only %v (the adapter and the sender)", callers, want)
+	}
+}
+
+func TestSenderDeliverMediaGuardsQueuesAndRegisters(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	s, sent := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, fake)
+	image := func() *waE2E.Message {
+		return &waE2E.Message{ImageMessage: &waE2E.ImageMessage{Mimetype: proto.String("image/png")}}
+	}
+
+	before := deliveryFailures()
+	if err := s.deliverMedia(ctx, strangerJID, image(), "answer image"); !errors.Is(err, errNotOwnerRecipient) {
+		t.Fatalf("media to a stranger = %v, want errNotOwnerRecipient", err)
+	}
+	if got := sentTexts(fake); len(got) != 0 || sent.Len() != 0 || deliveryFailures() != before {
+		t.Fatalf("a stranger got %+v; cached IDs %d; failures %d (want %d)", got, sent.Len(), deliveryFailures(), before)
+	}
+
+	if err := s.deliverMedia(ctx, ownerJID, image(), "answer image"); err != nil {
+		t.Fatalf("media to the owner: %v", err)
+	}
+	got := sentTexts(fake)
+	if len(got) != 1 || got[0].to != ownerJID || got[0].msg.GetImageMessage() == nil || !sent.Contains(string(got[0].id)) {
+		t.Fatalf("owner sends = %+v, want one image message whose ID is in the echo cache", got)
+	}
+
+	fake.with(func(f *fakeClient) { f.sendErrs = []error{errors.New("boom")} })
+	if err := s.deliverMedia(ctx, ownerJID, image(), "answer image"); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("a failed media send = %v, want the cause", err)
+	}
+	if deliveryFailures() != before+1 || sent.Len() != 2 {
+		t.Fatalf("failures %d (want %d), cached IDs %d (want 2)", deliveryFailures(), before+1, sent.Len())
+	}
+
+	// Media shares the one queue slot with text, and a wait for it honours the context.
+	holder := &blockingClient{fakeClient: &fakeClient{own: testOwn, loggedIn: true}, started: make(chan struct{}), release: make(chan struct{})}
+	q, _ := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, holder)
+	first := make(chan error, 1)
+	go func() { first <- q.deliverText(ctx, ownerJID, "first", "reply") }()
+	select {
+	case <-holder.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the text send never reached the client")
+	}
+	before = deliveryFailures()
+	waiting, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	if err := q.deliverMedia(waiting, ownerJID, image(), "answer image"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("media behind a running send = %v, want the context's error", err)
+	}
+	if deliveryFailures() != before {
+		t.Fatal("a media send that never got the slot must not count as a delivery failure")
+	}
+	close(holder.release)
+	if err := <-first; err != nil {
+		t.Fatalf("first send: %v", err)
+	}
+}
+
+func TestSenderCaptionFormatsLikeTextAndBoundsTheLength(t *testing.T) {
+	secret := "caption-secret-value"
+	defer security.RegisterScopedSensitiveExact(secret)()
+	dedicated, _ := newTestSender(testBotConfig(config.WhatsAppModeDedicated, "+4917012345678").WhatsApp, &fakeClient{})
+	selfChat, _ := newTestSender(testBotConfig(config.WhatsAppModeSelfChat).WhatsApp, &fakeClient{})
+	prefix := config.DefaultWhatsAppSelfChatPrefix
+
+	for _, c := range []struct {
+		name     string
+		s        *sender
+		markdown string
+		cut      bool
+		want     string
+		fits     bool
+	}{
+		{"formatted and scrubbed", dedicated, "**bold** " + secret, false, "*bold* [redacted]", true},
+		{"empty has no prefix", selfChat, "  \n ", false, "", true},
+		{"self chat prefix", selfChat, "chart", false, prefix + "chart", true},
+		{"invalid UTF-8", dedicated, "a\xffb", false, "a\xef\xbf\xbdb", true},
+	} {
+		if got, fits := c.s.caption(c.markdown, c.cut); got != c.want || fits != c.fits {
+			t.Errorf("%s: caption = %q, %v; want %q, %v", c.name, got, fits, c.want, c.fits)
+		}
+	}
+
+	long := strings.Repeat("a", 1500)
+	if got, fits := dedicated.caption(long, false); got != long || fits {
+		t.Fatalf("an uncut long caption must come back whole and report that it does not fit: %d runes, fits=%v", utf8.RuneCountInString(got), fits)
+	}
+	got, fits := dedicated.caption(long, true)
+	if n := utf8.RuneCountInString(got); n != maxCaptionRunes || !strings.HasSuffix(got, "…") || !fits {
+		t.Fatalf("a cut caption has %d runes (want %d), suffix ok = %v, fits = %v", n, maxCaptionRunes, strings.HasSuffix(got, "…"), fits)
+	}
+	// The self-chat prefix counts against the limit.
+	got, _ = selfChat.caption(long, true)
+	if n := utf8.RuneCountInString(got); n != maxCaptionRunes || !strings.HasPrefix(got, prefix) {
+		t.Fatalf("a cut self-chat caption has %d runes and prefix ok = %v", n, strings.HasPrefix(got, prefix))
 	}
 }

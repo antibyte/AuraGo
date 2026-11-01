@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -71,8 +72,9 @@ func (b *tokenBucket) take(ctx context.Context) bool {
 }
 
 // sender is the Bot's one serialized outbound queue. Every text AuraGo sends goes through
-// deliverText: owner guard, formatting, scrubbing, chunking, self-chat prefix, pacing,
-// echo-cache registration and delivery accounting.
+// deliverText and every media message through deliverMedia: owner guard, formatting,
+// scrubbing, chunking, self-chat prefix, pacing, echo-cache registration and delivery
+// accounting.
 type sender struct {
 	// sem is the one queue slot, held for all chunks of one message so chunks stay
 	// together. A channel instead of a mutex lets a waiting send give up with its ctx.
@@ -117,74 +119,143 @@ func (s *sender) ownerRecipient(client waClient, to types.JID) (types.JID, error
 	return types.EmptyJID, errNotOwnerRecipient
 }
 
-// deliverText sends markdown to one owner as WhatsApp text. what names the message
-// in log lines and errors ("reply", "test message"); it is never user content.
-func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what string) error {
+// prepare runs the checks that precede every send and returns the client and the owner entry
+// the message goes to. The broker discards the error of a reply, so each early refusal leaves
+// a log line. It names the label only, never the content, and none of them counts as a
+// delivery failure.
+func (s *sender) prepare(ctx context.Context, to types.JID, what string) (waClient, types.JID, error) {
 	if err := ctx.Err(); err != nil {
-		return err // a cancelled send is never counted
+		return nil, types.EmptyJID, err // a cancelled send is never counted
 	}
-	// The broker discards the error of a reply, so each early refusal leaves a log
-	// line. It names the label only, never the text, and none of them counts as a
-	// delivery failure.
 	client := s.client()
 	if client == nil || !client.IsLoggedIn() {
 		s.logger.Warn("Cannot send WhatsApp " + what + ": not connected")
-		return ErrNotConnected
+		return nil, types.EmptyJID, ErrNotConnected
 	}
 	recipient, err := s.ownerRecipient(client, to)
 	if err != nil {
 		if !errors.Is(err, errNotOwnerRecipient) { // the guard has logged its own refusal
 			s.logger.Warn("Cannot send WhatsApp " + what + ": no owner recipient")
 		}
+		return nil, types.EmptyJID, err
+	}
+	return client, recipient, nil
+}
+
+// acquire takes the queue slot. A send that never got it is not a delivery failure.
+func (s *sender) acquire(ctx context.Context) (release func(), err error) {
+	select {
+	case s.sem <- struct{}{}:
+		return func() { <-s.sem }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// selfChatPrefix is what every outgoing text and caption starts with in self_chat mode.
+func (s *sender) selfChatPrefix() string {
+	if s.cfg.Mode == config.WhatsAppModeSelfChat {
+		return s.cfg.SelfChatPrefix
+	}
+	return ""
+}
+
+// deliverText sends markdown to one owner as WhatsApp text. what names the message
+// in log lines and errors ("reply", "test message"); it is never user content.
+func (s *sender) deliverText(ctx context.Context, to types.JID, markdown, what string) error {
+	client, recipient, err := s.prepare(ctx, to, what)
+	if err != nil {
 		return err
 	}
-	prefix := ""
-	if s.cfg.Mode == config.WhatsAppModeSelfChat {
-		prefix = s.cfg.SelfChatPrefix
-	}
+	prefix := s.selfChatPrefix()
 	// Scrub first: a registered value is matched as written, and the formatter would
 	// break one that holds a pipe or a doubled asterisk.
 	body := toWhatsApp(security.Scrub(markdown))
 	chunks := chunkText(body, maxChunkRunes-utf8.RuneCountInString(prefix))
 
-	select {
-	case s.sem <- struct{}{}:
-	case <-ctx.Done():
-		return ctx.Err() // a send that never got the slot is not a delivery failure
+	release, err := s.acquire(ctx)
+	if err != nil {
+		return err
 	}
-	defer func() { <-s.sem }()
+	defer release()
 	for _, chunk := range chunks {
+		if err := s.sendOne(ctx, client, recipient, &waE2E.Message{Conversation: proto.String(prefix + chunk)}, what); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deliverMedia sends one media message to one owner through the same guard, slot, bucket,
+// echo registration and failure accounting as deliverText. The caller has uploaded the file;
+// msg carries its caption, already formatted by caption.
+func (s *sender) deliverMedia(ctx context.Context, to types.JID, msg *waE2E.Message, what string) error {
+	client, recipient, err := s.prepare(ctx, to, what)
+	if err != nil {
+		return err
+	}
+	release, err := s.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return s.sendOne(ctx, client, recipient, msg, what)
+}
+
+// sendOne paces, registers the ID before the call, sends and accounts one message; the caller
+// holds the queue slot.
+func (s *sender) sendOne(ctx context.Context, client waClient, to types.JID, msg *waE2E.Message, what string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !s.bucket.take(ctx) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !s.bucket.take(ctx) {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			return context.Canceled
-		}
-		// The ID is fixed and registered before the call: an echo of this message can reach
-		// the inbound filter before SendMessage returns. A failed send leaves its ID in the
-		// cache, which is harmless.
-		id := client.GenerateMessageID()
-		if s.sent != nil {
-			s.sent.Add(string(id))
-		}
-		_, err := client.SendMessage(ctx, recipient, &waE2E.Message{Conversation: proto.String(prefix + chunk)}, id)
-		if err != nil {
-			if ctx.Err() != nil {
-				return err
-			}
-			integrationstatus.MarkWhatsAppDeliveryFailure()
-			s.logger.Warn("Failed to send WhatsApp "+what, "error", maskDigits(security.Scrub(err.Error())))
-			if errors.Is(err, whatsmeow.ErrRecipientNotOnWhatsApp) {
-				return fmt.Errorf("%w: %w", ErrRecipientNotOnWhatsApp, err)
-			}
-			return fmt.Errorf("send whatsapp %s: %w", what, err)
-		}
-		integrationstatus.MarkWhatsAppOutbound(s.now())
+		return context.Canceled
 	}
+	// The ID is fixed and registered before the call: an echo of this message can reach
+	// the inbound filter before SendMessage returns. A failed send leaves its ID in the
+	// cache, which is harmless.
+	id := client.GenerateMessageID()
+	if s.sent != nil {
+		s.sent.Add(string(id))
+	}
+	_, err := client.SendMessage(ctx, to, msg, id)
+	if err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
+		integrationstatus.MarkWhatsAppDeliveryFailure()
+		s.logger.Warn("Failed to send WhatsApp "+what, "error", maskDigits(security.Scrub(err.Error())))
+		if errors.Is(err, whatsmeow.ErrRecipientNotOnWhatsApp) {
+			return fmt.Errorf("%w: %w", ErrRecipientNotOnWhatsApp, err)
+		}
+		return fmt.Errorf("send whatsapp %s: %w", what, err)
+	}
+	integrationstatus.MarkWhatsAppOutbound(s.now())
 	return nil
+}
+
+// caption formats markdown like deliverText: Scrub first, then toWhatsApp, then the self-chat
+// prefix. It returns "" for a markdown that holds no text, which carries no prefix. cut=true
+// trims the result to maxCaptionRunes with boundRunes; fits reports whether the result is
+// within that limit, so it is always true after a cut. cut=false returns the whole text, and
+// the caller sends a text that does not fit as a message of its own.
+func (s *sender) caption(markdown string, cut bool) (text string, fits bool) {
+	// Invalid UTF-8 would make the message unmarshalable, as in chunkText.
+	body := trimBlankEdges(strings.ToValidUTF8(toWhatsApp(security.Scrub(markdown)), utf8Replacement))
+	if body == "" {
+		return "", true
+	}
+	text = s.selfChatPrefix() + body
+	if utf8.RuneCountInString(text) <= maxCaptionRunes {
+		return text, true
+	}
+	if cut {
+		return boundRunes(text, maxCaptionRunes), true
+	}
+	return text, false
 }
 
 // deliverToOwners sends markdown to every owner recipient. It continues after a

@@ -71,3 +71,31 @@ func TestBrokerCoalescesStatusToOnePerTenSeconds(t *testing.T) {
 		t.Fatalf("sent %q, want %q", got, want)
 	}
 }
+
+func TestBrokerCapturesAudioAndYouTubeForAfterTheRun(t *testing.T) {
+	fake := &fakeClient{own: testOwn, loggedIn: true}
+	clock := fixedNow()
+	b := newTestBroker(fake, &clock)
+
+	b.Send("audio", `{"file_path":"/data/tts/a.mp3","title":"TTS Audio","mime_type":"audio/mpeg","filename":"a.mp3"}`)
+	b.Send("audio", `{"path":"/audio/song.mp3","title":"Song"}`) // generate_music and send_audio carry web paths only
+	b.Send("audio", "not json")
+	b.Send("youtube_video", `{"url":"https://youtu.be/x","title":"Title","video_id":"x"}`)
+	b.Send("youtube_video", `{"title":"no url"}`)
+
+	audio, videos := b.captured()
+	if len(audio) != 1 || audio[0].FilePath != "/data/tts/a.mp3" || audio[0].Title != "TTS Audio" || audio[0].MimeType != "audio/mpeg" || audio[0].Filename != "a.mp3" {
+		t.Fatalf("captured audio = %+v, want only the event with a file_path", audio)
+	}
+	if len(videos) != 1 || videos[0].URL != "https://youtu.be/x" || videos[0].Title != "Title" || videos[0].VideoID != "x" {
+		t.Fatalf("captured videos = %+v, want only the event with a url", videos)
+	}
+	if got := sentTexts(fake); len(got) != 0 {
+		t.Fatalf("capturing sent %+v, nothing may go out during the run", got)
+	}
+
+	audio[0].FilePath = "changed"
+	if again, _ := b.captured(); again[0].FilePath != "/data/tts/a.mp3" {
+		t.Fatal("captured must return copies")
+	}
+}
