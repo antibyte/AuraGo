@@ -20,8 +20,8 @@ export function createCityEffects(context,destination,ambience=destination){
     play(kind,x=0,y=0,z=0){
       if(!active||transient.size>=16)return;
       const distance=Math.hypot(x-position.x,z-position.z);if(distance>90)return;
-      const spec={step:[.12,240,.16],step_inside:[.1,550,.12],door:[.7,850,.06],lift:[1.5,120,.05],tram:[.8,330,.08],discover:[.45,880,.08]}[kind];if(!spec)return;
-      const [duration,freq,level]=spec,source=kind.startsWith('step')||kind==='door'?context.createBufferSource():context.createOscillator();
+      const spec={step:[.12,240,.16],step_inside:[.1,550,.12],door:[.7,850,.06],lift:[1.5,120,.05],tram:[.8,330,.08],discover:[.45,880,.08],hover:[1.2,160,.07]}[kind];if(!spec)return;
+      const [duration,freq,level]=spec,source=kind.startsWith('step')||kind==='door'||kind==='hover'?context.createBufferSource():context.createOscillator();
       if('buffer'in source)source.buffer=noise;else{source.type='sine';source.frequency.value=freq;}
       const low=context.createBiquadFilter(),volume=context.createGain(),pan=context.createStereoPanner();
       low.type='lowpass';low.frequency.value=inside?freq*.7:freq;

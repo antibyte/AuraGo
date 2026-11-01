@@ -4284,6 +4284,17 @@ registration lives in `internal/desktop/types.go`.
   wheel or +/-, hide their model while in use and report the reticle's district via
   `onScope`; the HUD draws lens, reticle and a live tag. Escape leaves a viewer
   before it leaves street mode. Verify with the layout script and the expansion round.
+- Hover pack (`sysworld-hover.js`, `hoverPads` in `sysworld-layout.js`, ride kind `hover` in
+  `sysworld-experience.js`): five docks on open pavement (never lanes or rails, 3 m from every
+  other placement), each holding a removable `pack` node of the `hover-pack` asset; no asset in
+  the manifest means no pads and no prompt. `createHoverFlight` is pure and deterministic: takeoff
+  1.5 m in 0.7 s, WASD along the camera yaw (12 m/s, Shift 26), Space/C 7 m/s, eased velocity,
+  axis-sliding collision through the visitor's `traffic.clear`, floor = street eye height (never
+  `experience.floor`, which answers 72 m above 40 m), ceiling 150 m, |x| <= 140, z in [-150, 130].
+  E lands (glide <= 8 m/s, <= 6 m/s down) on the nearest walkable street spot; `endRide()` and
+  reduced motion land at once and re-dock the pack. Not offered under reduced motion. `move()`
+  routes to `experience.fly` first, even without a key. The HUD readout (`hud.flight`) only makes
+  the landing note a live region. Verify with `node scripts/test-system-world-hover.mjs`.
 - `sysworld-controls.js` owns destinations, discoveries, environment, three audio
   buses, the typed terminal and 24-hour replay. UI hints must not mutate the DOM
   every frame. Replay immediately disables system actions and private memory feeds;

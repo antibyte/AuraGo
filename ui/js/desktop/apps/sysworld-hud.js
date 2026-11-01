@@ -38,6 +38,12 @@
         scopeTitle.setAttribute('aria-live','polite');scopeHead.append(el('strong','',L('sysworld.city.scope')),scopeZoom,scopeBearing);
         scopeTag.append(scopeTitle,scopeState,scopeMetric,scopeRange);scopeView.hidden=true;
         scopeView.append(el('div','sw-scope-lens'),el('div','sw-scope-reticle'),scopeHead,scopeTag,el('div','sw-scope-hint',L('sysworld.city.scope_hint')));shell.append(scopeView);
+        // Hover-pack readout: altitude, speed, controls. Only the landing note is a live region, so the
+        // fast-changing numbers never flood a screen reader; the panel never takes focus or pointer input.
+        const flightView=el('div','sw-flight sw-glass'),flightState=el('span','sw-flight-state'),flightAltitude=el('strong'),flightSpeed=el('strong'),flightStats=el('div','sw-flight-stats');
+        flightView.hidden=true;flightView.setAttribute('role','group');flightView.setAttribute('aria-label',L('sysworld.city.flight_title'));flightState.setAttribute('role','status');
+        for(const [key,value]of[['sysworld.city.flight_altitude',flightAltitude],['sysworld.city.flight_speed',flightSpeed]]){const stat=el('span','sw-flight-stat');stat.append(el('span','sw-muted',L(key)),value);flightStats.append(stat);}
+        flightView.append(el('strong','sw-flight-title',L('sysworld.city.flight_title')),flightState,flightStats,el('div','sw-flight-hint',L('sysworld.city.flight_hint')));shell.append(flightView);
         const header = el('header','sw-top sw-glass');
         const wordmark = el('div','sw-wordmark','AURA / '); wordmark.append(el('strong','',L('sysworld.city.metropolis')));
         header.append(wordmark);
@@ -357,6 +363,15 @@
                 const title=d?L(d[1]):L('sysworld.city.scope_idle');if(scopeTitle.textContent!==title)scopeTitle.textContent=title;
                 scopeTag.classList.toggle('sw-idle',!d);scopeState.hidden=!e;scopeState.textContent=e?stateText(e):'';scopeState.dataset.state=e?(e.stale?'stale':e.state):'unknown';
                 scopeMetric.textContent=row?L(row.key)+' '+format(row.value,row.format):'';scopeRange.textContent=d&&view.distance?view.distance.toLocaleString()+' m':'';
+            },
+            // Hover pack: `{altitude m, speed km/h, landing}` while flying, null once the ride has ended.
+            flight(state){
+                const on=!!state;if(flightView.hidden===on){flightView.hidden=!on;root.classList.toggle('sw-flying',on);}
+                if(!on)return;
+                const altitude=state.altitude.toLocaleString()+' m',speed=state.speed.toLocaleString()+' km/h',note=state.landing?L('sysworld.city.flight_landing'):'';
+                if(flightAltitude.textContent!==altitude)flightAltitude.textContent=altitude;
+                if(flightSpeed.textContent!==speed)flightSpeed.textContent=speed;
+                if(flightState.textContent!==note)flightState.textContent=note;
             },
             progress(loaded,expected){
                 const percent=expected>0?Math.min(99,Math.floor(loaded/expected*100)):0;if(percent<=loadingPercent)return;

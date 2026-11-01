@@ -70,6 +70,17 @@ The exploration panel also offers explicit district/interior destinations. Tram
 exit while moving requests the next stop; mode changes end a ride safely. The
 drone tour can be stopped at any time. Seven optional discoveries persist locally.
 
+Five hover-pack docks stand on open pavement (`hoverPads` in `sysworld-layout.js`:
+the southern boulevard by the operations stop, the harbour promenade between the
+pavilions, the west and east edges and the north side of the agent tower). E at a
+dock straps the pack on: it lifts the visitor about 1.5 m, then WASD flies along the
+camera heading (12 m/s, Shift 26 m/s), Space climbs and C descends, up to 150 m
+inside the island's sea. Flight uses the shared collision world and slides along
+buildings. E glides down to the nearest walkable street spot; Escape, mode changes,
+destinations and reduced motion land at once and the pack returns to its own dock.
+Motion-reduced visitors are not offered a pack. A glass readout shows altitude and
+speed. The flight itself is pure (`sysworld-hover.js`).
+
 High quality permits five original white robots, nineteen new robots, six drones
 and two trams. Low permits eight robots total, two drones and one tram. Residents
 change articulated poses for walking, carrying, greeting, work and rest; authored
@@ -223,6 +234,7 @@ node scripts/test-system-world-expansion.mjs
 node scripts/test-system-world-traffic.mjs
 node scripts/test-system-world-living.mjs
 node scripts/test-system-world-layout.mjs
+node scripts/test-system-world-hover.mjs
 node scripts/test-system-world-voice.mjs
 node scripts/build-system-world.js --check
 node scripts/build-ui-bundles.js --check
