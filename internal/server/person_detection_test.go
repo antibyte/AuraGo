@@ -165,7 +165,7 @@ func TestPersonDetectionConstantsMatchConfig(t *testing.T) {
 		t.Error("config accepts thresholds below TestMinScore")
 	}
 	channels := config.Go2RTCDetectionChannels()
-	for _, channel := range []string{"telegram", "discord", "all"} {
+	for _, channel := range []string{"telegram", "whatsapp", "discord", "all"} {
 		if !slices.Contains(channels, channel) {
 			t.Errorf("config does not offer the alert channel %q", channel)
 		}
