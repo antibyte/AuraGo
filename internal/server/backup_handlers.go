@@ -680,6 +680,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		// Deliberately NOT backed up (re-downloadable, derived, or machine identity):
 		//   - data/tsnet (Tailscale node state): the node identity must not be cloned
 		//     to another machine; the restored install re-registers instead.
+		//   - data/whatsapp (WhatsApp linked-device keys): a restored copy would clone
+		//     the linked device; the owner relinks after a restore.
 		//   - downloads, piper voices, models and caches: re-downloadable.
 		//   - workspace_search.db and similar derived indexes: rebuilt from files.
 		// SQLite stores are listed in config.SQLiteDatabasePaths (exclusions are

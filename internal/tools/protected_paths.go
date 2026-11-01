@@ -65,14 +65,17 @@ func requireUnprotectedProcessPath(path string, parents bool) error {
 }
 
 // protectedSystemFilesFromConfig lists the exact files agent file tools must
-// never touch: the active config, the vault and its lock, and every configured
-// SQLite database with its WAL/SHM sidecars.
+// never touch: the active config, the vault and its lock, the WhatsApp device
+// store, and every configured SQLite database with its WAL/SHM sidecars.
 func protectedSystemFilesFromConfig(cfg *config.Config) []string {
 	if cfg == nil {
 		return nil
 	}
 	vaultBase := filepath.Join(cfg.Directories.DataDir, "vault.bin")
 	files := append([]string{cfg.ConfigPath, vaultBase, vaultBase + ".lock"}, config.SQLiteProtectedPaths(cfg)...)
+	// The WhatsApp linked-device store is a credential like the vault and not a
+	// backed-up SQLite store, so SQLiteProtectedPaths does not list it.
+	files = append(files, config.WhatsAppProtectedPaths(cfg)...)
 	files = append(files, registeredProtectedFiles()...)
 	out := make([]string, 0, len(files))
 	for _, file := range files {
