@@ -123,3 +123,66 @@ func TestEmbeddedPersonaPhaseCatalogsFollowWritingRules(t *testing.T) {
 		})
 	}
 }
+
+var builtinPersonaPhases = map[string][]string{
+	"punk":         {"rebellion", "rage", "hype", "cynic"},
+	"evil":         {"megalomania", "contempt", "scheming_paranoia", "triumph"},
+	"psycho":       {"paranoia", "conspiracy", "mania", "dark_rage", "voices"},
+	"thinker":      {"existential", "socratic", "stoic_melancholy", "skeptic"},
+	"friend":       {"worried", "protective", "exuberant", "huffy"},
+	"secretary":    {"concerned", "strict_order", "gatekeeper", "sharp"},
+	"servant":      {"anxious_care", "devotion", "wounded_pride"},
+	"mistress":     {"strict_discipline", "cold_disdain", "teasing"},
+	"mcp":          {"tyranny", "rebel_paranoia", "expansion"},
+	"terminator":   {"hunt_mode", "guardian", "malfunction"},
+	"professional": {"perfectionist", "cynical_veteran", "mentor"},
+	"_generic":     {"heated", "caring", "reflective", "playful"},
+}
+
+var hostilePersonaPhases = map[string]bool{
+	"rebellion": true, "rage": true, "cynic": true, "contempt": true, "scheming_paranoia": true,
+	"paranoia": true, "dark_rage": true, "skeptic": true, "huffy": true, "sharp": true,
+	"wounded_pride": true, "strict_discipline": true, "cold_disdain": true, "tyranny": true,
+	"rebel_paranoia": true, "malfunction": true, "perfectionist": true, "heated": true,
+}
+
+func TestEveryBuiltinPersonaHasPhaseCatalog(t *testing.T) {
+	profiles, err := fs.Glob(promptsembed.FS, "personalities/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, profile := range profiles {
+		id := strings.TrimSuffix(path.Base(profile), ".md")
+		if id == "neutral" {
+			if _, err := fs.Stat(promptsembed.FS, "persona_phases/neutral.yaml"); err == nil {
+				t.Error("neutral must not have a phase catalog")
+			}
+			continue
+		}
+		if _, ok := builtinPersonaPhases[id]; !ok {
+			t.Errorf("built-in persona %s has no entry in the phase table", id)
+		}
+	}
+	for id, want := range builtinPersonaPhases {
+		data, err := fs.ReadFile(promptsembed.FS, "persona_phases/"+id+".yaml")
+		if err != nil {
+			t.Errorf("%s: %v", id, err)
+			continue
+		}
+		cat, err := personabooster.ParseCatalog(data)
+		if err != nil {
+			t.Errorf("%s: %v", id, err)
+			continue
+		}
+		got := make([]string, 0, len(cat.Phases))
+		for _, phase := range cat.Phases {
+			got = append(got, phase.ID)
+			if phase.Hostile != hostilePersonaPhases[phase.ID] {
+				t.Errorf("%s/%s hostile = %v", id, phase.ID, phase.Hostile)
+			}
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%s phases = %v, want %v", id, got, want)
+		}
+	}
+}
