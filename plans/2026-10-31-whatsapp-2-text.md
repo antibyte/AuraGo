@@ -100,6 +100,20 @@
     - Inbound text comes only from `Conversation` and `ExtendedTextMessage.Text`. Media-only messages pass the filter but start no turn, logged at Info with their kind only. Stage 3 Task 2 adds them.
 12. **`Start` takes an `AgentDeps` struct** (Task 8), not Telegram's 20 positional parameters. `KG` is left out: Telegram passes it but sets `RunConfig.KG: nil` (`internal/telegram/bot.go:600`).
 13. **The "fake inbound reaches the pipeline" test lives in `internal/whatsapp`** (Task 8). The server cannot inject a fake client. The server test checks only that `whatsAppAgentDeps()` carries the collaborators.
+14. **DeviceSent self-chat destination** (Task 3). An own-device copy whose `DestinationJID` is not the own account is dropped as `not_self_chat`, even when `Chat` is the own chat, because whatsmeow uses the own account as `Chat` for a stanza that names no recipient.
+15. **`empty_id` and bot senders** (Task 3). A message without an ID is dropped as `empty_id`, because neither echo nor duplicate can be judged for it. A bot sender is dropped as `unsupported_sender` before owner resolution.
+16. **Scrub before format** (Task 5 step 4, `deliverText`). The sender runs `security.Scrub` on the Markdown before `toWhatsApp`, which reverses the order that step gave. A registered secret that contains `|` or `**` would otherwise be altered by the formatter and slip past the scrub.
+17. **Semaphore instead of mutex** (Task 5). The queue is a one-slot channel, so a send that waits for the slot can give up with its context. A `sync.Mutex` cannot be waited on with a context.
+18. **Chunker fence rules** (Task 4). A fence line longer than `limit/2` runes counts as plain text, because it could not be reopened. A bare-fence reopen applies when the opening line is longer than `limit/4` runes; the code measures the whole line, not only the info string.
+19. **Blank lines inside fences** (Task 4). Blank lines inside a fence are code and stay in the part, as `TestChunkTextKeepsBlankLinesInsideFences` checks. Open: `chunker.emit` still drops the blank lines at the end of a part that is cut inside a fence.
+20. **Invalid UTF-8 is replaced** (Task 4). `chunkText` replaces invalid UTF-8 with U+FFFD before it counts runes, so no invalid byte reaches WhatsApp unchanged or counts as one rune.
+21. **`tokenBucket.skew` and the 1 ms floor** (Task 5). A clock that does not move during a sleep counts the sleep as elapsed through `skew`, and a wait is at least 1 ms, so a frozen test clock cannot stall or spin the bucket. With `time.Now` the skew stays zero.
+22. **Pipeline owner re-check** (Task 7). `pipeline.handle` verifies that `in.Owner` is an `ownerRecipients` entry before the receipt, history, commands, pending questions or the agent run, so the filter is not the only gate.
+23. **Newsletter-only forwards** (Task 7). Task 7 step 7 reads three forward signals, not two. A message with only `ForwardedNewsletterMessageInfo` set counts as forwarded: it gets the marker, no HumanInput, no command and no pending-question answer.
+24. **Voice output suppressed until stage 3** (Task 7). The agent loop runs with `agent.WithVoiceOutputSuppressed` and `VoiceOutputActive: false`, because the broker drops audio in stage 2. Stage 3 removes both when voice notes land.
+25. **Quoted-reply prefix stays in stage 3** (Task 7). The `[Reply to: …]` prefix for quoted replies is not part of stage 2. It stays in stage 3 Task 2 of the master plan.
+26. **Stricter `ConfigState`** (Task 8). In dedicated mode `ConfigState` reports `not_configured` when no `owner_numbers` entry survives `config.NormalizeE164` (`hasValidOwnerNumber`). A Bot without a valid owner would drop every message as a stranger's.
+27. **Cutoff gate `!synced && !resumeSynced`** (Task 8). The offline cutoff applies only while the sync is unfinished and no keepalive timeout has hidden a finished sync. With a plain `!synced` gate, a keepalive timeout on a finished connection would bring the local-clock cutoff back for live messages (Q1).
 
 ## Dispatch grouping (lean execution, in dependency order)
 
@@ -912,6 +926,8 @@ Root `AGENTS.md:248`: append "text channel (inbound filter, agent pipeline, brok
 - [ ] Several messages sent while AuraGo is stopped for more than 10 minutes: after a restart, those older than 10 minutes before the reconnect are not executed (`dropped_filtered.stale`); newer ones are.
 - [ ] The dashboard shows the WhatsApp tile. The self-test `integration:whatsapp` passes while healthy and sends nothing.
 - [ ] A test message to an owner number that is not on WhatsApp shows the new "not registered" text in the Config panel.
+- [ ] Forward a plain text and a newsletter post from the phone to AuraGo. Both arrive marked as forwarded and run no slash command.
+- [ ] Trust boundary: owner resolution is only as strong as the server's `sender_pn`/`sender_lid` attributes, and whatsmeow writes the LID mapping before the filter runs (last writer wins). On the device, check that a stranger's message never resolves as the owner.
 
 ---
 
