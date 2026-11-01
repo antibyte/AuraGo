@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "Rdzenie CPU zarezerwowane dla każdej sesji lokalnej.",
   "config.kaggle.memory_help": "Limit pamięci dla każdej sesji lokalnej, w MiB.",
   "config.kaggle.idle_timeout_help": "Liczba minut bezczynności, po których sesja lokalna jest zatrzymywana.",
-  "config.kaggle.cell_timeout_help": "Maksymalny czas działania pojedynczej komórki w minutach, zanim zostanie zatrzymana."
+  "config.kaggle.cell_timeout_help": "Maksymalny czas działania pojedynczej komórki w minutach, zanim zostanie zatrzymana.",
+  "kaggle.browse": "Przeglądaj",
+  "kaggle.activity": "Aktywność",
+  "kaggle.results": "Wyniki",
+  "kaggle.refresh": "Odśwież",
+  "kaggle.copy": "Kopiuj odwołanie",
+  "kaggle.copied": "Skopiowano",
+  "kaggle.all": "Wszystkie",
+  "kaggle.active": "Aktywne",
+  "kaggle.no_results": "Brak pasujących wyników. Zmień wyszukiwanie lub wybierz inną operację.",
+  "kaggle.kernel": "Jądro",
+  "kaggle.empty_notebook": "Ten notatnik nie ma jeszcze komórek.",
+  "kaggle.back": "Wstecz"
 }

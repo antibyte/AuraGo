@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "CPU-kjerner som reserveres for hver lokale økt.",
   "config.kaggle.memory_help": "Minnegrense for hver lokale økt, i MiB.",
   "config.kaggle.idle_timeout_help": "Minutter uten aktivitet før en lokal økt stoppes.",
-  "config.kaggle.cell_timeout_help": "Maksimal kjøretid for én enkelt celle i minutter før den stoppes."
+  "config.kaggle.cell_timeout_help": "Maksimal kjøretid for én enkelt celle i minutter før den stoppes.",
+  "kaggle.browse": "Utforsk",
+  "kaggle.activity": "Aktivitet",
+  "kaggle.results": "Resultater",
+  "kaggle.refresh": "Oppdater",
+  "kaggle.copy": "Kopier referanse",
+  "kaggle.copied": "Kopiert",
+  "kaggle.all": "Alle",
+  "kaggle.active": "Aktiv",
+  "kaggle.no_results": "Ingen samsvarende resultater. Juster søket eller velg en annen handling.",
+  "kaggle.kernel": "Kjerne",
+  "kaggle.empty_notebook": "Denne notatboken har ingen celler ennå.",
+  "kaggle.back": "Tilbake"
 }

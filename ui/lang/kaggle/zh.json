@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "为每个本地会话保留的 CPU 核心数。",
   "config.kaggle.memory_help": "每个本地会话的内存上限，单位为 MiB。",
   "config.kaggle.idle_timeout_help": "本地会话在空闲多少分钟后被停止。",
-  "config.kaggle.cell_timeout_help": "单个单元在被停止之前的最长运行时间，单位为分钟。"
+  "config.kaggle.cell_timeout_help": "单个单元在被停止之前的最长运行时间，单位为分钟。",
+  "kaggle.browse": "浏览",
+  "kaggle.activity": "任务活动",
+  "kaggle.results": "结果",
+  "kaggle.refresh": "刷新",
+  "kaggle.copy": "复制引用",
+  "kaggle.copied": "已复制",
+  "kaggle.all": "全部",
+  "kaggle.active": "进行中",
+  "kaggle.no_results": "没有匹配的结果。请调整搜索条件或选择其他操作。",
+  "kaggle.kernel": "内核",
+  "kaggle.empty_notebook": "此笔记本还没有单元格。",
+  "kaggle.back": "返回"
 }

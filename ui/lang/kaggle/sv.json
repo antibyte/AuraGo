@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "CPU-kärnor som reserveras för varje lokal session.",
   "config.kaggle.memory_help": "Minnesgräns för varje lokal session, i MiB.",
   "config.kaggle.idle_timeout_help": "Minuter utan aktivitet efter vilka en lokal session stoppas.",
-  "config.kaggle.cell_timeout_help": "Maximal körtid för en enskild cell i minuter innan den stoppas."
+  "config.kaggle.cell_timeout_help": "Maximal körtid för en enskild cell i minuter innan den stoppas.",
+  "kaggle.browse": "Bläddra",
+  "kaggle.activity": "Aktivitet",
+  "kaggle.results": "Resultat",
+  "kaggle.refresh": "Uppdatera",
+  "kaggle.copy": "Kopiera referens",
+  "kaggle.copied": "Kopierat",
+  "kaggle.all": "Alla",
+  "kaggle.active": "Aktiva",
+  "kaggle.no_results": "Inga matchande resultat. Anpassa sökningen eller välj en annan åtgärd.",
+  "kaggle.kernel": "Kärna",
+  "kaggle.empty_notebook": "Den här anteckningsboken har inga celler ännu.",
+  "kaggle.back": "Tillbaka"
 }

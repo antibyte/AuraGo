@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "CPU-kernen die voor elke lokale sessie worden gereserveerd.",
   "config.kaggle.memory_help": "Geheugenlimiet voor elke lokale sessie, in MiB.",
   "config.kaggle.idle_timeout_help": "Minuten inactiviteit waarna een lokale sessie wordt gestopt.",
-  "config.kaggle.cell_timeout_help": "Maximale uitvoeringstijd van één cel in minuten voordat deze wordt gestopt."
+  "config.kaggle.cell_timeout_help": "Maximale uitvoeringstijd van één cel in minuten voordat deze wordt gestopt.",
+  "kaggle.browse": "Doorbladeren",
+  "kaggle.activity": "Activiteit",
+  "kaggle.results": "Resultaten",
+  "kaggle.refresh": "Vernieuwen",
+  "kaggle.copy": "Referentie kopiëren",
+  "kaggle.copied": "Gekopieerd",
+  "kaggle.all": "Alles",
+  "kaggle.active": "Actief",
+  "kaggle.no_results": "Geen overeenkomende resultaten. Pas de zoekopdracht aan of kies een andere bewerking.",
+  "kaggle.kernel": "Kernel",
+  "kaggle.empty_notebook": "Deze notebook heeft nog geen cellen.",
+  "kaggle.back": "Terug"
 }

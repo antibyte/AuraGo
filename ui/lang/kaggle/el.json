@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "Πυρήνες CPU που δεσμεύονται για κάθε τοπική συνεδρία.",
   "config.kaggle.memory_help": "Όριο μνήμης για κάθε τοπική συνεδρία, σε MiB.",
   "config.kaggle.idle_timeout_help": "Λεπτά αδράνειας μετά τα οποία μια τοπική συνεδρία διακόπτεται.",
-  "config.kaggle.cell_timeout_help": "Μέγιστος χρόνος εκτέλεσης ενός κελιού σε λεπτά πριν διακοπεί."
+  "config.kaggle.cell_timeout_help": "Μέγιστος χρόνος εκτέλεσης ενός κελιού σε λεπτά πριν διακοπεί.",
+  "kaggle.browse": "Περιήγηση",
+  "kaggle.activity": "Δραστηριότητα",
+  "kaggle.results": "Αποτελέσματα",
+  "kaggle.refresh": "Ανανέωση",
+  "kaggle.copy": "Αντιγραφή αναφοράς",
+  "kaggle.copied": "Αντιγράφηκε",
+  "kaggle.all": "Όλα",
+  "kaggle.active": "Ενεργά",
+  "kaggle.no_results": "Κανένα αντίστοιχο αποτέλεσμα. Προσαρμόστε την αναζήτηση ή επιλέξτε άλλη λειτουργία.",
+  "kaggle.kernel": "Πυρήνας",
+  "kaggle.empty_notebook": "Αυτό το σημειωματάριο δεν έχει ακόμη κελιά.",
+  "kaggle.back": "Πίσω"
 }
