@@ -325,6 +325,12 @@ func TestDesktopECalcBrowser(t *testing.T) {
 			}
 		}
 	}
+	// A unit that cannot show a value does not blank the field: the bridge voltage of the defaults is negative, dBV
+	// cannot show it, so the automatic text stays (and the field reads back under the dBV selection).
+	openCalc("wheatstone")
+	setUnit("vd", "dBV")
+	wait(`()=>document.querySelector('.ec-field[data-var="vd"] .ec-input').value==='-119 mV'`)
+	setUnit("vd", "")
 	openCalc("decibel_ratio")
 	page.MustElement(`.ec-choice input[value="power"]`).MustClick()
 	wait(`()=>document.querySelector('.ec-field[data-var="g"] .ec-input').value==='10 dB'`)

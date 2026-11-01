@@ -35,10 +35,12 @@
         };
         const sig = () => store.prefs().sig;
         const comma = text => (options.decimalComma ? text.replace(/(\d)\.(\d)/g, '$1,$2') : text);
+        // A unit that cannot show a finite value (dBV for a negative voltage) gives way to the automatic prefix.
+        const formatted = (entry, x, unitId) => units.format(x, entry.dim, unitId, sig()) || units.format(x, entry.dim, '', sig());
         // Lists keep the decimal point (the comma separates their items), single values follow the language.
         const display = (entry, value, unitId) => (Array.isArray(value)
-            ? value.map(x => units.format(x, entry.dim, unitId, sig()).replace(/\s+/g, '')).join(', ')
-            : comma(units.format(value, entry.dim, unitId, sig())));
+            ? value.map(x => formatted(entry, x, unitId).replace(/\s+/g, '')).join(', ')
+            : comma(formatted(entry, value, unitId)));
         const finite = value => (Array.isArray(value) ? value.length > 0 && value.every(Number.isFinite) : Number.isFinite(value));
 
         let state = S.restoreState(calc, store.calcState(calc.id), units, unitOf);

@@ -112,9 +112,11 @@
     const SIG_EXACT = 12;
 
     // Text for a base-unit value that parses back to the same number: the symbol is part of the text, so the unit
-    // dropdown cannot change its meaning. List items lose their blanks to survive the list splitting.
+    // dropdown cannot change its meaning. A unit that cannot show the value (dBV for zero or a negative voltage)
+    // gives way to the automatic prefix, whose text carries the base symbol and parses under any selection. List
+    // items lose their blanks to survive the list splitting.
     function exactText(v, value, units, unitOf) {
-        const one = x => units.format(x, v.dim, unitOf(v.id), SIG_EXACT);
+        const one = x => units.format(x, v.dim, unitOf(v.id), SIG_EXACT) || units.format(x, v.dim, '', SIG_EXACT);
         return Array.isArray(value) ? value.map(x => one(x).replace(/\s+/g, '')).join(', ') : one(value);
     }
 

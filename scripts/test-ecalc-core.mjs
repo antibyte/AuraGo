@@ -277,6 +277,23 @@ for (const item of calculators) {
     count += 12;
 }
 
+// ---- a unit that cannot show a value falls back to the automatic text (dBV for zero or a negative voltage) ------------------
+{
+    const S = core.solve, auto = () => '', dbv = () => 'dBV', vd = { id: 'vd', dim: 'voltage' }, volts = { id: 'vs', dim: 'voltage', list: true };
+    assert.equal(S.exactText(vd, -0.119, units, dbv), '-119 mV', 'a negative voltage is not blank in dBV');
+    same(units.parse(S.exactText(vd, -0.119, units, dbv), 'voltage', 'dBV'), -0.119, 'and it reads back under the dBV selection');
+    assert.equal(S.exactText(vd, 0, units, dbv), '0 V', 'zero volts');
+    assert.equal(S.exactText(vd, 10, units, dbv), '20 dBV', 'a value dBV can show keeps the unit');
+    assert.equal(S.exactText(volts, [10, -2, 0.5], units, dbv), '20dBV, -2V, -6.02059991328dBV', 'a list falls back per item');
+    const back = units.parseList(S.exactText(volts, [10, -2, 0.5], units, dbv), 'voltage', 'dBV');
+    [10, -2, 0.5].forEach((want, index) => same(back[index], want, 'list item ' + index, 1e-9));
+    const wheatstone = calcOf('wheatstone'), start = S.defaultState(wheatstone, units, auto);
+    const bridge = S.solve(wheatstone, S.readInputs(wheatstone, start, units, auto).values, start.choices, units).values;
+    assert.ok(bridge.vd < 0 && units.format(bridge.vd, 'voltage', 'dBV', 4) === '', 'the bridge voltage of the defaults is negative and blank in dBV');
+    assert.equal(units.format(bridge.vd, 'voltage', '', 4), '-119 mV');
+    count += 9;
+}
+
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------
 {
     const ctx = { labelOf: name => ({ vout: 'V_out', vin: 'V_in', r2: 'R_2', r1: 'R_1' }[name] || ''), constOf: name => (name === 'k' ? '20' : undefined) };
