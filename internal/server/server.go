@@ -83,6 +83,7 @@ import (
 	"aurago/internal/virtualcomputers"
 	"aurago/internal/warnings"
 	"aurago/internal/webhooks"
+	"aurago/internal/whatsapp"
 
 	a2apkg "aurago/internal/a2a"
 )
@@ -404,6 +405,11 @@ type Server struct {
 	telegramBot           atomic.Pointer[telegram.Bot]
 	telegramClosed        bool
 	telegramOffsets       telegram.UpdateOffsets
+	whatsAppLifecycleMu   sync.Mutex
+	whatsAppBot           atomic.Pointer[whatsapp.Bot]
+	whatsAppLink          *whatsapp.LinkSession // guarded by whatsAppLifecycleMu
+	whatsAppClosed        bool
+	whatsAppCtl           whatsAppController // tests only; nil uses serverWhatsApp
 	haPollerMu            sync.Mutex
 	haPoller              atomic.Pointer[homeAssistantPollerRuntime]
 	haPollerClosed        bool
@@ -635,6 +641,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		bot.CancelIfConfigChanged(cfg)
 	}
 	if bot := s.telegramBot.Load(); bot != nil {
+		bot.CancelIfConfigChanged(cfg)
+	}
+	if bot := s.whatsAppBot.Load(); bot != nil {
 		bot.CancelIfConfigChanged(cfg)
 	}
 	if poller := s.haPoller.Load(); poller != nil {

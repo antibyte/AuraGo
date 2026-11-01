@@ -688,6 +688,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	s.configureTelegramBot()
+	s.configureWhatsAppBot()
 	if !s.Cfg.EggMode.Enabled {
 		// Discord Bot: listen for messages and relay to the agent
 		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, s.WebhookManager, s.chatRuntimeSnapshot, taskDecisionService{s})

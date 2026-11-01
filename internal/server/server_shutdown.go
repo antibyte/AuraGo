@@ -46,6 +46,7 @@ func (s *Server) closeRuntimeResources() {
 	s.closeVideoStudioManager()
 	s.stopRocketChatBot()
 	s.stopTelegramBot()
+	s.stopWhatsApp()
 	s.stopHomeAssistantPoller()
 	s.stopFritzPoller()
 	s.stopUptimeKumaPoller()

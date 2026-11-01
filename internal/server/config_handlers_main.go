@@ -714,6 +714,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateWhatsAppConfig(validateCfg.WhatsApp); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.ValidateDecisionsConfig(validateCfg.Decisions); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -977,6 +981,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		discordChanged := false
 		rocketChatChanged := false
 		telegramChanged := false
+		whatsAppChanged := false
 		homeAssistantChanged := false
 		uptimeKumaChanged := false
 		fritzBoxChanged := false
@@ -1005,6 +1010,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
 			rocketChatChanged = !reflect.DeepEqual(oldCfg.RocketChat, newCfg.RocketChat) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			telegramChanged = oldCfg.Telegram != newCfg.Telegram || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
+			whatsAppChanged = !oldCfg.WhatsApp.Equal(newCfg.WhatsApp) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled ||
+				oldCfg.Directories.DataDir != newCfg.Directories.DataDir
 			homeAssistantChanged = !reflect.DeepEqual(oldCfg.HomeAssistant, newCfg.HomeAssistant) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			fritzBoxChanged = !reflect.DeepEqual(oldCfg.FritzBox, newCfg.FritzBox) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
@@ -1713,6 +1720,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && telegramChanged {
 			s.configureTelegramBot()
+		}
+		if loadErr == nil && whatsAppChanged {
+			s.configureWhatsAppBot()
 		}
 		if restartFileIndexerAfterUnlock && newCfg != nil {
 			s.restartFileIndexer(newCfg)
