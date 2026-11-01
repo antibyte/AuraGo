@@ -159,6 +159,11 @@ type Bot struct {
 	// stopped is set when the generation has torn down; handleEvent then
 	// writes nothing.
 	stopped bool
+	// loginSeen is the login (LastSuccessfulConnect) that synced and resumeSynced
+	// describe. A login the Bot did not start, such as whatsmeow's forced reconnect after
+	// a failed keepalive, has no Disconnected event and skips resetConnection; the
+	// first handler-queue event of the new login resets the sync flags instead.
+	loginSeen time.Time
 }
 
 // Start returns a running generation, or nil when the configuration does not
@@ -380,6 +385,25 @@ func (b *Bot) awaitInterruption(signals <-chan eventEffect, backoff *time.Durati
 	}
 }
 
+// observeLogin forgets the sync flags when whatsmeow accepted a new login that the Bot has not
+// seen. Only the events that arrive on the handler queue read LastSuccessfulConnect: a message
+// and the two offline-sync events. The queue orders them after the login node, which sets the
+// field, so the read is race-free. Every offline message of a new login comes after its login,
+// so by then the flags are reset and the cutoff applies. The caller holds eventMu.
+func (b *Bot) observeLogin(client waClient, evt any) {
+	switch evt.(type) {
+	case *events.Message, *events.OfflineSyncPreview, *events.OfflineSyncCompleted:
+	default:
+		return
+	}
+	login := client.LastSuccessfulConnect()
+	if login.IsZero() || login.Equal(b.loginSeen) {
+		return
+	}
+	b.loginSeen = login
+	b.synced, b.resumeSynced = false, false
+}
+
 // trackSync keeps the offline-sync flag in step with the connection. A drop or
 // terminal event forgets it, so the next Connected is not mistaken for a
 // finished sync. A keepalive timeout keeps the connection, so its sync is
@@ -411,6 +435,7 @@ func (b *Bot) handleEvent(client waClient, evt any, signals chan<- eventEffect) 
 	if b.stopped {
 		return
 	}
+	b.observeLogin(client, evt)
 	b.trackSync(evt)
 	eff := classifyEvent(evt, b.synced)
 	now := b.deps.now()
@@ -473,7 +498,8 @@ func (b *Bot) handleMessage(client waClient, evt *events.Message) {
 		// Missed messages arrive after the login and before OfflineSyncCompleted on the
 		// same queue, and whatsmeow sets LastSuccessfulConnect before any of them. Live
 		// messages (after the sync) never meet the cutoff, so local clock skew cannot
-		// drop them. A keepalive timeout keeps the connection and its finished sync.
+		// drop them. A keepalive timeout on the same login keeps its finished sync;
+		// handleEvent (observeLogin) has already cleared the flags of an older login.
 		ref := client.LastSuccessfulConnect()
 		if ref.IsZero() {
 			ref = b.deps.now()

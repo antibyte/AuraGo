@@ -563,6 +563,45 @@ func TestBotOfflineCutoffAppliesOnlyDuringOfflineSync(t *testing.T) {
 	}
 }
 
+// whatsmeow forces a reconnect after a failed keepalive without a Disconnected event, so the
+// Bot's resetConnection does not run; the new login's offline messages can come before its
+// Connected. The cutoff has to follow the login, not the events the Bot happened to see.
+func TestBotForcedKeepAliveReconnectKeepsTheOfflineCutoff(t *testing.T) {
+	login := func(c *fakeClient, at time.Time) { c.with(func(f *fakeClient) { f.lastConnect = at }) }
+	client := &fakeClient{own: testOwn, loggedIn: true, lastConnect: fixedNow().Add(-2 * time.Hour)}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, nil)
+	old := fixedNow().Add(-30 * time.Minute) // queued while the connection was down
+
+	// Control: a keepalive timeout on the same login keeps its finished sync.
+	client.emit(&events.OfflineSyncCompleted{})
+	client.emit(&events.KeepAliveTimeout{})
+	client.emit(inboundEvent("SAME1", ownerJID, "x", old))
+	waitFor(t, "same-login message after a keepalive timeout", func() bool { return f.callCount() == 1 })
+
+	// The forced reconnect accepts a new login. Its first offline message is stale.
+	login(client, fixedNow())
+	before := filteredDrops(dropStale)
+	client.emit(inboundEvent("FORCED1", ownerJID, "x", old))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 1 {
+		t.Fatalf("forced reconnect: stale drops = %d (want %d), agent calls = %d (want 1)", got, before+1, f.callCount())
+	}
+
+	// The new login's own sync ends the cutoff.
+	client.emit(&events.OfflineSyncCompleted{})
+	client.emit(inboundEvent("FORCED2", ownerJID, "x", old))
+	waitFor(t, "message after the new login's sync", func() bool { return f.callCount() == 2 })
+
+	// Another forced reconnect, announced by its offline preview before any message.
+	client.emit(&events.KeepAliveTimeout{})
+	login(client, fixedNow().Add(time.Minute))
+	client.emit(&events.OfflineSyncPreview{Total: 1, Messages: 1})
+	before = filteredDrops(dropStale)
+	client.emit(inboundEvent("FORCED3", ownerJID, "x", old))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 2 {
+		t.Fatalf("second forced reconnect: stale drops = %d (want %d), agent calls = %d (want 2)", got, before+1, f.callCount())
+	}
+}
+
 func TestBotStopWaitsForPipelineWorkers(t *testing.T) {
 	var f *agentBotFixture
 	started := make(chan struct{})
