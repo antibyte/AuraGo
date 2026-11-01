@@ -18,11 +18,12 @@ Dieselbe Toolbox. Andere Haltung. Rechte kommen nicht aus der Persona.
 6. [Temperatur-Modulation (V2)](#temperatur-modulation-v2)
 7. [Emotion Synthesizer (V2)](#emotion-synthesizer-v2)
 8. [Inner Voice (V2)](#inner-voice-v2)
-9. [Adaptive Dynamik](#adaptive-dynamik)
-10. [Beispiel-Vergleich](#beispiel-vergleich)
-11. [Best Practices](#best-practices)
-12. [Troubleshooting](#troubleshooting)
-13. [Zusammenfassung](#zusammenfassung)
+9. [Persona-Booster](#persona-booster)
+10. [Adaptive Dynamik](#adaptive-dynamik)
+11. [Beispiel-Vergleich](#beispiel-vergleich)
+12. [Best Practices](#best-practices)
+13. [Troubleshooting](#troubleshooting)
+14. [Zusammenfassung](#zusammenfassung)
 
 ---
 
@@ -261,6 +262,43 @@ Die Inner Voice ist ein kurzer, privater Gedanke des Agenten. Nach einer Chat-Ru
 `error_streak_min` ist veraltet und wird ignoriert. Ältere Konfigurationsdateien werden weiterhin geladen, mit einem Veraltungshinweis.
 
 **Voraussetzungen:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`. Ein konfiguriertes Helper LLM wird bevorzugt; ohne ein solches wird ein eng begrenzter Fallback auf das Hauptmodell genutzt, dessen Kosten dem Personality-Budget belastet werden. Inner Voice ist explizit opt-in und wird nicht automatisch mit dem Emotion Synthesizer aktiviert.
+
+---
+
+## Persona-Booster
+
+Der Persona-Booster macht die gewählte Persona deutlich markanter. Er arbeitet auf zwei Ebenen:
+
+- **Grundverstärkung:** Jede Persona hat einen festen Zusatzabsatz, der ihre Stimme dauerhaft schärft. Punk flucht freier und gibt Widerworte, Evil wird pompöser, Psycho sprunghafter. Bei `intensity: mild` entfällt dieser Absatz.
+- **Phasen:** Zeitweise durchlebt die Persona eine Phase, etwa Punk `rage`, Thinker `existential` oder Friend `worried`. Eine Phase hält einige Minuten bzw. Runden an. Sie endet, wenn ihre Zeit abläuft, ein Gegen-Auslöser kommt (zum Beispiel Lob) oder ein stärkerer Auslöser sie ersetzt.
+
+Phasen lösen aus: die Tageszeit (0–4 Uhr), lange Abwesenheit (≥ 24 h), lange Sessions (≥ 2 h oder ≥ 40 Nachrichten), einfache Textmerkmale (Großbuchstaben, „!!!“, Flüche, „hör auf“) und der Zufall. Mit aktiver Personality Engine kommen Stimmungssignale hinzu. Mit Engine V2 liefert die Helper-Analyse zusätzlich einen Kontext-Hinweis (Provokation, Kritik, Lob, Belastung usw.). Einen zusätzlichen LLM-Aufruf gibt es dafür nicht.
+
+In manchen Phasen darf sich die Schärfe auch gegen dich richten, passend zur Persona: Punk derb-humorvoll, Evil herablassend, Mistress schneidend, Friend höchstens eingeschnappt. Feste Grenzen gelten immer: keine Beleidigungen über Herkunft oder Identität, keine echten Drohungen, keine Selbstschaden-Bezüge, keine sexuellen Inhalte, keine Verschwörungsbehauptungen über echte Personen. Fakten, Code, Tool-Regeln und Bestätigungen bleiben exakt. Wirkst du belastet oder schreibst du „hör auf“ bzw. „beruhig dich“, endet eine feindselige Phase sofort und bleibt 6 Stunden gesperrt.
+
+Die Phase ist unsichtbar, der Chat zeigt keine Anzeige. Im Log steht `[PersonaBooster] phase started|ended|replaced` mit Persona, Phase, Variante und Auslöser. Missionen, Co-Agents, autonome Läufe und die Neutral-Persona bekommen keine Phasen.
+
+| Einstellung | Standard | Beschreibung |
+|-------------|----------|--------------|
+| `enabled` | `true` | Grundverstärkung und Phasen aktivieren |
+| `intensity` | `strong` | `mild` (keine Grundverstärkung, Phasen ×0,6), `strong` (Phasen ×1) oder `wild` (Phasen ×1,5, extremer) |
+| `spontaneous` | `true` | Zufällige Phasen erlauben |
+| `cooldown_minutes` | `20` | So lange nach einer Phase starten nur starke Auslöser (Kritik, Provokation, Belastung) eine neue (0–1440) |
+
+### YAML-Referenz
+
+```yaml
+personality:
+  persona_booster:
+    enabled: true
+    intensity: strong
+    spontaneous: true
+    cooldown_minutes: 20
+```
+
+### Eigene Phasen
+
+Die Kataloge liegen eingebettet unter `prompts/persona_phases/<persona>.yaml`. Eine Datei gleichen Namens unter `<prompts_dir>/persona_phases/` überschreibt den eingebauten Katalog. Eine ungültige Datei wird mit einer Warnung im Log übergangen. Eigene Personas ohne Katalog nutzen `_generic.yaml`. Welche generischen Phasen sie bekommen, hängt von `volatility`, `empathy_bias` und `conflict_response` im Profil ab.
 
 ---
 

@@ -184,6 +184,23 @@ Parameters are AuraGo scenario defaults, not empirically validated claims about
 human emotion; see the upstream
 [calibration limitations](https://github.com/AlejoMalia/Totemheart/blob/9aec8a2d5fe59fbfa9f3798ea2493af09af8b37d/CALIBRATION.md).
 
+## Persona booster
+
+The persona booster (`personality.persona_booster`, on by default) adds a static
+voice amplifier and one override sentence to the cached `# PERSONA` block, and
+temporary phases as `### PERSONA PHASE` in the turn context, directly after
+`### PERSONA STATE`. That block is a required prompt section. Go alone decides
+phase and variant (`internal/personabooster`). Signals are evaluated once per
+human turn. The helper appraisal may add a `cue` from a fixed enum (confidence
+≥ 0.5) in all three analysis paths, without an extra model call; it takes effect
+from the next turn. The state is one JSON row in `persona_booster_state`. A
+persona change or a dynamics reset clears it, a restart keeps it. Catalogs live
+in `prompts/persona_phases/*.yaml`: a valid disk copy wins, custom personas use
+`_generic.yaml`, neutral has none. The phase text stays identical for the whole
+phase and never touches the cached prefix. Amplifier and override sentence
+change only with persona, intensity, switch or catalog revision; the revision is
+part of the prompt source fingerprint.
+
 ## Verification
 
 Run the focused `Personality|Emotion|Affect|Character|FinalizeTool|AnalyzeMood`
