@@ -121,6 +121,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 				}
 			}
 		}
+		fillPersonaBoosterView(rawCfg, s.ConfigSnapshot().Personality.PersonaBooster)
 
 		if maSection, ok := rawCfg["memory_analysis"]; ok {
 			if maMap, ok := maSection.(map[string]interface{}); ok {
@@ -2044,6 +2045,31 @@ func rawMap(parent map[string]interface{}, key string) map[string]interface{} {
 		return m
 	}
 	return nil
+}
+
+// fillPersonaBoosterView shows the effective booster values for keys the raw
+// YAML does not contain yet. The UI renders the raw file, and the booster is
+// on by default, so an older file must not display it as off.
+func fillPersonaBoosterView(rawCfg map[string]interface{}, booster config.PersonaBoosterConfig) {
+	personality := rawMap(rawCfg, "personality")
+	if personality == nil {
+		return
+	}
+	view := rawMap(personality, "persona_booster")
+	if view == nil {
+		view = map[string]interface{}{}
+		personality["persona_booster"] = view
+	}
+	for key, value := range map[string]interface{}{
+		"enabled":          booster.Enabled,
+		"intensity":        booster.Intensity,
+		"spontaneous":      booster.Spontaneous,
+		"cooldown_minutes": booster.CooldownMinutes,
+	} {
+		if _, ok := view[key]; !ok {
+			view[key] = value
+		}
+	}
 }
 
 func rawBool(parent map[string]interface{}, key string) bool {

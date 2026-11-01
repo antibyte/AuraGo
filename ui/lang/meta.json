@@ -148,6 +148,13 @@
   "help.personality.core_personality": {
     "personalities_ref": true
   },
+  "help.personality.persona_booster.intensity": {
+    "options": [
+      "mild",
+      "strong",
+      "wild"
+    ]
+  },
   "help.fallback_llm.provider": {
     "provider_ref": true
   },
