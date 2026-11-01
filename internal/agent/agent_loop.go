@@ -1381,7 +1381,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			// Inner Voice: inject if available and not decayed. During active
-			// tool recovery, keep the next prompt strictly procedural.
+			// tool recovery, keep the next prompt strictly procedural. The flags
+			// outlive the iteration, so the gate decides afresh every time.
+			flags.InnerVoice = ""
 			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent, lastResponseWasTool) {
 				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
@@ -2480,7 +2482,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				traits, _ := shortTermMem.GetTraits()
 				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
-				batchIVEnabled := shouldGenerateInnerVoice(sessionID, cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
+				// Only reserve a generation slot when the batch can use it.
+				batchIVEnabled := emotionEligible && shouldGenerateInnerVoice(sessionID, cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
 				// Fetch inner voice history for narrative continuity
 				var batchIVHistory string
 				if batchIVEnabled && shortTermMem != nil {
@@ -2505,9 +2508,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					InactivityHours:    userInactivityHours,
 					ErrorCount:         recoveryState.ConsecutiveErrorCount,
 					SuccessCount:       batchSuccessCount,
-					InnerVoiceEnabled:  batchIVEnabled && emotionEligible,
+					InnerVoiceEnabled:  batchIVEnabled,
 					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
 					InnerVoiceHistory:  batchIVHistory,
+
+					InnerVoiceTaskStatus: deriveTaskStatus(recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount),
+					InnerVoicePhase:      deriveConversationPhase(innerVoiceUserTurns(req.Messages), batchSuccessCount),
+					InnerVoiceTools:      summarizeToolUsage(activityToolNames),
 				}
 			}
 			userMsg := lastUserMsg
@@ -2535,6 +2542,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					helperManager.ObserveFallback("analyze_turn", err.Error())
 					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
 					if useBatchedTurnPersonality {
+						if turnPersonalityInput.InnerVoiceEnabled {
+							releaseInnerVoiceReservation(sid) // the fallback requests the thought itself
+						}
 						launchAsyncPersonalityV2Analysis(
 							sid,
 							cfg,
@@ -2587,6 +2597,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityResult.SynthesizedEmotion = nil
 							personalityResult.InnerThought = ""
 						}
+						if !turnPersonalityInput.InnerVoiceEnabled {
+							personalityResult.InnerThought = "" // only a requested thought is accepted
+						}
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(
@@ -2607,6 +2620,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						)
 					} else {
 						helperManager.ObserveFallback("analyze_turn_personality", "personality_payload_invalid")
+						if turnPersonalityInput.InnerVoiceEnabled {
+							releaseInnerVoiceReservation(sid) // the fallback requests the thought itself
+						}
 						launchAsyncPersonalityV2Analysis(
 							sid,
 							cfg,

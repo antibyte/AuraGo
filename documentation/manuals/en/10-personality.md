@@ -251,17 +251,19 @@ When `personality.emotion_synthesizer.enabled: true`, the Helper LLM generates a
 
 ## Inner Voice (V2)
 
-The inner voice is a subconscious nudge engine that injects brief, private agent thoughts into the system prompt. It adds subtle behavioral hints without extra user-visible messages.
+The inner voice is a brief, private agent thought. After a chat turn, the helper writes at most one short first-person thought, or none when nothing is worth noting. The thought is injected into the next system prompt as untrusted data that may influence tone only, never intent, safety or tool use. It is left out during tool-error recovery.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `enabled` | `false` | Enable inner voice generation |
 | `min_interval_secs` | `60` | Minimum seconds between inner voice thoughts |
 | `max_per_session` | `20` | Maximum inner voice thoughts per session |
-| `decay_turns` | `3` | Thought expires after N conversation turns |
-| `error_streak_min` | `2` | Minimum consecutive errors before error-streak trigger |
+| `decay_turns` | `3` | Thought expires after N user turns |
+| `decay_max_age_secs` | `300` | Absolute age ceiling in seconds, applies even between turns |
 
-**Requirements:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`, and Helper LLM enabled. Inner voice is explicit opt-in and is not auto-enabled with the emotion synthesizer.
+`error_streak_min` is retired and ignored. Older config files still load, with a deprecation notice.
+
+**Requirements:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`. A configured Helper LLM is preferred; without one, a bounded main-model fallback is used and charged to the personality budget. Inner voice is explicit opt-in and is not auto-enabled with the emotion synthesizer.
 
 ---
 
@@ -346,7 +348,7 @@ Quick Info         → terminator
 | **Base Personality** | `personality.core_personality` | Style selection |
 | **User Profiling** | `personality.user_profiling: true` | Personalization |
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natural-language emotion notes |
-| **Inner Voice** | `personality.inner_voice.enabled: true` | Subconscious behavioral nudges |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Short private thought that colors tone |
 
 > [!TIP]
 > Start with V1 and `personality.core_personality: friend` or `professional`. Enable V2 only when you need dynamic adaptation and have the additional API budget. Configure a cost-efficient Helper LLM before enabling V2, emotion synthesis, or inner voice.
@@ -358,4 +360,4 @@ Quick Info         → terminator
 **Previous Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)
 **Next Chapter:** [Chapter 11: Mission Control](./11-missions.md)
 
-Defaults: `engine: false`, `engine_v2: false`, `core_personality: neutral`, profiling threshold `3`. Enabling Inner Voice also enables synthesis, V2 and the engine. `decay_max_age_secs` bounds narration age even between turns. See [provenance, deletion and legacy review](../../personality-dynamics.md).
+Defaults: `engine: false`, `engine_v2: false`, `core_personality: neutral`, profiling threshold `3`. Enabling Inner Voice also enables synthesis, V2 and the engine. `decay_max_age_secs` bounds how long a thought stays in the prompt, even between turns. See [provenance, deletion and legacy review](../../personality-dynamics.md).

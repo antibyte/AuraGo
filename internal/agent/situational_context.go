@@ -10,6 +10,8 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 // innerVoiceState tracks runtime state for the inner voice system within a session.
@@ -164,6 +166,14 @@ func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int,
 	return consecutiveErrors == 0
 }
 
+// releaseInnerVoiceReservation frees the generation slot reserved for a turn whose
+// helper batch failed, so the V2 fallback of the same turn can request the thought.
+func releaseInnerVoiceReservation(sessionID string) {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	getInnerVoiceStateLocked(sessionID).lastRequested = time.Time{}
+}
+
 // shouldGenerateInnerVoice determines whether the inner voice system should trigger.
 // It evaluates rate limits, session caps, and situational triggers.
 func shouldGenerateInnerVoice(
@@ -260,13 +270,9 @@ func normalizeInnerVoiceCategory(category string) string {
 	return "reflection"
 }
 
-func innerVoiceCommandPhrases() []string {
-	return []string{
-		"you must", "you need to", "you have to", "you should",
-		"let's ", "always ", "never ", "only right path",
-		"definitely ", "certainly ", "ich muss", "ich sollte", "du solltest", "du musst",
-	}
-}
+// innerVoiceCommandRx matches obligations and imperatives only. Word boundaries keep
+// words like "whenever" out, and plain intensifiers ("never", "always") are not commands.
+var innerVoiceCommandRx = regexp.MustCompile(`(?i)\b(you\s+(must|need\s+to|have\s+to|should)|let['’]s|let\s+us|i\s+(must|should)|only\s+right\s+path|ich\s+(muss|sollte)|du\s+(musst|solltest)|wir\s+(müssen|sollten))\b`)
 
 func innerVoiceUnsafeTonePhrases() []string {
 	return []string{
@@ -287,6 +293,8 @@ func normalizeInnerVoiceText(thought string) string {
 }
 
 func normalizeInnerVoice(sessionID, thought, category string, confidence float64) (string, string, float64, bool, string) {
+	// List markers are line-based: check the raw text, the normalizer joins the lines.
+	checklistLike := strings.Contains(thought, "\n- ") || strings.Contains(thought, "\n1.")
 	thought = normalizeInnerVoiceText(thought)
 	if thought == "" {
 		return "", "", 0, false, "empty"
@@ -300,13 +308,11 @@ func normalizeInnerVoice(sessionID, thought, category string, confidence float64
 	}
 
 	lower := strings.ToLower(thought)
-	if strings.Contains(thought, "\n- ") || strings.Contains(thought, "\n1.") {
+	if checklistLike {
 		return "", "", confidence, false, "checklist_like"
 	}
-	for _, phrase := range innerVoiceCommandPhrases() {
-		if strings.Contains(lower, phrase) {
-			return "", "", confidence, false, "command_tone"
-		}
+	if innerVoiceCommandRx.MatchString(thought) {
+		return "", "", confidence, false, "command_tone"
 	}
 	for _, phrase := range innerVoiceUnsafeTonePhrases() {
 		if strings.Contains(lower, phrase) {
@@ -361,7 +367,43 @@ func enrichEmotionInputForInnerVoice(
 	}
 	input.RelevantLessons = lessons
 	input.RecentToolUsage = summarizeToolUsage(recentToolNames)
-	input.ConversationPhase = deriveConversationPhase(conversationTurns, consecutiveErrors, totalSuccesses)
+	input.ConversationPhase = deriveConversationPhase(conversationTurns, totalSuccesses)
+}
+
+// innerVoiceTurnToolNames returns the function names of the assistant tool calls
+// after the last user message, i.e. the tools used in the current turn.
+func innerVoiceTurnToolNames(msgs []openai.ChatCompletionMessage) []string {
+	start := 0
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(msgs[i]) {
+			start = i + 1
+			break
+		}
+	}
+	var names []string
+	for _, msg := range msgs[start:] {
+		if msg.Role != openai.ChatMessageRoleAssistant {
+			continue
+		}
+		for _, call := range msg.ToolCalls {
+			if call.Function.Name != "" {
+				names = append(names, call.Function.Name)
+			}
+		}
+	}
+	return names
+}
+
+// innerVoiceUserTurns counts the user turns in msgs. Text-mode tool results are
+// user-role messages but not turns.
+func innerVoiceUserTurns(msgs []openai.ChatCompletionMessage) int {
+	turns := 0
+	for _, msg := range msgs {
+		if msg.Role == openai.ChatMessageRoleUser && !isTextModeToolResult(msg) {
+			turns++
+		}
+	}
+	return turns
 }
 
 // summarizeToolUsage creates a compact summary of recently used tools.
@@ -391,19 +433,12 @@ func summarizeToolUsage(toolNames []string) string {
 	return strings.Join(parts, ", ")
 }
 
-// deriveConversationPhase estimates the current conversation phase from signals.
-func deriveConversationPhase(turns, consecutiveErrors, totalSuccesses int) string {
-	if turns == 0 {
-		return "idle"
-	}
-	if turns <= 2 {
+// deriveConversationPhase estimates the conversation phase from the user-turn count
+// and the successful tool calls. Generation is blocked while consecutive errors
+// exist, so there is no "struggling" phase here, and nothing signals a "closing".
+func deriveConversationPhase(turns, totalSuccesses int) string {
+	if turns <= 1 {
 		return "opening"
-	}
-	if consecutiveErrors >= 2 {
-		return "struggling"
-	}
-	if totalSuccesses > 0 && turns > 5 {
-		return "closing"
 	}
 	if totalSuccesses > 0 {
 		return "execution"

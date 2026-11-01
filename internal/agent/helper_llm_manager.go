@@ -328,6 +328,10 @@ type helperTurnPersonalityInput struct {
 	InnerVoiceEnabled  bool   // when true, ask LLM to include inner_voice block
 	InnerVoiceLanguage string // language for inner voice thought
 	InnerVoiceHistory  string // brief summary of recent inner voice thoughts for continuity
+	// Go-derived facts of this turn that the inner voice may react to.
+	InnerVoiceTaskStatus string // deriveTaskStatus result
+	InnerVoicePhase      string // deriveConversationPhase result
+	InnerVoiceTools      string // summarizeToolUsage of this turn's tools; "none" or empty = no tools
 }
 
 type helperTurnMoodAnalysis struct {
@@ -900,13 +904,22 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 			ivLang = language
 		}
 		b.WriteString("\nINNER VOICE REQUESTED: Add an \"inner_voice\" key inside \"personality_analysis\" with this structure:\n")
-		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `", "confidence": 0.8}`)
+		b.WriteString(`{"inner_thought": "1-2 short first-person sentences, or empty", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `"}`)
 		b.WriteString("\nWrite inner_thought in: " + helperExternalDataBlock("inner_voice_language", ivLang, 40) + "\n")
-		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
-		b.WriteString("Do not use profanity, panic wording, or self-escalating frustration.\n")
-		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
-		b.WriteString("Use predictive context to form a forward-looking thought about what's coming next.\n")
-		b.WriteString("Match the conversation phase: opening=curiosity, execution=focus, struggling=patience, closing=satisfaction.\n")
+		b.WriteString(memory.InnerVoiceRules + "\n")
+		tools := strings.TrimSpace(input.InnerVoiceTools)
+		if tools == "none" {
+			tools = ""
+		}
+		for _, fact := range []string{
+			helperExternalDataBlock("task_status", input.InnerVoiceTaskStatus, 40),
+			helperExternalDataBlock("conversation_phase", input.InnerVoicePhase, 40),
+			helperExternalDataBlock("recent_tools", tools, 180),
+		} {
+			if fact != "" {
+				b.WriteString(fact + "\n")
+			}
+		}
 		if input.InnerVoiceHistory != "" {
 			b.WriteString("Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n")
 			b.WriteString(helperExternalDataBlock("inner_voice_history", helperSourceText(input.InnerVoiceHistory, 300, divisor), 300))

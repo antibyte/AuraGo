@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -173,6 +174,25 @@ func TestAnalyzeMoodV2WithEmotionParsesCombinedJSON(t *testing.T) {
 	}
 	if emotionState.Description != "I feel calm and ready to help." {
 		t.Fatalf("unexpected emotion description: %q", emotionState.Description)
+	}
+}
+
+// A malformed optional inner_voice must not reject valid mood or emotion fields.
+func TestAnalyzeMoodV2WithEmotionToleratesMalformedInnerVoice(t *testing.T) {
+	const combined = `{"mood_analysis":{"user_sentiment":"curious","agent_appropriate_response_mood":"focused","relationship_delta":0.02,"trait_deltas":{},"user_profile_updates":[]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"steady","valence":0.2,"arousal":0.3,"confidence":0.8,"cause":"the request is clear","recommended_response_style":"calm_and_precise"},"inner_voice":%s}`
+	for _, innerVoice := range []string{`""`, `{"inner_thought":"I feel calm.","nudge_category":"focus","confidence":"0.8"}`} {
+		stm := newTestAnalysisDB(t)
+		mock := &mockPersonalityAnalysisClient{response: fmt.Sprintf(combined, innerVoice)}
+		mood, _, _, _, emotionState, thought, _, _, err := stm.AnalyzeMoodV2WithEmotion(
+			context.Background(), mock, "test-model", "history", "user statements", PersonalityMeta{}, false,
+			EmotionInput{InnerVoiceEnabled: true}, "English",
+		)
+		if err != nil || mood != MoodFocused || emotionState == nil {
+			t.Fatalf("inner_voice %s lost mood or emotion: mood=%q emotion=%v err=%v", innerVoice, mood, emotionState, err)
+		}
+		if thought != "" {
+			t.Fatalf("inner_voice %s must yield no inner thought, got %q", innerVoice, thought)
+		}
 	}
 }
 

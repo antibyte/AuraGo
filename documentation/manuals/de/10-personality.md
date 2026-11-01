@@ -248,17 +248,19 @@ Wenn `personality.emotion_synthesizer.enabled: true` gesetzt ist, erzeugt der He
 
 ## Inner Voice (V2)
 
-Die Inner Voice ist eine Unterbewusstseins-Engine, die kurze, private Agentengedanken in den System-Prompt injiziert. Sie liefert subtile Verhaltenshinweise ohne zusätzliche sichtbare Benutzernachrichten.
+Die Inner Voice ist ein kurzer, privater Gedanke des Agenten. Nach einer Chat-Runde schreibt der Helper höchstens einen kurzen Gedanken in der Ich-Form, oder keinen, wenn nichts Erwähnenswertes anfällt. Dieser Gedanke wird im nächsten System-Prompt als nicht vertrauenswürdige Daten injiziert, die nur den Tonfall beeinflussen dürfen, nie Absicht, Sicherheit oder Tool-Nutzung. Während der Wiederherstellung nach Tool-Fehlern wird er ausgelassen.
 
 | Einstellung | Standard | Beschreibung |
 |-------------|----------|--------------|
 | `enabled` | `false` | Inner-Voice-Generierung aktivieren |
 | `min_interval_secs` | `60` | Mindestabstand zwischen Inner-Voice-Gedanken |
 | `max_per_session` | `20` | Maximale Inner-Voice-Gedanken pro Session |
-| `decay_turns` | `3` | Gedanke verfällt nach N Gesprächsrunden |
-| `error_streak_min` | `2` | Mindestanzahl aufeinanderfolgender Fehler für Error-Streak-Trigger |
+| `decay_turns` | `3` | Gedanke verfällt nach N Benutzernachrichten |
+| `decay_max_age_secs` | `300` | Absolute Altersgrenze in Sekunden, gilt auch zwischen Runden |
 
-**Voraussetzungen:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true` und Helper LLM aktiviert. Inner Voice ist explizit opt-in und wird nicht automatisch mit dem Emotion Synthesizer aktiviert.
+`error_streak_min` ist veraltet und wird ignoriert. Ältere Konfigurationsdateien werden weiterhin geladen, mit einem Veraltungshinweis.
+
+**Voraussetzungen:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`. Ein konfiguriertes Helper LLM wird bevorzugt; ohne ein solches wird ein eng begrenzter Fallback auf das Hauptmodell genutzt, dessen Kosten dem Personality-Budget belastet werden. Inner Voice ist explizit opt-in und wird nicht automatisch mit dem Emotion Synthesizer aktiviert.
 
 ---
 
@@ -343,7 +345,7 @@ Schnelle Infos  → terminator
 | **Basispersönlichkeit** | `personality.core_personality` | Auswahl des Stils |
 | **User Profiling** | `personality.user_profiling: true` | Personalisierung |
 | **Emotion Synthesizer** | `personality.emotion_synthesizer.enabled: true` | Natürlichsprachliche Emotionsnotizen |
-| **Inner Voice** | `personality.inner_voice.enabled: true` | Unterbewusste Verhaltenshinweise |
+| **Inner Voice** | `personality.inner_voice.enabled: true` | Kurzer privater Gedanke, der den Tonfall färbt |
 
 > [!TIP]
 > Starte mit V1 und `personality.core_personality: friend` oder `professional`. Aktiviere V2 erst, wenn du dynamische Anpassungen benötigst und das zusätzliche API-Budget hast. Konfiguriere zuerst ein kostengünstiges Helper-LLM, bevor du V2, Emotion Synthesizer oder Inner Voice aktivierst.
@@ -355,4 +357,4 @@ Schnelle Infos  → terminator
 **Vorheriges Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)
 **Nächstes Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)
 
-Standardwerte: `engine: false`, `engine_v2: false`, `core_personality: neutral`, Profiling-Schwelle `3`. Inner Voice aktiviert auch Emotionsnarration, V2 und die Engine. `decay_max_age_secs` begrenzt das Alter auch zwischen Nachrichten. Siehe [Herkunft, Löschung und Altbestandsprüfung](../../personality-dynamics.md).
+Standardwerte: `engine: false`, `engine_v2: false`, `core_personality: neutral`, Profiling-Schwelle `3`. Inner Voice aktiviert auch Emotionsnarration, V2 und die Engine. `decay_max_age_secs` begrenzt, wie lange ein Gedanke auch zwischen Nachrichten im Prompt bleibt. Siehe [Herkunft, Löschung und Altbestandsprüfung](../../personality-dynamics.md).

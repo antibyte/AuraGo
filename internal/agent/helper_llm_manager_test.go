@@ -2,11 +2,13 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"strings"
 	"testing"
 	"time"
 
+	"aurago/internal/memory"
 	"aurago/internal/security"
 )
 
@@ -97,6 +99,24 @@ func TestHelperLLMManagerDiscardsInvalidCachedJSONBeforeRequest(t *testing.T) {
 	}
 }
 
+// A malformed optional inner_voice must not reject valid mood or emotion fields.
+func TestParseHelperTurnBatchResultToleratesMalformedInnerVoice(t *testing.T) {
+	const batch = `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"Check","user_goal":"Check","actions_taken":[],"outcomes":[],"important_points":[],"pending_items":[],"importance":1,"entities":[]},"personality_analysis":{"mood_analysis":{"user_sentiment":"calm","agent_appropriate_response_mood":"focused","relationship_delta":0.01,"trait_deltas":{},"user_profile_updates":[]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"","valence":0.1,"arousal":0.3,"confidence":0.8,"cause":"clear task","recommended_response_style":"calm"},"inner_voice":%s}}`
+	for _, innerVoice := range []string{`""`, `{"inner_thought":"I feel calm.","nudge_category":"focus","confidence":"0.8"}`} {
+		parsed, err := parseHelperTurnBatchResult(fmt.Sprintf(batch, innerVoice))
+		if err != nil {
+			t.Fatalf("inner_voice %s rejected the whole batch: %v", innerVoice, err)
+		}
+		got, ok := normalizeHelperTurnPersonalityResult(parsed.PersonalityAnalysis, memory.PersonalityMeta{})
+		if !ok || got.Mood != memory.MoodFocused || got.SynthesizedEmotion == nil {
+			t.Fatalf("inner_voice %s lost mood or emotion: ok=%v mood=%q emotion=%v", innerVoice, ok, got.Mood, got.SynthesizedEmotion)
+		}
+		if got.InnerThought != "" {
+			t.Fatalf("inner_voice %s must yield no inner thought, got %q", innerVoice, got.InnerThought)
+		}
+	}
+}
+
 func TestHelperLLMManagerAnalyzeTurnPromptUsesCanonicalMoodOptions(t *testing.T) {
 	client := &mockChatClient{
 		response: `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]},"activity_digest":{"intent":"Investigate alert","user_goal":"Investigate alert","actions_taken":["Checked recent events"],"outcomes":["Found the alert source"],"important_points":["Alert came from the NAS"],"pending_items":[],"importance":2,"entities":["nas"]},"personality_analysis":{"mood_analysis":{"user_sentiment":"alert","agent_appropriate_response_mood":"focused","relationship_delta":0.01,"trait_deltas":{"thoroughness":0.02},"user_profile_updates":[]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"","valence":0.0,"arousal":0.3,"confidence":0.7,"cause":"clear troubleshooting task","recommended_response_style":"calm_and_clear"}}}`,
@@ -150,6 +170,41 @@ func TestBuildHelperTurnPersonalitySectionIncludesPersonaSafely(t *testing.T) {
 	})
 	if strings.Contains(neutral, "Active persona") || strings.Contains(neutral, "Neutral should not be included") {
 		t.Fatalf("neutral persona should be omitted, got: %s", neutral)
+	}
+}
+
+func TestBuildHelperTurnPersonalitySectionInnerVoiceFacts(t *testing.T) {
+	input := &helperTurnPersonalityInput{
+		Language:             "English",
+		EmotionEnabled:       true,
+		InnerVoiceEnabled:    true,
+		InnerVoiceTaskStatus: "recovering",
+		InnerVoicePhase:      "execution",
+		InnerVoiceTools:      "shell(2), docker",
+	}
+	section := buildHelperTurnPersonalitySection(input)
+	for _, want := range []string{
+		"INNER VOICE REQUESTED",
+		"Rules for inner_voice:",
+		"task_status (untrusted):\n<external_data>\nrecovering",
+		"conversation_phase (untrusted):\n<external_data>\nexecution",
+		"recent_tools (untrusted):\n<external_data>\nshell(2), docker",
+	} {
+		if !strings.Contains(section, want) {
+			t.Fatalf("inner voice section missing %q: %s", want, section)
+		}
+	}
+	if strings.Contains(section, `"confidence"`) {
+		t.Fatalf("inner voice shape must not request a confidence: %s", section)
+	}
+
+	input.InnerVoiceTools = "none"
+	if section := buildHelperTurnPersonalitySection(input); strings.Contains(section, "recent_tools") {
+		t.Fatalf("tool-less turn must not list tools: %s", section)
+	}
+	input.EmotionEnabled = false
+	if section := buildHelperTurnPersonalitySection(input); strings.Contains(section, "task_status") {
+		t.Fatalf("facts are only for requested inner voice: %s", section)
 	}
 }
 

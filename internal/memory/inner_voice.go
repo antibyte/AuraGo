@@ -65,31 +65,6 @@ func (s *SQLiteMemory) GetRecentInnerVoices(limit int) ([]InnerVoiceEntry, error
 	return entries, rows.Err()
 }
 
-// GetTodayInnerVoiceSummary returns all inner voice entries from today for daily reflection.
-func (s *SQLiteMemory) GetTodayInnerVoiceSummary() ([]InnerVoiceEntry, error) {
-	rows, err := s.db.Query(
-		`SELECT id, inner_thought, COALESCE(nudge_category, ''), timestamp
-		 FROM emotion_history
-		 WHERE inner_thought IS NOT NULL AND inner_thought != ''
-		   AND DATE(timestamp) = DATE('now')
-		 ORDER BY id ASC`,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get today inner voices: %w", err)
-	}
-	defer rows.Close()
-
-	var entries []InnerVoiceEntry
-	for rows.Next() {
-		var e InnerVoiceEntry
-		if err := rows.Scan(&e.ID, &e.InnerThought, &e.NudgeCategory, &e.Timestamp); err != nil {
-			return nil, fmt.Errorf("scan today inner voice: %w", err)
-		}
-		entries = append(entries, e)
-	}
-	return entries, rows.Err()
-}
-
 // FormatInnerVoiceHistory formats recent inner voice entries as a brief summary for prompt context.
 // Returns a compact string like: "thought1 [category] | thought2 [category]".
 func FormatInnerVoiceHistory(entries []InnerVoiceEntry) string {

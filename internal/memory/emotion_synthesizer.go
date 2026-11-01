@@ -60,6 +60,17 @@ const (
 // This must be used consistently across all inner voice prompt paths to ensure valid categories.
 const InnerVoiceNudgeCategories = "reflection, patience, focus, creativity, caution, recovery, encouragement, grounding, curiosity, concern, satisfaction, anticipation"
 
+// InnerVoiceRules is the shared rule block for inner voice generation. The helper
+// batch prompt and the V2 fallback prompt must both use it so the paths cannot drift.
+const InnerVoiceRules = `Rules for inner_voice:
+- Write 1-2 short first-person sentences as the agent's private inner voice, in the requested output language.
+- Express feelings and attention ("I feel...", "I'm curious whether...", "I want to stay calm here"), not obligations or instructions: no "I must", "I should", "you should", "let's", lists or steps.
+- React to this turn: the user's tone, the task status and the tools used. Look ahead only from the facts given; never invent upcoming events.
+- Match the phase: opening or exploration = curiosity, execution = focus; after recovered errors = relief and care.
+- Stay calm: no profanity, panic, escalating frustration or meta-commentary.
+- Do not repeat the recent thoughts listed.
+- If nothing in this turn is worth a thought, return an empty inner_thought.`
+
 // EmotionInput collects the relevant data for emotion synthesis.
 type EmotionInput struct {
 	Snapshot           *PersonalitySnapshot
@@ -82,11 +93,9 @@ type EmotionInput struct {
 	RelevantLessons   []string // Past lessons from error_learning
 	InnerVoiceEnabled bool     // Whether inner voice generation is requested
 	InnerVoiceHistory string   // Brief summary of recent inner voice thoughts for continuity
-	// Predictive context fields — enable forward-looking inner voice nudges
-	RecentToolUsage     string // Summary of recently used tools (e.g. "shell(2), docker(1)")
-	ConversationPhase   string // Detected phase: "opening", "exploration", "execution", "closing", "idle"
-	UserTopics          string // Brief summary of recent user topics/interests
-	PredictedNextAction string // Hint about likely next action based on trajectory
+	// Turn facts the inner voice may react to
+	RecentToolUsage   string // Summary of this turn's tools (e.g. "shell(2), docker")
+	ConversationPhase string // Derived phase: "opening", "exploration", "execution"
 	// Active persona context — shapes the tone of emotion descriptions & inner voice
 	PersonaName   string // Active persona ID (e.g. "punk", "friend"); empty or "neutral" = generic
 	PersonaPrompt string // Short persona description (max ~300 chars) for tone guidance

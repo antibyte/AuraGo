@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"math"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -129,15 +130,16 @@ type personalityV2AnalysisResult struct {
 	NudgeConfidence    float64
 }
 
-// A malformed optional narration must not reject valid mood or profile fields.
+// A malformed optional narration (emotion_state, inner_voice) must not reject valid mood or profile fields.
 func (p *helperTurnPersonalityBlock) UnmarshalJSON(data []byte) error {
 	type plain helperTurnPersonalityBlock
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
-	emotion := fields["emotion_state"]
+	emotion, innerVoice := fields["emotion_state"], fields["inner_voice"]
 	delete(fields, "emotion_state")
+	delete(fields, "inner_voice")
 	rest, err := json.Marshal(fields)
 	if err != nil {
 		return err
@@ -148,6 +150,9 @@ func (p *helperTurnPersonalityBlock) UnmarshalJSON(data []byte) error {
 	}
 	if err = json.Unmarshal(emotion, &result.EmotionState); err != nil {
 		result.EmotionState = helperTurnEmotionPayload{}
+	}
+	if err = json.Unmarshal(innerVoice, &result.InnerVoice); err != nil {
+		result.InnerVoice = nil
 	}
 	*p = helperTurnPersonalityBlock(result)
 	return nil
@@ -245,10 +250,12 @@ func applyPersonalityV2AnalysisResult(
 		var acceptedThought, acceptedCategory string
 		var acceptedConfidence float64
 		if observation.Emotion != nil && cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
-			thought, category, confidence, accepted, _ := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
+			thought, category, confidence, accepted, reason := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
 			if accepted {
 				acceptedThought, acceptedCategory, acceptedConfidence = thought, category, confidence
 				observation.InnerThought, observation.NudgeCategory = thought, category
+			} else {
+				logger.Info("[InnerVoice] Thought rejected", "reason", reason)
 			}
 		}
 		if profilingEnabled {
@@ -256,7 +263,7 @@ func applyPersonalityV2AnalysisResult(
 		}
 		_, narrated, err := emotionSynthesizer.ApplyObservation(stm, observation)
 		if err != nil {
-			logger.Debug("[Personality V2] Observation not applied", "error", err)
+			logger.Info("[Personality V2] Observation not applied", "error", err)
 			return
 		}
 		if narrated && acceptedThought != "" {
@@ -444,23 +451,26 @@ func launchAsyncPersonalityV2Analysis(
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
 			if shouldGenerateInnerVoice(sessionID, cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
-				// Gather lessons from error patterns
+				// Gather lessons: resolved error patterns of the tools used in this turn
+				turnTools := innerVoiceTurnToolNames(recentMsgs)
 				var lessons []string
-				if errPatterns, lErr := stm.GetRecentErrors(3); lErr == nil {
+				if errPatterns, lErr := stm.GetRecentErrors(20); lErr == nil && len(turnTools) > 0 {
 					for _, ep := range errPatterns {
-						if ep.Resolution != "" {
+						if ep.Resolution != "" && slices.Contains(turnTools, ep.ToolName) {
 							lessons = append(lessons, ep.Resolution)
+							if len(lessons) == 3 {
+								break
+							}
 						}
 					}
 				}
-				// Estimate conversation turns from recent messages available to the analyzer
-				conversationTurns := len(recentMsgs)
+				conversationTurns := innerVoiceUserTurns(recentMsgs)
 				// Recovery attempts = total errors that were eventually resolved
 				recoveryAttempts := 0
 				if totalErrorCount > 0 && consecutiveErrorCount == 0 && successCount > 0 {
 					recoveryAttempts = totalErrorCount
 				}
-				enrichEmotionInputForInnerVoice(&combinedInput, conversationTurns, recoveryAttempts, consecutiveErrorCount, totalErrorCount, successCount, lessons, nil)
+				enrichEmotionInputForInnerVoice(&combinedInput, conversationTurns, recoveryAttempts, consecutiveErrorCount, totalErrorCount, successCount, lessons, turnTools)
 				// Add inner voice history for narrative continuity
 				if ivEntries, ivErr := stm.GetRecentInnerVoices(3); ivErr == nil && len(ivEntries) > 0 {
 					combinedInput.InnerVoiceHistory = memory.FormatInnerVoiceHistory(ivEntries)
@@ -477,6 +487,9 @@ func launchAsyncPersonalityV2Analysis(
 				combinedInput,
 				cfg.Agent.SystemLanguage,
 			)
+			if !combinedInput.InnerVoiceEnabled {
+				result.InnerThought, result.NudgeCategory, result.NudgeConfidence = "", "", 0 // only a requested thought is accepted
+			}
 			if err != nil {
 				logger.Debug("[Personality V2] Combined helper mood/emotion batch failed, falling back", "error", err)
 			}

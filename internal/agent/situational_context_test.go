@@ -1,11 +1,14 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestDeriveTaskStatus(t *testing.T) {
@@ -367,15 +370,30 @@ func TestNormalizeInnerVoiceRejectsProfanePanic(t *testing.T) {
 	}
 }
 
-func TestNormalizeInnerVoiceAcceptsFirstPersonShould(t *testing.T) {
-	ResetInnerVoiceState()
-	// "I should..." is a valid inner thought, not a command — only "you should" is commanding
-	thought, category, _, accepted, reason := normalizeInnerVoice("sess-a", "I should be more careful here, something feels off.", "caution", 0.8)
-	if !accepted {
-		t.Fatalf("expected first-person 'I should' to be accepted, got reason %q", reason)
+func TestNormalizeInnerVoiceCommandFilter(t *testing.T) {
+	tests := []struct {
+		thought  string
+		accepted bool
+	}{
+		{"I should double-check this.", false},
+		{"Let's verify it.", false},
+		{"Ich sollte geduldig bleiben.", false},
+		{"You must hurry.", false},
+		{"Whenever this works, I feel relieved.", true},
+		{"I never expected the config to be this tidy.", true},
+		{"I'm curious whether the backup holds.", true},
 	}
-	if thought == "" || category != "caution" {
-		t.Fatalf("unexpected output: thought=%q category=%q", thought, category)
+	for _, tt := range tests {
+		t.Run(tt.thought, func(t *testing.T) {
+			ResetInnerVoiceState()
+			_, _, _, accepted, reason := normalizeInnerVoice("sess-a", tt.thought, "focus", 0.8)
+			if accepted != tt.accepted {
+				t.Fatalf("normalizeInnerVoice(%q) accepted=%v (reason %q), want %v", tt.thought, accepted, reason, tt.accepted)
+			}
+			if !accepted && reason != "command_tone" {
+				t.Fatalf("expected command_tone rejection, got %q", reason)
+			}
+		})
 	}
 }
 
@@ -387,6 +405,46 @@ func TestNormalizeInnerVoiceAcceptsSubtleThought(t *testing.T) {
 	}
 	if thought == "" || category != "caution" || confidence < 0.55 {
 		t.Fatalf("unexpected normalized output: thought=%q category=%q confidence=%.2f", thought, category, confidence)
+	}
+}
+
+func TestNormalizeInnerVoiceRejectsChecklists(t *testing.T) {
+	for _, thought := range []string{"I feel fine.\n- check logs", "I feel fine.\n1. restart"} {
+		ResetInnerVoiceState()
+		if _, _, _, accepted, reason := normalizeInnerVoice("sess-a", thought, "focus", 0.8); accepted || reason != "checklist_like" {
+			t.Fatalf("normalizeInnerVoice(%q) accepted=%v reason=%q, want checklist_like rejection", thought, accepted, reason)
+		}
+	}
+}
+
+func TestReleaseInnerVoiceReservationAllowsFallbackRequest(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
+	cfg.Personality.EngineV2 = true
+	cfg.Personality.InnerVoice.MaxPerSession = 20
+	cfg.Personality.InnerVoice.MinIntervalSecs = 3600
+	ResetInnerVoiceState()
+	t.Cleanup(ResetInnerVoiceState)
+
+	if !shouldGenerateInnerVoice("sess-a", cfg, 0, 0, 0, false, false, false) {
+		t.Fatal("expected the first periodic request to reserve a slot")
+	}
+	if shouldGenerateInnerVoice("sess-a", cfg, 0, 0, 0, false, false, false) {
+		t.Fatal("expected a second request within min_interval to be refused")
+	}
+	releaseInnerVoiceReservation("sess-a")
+	if !shouldGenerateInnerVoice("sess-a", cfg, 0, 0, 0, false, false, false) {
+		t.Fatal("expected the released slot to be reservable again within min_interval")
+	}
+
+	applyInnerVoiceResult("sess-b", "I feel calm.", "focus", 0.8)
+	releaseInnerVoiceReservation("sess-b")
+	globalInnerVoiceStore.mu.Lock()
+	state := *getInnerVoiceStateLocked("sess-b")
+	globalInnerVoiceStore.mu.Unlock()
+	if state.generationCount != 1 || state.lastGenerated.IsZero() {
+		t.Fatalf("release must keep generation bookkeeping, got count=%d lastGenerated=%v", state.generationCount, state.lastGenerated)
 	}
 }
 
@@ -416,7 +474,51 @@ func TestEnrichEmotionInputForInnerVoice(t *testing.T) {
 	if input.RecentToolUsage != "shell(2), docker" {
 		t.Fatalf("expected RecentToolUsage='shell(2), docker', got %q", input.RecentToolUsage)
 	}
-	if input.ConversationPhase != "struggling" {
-		t.Fatalf("expected ConversationPhase='struggling', got %q", input.ConversationPhase)
+	if input.ConversationPhase != "execution" {
+		t.Fatalf("expected ConversationPhase='execution', got %q", input.ConversationPhase)
+	}
+}
+
+func TestDeriveConversationPhase(t *testing.T) {
+	for _, tt := range []struct {
+		turns, successes int
+		want             string
+	}{
+		{0, 0, "opening"}, {1, 3, "opening"}, {4, 0, "exploration"}, {4, 2, "execution"}, {12, 2, "execution"},
+	} {
+		if got := deriveConversationPhase(tt.turns, tt.successes); got != tt.want {
+			t.Fatalf("deriveConversationPhase(%d, %d) = %q, want %q", tt.turns, tt.successes, got, tt.want)
+		}
+	}
+}
+
+func TestInnerVoiceTurnFacts(t *testing.T) {
+	call := func(names ...string) openai.ChatCompletionMessage {
+		msg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant}
+		for _, name := range names {
+			msg.ToolCalls = append(msg.ToolCalls, openai.ToolCall{Function: openai.FunctionCall{Name: name}})
+		}
+		return msg
+	}
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "system"},
+		{Role: openai.ChatMessageRoleUser, Content: "first"},
+		call("old_tool"),
+		{Role: openai.ChatMessageRoleTool, Content: "ok"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "done"},
+		{Role: openai.ChatMessageRoleUser, Content: "second"},
+		call("shell", "docker"),
+		{Role: openai.ChatMessageRoleTool, Content: "ok"},
+		{Role: openai.ChatMessageRoleUser, Content: "Tool Output: text mode result"},
+		call("shell"),
+	}
+	if got := innerVoiceUserTurns(msgs); got != 2 {
+		t.Fatalf("innerVoiceUserTurns = %d, want 2 (system, tool, assistant and text-mode tool results are no turns)", got)
+	}
+	if got := strings.Join(innerVoiceTurnToolNames(msgs), ","); got != "shell,docker,shell" {
+		t.Fatalf("innerVoiceTurnToolNames = %q, want only this turn's tools", got)
+	}
+	if innerVoiceUserTurns(nil) != 0 || len(innerVoiceTurnToolNames(nil)) != 0 {
+		t.Fatal("empty history must yield no turns and no tools")
 	}
 }

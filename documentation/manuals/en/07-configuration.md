@@ -643,11 +643,11 @@ personality:
         trigger_on_mood_change: true
         trigger_always: false
     inner_voice:
-        enabled: false                 # subconscious nudge engine
+        enabled: false                 # short private agent thought, tone only
         min_interval_secs: 60
         max_per_session: 20
         decay_turns: 3
-        error_streak_min: 2
+        decay_max_age_secs: 300
 ```
 
 ### Personality Options Explained
@@ -661,7 +661,7 @@ personality:
 | `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt |
 | `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis for responses |
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
-| `inner_voice.enabled` | `false` | Subconscious nudge engine for subtle behavior hints |
+| `inner_voice.enabled` | `false` | Optional short first-person agent thought after each chat turn, injected into the next system prompt as untrusted, tone-only data |
 
 ### Adaptive Dynamics
 

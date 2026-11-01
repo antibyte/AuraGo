@@ -96,46 +96,6 @@ func TestGetRecentInnerVoices_DefaultLimit(t *testing.T) {
 	}
 }
 
-func TestGetTodayInnerVoiceSummary_Empty(t *testing.T) {
-	stm := newTestInnerVoiceDB(t)
-	entries, err := stm.GetTodayInnerVoiceSummary()
-	if err != nil {
-		t.Fatalf("GetTodayInnerVoiceSummary: %v", err)
-	}
-	if len(entries) != 0 {
-		t.Fatalf("expected 0 entries, got %d", len(entries))
-	}
-}
-
-func TestGetTodayInnerVoiceSummary_ReturnsToday(t *testing.T) {
-	stm := newTestInnerVoiceDB(t)
-
-	// Insert emotion_history row with inner voice (timestamp defaults to now)
-	inserted, err := stm.db.Exec(
-		`INSERT INTO emotion_history (description, primary_mood, secondary_mood, valence, arousal, confidence, cause, recommended_response_style)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		"alert", "focused", "calm", 0.6, 0.4, 0.9, "work", "precise",
-	)
-	if err != nil {
-		t.Fatalf("insert: %v", err)
-	}
-	id, _ := inserted.LastInsertId()
-	if _, err := stm.db.Exec(`UPDATE emotion_history SET inner_thought=?,nudge_category=? WHERE id=?`, "Stay focused on the goal", "focus", id); err != nil {
-		t.Fatalf("StoreInnerVoice: %v", err)
-	}
-
-	entries, err := stm.GetTodayInnerVoiceSummary()
-	if err != nil {
-		t.Fatalf("GetTodayInnerVoiceSummary: %v", err)
-	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].InnerThought != "Stay focused on the goal" {
-		t.Fatalf("unexpected thought: %q", entries[0].InnerThought)
-	}
-}
-
 func TestFormatInnerVoiceHistory_Empty(t *testing.T) {
 	result := FormatInnerVoiceHistory(nil)
 	if result != "" {
