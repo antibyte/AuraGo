@@ -1,0 +1,24 @@
+# Prefixes and dimensions of the ECalc catalog. Every value is stored in SI base units.
+#
+# prefixes: ascending by factor. Input also accepts u for the micro sign and K for k.
+# dims:     a mapping, order significant. A dimension has a base symbol, optional aliases that are accepted as a
+#           suffix on input, the prefixes it may be written with ("" = the bare base unit), positive (values must
+#           be greater than zero) and optional explicit units. An explicit unit is either linear (factor: base =
+#           x * factor) or non-linear (to/from expressions in the expression language, x = the value in the unit).
+prefixes:
+  - {id: p, factor: 1e-12}
+  - {id: n, factor: 1e-9}
+  - {id: µ, factor: 1e-6}
+  - {id: m, factor: 1e-3}
+  - {id: k, factor: 1e3}
+  - {id: M, factor: 1e6}
+  - {id: G, factor: 1e9}
+dims:
+  voltage: {symbol: V, prefixes: [n, µ, m, "", k, M], units: [{id: dBV, symbol: dBV, to: "10^(x/20)", from: "20*log10(x)"}, {id: dBu, symbol: dBu, to: "0.7745966692414834*10^(x/20)", from: "20*log10(x/0.7745966692414834)"}]}
+  current: {symbol: A, prefixes: [p, n, µ, m, "", k]}
+  resistance: {symbol: Ω, aliases: [ohm, Ohm, R], prefixes: [m, "", k, M, G], positive: true}
+  power: {symbol: W, prefixes: [n, µ, m, "", k, M], units: [{id: dBm, symbol: dBm, to: "10^((x-30)/10)", from: "10*log10(x)+30"}]}
+  charge: {symbol: C, prefixes: [µ, m, ""], units: [{id: mAh, symbol: mAh, factor: 3.6}, {id: Ah, symbol: Ah, factor: 3600}]}
+  energy: {symbol: J, prefixes: [m, "", k, M], units: [{id: mWh, symbol: mWh, factor: 3.6}, {id: Wh, symbol: Wh, factor: 3600}, {id: kWh, symbol: kWh, factor: 3.6e6}]}
+  number: {symbol: "", prefixes: [], positive: true}
+  gain: {symbol: dB, prefixes: []}
