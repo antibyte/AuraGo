@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,9 +22,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// storeDSNQuery enables the foreign keys whatsmeow's Upgrade insists on and
-// waits for a concurrent writer instead of failing with SQLITE_BUSY.
-const storeDSNQuery = "_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
+// storeDSNQuery enables the foreign keys whatsmeow's Upgrade insists on, waits
+// for a concurrent writer instead of failing with SQLITE_BUSY, and overwrites
+// deleted rows with zeros so removed keys do not linger in free pages.
+const storeDSNQuery = "_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=secure_delete(1)"
 
 var errNoDataDir = errors.New("whatsapp device store: directories.data_dir is not set")
 
@@ -120,6 +122,26 @@ func (s *sqliteDeviceStore) DeleteLocal(ctx context.Context) error {
 	}
 	if err := s.device.Delete(ctx); err != nil {
 		return fmt.Errorf("delete whatsapp device: %w", err)
+	}
+	return nil
+}
+
+// removeDeviceFiles deletes device.db and its SQLite sidecars from disk. The
+// caller has closed every handle to the store. Files that do not exist are
+// fine; any other failure is reported after all files were tried.
+func removeDeviceFiles(dataDir string) error {
+	db := config.WhatsAppDeviceDBPath(dataDir)
+	if db == "" {
+		return nil
+	}
+	var failed []error
+	for _, path := range []string{db + "-wal", db + "-shm", db + "-journal", db} {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			failed = append(failed, err)
+		}
+	}
+	if err := errors.Join(failed...); err != nil {
+		return fmt.Errorf("remove whatsapp device files: %w", err)
 	}
 	return nil
 }

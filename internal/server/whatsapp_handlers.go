@@ -25,12 +25,20 @@ var (
 // The link session itself outlives the request.
 const whatsAppActionTimeout = 30 * time.Second
 
+// whatsAppGuard is the access gate of every WhatsApp endpoint: an admin, and
+// while login is disabled, a host name that cannot be a DNS-rebinding page, as
+// for the backup routes. The endpoints show the linked number and drive the
+// device link, so a rebinding page must not reach them.
+func whatsAppGuard(s *Server, next http.Handler) http.Handler {
+	return requireAdmin(s, requireRebindingSafeHostWithoutLogin(s, next))
+}
+
 // registerWhatsAppRoutes mounts the admin-only, no-store WhatsApp endpoints.
 func registerWhatsAppRoutes(mux *http.ServeMux, s *Server) {
-	mux.Handle("/api/whatsapp/status", requireAdmin(s, handleWhatsAppStatus(s)))
-	mux.Handle("/api/whatsapp/link", requireAdmin(s, handleWhatsAppLink(s)))
-	mux.Handle("/api/whatsapp/logout", requireAdmin(s, handleWhatsAppLogout(s)))
-	mux.Handle("/api/whatsapp/test", requireAdmin(s, handleWhatsAppTest(s)))
+	mux.Handle("/api/whatsapp/status", whatsAppGuard(s, handleWhatsAppStatus(s)))
+	mux.Handle("/api/whatsapp/link", whatsAppGuard(s, handleWhatsAppLink(s)))
+	mux.Handle("/api/whatsapp/logout", whatsAppGuard(s, handleWhatsAppLogout(s)))
+	mux.Handle("/api/whatsapp/test", whatsAppGuard(s, handleWhatsAppTest(s)))
 }
 
 func writeWhatsAppJSON(w http.ResponseWriter, code int, v any) {

@@ -455,12 +455,18 @@ func (b *Bot) Logout(ctx context.Context) (LogoutResult, error) {
 }
 
 // removeLocalDevice deletes the linked device's keys without contacting
-// WhatsApp.
+// WhatsApp. Once the row is gone and the store closed, it also deletes
+// device.db and its sidecars, so no key bytes stay on disk. The next Bot or
+// link session creates a fresh store.
 func removeLocalDevice(ctx context.Context, b backend, dataDir string) error {
 	store, err := b.open(ctx, dataDir)
 	if err != nil {
 		return fmt.Errorf("open whatsapp device store: %w", err)
 	}
-	defer store.Close()
-	return store.DeleteLocal(ctx)
+	deleteErr := store.DeleteLocal(ctx)
+	_ = store.Close()
+	if deleteErr != nil {
+		return deleteErr
+	}
+	return removeDeviceFiles(dataDir)
 }

@@ -118,6 +118,20 @@ func requireUnprotectedSystemPath(path, userPath string) error {
 	return nil
 }
 
+// isWhatsAppDeviceStoreName reports whether path ends in whatsapp/device.db or
+// one of its SQLite sidecars, wherever it sits: a copy or a hard link of the
+// linked-device store outside data_dir keeps the keys readable. The rule is
+// narrow on purpose, since other files named device.db are not WhatsApp state.
+// Like the other name rules, it ignores case.
+func isWhatsAppDeviceStoreName(path string) bool {
+	const db = config.WhatsAppDeviceDBFilename
+	switch strings.ToLower(filepath.Base(path)) {
+	case db, db + "-wal", db + "-shm", db + "-journal":
+		return strings.EqualFold(filepath.Base(filepath.Dir(path)), config.WhatsAppDirName)
+	}
+	return false
+}
+
 func isProtectedSystemPathAbs(abs, dataDir string, protectedFiles []string) bool {
 	candidates := protectedPathCandidates(abs)
 	for _, cand := range candidates {
@@ -126,6 +140,9 @@ func isProtectedSystemPathAbs(abs, dataDir string, protectedFiles []string) bool
 			return true
 		}
 		if base == "aurago_master.key" || base == "vault.bin" || base == "vault.bin.lock" {
+			return true
+		}
+		if isWhatsAppDeviceStoreName(cand) {
 			return true
 		}
 	}

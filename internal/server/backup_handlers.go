@@ -569,9 +569,18 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				return 0, fmt.Errorf("backup directory is not a regular directory: %s", dirPath)
 			}
 			added := 0
+			skipWhatsAppStore := whatsAppStoreSkipper(s.Cfg.Directories.DataDir)
 			err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("walk %s: %w", path, err)
+				}
+				// The linked-device keys never enter a backup, however a
+				// configured directory reaches them.
+				if skipWhatsAppStore(path, info) {
+					if info.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
 				}
 				if info.IsDir() {
 					return nil

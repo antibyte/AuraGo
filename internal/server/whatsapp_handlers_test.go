@@ -301,3 +301,55 @@ func TestWhatsAppMutationsRequireSameOrigin(t *testing.T) {
 		t.Errorf("same-origin test send count = %d, want 1 (forged requests must not use up the rate limit)", fake.tests)
 	}
 }
+
+// With login disabled, a DNS-rebinding page reaches the server under its own
+// host name and would pass the Origin/Host comparison. Like the backup routes,
+// the WhatsApp routes then accept only an IP address, localhost or the
+// configured domain.
+func TestWhatsAppRoutesRefuseUntrustedHostsWithoutLogin(t *testing.T) {
+	originalNow, originalLast := whatsAppTestNow, whatsAppTestLast
+	t.Cleanup(func() { whatsAppTestNow, whatsAppTestLast = originalNow, originalLast })
+	whatsAppTestNow = time.Now
+
+	cfg := &config.Config{}
+	cfg.WebConfig.Enabled = true
+	cfg.Auth.Enabled = false
+	fake := &fakeWhatsAppController{}
+	s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), whatsAppCtl: fake}
+	mux := http.NewServeMux()
+	registerWhatsAppRoutes(mux, s)
+	routes := []struct{ method, path string }{
+		{http.MethodGet, "/api/whatsapp/status"},
+		{http.MethodGet, "/api/whatsapp/link"},
+		{http.MethodPost, "/api/whatsapp/link"},
+		{http.MethodPost, "/api/whatsapp/logout"},
+		{http.MethodPost, "/api/whatsapp/test"},
+	}
+	serve := func(route struct{ method, path string }, host string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(route.method, route.path, strings.NewReader(`{"method":"qr"}`))
+		req.Host = host
+		req.Header.Set("Origin", "http://"+host)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	for _, host := range []string{"evil.attacker.net:8088", "rebind.localhost.evil"} {
+		for _, route := range routes {
+			rec := serve(route, host)
+			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "login_required_for_host") {
+				t.Errorf("%s %s on host %q = %d %s, want 403 login_required_for_host", route.method, route.path, host, rec.Code, rec.Body.String())
+			}
+		}
+	}
+	if fake.tests != 0 || fake.linkReq != (whatsapp.LinkRequest{}) {
+		t.Fatalf("a refused request reached the controller: tests=%d link=%+v", fake.tests, fake.linkReq)
+	}
+	for _, host := range []string{"localhost:8088", "192.168.1.20:8088"} {
+		whatsAppTestLast = time.Time{}
+		for _, route := range routes {
+			if rec := serve(route, host); rec.Code >= 300 {
+				t.Errorf("%s %s on host %q = %d %s, want success", route.method, route.path, host, rec.Code, rec.Body.String())
+			}
+		}
+	}
+}
