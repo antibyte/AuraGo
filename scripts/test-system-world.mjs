@@ -5,11 +5,11 @@ const handlers = new Map(), calls = new Map();
 let delayed = null, failOverview = false, interval = null;
 const response = data => ({ ok: true, json: async () => data });
 const fixture = {
-    '/api/dashboard/overview': { agent: { busy: false }, integrations: { enabled: true, disabled: false, undecided: {} }, missions: { total: 0 } },
+    '/api/desktop/integrations/dashboard/overview': { agent: { busy: false }, integrations: { enabled: true, disabled: false, undecided: {} }, missions: { total: 0 } },
     '/api/desktop/system-world/snapshot': { at:Date.now(),metrics:{cpu:12,ram:24,uptime:60},entities:[] },
-    '/api/dashboard/memory': { vectordb_entries: 0, core_memory_facts: 0, journal_entries: 0, notes_count: 0 },
-    '/api/knowledge-graph/nodes?limit=300': { nodes: [{ id: 'n1', label: '<img onerror=attack()>', type: 'person' }] },
-    '/api/knowledge-graph/edges?limit=500': { edges: [] },
+    '/api/desktop/integrations/dashboard/memory': { vectordb_entries: 0, core_memory_facts: 0, journal_entries: 0, notes_count: 0 },
+    '/api/desktop/integrations/knowledge-graph/nodes?limit=300': { nodes: [{ id: 'n1', label: '<img onerror=attack()>', type: 'person' }] },
+    '/api/desktop/integrations/knowledge-graph/edges?limit=500': { edges: [] },
 };
 const context = vm.createContext({
     window: { AuraSSE: {
@@ -20,7 +20,7 @@ const context = vm.createContext({
     setTimeout, clearTimeout, setInterval(fn) { interval = fn; return 1; }, clearInterval() { interval = null; },
     fetch: async (path, options) => {
         calls.set(path, (calls.get(path) || 0) + 1);
-        if (failOverview && path === '/api/dashboard/overview') return { ok: false };
+        if (failOverview && path === '/api/desktop/integrations/dashboard/overview') return { ok: false };
         if (delayed && path === '/api/desktop/system-world/snapshot') return new Promise((resolve,reject) => {
             delayed.resolve=resolve; options.signal.addEventListener('abort', () => reject(Error('Abort')));
         });

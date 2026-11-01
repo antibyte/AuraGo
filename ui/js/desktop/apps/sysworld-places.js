@@ -8,6 +8,16 @@ export const livingPlaces = [
   {id:'meeting-charge',district:'operations',x:8,z:46,role:'courier'},
 ];
 
+// Civic landmarks are authored in Blender and keep their own animated parts.
+// The gateway stands on the pavement (0.5 m) so its arch clears the road; the
+// turbine stands on the harbour water below the quay.
+export const landmarkPlaces = [
+  {id:'data-monument',x:0,z:24,y:0,angle:0,clip:'spin'},
+  {id:'neon-gate',x:-18,z:0,y:.5,angle:0,clip:'pulse'},
+  {id:'sky-pod',x:56,z:47,y:0,angle:0,clip:'scan'},
+  {id:'tidal-turbine',x:0,z:96,y:-3.2,angle:Math.PI,clip:'spin'},
+];
+
 export function createWayfinder(traffic, floor) {
   const points=[],cache=new Map();let revision=-1;
   for(const x of [-73,-61,-24,-12,12,24,61,73])for(const z of [-83,-71,-38,-26,7,19,53,65])points.push({x,z,y:floor(x,z),heading:0});

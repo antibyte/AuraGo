@@ -14,9 +14,13 @@ from math import sin, cos, pi
 from mathutils import Matrix, Vector
 from build_city import Geometry, create_asset, materials, bounds_and_triangles, ROOT
 from living_assets import ASSETS as LIVING_ASSETS, build_living, living_navigation
+from landmark_assets import ASSETS as LANDMARK_ASSETS, PIVOTS as LANDMARK_PIVOTS, build_landmark, landmark_navigation
 
 OUT = ROOT / 'ui/3d/system-world/v2'
 PIVOTS = {}
+# Landmark clip per design; the animator owns the motion of the named parts.
+LANDMARK_CLIPS = {'tidal-turbine': 'spin', 'data-monument': 'spin',
+                  'neon-gate': 'pulse', 'sky-pod': 'scan'}
 # Agent tower sky deck: the crown terrace sits at 72.2 m, the east lift starts on the
 # 0.88 m podium. Mirrored by `skyDeck` in ui/js/desktop/apps/sysworld-layout.js.
 SKY_TRAVEL = 71.32
@@ -258,11 +262,13 @@ def lookout(g, kind):
 
 def animate(root, asset):
     clips = ['idle','walk','turn','greet','work','carry'] if asset.startswith('robot-') else \
-        ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else []
+        ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else \
+        [LANDMARK_CLIPS[asset]] if asset in LANDMARK_CLIPS else []
     parts = {o.get('component'): o for o in root.children}
     pivots = {'head':(0,0,1.7),'arm_l':(-.47,0,1.62),'arm_r':(.47,0,1.62),
               'leg_l':(-.2,0,.9),'leg_r':(.2,0,.9),'fan':(0,0,3.1),
-              'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05),'tube':(0,0,2.05)}
+              'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05),'tube':(0,0,2.05),
+              **LANDMARK_PIVOTS}
     for part, pos in pivots.items():
         if part in parts:
             obj=parts[part];obj.data.transform(Matrix.Translation(-Vector(pos)));obj.location=pos
@@ -292,6 +298,15 @@ def animate(root, asset):
                 elif part=='sculpture': obj.rotation_euler.z=2*pi*t
                 elif part=='parcel': obj.location.x=base.x+3.2*t
                 elif part=='vent': obj.rotation_euler.x=.12+wave*.1
+                # Landmarks: the turbine and the monument rings turn, the core
+                # floats, the gateway band travels and the pod scanner sweeps.
+                elif part=='turbine_rotor': obj.rotation_euler.z=2*pi*t
+                elif part in ('ring_outer','ring_inner'): obj.rotation_euler.z=2*pi*t
+                elif part=='ring_mid': obj.rotation_euler.z=-2*pi*t
+                elif part=='monument_core':
+                    obj.rotation_euler.y=2*pi*t;obj.location.z=base.z+sin(t*pi*2)*.3
+                elif part=='light_band': obj.location.x=base.x-3.8+7.6*t
+                elif part=='scanner': obj.rotation_euler.y=2*pi*t
                 obj.keyframe_insert(data_path='rotation_euler',frame=frame)
                 obj.keyframe_insert(data_path='location',frame=frame)
             action=obj.animation_data.action;action.name=asset+'.'+part+'.'+clip
@@ -305,6 +320,7 @@ def navigation(asset):
     # Coordinates use exported glTF metres (Y up). These helpers are also kept as
     # named Blender empties so authors can inspect movement separately from art.
     if asset in LIVING_ASSETS: return living_navigation(asset)
+    if asset in LANDMARK_ASSETS: return landmark_navigation(asset)
     data={'colliders':[], 'surfaces':[], 'portals':[]}
     if asset in ('floor','ceiling'):
         if asset=='floor': data['surfaces']=[{'rect':[-2,-2,2,2], 'height':0}]
@@ -377,6 +393,7 @@ def build():
     factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
     factories.update({'robot-'+k:(lambda g,k=k:robot(g,k)) for k in ['courier','technician','archivist']})
     factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
+    factories.update({k:(lambda g,k=k:build_landmark(g,k)) for k in LANDMARK_ASSETS})
     factories.update({k:(lambda g,k=k:lookout(g,k)) for k in ['telescope','sky-deck','sky-lift']})
     for asset,factory in factories.items():
         entry={'id':asset,'lods':[], 'navigation':navigation(asset)}
@@ -409,9 +426,9 @@ def build():
                 for o in list(root.children): bpy.data.objects.remove(o,do_unlink=True)
                 bpy.data.objects.remove(root,do_unlink=True)
         entries.append(entry);print('WORLD2',asset)
-    manifest={'schema_version':2,'version':'2.2.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
+    manifest={'schema_version':2,'version':'2.3.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
-              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py']}}
+              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)

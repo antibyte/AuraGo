@@ -2,9 +2,9 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 36 additional modular designs and their articulated
+`build_expansion.py` authors 40 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
-99 self-contained GLBs (three separately loadable LODs per design) plus a versioned
+120 self-contained GLBs (three separately loadable LODs per design) plus a versioned
 manifest and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
@@ -20,6 +20,15 @@ fountain, glass garden and sheltered charging/meeting point. Their exported
 work slots, interaction points and collision boxes drive local robot routines.
 Their small LOD loads initially; details load within 55/32 metres, capped by
 the quality setting. The courier parcel is a separate visible component.
+
+`landmark_assets.py` supplies the four civic landmarks: the offshore tidal
+turbine, the kinetic plaza monument, the street gateway and the elevated
+observation pod. Each owns one named animated part - the rotor, the three
+counter-turning rings and the floating core, the travelling light band and the
+sweeping scanner - so their motion is exported with the model instead of being
+imitated at runtime. The turbine stands on the harbour water, the gateway stands
+on the pavement so its arch clears the road, and the others are placed on city
+plots by `sysworld-places.js`.
 
 ```powershell
 & 'D:/Blender 5.2/blender.exe' --background --factory-startup --python assets/system-world/build_expansion.py

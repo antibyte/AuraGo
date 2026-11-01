@@ -11,6 +11,7 @@ import { createCityLife } from './sysworld-life.js';
 import { obstaclesFrom } from './sysworld-navigation.js';
 import { createMemoryHologram } from './sysworld-hologram.js';
 import { createAtmosphere } from './sysworld-atmosphere.js';
+import { createFlow } from './sysworld-flow.js';
 import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
@@ -120,7 +121,9 @@ export async function createCity(host, options) {
   const geoSet = new Set(), matSet = new Set(), keys = new Set(), cleanup = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .98;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  // Soft shadows: the district shadows and the new landmarks read as contact
+  // shadows instead of hard staircases, at the cost of one extra filter tap.
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false; renderer.info.autoReset = false;
   const canvas = renderer.domElement;
   canvas.className = 'sysworld-gl'; canvas.tabIndex = 0;
@@ -147,16 +150,23 @@ export async function createCity(host, options) {
   const hemisphere = new THREE.HemisphereLight(0xc0dcff, 0x10202d, .8);scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(0xc8deff, 3.2);
   sun.position.set(-70, 145, 85); sun.castShadow = true;
-  Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120, near: 1, far: 360 });
-  sun.shadow.normalBias = .09; sun.shadow.bias = -.00015; scene.add(sun);
+  // The frustum follows the walkable city, not the distant skyline, so the
+  // shadow map spends its resolution where the visitor actually stands.
+  Object.assign(sun.shadow.camera, { left: -108, right: 108, top: 108, bottom: -108, near: 1, far: 360 });
+  sun.shadow.normalBias = .09; sun.shadow.bias = -.00015; sun.shadow.radius = 2.4; scene.add(sun);
   const rim = new THREE.DirectionalLight(0xffb572, 2.4); rim.position.set(90, 80, -120); scene.add(rim);
+  // A dim upward bounce keeps the shadow sides of the districts readable
+  // without flattening the key light.
+  const bounce = new THREE.DirectionalLight(0xd89a6a, .42); bounce.position.set(-10, -40, 30); scene.add(bounce);
   const reactorLight = new THREE.PointLight(0x62dfff, 0, 75, 2);
   reactorLight.position.set(0, 34, -12); scene.add(reactorLight);
   const renderTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, renderTarget);
   composer.addPass(new SceneCapturePass(scene, camera, Math.min(4, renderer.capabilities.maxSamples)));
   // HDR threshold selects luminous windows/signals; dark work surfaces never bloom.
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .28, .55, 1.25);
+  // A wider, slightly lower threshold gives the new emissive landmarks and the
+  // night windows a softer halo instead of a hard edge.
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .28, .68, 1.06);
   composer.addPass(bloom); composer.addPass(new OutputPass());
   const world = new THREE.Group(), staticCity = new THREE.Group(), landmarks = new THREE.Group();
   scene.add(world); world.add(staticCity, landmarks);
@@ -171,6 +181,9 @@ export async function createCity(host, options) {
   // aviation lights and the cinematic grade.
   const atmosphere = createAtmosphere(scene, { sunDirection: sun.position, lamps: placements.filter(p => p.asset === 'street-lamp') });
   composer.addPass(atmosphere.post);
+  // Decorative data traffic between the districts. Fixed routes, bounded pool,
+  // never a reading of the system.
+  const flow = createFlow(scene, { anchors: districts.map(d => ({ id: d.id, x: d.x, z: d.z, height: d.height })) });
   const memoryDistrict = districts.find(d => d.id === 'memory');
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
   const drones = createDrones(scene,{traffic,surfaces});
@@ -186,6 +199,16 @@ export async function createCity(host, options) {
     matSet.add(m); return m; };
   const selection = new THREE.Mesh(ringGeometry, ringMaterial(.9, 18)), hoverRing = new THREE.Mesh(ringGeometry, ringMaterial(.38, 0));
   for (const ring of [selection, hoverRing]) { ring.rotation.x = -Math.PI / 2; ring.visible = false; world.add(ring); }
+  // A single expanding ripple marks a new selection. It is one reused mesh and
+  // one draw call, and it never runs while reduced motion is active.
+  const rippleMaterial = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { color: { value: new THREE.Color(0x8ee8ee) }, alpha: { value: 0 } },
+    vertexShader: 'varying vec2 vP;void main(){vP=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader: 'uniform vec3 color;uniform float alpha;varying vec2 vP;void main(){float a=atan(vP.y,vP.x)/6.2831853;gl_FragColor=vec4(color,alpha*(0.55+0.45*sin(a*3.0)));}' });
+  matSet.add(rippleMaterial);
+  const ripple = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 96), rippleMaterial);
+  geoSet.add(ripple.geometry); ripple.rotation.x = -Math.PI / 2; ripple.visible = false; world.add(ripple);
+  let rippleTime = 2;
   const stateColours = { error: 0xff7868, running: 0x75f4d1, stale: 0x7b8b9b, idle: 0x7cbfe3 }, districtState = {};
   const tintSelection = () => selection.material.uniforms.color.value.setHex(stateColours[districtState[selected]] ?? 0x8ee8ee);
   const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x66e0d6, toneMapped: false });
@@ -291,7 +314,7 @@ export async function createCity(host, options) {
     const dpr = Math.min(devicePixelRatio || 1, tiers[tier].dpr, Math.sqrt(3840 * 2160 / (width * height)));
     renderer.setPixelRatio(dpr); renderer.setSize(width, height, false); composer.setPixelRatio(dpr); composer.setSize(width, height);
     camera.aspect = width / height; camera.updateProjectionMatrix();
-    hologram.setPointScale(height * dpr); atmosphere.setPointScale(height * dpr);
+    hologram.setPointScale(height * dpr); atmosphere.setPointScale(height * dpr); flow.setPointScale(height * dpr);
   }
   function setQuality(value) {
     quality = value in tiers || value === 'auto' ? value : 'auto';
@@ -305,7 +328,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -336,6 +359,10 @@ export async function createCity(host, options) {
   function focus(id) {
     const d = districts.find(d => d.id === id); if (!d) return;
     selected = id; selection.position.set(d.x, .55, d.z); selection.scale.setScalar(d.radius * 1.3); selection.visible = true; tintSelection();
+    // The ripple marks the change of selection without touching the camera.
+    ripple.position.set(d.x, .62, d.z); ripple.scale.setScalar(d.radius * 1.3 * .35);
+    rippleMaterial.uniforms.color.value.setHex(stateColours[districtState[id]] ?? 0x8ee8ee);
+    rippleMaterial.uniforms.alpha.value = 0; rippleTime = 0; ripple.visible = !reduced;
     hoverRing.visible = !!hovered && hovered !== selected;
     if (mode === 'street') {
       options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
@@ -471,8 +498,25 @@ export async function createCity(host, options) {
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
     atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced); surfaces.update(dt, !reduced);
+    const mood = weather.mood();
+    flow.update(dt,!reduced,1-(mood.day||0));
+    if(!reduced){
+      // The selection ripple opens out from the district and fades away.
+      if(rippleTime<1.4){rippleTime+=dt;const p=Math.min(1,rippleTime/1.4);
+        const d=districts.find(d=>d.id===selected);
+        if(d){ripple.scale.setScalar(d.radius*1.3*(.35+p*1.05));rippleMaterial.uniforms.alpha.value=(1-p)*.55;}
+        if(p>=1)ripple.visible=false;
+      }
+      // The district beacons breathe so the skyline never looks frozen.
+      for(let i=0;i<districts.length;i++){
+        const d=districts[i];scratch.position.set(d.x,d.height+2,d.z);
+        scratch.scale.setScalar(1+Math.sin(elapsed*1.7+i*1.13)*.13);
+        scratch.updateMatrix();beacons.setMatrixAt(i,scratch.matrix);
+      }
+      beacons.instanceMatrix.needsUpdate=true;
+    }
     if (!reduced) ringTime.value += Math.min(.1, Math.max(0, dt));
-    const mood = weather.mood(), key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
+    const key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
     bloom.strength = .2 + .15 * (1 - mood.day); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
     if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
     hologram.update(dt, camera, !reduced);
@@ -499,7 +543,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -528,6 +572,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), flow:flow.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

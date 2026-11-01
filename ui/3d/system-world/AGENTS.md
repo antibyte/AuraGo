@@ -21,7 +21,7 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   Five residents share its geometry/materials/textures. Total kit plus robot
   remains below 12 MiB; hashes and source hashes must pass `check_assets.py`.
 - Manifest hashes, sizes, bounds and triangle counts must match actual GLBs.
-- `v2/` contains 33 Blender-authored designs and 99 GLBs with animation and
+- `v2/` contains 40 Blender-authored designs and 120 GLBs with animation and
   navigation metadata. Verify with `test-system-world-expansion.mjs` and
   `test-system-world-layout.mjs`; upper floors must match actual rendered lift
   landings. The complete app (models, renderer, scripts, locales) has a 48 MiB

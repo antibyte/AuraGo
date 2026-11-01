@@ -4,7 +4,7 @@ import {interiors,stations,tramWaypoints,dronePad,roomAt,canWalk,groundHeight,bu
 import {surfaces,liftContains,upperWalkable,roomFloorTiles,skyDeck,skyWalkable} from './sysworld-layout.js';
 import {streetCurve} from './sysworld-navigation.js';
 import {bodyShape,createTraffic} from './sysworld-traffic.js';
-import {livingPlaces} from './sysworld-places.js';
+import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 import {createSociety} from './sysworld-society.js';
 import {createMachinery} from './sysworld-machinery.js';
 
@@ -12,7 +12,7 @@ import {createMachinery} from './sysworld-machinery.js';
 // animation mixers; it is stepped by the existing city RAF, never its own timer.
 export function createExperience(scene,options){
   const group=new THREE.Group();group.name='world-2';scene.add(group);
-  const cache=new Map(),geometries=new Set(),materials=new Set(),mixers=[],residents=[],trams=[],rooms=new Map(),doors=new Map();
+  const cache=new Map(),geometries=new Set(),materials=new Set(),mixers=[],residents=[],trams=[],rooms=new Map(),doors=new Map(),landmarks=[];
   const staticGroups=new Map(),shells=new Map(),loaded=new Set(),bindings=[],textures=new Set(),freight=[],missionStates=new Map(),controller=new AbortController();
   let memoryTexts=[],freightEvents=0,missionSeeded=false;
   let disposed=false,tier=options.tier||'high',manifest=null,bytes=0,clock=0,ride=null,near=null,footClock=0,visited=new Set(),room=null,loading=0;
@@ -148,6 +148,13 @@ export function createExperience(scene,options){
       for(const p of livingPlaces) {
         const model=await place(p.id,p.x,p.z,groundHeight(p.x,p.z),0,group,[1,1,1],2);if(disposed)return;
         if(model){model.level=2;living.set(p.id,model);machinery.attach(p.id,model);society.addPlace(p,manifest.assets.find(a=>a.id===p.id));model.play('operate');}
+      }
+      // Civic landmarks keep their own animated parts, so they stay outside the
+      // batched static group and play their exported clip continuously.
+      for(const landmark of landmarkPlaces){
+        const model=await place(landmark.id,landmark.x,landmark.z,landmark.y,landmark.angle||0,group);
+        if(!model){if(disposed)return;continue;}
+        model.play(landmark.clip);landmarks.push({id:landmark.id,model});
       }
       const cart=await place('service-cart',55,49,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
       for(let i=0;i<19;i++){
@@ -387,6 +394,7 @@ export function createExperience(scene,options){
     isRiding:()=>!!ride,interaction:()=>near,
     rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:ride?.kind==='scope'?ride.scope.model.owner:ride?.kind==='sky'?sky.lift?.owner||null:null,
     stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
+      landmarks:landmarks.map(l=>l.id),
       sky:{ready:sky.ready,value:+sky.value.toFixed(2),moving:!!sky.motion},telescopes:scopes.length,
       scope:ride?.kind==='scope'?{id:ride.id,target:ride.target,fov:+camera.fov.toFixed(1)}:null}),
     dispose(){if(disposed)return;disposed=true;controller.abort();society.dispose();machinery.dispose();if(!options.traffic)traffic.dispose();memoryTexts=[];missionStates.clear();group.removeFromParent();mixers.forEach(m=>{m.stopAllAction();m.uncacheRoot(m.getRoot());});group.traverse(n=>{if(n.isInstancedMesh)n.dispose();});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());cache.clear();},

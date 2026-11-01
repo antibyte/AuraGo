@@ -26,7 +26,7 @@ Own the original Blender city kit, deterministic generator and source scene.
   changes `ui/3d/robot.glb`, and exports tangents without runtime Draco.
 - Only runtime GLBs, manifest and license belong in the resource package.
 - Keep the planned cinematic city direction and street-level inspection quality.
-- `build_expansion.py` owns 36 v2 designs and `production/aurago-world-2.blend`.
+- `build_expansion.py` owns 40 v2 designs and `production/aurago-world-2.blend`.
   The `telescope` tube pivots at its yoke and faces glTF +Z at rest. The `sky-lift`
   cab travels `SKY_TRAVEL` (71.32 m) from the 0.88 m agent podium to the `sky-deck`
   (top at zero, placed at 72.2 m); keep both equal to `skyDeck` in
@@ -36,7 +36,10 @@ Own the original Blender city kit, deterministic generator and source scene.
   fountain, glass garden and sheltered charging/meeting point. Export their
   colliders, work slots, interaction and emitter markers at all three LODs.
   The courier's named `parcel` component follows its pickup/delivery cycle.
-  The manifest pins hashes of all three authoring sources.
+  `landmark_assets.py` authors the tidal turbine, data monument, neon gate and sky
+  pod. Each owns one named animated part (rotor, rings and core, light band,
+  scanner); the exported clip drives that part, and the pivot must stay at the
+  part's own centre. The manifest pins hashes of all four authoring sources.
   Robot `motion_bounds` enclose all sampled exported clips; collision dimensions
   include raised arms and remain identical across LODs.
   Preserve matching LOD pivots and articulated clips. Modular floors have planar

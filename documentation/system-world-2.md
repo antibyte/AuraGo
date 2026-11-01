@@ -48,7 +48,7 @@ tracks, and drones respect roof heights and each other. The visitor slides along
 obstacles; tours and overview flights also use checked paths. Only the vehicle
 currently carrying the visitor is exempted from their collision checks.
 
-The 36-design expansion has 108 exported GLBs. New installations start at LOD2;
+The 40-design expansion has 120 exported GLBs. New installations start at LOD2;
 medium and fine detail load within 55 and 32 metres, subject to quality. Exported
 workpoints, collider boxes and interaction markers remain invariant. Model assets
 have a 12 MiB ceiling; first display remains 12 MiB and the full app 48 MiB. Local
@@ -89,6 +89,14 @@ District labels give way to each other and to the panels: the selected, hovered
 and alarming districts win, distant labels fade, and a label cut by the header
 slides down its building. Hovering a building highlights its label and draws a
 ground ring; the selection ring turns and pulses in the district's state colour.
+A new selection opens a single expanding ripple in the district's state colour.
+The four civic landmarks - the offshore tidal turbine, the kinetic plaza
+monument, the street gateway and the elevated observation pod - keep their own
+exported motion: the rotor turns, the monument's rings counter-turn around a
+floating core, the gateway's light band travels along its lintel and the pod's
+scanner sweeps the skyline. A fixed set of data motes travels along arcs
+between the districts; the arcs are part of the city, never a reading of the
+system, and they freeze with reduced motion.
 Loading shows real download progress, and the city fades in with a short opening
 glide; street entries dip through a brief fade. The tour shows a lower third per
 station. In street mode a compass in the header shows the heading and the
