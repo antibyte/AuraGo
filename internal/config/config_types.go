@@ -1462,6 +1462,7 @@ type Config struct {
 			DecayTurns      int  `yaml:"decay_turns"`        // turns after which inner voice fades from prompt (default: 3)
 			DecayMaxAgeSecs int  `yaml:"decay_max_age_secs"` // max seconds before inner voice expires regardless of turns (default: 300 = 5min)
 		} `yaml:"inner_voice"`
+		PersonaBooster PersonaBoosterConfig `yaml:"persona_booster"` // temporary persona phases + stronger base voice
 	} `yaml:"personality"`
 	CircuitBreaker struct {
 		MaxToolCalls                 int      `yaml:"max_tool_calls"`
