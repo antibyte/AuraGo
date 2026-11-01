@@ -76,7 +76,7 @@
             return '<div class="ec-field" role="group" data-var="' + esc(v.id) + '" data-state="input" data-dim="' + esc(v.dim) + '"' + (v.list ? ' data-list="true"' : '') + ' aria-labelledby="' + id + '-label">'
                 + '<div class="ec-field-head"><label class="ec-field-label" id="' + id + '-label" for="' + id + '" title="' + esc(v.name || '') + '">' + Typeset.labelHTML(v.label || v.id) + '</label>'
                 + '<button type="button" class="ec-lock" aria-pressed="false" data-action="lock">' + icon('lock') + '</button></div>'
-                + '<div class="ec-field-row"><input class="ec-input" id="' + id + '" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="' + id + '-msg">' + unit + '</div>'
+                + '<div class="ec-field-row"><input class="ec-input" id="' + id + '" type="text" inputmode="decimal" maxlength="' + units.maxLength(!!v.list) + '" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="' + id + '-msg">' + unit + '</div>'
                 + '<div class="ec-field-msg" id="' + id + '-msg" aria-live="polite"></div></div>';
         }
 

@@ -366,6 +366,40 @@ for (const item of calculators) {
     count += 5;
 }
 
+// ---- input length limits: 64 characters per value, 256 per list; long digit strings are rejected at once ------------------
+{
+    const S = core.solve, auto = () => '';
+    assert.equal(units.maxLength(false), 64);
+    assert.equal(units.maxLength(true), 256);
+    assert.equal(core.units.MAX_VALUE_LENGTH, 64);
+    assert.equal(core.units.MAX_LIST_LENGTH, 256);
+    // The patterns for numbers match in linear time; the length limit rejects a digit string before any pattern runs.
+    for (const text of ['1'.repeat(100000), '1'.repeat(100000) + 'x', '1'.repeat(100000) + '.' + '1'.repeat(100000) + 'e', '9'.repeat(65)]) {
+        const started = performance.now();
+        throwsCode(() => units.parse(text, 'resistance', ''), 'parse', 'a long digit string is a parse error');
+        throwsCode(() => units.parseList(text, 'resistance', ''), 'parse', 'and so is a long list');
+        const elapsed = performance.now() - started;
+        assert.ok(elapsed < 50, 'rejecting ' + text.length + ' characters took ' + elapsed.toFixed(1) + ' ms, want less than 50');
+    }
+    // A string of the longest accepted size stays cheap, too (the quadratic pattern needed seconds for 100k digits).
+    const worst = '1'.repeat(63) + 'x', started = performance.now();
+    for (let round = 0; round < 200; round += 1) assert.throws(() => units.parse(worst, 'resistance', ''));
+    assert.ok(performance.now() - started < 200, 'the longest accepted digit strings parse quickly');
+    same(units.parse('0'.repeat(63) + '5', 'number', ''), 5, 'exactly 64 characters read');
+    throwsCode(() => units.parse('0'.repeat(64) + '5', 'number', ''), 'parse', '65 characters do not');
+
+    const divider = calcOf('voltage_divider'), series = calcOf('series_parallel');
+    const stored = { inputs: { vin: '5 V', r1: '1k', r2: '1k' }, recency: ['vin', 'r1', 'r2'], locked: [], choices: {} };
+    eq(S.restoreState(divider, stored, units, auto).inputs, stored.inputs, 'a stored state within the limit is restored');
+    const oversize = Object.assign({}, stored, { inputs: Object.assign({}, stored.inputs, { r1: '1' + '0'.repeat(64) }) });
+    eq(S.restoreState(divider, oversize, units, auto), S.defaultState(divider, units, auto), 'a stored text beyond 64 characters is not used');
+    const roomy = { inputs: { rs: Array.from({ length: 40 }, () => '10k').join(' ') }, recency: ['rs'], locked: [], choices: {} };
+    eq(S.restoreState(series, roomy, units, auto).inputs, roomy.inputs, 'a list text of 159 characters is within the list limit');
+    const tooLong = { inputs: { rs: '1 '.repeat(129) }, recency: ['rs'], locked: [], choices: {} };
+    eq(S.restoreState(series, tooLong, units, auto), S.defaultState(series, units, auto), 'a stored list beyond 256 characters is not used');
+    count += 23;
+}
+
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------
 {
     const ctx = { labelOf: name => ({ vout: 'V_out', vin: 'V_in', r2: 'R_2', r1: 'R_1' }[name] || ''), constOf: name => (name === 'k' ? '20' : undefined) };

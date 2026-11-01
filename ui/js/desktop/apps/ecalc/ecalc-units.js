@@ -5,6 +5,7 @@
    ECalcCore.units.create(catalog.units) returns the API used by the solver and the pages:
      parse(input, dim, unit) -> base value        parseList(input, dim, unit) -> [base value]
      format(value, dim, unit, sig) -> text        dim(id) -> {symbol, positive, ...}     options(dim) -> unit choices
+     maxLength(list) -> the longest text a field accepts (64 characters, 256 for a list); parse and parseList reject more
    `unit` is '' (automatic prefix), the id of an explicit unit (dBm, Ah ...) or, as a display choice of the pages only,
    'prefix:<id>' for a fixed prefix (prefix:m shows milli-units, prefix: the plain unit). Every value is in SI base units. */
 (function () {
@@ -13,11 +14,16 @@
     const core = (window.ECalcCore = window.ECalcCore || {});
     const expr = core.expr;
 
-    const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
-    const NUMBER_PREFIX = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)([pnuµmkKMG])$/;
+    const NUMBER = /^[+-]?(\d+(?:\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+    const NUMBER_PREFIX = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([pnuµmkKMG])$/;
     const INFIX = /^(\d+)([pnuµmkKMG])(\d+)$/;
     const INFIX_R = /^(\d+)R(\d+)$/;
     const LIST_SEPARATOR = /[;\s]+|,(?!\d)/;
+    // The text fields of the pages carry these as maxlength; parse() and parseList() reject longer text outright, which
+    // also bounds the work an arbitrary string can cause. Lengths are UTF-16 code units (internal/ecalc/units.go counts
+    // the same way).
+    const MAX_VALUE_LENGTH = 64;
+    const MAX_LIST_LENGTH = 256;
     const PREFIX_UNIT = 'prefix:';
     // U+03BC (Greek mu) is typed for the micro sign U+00B5, U+2126 (ohm sign) for the Greek capital omega U+03A9.
     const fold = text => text.split(String.fromCharCode(0x3bc)).join(String.fromCharCode(0xb5)).split(String.fromCharCode(0x2126)).join(String.fromCharCode(0x3a9));
@@ -72,8 +78,10 @@
         function parse(input, dimId, unitId) {
             const d = dim(dimId);
             if (unitId && !d.unitById.has(unitId) && !(unitId.startsWith(PREFIX_UNIT) && prefixFactor.has(unitId.slice(PREFIX_UNIT.length)))) throw fail('unknown unit ' + unitId + ' for ' + dimId);
+            const typed = String(input == null ? '' : input);
+            if (typed.length > MAX_VALUE_LENGTH) throw fail('the input is longer than ' + MAX_VALUE_LENGTH + ' characters');
             // The Greek mu and the ohm sign are folded into the micro sign and the Greek capital omega.
-            let text = fold(String(input == null ? '' : input).trim().replace(/\s+/g, ''));
+            let text = fold(typed.trim().replace(/\s+/g, ''));
             if (text === '') throw fail('empty input');
             text = text.replace(/,/g, '.');
 
@@ -121,7 +129,9 @@
         // List fields: the items are separated by semicolons, white space and commas that are not followed by a digit
         // (a comma in front of a digit is a decimal comma: "4,7k, 10k" is two items); every item is parsed like parse().
         function parseList(input, dimId, unitId) {
-            const items = String(input == null ? '' : input).trim().split(LIST_SEPARATOR).filter(Boolean);
+            const typed = String(input == null ? '' : input);
+            if (typed.length > MAX_LIST_LENGTH) throw fail('the list is longer than ' + MAX_LIST_LENGTH + ' characters');
+            const items = typed.trim().split(LIST_SEPARATOR).filter(Boolean);
             if (!items.length) throw fail('empty list');
             return items.map(item => parse(item, dimId, unitId));
         }
@@ -161,8 +171,11 @@
             return d.prefixes.length || d.units.length ? list : [list[0]];
         }
 
-        return { dim, parse, parseList, format, options, roundSig, fmtNum, fmtSig };
+        // The longest text a field of a single value (or of a list) accepts.
+        const maxLength = list => (list ? MAX_LIST_LENGTH : MAX_VALUE_LENGTH);
+
+        return { dim, parse, parseList, format, options, maxLength, roundSig, fmtNum, fmtSig };
     }
 
-    core.units = { create, roundSig, fmtNum, fmtSig, PREFIX_UNIT };
+    core.units = { create, roundSig, fmtNum, fmtSig, PREFIX_UNIT, MAX_VALUE_LENGTH, MAX_LIST_LENGTH };
 })();

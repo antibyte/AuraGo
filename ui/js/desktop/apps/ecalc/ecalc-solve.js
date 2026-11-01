@@ -133,13 +133,18 @@
     }
 
     // A stored state is only used when its inputs are one of the solvable sets; anything else falls back to the defaults.
-    // Only inputs can be locked: a stored lock on any other variable is dropped.
+    // A stored text longer than its field accepts (units.maxLength) counts as unusable, so such a state is not used
+    // either. Only inputs can be locked: a stored lock on any other variable is dropped.
     function restoreState(calc, stored, units, unitOf) {
         const base = defaultState(calc, units, unitOf);
         if (!stored || typeof stored !== 'object' || !stored.inputs || typeof stored.inputs !== 'object') return base;
         const names = Object.keys(stored.inputs);
         const sameSet = calc.sets.some(set => set.length === names.length && set.every(name => names.includes(name)));
-        if (!sameSet || !names.every(name => typeof stored.inputs[name] === 'string')) return base;
+        const fits = name => {
+            const v = calc.vars.find(entry => entry.id === name);
+            return typeof stored.inputs[name] === 'string' && stored.inputs[name].length <= units.maxLength(!!(v && v.list));
+        };
+        if (!sameSet || !names.every(fits)) return base;
         const recency = (Array.isArray(stored.recency) ? stored.recency : []).filter(name => names.includes(name));
         for (const name of names) if (!recency.includes(name)) recency.unshift(name);
         const choices = Object.assign({}, base.choices);

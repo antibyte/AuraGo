@@ -22,11 +22,33 @@ var (
 )
 
 var (
-	plainNumRe    = regexp.MustCompile(`^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$`)
-	prefixedNumRe = regexp.MustCompile(`^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)([pnu` + micro + `mkKMG])$`)
+	plainNumRe    = regexp.MustCompile(`^[+-]?(\d+(?:\.\d*)?|\.\d+)([eE][+-]?\d+)?$`)
+	prefixedNumRe = regexp.MustCompile(`^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([pnu` + micro + `mkKMG])$`)
 	infixNumRe    = regexp.MustCompile(`^(\d+)([pnu` + micro + `mkKMG])(\d+)$`)
 	infixRRe      = regexp.MustCompile(`^(\d+)R(\d+)$`)
 )
+
+// The longest text Parse (one value) and ParseList (a list, each item still at most MaxValueLength) accept; the text
+// fields of the app carry the same maxlength. Longer input is a parse error before any pattern runs, which bounds the
+// work an arbitrary string can cause. Lengths count UTF-16 code units, like String.prototype.length in the JavaScript
+// twin.
+const (
+	MaxValueLength = 64
+	MaxListLength  = 256
+)
+
+// textLength is the length of s in UTF-16 code units.
+func textLength(s string) int {
+	n := 0
+	for _, r := range s {
+		if r >= 0x10000 {
+			n += 2
+		} else {
+			n++
+		}
+	}
+	return n
+}
 
 // Prefix is an SI prefix: id (p n µ m k M G) and factor.
 type Prefix struct {
@@ -264,6 +286,9 @@ func (u *Units) Parse(input, dimID, unitID string) (float64, error) {
 	if d == nil {
 		return 0, fmt.Errorf("unknown dimension %q", dimID)
 	}
+	if textLength(input) > MaxValueLength {
+		return 0, fmt.Errorf("the input is longer than %d characters", MaxValueLength)
+	}
 	s := inputFold.Replace(strings.Join(strings.Fields(input), ""))
 	return u.parseNormalized(d, strings.ReplaceAll(s, ",", "."), unitID)
 }
@@ -300,12 +325,18 @@ func (u *Units) ParseList(input, dimID, unitID string) ([]float64, error) {
 	if d == nil {
 		return nil, fmt.Errorf("unknown dimension %q", dimID)
 	}
+	if textLength(input) > MaxListLength {
+		return nil, fmt.Errorf("the list is longer than %d characters", MaxListLength)
+	}
 	fields := listFields(input)
 	if len(fields) == 0 {
 		return nil, errors.New("empty list")
 	}
 	out := make([]float64, 0, len(fields))
 	for _, f := range fields {
+		if textLength(f) > MaxValueLength {
+			return nil, fmt.Errorf("a list item is longer than %d characters", MaxValueLength)
+		}
 		v, err := u.parseNormalized(d, strings.ReplaceAll(inputFold.Replace(f), ",", "."), unitID)
 		if err != nil {
 			return nil, err
