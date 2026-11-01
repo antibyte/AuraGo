@@ -28,6 +28,8 @@ const (
 	QuestionSourceTelegram QuestionSource = "telegram"
 	// QuestionSourceDiscord is a Discord chat reply.
 	QuestionSourceDiscord QuestionSource = "discord"
+	// QuestionSourceWhatsApp is a WhatsApp owner-chat reply.
+	QuestionSourceWhatsApp QuestionSource = "whatsapp"
 	// QuestionSourceTelnyx is an SMS reply received through Telnyx.
 	QuestionSourceTelnyx QuestionSource = "telnyx"
 	// QuestionSourceInternal is a loopback follow-up or mission turn relayed

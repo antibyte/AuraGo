@@ -17,6 +17,7 @@ func TestQuestionAnswerFromAdminSurface(t *testing.T) {
 		tools.QuestionSourceDesktop:  true,
 		tools.QuestionSourceTelegram: false,
 		tools.QuestionSourceDiscord:  false,
+		tools.QuestionSourceWhatsApp: false,
 		tools.QuestionSourceTelnyx:   false,
 		tools.QuestionSourceInternal: false,
 		"":                           false,
