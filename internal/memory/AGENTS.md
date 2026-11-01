@@ -59,15 +59,16 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - `BeginSessionTurn` registers an ingress run before waiting on the store/session
   gate. Hold that shared gate from history construction through durable
   publication and delivery across Web, Desktop, AgoDesk, realtime speech,
-  Telegram, Discord, Rocket.Chat and agent loopback. Stop cancels active and
-  queued registrations without fencing future turns or deleting data.
+  Telegram, WhatsApp, Discord, Rocket.Chat and agent loopback. Stop cancels
+  active and queued registrations without fencing future turns or deleting
+  data.
 - Keep acquisition at ingress; `ExecuteAgentLoop` must not acquire the same gate
   again. Combined release is idempotent. Independent stores and session IDs have
   independent gates. Verify `TestBeginSessionTurnRegistersQueuedRunBeforeWaitingAndStopCancelsIt`
   and `TestBeginSessionTurnKeepsHistoryAssemblyAfterPriorPublication`.
 - Pending question replies complete the already running turn before acquiring
-  its gate. Telegram registers cancellation before media processing, then uses
-  `LockSessionTurn` after routing any question reply.
+  its gate. Telegram and WhatsApp register cancellation before media
+  processing, then use `LockSessionTurn` after routing any question reply.
 
 
 ### Conflict and graph integrity

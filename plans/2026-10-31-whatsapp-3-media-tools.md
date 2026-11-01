@@ -163,6 +163,19 @@
     - From the worktree, the path is `../../../agotrain/training`, not `../agotrain`.
 26. **Discovery eval.** Q101 (en) and Q102 (de) are added; the doc comment count changes from 100 to 102. The floors stay (they are absolute ratchets).
 27. **Masked owner-send errors.** whatsmeow's `ErrRecipientNotOnWhatsApp` text names the owner JID (`send.go:341-365`). Every error `SendOwnerMessage` returns has a masked `Error()` and keeps `errors.Is`.
+28. **Owner API gate on the live config.** `ownerSendAllowed` reads `whatsapp.readonly` from the live configuration on every owner send, and fails closed with `ErrNotConnected` when there is no snapshot, egg mode is on or the generation no longer matches the live `whatsapp` section. Read-only is checked before the generation match, so the answer is `ErrReadOnly` whenever read-only is on.
+29. **ffmpeg hardening.** Every conversion of a received file runs with `-protocol_whitelist file,pipe`, a `-format_whitelist` of audio and video demuxers, and `-fs` at the 50 MB limit. An output at or above the limit is `ErrMediaTooLarge`, never a truncated success.
+30. **Inbound audio to MP3.** Voice messages and audio files become mono 16 kHz MP3 at 64 kbit/s for transcription, which is enough for speech. WhatsApp uses its own converter (`convertToMP3`); Telegram's `ConvertOggToMp3Context` is unchanged.
+31. **Sender file names.** A received document's name goes through `media.SanitizeFileName` (reserved characters, NTFS streams, Cc and Cf runes, trailing dots and spaces, a 100-byte base cap). `media.SaveAttachmentContext` keeps its naming byte for byte for Discord and Telegram.
+32. **Forwarded, quoted and commands.** Forwarded and quoted detection is an OR across every content type's ContextInfo, not the first one. A slash command runs only from a message that carries one content type, and a message without the owner's own words gets no HumanInput.
+33. **Answer images.** `/files/` answer images open through `tools.OpenOutgoingAttachment`, and at most five images of one reply are fetched; the rest become `[Image: alt]` lines. Fetched copies are removed after sending.
+34. **Captured media.** The broker keeps at most five audio and five video captures per run. After a failed agent run the captured media is dropped, with one fixed log line.
+35. **Owner API text and errors.** An owner send ends with its generation's context, and `TextSent` is true once any part of the text reached an owner, including a long text whose first parts went out before a later part failed. Errors stay masked while `errors.Is` still works.
+36. **Notification limit.** A notification whose raw title, newline and message exceed 4000 runes is refused rather than split (counted before `Scrub`, which can lengthen text); `tools.WhatsAppMaxMessageRunes` is pinned to the chunk limit by a test. The title stays on one bold line.
+37. **Generic flows node.** `send_whatsapp` stays in `genericExcluded` until stage 3b brings the curated `notify.whatsapp` node, because a generic node has no duplicate-text guard on a retry.
+38. **Configured but not linked.** While no linked generation runs, `send_whatsapp` answers `needs_setup` (code `runtime_dependency_unavailable`, "WhatsApp is not linked or not running"), not "disabled by the administrator".
+39. **TTS scrub.** The `tts` action scrubs its text with `security.Scrub` in `dispatch_platform.go` before synthesis, so a registered secret is never spoken or sent as a voice note.
+40. **`deliverTextParts`.** `sender.deliverTextParts` is `deliverText` that also reports whether any chunk reached WhatsApp. The owner API uses it for `TextSent`, so a caller that retries a partly delivered long text knows the first parts already went out.
 
 ## Dispatch grouping (lean execution, dependency order)
 
@@ -1183,11 +1196,14 @@ if cfg.WhatsApp.Enabled {
 ## Task 12: Real-phone checklist (user; checklist only)
 
 - [ ] A voice note to AuraGo is transcribed and answered. A forwarded voice note is treated as third-party (no slash command).
+- [ ] A forwarded multi-part message that contains a slash command (for example `/voice`) does not run the command.
 - [ ] `/voice`, then a question: the answer arrives as a voice note that plays inline and shows its duration. Record how the waveform looks (none is sent). With voice mode off, TTS arrives as an audio file.
 - [ ] An image with a caption is described. A PDF lands in `agent_workspace/workdir/attachments/`, and the agent can read it.
+- [ ] A document whose name has reserved characters (for example `:` or `?`) is saved under a safe name.
 - [ ] A video and a sticker get a short acknowledgement. A location gives the agent its coordinates. A contact card is handled as third-party data. A quoted reply shows the agent the quoted context.
 - [ ] Media over 50 MB is refused without a download (status log `too_large`).
 - [ ] An answer with a Markdown image arrives as an image with its caption. A YouTube answer carries the link.
+- [ ] An answer with more than 5 Markdown images: exactly 5 arrive as images; the rest appear as `[Image: …]` lines.
 - [ ] `send_whatsapp`:
   - text arrives;
   - a PDF arrives as a document, a JPG as an image and an MP4 as a playable video;
