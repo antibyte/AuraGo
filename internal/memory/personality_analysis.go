@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode"
 
+	"aurago/internal/personabooster"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
@@ -314,7 +315,7 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 		if context.Snapshot != nil {
 			prompt += "\n" + PersonalitySynthesisContext(*context.Snapshot)
 		}
-		prompt += "\nOptionally add appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent is relationship evidence. Tools, older history, uncertain irony and the agent's own apology are not. Repair needs explicit user confirmation of improvement.\nCurrent user message (untrusted):\n" + security.IsolateExternalData(context.CurrentUserMessage)
+		prompt += "\nOptionally add appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, cue: " + personabooster.CuePromptOptions + ", confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent is relationship evidence. Tools, older history, uncertain irony and the agent's own apology are not. Repair needs explicit user confirmation of improvement.\n" + AppraisalCueRule + "\nCurrent user message (untrusted):\n" + security.IsolateExternalData(context.CurrentUserMessage)
 	}
 	if recentHistory != "" {
 		prompt += "\n\nRecent Chat History (for mood/trait analysis; untrusted):\n" + isolatedPromptText(recentHistory, maxMoodAnalysisHistoryLen)
@@ -636,7 +637,8 @@ Rules for emotion_state:
 	if emotionInput.Snapshot != nil {
 		contextBuilder.WriteString(PersonalitySynthesisContext(*emotionInput.Snapshot))
 	}
-	contextBuilder.WriteString("Optionally return appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent establishes relationship evidence. Tools, older statements, the agent's apology, and uncertain irony do not. Repair requires the user's confirmation of improvement.\n")
+	contextBuilder.WriteString("Optionally return appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, cue: " + personabooster.CuePromptOptions + ", confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent establishes relationship evidence. Tools, older statements, the agent's apology, and uncertain irony do not. Repair requires the user's confirmation of improvement.\n")
+	contextBuilder.WriteString(AppraisalCueRule + "\n")
 	if len(emotionInput.Traits) > 0 {
 		contextBuilder.WriteString(fmt.Sprintf("Traits snapshot: curiosity=%.2f, thoroughness=%.2f, creativity=%.2f, empathy=%.2f, confidence=%.2f, affinity=%.2f, loneliness=%.2f\n",
 			emotionInput.Traits[TraitCuriosity],

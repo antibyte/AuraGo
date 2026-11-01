@@ -266,6 +266,7 @@ func applyPersonalityV2AnalysisResult(
 			logger.Info("[Personality V2] Observation not applied", "error", err)
 			return
 		}
+		applyPersonaBoosterCue(cfg, stm, logger, result.Appraisal, time.Now())
 		if narrated && acceptedThought != "" {
 			applyInnerVoiceResult(sessionID, acceptedThought, acceptedCategory, acceptedConfidence)
 		}

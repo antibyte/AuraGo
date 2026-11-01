@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 	"math/rand/v2"
 	"strings"
@@ -84,5 +85,39 @@ func TestPersonaBoosterTurnSkipsExcludedRunsButKeepsAmplifier(t *testing.T) {
 	cfg.Personality.PersonaBooster.Enabled = false
 	if got := preparePersonaBoosterTurn(human, punk, slog.Default(), turn); got != (personaBoosterPrompt{}) {
 		t.Fatalf("booster off: %+v", got)
+	}
+}
+
+func TestPersonaBoosterAppliesHelperCueAfterAnalysis(t *testing.T) {
+	fixedPersonaBoosterRand(t, 0)
+	stm := newTestPersonalityRuntimeMemory(t)
+	cfg := personaBoosterTestConfig()
+	cfg.Personality.Engine, cfg.Personality.EngineV2 = true, true
+	const message = "Das war ehrlich gesagt ziemlich schwach von dir"
+	apply := func(cue string, confidence float64) {
+		t.Helper()
+		input := memory.NewHumanInput(message, "default")
+		run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "cue-" + cue, HumanInput: input}
+		basis := prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, message, memory.DefaultPersonalityMeta(), slog.Default())
+		if basis == nil {
+			t.Fatal("missing snapshot")
+		}
+		applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, "", "", "", 0, false, 0, 0, personalityV2AnalysisResult{
+			Input: input, Basis: basis, ObservationID: basis.TurnID, Mood: memory.MoodFocused,
+			Appraisal: &memory.PersonalityAppraisal{Signal: "none", Target: "unknown", Cue: cue, Confidence: confidence, Reference: "current_user_message"},
+		})
+	}
+	apply("criticism", 0.4)
+	apply("tantrum", 0.9)
+	if state, _ := stm.LoadPersonaBoosterState(); state.PhaseID != "" {
+		t.Fatalf("a weak or unknown cue started a phase: %+v", state)
+	}
+	apply("criticism", 0.9)
+	state, err := stm.LoadPersonaBoosterState()
+	if err != nil || state.Trigger != personabooster.CueCriticism || (state.PhaseID != "rage" && state.PhaseID != "cynic") {
+		t.Fatalf("state = %+v, err = %v", state, err)
+	}
+	if !strings.Contains(helperTurnBatchPrompt, memory.AppraisalCueRule) || !strings.Contains(helperTurnBatchPrompt, `"cue": "none"`) {
+		t.Fatal("the batched helper prompt does not request the cue")
 	}
 }

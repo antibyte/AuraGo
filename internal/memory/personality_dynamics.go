@@ -24,6 +24,7 @@ type PersonalityAppraisal struct {
 	Reference  string  `json:"reference"`
 	Signal     string  `json:"signal"`
 	Target     string  `json:"target"`
+	Cue        string  `json:"cue,omitempty"` // persona booster context cue; validated by BoosterCue
 	Confidence float64 `json:"confidence"`
 }
 

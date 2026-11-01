@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/personabooster"
 	"aurago/internal/prompts"
 )
@@ -169,4 +170,39 @@ func personaBoosterLogger(logger *slog.Logger) *slog.Logger {
 		return slog.Default()
 	}
 	return logger
+}
+
+// applyPersonaBoosterCue feeds one validated helper cue into the phase state.
+// It runs on the analysis goroutine after the turn; the store serializes the
+// update, and the prompt shows the result from the next turn on.
+func applyPersonaBoosterCue(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger, appraisal *memory.PersonalityAppraisal, now time.Time) {
+	if cfg == nil || stm == nil || !cfg.Personality.PersonaBooster.Enabled {
+		return
+	}
+	cue, ok := appraisal.BoosterCue()
+	if !ok {
+		return
+	}
+	logger = personaBoosterLogger(logger)
+	persona := effectivePersonalityID(cfg.Personality.CorePersonality)
+	cat, ok := loadPersonaBoosterCatalog(cfg, persona, logger)
+	if !ok {
+		return
+	}
+	booster := cfg.Personality.PersonaBooster
+	rng := newPersonaBoosterRand()
+	var event personabooster.Event
+	_, err := stm.UpdatePersonaBoosterState(func(state personabooster.State) personabooster.State {
+		next, ev := personabooster.Decide(state, personabooster.Input{
+			Persona: persona, Now: now, Signals: []string{cue}, Intensity: booster.Intensity,
+			Cooldown: time.Duration(booster.CooldownMinutes) * time.Minute,
+		}, cat, rng)
+		event = ev
+		return next
+	})
+	if err != nil {
+		logger.Warn("[PersonaBooster] Cue update failed", "error", err)
+		return
+	}
+	logPersonaBoosterEvent(logger, event, "helper_cue")
 }
