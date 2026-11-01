@@ -382,9 +382,9 @@ func TestPipelineTypesWhileRunningThenPauses(t *testing.T) {
 	}
 }
 
-// Only the top-level text of the unwrapped message starts a turn. A wrapper that hides a
-// protocol message or text passes the inbound filter but must not reach the agent.
-func TestPipelineStartsNoTurnWithoutTopLevelText(t *testing.T) {
+// Only the top level of the unwrapped message counts. A wrapper that hides a protocol
+// message or text passes the inbound filter but must not reach the agent.
+func TestPipelineStartsNoTurnWithoutContent(t *testing.T) {
 	const secret = "secret-message-text"
 	wrapped := func(inner *waE2E.Message) *waE2E.Message {
 		return &waE2E.Message{ViewOnceMessageV2: &waE2E.FutureProofMessage{
@@ -396,7 +396,6 @@ func TestPipelineStartsNoTurnWithoutTopLevelText(t *testing.T) {
 		msg  *waE2E.Message
 		kind string
 	}{
-		{"image with caption", &waE2E.Message{ImageMessage: &waE2E.ImageMessage{Caption: proto.String(secret)}}, "image"},
 		{"nested protocol message", wrapped(&waE2E.Message{ProtocolMessage: &waE2E.ProtocolMessage{Type: waE2E.ProtocolMessage_REVOKE.Enum()}}), "other"},
 		{"nested text", wrapped(textMsg(secret)), "other"},
 	} {

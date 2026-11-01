@@ -17,7 +17,6 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
-	"aurago/internal/telegram"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 
@@ -75,6 +74,11 @@ type pipeline struct {
 	now         func() time.Time
 	typingEvery time.Duration
 	logger      *slog.Logger
+
+	// Media seams; nil means production (as agentLoop does).
+	transcribe   func(ctx context.Context, name string, data []byte, cfg *config.Config) (string, error) // tools.TranscribeAudio without the score
+	analyzeImage func(ctx context.Context, path string, cfg *config.Config) (string, error)              // telegram.AnalyzeImageContext
+	toMP3        func(ctx context.Context, in, out string) error                                         // telegram.ConvertOggToMp3Context
 }
 
 // handle runs one accepted owner message to its reply. It logs the owner's masked JID and
@@ -175,41 +179,52 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		historyManager = nil
 	}
 
-	// 4. Text. Only the top-level text of the unwrapped message counts: a media message, or
-	// a wrapper that hides other content, starts no turn.
-	text := messageText(in.Message)
-	if text == "" {
-		logger.Info("WhatsApp message kind not handled yet", "kind", messageKind(in.Message))
+	// 4. Content. Only the top level of the unwrapped message counts: text, a caption, or
+	// media that is transcribed, described or saved. A wrapper that hides other content
+	// starts no turn. Media is processed after the session run is registered and before the
+	// question and the turn lock, as telegram.processUpdate does.
+	c := p.readContent(ctx, cfg, wa, in.Message)
+	if ctx.Err() != nil {
+		return
+	}
+	if c.Notice != "" {
+		p.deliver(ctx, owner, c.Notice, "media notice")
+		return
+	}
+	if c.Input == "" {
+		logger.Info("WhatsApp message kind not handled", "kind", c.Kind)
 		return
 	}
 
 	// 5.
-	logger.Info("Received authorized WhatsApp message", "sender", maskJID(owner))
+	logger.Info("Received authorized WhatsApp message", "sender", maskJID(owner), "kind", c.Kind)
 
 	// 6. The platform message ID is hashed into the evidence turn ID, so the number is not
 	// stored in clear.
-	inputText := text
-	routingText := inputText
-	humanInput := memory.NewHumanInputEvent(inputText, sessionID, "whatsapp:"+in.Chat.User+":"+string(in.ID), in.Timestamp)
+	inputText := c.Input
+	routingText := c.Routing
+	humanInput := memory.NewHumanInputEvent(c.OwnerText, sessionID, "whatsapp:"+in.Chat.User+":"+string(in.ID), in.Timestamp)
 
-	// 7. A forwarded message arrives from the owner's account, but a third party wrote it.
-	// The fixed marker goes inside the isolated block (and before the injection scan), task
-	// routing reads the marked text, the text no longer counts as the owner's own words,
-	// and it can neither answer a pending question nor run a slash command.
-	forwardMarker := ""
-	ci := in.Message.GetExtendedTextMessage().GetContextInfo()
-	if ci.GetIsForwarded() || ci.GetForwardingScore() > 0 || ci.GetForwardedNewsletterMessageInfo() != nil {
-		forwardMarker = telegram.ForwardedContentMarker(ci.GetForwardedNewsletterMessageInfo().GetNewsletterName())
-		inputText = forwardMarker + "\n" + inputText
-		routingText = forwardedRoutingText(forwardMarker, routingText)
+	// 7. A forwarded message arrives from the owner's account, but a third party wrote it;
+	// so did a contact card. The fixed marker goes inside the isolated block (and before the
+	// injection scan), task routing reads the marked text, the content no longer counts as
+	// the owner's own words, and it can neither answer a pending question nor run a slash
+	// command.
+	if c.Marker != "" {
+		inputText = c.Marker + "\n" + inputText
+		routingText = forwardedRoutingText(c.Marker, routingText)
+	}
+	if c.ThirdParty {
 		humanInput = nil
 	}
 
 	// 8. A pending question belongs to the running turn that already owns the turn gate:
 	// route its reply before serializing a new turn.
 	if tools.HasPendingQuestion(sessionID) {
-		if forwardMarker == "" {
-			if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+		if !c.ThirdParty {
+			// The owner's own words answer, without the "[Reply to: ...]" prefix a swipe-reply
+			// to the question adds to the model's input.
+			if response, ok := tools.ResolveQuestionReply(sessionID, c.OwnerText); ok {
 				response.Source = tools.QuestionSourceWhatsApp
 				tools.CompleteQuestion(sessionID, response)
 				return
@@ -228,8 +243,8 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 
 	// 10. Slash commands. handle verified the owner recipient above, so operator commands
 	// are allowed.
-	if forwardMarker == "" && strings.HasPrefix(text, "/") {
-		cmdResult, isCmd, err := commands.Handle(text, commands.Context{
+	if !c.ThirdParty && strings.HasPrefix(c.CommandText, "/") {
+		cmdResult, isCmd, err := commands.Handle(c.CommandText, commands.Context{
 			STM:           stm,
 			SessionID:     sessionID,
 			HM:            historyManager,
@@ -352,7 +367,7 @@ func messageText(m *waE2E.Message) string {
 	return m.GetExtendedTextMessage().GetText()
 }
 
-// messageKind names the content of a message without text, for the "not handled yet" line.
+// messageKind names the content of a message, for log lines. A text message is "other".
 func messageKind(m *waE2E.Message) string {
 	switch {
 	case m.GetImageMessage() != nil:
