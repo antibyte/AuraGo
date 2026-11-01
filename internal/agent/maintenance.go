@@ -96,6 +96,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
 		return
 	}
+	destructiveOK := true
 	defer func() {
 		panicked := recover() != nil
 		// Catch-up executes inside this defer and needs its own run boundary.
@@ -119,25 +120,45 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		ledger.recordNamedError("entity_extraction", "batched_kg", maintenanceBatch.KGErr)
 		cancel()
 		// Catch-up has its own deadline, but still belongs to this controller run.
-		if !panicked {
+		if !panicked && destructiveOK {
 			runConsolidationCatchup(ctx, cfg, logger, client, shortTermMem, longTermMem, kg, ledger)
 		}
 	}()
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
-	if err := memory.CreateAutomaticSnapshot(taskCtx, cfg, startedAt); err != nil {
-		ledger.recordError("automatic_backup_failed", err)
-		logger.Warn("[Maintenance] Automatic memory snapshot failed", "error", err)
+	var skipReason string
+	destructiveOK, skipReason = maintenanceSnapshotGate(taskCtx, cfg, startedAt)
+	if !destructiveOK {
+		ledger.skipPhase("short_term_cleanup")
+		ledger.beginPhase("snapshot_gate")
+		ledger.addError(skipReason)
+		ledger.addError("destructive_steps_skipped_no_snapshot")
+		ledger.finishPhase("snapshot_gate", true)
+		logger.Warn("[Maintenance] Skipping maintenance mutations: no verified automatic snapshot for today",
+			"reason_code", skipReason,
+			"configured_store_count", maintenancePersistentMemoryStoreCount(cfg),
+			"required_store_count", 3)
+		// The maintenance ledger and integration checks remain diagnostic outputs.
+		taskCtx = withMaintenanceDestructiveBlocked(taskCtx)
+		skipMaintenancePhases(ledger, []string{
+			"profile_cleanup", "memory_hygiene", "consolidation",
+			"daily_summary", "entity_extraction", "activity_rollup", "weekly_reflection",
+			"knowledge_graph", "memory_optimization", "skill_quality", "prompt_load",
+			"agent_loop", "consolidation_catchup",
+		})
+		return
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "automatic_backup") {
 		return
 	}
 	retention := resolveMaintenanceRetention(cfg)
 
-	ledger.recordError("stm_retention", RunSTMPRetentionMaintenanceContext(taskCtx, cfg, logger, shortTermMem))
+	if destructiveOK {
+		ledger.recordError("stm_retention", RunSTMPRetentionMaintenanceContext(taskCtx, cfg, logger, shortTermMem))
+	}
 
 	// Phase A5: Clean up old interaction patterns
-	if shortTermMem != nil {
+	if destructiveOK && shortTermMem != nil {
 		deleted, err := shortTermMem.CleanOldPatterns(retention.PatternsDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old patterns", "error", err)
@@ -213,7 +234,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 
 	// User Profile cleanup: remove stale low-confidence entries
-	if cfg.Personality.UserProfiling && shortTermMem != nil {
+	if destructiveOK && cfg.Personality.UserProfiling && shortTermMem != nil {
 		removed, err := shortTermMem.CleanupStaleProfileEntries(retention.ProfileStaleDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean stale profile entries", "error", err)
@@ -463,7 +484,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		return
 	}
 	ledger.beginPhase("memory_optimization")
-	if cfg.Consolidation.Enabled && cfg.Consolidation.AutoOptimize && totalStored > 0 {
+	if cfg.Consolidation.Enabled && cfg.Consolidation.AutoOptimize && totalStored > 0 && !destructiveOK {
+		// Compression replaces memory documents and graph optimization removes nodes.
+		ledger.skipPhase("memory_optimization")
+	} else if cfg.Consolidation.Enabled && cfg.Consolidation.AutoOptimize && totalStored > 0 {
 		if !maintenanceContextHasAtLeast(taskCtx, maintenanceOptimizationMinimum) {
 			ledger.addDeferred("memory_optimization", 1)
 		} else {
@@ -573,6 +597,61 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		ledger.addError("agent_loop: no assistant choices returned")
 	}
 	ledger.finishPhase("agent_loop", false)
+}
+
+type maintenanceDestructiveBlockedKey struct{}
+
+// withMaintenanceDestructiveBlocked marks a maintenance run that must not delete
+// or overwrite data because no verified automatic snapshot exists.
+func withMaintenanceDestructiveBlocked(ctx context.Context) context.Context {
+	return context.WithValue(ctx, maintenanceDestructiveBlockedKey{}, true)
+}
+
+func maintenanceDestructiveBlocked(ctx context.Context) bool {
+	blocked, _ := ctx.Value(maintenanceDestructiveBlockedKey{}).(bool)
+	return blocked
+}
+
+// maintenanceSnapshotGate creates the daily automatic snapshot and reports whether
+// destructive cleanup steps may run. A deliberately unconfigured snapshot
+// (no-op) never blocks maintenance; a failed or missing one does.
+func maintenanceSnapshotGate(ctx context.Context, cfg *config.Config, now time.Time) (bool, string) {
+	configured, haveToday, err := memory.CreateAutomaticSnapshotWithStatus(ctx, cfg, now)
+	if err != nil {
+		if errors.Is(err, memory.ErrAutomaticSnapshotIncompleteConfig) {
+			return false, "snapshot_config_incomplete"
+		}
+		return false, "snapshot_failed"
+	}
+	if configured && !haveToday {
+		return false, "snapshot_missing"
+	}
+	return true, ""
+}
+
+func maintenancePersistentMemoryStoreCount(cfg *config.Config) int {
+	if cfg == nil {
+		return 0
+	}
+	count := 0
+	for _, path := range []string{cfg.SQLite.ShortTermPath, cfg.SQLite.KnowledgeGraphPath, config.DocumentCorpusPath(cfg)} {
+		if path != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func skipMaintenancePhases(ledger *maintenanceRunLedger, names []string) {
+	if ledger == nil {
+		return
+	}
+	for _, name := range names {
+		if ledger.currentPhase != name {
+			ledger.beginPhase(name)
+		}
+		ledger.skipPhase(name)
+	}
 }
 
 func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, logger *slog.Logger, operation string) bool {
