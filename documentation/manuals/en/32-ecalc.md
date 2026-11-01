@@ -74,7 +74,8 @@ tints them.
 - **Units:** the dropdown next to a field chooses the unit. **Auto** picks a suitable prefix, such as mA or kΩ. Some fields offer
   special units, such as dBm, dBV and dBu for levels, or mAh, Ah and Wh for charge and energy.
 - **Lists:** the series and parallel calculator takes a list such as `4k7, 10k, 2k2`. Separate the entries with commas,
-  semicolons or spaces. Lists use a decimal point only.
+  semicolons or spaces. A comma directly in front of a digit is a decimal comma, so `4,7k, 10k` is two entries (4.7 kΩ and
+  10 kΩ) while `1,2,3` is one entry that cannot be read; put a space after a comma that separates entries.
 - **Display:** the results show a decimal comma in German, Czech, Danish, Greek, Spanish, French, Italian, Dutch, Norwegian,
   Polish, Portuguese and Swedish, and a decimal point in the other languages.
 

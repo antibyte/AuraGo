@@ -17,6 +17,7 @@
     const NUMBER_PREFIX = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)([pnuµmkKMG])$/;
     const INFIX = /^(\d+)([pnuµmkKMG])(\d+)$/;
     const INFIX_R = /^(\d+)R(\d+)$/;
+    const LIST_SEPARATOR = /[;\s]+|,(?!\d)/;
     const PREFIX_UNIT = 'prefix:';
     // U+03BC (Greek mu) is typed for the micro sign U+00B5, U+2126 (ohm sign) for the Greek capital omega U+03A9.
     const fold = text => text.split(String.fromCharCode(0x3bc)).join(String.fromCharCode(0xb5)).split(String.fromCharCode(0x2126)).join(String.fromCharCode(0x3a9));
@@ -117,9 +118,10 @@
             return value;
         }
 
-        // List fields: split on commas, semicolons and white space, then parse every item.
+        // List fields: the items are separated by semicolons, white space and commas that are not followed by a digit
+        // (a comma in front of a digit is a decimal comma: "4,7k, 10k" is two items); every item is parsed like parse().
         function parseList(input, dimId, unitId) {
-            const items = String(input == null ? '' : input).trim().split(/[,;\s]+/).filter(Boolean);
+            const items = String(input == null ? '' : input).trim().split(LIST_SEPARATOR).filter(Boolean);
             if (!items.length) throw fail('empty list');
             return items.map(item => parse(item, dimId, unitId));
         }

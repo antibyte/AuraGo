@@ -295,21 +295,28 @@
     {"in": "1", "dim": "bogus"},
     {"in": "1", "dim": "voltage", "unit": "bogus"}
   ],
-  "_doc_units_list": "units_list: ParseList(in, dim, unit) splits on commas, semicolons and white space, parses every item like Parse and skips empty items.",
+  "_doc_units_list": "units_list: ParseList(in, dim, unit) splits on semicolons, white space and commas that are not followed by a digit (a comma before a digit is a decimal comma, so 4,7k, 10k is two items and 1,2,3 is one unreadable item), parses every item like Parse and skips empty items.",
   "units_list": [
     {"in": "4k7, 10k, 2k2", "dim": "resistance", "want": [4700, 10000, 2200]},
     {"in": "100 200;300", "dim": "resistance", "want": [100, 200, 300]},
     {"in": "1k", "dim": "resistance", "want": [1000]},
-    {"in": "4k7,,10k", "dim": "resistance", "want": [4700, 10000]},
+    {"in": "4k7;;10k", "dim": "resistance", "want": [4700, 10000]},
     {"in": "47R 4R7", "dim": "resistance", "want": [47, 4.7]},
-    {"in": "10, 20", "dim": "voltage", "want": [10, 20]}
+    {"in": "10, 20", "dim": "voltage", "want": [10, 20]},
+    {"in": "4,7k, 10k", "dim": "resistance", "want": [4700, 10000]},
+    {"in": "4k7; 10k 2k2", "dim": "resistance", "want": [4700, 10000, 2200]},
+    {"in": "1,5k 2,2k", "dim": "resistance", "want": [1500, 2200]},
+    {"in": "1,2 , 3", "dim": "number", "want": [1.2, 3]},
+    {"in": "10,20", "dim": "voltage", "want": [10.2]},
+    {"in": "4k7,", "dim": "resistance", "want": [4700]}
   ],
   "_doc_units_list_error": "units_list_error: ParseList(in, dim) must fail.",
   "units_list_error": [
     {"in": "", "dim": "resistance"},
     {"in": " , ", "dim": "resistance"},
     {"in": "4k7, abc", "dim": "resistance"},
-    {"in": "5u, 10k", "dim": "resistance"}
+    {"in": "5u, 10k", "dim": "resistance"},
+    {"in": "1,2,3", "dim": "resistance"}
   ],
   "_doc_units_format": "units_format: Format(v, dim, unit, sig) returns want. v is a number or \"nan\"/\"inf\"/\"-inf\" (result \"\"); unit is the selected explicit unit id (absent = automatic prefix); sig defaults to 4.",
   "units_format": [

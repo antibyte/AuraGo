@@ -78,7 +78,9 @@ Strom, Widerstand und Leistung. Die Felder, die du ausfüllst, sind **Eingaben**
 - **Einheiten:** Das Auswahlfeld neben einem Feld wählt die Einheit. **Automatisch** wählt ein passendes Präfix, etwa mA oder kΩ.
   Manche Felder bieten besondere Einheiten, etwa dBm, dBV und dBu für Pegel oder mAh, Ah und Wh für Ladung und Energie.
 - **Listen:** Der Rechner für Reihen- und Parallelschaltung nimmt eine Liste wie `4k7, 10k, 2k2`. Trenne die Einträge mit
-  Kommas, Semikolons oder Leerzeichen. In Listen gilt nur der Dezimalpunkt.
+  Kommas, Semikolons oder Leerzeichen. Ein Komma direkt vor einer Ziffer ist ein Dezimalkomma: `4,7k, 10k` sind zwei Einträge
+  (4,7 kΩ und 10 kΩ), `1,2,3` dagegen ein Eintrag, der sich nicht lesen lässt. Setze nach einem Komma zwischen Einträgen ein
+  Leerzeichen.
 - **Anzeige:** Die Ergebnisse zeigen in Deutsch, Tschechisch, Dänisch, Griechisch, Spanisch, Französisch, Italienisch,
   Niederländisch, Norwegisch, Polnisch, Portugiesisch und Schwedisch ein Dezimalkomma, in den anderen Sprachen einen
   Dezimalpunkt.

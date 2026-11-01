@@ -268,20 +268,45 @@ func (u *Units) Parse(input, dimID, unitID string) (float64, error) {
 	return u.parseNormalized(d, strings.ReplaceAll(s, ",", "."), unitID)
 }
 
-// ParseList reads a list typed as "4k7, 10k, 2k2": items are separated by commas, semicolons or white space, and
-// every item is parsed like Parse (so there is no decimal comma in lists).
+// listFields splits a list typed as "4k7, 10k; 2k2 1M": items are separated by semicolons, white space and commas
+// that are not followed by a digit, because a comma in front of a digit is a decimal comma ("4,7k, 10k" is two
+// items). Empty items are dropped. The ECMAScript twin is the regular expression /[;\s]+|,(?!\d)/.
+func listFields(input string) []string {
+	rs := []rune(input)
+	var fields []string
+	var item []rune
+	end := func() {
+		if len(item) > 0 {
+			fields = append(fields, string(item))
+			item = item[:0]
+		}
+	}
+	for i, r := range rs {
+		decimalComma := r == ',' && i+1 < len(rs) && rs[i+1] >= '0' && rs[i+1] <= '9'
+		if r == ';' || unicode.IsSpace(r) || (r == ',' && !decimalComma) {
+			end()
+			continue
+		}
+		item = append(item, r)
+	}
+	end()
+	return fields
+}
+
+// ParseList reads a list typed as "4k7, 10k, 2k2": the items are split by listFields and every item is parsed like
+// Parse (a decimal comma inside an item reads as a decimal point).
 func (u *Units) ParseList(input, dimID, unitID string) ([]float64, error) {
 	d := u.byDim[dimID]
 	if d == nil {
 		return nil, fmt.Errorf("unknown dimension %q", dimID)
 	}
-	fields := strings.FieldsFunc(input, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) })
+	fields := listFields(input)
 	if len(fields) == 0 {
 		return nil, errors.New("empty list")
 	}
 	out := make([]float64, 0, len(fields))
 	for _, f := range fields {
-		v, err := u.parseNormalized(d, inputFold.Replace(f), unitID)
+		v, err := u.parseNormalized(d, strings.ReplaceAll(inputFold.Replace(f), ",", "."), unitID)
 		if err != nil {
 			return nil, err
 		}
