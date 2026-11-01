@@ -391,6 +391,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
 	mux.HandleFunc("/api/telegram/status", handleTelegramStatus(s))
 	mux.Handle("/api/telegram/test", requireAdmin(s, handleTelegramTest(s)))
+	registerWhatsAppRoutes(mux, s)
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
 	registerRealtimeSpeechHandlers(mux, s, sse)
