@@ -1,0 +1,15 @@
+{
+  "calc": "ohms_law",
+  "sets": [
+    {"values": {"u": 12, "i": 0.02, "r": 600, "p": 0.24}, "ref": "hand: 12 V / 20 mA = 600 ohm; 12 V * 20 mA = 240 mW"},
+    {"values": {"u": 5, "i": 0.1, "r": 50, "p": 0.5}, "ref": "hand: 5 V / 100 mA = 50 ohm; 5 V * 100 mA = 500 mW"},
+    {"values": {"u": 230, "i": 2, "r": 115, "p": 460}, "ref": "hand: 230 V / 2 A = 115 ohm; 230 V * 2 A = 460 W"}
+  ],
+  "solve": [
+    {"inputs": {"u": 12, "i": 0.02}, "expect": {"r": 600, "p": 0.24}, "ref": "hand: R = 12 V / 0.02 A = 600 ohm; P = 12 V * 0.02 A = 0.24 W"},
+    {"inputs": {"p": 0.5, "r": 50}, "expect": {"u": 5, "i": 0.1}, "ref": "hand: U = sqrt(0.5 W * 50 ohm) = sqrt(25) = 5 V; I = 5 V / 50 ohm = 0.1 A"},
+    {"inputs": {"u": 12}, "errors": {"i": "undetermined", "r": "undetermined", "p": "undetermined"}, "ref": "one value is not enough for two degrees of freedom"},
+    {"inputs": {"u": 12, "r": 0}, "errors": {"r": "range", "i": "nonfinite", "p": "nonfinite"}, "ref": "hand: a zero resistance is out of range and 12 V / 0 ohm is infinite"},
+    {"inputs": {"u": -12, "i": 0.02}, "expect": {"r": -600}, "errors": {"r": "range"}, "ref": "hand: -12 V / 20 mA = -600 ohm, a negative resistance is out of range"}
+  ]
+}
