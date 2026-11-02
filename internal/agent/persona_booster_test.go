@@ -47,7 +47,7 @@ func TestPersonaBoosterTurnStartsPhaseFromTextSignal(t *testing.T) {
 		t.Fatalf("phase = %q", got.Phase)
 	}
 	state, err := stm.LoadPersonaBoosterState()
-	if err != nil || state.PhaseID != "rage" || state.Trigger != personabooster.SignalTextSwearing || state.SessionTurns != 1 {
+	if err != nil || state.PhaseID != "rage" || state.Trigger != personabooster.SignalTextSwearing || state.Sessions["default"].Turns != 1 {
 		t.Fatalf("state = %+v, err = %v", state, err)
 	}
 	turn.Now = turn.Now.Add(time.Minute)
@@ -55,7 +55,7 @@ func TestPersonaBoosterTurnStartsPhaseFromTextSignal(t *testing.T) {
 	if again.Phase != got.Phase {
 		t.Fatal("phase text changed within the same phase")
 	}
-	if state, _ = stm.LoadPersonaBoosterState(); state.SessionTurns != 1 || state.TurnsElapsed != 0 {
+	if state, _ = stm.LoadPersonaBoosterState(); state.Sessions["default"].Turns != 1 || state.TurnsElapsed != 0 {
 		t.Fatalf("a replayed turn was counted: %+v", state)
 	}
 }

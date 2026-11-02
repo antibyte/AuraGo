@@ -100,7 +100,7 @@ func preparePersonaBoosterTurn(runCfg RunConfig, flags prompts.ContextFlags, log
 			state.LastTurnID = runCfg.HumanInput.TurnID
 		}
 		turnSignals := append(append([]string(nil), signals...),
-			personabooster.TimeSignals(now, turn.InactivityHours, personabooster.LongSession(state, now))...)
+			personabooster.TimeSignals(now, turn.InactivityHours, personabooster.LongSession(state, runCfg.SessionID, now))...)
 		next, ev := personabooster.Decide(state, personabooster.Input{
 			Persona: persona, Now: now, Signals: turnSignals, Intensity: booster.Intensity,
 			Spontaneous: booster.Spontaneous, Cooldown: time.Duration(booster.CooldownMinutes) * time.Minute,

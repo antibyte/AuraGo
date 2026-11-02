@@ -1,6 +1,8 @@
 package personabooster
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"testing"
@@ -166,14 +168,14 @@ func TestDecideNeverRepeatsVariant(t *testing.T) {
 func TestDecidePersonaChangeResetsState(t *testing.T) {
 	cat := engineCatalog(t)
 	state, _ := Decide(State{}, engineInput(engineNow, CueCriticism), cat, lowRand())
-	state.SessionTurns = 7
+	state.Sessions = map[string]SessionCounter{"default": {Turns: 7}}
 	in := engineInput(engineNow.Add(time.Minute))
 	in.Persona = "other"
 	reset, ev := Decide(state, in, cat, lowRand())
 	if ev.Kind != EventEnded || ev.Reason != ReasonPersonaChanged || reset.Active() || reset.Persona != "other" || reset.LastVariant != nil || !reset.HostileBlockUntil.IsZero() {
 		t.Fatalf("state=%+v event=%+v", reset, ev)
 	}
-	if reset.SessionTurns != 7 {
+	if reset.Sessions["default"].Turns != 7 {
 		t.Fatal("session bookkeeping belongs to the conversation, not to the persona")
 	}
 }
@@ -194,20 +196,101 @@ func TestDecideIntensityScalesDurations(t *testing.T) {
 func TestTrackSessionAndLongSession(t *testing.T) {
 	s := TrackSession(State{}, "default", engineNow)
 	s = TrackSession(s, "default", engineNow.Add(30*time.Minute))
-	if s.SessionTurns != 2 || !s.SessionStartedAt.Equal(engineNow) {
-		t.Fatalf("session = %+v", s)
+	if c := s.Sessions["default"]; c.Turns != 2 || !c.StartedAt.Equal(engineNow) || !c.LastTurnAt.Equal(engineNow.Add(30*time.Minute)) {
+		t.Fatalf("session = %+v", s.Sessions)
 	}
-	if LongSession(s, engineNow.Add(30*time.Minute)) || !LongSession(s, engineNow.Add(2*time.Hour)) {
+	if LongSession(s, "default", engineNow.Add(30*time.Minute)) || !LongSession(s, "default", engineNow.Add(2*time.Hour)) {
 		t.Fatal("long session by age")
 	}
-	if idle := TrackSession(s, "default", engineNow.Add(30*time.Minute+SessionIdleReset)); idle.SessionTurns != 1 {
-		t.Fatalf("idle gap did not restart the session: %+v", idle)
+	if LongSession(s, "telegram", engineNow.Add(2*time.Hour)) {
+		t.Fatal("an unknown session cannot be long")
 	}
-	if other := TrackSession(s, "telegram", engineNow.Add(31*time.Minute)); other.SessionTurns != 1 || other.SessionID != "telegram" {
-		t.Fatalf("new session id did not restart the session: %+v", other)
+	idleAt := engineNow.Add(30*time.Minute + SessionIdleReset)
+	if idle := TrackSession(s, "default", idleAt); idle.Sessions["default"].Turns != 1 || !idle.Sessions["default"].StartedAt.Equal(idleAt) {
+		t.Fatalf("idle gap did not restart the session: %+v", idle.Sessions)
 	}
-	s.SessionTurns = LongSessionTurns
-	if !LongSession(s, engineNow.Add(31*time.Minute)) {
+	other := TrackSession(s, "telegram", engineNow.Add(31*time.Minute))
+	if c := other.Sessions["telegram"]; c.Turns != 1 {
+		t.Fatalf("new session id: %+v", other.Sessions)
+	}
+	if c := other.Sessions["default"]; c.Turns != 2 || !c.StartedAt.Equal(engineNow) {
+		t.Fatalf("another session id disturbed the default session: %+v", other.Sessions)
+	}
+	if len(s.Sessions) != 1 {
+		t.Fatalf("TrackSession modified the map of its input: %+v", s.Sessions)
+	}
+	c := s.Sessions["default"]
+	c.Turns = LongSessionTurns
+	s.Sessions["default"] = c
+	if !LongSession(s, "default", engineNow.Add(31*time.Minute)) {
 		t.Fatal("long session by turns")
+	}
+}
+
+func TestLongSessionCountsEachSessionSeparately(t *testing.T) {
+	state := State{}
+	for step := 0; step <= 36; step++ { // alternate every 5 minutes for 3 hours
+		now := engineNow.Add(time.Duration(step) * 5 * time.Minute)
+		id := "web"
+		if step%2 == 1 {
+			id = "telegram"
+		}
+		state = TrackSession(state, id, now)
+		if step == 11 && (LongSession(state, "web", now) || LongSession(state, "telegram", now)) {
+			t.Fatalf("long before 2 h: %+v", state.Sessions)
+		}
+	}
+	end := engineNow.Add(3 * time.Hour)
+	for _, id := range []string{"web", "telegram"} {
+		if !LongSession(state, id, end) {
+			t.Errorf("session %q never became long: %+v", id, state.Sessions[id])
+		}
+	}
+}
+
+func TestTrackSessionKeepsTheMostRecentSessions(t *testing.T) {
+	state := State{}
+	for i := 0; i < 12; i++ {
+		state = TrackSession(state, fmt.Sprintf("s%02d", i), engineNow.Add(time.Duration(i)*time.Minute))
+	}
+	if len(state.Sessions) != MaxTrackedSessions {
+		t.Fatalf("tracked %d sessions, want %d", len(state.Sessions), MaxTrackedSessions)
+	}
+	for i := 0; i < 12; i++ {
+		if _, kept := state.Sessions[fmt.Sprintf("s%02d", i)]; kept != (i >= 12-MaxTrackedSessions) {
+			t.Errorf("session s%02d kept = %v", i, kept)
+		}
+	}
+	// The oldest kept session returns and is recent again, so a newcomer
+	// displaces the next oldest one.
+	state = TrackSession(state, "s04", engineNow.Add(20*time.Minute))
+	state = TrackSession(state, "s12", engineNow.Add(21*time.Minute))
+	if len(state.Sessions) != MaxTrackedSessions {
+		t.Fatalf("sessions = %+v", state.Sessions)
+	}
+	if _, kept := state.Sessions["s04"]; !kept {
+		t.Fatal("a session that just returned was evicted")
+	}
+	if _, kept := state.Sessions["s05"]; kept {
+		t.Fatal("the oldest session survived")
+	}
+}
+
+func TestStateLoadsOldSingleSessionJSON(t *testing.T) {
+	const old = `{"persona":"punk","phase_id":"rage","variant_id":"hot","session_id":"default",` +
+		`"session_started_at":"2026-11-01T10:00:00Z","session_turns":9,"last_turn_at":"2026-11-01T14:50:00Z","last_turn_id":"t1"}`
+	var state State
+	if err := json.Unmarshal([]byte(old), &state); err != nil {
+		t.Fatal(err)
+	}
+	if state.PhaseID != "rage" || state.LastTurnID != "t1" || len(state.Sessions) != 0 {
+		t.Fatalf("state = %+v", state)
+	}
+	if LongSession(state, "default", engineNow) {
+		t.Fatal("legacy fields must not count")
+	}
+	state = TrackSession(state, "default", engineNow)
+	if state.Sessions["default"].Turns != 1 {
+		t.Fatalf("sessions = %+v", state.Sessions)
 	}
 }

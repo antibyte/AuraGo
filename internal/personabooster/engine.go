@@ -21,30 +21,38 @@ const (
 	SessionIdleReset  = time.Hour
 	LongSessionAge    = 2 * time.Hour
 	LongSessionTurns  = 40
+
+	// MaxTrackedSessions bounds State.Sessions; the most recently used remain.
+	MaxTrackedSessions = 8
 )
 
+// SessionCounter counts the user turns of one conversation session (web chat,
+// Telegram and so on).
+type SessionCounter struct {
+	StartedAt  time.Time `json:"started_at,omitzero"`
+	Turns      int       `json:"turns,omitempty"`
+	LastTurnAt time.Time `json:"last_turn_at,omitzero"`
+}
+
 // State is the persisted booster state. Phase fields belong to Persona; the
-// session fields describe the conversation and survive a persona change.
+// session counters describe the conversations and survive a persona change.
 type State struct {
-	Persona              string            `json:"persona"`
-	PhaseID              string            `json:"phase_id,omitempty"`
-	VariantID            string            `json:"variant_id,omitempty"`
-	Trigger              string            `json:"trigger,omitempty"`
-	Priority             int               `json:"priority,omitempty"`
-	Hostile              bool              `json:"hostile,omitempty"`
-	StartedAt            time.Time         `json:"started_at,omitzero"`
-	ExpiresAt            time.Time         `json:"expires_at,omitzero"`
-	TurnsLeft            int               `json:"turns_left,omitempty"`
-	TurnsElapsed         int               `json:"turns_elapsed,omitempty"`
-	CooldownUntil        time.Time         `json:"cooldown_until,omitzero"`
-	HostileBlockUntil    time.Time         `json:"hostile_block_until,omitzero"`
-	LastSpontaneousCheck time.Time         `json:"last_spontaneous_check,omitzero"`
-	LastVariant          map[string]string `json:"last_variant,omitempty"`
-	SessionID            string            `json:"session_id,omitempty"`
-	SessionStartedAt     time.Time         `json:"session_started_at,omitzero"`
-	SessionTurns         int               `json:"session_turns,omitempty"`
-	LastTurnAt           time.Time         `json:"last_turn_at,omitzero"`
-	LastTurnID           string            `json:"last_turn_id,omitempty"`
+	Persona              string                    `json:"persona"`
+	PhaseID              string                    `json:"phase_id,omitempty"`
+	VariantID            string                    `json:"variant_id,omitempty"`
+	Trigger              string                    `json:"trigger,omitempty"`
+	Priority             int                       `json:"priority,omitempty"`
+	Hostile              bool                      `json:"hostile,omitempty"`
+	StartedAt            time.Time                 `json:"started_at,omitzero"`
+	ExpiresAt            time.Time                 `json:"expires_at,omitzero"`
+	TurnsLeft            int                       `json:"turns_left,omitempty"`
+	TurnsElapsed         int                       `json:"turns_elapsed,omitempty"`
+	CooldownUntil        time.Time                 `json:"cooldown_until,omitzero"`
+	HostileBlockUntil    time.Time                 `json:"hostile_block_until,omitzero"`
+	LastSpontaneousCheck time.Time                 `json:"last_spontaneous_check,omitzero"`
+	LastVariant          map[string]string         `json:"last_variant,omitempty"`
+	Sessions             map[string]SessionCounter `json:"sessions,omitempty"`
+	LastTurnID           string                    `json:"last_turn_id,omitempty"`
 }
 
 // Active reports whether a phase is running.
@@ -114,8 +122,7 @@ func Decide(state State, in Input, cat *Catalog, rng *rand.Rand) (State, Event) 
 			ended = Event{Persona: state.Persona, EndedPhaseID: state.PhaseID, EndedVariantID: state.VariantID, Reason: ReasonPersonaChanged}
 		}
 		state = State{
-			Persona: in.Persona, SessionID: state.SessionID, SessionStartedAt: state.SessionStartedAt,
-			SessionTurns: state.SessionTurns, LastTurnAt: state.LastTurnAt, LastTurnID: state.LastTurnID,
+			Persona: in.Persona, Sessions: state.Sessions, LastTurnID: state.LastTurnID,
 		}
 	}
 	state.LastVariant = cloneVariantMap(state.LastVariant)
@@ -175,23 +182,47 @@ func Decide(state State, in Input, cat *Catalog, rng *rand.Rand) (State, Event) 
 	return state, decisionEvent(state, ended, started)
 }
 
-// TrackSession counts one user turn. A new session ID or an idle gap of
-// SessionIdleReset starts a new session.
+// TrackSession counts one user turn of the given session. Only that session
+// changes: a first turn or an idle gap of SessionIdleReset starts it anew, and
+// the other sessions keep their counters. Beyond MaxTrackedSessions the session
+// with the oldest last turn is forgotten.
 func TrackSession(state State, sessionID string, now time.Time) State {
-	if state.SessionID != sessionID || state.LastTurnAt.IsZero() || now.Sub(state.LastTurnAt) >= SessionIdleReset {
-		state.SessionID, state.SessionStartedAt, state.SessionTurns = sessionID, now, 0
+	sessions := make(map[string]SessionCounter, len(state.Sessions)+1)
+	for id, counter := range state.Sessions {
+		sessions[id] = counter
 	}
-	state.SessionTurns++
-	state.LastTurnAt = now
+	counter := sessions[sessionID]
+	if counter.LastTurnAt.IsZero() || now.Sub(counter.LastTurnAt) >= SessionIdleReset {
+		counter = SessionCounter{StartedAt: now}
+	}
+	counter.Turns++
+	counter.LastTurnAt = now
+	sessions[sessionID] = counter
+	for len(sessions) > MaxTrackedSessions {
+		oldest, found := "", false
+		for id, other := range sessions {
+			if !found || other.LastTurnAt.Before(sessions[oldest].LastTurnAt) ||
+				(other.LastTurnAt.Equal(sessions[oldest].LastTurnAt) && id < oldest) {
+				oldest, found = id, true
+			}
+		}
+		delete(sessions, oldest)
+	}
+	state.Sessions = sessions
 	return state
 }
 
-// LongSession reports the design condition: active for 2 h or 40 user turns.
-func LongSession(state State, now time.Time) bool {
-	if state.SessionTurns >= LongSessionTurns {
+// LongSession reports the design condition for one session: active for 2 h or
+// 40 user turns. Call it after TrackSession for the same turn.
+func LongSession(state State, sessionID string, now time.Time) bool {
+	counter, ok := state.Sessions[sessionID]
+	if !ok {
+		return false
+	}
+	if counter.Turns >= LongSessionTurns {
 		return true
 	}
-	return !state.SessionStartedAt.IsZero() && now.Sub(state.SessionStartedAt) >= LongSessionAge
+	return !counter.StartedAt.IsZero() && now.Sub(counter.StartedAt) >= LongSessionAge
 }
 
 func signalCandidate(cat *Catalog, state State, active map[string]bool, now time.Time, rng *rand.Rand) (candidate, bool) {

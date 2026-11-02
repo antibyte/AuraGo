@@ -164,7 +164,7 @@ Unbekannte Werte werden verworfen. Ein Cue gilt nur, wenn `confidence ≥ 0.5`. 
 | `mood_curious_calm` | Mood `curious` oder `analytical` und Erregung ≤ 0.4 | Engine |
 | `night` | lokale Stunde 0–4 | – |
 | `long_absence` | letzte Aktivität ≥ 24 h her | – |
-| `long_session` | Session ≥ 2 h aktiv oder ≥ 40 User-Turns | – |
+| `long_session` | Session ≥ 2 h aktiv oder ≥ 40 User-Turns; je Session-ID gezählt (Web-Chat, Telegram usw. getrennt, die letzten 8 Sessions), Pause ≥ 1 h startet die Session neu | – |
 | `text_shouting` | User-Nachricht ≥ 12 Buchstaben und ≥ 60 % Großbuchstaben, oder „!!!“ | – |
 | `text_swearing` | Fluchwort-Lexikon de/en (klein, in Go) | – |
 | `text_stop` | Stop-Phrasen de/en: „hör auf“, „lass das“, „beruhig dich“, „sei netter“, „stop it“, „calm down“, „be nice“ | – |
