@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Co-agent model operations are scoped to the trusted initiating session; foreign IDs are indistinguishable from missing IDs. Dashboard administration and process shutdown remain global. Register local and A2A workers atomically with queue admission. Cancellation/completion keeps the slot until `WorkerDone`; terminal `Shutdown` rejects starts, cancels queued/running work and joins workers before dependencies close. Cleanup must retain active workers and its stop must be concurrently idempotent. Verify `TestCoAgent*`.
+
 - Seven optional `kaggle_*` tools use the shared server-owned Kaggle/notebook services. Keep feature flags/cache keys, German/English discovery, semantic mutation classification and manuals aligned. All returned descriptions, forums, logs and cell events use external-content protection. Local output is polled through `kaggle_runtime.events` with cursor/revision/cell/execution identity; never replay code after reconnect. See `../kaggle/AGENTS.md` and `../notebooks/AGENTS.md`.
 
 - Runtime-owned `prompt_security` incidents use the planner's dedicated next-contact

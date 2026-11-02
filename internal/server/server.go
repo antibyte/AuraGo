@@ -2141,6 +2141,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+		if s.CoAgentRegistry != nil {
+			s.CoAgentRegistry.Shutdown()
+		}
 		s.closeSelfTests()
 		if s.BackgroundTasks != nil {
 			if err := s.BackgroundTasks.Close(); err != nil {

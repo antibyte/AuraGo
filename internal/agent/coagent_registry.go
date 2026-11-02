@@ -59,6 +59,11 @@ type CoAgentInfo struct {
 	StructuredResult json.RawMessage
 	StructuredError  string
 
+	// Immutable ownership and worker/slot bookkeeping are protected by registry.mu.
+	ownerSession string
+	workerActive bool
+	slotHeld     bool
+
 	startCh   chan struct{}
 	startOnce sync.Once
 	doneCh    chan struct{}
@@ -137,6 +142,10 @@ type CoAgentRegistry struct {
 	cleanupStopCh   chan struct{}
 	cleanupDoneCh   chan struct{}
 	cleanupRunning  bool
+	closed          bool
+	ctx             context.Context
+	cancel          context.CancelFunc
+	workers         sync.WaitGroup
 }
 
 // NewCoAgentRegistry creates a new registry with the given slot limit.
@@ -144,7 +153,9 @@ func NewCoAgentRegistry(maxSlots int, logger *slog.Logger) *CoAgentRegistry {
 	if maxSlots <= 0 {
 		maxSlots = 3
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &CoAgentRegistry{
+		ctx: ctx, cancel: cancel,
 		agents:          make(map[string]*CoAgentInfo),
 		maxSlots:        maxSlots,
 		logger:          logger,
@@ -223,6 +234,9 @@ func (r *CoAgentRegistry) refreshQueuePositionsLocked() {
 }
 
 func (r *CoAgentRegistry) promoteQueuedLocked() {
+	if r.closed {
+		return
+	}
 	for r.countRunningLocked() < r.maxSlots {
 		queued := r.queuedAgentsLocked()
 		if len(queued) == 0 {
@@ -235,6 +249,7 @@ func (r *CoAgentRegistry) promoteQueuedLocked() {
 			continue
 		}
 		next.State = CoAgentRunning
+		next.slotHeld = true
 		next.QueuePosition = 0
 		next.mu.Unlock()
 		r.runningCount.Add(1)
@@ -249,7 +264,10 @@ func (r *CoAgentRegistry) promoteQueuedLocked() {
 func (r *CoAgentRegistry) AvailableSlots() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.maxSlots - r.countRunningLocked()
+	if r.closed {
+		return 0
+	}
+	return max(0, r.maxSlots-r.countRunningLocked())
 }
 
 // Register creates a new co-agent entry and returns its ID.
@@ -268,9 +286,25 @@ func (r *CoAgentRegistry) RegisterWithPrefix(prefix, task string, cancel context
 // RegisterWithPriority creates a new co-agent entry and either starts it immediately
 // or queues it when no slots are available.
 func (r *CoAgentRegistry) RegisterWithPriority(prefix, task string, cancel context.CancelFunc, priority int) (string, CoAgentState, error) {
+	return r.register(prefix, task, "", cancel, priority, true, false)
+}
+
+// RegisterWorker atomically reserves or queues a worker. The caller must defer
+// WorkerDone in the accepted goroutine, including every cancellation path.
+func (r *CoAgentRegistry) RegisterWorker(prefix, task, ownerSession string, cancel context.CancelFunc, priority int, allowQueue bool) (string, CoAgentState, error) {
+	return r.register(prefix, task, ownerSession, cancel, priority, allowQueue, true)
+}
+
+func (r *CoAgentRegistry) register(prefix, task, ownerSession string, cancel context.CancelFunc, priority int, allowQueue, worker bool) (string, CoAgentState, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.closed {
+		return "", "", fmt.Errorf("co-agent registry is shut down")
+	}
+	if !allowQueue && r.countRunningLocked() >= r.maxSlots {
+		return "", "", fmt.Errorf("all %d co-agent slots are occupied", r.maxSlots)
+	}
 	r.counter++
 	id := fmt.Sprintf("%s-%d", prefix, r.counter)
 
@@ -287,6 +321,7 @@ func (r *CoAgentRegistry) RegisterWithPriority(prefix, task string, cancel conte
 	}
 
 	info := &CoAgentInfo{
+		ownerSession: ownerSession, workerActive: worker, slotHeld: state == CoAgentRunning,
 		ID:         id,
 		Task:       task,
 		Specialist: specialist,
@@ -303,6 +338,9 @@ func (r *CoAgentRegistry) RegisterWithPriority(prefix, task string, cancel conte
 		info.recordEvent("started")
 	} else {
 		info.recordEvent("queued")
+	}
+	if worker {
+		r.workers.Add(1)
 	}
 	r.agents[id] = info
 	r.refreshQueuePositionsLocked()
@@ -324,14 +362,18 @@ func (r *CoAgentRegistry) WaitForStart(id string, ctx context.Context) error {
 	startCh := a.startCh
 	a.mu.Unlock()
 
-	if state != CoAgentQueued {
-		return nil
+	if ctx == nil {
+		ctx = context.Background()
 	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-startCh:
+	if state == CoAgentQueued {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-startCh:
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	a.mu.Lock()
@@ -344,7 +386,7 @@ func (r *CoAgentRegistry) WaitForStart(id string, ctx context.Context) error {
 	case CoAgentFailed:
 		return fmt.Errorf("co-agent '%s' failed before start: %s", id, a.Error)
 	default:
-		return nil
+		return fmt.Errorf("co-agent is no longer active")
 	}
 }
 
@@ -432,16 +474,13 @@ func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int)
 			a.mu.Unlock()
 			return
 		}
-		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentCompleted
 		a.CompletedAt = time.Now()
 		a.Result = result
 		a.TokensUsed = max(a.TokensUsed, tokensUsed)
 		a.ToolCalls = max(a.ToolCalls, toolCalls)
 		a.mu.Unlock()
-		if wasRunning {
-			r.runningCount.Add(-1)
-		}
+		r.releaseSlotLocked(a)
 		a.recordEvent("completed")
 		a.signalDone()
 		r.promoteQueuedLocked()
@@ -457,7 +496,6 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 			a.mu.Unlock()
 			return
 		}
-		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentFailed
 		a.CompletedAt = time.Now()
 		a.Error = errMsg
@@ -465,9 +503,7 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 		a.TokensUsed = max(a.TokensUsed, tokensUsed)
 		a.ToolCalls = max(a.ToolCalls, toolCalls)
 		a.mu.Unlock()
-		if wasRunning {
-			r.runningCount.Add(-1)
-		}
+		r.releaseSlotLocked(a)
 		a.recordEvent("failed")
 		a.signalStart()
 		a.signalDone()
@@ -490,16 +526,13 @@ func (r *CoAgentRegistry) FailIfActive(id, errMsg string) bool {
 		a.mu.Unlock()
 		return false
 	}
-	wasRunning := a.State == CoAgentRunning
 	a.State = CoAgentFailed
 	a.CompletedAt = time.Now()
 	a.Error = errMsg
 	a.LastError = errMsg
 	a.QueuePosition = 0
 	a.mu.Unlock()
-	if wasRunning {
-		r.runningCount.Add(-1)
-	}
+	r.releaseSlotLocked(a)
 	a.recordEvent("failed")
 	a.signalStart()
 	a.signalDone()
@@ -521,13 +554,10 @@ func (r *CoAgentRegistry) Stop(id string) error {
 		a.mu.Unlock()
 		return fmt.Errorf("co-agent '%s' is not active (state: %s)", id, state)
 	}
-	wasRunning := a.State == CoAgentRunning
 	a.State = CoAgentCancelled
 	a.CompletedAt = time.Now()
 	a.mu.Unlock()
-	if wasRunning {
-		r.runningCount.Add(-1)
-	}
+	r.releaseSlotLocked(a)
 	if a.Cancel != nil {
 		a.Cancel()
 	}
@@ -540,12 +570,16 @@ func (r *CoAgentRegistry) Stop(id string) error {
 }
 
 // StopAll cancels all active co-agents.
-func (r *CoAgentRegistry) StopAll() int {
+func (r *CoAgentRegistry) StopAll() int { return r.stopAll(nil) }
+
+func (r *CoAgentRegistry) stopAll(session *string) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	runningBefore := r.runningCount.Load()
 	count := 0
 	for _, a := range r.agents {
+		if session != nil && (*session == "" || a.ownerSession != *session) {
+			continue
+		}
 		a.mu.Lock()
 		active := a.State == CoAgentRunning || a.State == CoAgentQueued
 		if active {
@@ -554,6 +588,7 @@ func (r *CoAgentRegistry) StopAll() int {
 		}
 		a.mu.Unlock()
 		if active {
+			r.releaseSlotLocked(a)
 			if a.Cancel != nil {
 				a.Cancel()
 			}
@@ -563,19 +598,22 @@ func (r *CoAgentRegistry) StopAll() int {
 			count++
 		}
 	}
-	r.runningCount.Store(0)
-	_ = runningBefore
 	r.promoteQueuedLocked()
 	r.logger.Info("All co-agents stopped", "count", count)
 	return count
 }
 
 // List returns a summary of all co-agents (for Tool Output).
-func (r *CoAgentRegistry) List() []map[string]interface{} {
+func (r *CoAgentRegistry) List() []map[string]interface{} { return r.list(nil) }
+
+func (r *CoAgentRegistry) list(session *string) []map[string]interface{} {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	result := make([]map[string]interface{}, 0, len(r.agents))
 	for _, a := range r.agents {
+		if session != nil && (*session == "" || a.ownerSession != *session) {
+			continue
+		}
 		a.mu.Lock()
 		runtime := time.Since(a.StartedAt)
 		if a.State != CoAgentRunning && a.State != CoAgentQueued && !a.CompletedAt.IsZero() {
@@ -797,7 +835,7 @@ func (r *CoAgentRegistry) Cleanup(maxAge time.Duration) int {
 	count := 0
 	for id, a := range r.agents {
 		a.mu.Lock()
-		removable := a.State != CoAgentRunning && a.State != CoAgentQueued && !a.CompletedAt.IsZero() && time.Since(a.CompletedAt) > maxAge
+		removable := !a.workerActive && a.State != CoAgentRunning && a.State != CoAgentQueued && !a.CompletedAt.IsZero() && time.Since(a.CompletedAt) > maxAge
 		a.mu.Unlock()
 		if removable {
 			delete(r.agents, id)
@@ -810,7 +848,7 @@ func (r *CoAgentRegistry) Cleanup(maxAge time.Duration) int {
 // StartCleanupLoop runs a background goroutine that periodically removes stale entries.
 func (r *CoAgentRegistry) StartCleanupLoop() {
 	r.mu.Lock()
-	if r.cleanupRunning {
+	if r.cleanupRunning || r.closed {
 		r.mu.Unlock()
 		return
 	}
@@ -822,7 +860,6 @@ func (r *CoAgentRegistry) StartCleanupLoop() {
 	r.mu.Unlock()
 
 	go func(stopCh, doneCh chan struct{}) {
-		defer close(doneCh)
 		defer func() {
 			r.mu.Lock()
 			if r.cleanupDoneCh == doneCh {
@@ -830,6 +867,7 @@ func (r *CoAgentRegistry) StartCleanupLoop() {
 				r.cleanupStopCh = nil
 				r.cleanupDoneCh = nil
 			}
+			close(doneCh)
 			r.mu.Unlock()
 		}()
 		for {
@@ -862,15 +900,12 @@ func (r *CoAgentRegistry) StartCleanupLoop() {
 // StopCleanupLoop stops the background cleanup goroutine if it is running.
 func (r *CoAgentRegistry) StopCleanupLoop() {
 	r.mu.Lock()
-	if !r.cleanupRunning || r.cleanupStopCh == nil {
-		r.mu.Unlock()
-		return
-	}
-	stopCh := r.cleanupStopCh
 	doneCh := r.cleanupDoneCh
+	if r.cleanupStopCh != nil {
+		close(r.cleanupStopCh)
+		r.cleanupStopCh = nil
+	}
 	r.mu.Unlock()
-
-	close(stopCh)
 	if doneCh != nil {
 		<-doneCh
 	}

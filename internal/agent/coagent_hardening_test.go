@@ -34,12 +34,12 @@ func TestCoAgentManagementSurvivesExhaustedBudget(t *testing.T) {
 			defer tracker.Flush()
 			tracker.RecordCostForCategory("coagent", 101)
 			registry := NewCoAgentRegistry(1, logger)
-			dc := &DispatchContext{Cfg: cfg, Logger: logger, BudgetTracker: tracker, CoAgentRegistry: registry, UserContext: "Stop all co-agents now"}
-			id, _ := registry.Register("finished", func() {})
+			dc := &DispatchContext{Cfg: cfg, Logger: logger, BudgetTracker: tracker, CoAgentRegistry: registry, SessionID: "test-session", UserContext: "Stop all co-agents now"}
+			id, _, _ := registry.register("coagent", "finished", "test-session", func() {}, 2, true, false)
 			registry.Complete(id, "already paid result", 35, 1)
 			for _, op := range []string{"list", "get_result", "stop", "stop_all"} {
 				if op == "stop" || op == "stop_all" {
-					id, _ = registry.Register("running", func() {})
+					id, _, _ = registry.register("coagent", "running", "test-session", func() {}, 2, true, false)
 				}
 				out, handled := dispatchPlatform(t.Context(), ToolCall{Action: "co_agent", Operation: op, CoAgentID: id}, dc)
 				if !handled || !strings.Contains(out, `"status":"ok"`) && !strings.Contains(out, `"status": "ok"`) {

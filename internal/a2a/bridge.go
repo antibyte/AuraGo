@@ -28,7 +28,7 @@ func NewBridge(clientMgr *ClientManager, coRegistry *agent.CoAgentRegistry, logg
 }
 
 // SpawnRemote sends a task to a remote A2A agent and tracks it in the co-agent registry.
-func (b *Bridge) SpawnRemote(ctx context.Context, agentID string, task string) (string, error) {
+func (b *Bridge) SpawnRemote(ctx context.Context, ownerSession, agentID, task string) (string, error) {
 	if b.coRegistry == nil {
 		return "", fmt.Errorf("co-agent registry not initialized")
 	}
@@ -36,16 +36,32 @@ func (b *Bridge) SpawnRemote(ctx context.Context, agentID string, task string) (
 		return "", fmt.Errorf("remote A2A agent %q is not available", agentID)
 	}
 
-	// Register in co-agent registry for unified tracking
-	coID, err := b.coRegistry.Register(fmt.Sprintf("[A2A:%s] %s", agentID, task), nil)
+	// Remote workers share local admission, cancellation and shutdown semantics.
+	runCtx, cancel := context.WithCancel(b.coRegistry.Context())
+	stopParent := context.AfterFunc(ctx, cancel)
+	coID, _, err := b.coRegistry.RegisterWorker("coagent", fmt.Sprintf("[A2A:%s] %s", agentID, task), ownerSession, cancel, 2, true)
 	if err != nil {
+		stopParent()
+		cancel()
 		return "", fmt.Errorf("failed to register remote A2A task: %w", err)
 	}
 
 	go func() {
+		defer b.coRegistry.WorkerDone(coID)
+		defer cancel()
+		defer stopParent()
+		defer func() {
+			if recover() != nil {
+				b.coRegistry.FailIfActive(coID, "remote worker panicked")
+			}
+		}()
+		if err := b.coRegistry.WaitForStart(coID, runCtx); err != nil {
+			b.coRegistry.FailIfActive(coID, err.Error())
+			return
+		}
 		b.logger.Info("A2A remote task started", "co_id", coID, "agent", agentID, "task_len", len(task))
 
-		result, err := b.clientMgr.SendMessage(ctx, agentID, task)
+		result, err := b.clientMgr.SendMessage(runCtx, agentID, task)
 		if err != nil {
 			b.logger.Error("A2A remote task failed", "co_id", coID, "error", err)
 			b.coRegistry.Fail(coID, err.Error(), 0, 0)
