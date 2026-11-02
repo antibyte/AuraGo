@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/png"
 	"strings"
 	"testing"
+
+	"golang.org/x/image/webp"
 )
 
 type galaxaAtlas struct {
@@ -58,7 +59,7 @@ func TestGalaxaEmbeddedArcadeAtlases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		im, err := png.Decode(f)
+		im, err := webp.Decode(f)
 		f.Close()
 		if err != nil {
 			t.Fatal(err)

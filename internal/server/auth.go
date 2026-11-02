@@ -807,8 +807,8 @@ var authBypassSubtrees = []string{
 
 var publicUIAssetPaths = map[string]bool{
 	"/apple-touch-icon.png":         true,
-	"/aurago_logo_dark.png":         true,
-	"/aurago_logo.png":              true,
+	"/aurago_logo_dark.webp":        true,
+	"/aurago_logo.webp":             true,
 	"/favicon-96x96.png":            true,
 	"/favicon.ico":                  true,
 	"/favicon.svg":                  true,

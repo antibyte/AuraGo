@@ -133,7 +133,7 @@ account and updates the signature. Contacts suggest recipients, and **Add Cc** a
 
 Bold, italic, headings, quotes and lists are available. Imported HTML stays as it is until you choose **Convert to
 editable text**. **Attach file** uploads files with a progress indicator. **Stickers** inserts an image from the Desktop
-sticker library; it is sent as an inline PNG named `sticker-<id>.png`.
+sticker library; it is sent as an inline WebP named `sticker-<id>.webp`.
 
 Drafts save shortly after your last change ("Draft saved"). If another window saved the draft first, choose **Keep my
 edits** or **Load the other version**.

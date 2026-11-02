@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -288,7 +289,7 @@ func TestDesktopOrbitSoftwareFallbackBrowser(t *testing.T) {
 		t.Errorf("the scene host is %q, want hidden", got)
 	}
 	// The poster shows instead: the wallpaper rule points at it and the file is the 1920x1080 render.
-	if got := s.eval(t, `async()=>({bg:getComputedStyle(document.body).backgroundImage,width:await new Promise(r=>{const i=new Image();i.onload=()=>r(i.naturalWidth+'x'+i.naturalHeight);i.onerror=()=>r('missing');i.src='/img/wallpapers/themes/orbit.png';})})`).Value; !strings.Contains(got.Get("bg").Str(), "/img/wallpapers/themes/orbit.png") || got.Get("width").Str() != "1920x1080" {
+	if got := s.eval(t, `async()=>({bg:getComputedStyle(document.body).backgroundImage,width:await new Promise(r=>{const i=new Image();i.onload=()=>r(i.naturalWidth+'x'+i.naturalHeight);i.onerror=()=>r('missing');i.src='/img/wallpapers/themes/orbit.webp';})})`).Value; !strings.Contains(got.Get("bg").Str(), "/img/wallpapers/themes/orbit.webp") || got.Get("width").Str() != "1920x1080" {
 		t.Errorf("the poster wallpaper is not in place: %s", got.String())
 	}
 	if os.Getenv("AURAGO_THEME_RECORDINGS") == "1" {
@@ -430,7 +431,7 @@ func TestDesktopOrbitCloseUpsBrowser(t *testing.T) {
 
 // TestDesktopOrbitPosterBrowser renders the poster wallpaper: the still scene exactly as the reduced-motion desktop draws
 // it (neutral camera, a moment of the cycle with the shuttle out and no comet, shooting star or flash, no film grain so
-// that the PNG stays small), without the shell and the particle layer. It writes ui/img/wallpapers/themes/orbit.png and
+// that the capture stays small), without the shell and the particle layer. It writes ui/img/wallpapers/themes/orbit.webp and
 // only runs on request:
 //
 //	AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_ORBIT_POSTER=1 go test ./ui -run '^TestDesktopOrbitPosterBrowser$' -count=1 -timeout 15m
@@ -472,9 +473,14 @@ func TestDesktopOrbitPosterBrowser(t *testing.T) {
 	if len(data) > 2_800_000 {
 		t.Errorf("the poster is %d bytes; the other theme wallpapers stay below 2.8 MB", len(data))
 	}
-	path := filepath.Join("img", "wallpapers", "themes", "orbit.png")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	capture := filepath.Join(t.TempDir(), "orbit-capture.png")
+	if err := os.WriteFile(capture, data, 0o644); err != nil {
 		t.Fatal(err)
+	}
+	path := filepath.Join("img", "wallpapers", "themes", "orbit.webp")
+	cmd := exec.Command("ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", capture, "-c:v", "libwebp", "-quality", "95", "-preset", "drawing", "-compression_level", "6", path)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("webp poster: %v %s", err, out)
 	}
 	t.Logf("wrote %s (%d bytes)", path, len(data))
 	if errs := orbitConsoleErrors(s); len(errs) > 0 {

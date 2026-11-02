@@ -64,7 +64,7 @@
                         <input type="search" data-search aria-label="${esc(t('desktop.radio_search_placeholder'))}" autocomplete="off" spellcheck="false" placeholder="${esc(t('desktop.radio_search_placeholder'))}" inputmode="search" enterkeyhint="search" autocapitalize="off">
                     </label>
                     </div>
-                    <div class="radio-tuning-control"><button class="radio-knob" type="button" data-tune aria-label="${esc(t('desktop.radio_tune'))}" aria-describedby="radio-tune-${esc(windowId)}"><img src="/img/radio/knob.png" alt="" draggable="false"></button><span class="radio-tuning-caption" aria-hidden="true">TUNING</span><span class="radio-sr-only" id="radio-tune-${esc(windowId)}">${esc(t('desktop.radio_tune_hint'))}</span></div>
+                    <div class="radio-tuning-control"><button class="radio-knob" type="button" data-tune aria-label="${esc(t('desktop.radio_tune'))}" aria-describedby="radio-tune-${esc(windowId)}"><img src="/img/radio/knob.webp" alt="" draggable="false"></button><span class="radio-tuning-caption" aria-hidden="true">TUNING</span><span class="radio-sr-only" id="radio-tune-${esc(windowId)}">${esc(t('desktop.radio_tune_hint'))}</span></div>
                 </div>
                 <div class="radio-presets"><div class="radio-tabs" role="group" aria-label="${esc(t('desktop.radio_categories'))}" data-tabs></div><div class="radio-preset-label" aria-hidden="true">PRESETS<small>GOOD MUSIC<br>ALWAYS ON <i></i></small></div></div>
             <div class="radio-scroll">
@@ -73,7 +73,7 @@
             </div>
             <div class="radio-player" data-player>
                 <div class="radio-player-display">
-                <button class="radio-player-button" type="button" data-action="toggle" aria-label="${esc(t('desktop.radio_play'))}"><img class="radio-playback-art" src="/img/radio/music-note.png" alt="" draggable="false"></button>
+                <button class="radio-player-button" type="button" data-action="toggle" aria-label="${esc(t('desktop.radio_play'))}"><img class="radio-playback-art" src="/img/radio/music-note.webp" alt="" draggable="false"></button>
                 <div class="radio-now">
                     <span class="radio-now-label">${esc(t('desktop.radio_now_playing'))}</span>
                     <strong data-now-title>${esc(t('desktop.radio_no_station'))}</strong>
@@ -88,7 +88,7 @@
                 <label class="radio-volume-label"><span>${esc(t('desktop.radio_volume'))}</span><input class="radio-volume" type="range" min="0" max="100" value="72" data-volume><span class="radio-volume-extents" aria-hidden="true"><span>MIN</span><span>MAX</span></span></label>
                 <button class="radio-icon-button" type="button" data-action="stop" aria-label="${esc(t('desktop.radio_stop'))}">${radioIcon('stop')}</button>
                 </div>
-                <div class="radio-footer" aria-hidden="true"><span>HIGH FIDELITY INTERNET RADIO</span><img src="/img/radio/signature.png" alt=""></div>
+                <div class="radio-footer" aria-hidden="true"><span>HIGH FIDELITY INTERNET RADIO</span><img src="/img/radio/signature.webp" alt=""></div>
             </div>
             <div class="radio-toast" data-toast role="status" hidden></div>
         </div>`;

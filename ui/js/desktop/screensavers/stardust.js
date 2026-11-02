@@ -14,7 +14,7 @@
     const TEXT_W = 1400;
     const TEXT_H = 420;
     const WORLD_W = 4.2;
-    const LOGO_URL = '/aurago_logo_dark.png';
+    const LOGO_URL = '/aurago_logo_dark.webp';
     const LOGO_EVERY_MINUTES = 3;
 
     const SIM_FS = `

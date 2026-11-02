@@ -96,7 +96,7 @@ try {
         const editWhileLoading = theme === 'standard' && mode === 'dark' && width === 1280;
         let releaseSticker, stickerStarted;
         const stickerGate = new Promise(resolve => releaseSticker = resolve), stickerReady = new Promise(resolve => stickerStarted = resolve);
-        if (editWhileLoading) await page.route('**/img/stickers/animals-cat.png?*', async route => { stickerStarted(); await stickerGate; await route.continue(); });
+        if (editWhileLoading) await page.route('**/img/stickers/animals-cat.webp?*', async route => { stickerStarted(); await stickerGate; await route.continue(); });
         await page.locator('[data-sticker-id="animals-cat"]').focus(); await page.keyboard.press('Enter');
         if (editWhileLoading) {
             await stickerReady;
@@ -112,7 +112,7 @@ try {
         assert(!draft.html.includes('/img/stickers/'),'outgoing HTML depends on local resources');
         assert.equal(draft.attachments[0].inline,true);
         assert.equal(draft.attachments[0].content_id,'blob_1@aurago');
-        assert.equal(draft.attachments[0].filename,'sticker-animals-cat.png');
+        assert.equal(draft.attachments[0].filename,'sticker-animals-cat.webp');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,'horizontal overflow');
         await editor.focus(); await page.keyboard.press('Control+z');
         assert.equal(await editor.locator('img').count(),0,'sticker cannot be undone');

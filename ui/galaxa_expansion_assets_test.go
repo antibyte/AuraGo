@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"image"
-	"image/png"
 	"strings"
 	"testing"
+
+	"golang.org/x/image/webp"
 )
 
 func TestGalaxaExpansionAssets(t *testing.T) {
@@ -87,7 +88,7 @@ func TestGalaxaExpansionAssets(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					im, err = png.Decode(f)
+					im, err = webp.Decode(f)
 					f.Close()
 					if err != nil {
 						t.Fatal(err)

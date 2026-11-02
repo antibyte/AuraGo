@@ -92,12 +92,12 @@ package and installation contract. No library, HTTP API or database is added.
 
 - `assets/galaxa-expansion/catalog.json`: exactly 50 motifs and their production brief.
 - `assets/galaxa-expansion/sources/*.json`: original `image_gen` output names, prompts and references.
-- `ui/img/galaxa/exp-*.png`: unchanged original transparent PNG outputs.
+- `ui/img/galaxa/exp-*.webp`: WebP quality 95 of the original transparent sheets. Frame rectangles and anchors stay the PNG measurements in `atlas.json`.
 - `ui/img/galaxa/atlas.json`: frame rectangles, anchors, timing, loops, optional sheet policy and the explicit expansion list.
 - `ui/img/galaxa/provenance.json`: source names, prompts, byte sizes and SHA-256 hashes.
 
 Regenerate metadata with `node scripts/build-galaxa-expansion.mjs --write`.
-The Go helper only reads PNG pixels to find transparent grid cuts and stable
+The Go helper reads the WebP sheets to find transparent grid cuts and stable
 source anchors; it never resizes or re-encodes the artwork. Repair artwork with
 `image_gen`, replace its source record, then regenerate the metadata.
 

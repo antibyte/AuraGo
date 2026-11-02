@@ -1,11 +1,11 @@
 /* Theme-independent receiver; all window chrome stays scoped to this app. */
 @font-face { font-family: 'Radio Labels'; src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
 .desktop-body[data-theme] .vd-window[data-app-id="radio"] {
-    --radio-metal: url('/img/radio/metal.png'); --radio-mint: #bcf8e5;
+    --radio-metal: url('/img/radio/metal.webp'); --radio-mint: #bcf8e5;
     container: receiver / size;
     display: flex; flex-direction: column; grid-template-rows: none; backdrop-filter: none;
     padding: 0 22px 8px; border: 3px solid #49311e; border-radius: 10px;
-    background: #442619 url('/img/radio/wood.png') repeat; background-size: 170px 680px;
+    background: #442619 url('/img/radio/wood.webp') repeat; background-size: 170px 680px;
     box-shadow: inset 3px 0 4px #c18954, inset -4px 0 5px #130c07, 0 20px 40px #0009;
     color: #eadcca; overflow: visible;
 }
@@ -78,14 +78,14 @@
 .radio-preset-label i { margin-left: 6px; }
 .radio-scroll { flex: 1 1 auto; min-height: 80px; margin: 0 8px; padding: 13px 12px; overflow-y: auto; overscroll-behavior: contain; border: 4px ridge #8a795e; border-radius: 10px; background: #121410; box-shadow: inset 0 0 18px #000; scrollbar-color: #b9a181 #191810; }
 .radio-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; align-content: start; }
-.radio-card { position: relative; min-width: 0; height: 180px; padding: 9px 5px 9px 42px; border: 16px solid transparent; border-image: url('/img/radio/frame.png') 190 125 180 125 / 22px / 0 stretch; border-radius: 10px; background: #b09b7e var(--radio-metal) center / 520px 260px; background-blend-mode: soft-light; box-shadow: 0 3px 4px #000; }
+.radio-card { position: relative; min-width: 0; height: 180px; padding: 9px 5px 9px 42px; border: 16px solid transparent; border-image: url('/img/radio/frame.webp') 190 125 180 125 / 22px / 0 stretch; border-radius: 10px; background: #b09b7e var(--radio-metal) center / 520px 260px; background-blend-mode: soft-light; box-shadow: 0 3px 4px #000; }
 .radio-card.selected { outline: 1px solid #baa584; outline-offset: -5px; }
 .radio-card.active { outline: 2px solid #9dedcf; outline-offset: -5px; }
 .radio-card-number { position: absolute; top: 11px; left: 9px; display: grid; place-items: center; width: 30px; height: 35px; background: #0c1210; color: #f3c780; border: 2px ridge #a48f6f; border-radius: 4px; font: 600 21px 'Radio Labels',sans-serif; }
 .radio-station { position: relative; display: grid; grid-template-columns: 74px minmax(0,1fr); align-items: start; gap: 13px; width: 100%; height: 100%; padding: 9px; border: 3px ridge #756c52; border-radius: 5px; text-align: left; background: #050d0b; color: #d3f6e9; }
 .radio-station:hover { background: #0b201a; }
 .radio-art { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 10px; background: #193437; box-shadow: inset 0 1px 1px #508078; }
-.radio-art::after { content: ''; position: absolute; left: 9px; top: 92px; width: 74px; height: 25px; background: url('/img/radio/grille.png') center / cover; pointer-events: none; }
+.radio-art::after { content: ''; position: absolute; left: 9px; top: 92px; width: 74px; height: 25px; background: url('/img/radio/grille.webp') center / cover; pointer-events: none; }
 .radio-art > img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
 .radio-art .radio-icon { width: 36px; height: 36px; }
 .radio-card-body { min-width: 0; }
@@ -119,7 +119,7 @@
 .radio-player-lamps { display: grid; gap: 5px; border-left: 1px solid #574b39; padding-left: 18px; font: 600 11px 'Radio Labels',sans-serif; white-space: nowrap; }
 .radio-player-lamps i { margin-right: 7px; width: 8px; height: 8px; }
 .radio-player-controls { display: grid; grid-template-columns: 48px 48px minmax(70px,1fr) 48px; gap: 17px; align-items: center; }
-.radio-icon-button { display: grid; place-items: center; width: 48px; height: 48px; padding: 8px; border: 3px ridge #cbb38c; border-radius: 50%; background: #b5a283 url('/img/radio/knob.png') center / cover; box-shadow: 0 2px 3px #0009; }
+.radio-icon-button { display: grid; place-items: center; width: 48px; height: 48px; padding: 8px; border: 3px ridge #cbb38c; border-radius: 50%; background: #b5a283 url('/img/radio/knob.webp') center / cover; box-shadow: 0 2px 3px #0009; }
 .radio-icon-button:hover { filter: brightness(1.15); }
 .radio-icon-button[data-action="mute"].active { box-shadow: 0 0 9px #f4a144; }
 .radio-volume-label { min-width: 0; padding: 0 10px; color: #241d13; font: 600 12px 'Radio Labels',sans-serif; letter-spacing: 1.5px; }
@@ -135,7 +135,7 @@
 .radio-empty .radio-icon { width: 44px; height: 48px; }
 .radio-toast { position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%); z-index: var(--vd-z-toast); max-width: calc(100% - 32px); padding: 12px 18px; border: 2px ridge #b5a180; border-radius: 4px; background: #1e170c; color: #ffe0a6; box-shadow: 0 4px 14px #000a; font-size: 14px; }
 .radio-skeleton { opacity: .35; }
-.radio-player::before,.radio-player::after { content: ''; position: absolute; top: 5px; width: 17px; height: 17px; background: url('/img/radio/screw.png') center / 24px 24px; pointer-events: none; }
+.radio-player::before,.radio-player::after { content: ''; position: absolute; top: 5px; width: 17px; height: 17px; background: url('/img/radio/screw.webp') center / 24px 24px; pointer-events: none; }
 .radio-player::before { left: 3px; }
 .radio-player::after { right: 3px; }
 .radio-app,.radio-presets,.radio-tab { background-blend-mode: soft-light; }

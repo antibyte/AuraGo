@@ -2837,7 +2837,7 @@ buttons and menu popovers remain excluded from those gestures.
 - `video-studio-media.js` extracts up to eight thumbnails per video with one
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
   only the editor's own artwork names (`title-<Date.now()>.png`,
-  `sticker-<built-in name>.png`) are hidden from the media bin. Key names and
+  `sticker-<canvas name>.png`) and built-in stickers (`sticker-<id>.webp`, plus older `.png` names) are hidden from the media bin. Key names and
   decimal seconds follow the UI language. Strings with `{{count}}` go through
   `P.trCount(s, key, count, one, other)`: the `<key>_one` string for exactly one (the Desktop convention of
   `GalleryLibrary.countLabel`), the key itself for every other count. Each such key has `_one` in all sixteen

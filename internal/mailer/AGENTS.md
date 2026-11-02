@@ -58,7 +58,7 @@ remain in the Vault and are resolved only when an adapter is created.
   per-file and aggregate bounds. Never resolve a caller-provided path.
 - `Service.AttachmentLimits` advertises the effective upload-file cap, bounded by the existing outgoing cap, and the unchanged 25 MiB outgoing aggregate. Desktop app exports use ordinary revisioned draft uploads; they do not send or grant path access. Verify `TestAttachmentLimitsRespectUploadAndOutgoingBudgets` and server `TestMailerStateAdvertisesExistingAttachmentLimits`.
 - Composer stickers reuse private draft attachments with stable CID references.
-  SMTP/Gmail MIME puts inline PNGs in multipart/related beside the body alternative;
+  SMTP/Gmail MIME puts inline sticker images in multipart/related beside the body alternative;
   regular attachments remain outside it. Preserve bytes, Content-ID and inline
   disposition through draft save/reopen and send. AgentMail sends `content`,
   `content_id` and `content_disposition` per its public SendAttachment schema

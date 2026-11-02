@@ -7,7 +7,7 @@
     function validateManifest(data) {
         if (!data || data.version !== 1 || !data.sheets || !data.animations) throw Error('Invalid Galaxa atlas manifest');
         for (const sheet of Object.values(data.sheets)) {
-            if (!/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isInteger(sheet.width) || !Number.isInteger(sheet.height) || sheet.width <= 0 || sheet.height <= 0) throw Error('Invalid atlas sheet');
+            if (!/^[a-z0-9-]+\.webp$/.test(sheet.file) || !Number.isInteger(sheet.width) || !Number.isInteger(sheet.height) || sheet.width <= 0 || sheet.height <= 0) throw Error('Invalid atlas sheet');
             if (sheet.optional !== undefined && sheet.optional !== 'planet') throw Error('Invalid optional atlas sheet');
         }
         for (const scene of Object.values(data.scenes || {})) {
@@ -17,7 +17,7 @@
         for (const [key, a] of Object.entries(data.animations)) {
             const sheet = data.sheets[a.sheet];
             if (a.blendFrames !== undefined && typeof a.blendFrames !== 'boolean') throw Error('Invalid frame blending: ' + key);
-            if (!sheet || !/^[a-z0-9-]+\.png$/.test(sheet.file) || !Number.isFinite(a.ms) || a.ms <= 0 ||
+            if (!sheet || !/^[a-z0-9-]+\.webp$/.test(sheet.file) || !Number.isFinite(a.ms) || a.ms <= 0 ||
                 !Number.isFinite(a.size) || a.size <= 0 || !Array.isArray(a.pivot) || a.pivot.length !== 2 ||
                 !a.pivot.every(n => Number.isFinite(n) && n >= 0 && n <= 1) || !Array.isArray(a.frames) || !a.frames.length) throw Error('Invalid animation: ' + key);
             if (a.sourceAnchors && (!Number.isFinite(a.sourceSize) || a.sourceSize <= 0 || !Array.isArray(a.sourceAnchors) || a.sourceAnchors.length !== a.frames.length || a.sourceAnchors.some((p, i) => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite) || p[0] < 0 || p[1] < 0 || p[0] > a.frames[i][2] || p[1] > a.frames[i][3]))) throw Error('Invalid source anchors: ' + key);

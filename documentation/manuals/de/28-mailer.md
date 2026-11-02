@@ -134,7 +134,7 @@ bleibt unter **Regeln für diese Nachricht** sichtbar und lässt sich dort erneu
 Klicke auf **Verfassen**. Die Nachricht öffnet sich in einem eigenen Desktop-Fenster mit dem Titel **Neue Nachricht**. **Von**
 wählt das sendende Konto und aktualisiert die Signatur. **Cc hinzufügen** und **Bcc hinzufügen** zeigen die weiteren Felder.
 Importiertes HTML bleibt, bis du **In bearbeitbaren Text umwandeln** wählst. **Datei anhängen** lädt Dateien hoch, und
-**Sticker** fügt ein Bild aus der Sticker-Bibliothek des Desktops als PNG `sticker-<id>.png` ein.
+**Sticker** fügt ein Bild aus der Sticker-Bibliothek des Desktops als WebP `sticker-<id>.webp` ein.
 
 Entwürfe speichern kurz nach deiner letzten Änderung („Entwurf gespeichert“). Hat ein anderes Fenster den Entwurf zuerst
 gespeichert, wähle **Meine Änderungen behalten** oder **Andere Version laden**.

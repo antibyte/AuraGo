@@ -11387,20 +11387,20 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* ui/css/desktop-wallpaper-themes.css */
 /* Locally packaged theme artwork also remains selectable independently of the skin. */
 .desktop-body[data-wallpaper="electronic_dreams"] {
-    background: #0e2520 url('/img/wallpapers/themes/electronic_dreams.png') center / cover no-repeat fixed;
+    background: #0e2520 url('/img/wallpapers/themes/electronic_dreams.webp') center / cover no-repeat fixed;
 }
 .desktop-body[data-wallpaper="windows_xp"] {
-    background: #5c9ee9 url('/img/wallpapers/themes/windows_xp.png') center / cover no-repeat fixed;
+    background: #5c9ee9 url('/img/wallpapers/themes/windows_xp.webp') center / cover no-repeat fixed;
 }
 .desktop-body[data-wallpaper="green_slime"] {
-    background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
+    background: #233815 url('/img/wallpapers/themes/green_slime.webp') center / cover no-repeat fixed;
 }
 /* Forest: generated vector dusk scene (assets/desktop-wallpaper-forest/generate.mjs); the left column is kept dark for the icons. */
 .desktop-body[data-wallpaper="forest"] {
     background: #07120f url('/img/wallpapers/themes/forest.svg') center / cover no-repeat fixed;
 }
 .desktop-body[data-wallpaper="voxel_world"] {
-    background: #bfe2ff url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
+    background: #bfe2ff url('/img/wallpapers/themes/voxel_world.webp') center / cover no-repeat fixed;
 }
 .desktop-body:is([data-wallpaper="electronic_dreams"], [data-wallpaper="windows_xp"], [data-wallpaper="green_slime"]) .vd-icon-label {
     color: #fff;
@@ -11417,7 +11417,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* Orbit: the poster (a render of the still scene) shows while the live scene loads and wherever WebGL is unavailable; the
    scene host fades in over it. Cool labels on a dark glass plate. */
 .desktop-body[data-wallpaper="orbit"] {
-    background: #03040c url('/img/wallpapers/themes/orbit.png') center / cover no-repeat fixed;
+    background: #03040c url('/img/wallpapers/themes/orbit.webp') center / cover no-repeat fixed;
 }
 .desktop-body[data-wallpaper="orbit"] .vd-icon-label {
     color: #eaf6ff;

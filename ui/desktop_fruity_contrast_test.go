@@ -183,7 +183,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if strings.Contains(radio, "rgba(9, 18, 32") {
 		t.Fatalf("radio must not hardcode a dark glass wash in source aliases")
 	}
-	if !strings.Contains(radio, ".vd-window[data-app-id=\"radio\"]") || !strings.Contains(radio, "url('/img/radio/metal.png')") {
+	if !strings.Contains(radio, ".vd-window[data-app-id=\"radio\"]") || !strings.Contains(radio, "url('/img/radio/metal.webp')") {
 		t.Fatalf("radio must scope its independent receiver material to its own window")
 	}
 

@@ -17,7 +17,7 @@ import (
 )
 
 func TestStickerDraftAndMIMERoundTrip(t *testing.T) {
-	data, err := os.ReadFile("../../ui/img/stickers/animals-cat.png")
+	data, err := os.ReadFile("../../ui/img/stickers/animals-cat.webp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestStickerDraftAndMIMERoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	draft, err = f.service.AddDraftAttachment(ctx, draft.ID, draft.Revision, "sticker-animals-cat.png", "image/png", bytes.NewReader(data))
+	draft, err = f.service.AddDraftAttachment(ctx, draft.ID, draft.Revision, "sticker-animals-cat.webp", "image/webp", bytes.NewReader(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestStickerDraftAndMIMERoundTrip(t *testing.T) {
 				t.Fatalf("invalid inline MIME round trip: HTML=%q attachments=%d error=%v", html, len(attachments), err)
 			}
 			att := attachments[0]
-			if !att.Inline || att.ContentID != cid || att.ContentType != "image/png" || !bytes.Equal(att.Data, data) {
+			if !att.Inline || att.ContentID != cid || att.ContentType != "image/webp" || !bytes.Equal(att.Data, data) {
 				t.Fatal("sticker lost bytes, transparency or CID metadata")
 			}
 			if attachments[1].Inline || attachments[1].Filename != "note.txt" || string(attachments[1].Data) != "normal attachment" {
