@@ -335,10 +335,10 @@ func TestAnthropicToolChoiceMapping(t *testing.T) {
 		input    any
 		wantType string
 		wantName string
-		wantNil  bool
 	}{
 		{input: "auto", wantType: "auto"},
-		{input: "none", wantNil: true},
+		{input: "none", wantType: "none"},
+		{input: map[string]interface{}{"type": "none"}, wantType: "none"},
 		{input: "required", wantType: "any"},
 		{input: map[string]interface{}{"type": "function", "function": map[string]interface{}{"name": "my_tool"}}, wantType: "tool", wantName: "my_tool"},
 	}
@@ -347,12 +347,6 @@ func TestAnthropicToolChoiceMapping(t *testing.T) {
 		tc, err := translateToolChoice(tt.input)
 		if err != nil {
 			t.Errorf("toolChoice(%v): err = %v", tt.input, err)
-			continue
-		}
-		if tt.wantNil {
-			if tc != nil {
-				t.Errorf("toolChoice(%v) = %+v, want nil", tt.input, tc)
-			}
 			continue
 		}
 		if tc == nil {
@@ -423,7 +417,11 @@ func TestAnthropicStopReasonMapping(t *testing.T) {
 		{"tool_use", "tool_calls"},
 		{"max_tokens", "length"},
 		{"stop_sequence", "stop"},
-		{"unknown", "stop"},
+		{"model_context_window_exceeded", "length"},
+		{"refusal", "content_filter"},
+		{"pause_turn", "pause_turn"},
+		{"unknown", "unknown"},
+		{"", ""},
 	}
 	for _, tt := range tests {
 		got := mapStopReason(tt.input)

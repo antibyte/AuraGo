@@ -658,10 +658,7 @@ func translateToolChoice(tc any) (*anthropicToolChoice, error) {
 		case "auto":
 			return &anthropicToolChoice{Type: "auto"}, nil
 		case "none":
-			// Anthropic doesn't have "none" directly — omit tools from request.
-			// But as a tool_choice value, we can't actually send it. Return nil
-			// and let the caller strip tools if needed.
-			return nil, nil
+			return &anthropicToolChoice{Type: "none"}, nil
 		case "required":
 			return &anthropicToolChoice{Type: "any"}, nil
 		}
@@ -1071,12 +1068,15 @@ func mapStopReason(reason string) string {
 		return "stop"
 	case "tool_use":
 		return "tool_calls"
-	case "max_tokens":
+	case "max_tokens", "model_context_window_exceeded":
 		return "length"
 	case "stop_sequence":
 		return "stop"
+	case "refusal":
+		return "content_filter"
 	default:
-		return "stop"
+		// Preserve unsupported, paused and missing reasons for the completion boundary.
+		return reason
 	}
 }
 
@@ -1316,19 +1316,20 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			if json.Unmarshal([]byte(data), &evt) != nil {
 				continue
 			}
-			if len(thinkingBlocks) > 0 {
+			if evt.Delta.StopReason != "" && len(thinkingBlocks) > 0 {
 				writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
 					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}})
 				thinkingBlocks = nil
 			}
-			finishReason := mapStopReason(evt.Delta.StopReason)
 			chunk := openaiStreamChunk{
-				ID:     msgID,
-				Object: "chat.completion.chunk",
-				Model:  msgModel,
-				Choices: []openaiChoice{
-					{Index: 0, FinishReason: &finishReason},
-				},
+				ID:      msgID,
+				Object:  "chat.completion.chunk",
+				Model:   msgModel,
+				Choices: []openaiChoice{},
+			}
+			if evt.Delta.StopReason != "" {
+				finishReason := mapStopReason(evt.Delta.StopReason)
+				chunk.Choices = []openaiChoice{{Index: 0, FinishReason: &finishReason}}
 			}
 			if evt.Usage != nil {
 				combined := *evt.Usage
