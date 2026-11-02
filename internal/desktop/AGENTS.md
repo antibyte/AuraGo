@@ -14,6 +14,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 - ECalc (`ecalc`, category `dev`) is a built-in electronics formula app with no capability gate. Its icon is app-owned artwork, `logo_path` `/img/desktop-icons/ecalc.svg`, and its `Icon` value `ecalc` is deliberately absent from `desktopPreferredIconNames` and every icon theme (as for Synth Studio), so every theme shows the logo; adding a themed `ecalc` icon would replace it. Its catalog route is `GET /api/ecalc/catalog` (`../server/AGENTS.md`). Verify `TestBuiltinECalcApp*` and `go test ./ui -run TestDesktopECalc`.
 
+- Storymaker (`storymaker`, category `creative`, `open_maximized`) is a built-in explainer-video app behind the `storymaker` capability (`Requires`, the `storymaker.enabled` switch; the capability case lives in `../server/bluetooth_live.go`). Its icon is app-owned artwork, `logo_path` `/img/desktop-icons/storymaker.svg`, and its `Icon` value `storymaker` is deliberately absent from `desktopPreferredIconNames` and every icon theme (as for ECalc). Its routes are `/api/desktop/storymaker/*` (`../server/AGENTS.md`), its projects live in `Documents/Storymaker/`. Verify `TestBuiltinStorymakerApp*` and `go test ./ui -run TestDesktopStorymaker`.
+
 - Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
   `CreateStorageDirectory` for exclusive directory creation,
   `WriteFileStreamConditional` for bounded publication, and

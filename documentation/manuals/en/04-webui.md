@@ -265,6 +265,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Calculator / Settings / System Info / Log Viewer** | Calculator, desktop settings, system diagnostics, and a live log tail |
 | **ECalc** | Electronics formula collection: interactive calculators with schematics, typeset formulas and live results, plus E-series values for resistors. Runs in the browser and needs no setup ([Chapter 32](32-ecalc.md)) |
 | **Galaxa Deluxe / Chess / NASSCAD / System World** | Arcade shooter, chess (with agent opponent), docking game, and an explorable 3D system city with robots, telemetry, and tower voice |
+| **Storymaker** | Explainer videos: stage scenes with cartoon people, props and environments, write the narration, watch a live preview and export a silent MP4 (needs FFmpeg and a browser for the export) — see [Storymaker](../../storymaker.md) |
 | **Newspaper** | Personal daily edition: server-side research with vetted sources, sections, an archive of all editions, and optional email/Telegram delivery |
 | **Detective** | Bounded desktop research with adjustable effort, cited reports, and exports |
 | **Personal Radio** | Your own radio station: topic and music selection per station, a personal audio library, news, and speech segments |
