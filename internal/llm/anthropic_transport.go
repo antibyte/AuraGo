@@ -80,20 +80,7 @@ func (c anthropicThinkingConfig) enabledForModel(model string) bool {
 		return false
 	}
 
-	if anthropicAdaptiveModel(lower) {
-		return true
-	}
-	// Auto-detect: enable only for newer Claude model families (avoid older Claude 3).
-	switch {
-	case strings.Contains(lower, "claude-3-7"),
-		strings.Contains(lower, "claude-3.7"),
-		strings.Contains(lower, "claude-4"),
-		strings.Contains(lower, "claude-opus-4"),
-		strings.Contains(lower, "claude-sonnet-4"):
-		return true
-	default:
-		return false
-	}
+	return anthropicFeaturesForModel(lower).thinking
 }
 
 // ---------------------------------------------------------------------------
@@ -554,25 +541,6 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 		}
 	}
 
-	if thinkingCfg.enabledForModel(oai.Model) {
-		if anthropicAdaptiveModel(oai.Model) {
-			ant.Thinking = &anthropicThinking{Type: "adaptive"}
-		} else if ant.MaxTokens > 1024 {
-			budget := thinkingCfg.BudgetTokens
-			if budget <= 0 {
-				budget = 10000
-			}
-			budget = max(1024, min(budget, maxThinkingBudget, ant.MaxTokens-1))
-			ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
-		}
-	}
-	if ant.Thinking != nil || anthropicFixedSamplingModel(oai.Model) {
-		ant.Temperature, ant.TopP = nil, nil
-	} else if ant.Temperature != nil {
-		// Claude accepts either sampling control, never both.
-		ant.TopP = nil
-	}
-
 	// stop → stop_sequences (Anthropic only accepts an array)
 	ant.StopSequences = translateStopSequences(oai.Stop)
 
@@ -592,10 +560,34 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 			return ant, fmt.Errorf("translate tool_choice: %w", err)
 		}
 		ant.ToolChoice = tc
-		if tc != nil && ant.Thinking != nil && ant.Thinking.Type == "enabled" && (tc.Type == "any" || tc.Type == "tool") {
-			// Honor an explicit forced tool choice by disabling incompatible manual thinking.
-			ant.Thinking = nil
+	}
+	features := anthropicFeaturesForModel(oai.Model)
+	enabled := thinkingCfg.enabledForModel(oai.Model)
+	forcedTool := ant.ToolChoice != nil && (ant.ToolChoice.Type == "any" || ant.ToolChoice.Type == "tool")
+	if forcedTool && features.forbidForcedTools {
+		return ant, fmt.Errorf("selected Anthropic model does not support forced tool_choice; use auto or none")
+	}
+	switch {
+	case enabled && features.adaptive:
+		ant.Thinking = &anthropicThinking{Type: "adaptive"}
+	case enabled && !forcedTool && ant.MaxTokens > 1024:
+		budget := thinkingCfg.BudgetTokens
+		if budget <= 0 {
+			budget = 10000
 		}
+		budget = max(1024, min(budget, maxThinkingBudget, ant.MaxTokens-1))
+		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
+	case !enabled && features.defaultThinking:
+		if !features.disableThinking {
+			return ant, fmt.Errorf("selected Anthropic model cannot disable thinking; enable llm.anthropic_thinking and include the model in its allowlist, or select a model that supports thinking off")
+		}
+		ant.Thinking = &anthropicThinking{Type: "disabled"}
+	}
+	if ant.Thinking != nil && ant.Thinking.Type != "disabled" || features.fixedSampling {
+		ant.Temperature, ant.TopP = nil, nil
+	} else if ant.Temperature != nil {
+		// Claude accepts either sampling control, never both.
+		ant.TopP = nil
 	}
 
 	// user → metadata.user_id
@@ -1144,6 +1136,9 @@ func mapStopReason(reason string) string {
 		return "stop"
 	case "refusal":
 		return "content_filter"
+	case "stop", "tool_calls":
+		// These are OpenAI successes, not native Anthropic completion reasons.
+		return "anthropic_" + reason
 	default:
 		// Preserve unsupported, paused and missing reasons for the completion boundary.
 		return reason
@@ -1243,7 +1238,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 	// Track tool call indices: block index → tool_calls array index
 	toolCallIndex := 0
-	blockToolIDs := map[int]string{}
+	blockToolIndices := map[int]int{}
 
 	// Track active thinking block state
 	thinkingBlockActive := false
@@ -1321,8 +1316,11 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				return fmt.Errorf("anthropic stream: invalid content_block_start")
 			}
 			if evt.ContentBlock.Type == "tool_use" {
-				blockToolIDs[evt.Index] = evt.ContentBlock.ID
+				if _, duplicate := blockToolIndices[evt.Index]; duplicate || evt.ContentBlock.ID == "" || evt.ContentBlock.Name == "" {
+					return fmt.Errorf("anthropic stream: invalid or duplicate tool block")
+				}
 				idx := toolCallIndex
+				blockToolIndices[evt.Index] = idx
 				chunk := openaiStreamChunk{
 					ID:     msgID,
 					Object: "chat.completion.chunk",
@@ -1381,8 +1379,10 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				}
 
 			case "input_json_delta":
-				// Find the correct tool_calls index for this block
-				idx := findToolIndex(evt.Index, blockToolIDs, toolCallIndex)
+				idx, known := blockToolIndices[evt.Index]
+				if !known {
+					return fmt.Errorf("anthropic stream: tool delta has no matching tool block")
+				}
 				chunk := openaiStreamChunk{
 					ID:     msgID,
 					Object: "chat.completion.chunk",
@@ -1527,18 +1527,6 @@ func anthropicStreamErrorStatus(kind string) int {
 	default:
 		return http.StatusInternalServerError
 	}
-}
-
-// findToolIndex maps Anthropic's block index to the OpenAI tool_calls array index.
-func findToolIndex(blockIndex int, blockToolIDs map[int]string, totalTools int) int {
-	// Count how many tool blocks appeared before blockIndex
-	idx := 0
-	for i := 0; i < blockIndex; i++ {
-		if _, isToolBlock := blockToolIDs[i]; isToolBlock {
-			idx++
-		}
-	}
-	return idx
 }
 
 func writeSSEChunk(w io.Writer, chunk openaiStreamChunk) error {

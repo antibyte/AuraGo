@@ -28,6 +28,7 @@ func TestAnthropicSpecialStopReasonsSurviveResponseTranslation(t *testing.T) {
 	for _, test := range []struct{ native, want string }{
 		{"refusal", "content_filter"}, {"pause_turn", "pause_turn"},
 		{"model_context_window_exceeded", "length"}, {"future_reason", "future_reason"}, {"", ""},
+		{"stop", "anthropic_stop"}, {"tool_calls", "anthropic_tool_calls"},
 	} {
 		t.Run(test.native, func(t *testing.T) {
 			mapped := mapAnthropicToOpenAI(anthropicResponse{StopReason: test.native})

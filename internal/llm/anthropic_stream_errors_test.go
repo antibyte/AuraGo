@@ -142,6 +142,20 @@ func TestAnthropicStreamMalformedKnownEventsFail(t *testing.T) {
 	}
 }
 
+func TestAnthropicStreamRejectsUnknownOrDuplicateToolBlocks(t *testing.T) {
+	block := "event: content_block_start\ndata: {\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"fixture\",\"name\":\"read\",\"input\":{}}}\n\n"
+	for _, content := range []string{
+		block + block,
+		block + "event: content_block_delta\ndata: {\"index\":1000000000,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{}\"}}\n\n",
+	} {
+		var out bytes.Buffer
+		err := translateStreamEvents(strings.NewReader(anthropicStreamStartFixture+content+anthropicStreamFinishFixture+"event: message_stop\ndata: {}\n\n"), &out, "fixture", nil)
+		if err == nil || strings.Contains(out.String(), "[DONE]") {
+			t.Fatalf("invalid tool index became successful completion: %v", err)
+		}
+	}
+}
+
 type anthropicCloseProbe struct {
 	io.ReadCloser
 	closed chan struct{}

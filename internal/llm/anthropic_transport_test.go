@@ -176,7 +176,7 @@ func TestAnthropicThinkingBudgetClamping(t *testing.T) {
 	if ant.Thinking == nil {
 		t.Fatal("expected thinking to be enabled")
 	}
-	// Default 10000 is clamped to MaxTokens/2 = 4096
+	// The default 10000 stays strictly below the output cap of 8192.
 	if ant.Thinking.BudgetTokens != 8191 {
 		t.Errorf("expected default budget clamped to 8191, got %d", ant.Thinking.BudgetTokens)
 	}

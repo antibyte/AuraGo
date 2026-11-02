@@ -76,7 +76,7 @@ func TestAnthropicAgentLoopsSendNativeNoneForFinalization(t *testing.T) {
 }
 
 func TestAnthropicAgentRejectsSpecialNativeFinishReasons(t *testing.T) {
-	for _, reason := range []string{"refusal", "pause_turn", "model_context_window_exceeded", "future_reason", ""} {
+	for _, reason := range []string{"refusal", "pause_turn", "model_context_window_exceeded", "future_reason", "stop", "tool_calls", ""} {
 		for _, stream := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/stream=%t", reason, stream), func(t *testing.T) {
 				var requests, dispatched atomic.Int32

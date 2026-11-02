@@ -857,8 +857,8 @@ llm:
     temperature: 0.7
     structured_outputs: false                               # deprecated fallback only when provider/model capabilities are unknown
     anthropic_thinking:
-        enabled: false                                   # enable Anthropic "thinking" (only for supported Claude models)
-        budget_tokens: 10000                             # tokens reserved for thinking; 0 uses default
+        enabled: false                                   # thinking off; always-on Claude models require true (documentation/anthropic.md)
+        budget_tokens: 10000                             # manual thinking only; adaptive models omit a fixed budget; 0 uses default
         model_allowlist: []                              # optional: exact/prefix allowlist (supports "*" suffix), empty = auto-detect
 logging:
     enable_file_log: true

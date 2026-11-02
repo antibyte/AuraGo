@@ -3,6 +3,7 @@ package llm
 import (
 	"encoding/base64"
 	"encoding/json"
+	"strconv"
 	"strings"
 )
 
@@ -109,16 +110,51 @@ func appendThinkingField(raw json.RawMessage, key, value string) json.RawMessage
 	data, _ := json.Marshal(fields)
 	return data
 }
-func anthropicAdaptiveModel(model string) bool {
-	lower := strings.ToLower(model)
-	return strings.Contains(lower, "claude-opus-4-6") || strings.Contains(lower, "claude-opus-4.6") || strings.Contains(lower, "claude-sonnet-4-6") || strings.Contains(lower, "claude-sonnet-4.6") || anthropicFixedSamplingModel(lower)
+
+type anthropicModelFeatures struct {
+	thinking          bool
+	adaptive          bool
+	defaultThinking   bool
+	disableThinking   bool
+	fixedSampling     bool
+	forbidForcedTools bool
 }
-func anthropicFixedSamplingModel(model string) bool {
-	lower := strings.ToLower(model)
-	for _, family := range []string{"claude-opus-4-7", "claude-opus-4.7", "claude-opus-4-8", "claude-opus-4.8", "claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-mythos"} {
-		if strings.Contains(lower, family) {
-			return true
+
+func anthropicFeaturesForModel(model string) anthropicModelFeatures {
+	name := strings.ToLower(strings.TrimSpace(model))
+	if start := strings.LastIndex(name, "claude-"); start >= 0 {
+		name = name[start:]
+	}
+	parts := strings.Split(strings.ReplaceAll(name, ".", "-"), "-")
+	if len(parts) < 3 {
+		return anthropicModelFeatures{}
+	}
+	end := 3
+	// Recognize a numeric minor version, keeping date suffixes on their base family.
+	if len(parts) > 3 && len(parts[3]) != 8 {
+		if _, err := strconv.ParseUint(parts[3], 10, 64); err == nil {
+			end = 4
 		}
 	}
-	return false
+	family := strings.Join(parts[:end], "-")
+	features := anthropicModelFeatures{thinking: true, disableThinking: true}
+	switch family {
+	case "claude-3-7", "claude-4-sonnet", "claude-4-opus", "claude-opus-4", "claude-opus-4-1", "claude-opus-4-5", "claude-sonnet-4", "claude-sonnet-4-5", "claude-haiku-4-5":
+		// Legacy manual thinking is opt-in and permits disabling by omission.
+	case "claude-opus-4-6", "claude-sonnet-4-6":
+		features.adaptive = true
+	case "claude-opus-4-7", "claude-opus-4-8":
+		features.adaptive, features.fixedSampling = true, true
+	case "claude-opus-5", "claude-sonnet-5", "claude-haiku-5-5":
+		features.adaptive, features.defaultThinking, features.fixedSampling = true, true, true
+	case "claude-fable-5", "claude-mythos-5", "claude-mythos-preview":
+		features.adaptive, features.defaultThinking, features.fixedSampling = true, true, true
+		features.disableThinking = false
+	case "claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1":
+		features.adaptive, features.defaultThinking, features.fixedSampling = true, true, true
+		features.disableThinking, features.forbidForcedTools = false, true
+	default:
+		return anthropicModelFeatures{}
+	}
+	return features
 }
