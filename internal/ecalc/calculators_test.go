@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -294,5 +295,33 @@ func TestRoundTripAllCalculators(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestWireResistanceSourceStatesTheSilverConstant keeps the written source of the wire resistance honest about the
+// resistivity that the silver option really uses: 1.59e-8 Ohm*m is 15.9 nOhm*m (the text once said 1.59).
+func TestWireResistanceSourceStatesTheSilverConstant(t *testing.T) {
+	cat, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := cat.Calculator("wire_resistance")
+	if c == nil {
+		t.Fatal("the catalog has no wire_resistance")
+	}
+	var rho float64
+	for _, ch := range c.Choices {
+		for _, o := range ch.Options {
+			if o.ID == "silver" {
+				rho = o.Consts["rho"]
+			}
+		}
+	}
+	if rho == 0 {
+		t.Fatal("wire_resistance has no silver option with a rho constant")
+	}
+	want := "silver " + strconv.FormatFloat(rho*1e9, 'g', 3, 64) + " nΩ·m"
+	if !strings.Contains(c.Source, want) {
+		t.Errorf("the source of wire_resistance does not say %q (rho = %v Ω·m): %s", want, rho, c.Source)
 	}
 }

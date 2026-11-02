@@ -8039,7 +8039,7 @@
         "spezifischer widerstand",
         "temperaturkoeffizient"
       ],
-      "source": "R = ρ·ℓ/A with ρ(T) = ρ20·(1 + α·(T − 20 °C)); annealed copper ρ20 = 1/58 Ω·mm²/m (rounded to 0.017241) and α20 = 0.00393 1/K per IEC 60028; aluminium ρ20 = 0.028264 Ω·mm²/m (the 61 % IACS value) and α = 0.00403 1/K per IEC 60889 (hard-drawn aluminium wire for overhead line conductors); silver 1.59 nΩ·m with α ≈ 0.0038 1/K as typical handbook values (e.g. CRC Handbook of Chemistry and Physics); AWG per ASTM B258",
+      "source": "R = ρ·ℓ/A with ρ(T) = ρ20·(1 + α·(T − 20 °C)); annealed copper ρ20 = 1/58 Ω·mm²/m (rounded to 0.017241) and α20 = 0.00393 1/K per IEC 60028; aluminium ρ20 = 0.028264 Ω·mm²/m (the 61 % IACS value) and α = 0.00403 1/K per IEC 60889 (hard-drawn aluminium wire for overhead line conductors); silver 15.9 nΩ·m with α ≈ 0.0038 1/K as typical handbook values (e.g. CRC Handbook of Chemistry and Physics); AWG per ASTM B258",
       "vars": [
         {
           "id": "len",
