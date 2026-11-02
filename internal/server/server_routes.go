@@ -525,6 +525,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/bootstrap", handleDesktopBootstrap(s))
 	mux.HandleFunc("/api/desktop/video-studio", handleVideoStudio(s))
 	mux.HandleFunc("/api/desktop/video-studio/", handleVideoStudio(s))
+	mux.HandleFunc("/api/desktop/storymaker/", handleStorymaker(s))
 	mux.HandleFunc("/api/desktop/notes", handleDesktopNotes(s))
 	mux.HandleFunc("/api/desktop/tresor", handleDesktopTresor(s))
 	mux.HandleFunc("/api/desktop/tresor/", handleDesktopTresor(s))

@@ -690,6 +690,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.NormalizeStorymakerConfig(&validateCfg.Storymaker); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

@@ -15,6 +15,7 @@ import (
 // to reopen the service afterwards.
 func (s *Server) shutdownDesktopStorage() {
 	s.closeVideoStudioManager()
+	s.closeStorymaker()
 	s.revokeDesktopRuns()
 	s.DesktopMu.Lock()
 	s.desktopClosed = true
@@ -44,6 +45,7 @@ func (s *Server) closeRuntimeResources() {
 	}
 	s.closeProjectKnowledge()
 	s.closeVideoStudioManager()
+	s.closeStorymaker()
 	s.stopRocketChatBot()
 	s.stopTelegramBot()
 	s.stopWhatsApp()

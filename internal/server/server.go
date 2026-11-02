@@ -76,6 +76,7 @@ import (
 	"aurago/internal/speechlab"
 	"aurago/internal/speechlab/deployer"
 	"aurago/internal/sqlconnections"
+	"aurago/internal/storymaker/render"
 	"aurago/internal/telegram"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
@@ -361,6 +362,18 @@ type Server struct {
 	videoStudio               *videoStudioManager
 	videoStudioClosed         bool
 	videoStudioConfigRevoking atomic.Bool
+
+	// Storymaker: the lazily created runtime (project store, catalog, render jobs). storymakerUI is
+	// the ui tree it reads; nil selects the embedded asset set (tests inject a tree).
+	storymakerMu     sync.Mutex
+	storymaker       *storymakerRuntime
+	storymakerClosed bool
+	storymakerUI     fs.FS
+	// Test seams: a ready-made browser resolver and a replacement for the render function.
+	storymakerBrowsers    *render.Browsers
+	storymakerRunOverride render.RunFunc
+	// storymakerFrameObserver sees every rendered frame (the parity test hashes them).
+	storymakerFrameObserver func(n int, transport string, data []byte)
 
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the
@@ -2231,7 +2244,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		allowDesktopIframe := path == "/api/desktop/bookshelf/reader" || strings.HasPrefix(path, "/files/desktop/") ||
+		allowDesktopIframe := path == "/api/desktop/bookshelf/reader" || path == "/api/desktop/storymaker/player" || strings.HasPrefix(path, "/files/desktop/") ||
 			strings.HasPrefix(path, "/api/go2rtc/viewer/") ||
 			strings.HasPrefix(path, "/api/game-maker/preview/")
 
