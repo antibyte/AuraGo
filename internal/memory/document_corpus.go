@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"aurago/internal/dbutil"
-	"aurago/internal/fileutil"
 	"aurago/internal/memory/kgsemantic"
 	chromem "github.com/philippgille/chromem-go"
 )
@@ -90,9 +89,6 @@ func openDocumentCorpus(dir string) (*documentCorpus, error) {
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("create corpus directory: %w", err)
-	}
-	if err := fileutil.RestrictToOwner(dir); err != nil {
-		return nil, fmt.Errorf("protect corpus directory: %w", err)
 	}
 	path := filepath.Join(dir, "documents.sqlite")
 	if info, err := os.Lstat(path); err == nil {

@@ -26,50 +26,16 @@ func kgBuiltContent(label string, lines ...string) string {
 	return strings.Join(append([]string{label}, lines...), "\n")
 }
 
-// Ordinary graph content mentions credential words as property names or as prose
-// ("pin: 17", "password: stored in vault"). The main-store credential policy
-// rejects all of it, which silently removed such nodes and edges from semantic
-// search. The KG check keeps every strong signal and lets only these through.
-func TestKGSemanticPolicyAllowsOrdinaryGraphContent(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-	}{
-		{"gpio pin number", kgBuiltContent("ESP32 sensor", "pin: 17")},
-		{"single digit pin", kgBuiltContent("ESP32 sensor", "pin: 5")},
-		{"pin label", kgBuiltContent("ESP32 sensor", "pin: GPIO5")},
-		{"auth scheme", kgBuiltContent("Home Assistant", "auth: OAuth2")},
-		{"password prose", kgBuiltContent("Router", "password: stored in vault")},
-		{"password prose with full stop", kgBuiltContent("Router", "password: stored.")},
-		{"quoted prose value", kgBuiltContent("Router", `password: "stored" in the vault`)},
-		{"token prose", kgBuiltContent("Grafana", "token: expires daily")},
-		{"secret none", kgBuiltContent("Proxmox", "secret: none")},
-		{"unicode word", kgBuiltContent("Cluster", "secret: läuft ab")},
-		{"nested keyword in description", kgBuiltContent("Password policy", "description: password: at least 12 chars")},
-		{"edge property", "uses\nrack-1 uses rack-3\ntoken: rotated"},
-		{"uppercase keyword", kgBuiltContent("Gate", "PIN: 17")},
-		{"two harmless matches", kgBuiltContent("Router", "password: stored in vault", "token: rotated weekly")},
-		{"number inside prose", kgBuiltContent("Policy", "token: rotates every 90 days")},
-		{"acronym and capitalized word", kgBuiltContent("Gateway", "token: JWT issued by Keycloak")},
-		{"auth scheme with words", kgBuiltContent("Home Assistant", "auth: OAuth2 via Google")},
-		{"scheme name as the last word", kgBuiltContent("API", "auth: bearer")},
-		// Accepted trade-off: a passphrase made only of plain words cannot be told
-		// apart from prose.
-		{"passphrase of plain words", kgBuiltContent("Router", "password: correct horse battery")},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !kgSemanticPolicyAllowed(tt.content, nil) {
-				t.Fatalf("ordinary KG content was withheld from the semantic index:\n%s", tt.content)
-			}
-		})
-	}
-
-	t.Run("metadata goes through the same check", func(t *testing.T) {
-		if !kgSemanticPolicyAllowed("ESP32 sensor", map[string]string{"node_id": "esp32", "label": "ESP32 sensor", "pin": "17"}) {
-			t.Fatal("harmless metadata (pin=17) was withheld")
+// Credential property names have no prose exemption in the final guard.
+func TestKGSemanticPolicyRejectsShortAndWordCredentials(t *testing.T) {
+	for _, text := range []string{"password: hunter", "secret: geheim", "pin: 12 34", "password: correct horse battery"} {
+		if kgSemanticPolicyAllowed(text, nil) {
+			t.Errorf("credential accepted: %q", text)
 		}
-	})
+	}
+	if !kgSemanticPolicyAllowed("ESP32 sensor\ntype: device", nil) {
+		t.Fatal("safe content rejected")
+	}
 }
 
 func TestKGSemanticPolicyStillBlocksCredentials(t *testing.T) {
@@ -153,8 +119,8 @@ func TestKGSemanticIndexKeepsNodesWithCredentialWordsSearchable(t *testing.T) {
 	if !semanticCollectionHas(t, idx.Collection, node.ID) || !semanticContentCached(kg, node.ID) {
 		t.Fatal("node with 'pin: 17' was not embedded")
 	}
-	if !slices.ContainsFunc(rec.snapshot(), func(text string) bool { return strings.Contains(text, "pin: 17") }) {
-		t.Fatalf("provider never received the node text: %q", rec.snapshot())
+	if slices.ContainsFunc(rec.snapshot(), func(text string) bool { return strings.Contains(text, "pin: 17") }) {
+		t.Fatalf("provider received a sensitive field: %q", rec.snapshot())
 	}
 	if ids := kg.semanticSearchNodeIDs("query: esp32 sensor pin", 5); !slices.Contains(ids, node.ID) {
 		t.Fatalf("semantic search = %v, want it to find %s", ids, node.ID)

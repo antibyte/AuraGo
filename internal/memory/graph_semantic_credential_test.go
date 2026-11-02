@@ -96,25 +96,25 @@ func TestKGSemanticNodeUpsertWithholdsCredentialFromEmbedding(t *testing.T) {
 	if err := kg.upsertSemanticNodeIndexContext(ctx, tainted); err != nil {
 		t.Fatalf("a policy rejection must not be an error for the caller: %v", err)
 	}
-	if calls := rec.snapshot(); len(calls) != 0 {
-		t.Fatalf("embedding provider was called %d times for a rejected node", len(calls))
+	assertNoCredentialEmbedded(t, rec)
+	doc, err := idx.Collection.GetByID(ctx, clean.ID)
+	if err != nil || strings.Contains(doc.Content, "rack server in the cellar") || strings.Contains(doc.Content, "notes:") {
+		t.Fatalf("stale content survived projection: %v", err)
 	}
-	if semanticCollectionHas(t, idx.Collection, clean.ID) {
-		t.Fatal("stale vector of the earlier clean version is still searchable")
+	fresh := Node{ID: "fresh-cred", Label: "Fresh", Properties: map[string]string{"type": "device", "notes": precheckCredential}}
+	if !kg.upsertSemanticNodeIndex(fresh) || !semanticCollectionHas(t, idx.Collection, fresh.ID) {
+		t.Fatal("safe remainder was not indexed")
 	}
-	if semanticContentCached(kg, clean.ID) {
-		t.Fatal("content cache still holds the earlier version")
+	assertNoCredentialEmbedded(t, rec)
+	// A credential in the label cannot be projected safely. Remove prior vectors.
+	tainted.Label = "password: hunter"
+	if err := kg.upsertSemanticNodeIndexContext(ctx, tainted); err != nil {
+		t.Fatal(err)
+	}
+	if semanticCollectionHas(t, idx.Collection, clean.ID) || semanticContentCached(kg, clean.ID) {
+		t.Fatal("unsafe label retained")
 	}
 
-	// A node that never had a vector is not embedded either, and the legacy bool
-	// wrapper reports it as handled so the caller does not mark it dirty.
-	fresh := Node{ID: "fresh-cred", Label: "Fresh", Properties: map[string]string{"type": "device", "notes": precheckCredential}}
-	if !kg.upsertSemanticNodeIndex(fresh) {
-		t.Fatal("rejected node reported as a failed upsert")
-	}
-	if semanticCollectionHas(t, idx.Collection, fresh.ID) || len(rec.snapshot()) != 0 {
-		t.Fatal("fresh credential node reached the provider or the collection")
-	}
 }
 
 // A dirty credential node must be marked handled; otherwise every reindex pass
@@ -151,17 +151,15 @@ func TestKGSemanticReindexSkipsCredentialNodeAndClearsDirtyFlag(t *testing.T) {
 		t.Fatalf("RunSemanticReindexContext: %v", err)
 	}
 	assertNoCredentialEmbedded(t, rec)
-	if got := len(rec.snapshot()); got != 2 {
-		t.Fatalf("provider calls = %d, want 2 (the two clean nodes)", got)
+	if got := len(rec.snapshot()); got != 3 {
+		t.Fatalf("provider calls = %d, want 3 (including the projected node)", got)
 	}
 	for _, id := range []string{"clean-alpha", "clean-beta"} {
 		if !semanticCollectionHas(t, idx.Collection, id) {
 			t.Fatalf("clean node %s was not indexed", id)
 		}
 	}
-	if semanticCollectionHas(t, idx.Collection, "cred-gamma") {
-		t.Fatal("credential node (or its stale vector) is still in the collection")
-	}
+	assertProjectedDocument(t, kg, "cred-gamma")
 	dirtyNodes, dirtyEdges, err := kg.DirtySemanticCounts()
 	if err != nil || dirtyNodes != 0 || dirtyEdges != 0 {
 		t.Fatalf("dirty after reindex = nodes %d edges %d err %v, want none", dirtyNodes, dirtyEdges, err)
@@ -219,9 +217,7 @@ func TestKGSemanticEdgeWithholdsCredentialFromEmbedding(t *testing.T) {
 	if !semanticCollectionHas(t, idx.Collection, cleanID) {
 		t.Fatal("clean edge was not indexed")
 	}
-	if semanticCollectionHas(t, idx.Collection, taintedID) {
-		t.Fatal("credential edge (or its stale vector) is still in the collection")
-	}
+	assertProjectedDocument(t, kg, taintedID)
 	if _, dirtyEdges, err := kg.DirtySemanticCounts(); err != nil || dirtyEdges != 0 {
 		t.Fatalf("dirty edges after reindex = %d err %v, want 0", dirtyEdges, err)
 	}
@@ -234,6 +230,9 @@ func TestKGSemanticEdgeWithholdsCredentialFromEmbedding(t *testing.T) {
 	}
 
 	// The single-edge write path applies the same policy and reports no error.
+	idx.Mu.Lock()
+	idx.RemoveContentCacheEntry(taintedID)
+	idx.Mu.Unlock()
 	if err := idx.Collection.AddDocument(ctx, stale); err != nil {
 		t.Fatal(err)
 	}
@@ -241,12 +240,8 @@ func TestKGSemanticEdgeWithholdsCredentialFromEmbedding(t *testing.T) {
 	if err := kg.upsertSemanticEdgeIndexContext(ctx, edge); err != nil {
 		t.Fatalf("a policy rejection must not be an error for the caller: %v", err)
 	}
-	if got := len(rec.snapshot()); got != 0 {
-		t.Fatalf("edge upsert made %d provider calls for a rejected edge", got)
-	}
-	if semanticCollectionHas(t, idx.Collection, taintedID) {
-		t.Fatal("stale vector of the earlier edge version is still searchable")
-	}
+	assertNoCredentialEmbedded(t, rec)
+	assertProjectedDocument(t, kg, taintedID)
 }
 
 // A delete between the count and the query must not make the KG searches fail
@@ -339,4 +334,47 @@ func TestKGSemanticSearchSurvivesCollectionShrinkingBetweenCountAndQuery(t *test
 			t.Fatalf("edge results = %q, want [%q]", got, edgeID)
 		}
 	})
+}
+
+func assertProjectedDocument(t *testing.T, kg *KnowledgeGraph, id string) {
+	t.Helper()
+	doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(doc.Content, precheckCredential) || strings.Contains(doc.Content, "old clean version") {
+		t.Fatal("unsafe or obsolete content retained")
+	}
+}
+
+func TestKGSemanticProjectionNeverEmbedsSensitiveFields(t *testing.T) {
+	kg, rec := newSemanticRecorderKG(t)
+	props := map[string]string{"type": "device", "location": "cellar", "password": "hunter", "secret": "geheim", "pin": "12 34"}
+	if err := kg.AddNode("projected-a", "Safe node", props); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("projected-a", "projected-b", "uses", props); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at=NULL; UPDATE kg_edges SET semantic_indexed_at=NULL`); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.RunSemanticReindexContext(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range rec.snapshot() {
+		for _, value := range []string{"hunter", "geheim", "12 34"} {
+			if strings.Contains(text, value) {
+				t.Fatal("sensitive field reached embedding provider")
+			}
+		}
+	}
+	node, err := kg.GetNode("projected-a")
+	if err != nil || node.Properties["password"] != "hunter" || props["pin"] != "12 34" {
+		t.Fatal("canonical data changed")
+	}
+	doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), "projected-a")
+	if err != nil || !strings.Contains(doc.Content, "cellar") {
+		t.Fatal("safe remainder not searchable")
+	}
 }

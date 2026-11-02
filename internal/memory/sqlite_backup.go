@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"aurago/internal/fileutil"
 )
@@ -66,9 +65,6 @@ func protectMemoryDatabase(db *sql.DB) error {
 	}
 	if err := rejectSnapshotSymlinks(path); err != nil {
 		return err
-	}
-	if err := fileutil.RestrictToOwner(filepath.Dir(path)); err != nil {
-		return fmt.Errorf("protect memory directory: %w", err)
 	}
 	for _, file := range []string{path, path + "-wal", path + "-shm"} {
 		if _, err := os.Lstat(file); os.IsNotExist(err) {

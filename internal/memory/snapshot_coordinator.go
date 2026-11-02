@@ -24,10 +24,12 @@ import (
 // publications. SQLite reservations also cover callers writing directly to SQL.
 // Neither acquiring nor holding a freeze requires an application store mutex.
 type MemorySnapshotCoordinator struct {
-	mu      sync.Mutex
-	changed chan struct{}
-	writers int
-	frozen  bool
+	startupMu        sync.Mutex
+	startupRecovered bool
+	mu               sync.Mutex
+	changed          chan struct{}
+	writers          int
+	frozen           bool
 }
 
 var memorySnapshotCoordinators sync.Map
