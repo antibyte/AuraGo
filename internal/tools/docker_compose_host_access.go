@@ -111,10 +111,11 @@ func DockerComposeServiceEnvFiles(model DockerComposeModel, projectDir string) (
 }
 
 // DockerComposeProtectedPaths lists AuraGo's own state for the always-enforced
-// Compose tier: the data directory, /etc/aurago (systemd master key), the
-// active config file, the vault, configured SQLite files, the .env next to the
-// config and the Docker master-key secret. Parents of these paths are not
-// protected by that tier.
+// Compose tier: the data directory, the prompts directory (trusted
+// system-prompt text), /etc/aurago (systemd master key), the active config
+// file, the vault, configured SQLite files, the .env next to the config and
+// the Docker master-key secret. Parents of these paths are not protected by
+// that tier.
 func DockerComposeProtectedPaths(cfg *config.Config) (roots, files []string) {
 	if cfg == nil {
 		return nil, nil
@@ -122,6 +123,7 @@ func DockerComposeProtectedPaths(cfg *config.Config) (roots, files []string) {
 	if dataDir := strings.TrimSpace(cfg.Directories.DataDir); dataDir != "" {
 		roots = append(roots, dataDir)
 	}
+	roots = append(roots, protectedSystemDirsFromConfig(cfg)...)
 	roots = append(roots, "/etc/aurago")
 	files = append(files, protectedSystemFilesFromConfig(cfg)...)
 	if configPath := strings.TrimSpace(cfg.ConfigPath); configPath != "" {

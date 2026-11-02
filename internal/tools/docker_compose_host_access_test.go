@@ -606,10 +606,11 @@ func TestDockerComposeProtectedPathsCoverAuraGoState(t *testing.T) {
 	root := t.TempDir()
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = filepath.Join(root, "data")
+	cfg.Directories.PromptsDir = filepath.Join(root, "prompts")
 	cfg.ConfigPath = filepath.Join(root, "config.yaml")
 	roots, files := DockerComposeProtectedPaths(cfg)
 	all := strings.Join(append(append([]string(nil), roots...), files...), "\n")
-	for _, want := range []string{cfg.Directories.DataDir, "/etc/aurago", cfg.ConfigPath, filepath.Join(root, ".env"), "/run/secrets/aurago_master_key", filepath.Join(cfg.Directories.DataDir, "vault.bin")} {
+	for _, want := range []string{cfg.Directories.DataDir, cfg.Directories.PromptsDir, "/etc/aurago", cfg.ConfigPath, filepath.Join(root, ".env"), "/run/secrets/aurago_master_key", filepath.Join(cfg.Directories.DataDir, "vault.bin")} {
 		if !strings.Contains(all, want) {
 			t.Fatalf("protected paths %q miss %q", all, want)
 		}

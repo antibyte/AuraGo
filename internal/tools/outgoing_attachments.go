@@ -173,7 +173,7 @@ func outgoingProtectedFiles(cfg *config.Config) []string {
 // which lives below data/ in the default layout. Roots that hold the data directory are
 // dropped instead.
 func outgoingPathIsProtected(resolved string, protected []string) bool {
-	return isProtectedSystemPathAbs(resolved, "", protected)
+	return isProtectedSystemPathAbs(resolved, nil, protected)
 }
 
 // outgoingSameFileAsProtected reports whether info is one of the protected files, which also
