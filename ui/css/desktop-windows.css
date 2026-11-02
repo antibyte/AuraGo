@@ -1409,9 +1409,6 @@
         min-width: 0 !important;
         width: 100vw !important;
     }
-.vd-window.vd-mobile-wide-window[data-app-id="teevee"] {
-        --vd-mobile-workspace-width: 1140px;
-    }
 /* Match theme-specific content clipping so this scrollport remains usable. */
 .desktop-body[data-shell] .vd-window.vd-mobile-wide-window > .vd-window-content {
         width: 100%;

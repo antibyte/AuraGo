@@ -158,8 +158,6 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 		"touch-action: pan-x pan-y;",
 		".vd-window.vd-mobile-wide-window > .vd-window-content > *",
 		"min-width: var(--vd-mobile-workspace-width);",
-		".vd-window.vd-mobile-wide-window[data-app-id=\"teevee\"]",
-		"--vd-mobile-workspace-width: 1140px;",
 		".vd-window.maximized",
 		"width: 100vw !important;",
 		".vd-mobile-wide-window",
@@ -189,7 +187,7 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	for _, want := range []string{
 		"function shouldUseMobileWideWindow(appId)",
-		"['code-studio', 'nasscad', 'teevee'].includes(appId)",
+		"['code-studio', 'nasscad'].includes(appId)",
 		"return useMobileDesktopMode() && !shouldUseMobileWideWindow(appId);",
 	} {
 		if !strings.Contains(foundation, want) {

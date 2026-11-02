@@ -152,8 +152,11 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Only inherently wide workspaces use horizontal scrolling inside the content
   area, with the titlebar outside that scrollport. Keep mobile maximization and
   the wide-app classification consistent, including viewport/orientation changes.
+  Automatic mobile fullscreen retains normal pixel bounds and ends on return to
+  desktop mode, including minimized windows; explicit maximization stays intact.
   Preserve touch scrolling, reachable filters/actions and existing app state;
   the mobile dock keeps its app-menu launcher and app-switching buttons visible.
+  Dock hover headroom must not intercept touches above its visible controls.
   Verify `TestDesktopMobile` with `AURAGO_RUN_BROWSER_SMOKE=1` in Standard and
   Fruity at phone, tablet and desktop widths.
 

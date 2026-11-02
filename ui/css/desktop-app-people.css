@@ -126,6 +126,12 @@
     overflow: hidden;
     position: relative;
 }
+.vd-people-browse {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
 
 /* ── Sidebar ── */
 .vd-people-sidebar {
@@ -682,8 +688,9 @@
     .vd-people-toolbar-actions {
         flex-wrap: wrap;
     }
-    .vd-people-body {
+    .vd-people-browse {
         flex-direction: column;
+        overflow-y: auto;
     }
     .vd-people-sidebar {
         display: flex;
@@ -710,7 +717,9 @@
         min-height: 44px;
     }
     .vd-people-content {
+        flex: 1 0 auto;
         min-height: 0;
+        overflow-y: visible;
     }
     .vd-people-list-header {
         display: none;

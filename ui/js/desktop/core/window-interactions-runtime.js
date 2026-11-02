@@ -527,7 +527,12 @@ function wireWindow(win, id) {
         let changed = false;
         state.windows.forEach(item => {
             const win = item && item.element;
-            if (!win || !win.isConnected || item.isGadget || item.maximized) return;
+            if (!win || !win.isConnected || item.isGadget) return;
+            if (win.classList.contains('vd-mobile-forced-maximized')) {
+                win.classList.remove('vd-mobile-forced-maximized');
+                if (!item.maximized) win.classList.remove('maximized');
+            }
+            if (item.maximized) return;
             const bounds = windowBounds(win);
             if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
             if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;

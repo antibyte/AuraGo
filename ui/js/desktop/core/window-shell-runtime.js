@@ -1660,13 +1660,12 @@
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
             : nextWindowPosition(size);
 
+        // Mobile fullscreen is temporary; retain ordinary pixel bounds for desktop/restore.
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
         if (isMobileMode && forceMaximized) {
-            // Mobile forced maximized windows take full available space
-            win.style.left = '0px';
-            win.style.top = '0px';
-            win.style.width = '100%';
-            win.style.height = '100%';
-
             // Enforce Single Window behavior on mobile:
             // Minimize all other open windows when opening a new normal app
             state.windows.forEach((existingWin, existingId) => {
@@ -1674,11 +1673,6 @@
                     minimizeWindow(existingId);
                 }
             });
-        } else {
-            win.style.left = position.left + 'px';
-            win.style.top = position.top + 'px';
-            win.style.width = size.width + 'px';
-            win.style.height = size.height + 'px';
         }
         const isResizable = appId !== 'calculator';
 

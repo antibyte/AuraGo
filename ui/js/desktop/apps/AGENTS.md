@@ -3111,8 +3111,9 @@ buttons and menu popovers remain excluded from those gestures.
   CRT bezel/tube proportions follow the reference at every window size; fit the
   initial receiver bounds proportionally to the desktop, then enforce the
   1140x540 minimum so the left sidebar stays visible, including session restores.
-  Only desktops smaller than that minimum may use the compact layout; the tube
-  remains proportional independently of window bounds.
+  On smaller desktops, phones and tablets, use the native container-responsive
+  layout without forcing a wide workspace; the tube remains proportional
+  independently of window bounds.
   Free header space, including the decorative model logo, stays draggable.
   Hide the on-tube fullscreen button two seconds after the first `playing` event
   per stream; tube hover or keyboard focus reveals it. Reset the timer on source
@@ -4888,9 +4889,11 @@ registration lives in `internal/desktop/types.go`.
   `desktop.load_failed` via `t(inst.context, key)`. Save and delete
   notifies use `desktop.request_failed`. Exposes
   `window.PeopleApp`. Below 600px of app width, groups, KG and birthdays
-  remain reachable in a compact scrolling navigation strip; list fields stack
-  into readable rows and the detail pane overlays the list. Never hide the only
-  filter controls on phones.
+  remain reachable in a compact navigation strip; `.vd-people-browse` scrolls
+  filters and results together vertically when the keyboard reduces the viewport.
+  List fields stack into readable rows; the separate detail overlay preserves
+  the browse scroll position on close. Never hide the only filter controls on
+  phones. Verify touch access with `TestDesktopMobileRegressionsBrowser`.
   No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`

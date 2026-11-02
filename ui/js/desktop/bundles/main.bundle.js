@@ -1021,7 +1021,7 @@
     window.useMobileDesktopMode = useMobileDesktopMode;
 
     function shouldUseMobileWideWindow(appId) {
-        return ['code-studio', 'nasscad', 'teevee'].includes(appId);
+        return ['code-studio', 'nasscad'].includes(appId);
     }
 
     /** Returns whether this app should open maximized in the mobile desktop. */
@@ -7459,13 +7459,12 @@
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
             : nextWindowPosition(size);
 
+        // Mobile fullscreen is temporary; retain ordinary pixel bounds for desktop/restore.
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
         if (isMobileMode && forceMaximized) {
-            // Mobile forced maximized windows take full available space
-            win.style.left = '0px';
-            win.style.top = '0px';
-            win.style.width = '100%';
-            win.style.height = '100%';
-
             // Enforce Single Window behavior on mobile:
             // Minimize all other open windows when opening a new normal app
             state.windows.forEach((existingWin, existingId) => {
@@ -7473,11 +7472,6 @@
                     minimizeWindow(existingId);
                 }
             });
-        } else {
-            win.style.left = position.left + 'px';
-            win.style.top = position.top + 'px';
-            win.style.width = size.width + 'px';
-            win.style.height = size.height + 'px';
         }
         const isResizable = appId !== 'calculator';
 
@@ -8472,7 +8466,12 @@ function wireWindow(win, id) {
         let changed = false;
         state.windows.forEach(item => {
             const win = item && item.element;
-            if (!win || !win.isConnected || item.isGadget || item.maximized) return;
+            if (!win || !win.isConnected || item.isGadget) return;
+            if (win.classList.contains('vd-mobile-forced-maximized')) {
+                win.classList.remove('vd-mobile-forced-maximized');
+                if (!item.maximized) win.classList.remove('maximized');
+            }
+            if (item.maximized) return;
             const bounds = windowBounds(win);
             if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
             if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;

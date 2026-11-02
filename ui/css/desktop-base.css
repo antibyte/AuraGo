@@ -1432,6 +1432,14 @@
     display: none;
 }
 
+@media (hover: none), (pointer: coarse) {
+    .desktop-body[data-shell="dock"] .vd-dock-scroll {
+        /* Hover headroom must not intercept touches in the app above the dock. */
+        margin-top: 0;
+        padding-top: 0;
+    }
+}
+
 .desktop-body[data-shell="dock"] .vd-dock-track {
     width: max-content;
     min-width: 100%;

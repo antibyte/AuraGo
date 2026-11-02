@@ -1436,6 +1436,14 @@
     display: none;
 }
 
+@media (hover: none), (pointer: coarse) {
+    .desktop-body[data-shell="dock"] .vd-dock-scroll {
+        /* Hover headroom must not intercept touches in the app above the dock. */
+        margin-top: 0;
+        padding-top: 0;
+    }
+}
+
 .desktop-body[data-shell="dock"] .vd-dock-track {
     width: max-content;
     min-width: 100%;
@@ -5065,9 +5073,6 @@
 .vd-window.vd-mobile-wide-window.maximized {
         min-width: 0 !important;
         width: 100vw !important;
-    }
-.vd-window.vd-mobile-wide-window[data-app-id="teevee"] {
-        --vd-mobile-workspace-width: 1140px;
     }
 /* Match theme-specific content clipping so this scrollport remains usable. */
 .desktop-body[data-shell] .vd-window.vd-mobile-wide-window > .vd-window-content {

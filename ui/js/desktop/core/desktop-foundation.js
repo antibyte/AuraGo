@@ -752,7 +752,7 @@
     window.useMobileDesktopMode = useMobileDesktopMode;
 
     function shouldUseMobileWideWindow(appId) {
-        return ['code-studio', 'nasscad', 'teevee'].includes(appId);
+        return ['code-studio', 'nasscad'].includes(appId);
     }
 
     /** Returns whether this app should open maximized in the mobile desktop. */
