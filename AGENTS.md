@@ -245,7 +245,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Release verification | `internal/releaseverify/AGENTS.md`, `internal/upkeep/AGENTS.md` | Offline signature checks, pinned automatic bootstrap and old-updater repair. |
 | Virtual Computers | `internal/virtualcomputers/AGENTS.md` | Workspace leases/managed Garage storage lifecycle. |
 | Video Studio | `internal/videostudio/AGENTS.md` | Desktop project/timeline model/local FFmpeg/render limits. |
-| WhatsApp channel | `internal/whatsapp/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `licences/AGENTS.md` | Linked-device store/runtime/link sessions, admin endpoints, Config link panel, GPL-3.0 binary licensing; text channel (inbound filter, agent pipeline, broker, send queue), dashboard tile, media in both directions, `send_whatsapp`, notification channel `whatsapp`. |
+| WhatsApp channel | `internal/whatsapp/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `licences/AGENTS.md` | Linked-device store/runtime/link sessions, admin endpoints, Config link panel, GPL-3.0 binary licensing; text channel (inbound filter, agent pipeline, broker, send queue), dashboard tile, media in both directions, `send_whatsapp`, notification channel `whatsapp`, camera alert photos, EasyDrag `notify.whatsapp` and the failure channel, newspaper delivery. |
 | External Web UI assets | `internal/webassets/AGENTS.md` | Integrity/install/resolution/verification/external browser resources. |
 | ZIM reader | `internal/zim/AGENTS.md` | Read-only archives/cluster cache/decompression bounds/fixtures; owns xapian full-text/title-index child. |
 | Licenses | `licences/AGENTS.md` | External-project inventory/license conditions/redistributed texts. |

@@ -230,7 +230,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 
 #### Fehler und Benachrichtigungen
 
-- Ein fehlgeschlagener Lauf benachrichtigt so, wie es die Flow-Einstellung `notify_on_error` vorgibt: Desktop-Benachrichtigung (Standard), Push, Telegram oder aus. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, und danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein erfolgreicher Lauf beendet diesen Zustand; ein Flow, der zwischen Erfolg und Fehler wechselt, benachrichtigt also bei jedem neuen Fehler. Abgebrochene Läufe benachrichtigen nicht und beenden den Zustand nicht. Der Zustand liegt nur im Arbeitsspeicher: Nach einem Neustart benachrichtigt der erste Fehler wieder.
+- Ein fehlgeschlagener Lauf benachrichtigt so, wie es die Flow-Einstellung `notify_on_error` vorgibt: Desktop-Benachrichtigung (Standard), Push, Telegram, WhatsApp oder aus. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, und danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein erfolgreicher Lauf beendet diesen Zustand; ein Flow, der zwischen Erfolg und Fehler wechselt, benachrichtigt also bei jedem neuen Fehler. Abgebrochene Läufe benachrichtigen nicht und beenden den Zustand nicht. Der Zustand liegt nur im Arbeitsspeicher: Nach einem Neustart benachrichtigt der erste Fehler wieder.
 - Jeder fehlgeschlagene Lauf erfasst außerdem das Planer-Problem des Flows (eines pro Flow; der nächste erfolgreiche Lauf löst es auf) und löst `planner_operational_issue`-Auslöser aus, wie bei Agenten-Missionen. Eine Mission, die auf solche Probleme reagiert, sollte `min_interval_seconds` setzen oder mit `planner_issue_source` filtern.
 
 #### KI- und Tool-Schritte
@@ -244,7 +244,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 - Dokumente, die ein Flow aus HTML oder Markdown erzeugt, laden nie Inhalte aus dem Netz (Skripte, entfernte Bilder und Schriften); bette Bilder als `data:`-URLs ein. Eine URL in ein PDF oder einen Screenshot zu verwandeln und Office-Dokumente umzuwandeln, lehnen Flows ab.
 - Liest ein Schritt eine Datei, die ein anderer Schritt im Dokumente-Ordner erzeugt hat (etwa ein neues PDF), kopiert AuraGo sie für diesen einen Aufruf nach `.easydrag/<lauf>/` im Workspace und entfernt die Kopie danach.
 - E-Mail-Schritte: Ein neuer Versuch startet erst, wenn der vorige beendet ist; zwei Versuche überschneiden sich also nie. Hat der Mailserver eine Mail angenommen, aber seine Antwort ging verloren, sendet der neue Versuch die Mail ein zweites Mal. Ein Lauf, der während des Sendens abgebrochen wird, kann die Mail im Hintergrund trotzdem noch zustellen.
-- Telegram-Schritte mit Datei: Ist der Text rausgegangen, die Datei aber gescheitert, versucht AuraGo den Schritt nicht erneut, damit der Text nicht doppelt ankommt.
+- Telegram- und WhatsApp-Schritte mit Datei: Ist der Text (bei WhatsApp die Bildunterschrift) rausgegangen, die Datei aber gescheitert, versucht AuraGo den Schritt nicht erneut, damit der Text nicht doppelt ankommt.
 - Ein Vordergrund-Shell-Schritt endet mit dem Lauf. Bricht der Lauf ab, beendet AuraGo den Prozessbaum. Der Schritt endet auch, wenn sein eigenes Zeitlimit denselben Kontext abbricht. Es gelten beide Grenzen; die kürzere gewinnt. Ein Shell-Schritt mit `background: true` bleibt registriert, bis er selbst endet, im Flow wie im Chat.
 
 #### Flow-Geheimnisse

@@ -5,7 +5,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 36 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 38 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -382,9 +382,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 36 curated types: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
-  `set`, `stop`), triggers 13, AI 2 (`ai.step`, `ai.decision`) and actions 15 (web 3, documents 4, notify 4, smart home 2,
-  planner 2); `TestRegisterCatalogCounts` pins the total and the trigger count. Generic `tool.<name>` nodes are
+- Counts: `RegisterCatalog(reg, env)` registers 38 curated types, 14 triggers and 24 others: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
+  `set`, `stop`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total (38) and the trigger count (14). Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.
@@ -486,7 +486,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Generic nodes (`tool.<name>`, category `tool:<category>`):
   - Curated tools are excluded, so a generic node cannot bypass a curated node's strict readers and taint
     flags: `IsGenericToolExcluded` (the `genericExcluded` list and the prefixes `skill__`, `tool__`,
-    `game_maker_`, `mcp__`, `package__`) and, at refresh time, the `Tool` of every registered curated def.
+    `game_maker_`, `mcp__`, `package__`) and, at refresh time, the `Tool` of every registered curated def. `send_whatsapp` is in the `genericExcluded` list beside `send_telegram`, `send_email`, `send_notification`, `send_discord` and `mqtt_publish`: the curated `notify.whatsapp` node covers it, and a generic node has no duplicate-text guard on a retry.
     `genericCuratedAllowed` (`filesystem`, `manage_appointments`, `manage_todos`) is the allowed list;
     `TestGenericExclusionCoversCuratedTools` fails for a curated tool in neither.
   - Dropped params: `genericDroppedParams` (`_todo`, `vault_keys`, `credential_ids`, the tool-bridge params,
@@ -729,8 +729,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     `TestC13PDFCreateThenPDFReadThroughTheInvoker`.
   - The invoker's outcome (`flowToolOutcome`) sets `IsError` for plain-text failures and maps AuraGo's own
     refusal texts (read-only, not enabled, SSRF, runtime gates, path refusals) to `denied`/`needs_setup`; a call
-    whose context ended without success returns the context's error. A `send_telegram` whose text went out while
-    its document failed (`text_sent`) is denied, and later attempts of the same run and node are refused without
+    whose context ended without success returns the context's error. A `send_telegram` or `send_whatsapp` whose text went out while
+    its file (or, for WhatsApp, the rest of the send) failed (`text_sent`) is denied, and later attempts of the same run and node are refused without
     a dispatch for 25 h (in memory). `send_email` returns only when the SMTP session ended (`deliverSMTP` has no
     context), so two attempts of one email node never overlap.
   - Documents bridge (`flows_tool_invoker_documents.go`): a `file.read` or `doc.pdf_read` of a documents-folder
