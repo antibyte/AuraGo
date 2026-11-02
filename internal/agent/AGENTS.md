@@ -771,6 +771,12 @@ Tools are defined in `internal/tools/`:
   Missing tokenizer data must fail this test, never skip it. The Go test CI job
   provisions the checksummed vocabulary through `TIKTOKEN_CACHE_DIR`.
 - Focused Homepage schemas and manuals must expose the canonical text-edit sub-operations and their arguments. Keep unique marker-line semantics and distinguish recorded ledger attempts from execution success; never advertise ambiguous `replace`/`insert` aliases.
+- Homepage visual work follows `prompts/rules/homepage/rule.md`: inspect the existing
+  page, derive a product-specific direction, apply only warranted design passes,
+  and verify the audit findings and template check in desktop/mobile screenshots.
+  A supplied brand or project `DESIGN.md` precedes the Atmospheric Glass fallback
+  in `prompts/rules/homepage/DESIGN.md`. Preserve the unslop attribution in the rule.
+  Verify existing task-rule selection, embedded catalog, and prompt injection tests.
 
 - Game Maker's Voxel variant has its own prepared planning/editing/source
   profiles; build and repair share the same ordered four tools. Planning retains
