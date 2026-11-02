@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "Supprimer définitivement",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "Éditeur",
   "desktop.app_error_fallback": "Erreur",
   "desktop.app_error_renderer_missing": "Le moteur d'affichage de {{app}} n'est pas chargé",

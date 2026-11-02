@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "永久删除",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "编辑器",
   "desktop.app_error_fallback": "错误",
   "desktop.app_error_renderer_missing": "{{app}} 渲染器未加载",

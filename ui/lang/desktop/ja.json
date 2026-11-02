@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "完全に削除",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "エディター",
   "desktop.app_error_fallback": "エラー",
   "desktop.app_error_renderer_missing": "{{app}} のレンダラーが読み込まれていません",

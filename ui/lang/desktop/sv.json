@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "Radera permanent",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "Redigerare",
   "desktop.app_error_fallback": "Fel",
   "desktop.app_error_renderer_missing": "{{app}}-renderaren är inte inläst",
