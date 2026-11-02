@@ -125,11 +125,17 @@
         return { bones: bones, offset_y: (a.offset_y || 0) * (1 - f) + (b.offset_y || 0) * f };
     }
 
-    // handsAt(keys, u): the hand override of the last key at or before u (a key without hands clears the override).
+    // handsAt(keys, u): the hand shapes a gesture sets at u. The hands of a key hold, per side, until a later key sets that
+    // side again (the catalog's count gesture points only at its first key); at the end of the gesture (u >= 1) the hands of
+    // the pose return. null = the gesture has not set any hand yet.
     function handsAt(keys, u) {
+        if (u >= 1) return null;
         var hands = null;
         for (var i = 0; i < (keys || []).length; i++) {
-            if (keys[i].t <= u) hands = keys[i].hands || null; else break;
+            if (keys[i].t > u) break;
+            if (!keys[i].hands) continue;
+            hands = hands || {};
+            for (var side in keys[i].hands) hands[side] = keys[i].hands[side];
         }
         return hands;
     }

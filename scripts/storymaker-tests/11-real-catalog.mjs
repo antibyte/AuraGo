@@ -104,3 +104,16 @@ check('rig state: point-left and point-right keep their screen direction when th
     assert.equal(SM.render.rigState({ ...idle, pose: { a: 'stand', b: 'stand', u: 1 }, facing: -1 }, 0, rcMini, t.files.rig).view, 'three_quarter');
 });
 
+// ---- gesture hands ------------------------------------------------------------------------------------------------------
+
+check('rig: a gesture hand shape holds until a later key sets another one (D: count points only at its first key)', () => {
+    const count = entry('gesture.count'), celebrate = entry('gesture.celebrate');
+    assert.deepEqual(plain(SM.rig.handsAt(count.keys, 0.1)), null);
+    assert.deepEqual(plain(SM.rig.handsAt(count.keys, 0.5)), { r: 'point' }, 'the finger keeps pointing while the arm counts');
+    assert.equal(SM.rig.handsAt(count.keys, 1), null, 'the end of the gesture returns to the pose hands');
+    assert.deepEqual(plain(SM.rig.handsAt(celebrate.keys, 0.5)), { l: 'open', r: 'open' });
+    assert.deepEqual(plain(SM.rig.handsAt([{ t: 0, bones: {}, hands: { l: 'fist' } }, { t: 0.5, bones: {}, hands: { r: 'point' } }], 0.7)), { l: 'fist', r: 'point' }, 'hands merge per side');
+    assert.equal(rigStateOf({ gesture: { name: 'count', frac: 0.5 } }).hands.r, 'point');
+    assert.equal(rigStateOf({ pose: { a: 'think', b: 'think', u: 1 } }).hands.r, 'fist', 'a pose hand shape without a gesture');
+});
+
