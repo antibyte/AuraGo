@@ -52,6 +52,7 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 
 ### Verification and editing
 
+- `.gitnexusignore` owns code-index scope: exclude runtime/scratch data, generated resource copies, binary assets and vendored payloads; retain maintained source/tests, including both versioned training utilities under `disposable/`. Validate exclusions and retained paths with the installed GitNexus ignore filter and path walker before rebuilding; avoid broad negations that re-admit dependencies or binaries.
 - With ignored scratch Go files use `./scripts/go-test-with-cache.ps1` (also accepts `./...`): production roots and both versioned training utilities, excluding scratch directories. Literal `go test ./...` is for clean checkouts. Temporary Go files belong in `disposable/_<task>/` (Go skips underscore directories); never add a module boundary above tracked `disposable/export_tools` or `disposable/import_training_traces`.
 - Focused tests: `go test ./internal/config/...`, `go test ./internal/agent/...`, `go test ./internal/memory/...`, `go test -v ./internal/tools/...`. Coverage: `go test -cover ./internal/...`; race: `go test -race ./...`; benchmarks: `go test -bench=. ./internal/...`.
 - Put `*_test.go` beside source; name tests `TestFunctionName`; prefer table-driven cases (e.g. `internal/config/config_test.go`, `internal/tools/shell_test.go`, `internal/memory/history_test.go`, `internal/agent/agent_test.go`). Cover critical/complex paths and new features with focused unit and tool/workflow integration tests.

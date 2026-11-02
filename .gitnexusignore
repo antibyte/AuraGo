@@ -2,6 +2,8 @@
 # Keep application source, UI, prompts, documentation, scripts, tool manifests,
 # and deployment templates indexable. Exclude local state, secrets, generated
 # artifacts, dependency caches, binaries, reports, and agent scratch data.
+# GitNexus also reads .gitignore; keep runtime exclusions explicit here so
+# GITNEXUS_NO_GITIGNORE cannot accidentally index local data or packaged copies.
 
 # Version control, IDE, and local agent metadata
 .git/
@@ -20,7 +22,16 @@ openspec/
 .superpowers/
 .worktrees/
 .gitnexus/
-disposable/
+/graft/
+/disposable/*
+# Only the maintained training utilities belong in the code graph.
+!/disposable/
+!/disposable/export_tools/
+/disposable/export_tools/*
+!/disposable/export_tools/*.go
+!/disposable/import_training_traces/
+/disposable/import_training_traces/*
+!/disposable/import_training_traces/*.go
 
 # Local environments and dependency caches
 .venv/
@@ -53,9 +64,29 @@ yarn.lock
 
 # Build outputs, release bundles, and binaries
 /bin/
+/assets/web/
+/.aurago-update/
+/.tmp_aurago/
+/phonon/
 /deploy/*
 !/deploy/docker/
-!/deploy/docker/**
+# Allow deployment inputs explicitly; a whole-tree negation bypasses GitNexus's
+# built-in dependency, archive and binary filters for every descendant.
+/deploy/docker/*
+!/deploy/docker/Dockerfile.*
+!/deploy/docker/*.yml
+!/deploy/docker/cyd-builder/
+/deploy/docker/cyd-builder/*
+!/deploy/docker/cyd-builder/cyd-addr2line
+!/deploy/docker/cyd-builder/cyd-build
+!/deploy/docker/cyd-builder/cyd-selftest
+!/deploy/docker/cyd-builder/NOTICE
+!/deploy/docker/cyd-builder/requirements.in
+!/deploy/docker/cyd-builder/requirements.txt
+!/deploy/docker/kaggle-notebook/
+/deploy/docker/kaggle-notebook/*
+!/deploy/docker/kaggle-notebook/Dockerfile
+!/deploy/docker/kaggle-notebook/bridge.py
 /Linux/
 /linux/
 /macOS/
@@ -101,12 +132,25 @@ coverage.*
 /data/
 /log/
 /reports/
+/ui/reports/
+/tmp/
+/terminals/
+/training/
+/.training/
 /agent_analysis/
+/agent-tools/
 /agent_workspace/workdir/
+/agent_workspace/virtual_desktop/
 /agent_workspace/tools/broken_tools/
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
 *.gob
 *.lock
 *.log
@@ -127,8 +171,21 @@ chromem-go_data/
 /ui/css/*.min.css
 /ui/*.min.js
 /ui/js/**/*.min.js
+# Embedded CAD dependency payloads; keep AuraGo adapters and application code.
+/internal/desktop/bundled_apps/nasscad/three.js
+/internal/desktop/bundled_apps/nasscad/occt-import-js.js
+/internal/desktop/bundled_apps/nasscad/occt-loader-b64.js
+/internal/desktop/bundled_apps/nasscad/web-ifc-api-iife.js
+/internal/desktop/bundled_apps/nasscad/nasscad_occt_wasm.js
+/internal/desktop/bundled_apps/nasscad/nasscad-ifc-wasm.js
+/internal/desktop/bundled_apps/nasscad/nasscad-manifold-wasm.js
+/internal/desktop/bundled_apps/nasscad/nasscad-draco.js
+/internal/desktop/bundled_apps/nasscad/nasscad-fonts.js
 
 # Large sample media; metadata and sample skill definitions remain indexable
+*.blend
+*.blend[0-9]*
+*.zim
 *.avif
 *.bmp
 *.gif
