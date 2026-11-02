@@ -1,6 +1,9 @@
 # Modules linked into ./cmd/aurago (CGO_ENABLED=0, six release targets) and the licence AuraGo's
 # GPL-3.0 binaries rely on. Columns: module, SPDX (A AND B allowed), licence file(s) relative to
-# the module root (comma-separated), note. Checked by TestLinkedGoModulesHaveGPL3CompatibleLicenses.
+# the module root (comma-separated), note. Checked by TestLinkedGoModulesHaveGPL3CompatibleLicenses,
+# which also reads the SPDX-License-Identifier headers of the Go files the six targets compile.
+# A file written repo:licences/texts/X.txt is a verbatim SPDX text of this repository for a part whose
+# text the module does not ship (its files only carry SPDX headers).
 codeberg.org/readeck/go-readability/v2	MIT	LICENSE
 filippo.io/edwards25519	BSD-3-Clause	LICENSE
 github.com/Azure/go-ntlmssp	MIT	LICENSE
@@ -109,7 +112,7 @@ github.com/mitchellh/go-homedir	MIT	LICENSE
 github.com/mitchellh/go-ps	MIT	LICENSE.md
 github.com/ncruces/go-strftime	MIT	LICENSE
 github.com/nlnwa/whatwg-url	Apache-2.0	LICENSE
-github.com/odvcencio/gotreesitter	MIT AND GPL-3.0-only	LICENSE,licenses/texts/GPL-3.0.txt	grammars/runtime compiles the GPL-3.0 caddy external scanner unless built with -tags gotreesitter_no_copyleft; grammar licences: licenses/grammars.json
+github.com/odvcencio/gotreesitter	MIT AND GPL-3.0-only AND MPL-2.0	LICENSE,licenses/texts/GPL-3.0.txt,licenses/texts/MPL-2.0.txt	grammars/runtime compiles GPL-3.0 (caddy, disassembly) and MPL-2.0 (nim) external scanners unless built with -tags gotreesitter_no_copyleft; grammar licences: licenses/grammars.json
 github.com/pdfcpu/pdfcpu	Apache-2.0	LICENSE.txt
 github.com/petermattis/goid	Apache-2.0	LICENSE
 github.com/philhofer/fwd	MIT	LICENSE.md
@@ -128,8 +131,8 @@ github.com/pion/rtp	MIT	LICENSE
 github.com/pion/sctp	MIT	LICENSE
 github.com/pion/sdp/v3	MIT	LICENSE
 github.com/pion/srtp/v3	MIT	LICENSE
-github.com/pion/stun/v3	MIT	LICENSE
-github.com/pion/transport/v4	MIT	LICENSE
+github.com/pion/stun/v3	MIT AND BSD-3-Clause	LICENSE,repo:licences/texts/BSD-3-Clause.txt	internal/hmac is Go-authored BSD-3-Clause code that carries only an SPDX header
+github.com/pion/transport/v4	MIT AND BSD-3-Clause	LICENSE,repo:licences/texts/BSD-3-Clause.txt	utils/xor is Go-authored BSD-3-Clause code that carries only an SPDX header
 github.com/pion/transport/v5	MIT	LICENSE
 github.com/pion/turn/v5	MIT	LICENSE
 github.com/pion/webrtc/v4	MIT	LICENSE
@@ -155,7 +158,7 @@ github.com/tailscale/go-winio	MIT	LICENSE
 github.com/tailscale/hujson	BSD-3-Clause	LICENSE
 github.com/tailscale/peercred	BSD-3-Clause	LICENSE
 github.com/tailscale/web-client-prebuilt	BSD-3-Clause	LICENSE
-github.com/tailscale/wireguard-go	MIT	LICENSE
+github.com/tailscale/wireguard-go	MIT AND BSD-3-Clause	LICENSE,repo:licences/texts/BSD-3-Clause.txt	tsasm/amd64/chacha20poly1305 is Go-authored BSD-3-Clause code that carries only an SPDX header
 github.com/temoto/robotstxt	MIT	LICENSE
 github.com/tidwall/gjson	MIT	LICENSE
 github.com/tidwall/match	MIT	LICENSE
@@ -213,7 +216,7 @@ google.golang.org/protobuf	BSD-3-Clause	LICENSE
 gopkg.in/ini.v1	Apache-2.0	LICENSE
 gopkg.in/yaml.v3	MIT AND Apache-2.0	LICENSE	libyaml port is MIT, the rest Apache-2.0
 gvisor.dev/gvisor	Apache-2.0 AND MIT AND BSD-3-Clause	LICENSE	LICENSE adds the MIT and BSD terms of some files
-modernc.org/libc	BSD-3-Clause AND MIT	LICENSE,LICENSE-3RD-PARTY.md	LICENSE-3RD-PARTY.md carries the Go, musl libc, go-netdb and nixpkgs notices
+modernc.org/libc	BSD-3-Clause AND MIT AND Apache-2.0	LICENSE,LICENSE-3RD-PARTY.md,repo:licences/texts/Apache-2.0.txt	LICENSE-3RD-PARTY.md carries the Go, musl libc, go-netdb and nixpkgs notices; generated errno and similar files are Apache-2.0 WITH LLVM-exception (SPDX header only)
 modernc.org/mathutil	BSD-3-Clause	LICENSE
 modernc.org/memory	BSD-3-Clause	LICENSE,LICENSE-GO,LICENSE-MMAP-GO
 modernc.org/sqlite	BSD-3-Clause	LICENSE	the transpiled SQLite is public domain (LICENSE-SQLITE); sqlite-vec (MIT) is not linked

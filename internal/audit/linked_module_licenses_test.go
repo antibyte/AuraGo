@@ -4,24 +4,26 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/fs"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode"
 )
 
-// gpl3CompatibleLicenses are the licences a module linked into cmd/aurago may carry, each with the
-// phrases its licence file must contain (lower case, whitespace collapsed). Anything else
+// gpl3CompatibleLicenses are the licences a module linked into a release binary may carry, each with
+// the phrases its licence file must contain (lower case, whitespace collapsed). Anything else
 // (GPL-2.0-only, EPL without a secondary-licence grant, CDDL, SSPL, BUSL, Commons Clause, AGPL, an
 // unknown text) blocks a release until a reviewed licence is recorded.
 var gpl3CompatibleLicenses = map[string][]string{
 	"GPL-3.0-only": {"gnu general public license", "version 3, 29 june 2007"},
-	"MPL-2.0":      {"mozilla public license", "2.0"},
+	"MPL-2.0":      {"mozilla public license version 2.0", `"secondary license" means either the gnu general public license`},
 	"Apache-2.0":   {"apache license", "version 2.0"},
 	"BSD-3-Clause": {"redistribution and use in source and binary forms", "endorse or promote"},
 	"BSD-2-Clause": {"redistribution and use in source and binary forms"},
@@ -32,18 +34,58 @@ var gpl3CompatibleLicenses = map[string][]string{
 	"CC0-1.0":      {"cc0 1.0 universal"},
 }
 
+// forbiddenLicenseTexts are licence families that cannot be combined with GPL-3.0 into one work.
+// A licence file listed in the manifest must not contain one of them, even next to an allowed text.
+// A text matches when it has every phrase and none of the absent phrases.
+var forbiddenLicenseTexts = []struct {
+	ID      string
+	Phrases []string
+	Absent  []string
+}{
+	{ID: "GPL-2.0", Phrases: []string{"gnu general public license", "version 2, june 1991"}},
+	{ID: "AGPL-3.0", Phrases: []string{"gnu affero general public license", "version 3, 19 november 2007"}},
+	{ID: "SSPL-1.0", Phrases: []string{"server side public license"}},
+	// EPL-2.0 is GPL-compatible only through a Secondary License notice that names the GPL.
+	{ID: "EPL-2.0 without a GPL secondary licence", Phrases: []string{"eclipse public license"}, Absent: []string{"satisfied: gnu general public license"}},
+}
+
+// spdxAliases maps deprecated or "or later" identifiers of source file headers onto the allowlist.
+var spdxAliases = map[string]string{
+	"GPL-3.0":          "GPL-3.0-only",
+	"GPL-3.0+":         "GPL-3.0-only",
+	"GPL-3.0-or-later": "GPL-3.0-only",
+}
+
 var licenseGuessOrder = []string{"GPL-3.0-only", "MPL-2.0", "Apache-2.0", "BSD-3-Clause", "BSD-2-Clause", "ISC", "MIT", "Zlib", "Unlicense", "CC0-1.0"}
 
 var releaseTargets = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64", "windows/arm64"}
 
+// linkedBinaryPackages are the binaries every release and the Docker image ship.
+var linkedBinaryPackages = []string{"./cmd/aurago", "./cmd/remote", "./cmd/config-merger"}
+
 // licenseFileCandidates is the order in which a missing manifest row's licence file is suggested.
 var licenseFileCandidates = []string{"LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "COPYING"}
 
-const linkedModuleManifestPath = "licences/linked-go-modules.tsv"
+const (
+	linkedModuleManifestPath = "licences/linked-go-modules.tsv"
+	// licenseHeaderBytes is how much of each compiled Go file is searched for licence headers.
+	licenseHeaderBytes = 32 << 10
+	// mplIncompatibleMarker is MPL-2.0 section 1.12: such a file cannot be combined with GPL code.
+	mplIncompatibleMarker = "incompatible with secondary licenses"
+)
+
+var spdxHeaderLine = regexp.MustCompile(`(?m)^[ \t]*(?://|/\*+|\*|#)[ \t]*SPDX-License-Identifier:[ \t]*([^\r\n*]+)`)
 
 type linkedModuleLicense struct {
 	Path, SPDX, Note string
 	Files            []string
+}
+
+// linkedModule is one module compiled into a release binary: its cache directory and the non-test Go
+// files of its packages that the linked targets compile.
+type linkedModule struct {
+	Dir   string
+	Files map[string]bool
 }
 
 // normalizedLicenseText lower-cases a licence text, turns curly quotes into ASCII quotes and collapses
@@ -71,6 +113,69 @@ func licenseGuess(text string) string {
 		}
 	}
 	return "UNKNOWN"
+}
+
+// forbiddenLicense names the GPL-3.0-incompatible licence family text carries, or "" for none.
+func forbiddenLicense(text string) string {
+	for _, forbidden := range forbiddenLicenseTexts {
+		if !licenseHasPhrases(text, forbidden.Phrases) {
+			continue
+		}
+		excluded := false
+		for _, absent := range forbidden.Absent {
+			if strings.Contains(text, absent) {
+				excluded = true
+			}
+		}
+		if !excluded {
+			return forbidden.ID
+		}
+	}
+	return ""
+}
+
+// spdxExpressionProblem checks the SPDX-License-Identifier expression of a source header against the
+// SPDX parts the manifest row declares. With OR one acceptable alternative is enough, otherwise every
+// identifier must be allowed and declared. It returns "" when the expression is fine.
+func spdxExpressionProblem(expression string, declared map[string]bool) string {
+	tokens := strings.FieldsFunc(expression, func(r rune) bool { return unicode.IsSpace(r) || r == '(' || r == ')' })
+	var ids []string
+	hasOr := false
+	for i := 0; i < len(tokens); i++ {
+		switch strings.ToUpper(tokens[i]) {
+		case "AND":
+		case "OR":
+			hasOr = true
+		case "WITH":
+			i++ // the exception identifier is not a licence
+		default:
+			id := tokens[i]
+			if alias, ok := spdxAliases[id]; ok {
+				id = alias
+			}
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return "no identifier"
+	}
+	var problems []string
+	acceptable := 0
+	for _, id := range ids {
+		_, allowed := gpl3CompatibleLicenses[id]
+		switch {
+		case !allowed:
+			problems = append(problems, id+" is not GPL-3.0 compatible")
+		case !declared[id]:
+			problems = append(problems, id+" is not listed in the manifest row")
+		default:
+			acceptable++
+		}
+	}
+	if len(problems) == 0 || (hasOr && acceptable > 0) {
+		return ""
+	}
+	return strings.Join(problems, "; ")
 }
 
 func readLinkedModuleManifest(t *testing.T) []linkedModuleLicense {
@@ -105,10 +210,10 @@ func readLinkedModuleManifest(t *testing.T) []linkedModuleLicense {
 	return rows
 }
 
-// linkedModules lists the modules compiled into cmd/aurago for one release target, as module path to
-// the directory in the module cache. It reports failures with t.Errorf and returns nil, so goroutines
+// linkedModules lists the modules compiled into the release binaries for one target, with the Go files
+// each of their packages compiles. It reports failures with t.Errorf and returns nil, so goroutines
 // can call it; the caller stops from the test goroutine.
-func linkedModules(t *testing.T, target string) map[string]string {
+func linkedModules(t *testing.T, target string) map[string]*linkedModule {
 	t.Helper()
 	goos, goarch, ok := strings.Cut(target, "/")
 	if !ok {
@@ -117,30 +222,46 @@ func linkedModules(t *testing.T, target string) map[string]string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "list", "-deps", "-f", "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Dir}}{{end}}{{end}}", "./cmd/aurago")
+	template := "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Dir}}\t{{$.Dir}}\t{{join $.GoFiles \"|\"}}{{end}}{{end}}"
+	args := append([]string{"list", "-deps", "-f", template}, linkedBinaryPackages...)
+	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = repoPath()
 	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch, "CGO_ENABLED=0", "GOFLAGS=-mod=readonly")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		t.Errorf("go list -deps ./cmd/aurago for %s: %v\n%s\nrun go mod download if modules are missing", target, err, strings.TrimSpace(stderr.String()))
+		t.Errorf("go list -deps %s for %s: %v\n%s\nrun go mod download if modules are missing", strings.Join(linkedBinaryPackages, " "), target, err, strings.TrimSpace(stderr.String()))
 		return nil
 	}
-	modules := map[string]string{}
+	modules := map[string]*linkedModule{}
 	for _, line := range strings.Split(stdout.String(), "\n") {
 		line = strings.TrimRight(line, "\r")
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		path, dir, _ := strings.Cut(line, "\t")
-		if strings.TrimSpace(dir) == "" {
-			t.Errorf("%s: module %s has no directory in the module cache for %s; run go mod download", linkedModuleManifestPath, path, target)
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 {
+			t.Errorf("go list printed an unexpected line for %s: %q", target, line)
 			return nil
 		}
-		modules[path] = dir
+		path, moduleDir, packageDir, goFiles := fields[0], fields[1], fields[2], fields[3]
+		if strings.TrimSpace(moduleDir) == "" {
+			t.Errorf("module %s has no directory in the module cache for %s; run go mod download", path, target)
+			return nil
+		}
+		module := modules[path]
+		if module == nil {
+			module = &linkedModule{Dir: moduleDir, Files: map[string]bool{}}
+			modules[path] = module
+		}
+		for _, name := range strings.Split(goFiles, "|") {
+			if name != "" {
+				module.Files[filepath.Join(packageDir, name)] = true
+			}
+		}
 	}
 	if len(modules) == 0 {
-		t.Errorf("go list -deps ./cmd/aurago for %s printed no modules", target)
+		t.Errorf("go list -deps for %s printed no modules", target)
 		return nil
 	}
 	return modules
@@ -175,29 +296,30 @@ func suggestedLicenseRow(dir string) (guess, file string) {
 	return "UNKNOWN", "-"
 }
 
-// moduleHasIncompatibleSecondaryLicenseHeader reports whether a non-test Go file of the module marks
-// itself "Incompatible With Secondary Licenses" (MPL-2.0 section 1.12), which forbids a GPL combination.
-func moduleHasIncompatibleSecondaryLicenseHeader(dir string) (string, bool, error) {
-	const marker = "incompatible with secondary licenses"
-	var found string
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		raw, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		if strings.Contains(strings.ToLower(string(raw)), marker) {
-			found = path
-			return fs.SkipAll
-		}
-		return nil
-	})
-	return found, found != "", err
+// goFileLicenseHeader holds what the licence scan reads from the top of one compiled Go file.
+type goFileLicenseHeader struct {
+	Expressions  []string
+	Incompatible bool
+}
+
+func scanGoFileLicenseHeader(path string) (goFileLicenseHeader, error) {
+	var header goFileLicenseHeader
+	file, err := os.Open(path)
+	if err != nil {
+		return header, err
+	}
+	defer file.Close()
+	buf := make([]byte, licenseHeaderBytes)
+	n, err := io.ReadFull(file, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return header, err
+	}
+	head := string(buf[:n])
+	for _, match := range spdxHeaderLine.FindAllStringSubmatch(head, -1) {
+		header.Expressions = append(header.Expressions, strings.TrimSpace(match[1]))
+	}
+	header.Incompatible = strings.Contains(strings.ToLower(head), mplIncompatibleMarker)
+	return header, nil
 }
 
 // The fingerprints are the gate's only licence recognition. They must tell the shipped SPDX texts apart,
@@ -220,28 +342,68 @@ func TestLinkedModuleLicenseFingerprintsClassifyTheShippedTexts(t *testing.T) {
 		"EPL-2.0.txt":       "UNKNOWN",
 		"SSPL-1.0.txt":      "UNKNOWN",
 	}
+	forbidden := map[string]string{
+		"GPL-2.0-only.txt":  "GPL-2.0",
+		"AGPL-3.0-only.txt": "AGPL-3.0",
+		"SSPL-1.0.txt":      "SSPL-1.0",
+		"EPL-2.0.txt":       "EPL-2.0 without a GPL secondary licence",
+	}
 	for name, id := range want {
-		raw := []byte(readRepoFile(t, "licences/texts/"+name))
-		if got := licenseGuess(normalizedLicenseText(raw)); got != id {
+		text := normalizedLicenseText([]byte(readRepoFile(t, "licences/texts/"+name)))
+		if got := licenseGuess(text); got != id {
 			t.Errorf("licences/texts/%s is classified %q, want %q", name, got, id)
+		}
+		if got := forbiddenLicense(text); got != forbidden[name] {
+			t.Errorf("licences/texts/%s is flagged as %q, want %q", name, got, forbidden[name])
+		}
+	}
+	// An EPL-2.0 notice that grants the GPL as Secondary License is not flagged.
+	epl := normalizedLicenseText([]byte("Eclipse Public License - v 2.0 ... This Source Code may also be made available under the following Secondary Licenses when the conditions for such availability set forth in the Eclipse Public License, v. 2.0 are satisfied: GNU General Public License, Version 2.0, or any later versions"))
+	if got := forbiddenLicense(epl); got != "" {
+		t.Errorf("an EPL-2.0 text with a GPL secondary licence is flagged as %q", got)
+	}
+}
+
+// Source headers can only narrow the manifest: each identifier must be allowed and declared.
+func TestSPDXHeaderExpressionsAreCheckedAgainstTheManifestRow(t *testing.T) {
+	t.Parallel()
+	declared := map[string]bool{"MIT": true, "GPL-3.0-only": true}
+	for expression, wantProblem := range map[string]bool{
+		"MIT":                          false,
+		"GPL-3.0":                      false, // deprecated identifier of GPL-3.0-only
+		"MIT AND GPL-3.0-only":         false,
+		"MIT OR Apache-2.0":            false, // one acceptable alternative is enough
+		"Apache-2.0":                   true,  // allowed, but the row does not list it
+		"MIT AND Apache-2.0":           true,
+		"GPL-2.0-only":                 true, // not GPL-3.0 compatible
+		"EPL-2.0 OR GPL-2.0-only":      true,
+		"MIT WITH LLVM-exception":      false,
+		"(MIT OR EPL-2.0) AND GPL-3.0": false,
+		"":                             true,
+	} {
+		if got := spdxExpressionProblem(expression, declared) != ""; got != wantProblem {
+			t.Errorf("spdxExpressionProblem(%q) problem = %v, want %v", expression, got, wantProblem)
 		}
 	}
 }
 
 // A GPL-3.0 combined work may only link modules whose licence is GPL-3.0 compatible. Every module
-// linked into cmd/aurago for a release target needs a reviewed row in licences/linked-go-modules.tsv;
-// a licence outside the allowlist blocks the release (licences/AGENTS.md).
+// linked into the release binaries (cmd/aurago, cmd/remote, cmd/config-merger) for a release target
+// needs a reviewed row in licences/linked-go-modules.tsv; a licence outside the allowlist blocks the
+// release (licences/AGENTS.md). The source files that the targets compile are checked too: their
+// SPDX-License-Identifier headers must be allowed and listed in the row, and none may be an MPL-2.0
+// file marked "Incompatible With Secondary Licenses".
 func TestLinkedGoModulesHaveGPL3CompatibleLicenses(t *testing.T) {
 	if testing.Short() {
 		t.Skip("lists the linked modules of six release targets; skipped with -short")
 	}
 	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go is not on PATH")
+		t.Fatalf("go is not on PATH, so the linked-module licence gate cannot run: %v", err)
 	}
 	manifest := readLinkedModuleManifest(t)
 	notices := readRepoFile(t, "THIRD_PARTY_NOTICES.md")
 
-	perTarget := make([]map[string]string, len(releaseTargets))
+	perTarget := make([]map[string]*linkedModule, len(releaseTargets))
 	var wg sync.WaitGroup
 	for i, target := range releaseTargets {
 		wg.Add(1)
@@ -251,13 +413,19 @@ func TestLinkedGoModulesHaveGPL3CompatibleLicenses(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	linked := map[string]string{}
+	linked := map[string]*linkedModule{}
 	for _, modules := range perTarget {
 		if modules == nil {
 			t.FailNow()
 		}
-		for path, dir := range modules {
-			linked[path] = dir
+		for path, module := range modules {
+			if known := linked[path]; known != nil {
+				for file := range module.Files {
+					known.Files[file] = true
+				}
+				continue
+			}
+			linked[path] = module
 		}
 	}
 
@@ -285,7 +453,7 @@ func TestLinkedGoModulesHaveGPL3CompatibleLicenses(t *testing.T) {
 	var missing []string
 	for _, path := range paths {
 		if _, ok := rows[path]; !ok {
-			guess, file := suggestedLicenseRow(linked[path])
+			guess, file := suggestedLicenseRow(linked[path].Dir)
 			missing = append(missing, fmt.Sprintf("add: %s\t%s\t%s", path, guess, file))
 		}
 	}
@@ -295,57 +463,127 @@ func TestLinkedGoModulesHaveGPL3CompatibleLicenses(t *testing.T) {
 	}
 
 	for _, row := range manifest {
-		dir, ok := linked[row.Path]
+		module, ok := linked[row.Path]
 		if !ok {
 			continue
 		}
-		parts := strings.Split(row.SPDX, " AND ")
-		allowed := true
-		for _, part := range parts {
-			if _, known := gpl3CompatibleLicenses[part]; !known {
-				allowed = false
-				t.Errorf("%s: %s is not GPL-3.0 compatible; release blocked", row.Path, part)
+		checkLinkedModuleRow(t, row, module, notices)
+		checkLinkedModuleSources(t, row, module)
+	}
+}
+
+// checkLinkedModuleRow checks the licence files a manifest row lists against the SPDX parts it declares.
+func checkLinkedModuleRow(t *testing.T, row linkedModuleLicense, module *linkedModule, notices string) {
+	t.Helper()
+	parts := strings.Split(row.SPDX, " AND ")
+	allowed := true
+	for _, part := range parts {
+		if _, known := gpl3CompatibleLicenses[part]; !known {
+			allowed = false
+			t.Errorf("%s: %s is not GPL-3.0 compatible; release blocked", row.Path, part)
+		}
+	}
+	if !allowed {
+		return
+	}
+	texts := map[string]string{}
+	for _, file := range row.Files {
+		// repo:licences/texts/X.txt names a verbatim SPDX text of this repository for a part whose licence
+		// text the module does not ship.
+		dir, name := module.Dir, file
+		if rest, fromRepo := strings.CutPrefix(file, "repo:"); fromRepo {
+			dir, name = repoPath("."), rest
+			if !strings.HasPrefix(name, "licences/texts/") {
+				t.Errorf("%s: %s must name a text below licences/texts/", row.Path, file)
+				continue
 			}
 		}
-		if !allowed {
+		if !exactFileExists(dir, name) {
+			t.Errorf("%s: licence file %s does not exist", row.Path, file)
 			continue
 		}
-		texts := map[string]string{}
-		for _, file := range row.Files {
-			if !exactFileExists(dir, file) {
-				t.Errorf("%s: licence file %s does not exist in the module", row.Path, file)
-				continue
-			}
-			raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(file)))
-			if err != nil {
-				t.Errorf("%s: read %s: %v", row.Path, file, err)
-				continue
-			}
-			texts[file] = normalizedLicenseText(raw)
+		raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name)))
+		if err != nil {
+			t.Errorf("%s: read %s: %v", row.Path, file, err)
+			continue
 		}
-		for _, part := range parts {
-			found := false
-			for _, text := range texts {
-				if licenseHasPhrases(text, gpl3CompatibleLicenses[part]) {
-					found = true
-					break
-				}
-			}
-			if !found && len(texts) == len(row.Files) {
-				t.Errorf("%s: none of %s carries the %s text; release blocked until the licence is reviewed", row.Path, strings.Join(row.Files, ", "), part)
-			}
-			switch part {
-			case "MPL-2.0":
-				if file, bad, err := moduleHasIncompatibleSecondaryLicenseHeader(dir); err != nil {
-					t.Errorf("%s: scan Go files: %v", row.Path, err)
-				} else if bad {
-					t.Errorf("%s: %s is marked Incompatible With Secondary Licenses (MPL-2.0); it cannot be combined with GPL-3.0", row.Path, file)
-				}
-			case "GPL-3.0-only":
-				if !strings.Contains(notices, "`"+row.Path+"`") {
-					t.Errorf("%s: GPL-3.0 module is not named in backticks in THIRD_PARTY_NOTICES.md", row.Path)
-				}
+		text := normalizedLicenseText(raw)
+		texts[file] = text
+		if family := forbiddenLicense(text); family != "" {
+			t.Errorf("%s: %s contains the %s text, which cannot be combined with GPL-3.0; release blocked", row.Path, file, family)
+		}
+		if strings.Contains(text, "eclipse distribution license") && !strings.Contains(text, "eclipse foundation") {
+			t.Errorf("%s: %s is an Eclipse Distribution License without its Eclipse Foundation copyright holder", row.Path, file)
+		}
+	}
+	for _, part := range parts {
+		found := false
+		for _, text := range texts {
+			if licenseHasPhrases(text, gpl3CompatibleLicenses[part]) {
+				found = true
+				break
 			}
 		}
+		if !found && len(texts) == len(row.Files) {
+			t.Errorf("%s: none of %s carries the %s text; release blocked until the licence is reviewed", row.Path, strings.Join(row.Files, ", "), part)
+		}
+		if part == "GPL-3.0-only" && !strings.Contains(notices, "`"+row.Path+"`") {
+			t.Errorf("%s: GPL-3.0 module is not named in backticks in THIRD_PARTY_NOTICES.md", row.Path)
+		}
+	}
+}
+
+// checkLinkedModuleSources reads the licence headers of the Go files the release targets compile.
+func checkLinkedModuleSources(t *testing.T, row linkedModuleLicense, module *linkedModule) {
+	t.Helper()
+	declared := map[string]bool{}
+	for _, part := range strings.Split(row.SPDX, " AND ") {
+		declared[part] = true
+	}
+	files := make([]string, 0, len(module.Files))
+	for file := range module.Files {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	type finding struct {
+		example string
+		count   int
+	}
+	findings := map[string]*finding{}
+	for _, file := range files {
+		header, err := scanGoFileLicenseHeader(file)
+		if err != nil {
+			t.Errorf("%s: read %s: %v", row.Path, file, err)
+			continue
+		}
+		relative, relErr := filepath.Rel(module.Dir, file)
+		if relErr != nil {
+			relative = file
+		}
+		relative = filepath.ToSlash(relative)
+		var problems []string
+		for _, expression := range header.Expressions {
+			if problem := spdxExpressionProblem(expression, declared); problem != "" {
+				problems = append(problems, fmt.Sprintf("SPDX-License-Identifier %q: %s", expression, problem))
+			}
+		}
+		if header.Incompatible {
+			problems = append(problems, `an MPL-2.0 file marked "Incompatible With Secondary Licenses" cannot be combined with GPL-3.0`)
+		}
+		for _, problem := range problems {
+			if findings[problem] == nil {
+				findings[problem] = &finding{example: relative}
+			}
+			findings[problem].count++
+		}
+	}
+	var problems []string
+	for problem := range findings {
+		problems = append(problems, problem)
+	}
+	sort.Strings(problems)
+	for _, problem := range problems {
+		found := findings[problem]
+		t.Errorf("%s: %s (%d compiled file(s), for example %s); fix the row in %s or block the module", row.Path, problem, found.count, found.example, linkedModuleManifestPath)
 	}
 }
