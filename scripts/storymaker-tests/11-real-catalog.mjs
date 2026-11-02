@@ -75,3 +75,32 @@ check('text: box pad and radius are fractions of the canvas height, like the siz
     assert.equal(cv.ctx.log.filter(x => x.startsWith('arcTo(') && x.endsWith(',13)')).length, 4, 'four rounded corners of radius 13');
 });
 
+// ---- point poses and mirroring ------------------------------------------------------------------------------------------
+
+// The screen side that the hand of a pose reaches: x of the hand tip relative to the root, after the mirror of a left-facing actor.
+function handSide(poseName, facing) {
+    const rs = rigStateOf({ pose: { a: poseName, b: poseName, u: 1 }, facing }), body = SM.rig.bodyOf(files.rig, 'average');
+    const world = SM.rig.boneMatrices(files.rig, rs.view, body, rs.offsets);
+    const hand = rs.hands.l === 'point' ? world.lower_arm_l : world.lower_arm_r, tip = hand[2] * 135 + hand[4];
+    return Math.sign(tip) * facing;
+}
+
+check('rig state: point-left and point-right keep their screen direction when the actor faces left', () => {
+    assert.equal(handSide('point-right', 1), 1);
+    assert.equal(handSide('point-left', 1), -1);
+    assert.equal(handSide('point-right', -1), 1, 'facing left: point-right still reaches the right edge of the screen');
+    assert.equal(handSide('point-left', -1), -1);
+    // the swap picks the other pose entry: its bones and its view hint
+    const left = rigStateOf({ pose: { a: 'point-right', b: 'point-right', u: 1 }, facing: -1 });
+    assert.equal(left.offsets.upper_arm_l, 88, 'the bones of point-left');
+    assert.equal(left.hands.l, 'point');
+    assert.equal(left.view, 'front');
+    assert.equal(rigStateOf({ pose: { a: 'point-right', b: 'point-right', u: 1 }, facing: 1 }).view, 'three_quarter');
+    // other poses are not mirrored by name
+    assert.equal(rigStateOf({ pose: { a: 'wave', b: 'wave', u: 1 }, facing: -1 }).offsets.upper_arm_r, -128);
+    // a catalog that has no point-left keeps the name (the mini catalog has neither)
+    const mini = SM.compile({ cast: [{ id: 'a', character: 'char.office-woman-1' }], scenes: [{ id: 's', actors: [{ cast: 'a', at: 'left', pose: 'stand' }] }] }, {}, t.catalog);
+    const rcMini = SM.render.makeContext(mini.timeline, renderAssets(), 1920, 1080);
+    assert.equal(SM.render.rigState({ ...idle, pose: { a: 'stand', b: 'stand', u: 1 }, facing: -1 }, 0, rcMini, t.files.rig).view, 'three_quarter');
+});
+

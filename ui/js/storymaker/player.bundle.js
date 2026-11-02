@@ -1926,11 +1926,21 @@
         SM.parts.drawPart(ctx, part, SM.parts.makeResolver([rc.palette]), st.alpha);
     }
 
+    var MIRROR_POSES = { 'point-left': 'point-right', 'point-right': 'point-left' };
+
+    // poseFor(cat, name, facing): the catalog entry of a pose name. A left-facing actor is drawn mirrored, so point-left and
+    // point-right swap entries and the name keeps meaning the direction on the screen. The swap needs both entries.
+    function poseFor(cat, name, facing) {
+        var other = facing < 0 && MIRROR_POSES[name];
+        var pick = other && cat.poses[other] && cat.poses[name] ? other : name;
+        return cat.poses[pick] || cat.poses.stand || { bones: {} };
+    }
+
     // rigState(st, t, rc, rig): the draw state of an actor from its logical state (pose blend, gesture, walk or idle cycle).
     function rigState(st, t, rc, rig) {
         var cat = rc.cat, rg = R();
-        var poseA = cat.poses[st.pose.a] || cat.poses.stand || { bones: {} };
-        var poseB = cat.poses[st.pose.b] || cat.poses.stand || { bones: {} };
+        var poseA = poseFor(cat, st.pose.a, st.facing);
+        var poseB = poseFor(cat, st.pose.b, st.facing);
         var u = st.pose.u;
         var bones = rg.lerpBones(poseA.bones, poseB.bones, u);
         var drop = rg.poseDrop(rig, poseA) * (1 - u) + rg.poseDrop(rig, poseB) * u;
