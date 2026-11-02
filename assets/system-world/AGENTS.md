@@ -42,6 +42,8 @@ Own the original Blender city kit, deterministic generator and source scene.
   part's own centre. The v2 manifest pins hashes of all six authoring sources.
   Robot `motion_bounds` enclose all sampled exported clips; collision dimensions
   include raised arms and remain identical across LODs.
+  Tram end, side and sliding-door windows are framed apertures at every LOD;
+  never place opaque kit glass or backing walls across passenger sight lines.
   Preserve matching LOD pivots and articulated clips. Modular floors have planar
   joining edges; the lift platform top is zero with four metres of travel and an
   open left side. Gallery guards use the `railing` module. Verify actual exported
@@ -56,6 +58,8 @@ Own the original Blender city kit, deterministic generator and source scene.
 
 ## Verification
 - `python assets/system-world/check_assets.py`.
+- `node scripts/test-system-world-layout.mjs` checks exported tram window sight lines
+  from inside and outside, including closed doors at all three LODs.
 - `python assets/system-world/build_textures.py --check` and `node scripts/test-system-world-surfaces.mjs`;
   `--preview` writes a lit contact sheet to `reports/system-world-assets/`.
 - All exported GLBs must pass the Khronos validator and a real browser rendering check.
