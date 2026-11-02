@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/ecalc"
@@ -381,5 +382,27 @@ func TestECalcCalculateAnswersTheCombinerWithCombinations(t *testing.T) {
 	desc := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "describe", ID: "eseries_combiner"}))
 	if desc["finder"] != "combine" || desc["formula"] != nil {
 		t.Fatalf("describe = %v", desc)
+	}
+}
+
+func TestECalcSearchRejectsAnOverlongQuery(t *testing.T) {
+	// 257 characters are one too many, however they are written; the answer names the limit.
+	for name, query := range map[string]string{"ascii": strings.Repeat("a", 257), "multibyte": strings.Repeat("ä", 257), "words": strings.Repeat("divider ", 40)} {
+		out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "search", Query: query}))
+		if out["status"] != "error" || out["code"] != "invalid_query" || !strings.Contains(out["message"].(string), "256") {
+			t.Errorf("%s query of %d characters: output = %v", name, len([]rune(query)), out)
+		}
+	}
+	// A 100 KB query is refused at once, not searched.
+	started := time.Now()
+	out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "search", Query: strings.Repeat("resistor ", 12000)}))
+	if out["code"] != "invalid_query" || time.Since(started) > time.Second {
+		t.Errorf("a 100 KB query took %v and gave %v", time.Since(started), out)
+	}
+	// 256 characters are searched, the blanks around a query do not count, and a multibyte character is one character.
+	for name, query := range map[string]string{"ascii": strings.Repeat("a", 256), "multibyte": strings.Repeat("ä", 256), "padded": strings.Repeat(" ", 1000) + "divider" + strings.Repeat("\t", 1000)} {
+		if out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "search", Query: query})); out["status"] != "ok" {
+			t.Errorf("%s query: output = %v", name, out)
+		}
 	}
 }

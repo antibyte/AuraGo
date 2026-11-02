@@ -25,6 +25,8 @@ const (
 	// the answer has to be shortened.
 	ecalcSetsLimit = 12
 	ecalcQueryEcho = 100
+	// ecalcMaxQuery is the longest search query in characters; a longer one is refused.
+	ecalcMaxQuery = 256
 )
 
 // ECalcRequest is a decoded ecalc tool call. Inputs are variable ids with the values as a person would type them
@@ -148,6 +150,11 @@ type ecalcSearchOut struct {
 
 func ecalcSearch(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesktopExecution {
 	query := strings.TrimSpace(req.Query)
+	// A search is a few words; every word is matched against the whole catalog, so a long text only costs time (100 KB took
+	// seconds). Characters are counted, not bytes.
+	if utf8.RuneCountInString(query) > ecalcMaxQuery {
+		return ecalcFailure("error", "invalid_query", fmt.Sprintf("query must be at most %d characters; search with a few words (a topic, a part or a formula).", ecalcMaxQuery))
+	}
 	if query == "" {
 		return ecalcResult(ecalcSearchOut{
 			Status: "ok", Operation: "search", Total: len(cat.Calculators), Categories: cat.Overview(),

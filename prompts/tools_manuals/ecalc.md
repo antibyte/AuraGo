@@ -4,7 +4,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 
 ## Workflow
 
-1. `search` with a few words (English or German): a topic, a part or a formula. An empty `query` lists the categories.
+1. `search` with a few words (English or German, at most 256 characters): a topic, a part or a formula. An empty `query` lists the categories.
 2. `describe` the calculator you picked: its variables with units and defaults, the choices, how many values are needed (`dof`), which input combinations work (`sets`), the computed outputs (`derived`), the checks and the formula.
 3. `calculate` with the values you know. Any complete input set works, so you can solve for whichever quantity is missing.
 4. `open` only when the user wants to see or play with the calculator; it opens the ECalc app on the desktop, pre-filled with your values.
