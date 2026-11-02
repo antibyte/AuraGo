@@ -11,5 +11,9 @@
   "config.security.severity.critical": "KRITISK",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "ADVARSEL",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests med Docker (Ekstern) deployer over ukryptert HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests med Docker (Ekstern) deployer over ukryptert HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Eget AuraGo-nummer er valgt, men ingen gyldige eiernumre er angitt. WhatsApp-kanalen forblir av og svarer ingen før du legger til nummeret ditt i internasjonalt format.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: ikke noe eiernummer",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo er en tilknyttet enhet på din egen WhatsApp-konto. Den leser bare chatten med deg selv, men enhetsnøklene gir tilgang til alle chattene dine, og en utestengelse for automatisert bruk rammer det personlige nummeret ditt. Et eget AuraGo-nummer er tryggere.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: selvchat-modus bruker den personlige kontoen din"
 }

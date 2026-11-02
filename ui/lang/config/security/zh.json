@@ -11,5 +11,9 @@
   "config.security.severity.critical": "严重",
   "config.security.severity.info": "提示",
   "config.security.severity.warning": "警告",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion：使用 Docker (远程) 的 Nest 通过未加密的 HTTP 部署"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion：使用 Docker (远程) 的 Nest 通过未加密的 HTTP 部署",
+  "security.hint.whatsapp_dedicated_no_owner.description": "已选择 AuraGo 专用号码，但没有设置有效的所有者号码。在你以国际格式添加自己的号码之前，WhatsApp 渠道保持关闭，不会回复任何人。",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp：没有所有者号码",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo 是你自己 WhatsApp 账号的关联设备。它只读取你与自己的聊天，但设备密钥可以访问你的所有聊天；因自动化使用而被封禁时，受影响的是你的个人号码。使用 AuraGo 专用号码更安全。",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp：自聊模式使用你的个人账号"
 }

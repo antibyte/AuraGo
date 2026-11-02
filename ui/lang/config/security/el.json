@@ -11,5 +11,9 @@
   "config.security.severity.critical": "ΚΡΙΣΙΜΟ",
   "config.security.severity.info": "ΠΛΗΡΟΦΟΡΙΑ",
   "config.security.severity.warning": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Τα Nest με Docker (Απομακρυσμένο) κάνουν deploy μέσω μη κρυπτογραφημένου HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Τα Nest με Docker (Απομακρυσμένο) κάνουν deploy μέσω μη κρυπτογραφημένου HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Έχει επιλεγεί ξεχωριστός αριθμός AuraGo, αλλά δεν έχει οριστεί έγκυρος αριθμός κατόχου. Το κανάλι WhatsApp μένει ανενεργό και δεν απαντά σε κανέναν, μέχρι να προσθέσεις τον αριθμό σου σε διεθνή μορφή.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: δεν υπάρχει αριθμός κατόχου",
+  "security.hint.whatsapp_self_chat_personal_account.description": "Το AuraGo είναι συνδεδεμένη συσκευή του δικού σου λογαριασμού WhatsApp. Διαβάζει μόνο τη συνομιλία με τον εαυτό σου, αλλά τα κλειδιά της συσκευής δίνουν πρόσβαση σε όλες τις συνομιλίες σου, και ένας αποκλεισμός λόγω αυτοματοποιημένης χρήσης πλήττει τον προσωπικό σου αριθμό. Ένας ξεχωριστός αριθμός είναι ασφαλέστερος.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: η λειτουργία συνομιλίας με τον εαυτό σου χρησιμοποιεί τον προσωπικό σου λογαριασμό"
 }

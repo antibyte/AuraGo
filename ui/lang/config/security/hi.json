@@ -11,5 +11,9 @@
   "config.security.severity.critical": "गंभीर",
   "config.security.severity.info": "जानकारी",
   "config.security.severity.warning": "चेतावनी",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (रिमोट) वाले Nest बिना एन्क्रिप्शन वाले HTTP से डिप्लॉय होते हैं"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (रिमोट) वाले Nest बिना एन्क्रिप्शन वाले HTTP से डिप्लॉय होते हैं",
+  "security.hint.whatsapp_dedicated_no_owner.description": "AuraGo का अलग नंबर चुना गया है, लेकिन कोई मान्य मालिक नंबर सेट नहीं है। जब तक आप अपना नंबर अंतरराष्ट्रीय फ़ॉर्मैट में नहीं जोड़ते, WhatsApp चैनल बंद रहता है और किसी को जवाब नहीं देता।",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: कोई मालिक नंबर नहीं",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo आपके अपने WhatsApp खाते का लिंक किया गया डिवाइस है। यह केवल आपकी खुद से की गई चैट पढ़ता है, लेकिन डिवाइस की कुंजियाँ आपकी सभी चैट तक पहुँच देती हैं, और स्वचालित उपयोग के कारण लगी रोक आपके निजी नंबर पर लगती है। अलग नंबर अधिक सुरक्षित है।",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: सेल्फ़-चैट मोड आपके निजी खाते का उपयोग करता है"
 }

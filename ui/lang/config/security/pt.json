@@ -11,5 +11,9 @@
   "config.security.severity.critical": "CRÍTICO",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "AVISO",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests com Docker (Remoto) fazem deploy por HTTP sem criptografia"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests com Docker (Remoto) fazem deploy por HTTP sem criptografia",
+  "security.hint.whatsapp_dedicated_no_owner.description": "O número próprio do AuraGo está escolhido, mas não há nenhum número de proprietário válido. O canal do WhatsApp continua desligado e não responde a ninguém até que adicione o seu número no formato internacional.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: nenhum número de proprietário",
+  "security.hint.whatsapp_self_chat_personal_account.description": "O AuraGo é um dispositivo conectado da sua própria conta do WhatsApp. Ele lê apenas a sua conversa consigo mesmo, mas as chaves do dispositivo dão acesso a todas as suas conversas, e um bloqueio por uso automatizado atinge o seu número pessoal. Um número próprio para o AuraGo é mais seguro.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: o modo de conversa consigo mesmo usa a sua conta pessoal"
 }

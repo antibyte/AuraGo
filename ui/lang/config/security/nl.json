@@ -11,5 +11,9 @@
   "config.security.severity.critical": "KRITIEK",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "WAARSCHUWING",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests met Docker (Extern) deployen via onversleutelde HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests met Docker (Extern) deployen via onversleutelde HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Een eigen AuraGo-nummer is gekozen, maar er is geen geldig eigenaarsnummer ingesteld. Het WhatsApp-kanaal blijft uit en antwoordt niemand tot je je nummer in internationaal formaat toevoegt.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: geen eigenaarsnummer",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo is een gekoppeld apparaat van je eigen WhatsApp-account. Het leest alleen je chat met jezelf, maar de apparaatsleutels geven toegang tot al je chats, en een blokkade wegens geautomatiseerd gebruik treft je persoonlijke nummer. Een eigen AuraGo-nummer is veiliger.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: zelfchatmodus gebruikt je persoonlijke account"
 }

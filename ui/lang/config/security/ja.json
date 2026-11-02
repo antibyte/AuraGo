@@ -11,5 +11,9 @@
   "config.security.severity.critical": "重大",
   "config.security.severity.info": "情報",
   "config.security.severity.warning": "警告",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (リモート) のネストが暗号化されていない HTTP でデプロイしています"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (リモート) のネストが暗号化されていない HTTP でデプロイしています",
+  "security.hint.whatsapp_dedicated_no_owner.description": "AuraGo 専用の番号が選ばれていますが、有効な所有者の番号が設定されていません。国際形式で自分の番号を追加するまで、WhatsApp チャンネルはオフのままで、誰にも返信しません。",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: 所有者の番号がありません",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo はあなた自身の WhatsApp アカウントのリンク済みデバイスです。読むのは自分とのチャットだけですが、デバイスの鍵ですべてのチャットにアクセスでき、自動利用による利用停止は個人の番号に及びます。専用の番号のほうが安全です。",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: セルフチャットモードは個人アカウントを使います"
 }

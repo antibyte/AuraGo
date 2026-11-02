@@ -11,5 +11,9 @@
   "config.security.severity.critical": "KRITISK",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "VARNING",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests med Docker (Fjärr) driftsätter via okrypterad HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests med Docker (Fjärr) driftsätter via okrypterad HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Eget AuraGo-nummer är valt, men inget giltigt ägarnummer är angivet. WhatsApp-kanalen förblir avstängd och svarar ingen förrän du lägger till ditt nummer i internationellt format.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: inget ägarnummer",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo är en länkad enhet på ditt eget WhatsApp-konto. Den läser bara din chatt med dig själv, men enhetsnycklarna ger åtkomst till alla dina chattar, och en spärr för automatiserad användning drabbar ditt personliga nummer. Ett eget AuraGo-nummer är säkrare.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: självchattläget använder ditt personliga konto"
 }
