@@ -67,8 +67,13 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 		page.Timeout(10*time.Second).MustWait(`id=>SysWorldApp.inspect(cityId).experience.inside===id`, id)
 		page.MustScreenshot(filepath.Join(dir, "world2-interior-"+id+".png"))
 		if id == "agent" {
-			// Enter through the open LEFT side, not through the lift's guard rails.
-			axis(0, 1.5, input.KeyA, input.KeyD)
+			// Enter the lift through its open LEFT side, not through its guard rails. Every leg's
+			// ±0.35 m stop window is free: x 0.65–1.35 runs between the hologram (x<0.6) and the
+			// divider pillar (x>1.5 near z 73.15); z 74.15–74.85 lies past the pillar and short of
+			// the console (z>75.2); x 1.65–2.35 clears the console (x<1.15) and the lift (x≥2.4).
+			axis(0, 1, input.KeyA, input.KeyD)
+			axis(2, 74.5, input.KeyW, input.KeyS)
+			axis(0, 2, input.KeyA, input.KeyD)
 			axis(2, 76, input.KeyW, input.KeyS)
 			axis(0, 4, input.KeyA, input.KeyD)
 			page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='lift'`)
