@@ -48,8 +48,12 @@ func (c *maintenanceControllerTestClock) fireLatest() bool {
 	defer c.mu.Unlock()
 	for i := len(c.timers) - 1; i >= 0; i-- {
 		if !c.timers[i].stopped.Load() {
-			c.timers[i].ch <- c.now
-			return true
+			select {
+			case c.timers[i].ch <- c.now:
+				return true
+			default:
+				return false
+			}
 		}
 	}
 	return false
@@ -101,26 +105,32 @@ func TestMaintenanceControllerStartsDisabledAndHotEnables(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var runs atomic.Int32
+	release := make(chan struct{})
 	controller := newMaintenanceController(ctx, maintenanceControllerTestConfig(false), MaintenanceControllerDependencies{}, maintenanceControllerOptions{
 		now:          func() time.Time { return clock.now },
 		timerFactory: clock.timer,
 		claimDay:     maintenanceControllerTestClaimDay,
 		run: func(context.Context, *config.Config) {
 			runs.Add(1)
+			<-release
 		},
 	})
 	defer controller.Stop(context.Background())
+	defer close(release)
 
 	time.Sleep(5 * time.Millisecond)
 	if got := clock.timerCount(); got != 0 {
 		t.Fatalf("disabled controller created %d timers", got)
 	}
 	controller.UpdateConfig(maintenanceControllerTestConfig(true))
-	waitMaintenanceController(t, func() bool { return clock.timerCount() == 1 })
-	if !clock.fireLatest() {
-		t.Fatal("failed to fire enabled maintenance timer")
-	}
-	waitMaintenanceController(t, func() bool { return runs.Load() == 1 })
+	// The update wake can replace the first timer before its tick is consumed.
+	waitMaintenanceController(t, func() bool {
+		if runs.Load() == 1 {
+			return true
+		}
+		clock.fireLatest()
+		return false
+	})
 }
 
 func TestMaintenanceControllerDisableCancelsActiveRunAndPreventsOverlap(t *testing.T) {
