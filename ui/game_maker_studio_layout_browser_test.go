@@ -120,7 +120,9 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 		check(name+": studio fits the window without horizontal overflow", `()=>{const s=document.querySelector('.gm-studio');return s.scrollWidth<=s.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1&&[...s.querySelectorAll('.gm-workspace,.gm-agent-pane,.gm-preview-pane,.gm-conversation')].every(e=>e.scrollWidth<=e.clientWidth+1)}`)
 		check(name+": every visible control stays inside the window", `()=>{const s=document.querySelector('.gm-studio').getBoundingClientRect();return [...document.querySelectorAll('.gm-topbar button,.gm-pane-head button,.gm-pane-head select,.gm-change-form button,.gm-library-head button,.gm-steps button')].filter(b=>b.offsetParent).every(b=>{const r=b.getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1})}`)
 		check(name+": no control text is clipped", `()=>[...document.querySelectorAll('.gm-topbar button,.gm-preview-tools button,.gm-change-form button,.gm-library-head button,.gm-pane-head button,.gm-steps button')].filter(b=>b.offsetParent).every(b=>b.scrollWidth<=b.clientWidth+2)`)
-		check(name+": a new game can always be started", `()=>[...document.querySelectorAll('[data-gm-action="new"]')].filter(b=>b.offsetParent&&!b.disabled).length===1`)
+		// The library and the narrow header own one new-game entry point; the
+		// empty state may add a second one on purpose, but never a disabled one.
+		check(name+": a new game can always be started", `()=>{const visible=[...document.querySelectorAll('[data-gm-action="new"]')].filter(b=>b.offsetParent);return visible.filter(b=>!b.classList.contains('gm-empty-new')).length===1&&visible.every(b=>!b.disabled)}`)
 	}
 	send := func(id int, kind string, payload map[string]any) {
 		events <- map[string]any{"id": id, "project_id": "forest", "job_id": "job", "type": kind, "payload": payload}

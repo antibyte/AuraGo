@@ -92,7 +92,7 @@
                         <div><strong>${esc(t('game_maker.title'))}</strong><span>${esc(t('game_maker.subtitle'))}</span></div>
                     </div>
                     <div class="gm-project-meta">
-                        <span class="gm-status" data-gm-status>${esc(t('game_maker.loading'))}</span>
+                        <span class="gm-status" data-gm-status role="status">${esc(t('game_maker.loading'))}</span>
                         <span class="gm-engine" data-gm-engine></span>
                     </div>
                     <nav class="gm-actions" aria-label="${esc(t('game_maker.project_actions'))}">
@@ -118,7 +118,7 @@
                             <div><span>${esc(t('game_maker.library'))}</span><small data-gm-count>0</small></div>
                             <button type="button" class="gm-primary gm-new" data-gm-action="new">+ ${esc(t('game_maker.new_game'))}</button>
                         </div>
-                        <div class="gm-project-list" data-gm-projects role="list"></div>
+                        <div class="gm-project-list" data-gm-projects></div>
                     </aside>
                     <main class="gm-workspace">
                         <div class="gm-steps" role="group" data-gm-steps aria-label="${esc(t('game_maker.steps'))}">
@@ -156,16 +156,19 @@
                                 <span data-gm-capability-message></span>
                             </div>
                             <div class="gm-conversation" data-gm-conversation role="log" aria-live="polite">
-                                <div class="gm-empty"><strong>${esc(t('game_maker.empty_title'))}</strong><span>${esc(t('game_maker.empty_hint'))}</span></div>
+                                <div class="gm-empty"><strong>${esc(t('game_maker.empty_title'))}</strong><span>${esc(t('game_maker.empty_hint'))}</span>
+                                    <button type="button" class="gm-primary gm-empty-new" data-gm-action="new">+ ${esc(t('game_maker.new_game'))}</button>
+                                </div>
                             </div>
                             <form class="gm-change-form" data-gm-change-form>
                                 <label for="gm-change-${esc(state.windowId)}">${esc(t('game_maker.change_request'))}</label>
                                 <div>
                                     <textarea id="gm-change-${esc(state.windowId)}" rows="2" maxlength="12000" disabled
+                                        aria-describedby="gm-change-hint-${esc(state.windowId)}"
                                         placeholder="${esc(t('game_maker.change_placeholder'))}"></textarea>
                                     <button type="submit" class="gm-primary" disabled>${esc(t('game_maker.apply_change'))}</button>
                                 </div>
-                                <p class="gm-busy-hint" data-gm-busy-hint hidden></p>
+                                <p class="gm-busy-hint" id="gm-change-hint-${esc(state.windowId)}" data-gm-form-hint hidden></p>
                                 <p class="gm-drift-hint" data-gm-drift-hint hidden></p>
                                 ${window.GameMakerStudioAssets ? window.GameMakerStudioAssets.selectionMarkup(state) : ''}
                             </form>
@@ -220,7 +223,10 @@
             renderProjects(state);
             syncBusyPoll(state);
             if (state.projects.length) openProject(state, state.projects[0].id);
-            else updateStatus(state, capabilityState(capabilities).status);
+            else {
+                updateStatus(state, capabilityState(capabilities).status);
+                renderProjectContext(state);
+            }
         } catch (error) {
             fail(state, error);
         }
@@ -281,7 +287,7 @@
             }
             const button = event.target.closest('[data-gm-action]');
             if (!button) return;
-            closeMoreMenu(state);
+            closeMoreMenu(state, true);
             const modals = window.GameMakerStudioModals;
             const preview = window.GameMakerStudioPreview;
             const actions = {
@@ -335,8 +341,26 @@
             if (!event.target.closest || !event.target.closest('[data-gm-more]')) closeMoreMenu(state);
         });
         document.addEventListener('keydown', state.moreEscListener = event => {
-            if (event.key === 'Escape') closeMoreMenu(state);
+            const menu = state.container.querySelector('[data-gm-more-menu]');
+            if (!menu || menu.hidden) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeMoreMenu(state, true);
+                return;
+            }
+            // The menu behaves like a menu: the arrows walk it, Home and End
+            // jump to its ends.
+            if (event.key === 'ArrowDown') { event.preventDefault(); moveMoreMenuFocus(state, 1); }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); moveMoreMenuFocus(state, -1); }
+            else if (event.key === 'Home') { event.preventDefault(); moreMenuItems(state)[0]?.focus(); }
+            else if (event.key === 'End') { event.preventDefault(); moreMenuItems(state).at(-1)?.focus(); }
         });
+    }
+
+    function moreMenuItems(state) {
+        const menu = state.container.querySelector('[data-gm-more-menu]');
+        if (!menu) return [];
+        return [...menu.querySelectorAll('[role="menuitem"]')].filter(item => !item.disabled && item.offsetParent !== null);
     }
 
     function toggleMoreMenu(state) {
@@ -345,13 +369,30 @@
         const open = menu.hidden;
         menu.hidden = !open;
         toggle.setAttribute('aria-expanded', String(open));
+        // The menu takes the focus when it opens, so the keyboard stays in it.
+        if (open) {
+            const items = moreMenuItems(state);
+            (items[0] || toggle).focus();
+        }
     }
 
-    function closeMoreMenu(state) {
+    function closeMoreMenu(state, returnFocus) {
         const menu = state.container.querySelector('[data-gm-more-menu]');
         if (!menu || menu.hidden) return;
         menu.hidden = true;
-        state.container.querySelector('[data-gm-more-toggle]').setAttribute('aria-expanded', 'false');
+        const toggle = state.container.querySelector('[data-gm-more-toggle]');
+        toggle.setAttribute('aria-expanded', 'false');
+        if (returnFocus) toggle.focus();
+    }
+
+    function moveMoreMenuFocus(state, step) {
+        const items = moreMenuItems(state);
+        if (!items.length) return;
+        const current = items.indexOf(document.activeElement);
+        let next = current + step;
+        if (next < 0) next = items.length - 1;
+        if (next >= items.length) next = 0;
+        items[next].focus();
     }
 
     function applyCapabilities(state) {
@@ -402,21 +443,26 @@
         state.container.querySelector('[data-gm-count]').textContent = String(state.projects.length);
         renderMobileSelect(state);
         if (!state.projects.length) {
+            // An empty list has no items, so it stops pretending to be one.
+            list.removeAttribute('role');
             list.innerHTML = `<div class="gm-library-empty">${esc(t('game_maker.no_projects'))}</div>`;
             return;
         }
+        list.setAttribute('role', 'list');
         const runningID = state.activeJob && state.activeJob.project_id;
         list.innerHTML = state.projects.map(project => {
             const updated = relativeTime(state, project.updated_at);
             const running = runningID === project.id;
+            const active = Boolean(state.project && state.project.id === project.id);
             return `
-            <button type="button" class="gm-project-card ${state.project && state.project.id === project.id ? 'is-active' : ''} ${running ? 'is-running' : ''}"
-                data-project-id="${esc(project.id)}" role="listitem">
+            <div role="listitem" class="gm-project-item">
+            <button type="button" class="gm-project-card ${active ? 'is-active' : ''} ${running ? 'is-running' : ''}"
+                data-project-id="${esc(project.id)}"${active ? ' aria-current="true"' : ''}>
                 <span class="gm-project-dimension">${esc(project.variant === 'voxel' ? t('game_maker.voxel') : String(project.dimension).toUpperCase())}</span>
                 <span><strong title="${esc(project.name)}">${esc(project.name)}</strong><small>${esc(statusLabel(state, project.status))}${updated ? ' · ' + esc(updated) : ''}</small></span>
                 <span class="gm-project-revision">v${Number(project.current_revision || 0)}</span>
                 ${running ? `<span class="gm-project-running" title="${esc(t('game_maker.status_working'))}"></span>` : ''}
-            </button>`;
+            </button></div>`;
         }).join('');
     }
 
@@ -528,16 +574,19 @@
         state.container.querySelector('[data-gm-engine]').textContent = project.variant === 'voxel'
             ? `${state.context.t('game_maker.voxel')} ${state.capabilities.voxel_version || 1} · Three.js ${state.capabilities.three_version}` : project.dimension === '3d'
             ? `Three.js ${state.capabilities.three_version}` : `Phaser ${state.capabilities.phaser_version}`;
+        const revisionReady = Boolean(project.current_revision);
         setButton(state, 'revisions', true);
         setButton(state, 'knowledge', Boolean(window.AuraGoLearnings));
-        setButton(state, 'rename', Boolean(state.capabilities.allow_edit));
-        setButton(state, 'delete', Boolean(state.capabilities.allow_delete));
-        setButton(state, 'export', Boolean(project.current_revision));
-        setButton(state, 'visual_review', Boolean(project.current_revision) && !state.jobActive && !!state.capabilities.allow_edit);
-        setButton(state, 'reload', Boolean(project.current_revision));
-        setButton(state, 'fullscreen', Boolean(project.current_revision));
-        setButton(state, 'open_tab', Boolean(project.current_revision));
-        setButton(state, 'code', Boolean(state.capabilities.code_studio && project.current_revision));
+        setButton(state, 'rename', Boolean(state.capabilities.allow_edit), 'game_maker.readonly_notice');
+        setButton(state, 'delete', Boolean(state.capabilities.allow_delete), 'game_maker.readonly_notice');
+        setButton(state, 'export', revisionReady, 'game_maker.no_revision_yet');
+        setButton(state, 'visual_review', revisionReady && !state.jobActive && !!state.capabilities.allow_edit,
+            revisionReady ? '' : 'game_maker.no_revision_yet');
+        setButton(state, 'reload', revisionReady, 'game_maker.no_revision_yet');
+        setButton(state, 'fullscreen', revisionReady, 'game_maker.no_revision_yet');
+        setButton(state, 'open_tab', revisionReady, 'game_maker.no_revision_yet');
+        setButton(state, 'code', Boolean(state.capabilities.code_studio && revisionReady),
+            revisionReady ? '' : 'game_maker.no_revision_yet');
         syncJobControls(state);
         updateStatus(state, state.job?.status || project.status || 'draft');
     }
@@ -1844,6 +1893,35 @@
         }
     }
 
+    // The phase row and the composer hint describe the current project: with
+    // no project they step aside instead of showing an empty pipeline.
+    function renderProjectContext(state) {
+        const phases = state.container.querySelector('[data-gm-phases]');
+        if (phases) phases.hidden = !state.project;
+        // Without a project the stage has nothing to show, and it says so
+        // instead of promising a game that does not exist.
+        const previewEmpty = state.container.querySelector('.gm-preview-empty');
+        if (previewEmpty) {
+            previewEmpty.querySelector('strong').textContent = state.context.t(
+                state.project ? 'game_maker.preview_waiting' : 'game_maker.choose_project');
+            previewEmpty.querySelector('span').hidden = !state.project;
+        }
+        const hint = state.container.querySelector('[data-gm-form-hint]');
+        if (!hint) return;
+        if (!state.project) {
+            // The composer stays disabled without a project, and it says why.
+            hint.hidden = false;
+            hint.textContent = state.context.t('game_maker.choose_project');
+            return;
+        }
+        if (otherProjectBusy(state)) {
+            hint.hidden = false;
+            hint.textContent = state.context.t('game_maker.busy_other', { name: busyProjectName(state) });
+            return;
+        }
+        hint.hidden = true;
+    }
+
     function syncJobControls(state) {
         const active = Boolean(state.job && activeStatuses.has(state.job.status));
         state.jobActive = active;
@@ -1856,11 +1934,7 @@
         const textarea = form.querySelector('textarea');
         textarea.disabled = !editable;
         form.querySelector('button').disabled = !editable;
-        const hint = form.querySelector('[data-gm-busy-hint]');
-        hint.hidden = !otherBusy;
-        if (otherBusy) {
-            hint.textContent = state.context.t('game_maker.busy_other', { name: busyProjectName(state) });
-        }
+        renderProjectContext(state);
         if (window.GameMakerStudioPreview && window.GameMakerStudioPreview.updateStaleBadge) {
             window.GameMakerStudioPreview.updateStaleBadge(state);
         }
@@ -1937,9 +2011,14 @@
         node.textContent = state.context.t(key);
     }
 
-    function setButton(state, action, enabled) {
+    function setButton(state, action, enabled, reasonKey) {
+        // A disabled control without a reason leaves the user guessing, so the
+        // reason travels with it.
+        const reason = enabled || !reasonKey ? '' : state.context.t(reasonKey);
         state.container.querySelectorAll(`[data-gm-action="${action}"]`).forEach(button => {
             button.disabled = !enabled;
+            if (reason) button.title = reason;
+            else button.removeAttribute('title');
         });
     }
 
@@ -1975,6 +2054,8 @@
         state.context.setWindowBeforeClose?.(windowId, null);
         state.activity?.dispose();
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        if (state.modalLifecycleCleanup) state.modalLifecycleCleanup();
+        state.modalLifecycleCleanup = null;
         state.previewVisibility?.disconnect();
         closeEvents(state);
         stopElapsed(state);

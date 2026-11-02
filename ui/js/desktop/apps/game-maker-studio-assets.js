@@ -273,7 +273,7 @@
             <header><div><span>${esc(t('game_maker.assets_offline'))}</span><h2>${esc(t('game_maker.assets'))}</h2></div>
                 <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
             <div class="gm-assets-toolbar"><input type="search" data-asset-search placeholder="${esc(t('game_maker.assets_search'))}" aria-label="${esc(t('game_maker.assets_search'))}">
-                <select data-asset-kind aria-label="${esc(t('game_maker.assets_category'))}">${['all','sprite2d','model3d','effect','audio'].map(k=>`<option value="${k}">${esc(t('game_maker.asset_kind_'+k))}</option>`).join('')}</select><select data-asset-category aria-label="${esc(t('game_maker.assets_category'))}"><option value="">${esc(t('game_maker.assets_all'))}</option></select></div>
+                <select data-asset-kind aria-label="${esc(t('game_maker.assets_kind'))}">${['all','sprite2d','model3d','effect','audio'].map(k=>`<option value="${k}">${esc(t('game_maker.asset_kind_'+k))}</option>`).join('')}</select><select data-asset-category aria-label="${esc(t('game_maker.assets_category'))}"><option value="">${esc(t('game_maker.assets_all'))}</option></select></div>
             <div class="gm-assets-workspace"><div class="gm-asset-cards" data-asset-cards role="list"></div>
                 <div class="gm-asset-detail" data-asset-detail><p role="status">${esc(t('game_maker.loading'))}</p></div></div>
             ${selectionMarkup(state)}<footer><button type="button" data-clear-selection>${esc(t('game_maker.assets_auto_button'))}</button>
@@ -288,6 +288,7 @@
             state.assetBrowserCleanup = cleanup;
             const current = () => !state.disposed && !abort.signal.aborted;
             const cards = layer.querySelector('[data-asset-cards]'), detail = layer.querySelector('[data-asset-detail]');
+            const toolbar = layer.querySelector('.gm-assets-toolbar');
             const search = layer.querySelector('[data-asset-search]'), category = layer.querySelector('[data-asset-category]');
             const kind=layer.querySelector('[data-asset-kind]');
             const selected = () => state.selectedAssetPackIDs || [];
@@ -474,7 +475,30 @@
             layer.querySelector('[data-clear-selection]').addEventListener('click', () => { clearSelection(state); renderCards(); });
             kind.addEventListener('change',()=>{category.value='';renderCards()});
             search.addEventListener('input', renderCards); category.addEventListener('change', renderCards);
-            state.api.assetPacks({ signal: abort.signal }).then(async body => {
+            // The catalog is the whole browser: when it fails, the filters have
+            // nothing to filter and the pane must say so instead of waiting.
+            function showCatalogError(message) {
+                if (!current()) return;
+                toolbar.hidden = true;
+                cards.hidden = true;
+                detail.hidden = true;
+                const workspace = layer.querySelector('.gm-assets-workspace');
+                workspace.querySelector('[data-asset-error]')?.remove();
+                workspace.insertAdjacentHTML('beforeend', `<div class="gm-assets-error" data-asset-error role="alert"><p>${esc(message)}</p>
+                    <button type="button" data-asset-retry>${esc(t('game_maker.retry'))}</button></div>`);
+                workspace.querySelector('[data-asset-retry]').addEventListener('click', () => {
+                    workspace.querySelector('[data-asset-error]')?.remove();
+                    cards.hidden = false;
+                    detail.hidden = false;
+                    detail.innerHTML = `<p role="status">${esc(t('game_maker.loading'))}</p>`;
+                    toolbar.hidden = false;
+                    loadCatalog();
+                });
+            }
+            function loadCatalog() {
+                packs = []; modelPacks = []; atlasPacks = []; presentationPacks = []; catalogComplete = true;
+                category.innerHTML = `<option value="">${esc(t('game_maker.assets_all'))}</option>`;
+                return state.api.assetPacks({ signal: abort.signal }).then(async body => {
                 if (!current()) return;
                 packs = body.packs;
                 category.innerHTML += packs.filter(p => p.kind === 'sprite2d').map(p => `<option value="${esc(p.id)}">${esc(packName(state, p.id))}</option>`).join('');
@@ -504,7 +528,9 @@
                 if(first?.assets.length)showEntry(first.id,first.assets[0].id);
                 else if (packs.some(p=>p.kind==='sprite2d'&&p.manifest_schema!==2)) showPack(packs.find(p => p.kind === 'sprite2d'&&p.manifest_schema!==2).id);
                 else if(atlasPacks[0]?.assets.length)showEntry(atlasPacks[0].id,atlasPacks[0].assets[0].id);
-            }).catch(error => { const message = reportedError(state, error); if (message && current()) helpers.modalError(layer, message); });
+                }).catch(error => { const message = reportedError(state, error); if (message && current()) showCatalogError(message); });
+            }
+            loadCatalog();
         });
     }
     function mountAtlas(state,host,pack,asset) {

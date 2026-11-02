@@ -284,11 +284,18 @@
     async function openTab(state) {
         if (!state.project) return;
         if (state.project.variant === 'voxel') { window.open(state.api.playURL(state.project.id), '_blank', 'noopener'); return; }
+        // The tab is opened while the click still counts as a user gesture.
+        // Waiting for the grant first would spend the gesture and the browser
+        // would block the window without a word.
+        const tab = window.open('', '_blank');
+        if (tab) tab.opener = null;
         try {
             const grant = await state.api.previewGrant(state.project.id);
-            if (state.disposed) return;
-            window.open(grant.url, '_blank', 'noopener');
+            if (state.disposed) { tab?.close(); return; }
+            if (!tab) { state.fail(new Error(state.context.t('game_maker.tab_blocked'))); return; }
+            tab.location.replace(grant.url);
         } catch (error) {
+            tab?.close();
             state.fail(error);
         }
     }
