@@ -89,8 +89,8 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 		}
 
 		var req inventory.DeviceRecord
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if req.Name == "" {
@@ -149,8 +149,8 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		}
 
 		var req inventory.DeviceRecord
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		req.ID = id
@@ -255,8 +255,8 @@ func handleMACLookup(s *Server) http.HandlerFunc {
 		var req struct {
 			IP string `json:"ip"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.IP) == "" {
-			jsonError(w, "ip field required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil || strings.TrimSpace(req.IP) == "" {
+			jsonError(w, "ip field required", jsonDecodeStatus(err))
 			return
 		}
 

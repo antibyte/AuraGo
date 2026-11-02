@@ -43,8 +43,8 @@ func handleSystemNotificationsRead(s *Server) http.HandlerFunc {
 			return
 		}
 		var body request
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.IDs) == 0 {
-			jsonError(w, "notification ids are required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &body, s); err != nil || len(body.IDs) == 0 {
+			jsonError(w, "notification ids are required", jsonDecodeStatus(err))
 			return
 		}
 		if err := s.ShortTermMem.MarkNotificationsReadByIDs(body.IDs); err != nil {

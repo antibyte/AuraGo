@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -72,8 +71,8 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 				Tags         []string `json:"tags"`
 				DeleteLocked bool     `json:"delete_locked"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				jsonError(w, "invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil {
+				jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			// HTTP API always creates as "user"; agent creates via tool dispatch
@@ -145,8 +144,8 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 				Active       *bool     `json:"active"`
 				DeleteLocked *bool     `json:"delete_locked"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				jsonError(w, "invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil {
+				jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Abstract, body.Active, body.DeleteLocked, body.Tags)
@@ -273,8 +272,8 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 					Source   string `json:"source"`
 					Filename string `json:"filename"`
 				}
-				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-					jsonError(w, "invalid JSON", http.StatusBadRequest)
+				if err := decodeJSONRequest(w, r, &body, s); err != nil {
+					jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 					return
 				}
 				if body.Source != "knowledge" {

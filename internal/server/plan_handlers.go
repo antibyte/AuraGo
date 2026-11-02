@@ -166,7 +166,10 @@ func handlePlanByID(s *Server) http.HandlerFunc {
 
 		var req planActionRequest
 		if r.Body != nil {
-			_ = json.NewDecoder(r.Body).Decode(&req)
+			if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+				return
+			}
 		}
 
 		switch {

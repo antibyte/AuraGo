@@ -331,8 +331,8 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			return
 		}
 		var req virtualComputersSetupRequest
-		if err := decodeOptionalJSON(r, &req); err != nil {
-			jsonError(w, "invalid setup request", http.StatusBadRequest)
+		if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid setup request", jsonDecodeStatus(err))
 			return
 		}
 		token, generatedToken, err := virtualComputersEnsureBoringToken(s, cfg)
@@ -1687,20 +1687,6 @@ func virtualComputersLogLedgerError(s *Server, err error) {
 		return
 	}
 	s.Logger.Warn("[VirtualComputers] ledger update failed", "error", err)
-}
-
-func decodeOptionalJSON(r *http.Request, dst interface{}) error {
-	if r == nil || r.Body == nil || dst == nil {
-		return nil
-	}
-	if r.ContentLength == 0 {
-		return nil
-	}
-	err := json.NewDecoder(r.Body).Decode(dst)
-	if err == nil || err == io.EOF {
-		return nil
-	}
-	return err
 }
 
 func virtualComputersSetupManager(s *Server, cfg virtualcomputers.ToolConfig, token string) (virtualcomputers.SetupManager, error) {

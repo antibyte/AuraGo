@@ -841,7 +841,10 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 				SessionID string `json:"session_id"`
 			}
 			if r.Body != nil {
-				_ = json.NewDecoder(r.Body).Decode(&body)
+				if err := decodeOptionalJSONRequest(w, r, &body, s); err != nil {
+					jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+					return
+				}
 				if body.SessionID != "" {
 					sessionID = body.SessionID
 				}

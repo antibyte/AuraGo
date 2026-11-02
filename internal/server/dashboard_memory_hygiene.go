@@ -86,7 +86,11 @@ func handleDashboardMemoryHygieneList(s *Server, w http.ResponseWriter, r *http.
 }
 
 func handleDashboardMemoryHygieneDryRun(s *Server, w http.ResponseWriter, r *http.Request) {
-	req := decodeDashboardMemoryHygieneRequest(r)
+	req, err := decodeDashboardMemoryHygieneRequest(w, r)
+	if err != nil {
+		jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+		return
+	}
 	plan, err := buildDashboardMemoryHygienePlan(s, req.Limit, true)
 	if err != nil {
 		s.Logger.Error("Failed to build memory hygiene dry-run", "error", err)
@@ -101,7 +105,11 @@ func handleDashboardMemoryHygieneDryRun(s *Server, w http.ResponseWriter, r *htt
 }
 
 func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http.Request) {
-	req := decodeDashboardMemoryHygieneRequest(r)
+	req, err := decodeDashboardMemoryHygieneRequest(w, r)
+	if err != nil {
+		jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+		return
+	}
 	if strings.TrimSpace(req.Confirm) != memoryHygieneConfirmToken {
 		jsonError(w, "confirmation token is required", http.StatusBadRequest)
 		return
@@ -345,13 +353,15 @@ func applyDashboardKGHygiene(s *Server, limit int) (dashboardKGHygienePlan, erro
 	return plan, nil
 }
 
-func decodeDashboardMemoryHygieneRequest(r *http.Request) dashboardMemoryHygieneRequest {
+func decodeDashboardMemoryHygieneRequest(w http.ResponseWriter, r *http.Request) (dashboardMemoryHygieneRequest, error) {
 	var req dashboardMemoryHygieneRequest
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := decodeOptionalJSONRequest(w, r, &req); err != nil {
+		return req, err
+	}
 	if req.Limit <= 0 {
 		req.Limit = parseMemoryCurationLimit(r, 100)
 	}
-	return req
+	return req, nil
 }
 
 func writeMemoryHygieneResponse(w http.ResponseWriter, payload map[string]interface{}) {

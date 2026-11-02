@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -45,14 +44,14 @@ func handleCreateLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		var link launchpad.LaunchpadLink
-		if err := json.NewDecoder(r.Body).Decode(&link); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &link, s); err != nil {
+			http.Error(w, `{"error":"invalid JSON"}`, jsonDecodeStatus(err))
 			return
 		}
 
 		id, err := launchpad.Create(s.LaunchpadDB, link)
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadRequest)
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		link.ID = id
@@ -107,8 +106,8 @@ func handleUpdateLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		var link launchpad.LaunchpadLink
-		if err := json.NewDecoder(r.Body).Decode(&link); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &link, s); err != nil {
+			http.Error(w, `{"error":"invalid JSON"}`, jsonDecodeStatus(err))
 			return
 		}
 		link.ID = id
@@ -117,7 +116,7 @@ func handleUpdateLaunchpadLink(s *Server) http.HandlerFunc {
 				http.Error(w, `{"error":"link not found"}`, http.StatusNotFound)
 				return
 			}
-			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadRequest)
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -254,17 +253,17 @@ func handleDownloadLaunchpadIcon(s *Server) http.HandlerFunc {
 			ImageURL string `json:"image_url"`
 			LinkID   string `json:"link_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			http.Error(w, `{"error":"invalid JSON"}`, jsonDecodeStatus(err))
 			return
 		}
 		if req.ImageURL == "" {
 			http.Error(w, `{"error":"image_url is required"}`, http.StatusBadRequest)
 			return
 		}
-		result, err := launchpad.DownloadIcon(s.Cfg.Directories.DataDir, req.ImageURL, req.LinkID)
+		result, err := launchpad.DownloadIconContext(r.Context(), s.ConfigSnapshot().Directories.DataDir, req.ImageURL, req.LinkID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadRequest)
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	pathpkg "path"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/tools"
@@ -20,14 +21,35 @@ import (
 const codeStudioTerminalInputLimit = 64 * 1024
 
 func (h codeStudioHandlers) runLineTerminal(ctx context.Context, conn *websocket.Conn, containerID string) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	defer stop()
 	conn.SetReadLimit(codeStudioTerminalInputLimit)
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(dockerManagerTerminalServeOptions.PongWait))
+	})
+	go func() {
+		ticker := time.NewTicker(dockerManagerTerminalServeOptions.PingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(containerTerminalPingWriteWait)); err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
 	session := newCodeStudioTerminalSession(codeStudioWorkspaceRoot)
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(session.prompt())); err != nil {
 		return
 	}
 	for ctx.Err() == nil {
+		_ = conn.SetReadDeadline(time.Now().Add(dockerManagerTerminalServeOptions.PongWait))
 		messageType, payload, err := conn.ReadMessage()
 		if err != nil {
 			return

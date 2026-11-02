@@ -164,8 +164,8 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 
 		case http.MethodPost:
 			var body dashboardCronjobUpdateRequest
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				jsonError(w, "Invalid cron job request", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil {
+				jsonError(w, "Invalid cron job request", jsonDecodeStatus(err))
 				return
 			}
 			body.ID = strings.TrimSpace(body.ID)
@@ -232,8 +232,8 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 
 		case http.MethodPut:
 			var body dashboardCronjobUpdateRequest
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" || body.CronExpr == "" || body.TaskPrompt == "" {
-				jsonError(w, "id, cron_expr, and task_prompt required", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil || body.ID == "" || body.CronExpr == "" || body.TaskPrompt == "" {
+				jsonError(w, "id, cron_expr, and task_prompt required", jsonDecodeStatus(err))
 				return
 			}
 			body.ID = strings.TrimSpace(body.ID)

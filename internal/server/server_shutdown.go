@@ -45,6 +45,7 @@ func (s *Server) closeRuntimeResources() {
 	if s.CoAgentRegistry != nil {
 		s.CoAgentRegistry.Shutdown()
 	}
+	s.revokeDockerTerminals()
 	s.closeProjectKnowledge()
 	s.closeVideoStudioManager()
 	s.stopRocketChatBot()

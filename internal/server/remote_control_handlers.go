@@ -161,8 +161,8 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				AllowedPaths []string `json:"allowed_paths"`
 				Tags         []string `json:"tags"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-				jsonError(w, "invalid request body", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &update, s); err != nil {
+				jsonError(w, "invalid request body", jsonDecodeStatus(err))
 				return
 			}
 
@@ -319,7 +319,10 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 		var req struct {
 			DeviceName string `json:"device_name"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+			return
+		}
 
 		// Generate enrollment token using the security package pattern
 		rawToken, err := generateRemoteToken()

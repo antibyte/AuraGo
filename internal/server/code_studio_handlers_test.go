@@ -584,6 +584,7 @@ func testCodeStudioServer(t *testing.T) *Server {
 	cfg.Auth.Enabled = true
 	cfg.Auth.SessionSecret = "test-secret"
 	cfg.Auth.PasswordHash = "present"
+	cfg.Docker.Enabled = true
 	cfg.VirtualDesktop.Enabled = true
 	cfg.VirtualDesktop.CodeStudio.Enabled = true
 	cfg.VirtualDesktop.WorkspaceDir = filepath.Join(t.TempDir(), "desktop")

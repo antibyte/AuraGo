@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -52,8 +51,8 @@ func handleWarningsAcknowledge(s *Server) http.HandlerFunc {
 			ID  string `json:"id"`
 			All bool   `json:"all"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			http.Error(w, "invalid request body", jsonDecodeStatus(err))
 			return
 		}
 

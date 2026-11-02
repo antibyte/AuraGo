@@ -22,8 +22,8 @@ func handleInternalMissionSync(s *Server) http.HandlerFunc {
 			return
 		}
 		var payload bridge.MissionSyncPayload
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &payload, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		mission, err := missionFromSyncPayload(payload)
@@ -66,8 +66,8 @@ func handleInternalMissionRun(s *Server) http.HandlerFunc {
 			TriggerType string `json:"trigger_type,omitempty"`
 			TriggerData string `json:"trigger_data,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err.Error() != "EOF" {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &payload, s); err != nil && err.Error() != "EOF" {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 

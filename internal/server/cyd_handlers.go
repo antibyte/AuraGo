@@ -22,7 +22,7 @@ import (
 )
 
 var cydWSUpgrader = websocket.Upgrader{
-	CheckOrigin:     func(*http.Request) bool { return true },
+	CheckOrigin:     sameOriginOrNoOrigin,
 	ReadBufferSize:  1024,
 	WriteBufferSize: 2048,
 }
@@ -239,7 +239,10 @@ func handleCYDHeartbeat(s *Server) http.HandlerFunc {
 			return
 		}
 		var hb cyd.Heartbeat
-		_ = json.NewDecoder(r.Body).Decode(&hb)
+		if err := decodeOptionalJSONRequest(w, r, &hb, s); err != nil {
+			jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+			return
+		}
 		s.ensureCydHub().Heartbeat(tokenID, name, hb)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -259,8 +262,8 @@ func handleCYDAck(s *Server) http.HandlerFunc {
 			ID     string `json:"id"`
 			Action string `json:"action"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.ID) == "" {
-			jsonError(w, "id is required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &body, s); err != nil || strings.TrimSpace(body.ID) == "" {
+			jsonError(w, "id is required", jsonDecodeStatus(err))
 			return
 		}
 		s.ensureCydHub().Ack(body.ID)
@@ -601,7 +604,10 @@ func handleCYDTest(s *Server) http.HandlerFunc {
 			Message  string `json:"message"`
 			Priority string `json:"priority"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		if err := decodeOptionalJSONRequest(w, r, &body, s); err != nil {
+			jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+			return
+		}
 		if strings.TrimSpace(body.Message) == "" {
 			body.Message = "AuraGo CYD test notification"
 		}
@@ -714,8 +720,8 @@ func handleCYDFirmwareProvision(s *Server) http.HandlerFunc {
 			URL   string `json:"url"`
 			Token string `json:"token"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			jsonError(w, "invalid json", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &body, s); err != nil {
+			jsonError(w, "invalid json", jsonDecodeStatus(err))
 			return
 		}
 		if strings.TrimSpace(body.Token) == "" {

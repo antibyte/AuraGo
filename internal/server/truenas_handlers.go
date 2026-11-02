@@ -342,8 +342,8 @@ func handleTrueNASDatasets(s *Server) http.HandlerFunc {
 				Compression string `json:"compression"`
 				QuotaGB     int64  `json:"quota_gb"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				w.WriteHeader(jsonDecodeStatus(err))
 				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
 				return
 			}
@@ -472,8 +472,8 @@ func handleTrueNASSnapshots(s *Server) http.HandlerFunc {
 				Recursive     bool   `json:"recursive"`
 				RetentionDays int    `json:"retention_days"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				w.WriteHeader(jsonDecodeStatus(err))
 				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
 				return
 			}
@@ -557,7 +557,10 @@ func handleTrueNASSnapshotActions(s *Server) http.HandlerFunc {
 			var req struct {
 				Force bool `json:"force"`
 			}
-			json.NewDecoder(r.Body).Decode(&req)
+			if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+				return
+			}
 
 			if err := client.RollbackSnapshot(r.Context(), name, req.Force); err != nil {
 				logTrueNASError(s, w, http.StatusInternalServerError, "Failed to rollback snapshot", "TrueNAS rollback snapshot failed", err, "snapshot", name, "force", req.Force)
@@ -621,8 +624,8 @@ func handleTrueNASSMBShares(s *Server) http.HandlerFunc {
 				GuestOK     bool   `json:"guest_ok"`
 				Timemachine bool   `json:"timemachine"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				w.WriteHeader(jsonDecodeStatus(err))
 				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
 				return
 			}
@@ -787,8 +790,8 @@ func handleTrueNASNFSShares(s *Server) http.HandlerFunc {
 			ctx := r.Context()
 
 			var req truenas.CreateNFSShareRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				w.WriteHeader(jsonDecodeStatus(err))
 				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
 				return
 			}

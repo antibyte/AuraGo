@@ -1,6 +1,8 @@
 package launchpad
 
 import (
+	"aurago/internal/security"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,6 +29,20 @@ type DownloadIconResult struct {
 // DownloadIcon fetches an image from the given URL and stores it under dataDir/launchpad_icons/.
 // It returns the relative path suitable for storing in LaunchpadLink.IconPath.
 func DownloadIcon(dataDir, imageURL, linkID string) (*DownloadIconResult, error) {
+	return DownloadIconContext(context.Background(), dataDir, imageURL, linkID)
+}
+
+// DownloadIconContext permits only public HTTP(S) targets, including redirects.
+func DownloadIconContext(ctx context.Context, dataDir, imageURL, linkID string) (*DownloadIconResult, error) {
+	return downloadIcon(ctx, dataDir, imageURL, linkID, security.NewStrictPublicHTTPClientForURLContext)
+}
+
+func downloadIcon(ctx context.Context, dataDir, imageURL, linkID string, clientForURL func(context.Context, string, time.Duration) (*http.Client, error)) (*DownloadIconResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(imageURL) == "" {
 		return nil, fmt.Errorf("image URL is required")
 	}
@@ -40,10 +56,33 @@ func DownloadIcon(dataDir, imageURL, linkID string) (*DownloadIconResult, error)
 		return nil, fmt.Errorf("invalid image URL")
 	}
 
-	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Get(imageURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download icon: %w", err)
+	var resp *http.Response
+	for redirects := 0; ; redirects++ {
+		client, err := clientForURL(ctx, parsed.String(), httpTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("icon URL refused: %w", err)
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err = client.Do(req)
+		client.CloseIdleConnections()
+		if err != nil {
+			return nil, fmt.Errorf("failed to download icon: %w", err)
+		}
+		if resp.StatusCode != 301 && resp.StatusCode != 302 && resp.StatusCode != 303 && resp.StatusCode != 307 && resp.StatusCode != 308 {
+			break
+		}
+		next, err := resp.Location()
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("invalid icon redirect: %w", err)
+		}
+		if redirects >= 10 {
+			return nil, fmt.Errorf("too many icon redirects")
+		}
+		parsed = next
 	}
 	defer resp.Body.Close()
 
@@ -63,6 +102,9 @@ func DownloadIcon(dataDir, imageURL, linkID string) (*DownloadIconResult, error)
 	}
 	if len(body) > maxIconSize {
 		return nil, fmt.Errorf("icon exceeds maximum size of 2 MB")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	// Determine extension from URL or Content-Type

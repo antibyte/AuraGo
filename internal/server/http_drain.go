@@ -82,6 +82,7 @@ func (s *Server) trackHTTP(next http.Handler) http.Handler {
 		defer cancel()
 		defer stop()
 		ctx = budget.WithTracking(ctx, s.budgetTrackerSnapshot(), "chat")
+		ctx = withJSONBodyLimit(ctx, s.jsonBodyLimit())
 		if websocket.IsWebSocketUpgrade(r) {
 			w = &drainHTTPWriter{ResponseWriter: w, server: s}
 		}

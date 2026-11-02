@@ -39,8 +39,8 @@ func handlePushSubscribe(s *Server) http.HandlerFunc {
 		}
 
 		var sub push.PushSubscription
-		if err := json.NewDecoder(r.Body).Decode(&sub); err != nil {
-			jsonError(w, "invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &sub, s); err != nil {
+			jsonError(w, "invalid request body", jsonDecodeStatus(err))
 			return
 		}
 
@@ -70,8 +70,8 @@ func handlePushUnsubscribe(s *Server) http.HandlerFunc {
 		var req struct {
 			Endpoint string `json:"endpoint"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Endpoint == "" {
-			jsonError(w, "invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil || req.Endpoint == "" {
+			jsonError(w, "invalid request body", jsonDecodeStatus(err))
 			return
 		}
 

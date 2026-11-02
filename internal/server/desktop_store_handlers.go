@@ -468,6 +468,11 @@ func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
 			return
 		}
+		done, admitted := s.admitDockerTerminal(w, r)
+		if !admitted {
+			return
+		}
+		defer done()
 		cfg, dockerEnabled, dockerReadOnly := containerDockerConfig(s)
 		if !dockerEnabled {
 			containerJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "message": "Docker is not enabled"})

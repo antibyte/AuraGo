@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -23,8 +22,8 @@ func handleMemoryConflictResolve(s *Server) http.HandlerFunc {
 			Reason       string `json:"reason"`
 			Action       string `json:"action"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 			return
 		}
 		req.WinningDocID = strings.TrimSpace(req.WinningDocID)

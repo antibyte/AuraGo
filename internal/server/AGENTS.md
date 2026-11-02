@@ -82,6 +82,9 @@ Server-owned HTTP and cross-component integration contracts.
 ## Local Contracts
 
 - `ConfigSnapshot` initializes through the same once barrier as writers, then reads only the atomic immutable pointer. Publication retains `CfgMu`/`CfgSaveMu` order; never fall back to an unsynchronized `Cfg` read. Verify `TestConfigSnapshotConcurrentFirstPublication`.
+- Ordinary JSON handlers use `decodeJSONRequest` (optional empty bodies use `decodeOptionalJSONRequest`): configured `server.max_body_bytes`, otherwise 10 MiB; a smaller route limit still wins. Return 413 for byte overflow and 400 for malformed or additional documents. Uploads/streams retain their own budgets. `trackHTTP` passes the server budget to free handlers.
+- Launchpad icon URLs are strictly public at every hop, including when the development loopback override is set. Bind DNS and downloads to the request, pin validated addresses, allow at most ten checked redirects and retain the 2 MiB payload limit. CYD WebSockets require bearer authentication and accept only same-origin or absent Origin.
+- Admin, Store and Code Studio terminals require writable Docker before shell creation. Config publication revokes active terminals on disable, read-only or host change. Share Docker Manager limits (1 MiB frames, 30 s ping, 75 s pong); Code Studio line mode retains 64 KiB. Revocation/disconnect closes transport without issuing shell termination; explicit End remains distinct. Join CoAgentRegistry before closing runtime dependencies.
 
 ### Speech Lab conflicts
 

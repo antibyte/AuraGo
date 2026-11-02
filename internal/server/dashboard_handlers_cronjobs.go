@@ -138,8 +138,8 @@ func handleDashboardCronjobsList(s *Server, w http.ResponseWriter, r *http.Reque
 
 func handleDashboardCronjobsUpdate(s *Server, w http.ResponseWriter, r *http.Request) {
 	var body dashboardCronjobUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid cron job update request", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, s); err != nil {
+		jsonError(w, "Invalid cron job update request", jsonDecodeStatus(err))
 		return
 	}
 	body.ID = strings.TrimSpace(body.ID)

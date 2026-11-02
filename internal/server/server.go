@@ -354,6 +354,7 @@ type Server struct {
 	DesktopMu                 sync.Mutex
 	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
+	dockerTerminalRuns        desktopRunRegistry
 	storageRuns               desktopRunRegistry
 	retroNetOnce              sync.Once              // guards the lazy Retro-Net engine below
 	retroNetManager           *retronet.Manager      // lazy (see retroNet); tests pre-seed it
@@ -578,6 +579,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	// runtime after cancellation will fail its admission check.
 	s.infraConfigAdmission.Store(cfg)
 	previous := s.ConfigSnapshot()
+	if cfg.Docker.ReadOnly || !cfg.Docker.Enabled || (previous != nil && previous.Docker.Host != cfg.Docker.Host) {
+		s.revokeDockerTerminals()
+	}
 	if previous != nil && (previous.FindIt != cfg.FindIt || previous.Directories.DataDir != cfg.Directories.DataDir) {
 		s.revokeDesktopRuns()
 	}
@@ -2144,6 +2148,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		if s.CoAgentRegistry != nil {
 			s.CoAgentRegistry.Shutdown()
 		}
+		s.revokeDockerTerminals()
 		s.closeSelfTests()
 		if s.BackgroundTasks != nil {
 			if err := s.BackgroundTasks.Close(); err != nil {

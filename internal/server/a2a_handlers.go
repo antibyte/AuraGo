@@ -109,8 +109,8 @@ func handleA2ARemoteAgentTest(s *Server) http.HandlerFunc {
 		var req struct {
 			AgentID string `json:"agent_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 			return
 		}
 

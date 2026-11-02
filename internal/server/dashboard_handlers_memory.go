@@ -330,8 +330,8 @@ func handleDashboardProfileEntry(s *Server) http.HandlerFunc {
 				Key      string `json:"key"`
 				Value    string `json:"value"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Category == "" || body.Key == "" || body.Value == "" {
-				jsonError(w, "category, key, and value are required", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil || body.Category == "" || body.Key == "" || body.Value == "" {
+				jsonError(w, "category, key, and value are required", jsonDecodeStatus(err))
 				return
 			}
 			if err := s.ShortTermMem.UpsertProfileEntry(body.Category, body.Key, body.Value, "manual"); err != nil {
@@ -384,8 +384,8 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				All     bool   `json:"all"`
 				Confirm string `json:"confirm"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "invalid request", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "invalid request", jsonDecodeStatus(err))
 				return
 			}
 			if req.All {

@@ -63,8 +63,8 @@ func handleVirtualComputersStorageSwitchPreview(s *Server) http.HandlerFunc {
 			return
 		}
 		var req virtualComputersStorageSwitchRequest
-		if err := decodeOptionalJSON(r, &req); err != nil {
-			jsonError(w, "invalid request", http.StatusBadRequest)
+		if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid request", jsonDecodeStatus(err))
 			return
 		}
 		current, target, volumeCount, err := virtualComputersStorageSwitchContext(s, req)
@@ -95,8 +95,8 @@ func handleVirtualComputersStorageSwitchAuthorize(s *Server) http.HandlerFunc {
 			return
 		}
 		var req virtualComputersStorageSwitchRequest
-		if err := decodeOptionalJSON(r, &req); err != nil {
-			jsonError(w, "invalid request", http.StatusBadRequest)
+		if err := decodeOptionalJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid request", jsonDecodeStatus(err))
 			return
 		}
 		if !req.ConfirmWithoutMigration {

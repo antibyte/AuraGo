@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -51,8 +50,8 @@ func handleConfigRules(s *Server) http.HandlerFunc {
 				ID string `json:"id"`
 				ruleSaveRequest
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Bad request", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Bad request", jsonDecodeStatus(err))
 				return
 			}
 			if err := saveRuleOverride(s, req.ID, req.ruleSaveRequest, true); err != nil {
@@ -92,8 +91,8 @@ func handleConfigRuleByID(s *Server) http.HandlerFunc {
 			writeJSON(w, map[string]interface{}{"rule": rule, "design": design.Content})
 		case http.MethodPut:
 			var req ruleSaveRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Bad request", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Bad request", jsonDecodeStatus(err))
 				return
 			}
 			if err := saveRuleOverride(s, id, req, false); err != nil {
