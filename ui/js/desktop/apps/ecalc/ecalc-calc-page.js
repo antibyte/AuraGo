@@ -300,16 +300,18 @@
         // The standard-value combinations of the target of a `finder: combine` calculator for the E series of the settings:
         // the nearest single value, then the best series and the best parallel pairs, each with its deviation. Finding them
         // takes up to a few hundred milliseconds in the finest series, so the search waits for a pause in the typing and is
-        // not repeated while series and target stay the same (a change of the digits only draws the texts again).
+        // not repeated while series and target stay the same (a change of the digits only draws the texts again). A pending
+        // search is dropped on every call: the key it was started for may be stale by now (E24 -> E48 -> E24, or typing a
+        // digit and deleting it) and would draw the wrong table over the shown one; only a key that differs from the shown
+        // one starts a search.
         function paintCombos() {
             if (!combosBlock) return;
+            clearTimeout(comboTimer);
             const series = store.prefs().eseries, target = result.values[comboVar.id], key = series + '|' + target;
             if (!(Number.isFinite(target) && target > 0)) {
-                clearTimeout(comboTimer);
                 comboKey = '';
                 combos = { series, list: [] };
             } else if (key !== comboKey) {
-                clearTimeout(comboTimer);
                 comboTimer = setTimeout(() => {
                     comboKey = key;
                     let list = [];

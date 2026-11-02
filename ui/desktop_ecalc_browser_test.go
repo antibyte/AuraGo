@@ -570,6 +570,16 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	if !strings.HasPrefix(shown.Single[0][2], "0,0") || !strings.HasPrefix(shown.Series[0][2], "0,0") {
 		t.Fatalf("for 4k7 the single value %q and the best series pair %q should be exact", shown.Single[0], shown.Series[0])
 	}
+	// A search that is still pending for another series must not draw over the table of the series that is back: E24 -> E192 -> E24
+	// within one task leaves the E24 table (the stale timer used to draw the E192 table 120 ms later).
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustEval(`()=>{const s=document.querySelector('.ec-pop [data-set="eseries"]');for(const v of ['E192','E24']){s.value=v;s.dispatchEvent(new Event('change',{bubbles:true}));}}`)
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	time.Sleep(1200 * time.Millisecond)
+	readCombos()
+	if shown.Title != wantTitle || len(shown.Single) != 1 || shown.Single[0][1] != "4,7 kΩ" {
+		t.Fatalf("after E24 -> E192 -> E24 the combiner shows %q with single %q, want the E24 table %q", shown.Title, shown.Single, wantTitle)
+	}
 
 	// ---- radix fields: the fixture calculator with integer fields ---------------------------------------------------------------------
 	openIn("passive", "fx_radix")
