@@ -23,8 +23,7 @@ import (
 // storymaker package: the projects live in a MemStore, saves go through DecodeStory, ApplyDefaults, Validate and the
 // project store, so a story that the fixture accepts is one the real server accepts, and code scenes are bundled by esbuild.
 // What is faked is only the world around it: the capability flags, and the render job, which a test steps by hand
-// (advance) so it can look at every state. The integration step runs the same browser tour against the real handlers by
-// passing them to storymakerBrowserPage instead of this fixture.
+// (advance) so it can look at every state. The real handlers get their own tour in internal/server.
 type storymakerFixture struct {
 	mu       sync.Mutex
 	t        *testing.T

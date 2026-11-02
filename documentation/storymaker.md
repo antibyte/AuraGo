@@ -53,8 +53,9 @@ Delete a project in the list: the whole folder, exports included, goes away.
 The **Export** button opens a panel that first says what is missing. Exporting needs:
 
 1. FFmpeg (found on `PATH` or at `video_studio.ffmpeg_path`),
-2. a browser that can run headless (Chrome or Chromium). In the Docker image set `storymaker.render.browser_path` to a
-   browser inside the container: the image has no Chromium libraries of its own,
+2. a browser that can run headless (Chrome or Chromium). Without one, the first export downloads a pinned Chromium (about 200 MB,
+   checked against a SHA-256 before it is used) into the data folder; the export panel says so before you start. In the Docker
+   image set `storymaker.render.browser_path` to a browser inside the container: the image has no Chromium libraries of its own,
 3. a story without errors that is not longer than `max_duration_seconds`.
 
 Editing and the preview work without 1 and 2. The export draws every frame in a headless browser, so a 15 minute video takes a
@@ -70,4 +71,6 @@ the fields of later phases; the editor shows them as "not supported yet" and the
 ## For developers
 
 `ui/js/desktop/apps/AGENTS.md` (Storymaker), `internal/storymaker/AGENTS.md` and `ui/js/storymaker/AGENTS.md` hold the
-contracts. The app tour test is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestStorymakerApp -count=1`.
+contracts. The app tour against a stand-in server is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestStorymakerApp -count=1`; the same
+app against the real handlers, ending in a rendered MP4, is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run
+'TestStorymakerAppRealServer|TestStorymakerExportEndToEnd' -count=1 -timeout 15m` (FFmpeg and Chrome must be installed).
