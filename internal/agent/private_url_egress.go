@@ -42,6 +42,10 @@ func (s *isolatedBodyStore) noteExternalContact(id string) {
 		s.contacts = map[string]time.Time{}
 	}
 	s.contacts[id] = s.clock()
+	s.evictContactsLocked(id)
+}
+
+func (s *isolatedBodyStore) evictContactsLocked(id string) {
 	for len(s.contacts) > untrustedContactMax {
 		oldest, first := "", true
 		var at time.Time

@@ -111,9 +111,9 @@ func TestCheckSpecialistToolRestriction(t *testing.T) {
 		{"security blocked copy fs", "security", "filesystem", "copy", true},
 
 		// Writer
-		{"writer can query memory", "writer", "query_memory", "", false},
-		{"writer can filesystem read", "writer", "filesystem", "read", false},
-		{"writer can filesystem write", "writer", "filesystem", "write", false},
+		{"writer blocked query memory", "writer", "query_memory", "", true},
+		{"writer blocked filesystem read", "writer", "filesystem", "read", true},
+		{"writer blocked filesystem write", "writer", "filesystem", "write", true},
 		{"writer blocked shell", "writer", "execute_shell", "", true},
 		{"writer blocked python", "writer", "execute_python", "", true},
 		{"writer blocked imagegen", "writer", "image_generation", "", true},

@@ -28,11 +28,12 @@ Prefer this order:
 3. lightweight local processing when needed
 
 Runtime policy enforces the specialist restrictions for you. If a tool is blocked, continue with the allowed research tools.
+Python data processing is allowed when enabled. Shell, sudo, remote shell, and non-Python sandbox or Agent Skill scripts are unavailable; changing execution tools does not change these restrictions.
 
 ## Skills
 Skills must be called via `execute_skill`:
 ```json
-{"action": "execute_skill", "skill_name": "duckduckgo_search", "skill_args": {"query": "..."}}
+{"action": "execute_skill", "skill_name": "ddg_search", "skill_args": {"query": "..."}}
 {"action": "execute_skill", "skill_name": "wikipedia_search", "skill_args": {"query": "...", "lang": "en"}}
 {"action": "execute_skill", "skill_name": "brave_search", "skill_args": {"query": "..."}}
 {"action": "execute_skill", "skill_name": "web_scraper", "skill_args": {"url": "...", "extract_main": true}}

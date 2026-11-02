@@ -13,16 +13,16 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
-	"aurago/internal/security"
 	"aurago/internal/tools"
-	"aurago/internal/webhooks"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -143,32 +143,13 @@ func (b *coAgentBroker) emitProgress() {
 
 // SpawnCoAgent starts a co-agent goroutine and returns its ID.
 // Returns an error when the system is disabled or all slots are occupied.
-func SpawnCoAgent(
-	cfg *config.Config,
-	parentCtx context.Context,
-	logger *slog.Logger,
-	coRegistry *CoAgentRegistry,
-
-	// Shared resources (thread-safe, read-only for co-agent where enforced by blacklist)
-	shortTermMem *memory.SQLiteMemory,
-	longTermMem memory.VectorDB,
-	vault *security.Vault,
-	procRegistry *tools.ProcessRegistry,
-	manifest *tools.Manifest,
-	kg *memory.KnowledgeGraph,
-	inventoryDB *sql.DB,
-	cheatsheetDB *sql.DB,
-
-	req CoAgentRequest,
-	budgetTracker *budget.Tracker,
-	progressSink coAgentProgressBroadcaster,
-	webhookManager *webhooks.Manager,
-) (string, CoAgentState, error) {
-	if !cfg.CoAgents.Enabled {
-		return "", "", fmt.Errorf("co-agent system is disabled — set co_agents.enabled=true in config.yaml")
+func SpawnCoAgent(parent CoAgentSpawnContext, req CoAgentRequest, progressSink coAgentProgressBroadcaster) (string, CoAgentState, error) {
+	cfg, logger, coRegistry := parent.run.Config, parent.run.Logger, parent.registry
+	if err := coAgentSpawnAdmission(cfg, parent.run.BudgetTracker); err != nil {
+		return "", "", err
 	}
-	if budgetTracker != nil && budgetTracker.IsCategoryQuotaBlocked("coagent", cfg.CoAgents.BudgetQuotaPercent) {
-		return "", "", fmt.Errorf("co-agent quota reached — co_agents.budget_quota_percent is exhausted for today")
+	if coRegistry == nil || logger == nil {
+		return "", "", fmt.Errorf("co-agent runtime is not initialized")
 	}
 	if !cfg.CoAgents.QueueWhenBusy && coRegistry.AvailableSlots() <= 0 {
 		return "", "", fmt.Errorf("all %d co-agent slots are occupied", cfg.CoAgents.MaxConcurrent)
@@ -219,6 +200,7 @@ func SpawnCoAgent(
 		cancel()
 		return "", "", err
 	}
+	modelIsolatedBodies.inherit(coID, parent.provenance)
 
 	// 3. Select LLM model (lightweight — no client created yet).
 	coLLM, llmFallback := selectCoAgentLLMForRole(cfg, req.Specialist)
@@ -246,6 +228,14 @@ func SpawnCoAgent(
 		}
 		ctx, cancelRun := coAgentRunContext(lifecycleCtx, timeout)
 		defer cancelRun()
+		if err := ctx.Err(); err != nil {
+			coRegistry.FailIfActive(coID, err.Error())
+			return
+		}
+		if err := coAgentSpawnAdmission(cfg, parent.run.BudgetTracker); err != nil {
+			coRegistry.FailIfActive(coID, err.Error())
+			return
+		}
 		if llmFallback != "" {
 			coLogger.Warn("Co-Agent specialist model fallback applied", "reason", llmFallback, "model", coModel, "specialist", req.Specialist)
 			coRegistry.RecordEvent(coID, llmFallback)
@@ -253,16 +243,14 @@ func SpawnCoAgent(
 		coRegistry.RecordEvent(coID, "starting execution")
 		coLogger.Info("Co-Agent started", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
 
-		coClient := newCoAgentLLMClientForSelection(cfg, logger, req.Specialist, coLLM)
+		coCfg := coAgentConfigForSelection(cfg, coLLM)
 
 		var systemPrompt string
 		if req.Specialist != "" {
-			systemPrompt = buildSpecialistSystemPrompt(ctx, cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
+			systemPrompt = buildSpecialistSystemPrompt(ctx, coCfg, req.Specialist, req, parent.run.LongTermMem, parent.run.ShortTermMem, parent.run.CheatsheetDB)
 		} else {
-			systemPrompt = buildCoAgentSystemPrompt(ctx, cfg, req, longTermMem, shortTermMem)
+			systemPrompt = buildCoAgentSystemPrompt(ctx, coCfg, req, parent.run.LongTermMem, parent.run.ShortTermMem)
 		}
-
-		coCfg := deepClone(*cfg)
 
 		// Apply circuit breaker: specialist overrides → co_agents defaults
 		maxToolCalls := cfg.CoAgents.CircuitBreaker.MaxToolCalls
@@ -277,10 +265,13 @@ func SpawnCoAgent(
 				}
 			}
 		}
+		if maxToolCalls <= 0 {
+			maxToolCalls = 10 // Same fallback as calculateEffectiveMaxCalls.
+		}
 		coCfg.CircuitBreaker.MaxToolCalls = maxToolCalls
 		coCfg.Personality.Engine = false
-		coCfg.LLM.Model = coModel
 		coCfg.Agent.SystemPromptTokenBudget = coAgentSystemPromptTokenBudget(req.Specialist, maxTokensBudget)
+		coClient := llm.NewFailoverManager(coCfg, coLogger)
 
 		llmReq := openai.ChatCompletionRequest{
 			Model: coModel,
@@ -290,45 +281,25 @@ func SpawnCoAgent(
 		}
 
 		broker := &coAgentBroker{id: coID, registry: coRegistry, broadcast: progressSink}
-		sessionID := coID // Prefix "coagent-" enables blacklist in DispatchToolCall
-
-		runCfg := RunConfig{
-			Config:            &coCfg,
-			Logger:            coLogger,
-			LLMClient:         coClient,
-			ShortTermMem:      shortTermMem,
-			HistoryManager:    coHistoryMgr,
-			LongTermMem:       longTermMem,
-			KG:                kg,
-			InventoryDB:       inventoryDB,
-			Vault:             vault,
-			Registry:          procRegistry,
-			Manifest:          manifest,
-			CronManager:       nil,
-			CoAgentRegistry:   nil,
-			BudgetTracker:     budgetTracker,
-			SessionID:         sessionID,
-			UserIntent:        req.Task,
-			MessageSource:     "co_agent",
-			IsMaintenance:     false,
-			IsCoAgent:         true,
-			CoAgentSpecialist: req.Specialist,
-			CoAgentTokenLimit: maxTokensBudget,
-			WebhookManager:    webhookManager,
-		}
+		runCfg := parent.run
+		runCfg.Config, runCfg.Logger, runCfg.LLMClient = coCfg, coLogger, coClient
+		runCfg.HistoryManager = coHistoryMgr
+		runCfg.SessionID, runCfg.MessageSource = coID, "co_agent"
+		runCfg.DelegatedTask = req.Task
+		runCfg.IsCoAgent, runCfg.CoAgentSpecialist = true, req.Specialist
+		runCfg.CoAgentTokenLimit, runCfg.ToolCallLimit = maxTokensBudget, maxToolCalls
 		addendumID := prompts.PromptAddendumCoAgent
 		if req.Specialist != "" {
 			addendumID = prompts.PromptAddendumSpecialist
 		}
 		runCfg.TrustedPromptAddenda = []prompts.PromptAddendum{{ID: addendumID, Text: systemPrompt}}
 
-		inheritProjectRun(parentCtx, &runCfg)
 		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries
 		delay := time.Duration(cfg.CoAgents.RetryPolicy.RetryDelaySeconds) * time.Second
 		var resp openai.ChatCompletionResponse
 		var err error
-		consumedTokens := 0
-		toolAttempted := false
+		var consumedTokens atomic.Int64
+		var toolAttempted atomic.Bool
 		var continuation []openai.ChatCompletionMessage
 		runCfg.Checkpoint = func(messages []openai.ChatCompletionMessage) error {
 			continuation = append([]openai.ChatCompletionMessage(nil), messages...)
@@ -336,18 +307,21 @@ func SpawnCoAgent(
 		}
 		runCfg.ExecutionHooks = &ExecutionHooks{BeforeTool: func(context.Context, ToolCall) error {
 			// Even a failed or panicking handler may have completed a side effect.
-			toolAttempted = true
+			toolAttempted.Store(true)
+			coRegistry.RecordUsage(coID, 0, 1)
 			return nil
 		}, AfterResponse: func(usage openai.Usage) error {
-			consumedTokens += usage.TotalTokens
-			if maxTokensBudget > 0 && consumedTokens >= maxTokensBudget {
-				return fmt.Errorf("co-agent cumulative token limit reached: %d of %d", consumedTokens, maxTokensBudget)
+			consumed := consumedTokens.Add(int64(max(0, usage.TotalTokens)))
+			coRegistry.RecordUsage(coID, usage.TotalTokens, 0)
+			broker.emitProgress()
+			if maxTokensBudget > 0 && consumed >= int64(maxTokensBudget) {
+				return fmt.Errorf("co-agent cumulative token limit reached: %d of %d", consumed, maxTokensBudget)
 			}
 			return nil
 		}}
 		for attempt := 0; attempt <= maxRetries; attempt++ {
 			if maxTokensBudget > 0 {
-				runCfg.CoAgentTokenLimit = maxTokensBudget - consumedTokens
+				runCfg.CoAgentTokenLimit = maxTokensBudget - int(consumedTokens.Load())
 				if runCfg.CoAgentTokenLimit <= 0 {
 					err = fmt.Errorf("co-agent cumulative token budget exhausted")
 					break
@@ -375,7 +349,7 @@ func SpawnCoAgent(
 			}
 			// A fresh loop may only retry before a tool result or partial response exists.
 			// Later failures require explicit continuation from the stored history.
-			if toolAttempted || ctx.Err() != nil || errors.Is(err, ErrRuntimePanic) || extractCoAgentPartialResult(coHistoryMgr) != "" || len(coHistoryMgr.Get()) > 1 || !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
+			if toolAttempted.Load() || ctx.Err() != nil || errors.Is(err, ErrRuntimePanic) || extractCoAgentPartialResult(coHistoryMgr) != "" || len(coHistoryMgr.Get()) > 1 || !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
 				break
 			}
 			if len(continuation) > 0 {
@@ -399,7 +373,7 @@ func SpawnCoAgent(
 		if len(resp.Choices) > 0 {
 			result = resp.Choices[0].Message.Content
 		}
-		tokensUsed := resp.Usage.TotalTokens
+		tokensUsed := int(consumedTokens.Load())
 
 		// Limit result size to prevent memory exhaustion from unexpectedly large LLM outputs.
 		maxCoAgentResultBytes := cfg.CoAgents.MaxResultBytes
@@ -425,6 +399,24 @@ func SpawnCoAgent(
 	}()
 
 	return coID, state, nil
+}
+
+// Generation admission never gates result retrieval or cancellation.
+func coAgentSpawnAdmission(cfg *config.Config, tracker *budget.Tracker) error {
+	if cfg == nil {
+		return fmt.Errorf("co-agent configuration is unavailable")
+	}
+	effective, valid := dispatchAuthorization(cfg)
+	if !valid || !effective.CoAgents.Enabled {
+		return fmt.Errorf("co-agent system is disabled or its authorization changed")
+	}
+	if tracker != nil && tracker.IsBlocked("coagent") {
+		return fmt.Errorf("co-agent spawn blocked: daily budget exceeded")
+	}
+	if tracker != nil && tracker.IsCategoryQuotaBlocked("coagent", effective.CoAgents.BudgetQuotaPercent) {
+		return fmt.Errorf("co-agent quota reached — co_agents.budget_quota_percent is exhausted for today")
+	}
+	return nil
 }
 
 // awaitCoAgentSlot waits at most maxWait for queue promotion. Every failure is
@@ -547,6 +539,14 @@ func selectCoAgentLLMForRole(cfg *config.Config, role string) (coAgentLLMSelecti
 
 // newCoAgentLLMClientForSelection creates an LLM client for a co-agent or specialist.
 func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, role string, selection coAgentLLMSelection) llm.ChatClient {
+	component := "co-agent-llm"
+	if role != "" {
+		component = "specialist-" + role + "-llm"
+	}
+	return llm.NewFailoverManager(coAgentConfigForSelection(cfg, selection), logger.With("component", component))
+}
+
+func coAgentConfigForSelection(cfg *config.Config, selection coAgentLLMSelection) *config.Config {
 	provider := config.ProviderEntry{}
 	if saved := cfg.FindProvider(selection.ProviderID); saved != nil {
 		provider = *saved
@@ -558,11 +558,7 @@ func newCoAgentLLMClientForSelection(cfg *config.Config, logger *slog.Logger, ro
 	coCfg := llm.TaskProviderConfig(cfg, provider)
 	coCfg.FallbackLLM.Enabled = false
 
-	component := "co-agent-llm"
-	if role != "" {
-		component = "specialist-" + role + "-llm"
-	}
-	return llm.NewFailoverManager(coCfg, logger.With("component", component))
+	return coCfg
 }
 
 // coAgentModel returns the model name to use for generic co-agents.
@@ -839,8 +835,8 @@ func normalizeCoAgentRequest(cfg *config.Config, req CoAgentRequest) CoAgentRequ
 		if hint == "" {
 			continue
 		}
-		if maxChars > 0 && len(hint) > maxChars {
-			hint = hint[:maxChars]
+		if maxChars > 0 && utf8.RuneCountInString(hint) > maxChars {
+			hint = string([]rune(hint)[:maxChars])
 		}
 		key := strings.ToLower(hint)
 		if _, ok := seen[key]; ok {
@@ -905,7 +901,10 @@ func buildSpecialistSystemPrompt(ctx context.Context, cfg *config.Config, role s
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "specialist_"+role+".md")
 	tmpl, ok := loadValidatedPromptTemplate(tmplPath, "templates/specialist_"+role+".md", "", slog.Default())
 	if !ok {
-		return buildCoAgentSystemPrompt(ctx, cfg, req, ltm, stm)
+		if role != "writer" {
+			return buildCoAgentSystemPrompt(ctx, cfg, req, ltm, stm)
+		}
+		tmpl = "You are a Writer Specialist. Write from the supplied material.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}"
 	}
 
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
@@ -946,6 +945,9 @@ func buildSpecialistSystemPrompt(ctx context.Context, cfg *config.Config, role s
 
 	if extras.Len() > 0 {
 		prompt += extras.String()
+	}
+	if role == "writer" {
+		prompt += "\n\nWriter runtime: you have no runtime tools. Use only the supplied material; report missing facts to the Main Agent."
 	}
 	prompt = appendCoAgentTemperament(prompt, cfg, stm)
 	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)

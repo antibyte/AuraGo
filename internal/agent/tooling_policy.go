@@ -734,7 +734,7 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 	if runCfg.SessionID != "" {
 		_ = runCfg.HomepageRegistryDB.QueryRow("SELECT project_id FROM homepage_site_events WHERE json_extract(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END,'$.session_id')=? ORDER BY id DESC LIMIT 1", runCfg.SessionID).Scan(&activeID)
 	}
-	intent := strings.ToLower(runCfg.UserIntent)
+	intent := strings.ToLower(runTaskIntent(runCfg))
 	sort.SliceStable(sites, func(i, j int) bool {
 		score := func(site tools.HomepageManagedSite) int {
 			if site.ID == activeID {

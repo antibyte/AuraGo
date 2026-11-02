@@ -127,7 +127,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		}
 	}
 
-	initialUserMsg := strings.TrimSpace(runCfg.UserIntent)
+	initialUserMsg := strings.TrimSpace(runTaskIntent(runCfg))
 	if initialUserMsg == "" && len(req.Messages) > 0 {
 		for i := len(req.Messages) - 1; i >= 0; i-- {
 			if req.Messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(req.Messages[i]) {

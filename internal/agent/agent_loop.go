@@ -303,6 +303,8 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		SkillScopeRestricted: s.runCfg.AllowedAgentSkills != nil,
 		VaultSecretPrompter:  s.runCfg.VaultSecretPrompter,
 		VaultSecretTarget:    s.runCfg.VaultSecretTarget,
+
+		AuthorizingUserIntent: delegatedAuthorizingIntent(s.runCfg),
 	}
 }
 

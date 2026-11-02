@@ -105,12 +105,21 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 		specialistRole = extractSpecialistRole(sessionID)
 	}
 	if specialistRole != "" {
-		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, toolCallSnapshotOperation(tc)); blocked != "" {
+		if blocked := checkSpecialistToolCallRestriction(specialistRole, tc); blocked != "" {
 			return blocked
 		}
 	}
 
 	return ""
+}
+
+// Discovery has no call arguments. A script tool is available if its Python
+// form is allowed; every concrete script is checked again before execution.
+func catalogRoleToolRestriction(tc ToolCall, dc *DispatchContext) string {
+	if tc.Action == "run_agent_skill_script" {
+		tc.FilePath = "scripts/discovery.py"
+	}
+	return roleToolRestriction(tc, dc)
 }
 
 // isA2ARun reports a run that serves an Agent-to-Agent request. It is a co-agent

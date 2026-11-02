@@ -1,6 +1,9 @@
 package agent
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // extractSpecialistRole returns the specialist role from a session ID like "specialist-researcher-5".
 // Returns "" for generic co-agents or non-specialist sessions.
@@ -20,6 +23,49 @@ func extractSpecialistRole(sessionID string) string {
 // checkSpecialistToolRestriction checks whether a specialist is allowed to use the given tool/operation.
 // Returns an error message if blocked, or "" if allowed.
 func checkSpecialistToolRestriction(role, action, operation string) string {
+	return checkSpecialistToolCallRestriction(role, ToolCall{Action: action, Operation: operation})
+}
+
+// checkSpecialistToolCallRestriction checks the actual execution capability,
+// including script arguments, before the existing role-specific restrictions.
+func checkSpecialistToolCallRestriction(role string, tc ToolCall) string {
+	action, operation := tc.Action, toolCallSnapshotOperation(tc)
+	if role == "writer" {
+		return `Tool Output: {"status":"policy_denied","message":"Writer specialists have no runtime tools. Write from the supplied material."}`
+	}
+	switch action {
+	case "execute_sudo":
+		action = "execute_shell"
+	case "execute_remote_shell":
+		if denied := checkSpecialistToolRestriction(role, "remote_control", operation); denied != "" {
+			return denied
+		}
+		action = "execute_shell"
+	case "run_tool":
+		action = "execute_python"
+	case "execute_sandbox", "run_agent_skill_script":
+		language := strings.ToLower(strings.TrimSpace(decodeSandboxExecutionArgs(tc).Language))
+		if action == "run_agent_skill_script" {
+			script := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "script"), toolArgString(tc.Params, "path"))
+			switch strings.ToLower(filepath.Ext(script)) {
+			case ".py":
+				language = "python"
+			case ".sh", ".js":
+				language = "shell"
+			default:
+				return `Tool Output: {"status":"policy_denied","message":"Specialist script execution requires a supported explicit script path."}`
+			}
+		} else if language == "" {
+			language = "python" // Same default as dispatchShellWithContext.
+		}
+		if language == "python" {
+			action = "execute_python"
+		} else {
+			// Other interpreters require the general shell/code capability;
+			// an unknown language must never grant a Python-only role more access.
+			action = "execute_shell"
+		}
+	}
 	if role != "" && action == "treg_call" && operation != "read" {
 		return `Tool Output: {"status":"policy_denied","message":"Specialists may only use explicitly approved read-class treg endpoints; ask the main agent for external mutations."}`
 	}
@@ -41,8 +87,6 @@ func checkSpecialistToolRestriction(role, action, operation string) string {
 		return checkDesignerRestriction(action)
 	case "security":
 		return checkSecurityRestriction(action, operation)
-	case "writer":
-		return checkWriterRestriction(action)
 	}
 	return ""
 }
@@ -121,21 +165,3 @@ func checkSecurityRestriction(action, operation string) string {
 }
 
 const securityFilesystemDenied = `Tool Output: {"status":"policy_denied","message":"Security specialist has read-only filesystem access for analysis."}`
-
-// checkWriterRestriction blocks tools not relevant for writing.
-// Allowed: query_memory, knowledge_graph (read), filesystem (read/write), execute_skill, api_request
-func checkWriterRestriction(action string) string {
-	switch action {
-	case "execute_shell":
-		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot execute shell commands."}`
-	case "execute_python":
-		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot execute Python code."}`
-	case "image_generation":
-		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot generate images."}`
-	case "remote_control":
-		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot use remote control."}`
-	case "homepage":
-		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot manage websites."}`
-	}
-	return ""
-}

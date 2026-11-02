@@ -102,8 +102,8 @@ func taskRoutingIntent(req openai.ChatCompletionRequest, run RunConfig) string {
 	if run.TaskRoutingText != nil {
 		return *run.TaskRoutingText
 	}
-	if run.UserIntent != "" {
-		return run.UserIntent
+	if intent := runTaskIntent(run); intent != "" {
+		return intent
 	}
 	for i := len(req.Messages) - 1; i >= 0; i-- {
 		if req.Messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(req.Messages[i]) {
