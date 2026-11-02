@@ -90,6 +90,7 @@ function renderVirtualDesktopSection(section) {
 
     html += vdCfgVideoStudio();
     html += vdCfgRetroGames();
+    html += vdCfgStorymaker();
     const infra = data.infra || {};
     html += '<h3>Infra</h3>';
     html += vdCfgToggleRow('config.infra.enabled', 'config.infra.help', infra.enabled === true, 'virtual_desktop.infra.enabled');
@@ -257,5 +258,48 @@ function vdCfgTestRetroGames(button) {
             if (total > 0) return t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined));
             return t(prefix + (status.syncing ? 'status_building' : 'status_empty'));
         }
+    });
+}
+
+function vdCfgStorymaker() {
+    const data = configData.storymaker || (configData.storymaker = {});
+    if (typeof data.enabled !== 'boolean') data.enabled = true;
+    const render = data.render || (data.render = {});
+    const prefix = 'config.storymaker.';
+    let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'storymaker.enabled');
+    html += '</div><div class="field-grid two-cols">';
+    html += vdCfgField(prefix + 'timeout', prefix + 'timeout_help', '<input class="field-input" type="number" min="60" max="14400" value="' + escapeAttr(String(render.timeout_seconds || 3600)) + '" data-path="storymaker.render.timeout_seconds">');
+    html += vdCfgField(prefix + 'max_duration', prefix + 'max_duration_help', '<input class="field-input" type="number" min="10" max="3600" value="' + escapeAttr(String(render.max_duration_seconds || 900)) + '" data-path="storymaker.render.max_duration_seconds">');
+    html += vdCfgField(prefix + 'browser_path', prefix + 'browser_path_help', '<input class="field-input" type="text" spellcheck="false" autocomplete="off" value="' + escapeAttr(render.browser_path || '') + '" data-path="storymaker.render.browser_path">');
+    const transports = { '': t(prefix + 'transport_auto'), png: 'PNG', webp: 'WebP', raw: 'RGBA', screenshot: 'Screenshot' };
+    html += vdCfgField(prefix + 'transport', prefix + 'transport_help', '<select class="field-select" data-path="storymaker.render.transport">' + Object.keys(transports).map(value => '<option value="' + value + '"' + ((render.transport || '') === value ? ' selected' : '') + '>' + escapeAttr(transports[value]) + '</option>').join('') + '</select>');
+    html += '</div><div class="field-group"><button type="button" id="vd-storymaker-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestStorymaker(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-storymaker-result') + '</div>';
+    return html;
+}
+
+function vdCfgTestStorymaker(button) {
+    const prefix = 'config.storymaker.';
+    if (hasUnsavedConfigChanges()) {
+        cfgActionResult.show('vd-storymaker-result', 'warning', t(prefix + 'save_first'));
+        return;
+    }
+    const missing = status => [!(status.ffmpeg && status.ffmpeg.ready) ? t(prefix + 'part_ffmpeg') : '', !(status.browser && status.browser.ready) ? t(prefix + 'part_browser') : ''].filter(Boolean);
+    // The status asks FFmpeg and launches the browser once (a cached probe), so allow it some time.
+    return cfgActionResult(button, () => fetch('/api/desktop/storymaker/status', { signal: AbortSignal.timeout(60000) }), {
+        target: 'vd-storymaker-result',
+        pending: t(prefix + 'checking'),
+        failure: t(prefix + 'unavailable'),
+        interpret: outcome => {
+            if (!outcome.ok) return {};
+            const status = outcome.body || {};
+            return status.enabled === false || missing(status).length ? { state: 'warning', reason: '' } : {};
+        },
+        warning: outcome => {
+            const status = (outcome && outcome.body) || {};
+            return status.enabled === false ? t(prefix + 'disabled') : t(prefix + 'missing').replace('{missing}', missing(status).join(', '));
+        },
+        success: t(prefix + 'ready')
     });
 }
