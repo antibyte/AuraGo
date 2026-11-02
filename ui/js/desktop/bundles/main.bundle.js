@@ -990,12 +990,10 @@
 
     function isCompactViewport() {
         if (!window.matchMedia) return false;
-        // Width catches narrow layouts. Height alone is common on laptops/browser panes,
-        // so only use it for coarse-pointer landscape mobile/tablet layouts.
+        // Keep narrow desktop layouts compact, and include coarse-pointer tablets.
         const widthMatch = window.matchMedia('(max-width: 820px)').matches;
-        const heightMatch = window.matchMedia('(max-height: 720px)').matches;
-        const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        return widthMatch || (heightMatch && coarsePointerMatch);
+        const tabletMatch = window.matchMedia('(max-width: 1024px) and (hover: none) and (pointer: coarse)').matches;
+        return widthMatch || tabletMatch;
     }
 
     function isTouchLikePointer(event) {
@@ -1022,20 +1020,13 @@
     // Expose for other modules
     window.useMobileDesktopMode = useMobileDesktopMode;
 
-    /**
-     * Returns true if we should force a maximized + single-window
-     * experience for this app on mobile devices.
-     */
+    function shouldUseMobileWideWindow(appId) {
+        return ['code-studio', 'nasscad', 'teevee'].includes(appId);
+    }
+
+    /** Returns whether this app should open maximized in the mobile desktop. */
     function shouldForceMobileMaximizedWindow(appId) {
-        if (!useMobileDesktopMode()) return false;
-
-        // These apps are intentionally wide and should keep horizontal scrolling
-        const wideAppsOnMobile = [
-            'files', 'writer', 'sheets', 'code-studio',
-            'viewer', 'viewer-3d', 'nasscad', 'mission-control', 'launchpad'
-        ];
-
-        return !wideAppsOnMobile.includes(appId);
+        return useMobileDesktopMode() && !shouldUseMobileWideWindow(appId);
     }
 
     window.shouldForceMobileMaximizedWindow = shouldForceMobileMaximizedWindow;
@@ -1047,8 +1038,8 @@
      * Decision (confirmed):
      * - On mobile (useMobileDesktopMode() === true):
      *     → Normal apps open as a single maximized window.
-     *     → Complex/wide apps (Code Studio, Sheets, etc.) keep
-     *       horizontal scrolling via vd-mobile-wide-window.
+     *     → Apps in shouldUseMobileWideWindow keep horizontal content
+     *       scrolling inside their viewport-width window.
      *
      * This gives a clean phone experience while preserving
      * necessary functionality for content-heavy apps.
@@ -7162,8 +7153,6 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
-
     function appWindowMinSize(appId) {
         if (appId === 'kaggle') return { width: 360, height: 420 };
         if (appId === 'infra') return { width: 360, height: 480 };
@@ -7912,13 +7901,8 @@ function updateFruityDockOcclusion() {
     }
 
     const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const hasMaximizedMobileWindow = isMobileMode && [...state.windows.values()].some(win =>
-        win.element.classList.contains('maximized') ||
-        win.element.classList.contains('vd-mobile-forced-maximized')
-    );
-
-    if (isMobileMode && hasMaximizedMobileWindow) {
-        body.classList.add('fruity-dock-collapsed');
+    if (isMobileMode) {
+        body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
         return;
     }
@@ -8351,7 +8335,11 @@ function wireWindow(win, id) {
         const layer = $('vd-window-layer');
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
-        let height = (layer && layer.clientHeight) || window.innerHeight;
+        const layerTop = layer ? layer.getBoundingClientRect().top : 0;
+        let height = Math.min(
+            (layer && layer.clientHeight) || window.innerHeight,
+            Math.max(1, window.innerHeight - layerTop)
+        );
         if (shellLayout() === 'taskbar' && taskbar) {
             height = Math.max(1, height - taskbar.offsetHeight);
         } else if (isCompactViewport() && window.visualViewport) {
@@ -8477,6 +8465,27 @@ function wireWindow(win, id) {
         win.style.width = width + 'px';
         win.style.height = height + 'px';
         scheduleFruityDockOcclusionCheck();
+    }
+
+    function clampWindowsAfterViewportResize() {
+        if (useMobileDesktopMode()) return;
+        let changed = false;
+        state.windows.forEach(item => {
+            const win = item && item.element;
+            if (!win || !win.isConnected || item.isGadget || item.maximized) return;
+            const bounds = windowBounds(win);
+            if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
+            if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;
+            const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+            applyResize(win, 'se', bounds, 0, 0);
+            changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+        });
+        if (changed) scheduleSessionPersist();
+    }
+
+    if (!state._windowViewportClampWired) {
+        state._windowViewportClampWired = true;
+        window.addEventListener('resize', () => window.requestAnimationFrame(clampWindowsAfterViewportResize));
     }
 
     function nearestWindowScroller(control) {
@@ -17132,7 +17141,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function contextMenuUsableBottom() {
         const taskbar = document.querySelector('.vd-taskbar');
-        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches && taskbar) {
+        if (isCompactViewport() && taskbar) {
             const rect = taskbar.getBoundingClientRect();
             if (rect.top > 0) return Math.max(8, Math.floor(rect.top - 8));
         }

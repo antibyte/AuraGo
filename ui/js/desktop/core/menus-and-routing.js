@@ -41,7 +41,7 @@
 
     function contextMenuUsableBottom() {
         const taskbar = document.querySelector('.vd-taskbar');
-        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches && taskbar) {
+        if (isCompactViewport() && taskbar) {
             const rect = taskbar.getBoundingClientRect();
             if (rect.top > 0) return Math.max(8, Math.floor(rect.top - 8));
         }

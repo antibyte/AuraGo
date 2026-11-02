@@ -1354,8 +1354,6 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
-
     function appWindowMinSize(appId) {
         if (appId === 'kaggle') return { width: 360, height: 420 };
         if (appId === 'infra') return { width: 360, height: 480 };

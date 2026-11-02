@@ -483,7 +483,7 @@
     pointer-events: none;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
     .vd-space-pager {
         display: none !important;
     }
@@ -731,7 +731,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     display: none !important;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
     .vd-spaces-overview {
         display: none !important;
     }

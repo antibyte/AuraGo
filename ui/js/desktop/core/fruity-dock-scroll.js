@@ -161,13 +161,8 @@ function updateFruityDockOcclusion() {
     }
 
     const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const hasMaximizedMobileWindow = isMobileMode && [...state.windows.values()].some(win =>
-        win.element.classList.contains('maximized') ||
-        win.element.classList.contains('vd-mobile-forced-maximized')
-    );
-
-    if (isMobileMode && hasMaximizedMobileWindow) {
-        body.classList.add('fruity-dock-collapsed');
+    if (isMobileMode) {
+        body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
         return;
     }

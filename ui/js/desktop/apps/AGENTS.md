@@ -4525,6 +4525,9 @@ registration lives in `internal/desktop/types.go`.
   agent panel is an absolute slide-over (never squeezes the preview) hosting
   the streaming chat transcript, a composer, and an apply-changes bar that
   stages agent-proposed source instead of silently overwriting.
+- OpenSCAD keeps its vertical, scrolling panel layout below 860px rather than
+  using a forced-wide mobile window. Phone header actions wrap with their
+  icons and labels intact and keep 44px touch targets.
 - OpenSCAD viewport controls include zoom in/out, perspective/orthographic
   projection, shaded/wireframe shading, auto-rotate (disabled under
   `prefers-reduced-motion`), dark/light background, grid/axes, fit view,
@@ -4884,7 +4887,11 @@ registration lives in `internal/desktop/types.go`.
   use `desktop.people_kg`. Content empty-state load failures use
   `desktop.load_failed` via `t(inst.context, key)`. Save and delete
   notifies use `desktop.request_failed`. Exposes
-  `window.PeopleApp`. No child DOX file needed.
+  `window.PeopleApp`. Below 600px of app width, groups, KG and birthdays
+  remain reachable in a compact scrolling navigation strip; list fields stack
+  into readable rows and the detail pane overlays the list. Never hide the only
+  filter controls on phones.
+  No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
   into `createChessFx`. Opponent-move errors use

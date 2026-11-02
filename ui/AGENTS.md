@@ -146,6 +146,17 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 - Config VM regressions load the production rendering/feedback dependencies through `scripts/config-test-runtime.mjs`, model response status/body methods and await confirmed asynchronous deletions. Atomic list credentials follow the current draft entry after reorder/removal; a saved numeric index cannot restore another entry's mask. Verify `node scripts/test-ui-regressions.mjs` and the Config browser tests.
 
+- Desktop phone and tablet layouts keep window controls and shell navigation
+  inside the viewport. Narrow-capable apps receive the actual available width;
+  do not force a wide workspace on an app with responsive navigation or panels.
+  Only inherently wide workspaces use horizontal scrolling inside the content
+  area, with the titlebar outside that scrollport. Keep mobile maximization and
+  the wide-app classification consistent, including viewport/orientation changes.
+  Preserve touch scrolling, reachable filters/actions and existing app state;
+  the mobile dock keeps its app-menu launcher and app-switching buttons visible.
+  Verify `TestDesktopMobile` with `AURAGO_RUN_BROWSER_SMOKE=1` in Standard and
+  Fruity at phone, tablet and desktop widths.
+
 - Shared QR editing is lazy key `qr`: `js/desktop/shared/qr-dialog.js` and
   `css/desktop-qr.css`. Writer, Sheets and Pixel use the same local Go renderer,
   scanner, configuration normalizer and CSV batch service. Payloads stay in POST

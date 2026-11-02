@@ -390,7 +390,11 @@ function wireWindow(win, id) {
         const layer = $('vd-window-layer');
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
-        let height = (layer && layer.clientHeight) || window.innerHeight;
+        const layerTop = layer ? layer.getBoundingClientRect().top : 0;
+        let height = Math.min(
+            (layer && layer.clientHeight) || window.innerHeight,
+            Math.max(1, window.innerHeight - layerTop)
+        );
         if (shellLayout() === 'taskbar' && taskbar) {
             height = Math.max(1, height - taskbar.offsetHeight);
         } else if (isCompactViewport() && window.visualViewport) {
@@ -516,6 +520,27 @@ function wireWindow(win, id) {
         win.style.width = width + 'px';
         win.style.height = height + 'px';
         scheduleFruityDockOcclusionCheck();
+    }
+
+    function clampWindowsAfterViewportResize() {
+        if (useMobileDesktopMode()) return;
+        let changed = false;
+        state.windows.forEach(item => {
+            const win = item && item.element;
+            if (!win || !win.isConnected || item.isGadget || item.maximized) return;
+            const bounds = windowBounds(win);
+            if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
+            if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;
+            const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+            applyResize(win, 'se', bounds, 0, 0);
+            changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+        });
+        if (changed) scheduleSessionPersist();
+    }
+
+    if (!state._windowViewportClampWired) {
+        state._windowViewportClampWired = true;
+        window.addEventListener('resize', () => window.requestAnimationFrame(clampWindowsAfterViewportResize));
     }
 
     function nearestWindowScroller(control) {

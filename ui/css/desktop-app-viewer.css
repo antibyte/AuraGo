@@ -1,5 +1,6 @@
 /* desktop-app-viewer.css */
 .vd-viewer {
+    container: viewer / inline-size;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -331,6 +332,25 @@
     border: 0;
     opacity: 0;
     pointer-events: none;
+}
+
+@container viewer (max-width: 640px) {
+    .vd-viewer-toolbar,
+    .vd-viewer-toolbar-right,
+    .vd-viewer-pdf-controls {
+        flex-wrap: wrap;
+    }
+    .vd-viewer-toolbar-left {
+        flex: 1 1 100%;
+    }
+    .vd-viewer-toolbar-right {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .vd-viewer-rendered {
+        padding: 12px;
+        overflow-wrap: anywhere;
+    }
 }
 
 @media print {
