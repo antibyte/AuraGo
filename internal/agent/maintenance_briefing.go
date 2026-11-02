@@ -100,6 +100,7 @@ func runMaintenanceIntegrationChecks(cfg *config.Config, logger *slog.Logger, no
 		runSandboxIntegrationCheck(cfg, now),
 		runVirtualComputersIntegrationCheck(cfg, now),
 		runTelegramIntegrationCheck(now),
+		runWhatsAppIntegrationCheck(now),
 		runModelLimitsIntegrationCheck(cfg, now),
 	}
 	return checks
@@ -179,6 +180,32 @@ func runTelegramIntegrationCheck(now time.Time) memory.IntegrationCheckResult {
 		return result
 	}
 	result.Status, result.Code, result.Detail = "failed", status.LastErrorCode, "passive polling runtime is not healthy"
+	if result.Code == "" {
+		result.Code = status.State
+	}
+	return result
+}
+
+// runWhatsAppIntegrationCheck reads the passive WhatsApp status. It never connects, links or
+// sends, so the nightly briefing cannot message the owner. The data holds no number or JID.
+func runWhatsAppIntegrationCheck(now time.Time) memory.IntegrationCheckResult {
+	status := integrationstatus.WhatsAppStatus()
+	result := memory.IntegrationCheckResult{
+		ID: "whatsapp", CheckedAt: now.UTC().Format(time.RFC3339),
+		Data: map[string]interface{}{
+			"state": status.State, "linked": status.Linked,
+			"delivery_failures": status.DeliveryFailures, "dropped_unresolved_lid": status.DroppedUnresolvedLID,
+		},
+	}
+	switch status.State {
+	case integrationstatus.WhatsAppStateDisabled, integrationstatus.WhatsAppStateNotConfigured:
+		result.Status, result.Code, result.Detail = "skipped", status.State, "WhatsApp is disabled or not fully configured"
+		return result
+	case integrationstatus.WhatsAppStateHealthy:
+		result.Status, result.Detail = "passed", "linked device is connected"
+		return result
+	}
+	result.Status, result.Code, result.Detail = "failed", status.LastError, "WhatsApp is not connected"
 	if result.Code == "" {
 		result.Code = status.State
 	}
