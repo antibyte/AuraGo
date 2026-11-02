@@ -81,6 +81,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `ConfigSnapshot` initializes through the same once barrier as writers, then reads only the atomic immutable pointer. Publication retains `CfgMu`/`CfgSaveMu` order; never fall back to an unsynchronized `Cfg` read. Verify `TestConfigSnapshotConcurrentFirstPublication`.
+
 ### Speech Lab conflicts
 
 - Speech Lab REST retains `speechlab.ResponseError` status and safe code in the
