@@ -17,8 +17,13 @@ training are outside this integration. CPU requires explicit selection; there is
 no automatic CPU or cloud fallback. Drivers and Docker device support must
 already be installed on the Docker host.
 
-Automatic selection prefers the verified device with the largest free memory
-budget. The default VRAM reserve is 1 GiB and can be changed, including to zero.
+Automatic selection probes CUDA on NVIDIA-capable Docker engines and Vulkan on
+Linux, then prefers the verified device with the largest free memory budget.
+It does not download the large ROCm or Intel XPU images just to test compatibility.
+Select one of those runtimes explicitly when needed; choosing a concrete device
+also limits discovery to that device's backend. Probes run on the Docker host,
+including when it is remote. The default VRAM reserve is 1 GiB and can be changed,
+including to zero.
 The balanced profile uses 2B Turbo, considering XL Turbo at 20 GiB usable VRAM.
 The pinned ACE-Step adaptive profile controls language-model size, offloading,
 quantization and duration limits for the PyTorch runtimes. ROCm and Intel XPU

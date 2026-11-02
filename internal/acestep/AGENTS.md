@@ -15,6 +15,11 @@ model/cache volumes, Vault authentication and serial generation.
   replaces Hugging Face Python copies during loading. Downloads verify size/hash.
 - Restore the previous qualified container after failed/interrupted replacement.
   No silent CPU/cloud fallback and no profile change during generation.
+- Automatic hardware discovery probes CUDA when the Docker engine exposes NVIDIA
+  support, and Vulkan on Linux. Probe the Docker host, never the AuraGo host's PCI
+  inventory. ROCm/XPU images require an explicitly selected backend or concrete
+  device; automatic discovery must not download them speculatively. Keep verified
+  free-memory selection, Windows/WSL restrictions and explicit CPU opt-in.
 - Vulkan is an additional Linux/amd64 backend, implemented by pinned
   `acestep.cpp`/GGML and separate GGUF model pins in `release.json.vulkan`.
   The standard-library adapter exposes only the existing authenticated private
