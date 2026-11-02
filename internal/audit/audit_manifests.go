@@ -53,6 +53,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "json_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "local_wikipedia", ConfigGate: "local_wikipedia.enabled + local_wikipedia.agent_access + open edition", Capabilities: []Capability{CapabilityRead}},
 		{Name: "retro_games", ConfigGate: "retro_games.enabled + retro_games.agent_access (play: virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled)", Capabilities: []Capability{CapabilityRead, CapabilityChange}},
+		{Name: "ecalc", ConfigGate: "always on; open: virtual_desktop.enabled + virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled (A2A requests: search, describe and calculate only)", Capabilities: []Capability{CapabilityRead, CapabilityChange}},
 		{Name: "manage_outgoing_webhooks", ConfigGate: "webhooks.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "manus", ConfigGate: "manus.enabled + manus_api_key", ReadOnlyGate: "manus.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityNetwork, CapabilityHost}},
 		{Name: "meshcentral", ConfigGate: "meshcentral.enabled; wake/power: meshcentral.allow_power_actions; run_command: agent.allow_remote_shell", ReadOnlyGate: "meshcentral.readonly", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
