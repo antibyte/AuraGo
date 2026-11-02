@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -53,7 +52,7 @@ type pageOpener func(ctx context.Context, o sessionOptions) (browserPage, error)
 
 // session is the production browserPage: a launched Chrome with the egress guard on its tab.
 type session struct {
-	l       *launcher.Launcher
+	proc    *browserProcess
 	browser *rod.Browser
 	page    *rod.Page
 	guard   *egressGuard
@@ -73,18 +72,11 @@ func openRodSession(ctx context.Context, o sessionOptions) (*session, error) {
 	if err := os.MkdirAll(o.Profile, 0o700); err != nil {
 		return nil, err
 	}
-	l := newLauncher(ctx, launchOptions{Bin: o.Bin, UserDataDir: o.Profile, ProxyAddr: o.ProxyAddr, WindowSize: [2]int{o.Width, o.Height}})
-	controlURL, err := l.Launch()
+	browser, proc, err := startBrowserProcess(ctx, launchOptions{Bin: o.Bin, UserDataDir: o.Profile, ProxyAddr: o.ProxyAddr, WindowSize: [2]int{o.Width, o.Height}})
 	if err != nil {
 		return nil, fmt.Errorf("launch the browser: %w", err)
 	}
-	s := &session{l: l, opts: o, guard: newEgressGuard(o.Base), crashed: make(chan struct{})}
-	browser := rod.New().Context(ctx).ControlURL(controlURL)
-	if err := browser.Connect(); err != nil {
-		s.closeProcess()
-		return nil, fmt.Errorf("connect to the browser: %w", err)
-	}
-	s.browser = browser
+	s := &session{proc: proc, browser: browser, opts: o, guard: newEgressGuard(o.Base), crashed: make(chan struct{})}
 	page, err := browser.Page(proto.TargetCreateTarget{URL: "about:blank"})
 	if err != nil {
 		s.Close()
@@ -178,7 +170,4 @@ func (s *session) Close() {
 	s.closeProcess()
 }
 
-func (s *session) closeProcess() {
-	s.l.Kill()
-	s.l.Cleanup()
-}
+func (s *session) closeProcess() { s.proc.Close() }

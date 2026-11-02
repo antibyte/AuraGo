@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"aurago/internal/fileutil"
-	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
@@ -298,11 +297,12 @@ type launchOptions struct {
 	WindowSize [2]int
 }
 
-// newLauncher builds the rod launcher every Storymaker browser launch uses. It never sets
+// newLauncher builds the rod launcher whose flags every Storymaker browser launch uses (the browser
+// itself is started by startBrowserProcess, which swaps the DevTools port for a pipe). It never sets
 // NoSandbox (rod adds --no-sandbox by itself inside containers; that is removed here), except
 // through the test hook.
-func newLauncher(ctx context.Context, o launchOptions) *launcher.Launcher {
-	l := launcher.New().Context(ctx).Bin(o.Bin).Headless(true)
+func newLauncher(o launchOptions) *launcher.Launcher {
+	l := launcher.New().Bin(o.Bin).Headless(true)
 	l.Delete("no-sandbox")
 	if noSandboxForTests {
 		l.Set("no-sandbox")
@@ -343,16 +343,11 @@ func probeLaunch(ctx context.Context, bin string) (string, error) {
 		return "", err
 	}
 	defer os.RemoveAll(profile)
-	l := newLauncher(ctx, launchOptions{Bin: bin, UserDataDir: profile})
-	controlURL, err := l.Launch()
+	browser, proc, err := startBrowserProcess(ctx, launchOptions{Bin: bin, UserDataDir: profile})
 	if err != nil {
 		return "", err
 	}
-	defer func() { l.Kill(); l.Cleanup() }()
-	browser := rod.New().Context(ctx).ControlURL(controlURL)
-	if err := browser.Connect(); err != nil {
-		return "", err
-	}
+	defer proc.Close()
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer closeCancel()

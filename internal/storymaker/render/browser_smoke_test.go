@@ -25,6 +25,7 @@ import (
 	"aurago/internal/storymaker"
 
 	"github.com/go-rod/rod/lib/launcher"
+	gnet "github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/process"
 	"golang.org/x/image/webp"
 )
@@ -301,7 +302,7 @@ func TestTransportSpike(t *testing.T) {
 				p, err := openSession(ctx, o)
 				if s, ok := p.(*session); ok && err == nil {
 					pidMu.Lock()
-					pid = s.l.PID()
+					pid = s.proc.PID()
 					pidMu.Unlock()
 				}
 				return p, err
@@ -552,4 +553,59 @@ func TestPinnedChromiumDownloadsVerifiesAndLaunches(t *testing.T) {
 	if job := fx.render(t); job.Status != StatusSucceeded {
 		t.Fatalf("export with the pinned Chromium: %+v error %+v", job, job.Error)
 	}
+}
+
+// The render browser must not open a DevTools port. Such a port listens on loopback, which every
+// account of the host can reach: GET /json/list names the render URL (and with it the secret prefix of
+// the listener), and the websocket drives the browser, past the page CSP and the CDP guard. Chrome
+// writes DevToolsActivePort into the profile when it opens a port; the pipe transport has none.
+func TestRenderBrowserOpensNoDevToolsPort(t *testing.T) {
+	chrome := browserSmoke(t)
+	profile := filepath.Join(t.TempDir(), "profile")
+	s, err := openRodSession(context.Background(), sessionOptions{Bin: chrome, Profile: profile, Base: "http://127.0.0.1:1/x", Width: 640, Height: 360})
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	defer s.Close()
+	res, err := s.page.Timeout(30 * time.Second).Eval(`() => 6 * 7`)
+	if err != nil || res.Value.Int() != 42 {
+		t.Fatalf("the tab does not run scripts: %v %v", res, err)
+	}
+	if _, err := os.Stat(filepath.Join(profile, "DevToolsActivePort")); !os.IsNotExist(err) {
+		t.Fatalf("the browser opened a DevTools port (DevToolsActivePort: %v)", err)
+	}
+	if listening := listeningSockets(s.proc.PID()); len(listening) != 0 {
+		t.Fatalf("the browser tree listens on %v", listening)
+	}
+}
+
+// listeningSockets lists the TCP sockets of a process and its descendants that wait for connections: in
+// LISTEN state, or without a remote end (the state column of the Windows socket table is unreliable).
+func listeningSockets(pid int) []string {
+	root, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return nil
+	}
+	tree := map[int32]bool{}
+	var walk func(p *process.Process)
+	walk = func(p *process.Process) {
+		tree[p.Pid] = true
+		if kids, err := p.Children(); err == nil {
+			for _, k := range kids {
+				walk(k)
+			}
+		}
+	}
+	walk(root)
+	all, err := gnet.Connections("tcp")
+	if err != nil {
+		return []string{"the socket table cannot be read: " + err.Error()}
+	}
+	var out []string
+	for _, c := range all {
+		if tree[c.Pid] && (c.Status == "LISTEN" || c.Raddr.Port == 0) {
+			out = append(out, fmt.Sprintf("%s:%d (pid %d)", c.Laddr.IP, c.Laddr.Port, c.Pid))
+		}
+	}
+	return out
 }

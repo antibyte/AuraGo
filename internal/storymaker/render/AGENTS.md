@@ -31,6 +31,13 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
   request that carries a frame costs about 35 ms, so the catch-all interception is only the fallback for a browser without block patterns
   (`GuardFull`). WebSocket handshakes are outside both mechanisms; CSP and proxy stop them. `TestEgressLayersEachStopTheProbe` proves each
   layer alone and all together against a loopback probe server.
+- **DevTools pipe** (`devtools_pipe*.go`): the render browser has no DevTools port. A port on loopback is reachable by every account of the
+  host: `GET /json/list` names the render URL (the secret prefix) and the websocket drives the browser past the CSP and the CDP guard. So the
+  browser starts with `--remote-debugging-pipe` (descriptors 3 and 4; on Windows the handles named by `--remote-debugging-io-pipes`) and rod
+  gets a pipe `cdp.Client`, because rod's launcher only knows the websocket. The browser quits when its input closes, so a crashed server
+  leaves no browser behind. `newLauncher` only builds the flag set. `TestRenderBrowserOpensNoDevToolsPort` checks `DevToolsActivePort` and the
+  listening sockets of the browser tree; `devtools_pipe_test.go` covers the framing, start-up failures (with the browser's own output in the
+  error, which `launchIssue` reads) and the kill path with the test binary as a fake browser, on Windows and Linux.
 - **Browser** (`browser.go`): `render.browser_path`, else `launcher.LookPath()`, else the pinned Chromium (revision 1321438, SHA-256 per
   platform in `pinnedChromium`, downloaded into `<DataDir>/storymaker/chromium-<rev>/` by the first export, never by a status request). A
   browser is `ready` only after a cached headless launch probe. Production launches never set `NoSandbox` (`newLauncher` deletes the flag rod adds
