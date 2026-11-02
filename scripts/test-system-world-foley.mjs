@@ -38,7 +38,8 @@ try{
 
   // --- Robot foley -------------------------------------------------------
   const foley=createCityFoley(context,node('out'),node('ambience'));
-  foley.listener(0,0,0,0,-1);
+  // The listener sits on the street; the origin is the place the view rests on.
+  foley.listener(0,0,0,0,-1,0,0);
   assert.equal(foley.stats().voices,0,'No voice before the city is audible');
   assert.equal(foley.action('robot_greet',2,0,0),false,'A quiet city makes no robot sound');
   foley.setActive(true);
@@ -46,10 +47,18 @@ try{
   assert.equal(foley.stats().played,1);
   assert.ok(kinds().at(-1)>.9,'A resident beside the listener sits to the right of the view');
   assert.equal(foley.action('robot_greet',100,0,100),false,'A distant resident stays silent');
+  // A resident of the district you look at stays audible even from far above.
+  foley.listener(0,0,0,0,-1,0,0);
+  assert.equal(foley.action('robot_greet',40,0,20),true,'A resident of the district in view is heard');
   flush();
   assert.equal(foley.stats().voices,0,'A finished sound releases its voices');
   for(let i=0;i<24;i++)foley.action('robot_work',3,0,0,'r'+i);
   assert.equal(foley.stats().voices,10,'The voice pool stays bounded');
+  flush();
+  // A nearer resident takes the voice from a farther one.
+  for(let i=0;i<10;i++)foley.action('robot_work',40,0,0,'far'+i);
+  assert.equal(foley.stats().voices,10);
+  assert.equal(foley.action('robot_work',2,0,0,'near'),true,'A nearer resident gets a voice');
   flush();
   // One resident answers at most every RETRIGGER seconds.
   context.currentTime=1;foley.action('robot_greet',3,0,0,'same');
@@ -98,10 +107,10 @@ try{
   ambience.gait('resident-1',0,0,0,false,false);
   ambience.gait('resident-1',1,0,0,true,false);
   assert.equal(ambience.stats().foley.steps,1,'The stride reaches the foley');
-  ambience.setListener(0,2.4,76,0,-1);
-  assert.ok(ambience.stats().soundscape.beds.water>0,'Harbour water grows near the quay');
-  ambience.setListener(0,2.4,0,0,-1);
-  assert.equal(ambience.stats().soundscape.beds.water,0,'Water fades inland');
+  ambience.setListener(0,2.4,76,0,-1,0,76);
+  assert.ok(ambience.stats().soundscape.beds.water>.04,'Harbour water is loud at the quay');
+  ambience.setListener(0,2.4,0,0,-1,0,0);
+  assert.ok(ambience.stats().soundscape.beds.water<.01,'Water fades inland');
   ambience.setActive(false);
   assert.equal(ambience.stats().soundscape.scheduled,false,'A hidden city schedules nothing');
   ambience.dispose();

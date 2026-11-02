@@ -4193,9 +4193,9 @@ registration lives in `internal/desktop/types.go`.
   (16 s) into a generated convolution reverb, air with wind gusts and at most 12
   transient events (swooshes, chimes, day birds, harbour gulls and horn, night
   crickets, rain drips, a civic bell, construction hammering, evening sirens,
-  thunder). Two continuous beds follow the listener: harbour water grows near the
-  quay and a low population murmur follows the mood. Events come from fixed city
-  anchors (harbour, quay, tower, square) or from a ring around the listener, so the
+  thunder). Two continuous beds follow the acoustic origin: harbour water grows near
+  the quay and a low population murmur follows the mood. Events come from fixed city
+  anchors (harbour, quay, tower, square) or from a ring around that origin, so the
   stereo pan always matches the direction the sound arrives from; nothing invents
   telemetry. Event/chord timers run only while audible and `quiet()` releases every
   voice on inactivity. `setMood` (busy/day/evening/weather from the scene) opens the
@@ -4207,10 +4207,18 @@ registration lives in `internal/desktop/types.go`.
   from oscillators and filtered noise without assets. A changed animation clip is the
   only trigger for an action sound; walking stays with the footstep cadence, which
   follows the travelled distance of the reported stride. The pool is bounded at ten
-  voices, a sound dies beyond 45 m, one resident cannot retrigger itself within
-  0.25 s, and nothing sounds while the city is muted, hidden, unfocused, in map mode
-  or under reduced motion. Robot kinds travel over the existing `onSound` channel
-  and never reach the world-effect engine.
+  voices and the nearest residents win a voice, a sound dies beyond 48 m of the
+  acoustic origin, one resident cannot retrigger itself within 0.25 s, and nothing
+  sounds while the city is muted, hidden, unfocused, in map mode or under reduced
+  motion. Robot kinds travel over the existing `onSound` channel and never reach the
+  world-effect engine. `stats().foley.rejected` counts why a sound was dropped.
+- The sound layer listens from the **acoustic origin**, not from the camera: on the
+  street you stand on, or — from the overview, where the camera floats 100 m above
+  the city — the district the view rests on. `onListener` carries that origin as its
+  last two arguments. Distance runs on the ground (horizontal), the pan follows the
+  picture (camera-relative), and distance dulls the sound through a low pass, so a
+  far resident is a murmur instead of a click. Measuring from the camera in 3D would
+  put every resident hundreds of metres away and silence the whole set.
   `sysworld-voice.js` adds transient tower speech to that same opt-in mixer: one
   cancellable POST `/api/desktop/system-world/voice`, 20–40 seconds of quiet after
   each short phrase, with 60-second failure backoff. Camera pose updates through

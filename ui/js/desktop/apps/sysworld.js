@@ -180,7 +180,7 @@
                 const city=await module.createCity(canvasHost,{
                     label:ctx.t('desktop.app_system_world'),memoryLabel:ctx.t('sysworld.zone.memory'),quality:inst.quality,reducedMotion:motionOff(),signal:inst.load.signal,
                     assetURL:file=>versioned('/3d/system-world/v1/'+file),resourceURL:versioned,
-                    onListener:(x,y,z,fx,fz)=>{inst.sound?.setListener(x,y,z,fx,fz);inst.hud.orient(x,z,fx,fz);},
+                    onListener:(x,y,z,fx,fz,ox,oz)=>{inst.sound?.setListener(x,y,z,fx,fz,ox,oz);inst.hud.orient(x,z,fx,fz);},
                     onProgress:(loaded,expected)=>inst.hud.progress(loaded,expected),onHover:id=>inst.hud.hover(id),onCut:()=>inst.hud.cut(),onScope:view=>inst.hud.scope(view),onFlight:state=>inst.hud.flight(state),
                     onInteraction:(...args)=>inst.worldControls.interaction(...args),
                     onSociety:value=>inst.worldControls.society(value),replaying:()=>!!inst.replaying,

@@ -4,14 +4,19 @@
 // fetched; the whole set is synthesized from oscillators and filtered noise.
 //
 // The set is bounded on purpose: at most MAX_VOICES sounds are alive, a sound
-// dies beyond MAX_DISTANCE, and one resident cannot retrigger itself faster
-// than every RETRIGGER seconds. Nothing sounds while the city is muted,
-// hidden, unfocused or in map mode.
+// dies beyond MAX_DISTANCE of the acoustic origin, and one resident cannot
+// retrigger itself faster than every RETRIGGER seconds. The nearest residents
+// win a voice. Nothing sounds while the city is muted, hidden, unfocused or in
+// map mode.
 export function createCityFoley(context,destination,ambience=destination) {
-  const MAX_VOICES=10,MAX_DISTANCE=45,RETRIGGER=.25;
+  const MAX_VOICES=10,MAX_DISTANCE=48,RETRIGGER=.25;
   const voices=new Set(),gaits=new Map(),recent=new Map();
   const listener={x:0,y:0,z:0,fx:0,fz:-1};
+  // The acoustic origin is where the view rests, not where the camera floats:
+  // on the street ahead of you, or on the district the overview is centred on.
+  const origin={x:0,z:0};
   let active=false,inside=false,played=0,steps=0;
+  const rejected={kind:0,inactive:0,distant:0,pool:0,retrigger:0,quiet:0};
 
   const noise=context.createBuffer(1,context.sampleRate*2,context.sampleRate);
   let seed=9371;const samples=noise.getChannelData(0);
@@ -20,46 +25,60 @@ export function createCityFoley(context,destination,ambience=destination) {
   // A sound is a short stack of layers: noise taps carry the transient, tones
   // carry the body. Gains stay low because the city bed has to stay dominant.
   const SOUNDS={
-    step:{gain:.05,layers:[
+    step:{gain:.07,layers:[
       {wave:'noise',f:1900,q:1.7,dur:.05,lvl:.5},
       {wave:'noise',f:520,q:.9,dur:.1,lvl:.4},
       {wave:'tone',f:104,f2:74,dur:.12,lvl:.3}]},
-    step_carry:{gain:.055,layers:[
+    step_carry:{gain:.075,layers:[
       {wave:'noise',f:1250,q:1.2,dur:.06,lvl:.45},
       {wave:'noise',f:340,q:.8,dur:.13,lvl:.5},
       {wave:'tone',f:88,f2:62,dur:.15,lvl:.36}]},
-    glide:{gain:.02,layers:[
+    glide:{gain:.028,layers:[
       {wave:'noise',f:700,q:.6,dur:.26,lvl:.8},
       {wave:'tone',f:150,f2:120,dur:.24,lvl:.18}]},
-    greet:{gain:.038,layers:[
+    greet:{gain:.05,layers:[
       {wave:'tone',f:520,f2:740,dur:.11,lvl:.5,type:'triangle'},
       {wave:'tone',f:790,f2:960,dur:.13,lvl:.3,type:'triangle',delay:.1}]},
-    work:{gain:.034,layers:[
+    work:{gain:.045,layers:[
       {wave:'noise',f:2700,q:2.6,dur:.05,lvl:.6},
       {wave:'tone',f:240,f2:175,dur:.22,lvl:.26,type:'sawtooth'}]},
-    carry:{gain:.026,layers:[
+    carry:{gain:.034,layers:[
       {wave:'noise',f:950,q:.7,dur:.12,lvl:.7},
       {wave:'noise',f:2300,q:1.5,dur:.07,lvl:.25}]},
-    idle:{gain:.016,layers:[{wave:'noise',f:3400,q:3.2,dur:.028,lvl:.7}]},
-    turn:{gain:.02,layers:[{wave:'tone',f:900,f2:1440,dur:.18,lvl:.4,type:'sawtooth'}]},
+    idle:{gain:.02,layers:[{wave:'noise',f:3400,q:3.2,dur:.028,lvl:.7}]},
+    turn:{gain:.026,layers:[{wave:'tone',f:900,f2:1440,dur:.18,lvl:.4,type:'sawtooth'}]},
   };
 
   function voice(kind,x,y,z,id){
     const name=kind.startsWith('robot_')?kind.slice(6):kind;
-    const spec=SOUNDS[name];if(!spec||!active)return false;
-    if(voices.size>=MAX_VOICES)return false;
-    const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz);
-    if(distance>MAX_DISTANCE)return false;
+    const spec=SOUNDS[name];if(!spec){rejected.kind++;return false;}if(!active){rejected.inactive++;return false;}
+    // Distance runs on the ground: a resident is on the street, and the listener
+    // either stands on it or looks down at the district it belongs to.
+    const dx=x-origin.x,dz=z-origin.z,distance=Math.hypot(dx,dz);
+    if(distance>MAX_DISTANCE){rejected.distant++;return false;}
+    // A farther resident never takes a voice from a nearer one.
+    if(voices.size>=MAX_VOICES){
+      let farthest=null;
+      for(const v of voices)if(!farthest||v.distance>farthest.distance)farthest=v;
+      if(!farthest||distance>=farthest.distance){rejected.pool++;return false;}
+      farthest.release();
+    }
     const now=context.currentTime;
-    if(id!=null){const last=recent.get(id);if(last!=null&&now-last<RETRIGGER)return false;recent.set(id,now);}
-    const level=spec.gain/(1+distance*.16)*(inside?.5:1);
-    if(level<.0004)return false;
-    const pan=Math.max(-1,Math.min(1,(dx*-listener.fz+dz*listener.fx)/Math.max(distance,1)));
+    if(id!=null){const last=recent.get(id);if(last!=null&&now-last<RETRIGGER){rejected.retrigger++;return false;}recent.set(id,now);}
+    const height=Math.abs(y-listener.y);
+    const level=spec.gain/(1+distance*.16)/(1+height*.008)*(inside?.5:1);
+    if(level<.0004){rejected.quiet++;return false;}
+    // The pan follows the picture, so the direction stays true from any view.
+    const cx=x-listener.x,cz=z-listener.z;
+    const pan=Math.max(-1,Math.min(1,(cx*-listener.fz+cz*listener.fx)/Math.max(1,Math.hypot(cx,cz))));
     const bus=context.createGain(),panner=context.createStereoPanner(),send=context.createGain();
     bus.gain.value=level;panner.pan.value=pan;send.gain.value=inside?.2:.4;
-    bus.connect(panner).connect(destination);panner.connect(send).connect(ambience);
-    const nodes=[];
-    const entry={release(){if(!voices.delete(entry))return;for(const n of nodes){try{n.stop?.();}catch(_){}try{n.disconnect();}catch(_){}}for(const n of[bus,panner,send]){try{n.disconnect();}catch(_){}}}};
+    // Distance dulls the sound, so a far resident is a murmur and not a click.
+    const tone=context.createBiquadFilter();tone.type='lowpass';tone.Q.value=.6;
+    tone.frequency.value=Math.max(700,Math.min(11000,11000-distance*130));
+    tone.connect(bus);bus.connect(panner).connect(destination);panner.connect(send).connect(ambience);
+    const nodes=[tone];
+    const entry={distance,release(){if(!voices.delete(entry))return;for(const n of nodes){try{n.stop?.();}catch(_){}try{n.disconnect();}catch(_){}}for(const n of[bus,panner,send]){try{n.disconnect();}catch(_){}}}};
     voices.add(entry);
     let latest=null,latestEnd=0;
     for(const layer of spec.layers) {
@@ -68,7 +87,7 @@ export function createCityFoley(context,destination,ambience=destination) {
       levelNode.gain.setValueAtTime(0,at);
       levelNode.gain.linearRampToValueAtTime(layer.lvl,at+(layer.attack||.006));
       levelNode.gain.exponentialRampToValueAtTime(.0001,at+dur);
-      levelNode.connect(bus);
+      levelNode.connect(tone);
       let source;
       if(layer.wave==='noise') {
         source=context.createBufferSource();source.buffer=noise;source.loop=true;
@@ -116,11 +135,11 @@ export function createCityFoley(context,destination,ambience=destination) {
   return {
     setActive(value){if(active===value)return;active=value;if(!value)clear();},
     environment(value){inside=!!value;},
-    listener(x,y,z,fx,fz){Object.assign(listener,{x,y,z,fx,fz});},
+    listener(x,y,z,fx,fz,ox,oz){Object.assign(listener,{x,y,z,fx,fz});origin.x=ox??x;origin.z=oz??z;},
     action(kind,x,y,z,id){return voice(kind,x,y,z,id);},
     gait,
     reset(){gaits.clear();recent.clear();},
-    stats:()=>({voices:voices.size,played,steps,gaits:gaits.size,inside}),
+    stats:()=>({voices:voices.size,played,steps,gaits:gaits.size,inside,rejected:{...rejected}}),
     dispose(){active=false;clear();},
   };
 }

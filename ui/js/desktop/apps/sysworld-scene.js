@@ -121,9 +121,9 @@ export async function createCity(host, options) {
   const geoSet = new Set(), matSet = new Set(), keys = new Set(), cleanup = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .98;
-  // Soft shadows: the district shadows and the new landmarks read as contact
-  // shadows instead of hard staircases, at the cost of one extra filter tap.
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Shadows: three removed the soft PCF variant, so the city uses the plain
+  // filtered map like the other 3D apps and keeps the console clean.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; renderer.info.autoReset = false;
   const canvas = renderer.domElement;
   canvas.className = 'sysworld-gl'; canvas.tabIndex = 0;
@@ -500,7 +500,12 @@ export async function createCity(host, options) {
       else travelling.wait=0;
     }
     camera.getWorldDirection(v);
-    options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z);
+    // The sound layer listens from where the view rests: on the street you stand
+    // on, or on the district the overview is centred on. Measuring from the
+    // camera itself would put every resident hundreds of metres away.
+    const overhead=mode!=='street'&&camera.position.y>15;
+    options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z,
+      overhead?controls.target.x:camera.position.x,overhead?controls.target.z:camera.position.z);
     const busy = !!options.busy?.();
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
