@@ -42,6 +42,9 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 - `Store` is the only file access of `ProjectStore`. `Remove` behaves like `os.RemoveAll`; etags are
   `desktop.NoteVersion` (`ETag`); a failed precondition is `ErrConflict`. Project ids are lowercase UUID v4, scene ids slugs;
   every path is built from validated ids only.
+- `SaveCodeScene` checks the precondition itself, removes the old bundle, and only then writes the source and the new
+  bundle. A save that fails half way therefore leaves the old source with its own bundle or the new source without one, never a
+  bundle built from older source: a render loads the bundle of every scene whose status is ok.
 - Slugs for file names: ASCII letters, digits and dashes, umlauts transliterated, Windows device names refused, 80 characters.
 
 ## Work Guidance

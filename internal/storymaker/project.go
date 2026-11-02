@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path"
 	"sort"
 	"strings"
@@ -318,6 +319,12 @@ func (p *ProjectStore) touch(ctx context.Context, id string, story []byte) {
 // fails it keeps the source, removes the bundle and writes scenes/<id>.errors.json; the error
 // list is in the result and the call still succeeds, so the editor can show it. Source over the
 // code size limit is refused with ErrTooLarge before anything is written.
+//
+// The previous bundle is removed before the source changes: a render loads the bundle of every
+// scene whose status is ok, so a save that fails half way must leave the old source with its own
+// bundle (the removal failed) or the new source without a bundle (a later step failed), never a
+// bundle that was built from older source. A refused precondition is checked first, so it keeps
+// the old bundle.
 func (p *ProjectStore) SaveCodeScene(ctx context.Context, id, sceneID string, source []byte, ifMatch string) (string, BundleResult, error) {
 	if err := p.checkScene(id, sceneID); err != nil {
 		return "", BundleResult{}, err
@@ -333,6 +340,12 @@ func (p *ProjectStore) SaveCodeScene(ctx context.Context, id, sceneID string, so
 	if err := p.st.MkdirAll(ctx, p.file(id, "scenes")); err != nil {
 		return "", BundleResult{}, fmt.Errorf("storymaker: create scenes folder: %w", err)
 	}
+	if err := p.checkCodePrecondition(ctx, id, sceneID, ifMatch); err != nil {
+		return "", BundleResult{}, err
+	}
+	if err := p.st.Remove(ctx, p.codePath(id, sceneID, ".bundle.js")); err != nil {
+		return "", BundleResult{}, fmt.Errorf("storymaker: remove bundle: %w", err)
+	}
 	etag, err := p.st.WriteFile(ctx, p.codePath(id, sceneID, ".js"), source, ifMatch)
 	if err != nil {
 		return "", BundleResult{}, err
@@ -347,9 +360,6 @@ func (p *ProjectStore) SaveCodeScene(ctx context.Context, id, sceneID string, so
 		}
 		return etag, res, nil
 	}
-	if err := p.st.Remove(ctx, p.codePath(id, sceneID, ".bundle.js")); err != nil {
-		return etag, res, fmt.Errorf("storymaker: remove bundle: %w", err)
-	}
 	b, err := json.MarshalIndent(res.Errors, "", "  ")
 	if err == nil {
 		_, err = p.st.WriteFile(ctx, p.codePath(id, sceneID, ".errors.json"), append(b, '\n'), "")
@@ -358,6 +368,30 @@ func (p *ProjectStore) SaveCodeScene(ctx context.Context, id, sceneID string, so
 		return etag, res, fmt.Errorf("storymaker: write errors: %w", err)
 	}
 	return etag, res, nil
+}
+
+// checkCodePrecondition applies the ifMatch rule of Store.WriteFile to the source file, so that a
+// refused save is refused before the old bundle is touched. The write repeats the check under the
+// store's own lock.
+func (p *ProjectStore) checkCodePrecondition(ctx context.Context, id, sceneID, ifMatch string) error {
+	if ifMatch == "" {
+		return nil
+	}
+	_, cur, err := p.st.ReadFile(ctx, p.codePath(id, sceneID, ".js"))
+	exists := err == nil
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("storymaker: read code scene: %w", err)
+	}
+	if ifMatch == MustNotExist {
+		if exists {
+			return ErrConflict
+		}
+		return nil
+	}
+	if !exists || cur != ifMatch {
+		return ErrConflict
+	}
+	return nil
 }
 
 func (p *ProjectStore) codePath(id, sceneID, ext string) string {

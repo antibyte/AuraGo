@@ -388,3 +388,82 @@ func TestSaveCodeSceneConcurrentSavesStayConsistent(t *testing.T) {
 		t.Fatalf("bundle does not belong to the last source: %v\nsource: %s\nbundle: %s", err, src, bundle)
 	}
 }
+
+// faultStore fails WriteFile or Remove for paths that end in a chosen suffix.
+type faultStore struct {
+	*MemStore
+	failWrite  string
+	failRemove string
+}
+
+func (f *faultStore) WriteFile(ctx context.Context, p string, data []byte, ifMatch string) (string, error) {
+	if f.failWrite != "" && strings.HasSuffix(p, f.failWrite) {
+		return "", errors.New("injected write failure")
+	}
+	return f.MemStore.WriteFile(ctx, p, data, ifMatch)
+}
+
+func (f *faultStore) Remove(ctx context.Context, p string) error {
+	if f.failRemove != "" && strings.HasSuffix(p, f.failRemove) {
+		return errors.New("injected remove failure")
+	}
+	return f.MemStore.Remove(ctx, p)
+}
+
+// A save that fails half way must never leave a bundle that was built from older source reported
+// as ok: render loads the bundle of every scene whose status is ok.
+func TestSaveCodeSceneFailureNeverLeavesAStaleBundle(t *testing.T) {
+	v1 := []byte("export default function scene(api) { api.duration(1); }\n")
+	v2 := []byte("export default function scene(api) { api.duration(2); }\n")
+	bad := []byte("export default function scene(api) {\n  eval('1');\n}\n")
+	cases := []struct {
+		name       string
+		next       []byte
+		failWrite  string
+		failRemove string
+		mustFail   bool
+	}{
+		{"bundle write fails", v2, "/s1.bundle.js", "", true},
+		{"old bundle cannot be removed before a failing build", bad, "", "/s1.bundle.js", true},
+		{"old bundle cannot be removed before a good build", v2, "", "/s1.bundle.js", false},
+		{"source write fails", v2, "/scenes/s1.js", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			faults := &faultStore{MemStore: NewMemStore()}
+			ps := NewProjectStore(faults, testRoot)
+			ctx := context.Background()
+			proj, _, _, err := ps.Create(ctx, "Code", "", 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			etag, _, err := ps.SaveCodeScene(ctx, proj.ID, "s1", v1, MustNotExist)
+			if err != nil {
+				t.Fatal(err)
+			}
+			faults.failWrite, faults.failRemove = tc.failWrite, tc.failRemove
+			if _, _, err := ps.SaveCodeScene(ctx, proj.ID, "s1", tc.next, etag); err == nil && tc.mustFail {
+				t.Fatal("the injected failure must be reported")
+			}
+			faults.failWrite, faults.failRemove = "", ""
+			status, err := ps.CodeSceneStatus(ctx, proj.ID)
+			if err != nil || len(status) != 1 {
+				t.Fatalf("status: %v %+v", err, status)
+			}
+			if !status[0].OK {
+				return // not bundled: render is blocked, which is the safe side
+			}
+			src, _, err := ps.LoadCodeSource(ctx, proj.ID, "s1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			bundle, err := ps.LoadCodeBundle(ctx, proj.ID, "s1")
+			if err != nil {
+				t.Fatalf("status ok but no bundle: %v", err)
+			}
+			if want := BundleCodeScene(src, "s1", DefaultLimits().MaxCodeBytes).Code; string(bundle) != string(want) {
+				t.Fatalf("status is ok but the bundle was not built from the current source\nsource: %s\nbundle: %s", src, bundle)
+			}
+		})
+	}
+}
