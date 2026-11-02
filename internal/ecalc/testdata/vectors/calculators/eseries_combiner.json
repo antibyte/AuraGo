@@ -1,0 +1,21 @@
+{
+  "calc": "eseries_combiner",
+  "sets": [
+    {"values": {"target": 5000}, "ref": "definition: the combiner has no rule, the target resistance is its own value (the default 5 kOhm)"},
+    {"values": {"target": 4700}, "ref": "definition: a standard value such as 4.7 kOhm is an ordinary target"},
+    {"values": {"target": 0.47}, "ref": "definition: sub-ohm targets are allowed, the resistance dimension only needs a value greater than zero"}
+  ],
+  "solve": [
+    {"inputs": {"target": 4700}, "expect": {"target": 4700}, "ref": "definition: the target is the only input and is returned unchanged"},
+    {"inputs": {"target": 0}, "errors": {"target": "range"}, "ref": "contract: a resistance must be greater than zero"},
+    {"inputs": {"target": -5}, "errors": {"target": "range"}, "ref": "contract: a negative resistance is out of range"},
+    {"inputs": {"target": "inf"}, "errors": {"target": "nonfinite"}, "ref": "contract: an infinite value is not finite"},
+    {"inputs": {}, "errors": {"target": "undetermined"}, "ref": "the target is the only input"}
+  ],
+  "combos": [
+    {"series": "E12", "target": 5000, "limit": 3, "ref": "hand: 4.7k is 6% below 5k and 5.6k 12% above, so the single is 4.7k; best series 4.7k+270 = 4970 (-0.6%) and 4.7k+330 = 5030 (+0.6%) tie on |deviation|, R2 ascending; 10k || 10k = 5k exactly", "want": [{"kind": "single", "r1": 4700, "r2": 0, "value": 4700, "dev_pct": -6}, {"kind": "series", "r1": 4700, "r2": 270, "value": 4970, "dev_pct": -0.6}, {"kind": "series", "r1": 4700, "r2": 330, "value": 5030, "dev_pct": 0.6}, {"kind": "series", "r1": 4700, "r2": 220, "value": 4920, "dev_pct": -1.6}, {"kind": "parallel", "r1": 10000, "r2": 10000, "value": 5000, "dev_pct": 0}, {"kind": "parallel", "r1": 5600, "r2": 47000, "value": 5003.802281368821, "dev_pct": 0.07604562737642483}, {"kind": "parallel", "r1": 6800, "r2": 18000, "value": 4935.4838709677415, "dev_pct": -1.2903225806451701}]},
+    {"series": "E24", "target": 5000, "limit": 2, "ref": "hand: 4.7k is 6% below 5k and 5.1k is 2% above, so the single is 5.1k; 3k+2k and 3.9k+1.1k are exactly 5k (ties are ordered by R1); 7.5k || 15k and 10k || 10k are exactly 5k", "want": [{"kind": "single", "r1": 5100, "r2": 0, "value": 5100, "dev_pct": 2}, {"kind": "series", "r1": 3000, "r2": 2000, "value": 5000, "dev_pct": 0}, {"kind": "series", "r1": 3900, "r2": 1100, "value": 5000, "dev_pct": 0}, {"kind": "parallel", "r1": 7500, "r2": 15000, "value": 5000, "dev_pct": 0}, {"kind": "parallel", "r1": 10000, "r2": 10000, "value": 5000, "dev_pct": 0}]},
+    {"series": "E96", "target": 5000, "limit": 2, "ref": "hand: 5k is no E96 value (4.99k is): the single 4.99k is -0.2% off; 2.74k+2.26k and 3.09k+1.91k are exactly 5k; 7.5k || 15k and 10k || 10k are exactly 5k", "want": [{"kind": "single", "r1": 4990, "r2": 0, "value": 4990, "dev_pct": -0.2}, {"kind": "series", "r1": 2740, "r2": 2260, "value": 5000, "dev_pct": 0}, {"kind": "series", "r1": 3090, "r2": 1910, "value": 5000, "dev_pct": 0}, {"kind": "parallel", "r1": 7500, "r2": 15000, "value": 5000, "dev_pct": 0}, {"kind": "parallel", "r1": 10000, "r2": 10000, "value": 5000, "dev_pct": 0}]},
+    {"series": "E12", "target": 4700, "limit": 2, "ref": "hand: 4.7k is an E12 value (single, no deviation); the closest series entries are 4.7k+4.7 = 4704.7 (+0.1%) and 4.7k+5.6 = 4705.6, the closest parallel ones 4.7k || 4.7M = 4695.3 (-0.1%) and 4.7k || 3.9M", "want": [{"kind": "single", "r1": 4700, "r2": 0, "value": 4700, "dev_pct": 0}, {"kind": "series", "r1": 4700, "r2": 4.7, "value": 4704.7, "dev_pct": 0.09999999999999612}, {"kind": "series", "r1": 4700, "r2": 5.6, "value": 4705.6, "dev_pct": 0.11914893617022052}, {"kind": "parallel", "r1": 4700, "r2": 4700000, "value": 4695.304695304695, "dev_pct": -0.09990009990010452}, {"kind": "parallel", "r1": 4700, "r2": 3900000, "value": 4694.3427151893875, "dev_pct": -0.12036776192792573}]}
+  ]
+}

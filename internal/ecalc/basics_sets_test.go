@@ -38,6 +38,8 @@ func TestSolvableSetsOfBasics(t *testing.T) {
 		{"star_delta", [][]string{{"rab", "rbc", "rca"}, {"ra", "rb", "rc"}}},
 		{"rms_waveform", [][]string{{"vrms"}, {"vpk"}, {"vpp"}, {"vavg"}}},
 		{"charge_energy", [][]string{{"q", "v"}, {"q", "e"}, {"v", "e"}}},
+		// The combiner has one input and no rules: the target alone determines everything.
+		{"eseries_combiner", [][]string{{"target"}}},
 	}
 	for _, w := range want {
 		c := cat.Calculator(w.id)

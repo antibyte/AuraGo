@@ -82,8 +82,13 @@ func TestCatalogSnapshot(t *testing.T) {
 
 func TestLocalizedJSONLanguagesAndFallback(t *testing.T) {
 	en, _, _ := fetch(t, "en")
-	if en.Version != 1 || en.Lang != "en" || len(en.Items) != 11 || len(en.Categories) != 13 {
-		t.Fatalf("en: version %d lang %q items %d categories %d", en.Version, en.Lang, len(en.Items), len(en.Categories))
+	cat, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The item count follows the catalog (content files add calculators); the 13 categories are fixed.
+	if en.Version != 1 || en.Lang != "en" || len(en.Items) != len(cat.Calculators) || len(en.Items) < 12 || len(en.Categories) != 13 {
+		t.Fatalf("en: version %d lang %q items %d (catalog %d) categories %d", en.Version, en.Lang, len(en.Items), len(cat.Calculators), len(en.Categories))
 	}
 	find := func(d catalogDoc, id string) int {
 		for i, it := range d.Items {

@@ -2436,6 +2436,64 @@
           "e"
         ]
       ]
+    },
+    {
+      "kind": "calculator",
+      "id": "eseries_combiner",
+      "category": "basics",
+      "name": "Standard-value combiner",
+      "name_en": "Standard-value combiner",
+      "doc": "Finds resistor values from a standard E series (IEC 60063) that reach a target: the nearest single value, and pairs in series or in parallel whose combined value comes closest. Enter the target resistance and choose the series in the settings (E6 to E192); every combination shows its value and its deviation from the target. In series R = R_1 + R_2, in parallel R = R_1 × R_2 / (R_1 + R_2). Example: 5 kΩ from E12 gives 4.7 kΩ + 270 Ω (−0.6 %) or 10 kΩ parallel to 10 kΩ (exactly 5 kΩ).",
+      "tags": [
+        "standard values",
+        "e series",
+        "e12",
+        "e24",
+        "e96",
+        "preferred numbers",
+        "resistor",
+        "combination",
+        "series",
+        "parallel",
+        "normwerte",
+        "e-reihe",
+        "normreihe",
+        "vorzugsreihe",
+        "widerstand",
+        "kombination",
+        "reihenschaltung",
+        "parallelschaltung"
+      ],
+      "source": "IEC 60063 (preferred number series E3 to E192); series and parallel resistor combination: P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "target",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Target resistance",
+          "default": 5000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [],
+      "derived": [],
+      "checks": [],
+      "formula": [],
+      "schematic": "",
+      "finder": "combine",
+      "chart": null,
+      "sets": [
+        [
+          "target"
+        ]
+      ]
     }
   ]
 }

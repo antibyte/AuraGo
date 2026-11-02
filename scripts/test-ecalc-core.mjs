@@ -64,7 +64,7 @@ let count = 0;
 
 // ---- core.json: expressions, units, E-series --------------------------------------------------------------------------
 const vectors = JSON.parse(read('internal/ecalc/testdata/vectors/core.json'));
-const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range'];
+const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range', 'combine', 'combine_count', 'combine_error'];
 for (const section of sections) assert.ok(Array.isArray(vectors[section]) && vectors[section].length > 0, `core.json has no ${section} vectors`);
 const expr = core.expr;
 const environment = v => Object.assign({}, v.env || {}, v.lists || {});
@@ -84,6 +84,25 @@ for (const v of vectors.eseries) {
     count += 1;
 }
 for (const v of vectors.eseries_error) { assert.equal(core.eseries.nearest(v.series, decode(v.v)), null, `eseries error ${v.series} ${v.v}`); count += 1; }
+// The standard-value combiner: the same entries in the same order as Combine in Go (devPct is dev_pct in the vectors).
+function checkCombine(v, where) {
+    assert.ok(v.ref, `${where}: the combine vector has no ref`);
+    const got = core.eseries.combine(v.series, v.target, v.limit);
+    const label = `${where}: combine ${v.series} ${v.target} limit ${v.limit}`;
+    assert.ok(Array.isArray(got), `${label} gives a list`);
+    assert.equal(got.length, v.want.length, `${label}: number of entries`);
+    v.want.forEach((want, index) => {
+        assert.equal(got[index].kind, want.kind, `${label} entry ${index} kind`);
+        same(got[index].r1, want.r1, `${label} entry ${index} r1`);
+        same(got[index].r2, want.r2, `${label} entry ${index} r2`);
+        same(got[index].value, want.value, `${label} entry ${index} value`);
+        same(got[index].devPct, want.dev_pct, `${label} entry ${index} deviation`, 1e-9);
+    });
+}
+for (const v of vectors.combine) { checkCombine(v, 'core.json'); count += 1; }
+for (const v of vectors.combine_count) { assert.equal(core.eseries.combine(v.series, v.target, v.limit).length, v.want, `combine count ${v.series} ${v.target} limit ${v.limit}`); count += 1; }
+for (const v of vectors.combine_error) { assert.equal(core.eseries.combine(v.series, decode(v.target), 5), null, `combine error ${v.series} ${v.target}`); count += 1; }
+assert.ok(vectors.combine.length >= 6, 'core.json has at least six combiner cases');
 assert.ok(vectors.eseries_tables, 'core.json carries the E-series tables');
 for (const [name, table] of Object.entries(vectors.eseries_tables)) { eq(core.eseries.TABLES[name], table, 'table ' + name); count += 1; }
 eq(Object.keys(core.eseries.TABLES), Object.keys(vectors.eseries_tables), 'the same series');
@@ -112,6 +131,11 @@ const split = values => {
     return env;
 };
 const SOLVE_TOLERANCE = 1e-9;
+// Every file in the vector directory is <id>.json of a calculator of the catalog (the Go twin: TestCalculatorVectorFilesNameACalculator).
+for (const file of fs.readdirSync(path.join(root, 'internal/ecalc/testdata/vectors/calculators'))) {
+    assert.ok(calculators.some(item => item.id + '.json' === file), `${file} in testdata/vectors/calculators names no calculator of the catalog`);
+    count += 1;
+}
 for (const item of calculators) {
     const file = path.join(root, 'internal/ecalc/testdata/vectors/calculators', item.id + '.json');
     assert.ok(fs.existsSync(file), `no vectors for the calculator ${item.id}`);
@@ -148,6 +172,9 @@ for (const item of calculators) {
         eq(result.warnings, v.warnings || [], `${label}: warnings`);
         count += 1;
     }
+    // A calculator with finder: combine carries combos (checked against combine); no other calculator does.
+    assert.equal((set.combos || []).length > 0, item.finder === 'combine', `${item.id}: combos belong to finder: combine and are required there`);
+    for (const v of set.combos || []) { checkCombine(v, item.id); count += 1; }
 }
 
 // ---- the defaults of every calculator solve, and every solvable set reproduces them (every choice option) ---------------

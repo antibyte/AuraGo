@@ -1,6 +1,7 @@
-/* ECalc E-series: the IEC 60063 value tables E3 to E192 and the nearest standard value with its deviation. A DOM-free
-   classic script that publishes window.ECalcCore.eseries; it mirrors internal/ecalc/eseries.go and is checked against
-   the same vectors. The decade values are written out because E3 to E24 are not the rounded roots (2.7 is not 2.6). */
+/* ECalc E-series: the IEC 60063 value tables E3 to E192, the nearest standard value with its deviation and the
+   standard-value combiner (single, series and parallel combinations of a target). A DOM-free classic script that
+   publishes window.ECalcCore.eseries; it mirrors internal/ecalc/eseries.go and is checked against the same vectors. The
+   decade values are written out because E3 to E24 are not the rounded roots (2.7 is not 2.6). */
 (function () {
     'use strict';
 
@@ -36,5 +37,68 @@
         return { value: best, dev: (best - v) / v * 100 };
     }
 
-    core.eseries = { TABLES, SERIES, nearest };
+    // The three-digit values mantissa x 10^k of a series in [lo, hi], ascending; each is the double nearest to the
+    // decimal (Number(x.toPrecision(3)), the roundSig of internal/ecalc/eseries.go).
+    function comboCandidates(table, lo, hi) {
+        const out = [];
+        for (let k = Math.floor(Math.log10(lo)) - 1; k <= Math.floor(Math.log10(hi)) + 1; k += 1) {
+            const scale = Math.pow(10, k);
+            for (const mantissa of table) {
+                const candidate = Number((mantissa * scale).toPrecision(3));
+                if (candidate >= lo && candidate <= hi && (out.length === 0 || candidate > out[out.length - 1])) out.push(candidate);
+            }
+        }
+        return out;
+    }
+
+    // Order of one group: the rank of the absolute deviation (in units of 1e-9 percent, rounded, so that deviations that
+    // agree to that precision are equal and floating-point noise cannot reorder exact hits), then r1, then r2.
+    // Math.round and Go's math.Round agree for the non-negative values here.
+    const COMBO_MAX_LIMIT = 1000;
+    const comboBefore = (qa, r1a, r2a, qb, b) => (qa !== qb ? qa < qb : r1a !== b.r1 ? r1a < b.r1 : r2a < b.r2);
+
+    // Keeps the best `limit` entries of a stream of candidates, in order; an entry is only built when it makes the list.
+    // The order is total (r1 and r2 differ between candidates), so the result does not depend on the order in which the
+    // candidates are offered.
+    function bestOf(kind, limit, target) {
+        const list = [], ranks = [];
+        let worst = Infinity; // the rank of the last entry once the list is full: anything worse is dropped at once
+        return {
+            list,
+            offer(r1, r2, value) {
+                const devPct = (value - target) / target * 100;
+                const q = Math.round(Math.abs(devPct) * 1e9), n = list.length;
+                if (q > worst || (n === limit && !comboBefore(q, r1, r2, ranks[n - 1], list[n - 1]))) return;
+                let at = n;
+                while (at > 0 && comboBefore(q, r1, r2, ranks[at - 1], list[at - 1])) at -= 1;
+                list.splice(at, 0, { kind, r1, r2, value, devPct });
+                ranks.splice(at, 0, q);
+                if (list.length > limit) { list.pop(); ranks.pop(); }
+                if (list.length === limit) worst = ranks[limit - 1];
+            }
+        };
+    }
+
+    // The standard-value combiner (Combine in internal/ecalc/eseries.go): the single nearest value first, then at most
+    // `limit` pairs in series (r1 >= r2, both values in [target/1000, target]) and at most `limit` pairs in parallel
+    // (r1 <= r2, both in [target, 1000 * target]), each group by |devPct|, then r1, then r2. A limit below one leaves the
+    // single entry; a limit above 1000 counts as 1000. Entries are {kind: 'single' | 'series' | 'parallel', r1, r2,
+    // value, devPct}; r2 is 0 for the single value. Returns null for an unknown series or a target that is not finite
+    // and greater than zero.
+    function combine(series, target, limit) {
+        const single = nearest(series, target);
+        if (!single) return null;
+        const out = [{ kind: 'single', r1: single.value, r2: 0, value: single.value, devPct: single.dev }];
+        if (!(limit >= 1)) return out;
+        const cap = Math.min(Math.floor(limit), COMBO_MAX_LIMIT);
+        const table = TABLES[series];
+        const inSeries = bestOf('series', cap, target), inParallel = bestOf('parallel', cap, target);
+        const small = comboCandidates(table, target / 1000, target);
+        small.forEach((r1, i) => { for (let j = 0; j <= i; j += 1) inSeries.offer(r1, small[j], r1 + small[j]); });
+        const large = comboCandidates(table, target, target * 1000);
+        large.forEach((r1, i) => { for (let j = i; j < large.length; j += 1) inParallel.offer(r1, large[j], r1 * large[j] / (r1 + large[j])); });
+        return out.concat(inSeries.list, inParallel.list);
+    }
+
+    core.eseries = { TABLES, SERIES, nearest, combine };
 })();

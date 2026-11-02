@@ -107,6 +107,121 @@ func Nearest(series string, v float64) (value, devPct float64, err error) {
 	return best, (best - v) / v * 100, nil
 }
 
+// Kinds of a Combo.
+const (
+	ComboSingle   = "single"
+	ComboSeries   = "series"
+	ComboParallel = "parallel"
+)
+
+// Combo is one way to reach a target resistance with standard values: the single nearest value (R2 is 0), two values in
+// series (R1 >= R2, Value = R1 + R2) or two values in parallel (R1 <= R2, Value = R1*R2/(R1+R2)). DevPct is
+// (Value - target) / target in percent.
+type Combo struct {
+	Kind   string  `json:"kind"`
+	R1     float64 `json:"r1"`
+	R2     float64 `json:"r2"`
+	Value  float64 `json:"value"`
+	DevPct float64 `json:"dev_pct"`
+}
+
+// comboCandidates lists the three-digit values mantissa x 10^k of the series that lie in [lo, hi], ascending. Each is
+// roundSig(m*10^k, 3), the double nearest to the decimal (and the same number in JavaScript).
+func comboCandidates(mantissas []float64, lo, hi float64) []float64 {
+	var out []float64
+	for k := int(math.Floor(log10(lo))) - 1; k <= int(math.Floor(log10(hi)))+1; k++ {
+		scale := math.Pow10(k)
+		for _, m := range mantissas {
+			if c := roundSig(m*scale, 3); c >= lo && c <= hi && (len(out) == 0 || c > out[len(out)-1]) {
+				out = append(out, c)
+			}
+		}
+	}
+	return out
+}
+
+// ComboMaxLimit caps the limit of Combine: the groups of a real target hold thousands of pairs and nobody reads more.
+const ComboMaxLimit = 1000
+
+// comboRank is the sort key of an entry's deviation: |DevPct| in units of 1e-9 percent, rounded, so that deviations
+// that agree to that precision count as equal (floating-point noise cannot reorder exact hits).
+func comboRank(c Combo) float64 { return math.Round(math.Abs(c.DevPct) * 1e9) }
+
+// comboBefore orders the entries of one group: by rank, then by R1, then by R2.
+func comboBefore(qa float64, a Combo, qb float64, b Combo) bool {
+	switch {
+	case qa != qb:
+		return qa < qb
+	case a.R1 != b.R1:
+		return a.R1 < b.R1
+	}
+	return a.R2 < b.R2
+}
+
+// comboBest keeps the best limit entries of a stream of candidates, in order. Because the order is total (R1 and R2
+// differ between candidates), the result does not depend on the order in which the candidates are offered.
+type comboBest struct {
+	limit int
+	list  []Combo
+	rank  []float64
+}
+
+func (b *comboBest) offer(c Combo) {
+	q := comboRank(c)
+	n := len(b.list)
+	if n == b.limit && !comboBefore(q, c, b.rank[n-1], b.list[n-1]) {
+		return
+	}
+	at := n
+	for at > 0 && comboBefore(q, c, b.rank[at-1], b.list[at-1]) {
+		at--
+	}
+	if n < b.limit {
+		b.list, b.rank = append(b.list, Combo{}), append(b.rank, 0)
+	}
+	m := len(b.list)
+	copy(b.list[at+1:m], b.list[at:m-1])
+	copy(b.rank[at+1:m], b.rank[at:m-1])
+	b.list[at], b.rank[at] = c, q
+}
+
+// Combine lists standard values of the series that reach target: first the single nearest value (see Nearest), then at
+// most limit pairs in series (both values in [target/1000, target]) and at most limit pairs in parallel (both values in
+// [target, 1000*target]). Each group is ordered by |DevPct| (deviations that agree to 1e-9 percent are equal), then R1,
+// then R2, and a pair appears once. A limit below one leaves the single entry and a limit above ComboMaxLimit counts as
+// ComboMaxLimit. The series must be known and target finite and greater than zero.
+func Combine(series string, target float64, limit int) ([]Combo, error) {
+	value, dev, err := Nearest(series, target)
+	if err != nil {
+		return nil, err
+	}
+	out := []Combo{{Kind: ComboSingle, R1: value, Value: value, DevPct: dev}}
+	if limit < 1 {
+		return out, nil
+	}
+	limit = min(limit, ComboMaxLimit)
+	mantissas := eseriesTables[series]
+	deviation := func(v float64) float64 { return (v - target) / target * 100 }
+
+	inSeries := &comboBest{limit: limit}
+	small := comboCandidates(mantissas, target/1000, target)
+	for i, r1 := range small {
+		for _, r2 := range small[:i+1] {
+			v := r1 + r2
+			inSeries.offer(Combo{Kind: ComboSeries, R1: r1, R2: r2, Value: v, DevPct: deviation(v)})
+		}
+	}
+	inParallel := &comboBest{limit: limit}
+	large := comboCandidates(mantissas, target, target*1000)
+	for i, r1 := range large {
+		for _, r2 := range large[i:] {
+			v := r1 * r2 / (r1 + r2)
+			inParallel.offer(Combo{Kind: ComboParallel, R1: r1, R2: r2, Value: v, DevPct: deviation(v)})
+		}
+	}
+	return append(append(out, inSeries.list...), inParallel.list...), nil
+}
+
 func bigPow10(n int) *big.Int {
 	return new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(n)), nil)
 }
