@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`internal/ecalc` is the engine of the ECalc Desktop app, an electronics formula collection: an embedded declarative catalog (YAML), a small safe expression language, unit parsing and formatting, E-series lookup, a rule propagation solver and the localized catalog JSON. It has no server dependency; the HTTP route, the Desktop app and the later agent tool all use it directly.
+`internal/ecalc` is the engine of the ECalc Desktop app, an electronics formula collection: an embedded declarative catalog (YAML), a small safe expression language, unit parsing and formatting, E-series lookup, a rule propagation solver and the localized catalog JSON. It has no server dependency; the HTTP route, the Desktop app and the agent tool `ecalc` all use it directly.
 
 ## Ownership
 
@@ -13,9 +13,10 @@
   - `solve.go`: `Solve`, `SolvableSets`.
   - `catalog.go` + `catalog/categories.yaml` + `catalog/calculators/*.yaml`: schema (including the var/derived `units` whitelist, the choice option `ignore` list, the `finder` and the `chart`), strict `Load`, `Default()` (embedded, validated once).
   - `localize.go`: `LocalizedJSON(lang)`, ETag, per-language cache.
+  - `query.go`: the read-only query API of the agent tool (`Search`/`SearchAll`/`Overview`, `Describe`, `Calculate`, `Check`, `QueryError`); English output, no server dependency.
   - `yamlutil.go`: strict YAML decoding helpers.
   - `testdata/vectors/core.json`, `testdata/vectors/calculators/<id>.json`: shared vectors; `testdata/catalog.en.json`: generated snapshot.
-- Owned elsewhere: `GET /api/ecalc/catalog` and its audit contract (`internal/server`, `internal/audit`), the Desktop registration (`internal/desktop`), the app, schematics and the JavaScript mirror (`ui/js/desktop/apps/ecalc/`, `ui/css/desktop-app-ecalc.css`, `scripts/test-ecalc-core.mjs`), the manual chapter (`documentation/manuals/*/32-ecalc.md`) and the translated app strings (`ui/lang/desktop/*.json`). Tables, codes, pinouts, `lookup`/`interp` and the agent tool are later phases of `docs/superpowers/specs/2026-11-01-ecalc-design.md`.
+- Owned elsewhere: `GET /api/ecalc/catalog` and its audit contract (`internal/server`, `internal/audit`), the Desktop registration (`internal/desktop`), the app, schematics and the JavaScript mirror (`ui/js/desktop/apps/ecalc/`, `ui/css/desktop-app-ecalc.css`, `scripts/test-ecalc-core.mjs`), the manual chapter (`documentation/manuals/*/32-ecalc.md`) and the translated app strings (`ui/lang/desktop/*.json`). The agent tool is `internal/tools/ecalc.go` and `internal/agent/native_tools_ecalc.go`. Tables, codes, pinouts and `lookup`/`interp` are later phases of `docs/superpowers/specs/2026-11-01-ecalc-design.md`.
 
 ## Local Contracts
 
@@ -33,6 +34,7 @@
 - `LocalizedJSON` normalizes the language (unknown or empty means `en`) and caches by the normalized language, so the cache never exceeds the 16 locales; the body and ETag of `en`, `xx` and `""` are identical. Collections in the JSON are never `null`.
 - Content honesty: `source` names a standard by number or a well-known work at book or chapter level only, never an invented page, URL or application-note number. Every rule direction is covered by at least two hand-checked sets (two per option of every choice); expected values come from exact arithmetic, a definition or a published constant, never from running the solver. Every calculator must pass the round-trip test (defaults, then every solvable input set, for every choice option).
 - E-series: E3 to E24 are the IEC 60063 hand-picked values; E48 and E96 are 10^(k/N) rounded to three digits; E192 is the same except 9.20 at index 185. `eseries_tables` in `core.json` publishes them for the JavaScript mirror.
+- The agent tool reads the catalog only through `query.go`. A bare number in a request is in the variable's default display unit and list items carry their unit without a space (`ParseList` splits at white space). `Calculate` solves from the first solvable set (catalog order) inside the given variables, lists the other given values that differ from the computed one by more than 1 % as contradictions, fills the defaults of variables an option ignores only when the given values are not a solvable set, and adds `combos` for `finder: combine`. Ids of calculators, variables, choices and options stay inside `^[a-z][a-z0-9_]{0,31}$` (calculators 63) because the desktop bridge drops longer ones (`TestCatalogIDsFitTheDesktopBridge`). `TestCalculateEveryCalculatorFromItsDefaults` re-solves every calculator from its defaults.
 
 ## Work Guidance
 
