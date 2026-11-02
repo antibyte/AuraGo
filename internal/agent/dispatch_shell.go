@@ -87,7 +87,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 				}
 				return isolatedBackgroundStartedOutput(task.ID)
 			}
-			pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
+			pid, err := tools.ExecuteShellBackground(ctx, req.Command, cfg.Directories.WorkspaceDir, registry)
 			if err != nil {
 				setToolOutcome(ctx, ToolResultFailed)
 				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background shell process: %v", err)
@@ -134,6 +134,10 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 		return fmt.Sprintf("Tool Output:\n%s", out)
 
 	case "execute_sudo":
+		if !cfg.Agent.AllowShell {
+			setToolOutcome(ctx, ToolResultDenied)
+			return formatToolPermissionDenied("execute_sudo", "runtime_permissions", "agent.allow_shell", "execute_sudo requires shell access")
+		}
 		if !cfg.Agent.SudoEnabled {
 			return "Tool Output: [PERMISSION DENIED] execute_sudo is not enabled in config. Set agent.sudo_enabled: true and store the sudo password in the vault as 'sudo_password'."
 		}
@@ -152,7 +156,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 			return "Tool Output: [PERMISSION DENIED] sudo password not found in vault. Store it first: {\"action\": \"secrets_vault\", \"operation\": \"store\", \"key\": \"sudo_password\", \"value\": \"<password>\"}"
 		}
 		logger.Info("LLM requested sudo execution", "command", Truncate(req.Command, 200))
-		stdoutS, stderrS, errS := tools.ExecuteSudo(req.Command, cfg.Directories.WorkspaceDir, sudoPass)
+		stdoutS, stderrS, errS := tools.ExecuteSudo(ctx, req.Command, cfg.Directories.WorkspaceDir, sudoPass)
 		stdoutS = security.Scrub(stdoutS)
 		stderrS = security.Scrub(stderrS)
 

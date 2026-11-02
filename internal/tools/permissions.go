@@ -452,11 +452,11 @@ func requirePackageManagerPermission() error {
 	return requireRuntimePermission("package manager", perms.PackageManagerEnabled)
 }
 
-func requirePackageManagerMutationPermission(operation string) error {
-	if err := requirePackageManagerPermission(); err != nil {
-		return err
+func requirePackageManagerMutationPermission(ctx context.Context, operation string) error {
+	perms, configured := EffectiveRuntimePermissions(ctx)
+	if !configured || !perms.PackageManagerEnabled {
+		return requireRuntimePermission("package manager", false)
 	}
-	perms, _ := currentRuntimePermissions()
 	if perms.PackageManagerReadOnly {
 		return fmt.Errorf("package manager mutation is disabled by runtime permissions")
 	}

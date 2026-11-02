@@ -33,6 +33,8 @@ Execute arbitrary shell commands on the host system. Uses PowerShell (`powershel
 
 ## Notes
 
+- **Permissions and lifetime:** Both the current run and live server must authorize startup. Foreground commands stop with the run; accepted background processes retain their managed lifetime after the dispatch ends.
+- **Command policy:** Literal executable paths, quoted executable names, Windows .exe names and env/assignment prefixes obey the same high-risk checks. The env split-string modes are refused like nested interpreter commands. These checks supplement OS isolation and do not make arbitrary shell code safe.
 - **Foreground timeout:** 30 seconds. Use `background: true` for longer tasks.
 - **Background completion:** Call `wait_for_event` with `event_type: "process_exited"`, then inspect its exit code and log summary before reporting success. Do not poll with `sleep`.
 - **Preserve exit codes:** Do not append `| tail` to background commands. AuraGo already bounds captured output with its ring buffer, while a pipeline can hide the actual command's failure.

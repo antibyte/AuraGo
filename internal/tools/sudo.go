@@ -16,6 +16,8 @@ import (
 
 var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 
+var sudoRunCommand = newSudoRunCommand
+
 // newSudoRunCommand runs command under the cached sudo timestamp. -n fails
 // instead of prompting and stdin stays closed, so the password is never on
 // the command's input.
@@ -55,8 +57,12 @@ func (l *sudoLease) Explain(err error) error {
 // withSudoTicket registers password with the scrubber and acquires the shared
 // sudo ticket. On failure it returns sudo's output scrubbed.
 func withSudoTicket(password, dir string) (*sudoLease, string, error) {
+	return withSudoTicketContext(context.Background(), password, dir)
+}
+
+func withSudoTicketContext(ctx context.Context, password, dir string) (*sudoLease, string, error) {
 	unregister := security.RegisterScopedSensitiveExact(password)
-	lease, authOut, err := sudoticket.Acquire(context.Background(), dir, password)
+	lease, authOut, err := sudoticket.Acquire(ctx, dir, password)
 	if err != nil {
 		authOut = security.Scrub(authOut)
 		unregister()

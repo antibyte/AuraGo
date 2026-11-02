@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 func enabledPackageManagerConfig() *config.Config {
 	cfg := &config.Config{}
 	cfg.Agent.AllowPackageManager = true
+	cfg.Agent.AllowShell = true
 	cfg.Agent.SudoEnabled = true
 	cfg.Agent.SudoUnrestricted = true
 	cfg.PackageManager.Enabled = true
@@ -34,6 +36,13 @@ func TestDispatchPackageManagerPrivilegeGuards(t *testing.T) {
 		configure  func(*config.Config)
 		wantSubstr string
 	}{
+		{
+			name: "shell disabled",
+			configure: func(cfg *config.Config) {
+				cfg.Agent.AllowShell = false
+			},
+			wantSubstr: "agent.allow_shell=true",
+		},
 		{
 			name: "sudo disabled",
 			configure: func(cfg *config.Config) {
@@ -74,7 +83,7 @@ func TestDispatchPackageManagerPrivilegeGuards(t *testing.T) {
 			cfg := enabledPackageManagerConfig()
 			tt.configure(cfg)
 
-			got := dispatchPackageManager(packageManagerCall("install"), &DispatchContext{Cfg: cfg})
+			got := dispatchPackageManager(context.Background(), packageManagerCall("install"), &DispatchContext{Cfg: cfg})
 			if !strings.Contains(got, tt.wantSubstr) {
 				t.Fatalf("dispatchPackageManager() = %q, want substring %q", got, tt.wantSubstr)
 			}
@@ -86,7 +95,7 @@ func TestDispatchPackageManagerRejectsDisabledTool(t *testing.T) {
 	cfg := enabledPackageManagerConfig()
 	cfg.PackageManager.Enabled = false
 
-	got := dispatchPackageManager(packageManagerCall("detect"), &DispatchContext{Cfg: cfg})
+	got := dispatchPackageManager(context.Background(), packageManagerCall("detect"), &DispatchContext{Cfg: cfg})
 	if !strings.Contains(got, "package_manager is disabled") {
 		t.Fatalf("dispatchPackageManager() = %q, want disabled-tool guidance", got)
 	}
@@ -99,7 +108,7 @@ func TestDispatchPackageManagerDetectRemainsAvailableWithSystemWriteRestrictions
 	cfg.Runtime.NoNewPrivileges = true
 	cfg.Runtime.ProtectSystemStrict = true
 
-	got := dispatchPackageManager(packageManagerCall("detect"), &DispatchContext{Cfg: cfg})
+	got := dispatchPackageManager(context.Background(), packageManagerCall("detect"), &DispatchContext{Cfg: cfg})
 	for _, want := range []string{`"status":"success"`, `"manager":"apt"`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dispatchPackageManager() = %q, want substring %q", got, want)
@@ -136,6 +145,7 @@ func TestPackageManagerToolRequiresBothConfigGates(t *testing.T) {
 
 func TestDispatchSudoReportsProtectSystemRestrictionBeforeVaultLookup(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
 	cfg.Agent.SudoEnabled = true
 	cfg.Agent.SudoUnrestricted = true
 	cfg.Runtime.ProtectSystemStrict = true

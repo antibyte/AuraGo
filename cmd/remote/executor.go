@@ -504,7 +504,11 @@ func (e *Executor) shellExecContext(ctx context.Context, command, workDir string
 	}
 
 	// Security: Check for dangerous commands before execution
-	if err := shellpolicy.ValidateCommand(command); err != nil {
+	escape := byte('\\')
+	if runtime.GOOS == "windows" {
+		escape = '^'
+	}
+	if err := shellpolicy.ValidateCommandWithEscape(command, escape); err != nil {
 		e.logger.Warn("[shellExec] blocked shell command", "reason", err.Error(), "command", command)
 		return "", err
 	}

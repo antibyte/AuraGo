@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"runtime"
 	"strings"
@@ -120,7 +121,7 @@ func TestDetectPackageManagerUsesLookPath(t *testing.T) {
 func TestPackageManagerPermissionDefaultsDeny(t *testing.T) {
 	ClearRuntimePermissionsForTest()
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
-	_, _, err := PackageManagerInstall("apt", "jq", false, "")
+	_, _, err := PackageManagerInstall(context.Background(), "apt", "jq", false, "")
 	if err == nil || !strings.Contains(err.Error(), "runtime permissions") {
 		t.Fatalf("PackageManagerInstall() error = %v, want runtime permission denial", err)
 	}

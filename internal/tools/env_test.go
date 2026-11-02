@@ -258,7 +258,7 @@ func TestExecuteShellBackgroundHidesDockerClientEnvWithoutDockerPermission(t *te
 	configureDockerPermissionForTest(t, false)
 	registry := NewProcessRegistry(slog.Default())
 
-	pid, err := ExecuteShellBackground(shellPrintDockerEnvCommand(), t.TempDir(), registry)
+	pid, err := ExecuteShellBackground(context.Background(), shellPrintDockerEnvCommand(), t.TempDir(), registry)
 	if err != nil {
 		t.Fatalf("ExecuteShellBackground() error = %v", err)
 	}

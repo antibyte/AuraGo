@@ -3,10 +3,15 @@ package tools
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/sudoticket"
 )
@@ -16,6 +21,63 @@ func TestNormalizeSudoStderrRemovesLocalizedPrompt(t *testing.T) {
 	got := normalizeSudoStderr(stderr)
 	if got != "permission denied" {
 		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, "permission denied")
+	}
+}
+
+func TestWithSudoTicketContextHonorsCancellation(t *testing.T) {
+	started := make(chan struct{})
+	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		Passwordless: func(context.Context, string) error { return errors.New("password required") },
+		Validate: func(ctx context.Context, _, _ string) ([]byte, error) {
+			close(started)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(2 * time.Second):
+				return nil, errors.New("caller cancellation was lost")
+			}
+		},
+		Probe: func(context.Context, string) error { return nil },
+		Drop:  func() {},
+	}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		lease, _, err := withSudoTicketContext(ctx, "test-only-context-password", ".")
+		lease.Release()
+		done <- err
+	}()
+	<-started
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("ticket error=%v, want cancelled authentication", err)
+	}
+	if security.Scrub("test-only-context-password") != "test-only-context-password" {
+		t.Fatal("cancelled authentication retained its password registration")
+	}
+}
+
+func TestExecuteSudoHonorsForegroundCancellation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sudo execution is Unix-only; ticket cancellation is tested on every platform")
+	}
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
+	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	installFakeTicketSudo(t, &fakeTicketSudo{})
+	previous := sudoRunCommand
+	t.Cleanup(func() { sudoRunCommand = previous })
+	sudoRunCommand = func(_, dir string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestBackgroundProcessSupervisorHelper", "--", "sleep")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GO_WANT_BACKGROUND_HELPER=1")
+		return cmd
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, _, err := ExecuteSudo(ctx, "echo test-only", t.TempDir(), "test-only"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("sudo error=%v, want caller deadline", err)
 	}
 }
 

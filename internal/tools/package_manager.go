@@ -40,20 +40,20 @@ func detectPackageManagerFrom(candidates []string, errMsg string) (string, error
 	return "", fmt.Errorf("%s", errMsg)
 }
 
-func PackageManagerInstall(pm, pkg string, sudo bool, password string) (string, string, error) {
-	return runPackageManagerMutation(pm, "install", pkg, sudo, password)
+func PackageManagerInstall(ctx context.Context, pm, pkg string, sudo bool, password string) (string, string, error) {
+	return runPackageManagerMutation(ctx, pm, "install", pkg, sudo, password)
 }
 
-func PackageManagerRemove(pm, pkg string, sudo bool, password string) (string, string, error) {
-	return runPackageManagerMutation(pm, "remove", pkg, sudo, password)
+func PackageManagerRemove(ctx context.Context, pm, pkg string, sudo bool, password string) (string, string, error) {
+	return runPackageManagerMutation(ctx, pm, "remove", pkg, sudo, password)
 }
 
-func PackageManagerUpdate(pm string, sudo bool, password string) (string, string, error) {
-	return runPackageManagerMutation(pm, "update", "", sudo, password)
+func PackageManagerUpdate(ctx context.Context, pm string, sudo bool, password string) (string, string, error) {
+	return runPackageManagerMutation(ctx, pm, "update", "", sudo, password)
 }
 
-func PackageManagerUpgrade(pm, pkg string, sudo bool, password string) (string, string, error) {
-	return runPackageManagerMutation(pm, "upgrade", pkg, sudo, password)
+func PackageManagerUpgrade(ctx context.Context, pm, pkg string, sudo bool, password string) (string, string, error) {
+	return runPackageManagerMutation(ctx, pm, "upgrade", pkg, sudo, password)
 }
 
 func PackageManagerSearch(pm, query string) (string, error) {
@@ -68,8 +68,14 @@ func PackageManagerInfo(pm, pkg string) (string, error) {
 	return runPackageManagerReadOnly(pm, "info", pkg)
 }
 
-func runPackageManagerMutation(pm, operation, pkg string, sudo bool, password string) (string, string, error) {
-	if err := requirePackageManagerMutationPermission(operation); err != nil {
+func runPackageManagerMutation(ctx context.Context, pm, operation, pkg string, sudo bool, password string) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
+	if err := requirePackageManagerMutationPermission(ctx, operation); err != nil {
 		return "", "", err
 	}
 	cmd, err := buildPMCommand(pm, operation, pkg)
@@ -80,10 +86,10 @@ func runPackageManagerMutation(pm, operation, pkg string, sudo bool, password st
 		if strings.TrimSpace(password) == "" {
 			return "", "", fmt.Errorf("sudo password is required for %s with %s; store sudo_password in the vault", operation, pm)
 		}
-		stdout, stderr, err := ExecuteSudo(shellJoin(cmd.Args), ".", password)
+		stdout, stderr, err := ExecuteSudo(ctx, shellJoin(cmd.Args), ".", password)
 		return NormalizePMOutput(stdout), NormalizePMOutput(stderr), err
 	}
-	stdout, stderr, err := runPackageManagerCommand(cmd)
+	stdout, stderr, err := runPackageManagerCommand(ctx, cmd)
 	return stdout, stderr, err
 }
 
@@ -95,7 +101,7 @@ func runPackageManagerReadOnly(pm, operation, pkg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	stdout, stderr, err := runPackageManagerCommand(cmd)
+	stdout, stderr, err := runPackageManagerCommand(context.Background(), cmd)
 	if err != nil {
 		if stderr != "" {
 			return stdout, fmt.Errorf("command failed: %w: %s", err, stderr)
@@ -311,7 +317,7 @@ func buildPMCommand(pm, operation, pkg string) (*exec.Cmd, error) {
 	return nil, fmt.Errorf("unsupported package manager operation: %s for %s", operation, pm)
 }
 
-func runPackageManagerCommand(cmd *exec.Cmd) (string, string, error) {
+func runPackageManagerCommand(ctx context.Context, cmd *exec.Cmd) (string, string, error) {
 	SetupCmd(cmd)
 	runner := NewForegroundRunner(cmd, ForegroundOptions{
 		Timeout:  GetForegroundTimeout(),
@@ -319,7 +325,7 @@ func runPackageManagerCommand(cmd *exec.Cmd) (string, string, error) {
 		KillWait: shellKillWait,
 		ErrMsg:   "TIMEOUT: package manager command exceeded %s limit",
 	})
-	stdout, stderr, err := runner.Run(context.Background())
+	stdout, stderr, err := runner.Run(ctx)
 	return NormalizePMOutput(stdout), NormalizePMOutput(stderr), err
 }
 
