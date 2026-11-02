@@ -1,0 +1,323 @@
+package render
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+type listenerFixture struct {
+	l      *Listener
+	client *http.Client
+	mu     sync.Mutex
+	report []byte
+	frames []string
+	errors []PageError
+}
+
+func newListenerFixture(t *testing.T) *listenerFixture {
+	t.Helper()
+	fx := &listenerFixture{client: &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}}
+	prefix, err := NewPrefix()
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := &Snapshot{
+		Story:        []byte(`{"schema":"storymaker/1"}`),
+		CatalogFiles: map[string][]byte{"catalog.json": []byte(`{"schema":"storymaker-catalog/1"}`), "rig/human.json": []byte(`{"id":"rig.human/1"}`)},
+		Fonts:        []SnapshotFont{{Name: "default", Family: "Geist", Weight: 400, File: "/fonts/Geist-Regular.woff2", Data: []byte("wOF2font")}},
+		CodeBundles:  map[string][]byte{"s3": []byte("self.__smScene=function(){};")},
+		HostBundle:   []byte("/*host*/"), PlayerBundle: []byte("/*player*/"),
+	}
+	params := PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG, FrameLimit: 27000}
+	hooks := Hooks{
+		Report: func(body []byte) ReportAnswer {
+			fx.mu.Lock()
+			fx.report = append([]byte(nil), body...)
+			fx.mu.Unlock()
+			return ReportAnswer{Start: true}
+		},
+		Frame: func(n int, ct string, data []byte) (FrameAnswer, int) {
+			fx.mu.Lock()
+			fx.frames = append(fx.frames, ct+"|"+string(data))
+			fx.mu.Unlock()
+			if n == 2 {
+				return FrameAnswer{OK: true, Done: true}, http.StatusOK
+			}
+			return FrameAnswer{OK: true}, http.StatusOK
+		},
+		Error: func(e PageError) {
+			fx.mu.Lock()
+			fx.errors = append(fx.errors, e)
+			fx.mu.Unlock()
+		},
+	}
+	l, err := StartListener(prefix, snap, params, hooks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	fx.l = l
+	return fx
+}
+
+func (fx *listenerFixture) do(t *testing.T, method, rawURL string, body []byte, header map[string]string) (*http.Response, []byte) {
+	t.Helper()
+	req, err := http.NewRequest(method, rawURL, bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	res, err := fx.client.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, rawURL, err)
+	}
+	defer res.Body.Close()
+	data, _ := io.ReadAll(res.Body)
+	return res, data
+}
+
+func TestListenerBindsLoopbackAndAnswers404OutsideTheBase(t *testing.T) {
+	fx := newListenerFixture(t)
+	if !strings.HasPrefix(fx.l.Origin(), "http://127.0.0.1:") {
+		t.Fatalf("origin = %s", fx.l.Origin())
+	}
+	if len(fx.l.prefix) != 32 {
+		t.Fatalf("prefix length = %d", len(fx.l.prefix))
+	}
+	other := strings.Repeat("0", 32)
+	for _, p := range []string{
+		"/", "/favicon.ico", "/" + fx.l.prefix, "/" + other + "/", "/" + other + "/boot.json",
+		"/" + fx.l.prefix + "/../story.json", "/" + fx.l.prefix[:30] + "/", "/js/storymaker/host.bundle.js",
+		"/" + fx.l.prefix + "/nothing", "/" + fx.l.prefix + "/catalog/missing.json", "/" + fx.l.prefix + "/catalog/../story.json",
+		"/" + fx.l.prefix + "/fonts/Other.woff2", "/" + fx.l.prefix + "/scenes/nope.js", "/" + fx.l.prefix + "/story.json/",
+		"/" + fx.l.prefix + "//story.json",
+	} {
+		res, _ := fx.do(t, http.MethodGet, fx.l.Origin()+p, nil, nil)
+		if res.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404", p, res.StatusCode)
+		}
+		if res.Header.Get("Access-Control-Allow-Origin") != "" && !strings.HasPrefix(p, "/"+fx.l.prefix) {
+			t.Errorf("GET %s sent CORS headers outside the base", p)
+		}
+	}
+	// A request that names another Host (DNS rebinding) is refused even with the right path.
+	res, _ := fx.do(t, http.MethodGet, fx.l.Base()+"/boot.json", nil, map[string]string{"Host": "evil.example:80"})
+	_ = res
+	req, _ := http.NewRequest(http.MethodGet, fx.l.Base()+"/boot.json", nil)
+	req.Host = "evil.example"
+	rebound, err := fx.client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = rebound.Body.Close()
+	if rebound.StatusCode != http.StatusNotFound {
+		t.Errorf("foreign Host header = %d, want 404", rebound.StatusCode)
+	}
+}
+
+func TestListenerServesTheRenderPageWithTheExactHeaders(t *testing.T) {
+	fx := newListenerFixture(t)
+	res, body := fx.do(t, http.MethodGet, fx.l.Base()+"/", nil, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", res.StatusCode)
+	}
+	base := fx.l.Base()
+	wantCSP := "sandbox allow-scripts; default-src 'none'; script-src " + base + "/js/ blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src " + base + "/; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
+	if got := res.Header.Get("Content-Security-Policy"); got != wantCSP {
+		t.Errorf("CSP = %q\nwant %q", got, wantCSP)
+	}
+	if got := res.Header.Get("Referrer-Policy"); got != "no-referrer" {
+		t.Errorf("Referrer-Policy = %q", got)
+	}
+	if got := res.Header.Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Cache-Control = %q", got)
+	}
+	if got := res.Header.Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type = %q", got)
+	}
+	if got := res.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("ACAO = %q", got)
+	}
+	want := `<!doctype html><html data-sm-mode="render" data-sm-base="` + base + `"><head><meta charset="utf-8"></head>` +
+		`<body><canvas id="sm-stage" width="1920" height="1080"></canvas><script src="` + base + `/js/storymaker/host.bundle.js"></script></body></html>`
+	if string(body) != want {
+		t.Errorf("page:\n%s\nwant:\n%s", body, want)
+	}
+	if strings.Contains(string(body), "<style") || strings.Contains(string(body), "onload") || strings.Contains(string(body), "<script>") {
+		t.Error("the render page carries inline script or style")
+	}
+	// HEAD works without a body.
+	head, hb := fx.do(t, http.MethodHead, base+"/", nil, nil)
+	if head.StatusCode != http.StatusOK || len(hb) != 0 {
+		t.Errorf("HEAD = %d with %d body bytes", head.StatusCode, len(hb))
+	}
+}
+
+func TestListenerServesTheSnapshotOnly(t *testing.T) {
+	fx := newListenerFixture(t)
+	base := fx.l.Base()
+	_, boot := fx.do(t, http.MethodGet, base+"/boot.json", nil, nil)
+	var doc map[string]any
+	if err := json.Unmarshal(boot, &doc); err != nil {
+		t.Fatalf("boot.json: %v\n%s", err, boot)
+	}
+	checks := map[string]any{"mode": "render", "fps": float64(30), "width": float64(1920), "height": float64(1080), "transport": "png",
+		"frame_limit": float64(27000), "story_url": base + "/story.json", "catalog_url": base + "/catalog/catalog.json", "assets_base": base + "/catalog/"}
+	for k, want := range checks {
+		if doc[k] != want {
+			t.Errorf("boot.%s = %v, want %v", k, doc[k], want)
+		}
+	}
+	bundles, _ := doc["code_bundles"].(map[string]any)
+	if bundles["s3"] != base+"/scenes/s3.js" {
+		t.Errorf("code_bundles = %v", doc["code_bundles"])
+	}
+	fonts, _ := doc["fonts"].([]any)
+	if len(fonts) != 1 {
+		t.Fatalf("fonts = %v", doc["fonts"])
+	}
+	font := fonts[0].(map[string]any)
+	if font["name"] != "default" || font["family"] != "Geist" || font["weight"] != float64(400) || font["url"] != base+"/fonts/Geist-Regular.woff2" {
+		t.Errorf("font = %v", font)
+	}
+	if _, ok := doc["audio_info"].(map[string]any); !ok {
+		t.Errorf("audio_info = %v", doc["audio_info"])
+	}
+
+	for path, want := range map[string]string{
+		"/story.json": `{"schema":"storymaker/1"}`, "/catalog/catalog.json": `{"schema":"storymaker-catalog/1"}`,
+		"/catalog/rig/human.json": `{"id":"rig.human/1"}`, "/fonts/Geist-Regular.woff2": "wOF2font", "/scenes/s3.js": "self.__smScene=function(){};",
+		"/js/storymaker/host.bundle.js": "/*host*/", "/js/storymaker/player.bundle.js": "/*player*/",
+	} {
+		res, body := fx.do(t, http.MethodGet, base+path, nil, nil)
+		if res.StatusCode != http.StatusOK || string(body) != want {
+			t.Errorf("GET %s = %d %q", path, res.StatusCode, body)
+		}
+		if res.Header.Get("Access-Control-Allow-Origin") != "*" || res.Header.Get("Cache-Control") != "no-store" || res.Header.Get("X-Content-Type-Options") != "nosniff" {
+			t.Errorf("GET %s lacks the response headers: %v", path, res.Header)
+		}
+	}
+	if res, _ := fx.do(t, http.MethodGet, base+"/scenes/s3.js", nil, nil); !strings.HasPrefix(res.Header.Get("Content-Type"), "text/javascript") {
+		t.Errorf("bundle Content-Type = %q", res.Header.Get("Content-Type"))
+	}
+	if res, _ := fx.do(t, http.MethodGet, base+"/fonts/Geist-Regular.woff2", nil, nil); res.Header.Get("Content-Type") != "font/woff2" {
+		t.Errorf("font Content-Type = %q", res.Header.Get("Content-Type"))
+	}
+	// Static routes reject POST.
+	if res, _ := fx.do(t, http.MethodPost, base+"/story.json", []byte("x"), nil); res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST story.json = %d", res.StatusCode)
+	}
+}
+
+func TestListenerAnswersCORSPreflight(t *testing.T) {
+	fx := newListenerFixture(t)
+	for _, p := range []string{"/frame", "/report", "/error", "/boot.json"} {
+		res, _ := fx.do(t, http.MethodOptions, fx.l.Base()+p, nil, map[string]string{"Origin": "null", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type, x-sm-frame"})
+		if res.StatusCode != http.StatusNoContent {
+			t.Errorf("OPTIONS %s = %d", p, res.StatusCode)
+		}
+		h := res.Header
+		if h.Get("Access-Control-Allow-Origin") != "*" || h.Get("Access-Control-Allow-Methods") != "GET, POST" ||
+			h.Get("Access-Control-Allow-Headers") != "Content-Type, X-SM-Frame" || h.Get("Access-Control-Max-Age") != "600" {
+			t.Errorf("OPTIONS %s headers = %v", p, h)
+		}
+	}
+	// A preflight outside the base is still a 404 without CORS headers.
+	res, _ := fx.do(t, http.MethodOptions, fx.l.Origin()+"/frame", nil, nil)
+	if res.StatusCode != http.StatusNotFound || res.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("OPTIONS outside the base = %d %v", res.StatusCode, res.Header)
+	}
+}
+
+func TestListenerReportFrameAndErrorEndpoints(t *testing.T) {
+	fx := newListenerFixture(t)
+	base := fx.l.Base()
+
+	if res, _ := fx.do(t, http.MethodGet, base+"/report", nil, nil); res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("GET report = %d", res.StatusCode)
+	}
+	res, body := fx.do(t, http.MethodPost, base+"/report", []byte(`{"frame_count":3}`), map[string]string{"Content-Type": "application/json"})
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"start":true`) {
+		t.Errorf("report = %d %s", res.StatusCode, body)
+	}
+	fx.mu.Lock()
+	gotReport := string(fx.report)
+	fx.mu.Unlock()
+	if gotReport != `{"frame_count":3}` {
+		t.Errorf("report body = %q", gotReport)
+	}
+	big := bytes.Repeat([]byte("x"), maxReportBytes+1)
+	if res, _ := fx.do(t, http.MethodPost, base+"/report", big, nil); res.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("oversized report = %d", res.StatusCode)
+	}
+
+	// Frames: the header is required, the hook sees content type and bytes, and the answer is JSON.
+	if res, _ := fx.do(t, http.MethodPost, base+"/frame", []byte("f"), map[string]string{"Content-Type": "image/png"}); res.StatusCode != http.StatusBadRequest {
+		t.Errorf("frame without header = %d", res.StatusCode)
+	}
+	res, body = fx.do(t, http.MethodPost, base+"/frame", []byte("frame-0"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "0"})
+	if res.StatusCode != http.StatusOK || string(body) != `{"ok":true}` {
+		t.Errorf("frame 0 = %d %s", res.StatusCode, body)
+	}
+	res, body = fx.do(t, http.MethodPost, base+"/frame", []byte("frame-2"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "2"})
+	if !strings.Contains(string(body), `"done":true`) {
+		t.Errorf("last frame answer = %s", body)
+	}
+	fx.mu.Lock()
+	if len(fx.frames) != 2 || fx.frames[0] != "image/png|frame-0" {
+		t.Errorf("frames seen = %v", fx.frames)
+	}
+	fx.mu.Unlock()
+	tooBig := bytes.Repeat([]byte("x"), int(MaxFrameBytes(IngestConfig{Width: 1920, Height: 1080, Transport: TransportPNG}))+1)
+	res, body = fx.do(t, http.MethodPost, base+"/frame", tooBig, map[string]string{"Content-Type": "image/png", "X-SM-Frame": "5"})
+	if res.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(string(body), `"stop":true`) {
+		t.Errorf("oversized frame = %d %s", res.StatusCode, body)
+	}
+
+	res, body = fx.do(t, http.MethodPost, base+"/error", []byte(`{"code":"code_error","message":"scene s3 threw","scene_id":"s3"}`), map[string]string{"Content-Type": "application/json"})
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("error endpoint = %d %s", res.StatusCode, body)
+	}
+	fx.do(t, http.MethodPost, base+"/error", []byte(`not json`), nil)
+	fx.mu.Lock()
+	defer fx.mu.Unlock()
+	if len(fx.errors) < 3 {
+		t.Fatalf("errors seen = %+v", fx.errors)
+	}
+	// The oversized frame and the missing header were reported as failures too.
+	if fx.errors[len(fx.errors)-2] != (PageError{Code: "code_error", Message: "scene s3 threw", SceneID: "s3"}) {
+		t.Errorf("page error = %+v", fx.errors[len(fx.errors)-2])
+	}
+	if last := fx.errors[len(fx.errors)-1]; last.Code != "render_failed" {
+		t.Errorf("unreadable error body mapped to %+v", last)
+	}
+}
+
+func TestStartListenerRejectsWeakPrefixes(t *testing.T) {
+	for _, prefix := range []string{"", "short", strings.Repeat("a/", 20), strings.Repeat("a", 31)} {
+		if l, err := StartListener(prefix, &Snapshot{}, PageParams{}, Hooks{}); err == nil {
+			_ = l.Close()
+			t.Errorf("prefix %q accepted", prefix)
+		}
+	}
+}
+
+func TestListenerCloseStopsServing(t *testing.T) {
+	fx := newListenerFixture(t)
+	url := fx.l.Base() + "/boot.json"
+	if res, _ := fx.do(t, http.MethodGet, url, nil, nil); res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", res.StatusCode)
+	}
+	_ = fx.l.Close()
+	if _, err := fx.client.Get(url); err == nil {
+		t.Fatal("the listener still answers after Close")
+	}
+}
