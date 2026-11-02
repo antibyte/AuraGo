@@ -122,6 +122,12 @@ blocks in their state colours) with the last camera position; it works without
 WebGL. On narrow windows the district rail becomes an icon column with a search
 drawer, and details open as a bottom sheet beside it.
 
+On narrow windows the control bar wraps its rows, so the HUD measures that bar and
+publishes its height as `--sw-bar-h`. Every panel above it (inspector, plan, tour,
+message, street help) and the rail take their offset from that height instead of a
+fixed guess; the email export keeps only its glyph there so the bar stays two rows
+high and never slides under the inspector.
+
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain
 sources and bounded footsteps, door, lift and tram effects; interiors attenuate and

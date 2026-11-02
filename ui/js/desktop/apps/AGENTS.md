@@ -3133,6 +3133,10 @@ buttons and menu popovers remain excluded from those gestures.
   and vignette stay a dark work surface (`#020208`). Brand cyan
   (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put
   `.sw-btn.active` in a bridge group of `desktop-app-common.css`.
+- The narrow Sysworld layout measures the control bar and publishes its height
+  as `--sw-bar-h`; the inspector, plan, tour, message, street help and the rail
+  height derive from it. Do not hard-code a bottom offset for those panels, and
+  keep the email export glyph-only inside the bar there.
 - Galaxa and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
