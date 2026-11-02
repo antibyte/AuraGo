@@ -221,7 +221,8 @@ func TestPersonAlertWhatsAppSendsOnePhotoWithCaption(t *testing.T) {
 }
 
 // A failed WhatsApp photo is replaced by the text exactly once, unless the caption already went
-// out as text or the owner API refuses everything (read-only, no connection).
+// out (as text, or as the caption of the photo that reached one owner) or the owner API refuses
+// everything (read-only, no connection).
 func TestPersonAlertWhatsAppPhotoFailureFallsBackToTextOnce(t *testing.T) {
 	boom := errors.New("upload failed")
 	cases := []struct {
@@ -233,6 +234,10 @@ func TestPersonAlertWhatsAppPhotoFailureFallsBackToTextOnce(t *testing.T) {
 	}{
 		{name: "photo fails", attachErr: boom, wantTexts: "whatsapp|Title|Body|high"},
 		{name: "caption already sent as text", attachErr: boom, textSent: true},
+		// Two owners: the first got the photo with its caption, the second failed. The owner API
+		// reports TextSent with the error, so the alert is not sent again as text ("never twice");
+		// the second owner misses this alert.
+		{name: "caption reached the first owner, the second owner failed", attachErr: boom, textSent: true},
 		{name: "read-only", attachErr: whatsapp.ErrReadOnly, wantSkip: true},
 		{name: "not connected", attachErr: whatsapp.ErrNotConnected, wantSkip: true},
 	}

@@ -141,7 +141,9 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 			logger.Warn("Notification failed", "channel", c, "error", err)
 			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
 		} else {
-			logger.Info("Notification sent", "channel", c, "title", truncateStr(title, 100))
+			// The channel only: a title can name a camera or a person (person detection), and
+			// the message is the notification's content. Neither belongs in the log.
+			logger.Info("Notification sent", "channel", c)
 			results = append(results, result{Channel: string(c), Status: "sent"})
 		}
 	}

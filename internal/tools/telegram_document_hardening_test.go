@@ -1069,20 +1069,21 @@ func TestTelegramErrorsKeepTheirCause(t *testing.T) {
 	check("wrapped", err, context.Canceled)
 }
 
-// The title SendNotification logs is bounded.
-func TestSendNotificationBoundsTheLoggedTitle(t *testing.T) {
+// SendNotification logs the channel of a successful send and nothing of its content: a title can
+// name a camera (person detection), and the message is the notification itself.
+func TestSendNotificationLogsNoTitleOrMessage(t *testing.T) {
 	tg04API(t, nil)
 	cfg, _ := tg04Config(t, "123:secret")
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
-	out := SendNotification(cfg, logger, "telegram", strings.Repeat("x", 1000), "m", "normal", nil)
+	out := SendNotification(cfg, logger, "telegram", "Camera Garden Gate", "Person at the gate", "normal", nil)
 	if !strings.Contains(out, `"status":"sent"`) {
 		t.Fatalf("result = %s", out)
 	}
-	if !strings.Contains(logs.String(), "Notification sent") || !strings.Contains(logs.String(), strings.Repeat("x", 100)) {
-		t.Fatalf("the title was not logged: %s", truncateStr(logs.String(), 200))
+	if !strings.Contains(logs.String(), "Notification sent") || !strings.Contains(logs.String(), "channel=telegram") {
+		t.Fatalf("the send was not logged with its channel: %s", truncateStr(logs.String(), 200))
 	}
-	if strings.Contains(logs.String(), strings.Repeat("x", 101)) {
-		t.Errorf("the log holds more than 100 runes of the title")
+	if strings.Contains(logs.String(), "Garden") || strings.Contains(logs.String(), "gate") || strings.Contains(logs.String(), "title") {
+		t.Errorf("the log holds the title or the message: %s", logs.String())
 	}
 }

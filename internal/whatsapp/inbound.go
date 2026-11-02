@@ -33,6 +33,7 @@ const (
 	dropFromMe            = "from_me"
 	dropUnsupportedSender = "unsupported_sender"
 	dropNotSelfChat       = "not_self_chat"
+	dropOwnPrefix         = "own_prefix" // self chat: the text starts with AuraGo's own self_chat_prefix
 	dropNonOwner          = integrationstatus.WhatsAppDropNonOwner
 	dropUnresolvedLID     = integrationstatus.WhatsAppDropUnresolvedLID
 )
@@ -55,6 +56,7 @@ type inboundFilter struct {
 	sent      *idCache        // shared with the sender: the echo guard
 	seen      *idCache        // dedupe of accepted IDs
 	logger    *slog.Logger
+	ownPrefix string // self_chat only: the self_chat_prefix every outgoing text and caption starts with
 	mu        sync.Mutex
 	ownerLIDs map[string]types.JID // LID user -> owner phone JID, learned on acceptance
 }
@@ -74,12 +76,17 @@ func newInboundFilter(cfg config.WhatsAppConfig, sent *idCache, logger *slog.Log
 		}
 		owners[strings.TrimPrefix(number, "+")] = true
 	}
+	ownPrefix := ""
+	if cfg.Mode == config.WhatsAppModeSelfChat {
+		ownPrefix = cfg.SelfChatPrefix // the sender's prefix; empty means AuraGo's texts carry none
+	}
 	return &inboundFilter{
 		mode:      cfg.Mode,
 		owners:    owners,
 		sent:      sent,
 		seen:      newIDCache(dedupeCacheSize, 0, nil),
 		logger:    logger,
+		ownPrefix: ownPrefix,
 		ownerLIDs: make(map[string]types.JID),
 	}
 }
@@ -127,8 +134,16 @@ func (f *inboundFilter) accept(ctx context.Context, client waClient, evt *events
 	}
 	var owner types.JID
 	var reason string
-	if f.mode == config.WhatsAppModeSelfChat { // 8. decided from the message source, never from its text
+	if f.mode == config.WhatsAppModeSelfChat { // 8. decided from the message source, with one exception from its text
 		owner, reason = selfChatOwner(info, client.OwnJID(), client.OwnLID())
+		// The exception: every text and caption AuraGo sends in the self chat starts with
+		// self_chat_prefix, so one that comes back as an own message (an echo the 20-minute
+		// sent-ID cache no longer holds, for example) is AuraGo's own and never a command. Only
+		// a message the source rules would accept is judged, so a contact's text stays
+		// not_self_chat. The text is compared in memory and never logged.
+		if reason == "" && startsWithPrefix(evt.Message, f.ownPrefix) {
+			return inboundMessage{}, dropOwnPrefix
+		}
 	} else { // 7.
 		owner, reason = f.dedicatedOwner(ctx, client, info)
 	}
@@ -137,6 +152,15 @@ func (f *inboundFilter) accept(ctx context.Context, client waClient, evt *events
 	}
 	f.seen.Add(id)
 	return inboundMessage{Chat: chat, Sender: info.Sender, Owner: owner, ID: info.ID, Timestamp: info.Timestamp, Message: evt.Message}, ""
+}
+
+// startsWithPrefix reports whether the top-level text (or, for media, the caption) of an
+// unwrapped message starts with prefix. An empty prefix never matches.
+func startsWithPrefix(m *waE2E.Message, prefix string) bool {
+	if prefix == "" || m == nil {
+		return false
+	}
+	return strings.HasPrefix(messageText(m), prefix) || strings.HasPrefix(mediaCaption(m), prefix)
 }
 
 // kindDropReason names why an unwrapped message is not a plain conversation

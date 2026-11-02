@@ -9,7 +9,7 @@ import (
 type WhatsAppSendResult struct {
 	Kind     string // "text", "image", "video", "audio" or "document"
 	File     string // base name of the sent file; "" for text
-	TextSent bool   // the text went out as its own message; also true when only the first parts of a long text went out before a later part failed, and when the file then failed
+	TextSent bool   // the text reached at least one owner, as its own message or as the caption of a file that went out; also true when only the first parts of a long text went out before a later part failed, when the file then failed, and when the file reached one owner but not another
 }
 
 // WhatsAppOwnerSender is the owner-only send surface of the running WhatsApp Bot. The server

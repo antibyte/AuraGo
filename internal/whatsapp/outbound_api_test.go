@@ -209,7 +209,7 @@ func TestSendOwnerMessageOpensFilesOnlyThroughOutgoingAttachments(t *testing.T) 
 	if err != nil {
 		t.Fatalf("send a workspace file: %v", err)
 	}
-	if res.Kind != "document" || res.File != "report.pdf" || res.TextSent {
+	if res.Kind != "document" || res.File != "report.pdf" || !res.TextSent { // the caption counts as text
 		t.Fatalf("result = %+v", res)
 	}
 	sent := sentTexts(a.fake)
@@ -330,7 +330,7 @@ func TestSendOwnerMessageSendsLongTextBeforeTheFile(t *testing.T) {
 		t.Fatalf("send with caption: %v", err)
 	}
 	sent = sentTexts(a.fake)[4:]
-	if len(sent) != 1 || sent[0].msg.GetImageMessage().GetCaption() != "look" || res.TextSent {
+	if len(sent) != 1 || sent[0].msg.GetImageMessage().GetCaption() != "look" || !res.TextSent {
 		t.Fatalf("sent = %+v, result = %+v; want one image captioned look", sent, res)
 	}
 
@@ -351,7 +351,7 @@ func TestSendOwnerAttachmentSendsBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("send: %v", err)
 	}
-	if res.Kind != "image" || res.File != "door.jpg" || res.TextSent {
+	if res.Kind != "image" || res.File != "door.jpg" || !res.TextSent {
 		t.Fatalf("result = %+v", res)
 	}
 	sent := sentTexts(a.fake)
@@ -541,6 +541,59 @@ func TestSendOwnerMessageReportsTextSentWhenALaterPartFails(t *testing.T) {
 	res, err = a.bot.SendOwnerMessage(ctx, long, "")
 	if err == nil || res.TextSent {
 		t.Fatalf("first part: result = %+v, error = %v; want no TextSent", res, err)
+	}
+}
+
+// A caption travels inside the media message. With two owners, the first gets the file and its
+// caption and the second fails: the text reached an owner, so TextSent must be true, or a caller
+// would fall back to text (the camera) or retry (a flow node) and send the caption to the first
+// owner a second time.
+func TestSendOwnerReportsTextSentWhenACaptionReachedAnOwnerAndALaterOwnerFails(t *testing.T) {
+	ctx := context.Background()
+	boom := errors.New("boom")
+	a := newOwnerAPI(t, nil, "+4917012345678", secondOwner)
+	a.writeWorkspace(t, "photo.jpg", jpegBytes)
+
+	for name, send := range map[string]func() (tools.WhatsAppSendResult, error){
+		"SendOwnerMessage": func() (tools.WhatsAppSendResult, error) {
+			return a.bot.SendOwnerMessage(ctx, "look", "photo.jpg")
+		},
+		"SendOwnerAttachment": func() (tools.WhatsAppSendResult, error) {
+			return a.bot.SendOwnerAttachment(ctx, "look", OwnerAttachment{Name: "door.jpg", Data: jpegBytes})
+		},
+	} {
+		before := len(sentTexts(a.fake))
+		a.fake.with(func(f *fakeClient) { f.sendErrs = []error{nil, boom} })
+		res, err := send()
+		sent := sentTexts(a.fake)[before:]
+		if err == nil || !strings.Contains(err.Error(), "boom") {
+			t.Fatalf("%s: error = %v, want the second owner's error", name, err)
+		}
+		if len(sent) != 1 || sent[0].msg.GetImageMessage().GetCaption() != "look" || !res.TextSent {
+			t.Fatalf("%s: result = %+v, sent = %+v; want TextSent after one captioned image", name, res, sent)
+		}
+
+		// The first owner fails and the second gets the file: the caption reached an owner as well.
+		before = len(sentTexts(a.fake))
+		a.fake.with(func(f *fakeClient) { f.sendErrs = []error{boom, nil} })
+		res, err = send()
+		if sent = sentTexts(a.fake)[before:]; err == nil || len(sent) != 1 || !res.TextSent {
+			t.Fatalf("%s, first owner failing: result = %+v, error = %v, sent = %+v; want TextSent", name, res, err, sent)
+		}
+
+		// Every owner fails: nothing was delivered, so a retry is safe.
+		a.fake.with(func(f *fakeClient) { f.sendErrs = []error{boom, boom} })
+		if res, err = send(); err == nil || res.TextSent {
+			t.Fatalf("%s, all owners failing: result = %+v, error = %v; want no TextSent", name, res, err)
+		}
+	}
+
+	// A file without a caption carries no text, whoever it reaches.
+	before := len(sentTexts(a.fake))
+	a.fake.with(func(f *fakeClient) { f.sendErrs = []error{nil, boom} })
+	res, err := a.bot.SendOwnerAttachment(ctx, "", OwnerAttachment{Name: "door.jpg", Data: jpegBytes})
+	if sent := sentTexts(a.fake)[before:]; err == nil || len(sent) != 1 || res.TextSent {
+		t.Fatalf("no caption: result = %+v, error = %v, sent = %+v; want no TextSent", res, err, sent)
 	}
 }
 

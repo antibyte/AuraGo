@@ -265,8 +265,10 @@ func personAlertOutcome(raw string) error {
 }
 
 // personAlertWhatsAppPhoto sends the alert photo to the WhatsApp owners; textSent says the caption
-// went out as a message of its own first (a caption over 1024 runes), so a text fallback would
-// repeat it. Tests replace serverWhatsAppOwner, not this function.
+// reached at least one owner (as a message of its own first when it is over 1024 runes, or as the
+// caption of a photo that went out), so a text fallback would repeat it for that owner. With two
+// owners this means a failure for the second one is not retried as text: the alert is never sent
+// twice, and the second owner misses it. Tests replace serverWhatsAppOwner, not this function.
 func (s *Server) personAlertWhatsAppPhoto(ctx context.Context, photo []byte, caption string) (textSent bool, err error) {
 	api := serverWhatsAppOwner(s)
 	if api == nil {

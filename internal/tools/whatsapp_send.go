@@ -35,9 +35,11 @@ var (
 // runs, so a caller other than the dispatch gets the same gates.
 //
 // The result mirrors SendTelegramFile: {"status", "kind", "results":[{"channel","status"}]}, plus
-// "document" (the base name) when a file went out. "text_sent": true says the text went out as a
-// message of its own; it is also set on an error, where it means only the file failed, so a retry
-// sends the text again. Errors come masked from the Bot and carry no phone numbers.
+// "document" (the base name) when a file went out. "text_sent": true says the text reached at
+// least one owner, either as a message of its own or as the caption of a file that went out. It
+// is also set on an error, where it means that part of the send was delivered (only the file
+// failed, or the file reached one owner and failed for another), so a retry would send that text
+// to those owners again. Errors come masked from the Bot and carry no phone numbers.
 func SendWhatsAppMessage(ctx context.Context, cfg *config.Config, text, filePath string) string {
 	switch {
 	case cfg == nil || !cfg.WhatsApp.Enabled:

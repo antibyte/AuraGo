@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -288,6 +289,84 @@ func TestInboundSelfChatAcceptsOnlyTheOwnChat(t *testing.T) {
 	noLID := &fakeClient{own: testOwn}
 	if _, reason := f.accept(ctx, noLID, msgEvent(own("s5", lidJID(inboundOwnLID), true), textMsg("note")), time.Time{}); reason != dropNotSelfChat {
 		t.Fatalf("LID chat without an own LID: reason = %q, want %q", reason, dropNotSelfChat)
+	}
+}
+
+// Every text and caption AuraGo sends in the self chat starts with self_chat_prefix. When one comes
+// back as an own message (an echo whose ID the sent cache no longer holds), the prefix drops it.
+// The rule applies only to a message the source rules accept, and only with a non-empty prefix.
+func TestInboundSelfChatDropsMessagesThatStartWithTheOwnPrefix(t *testing.T) {
+	prefix := config.DefaultWhatsAppSelfChatPrefix
+	newFilter := func(mode, prefix string) *inboundFilter {
+		cfg := config.WhatsAppConfig{Mode: mode, SelfChatPrefix: prefix, OwnerNumbers: []string{"+" + inboundOwnerUser}}
+		return newInboundFilter(cfg, nil, slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+	}
+	client := &fakeClient{own: testOwn, ownLID: lidJID(inboundOwnLID)}
+	ctx := context.Background()
+	fromMe := func(id string, chat types.JID, isFromMe bool) types.MessageInfo {
+		info := dmInfo(id, testOwn)
+		info.Chat, info.IsFromMe = chat, isFromMe
+		return info
+	}
+	caption := func(text string) *waE2E.Message {
+		return &waE2E.Message{ImageMessage: &waE2E.ImageMessage{Caption: proto.String(text)}}
+	}
+	extended := func(text string) *waE2E.Message {
+		return &waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{Text: proto.String(text)}}
+	}
+
+	f := newFilter(config.WhatsAppModeSelfChat, prefix)
+	for _, c := range []struct {
+		name string
+		raw  *waE2E.Message
+		want string
+	}{
+		{"plain text with the prefix", textMsg(prefix + "reply"), dropOwnPrefix},
+		{"extended text with the prefix", extended(prefix + "reply"), dropOwnPrefix},
+		{"caption with the prefix", caption(prefix + "photo"), dropOwnPrefix},
+		{"plain text without it", textMsg("note to self"), ""},
+		{"extended text without it", extended("note to self"), ""},
+		{"prefix inside the text, not at its start", textMsg("note " + prefix + "reply"), ""},
+		{"caption without it", caption("photo"), ""},
+	} {
+		in, reason := f.accept(ctx, client, msgEvent(fromMe("p-"+c.name, testOwn, true), c.raw), time.Time{})
+		if reason != c.want || (c.want == "" && in.Owner != testOwn) {
+			t.Errorf("%s: owner = %v, reason = %q, want %q", c.name, in.Owner, reason, c.want)
+		}
+	}
+
+	// A dropped message is not remembered: the same ID is judged by the prefix again, not as a duplicate.
+	for i := 0; i < 2; i++ {
+		if _, reason := f.accept(ctx, client, msgEvent(fromMe("p-again", testOwn, true), textMsg(prefix+"x")), time.Time{}); reason != dropOwnPrefix {
+			t.Fatalf("delivery %d of a prefixed message: reason = %q, want %q", i+1, reason, dropOwnPrefix)
+		}
+	}
+
+	// The source rules decide first: a prefixed text outside the own chat, or from a contact, is
+	// not_self_chat and is not counted as an own echo.
+	if _, reason := f.accept(ctx, client, msgEvent(fromMe("p-contact", inboundOwnerJID, true), textMsg(prefix+"x")), time.Time{}); reason != dropNotSelfChat {
+		t.Errorf("prefixed text in a contact's chat: reason = %q, want %q", reason, dropNotSelfChat)
+	}
+	if _, reason := f.accept(ctx, client, msgEvent(fromMe("p-not-me", testOwn, false), textMsg(prefix+"x")), time.Time{}); reason != dropNotSelfChat {
+		t.Errorf("prefixed text not from me: reason = %q, want %q", reason, dropNotSelfChat)
+	}
+
+	// An empty prefix drops nothing, whatever the text starts with.
+	f = newFilter(config.WhatsAppModeSelfChat, "")
+	for i, text := range []string{prefix + "reply", "", " "} {
+		raw := textMsg(text)
+		if text == "" {
+			raw = caption("photo")
+		}
+		if _, reason := f.accept(ctx, client, msgEvent(fromMe(fmt.Sprintf("e-%d", i), testOwn, true), raw), time.Time{}); reason != "" {
+			t.Errorf("empty prefix, text %q: reason = %q, want accepted", text, reason)
+		}
+	}
+
+	// The prefix is a self-chat rule: a dedicated-mode owner may start a message with it.
+	f = newFilter(config.WhatsAppModeDedicated, prefix)
+	if _, reason := f.accept(ctx, client, msgEvent(dmInfo("d-1", inboundOwnerJID), textMsg(prefix+"hello")), time.Time{}); reason != "" {
+		t.Errorf("dedicated mode with a prefix configured: reason = %q, want accepted", reason)
 	}
 }
 

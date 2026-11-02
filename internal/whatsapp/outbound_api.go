@@ -152,8 +152,10 @@ func (b *Bot) sendOwnerAttachment(ctx context.Context, caption string, att Owner
 // Without a file the text goes to every owner. With one, the file is uploaded once and then sent
 // to each owner, preceded by the text when it does not fit as a caption or when the file is audio
 // (audio has no caption). A failure for one owner does not stop the others; the first error
-// is returned, and TextSent says that at least the first part of the text reached one owner as a
-// message of its own (also when a later part failed, because a retry would send that part twice).
+// is returned, and TextSent says that the text reached at least one owner: as a message of its own
+// (at least its first part, also when a later part failed, because a retry would send that part
+// twice) or as the caption of a media message that went out. With two owners, a file that reaches
+// the first and fails for the second still reports TextSent when it carried a caption.
 func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tools.WhatsAppSendResult, error) {
 	client := b.currentClient()
 	if client == nil || !client.IsLoggedIn() {
@@ -198,6 +200,7 @@ func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tool
 		meta.Caption = ""
 	}
 	var first error
+	mediaDelivered := false // at least one owner got the media message, and with it any caption
 	for _, to := range owners {
 		if textFirst {
 			sent, err := b.sender.deliverTextParts(ctx, to, text, "owner message")
@@ -209,9 +212,19 @@ func (b *Bot) sendOwner(ctx context.Context, text string, file *ownerFile) (tool
 				continue // this owner gets no file without its text
 			}
 		}
-		if err := b.sender.deliverMedia(ctx, to, mediaMessage(kind, up, meta), "owner attachment"); err != nil && first == nil {
-			first = err
+		if err := b.sender.deliverMedia(ctx, to, mediaMessage(kind, up, meta), "owner attachment"); err != nil {
+			if first == nil {
+				first = err
+			}
+			continue
 		}
+		mediaDelivered = true
+	}
+	// A caption travels inside the media message, so it reached WhatsApp with the first file that
+	// went out. A later owner's failure, or a context that ends between owners, must not hide that:
+	// a caller that falls back to text, or retries, would send it to this owner twice.
+	if mediaDelivered && meta.Caption != "" {
+		res.TextSent = true
 	}
 	return res, first
 }
