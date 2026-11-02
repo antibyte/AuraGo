@@ -5018,6 +5018,26 @@ registration lives in `internal/desktop/types.go`.
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.
+- The todo window stays readable while it refreshes: a reload restores the
+  focused field, the caret inside it and the checklist item the user was
+  typing in. The detail form marks itself as changed
+  (`desktop.todo_unsaved_changes`) as soon as a field differs from the stored
+  task, and Escape returns the form to the stored values. Ctrl/Cmd+S saves the
+  open task, Escape clears the search or leaves the list, and the arrow keys
+  walk the task list. The sidebar shows how many tasks each filter holds, the
+  list shows how many are visible, and the search narrows by title and
+  description.
+- Every todo request reports itself in the pane (`desktop.todo_saved`,
+  `desktop.todo_created`, `desktop.todo_completed`, `desktop.todo_reopened`,
+  `desktop.todo_deleted`, `desktop.todo_failed`) instead of only in a desktop
+  toast. An empty list explains itself (`desktop.todo_empty_title`,
+  `desktop.todo_empty_hint`, `desktop.todo_no_results`,
+  `desktop.todo_clear_search`, `desktop.todo_select_hint`,
+  `desktop.todo_checklist_empty`), and the state, the reminder, the due day and
+  the overdue warning travel as chips whose tone mixes the theme text, so they
+  stay readable on the light and on the dark surface of every theme. Keep all
+  `desktop.todo_*` keys in every `ui/lang/desktop/*.json`. Verify
+  `go test ./ui -run TestDesktopTodo -count=1`.
 - `quickconnect-launchpad-chat.js` - Quick Connect (`renderQuickConnect`
   device list and session chrome), store/launchpad and generated-app
   host. The synthetic AuraGo host card uses `desktop.qc_aurago_host` and
