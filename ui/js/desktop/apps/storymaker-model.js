@@ -184,6 +184,14 @@
         return (Array.isArray(list) ? list : []).filter(issue => issue.code !== 'narration_missing');
     }
 
+    // The render browser as an export needs it, from GET /status: "ready" (a launch probe succeeded), "download" (none is ready but the
+    // first export downloads the server's pinned Chromium, status.browser.can_download) or "missing".
+    function browserState(status) {
+        const browser = status && status.browser || {};
+        if (browser.ready === true) return 'ready';
+        return browser.can_download === true ? 'download' : 'missing';
+    }
+
     function issueCounts(list) {
         const counts = { error: 0, warning: 0, minor: 0 };
         (Array.isArray(list) ? list : []).forEach(issue => { if (counts[issue.severity] !== undefined) counts[issue.severity]++; });
@@ -245,8 +253,10 @@
     }
 
     // s1, s2 ... the smallest number above the count that is not taken
-    function newSceneId(story, prefix) {
-        const taken = new Set(scenesOf(story).map(scene => scene && scene.id));
+    // newSceneId(story, prefix, alsoTaken): the next free id. alsoTaken are ids that exist outside the story: the server keeps a code
+    // scene's file when its scene is deleted (there is no DELETE for code files), and a new code scene is created with If-None-Match: *.
+    function newSceneId(story, prefix, alsoTaken) {
+        const taken = new Set(scenesOf(story).map(scene => scene && scene.id).concat(alsoTaken || []));
         const base = prefix || 's';
         for (let n = scenesOf(story).length + 1; n < 100000; n++) if (!taken.has(base + n)) return base + n;
         return base + Date.now();
@@ -257,7 +267,7 @@
         const scenes = story.scenes = scenesOf(story);
         const at = Math.min(Math.max(afterIndex + 1, 0), scenes.length);
         const previous = scenes[Math.min(afterIndex, scenes.length - 1)];
-        const scene = { id: newSceneId(story, o.kind === 'code' ? 'code' : 's') };
+        const scene = { id: newSceneId(story, o.kind === 'code' ? 'code' : 's', o.taken) };
         if (o.kind === 'code') scene.kind = 'code';
         else if (previous && previous.environment) scene.environment = previous.environment;
         scenes.splice(at, 0, scene);
@@ -394,6 +404,7 @@
     M.mergeIssues = mergeIssues;
     M.visibleIssues = visibleIssues;
     M.issueCounts = issueCounts;
+    M.browserState = browserState;
     M.sceneIndexOfIssue = sceneIndexOfIssue;
     M.indexCatalog = indexCatalog;
     M.entriesOf = entriesOf;

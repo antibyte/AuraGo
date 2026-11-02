@@ -129,7 +129,7 @@
         const add = (key, tone, text) => area.appendChild(el('div', { class: 'stm-banner', role: 'status', dataset: { banner: key, tone } }, icon(tone === 'bad' ? 'alert' : 'info'), el('span', { text })));
         if (inst.readonly) add('readonly', 'info', t('storymaker.banner.readonly'));
         const status = inst.status || {};
-        const ffmpegOk = !!(status.ffmpeg && status.ffmpeg.ready), browserOk = !!(status.browser && status.browser.ready);
+        const ffmpegOk = !!(status.ffmpeg && status.ffmpeg.ready), browserOk = S.model.browserState(status) !== 'missing';
         if (!ffmpegOk || !browserOk) {
             const missing = [!ffmpegOk ? t('storymaker.export.cap_ffmpeg') : '', !browserOk ? t('storymaker.export.cap_browser') : ''].filter(Boolean).join(', ');
             add('export_unavailable', 'info', t('storymaker.banner.export_unavailable', { missing }));
@@ -192,6 +192,12 @@
         try {
             const data = fresh || await inst.api.getProject(id);
             if (inst.disposed) return;
+            // A story.json that was edited by hand into something unreadable comes back as story: null with the issues; there is
+            // no document to edit, so the project stays closed and the list says why.
+            if (!data.story || typeof data.story !== 'object' || Array.isArray(data.story)) {
+                const first = Array.isArray(data.issues) && data.issues.length ? data.issues[0] : null;
+                throw Object.assign(S.errors.normalize({ message: first && first.message ? String(first.message) : '' }), { code: 'story_unreadable', network: false });
+            }
             closeEditor(inst);
             inst.view = 'editor';
             inst.projectId = data.project.id;
@@ -207,7 +213,7 @@
             inst.saveState = 'saved';
             buildEditor(inst);
             inst.events = inst.api.events(inst.projectId, job => inst.bus.emit('job', job));
-            reloadPlayer(inst, 0);
+            reloadPlayer(inst);
             return true;
         } catch (err) {
             if (inst.disposed || (err && err.aborted)) return false;
@@ -315,7 +321,13 @@
     function bindPlayer(inst, note) {
         const t = inst.t;
         const showNote = text => { note.textContent = text || ''; note.hidden = !text; };
-        inst.player.on('loading', () => { inst.compiling = true; showNote(t('storymaker.stage.compiling')); });
+        inst.player.on('loading', () => {
+            inst.compiling = true;
+            // A seek that is still in flight belongs to the document the host is about to drop; the playhead (inst.frame) is kept.
+            inst.seekBusy = false;
+            clearTimeout(inst.seekTimer);
+            showNote(t('storymaker.stage.compiling'));
+        });
         inst.player.on('compiled', report => {
             inst.report = report;
             inst.compiling = false;
@@ -327,6 +339,10 @@
         });
         inst.player.on('time', ({ frame, playing }) => {
             inst.playing = playing;
+            // The first time message after a compile says that the host is ready and shows frame 0. Seeks wait for it (while it loads the
+            // host drops them or answers them out of order), so the playhead may be elsewhere by now: bring the host there.
+            const landed = inst.thumbsDue && !playing && inst.frame !== frame;
+            if (landed) inst.wantFrame = inst.frame;
             // A paused host answers every seek with a time message. The next wanted frame goes out once the last one is answered,
             // and until then the playhead stays where the user put it (an older answer must not move it back).
             if (!playing && inst.seekBusy && frame === inst.seekSent) {
@@ -334,9 +350,10 @@
                 clearTimeout(inst.seekTimer);
                 pumpSeek(inst);
             }
-            if (playing || (!inst.seekBusy && inst.wantFrame === null)) inst.frame = frame;
+            if (!landed && (playing || (!inst.seekBusy && inst.wantFrame === null))) inst.frame = frame;
             // The first time message after a compile is the "ready to play" signal: the assets are in, so scenes can be drawn.
             if (inst.thumbsDue) { inst.thumbsDue = false; requestThumbs(inst); }
+            pumpSeek(inst);
             if (playing && inst.report) {
                 const index = S.model.sceneAtFrame(inst.report, frame);
                 if (index >= 0 && index !== inst.selected && Date.now() - (inst.selectedAt || 0) > 600) select(inst, index, { seek: false });
@@ -358,7 +375,7 @@
         inst.player.on('ready', () => { inst.playerUnavailable = false; paintBanners(inst); });
     }
 
-    async function reloadPlayer(inst, resume) {
+    async function reloadPlayer(inst) {
         if (inst.disposed || !inst.player || !inst.story) return;
         const seq = ++inst.loadSeq;
         try {
@@ -371,7 +388,7 @@
             inst.player.load({
                 story: inst.story, catalog: prepared.catalog, audio_info: {}, assets: prepared.assets, fonts: prepared.fonts,
                 code_bundles: prepared.code_bundles, format: { aspect, fps, width: S.model.previewWidth(aspect) }
-            }, resume === undefined ? inst.frame : resume);
+            });
         } catch (err) {
             if (inst.disposed || seq !== inst.loadSeq || (err && err.aborted)) return;
             const note = inst.parts.stageNote;
@@ -422,7 +439,8 @@
     }
 
     function pumpSeek(inst) {
-        if (inst.disposed || !inst.player || inst.seekBusy || inst.wantFrame === null) return;
+        // While the host loads (from the load message to its first time message) the wanted frame waits; the ready message sends it.
+        if (inst.disposed || !inst.player || inst.seekBusy || inst.wantFrame === null || inst.compiling || inst.thumbsDue) return;
         const target = inst.wantFrame;
         inst.wantFrame = null;
         inst.player.seek(target);
@@ -492,7 +510,7 @@
     async function addScene(inst, kind) {
         if (inst.readonly) return;
         const draft = S.model.cloneStory(inst.story);
-        const index = S.model.addScene(draft, inst.selected, { kind });
+        const index = S.model.addScene(draft, inst.selected, { kind, taken: (inst.codeStatus || []).map(item => item.scene_id) });
         const id = draft.scenes[index].id;
         if (kind === 'code') {
             try {
@@ -645,7 +663,7 @@
         }
         if (inst.playerUnavailable) add('player_unavailable', 'bad', t('storymaker.banner.player_unavailable'), retryButton(inst, () => reloadPlayerFrame(inst)));
         const status = inst.status || {};
-        const ffmpegOk = !!(status.ffmpeg && status.ffmpeg.ready), browserOk = !!(status.browser && status.browser.ready);
+        const ffmpegOk = !!(status.ffmpeg && status.ffmpeg.ready), browserOk = S.model.browserState(status) !== 'missing';
         if (!ffmpegOk || !browserOk) {
             const missing = [!ffmpegOk ? t('storymaker.export.cap_ffmpeg') : '', !browserOk ? t('storymaker.export.cap_browser') : ''].filter(Boolean).join(', ');
             add('export_unavailable', 'info', t('storymaker.banner.export_unavailable', { missing }));
@@ -657,7 +675,7 @@
         inst.playerUnavailable = false;
         inst.player.iframe.src = inst.api.playerUrl();
         paintBanners(inst);
-        reloadPlayer(inst, inst.frame);
+        reloadPlayer(inst);
     }
 
     function paintSave(inst) {

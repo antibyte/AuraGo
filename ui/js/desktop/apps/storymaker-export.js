@@ -51,7 +51,7 @@
             const status = inst.status || {};
             if (inst.readonly) list.push('readonly');
             if (!(status.ffmpeg && status.ffmpeg.ready)) list.push('ffmpeg');
-            if (!(status.browser && status.browser.ready)) list.push('browser');
+            if (S.model.browserState(status) === 'missing') list.push('browser');
             const counts = S.model.issueCounts(S.model.visibleIssues(S.model.mergeIssues(inst.issues, inst.report ? inst.report.issues : [])));
             if (counts.error > 0) list.push('errors');
             const max = Number(limits().max_duration_seconds) || 0;
@@ -68,9 +68,11 @@
             list.appendChild(capabilityRow(!!ffmpeg.ready, t('storymaker.export.cap_ffmpeg'),
                 ffmpeg.ready ? (ffmpeg.version ? t('storymaker.export.ready_version', { version: String(ffmpeg.version).slice(0, 60) }) : t('storymaker.export.ready')) : t('storymaker.export.ffmpeg_missing'),
                 !ffmpeg.ready && ffmpeg.issue ? el('code', { class: 'stm-cap-issue', text: String(ffmpeg.issue).slice(0, 400) }) : null));
-            list.appendChild(capabilityRow(!!browser.ready, t('storymaker.export.cap_browser'),
-                browser.ready ? t('storymaker.export.browser_ready', { source: sourceLabel(browser.source) }) : t('storymaker.export.browser_missing'),
-                !browser.ready && browser.issue ? el('code', { class: 'stm-cap-issue', text: String(browser.issue).slice(0, 400) }) : null));
+            const state = S.model.browserState(status);
+            // "download": no browser is ready but the first export fetches one; that is a note, not a blocker.
+            list.appendChild(capabilityRow(state !== 'missing', t('storymaker.export.cap_browser'),
+                state === 'ready' ? t('storymaker.export.browser_ready', { source: sourceLabel(browser.source) }) : state === 'download' ? t('storymaker.export.browser_download') : t('storymaker.export.browser_missing'),
+                state === 'missing' && browser.issue ? el('code', { class: 'stm-cap-issue', text: String(browser.issue).slice(0, 400) }) : null));
             return list;
         }
 
@@ -213,7 +215,7 @@
             } catch (err) {
                 if (err && err.aborted) return;
                 if (err && err.status === 412) inst.bus.emit('conflict', err);
-                inst.notify(S.errors.describe(t, err), 'error');
+                inst.notify(S.errors.describe(t, err, 'render'), 'error');
             } finally {
                 starting = false;
                 paint();

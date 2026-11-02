@@ -285,7 +285,7 @@ function vdCfgTestStorymaker(button) {
         cfgActionResult.show('vd-storymaker-result', 'warning', t(prefix + 'save_first'));
         return;
     }
-    const missing = status => [!(status.ffmpeg && status.ffmpeg.ready) ? t(prefix + 'part_ffmpeg') : '', !(status.browser && status.browser.ready) ? t(prefix + 'part_browser') : ''].filter(Boolean);
+    const missing = status => [!(status.ffmpeg && status.ffmpeg.ready) ? t(prefix + 'part_ffmpeg') : '', !(status.browser && (status.browser.ready || status.browser.can_download)) ? t(prefix + 'part_browser') : ''].filter(Boolean);
     // The status asks FFmpeg and launches the browser once (a cached probe), so allow it some time.
     return cfgActionResult(button, () => fetch('/api/desktop/storymaker/status', { signal: AbortSignal.timeout(60000) }), {
         target: 'vd-storymaker-result',

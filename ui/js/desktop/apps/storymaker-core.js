@@ -281,9 +281,10 @@
         };
     }
 
-    // describe(t, err) is the sentence for an error; unknown ones say what happened in general terms and append the server's
-    // own message as detail (shown as text only).
-    function describeError(t, err) {
+    // describe(t, err, context) is the sentence for an error; unknown ones say what happened in general terms and append the server's
+    // own message as detail (shown as text only). context "render" is an export start: a 422 there is a refused export (the story or
+    // a code scene has errors), not a refused save.
+    function describeError(t, err, context) {
         const e = normalizeError(err);
         let key = '';
         if (e.network) key = 'storymaker.error.network';
@@ -291,6 +292,8 @@
         else if (e.code === 'desktop_scope_required') key = 'storymaker.error.scope';
         else if (e.code === 'desktop_readonly') key = 'storymaker.error.readonly';
         else if (e.code === 'storymaker_disabled') key = 'storymaker.error.disabled';
+        else if (context === 'render' && (e.code === 'invalid_story' || e.code === 'code_error')) key = 'storymaker.job_error.' + e.code;
+        else if (e.code === 'story_unreadable') key = 'storymaker.error.story_unreadable';
         else if (e.code === 'invalid_story' || e.status === 422) key = 'storymaker.error.invalid_story';
         else if (e.status === 412) key = 'storymaker.error.conflict';
         else if (e.status === 428) key = 'storymaker.error.required';

@@ -131,6 +131,7 @@ eq([props.ok, draft.scenes[0].props[0].at], [true, 'right'], 'a prop takes a fre
 eq(M.insertActor(draft, M.scenesOf(draft).length - 1, man, 'x').ok, false, 'no actors in a code scene');
 const one = { schema: 'storymaker/1', scenes: [{ id: 's1' }] };
 eq(M.removeScene(one, 0), -1, 'the last scene stays');
+eq(one.scenes[M.addScene(one, 0, { kind: 'code', taken: ['code2'] })].id, 'code3', 'a code file that outlived its scene keeps its id');
 const scene = { id: 'x', narration: 'hi' };
 M.setSceneField(scene, 'narration', ''); eq('narration' in scene, false, 'an empty field leaves the document');
 M.setDuration(scene, false, '7.26'); eq(scene.duration, 7.3, 'fixed duration');
@@ -138,6 +139,7 @@ M.setDuration(scene, true, 0); eq(scene.duration, 'auto', 'auto duration');
 const report = { frame_count: 300, fps: 30, scenes: [{ id: 'a', start_frame: 0, end_frame: 150 }, { id: 'b', start_frame: 140, end_frame: 300 }] };
 eq(M.sceneAtFrame(report, 139), 0, 'frame in the first scene'); eq(M.sceneAtFrame(report, 145), 1, 'transitions overlap, the later scene wins');
 eq(M.frameForScene(report, 1), 140 + Math.floor(160 * 0.4), 'frame for a scene');
+eq([{ browser: { ready: true } }, { browser: { ready: false, can_download: true } }, { browser: { ready: false } }, {}, null].map(M.browserState), ['ready', 'download', 'missing', 'missing', 'missing'], 'the render browser is ready, fetched by the first export, or missing');
 
 // the message schema: only fixed shapes, with caps
 const P = S.player.checkIncoming;

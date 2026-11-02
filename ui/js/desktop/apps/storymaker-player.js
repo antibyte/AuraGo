@@ -104,7 +104,7 @@
             tabindex: '-1'
         });
         iframe.setAttribute('sandbox', 'allow-scripts');
-        let ready = false, loaded = false, pending = null, disposed = false, dropped = 0, thumbSeq = 0, resume = 0, readyCount = 0, loadTimer = 0;
+        let ready = false, loaded = false, pending = null, disposed = false, dropped = 0, thumbSeq = 0, readyCount = 0, loadTimer = 0;
         const thumbs = new Map();
 
         function post(message, transfer) {
@@ -153,11 +153,6 @@
                     emit('compiled', msg.report);
                     break;
                 case 'time':
-                    if (resume > 0 && !msg.playing) {
-                        const frame = resume;
-                        resume = 0;
-                        if (msg.frame !== frame) post({ type: 'seek', frame });
-                    }
                     emit('time', { frame: msg.frame, playing: msg.playing });
                     break;
                 case 'thumb': {
@@ -198,11 +193,10 @@
                 (handlers[name] = handlers[name] || []).push(fn);
                 return () => { handlers[name] = (handlers[name] || []).filter(candidate => candidate !== fn); };
             },
-            // load(payload, resumeFrame): the next `load` message (story, catalog, assets, fonts, code_bundles, format); the
-            // frame is shown again after the compile (the host starts at frame 0).
-            load(payload, resumeFrame) {
+            // load(payload): the next `load` message (story, catalog, assets, fonts, code_bundles, format). The host starts at frame 0;
+            // the owner brings it back to the playhead with the first `time` message after the compile.
+            load(payload) {
                 pending = payload;
-                resume = Number(resumeFrame) > 0 ? Math.floor(resumeFrame) : 0;
                 failThumbs(new Error('superseded'));
                 sendLoad();
             },

@@ -16,8 +16,9 @@ import (
 
 // The Storymaker app browser tour (spec "Testing": one browser smoke tour of the app). It runs the real desktop shell with the
 // real app modules, the real player iframe (host and player bundles under the exact player CSP) and the real catalog, against
-// a handler for /api/desktop/storymaker. The default handler is storymakerFixture; the integration step passes B's real
-// handlers instead. Gated by AURAGO_RUN_BROWSER_SMOKE=1:
+// a handler for /api/desktop/storymaker. The handler here is storymakerFixture, a stand-in on top of the real internal/storymaker
+// package. The same app runs against the real handlers (FFmpeg, Chrome, an export that ends in an MP4) in
+// internal/server/storymaker_app_browser_test.go (package ui cannot build a configured Server). Gated by AURAGO_RUN_BROWSER_SMOKE=1:
 //
 //	AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestStorymakerApp -count=1 -timeout 10m
 
@@ -50,10 +51,15 @@ func storymakerBrowserPage(t *testing.T, api http.Handler) *rod.Page {
 	return page
 }
 
+// storymakerWait waits for a condition in the page. One wait gets 90 seconds, so a condition that never comes true fails with a dump
+// of the page instead of using up the budget of the whole tour (and the dump is read with a limit of its own).
 func storymakerWait(t *testing.T, page *rod.Page, expr string) {
 	t.Helper()
-	if err := rod.Try(func() { page.MustWait(expr) }); err != nil {
-		state := page.MustEval(`()=>JSON.stringify({errors: window.fixtureErrors, app: (document.querySelector('[data-stm="app"]')||{}).innerText||''}).slice(0, 1500)`).String()
+	if err := rod.Try(func() { page.Timeout(90 * time.Second).MustWait(expr) }); err != nil {
+		var state string
+		_ = rod.Try(func() {
+			state = page.Timeout(10 * time.Second).MustEval(`()=>JSON.stringify({errors: window.fixtureErrors, scrubber: [...document.querySelectorAll('[data-stm="scrubber"]')].map(e=>[e.getAttribute('aria-valuenow'),e.getAttribute('aria-valuemax')]), app: (document.querySelector('[data-stm="app"]')||{}).innerText||''}).slice(0, 2500)`).String()
+		})
 		t.Fatalf("timed out waiting for %s: %v\n%s", expr, err, state)
 	}
 }
@@ -107,8 +113,7 @@ func storymakerNoErrors(t *testing.T, page *rod.Page) {
 }
 
 // storymakerBackend is what the tour needs from the thing behind /api/desktop/storymaker: the handler, a view of the stored projects
-// and a way to move the render job along. storymakerFixture implements it; the integration step implements it over the real handlers
-// (the stored story through the project API, advance as a wait for the real job) and runs storymakerTour against them.
+// and a way to move the render job along. storymakerFixture implements it.
 type storymakerBackend interface {
 	http.Handler
 	projectIDs() []string
@@ -242,6 +247,11 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	storymakerClick(t, page, `[data-stm="tab"][data-tab="stage"]`)
 	storymakerWait(t, page, `()=>document.querySelectorAll('[data-stm="scene"]').length===2 && document.querySelector('[data-stm="scene"][data-scene="code2"] .stm-scene-kind')!==null`)
 
+	// The preview reload that follows the last save of the code scene must be over first (it starts 250 ms after the save): a seek during
+	// it is clamped to the report of that moment, and the playhead would not be at the end of the new one.
+	time.Sleep(600 * time.Millisecond)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="stage-note"]').hidden && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
+
 	// Scrubber: Home goes to the start, a click lands in the middle, End goes to the last frame.
 	page.MustEval(`()=>document.querySelector('[data-stm="scrubber"]').focus()`)
 	if err := page.Keyboard.Type(input.Home); err != nil {
@@ -275,6 +285,41 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	}
 	storymakerClick(t, page, `[data-stm="scene-down"]`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="scene"][data-index="1"]')?.dataset.scene==='code2' && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
+
+	// A seek that comes while the preview compiles after an edit is kept. The End key is pressed in the very task that shows the
+	// "preparing" note, so it lands in the loading phase every time; the host drops or misorders seeks then, and the playhead used to
+	// fall back to frame 0 (or to the frame of the edit), which made the tour fail by chance.
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="stage-note"]').hidden && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
+	page.MustEval(`()=>document.querySelector('[data-stm="scrubber"]').focus()`)
+	if err := page.Keyboard.Type(input.Home); err != nil {
+		t.Fatal(err)
+	}
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="scrubber"]').getAttribute('aria-valuenow')==='0'`)
+	page.MustEval(`()=>{
+		window.stmHostFrames = [];
+		window.addEventListener('message', event => { const m = event.data; if (m && m.sm === 1 && m.type === 'time') window.stmHostFrames.push(m.frame); });
+		const note = document.querySelector('[data-stm="stage-note"]');
+		window.stmSeekWhileCompiling = new Promise(resolve => {
+			const watch = new MutationObserver(() => {
+				if (note.hidden) return;
+				watch.disconnect();
+				document.querySelector('[data-stm="scrubber"]').dispatchEvent(new KeyboardEvent('keydown', {key: 'End', bubbles: true, cancelable: true}));
+				resolve(true);
+			});
+			watch.observe(note, {attributes: true, attributeFilter: ['hidden']});
+		});
+	}`)
+	page.MustEval(setSelect, `[data-stm="transition"]`, "fade")
+	page.MustEval(`()=>window.stmSeekWhileCompiling`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="stage-note"]').hidden && (()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')&&s.getAttribute('aria-valuemax')!=='0'})()`)
+	time.Sleep(700 * time.Millisecond) // a late answer of the host must not move the playhead back
+	if !page.MustEval(`()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')}`).Bool() {
+		t.Fatal("the playhead left the end after the preview reloaded")
+	}
+	// and the host shows that frame too: its last time message is the end, not the frame 0 it starts at after a load
+	if !page.MustEval(`()=>{const s=document.querySelector('[data-stm="scrubber"]'),f=window.stmHostFrames;return f.length>0&&String(f[f.length-1])===s.getAttribute('aria-valuemax')}`).Bool() {
+		t.Fatalf("the host stayed on another frame than the playhead: %v", page.MustEval(`()=>JSON.stringify(window.stmHostFrames)`).String())
+	}
 
 	// Export: the panel steps through the fake job and ends in the output path with "show in Files".
 	storymakerClick(t, page, `[data-stm="export"]`)

@@ -107,6 +107,9 @@ async function rejects(promise, check, what) {
   eq(S.errors.describe(t, { status: 500, code: 'internal', message: 'boom' }), 'storymaker.error.generic boom', 'text for the rest keeps the server detail');
   eq(S.errors.describe(t, { status: 503, code: 'ffmpeg_unavailable' }), 'storymaker.job_error.ffmpeg_unavailable', 'a refused render start names the missing part');
   eq(S.errors.describe(t, { status: 429, code: 'busy' }), 'storymaker.error.busy', 'busy');
+  eq(S.errors.describe(t, { status: 422, code: 'invalid_story' }), 'storymaker.error.invalid_story', 'a refused save names the story');
+  eq(S.errors.describe(t, { status: 422, code: 'invalid_story' }, 'render'), 'storymaker.job_error.invalid_story', 'a refused export names the story');
+  eq(S.errors.describe(t, { status: 422, code: 'code_error' }, 'render'), 'storymaker.job_error.code_error', 'a refused export names the code scene');
 
   // a missing bundle is null, not an error
   answers['GET ' + base + '/projects/' + id + '/scenes/s3/bundle'] = json({ error: 'not_found' }, 404);
