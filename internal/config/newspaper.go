@@ -34,6 +34,7 @@ type NewspaperConfig struct {
 	MaxEditions     int      `yaml:"max_editions" json:"max_editions"`
 	AllowEmail      bool     `yaml:"allow_email" json:"allow_email"`
 	AllowTelegram   bool     `yaml:"allow_telegram" json:"allow_telegram"`
+	AllowWhatsApp   bool     `yaml:"allow_whatsapp" json:"allow_whatsapp"`
 }
 
 // NormalizeNewspaperConfig validates the budget mode and built-in overview

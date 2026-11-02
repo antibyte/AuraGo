@@ -18,6 +18,7 @@ type Policy struct {
 	MaxEditions int
 	Email       bool
 	Telegram    bool
+	WhatsApp    bool
 	Budget      BudgetConfig
 }
 
@@ -329,6 +330,9 @@ func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile) {
 	if p.TelegramDaily && s.policy().Telegram {
 		_, _ = s.Deliver(publicationCtx, e.ID, "telegram", "daily", "daily")
 	}
+	if p.WhatsAppDaily && s.policy().WhatsApp {
+		_, _ = s.Deliver(publicationCtx, e.ID, "whatsapp", "daily", "daily")
+	}
 }
 
 func (s *Service) recordFinalRun(r Run, message string) error {
@@ -342,7 +346,7 @@ func (s *Service) Deliver(ctx context.Context, id, channel, kind, key string) (D
 		return Delivery{}, ErrDisabled
 	}
 	policy := s.policy()
-	if channel == "email" && !policy.Email || channel == "telegram" && !policy.Telegram {
+	if channel == "email" && !policy.Email || channel == "telegram" && !policy.Telegram || channel == "whatsapp" && !policy.WhatsApp {
 		return Delivery{}, ErrDisabled
 	}
 	e, err := s.store.Get(ctx, id)

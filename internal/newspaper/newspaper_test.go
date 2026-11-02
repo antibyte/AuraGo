@@ -507,3 +507,111 @@ func TestRSSProfileRequiresSelectedSectionAndPlainURL(t *testing.T) {
 		}
 	}
 }
+
+// publishedTestEdition publishes one sealed edition into the service's store.
+func publishedTestEdition(t *testing.T, s *Service, now time.Time) Edition {
+	t.Helper()
+	ctx := context.Background()
+	run, err := s.Store().Start(ctx, "2026-09-25", false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := testDraft(now)
+	e := Edition{ID: run.ID, LocalDate: run.LocalDate, Revision: run.Revision, Title: "News", CreatedAt: now, CutoffAt: now, Stories: draft.Stories, Sources: draft.Sources}
+	if err := e.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Store().Publish(ctx, run, e); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+func TestWhatsAppDeliveryFollowsItsPolicyAndRecordsTheChannel(t *testing.T) {
+	ctx := context.Background()
+	policy := Policy{Enabled: true}
+	var channels []string
+	s, err := New(Options{
+		Path:        filepath.Join(t.TempDir(), "newspaper.db"),
+		Policy:      func() Policy { return policy },
+		Research:    func(context.Context, Profile, time.Time, func(Progress)) (Draft, error) { return Draft{}, nil },
+		Destination: func(context.Context, Profile, string) (string, error) { return "dedicated\x005678", nil },
+		Deliver: func(_ context.Context, _ Edition, _ Profile, channel string) (string, error) {
+			channels = append(channels, channel)
+			return "", nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	e := publishedTestEdition(t, s, time.Now().UTC())
+
+	if _, err := s.Deliver(ctx, e.ID, "whatsapp", "manual", "whatsapp-request-1"); !errors.Is(err, ErrDisabled) || len(channels) != 0 {
+		t.Fatalf("without the policy switch: err=%v calls=%v, want ErrDisabled and no call", err, channels)
+	}
+	policy.WhatsApp = true
+	d, err := s.Deliver(ctx, e.ID, "whatsapp", "manual", "whatsapp-request-2")
+	if err != nil || d.Channel != "whatsapp" || d.Status != "sent" || len(channels) != 1 || channels[0] != "whatsapp" {
+		t.Fatalf("allowed delivery: %+v err=%v calls=%v", d, err, channels)
+	}
+	records, err := s.Deliveries(ctx, e.ID)
+	if err != nil || len(records) != 1 || records[0].Channel != "whatsapp" || records[0].Status != "sent" {
+		t.Fatalf("delivery records = %+v err=%v, want one sent whatsapp record", records, err)
+	}
+	if _, _, err := s.Store().ClaimDelivery(ctx, e, "sms", "manual", strings.Repeat("a", 64), "sms-request-123456"); err == nil || !strings.Contains(err.Error(), "invalid delivery channel or kind") {
+		t.Fatalf("an unknown channel was claimed: %v", err)
+	}
+}
+
+func TestDailyEditionGoesToWhatsAppWhenAllowed(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		allowed   bool
+		wantCalls []string
+	}{
+		{"allowed", true, []string{"whatsapp"}},
+		{"not allowed", false, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			now := time.Now().UTC()
+			var calls []string
+			s, err := New(Options{
+				Path:        filepath.Join(t.TempDir(), "newspaper.db"),
+				Policy:      func() Policy { return Policy{Enabled: true, WhatsApp: tc.allowed} },
+				Now:         func() time.Time { return now },
+				Research:    func(context.Context, Profile, time.Time, func(Progress)) (Draft, error) { return testDraft(now), nil },
+				Destination: func(context.Context, Profile, string) (string, error) { return "self_chat", nil },
+				Deliver: func(_ context.Context, _ Edition, _ Profile, channel string) (string, error) {
+					calls = append(calls, channel)
+					return "", nil
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			run, err := s.Store().Start(ctx, now.Format("2006-01-02"), false, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := DefaultProfile()
+			p.WhatsAppDaily = true
+			s.execute(ctx, ctx, run, p)
+			if strings.Join(calls, ",") != strings.Join(tc.wantCalls, ",") {
+				t.Fatalf("delivery calls = %v, want %v", calls, tc.wantCalls)
+			}
+			records, err := s.Deliveries(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.allowed && (len(records) != 1 || records[0].Kind != "daily" || records[0].Channel != "whatsapp") {
+				t.Fatalf("delivery records = %+v, want one daily whatsapp record", records)
+			}
+			if !tc.allowed && len(records) != 0 {
+				t.Fatalf("delivery records = %+v, want none", records)
+			}
+		})
+	}
+}

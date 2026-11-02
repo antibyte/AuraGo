@@ -225,6 +225,18 @@ func handleWhatsAppLogout(s *Server) http.HandlerFunc {
 	}
 }
 
+// takeWhatsAppTestMinute claims the one WhatsApp test send a minute, shared by /api/whatsapp/test
+// and the newspaper's WhatsApp test. It reports false while the minute is taken.
+func takeWhatsAppTestMinute(now time.Time) bool {
+	whatsAppTestMu.Lock()
+	defer whatsAppTestMu.Unlock()
+	if !whatsAppTestLast.IsZero() && now.Sub(whatsAppTestLast) < time.Minute {
+		return false
+	}
+	whatsAppTestLast = now
+	return true
+}
+
 // handleWhatsAppTest sends the owner-only test message, at most once per
 // minute (like /api/telegram/test).
 func handleWhatsAppTest(s *Server) http.HandlerFunc {
@@ -238,14 +250,10 @@ func handleWhatsAppTest(s *Server) http.HandlerFunc {
 			return
 		}
 		now := whatsAppTestNow()
-		whatsAppTestMu.Lock()
-		if !whatsAppTestLast.IsZero() && now.Sub(whatsAppTestLast) < time.Minute {
-			whatsAppTestMu.Unlock()
+		if !takeWhatsAppTestMinute(now) {
 			writeWhatsAppJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limited"})
 			return
 		}
-		whatsAppTestLast = now
-		whatsAppTestMu.Unlock()
 		ctx, cancel := context.WithTimeout(r.Context(), whatsAppActionTimeout)
 		defer cancel()
 		if err := s.whatsApp().SendTest(ctx, now); err != nil {

@@ -1276,6 +1276,7 @@ newspaper:
   max_editions: 365                                     # retained edition revisions, minimum 30
   allow_email: false                                    # permit confirmed email delivery
   allow_telegram: false                                 # permit configured authorized Telegram user
+  allow_whatsapp: false                                 # permit delivery to the linked WhatsApp owner chat
 
 flows:
   enabled: true                                         # EasyDrag visual flows (missions with their own engine)

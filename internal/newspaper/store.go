@@ -484,7 +484,7 @@ func (s *Store) Events(ctx context.Context, runID string, after int64) ([]Event,
 }
 
 func (s *Store) ClaimDelivery(ctx context.Context, e Edition, channel, kind, targetHash, key string) (Delivery, bool, error) {
-	if channel != "email" && channel != "telegram" || kind != "daily" && kind != "manual" && kind != "test" {
+	if channel != "email" && channel != "telegram" && channel != "whatsapp" || kind != "daily" && kind != "manual" && kind != "test" {
 		return Delivery{}, false, errors.New("invalid delivery channel or kind")
 	}
 	if len(targetHash) != 64 || key == "" || len(key) > 128 {
