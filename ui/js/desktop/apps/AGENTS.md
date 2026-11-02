@@ -3236,6 +3236,20 @@ buttons and menu popovers remain excluded from those gestures.
   never replaced (conflict notice with Save As and reopen instead). Markdown/HTML/TXT open as a new
   import copy, so their windows never match a re-open. Verify
   `TestDesktopWriterReloadsChangedFileOnReopen` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+- Autor's toolbar names the shared icon key per slot (`slotIcons`) and per action
+  (`actionIcons`); an action id is never an icon name. The shared atlases have no
+  key for text alignment, underline, indent or the colour controls, so the app
+  draws those few glyphs itself in `writer.js` (`.writer-glyph`) instead of
+  adding a new shared asset. `text.color` takes a bare six-digit hex and
+  `text.highlight` an `ST_HighlightColor` name, so the toolbar and the format
+  panel both convert the picked colour through `markCommand`; the format panel
+  colour pickers were broken before that. The ruler mirrors the engine's
+  rendered page box, so its zero mark stays on the text edge when the window,
+  the side panels or the zoom change. The document menu closes on an outside
+  click and on Escape, the focus mode shows its own exit button, and the
+  outline marks the section that owns the caret. Paragraph styles show
+  localized names (`desktop.writer_style_*`) while the engine style ids stay
+  the values.
 - The Calendar is three continuations inside the shared Desktop IIFE, bundled
   in this order after `core/media-keys-runtime.js`: `calendar-views.js` (date
   math, `Intl` formatting, pure HTML renderers for month grid, week/day time
@@ -4838,6 +4852,9 @@ registration lives in `internal/desktop/types.go`.
 - `writer.js`, `writer-session.js`, `writer-panels.js` - Native DOCX Autor,
   revision-aware persistence, document panels and isolated AI suggestions.
   `desktop-app-writer.css` owns chrome only; the engine owns document geometry.
+  The toolbar maps slots to shared icon keys and draws the few missing glyphs
+  itself; the ruler follows the engine's page box, the document menu closes on
+  Escape and an outside click, and the outline marks the active section.
   Public table merge/split operations live in `scripts/writer-table-ops.js`.
   Exposes `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and

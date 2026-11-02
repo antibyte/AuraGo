@@ -8,7 +8,7 @@
     }
     function create(app) {
         const {root,find,tr,esc}=app, life=new AbortController();
-        let side='', matches=[], matchIndex=-1, searchSignature='', reviewSignature='', outlineSignature='';
+        let side='', matches=[], matchIndex=-1, searchSignature='', reviewSignature='', outlineSignature='', outlineActive='';
         let aiRequest, suggestion, printFrame;
         const textButton=(id,label=id)=>'<button type="button" data-panel-command="'+id+'">'+esc(tr(label))+'</button>';
         const commandButton=(command,label)=>'<button type="button" data-command="'+esc(JSON.stringify(command))+'">'+esc(tr(label))+'</button>';
@@ -20,7 +20,9 @@
             const node=find('[data-'+which+']');node.hidden=!name;
             if(!name){node.replaceChildren();return;}
             if(which==='right')side=name;
-            node.innerHTML='<div class="writer-panel-heading"><h2>'+esc(tr(name==='search'?'find':name))+'</h2><button type="button" data-action="'+name+'" aria-label="'+esc(tr('close'))+'">×</button></div><div class="writer-panel-content">'+content(name)+'</div>';
+            const title=tr(name==='search'?'find':name);
+            node.setAttribute('aria-label',title);
+            node.innerHTML='<div class="writer-panel-heading"><h2>'+esc(title)+'</h2><button type="button" data-action="'+name+'" aria-label="'+esc(tr('close'))+'"><span aria-hidden="true">×</span></button></div><div class="writer-panel-content">'+content(name)+'</div>';
             if(name==='review')reviewSignature='';
             if(name==='outline')outlineSignature='';
             if(name==='search'){searchSignature='';node.querySelector('[data-field="query"]').focus();}
@@ -28,12 +30,12 @@
         }
         function content(name) {
             switch(name) {
-                case 'outline': return '<p class="writer-hint">'+esc(tr('outline_hint'))+'</p><nav data-outline></nav>';
+                case 'outline': return '<nav data-outline aria-label="'+esc(tr('outline'))+'"></nav>';
                 case 'search': return field('find',input('query','','search','placeholder="'+esc(tr('search_placeholder'))+'"'))+
                     '<div class="writer-checks"><label><input type="checkbox" data-field="matchCase">'+esc(tr('match_case'))+'</label><label><input type="checkbox" data-field="wholeWord">'+esc(tr('whole_word'))+'</label></div>'+
                     '<div class="writer-buttonrow">'+textButton('previous')+textButton('next')+'</div><p data-matches role="status"></p>'+
                     section('replace',field('replace',input('replacement','','text'))+'<div class="writer-buttonrow">'+textButton('replace_one','replace')+textButton('replace_all')+'</div>');
-                case 'format': return section('text',field('color',input('text.color','#172033','color'))+field('highlight',input('text.highlight','#fff2aa','color'))+
+                case 'format': return section('text',field('color',input('text.color','#172033','color'))+field('highlight',input('text.highlight','#ffff00','color'))+
                     '<div class="writer-buttonrow">'+commandButton({type:'setAlignment',align:'justify'},'justify')+commandButton({type:'clearFormatting'},'clear_format')+'</div>')+
                     section('paragraph',field('line_spacing',input('lineSpacing',1.15,'number','min=".5" max="10" step=".05"'))+
                     field('before_spacing',input('beforePt',0,'number','min="0" max="200"'))+field('after_spacing',input('afterPt',8,'number','min="0" max="200"'))+
@@ -70,6 +72,21 @@
         }
         function value(key){return find('[data-field="'+key+'"]')?.value;}
         function checked(key){return !!find('[data-field="'+key+'"]')?.checked;}
+        // The heading that owns the caret is the section the reader is in.
+        function activeOutline(editor) {
+            const outline=editor.getOutline();
+            if(!outline.length)return '';
+            const ids=editor.surface?.session?.paragraphIds?.()||[];
+            const selection=editor.surface?.state?.()?.selection;
+            const current=selection?ids.indexOf(selection.head.paragraphId):-1;
+            if(current<0)return '';
+            let active='';
+            for(const entry of outline) {
+                const position=ids.indexOf(entry.blockId);
+                if(position>=0&&position<=current)active=entry.blockId;
+            }
+            return active;
+        }
         function update(left,right) {
             const editor=app.editor;if(!editor)return;
             for(const button of root.querySelectorAll('[data-command]')) {
@@ -86,20 +103,29 @@
                 if(signature!==outlineSignature) {
                     outlineSignature=signature;
                     find('[data-outline]').innerHTML=outline.length?outline.map(x=>'<button data-block="'+esc(x.blockId)+'" style="--writer-heading-depth:'+Math.min(5,x.level)+'">'+esc(x.text)+'</button>').join(''):'<p class="writer-hint">'+esc(tr('outline_empty'))+'</p>';
+                    outlineActive='';
+                }
+                const active=activeOutline(editor);
+                if(active!==outlineActive) {
+                    outlineActive=active;
+                    for(const el of root.querySelectorAll('[data-outline] button')) {
+                        const current=el.dataset.block===active;
+                        el.classList.toggle('is-active',current);
+                        if(current)el.setAttribute('aria-current','true');else el.removeAttribute('aria-current');
+                    }
                 }
             }
             if(left==='search')search(false);
             const snapshot=editor.snapshot(),fmt=snapshot.formatting || {};
             if(right==='format') {
                 const setup=snapshot.pageSetup, image=snapshot.image;
-                const hex=value=>{const body=String(value??'').trim().replace(/^#/,'');return /^[0-9a-fA-F]{6}$/.test(body)?'#'+body.toLowerCase():'';};
                 const mm=twips=>Math.round(Number(twips)*25.4/1440);
                 const indent=fmt.indent;
                 const fields={lineSpacing:fmt.lineSpacing?.value || 1.15,beforePt:fmt.spaceBeforePt || 0,afterPt:fmt.spaceAfterPt || 0,
                     orientation:setup.orientation,paper:paperSize(setup.pageWidthTwips,setup.pageHeightTwips) || 'custom',
                     leftIndent:indent && !indent.mixed?.left ? mm(indent.left) : '',
                     firstIndent:indent && !indent.mixed?.firstLine ? mm(indent.firstLine) : ''};
-                const color=hex(fmt.color), highlight=hex(fmt.highlight);
+                const color=app.colorHex(fmt.color), highlight=app.highlightHex(fmt.highlight);
                 if(color)fields['text.color']=color;
                 if(highlight)fields['text.highlight']=highlight;
                 if(image) {
@@ -238,7 +264,7 @@
             if(['query','matchCase','wholeWord'].includes(key)){searchSignature='';search(true);return;}
             if(key==='tracking'){app.run({type:'setEditingMode',mode:v});return;}
             if(key==='author'){if(v.trim())app.author=v.trim().slice(0,100);return;}
-            if(key==='text.color' || key==='text.highlight'){app.run(app.lib.commandForSlotValue(key,v));return;}
+            if(key==='text.color' || key==='text.highlight'){app.run(app.markCommand(key,v));return;}
             if(key==='lineSpacing')app.run({type:'setLineSpacing',rule:'multiple',value:n});
             if(key==='beforePt' || key==='afterPt')app.run({type:'setParagraphSpacing',[key]:n});
             if(key==='leftIndent' || key==='firstIndent')app.run({type:'setIndent',[key==='leftIndent'?'left':'firstLine']:Math.round(n*1440/25.4)});
@@ -294,7 +320,7 @@
             } catch(error) {job.dispose();throw error;}
             finally {printEditor.destroy();}
         }
-        function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';}
+        function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';outlineActive='';}
         return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
     window.WriterPanels={create,paperSize};

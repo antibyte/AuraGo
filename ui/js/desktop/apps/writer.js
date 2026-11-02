@@ -20,29 +20,66 @@
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
         const actionIcons = {new:'file-plus',open:'folder-open',saveAs:'copy',docx:'file-text',html:'file-code',md:'notes',txt:'file-text',print:'printer',
             outline:'list',format:'sliders',review:'chat',assist:'star',insert:'plus',focus:'maximize',fit:'monitor'};
-        const icon = (key, fallback) => ctx.iconMarkup?.(actionIcons[key] || key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
-        const button = (action, label, symbol) => '<button type="button" data-action="' + action + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(action, symbol) + '</button>';
-        const slotButton = (slot, label, symbol) => '<button type="button" data-slot="' + slot + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(label, symbol) + '</button>';
+        // The shared icon atlases carry no keys for text alignment, underline, indent or
+        // colour controls, so Autor draws those few glyphs itself, in the toolbar's line style.
+        const glyphs = {
+            'align-left':'<path d="M4 6h16M4 12h9M4 18h16"/>',
+            'align-center':'<path d="M4 6h16M7.5 12h9M4 18h16"/>',
+            'align-right':'<path d="M4 6h16M11 12h9M4 18h16"/>',
+            'align-justify':'<path d="M4 6h16M4 12h16M4 18h16"/>',
+            'format-underline':'<path d="M7 4v8a5 5 0 0 0 10 0V4"/><path d="M6 20h12"/>',
+            'indent':'<path d="M4 5h16M4 12h8M4 19h16"/><path d="M12 8l4 4-4 4"/>',
+            'outdent':'<path d="M4 5h16M4 12h8M4 19h16"/><path d="M16 8l-4 4 4 4"/>',
+            'text-color':'<path d="M12 4L5.5 15M12 4l6.5 11"/><path d="M8.6 10.6h6.8"/><path d="M6 19.5h12" stroke-width="3"/>',
+            'highlight':'<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>'
+        };
+        const icon = (key, fallback) => {
+            const shape=glyphs[key];
+            if(shape)return '<svg class="writer-glyph" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+shape+'</svg>';
+            return ctx.iconMarkup?.(key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
+        };
+        const actionIcon = (action, fallback) => icon(actionIcons[action] || action, fallback);
+        // Action ids are not icon names; every slot names the shared key it draws.
+        const slotIcons = {
+            'history.undo':'undo','history.redo':'redo',
+            'text.bold':'format-bold','text.italic':'format-italic','text.underline':'format-underline','text.strike':'format-strike',
+            'alignment.left':'align-left','alignment.center':'align-center','alignment.right':'align-right','alignment.justify':'align-justify',
+            'list.bullet':'list','list.numbered':'format-numbered','list.outdent':'outdent','list.indent':'indent',
+            'text.color':'text-color','text.highlight':'highlight'
+        };
+        const toggleSlots = new Set(['text.bold','text.italic','text.underline','text.strike','alignment.left','alignment.center','alignment.right','alignment.justify','list.bullet','list.numbered']);
+        const button = (action, label, symbol) => '<button type="button" data-action="' + action + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + actionIcon(action, symbol) + '</button>';
+        const slotButton = (slot, label, symbol) => '<button type="button" data-slot="' + slot + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(slotIcons[slot] || label, symbol) + '</button>';
+        const colorField = (slot, label, value) => '<label class="writer-color" title="' + esc(tr(label)) + '">' + icon(slotIcons[slot], '') +
+            '<input type="color" data-slot="' + slot + '" value="' + value + '" aria-label="' + esc(tr(label)) + '"></label>';
+        const menuId = 'writer-document-menu-' + String(windowId).replace(/[^\w-]/g,'-');
         host.innerHTML = '<div class="writer-app" data-writer="' + esc(windowId) + '">' +
-            '<header class="writer-documentbar"><div class="writer-document"><button class="writer-document-name" data-action="document"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">' + esc(tr('loading')) + '</span></div>' +
+            '<header class="writer-documentbar"><div class="writer-document"><button class="writer-document-name" data-action="document" aria-expanded="false" aria-controls="' + menuId + '"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">' + esc(tr('loading')) + '</span></div>' +
             '<nav class="writer-views" aria-label="' + esc(tr('panels')) + '">' + button('outline','outline','☷') + button('search','find','⌕') + '<span class="writer-divider"></span>' +
             button('format','format','A') + button('review','review','☷') + button('assist','assist','✦') + '</nav></header>' +
-            '<div class="writer-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="rename">' + esc(tr('rename')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="save">' + esc(tr('save')) + '</button></div>' +
-            '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format')) + '">' +
+            '<div class="writer-document-menu" id="' + menuId + '" data-document-menu hidden><strong data-location></strong><button data-action="rename">' + esc(tr('rename')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="save">' + esc(tr('save')) + '</button></div>' +
+            '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +
             '<div class="writer-toolgroup">' + slotButton('history.undo','undo','↶') + slotButton('history.redo','redo','↷') + '</div>' +
             '<div class="writer-toolgroup writer-fonts"><select data-slot="styles.style" aria-label="' + esc(tr('style')) + '"></select><select data-slot="font.family" aria-label="' + esc(tr('font')) + '"></select><input type="number" data-slot="font.size" required min="1" max="200" step=".5" value="11" aria-label="' + esc(tr('size')) + '"></div>' +
-            '<div class="writer-toolgroup">' + slotButton('text.bold','bold','B') + slotButton('text.italic','italic','I') + slotButton('text.underline','underline','U') + '</div>' +
-            '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + '</div>' +
+            '<div class="writer-toolgroup">' + slotButton('text.bold','bold','B') + slotButton('text.italic','italic','I') + slotButton('text.underline','underline','U') + slotButton('text.strike','strike','S') + '</div>' +
+            '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + slotButton('alignment.justify','justify','≡') + '</div>' +
             '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
+            '<div class="writer-toolgroup writer-colors">' + colorField('text.color','color','#172033') + colorField('text.highlight','highlight','#ffff00') + '</div>' +
             button('insert','insert','＋') + '</div>' +
-            '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '">×</button></div>' +
+            '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '"><span aria-hidden="true">×</span></button></div>' +
             '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
-            '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language></span>' +
-            button('focus','focus_mode','⛶') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer><input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
+            '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language title="' + esc(tr('language_unknown')) + '"></span>' +
+            button('focus','focus_mode','⛶') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
+            '<button class="writer-focus-exit" data-action="focus" hidden title="' + esc(tr('focus_exit')) + '" aria-label="' + esc(tr('focus_exit')) + '">' + icon('restore','⛶') + '</button>' +
+            '<input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
         const root = host.firstElementChild, find = selector => root.querySelector(selector), mount = find('[data-editor]');
+        // The page box moves with the canvas and the zoom, so the ruler follows the engine's layout.
+        const rulerResize=new ResizeObserver(()=>{rulerSignature='';if(editor&&!loading)syncRuler(editor.snapshot().pageSetup);});
+        rulerResize.observe(find('.writer-canvas'));
+        rulerResize.observe(mount);
         let editor, lib, queue, path = ctx.path || newPath(), etag = null, generation = 0, disposed = false, fileOperation = false;
         let loadFailed = false, loading = true, pin = null, updateTimer, draftTimer, draftDeadline, lastDraft = null;
-        let statsRevision=-1, rulerSignature='', documentLanguage='', documentFonts;
+        let statsRevision=-1, rulerSignature='', documentLanguage='', documentFonts, documentStats='';
         let leftPanel = '', rightPanel = '', author = localStorage.getItem('aurago.writer.author') || 'AuraGo';
         let noticeKind = '', retrySaveAs = null;
         const lifecycle = new AbortController();
@@ -51,6 +88,9 @@
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             run,can,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),act,refresh:()=>refresh(),pinSelection,
+            markCommand:(slot,value)=>slot==='text.color'?lib.commandForSlotValue(slot,colorValue(value).replace('#','')):
+                slot==='text.highlight'?lib.commandForSlotValue(slot,highlightName(value)):lib.commandForSlotValue(slot,value),
+            colorHex:value=>colorValue(value),highlightHex:value=>highlightHex(value),
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };
         const panels = window.WriterPanels.create(state);
@@ -266,16 +306,70 @@
             }
             if(selection)target.exec({type:'setSelection',range:selection});
         }
+        const styleLabels = {normal:'style_normal',title:'style_title',subtitle:'style_subtitle',quote:'style_quote',caption:'style_caption',nospacing:'style_no_spacing',listparagraph:'style_list_paragraph'};
+        function styleLabel(style) {
+            const id=String(style.styleId||'').toLowerCase();
+            const heading=id.match(/^heading([1-9])$/);
+            if(heading)return tr('style_heading',{level:heading[1]});
+            return styleLabels[id]?tr(styleLabels[id]):style.name;
+        }
         function fillToolbar() {
             const option=(value,label)=>'<option value="'+esc(value)+'">'+esc(label)+'</option>';
-            find('[data-slot="styles.style"]').innerHTML=editor.getDocumentStyles().filter(x=>x.type==='paragraph').map(x=>option(x.styleId,x.name)).join('');
+            find('[data-slot="styles.style"]').innerHTML=editor.getDocumentStyles().filter(x=>x.type==='paragraph').map(x=>option(x.styleId,styleLabel(x))).join('');
             find('[data-slot="font.family"]').innerHTML=editor.getAvailableFonts().map(x=>option(x,x)).join('');
         }
         function valueCommand(control) {
+            const slot=control.dataset.slot;
+            // The DOCX engine wants a bare hex for colours and a palette name for highlights.
+            if(slot==='text.color')return lib.commandForSlotValue(slot,colorValue(control.value).replace('#',''));
+            if(slot==='text.highlight')return lib.commandForSlotValue(slot,highlightName(control.value));
             // The toolbar displays points; the DOCX command consumes integer half-points.
-            return lib.commandForSlotValue(control.dataset.slot,control.dataset.slot==='font.size'?control.valueAsNumber*2:control.value);
+            return lib.commandForSlotValue(slot,slot==='font.size'?control.valueAsNumber*2:control.value);
         }
         function refreshSoon(){clearTimeout(updateTimer);updateTimer=setTimeout(refresh,75);}
+        const countWords = text => text.trim()?(Intl.Segmenter?[...new Intl.Segmenter(locale,{granularity:'word'}).segment(text)].filter(x=>x.isWordLike).length:text.trim().split(/\s+/).length):0;
+        const colorValue = value => {
+            const raw=value&&typeof value==='object'?(value.value??value.resolvedHex??''):value;
+            const body=String(raw??'').trim().replace(/^#/,'');
+            return /^[0-9a-fA-F]{6}$/.test(body)?'#'+body.toLowerCase():'';
+        };
+        // The OOXML highlight palette holds named colours only; pick the closest one.
+        const highlightColors = {black:'000000',blue:'0000ff',cyan:'00ffff',darkBlue:'000080',darkCyan:'008080',darkGray:'808080',darkGreen:'008000',
+            darkMagenta:'800080',darkRed:'800000',darkYellow:'808000',green:'00ff00',lightGray:'c0c0c0',magenta:'ff00ff',red:'ff0000',white:'ffffff',yellow:'ffff00'};
+        function highlightName(value) {
+            const hex=colorValue(value);
+            if(!hex)return '';
+            const red=parseInt(hex.slice(1,3),16),green=parseInt(hex.slice(3,5),16),blue=parseInt(hex.slice(5,7),16);
+            let nearest='',distance=Infinity;
+            for(const [name,value] of Object.entries(highlightColors)) {
+                const delta=(red-parseInt(value.slice(0,2),16))**2+(green-parseInt(value.slice(2,4),16))**2+(blue-parseInt(value.slice(4,6),16))**2;
+                if(delta<distance){distance=delta;nearest=name;}
+            }
+            return nearest;
+        }
+        const highlightHex = value => highlightColors[String(value??'').trim()]?'#'+highlightColors[String(value??'').trim()]:colorValue(value);
+        // The ruler mirrors the engine's own page box, so the zero mark sits on the text edge.
+        function syncRuler(setup) {
+            const ruler=find('.writer-ruler'),canvas=find('.writer-canvas'),page=root.querySelector('.docx-page');
+            if(!ruler||!canvas||!setup)return;
+            const canvasRect=canvas.getBoundingClientRect(),pageRect=page?page.getBoundingClientRect():null;
+            const content=page?page.querySelector(':scope > .docx-page-content'):null;
+            const contentRect=content?content.getBoundingClientRect():null;
+            const zoom=editor.getZoom(),scale=zoom/15;
+            const width=pageRect?Math.round(pageRect.width*100)/100:setup.pageWidthTwips*scale;
+            const left=pageRect?Math.round((pageRect.left-canvasRect.left)*100)/100:0;
+            const padLeft=contentRect?Math.round((contentRect.left-pageRect.left)*100)/100:setup.marginsTwips.left*scale;
+            const padRight=contentRect?Math.round((pageRect.right-contentRect.right)*100)/100:setup.marginsTwips.right*scale;
+            if(ruler.dataset.width!==String(width)){ruler.style.width=width+'px';ruler.dataset.width=String(width);}
+            if(ruler.dataset.left!==String(left)){ruler.style.marginLeft=left+'px';ruler.style.marginRight='0';ruler.dataset.left=String(left);}
+            if(ruler.dataset.pad!==padLeft+'/'+padRight){ruler.style.paddingLeft=padLeft+'px';ruler.style.paddingRight=padRight+'px';ruler.dataset.pad=padLeft+'/'+padRight;}
+            const contentMm=contentRect?contentRect.width*25.4/(96*zoom):(setup.pageWidthTwips-setup.marginsTwips.left-setup.marginsTwips.right)*25.4/1440;
+            const ticks=Math.max(1,Math.floor(contentMm/20)+1);
+            if(ruler.dataset.ticks!==String(ticks)){
+                ruler.dataset.ticks=String(ticks);
+                ruler.innerHTML=Array.from({length:ticks},(_,i)=>'<span>'+i*2+'</span>').join('');
+            }
+        }
         function refresh() {
             if(!editor || disposed || loading)return;
             const snapshot=editor.snapshot(),fmt=snapshot.formatting || {};
@@ -285,7 +379,13 @@
                     const command=lib.commandForSlot(slot),allowed=command && can(command);
                     el.disabled=!allowed?.ok;
                     el.title=el.getAttribute('aria-label')+(!allowed?.ok?' · '+tr('command_unavailable')+(allowed?.reason?': '+allowed.reason:''):'');
-                    el.setAttribute('aria-pressed',String(!!command && editor.isActive(command)));
+                    if(toggleSlots.has(slot))el.setAttribute('aria-pressed',String(!!command && editor.isActive(command)));
+                    else el.removeAttribute('aria-pressed');
+                } else if(slot==='text.color'||slot==='text.highlight') {
+                    const hex=slot==='text.color'?colorValue(fmt.color):highlightHex(fmt.highlight);
+                    if(hex && el!==document.activeElement)el.value=hex;
+                    const allowed=can(valueCommand(el));
+                    el.disabled=!allowed.ok;el.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
                 } else if(document.activeElement!==el) {
                     el.value=slot==='styles.style'?fmt.styleId || 'Normal':slot==='font.family'?fmt.fontFamily || 'Calibri':fmt.fontSizePt || 11;
                     const allowed=can(valueCommand(el));
@@ -296,17 +396,18 @@
             if(statsRevision!==queue.revision) {
                 statsRevision=queue.revision;
                 const text=editor.surface.session.bodyText();
-                const words=text.trim()?(Intl.Segmenter?[...new Intl.Segmenter(locale,{granularity:'word'}).segment(text)].filter(x=>x.isWordLike).length:text.trim().split(/\s+/).length):0;
-                find('[data-count]').textContent=tr('word_count',{count:words})+' · '+tr('char_count',{count:[...text].length});
+                documentStats=tr('word_count',{count:countWords(text)})+' · '+tr('char_count',{count:[...text].length});
             }
-            const setup=snapshot.pageSetup,scale=editor.getZoom()/15,signature=JSON.stringify([setup,scale]);
-            if(signature!==rulerSignature) {
-                rulerSignature=signature;
-                const ruler=find('.writer-ruler'),width=(setup.pageWidthTwips-setup.marginsTwips.left-setup.marginsTwips.right)*25.4/1440;
-                ruler.style.width=(setup.pageWidthTwips*scale)+'px';ruler.style.paddingInline=setup.marginsTwips.left*scale+'px '+setup.marginsTwips.right*scale+'px';
-                ruler.innerHTML=Array.from({length:Math.floor(width/20)+1},(_,i)=>'<span>'+i*2+'</span>').join('');
-            }
-            find('[data-language]').textContent=(documentLanguage || tr('language_unknown')).toUpperCase();find('[data-zoom]').textContent=Math.round(editor.getZoom()*100)+'%';
+            let stats=documentStats;
+            const selected=snapshot.selectionCollapsed?'':editor.query({type:'selectedText'});
+            if(selected?.trim())stats+=' · '+tr('selection_count',{count:countWords(selected)});
+            find('[data-count]').textContent=stats;
+            const setup=snapshot.pageSetup,signature=JSON.stringify([setup,editor.getZoom(),leftPanel,rightPanel]);
+            if(signature!==rulerSignature){rulerSignature=signature;syncRuler(setup);}
+            const language=find('[data-language]');
+            language.textContent=documentLanguage?documentLanguage.toUpperCase():'—';
+            language.title=documentLanguage||tr('language_unknown');
+            find('[data-zoom]').textContent=Math.round(editor.getZoom()*100)+'%';
             panels.update(leftPanel,rightPanel);
         }
         async function guard() {
@@ -431,6 +532,22 @@
             for(const el of root.querySelectorAll('.writer-views button'))el.setAttribute('aria-pressed',String([leftPanel,rightPanel].includes(el.dataset.action)));
             refresh();
         }
+        function closeDocumentMenu() {
+            const menu=find('[data-document-menu]');
+            if(menu)menu.hidden=true;
+            find('.writer-document-name')?.setAttribute('aria-expanded','false');
+        }
+        function toggleDocumentMenu() {
+            const menu=find('[data-document-menu]');
+            if(!menu)return;
+            menu.hidden=!menu.hidden;
+            find('.writer-document-name')?.setAttribute('aria-expanded',String(!menu.hidden));
+        }
+        function setFocus(on) {
+            root.classList.toggle('writer-focus',on);
+            const exit=find('.writer-focus-exit');
+            if(exit)exit.hidden=!on;
+        }
         async function insertImage(file, options = {}) {
             if(!editor || ctx.readonly || !/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error(tr('image_format'));
             if(editor.snapshot().editingMode==='suggesting')throw new Error(tr('tracking_unsupported'));
@@ -470,7 +587,7 @@
                 if(['outline','search'].includes(action))return showPanel('left',action);
                 if(['format','review','assist','insert'].includes(action))return showPanel('right',action);
                 switch(action) {
-                    case 'document':find('[data-document-menu]').hidden=!find('[data-document-menu]').hidden;break;
+                    case 'document':toggleDocumentMenu();break;
                     case 'dismiss':notice('');break;
                     case 'retry':
                         if(noticeKind==='saveAs' && retrySaveAs)await commitCopy(retrySaveAs.path,retrySaveAs);
@@ -481,16 +598,16 @@
                         if(queue?.dirty && !await ctx.confirmDialog(tr('unsaved'),tr('discard_confirm')))return;
                         await load(path);
                         break;
-                    case 'save':if(queue && !etag && !queue.dirty)queue.changed();await queue?.save();break;
-                    case 'saveAs':await saveAs();break;
-                    case 'rename':await rename();break;
+                    case 'save':closeDocumentMenu();if(queue && !etag && !queue.dirty)queue.changed();await queue?.save();break;
+                    case 'saveAs':closeDocumentMenu();await saveAs();break;
+                    case 'rename':closeDocumentMenu();await rename();break;
                     case 'open':{
                         const choice=await ctx.openFileDialog({title:tr('open'),initialPath:'Documents',filters:[{label:tr('documents'),extensions:['.docx','.html','.htm','.md','.txt']}]});
                         if(choice?.path && !choice.canceled && await guard())await load(choice.path);break;
                     }
                     case 'new':if(!ctx.readonly && await guard()){await load(newPath(),'blank');showPanel('right','insert');}break;
                     case 'blank':case 'letter':case 'report':case 'meeting':if(!ctx.readonly && await guard())await load(newPath(),action);break;
-                    case 'focus':root.classList.toggle('writer-focus');break;
+                    case 'focus':setFocus(!root.classList.contains('writer-focus'));break;
                     case 'fit':editor?.setZoomMode({type:'fit',fit:'pageWidth',minZoom:.25,maxZoom:1});refresh();break;
                     case 'zoomIn':case 'zoomOut':editor?.setZoom(Math.max(.25,Math.min(3,editor.getZoom()+(action==='zoomIn'?.1:-.1))));refresh();break;
                     case 'page':{const value=await ctx.promptDialog(tr('go_page'),String(editor?.getCurrentPage() || 1));if(value && editor)editor.scrollToPage(Math.max(1,Math.min(editor.getTotalPages(),Number(value)||1)));break;}
@@ -546,6 +663,8 @@
         }
         root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
         root.addEventListener('click',event=>{
+            const menu=find('[data-document-menu]');
+            if(menu && !menu.hidden && !event.target.closest('.writer-document-menu,.writer-document-name'))closeDocumentMenu();
             const control=event.target.closest('[data-action],[data-slot]');if(!control || control.disabled)return;
             if(control.dataset.action)void act(control.dataset.action);else if(control.matches('button'))run(lib?.commandForSlot(control.dataset.slot));
         },{signal:lifecycle.signal});
@@ -570,7 +689,14 @@
         root.addEventListener('keydown',event=>{
             const command=event.ctrlKey || event.metaKey,action=command && {s:event.shiftKey?'saveAs':'save',o:'open',n:'new',f:'search',h:'search',p:'print'}[event.key.toLowerCase()];
             if(action){event.preventDefault();event.stopPropagation();act(action);}
-            if(event.key==='Escape'){if(rightPanel)showPanel('right',rightPanel);else if(leftPanel)showPanel('left',leftPanel);root.classList.remove('writer-focus');}
+            if(event.key==='Escape'){
+                // The menu is the topmost layer; focus mode hides every panel and leaves on Escape.
+                // The engine keeps the event: Escape also leaves a note scope or the format painter.
+                if(!find('[data-document-menu]').hidden){closeDocumentMenu();return;}
+                if(root.classList.contains('writer-focus')){setFocus(false);return;}
+                if(rightPanel){showPanel('right',rightPanel);return;}
+                if(leftPanel){showPanel('left',leftPanel);return;}
+            }
         },{capture:true,signal:lifecycle.signal});
         window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
         function cleanup() {
