@@ -212,7 +212,7 @@ func runStorymakerParity(t *testing.T, browser *rod.Browser, job storymakerParit
 	handle("/frame", func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(io.LimitReader(r.Body, 64<<20))
 		var n int
-		_, _ = fmt.Sscanf(r.Header.Get("X-SM-Frame"), "%d", &n)
+		_, _ = fmt.Sscanf(r.URL.Query().Get("n"), "%d", &n)
 		mu.Lock()
 		defer mu.Unlock()
 		if name, ok := wanted[n]; ok {

@@ -345,6 +345,8 @@ type storymakerIngest struct {
 	frame5    []byte
 	shot      []byte
 	saveDir   string
+	frameHdr  int // frame requests that carried an X-SM-Frame header (none should)
+	framePre  int // preflights of POST /frame (none should)
 }
 
 func (in *storymakerIngest) cors(w http.ResponseWriter, r *http.Request) {
@@ -382,11 +384,14 @@ func TestStorymakerRenderModeBrowser(t *testing.T) {
 			if fmt.Sprint(in.frames) != fmt.Sprint(wantFrames) {
 				t.Fatalf("frames posted = %v, want %v", in.frames, wantFrames)
 			}
-			mime := map[string]string{"png": "image/png", "webp": "image/webp", "raw": "application/octet-stream"}[transport]
+			// frames are CORS-simple requests (frame number in the query, text/plain): Chrome sends no preflight per frame
 			for i, ct := range in.types {
-				if ct != mime {
-					t.Fatalf("frame %d content type %q, want %q", i, ct, mime)
+				if ct != "text/plain" {
+					t.Fatalf("frame %d content type %q, want text/plain", i, ct)
 				}
+			}
+			if in.frameHdr != 0 || in.framePre != 0 {
+				t.Errorf("%d frame requests carried an X-SM-Frame header and %d preflights hit /frame: frames must be CORS-simple", in.frameHdr, in.framePre)
 			}
 			if transport == "raw" {
 				for i, n := range in.sizes {
@@ -442,6 +447,9 @@ func runStorymakerRenderPage(t *testing.T, browser *rod.Browser, transport, stor
 			}
 			if r.Method == http.MethodOptions {
 				in.options++
+				if strings.HasSuffix(r.URL.Path, "/frame") {
+					in.framePre++
+				}
 			}
 			in.mu.Unlock()
 			in.cors(w, r)
@@ -526,7 +534,7 @@ func runStorymakerRenderPage(t *testing.T, browser *rod.Browser, transport, stor
 	handle("/frame", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 64<<20))
 		var n int
-		fmt.Sscanf(r.Header.Get("X-SM-Frame"), "%d", &n)
+		fmt.Sscanf(r.URL.Query().Get("n"), "%d", &n)
 		in.mu.Lock()
 		defer in.mu.Unlock()
 		in.frames = append(in.frames, n)
@@ -540,6 +548,9 @@ func runStorymakerRenderPage(t *testing.T, browser *rod.Browser, transport, stor
 			_ = os.WriteFile(filepath.Join(in.saveDir, fmt.Sprintf("storymaker-%s-%03d.png", in.story, n)), body, 0o644)
 		}
 		in.types = append(in.types, r.Header.Get("Content-Type"))
+		if r.Header.Get("X-SM-Frame") != "" {
+			in.frameHdr++
+		}
 		in.sizes = append(in.sizes, len(body))
 		if transport == "png" && len(body) > 24 && bytes.Equal(body[:8], []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}) {
 			in.pngDims = append(in.pngDims, [2]int{int(binary.BigEndian.Uint32(body[16:20])), int(binary.BigEndian.Uint32(body[20:24]))})

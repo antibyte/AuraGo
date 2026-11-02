@@ -19,7 +19,8 @@ function makeServer(opts = {}) {
         mode: 'render', fps: 30, width: W, height: H, transport, frame_limit: opts.frameLimit || 5000, story_url: RBASE + '/story.json',
         catalog_url: RBASE + '/catalog/catalog.json', assets_base: RBASE + '/catalog/',
         code_bundles: opts.noCode ? {} : { s3: RBASE + '/scenes/s3.js' },
-        fonts: [{ name: 'default', family: 'Storymaker Default', weight: 400, url: RBASE + '/fonts/placeholder.woff2' }], audio_info: {}
+        fonts: [{ name: 'default', family: 'Storymaker Default', weight: 400, url: RBASE + '/fonts/placeholder.woff2' }], audio_info: {},
+        ...(opts.boot || {})
     };
     const res = (body, status = 200) => ({
         ok: status >= 200 && status < 300, status, json: async () => body, text: async () => typeof body === 'string' ? body : JSON.stringify(body), arrayBuffer: async () => new ArrayBuffer(16)
@@ -37,10 +38,10 @@ function makeServer(opts = {}) {
                 frames = rep.frame_count;
                 return res(opts.report ? opts.report(rep) : { start: true, from_frame: 0 });
             }
-            if (p === '/frame') {
-                const n = Number(init.headers['X-SM-Frame']);
+            if (p.startsWith('/frame?n=')) {
+                const n = Number(p.slice('/frame?n='.length));
                 rec.n = n;
-                const custom = answerFor(n, posts.filter(x => x.path === '/frame').length);
+                const custom = answerFor(n, posts.filter(x => x.path.startsWith('/frame?n=')).length);
                 if (custom) return res(custom);
                 return res(n >= frames - 1 ? { ok: true, done: true } : { ok: true });
             }
@@ -76,10 +77,10 @@ async function runRender(opts = {}) {
     const env = {
         hasWorkers: true,
         createWorker(role, text) { const w = new InProcessWorker(role, text, {}); workers.push(w); return w; },
-        setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: { ...TEST_LIMITS, ...(opts.limits || {}) }
+        setTimer: (fn, ms) => { if (opts.timers) opts.timers.push(ms); return setTimeout(fn, ms); }, clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: { ...TEST_LIMITS, ...(opts.limits || {}) }
     };
     const status = await H.mountRender({ canvas, base: RBASE, fetch: server.fetch, window: win, env });
-    return { server, status: plain(status), win, canvas, workers, frames: server.posts.filter(p => p.path === '/frame') };
+    return { server, status: plain(status), win, canvas, workers, frames: server.posts.filter(p => p.path.startsWith('/frame?n=')) };
 }
 
 check('render mode: boot.json, report, then every frame in order (png)', async () => {
@@ -88,14 +89,15 @@ check('render mode: boot.json, report, then every frame in order (png)', async (
     assert.equal(r.win.document.body.style.margin, '0', 'the body margin is set through the CSSOM');
     assert.equal(r.win.document.documentElement.style.overflow, 'hidden', 'no scrollbars: the screenshot transport captures the viewport');
     assert.equal(r.canvas.style.display, 'block', 'no inline-canvas gap below the canvas');
-    assert.deepEqual(r.server.posts.map(p => p.path).slice(0, 2), ['/report', '/frame']);
+    assert.deepEqual(r.server.posts.map(p => p.path).slice(0, 2), ['/report', '/frame?n=0']);
     const rep = r.server.posts[0].report;
     assert.equal(rep.frame_count, 354); assert.equal(rep.width, 192); assert.equal(rep.height, 108);
     assert.equal(rep.issues.filter(i => i.severity === 'error').length, 0);
     assert.equal(r.server.posts[0].headers['Content-Type'], 'application/json');
     assert.equal(r.frames.length, 354);
     r.frames.forEach((f, i) => {
-        assert.equal(f.headers['X-SM-Frame'], String(i)); assert.equal(f.headers['Content-Type'], 'image/png'); assert.equal(f.body.type, 'image/png');
+        assert.equal(f.path, '/frame?n=' + i); assert.equal(f.headers['Content-Type'], 'text/plain', 'a CORS-simple request: no preflight per frame');
+        assert.equal(f.headers['X-SM-Frame'], undefined); assert.equal(f.body.type, 'image/png');
     });
     assert.equal(r.canvas.width, 192); assert.equal(r.canvas.height, 108);
     assert.equal(r.server.posts.filter(p => p.path === '/error').length, 0);
@@ -109,20 +111,31 @@ check('render mode: boot.json, report, then every frame in order (png)', async (
 check('render mode: webp, raw RGBA and the screenshot transport', async () => {
     const webp = await runRender({ transport: 'webp', story: minimal, noCode: true });
     assert.equal(webp.status.phase, 'done'); assert.equal(webp.frames.length, 42);
-    assert.equal(webp.frames[0].headers['Content-Type'], 'image/webp'); assert.equal(webp.frames[0].body.quality, 1, 'lossless webp');
+    assert.equal(webp.frames[0].headers['Content-Type'], 'text/plain'); assert.equal(webp.frames[0].body.type, 'image/webp'); assert.equal(webp.frames[0].body.quality, 1, 'lossless webp');
     const raw = await runRender({ transport: 'raw', story: minimal, noCode: true });
     assert.equal(raw.status.phase, 'done'); assert.equal(raw.frames.length, 42);
-    assert.equal(raw.frames[3].headers['Content-Type'], 'application/octet-stream');
+    assert.equal(raw.frames[3].headers['Content-Type'], 'text/plain');
     assert.equal(raw.frames[3].body.byteLength, 192 * 108 * 4, 'raw RGBA is w*h*4 bytes');
     const shot = await runRender({ transport: 'screenshot', story: minimal, noCode: true });
     assert.equal(shot.status.phase, 'ready'); assert.equal(shot.status.frame_count, 42);
-    assert.equal(shot.server.posts.filter(p => p.path === '/frame').length, 0, 'the screenshot transport posts no frames');
+    assert.equal(shot.server.posts.filter(p => p.path.startsWith('/frame')).length, 0, 'the screenshot transport posts no frames');
     assert.equal(typeof shot.win.__smRenderFrame, 'function');
     const before = shot.canvas.ctx.log.filter(l => l.startsWith('drawImage')).length;
     assert.equal(await shot.win.__smRenderFrame(7), 7);
     assert.equal(shot.canvas.ctx.log.filter(l => l.startsWith('drawImage')).length, before + 1, 'the frame is drawn on the visible canvas');
     assert.equal(plain(shot.win.__smStatus).frame, 7);
     await assert.rejects(() => shot.win.__smRenderFrame(42), /outside 0\.\.41/);
+});
+
+check('render mode: boot.frame_deadline_ms replaces the 250 ms frame deadline of the preview', async () => {
+    const limits = { warmupFrames: 0, frameDeadlineMs: 40 };
+    const control = [], offered = [], absurd = [];
+    assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: control })).status.phase, 'done');
+    assert.ok(control.includes(40), 'without frame_deadline_ms every frame call waits at most the preview deadline');
+    assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: offered, boot: { frame_deadline_ms: 5000 } })).status.phase, 'done');
+    assert.ok(offered.includes(5000) && !offered.includes(40), 'the deadline Go offers in boot.json is the frame deadline of the render');
+    assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: absurd, boot: { frame_deadline_ms: 3600000 } })).status.phase, 'done');
+    assert.ok(absurd.includes(60000) && !absurd.includes(3600000), 'a render page never waits longer than a minute for one frame');
 });
 
 check('render mode: restart, stop, refusal, frame limit and failures', async () => {

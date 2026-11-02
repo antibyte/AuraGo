@@ -438,12 +438,15 @@ func (i memInfo) ModTime() time.Time { return time.Time{} }
 func (i memInfo) IsDir() bool        { return false }
 func (i memInfo) Sys() any           { return nil }
 
-// recommendedPlayerChanges are the two changes to the player the plan asks part C for: frames as
-// CORS-simple requests (no preflight per frame) and a render-mode frame deadline from boot.json
-// (frame_deadline_ms) instead of the preview's 250 ms. Until C lands them the spike applies them to
-// the bundle text in memory.
+// recommendedPlayerChanges are the two changes of task B15 to the player: frames as CORS-simple
+// requests (no preflight per frame) and a render-mode frame deadline from boot.json
+// (frame_deadline_ms) instead of the preview's 250 ms. Before B15 the spike applies them to the
+// bundle text in memory; on a player that has them they change nothing.
 func recommendedPlayerChanges(src []byte) []byte {
 	src = simpleFrameRequests(src)
+	if bytes.Contains(src, []byte("boot.frame_deadline_ms")) {
+		return src
+	}
 	return bytes.Replace(src, []byte("canvas.height = boot.height;\n"),
 		[]byte("canvas.height = boot.height;\n            if (boot.frame_deadline_ms > 0) env.limits.frameDeadlineMs = Math.min(60000, boot.frame_deadline_ms);\n"), 1)
 }
@@ -454,6 +457,14 @@ func simpleFrameRequests(src []byte) []byte {
 	return bytes.Replace(src,
 		[]byte("post('/frame', body, { 'Content-Type': MIME[boot.transport], 'X-SM-Frame': String(n) })"),
 		[]byte("post('/frame?n=' + n, body, { 'Content-Type': 'text/plain' })"), 1)
+}
+
+// preflightFrameRequests is the reverse of simpleFrameRequests: the page sends frames with the
+// X-SM-Frame header, which Chrome preflights for an opaque origin (the player before task B15).
+func preflightFrameRequests(src []byte) []byte {
+	return bytes.Replace(src,
+		[]byte("post('/frame?n=' + n, body, { 'Content-Type': 'text/plain' })"),
+		[]byte("post('/frame', body, { 'Content-Type': MIME[boot.transport], 'X-SM-Frame': String(n) })"), 1)
 }
 
 // TestGuardAndRequestOverheadSpike times the png transport with the protection layers switched off
@@ -470,7 +481,7 @@ func TestGuardAndRequestOverheadSpike(t *testing.T) {
 		tweak func(o *sessionOptions)
 	}
 	for i, v := range []variant{
-		{"preflight per frame, hybrid guard", func(b []byte) []byte { return b }, nil},
+		{"preflight per frame, hybrid guard", preflightFrameRequests, nil},
 		{"simple requests, hybrid guard", simpleFrameRequests, nil},
 		{"simple requests, full guard", simpleFrameRequests, func(o *sessionOptions) { o.GuardFull = true }},
 		{"simple requests, no guard", simpleFrameRequests, func(o *sessionOptions) { o.NoGuard = true }},

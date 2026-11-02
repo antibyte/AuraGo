@@ -1,7 +1,8 @@
 // Storymaker host (document realm): render mode, the page that headless Chrome opens for an export. It drives itself from
 // <base>/boot.json (contract section 7): fetches story, catalog, fonts (only from boot.fonts) and code-scene bundles from the
 // base, compiles, POSTs the compile report, waits for {start: true}, then renders frames in order and POSTs each one to the
-// fixed <base>/frame with the header X-SM-Frame. Transports: png, webp, raw RGBA, or screenshot (the page only draws on
+// fixed <base>/frame?n=<frame> as a CORS-simple request (Content-Type text/plain, no custom header, so Chrome sends no
+// preflight per frame). Transports: png, webp, raw RGBA, or screenshot (the page only draws on
 // window.__smRenderFrame(n); Go captures). Answers: {ok}, {ok, done}, {restart}, {stop}. Failures are POSTed to <base>/error.
 // window.__smStatus mirrors the phase for the driver. Classic script; publishes StorymakerHost.mountRender.
 (function (root) {
@@ -57,7 +58,9 @@
             }
             canvas.width = boot.width;
             canvas.height = boot.height;
-            var ctx = canvas.getContext('2d', { willReadFrequently: boot.transport === 'raw' });
+            // A render is not real time: Go offers a per-frame deadline far above the 250 ms of the app preview.
+            if (boot.frame_deadline_ms > 0) env.limits.frameDeadlineMs = Math.min(60000, boot.frame_deadline_ms);
+            var ctx =canvas.getContext('2d', { willReadFrequently: boot.transport === 'raw' });
             var story = await getJSON(boot.story_url);
             var catalog = await getJSON(boot.catalog_url);
             var bundles = {}, ids = Object.keys(boot.code_bundles || {});
@@ -157,7 +160,7 @@
                 }
                 await drawFrame(n);
                 var body = await encode(boot.transport);
-                var reply = await post('/frame', body, { 'Content-Type': MIME[boot.transport], 'X-SM-Frame': String(n) });
+                var reply = await post('/frame?n=' + n, body, { 'Content-Type': 'text/plain' });
                 if (reply.stop) { status.phase = 'stopped'; status.error = reply.error || ''; status.message = reply.message || ''; return status; }
                 if (reply.restart) { n = 0; status.restarts = (status.restarts || 0) + 1; continue; }
                 if (reply.done) { status.phase = 'done'; return status; }
