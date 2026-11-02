@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"aurago/internal/budget"
 
@@ -75,12 +76,24 @@ func (s *Server) trackHTTP(next http.Handler) http.Handler {
 			s.httpDrainCtx, s.httpDrainCancel = context.WithCancel(context.Background())
 		}
 		ctx, cancel := context.WithCancel(r.Context())
-		stop := context.AfterFunc(s.httpDrainCtx, cancel)
+		controller := http.NewResponseController(w)
+		drained := make(chan struct{})
+		stop := context.AfterFunc(s.httpDrainCtx, func() {
+			defer close(drained)
+			cancel()
+			// Context cancellation alone cannot interrupt blocked transport I/O.
+			_ = controller.SetReadDeadline(time.Now())
+			_ = controller.SetWriteDeadline(time.Now())
+		})
 		s.httpRequests.Add(1)
 		s.httpDrainMu.Unlock()
 		defer s.httpRequests.Done()
 		defer cancel()
-		defer stop()
+		defer func() {
+			if !stop() {
+				<-drained // The controller must not outlive ServeHTTP.
+			}
+		}()
 		ctx = budget.WithTracking(ctx, s.budgetTrackerSnapshot(), "chat")
 		ctx = withJSONBodyLimit(ctx, s.jsonBodyLimit())
 		if websocket.IsWebSocketUpgrade(r) {
