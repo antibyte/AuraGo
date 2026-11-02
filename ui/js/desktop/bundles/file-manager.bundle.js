@@ -488,6 +488,7 @@
         if (selToolbar) {
             const hasSelection = fm.selectedPaths.size > 0;
             selToolbar.classList.toggle('active', !!(fm.selectionMode && hasSelection));
+            selToolbar.classList.toggle('has-selection', hasSelection);
             const labelEl = selToolbar.querySelector('.fm-selection-label');
             if (labelEl) labelEl.textContent = t('desktop.fm.selected', { count: fm.selectedPaths.size });
             const downloadBtn = selToolbar.querySelector('[data-action="selection-download"]');
@@ -510,7 +511,9 @@
         const hasFile = selected.length === 1 && selected[0] && selected[0].type === 'file';
         const canRestore = typeof hasRestorableTrashSelection === 'function' && hasRestorableTrashSelection();
         const readonly = (typeof isReadonly === 'function') ? isReadonly() : false;
-        return `<div class="fm-selection-toolbar">
+        const hasSelection = fm.selectedPaths.size > 0;
+        const stateClasses = `${fm.selectionMode && hasSelection ? ' active' : ''}${hasSelection ? ' has-selection' : ''}`;
+        return `<div class="fm-selection-toolbar${stateClasses}">
             <div class="fm-selection-toolbar-left">
                 <button type="button" class="fm-selection-close" data-action="selection-close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">
                     ${iconMarkup('x', '\u00D7', 'fm-btn-icon', 16)}
@@ -836,36 +839,38 @@
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
                     ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}"${backDisabled}>
+                <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}" aria-label="${esc(t('desktop.back'))}"${backDisabled}>
                     ${iconMarkup('chevron-left', '\u2039', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}"${fwdDisabled}>
+                <button type="button" class="fm-toolbtn" data-action="forward" title="${esc(t('desktop.forward'))}" aria-label="${esc(t('desktop.forward'))}"${fwdDisabled}>
                     ${iconMarkup('chevron-right', '\u203A', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up'))}">
+                <button type="button" class="fm-toolbtn" data-action="up" title="${esc(t('desktop.up'))}" aria-label="${esc(t('desktop.up'))}">
                     ${iconMarkup('arrow-up', '\u2191', 'fm-btn-icon', 16)}
                 </button>
             </div>
-            <div class="fm-toolbar-group fm-breadcrumb-wrap" data-fm-breadcrumb>
+            <div class="fm-toolbar-group fm-breadcrumb-wrap fm-breadcrumb-bar" data-fm-breadcrumb>
                 ${renderBreadcrumbSegments()}
             </div>
             <div class="fm-toolbar-group fm-toolbar-right">
-                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview'))}">
+                <button type="button" class="fm-toolbtn${fm.previewOpen ? ' active' : ''}" data-action="toggle-preview" title="${esc(t('desktop.fm.toggle_preview'))}" aria-label="${esc(t('desktop.fm.toggle_preview'))}" aria-pressed="${fm.previewOpen ? 'true' : 'false'}">
                     ${iconMarkup('layout', '\u25EB', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split'))}">
+                <button type="button" class="fm-toolbtn${fm.splitViewEnabled ? ' active' : ''}" data-action="toggle-split" title="${esc(t('desktop.fm.toggle_split'))}" aria-label="${esc(t('desktop.fm.toggle_split'))}" aria-pressed="${fm.splitViewEnabled ? 'true' : 'false'}">
                     ${iconMarkup('columns', '\u25EB', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden'))}">
+                <button type="button" class="fm-toolbtn${fm.showHidden ? ' active' : ''}" data-action="toggle-hidden" title="${esc(t('desktop.fm.toggle_hidden'))}" aria-label="${esc(t('desktop.fm.toggle_hidden'))}" aria-pressed="${fm.showHidden ? 'true' : 'false'}">
                     ${iconMarkup(fm.showHidden ? 'eye' : 'eye-off', fm.showHidden ? '\uD83D\uDC41' : '\uD83D\uDC41\u0338', 'fm-btn-icon', 16)}
                 </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid'))}">
-                    ${iconMarkup('grid', '\u25A6', 'fm-btn-icon', 16)}
-                </button>
-                <button type="button" class="fm-toolbtn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list'))}">
-                    ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
-                </button>
-                <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)">
+                <div class="fm-view-switch">
+                    <button type="button" class="fm-toolbtn fm-view-switch-btn${fm.viewMode === 'grid' ? ' active' : ''}" data-action="view-grid" title="${esc(t('desktop.fm.view_grid'))}" aria-label="${esc(t('desktop.fm.view_grid'))}" aria-pressed="${fm.viewMode === 'grid' ? 'true' : 'false'}">
+                        ${iconMarkup('grid', '\u25A6', 'fm-btn-icon', 16)}
+                    </button>
+                    <button type="button" class="fm-toolbtn fm-view-switch-btn${fm.viewMode === 'list' ? ' active' : ''}" data-action="view-list" title="${esc(t('desktop.fm.view_list'))}" aria-label="${esc(t('desktop.fm.view_list'))}" aria-pressed="${fm.viewMode === 'list' ? 'true' : 'false'}">
+                        ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
+                    </button>
+                </div>
+                <button type="button" class="fm-toolbtn" data-action="search-toggle" title="${esc(t('desktop.search'))} (Ctrl+F)" aria-label="${esc(t('desktop.search'))}">
                     ${iconMarkup('search', '\u2315', 'fm-btn-icon', 16)}
                 </button>
             </div>
@@ -1449,14 +1454,16 @@
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
+        const rawName = String(file.name || '');
+        const extension = rawName.includes('.') && !rawName.startsWith('.') ? rawName.split('.').pop().toUpperCase() : '';
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (extension || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
             ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
                 <span class="fm-list-icon">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'list')}</span>
-                <span class="fm-list-name">${nameContent}</span>
+                <span class="fm-list-name" title="${esc(file.name)}">${nameContent}</span>
             </div>
             <div class="fm-list-cell fm-col-size">${isDir ? '\u2014' : esc(fmtBytes(file.size))}</div>
             <div class="fm-list-cell fm-col-date">${esc(formatDate(file.modified))}</div>
@@ -1473,6 +1480,7 @@
         const clipboardIndicator = clipboard && clipboard.paths && clipboard.paths.length
             ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', { count: clipboard.paths.length }))}</span>`
             : '';
+        const sortField = ['name', 'size', 'date', 'type'].includes(fm.sortBy) ? fm.sortBy : 'name';
         return `<div class="fm-statusbar">
             <div class="fm-status-left">
                 <span>${esc(t('desktop.fm.items', { count: totalItems }))}</span>
@@ -1480,9 +1488,9 @@
                 ${clipboardIndicator}
             </div>
             <div class="fm-status-right">
-                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid') : t('desktop.fm.view_list'))}</span>
+                <span>${esc(t('desktop.fm.sort_' + sortField))}</span>
                 <span class="fm-status-sep">|</span>
-                <span>${esc(t('desktop.fm.sort_name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
+                <span>${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
             </div>
         </div>`;
     }
