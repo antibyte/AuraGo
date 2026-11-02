@@ -49,7 +49,7 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
   (`chromium_sandbox_profile_text` in both scripts, pinned by `internal/audit/chromium_sandbox_profile_test.go`) and the installation
   guide changed with it.
 - **Timeouts**: the browser setup of a first export (the Chromium download) runs under `render.timeout_seconds` before the render clock starts
-  (`OpenPage` keeps the job context: the browser lives as long as it). Report within 3 minutes of the navigation, no frame within 10 s after `start` kills the job as `code_error`, overall
+  (`OpenPage` keeps the job context: the browser lives as long as it). Report within 3 minutes of the navigation, no frame within 10 s after `start` kills the job as `code_error` (the timer is held while Go itself works on a delivered frame: FFmpeg write, hardware settle, software restart), overall
   `max(render.timeout_seconds, 3 x frames / measuredFPS[transport])`. Any `POST /error` from the page is fatal.
 - **Tests**: everything but `browser_smoke_test.go`, `egress_smoke_test.go` and the parity test in `internal/server` runs without a browser (a
   fake page plays the render page against the real listener). The browser tests need `AURAGO_RUN_BROWSER_SMOKE=1`; the transport spike also

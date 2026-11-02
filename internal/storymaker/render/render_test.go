@@ -446,6 +446,59 @@ func TestRunFailsWhenNoFrameArrivesAfterStart(t *testing.T) {
 	}
 }
 
+// The watchdog is for a page that stopped producing frames. The time Go spends on a frame itself (the write
+// to FFmpeg, which may take up to 30 s, the settle of a hardware encoder, the software restart and the start
+// of the replacement process) passes while the page waits for the answer and must not count against it.
+func TestRunWatchdogIgnoresTheTimeGoSpendsOnAFrame(t *testing.T) {
+	old := noFrameWatchdog
+	noFrameWatchdog = 800 * time.Millisecond
+	t.Cleanup(func() { noFrameWatchdog = old })
+	cases := []struct {
+		name      string
+		hardware  bool
+		slowFrame int // the frame whose handling takes longer than the watchdog
+		slowCall  int // which arrival of that frame is slow (2 is the first frame after the restart)
+	}{
+		{"a slow frame", false, 5, 1},
+		{"the first frame after the software restart", true, 0, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newRunFixture(t)
+			if tc.hardware {
+				fx.settings.Encoder = videostudio.Encoder{Codec: videostudio.CodecVAAPI, Device: "/dev/dri/does-not-exist"}
+				fx.settings.EncoderName = videostudio.CodecVAAPI
+			}
+			var mu sync.Mutex
+			arrivals := map[int]int{}
+			var slowed atomic.Bool
+			fx.deps.FrameObserver = func(n int, _ string, _ []byte) {
+				mu.Lock()
+				arrivals[n]++
+				slow := n == tc.slowFrame && arrivals[n] == tc.slowCall
+				mu.Unlock()
+				if slow {
+					slowed.Store(true)
+					time.Sleep(2 * noFrameWatchdog)
+				}
+			}
+			fx.rebuild(t)
+			var restarts atomic.Int32
+			fx.playing(playOptions{frames: 18, onRestart: func() { restarts.Add(1) }})
+			job := fx.render(t)
+			if job.Status != StatusSucceeded {
+				t.Fatalf("job = %+v %+v", job, job.Error)
+			}
+			if !slowed.Load() {
+				t.Fatal("the slow frame never arrived, the test proved nothing")
+			}
+			if want := int32(map[bool]int{false: 0, true: 1}[tc.hardware]); restarts.Load() != want {
+				t.Errorf("the page was told to restart %d times, want %d", restarts.Load(), want)
+			}
+		})
+	}
+}
+
 func TestRunTreatsAnyPageErrorAsFatal(t *testing.T) {
 	fx := newRunFixture(t)
 	fx.playing(playOptions{frames: 24, errorAfter: 4, errorBody: `{"code":"code_error","message":"boom in the scene","scene_id":"s1"}`})

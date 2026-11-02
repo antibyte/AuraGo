@@ -665,9 +665,24 @@ func (run *renderRun) onFrameAccepted(n int) {
 	run.h.SetFrames(n+1, total)
 }
 
+// holdWatchdog stops the no-frame timer while Go works on a frame the page has already delivered. The
+// watchdog is there for a page that stops producing frames; the write to FFmpeg (bounded by
+// ffmpegWriteTimeout), the settle of a hardware encoder, the software restart and the start of the
+// replacement process all pass while the page waits for the answer, and on a loaded host they add up to
+// more than the window. The timer runs again when the frame is accepted (onFrameAccepted for a taken
+// frame or a restart); a refused frame fails the job, which stops the timer for good.
+func (run *renderRun) holdWatchdog() {
+	run.mu.Lock()
+	if run.watchdog != nil {
+		run.watchdog.Stop()
+	}
+	run.mu.Unlock()
+}
+
 // accept feeds one frame to the ingest and maps its outcome; it is the common path of the HTTP hook
 // and the screenshot driver.
 func (run *renderRun) accept(n int, contentType string, data []byte) (FrameOutcome, *IngestError) {
+	run.holdWatchdog()
 	if obs := run.r.deps.FrameObserver; obs != nil {
 		obs(n, run.transport, data)
 	}

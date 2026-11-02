@@ -714,7 +714,7 @@ It has no `style-src`. The render page markup:
 ### Flow
 
 1. The page loads boot.json, story.json, the catalog and its files, the bundles and the fonts, then compiles.
-2. `POST /report` with the compile report. The answer is `{"start":true}` when frames may follow, or `{"start":false, "error":"<code>", "message":"..."}` when the render is refused. The answer has no `from_frame` field. The 10 s no-frame watchdog starts after `start:true`.
+2. `POST /report` with the compile report. The answer is `{"start":true}` when frames may follow, or `{"start":false, "error":"<code>", "message":"..."}` when the render is refused. The answer has no `from_frame` field. The 10 s no-frame watchdog starts after `start:true` and stands still while Go works on a frame the page delivered (the FFmpeg write, the hardware encoder settle, the software restart), so it only measures the page.
 3. The page sends frames in order, one at a time, and waits for each answer.
 4. The last frame is answered with `done:true`.
 
