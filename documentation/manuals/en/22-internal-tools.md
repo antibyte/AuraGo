@@ -1635,6 +1635,19 @@ These native tools operate the desktop apps and local runtimes from Chapters 4 a
 ### `desktop_notes`
 Operates the visible Desktop Notes library with `list`, `search`, `read`, and `create`. Existing notes are immutable to the agent (create-only); the protection also holds against detours through other file tools whenever isolation is active.
 
+### `ecalc`
+Electronics calculators from the same catalog and formulas as the ECalc desktop app ([Chapter 32](32-ecalc.md)): Ohm's law, dividers, filters, timers, op-amps, power supplies, RF and standard resistor values. Always available, without a config switch: it computes on an embedded catalog and reads no network or files. The agent finds it through `discover_tools` (search terms such as *electronics calculator*, *Widerstand berechnen*, *Spannungsteiler berechnen*). `search` lists calculators (`id`, name, category and a one-sentence summary; an empty `query` lists the categories); `describe` returns the variables with units and defaults, the choices, `dof`, the solvable input sets, the computed outputs, the checks and the formulas; `calculate` solves from the given `inputs` (a bare number is read in the variable's default unit) and answers SI and formatted values, E-series suggestions for computed resistors (the standard-value combiner lists `combos`: the nearest single value and the best series and parallel pairs), the calculator's warnings and `contradictions` when a redundant value differs from the computed one by more than 1 %; a request that cannot be solved answers `underdetermined` and lists the input sets closest first. `open` shows a calculator in the ECalc app, pre-filled with the given values, and needs the Virtual Desktop, **Allow agent control** and the desktop agent tool (otherwise `policy_denied` with `desktop_unavailable` or `desktop_agent_control_disabled`). A2A requests may search, describe and calculate but not open. Answers are shortened to the inline output limit.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `search`, `describe`, `calculate` or `open` |
+| `query` | string | Topic, part or formula in English or German (`search`; empty lists the categories) |
+| `id` | string | Calculator id from `search` (`describe`, `calculate`, `open`) |
+| `inputs` | array | `{name, value}` pairs: variable id and the value as typed, for example `4k7`, `12 V`, `25 °C` (`calculate`, `open`) |
+| `choices` | array | `{name, option}` pairs for choices such as the waveform (`calculate`, `open`) |
+| `eseries` | string | `E3`, `E6`, `E12`, `E24` (default), `E48`, `E96` or `E192` (`calculate`) |
+| `limit` | integer | Number of results, 1–25 (default 10; `search`) |
+
 ### `layerling`
 Interactive 3D CAD in the user's open browser editor. Needs an authenticated Desktop chat context, the enabled Layerling integration, Desktop agent access and `agent_access: read` or `write` (default `off`). Workflow: `list_editors` with the exact `editor_id` from the window chat, then `describe` for Layerling 1.57.0's parameter schema, then the operation. No headless CAD; commands never auto-retry after a browser disconnect. Details: chapter 8 and [layerling.md](../../layerling.md).
 
@@ -1694,6 +1707,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 - `send_image`, `send_audio`, `send_video`, `send_document`
 - `list_skills`, `execute_skill`
 - `dns_lookup`, `whois_lookup`
+- `ecalc` (`open` needs the Virtual Desktop and agent control)
 - `detect_file_type`, `archive`
 - `pdf_operations`, `image_processing`
 - `follow_up`, `wait_for_event`
