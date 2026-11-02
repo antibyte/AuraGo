@@ -1,0 +1,23 @@
+{
+  "calc": "wavelength",
+  "sets": [
+    {"values": {"f": 100000000, "vf": 1, "wl": 2.99792458, "lhalf": 1.49896229, "lquarter": 0.749481145}, "ref": "hand: 299792458 m/s * 1 / 100 MHz = 2.99792458 m; half 1.49896229 m; quarter 0.749481145 m"},
+    {"values": {"f": 145000000, "vf": 1, "wl": 2.067534193103448, "lhalf": 1.033767096551724, "lquarter": 0.516883548275862}, "ref": "hand (independent script): 299792458 / 145e6 = 2.067534193 m (2 m band); half 1.033767097 m; quarter 0.5168835483 m"},
+    {"values": {"f": 50000000, "vf": 0.66, "wl": 3.9572604456, "lhalf": 1.9786302228, "lquarter": 0.9893151114}, "ref": "hand: 299792458 * 0.66 / 50e6 = 197863022.28 / 50e6 = 3.9572604456 m (coax with a solid polyethylene dielectric); half 1.9786302228 m; quarter 0.9893151114 m"},
+    {"values": {"f": 1000000000, "vf": 0.5, "wl": 0.149896229, "lhalf": 0.0749481145, "lquarter": 0.03747405725}, "ref": "hand: 299792458 * 0.5 / 1e9 = 0.149896229 m; half 0.0749481145 m; quarter 0.03747405725 m"}
+  ],
+  "solve": [
+    {"inputs": {"f": 100000000, "vf": 1}, "expect": {"wl": 2.99792458, "lhalf": 1.49896229, "lquarter": 0.749481145}, "errors": {}, "warnings": [], "ref": "hand: lambda = 299792458 * 1 / 100e6 = 2.99792458 m; half 1.49896229 m; quarter 0.749481145 m"},
+    {"inputs": {"f": 145000000, "vf": 1}, "expect": {"wl": 2.067534193103448}, "errors": {}, "warnings": [], "ref": "hand (independent script): lambda = 299792458 / 145e6 = 2.067534193 m"},
+    {"inputs": {"f": 30000000, "vf": 0.8}, "expect": {"wl": 7.9944655466666665}, "errors": {}, "warnings": [], "ref": "hand: lambda = 299792458 * 0.8 / 30e6 = 239833966.4 / 30e6 = 7.994465547 m"},
+    {"inputs": {"wl": 3, "vf": 1}, "expect": {"f": 99930819.33333333}, "errors": {}, "warnings": [], "ref": "hand: f = 299792458 * 1 / 3 m = 99930819.33 Hz"},
+    {"inputs": {"wl": 2.99792458, "vf": 1}, "expect": {"f": 100000000}, "errors": {}, "warnings": [], "ref": "hand: f = 299792458 / 2.99792458 m = 100 MHz exactly"},
+    {"inputs": {"wl": 3.9572604456, "vf": 0.66}, "expect": {"f": 50000000}, "errors": {}, "warnings": [], "ref": "hand: f = 299792458 * 0.66 / 3.9572604456 = 197863022.28 / 3.9572604456 = 50 MHz"},
+    {"inputs": {"wl": 3.9572604456, "f": 50000000}, "expect": {"vf": 0.66}, "errors": {}, "warnings": [], "ref": "hand: VF = 3.9572604456 * 50e6 / 299792458 = 197863022.28 / 299792458 = 0.66"},
+    {"inputs": {"wl": 0.1, "f": 1000000000}, "expect": {"vf": 0.33356409519815206}, "errors": {}, "warnings": [], "ref": "hand: VF = 0.1 m * 1e9 Hz / 299792458 m/s = 1e8 / 299792458 = 0.3335640952"},
+    {"inputs": {"wl": 1, "f": 299792458}, "expect": {"vf": 1}, "errors": {}, "warnings": [], "ref": "hand: VF = 1 m * 299792458 Hz / 299792458 m/s = 1"},
+    {"inputs": {"wl": 4, "f": 100000000}, "expect": {"vf": 1.3342563807926082}, "errors": {}, "warnings": [0], "ref": "hand: VF = 4 m * 100 MHz / 299792458 m/s = 1.3342563807; the VF > 1 check fires"},
+    {"inputs": {"f": 0, "vf": 1}, "errors": {"f": "range", "wl": "nonfinite"}, "warnings": [], "ref": "hand: f = 0 is out of range and lambda = 299792458 / 0 is infinite"},
+    {"inputs": {"f": 100000000}, "errors": {"vf": "undetermined", "wl": "undetermined"}, "ref": "hand: VF and lambda are both missing"}
+  ]
+}

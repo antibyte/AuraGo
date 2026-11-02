@@ -9421,6 +9421,1276 @@
     },
     {
       "kind": "calculator",
+      "id": "wavelength",
+      "category": "rf",
+      "name": "Wavelength",
+      "name_en": "Wavelength",
+      "doc": "The wavelength of an electromagnetic wave is λ = c × VF / f, with the speed of light c = 299 792 458 m/s (exact) and the velocity factor VF of the medium (1 in free space, about 0.66 in coax with a solid polyethylene dielectric). Any two of f, VF and λ determine the third; the half and the quarter wavelength are shown too. Example: 145 MHz in free space gives λ = 2.068 m.",
+      "tags": [
+        "wavelength",
+        "lambda",
+        "frequency",
+        "velocity factor",
+        "speed of light",
+        "half wave",
+        "quarter wave",
+        "antenna",
+        "radio",
+        "rf",
+        "wellenlänge",
+        "frequenz",
+        "verkürzungsfaktor",
+        "lichtgeschwindigkeit",
+        "halbwelle",
+        "viertelwelle",
+        "antenne",
+        "funk",
+        "hf"
+      ],
+      "source": "Wave relation λ = c/f with the exact speed of light c = 299 792 458 m/s (SI Brochure, BIPM); the velocity factor VF = v/c is the ratio of the propagation speed in the medium to c",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 145000000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vf",
+          "dim": "number",
+          "label": "VF",
+          "name": "Velocity factor",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "wl",
+          "dim": "length",
+          "label": "λ",
+          "name": "Wavelength",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "wl",
+          "alts": [
+            "299792458*vf/f"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "299792458*vf/wl"
+          ]
+        },
+        {
+          "target": "vf",
+          "alts": [
+            "wl*f/299792458"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "lhalf",
+          "dim": "length",
+          "label": "λ/2",
+          "name": "Half wavelength",
+          "alts": [
+            "wl/2"
+          ],
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ]
+        },
+        {
+          "id": "lquarter",
+          "dim": "length",
+          "label": "λ/4",
+          "name": "Quarter wavelength",
+          "alts": [
+            "wl/4"
+          ],
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "vf > 1",
+          "warn": "A velocity factor above 1 is not physical: the wave would be faster than light in vacuum."
+        }
+      ],
+      "formula": [
+        "wl = 299792458 * vf / f"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f",
+          "vf"
+        ],
+        [
+          "f",
+          "wl"
+        ],
+        [
+          "vf",
+          "wl"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "dipole_length",
+      "category": "rf",
+      "name": "Half-wave dipole length",
+      "name_en": "Half-wave dipole length",
+      "doc": "A resonant half-wave dipole is slightly shorter than half a free-space wavelength because of the end effect: L = K × c / (2 f), with a shortening factor K of about 0.95 for a wire dipole (the familiar 468 / f(MHz) feet corresponds to K ≈ 0.952). The quarter-wave length is half of L: one leg of the dipole, or a quarter-wave vertical over a ground plane. Example: 7.1 MHz (40 m band) gives L = 20.06 m. Trim for the lowest SWR; height, wire diameter and surroundings shift the resonance.",
+      "tags": [
+        "dipole",
+        "antenna",
+        "half wave",
+        "quarter wave",
+        "468",
+        "wire antenna",
+        "length",
+        "ham radio",
+        "amateur radio",
+        "dipol",
+        "antenne",
+        "halbwellendipol",
+        "viertelwelle",
+        "drahtantenne",
+        "länge",
+        "funkamateur",
+        "amateurfunk"
+      ],
+      "source": "Half-wave dipole L = K·c/(2f) with the end-effect shortening factor K (about 0.95); the rule of thumb 468/f(MHz) feet is widely published, e.g. The ARRL Antenna Book (dipole antennas) and J. D. Kraus: Antennas",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 7100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "k",
+          "dim": "number",
+          "label": "K",
+          "name": "Shortening factor",
+          "default": 0.95,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "lhalf",
+          "dim": "length",
+          "label": "L",
+          "name": "Half-wave length",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "lhalf",
+          "alts": [
+            "k*299792458/(2*f)"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "k*299792458/(2*lhalf)"
+          ]
+        },
+        {
+          "target": "k",
+          "alts": [
+            "2*f*lhalf/299792458"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "lquarter",
+          "dim": "length",
+          "label": "L/2",
+          "name": "Quarter-wave length",
+          "alts": [
+            "lhalf/2"
+          ],
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "k > 1",
+          "warn": "A shortening factor above 1 is unusual: the end effect makes a resonant dipole shorter than half the free-space wavelength."
+        }
+      ],
+      "formula": [
+        "lhalf = k * 299792458 / (2 * f)",
+        "lquarter = lhalf / 2"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f",
+          "k"
+        ],
+        [
+          "f",
+          "lhalf"
+        ],
+        [
+          "k",
+          "lhalf"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "microstrip_impedance",
+      "category": "rf",
+      "name": "Microstrip impedance",
+      "name_en": "Microstrip impedance",
+      "doc": "Characteristic impedance of a surface microstrip line on a PCB by the IPC-2141 approximation: Z_0 = 87 / √(ε_r + 1.41) × ln(5.98 h / (0.8 w + t)), with the dielectric thickness h, the trace width w and the copper thickness t. The formula is usually quoted for 0.1 < w/h < 2.0 and 1 < ε_r < 15; outside that range the result is only a rough guide and a warning appears. Use it for a first design and have critical lines checked with a field solver or the impedance data of the board maker. Example: a 3 mm trace on 1.6 mm FR-4 (ε_r ≈ 4.3, 1 oz copper) gives about 49.8 Ω. ε_r depends on the laminate and the frequency: use the datasheet value.",
+      "tags": [
+        "microstrip",
+        "pcb",
+        "impedance",
+        "transmission line",
+        "trace width",
+        "50 ohm",
+        "ipc-2141",
+        "controlled impedance",
+        "rf",
+        "mikrostrip",
+        "leiterplatte",
+        "impedanz",
+        "wellenwiderstand",
+        "leiterbahnbreite",
+        "leitung",
+        "impedanzkontrolliert",
+        "hf"
+      ],
+      "source": "IPC-2141 (design guide for high-speed controlled impedance circuit boards), surface microstrip approximation Z0 = 87/√(εr+1.41)·ln(5.98h/(0.8w+t)), as commonly quoted for 0.1 < w/h < 2.0 and 1 < εr < 15",
+      "vars": [
+        {
+          "id": "er",
+          "dim": "number",
+          "label": "ε_r",
+          "name": "Relative permittivity",
+          "default": 4.3,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "h",
+          "dim": "length",
+          "label": "h",
+          "name": "Dielectric thickness",
+          "default": 0.0016,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "w",
+          "dim": "length",
+          "label": "w",
+          "name": "Trace width",
+          "default": 0.003,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "length",
+          "label": "t",
+          "name": "Copper thickness",
+          "default": 0.000035,
+          "default_list": null,
+          "unit": "oz",
+          "units": [
+            "",
+            "oz",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "z0",
+          "dim": "resistance",
+          "label": "Z_0",
+          "name": "Characteristic impedance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "z0",
+          "alts": [
+            "87/sqrt(er+1.41)*ln(5.98*h/(0.8*w+t))"
+          ]
+        },
+        {
+          "target": "er",
+          "alts": [
+            "(87*ln(5.98*h/(0.8*w+t))/z0)^2-1.41"
+          ]
+        },
+        {
+          "target": "h",
+          "alts": [
+            "(0.8*w+t)*exp(z0*sqrt(er+1.41)/87)/5.98"
+          ]
+        },
+        {
+          "target": "w",
+          "alts": [
+            "(5.98*h*exp(-z0*sqrt(er+1.41)/87)-t)/0.8"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "5.98*h*exp(-z0*sqrt(er+1.41)/87)-0.8*w"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "wh",
+          "dim": "number",
+          "label": "w/h",
+          "name": "Width-to-height ratio",
+          "alts": [
+            "w/h"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "wh < 0.1",
+          "warn": "w/h is below 0.1: outside the range the IPC-2141 approximation is quoted for (0.1 to 2.0), expect a larger error."
+        },
+        {
+          "when": "wh > 2",
+          "warn": "w/h is above 2.0: outside the range the IPC-2141 approximation is quoted for (0.1 to 2.0), expect a larger error."
+        },
+        {
+          "when": "if(er < 1, 1, er > 15)",
+          "warn": "ε_r is outside the range 1 to 15 the approximation is quoted for."
+        }
+      ],
+      "formula": [
+        "z0 = 87 / sqrt(er + 1.41) * ln(5.98 * h / (0.8 * w + t))"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "er",
+          "h",
+          "w",
+          "t"
+        ],
+        [
+          "er",
+          "h",
+          "w",
+          "z0"
+        ],
+        [
+          "er",
+          "h",
+          "t",
+          "z0"
+        ],
+        [
+          "er",
+          "w",
+          "t",
+          "z0"
+        ],
+        [
+          "h",
+          "w",
+          "t",
+          "z0"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "coax_impedance",
+      "category": "rf",
+      "name": "Coaxial cable impedance",
+      "name_en": "Coaxial cable impedance",
+      "doc": "Characteristic impedance of a lossless coaxial line: Z_0 = (η_0 / 2π) / √ε_r × ln(D / d), with η_0 / 2π = 59.958 Ω (η_0 = μ_0·c ≈ 376.73 Ω), the inner diameter D of the shield, the diameter d of the inner conductor and the relative permittivity ε_r of the dielectric. This is the same as the familiar 138 / √ε_r × log10(D / d). The velocity factor is 1 / √ε_r. Example: solid polyethylene (ε_r = 2.25) with D / d = 3.5 gives about 50 Ω (VF 0.667). PTFE has ε_r ≈ 2.1.",
+      "tags": [
+        "coax",
+        "coaxial cable",
+        "impedance",
+        "characteristic impedance",
+        "dielectric",
+        "velocity factor",
+        "50 ohm",
+        "75 ohm",
+        "rg58",
+        "transmission line",
+        "rf",
+        "koaxkabel",
+        "koaxialkabel",
+        "wellenwiderstand",
+        "impedanz",
+        "dielektrikum",
+        "verkürzungsfaktor",
+        "leitung",
+        "hf"
+      ],
+      "source": "Lossless coaxial line Z0 = (η0/2π)·ln(D/d)/√εr with η0 = μ0·c ≈ 376.73 Ω; D. M. Pozar: Microwave Engineering, ch. 2 (transmission line theory)",
+      "vars": [
+        {
+          "id": "er",
+          "dim": "number",
+          "label": "ε_r",
+          "name": "Relative permittivity of the dielectric",
+          "default": 2.25,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dout",
+          "dim": "length",
+          "label": "D",
+          "name": "Inner diameter of the shield",
+          "default": 0.0035,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "din",
+          "dim": "length",
+          "label": "d",
+          "name": "Diameter of the inner conductor",
+          "default": 0.001,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in",
+            "AWG"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "z0",
+          "dim": "resistance",
+          "label": "Z_0",
+          "name": "Characteristic impedance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "z0",
+          "alts": [
+            "59.95849163/sqrt(er)*ln(dout/din)"
+          ]
+        },
+        {
+          "target": "er",
+          "alts": [
+            "(59.95849163*ln(dout/din)/z0)^2"
+          ]
+        },
+        {
+          "target": "dout",
+          "alts": [
+            "din*exp(z0*sqrt(er)/59.95849163)"
+          ]
+        },
+        {
+          "target": "din",
+          "alts": [
+            "dout/exp(z0*sqrt(er)/59.95849163)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "vfac",
+          "dim": "number",
+          "label": "VF",
+          "name": "Velocity factor",
+          "alts": [
+            "1/sqrt(er)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "din >= dout",
+          "warn": "The inner conductor diameter d must be smaller than the inner diameter D of the shield."
+        }
+      ],
+      "formula": [
+        "z0 = 59.95849163 / sqrt(er) * ln(dout / din)",
+        "vfac = 1 / sqrt(er)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "er",
+          "dout",
+          "din"
+        ],
+        [
+          "er",
+          "dout",
+          "z0"
+        ],
+        [
+          "er",
+          "din",
+          "z0"
+        ],
+        [
+          "dout",
+          "din",
+          "z0"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "swr_return_loss",
+      "category": "rf",
+      "name": "SWR and return loss",
+      "name_en": "SWR and return loss",
+      "doc": "A mismatch reflects part of the wave. With the magnitude of the reflection coefficient |Γ|: SWR = (1 + |Γ|) / (1 − |Γ|), return loss RL = −20 log10 |Γ| (larger means a better match) and mismatch loss = −10 log10 (1 − |Γ|²), the power lost to reflection. |Γ|² is the reflected fraction of the power. Enter any one of SWR, |Γ| or RL. Example: SWR 2:1 gives |Γ| = 0.333, RL = 9.54 dB, a mismatch loss of 0.51 dB and 11.1 % reflected power.",
+      "tags": [
+        "swr",
+        "vswr",
+        "return loss",
+        "reflection coefficient",
+        "mismatch",
+        "mismatch loss",
+        "antenna",
+        "transmission line",
+        "reflected power",
+        "rf",
+        "stehwellenverhältnis",
+        "rückflussdämpfung",
+        "reflexionsfaktor",
+        "fehlanpassung",
+        "fehlanpassungsdämpfung",
+        "antenne",
+        "reflektierte leistung",
+        "hf"
+      ],
+      "source": "Reflection coefficient Γ, standing wave ratio, return loss and mismatch loss (definitions); D. M. Pozar: Microwave Engineering, ch. 2 (transmission line theory)",
+      "vars": [
+        {
+          "id": "swr",
+          "dim": "number",
+          "label": "SWR",
+          "name": "Standing wave ratio",
+          "default": 2,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "gamma",
+          "dim": "ratio",
+          "label": "|Γ|",
+          "name": "Reflection coefficient |Γ|",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rl",
+          "dim": "gain",
+          "label": "RL",
+          "name": "Return loss",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [
+        {
+          "target": "swr",
+          "alts": [
+            "(1+gamma)/(1-gamma)"
+          ]
+        },
+        {
+          "target": "gamma",
+          "alts": [
+            "(swr-1)/(swr+1)",
+            "10^(-rl/20)"
+          ]
+        },
+        {
+          "target": "rl",
+          "alts": [
+            "-20*log10(gamma)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "prefl",
+          "dim": "ratio",
+          "label": "|Γ|²",
+          "name": "Reflected power",
+          "alts": [
+            "gamma^2"
+          ],
+          "unit": "pct",
+          "units": []
+        },
+        {
+          "id": "ml",
+          "dim": "gain",
+          "label": "ML",
+          "name": "Mismatch loss",
+          "alts": [
+            "-10*log10(1-gamma^2)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "swr < 1",
+          "warn": "An SWR below 1 is not possible: the SWR is at least 1 (a perfect match)."
+        },
+        {
+          "when": "gamma > 1",
+          "warn": "|Γ| above 1 is not possible for a passive load: it cannot reflect more than it receives."
+        }
+      ],
+      "formula": [
+        "swr = (1 + gamma) / (1 - gamma)",
+        "rl = -20 * log10(gamma)",
+        "ml = -10 * log10(1 - gamma^2)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "swr"
+        ],
+        [
+          "gamma"
+        ],
+        [
+          "rl"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "rf_power_levels",
+      "category": "rf",
+      "name": "RF power and voltage (dBm, dBµV)",
+      "name_en": "RF power and voltage (dBm, dBµV)",
+      "doc": "Converts between power, voltage and the logarithmic RF levels of a sine wave across a resistance R (usually 50 Ω): P = V_rms² / R and V_pp = 2√2 × V_rms. dBm is relative to 1 mW (10 log10 (P / 1 mW)), dBµV to 1 µV (20 log10 (V / 1 µV)); across 50 Ω dBµV = dBm + 107. Enter two of P, R, V_rms and V_pp (V_rms and V_pp alone are not enough). To enter a level in dBm choose dBm in the unit menu of the power field. Example: 0 dBm (1 mW) into 50 Ω is 223.6 mV rms, 632.5 mV peak to peak and 107 dBµV.",
+      "tags": [
+        "dbm",
+        "dbuv",
+        "dbµv",
+        "rf power",
+        "level",
+        "50 ohm",
+        "milliwatt",
+        "microvolt",
+        "peak to peak",
+        "rms",
+        "signal level",
+        "rf",
+        "hf-leistung",
+        "pegel",
+        "effektivwert",
+        "spitze-spitze",
+        "signalpegel",
+        "hf"
+      ],
+      "source": "Definitions: dBm = 10·log10(P / 1 mW), dBµV = 20·log10(V / 1 µV), P = V_rms²/R and V_pp = 2√2·V_rms for a sine wave; decibel per IEC 60027-3",
+      "vars": [
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Power",
+          "default": 0.001,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "dBm"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": 50,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vrms",
+          "dim": "voltage",
+          "label": "V_rms",
+          "name": "RMS voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "dBuV"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vpp",
+          "dim": "voltage",
+          "label": "V_pp",
+          "name": "Peak-to-peak voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "p",
+          "alts": [
+            "vrms^2/r"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "vrms^2/p"
+          ]
+        },
+        {
+          "target": "vrms",
+          "alts": [
+            "sqrt(p*r)",
+            "vpp/(2*sqrt(2))"
+          ]
+        },
+        {
+          "target": "vpp",
+          "alts": [
+            "2*sqrt(2)*vrms"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "p_dbm",
+          "dim": "power",
+          "label": "P_dBm",
+          "name": "Power level",
+          "alts": [
+            "p"
+          ],
+          "unit": "dBm",
+          "units": []
+        },
+        {
+          "id": "v_dbuv",
+          "dim": "voltage",
+          "label": "V_dBµV",
+          "name": "Voltage level re 1 µV",
+          "alts": [
+            "vrms"
+          ],
+          "unit": "dBuV",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "p = vrms^2 / r",
+        "vpp = 2 * sqrt(2) * vrms"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "p",
+          "r"
+        ],
+        [
+          "p",
+          "vrms"
+        ],
+        [
+          "p",
+          "vpp"
+        ],
+        [
+          "r",
+          "vrms"
+        ],
+        [
+          "r",
+          "vpp"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "fspl",
+      "category": "rf",
+      "name": "Free-space path loss",
+      "name_en": "Free-space path loss",
+      "doc": "Free-space path loss between two isotropic antennas in the far field: FSPL = 20 log10 (4π d f / c) in dB, with the distance d, the frequency f and c = 299 792 458 m/s. Each doubling of the distance or the frequency adds 6.02 dB. It is the loss of the path alone, without antenna gains, cable loss or obstacles. Example: 1 km at 2.4 GHz gives 100.05 dB. The formula holds in the far field only (d much larger than λ); for d < λ / (4π) it would turn negative.",
+      "tags": [
+        "fspl",
+        "free space path loss",
+        "path loss",
+        "friis",
+        "link budget",
+        "attenuation",
+        "distance",
+        "wireless",
+        "radio",
+        "rf",
+        "freiraumdämpfung",
+        "streckendämpfung",
+        "funkfeld",
+        "dämpfung",
+        "entfernung",
+        "funk",
+        "hf"
+      ],
+      "source": "Friis free-space transmission formula (H. T. Friis, 1946), FSPL = (4πdf/c)²; ITU-R Recommendation P.525 (calculation of free-space attenuation)",
+      "vars": [
+        {
+          "id": "d",
+          "dim": "length",
+          "label": "d",
+          "name": "Distance",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "ft"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 2400000000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "loss",
+          "dim": "gain",
+          "label": "FSPL",
+          "name": "Free-space path loss",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "loss",
+          "alts": [
+            "20*log10(4*pi*d*f/299792458)"
+          ]
+        },
+        {
+          "target": "d",
+          "alts": [
+            "299792458/(4*pi*f)*10^(loss/20)"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "299792458/(4*pi*d)*10^(loss/20)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "wl",
+          "dim": "length",
+          "label": "λ",
+          "name": "Wavelength",
+          "alts": [
+            "299792458/f"
+          ],
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "loss < 0",
+          "warn": "A negative loss: the distance is shorter than λ / (4π), far outside the far-field range of the formula."
+        }
+      ],
+      "formula": [
+        "loss = 20 * log10(4 * pi * d * f / 299792458)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "d",
+          "f"
+        ],
+        [
+          "d",
+          "loss"
+        ],
+        [
+          "f",
+          "loss"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "skin_depth",
+      "category": "rf",
+      "name": "Skin depth",
+      "name_en": "Skin depth",
+      "doc": "The skin depth δ = √(ρ / (π f μ_0 μ_r)) is the depth at which the current density of an alternating current in a good conductor has fallen to 1/e (about 37 %) of its surface value. Most of the current flows within a few δ of the surface, which raises the AC resistance of thick wires; R_s = ρ / δ is the surface resistance per square. Copper, silver, gold and aluminium are non-magnetic (μ_r = 1). The resistivities are values for 20 °C and change by about 0.4 % per kelvin; real wire and plating differ from the pure metal. Example: copper at 1 MHz has δ = 66.1 µm.",
+      "tags": [
+        "skin depth",
+        "skin effect",
+        "penetration depth",
+        "conductor",
+        "copper",
+        "ac resistance",
+        "surface resistance",
+        "rf",
+        "skin-tiefe",
+        "skineffekt",
+        "eindringtiefe",
+        "leiter",
+        "kupfer",
+        "wechselstromwiderstand",
+        "oberflächenwiderstand",
+        "hf"
+      ],
+      "source": "Skin depth δ = √(ρ/(π f μ0 μr)) in a good conductor (D. M. Pozar: Microwave Engineering, ch. 1) with μ0 = 4π·10^-7 H/m; resistivity at 20 °C: copper 1.7241e-8 Ω·m (annealed copper standard, 58 MS/m, IEC 60028), silver 1.587e-8, gold 2.214e-8 and aluminium 2.65e-8 Ω·m (pure-metal handbook values, e.g. CRC Handbook of Chemistry and Physics)",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "delta",
+          "dim": "length",
+          "label": "δ",
+          "name": "Skin depth",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "material",
+          "name": "Material",
+          "default": "copper",
+          "options": [
+            {
+              "id": "copper",
+              "name": "Copper",
+              "consts": {
+                "rho": 1.7241e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "silver",
+              "name": "Silver",
+              "consts": {
+                "rho": 1.587e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "gold",
+              "name": "Gold",
+              "consts": {
+                "rho": 2.214e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "aluminium",
+              "name": "Aluminium",
+              "consts": {
+                "rho": 2.65e-8
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 1,
+      "rules": [
+        {
+          "target": "delta",
+          "alts": [
+            "sqrt(rho/(pi*f*4*pi*1e-7))"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "rho/(pi*delta^2*4*pi*1e-7)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rs",
+          "dim": "resistance",
+          "label": "R_s",
+          "name": "Surface resistance per square",
+          "alts": [
+            "rho/delta"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "delta = sqrt(rho / (pi * f * 4 * pi * 1e-7))",
+        "rs = rho / delta"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f"
+        ],
+        [
+          "delta"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "led_resistor",
       "category": "semiconductors",
       "name": "LED series resistor",

@@ -1,0 +1,23 @@
+{
+  "calc": "rf_power_levels",
+  "sets": [
+    {"values": {"p": 0.001, "r": 50, "vrms": 0.22360679774997896, "vpp": 0.6324555320336759, "p_dbm": 0.001, "v_dbuv": 0.22360679774997896}, "ref": "hand: V_rms = sqrt(1 mW * 50 ohm) = sqrt(0.05) = 0.2236068 V; V_pp = 2 * sqrt(2) * 0.2236068 = sqrt(0.4) = 0.6324555 V; 0 dBm; 20 * log10(0.2236068 / 1e-6) = 120 - 13.0103 = 106.9897 dBuV"},
+    {"values": {"p": 0.1, "r": 50, "vrms": 2.23606797749979, "vpp": 6.324555320336759, "p_dbm": 0.1, "v_dbuv": 2.23606797749979}, "ref": "hand: V_rms = sqrt(0.1 W * 50) = sqrt(5) = 2.236068 V; V_pp = sqrt(8 * 5) = sqrt(40) = 6.324555 V; 20 dBm; 120 + 10 * log10(5) = 126.9897 dBuV"},
+    {"values": {"p": 1, "r": 75, "vrms": 8.660254037844387, "vpp": 24.49489742783178, "p_dbm": 1, "v_dbuv": 8.660254037844387}, "ref": "hand: V_rms = sqrt(1 W * 75 ohm) = sqrt(75) = 8.660254 V; V_pp = sqrt(8 * 75) = sqrt(600) = 24.494897 V; 30 dBm; 120 + 10 * log10(75) = 138.75061 dBuV"},
+    {"values": {"p": 1e-06, "r": 50, "vrms": 0.007071067811865475, "vpp": 0.02, "p_dbm": 1e-06, "v_dbuv": 0.007071067811865475}, "ref": "hand: V_rms = sqrt(1 uW * 50 ohm) = sqrt(5e-5) = 7.071068 mV; V_pp = sqrt(8 * 5e-5) = sqrt(4e-4) = 20 mV; -30 dBm; 120 + 10 * log10(5e-5) = 76.9897 dBuV"}
+  ],
+  "solve": [
+    {"inputs": {"p": 0.001, "r": 50}, "expect": {"vrms": 0.22360679774997896, "vpp": 0.6324555320336759}, "errors": {}, "warnings": [], "ref": "hand: V_rms = sqrt(1 mW * 50) = 0.2236068 V, V_pp = 0.6324555 V; 0 dBm = 106.99 dBuV (the default example)"},
+    {"inputs": {"p": 0.1, "r": 50}, "expect": {"vrms": 2.23606797749979, "vpp": 6.324555320336759}, "errors": {}, "warnings": [], "ref": "hand: V_rms = sqrt(0.1 * 50) = 2.236068 V, V_pp = 6.324555 V (20 dBm)"},
+    {"inputs": {"vrms": 1, "r": 50}, "expect": {"p": 0.02, "vpp": 2.8284271247461903}, "errors": {}, "warnings": [], "ref": "hand: P = 1^2 / 50 = 20 mW (13.01 dBm); V_pp = 2 * sqrt(2) * 1 V = 2.828427 V"},
+    {"inputs": {"vrms": 0.5, "r": 75}, "expect": {"p": 0.0033333333333333335, "vpp": 1.4142135623730951}, "errors": {}, "warnings": [], "ref": "hand: P = 0.5^2 / 75 = 0.25 / 75 = 3.333333 mW; V_pp = 2 * sqrt(2) * 0.5 = 1.414214 V"},
+    {"inputs": {"p": 0.01, "vrms": 0.5}, "expect": {"r": 25, "vpp": 1.4142135623730951}, "errors": {}, "warnings": [], "ref": "hand: R = V_rms^2 / P = 0.25 / 0.01 = 25 ohm; V_pp = 1.414214 V"},
+    {"inputs": {"p": 0.5, "vrms": 5}, "expect": {"r": 50, "vpp": 14.142135623730951}, "errors": {}, "warnings": [], "ref": "hand: R = 5^2 / 0.5 = 50 ohm; V_pp = 2 * sqrt(2) * 5 = 14.142136 V"},
+    {"inputs": {"p": 0.001, "vpp": 0.6324555320336759}, "expect": {"vrms": 0.22360679774997896, "r": 50}, "errors": {}, "warnings": [], "ref": "hand: V_rms = V_pp / (2 * sqrt(2)) = 0.6324555 / 2.828427 = 0.2236068 V; R = 0.05 / 1 mW = 50 ohm"},
+    {"inputs": {"p": 0.1, "vpp": 6.324555320336759}, "expect": {"vrms": 2.23606797749979, "r": 50}, "errors": {}, "warnings": [], "ref": "hand: V_rms = sqrt(40) / (2 * sqrt(2)) = sqrt(5) = 2.236068 V; R = 5 / 0.1 = 50 ohm"},
+    {"inputs": {"r": 50, "vpp": 2}, "expect": {"vrms": 0.7071067811865476, "p": 0.01}, "errors": {}, "warnings": [], "ref": "hand: V_rms = 2 / (2 * sqrt(2)) = 0.7071068 V, P = 0.5 / 50 = 10 mW = 10 dBm (2 Vpp across 50 ohm)"},
+    {"inputs": {"r": 75, "vpp": 1}, "expect": {"vrms": 0.3535533905932738, "p": 0.0016666666666666668}, "errors": {}, "warnings": [], "ref": "hand: V_rms = 1 / (2 * sqrt(2)) = 0.3535534 V, P = 0.125 / 75 = 1.666667 mW"},
+    {"inputs": {"vrms": 1, "vpp": 2.8284271247461903}, "errors": {"p": "undetermined", "r": "undetermined"}, "ref": "hand: V_rms and V_pp are the same information, so neither P nor R can be found"},
+    {"inputs": {"p": 0.001, "r": 0}, "expect": {"vrms": 0, "vpp": 0}, "errors": {"r": "range"}, "warnings": [], "ref": "hand: R = 0 is out of range and V_rms = sqrt(1 mW * 0) = 0"}
+  ]
+}

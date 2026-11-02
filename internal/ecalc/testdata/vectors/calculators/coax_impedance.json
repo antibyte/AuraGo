@@ -1,0 +1,22 @@
+{
+  "calc": "coax_impedance",
+  "sets": [
+    {"values": {"er": 1, "dout": 0.0023, "din": 0.001, "z0": 49.93997467605507, "vfac": 1}, "ref": "hand: air line, ln 2.3 = 0.8329091229; Z0 = 59.95849163 / 1 * 0.8329091229 = 49.93997468 ohm (the classic 50 ohm air line has D/d = 2.30); VF = 1"},
+    {"values": {"er": 2.25, "dout": 0.0035, "din": 0.001, "z0": 50.07585197393565, "vfac": 0.6666666666666666}, "ref": "hand: sqrt(2.25) = 1.5; ln 3.5 = 1.2527629685; Z0 = 59.95849163 / 1.5 * 1.2527629685 = 39.97232775 * 1.2527629685 = 50.07585197 ohm; VF = 1 / 1.5 = 0.6666666667"},
+    {"values": {"er": 4, "dout": 0.01, "din": 0.001, "z0": 69.02976451282314, "vfac": 0.5}, "ref": "hand: sqrt(4) = 2; ln 10 = 2.302585093; Z0 = 59.95849163 / 2 * 2.302585093 = 69.02976451 ohm; VF = 0.5"},
+    {"values": {"er": 2.1, "dout": 0.00335, "din": 0.001, "z0": 50.02108498485419, "vfac": 0.6900655593423543}, "ref": "hand (independent script): PTFE sqrt(2.1) = 1.449138; ln 3.35 = 1.208960; Z0 = 59.95849163 / 1.449138 * 1.208960 = 50.02108498 ohm; VF = 1 / 1.449138 = 0.690066"}
+  ],
+  "solve": [
+    {"inputs": {"er": 1, "dout": 0.0023, "din": 0.001}, "expect": {"z0": 49.93997467605507, "vfac": 1}, "errors": {}, "warnings": [], "ref": "hand: Z0 = 59.95849163 * ln 2.3 = 59.95849163 * 0.8329091229 = 49.93997468 ohm; VF = 1"},
+    {"inputs": {"er": 2.25, "dout": 0.0035, "din": 0.001}, "expect": {"z0": 50.07585197393565, "vfac": 0.6666666666666666}, "errors": {}, "warnings": [], "ref": "hand: Z0 = 39.97232775 * ln 3.5 = 50.07585197 ohm (the default example); VF = 0.6666666667"},
+    {"inputs": {"dout": 0.0035, "din": 0.001, "z0": 50.07585197393565}, "expect": {"er": 2.25}, "errors": {}, "warnings": [], "ref": "hand: er = (59.95849163 * ln 3.5 / Z0)^2 = (59.95849163 * 1.2527629685 / 50.07585197)^2 = 1.5^2 = 2.25"},
+    {"inputs": {"dout": 0.01, "din": 0.001, "z0": 69.02976451282314}, "expect": {"er": 4}, "errors": {}, "warnings": [], "ref": "hand: er = (59.95849163 * ln 10 / Z0)^2 = (59.95849163 * 2.302585093 / 69.02976)^2 = 2^2 = 4"},
+    {"inputs": {"er": 2.25, "din": 0.001, "z0": 50.07585197393565}, "expect": {"dout": 0.0035}, "errors": {}, "warnings": [], "ref": "hand: D = d * exp(Z0 * sqrt(er) / 59.95849163) = 1 mm * exp(ln 3.5) = 3.5 mm"},
+    {"inputs": {"er": 2.1, "din": 0.001, "z0": 50.02108498485419}, "expect": {"dout": 0.00335}, "errors": {}, "warnings": [], "ref": "hand (independent script): D = 1 mm * exp(Z0 * 1.449138 / 59.95849163) = 1 mm * exp(ln 3.35) = 3.35 mm"},
+    {"inputs": {"er": 2.25, "dout": 0.0035, "z0": 50.07585197393565}, "expect": {"din": 0.001}, "errors": {}, "warnings": [], "ref": "hand: d = D / exp(Z0 * sqrt(er) / 59.95849163) = 3.5 mm / exp(ln 3.5) = 1 mm"},
+    {"inputs": {"er": 4, "dout": 0.01, "z0": 69.02976451282314}, "expect": {"din": 0.001}, "errors": {}, "warnings": [], "ref": "hand: d = 10 mm / exp(Z0 * 2 / 59.95849163) = 10 mm / exp(ln 10) = 1 mm"},
+    {"inputs": {"er": 2.25, "dout": 0.001, "din": 0.0035}, "expect": {"vfac": 0.6666666666666666}, "errors": {"z0": "range"}, "warnings": [0], "ref": "hand: D < d gives ln(1 / 3.5) < 0 and Z0 = -50.07585197 ohm, out of range; the D <= d check fires"},
+    {"inputs": {"er": 2.25, "dout": 0.001, "din": 0.001}, "errors": {"z0": "range"}, "warnings": [0], "ref": "hand: D = d gives ln 1 = 0 and Z0 = 0, out of range; the D <= d check fires"},
+    {"inputs": {"er": 2.25}, "errors": {"dout": "undetermined", "din": "undetermined", "z0": "undetermined"}, "ref": "hand: D, d and Z0 are missing"}
+  ]
+}

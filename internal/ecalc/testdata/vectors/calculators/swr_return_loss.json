@@ -1,0 +1,22 @@
+{
+  "calc": "swr_return_loss",
+  "sets": [
+    {"values": {"swr": 3, "gamma": 0.5, "rl": 6.020599913279624, "prefl": 0.25, "ml": 1.2493873660829995}, "ref": "hand: |G| = (3 - 1) / (3 + 1) = 0.5; RL = -20 * log10(0.5) = 20 * 0.30103 = 6.0206 dB; |G|^2 = 0.25; mismatch loss = -10 * log10(0.75) = 1.249387366 dB"},
+    {"values": {"swr": 2, "gamma": 0.3333333333333333, "rl": 9.542425094393248, "prefl": 0.1111111111111111, "ml": 0.5115252244738129}, "ref": "hand: |G| = 1 / 3; RL = -20 * log10(1/3) = 20 * 0.4771213 = 9.5424 dB; |G|^2 = 1/9 = 0.1111; mismatch loss = -10 * log10(8/9) = 0.5115252245 dB"},
+    {"values": {"swr": 1.5, "gamma": 0.2, "rl": 13.979400086720377, "prefl": 0.04, "ml": 0.17728766960431586}, "ref": "hand: |G| = 0.5 / 2.5 = 0.2; RL = -20 * log10(0.2) = 20 * 0.69897 = 13.9794 dB; |G|^2 = 0.04; mismatch loss = -10 * log10(0.96) = 0.1772876696 dB"},
+    {"values": {"swr": 1.2, "gamma": 0.09090909090909091, "rl": 20.8278537031645, "prefl": 0.008264462809917356, "ml": 0.03604124268825254}, "ref": "hand (independent script): |G| = 0.2 / 2.2 = 0.090909; RL = -20 * log10(0.090909) = 20.8278537 dB; |G|^2 = 0.008264; mismatch loss = 0.03604124269 dB"}
+  ],
+  "solve": [
+    {"inputs": {"swr": 3}, "expect": {"gamma": 0.5, "rl": 6.020599913279624, "prefl": 0.25, "ml": 1.2493873660829995}, "errors": {}, "warnings": [], "ref": "hand: |G| = 0.5, RL = 6.0206 dB, |G|^2 = 0.25, mismatch loss = 1.2494 dB"},
+    {"inputs": {"swr": 2}, "expect": {"gamma": 0.3333333333333333, "rl": 9.542425094393248, "prefl": 0.1111111111111111, "ml": 0.5115252244738129}, "errors": {}, "warnings": [], "ref": "hand: |G| = 1/3, RL = 9.5424 dB, |G|^2 = 1/9, mismatch loss = 0.5115 dB (the default example)"},
+    {"inputs": {"gamma": 0.5}, "expect": {"swr": 3, "rl": 6.020599913279624, "prefl": 0.25}, "errors": {}, "warnings": [], "ref": "hand: SWR = (1 + 0.5) / (1 - 0.5) = 3; RL = 6.0206 dB"},
+    {"inputs": {"gamma": 0.2}, "expect": {"swr": 1.5, "rl": 13.979400086720377, "prefl": 0.04}, "errors": {}, "warnings": [], "ref": "hand: SWR = 1.2 / 0.8 = 1.5; RL = 13.9794 dB"},
+    {"inputs": {"rl": 20}, "expect": {"gamma": 0.1, "swr": 1.2222222222222223, "prefl": 0.01}, "errors": {}, "warnings": [], "ref": "hand: |G| = 10^(-20/20) = 0.1; SWR = 1.1 / 0.9 = 1.2222222222; |G|^2 = 0.01"},
+    {"inputs": {"rl": 6.020599913279624}, "expect": {"gamma": 0.5, "swr": 3}, "errors": {}, "warnings": [], "ref": "hand: |G| = 10^(-6.0206/20) = 0.5 (20 * log10 2 = 6.020599913); SWR = 1.5 / 0.5 = 3"},
+    {"inputs": {"rl": 14}, "expect": {"gamma": 0.19952623149688797, "swr": 1.498520349692414}, "errors": {}, "warnings": [], "ref": "hand (independent script): |G| = 10^(-0.7) = 0.199526; SWR = 1.199526 / 0.800474 = 1.49851"},
+    {"inputs": {"gamma": 1}, "expect": {"rl": 0, "prefl": 1}, "errors": {"swr": "nonfinite"}, "warnings": [], "ref": "hand: |G| = 1 (total reflection) gives SWR = 2 / 0 = infinite and RL = -20 * log10(1) = 0 dB"},
+    {"inputs": {"swr": 1}, "expect": {"gamma": 0, "prefl": 0, "ml": 0}, "errors": {"rl": "nonfinite"}, "warnings": [], "ref": "hand: a perfect match |G| = 0, mismatch loss 0 dB, but RL = -20 * log10(0) is infinite"},
+    {"inputs": {"swr": 0.5}, "expect": {"gamma": -0.3333333333333333}, "errors": {"rl": "nonfinite"}, "warnings": [0], "ref": "hand: SWR 0.5 is below 1: |G| = -0.5 / 1.5 = -1/3 and log10 of a negative number is undefined; the SWR < 1 check fires"},
+    {"inputs": {"gamma": 1.5}, "expect": {"rl": -3.5218251811136247}, "errors": {"swr": "range"}, "warnings": [0, 1], "ref": "hand: |G| = 1.5 is above 1: SWR = 2.5 / (-0.5) = -5, out of range; RL = -20 * log10(1.5) = -3.5218 dB; the |G| > 1 check fires, and the SWR < 1 check fires too because the computed SWR is -5"}
+  ]
+}
