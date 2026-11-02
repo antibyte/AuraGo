@@ -80,6 +80,8 @@ Set provider keys through Setup Wizard/Config UI into the encrypted Vault (`prov
 
 Debug: `./aurago -debug` or `agent.debug_mode: true` in `config.yaml`.
 
+The six existing API-key environment overrides apply only after a valid static provider binding: main LLM (`LLM_API_KEY`, then `OPENAI_API_KEY`, then `ANTHROPIC_API_KEY`), co-agent LLM, embeddings, vision, Whisper and fallback LLM. Empty variables preserve the provider key; overrides affect only that resolved slot, never provider entries or persisted config. OAuth, managed, masked and invalid bindings retain their own rules on startup and reload.
+
 ### Install and development reset
 
 Docker is recommended: `docker-compose up -d`; `docker-compose -f docker-compose.yml up -d` selects the default file explicitly. Linux:

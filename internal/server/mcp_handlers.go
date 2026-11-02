@@ -156,6 +156,7 @@ func persistMCPSectionUpdateLocked(s *Server, mutate func(map[string]interface{}
 	}
 	newCfg.ConfigPath = configPath
 	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ResolveProviders()
 	newCfg.ApplyOAuthTokens(s.Vault)
 	s.CfgMu.Lock()
 	s.replaceConfigSnapshot(newCfg)

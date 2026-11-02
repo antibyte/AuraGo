@@ -81,6 +81,7 @@ func (s *Server) registerEvomapNode(ctx context.Context, expected config.EvomapC
 	}
 	next.ConfigPath = cfg.ConfigPath
 	next.ApplyVaultSecrets(s.Vault)
+	next.ResolveProviders()
 	next.ApplyOAuthTokens(s.Vault)
 	s.CfgMu.Lock()
 	s.replaceConfigSnapshot(next)

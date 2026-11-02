@@ -1864,31 +1864,6 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	// Environment overrides for API keys (applied AFTER provider resolution so
-	// they override any key from the providers list):
-	if val := os.Getenv("LLM_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	} else if val := os.Getenv("OPENAI_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	} else if val := os.Getenv("ANTHROPIC_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	}
-	if val := os.Getenv("CO_AGENTS_LLM_API_KEY"); val != "" {
-		cfg.CoAgents.LLM.APIKey = val
-	}
-	if val := os.Getenv("EMBEDDINGS_API_KEY"); val != "" {
-		cfg.Embeddings.APIKey = val
-	}
-	if val := os.Getenv("VISION_API_KEY"); val != "" {
-		cfg.Vision.APIKey = val
-	}
-	if val := os.Getenv("WHISPER_API_KEY"); val != "" {
-		cfg.Whisper.APIKey = val
-	}
-	if val := os.Getenv("FALLBACK_LLM_API_KEY"); val != "" {
-		cfg.FallbackLLM.APIKey = val
-	}
-
 	if cfg.CircuitBreaker.MaxToolCalls <= 0 {
 		cfg.CircuitBreaker.MaxToolCalls = 10 // User specifically asked for 10
 	}
