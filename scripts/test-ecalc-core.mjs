@@ -64,7 +64,7 @@ let count = 0;
 
 // ---- core.json: expressions, units, E-series --------------------------------------------------------------------------
 const vectors = JSON.parse(read('internal/ecalc/testdata/vectors/core.json'));
-const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format'];
+const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range'];
 for (const section of sections) assert.ok(Array.isArray(vectors[section]) && vectors[section].length > 0, `core.json has no ${section} vectors`);
 const expr = core.expr;
 const environment = v => Object.assign({}, v.env || {}, v.lists || {});
@@ -92,6 +92,18 @@ for (const v of vectors.units_parse_error) { throwsCode(() => units.parse(v.in, 
 for (const v of vectors.units_list) { eq(units.parseList(v.in, v.dim, v.unit || '').map((x, i) => (Math.abs(x - v.want[i]) <= 1e-12 * Math.abs(v.want[i]) ? v.want[i] : x)), v.want, `list ${JSON.stringify(v.in)}`); count += 1; }
 for (const v of vectors.units_list_error) { throwsCode(() => units.parseList(v.in, v.dim, v.unit || ''), 'parse', `list error ${JSON.stringify(v.in)}`); count += 1; }
 for (const v of vectors.units_format) { assert.equal(units.format(decode(v.v), v.dim, v.unit || '', v.sig || 0), v.want, `format ${v.v} as ${v.dim} ${v.unit || ''}`); count += 1; }
+for (const v of vectors.units_roundtrip) {
+    const text = units.format(v.v, v.dim, v.unit, 0);
+    assert.equal(text, v.text, `roundtrip format ${v.v} as ${v.dim} ${v.unit}`);
+    assert.ok(text.length <= core.units.MAX_VALUE_LENGTH, `${text} is within the ${core.units.MAX_VALUE_LENGTH} characters that parse accepts`);
+    assert.equal(units.parse(text, v.dim, v.unit), v.v, `roundtrip parse ${text} as ${v.dim} ${v.unit}`);
+    count += 3;
+}
+for (const v of vectors.solve_range) {
+    const calc = { vars: [{ id: 'n', dim: v.dim }], choices: [], rules: [], derived: [], checks: [] };
+    assert.equal(core.solve.solve(calc, { n: decode(v.v) }, {}, units).errors.n || '', v.want, `solve_range ${v.dim} ${v.v}`);
+    count += 1;
+}
 
 // ---- calculators/*.json: consistent solutions and single solves -----------------------------------------------------
 const split = values => {
@@ -274,9 +286,11 @@ for (const item of calculators) {
     eq(units.options('resistance').map(option => option.label), ['', 'mΩ', 'Ω', 'kΩ', 'MΩ', 'GΩ']);
     eq(units.options('area').map(option => option.id), ['', 'prefix:', 'mm2', 'mil2', 'kcmil', 'AWG'], 'aliases are input spellings, not dropdown entries');
     eq(units.options('temperature').map(option => option.label), ['', 'K', '°C', '°F']);
+    eq(units.options('integer').map(option => option.id), ['', 'dec', 'hex', 'bin', 'oct'], 'an integer field offers the number systems');
+    eq(units.dim('integer').integer, true, 'the dimension carries the integer flag');
     same(units.parse('4.7kΩ', 'resistance', ''), 4700, 'the ohm sign');
     same(units.parse('3μA', 'current', ''), 3e-6, 'the Greek mu');
-    count += 14;
+    count += 16;
 }
 
 // ---- a unit that cannot show a value falls back to the automatic text (dBV for zero or a negative voltage) ------------------
@@ -293,7 +307,12 @@ for (const item of calculators) {
     const bridge = S.solve(wheatstone, S.readInputs(wheatstone, start, units, auto).values, start.choices, units).values;
     assert.ok(bridge.vd < 0 && units.format(bridge.vd, 'voltage', 'dBV', 4) === '', 'the bridge voltage of the defaults is negative and blank in dBV');
     assert.equal(units.format(bridge.vd, 'voltage', '', 4), '-119 mV');
-    count += 9;
+    // A number system writes its own text (0xFF) that reads back under the same selection; a value it cannot show falls back.
+    const radixVar = { id: 'n', dim: 'integer' };
+    assert.equal(S.exactText(radixVar, 255, units, () => 'hex'), '0xFF', 'a field in hex shows 0xFF');
+    same(units.parse(S.exactText(radixVar, 255, units, () => 'hex'), 'integer', 'hex'), 255, 'and it reads back');
+    assert.equal(S.exactText(radixVar, 1.5, units, () => 'hex'), '1.5', 'a fraction falls back to the plain number');
+    count += 12;
 }
 
 // ---- the store: every change is a read-modify-write, so two windows never overwrite each other -------------------------

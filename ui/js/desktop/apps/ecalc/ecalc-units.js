@@ -25,6 +25,11 @@
     const MAX_VALUE_LENGTH = 64;
     const MAX_LIST_LENGTH = 256;
     const PREFIX_UNIT = 'prefix:';
+    // Number systems (radix units of an integer dimension): the optional prefix letter, the digit patterns (underscores
+    // between digits) and the largest whole number a double holds exactly, 2^53 - 1.
+    const RADIX_LETTER = { 2: 'b', 8: 'o', 16: 'x' };
+    const RADIX_DIGITS = { 2: /^[01]+(?:_+[01]+)*$/, 8: /^[0-7]+(?:_+[0-7]+)*$/, 10: /^[0-9]+(?:_+[0-9]+)*$/, 16: /^[0-9a-fA-F]+(?:_+[0-9a-fA-F]+)*$/ };
+    const MAX_SAFE = Number.MAX_SAFE_INTEGER;
     // U+03BC (Greek mu) is typed for the micro sign U+00B5, U+2126 (ohm sign) for the Greek capital omega U+03A9.
     const fold = text => text.split(String.fromCharCode(0x3bc)).join(String.fromCharCode(0xb5)).split(String.fromCharCode(0x2126)).join(String.fromCharCode(0x3a9));
 
@@ -40,6 +45,43 @@
     const fmtNum = x => String(x);
     const fmtSig = (x, n) => fmtNum(roundSig(x, n));
 
+    // The digits of a whole number in the base of `unit` (see internal/ecalc/units.go parseRadix): an optional 0x, 0b or
+    // 0o prefix, digits with underscores between them, no sign, at most 2^53 - 1.
+    function parseRadix(unit, text) {
+        let digits = text;
+        const letter = RADIX_LETTER[unit.radix];
+        if (letter && digits.length >= 2 && digits[0] === '0' && digits[1].toLowerCase() === letter) digits = digits.slice(2);
+        if (!RADIX_DIGITS[unit.radix].test(digits)) throw fail('cannot read ' + JSON.stringify(text) + ' as a ' + unit.id + ' number');
+        let value = 0;
+        for (const char of digits) {
+            if (char === '_') continue;
+            value = value * unit.radix + parseInt(char, 16);
+            if (value > MAX_SAFE) throw fail('the value ' + JSON.stringify(text) + ' is out of range (at most ' + MAX_SAFE + ')');
+        }
+        return value;
+    }
+
+    // Groups of `size` characters from the right, joined by underscores (1F_FFFF).
+    function groupDigits(digits, size) {
+        let out = '';
+        for (let i = 0; i < digits.length; i += 1) {
+            if (i > 0 && (digits.length - i) % size === 0) out += '_';
+            out += digits[i];
+        }
+        return out;
+    }
+
+    // A whole number in 0 .. 2^53 - 1 written in the given base: decimal plain, hex 0xDEAD_BEEF (groups of four), binary
+    // 0b1_00000000 (groups of eight, so 2^53 - 1 is 61 characters, within the 64 that parse() accepts), octal 0o377;
+    // anything else gives ''. The significant-digit setting does not apply.
+    function formatRadix(radix, value) {
+        if (!Number.isInteger(value) || value < 0 || value > MAX_SAFE) return '';
+        if (radix === 16) return '0x' + groupDigits(value.toString(16).toUpperCase(), 4);
+        if (radix === 2) return '0b' + groupDigits(value.toString(2), 8);
+        if (radix === 8) return '0o' + value.toString(8);
+        return value.toString(10);
+    }
+
     function create(catalogUnits) {
         const source = catalogUnits || {};
         const prefixFactor = new Map([['', 1]]);
@@ -53,19 +95,21 @@
         for (const raw of source.dims || []) {
             const prefixes = (raw.prefixes || []).map(id => ({ id, factor: prefixFactor.has(id) ? prefixFactor.get(id) : 1 })).sort((a, b) => a.factor - b.factor);
             const units = (raw.units || []).map(unit => {
-                const linear = !unit.to;
-                const toAst = linear ? null : expr.parseCached(unit.to), fromAst = linear ? null : expr.parseCached(unit.from);
+                const radix = unit.radix || 0;
+                const linear = !radix && !unit.to;
+                const toAst = linear || radix ? null : expr.parseCached(unit.to), fromAst = linear || radix ? null : expr.parseCached(unit.from);
                 return {
-                    id: unit.id, symbol: unit.symbol, aliases: unit.aliases || [],
-                    toBase: x => (linear ? x * unit.factor : expr.evaluate(toAst, { x })),
-                    fromBase: v => (linear ? v / unit.factor : expr.evaluate(fromAst, { x: v }))
+                    id: unit.id, symbol: unit.symbol, aliases: unit.aliases || [], radix,
+                    toBase: x => (radix ? x : linear ? x * unit.factor : expr.evaluate(toAst, { x })),
+                    fromBase: v => (radix ? v : linear ? v / unit.factor : expr.evaluate(fromAst, { x: v }))
                 };
             });
             dims.set(raw.id, {
-                id: raw.id, symbol: raw.symbol || '', aliases: raw.aliases || [], positive: !!raw.positive, prefixes, units,
+                id: raw.id, symbol: raw.symbol || '', aliases: raw.aliases || [], positive: !!raw.positive, integer: !!raw.integer, prefixes, units,
                 unitById: new Map(units.map(unit => [unit.id, unit])),
-                // The spellings of the explicit units (symbol and aliases), longest first; Array.sort is stable.
-                unitNames: units.flatMap(unit => [unit.symbol].concat(unit.aliases).map(text => ({ text, unit }))).sort((a, b) => b.text.length - a.text.length),
+                // The spellings of the explicit units (symbol and aliases) that may follow a number, longest first;
+                // a number system is selected, never written behind a number. Array.sort is stable.
+                unitNames: units.filter(unit => !unit.radix).flatMap(unit => [unit.symbol].concat(unit.aliases).map(text => ({ text, unit }))).sort((a, b) => b.text.length - a.text.length),
                 names: [raw.symbol || ''].concat(raw.aliases || []).filter(Boolean).sort((a, b) => b.length - a.length)
             });
         }
@@ -85,6 +129,10 @@
             let text = fold(typed.trim().replace(/\s+/g, ''));
             if (text === '') throw fail('empty input');
             text = text.replace(/,/g, '.');
+
+            // A selected number system reads the digits of its base and nothing else.
+            const selected = unitId ? d.unitById.get(unitId) : null;
+            if (selected && selected.radix) return finite(parseRadix(selected, text));
 
             // An explicit unit typed behind the number wins over everything else (symbol or alias, longest first).
             for (const entry of d.unitNames) {
@@ -111,7 +159,7 @@
             if (Number.isNaN(value)) throw fail('cannot read ' + JSON.stringify(input) + ' as a ' + dimId + ' value');
             if (prefix !== '' && !d.prefixes.some(entry => entry.id === prefix)) throw fail('the prefix ' + prefix + ' does not fit ' + dimId);
 
-            const unit = unitId ? d.unitById.get(unitId) : null;
+            const unit = selected;
             if (unit && !suffixed) {
                 if (prefix !== '') throw fail('a prefix needs a unit symbol in a ' + unit.symbol + ' field');
                 return finite(unit.toBase(value));
@@ -143,8 +191,14 @@
             const digits = sig || 4;
             const unit = unitId ? d.unitById.get(unitId) : null;
             if (unit) {
+                if (unit.radix) return formatRadix(unit.radix, value);
                 const x = unit.fromBase(value);
                 return Number.isFinite(x) ? fmtSig(x, digits) + ' ' + unit.symbol : '';
+            }
+            // No number system selected: decimal digits (never rounded to `digits`) when value is a whole number in range.
+            if (d.integer) {
+                const text = formatRadix(10, value);
+                if (text) return text;
             }
             if (unitId && unitId.startsWith(PREFIX_UNIT)) {
                 const id = unitId.slice(PREFIX_UNIT.length);

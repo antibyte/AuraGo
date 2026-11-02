@@ -13,6 +13,14 @@
 
     const isFiniteValue = value => (Array.isArray(value) ? value.every(Number.isFinite) : Number.isFinite(value));
 
+    // A finite value (or list) that its dimension does not allow: zero or less for a positive dimension, anything that
+    // is not a whole number in 0 .. 2^53 - 1 for an integer one (internal/ecalc/solve.go valueError).
+    function outOfRange(dimension, value) {
+        if (!dimension) return false;
+        const bad = x => (dimension.positive && x <= 0) || (dimension.integer && !(Number.isInteger(x) && x >= 0 && x <= Number.MAX_SAFE_INTEGER));
+        return Array.isArray(value) ? value.some(bad) : bad(value);
+    }
+
     // The consts of the selected option of every choice (an unknown or missing selection falls back to the default).
     function choiceConsts(calc, choices) {
         const consts = {};
@@ -64,10 +72,9 @@
                 continue;
             }
             const value = env[v.id];
-            const positive = !!(units && units.dim(v.dim).positive);
             values[v.id] = Array.isArray(value) ? value.slice() : value;
             if (!isFiniteValue(value)) errors[v.id] = 'nonfinite';
-            else if (positive && (Array.isArray(value) ? value.some(x => x <= 0) : value <= 0)) errors[v.id] = 'range';
+            else if (outOfRange(units ? units.dim(v.dim) : null, value)) errors[v.id] = 'range';
         }
         for (const item of calc.derived) {
             values[item.id] = known.has(item.id) && Number.isFinite(env[item.id]) ? env[item.id] : NaN;

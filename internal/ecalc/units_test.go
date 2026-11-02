@@ -50,6 +50,12 @@ func TestUnitsVectors(t *testing.T) {
 			Sig  int    `json:"sig"`
 			Want string `json:"want"`
 		} `json:"units_format"`
+		Roundtrip []struct {
+			V    float64 `json:"v"`
+			Dim  string  `json:"dim"`
+			Unit string  `json:"unit"`
+			Text string  `json:"text"`
+		} `json:"units_roundtrip"`
 	}
 	readJSON(t, "testdata/vectors/core.json", &f)
 	if len(f.Parse) == 0 || len(f.Format) == 0 || len(f.List) == 0 {
@@ -92,6 +98,18 @@ func TestUnitsVectors(t *testing.T) {
 			t.Errorf("Format(%v, %s, %q, %d) = %q, want %q", v.V, v.Dim, v.Unit, v.Sig, got, v.Want)
 		}
 	}
+	if len(f.Roundtrip) == 0 {
+		t.Fatal("core.json lacks the units_roundtrip section")
+	}
+	for _, v := range f.Roundtrip {
+		got := u.Format(v.V, v.Dim, v.Unit, 0)
+		if got != v.Text || textLength(got) > MaxValueLength {
+			t.Errorf("Format(%v, %s, %q) = %q (%d characters), want %q within %d characters", v.V, v.Dim, v.Unit, got, textLength(got), v.Text, MaxValueLength)
+		}
+		if back, err := u.Parse(got, v.Dim, v.Unit); err != nil || back != v.V {
+			t.Errorf("Parse(%q, %s, %q) = %v, %v, want %v again", got, v.Dim, v.Unit, back, err, v.V)
+		}
+	}
 }
 
 // The Greek mu (U+03BC) and the ohm sign (U+2126) look like the micro sign and the Greek omega; input folds them.
@@ -120,6 +138,13 @@ func TestLoadUnitsRejectsBrokenDefinitions(t *testing.T) {
 		{"alias equal to the base symbol", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1, aliases: [A]}]}\n", `"A" is used by`},
 		{"alias equal to another unit symbol", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1}, {id: v, symbol: v, factor: 2, aliases: [u]}]}\n", `"u" is used by`},
 		{"alias equal to a dimension alias", "prefixes: []\ndims:\n  a: {symbol: A, aliases: [z], units: [{id: u, symbol: u, factor: 1, aliases: [z]}]}\n", `"z" is used by`},
+		{"radix on a dimension that is not integer", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, radix: 16}]}\n", "integer: true"},
+		{"radix that is not supported", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 3}]}\n", "radix must be 2, 8, 10 or 16"},
+		{"radix unit with a factor", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 2, factor: 2}]}\n", "must not have a factor"},
+		{"radix unit with an alias", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 2, aliases: [x]}]}\n", "must not have a factor"},
+		{"integer dimension with a linear unit", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, factor: 2}]}\n", "only has radix units"},
+		{"integer dimension with prefixes", "prefixes: [{id: k, factor: 1e3}]\ndims:\n  a: {symbol: A, integer: true, prefixes: [k]}\n", "no prefixes"},
+		{"positive integer dimension", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, positive: true}\n", "cannot be positive"},
 	}
 	for _, c := range cases {
 		_, err := loadUnits([]byte(c.yaml))
@@ -156,6 +181,7 @@ func TestUnitsCatalogDimensions(t *testing.T) {
 		"ratio||''|false|pct",
 		"angle|rad|m ''|false|deg",
 		"baudrate|Bd|'' k M|true|",
+		"integer||(none)|false|dec hex bin oct",
 	}
 	var got []string
 	for _, d := range u.Dims {
@@ -202,6 +228,25 @@ func TestUnitsReferenceConstants(t *testing.T) {
 	} {
 		if !near(c.got, c.want, c.tol) {
 			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
+		}
+	}
+}
+
+// The radix units belong to the integer dimension only: the catalog marks them (Radix) and the dimension (Integer),
+// and the non-radix units of other dimensions carry neither.
+func TestUnitsRadixMarkers(t *testing.T) {
+	u := testUnits(t)
+	for _, d := range u.Dims {
+		for _, un := range d.Units {
+			if (un.Radix != 0) != d.Integer {
+				t.Errorf("dim %s unit %s: radix %d on a dimension with integer=%v", d.ID, un.ID, un.Radix, d.Integer)
+			}
+		}
+	}
+	want := map[string]int{"dec": 10, "hex": 16, "bin": 2, "oct": 8}
+	for id, radix := range want {
+		if un := u.Dim("integer").Unit(id); un == nil || un.Radix != radix {
+			t.Errorf("integer unit %s = %+v, want radix %d", id, un, radix)
 		}
 	}
 }

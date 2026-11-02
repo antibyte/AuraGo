@@ -6,6 +6,7 @@
 #           be greater than zero) and optional explicit units. An explicit unit is either linear (factor: base =
 #           x * factor) or non-linear (to/from expressions in the expression language, x = the value in the unit).
 #           A unit may list aliases: extra spellings that input accepts like the symbol (25degC) and that are never shown.
+#           A dimension with integer: true has radix units only (see the integer dimension below).
 prefixes:
   - {id: p, factor: 1e-12}
   - {id: n, factor: 1e-9}
@@ -41,3 +42,7 @@ dims:
   ratio: {symbol: "", prefixes: [""], units: [{id: pct, symbol: "%", factor: 0.01}]}
   angle: {symbol: rad, prefixes: [m, ""], units: [{id: deg, symbol: °, aliases: [deg], factor: 0.017453292519943295}]}
   baudrate: {symbol: Bd, prefixes: ["", k, M], positive: true}
+  # integer: whole numbers from 0 to 2^53-1 shown in a number system. A unit with radix (2, 8, 10 or 16) is such a system:
+  # input reads the digits of its base (optional 0x/0b/0o prefix, _ and blanks between digits) and output writes them
+  # (dec: 255, hex: 0xFF, bin: 0b11111111, oct: 0o377; hex groups by four, bin by eight). Without a unit input is decimal.
+  integer: {symbol: "", prefixes: [], integer: true, units: [{id: dec, symbol: dec, radix: 10}, {id: hex, symbol: hex, radix: 16}, {id: bin, symbol: bin, radix: 2}, {id: oct, symbol: oct, radix: 8}]}

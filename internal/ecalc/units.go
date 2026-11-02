@@ -37,6 +37,10 @@ const (
 	MaxListLength  = 256
 )
 
+// maxSafeInt is 2^53 - 1, the largest whole number that a double (and a JavaScript number) holds exactly. The values of
+// an integer dimension and the numbers of a radix unit stay within 0 .. maxSafeInt.
+const maxSafeInt = 9007199254740991
+
 // textLength is the length of s in UTF-16 code units.
 func textLength(s string) int {
 	n := 0
@@ -59,7 +63,8 @@ type Prefix struct {
 // Unit is an explicit display unit of a dimension. A linear unit has a Factor (base = x * Factor); a non-linear one
 // has To and From expressions in the expression language, where x is the value in this unit (To) or in the base
 // unit (From). Aliases are further spellings that input accepts exactly like the Symbol (the longest spelling is
-// tried first); they are never shown.
+// tried first); they are never shown. A radix unit (Radix 2, 8, 10 or 16, only in an integer dimension) is a number
+// system: it has no conversion, Parse reads the digits of that base and Format writes them.
 type Unit struct {
 	ID      string   `json:"id"`
 	Symbol  string   `json:"symbol"`
@@ -67,6 +72,7 @@ type Unit struct {
 	Factor  float64  `json:"factor"`
 	To      string   `json:"to"`
 	From    string   `json:"from"`
+	Radix   int      `json:"radix"`
 
 	to, from *Node
 }
@@ -77,13 +83,15 @@ type exName struct {
 	unit *Unit
 }
 
-// Dim is a physical dimension (voltage, resistance, ...). Values are stored in its SI base unit.
+// Dim is a physical dimension (voltage, resistance, ...). Values are stored in its SI base unit. The values of an
+// Integer dimension are whole numbers from 0 to maxSafeInt, and its units are number systems.
 type Dim struct {
 	ID       string   `json:"id"`
 	Symbol   string   `json:"symbol"`
 	Aliases  []string `json:"aliases"`
 	Prefixes []string `json:"prefixes"`
 	Positive bool     `json:"positive"`
+	Integer  bool     `json:"integer"`
 	Units    []Unit   `json:"units"`
 
 	pfx      []Prefix // Prefixes resolved, ascending by factor
@@ -107,6 +115,7 @@ type rawUnit struct {
 	Factor  float64  `yaml:"factor"`
 	To      string   `yaml:"to"`
 	From    string   `yaml:"from"`
+	Radix   int      `yaml:"radix"`
 }
 
 type rawDim struct {
@@ -114,6 +123,7 @@ type rawDim struct {
 	Aliases  []string  `yaml:"aliases"`
 	Prefixes []string  `yaml:"prefixes"`
 	Positive bool      `yaml:"positive"`
+	Integer  bool      `yaml:"integer"`
 	Units    []rawUnit `yaml:"units"`
 }
 
@@ -151,12 +161,18 @@ func loadUnits(data []byte) (*Units, error) {
 			fail("dim %q: %v", e.Key, err)
 			continue
 		}
-		d := Dim{ID: e.Key, Symbol: rd.Symbol, Aliases: rd.Aliases, Prefixes: rd.Prefixes, Positive: rd.Positive}
+		d := Dim{ID: e.Key, Symbol: rd.Symbol, Aliases: rd.Aliases, Prefixes: rd.Prefixes, Positive: rd.Positive, Integer: rd.Integer}
 		if d.Aliases == nil {
 			d.Aliases = []string{}
 		}
 		if d.Prefixes == nil {
 			d.Prefixes = []string{}
+		}
+		if d.Integer && len(d.Prefixes) > 0 {
+			fail("dim %q: an integer dimension has no prefixes", d.ID)
+		}
+		if d.Integer && d.Positive {
+			fail("dim %q: an integer dimension cannot be positive (zero is a whole number)", d.ID)
 		}
 		for _, id := range d.Prefixes {
 			f, ok := u.prefix[id]
@@ -188,7 +204,7 @@ func loadUnits(data []byte) (*Units, error) {
 			spell(a, "an alias of the dimension")
 		}
 		for _, ru := range rd.Units {
-			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Aliases: ru.Aliases, Factor: ru.Factor, To: ru.To, From: ru.From}
+			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Aliases: ru.Aliases, Factor: ru.Factor, To: ru.To, From: ru.From, Radix: ru.Radix}
 			if un.Aliases == nil {
 				un.Aliases = []string{}
 			}
@@ -201,6 +217,17 @@ func loadUnits(data []byte) (*Units, error) {
 			switch {
 			case un.ID == "" || un.Symbol == "" || seen[un.ID]:
 				fail("dim %q: unit %q needs a unique id and a symbol", d.ID, un.ID)
+			case un.Radix != 0:
+				switch {
+				case !d.Integer:
+					fail("dim %q: unit %q has a radix, so the dimension must be integer: true", d.ID, un.ID)
+				case un.Radix != 2 && un.Radix != 8 && un.Radix != 10 && un.Radix != 16:
+					fail("dim %q: unit %q: the radix must be 2, 8, 10 or 16", d.ID, un.ID)
+				case un.Factor != 0 || un.To != "" || un.From != "" || len(un.Aliases) > 0:
+					fail("dim %q: radix unit %q must not have a factor, to, from or aliases", d.ID, un.ID)
+				}
+			case d.Integer:
+				fail("dim %q: an integer dimension only has radix units, unit %q has none", d.ID, un.ID)
 			case un.Factor > 0 && un.To == "" && un.From == "":
 			case un.Factor == 0 && un.To != "" && un.From != "":
 				un.to, un.from = parseUnitExpr(&errs, d.ID, un.ID, un.To), parseUnitExpr(&errs, d.ID, un.ID, un.From)
@@ -226,6 +253,9 @@ func loadUnits(data []byte) (*Units, error) {
 		sort.SliceStable(d.suffixes, func(a, b int) bool { return len(d.suffixes[a]) > len(d.suffixes[b]) })
 		for j := range d.Units {
 			un := &d.Units[j]
+			if un.Radix != 0 {
+				continue // a number system is selected, never written behind a number
+			}
 			d.exNames = append(d.exNames, exName{un.Symbol, un})
 			for _, a := range un.Aliases {
 				d.exNames = append(d.exNames, exName{a, un})
@@ -412,6 +442,11 @@ func (u *Units) parseValue(d *Dim, s, unitID string) (float64, error) {
 	orig := s
 	bad := func() (float64, error) { return 0, fmt.Errorf("cannot read %q as a %s", orig, d.ID) }
 
+	// A selected number system reads the digits of its base and nothing else.
+	if sel != nil && sel.Radix != 0 {
+		return parseRadix(sel, s)
+	}
+
 	// An explicit unit written after the number (10dBm, 2Ah, 25degC): its symbol or one of its aliases.
 	for _, en := range d.exNames {
 		if rest, ok := strings.CutSuffix(s, en.text); ok && plainNumRe.MatchString(rest) {
@@ -462,6 +497,90 @@ func (u *Units) parseValue(d *Dim, s, unitID string) (float64, error) {
 	return x, nil
 }
 
+// radixLetter is the letter of the optional prefix of a radix number: 0x, 0b and 0o (decimal has no prefix).
+func radixLetter(radix int) byte {
+	switch radix {
+	case 16:
+		return 'x'
+	case 2:
+		return 'b'
+	case 8:
+		return 'o'
+	}
+	return 0
+}
+
+// parseRadix reads a whole number in the base of un from text without blanks: an optional 0x, 0b or 0o prefix of that
+// base (either case), then at least one digit of the base (hex digits in either case) with underscores allowed between
+// digits. There is no sign and no SI prefix, and the value must not exceed maxSafeInt.
+func parseRadix(un *Unit, s string) (float64, error) {
+	bad := fmt.Errorf("cannot read %q as a %s number", s, un.ID)
+	digits := s
+	if l := radixLetter(un.Radix); l != 0 && len(digits) >= 2 && digits[0] == '0' && digits[1]|0x20 == l {
+		digits = digits[2:]
+	}
+	if digits == "" || digits[0] == '_' || digits[len(digits)-1] == '_' {
+		return 0, bad
+	}
+	var v uint64
+	for i := 0; i < len(digits); i++ {
+		c := digits[i]
+		if c == '_' {
+			continue
+		}
+		var digit int
+		switch {
+		case c >= '0' && c <= '9':
+			digit = int(c - '0')
+		case c >= 'a' && c <= 'f':
+			digit = int(c-'a') + 10
+		case c >= 'A' && c <= 'F':
+			digit = int(c-'A') + 10
+		default:
+			return 0, bad
+		}
+		if digit >= un.Radix {
+			return 0, bad
+		}
+		if v = v*uint64(un.Radix) + uint64(digit); v > maxSafeInt {
+			return 0, fmt.Errorf("the value %q is out of range (at most %d)", s, uint64(maxSafeInt))
+		}
+	}
+	return float64(v), nil
+}
+
+// groupDigits writes the ASCII text s in groups of n characters counted from the right, joined by underscores.
+func groupDigits(s string, n int) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if i > 0 && (len(s)-i)%n == 0 {
+			b.WriteByte('_')
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// formatRadix writes a whole number in 0 .. maxSafeInt in the given base: decimal as plain digits, hex as 0x and
+// upper-case digits grouped by four (0xDEAD_BEEF), binary as 0b grouped by eight, that is by byte (0b1_00000000), octal
+// as 0o. Anything else gives "". The largest value, 2^53-1, is 61 characters in binary, so every text this function
+// writes is within the 64 characters that Parse accepts. The significant-digit setting does not apply.
+func formatRadix(radix int, v float64) string {
+	if v != math.Trunc(v) || v < 0 || v > maxSafeInt {
+		return ""
+	}
+	n := uint64(v)
+	switch radix {
+	case 16:
+		return "0x" + groupDigits(strings.ToUpper(strconv.FormatUint(n, 16)), 4)
+	case 2:
+		return "0b" + groupDigits(strconv.FormatUint(n, 2), 8)
+	case 8:
+		return "0o" + strconv.FormatUint(n, 8)
+	}
+	return strconv.FormatUint(n, 10)
+}
+
 // fmtNum writes x as JavaScript's String(x) does: the shortest decimal that reads back as the same double, without
 // an exponent for 1e-6 <= |x| < 1e21, otherwise like 1e-7 or 1.5e+21.
 func fmtNum(x float64) string {
@@ -501,11 +620,20 @@ func (u *Units) Format(v float64, dimID, unitID string, sig int) string {
 		sig = 4
 	}
 	if un := d.Unit(unitID); un != nil {
+		if un.Radix != 0 {
+			return formatRadix(un.Radix, v)
+		}
 		x := un.FromBase(v)
 		if math.IsNaN(x) || math.IsInf(x, 0) {
 			return ""
 		}
 		return fmtSig(x, sig) + " " + un.Symbol
+	}
+	if d.Integer {
+		// No number system selected: decimal digits (never rounded to sig digits) when v is a whole number in range.
+		if s := formatRadix(10, v); s != "" {
+			return s
+		}
 	}
 	if len(d.pfx) == 0 {
 		return withUnit(fmtSig(v, sig), d.Symbol)
