@@ -45,12 +45,13 @@ type ECalcRequest struct {
 
 // ExecuteECalc runs the ecalc tool. Output is a JSON string with status ok, error or policy_denied; open also
 // carries the desktop event that opens the app.
-func ExecuteECalc(cfg *config.Config, req ECalcRequest) VirtualDesktopExecution {
+func ExecuteECalc(cfg *config.Config, req ECalcRequest) (result VirtualDesktopExecution) {
+	budget := ecalcBudget(req.OutputBudget)
+	defer func() { result = ecalcBoundOutput(result, budget) }()
 	cat, err := ecalc.Default()
 	if err != nil {
 		return ecalcFailure("error", "ecalc_unavailable", "The ECalc catalog could not be loaded.")
 	}
-	budget := ecalcBudget(req.OutputBudget)
 	switch op := strings.ToLower(strings.TrimSpace(req.Operation)); op {
 	case "search":
 		return ecalcSearch(cat, req, budget)
@@ -223,6 +224,12 @@ func ecalcDescribe(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesk
 				vars[i].Units = nil
 			}
 			out.Vars = vars
+		},
+		func() { out.Doc, out.Source, out.Derived, out.Chart = "", "", nil, nil },
+		func() {
+			for i := range out.Vars {
+				out.Vars[i].Label, out.Vars[i].Name = "", ""
+			}
 		},
 	)
 }

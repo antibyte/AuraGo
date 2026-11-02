@@ -88,7 +88,8 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 // ansibleResult wraps the raw API response, adding a status field in error cases.
 func ansibleResult(data []byte, code int, err error) string {
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Cannot reach Ansible sidecar: %v"}`, err)
+		out, _ := json.Marshal(map[string]string{"status": "error", "message": fmt.Sprintf("Cannot reach Ansible sidecar: %v", err)})
+		return string(out)
 	}
 	if code == 401 {
 		return `{"status":"error","message":"Ansible sidecar rejected the token. Check ansible.token config."}`

@@ -63,4 +63,5 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 - `underdetermined`: too few values, or no combination of them is a solvable set; `sets` lists the input sets closest first and the message says what to add.
 - `invalid_operation`: use `search`, `describe`, `calculate` or `open`.
 - `policy_denied` with `desktop_unavailable` or `desktop_agent_control_disabled` (open only): the desktop is off or the user has not allowed the agent to control it. Give the numbers from `calculate` instead and say that the user can open ECalc themselves.
+- `output_budget_exceeded`: a complete calculation cannot fit the available response budget. Do not interpret it as a partial numeric result. Describe/search responses may omit optional explanatory detail.
 - Answers are shortened to fit the output limit; `truncated: true` marks it. Search again with more specific words or fewer results rather than asking for more.
