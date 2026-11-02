@@ -83,6 +83,12 @@ COPY --from=builder /aurago-remote /app/aurago-remote
 COPY --from=builder /deploy /app/deploy
 COPY deploy/docker /app/deploy/docker
 
+# GPL-3.0 combined work: the licence texts and notices travel beside the binary;
+# the release notes link the tagged source.
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/
+COPY licences/texts /app/licences/texts
+COPY licences/linked-go-modules.tsv /app/licences/linked-go-modules.tsv
+
 # Static resources that the agent needs at runtime.
 # config.yaml is intentionally NOT baked in – users must supply it via volume.
 COPY prompts                        /app/prompts

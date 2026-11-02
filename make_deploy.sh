@@ -175,6 +175,12 @@ derive_cleanup_artifact_lists() {
 derive_release_artifact_lists
 derive_cleanup_artifact_lists
 
+# A GPL-3.0-incompatible module linked into the binary blocks the release (licences/AGENTS.md).
+go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1 || {
+  echo "A module linked into cmd/aurago has no reviewed GPL-3.0-compatible licence; nothing was built." >&2
+  exit 1
+}
+
 echo "━━━ AuraGo Deployment Builder ━━━"
 echo ""
 
@@ -236,6 +242,12 @@ sed \
   -e 's/access_token: "[^"]*"/access_token: ""/' \
   config_template.yaml > "$TMPDIR_RES/config.yaml"
 
+# GPL-3.0 combined work: the licence texts and notices travel with every binary.
+mkdir -p "$TMPDIR_RES/licences"
+cp LICENSE THIRD_PARTY_NOTICES.md "$TMPDIR_RES/"
+cp -r licences/texts "$TMPDIR_RES/licences/"
+cp licences/linked-go-modules.tsv "$TMPDIR_RES/licences/"
+
 # Create empty data structure
 mkdir -p "$TMPDIR_RES/data/vectordb" "$TMPDIR_RES/data/embeddings"
 mkdir -p "$TMPDIR_RES/log"
@@ -265,6 +277,10 @@ ASSET_SET_ID=$(sed -n 's/.*"asset_set_id": "\([a-f0-9]*\)".*/\1/p' "$DEPLOY_DIR/
 RELEASE_DEPLOY_ASSETS+=("aurago-web-assets-${ASSET_SET_ID}.tar.gz" web-assets.json)
 tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .
 tar -tzf "$DEPLOY_DIR/$RESOURCES" >/dev/null
+RESOURCE_ENTRIES="$(tar -tzf "$DEPLOY_DIR/$RESOURCES")"
+for notice in ./LICENSE ./THIRD_PARTY_NOTICES.md ./licences/texts/GPL-3.0-only.txt ./licences/linked-go-modules.tsv; do
+  grep -Fx -- "$notice" <<< "$RESOURCE_ENTRIES" >/dev/null || { echo "resources.dat lacks $notice; nothing was published." >&2; exit 1; }
+done
 echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"
 
 # ── Step 2: Cross-compile binaries ───────────────────────────────────────

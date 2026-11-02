@@ -2429,6 +2429,12 @@ else
     [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$INSTALL_DIR/"
     [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Licence texts and notices of the GPL-3.0 combined binaries (always overwrite).
+    if [ -d "$TMPEXT/licences" ]; then cp -a "$TMPEXT/licences" "$INSTALL_DIR/"; fi
+    for notice in LICENSE THIRD_PARTY_NOTICES.md; do
+        if [ -f "$TMPEXT/$notice" ]; then cp "$TMPEXT/$notice" "$INSTALL_DIR/$notice"; fi
+    done
     mkdir -p "$INSTALL_DIR/assets"
     for asset_dir in "$TMPEXT/assets/"*; do
         [ -d "$asset_dir" ] || continue

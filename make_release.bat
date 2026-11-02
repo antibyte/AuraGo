@@ -112,6 +112,13 @@ if defined BUILD_DIRTY (
     echo [ERROR] Refusing to build release artifacts from a dirty worktree.
     exit /b 1
 )
+
+REM -- A GPL-3.0-incompatible module linked into the binary blocks the release.
+go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1
+if errorlevel 1 (
+    echo [ERROR] A module linked into cmd/aurago has no reviewed GPL-3.0-compatible licence. Nothing was built.
+    exit /b 1
+)
 set "MAIN_LDFLAGS=-s -w -X aurago/internal/buildinfo.BuildID=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSRevision=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSTime=!BUILD_VCS_TIME! -X aurago/internal/buildinfo.BuildVCSModified=false"
 
 REM -- Version tag
@@ -188,6 +195,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM GPL-3.0 combined work: the licence texts and notices travel with every binary.
+copy /y "LICENSE" "%TMPSTAGE%\LICENSE" >nul || exit /b 1
+copy /y "THIRD_PARTY_NOTICES.md" "%TMPSTAGE%\THIRD_PARTY_NOTICES.md" >nul || exit /b 1
+xcopy /e /i /q "licences\texts" "%TMPSTAGE%\licences\texts" >nul || exit /b 1
+copy /y "licences\linked-go-modules.tsv" "%TMPSTAGE%\licences\linked-go-modules.tsv" >nul || exit /b 1
+
 node scripts\build-ui-bundles.js || exit /b 1
 REM Build the approved optional helper before embedding its checksums.
 go run ./scripts/build-gog.go -out deploy/gog || exit /b 1
@@ -206,6 +219,13 @@ tar -tzf "deploy\resources.dat" >nul
 if errorlevel 1 (
     echo [ERROR] deploy\resources.dat is not a readable tar.gz archive.
     exit /b 1
+)
+for %%N in ("./LICENSE" "./THIRD_PARTY_NOTICES.md" "./licences/texts/GPL-3.0-only.txt" "./licences/linked-go-modules.tsv") do (
+    tar -tzf "deploy\resources.dat" | findstr /l /x /c:%%~N >nul
+    if errorlevel 1 (
+        echo [ERROR] deploy\resources.dat lacks %%~N. Nothing was published.
+        exit /b 1
+    )
 )
 echo     [OK] deploy\resources.dat
 
@@ -399,6 +419,13 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo ```bash
     echo ./update.sh
     echo ```
+    echo.
+    echo ### License and source
+    echo.
+    echo AuraGo's source code is MIT licensed. The binaries of this release link the GPL-3.0 WhatsApp stack ^(`go.mau.fi/libsignal` through `go.mau.fi/whatsmeow`^), so they are distributed as GPL-3.0 combined works.
+    echo.
+    echo - Corresponding source: tag [!VERSION!]^(https://github.com/antibyte/AuraGo/tree/!VERSION!^), tar.gz https://github.com/antibyte/AuraGo/archive/refs/tags/!VERSION!.tar.gz, with the module versions pinned in `go.mod` and `go.sum`.
+    echo - License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`.
 ) > "!NOTES_FILE!"
 gh release create "!VERSION!" --draft --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
 set "GH_RELEASE_RC=!errorlevel!"
@@ -462,6 +489,7 @@ if errorlevel 1 (
 )
 
 REM -- [5/5] Cleanup old releases
+REM Keep the tag: every GPL-3.0 release links it as its corresponding source.
 echo.
 echo [5/5] Cleaning up old releases (keeping latest 3)...
 if "%AURAGO_KEEP_RELEASES%"=="1" (
@@ -469,7 +497,7 @@ if "%AURAGO_KEEP_RELEASES%"=="1" (
 ) else (
     for /f "skip=3 tokens=*" %%T in ('gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
         echo     Deleting: %%T
-        gh release delete "%%T" --yes --cleanup-tag 2>nul
+        gh release delete "%%T" --yes 2>nul
     )
 )
 

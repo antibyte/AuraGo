@@ -3267,6 +3267,12 @@ if $BINARY_ONLY; then
     done
     [ -d "$TMPEXT/ui" ]                && cp -r "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
 
+    # Licence texts and notices of the GPL-3.0 combined binaries (always overwrite).
+    if [ -d "$TMPEXT/licences" ]; then cp -r "$TMPEXT/licences" "$DIR/"; fi
+    for notice in LICENSE THIRD_PARTY_NOTICES.md; do
+        if [ -f "$TMPEXT/$notice" ]; then cp "$TMPEXT/$notice" "$DIR/$notice"; fi
+    done
+
     # Treat the extracted config.yaml as the new template for the merger below
     if [ -f "$TMPEXT/config.yaml" ]; then
         cp "$TMPEXT/config.yaml" "$DIR/config.yaml.new_template"

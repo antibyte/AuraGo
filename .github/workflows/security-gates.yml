@@ -248,6 +248,13 @@ jobs:
           --file "${{ matrix.dockerfile }}"
           "${{ matrix.context }}"
 
+      - name: Verify the GPL-3.0 notices beside the AuraGo binary
+        if: matrix.id == 'aurago'
+        run: >-
+          docker run --rm --entrypoint sh "aurago-ci-aurago:test" -c
+          'test -s /app/LICENSE && test -s /app/THIRD_PARTY_NOTICES.md &&
+          test -s /app/licences/texts/GPL-3.0-only.txt && test -s /app/licences/linked-go-modules.tsv'
+
       - name: Verify God's Eye View on both architectures
         if: matrix.id == 'gods-eye-view'
         run: >-
