@@ -410,7 +410,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Suggestions only prefill available choices and expose escaped heuristic metadata;
   no automatic PUT or installation. Preserve structured conflict status/code and
   localize safe messages. The chat drawer respects the server's browser availability,
-  keeps status/auth hints visible and offers `/config#speech_lab` when needed.
+  keeps status/auth hints visible and offers `/config#speech_lab` when needed. Its
+  route comes from `speechLabBrowserURL()`, which yields the same-origin path only for
+  an available entry and an empty string while the entry needs attention; keep the
+  `item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '')` fallback and
+  the exact `/speech-lab/` route so `TestChatFrontend_IntegrationsDrawerRemainsWired`
+  and the availability fixture stay aligned. Rebuild `chat-runtime.bundle.js` after
+  drawer edits.
   Verify `TestConfigSpeechLabVoiceContractBrowser` and
   `TestSpeechLabDrawerRespectsAvailabilityBrowser` alongside the feedback fixture.
 

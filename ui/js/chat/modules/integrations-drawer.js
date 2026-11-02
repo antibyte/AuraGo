@@ -30,6 +30,17 @@ window.IntegrationsDrawer = (function () {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    // Speech Lab is only reachable through the authenticated same-origin ingress.
+    // The webhost entry reports its availability: while the entry needs attention
+    // (auth required, backend not ready) the drawer offers the settings hint
+    // instead of opening the lab.
+    function speechLabBrowserURL() {
+        const entry = (webhosts || []).find(item => item && item.id === 'speech_lab');
+        if (!entry || entry.message_key) return '';
+        if ((entry.status || 'starting') !== 'running') return '';
+        return '/speech-lab/';
+    }
+
     function hasFreshWebhosts() {
         return webhostsLoadedAt > 0 && Date.now() - webhostsLoadedAt < WEBHOSTS_CACHE_TTL_MS;
     }
@@ -91,7 +102,8 @@ window.IntegrationsDrawer = (function () {
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
             const isSpeechLab = item.id === 'speech_lab';
-            const url = isSpeechLab ? (item.url === '/speech-lab/' ? item.url : '') : (item.url || '');
+            const requestedURL = item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '');
+            const url = isSpeechLab ? (requestedURL === '/speech-lab/' ? requestedURL : '') : requestedURL;
             const needsSettings = isSpeechLab && (status !== 'running' || !url || !!item.message_key);
             const meta = item.message_key ? t(item.message_key) : (needsSettings ? t('chat.speech_lab_not_ready_settings') : (url || item.description || ''));
             let action = '';
