@@ -1,0 +1,227 @@
+# Filter calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in English
+# and German (other languages fall back to English). Rules are written out for every direction, in the order the
+# solver tries them: the first alternative whose variables are all known wins.
+
+- id: rc_lowpass
+  kind: calculator
+  category: filters
+  name: {cs: "RC dolní propust", da: "RC-lavpasfilter", de: "RC-Tiefpass", el: "Βαθυπερατό φίλτρο RC", en: "RC low-pass filter", es: "Filtro paso bajo RC", fr: "Filtre passe-bas RC", hi: "आरसी निम्न-पास फ़िल्टर", it: "Filtro passa-basso RC", ja: "RCローパスフィルタ", nl: "RC-laagdoorlaatfilter", no: "RC-lavpassfilter", pl: "Filtr dolnoprzepustowy RC", pt: "Filtro passa-baixo RC", sv: "RC-lågpassfilter", zh: "RC低通滤波器"}
+  doc:
+    en: "A first-order RC low-pass passes low frequencies and attenuates high ones. Cutoff frequency (−3 dB point): f_c = 1 / (2π × R × C). At the test frequency f the amplitude ratio is A_v = 1 / √(1 + (f / f_c)²), the gain is G = 20 × log10(A_v) and the output phase is φ = −arctan(f / f_c) (the output lags). Above f_c the gain falls by 20 dB per decade. Example with the defaults: 10 kΩ and 10 nF give f_c ≈ 1.59 kHz; at 1 kHz the output is 84.7 % of the input (−1.45 dB) and lags by 32.1°. The formulas assume an unloaded output (load resistance much larger than R) and an ideal source."
+    de: "Ein RC-Tiefpass erster Ordnung lässt tiefe Frequenzen durch und dämpft hohe. Grenzfrequenz (−3-dB-Punkt): f_c = 1 / (2π · R · C). Bei der Testfrequenz f ist das Amplitudenverhältnis A_v = 1 / √(1 + (f / f_c)²), die Verstärkung G = 20 · log10(A_v) und die Phase φ = −arctan(f / f_c) (der Ausgang eilt nach). Oberhalb von f_c fällt die Verstärkung um 20 dB pro Dekade. Beispiel mit den Standardwerten: 10 kΩ und 10 nF ergeben f_c ≈ 1,59 kHz; bei 1 kHz beträgt die Ausgangsspannung 84,7 % der Eingangsspannung (−1,45 dB) bei 32,1° Nacheilung. Die Formeln gelten für einen unbelasteten Ausgang (Lastwiderstand viel größer als R) und eine ideale Quelle."
+  tags: [rc, low-pass, lowpass, filter, cutoff, corner frequency, 3 db, first order, time constant, tiefpass, grenzfrequenz, eckfrequenz, zeitkonstante, filter erster ordnung]
+  source: "First-order RC low-pass: f_c = 1/(2πRC), |H| = 1/√(1+(f/f_c)²), φ = −arctan(f/f_c); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC filters)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistor", de: "Widerstand"}, default: "10k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor", de: "Kondensator"}, default: "10n", eseries: true}
+    fc: {dim: frequency, label: f_c, name: {en: "Cutoff frequency (−3 dB)", de: "Grenzfrequenz (−3 dB)"}}
+    f: {dim: frequency, label: f, name: {en: "Test frequency", de: "Testfrequenz"}, default: "1k"}
+  dof: 3
+  rules:
+    fc: ["1/(2*pi*r*c)"]
+    r: ["1/(2*pi*fc*c)"]
+    c: ["1/(2*pi*fc*r)"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant R × C", de: "Zeitkonstante R · C"}, expr: "r*c", units: [""]}
+    av: {dim: ratio, label: A_v, name: {en: "Amplitude ratio at f", de: "Amplitudenverhältnis bei f"}, expr: "1/sqrt(1+(f/fc)^2)", unit: pct, units: [pct, ""]}
+    gain: {dim: gain, label: G, name: {en: "Gain at f", de: "Verstärkung bei f"}, expr: "20*log10(av)"}
+    phase: {dim: angle, label: φ, name: {en: "Phase at f", de: "Phase bei f"}, expr: "-atan(f/fc)", unit: deg, units: [deg, ""]}
+  formula: ["fc = 1 / (2 * pi * r * c)", "av = 1 / sqrt(1 + (f / fc)^2)", "gain = 20 * log10(av)", "phase = -atan(f / fc)"]
+  schematic: rc_lowpass
+
+- id: rc_highpass
+  kind: calculator
+  category: filters
+  name: {cs: "RC horní propust", da: "RC-højpasfilter", de: "RC-Hochpass", el: "Υψιπερατό φίλτρο RC", en: "RC high-pass filter", es: "Filtro paso alto RC", fr: "Filtre passe-haut RC", hi: "आरसी उच्च-पास फ़िल्टर", it: "Filtro passa-alto RC", ja: "RCハイパスフィルタ", nl: "RC-hoogdoorlaatfilter", no: "RC-høypassfilter", pl: "Filtr górnoprzepustowy RC", pt: "Filtro passa-alto RC", sv: "RC-högpassfilter", zh: "RC高通滤波器"}
+  doc:
+    en: "A first-order RC high-pass blocks low frequencies and passes high ones (a coupling capacitor with the input resistance behind it). Cutoff frequency (−3 dB point): f_c = 1 / (2π × R × C). At the test frequency f the amplitude ratio is A_v = (f / f_c) / √(1 + (f / f_c)²), the gain is G = 20 × log10(A_v) and the output leads the input by φ = arctan(f_c / f). Below f_c the gain falls by 20 dB per decade. Example with the defaults: 10 kΩ and 100 nF give f_c ≈ 159 Hz; at 100 Hz the output is 53.2 % of the input (−5.48 dB) and leads by 57.9°. The formulas assume an ideal source and an unloaded output."
+    de: "Ein RC-Hochpass erster Ordnung sperrt tiefe Frequenzen und lässt hohe durch (ein Koppelkondensator mit dem Eingangswiderstand dahinter). Grenzfrequenz (−3-dB-Punkt): f_c = 1 / (2π · R · C). Bei der Testfrequenz f ist das Amplitudenverhältnis A_v = (f / f_c) / √(1 + (f / f_c)²), die Verstärkung G = 20 · log10(A_v) und der Ausgang eilt dem Eingang um φ = arctan(f_c / f) voraus. Unterhalb von f_c fällt die Verstärkung um 20 dB pro Dekade. Beispiel mit den Standardwerten: 10 kΩ und 100 nF ergeben f_c ≈ 159 Hz; bei 100 Hz beträgt die Ausgangsspannung 53,2 % der Eingangsspannung (−5,48 dB) bei 57,9° Voreilung. Die Formeln gelten für eine ideale Quelle und einen unbelasteten Ausgang."
+  tags: [rc, high-pass, highpass, filter, cutoff, corner frequency, 3 db, coupling capacitor, first order, hochpass, grenzfrequenz, eckfrequenz, koppelkondensator, filter erster ordnung]
+  source: "First-order RC high-pass: f_c = 1/(2πRC), |H| = (f/f_c)/√(1+(f/f_c)²), φ = arctan(f_c/f); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC filters)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistor", de: "Widerstand"}, default: "10k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor", de: "Kondensator"}, default: "100n", eseries: true}
+    fc: {dim: frequency, label: f_c, name: {en: "Cutoff frequency (−3 dB)", de: "Grenzfrequenz (−3 dB)"}}
+    f: {dim: frequency, label: f, name: {en: "Test frequency", de: "Testfrequenz"}, default: "100"}
+  dof: 3
+  rules:
+    fc: ["1/(2*pi*r*c)"]
+    r: ["1/(2*pi*fc*c)"]
+    c: ["1/(2*pi*fc*r)"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant R × C", de: "Zeitkonstante R · C"}, expr: "r*c", units: [""]}
+    av: {dim: ratio, label: A_v, name: {en: "Amplitude ratio at f", de: "Amplitudenverhältnis bei f"}, expr: "(f/fc)/sqrt(1+(f/fc)^2)", unit: pct, units: [pct, ""]}
+    gain: {dim: gain, label: G, name: {en: "Gain at f", de: "Verstärkung bei f"}, expr: "20*log10(av)"}
+    phase: {dim: angle, label: φ, name: {en: "Phase at f", de: "Phase bei f"}, expr: "atan(fc/f)", unit: deg, units: [deg, ""]}
+  formula: ["fc = 1 / (2 * pi * r * c)", "av = (f / fc) / sqrt(1 + (f / fc)^2)", "gain = 20 * log10(av)", "phase = atan(fc / f)"]
+  schematic: rc_highpass
+
+- id: lc_resonance
+  kind: calculator
+  category: filters
+  name: {cs: "Rezonanční obvod LC", da: "LC-svingningskreds", de: "LC-Schwingkreis", el: "Συντονισμός LC", en: "LC resonance", es: "Resonancia LC", fr: "Circuit résonant LC", hi: "एलसी अनुनाद", it: "Risonanza LC", ja: "LC共振回路", nl: "LC-resonantie", no: "LC-resonans", pl: "Rezonans LC", pt: "Ressonância LC", sv: "LC-resonans", zh: "LC谐振"}
+  doc:
+    en: "An ideal LC circuit resonates at the Thomson frequency f_0 = 1 / (2π × √(L × C)); there the reactances are equal, X_L = X_C = √(L / C) = Z_0, the characteristic impedance. Enter any two of L, C and f_0. Example with the defaults: 100 µH and 1 nF resonate at about 503 kHz (medium-wave band) with Z_0 ≈ 316 Ω. Real coils and capacitors have losses; the RLC calculator gives the quality factor and the bandwidth."
+    de: "Ein idealer LC-Kreis schwingt mit der Thomson-Frequenz f_0 = 1 / (2π · √(L · C)); dort sind die Blindwiderstände gleich groß, X_L = X_C = √(L / C) = Z_0, der Kennwiderstand. Zwei der drei Größen L, C und f_0 eingeben. Beispiel mit den Standardwerten: 100 µH und 1 nF schwingen bei etwa 503 kHz (Mittelwellenbereich) mit Z_0 ≈ 316 Ω. Reale Spulen und Kondensatoren haben Verluste; Güte und Bandbreite liefert der RLC-Rechner."
+  tags: [lc, resonance, resonant circuit, tank, thomson, oscillator, characteristic impedance, resonanz, schwingkreis, resonanzfrequenz, kennwiderstand, parallelschwingkreis]
+  source: "Thomson's resonance formula f_0 = 1/(2π√(LC)) and Z_0 = √(L/C); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (resonant circuits); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 14 (frequency response, resonance)"
+  vars:
+    l: {dim: inductance, label: L, name: {en: "Inductor", de: "Spule"}, default: "100µ", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor", de: "Kondensator"}, default: "1n", eseries: true}
+    f0: {dim: frequency, label: f_0, name: {en: "Resonant frequency", de: "Resonanzfrequenz"}}
+  dof: 2
+  rules:
+    f0: ["1/(2*pi*sqrt(l*c))"]
+    l: ["1/((2*pi*f0)^2*c)"]
+    c: ["1/((2*pi*f0)^2*l)"]
+  derived:
+    z0: {dim: resistance, label: Z_0, name: {en: "Characteristic impedance √(L/C)", de: "Kennwiderstand √(L/C)"}, expr: "sqrt(l/c)"}
+  formula: ["f0 = 1 / (2 * pi * sqrt(l * c))", "z0 = sqrt(l / c)"]
+  schematic: lc_resonance
+
+- id: rlc_q_bandwidth
+  kind: calculator
+  category: filters
+  name: {cs: "Obvod RLC: činitel jakosti a šířka pásma", da: "RLC-kreds: Q-faktor og båndbredde", de: "RLC-Kreis: Güte und Bandbreite", el: "Κύκλωμα RLC: συντελεστής Q και εύρος ζώνης", en: "RLC circuit: Q and bandwidth", es: "Circuito RLC: factor Q y ancho de banda", fr: "Circuit RLC : facteur de qualité et bande passante", hi: "आरएलसी परिपथ: Q गुणांक और बैंडविड्थ", it: "Circuito RLC: fattore Q e larghezza di banda", ja: "RLC回路のQ値と帯域幅", nl: "RLC-kring: Q-factor en bandbreedte", no: "RLC-krets: Q-faktor og båndbredde", pl: "Obwód RLC: dobroć i szerokość pasma", pt: "Circuito RLC: fator Q e largura de banda", sv: "RLC-krets: Q-värde och bandbredd", zh: "RLC电路的Q值与带宽"}
+  doc:
+    en: "Resonance of a series or a parallel RLC circuit. Both resonate at f_0 = 1 / (2π × √(L × C)). The quality factor is Q = √(L / C) / R for a series circuit (R in series with L and C) and Q = R / √(L / C) for a parallel circuit (R in parallel with L and C, for example a load); the −3 dB bandwidth is BW = f_0 / Q. In the formula the exponent s is +1 for the series and −1 for the parallel circuit. Enter three of the six values; the calculator solves the rest when they determine it (f_0, Q and BW alone do not, because BW = f_0 / Q). Example with the defaults (series circuit): R = 10 Ω, L = 100 µH and C = 1 nF give f_0 ≈ 503 kHz, Q ≈ 31.6 and BW ≈ 15.9 kHz (= R / (2π × L)). For the parallel circuit enter the parallel resistance, for example 10 kΩ, which gives the same Q and BW. A Q below 1 means that the bandwidth is larger than f_0."
+    de: "Resonanz eines Reihen- oder Parallel-RLC-Kreises. Beide schwingen bei f_0 = 1 / (2π · √(L · C)). Die Güte ist Q = √(L / C) / R beim Reihenkreis (R in Reihe mit L und C) und Q = R / √(L / C) beim Parallelkreis (R parallel zu L und C, zum Beispiel eine Last); die −3-dB-Bandbreite ist BW = f_0 / Q. In der Formel ist der Exponent s gleich +1 beim Reihen- und −1 beim Parallelkreis. Drei der sechs Werte eingeben; der Rechner bestimmt den Rest, wenn sie ihn festlegen (f_0, Q und BW allein tun das nicht, weil BW = f_0 / Q gilt). Beispiel mit den Standardwerten (Reihenkreis): R = 10 Ω, L = 100 µH und C = 1 nF ergeben f_0 ≈ 503 kHz, Q ≈ 31,6 und BW ≈ 15,9 kHz (= R / (2π · L)). Beim Parallelkreis den Parallelwiderstand eingeben, zum Beispiel 10 kΩ; das ergibt dieselbe Güte und Bandbreite. Ein Q unter 1 bedeutet, dass die Bandbreite größer als f_0 ist."
+  tags: [rlc, resonance, quality factor, q factor, q, bandwidth, series resonance, parallel resonance, selectivity, güte, gütefaktor, bandbreite, reihenresonanz, parallelresonanz, schwingkreis, selektivität]
+  source: "Series and parallel RLC resonance: f_0 = 1/(2π√(LC)); series Q = √(L/C)/R, parallel Q = R/√(L/C), BW = f_0/Q; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 14 (series and parallel resonance); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "10", eseries: true}
+    l: {dim: inductance, label: L, name: {en: "Inductor", de: "Spule"}, default: "100µ", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor", de: "Kondensator"}, default: "1n", eseries: true}
+    f0: {dim: frequency, label: f_0, name: {en: "Resonant frequency", de: "Resonanzfrequenz"}}
+    q: {dim: number, label: Q, name: {en: "Quality factor", de: "Güte"}}
+    bw: {dim: frequency, label: BW, name: {en: "Bandwidth (−3 dB)", de: "Bandbreite (−3 dB)"}}
+  choices:
+    circuit:
+      name: {cs: "Zapojení", da: "Kobling", de: "Schaltung", el: "Συνδεσμολογία", en: "Circuit", es: "Circuito", fr: "Montage", hi: "परिपथ", it: "Circuito", ja: "回路", nl: "Schakeling", no: "Kobling", pl: "Układ", pt: "Circuito", sv: "Koppling", zh: "电路"}
+      default: series
+      options:
+        series:
+          name: {cs: "Sériový", da: "Serie", de: "Reihe", el: "Σε σειρά", en: "Series", es: "Serie", fr: "Série", hi: "श्रेणी", it: "Serie", ja: "直列", nl: "Serie", no: "Serie", pl: "Szeregowy", pt: "Série", sv: "Serie", zh: "串联"}
+          consts: {s: 1}
+        parallel:
+          name: {cs: "Paralelní", da: "Parallel", de: "Parallel", el: "Παράλληλο", en: "Parallel", es: "Paralelo", fr: "Parallèle", hi: "समानांतर", it: "Parallelo", ja: "並列", nl: "Parallel", no: "Parallell", pl: "Równoległy", pt: "Paralelo", sv: "Parallell", zh: "并联"}
+          consts: {s: -1}
+  dof: 3
+  rules:
+    f0: ["1/(2*pi*sqrt(l*c))", "bw*q"]
+    q: ["(sqrt(l/c)/r)^s", "f0/bw"]
+    bw: ["f0/q"]
+    l: ["1/((2*pi*f0)^2*c)", "c*(r*q^s)^2", "r*q^s/(2*pi*f0)"]
+    c: ["1/((2*pi*f0)^2*l)", "l/(r*q^s)^2", "1/(2*pi*f0*r*q^s)"]
+    r: ["sqrt(l/c)/q^s"]
+  checks:
+    - {when: "q < 1", warn: {en: "Q is below 1: the bandwidth is larger than the resonant frequency, the circuit is hardly selective. (For a parallel circuit R is the resistance across the tank.)", de: "Q liegt unter 1: Die Bandbreite ist größer als die Resonanzfrequenz, der Kreis ist kaum selektiv. (Beim Parallelkreis ist R der Widerstand parallel zum Schwingkreis.)"}}
+  formula: ["f0 = 1 / (2 * pi * sqrt(l * c))", "q = (sqrt(l / c) / r)^s", "bw = f0 / q"]
+  schematic: rlc_q_bandwidth
+
+- id: sallen_key_lowpass
+  kind: calculator
+  category: filters
+  name: {cs: "Sallen-Key dolní propust (zesílení 1)", da: "Sallen-Key-lavpasfilter (forstærkning 1)", de: "Sallen-Key-Tiefpass (Verstärkung 1)", el: "Βαθυπερατό φίλτρο Sallen-Key (κέρδος 1)", en: "Sallen-Key low-pass (unity gain)", es: "Filtro paso bajo Sallen-Key (ganancia 1)", fr: "Filtre passe-bas Sallen-Key (gain unitaire)", hi: "सैलन-की निम्न-पास फ़िल्टर (इकाई लब्धि)", it: "Filtro passa-basso Sallen-Key (guadagno unitario)", ja: "サレンキー・ローパスフィルタ（ゲイン1）", nl: "Sallen-Key-laagdoorlaatfilter (versterking 1)", no: "Sallen-Key-lavpassfilter (forsterkning 1)", pl: "Filtr dolnoprzepustowy Sallen-Key (wzmocnienie 1)", pt: "Filtro passa-baixo Sallen-Key (ganho unitário)", sv: "Sallen-Key-lågpassfilter (förstärkning 1)", zh: "Sallen-Key低通滤波器（单位增益）"}
+  doc:
+    en: "Second-order active low-pass in the Sallen-Key topology with unity gain (the op-amp is a voltage follower) and two equal resistors R. C_1 is the capacitor from the junction of the two resistors to the output (feedback), C_2 goes from the non-inverting input to ground. f_0 = 1 / (2π × R × √(C_1 × C_2)) and Q = ½ × √(C_1 / C_2). C_1 = 2 × C_2 gives Q = 0.707 (Butterworth, maximally flat); C_1b shows that C_1 for the present C_2. Enter any three independent values. Example with the defaults: R = 10 kΩ, C_1 = 22 nF and C_2 = 10 nF give f_0 ≈ 1.07 kHz and Q ≈ 0.742. The op-amp is assumed ideal; its bandwidth must be much higher than f_0 and the source impedance low."
+    de: "Aktiver Tiefpass zweiter Ordnung in der Sallen-Key-Schaltung mit der Verstärkung 1 (der Operationsverstärker ist ein Spannungsfolger) und zwei gleichen Widerständen R. C_1 ist der Kondensator vom Verbindungspunkt der beiden Widerstände zum Ausgang (Rückkopplung), C_2 liegt vom nichtinvertierenden Eingang nach Masse. f_0 = 1 / (2π · R · √(C_1 · C_2)) und Q = ½ · √(C_1 / C_2). C_1 = 2 · C_2 ergibt Q = 0,707 (Butterworth, maximal flach); C_1b zeigt dieses C_1 für das vorhandene C_2. Drei unabhängige Werte eingeben. Beispiel mit den Standardwerten: R = 10 kΩ, C_1 = 22 nF und C_2 = 10 nF ergeben f_0 ≈ 1,07 kHz und Q ≈ 0,742. Der Operationsverstärker gilt als ideal; seine Bandbreite muss deutlich über f_0 liegen und die Quellimpedanz niedrig sein."
+  tags: [sallen-key, sallen key, active filter, low-pass, lowpass, second order, butterworth, op-amp, q factor, aktiver filter, tiefpass, filter zweiter ordnung, operationsverstärker, güte]
+  source: "Unity-gain Sallen-Key low-pass with equal resistors: f_0 = 1/(2πR√(C_1C_2)), Q = ½√(C_1/C_2), C_1 the feedback capacitor; R. P. Sallen, E. L. Key: A Practical Method of Designing RC Active Filters, IRE Transactions on Circuit Theory, 1955; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 6 (filters)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistors (both)", de: "Widerstände (beide)"}, default: "10k", eseries: true}
+    c1: {dim: capacitance, label: C_1, name: {en: "Feedback capacitor", de: "Rückkopplungskondensator"}, default: "22n", eseries: true}
+    c2: {dim: capacitance, label: C_2, name: {en: "Capacitor to ground", de: "Kondensator nach Masse"}, default: "10n", eseries: true}
+    f0: {dim: frequency, label: f_0, name: {en: "Natural frequency", de: "Eigenfrequenz"}}
+    q: {dim: number, label: Q, name: {en: "Quality factor", de: "Güte"}}
+  dof: 3
+  rules:
+    f0: ["1/(2*pi*r*sqrt(c1*c2))"]
+    q: ["0.5*sqrt(c1/c2)"]
+    c1: ["4*q^2*c2", "q/(pi*r*f0)"]
+    c2: ["c1/(4*q^2)", "1/((2*pi*r*f0)^2*c1)", "1/(4*pi*q*r*f0)"]
+    r: ["1/(2*pi*f0*sqrt(c1*c2))"]
+  derived:
+    c1b: {dim: capacitance, label: C_1b, name: {en: "C_1 for Q = 0.707 (Butterworth)", de: "C_1 für Q = 0,707 (Butterworth)"}, expr: "2*c2"}
+  formula: ["f0 = 1 / (2 * pi * r * sqrt(c1 * c2))", "q = 0.5 * sqrt(c1 / c2)", "c1b = 2 * c2"]
+  schematic: sallen_key_lowpass
+
+- id: twin_t_notch
+  kind: calculator
+  category: filters
+  name: {cs: "Pásmová zádrž dvojité T", da: "Dobbelt-T-notchfilter", de: "Doppel-T-Sperrfilter", el: "Φίλτρο αποκοπής διπλού Τ", en: "Twin-T notch filter", es: "Filtro de muesca doble T", fr: "Filtre réjecteur double T", hi: "ट्विन-टी नॉच फ़िल्टर", it: "Filtro notch a doppio T", ja: "ツインTノッチフィルタ", nl: "Dubbel-T-notchfilter", no: "Dobbel-T-notchfilter", pl: "Filtr zaporowy podwójne T", pt: "Filtro rejeita-banda duplo T", sv: "Dubbel-T-notchfilter", zh: "双T陷波滤波器"}
+  doc:
+    en: "Passive twin-T notch (band-stop) filter: two T networks in parallel between input and output, one of two resistors R with a capacitor 2C to ground, the other of two capacitors C with a resistor R/2 to ground. The transfer function has a zero at f_0 = 1 / (2π × R × C), so the output is (ideally) zero there; R/2 and 2C are the shunt parts. Example with the defaults: R = 31.6 kΩ and C = 100 nF give f_0 ≈ 50.4 Hz, a notch for 50 Hz mains hum (shunt parts 15.8 kΩ and 200 nF). The notch is only deep when the parts match closely (use 1 % resistors and matched capacitors). The passive filter has a low Q (a wide notch) and needs a source impedance much lower than R and a load impedance much higher than R."
+    de: "Passiver Doppel-T-Sperrfilter (Notch, Bandsperre): zwei T-Glieder parallel zwischen Eingang und Ausgang, das eine aus zwei Widerständen R mit einem Kondensator 2C nach Masse, das andere aus zwei Kondensatoren C mit einem Widerstand R/2 nach Masse. Die Übertragungsfunktion hat eine Nullstelle bei f_0 = 1 / (2π · R · C), dort ist der Ausgang (ideal) null; R/2 und 2C sind die Querglieder. Beispiel mit den Standardwerten: R = 31,6 kΩ und C = 100 nF ergeben f_0 ≈ 50,4 Hz, eine Sperre für 50-Hz-Brummen (Querglieder 15,8 kΩ und 200 nF). Die Sperre ist nur tief, wenn die Bauteile eng zusammenpassen (1-%-Widerstände und gepaarte Kondensatoren verwenden). Das passive Filter hat eine geringe Güte (breite Sperre) und braucht eine Quellimpedanz weit unter R und eine Lastimpedanz weit über R."
+  tags: [twin-t, twin t, notch, band-stop, band reject, hum filter, 50 hz, 60 hz, doppel-t, sperrfilter, bandsperre, brummfilter, notch filter]
+  source: "Passive twin-T network (arms R-R-2C and C-C-R/2): transmission zero at f_0 = 1/(2πRC), obtained by nodal analysis; filter textbooks, e.g. P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 6 (filters)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistor R", de: "Widerstand R"}, default: "31.6k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor C", de: "Kondensator C"}, default: "100n", eseries: true}
+    f0: {dim: frequency, label: f_0, name: {en: "Notch frequency", de: "Sperrfrequenz"}}
+  dof: 2
+  rules:
+    f0: ["1/(2*pi*r*c)"]
+    r: ["1/(2*pi*f0*c)"]
+    c: ["1/(2*pi*f0*r)"]
+  derived:
+    rh: {dim: resistance, label: R/2, name: {en: "Shunt resistor R/2", de: "Querwiderstand R/2"}, expr: "r/2"}
+    c2x: {dim: capacitance, label: 2C, name: {en: "Shunt capacitor 2C", de: "Querkondensator 2C"}, expr: "2*c"}
+  formula: ["f0 = 1 / (2 * pi * r * c)", "rh = r / 2", "c2x = 2 * c"]
+  schematic: twin_t_notch
+
+- id: attenuator_pi
+  kind: calculator
+  category: filters
+  name: {cs: "Útlumový článek typu π", da: "π-dæmpeled", de: "Pi-Dämpfungsglied", el: "Εξασθενητής Π", en: "Pi attenuator", es: "Atenuador en pi", fr: "Atténuateur en pi", hi: "पाई एटेन्युएटर", it: "Attenuatore a pi greco", ja: "π型アッテネータ", nl: "Pi-verzwakker", no: "Pi-dempeledd", pl: "Tłumik typu π", pt: "Atenuador em pi", sv: "Pi-dämpsats", zh: "π型衰减器"}
+  doc:
+    en: "Matched resistive pi attenuator (π pad): one series resistor R_s between two equal shunt resistors R_p. Terminated with Z_0 it presents Z_0 at the other port and attenuates by A dB. With the voltage ratio K = 10^(A / 20): R_p = Z_0 × (K + 1) / (K − 1) and R_s = Z_0 × (K² − 1) / (2K). Enter any two of Z_0, A, R_s and R_p. Example with the defaults: 10 dB in a 50 Ω system need R_s ≈ 71.2 Ω and R_p ≈ 96.2 Ω. The power rating of the resistors must cover the dissipated power; this calculator does not size it."
+    de: "Angepasstes Widerstands-Pi-Dämpfungsglied (π-Glied): ein Längswiderstand R_s zwischen zwei gleichen Querwiderständen R_p. Mit Z_0 abgeschlossen zeigt es am anderen Tor Z_0 und dämpft um A dB. Mit dem Spannungsverhältnis K = 10^(A / 20) gilt: R_p = Z_0 · (K + 1) / (K − 1) und R_s = Z_0 · (K² − 1) / (2K). Zwei der Größen Z_0, A, R_s und R_p eingeben. Beispiel mit den Standardwerten: 10 dB in einem 50-Ω-System brauchen R_s ≈ 71,2 Ω und R_p ≈ 96,2 Ω. Die Belastbarkeit der Widerstände muss die umgesetzte Leistung abdecken; der Rechner dimensioniert sie nicht."
+  tags: [attenuator, pad, pi attenuator, pi pad, matched, resistive, db, 50 ohm, attenuation, dämpfungsglied, pi-glied, dämpfung, abschwächer, angepasst]
+  source: "Matched resistive pi attenuator (image-impedance design): K = 10^(A/20), R_p = Z_0(K+1)/(K−1), R_s = Z_0(K²−1)/(2K); Reference Data for Engineers, 9th ed. (Newnes), chapter on attenuators; formulas checked by two-port analysis"
+  vars:
+    z0: {dim: resistance, label: Z_0, name: {en: "System impedance", de: "Systemimpedanz"}, default: "50"}
+    att: {dim: gain, label: A, name: {en: "Attenuation", de: "Dämpfung"}, default: "10 dB"}
+    rs: {dim: resistance, label: R_s, name: {en: "Series resistor", de: "Längswiderstand"}, eseries: true}
+    rp: {dim: resistance, label: R_p, name: {en: "Shunt resistors (2×)", de: "Querwiderstände (2×)"}, eseries: true}
+  dof: 2
+  rules:
+    att: ["20*log10(k)"]
+    rs: ["z0*(k^2-1)/(2*k)"]
+    rp: ["z0*(k+1)/(k-1)"]
+    z0: ["rs*2*k/(k^2-1)", "rp*(k-1)/(k+1)"]
+  derived:
+    k: {dim: number, label: K, name: {en: "Voltage ratio K", de: "Spannungsverhältnis K"}, expr: ["10^(att/20)", "(rp+z0)/(rp-z0)", "rs/z0+sqrt((rs/z0)^2+1)", "(1+rs/rp)+sqrt((1+rs/rp)^2-1)"]}
+  checks:
+    - {when: "att <= 0", warn: {en: "The attenuation must be greater than 0 dB.", de: "Die Dämpfung muss größer als 0 dB sein."}}
+    - {when: "rp <= z0", warn: {en: "R_p must be larger than Z_0 for a pi attenuator; these values do not fit together.", de: "R_p muss bei einem Pi-Glied größer als Z_0 sein; diese Werte passen nicht zusammen."}}
+  formula: ["k = 10^(att / 20)", "rp = z0 * (k + 1) / (k - 1)", "rs = z0 * (k^2 - 1) / (2 * k)"]
+  schematic: attenuator_pi
+
+- id: attenuator_t
+  kind: calculator
+  category: filters
+  name: {cs: "Útlumový článek typu T", da: "T-dæmpeled", de: "T-Dämpfungsglied", el: "Εξασθενητής Τ", en: "T attenuator", es: "Atenuador en T", fr: "Atténuateur en T", hi: "टी एटेन्युएटर", it: "Attenuatore a T", ja: "T型アッテネータ", nl: "T-verzwakker", no: "T-dempeledd", pl: "Tłumik typu T", pt: "Atenuador em T", sv: "T-dämpsats", zh: "T型衰减器"}
+  doc:
+    en: "Matched resistive T attenuator (T pad): two equal series resistors R_s with one shunt resistor R_p to ground between them. Terminated with Z_0 it presents Z_0 at the other port and attenuates by A dB. With the voltage ratio K = 10^(A / 20): R_s = Z_0 × (K − 1) / (K + 1) and R_p = 2 × Z_0 × K / (K² − 1). Enter any two of Z_0, A, R_s and R_p. Example with the defaults: 10 dB in a 50 Ω system need R_s ≈ 26.0 Ω and R_p ≈ 35.1 Ω. The power rating of the resistors must cover the dissipated power; this calculator does not size it."
+    de: "Angepasstes Widerstands-T-Dämpfungsglied (T-Glied): zwei gleiche Längswiderstände R_s mit einem Querwiderstand R_p nach Masse dazwischen. Mit Z_0 abgeschlossen zeigt es am anderen Tor Z_0 und dämpft um A dB. Mit dem Spannungsverhältnis K = 10^(A / 20) gilt: R_s = Z_0 · (K − 1) / (K + 1) und R_p = 2 · Z_0 · K / (K² − 1). Zwei der Größen Z_0, A, R_s und R_p eingeben. Beispiel mit den Standardwerten: 10 dB in einem 50-Ω-System brauchen R_s ≈ 26,0 Ω und R_p ≈ 35,1 Ω. Die Belastbarkeit der Widerstände muss die umgesetzte Leistung abdecken; der Rechner dimensioniert sie nicht."
+  tags: [attenuator, pad, t attenuator, t pad, matched, resistive, db, 50 ohm, attenuation, dämpfungsglied, t-glied, dämpfung, abschwächer, angepasst]
+  source: "Matched resistive T attenuator (image-impedance design): K = 10^(A/20), R_s = Z_0(K−1)/(K+1), R_p = 2Z_0K/(K²−1); Reference Data for Engineers, 9th ed. (Newnes), chapter on attenuators; formulas checked by two-port analysis"
+  vars:
+    z0: {dim: resistance, label: Z_0, name: {en: "System impedance", de: "Systemimpedanz"}, default: "50"}
+    att: {dim: gain, label: A, name: {en: "Attenuation", de: "Dämpfung"}, default: "10 dB"}
+    rs: {dim: resistance, label: R_s, name: {en: "Series resistors (2×)", de: "Längswiderstände (2×)"}, eseries: true}
+    rp: {dim: resistance, label: R_p, name: {en: "Shunt resistor", de: "Querwiderstand"}, eseries: true}
+  dof: 2
+  rules:
+    att: ["20*log10(k)"]
+    rs: ["z0*(k-1)/(k+1)"]
+    rp: ["2*z0*k/(k^2-1)"]
+    z0: ["rs*(k+1)/(k-1)", "rp*(k^2-1)/(2*k)"]
+  derived:
+    k: {dim: number, label: K, name: {en: "Voltage ratio K", de: "Spannungsverhältnis K"}, expr: ["10^(att/20)", "(z0+rs)/(z0-rs)", "(z0+sqrt(z0^2+rp^2))/rp", "(1+rs/rp)+sqrt((1+rs/rp)^2-1)"]}
+  checks:
+    - {when: "att <= 0", warn: {en: "The attenuation must be greater than 0 dB.", de: "Die Dämpfung muss größer als 0 dB sein."}}
+    - {when: "rs >= z0", warn: {en: "R_s must be smaller than Z_0 for a T attenuator; these values do not fit together.", de: "R_s muss bei einem T-Glied kleiner als Z_0 sein; diese Werte passen nicht zusammen."}}
+  formula: ["k = 10^(att / 20)", "rs = z0 * (k - 1) / (k + 1)", "rp = 2 * z0 * k / (k^2 - 1)"]
+  schematic: attenuator_t

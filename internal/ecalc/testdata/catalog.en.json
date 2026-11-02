@@ -2497,6 +2497,1428 @@
     },
     {
       "kind": "calculator",
+      "id": "rc_lowpass",
+      "category": "filters",
+      "name": "RC low-pass filter",
+      "name_en": "RC low-pass filter",
+      "doc": "A first-order RC low-pass passes low frequencies and attenuates high ones. Cutoff frequency (−3 dB point): f_c = 1 / (2π × R × C). At the test frequency f the amplitude ratio is A_v = 1 / √(1 + (f / f_c)²), the gain is G = 20 × log10(A_v) and the output phase is φ = −arctan(f / f_c) (the output lags). Above f_c the gain falls by 20 dB per decade. Example with the defaults: 10 kΩ and 10 nF give f_c ≈ 1.59 kHz; at 1 kHz the output is 84.7 % of the input (−1.45 dB) and lags by 32.1°. The formulas assume an unloaded output (load resistance much larger than R) and an ideal source.",
+      "tags": [
+        "rc",
+        "low-pass",
+        "lowpass",
+        "filter",
+        "cutoff",
+        "corner frequency",
+        "3 db",
+        "first order",
+        "time constant",
+        "tiefpass",
+        "grenzfrequenz",
+        "eckfrequenz",
+        "zeitkonstante",
+        "filter erster ordnung"
+      ],
+      "source": "First-order RC low-pass: f_c = 1/(2πRC), |H| = 1/√(1+(f/f_c)²), φ = −arctan(f/f_c); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC filters)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitor",
+          "default": 1e-8,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "fc",
+          "dim": "frequency",
+          "label": "f_c",
+          "name": "Cutoff frequency (−3 dB)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Test frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "fc",
+          "alts": [
+            "1/(2*pi*r*c)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "1/(2*pi*fc*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/(2*pi*fc*r)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "tau",
+          "dim": "time",
+          "label": "τ",
+          "name": "Time constant R × C",
+          "alts": [
+            "r*c"
+          ],
+          "unit": "",
+          "units": [
+            ""
+          ]
+        },
+        {
+          "id": "av",
+          "dim": "ratio",
+          "label": "A_v",
+          "name": "Amplitude ratio at f",
+          "alts": [
+            "1/sqrt(1+(f/fc)^2)"
+          ],
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ]
+        },
+        {
+          "id": "gain",
+          "dim": "gain",
+          "label": "G",
+          "name": "Gain at f",
+          "alts": [
+            "20*log10(av)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "phase",
+          "dim": "angle",
+          "label": "φ",
+          "name": "Phase at f",
+          "alts": [
+            "-atan(f/fc)"
+          ],
+          "unit": "deg",
+          "units": [
+            "deg",
+            ""
+          ]
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "fc = 1 / (2 * pi * r * c)",
+        "av = 1 / sqrt(1 + (f / fc)^2)",
+        "gain = 20 * log10(av)",
+        "phase = -atan(f / fc)"
+      ],
+      "schematic": "rc_lowpass",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "c",
+          "f"
+        ],
+        [
+          "r",
+          "fc",
+          "f"
+        ],
+        [
+          "c",
+          "fc",
+          "f"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "rc_highpass",
+      "category": "filters",
+      "name": "RC high-pass filter",
+      "name_en": "RC high-pass filter",
+      "doc": "A first-order RC high-pass blocks low frequencies and passes high ones (a coupling capacitor with the input resistance behind it). Cutoff frequency (−3 dB point): f_c = 1 / (2π × R × C). At the test frequency f the amplitude ratio is A_v = (f / f_c) / √(1 + (f / f_c)²), the gain is G = 20 × log10(A_v) and the output leads the input by φ = arctan(f_c / f). Below f_c the gain falls by 20 dB per decade. Example with the defaults: 10 kΩ and 100 nF give f_c ≈ 159 Hz; at 100 Hz the output is 53.2 % of the input (−5.48 dB) and leads by 57.9°. The formulas assume an ideal source and an unloaded output.",
+      "tags": [
+        "rc",
+        "high-pass",
+        "highpass",
+        "filter",
+        "cutoff",
+        "corner frequency",
+        "3 db",
+        "coupling capacitor",
+        "first order",
+        "hochpass",
+        "grenzfrequenz",
+        "eckfrequenz",
+        "koppelkondensator",
+        "filter erster ordnung"
+      ],
+      "source": "First-order RC high-pass: f_c = 1/(2πRC), |H| = (f/f_c)/√(1+(f/f_c)²), φ = arctan(f_c/f); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC filters)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitor",
+          "default": 1.0000000000000001e-7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "fc",
+          "dim": "frequency",
+          "label": "f_c",
+          "name": "Cutoff frequency (−3 dB)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Test frequency",
+          "default": 100,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "fc",
+          "alts": [
+            "1/(2*pi*r*c)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "1/(2*pi*fc*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/(2*pi*fc*r)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "tau",
+          "dim": "time",
+          "label": "τ",
+          "name": "Time constant R × C",
+          "alts": [
+            "r*c"
+          ],
+          "unit": "",
+          "units": [
+            ""
+          ]
+        },
+        {
+          "id": "av",
+          "dim": "ratio",
+          "label": "A_v",
+          "name": "Amplitude ratio at f",
+          "alts": [
+            "(f/fc)/sqrt(1+(f/fc)^2)"
+          ],
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ]
+        },
+        {
+          "id": "gain",
+          "dim": "gain",
+          "label": "G",
+          "name": "Gain at f",
+          "alts": [
+            "20*log10(av)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "phase",
+          "dim": "angle",
+          "label": "φ",
+          "name": "Phase at f",
+          "alts": [
+            "atan(fc/f)"
+          ],
+          "unit": "deg",
+          "units": [
+            "deg",
+            ""
+          ]
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "fc = 1 / (2 * pi * r * c)",
+        "av = (f / fc) / sqrt(1 + (f / fc)^2)",
+        "gain = 20 * log10(av)",
+        "phase = atan(fc / f)"
+      ],
+      "schematic": "rc_highpass",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "c",
+          "f"
+        ],
+        [
+          "r",
+          "fc",
+          "f"
+        ],
+        [
+          "c",
+          "fc",
+          "f"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "lc_resonance",
+      "category": "filters",
+      "name": "LC resonance",
+      "name_en": "LC resonance",
+      "doc": "An ideal LC circuit resonates at the Thomson frequency f_0 = 1 / (2π × √(L × C)); there the reactances are equal, X_L = X_C = √(L / C) = Z_0, the characteristic impedance. Enter any two of L, C and f_0. Example with the defaults: 100 µH and 1 nF resonate at about 503 kHz (medium-wave band) with Z_0 ≈ 316 Ω. Real coils and capacitors have losses; the RLC calculator gives the quality factor and the bandwidth.",
+      "tags": [
+        "lc",
+        "resonance",
+        "resonant circuit",
+        "tank",
+        "thomson",
+        "oscillator",
+        "characteristic impedance",
+        "resonanz",
+        "schwingkreis",
+        "resonanzfrequenz",
+        "kennwiderstand",
+        "parallelschwingkreis"
+      ],
+      "source": "Thomson's resonance formula f_0 = 1/(2π√(LC)) and Z_0 = √(L/C); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (resonant circuits); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 14 (frequency response, resonance)",
+      "vars": [
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductor",
+          "default": 0.00009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitor",
+          "default": 1e-9,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f0",
+          "dim": "frequency",
+          "label": "f_0",
+          "name": "Resonant frequency",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "f0",
+          "alts": [
+            "1/(2*pi*sqrt(l*c))"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "1/((2*pi*f0)^2*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/((2*pi*f0)^2*l)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "z0",
+          "dim": "resistance",
+          "label": "Z_0",
+          "name": "Characteristic impedance √(L/C)",
+          "alts": [
+            "sqrt(l/c)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "f0 = 1 / (2 * pi * sqrt(l * c))",
+        "z0 = sqrt(l / c)"
+      ],
+      "schematic": "lc_resonance",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "l",
+          "c"
+        ],
+        [
+          "l",
+          "f0"
+        ],
+        [
+          "c",
+          "f0"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "rlc_q_bandwidth",
+      "category": "filters",
+      "name": "RLC circuit: Q and bandwidth",
+      "name_en": "RLC circuit: Q and bandwidth",
+      "doc": "Resonance of a series or a parallel RLC circuit. Both resonate at f_0 = 1 / (2π × √(L × C)). The quality factor is Q = √(L / C) / R for a series circuit (R in series with L and C) and Q = R / √(L / C) for a parallel circuit (R in parallel with L and C, for example a load); the −3 dB bandwidth is BW = f_0 / Q. In the formula the exponent s is +1 for the series and −1 for the parallel circuit. Enter three of the six values; the calculator solves the rest when they determine it (f_0, Q and BW alone do not, because BW = f_0 / Q). Example with the defaults (series circuit): R = 10 Ω, L = 100 µH and C = 1 nF give f_0 ≈ 503 kHz, Q ≈ 31.6 and BW ≈ 15.9 kHz (= R / (2π × L)). For the parallel circuit enter the parallel resistance, for example 10 kΩ, which gives the same Q and BW. A Q below 1 means that the bandwidth is larger than f_0.",
+      "tags": [
+        "rlc",
+        "resonance",
+        "quality factor",
+        "q factor",
+        "q",
+        "bandwidth",
+        "series resonance",
+        "parallel resonance",
+        "selectivity",
+        "güte",
+        "gütefaktor",
+        "bandbreite",
+        "reihenresonanz",
+        "parallelresonanz",
+        "schwingkreis",
+        "selektivität"
+      ],
+      "source": "Series and parallel RLC resonance: f_0 = 1/(2π√(LC)); series Q = √(L/C)/R, parallel Q = R/√(L/C), BW = f_0/Q; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 14 (series and parallel resonance); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductor",
+          "default": 0.00009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitor",
+          "default": 1e-9,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f0",
+          "dim": "frequency",
+          "label": "f_0",
+          "name": "Resonant frequency",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "q",
+          "dim": "number",
+          "label": "Q",
+          "name": "Quality factor",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "bw",
+          "dim": "frequency",
+          "label": "BW",
+          "name": "Bandwidth (−3 dB)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "circuit",
+          "name": "Circuit",
+          "default": "series",
+          "options": [
+            {
+              "id": "series",
+              "name": "Series",
+              "consts": {
+                "s": 1
+              },
+              "ignore": []
+            },
+            {
+              "id": "parallel",
+              "name": "Parallel",
+              "consts": {
+                "s": -1
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "f0",
+          "alts": [
+            "1/(2*pi*sqrt(l*c))",
+            "bw*q"
+          ]
+        },
+        {
+          "target": "q",
+          "alts": [
+            "(sqrt(l/c)/r)^s",
+            "f0/bw"
+          ]
+        },
+        {
+          "target": "bw",
+          "alts": [
+            "f0/q"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "1/((2*pi*f0)^2*c)",
+            "c*(r*q^s)^2",
+            "r*q^s/(2*pi*f0)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/((2*pi*f0)^2*l)",
+            "l/(r*q^s)^2",
+            "1/(2*pi*f0*r*q^s)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "sqrt(l/c)/q^s"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [
+        {
+          "when": "q < 1",
+          "warn": "Q is below 1: the bandwidth is larger than the resonant frequency, the circuit is hardly selective. (For a parallel circuit R is the resistance across the tank.)"
+        }
+      ],
+      "formula": [
+        "f0 = 1 / (2 * pi * sqrt(l * c))",
+        "q = (sqrt(l / c) / r)^s",
+        "bw = f0 / q"
+      ],
+      "schematic": "rlc_q_bandwidth",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "l",
+          "c"
+        ],
+        [
+          "r",
+          "l",
+          "f0"
+        ],
+        [
+          "r",
+          "l",
+          "q"
+        ],
+        [
+          "r",
+          "c",
+          "f0"
+        ],
+        [
+          "r",
+          "c",
+          "q"
+        ],
+        [
+          "r",
+          "f0",
+          "q"
+        ],
+        [
+          "r",
+          "f0",
+          "bw"
+        ],
+        [
+          "r",
+          "q",
+          "bw"
+        ],
+        [
+          "l",
+          "c",
+          "q"
+        ],
+        [
+          "l",
+          "c",
+          "bw"
+        ],
+        [
+          "l",
+          "f0",
+          "q"
+        ],
+        [
+          "l",
+          "f0",
+          "bw"
+        ],
+        [
+          "l",
+          "q",
+          "bw"
+        ],
+        [
+          "c",
+          "f0",
+          "q"
+        ],
+        [
+          "c",
+          "f0",
+          "bw"
+        ],
+        [
+          "c",
+          "q",
+          "bw"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "sallen_key_lowpass",
+      "category": "filters",
+      "name": "Sallen-Key low-pass (unity gain)",
+      "name_en": "Sallen-Key low-pass (unity gain)",
+      "doc": "Second-order active low-pass in the Sallen-Key topology with unity gain (the op-amp is a voltage follower) and two equal resistors R. C_1 is the capacitor from the junction of the two resistors to the output (feedback), C_2 goes from the non-inverting input to ground. f_0 = 1 / (2π × R × √(C_1 × C_2)) and Q = ½ × √(C_1 / C_2). C_1 = 2 × C_2 gives Q = 0.707 (Butterworth, maximally flat); C_1b shows that C_1 for the present C_2. Enter any three independent values. Example with the defaults: R = 10 kΩ, C_1 = 22 nF and C_2 = 10 nF give f_0 ≈ 1.07 kHz and Q ≈ 0.742. The op-amp is assumed ideal; its bandwidth must be much higher than f_0 and the source impedance low.",
+      "tags": [
+        "sallen-key",
+        "sallen key",
+        "active filter",
+        "low-pass",
+        "lowpass",
+        "second order",
+        "butterworth",
+        "op-amp",
+        "q factor",
+        "aktiver filter",
+        "tiefpass",
+        "filter zweiter ordnung",
+        "operationsverstärker",
+        "güte"
+      ],
+      "source": "Unity-gain Sallen-Key low-pass with equal resistors: f_0 = 1/(2πR√(C_1C_2)), Q = ½√(C_1/C_2), C_1 the feedback capacitor; R. P. Sallen, E. L. Key: A Practical Method of Designing RC Active Filters, IRE Transactions on Circuit Theory, 1955; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 6 (filters)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistors (both)",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c1",
+          "dim": "capacitance",
+          "label": "C_1",
+          "name": "Feedback capacitor",
+          "default": 2.2000000000000002e-8,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c2",
+          "dim": "capacitance",
+          "label": "C_2",
+          "name": "Capacitor to ground",
+          "default": 1e-8,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f0",
+          "dim": "frequency",
+          "label": "f_0",
+          "name": "Natural frequency",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "q",
+          "dim": "number",
+          "label": "Q",
+          "name": "Quality factor",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "f0",
+          "alts": [
+            "1/(2*pi*r*sqrt(c1*c2))"
+          ]
+        },
+        {
+          "target": "q",
+          "alts": [
+            "0.5*sqrt(c1/c2)"
+          ]
+        },
+        {
+          "target": "c1",
+          "alts": [
+            "4*q^2*c2",
+            "q/(pi*r*f0)"
+          ]
+        },
+        {
+          "target": "c2",
+          "alts": [
+            "c1/(4*q^2)",
+            "1/((2*pi*r*f0)^2*c1)",
+            "1/(4*pi*q*r*f0)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "1/(2*pi*f0*sqrt(c1*c2))"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "c1b",
+          "dim": "capacitance",
+          "label": "C_1b",
+          "name": "C_1 for Q = 0.707 (Butterworth)",
+          "alts": [
+            "2*c2"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "f0 = 1 / (2 * pi * r * sqrt(c1 * c2))",
+        "q = 0.5 * sqrt(c1 / c2)",
+        "c1b = 2 * c2"
+      ],
+      "schematic": "sallen_key_lowpass",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "c1",
+          "c2"
+        ],
+        [
+          "r",
+          "c1",
+          "f0"
+        ],
+        [
+          "r",
+          "c1",
+          "q"
+        ],
+        [
+          "r",
+          "c2",
+          "q"
+        ],
+        [
+          "r",
+          "f0",
+          "q"
+        ],
+        [
+          "c1",
+          "c2",
+          "f0"
+        ],
+        [
+          "c1",
+          "f0",
+          "q"
+        ],
+        [
+          "c2",
+          "f0",
+          "q"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "twin_t_notch",
+      "category": "filters",
+      "name": "Twin-T notch filter",
+      "name_en": "Twin-T notch filter",
+      "doc": "Passive twin-T notch (band-stop) filter: two T networks in parallel between input and output, one of two resistors R with a capacitor 2C to ground, the other of two capacitors C with a resistor R/2 to ground. The transfer function has a zero at f_0 = 1 / (2π × R × C), so the output is (ideally) zero there; R/2 and 2C are the shunt parts. Example with the defaults: R = 31.6 kΩ and C = 100 nF give f_0 ≈ 50.4 Hz, a notch for 50 Hz mains hum (shunt parts 15.8 kΩ and 200 nF). The notch is only deep when the parts match closely (use 1 % resistors and matched capacitors). The passive filter has a low Q (a wide notch) and needs a source impedance much lower than R and a load impedance much higher than R.",
+      "tags": [
+        "twin-t",
+        "twin t",
+        "notch",
+        "band-stop",
+        "band reject",
+        "hum filter",
+        "50 hz",
+        "60 hz",
+        "doppel-t",
+        "sperrfilter",
+        "bandsperre",
+        "brummfilter",
+        "notch filter"
+      ],
+      "source": "Passive twin-T network (arms R-R-2C and C-C-R/2): transmission zero at f_0 = 1/(2πRC), obtained by nodal analysis; filter textbooks, e.g. P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 6 (filters)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistor R",
+          "default": 31600,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitor C",
+          "default": 1.0000000000000001e-7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f0",
+          "dim": "frequency",
+          "label": "f_0",
+          "name": "Notch frequency",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "f0",
+          "alts": [
+            "1/(2*pi*r*c)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "1/(2*pi*f0*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/(2*pi*f0*r)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rh",
+          "dim": "resistance",
+          "label": "R/2",
+          "name": "Shunt resistor R/2",
+          "alts": [
+            "r/2"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "c2x",
+          "dim": "capacitance",
+          "label": "2C",
+          "name": "Shunt capacitor 2C",
+          "alts": [
+            "2*c"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "f0 = 1 / (2 * pi * r * c)",
+        "rh = r / 2",
+        "c2x = 2 * c"
+      ],
+      "schematic": "twin_t_notch",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "c"
+        ],
+        [
+          "r",
+          "f0"
+        ],
+        [
+          "c",
+          "f0"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "attenuator_pi",
+      "category": "filters",
+      "name": "Pi attenuator",
+      "name_en": "Pi attenuator",
+      "doc": "Matched resistive pi attenuator (π pad): one series resistor R_s between two equal shunt resistors R_p. Terminated with Z_0 it presents Z_0 at the other port and attenuates by A dB. With the voltage ratio K = 10^(A / 20): R_p = Z_0 × (K + 1) / (K − 1) and R_s = Z_0 × (K² − 1) / (2K). Enter any two of Z_0, A, R_s and R_p. Example with the defaults: 10 dB in a 50 Ω system need R_s ≈ 71.2 Ω and R_p ≈ 96.2 Ω. The power rating of the resistors must cover the dissipated power; this calculator does not size it.",
+      "tags": [
+        "attenuator",
+        "pad",
+        "pi attenuator",
+        "pi pad",
+        "matched",
+        "resistive",
+        "db",
+        "50 ohm",
+        "attenuation",
+        "dämpfungsglied",
+        "pi-glied",
+        "dämpfung",
+        "abschwächer",
+        "angepasst"
+      ],
+      "source": "Matched resistive pi attenuator (image-impedance design): K = 10^(A/20), R_p = Z_0(K+1)/(K−1), R_s = Z_0(K²−1)/(2K); Reference Data for Engineers, 9th ed. (Newnes), chapter on attenuators; formulas checked by two-port analysis",
+      "vars": [
+        {
+          "id": "z0",
+          "dim": "resistance",
+          "label": "Z_0",
+          "name": "System impedance",
+          "default": 50,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "att",
+          "dim": "gain",
+          "label": "A",
+          "name": "Attenuation",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rs",
+          "dim": "resistance",
+          "label": "R_s",
+          "name": "Series resistor",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rp",
+          "dim": "resistance",
+          "label": "R_p",
+          "name": "Shunt resistors (2×)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "att",
+          "alts": [
+            "20*log10(k)"
+          ]
+        },
+        {
+          "target": "rs",
+          "alts": [
+            "z0*(k^2-1)/(2*k)"
+          ]
+        },
+        {
+          "target": "rp",
+          "alts": [
+            "z0*(k+1)/(k-1)"
+          ]
+        },
+        {
+          "target": "z0",
+          "alts": [
+            "rs*2*k/(k^2-1)",
+            "rp*(k-1)/(k+1)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "k",
+          "dim": "number",
+          "label": "K",
+          "name": "Voltage ratio K",
+          "alts": [
+            "10^(att/20)",
+            "(rp+z0)/(rp-z0)",
+            "rs/z0+sqrt((rs/z0)^2+1)",
+            "(1+rs/rp)+sqrt((1+rs/rp)^2-1)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "att <= 0",
+          "warn": "The attenuation must be greater than 0 dB."
+        },
+        {
+          "when": "rp <= z0",
+          "warn": "R_p must be larger than Z_0 for a pi attenuator; these values do not fit together."
+        }
+      ],
+      "formula": [
+        "k = 10^(att / 20)",
+        "rp = z0 * (k + 1) / (k - 1)",
+        "rs = z0 * (k^2 - 1) / (2 * k)"
+      ],
+      "schematic": "attenuator_pi",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "z0",
+          "att"
+        ],
+        [
+          "z0",
+          "rs"
+        ],
+        [
+          "z0",
+          "rp"
+        ],
+        [
+          "att",
+          "rs"
+        ],
+        [
+          "att",
+          "rp"
+        ],
+        [
+          "rs",
+          "rp"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "attenuator_t",
+      "category": "filters",
+      "name": "T attenuator",
+      "name_en": "T attenuator",
+      "doc": "Matched resistive T attenuator (T pad): two equal series resistors R_s with one shunt resistor R_p to ground between them. Terminated with Z_0 it presents Z_0 at the other port and attenuates by A dB. With the voltage ratio K = 10^(A / 20): R_s = Z_0 × (K − 1) / (K + 1) and R_p = 2 × Z_0 × K / (K² − 1). Enter any two of Z_0, A, R_s and R_p. Example with the defaults: 10 dB in a 50 Ω system need R_s ≈ 26.0 Ω and R_p ≈ 35.1 Ω. The power rating of the resistors must cover the dissipated power; this calculator does not size it.",
+      "tags": [
+        "attenuator",
+        "pad",
+        "t attenuator",
+        "t pad",
+        "matched",
+        "resistive",
+        "db",
+        "50 ohm",
+        "attenuation",
+        "dämpfungsglied",
+        "t-glied",
+        "dämpfung",
+        "abschwächer",
+        "angepasst"
+      ],
+      "source": "Matched resistive T attenuator (image-impedance design): K = 10^(A/20), R_s = Z_0(K−1)/(K+1), R_p = 2Z_0K/(K²−1); Reference Data for Engineers, 9th ed. (Newnes), chapter on attenuators; formulas checked by two-port analysis",
+      "vars": [
+        {
+          "id": "z0",
+          "dim": "resistance",
+          "label": "Z_0",
+          "name": "System impedance",
+          "default": 50,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "att",
+          "dim": "gain",
+          "label": "A",
+          "name": "Attenuation",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rs",
+          "dim": "resistance",
+          "label": "R_s",
+          "name": "Series resistors (2×)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rp",
+          "dim": "resistance",
+          "label": "R_p",
+          "name": "Shunt resistor",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "att",
+          "alts": [
+            "20*log10(k)"
+          ]
+        },
+        {
+          "target": "rs",
+          "alts": [
+            "z0*(k-1)/(k+1)"
+          ]
+        },
+        {
+          "target": "rp",
+          "alts": [
+            "2*z0*k/(k^2-1)"
+          ]
+        },
+        {
+          "target": "z0",
+          "alts": [
+            "rs*(k+1)/(k-1)",
+            "rp*(k^2-1)/(2*k)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "k",
+          "dim": "number",
+          "label": "K",
+          "name": "Voltage ratio K",
+          "alts": [
+            "10^(att/20)",
+            "(z0+rs)/(z0-rs)",
+            "(z0+sqrt(z0^2+rp^2))/rp",
+            "(1+rs/rp)+sqrt((1+rs/rp)^2-1)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "att <= 0",
+          "warn": "The attenuation must be greater than 0 dB."
+        },
+        {
+          "when": "rs >= z0",
+          "warn": "R_s must be smaller than Z_0 for a T attenuator; these values do not fit together."
+        }
+      ],
+      "formula": [
+        "k = 10^(att / 20)",
+        "rs = z0 * (k - 1) / (k + 1)",
+        "rp = 2 * z0 * k / (k^2 - 1)"
+      ],
+      "schematic": "attenuator_t",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "z0",
+          "att"
+        ],
+        [
+          "z0",
+          "rs"
+        ],
+        [
+          "z0",
+          "rp"
+        ],
+        [
+          "att",
+          "rs"
+        ],
+        [
+          "att",
+          "rp"
+        ],
+        [
+          "rs",
+          "rp"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "reactance_c",
       "category": "passive",
       "name": "Capacitive reactance",

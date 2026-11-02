@@ -1,0 +1,19 @@
+{
+  "calc": "lc_resonance",
+  "sets": [
+    {"values": {"l": 0.0001, "c": 1e-09, "f0": 503292.12104487035, "z0": 316.22776601683796}, "ref": "hand (independent script), the defaults: ω0 = 1/√(L·C) = 1/√(100 µH·1 nF); f_0 = ω0/2π = 503.292 kHz; Z_0 = √(L/C) = 316.228 Ω (= ω0·L = 1/(ω0·C))"},
+    {"values": {"l": 1e-06, "c": 1e-12, "f0": 159154943.09189537, "z0": 1000}, "ref": "definition (√(1e-18) = 1e-9, so f_0 = 1/(2π·1 ns) = 159.155 MHz and Z_0 = √(1e6) = 1 kΩ): ω0 = 1/√(L·C) = 1/√(1 µH·1 pF); f_0 = ω0/2π = 159.155 MHz; Z_0 = √(L/C) = 1 kΩ (= ω0·L = 1/(ω0·C))"},
+    {"values": {"l": 0.01, "c": 1e-06, "f0": 1591.5494309189535, "z0": 100}, "ref": "definition (√(1e-8) = 1e-4, so f_0 = 1/(2π·0.1 ms) = 1591.549 Hz and Z_0 = √(1e4) = 100 Ω): ω0 = 1/√(L·C) = 1/√(10 mH·1 µF); f_0 = ω0/2π = 1.59155 kHz; Z_0 = √(L/C) = 100 Ω (= ω0·L = 1/(ω0·C))"},
+    {"values": {"l": 2.2e-06, "c": 4.7e-10, "f0": 4949483.288837734, "z0": 68.41674549282352}, "ref": "hand (independent script): ω0 = 1/√(L·C) = 1/√(2.2 µH·470 pF); f_0 = ω0/2π = 4.94948 MHz; Z_0 = √(L/C) = 68.4167 Ω (= ω0·L = 1/(ω0·C))"}
+  ],
+  "solve": [
+    {"inputs": {"l": 0.0001, "c": 1e-09}, "expect": {"f0": 503292.12104487035, "z0": 316.22776601683796}, "ref": "hand (independent script), the defaults: ω0 = 1/√(L·C) = 1/√(100 µH·1 nF); f_0 = ω0/2π = 503.292 kHz; Z_0 = √(L/C) = 316.228 Ω (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"l": 1e-06, "c": 1e-12}, "expect": {"f0": 159154943.09189537, "z0": 1000}, "ref": "definition: ω0 = 1/√(L·C) = 1/√(1 µH·1 pF); f_0 = ω0/2π = 159.155 MHz; Z_0 = √(L/C) = 1 kΩ (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"c": 1e-09, "f0": 1000000}, "expect": {"l": 2.5330295910584444e-05, "z0": 159.15494309189532}, "ref": "definition with 1/(4π²) = 0.0253303, the radio handbook form L[µH] = 25330.3/(f²[MHz]·C[pF]) = 25330.3/(1²·1000) = 25.33 µH for 1 MHz and 1 nF; exact 25.3303 µH; ω0 = 1/√(L·C) = 1/√(25.3303 µH·1 nF); f_0 = ω0/2π = 1 MHz; Z_0 = √(L/C) = 159.155 Ω (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"c": 1e-10, "f0": 7100000}, "expect": {"l": 5.024855368098481e-06, "z0": 224.16189167872582}, "ref": "definition with 1/(4π²), L[µH] = 25330.3/(f²[MHz]·C[pF]) = 25330.3/(7.1²·100) = 5.025 µH for 7.1 MHz and 100 pF; ω0 = 1/√(L·C) = 1/√(5.02486 µH·100 pF); f_0 = ω0/2π = 7.1 MHz; Z_0 = √(L/C) = 224.162 Ω (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"l": 1e-05, "f0": 1000000}, "expect": {"c": 2.5330295910584445e-09, "z0": 62.83185307179586}, "ref": "definition with 1/(4π²), C[pF] = 25330.3/(f²[MHz]·L[µH]) = 25330.3/(1²·10) = 2533 pF for 1 MHz and 10 µH; ω0 = 1/√(L·C) = 1/√(10 µH·2.53303 nF); f_0 = ω0/2π = 1 MHz; Z_0 = √(L/C) = 62.8319 Ω (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"l": 0.0001, "f0": 455000}, "expect": {"c": 1.223538022489286e-09, "z0": 285.88493147667117}, "ref": "hand (independent script): C = 1/((2π·455 kHz)²·100 µH) = 1.22354 nF; ω0 = 1/√(L·C) = 1/√(100 µH·1.22354 nF); f_0 = ω0/2π = 455 kHz; Z_0 = √(L/C) = 285.885 Ω (= ω0·L = 1/(ω0·C))"},
+    {"inputs": {"l": -0.0001, "c": 1e-09}, "expect": {}, "errors": {"l": "range", "f0": "nonfinite"}, "warnings": [], "ref": "hand: a negative inductance is out of range, and √(L·C) of a negative product is not a number, so f_0 is not finite"},
+    {"inputs": {"l": 0.0001}, "expect": {}, "errors": {"c": "undetermined", "f0": "undetermined"}, "warnings": [], "ref": "one of the two values is missing"}
+  ]
+}
