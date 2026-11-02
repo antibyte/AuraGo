@@ -113,7 +113,7 @@ func TestECalcSearchShortcutStopsPropagation(t *testing.T) {
 		"event.stopPropagation();",
 		"shell.focusSearch()",
 	})
-	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose };", "ctx.api(catalogURL(lang), { cache: 'no-cache' })", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
+	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose, launch };", "ctx.api(catalogURL(lang), { cache: 'no-cache' })", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
 		if !strings.Contains(root, marker) {
 			t.Errorf("ecalc.js is missing %q", marker)
 		}
@@ -282,6 +282,25 @@ func TestECalcPageExtensionsAreWired(t *testing.T) {
 	} {
 		if !strings.Contains(page, marker) {
 			t.Errorf("ecalc-calc-page.js is missing %q", marker)
+		}
+	}
+}
+
+// The launch hook is wired where the contract puts it: ctx.launch at render time and ECalcApp.launch for an open window
+// reach the shell, which stores the pre-filled state (ECalcCalcPage.launchState) and opens the page. The desktop core
+// itself is not touched by this part.
+func TestECalcLaunchHookIsWired(t *testing.T) {
+	t.Parallel()
+	scripts := ecalcScripts(t)
+	for file, markers := range map[string][]string{
+		"ecalc-calc-page.js": {"function launchState(calc, payload, units, unitOf)", "window.ECalcCalcPage = { create, launchState, unitFor };"},
+		"ecalc-shell.js":     {"function launch(payload)", "Page.launchState(item, payload, units, Page.unitFor(item, store, units))", "if (wanted) launch(options.launch);"},
+		"ecalc.js":           {"ctx.launch", "function launch(id, payload)", "if (shell) shell.launch(payload); else pending = payload;", "uid, launch: pending"},
+	} {
+		for _, marker := range markers {
+			if !strings.Contains(scripts[file], marker) {
+				t.Errorf("%s is missing %q", file, marker)
+			}
 		}
 	}
 }

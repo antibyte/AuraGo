@@ -1,7 +1,8 @@
 /* ECalc shell: the top bar with the search box and the settings popover, the category rail (Favorites, Recent, then the
    categories that have items), the item list and the page host. Below 720 px of width the three columns collapse into
    one stack (rail, list, page) with a back button. Search covers the name in the current language, the English name and
-   the catalog tags. Publishes window.ECalcShell; ecalc.js owns the data and the window lifecycle. */
+   the catalog tags. launch(payload) opens a page with pre-filled inputs (the pre-fill bridge of the agent tool). Publishes
+   window.ECalcShell; ecalc.js owns the data and the window lifecycle. */
 (function () {
     'use strict';
 
@@ -22,7 +23,8 @@
     };
     const icon = name => '<svg class="ec-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONS[name] || '') + '</svg>';
 
-    // options: {root, catalog, t, store, schematics, decimalComma, uid}
+    // options: {root, catalog, t, store, schematics, decimalComma, uid, launch}; launch is an optional payload that opens the
+    // app on a pre-filled page instead of the remembered one.
     function create(options) {
         const { root, catalog, t, store, schematics } = options;
         const units = core.units.create(catalog.units);
@@ -137,6 +139,23 @@
             paintRail();
             paintList();
             if (ui.compact) setView('page');
+        }
+        // Opens the page of a launch payload {page, values, choices} (see ECalcCalcPage.launchState). The raw texts of `values`
+        // become the inputs of the calculator exactly as if they were typed; a payload with a page id alone just opens the
+        // page and keeps what it holds. An unknown page id changes nothing. Returns whether a page was opened.
+        function launch(payload) {
+            const item = payload && typeof payload === 'object' && typeof payload.page === 'string' ? itemById.get(payload.page) : null;
+            if (!item) return false;
+            const given = object => !!object && typeof object === 'object' && !Array.isArray(object) && Object.keys(object).length > 0;
+            if (item.kind === 'calculator' && (given(payload.values) || given(payload.choices))) {
+                const Page = window.ECalcCalcPage;
+                store.saveCalc(item.id, Page.launchState(item, payload, units, Page.unitFor(item, store, units)));
+            }
+            ui.query = '';
+            searchEl.value = '';
+            openItem(item.id);
+            setView('page');
+            return true;
         }
         // In the single-column layout the results of a query live in the list: searching from the rail or from a page
         // moves there.
@@ -254,14 +273,17 @@
         paintRail();
         paintList();
         setView(ui.view);
-        if (first) {
+        const wanted = options.launch && typeof options.launch.page === 'string' ? itemById.get(options.launch.page) || null : null;
+        if (first && !wanted) {
             ui.selected = first.id;
             mountPage(first);
             paintList();
         }
+        if (wanted) launch(options.launch);
 
         return {
             openItem,
+            launch,
             focusSearch() { showResults(); searchEl.focus(); searchEl.select(); },
             dispose() {
                 closePopover();

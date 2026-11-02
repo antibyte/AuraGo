@@ -6,8 +6,8 @@
    this file only draws it and feeds the typed texts into it. The `units` list of a variable narrows its unit dropdown,
    the fields in the `ignore` list of a selected choice option are dimmed and left out of the copied results, a
    `finder: combine` calculator lists the standard-value combinations of its target (five per group) and a calculator
-   with a `chart` draws the curve under its formula (ECalcChart).
-   Publishes window.ECalcCalcPage = { create, unitFor }. */
+   with a `chart` draws the curve under its formula (ECalcChart). launchState() builds the state a pre-fill opens with.
+   Publishes window.ECalcCalcPage = { create, launchState, unitFor }. */
 (function () {
     'use strict';
 
@@ -45,6 +45,33 @@
             if (v.unit) return v.unit;
             return offered.some(option => option.id === '') || !offered.length ? '' : offered[0].id;
         };
+    }
+
+    // The state a launch payload ({values: {var: raw text}, choices: {choice: option}}) opens a page with: the defaults,
+    // then the given options, then the given values entered one after the other exactly as if they were typed (so the
+    // recency follows the given order, the inputs that are not given keep their defaults, nothing is locked). Unknown
+    // variables, choices and options, variables that cannot be inputs and texts that do not read as a value of their
+    // variable are skipped.
+    function launchState(calc, payload, units, unitOf) {
+        const given = payload && typeof payload === 'object' ? payload : {};
+        const plain = object => (object && typeof object === 'object' && !Array.isArray(object) ? object : {});
+        let state = S.defaultState(calc, units, unitOf);
+        const wanted = plain(given.choices);
+        for (const choice of calc.choices || []) {
+            if (has(wanted, choice.id) && typeof wanted[choice.id] === 'string' && choice.options.some(option => option.id === wanted[choice.id])) state.choices[choice.id] = wanted[choice.id];
+        }
+        for (const [name, raw] of Object.entries(plain(given.values))) {
+            const v = calc.vars.find(entry => entry.id === name);
+            if (!v || v.input === false || typeof raw !== 'string') continue;
+            try {
+                if (v.list) units.parseList(raw, v.dim, unitOf(name)); else units.parse(raw, v.dim, unitOf(name));
+            } catch (error) {
+                continue;
+            }
+            const shown = S.solve(calc, S.readInputs(calc, state, units, unitOf).values, state.choices, units).values;
+            state = S.applyEdit(calc, state, name, raw, units, unitOf, shown);
+        }
+        return state;
     }
 
     // options: {calc, units, store, t, icon, uid, decimalComma, schematics, onFavorite}
@@ -548,5 +575,5 @@
         };
     }
 
-    window.ECalcCalcPage = { create, unitFor };
+    window.ECalcCalcPage = { create, launchState, unitFor };
 })();
