@@ -291,6 +291,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"layerling", "Inspect and edit an open Layerling 3D CAD model in the Desktop"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
+		{"ecalc", "Electronics calculators: search, describe and calculate with units, or open one pre-filled in the ECalc desktop app"},
 		{"meshcentral", "Manage MeshCentral groups, devices, events, power actions, and commands"},
 		{"remote_control_devices", "List and inspect remote control devices"},
 		{"remote_control_shell", "Run shell commands on remote control devices"},

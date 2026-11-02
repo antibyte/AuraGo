@@ -40,6 +40,9 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 		}, "host"),
 	))
 
+	// ECalc electronics calculators (always enabled — pure computation on the embedded catalog; only open needs the desktop)
+	tools = append(tools, ecalcSchema())
+
 	if ff.NetworkPingEnabled {
 		// Port Scanner (gated with network_ping — same permission scope)
 		tools = append(tools, tool("port_scanner",

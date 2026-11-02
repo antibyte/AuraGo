@@ -306,6 +306,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchLocalWikipedia(ctx, tc, dc)
 		case "retro_games":
 			return dispatchRetroGames(ctx, tc, dc)
+		case "ecalc":
+			return dispatchECalc(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if !cfg.CoAgents.Enabled {
