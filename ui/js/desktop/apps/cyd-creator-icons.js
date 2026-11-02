@@ -61,7 +61,6 @@
                     const set = { props: { [key]: result.asset.id, icon_animate: chosen.animated, icon_motion: result.motion,
                         icon_origin: '1/' + [chosen.style, chosen.tone, chosen.motif, chosen.size, '0.png'].join('/'),
                         icon_frames: result.frames.length === 6 ? result.frames : null } };
-                    if (current().type === 'image') { set.w = chosen.size; set.h = chosen.size; }
                     d.commands.transact('icon', (draft, apply) => {
                         if (!Array.isArray(draft.assets)) draft.assets = [];
                         for (const a of result.assets) if (!draft.assets.some(old => old.id === a.id)) draft.assets.push(P.util.deepClone(a));
@@ -103,13 +102,13 @@
                     select(iconText('style', 'Style'), 'style', catalog.styles.map(s => [s, iconText('style_' + s, s)]), selection.style, v => { selection.style = v; }),
                     select(iconText('tone', 'Colour'), 'tone', catalog.tones.map(s => [s, iconText('tone_' + s, s)]), selection.tone, v => { selection.tone = v; }),
                     select(iconText('animation', 'Animation'), 'animated', [['false', iconText('still', 'Still image')], ['true', iconText('animated', 'Animated')]], String(selection.animated), v => { selection.animated = v === 'true'; }),
-                    select(iconText('size', 'Size'), 'size', SIZES.map(s => [s, s + ' px']), selection.size, v => { selection.size = Number(v); }),
+                    select(iconText('size', 'Source resolution'), 'size', SIZES.map(s => [s, s + ' px']), selection.size, v => { selection.size = Number(v); }),
                     select(iconText('category', 'Category'), 'category', [['', iconText('all', 'All')]].concat(Array.from(new Set(catalog.motifs.map(m => m.category))).map(c => [c, iconText('category_' + c, c)])), category, v => { category = v; })),
                 h('div', { class: 'cydc-icon-detail' },
                     h('div', { class: 'cydc-icon-samples' }, h('span', { class: 'cydc-icon-sample is-light' }, preview(motif, true)), h('span', { class: 'cydc-icon-sample is-dark' }, preview(motif, true))),
                     h('div', {}, h('strong', {}, name(motif.id)), h('p', {}, iconText('pixels', '{size} × {size} device pixels · RGB565 / A8', { size: selection.size })),
                         h('p', {}, iconText('memory', '{icon} KiB · project {used} / {budget} KiB', { icon: (sizeBytes / 1024).toFixed(2), used: (used / 1024).toFixed(1), budget: budget / 1024 })),
-                        h('small', {}, iconText('memory_hint', 'Shared images count once. The final size is checked on import.')))),
+                        h('small', {}, iconText('memory_hint', 'Shared images count once. The final size is checked on import. Resize images using their canvas handles.')))),
                 h('div', { class: 'cydc-icon-grid', 'aria-label': iconText('title', 'Icon library') }, visible.map(m => h('button', {
                     type: 'button', class: 'cydc-icon-choice', 'aria-pressed': m.id === selection.motif ? 'true' : 'false', 'data-cc-icon': m.id, 'data-cc-focus': 'icon:' + m.id,
                     on: { click() { selection.motif = m.id; render(); } }

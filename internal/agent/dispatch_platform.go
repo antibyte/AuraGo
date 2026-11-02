@@ -285,11 +285,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault
-	registry := dc.Registry
-	manifest := dc.Manifest
-	longTermMem := dc.LongTermMem
-	shortTermMem := dc.ShortTermMem
-	kg := dc.KG
 	inventoryDB := dc.InventoryDB
 	invasionDB := dc.InvasionDB
 	remoteHub := dc.RemoteHub
@@ -313,12 +308,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchRetroGames(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
-			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
-				return `Tool Output: {"status": "error", "message": "Co-Agent spawn blocked: daily budget exceeded. Try again tomorrow."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsCategoryQuotaBlocked("coagent", cfg.CoAgents.BudgetQuotaPercent) {
-				return `Tool Output: {"status": "error", "message": "Co-Agent quota reached for today. Reuse existing agents or continue without spawning more co-agents."}`
-			}
 			if !cfg.CoAgents.Enabled {
 				return `Tool Output: {"status": "error", "message": "Co-Agent system is not enabled. Set co_agents.enabled=true in config.yaml."}`
 			}
@@ -337,8 +326,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					Priority:     req.Priority,
 					OutputSchema: req.OutputSchema,
 				}
-				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
+				id, state, err := SpawnCoAgent(newCoAgentSpawnContext(dc), coReq, nil)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -366,8 +354,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					Priority:     req.Priority,
 					OutputSchema: req.OutputSchema,
 				}
-				id, state, err := SpawnCoAgent(cfg, ctx, logger, coAgentRegistry,
-					shortTermMem, longTermMem, vault, registry, manifest, kg, inventoryDB, dc.CheatsheetDB, coReq, budgetTracker, nil, dc.WebhookManager)
+				id, state, err := SpawnCoAgent(newCoAgentSpawnContext(dc), coReq, nil)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}

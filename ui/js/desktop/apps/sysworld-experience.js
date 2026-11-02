@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,stations,tramWaypoints,dronePad,roomAt,canWalk,groundHeight,buildingFloor} from './sysworld-exploration.js';
-import {surfaces,liftContains,upperWalkable,roomFloorTiles,skyDeck,skyWalkable} from './sysworld-layout.js';
+import {surfaces,liftContains,upperWalkable,roomFloorTiles,skyDeck,skyWalkable,hoverPads} from './sysworld-layout.js';
 import {streetCurve} from './sysworld-navigation.js';
 import {bodyShape,createTraffic} from './sysworld-traffic.js';
 import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 import {createSociety} from './sysworld-society.js';
 import {createMachinery} from './sysworld-machinery.js';
+import {createHoverFlight} from './sysworld-hover.js';
 
 // All art is Blender-authored. This layer owns poses, navigation, interactions and
 // animation mixers; it is stepped by the existing city RAF, never its own timer.
@@ -15,7 +16,7 @@ export function createExperience(scene,options){
   const cache=new Map(),geometries=new Set(),materials=new Set(),mixers=[],residents=[],trams=[],rooms=new Map(),doors=new Map(),landmarks=[];
   const staticGroups=new Map(),shells=new Map(),loaded=new Set(),bindings=[],textures=new Set(),freight=[],missionStates=new Map(),controller=new AbortController();
   let memoryTexts=[],freightEvents=0,missionSeeded=false;
-  let disposed=false,tier=options.tier||'high',manifest=null,bytes=0,clock=0,ride=null,near=null,footClock=0,visited=new Set(),room=null,loading=0;
+  let disposed=false,tier=options.tier||'high',manifest=null,bytes=0,clock=0,ride=null,near=null,footClock=0,visited=new Set(),room=null,loading=0,hoverKey='';
   const tmp=new THREE.Vector3(),ahead=new THREE.Vector3(),lastPosition=new THREE.Vector3(),camera=options.camera;
   // Sky deck lift cab (value = metres above the podium) and the telescopes on galleries and deck.
   const sky={ready:false,lift:null,cab:null,value:0,motion:null,idle:0},scopes=[],euler=new THREE.Euler(0,0,0,'YXZ');
@@ -26,6 +27,12 @@ export function createExperience(scene,options){
     for(const place of livingPlaces)for(const s of manifest?.assets.find(a=>a.id===place.id)?.navigation.surfaces||[]){const [x0,z0,x1,z1]=s.rect;if(x>=place.x+x0&&x<=place.x+x1&&z>=place.z+z0&&z<=place.z+z1)height=Math.max(height,groundHeight(place.x,place.z)+s.height);}
     return height;
   }
+  // Street level under any point whatever height the visitor flies at; the hover flight and its landing use it.
+  const groundAt=(x,z)=>Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts||[])),pads=[],visitorBody=()=>traffic.body('visitor'),hoverPose=new THREE.Vector3();
+  const flight=createHoverFlight({ground:groundAt,reduced:()=>options.reduced(),
+    clear:(from,to)=>options.clear?options.clear(from,to):!visitorBody()||traffic.clear(visitorBody(),{...from,heading:0},{...to,heading:0},false),
+    // A landing spot is open street-level pavement or ground: never a pavilion interior, a building or a resident.
+    walkable:(x,z)=>{if(roomAt(x,z)||!canWalk(x,z,{x,z},()=>false,options.districts||[]))return false;const p={x,y:groundAt(x,z)+2.4,z,heading:0};return !visitorBody()||traffic.clear(visitorBody(),p,p);}});
   const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait});
   let placementSequence=0,lodClock=0;
   try{visited=new Set(JSON.parse(localStorage.getItem('aurago.desktop.sysworld.discoveries')||'[]').filter(id=>stations.some(s=>s.id===id)));}catch(_){}
@@ -162,6 +169,17 @@ export function createExperience(scene,options){
         if(!model){if(disposed)return;continue;}
         model.play(landmark.clip);landmarks.push({id:landmark.id,model});
       }
+      // Hover-pack docks stand along the streets; each holds one removable pack ('pack') while the fans idle.
+      // A city without the asset simply offers none, and a broken one never stops the residents from loading.
+      const hoverAsset=manifest.assets.find(a=>a.id==='hover-pack');
+      if(hoverAsset)try{
+        const spot=hoverAsset.navigation.interaction?.[0]?.position||[0,0,1.2];
+        for(const pad of hoverPads){
+          const model=await place('hover-pack',pad.x,pad.z,groundAt(pad.x,pad.z),pad.angle);if(disposed)return;if(!model)continue;
+          model.play('idle');const s=Math.sin(pad.angle),c=Math.cos(pad.angle);
+          pads.push({...pad,model,pack:model.node.getObjectByName('pack')||null,docked:true,ix:pad.x+spot[0]*c+spot[2]*s,iz:pad.z-spot[0]*s+spot[2]*c});
+        }
+      }catch(e){if(!disposed)options.onError?.(e);}
       const cart=await place('service-cart',55,49,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
       for(let i=0;i<19;i++){
         const type=['courier','technician','archivist'][i%3],body=await place('robot-'+type,0,0);if(!body)return;
@@ -249,7 +267,28 @@ export function createExperience(scene,options){
     sky.cab.position.y=sky.value;
     if(ride?.kind==='sky'){cabCamera();if(!sky.motion){ride=null;options.onRide?.(null);callSound('lift',camera.position);}}
   }
+  // Hover pack: the pad's pack leaves its dock for the flight and returns when the ride ends. E starts the
+  // landing glide; the camera is then driven only by `fly`, never by the walking code.
+  function startHover(id){
+    const pad=pads.find(p=>p.id===id);if(!pad?.docked||options.reduced())return;
+    pad.docked=false;if(pad.pack)pad.pack.visible=false;
+    ride={kind:'hover',id};hoverKey='';hoverPose.copy(camera.position);flight.start(camera.position);
+    options.onRide?.('hover');callSound('hover',camera.position);reportHover();
+  }
+  function endHover(landed){
+    const pad=pads.find(p=>p.id===ride?.id);if(pad){pad.docked=true;if(pad.pack)pad.pack.visible=true;}
+    ride=null;hoverKey='';options.onRide?.(null);options.onFlight?.(null);if(landed)callSound('hover',camera.position);
+  }
+  // A landing that teleports (instant, reduced motion, ride cut short) seats the visitor body too: the next traffic
+  // step must not sweep from the air and be refused, which would snap the camera back up.
+  function seat(){const b=visitorBody();if(b&&traffic.relocate(b,camera.position))camera.position.set(b.x,b.y,b.z);}
+  function reportHover(){
+    const s=flight.state();if(s.done){camera.position.set(s.x,s.y,s.z);seat();endHover(true);return;}
+    const key=[Math.round(s.altitude),Math.round(s.speed*3.6),s.landing].join();
+    if(key!==hoverKey){hoverKey=key;options.onFlight?.({altitude:Math.round(s.altitude),speed:Math.round(s.speed*3.6),landing:s.landing});}
+  }
   function interact(){
+    if(ride?.kind==='hover'){if(flight.state().landing)flight.cancel();else flight.land();reportHover();return;}
     if(ride){if(ride.kind==='tram'&&trams[ride.index].dwell<=1){ride.exitRequested=true;return;}endRide();return;}
     if(!near)return;
     if(near.kind==='telescope'){startScope(near.id);return;}
@@ -261,6 +300,7 @@ export function createExperience(scene,options){
     if(near.kind==='discover'){visited.add(near.id);try{localStorage.setItem('aurago.desktop.sysworld.discoveries',JSON.stringify([...visited]));}catch(_){}options.onDiscover?.(near.id);callSound('discover',camera.position);}
     if(near.kind==='tram'&&!options.reduced()){ride={kind:'waiting',station:near.id};options.onRide?.('waiting');}
     if(near.kind==='terminal')options.onTerminal?.(near.id);
+    if(near.kind==='hoverpack'){startHover(near.id);return;}
     if(near.kind==='drone'&&!options.reduced()){ride={kind:'drone',elapsed:0,origin:camera.position.clone()};options.onRide?.('drone');callSound('tram',camera.position);}
     if(near.kind==='lift'){const r=rooms.get(near.id);if(r){
       const level=camera.position.y>5?4:0;
@@ -270,6 +310,14 @@ export function createExperience(scene,options){
   }
   function endRide(){
     if(!ride)return;
+    if(ride.kind==='hover'){
+      // Whatever ends the ride (Escape, a visit, reduced motion) the visitor never stays in the air: land at once
+      // on the nearest street-level spot, or back in front of the pad, and re-dock the pack.
+      const pad=pads.find(p=>p.id===ride.id);
+      if(flight.land(true)){const s=flight.state();camera.position.set(s.x,s.y,s.z);}
+      else if(pad)camera.position.set(pad.ix,groundAt(pad.ix,pad.iz)+2.4,pad.iz);
+      seat();flight.reset();endHover(false);return;
+    }
     if(ride.kind==='lift'){const r=rooms.get(ride.id),plot=interiors.find(p=>p.id===ride.id);r.liftTarget=r.liftValue<2?0:4;camera.position.set(plot.x+1.5,2.4+surfaces.room+r.liftTarget,plot.liftZ);}
     if(ride.kind==='tram'){const s=stations.find(s=>s.id===ride.station)||stations[0];camera.position.set(s.platformX,2.4+surfaces.pavement+.3,s.platformZ);}
     if(ride.kind==='drone')camera.position.copy(ride.origin);
@@ -283,6 +331,7 @@ export function createExperience(scene,options){
     ride=null;options.onRide?.(null);
   }
   function candidates(){
+    if(ride?.kind==='hover')return flight.state().landing?[]:[{kind:'land',id:ride.id,distance:0}];
     if(ride)return [{kind:ride.kind==='scope'?'unscope':'exit',id:ride.kind,distance:0}];
     camera.getWorldDirection(tmp);
     const result=society.nearby().filter(p=>(p.x-camera.position.x)*tmp.x+(p.z-camera.position.z)*tmp.z>p.distance*.3);
@@ -290,6 +339,7 @@ export function createExperience(scene,options){
     for(const r of interiors){if(camera.position.y<5)add('door',r.id,r.x,r.doorZ,3);if(rooms.get(r.id)?.ready){add('lift',r.id,r.liftX,r.liftZ,2.3);if(camera.position.y<5)add('terminal',r.id,r.x-2,r.z+3,2.5);}}
     if(camera.position.y<5)for(const s of stations){add('tram',s.id,s.platformX,s.platformZ,4);if(!visited.has(s.id))add('discover',s.id,s.platformX+(s.angle===0?5:0),s.platformZ+(s.angle===0?0:5),3);}
     add('drone','drone',dronePad.x,dronePad.z,5);
+    if(camera.position.y<5&&!options.reduced())for(const pad of pads)if(pad.docked)add('hoverpack',pad.id,pad.ix,pad.iz,2.4);
     if(sky.ready){
       const lift=skyDeck.lift,top=camera.position.y>40,distance=Math.hypot(camera.position.x-lift.x,camera.position.z-lift.z),here=top?lift.travel:0;
       if(distance<(top?3.6:2.4)&&(top||camera.position.y<10))result.push({kind:sky.motion||Math.abs(sky.value-here)>.05?'skycall':top?'skydown':'skyup',id:'sky',distance});
@@ -298,7 +348,7 @@ export function createExperience(scene,options){
     return result.sort((a,b)=>a.distance-b.distance);
   }
   function update(dt,animated,mode){
-    if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;room=roomAt(camera.position.x,camera.position.z)?.id||null;
+    if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;room=(ride?.kind==='hover'&&camera.position.y>8.3?null:roomAt(camera.position.x,camera.position.z)?.id)||null;
     lodClock+=dt;if(lodClock>.5){lodClock=0;for(const [id,model]of living){const distance=camera.position.distanceTo(model.node.position),level=tier==='low'||distance>55?2:tier==='medium'||distance>32?1:0;void livingLOD(id,model,level);}}
     if(!options.traffic)traffic.begin();
     for(const r of interiors)if(Math.hypot(camera.position.x-r.x,camera.position.z-r.z)<32)void loadRoom(r);
@@ -378,6 +428,13 @@ export function createExperience(scene,options){
       // Keys pan a viewer, slower when zoomed in; updateScope clamps to its field.
       if(ride.kind==='scope'){euler.setFromQuaternion(camera.quaternion,'YXZ');const k=dt*.9*camera.fov/ride.back.fov;euler.x+=forward*k;euler.y-=right*k;camera.quaternion.setFromEuler(euler);}
       return true;},
+    hovering:()=>ride?.kind==='hover',
+    // One flight step from the scene's fixed step. `input` is {forward,right,up,boost}; yaw follows the camera.
+    fly(dt,input){
+      if(ride?.kind!=='hover')return false;
+      if(camera.position.distanceToSquared(hoverPose)>.01)flight.place(camera.position);
+      camera.getWorldDirection(tmp);const p=flight.step(dt,input,Math.atan2(-tmp.x,-tmp.z));
+      hoverPose.set(p.x,p.y,p.z);camera.position.copy(hoverPose);reportHover();return true;},
     zoom(delta){if(ride?.kind!=='scope')return false;ride.fov=THREE.MathUtils.clamp(ride.fov*Math.exp(delta*.0012),5,26);return true;},
     scoping:()=>ride?.kind==='scope',
     move(x,z,from){if(ride)return false;if(from.y>40)return skyWalkable(x,z,!sky.motion&&sky.value===skyDeck.lift.travel);const r=roomAt(from.x,from.z);if(r&&from.y>5){
@@ -390,7 +447,7 @@ export function createExperience(scene,options){
         if(Math.hypot(x-(r.x-1),z-r.z)<1.55||[-3,0].some(dx=>Math.abs(x-r.x-dx)<1.1&&Math.abs(z-r.z-3)<.8))return false;
       }
       return canWalk(x,z,from,id=>doors.get(id)?.value>.85&&!!rooms.get(id)?.ready,options.districts);},
-    floor(x,z){if(camera.position.y>40)return skyDeck.floor;const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts));},
+    floor(x,z){if(camera.position.y>40)return skyDeck.floor;const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return groundAt(x,z);},
     visit(id){endRide();ride=null;
       const place=livingPlaces.find(p=>p.id===id);if(place){const point=manifest?.assets.find(a=>a.id===id)?.navigation.interaction[0]?.position||[0,1.5,4];camera.position.set(place.x,2.4+groundHeight(place.x,place.z),place.z+point[2]+1);camera.lookAt(place.x,2,place.z);return;}
       if(id==='drone'){camera.position.set(dronePad.x,2.7,dronePad.z+3);camera.lookAt(dronePad.x,2,dronePad.z);return;}
@@ -402,6 +459,7 @@ export function createExperience(scene,options){
     stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
       landmarks:landmarks.map(l=>l.id),
       sky:{ready:sky.ready,value:+sky.value.toFixed(2),moving:!!sky.motion},telescopes:scopes.length,
+      hover:(s=>({pads:pads.length,docked:pads.filter(p=>p.docked).length,flying:!!s,altitude:s?+s.altitude.toFixed(1):0,speed:s?+(s.speed*3.6).toFixed(1):0,landing:!!s?.landing}))(ride?.kind==='hover'?flight.state():null),
       scope:ride?.kind==='scope'?{id:ride.id,target:ride.target,fov:+camera.fov.toFixed(1)}:null}),
     dispose(){if(disposed)return;disposed=true;controller.abort();society.dispose();machinery.dispose();if(!options.traffic)traffic.dispose();memoryTexts=[];missionStates.clear();group.removeFromParent();mixers.forEach(m=>{m.stopAllAction();m.uncacheRoot(m.getRoot());});group.traverse(n=>{if(n.isInstancedMesh)n.dispose();});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());cache.clear();},
   };

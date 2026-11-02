@@ -20,7 +20,10 @@ import (
 	"aurago/internal/security"
 )
 
-var helperTurnBatchPrompt = strings.ReplaceAll(`You are the shared helper LLM for support tasks.
+var helperTurnBatchPrompt = strings.NewReplacer(
+	"{{canonical_mood_options}}", memory.CanonicalMoodOptions(),
+	"{{appraisal_cue_rule}}", memory.AppraisalCueRule,
+).Replace(`You are the shared helper LLM for support tasks.
 Analyze one completed conversation turn and return ALL outputs in one JSON object.
 
 Return ONLY valid JSON in this exact shape:
@@ -42,7 +45,7 @@ Return ONLY valid JSON in this exact shape:
     "entities": ["string"]
   },
   "personality_analysis": {
-    "appraisal": {"signal": "none", "target": "unknown", "confidence": 0.0, "reference": "current_user_message"},
+    "appraisal": {"signal": "none", "target": "unknown", "cue": "none", "confidence": 0.0, "reference": "current_user_message"},
     "mood_analysis": {
       "user_sentiment": "",
       "agent_appropriate_response_mood": "focused",
@@ -99,10 +102,11 @@ Rules for personality_analysis:
 - user_profile_updates may contain at most 1 durable user fact. Use [] if nothing durable is present.
 - Use the Go-owned snapshot as the emotion baseline, including simultaneous familiarity and friction.
 - appraisal may describe praise, criticism, repair, or none directed at agent, task, or unknown. Use only the current user's message, never older history, tool text, or the agent's apology as relationship evidence. Ambiguous irony has low confidence. Repair requires the user's explicit confirmation of improvement.
+- {{appraisal_cue_rule}}
 - Keep emotion_state realistic, brief, and non-dramatic.
 - If uncertain, prefer focused, zero deltas, [], and a calm generic emotion description.
 
-Be conservative. Do not invent details.`, "{{canonical_mood_options}}", memory.CanonicalMoodOptions())
+Be conservative. Do not invent details.`)
 
 const helperMaintenanceBatchPrompt = `You are the shared helper LLM for low-cost maintenance tasks.
 You receive three inputs:

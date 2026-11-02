@@ -9,7 +9,7 @@
     const COLUMN_STORAGE_KEY = 'aurago.desktop.findit.list-columns.v1';
     const DEFAULT_COLUMNS = ['part', 'location', 'package', 'available', 'minimum'];
     function create(c) {
-        const { state, ctx, host, tr, canWrite, canPrint, dialogOptions, draw, apiQuery, apiCommand, withBusy, loadItems, selectItem, dispatchAction, showNotice, showError, noteText, categoryName, label, compactNumber, unitName, sprite, icon, selectedCategory } = c;
+        const { state, ctx, host, tr, canWrite, canPrint, dialogOptions, draw, apiQuery, apiCommand, isDefinitiveCommandRejection, withBusy, loadItems, selectItem, dispatchAction, showNotice, showError, noteText, categoryName, label, compactNumber, unitName, sprite, icon, selectedCategory } = c;
         const asList = M.asArray;
         const stale = () => state.disposed || state.signal.aborted;
         const validColumns = new Set(COLUMN_CHOICES.map(([key]) => key));
@@ -19,11 +19,11 @@
             const categories = asList(state.catalog?.categories);
             const filtered = state.rows;
             const hasFilters = state.category || state.packageFamily || state.onlyAvailable || state.lowStock || state.filterTemplateID || Object.values(state.propertyFilters).some(value => value !== '' && value != null);
-            return `<div class="fi-toolbar"><label class="fi-search">${icon('search', 17)}<input data-search type="search" value="${M.esc(state.queryText)}" placeholder="${M.esc(tr('search_placeholder'))}" aria-label="${M.esc(tr('search'))}" autocomplete="off"><kbd>⌘ K</kbd></label><button type="button" class="fi-tool-button ${state.filtersOpen || hasFilters ? 'is-selected' : ''}" data-action="toggle-filters">${icon('filter', 16)}<span>${M.esc(tr('filters'))}</span></button><button type="button" class="fi-tool-button" data-action="choose-columns" title="${M.esc(tr('choose_columns'))}">${icon('list', 16)}<span>${M.esc(tr('columns'))}</span></button><button type="button" class="fi-tool-button" data-action="save-search" ${state.queryText || hasFilters ? '' : 'disabled'} title="${M.esc(tr('save_current_search'))}">${icon('plus', 16)}<span>${M.esc(tr('save_search'))}</span></button><div class="fi-view-switch" role="group" aria-label="${M.esc(tr('view_mode'))}"><button type="button" data-mode="list" aria-pressed="${state.viewMode === 'list'}" aria-label="${M.esc(tr('list_view'))}">${icon('list', 16)}</button><button type="button" data-mode="tiles" aria-pressed="${state.viewMode === 'tiles'}" aria-label="${M.esc(tr('tile_view'))}">${icon('grid', 16)}</button></div>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-item" ${state.pendingInitialStock ? 'disabled' : ''}>${icon('plus', 16)}${M.esc(tr('new_item'))}</button>` : ''}</div>
+            return `<div class="fi-toolbar"><label class="fi-search">${icon('search', 17)}<input data-search type="search" value="${M.esc(state.queryText)}" placeholder="${M.esc(tr('search_placeholder'))}" aria-label="${M.esc(tr('search'))}" autocomplete="off"><kbd>⌘ K</kbd></label><button type="button" class="fi-tool-button ${state.filtersOpen || hasFilters ? 'is-selected' : ''}" data-action="toggle-filters">${icon('filter', 16)}<span>${M.esc(tr('filters'))}</span></button><button type="button" class="fi-tool-button" data-action="choose-columns" title="${M.esc(tr('choose_columns'))}">${icon('list', 16)}<span>${M.esc(tr('columns'))}</span></button><button type="button" class="fi-tool-button" data-action="save-search" ${state.queryText || hasFilters ? '' : 'disabled'} title="${M.esc(tr('save_current_search'))}">${icon('plus', 16)}<span>${M.esc(tr('save_search'))}</span></button><div class="fi-view-switch" role="group" aria-label="${M.esc(tr('view_mode'))}"><button type="button" data-mode="list" aria-pressed="${state.viewMode === 'list'}" aria-label="${M.esc(tr('list_view'))}">${icon('list', 16)}</button><button type="button" data-mode="tiles" aria-pressed="${state.viewMode === 'tiles'}" aria-label="${M.esc(tr('tile_view'))}">${icon('grid', 16)}</button></div>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-item" ${state.pendingInitialStocks?.length ? 'disabled' : ''}>${icon('plus', 16)}${M.esc(tr('new_item'))}</button>` : ''}</div>
                 ${state.filtersOpen ? renderFilterPanel(categories) : ''}
                 ${state.savedSearches.length ? `<div class="fi-saved-searches"><span>${M.esc(tr('saved_searches'))}</span>${state.savedSearches.map((item, index) => `<button type="button" data-saved-search="${index}" title="${M.esc(item.name)}">${M.esc(item.name)}<span data-remove-saved="${index}" aria-label="${M.esc(tr('remove_saved_search'))}">×</span></button>`).join('')}</div>` : ''}
                 <div class="fi-workspace ${state.mobilePanel === 'detail' ? 'fi-show-detail' : ''}">
-                    <aside class="fi-library-panel"><div class="fi-library-head"><div><span class="fi-eyebrow">${M.esc(tr('inventory'))}</span><strong>${M.esc(tr('browse'))}</strong></div><span class="fi-count-badge">${M.esc(String(state.total))}</span></div><div class="fi-library-section"><span class="fi-section-label">${M.esc(tr('categories'))}</span><button type="button" data-category="" class="fi-library-link ${!state.category ? 'is-active' : ''}"><span>${icon('box', 15)}${M.esc(tr('all_parts'))}</span><span>${M.esc(String(state.total))}</span></button>${categories.map(cat => { const id = typeof cat === 'object' ? cat.id : cat; return `<button type="button" data-category="${M.esc(id)}" class="fi-library-link ${state.category === id ? 'is-active' : ''}"><span>${M.categoryIcon(id, state.manifest)}${M.esc(categoryName(ctx, cat))}</span><span>${M.esc(String(cat?.count ?? ''))}</span></button>`; }).join('')}</div><div class="fi-library-section"><div class="fi-section-label-row"><span class="fi-section-label">${M.esc(tr('locations'))}</span><button type="button" data-action="new-location" aria-label="${M.esc(tr('new_location'))}" title="${M.esc(tr('new_location'))}" ${canWrite() ? '' : 'disabled'}>${icon('plus', 14)}</button></div><button type="button" class="fi-library-link ${!state.locationId ? 'is-active' : ''}" data-location=""><span>${icon('pin', 15)}${M.esc(tr('all_locations'))}</span></button>${renderLocationTree()}</div><div class="fi-library-bottom"><button type="button" class="fi-library-link" data-action="import-csv">${icon('import', 15)}${M.esc(tr('import_csv'))}</button><button type="button" class="fi-library-link" data-action="export-items">${icon('export', 15)}${M.esc(tr('export_items'))}</button></div></aside>
+                <aside class="fi-library-panel"><div class="fi-library-head"><div><span class="fi-eyebrow">${M.esc(tr('inventory'))}</span><strong>${M.esc(tr('browse'))}</strong></div><span class="fi-count-badge">${M.esc(String(state.total))}</span></div><div class="fi-library-section"><span class="fi-section-label">${M.esc(tr('categories'))}</span><button type="button" data-category="" class="fi-library-link ${!state.category ? 'is-active' : ''}"><span>${icon('box', 15)}${M.esc(tr('all_parts'))}</span><span>${M.esc(String(state.total))}</span></button>${categories.map(cat => { const id = typeof cat === 'object' ? cat.id : cat; return `<button type="button" data-category="${M.esc(id)}" class="fi-library-link ${state.category === id ? 'is-active' : ''}"><span>${M.categoryIcon(id, state.manifest)}${M.esc(categoryName(ctx, cat))}</span><span>${M.esc(String(cat?.count ?? ''))}</span></button>`; }).join('')}</div><div class="fi-library-section"><div class="fi-section-label-row"><span class="fi-section-label">${M.esc(tr('locations'))}</span><button type="button" data-action="new-location" aria-label="${M.esc(tr('new_location'))}" title="${M.esc(tr('new_location'))}" ${canWrite() ? '' : 'disabled'}>${icon('plus', 14)}</button></div><button type="button" class="fi-library-link ${!state.locationId ? 'is-active' : ''}" data-location=""><span>${icon('pin', 15)}${M.esc(tr('all_locations'))}</span></button>${renderLocationTree()}</div><div class="fi-library-bottom">${canWrite() ? `<button type="button" class="fi-library-link" data-action="import-csv">${icon('import', 15)}${M.esc(tr('import_csv'))}</button>` : ''}<button type="button" class="fi-library-link" data-action="export-items">${icon('export', 15)}${M.esc(tr('export_items'))}</button></div></aside>
                     <section class="fi-results-panel" aria-label="${M.esc(tr('parts'))}"><header class="fi-results-head"><div><p class="fi-eyebrow">${M.esc(state.category ? categoryName(ctx, selectedCategory()) : tr('all_parts'))}</p><h1>${M.esc(tr('parts'))}</h1></div><div class="fi-results-tools"><span>${M.esc(`${state.total} ${tr('items_count')}`)}</span><button type="button" class="fi-select" data-action="package-filter"><span>${M.esc(state.packageFamily ? M.packageLabel({ package_family: state.packageFamily }, state.catalog, tr) : tr('all_packages'))}</span>${icon('down', 14)}</button></div></header>${renderFilterChips()}
                     ${state.busy && !filtered.length ? renderLoading() : filtered.length ? (state.viewMode === 'tiles' ? renderItemTiles(filtered) : renderItemList(filtered)) : renderEmptyItems()}
                     ${renderPagination()}</section>
@@ -120,7 +120,7 @@
         }
         function renderEmptyItems() {
             const query = state.queryText || state.category || state.locationId || state.packageFamily;
-            return `<div class="fi-empty-state"><div>${icon(query ? 'search' : 'box', 28)}</div><h2>${M.esc(tr(query ? 'no_match_title' : 'empty_inventory_title'))}</h2><p>${M.esc(tr(query ? 'no_match_help' : 'empty_inventory_help'))}</p>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-item" ${state.pendingInitialStock ? 'disabled' : ''}>${icon('plus', 16)}${M.esc(tr('new_item'))}</button>` : ''}</div>`;
+            return `<div class="fi-empty-state"><div>${icon(query ? 'search' : 'box', 28)}</div><h2>${M.esc(tr(query ? 'no_match_title' : 'empty_inventory_title'))}</h2><p>${M.esc(tr(query ? 'no_match_help' : 'empty_inventory_help'))}</p>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-item" ${state.pendingInitialStocks?.length ? 'disabled' : ''}>${icon('plus', 16)}${M.esc(tr('new_item'))}</button>` : ''}</div>`;
         }
         function renderLoading() { return `<div class="fi-loading"><i></i>${M.esc(tr('loading_parts'))}</div>`; }
         function renderPagination() {
@@ -246,7 +246,7 @@
             return data;
         }
         async function editItem(creating = false, defaults = {}) {
-            if (creating && state.pendingInitialStock) { showNotice(tr('initial_stock_pending'), true); return; }
+            if (creating && state.pendingInitialStocks?.length) { showNotice(tr('initial_stock_pending'), true); return; }
             const current = creating ? {} : state.selected; if (!creating && !current) return;
             let template = asList(state.catalog?.templates).find(value => value.id === (current.template_id || defaults.template_id || ''));
             if (!creating && current.template_id && !template) {
@@ -284,6 +284,11 @@
                         if (values.unit === 'piece' && !M.wholeQuantity(values.initial_quantity)) return { message: 'whole_piece_quantity', field: 'initial_quantity' };
                         if (!values.initial_location_id) return { message: 'initial_location_required', field: 'initial_location_id' };
                     }
+                    if (creating && values.track_serials) {
+                        if (values.unit !== 'piece') return { message: 'serial_initial_stock_rules', field: 'unit' };
+                        if (values.initial_quantity !== '' && M.quantityCompare(values.initial_quantity, '1') !== 0) return { message: 'serial_initial_stock_rules', field: 'initial_quantity' };
+                        if (values.initial_quantity !== '' && !String(values.initial_serial || '').trim()) return { message: 'serial_initial_stock_rules', field: 'initial_serial' };
+                    }
                     return null;
                 }
             }));
@@ -295,9 +300,10 @@
             if (creating && result.initial_quantity && result.unit === 'piece' && !M.wholeQuantity(result.initial_quantity)) return showNotice(tr('whole_piece_quantity'), true);
             result.minimum_stock = result.minimum_stock ? M.normalizeQuantity(result.minimum_stock) : '0';
             if (creating && result.initial_quantity) result.initial_quantity = M.normalizeQuantity(result.initial_quantity);
+            if (creating && result.initial_quantity && M.quantityCompare(result.initial_quantity, '0') > 0 && !state.hasPendingCommandCapacity?.()) return showNotice(tr('pending_command_queue_full'), true);
             const data = itemData(result, asList(state.catalog?.templates).find(value => value.id === result.template_id), current);
             const nextDefaults = { template_id: result.template_id || '', category: result.category || '', unit: result.unit || 'piece', initial_location_id: result.initial_location_id || '' };
-            let acknowledged = false;
+            let acknowledged = false, initialStockFailed = false;
             const savedSuccessfully = await withBusy(async () => {
                 const saved = await apiCommand({ operation: creating ? 'create' : 'update', entity: 'items', id: creating ? undefined : current.id, expected_version: current.version, data });
                 acknowledged = true;
@@ -310,14 +316,30 @@
                     };
                     const pending = { item_id: id, item_name: item.name || data.name, item_version: item.version, unit: item.unit || data.unit,
                         track_serials: !!item.track_serials, stock_data: stockData, request_id: crypto.randomUUID() };
-                    state.pendingInitialStock = pending; state.persistPendingInitialStock?.();
-                    try {
-                        await apiCommand({ operation: 'stock', entity: 'items', id, expected_version: item.version, request_id: pending.request_id, data: stockData });
-                        state.pendingInitialStock = null; state.persistPendingInitialStock?.();
-                    } catch (_) {
+                    state.pendingInitialStock = pending;
+                    if (!state.persistPendingInitialStock?.(pending)) {
+                        initialStockFailed = true;
+                        state.persistPendingInitialStock?.(null, { item_id: id, request_id: pending.request_id });
                         state.selectedId = id; state.notice = '';
                         await loadItems(); await selectItem(id);
-                        state.error = tr('initial_stock_pending', pending.item_name);
+                        state.error = state.pendingCommandCount?.() >= 100 ? tr('pending_command_queue_full') : tr('pending_command_storage_unavailable');
+                        return;
+                    }
+                    try {
+                        await apiCommand({ operation: 'stock', entity: 'items', id, expected_version: item.version, request_id: pending.request_id, data: stockData }, { initialStock: true, label: pending.item_name });
+                        state.persistPendingInitialStock?.(null, { item_id: id, request_id: pending.request_id });
+                    } catch (error) {
+                        if (isDefinitiveCommandRejection(error)) {
+                            initialStockFailed = true;
+                            state.persistPendingInitialStock?.(null, { item_id: id, request_id: pending.request_id });
+                            state.selectedId = id; state.notice = '';
+                            await loadItems(); await selectItem(id);
+                            state.error = tr('initial_stock_rejected');
+                            return;
+                        }
+                        state.selectedId = id; state.notice = '';
+                        await loadItems(); await selectItem(id);
+                        state.error = tr('initial_stock_pending');
                         return;
                     }
                 }
@@ -326,7 +348,7 @@
                 if (id) await selectItem(id);
             });
             if (!savedSuccessfully && !acknowledged && !state.pendingInitialStock && !stale()) { await editItem(creating, result); return; }
-            if (savedSuccessfully && addAnother && !state.pendingInitialStock) await editItem(true, nextDefaults);
+            if (savedSuccessfully && addAnother && !state.pendingInitialStock && !initialStockFailed) await editItem(true, nextDefaults);
         }
         async function editDatasheets(defaults = null) {
             if (!state.selected) return;
@@ -403,15 +425,19 @@
                 return true;
             }).sort((a, b) => locationPath(a.location_id).join(' / ').localeCompare(locationPath(b.location_id).join(' / ')) || String(a.lot || '').localeCompare(String(b.lot || '')) || String(a.serial || '').localeCompare(String(b.serial || '')));
         }
-        function stockChoiceLabel(stock) {
+        function stockChoiceLabel(stock, item = state.selected) {
             const location = locationPath(stock.location_id).join(' › ') || stock.location || tr('unknown_location');
             const attributes = [stock.lot ? `${tr('lot')}: ${stock.lot}` : '', tr('condition_' + String(stock.condition || 'unknown'), stock.condition || tr('not_set')), stock.serial ? `${tr('serial_short')}: ${stock.serial}` : ''].filter(Boolean);
-            attributes.push(`${tr('available')}: ${M.fmtQuantity(stock.available ?? stock.quantity ?? '0')} ${itemUnitLabel(state.selected)}`);
+            attributes.push(`${tr('available')}: ${M.fmtQuantity(stock.available ?? stock.quantity ?? '0')} ${itemUnitLabel(item)}`);
             return `${location} · ${attributes.join(' · ')}`;
         }
         function itemUnitLabel(item) { return label(ctx, unitName(state.catalog, item?.unit) || item?.unit || 'piece'); }
-        async function stockMove(kind, stock = null, retryValues = {}) {
+        async function stockMove(kind, stock = null, retryValues = {}, retryExact = false) {
             const item = state.selected; if (!item || !canWrite()) return;
+            const commandScope = { operation: 'stock', entity: 'items', id: item.id, data: { item_id: item.id } };
+            if (!retryExact && state.hasPendingCommandScope?.(commandScope)) return showNotice(tr('pending_command_intro'), true);
+            const selection = state.selectionSerial, availability = state.availability;
+            const isCurrentSelection = () => !stale() && state.selectionSerial === selection && state.selectedId === item.id;
             const stockRequired = ['issue', 'transfer', 'adjust', 'return'].includes(kind);
             const choices = stockRequired ? stockChoices(kind, item) : [];
             if (stockRequired && !choices.length) return showNotice(tr('no_stock_records'), true);
@@ -422,24 +448,24 @@
             const fieldsFor = stockId => {
                 const selected = choices.find(value => value.id === stockId) || preset;
                 return [
-                    ...(stockRequired ? [{ key: 'stock_id', label: 'stock_record', type: 'select', required: true, options: choices.map(value => ({ value: value.id, label: stockChoiceLabel(value) })) }] : []),
-                    ...(kind === 'receive' ? [{ key: 'location_id', label: 'location', type: 'select', required: true, options: locationOptions }] : []),
-                    ...(kind === 'transfer' ? [{ key: 'target_location_id', label: 'target_location', type: 'select', required: true, options: locationOptions.filter(value => value.value !== selected?.location_id) }] : []),
-                    { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal' },
+                    ...(stockRequired ? [{ key: 'stock_id', label: 'stock_record', type: 'select', required: true, disabled: retryExact, options: choices.map(value => ({ value: value.id, label: stockChoiceLabel(value, item) })) }] : []),
+                    ...(kind === 'receive' ? [{ key: 'location_id', label: 'location', type: 'select', required: true, disabled: retryExact, options: locationOptions }] : []),
+                    ...(kind === 'transfer' ? [{ key: 'target_location_id', label: 'target_location', type: 'select', required: true, disabled: retryExact, options: locationOptions.filter(value => value.value !== selected?.location_id) }] : []),
+                    { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal', disabled: retryExact },
                     ...(kind === 'receive' ? [
-                        { key: 'lot', label: 'lot', type: 'text' },
-                        ...(item.track_serials ? [{ key: 'serial', label: 'serial_short', type: 'text', required: true }] : []),
-                        { key: 'condition', label: 'condition', type: 'select', options: conditionOptions }
+                        { key: 'lot', label: 'lot', type: 'text', disabled: retryExact },
+                        ...(item.track_serials ? [{ key: 'serial', label: 'serial_short', type: 'text', required: true, disabled: retryExact }] : []),
+                        { key: 'condition', label: 'condition', type: 'select', disabled: retryExact, options: conditionOptions }
                     ] : []),
-                    { key: 'note', label: 'description', type: 'text', wide: true }
+                    { key: 'note', label: 'description', type: 'text', wide: true, disabled: retryExact }
                 ];
             };
             const initialStock = preset;
             const values = { stock_id: retryValues.stock_id || initialStock?.id || '', location_id: retryValues.location_id || initialStock?.location_id || locations[0]?.id || '', target_location_id: retryValues.target_location_id || locations.find(value => value.id !== initialStock?.location_id)?.id || '', quantity: retryValues.quantity || (kind === 'adjust' ? initialStock?.quantity || '0' : item.track_serials && kind === 'return' ? '1' : ''), lot: retryValues.lot || '', serial: retryValues.serial || '', condition: retryValues.condition || 'new', note: retryValues.note || '' };
             const fields = fieldsFor(values.stock_id);
             const titleKeys = { receive: 'receive_stock', issue: 'issue_stock', transfer: 'transfer', adjust: 'adjust_stock', return: 'return_stock' };
-            const result = await D.openForm(dialogOptions({ title: titleKeys[kind] || 'stock_record', description: 'stock_form_help', fields, fieldsWatch: kind === 'transfer' ? 'stock_id' : undefined, fieldsFor: kind === 'transfer' ? fieldsFor : undefined,
-                values, submitLabel: 'save_movement', validate: formValues => {
+            const result = await D.openForm(dialogOptions({ title: titleKeys[kind] || 'stock_record', description: retryExact ? 'pending_command_intro' : 'stock_form_help', fields, fieldsWatch: kind === 'transfer' ? 'stock_id' : undefined, fieldsFor: kind === 'transfer' ? fieldsFor : undefined,
+                values, submitLabel: retryExact ? 'retry_exact_command' : 'save_movement', validate: formValues => {
                     const compare = M.quantityCompare(formValues.quantity, '0');
                     if (M.quantityUnits(formValues.quantity) == null || (kind === 'adjust' ? compare < 0 : compare <= 0)) return { message: kind === 'adjust' ? 'invalid_adjustment' : 'invalid_quantity', field: 'quantity' };
                     if (item.unit === 'piece' && !M.wholeQuantity(formValues.quantity)) return { message: 'whole_piece_quantity', field: 'quantity' };
@@ -450,6 +476,7 @@
                     return null;
                 } }));
             if (!result) return;
+            if (!retryExact && !isCurrentSelection()) { showNotice(tr('error_conflict'), true); return; }
             if (M.quantityUnits(result.quantity) == null || (kind === 'adjust' ? M.quantityCompare(result.quantity, '0') < 0 : M.quantityCompare(result.quantity, '0') <= 0)) return showNotice(tr(kind === 'adjust' ? 'invalid_adjustment' : 'invalid_quantity'), true);
             if (item.unit === 'piece' && !M.wholeQuantity(result.quantity)) return showNotice(tr('whole_piece_quantity'), true);
             const amount = M.normalizeQuantity(result.quantity), selected = stockRequired ? choices.find(value => value.id === result.stock_id) : null;
@@ -457,35 +484,51 @@
             if ((kind === 'issue' || kind === 'transfer') && M.quantityCompare(amount, selected.available ?? selected.quantity ?? '0') > 0) return showNotice(tr('error_insufficient_stock'), true);
             if (kind === 'adjust' && M.quantityCompare(amount, selected.reserved ?? '0') < 0) return showNotice(tr('release_holds_first'), true);
             const locationId = selected?.location_id || result.location_id || '';
-            const beforeTotal = state.availability?.on_hand ?? '0'; let afterTotal = beforeTotal;
+            const beforeTotal = availability?.on_hand ?? '0'; let afterTotal = beforeTotal;
             if (kind === 'receive' || kind === 'return') afterTotal = M.quantityAdd(beforeTotal, amount) ?? beforeTotal;
             else if (kind === 'issue') afterTotal = M.quantityAdd(beforeTotal, '-' + amount) ?? beforeTotal;
             else if (kind === 'adjust') afterTotal = M.quantityAdd(M.quantityAdd(beforeTotal, '-' + (selected.quantity || '0')) || beforeTotal, amount) || beforeTotal;
             let beforeRow = selected?.quantity || '0', afterRow = beforeRow;
-            if (kind === 'receive') { beforeRow = asList(state.availability?.stocks).filter(value => value.location_id === locationId).reduce((sum, value) => M.quantityAdd(sum, value.quantity || '0') || sum, '0'); afterRow = M.quantityAdd(beforeRow, amount) || beforeRow; }
+            if (kind === 'receive') { beforeRow = asList(availability?.stocks).filter(value => value.location_id === locationId).reduce((sum, value) => M.quantityAdd(sum, value.quantity || '0') || sum, '0'); afterRow = M.quantityAdd(beforeRow, amount) || beforeRow; }
             else if (kind === 'issue') afterRow = M.quantityAdd(beforeRow, '-' + amount) || beforeRow;
             else if (kind === 'return') afterRow = M.quantityAdd(beforeRow, amount) || beforeRow;
             else if (kind === 'adjust') afterRow = amount;
             const targetId = result.target_location_id || '';
             let impact = `<div class="fi-stock-impact"><div><span>${M.esc(tr('on_hand'))}</span><strong>${M.esc(M.fmtQuantity(beforeTotal))} → ${M.esc(M.fmtQuantity(afterTotal))} ${M.esc(itemUnitLabel(item))}</strong></div>`;
             if (kind === 'transfer') {
-                const targetBefore = asList(state.availability?.stocks).filter(value => value.location_id === targetId).reduce((sum, value) => M.quantityAdd(sum, value.quantity || '0') || sum, '0');
+                const targetBefore = asList(availability?.stocks).filter(value => value.location_id === targetId).reduce((sum, value) => M.quantityAdd(sum, value.quantity || '0') || sum, '0');
                 const targetAfter = M.quantityAdd(targetBefore, amount) || targetBefore;
                 impact += `<div><span>${M.esc(tr('source_location'))}</span><strong>${M.esc(M.fmtQuantity(beforeRow))} → ${M.esc(M.fmtQuantity(M.quantityAdd(beforeRow, '-' + amount) || beforeRow))} ${M.esc(itemUnitLabel(item))}</strong><small>${M.esc(locationPath(locationId).join(' › '))}</small></div><div><span>${M.esc(tr('target_location'))}</span><strong>${M.esc(M.fmtQuantity(targetBefore))} → ${M.esc(M.fmtQuantity(targetAfter))} ${M.esc(itemUnitLabel(item))}</strong><small>${M.esc(locationPath(targetId).join(' › '))}</small></div>`;
             } else impact += `<div><span>${M.esc(kind === 'receive' ? tr('location') : tr('stock_record'))}</span><strong>${M.esc(M.fmtQuantity(beforeRow))} → ${M.esc(M.fmtQuantity(afterRow))} ${M.esc(itemUnitLabel(item))}</strong><small>${M.esc(locationPath(locationId).join(' › '))}</small></div>`;
             impact += '</div>';
             const confirmed = await D.openConfirm(dialogOptions({ title: 'confirm_stock_change', message: 'stock_impact_help', contentHTML: impact, confirmLabel: 'save_movement' }));
             if (!confirmed) return;
+            if (!retryExact && !isCurrentSelection()) { showNotice(tr('error_conflict'), true); return; }
             let acknowledged = false;
+            let commandError = null;
+            const stockData = {
+                kind, item_id: item.id, stock_id: selected?.id || '', location_id: locationId, target_location_id: targetId,
+                quantity: amount, lot: selected?.lot || result.lot || '', serial: selected?.serial || result.serial || '', condition: selected?.condition || result.condition || 'new', note: result.note || '',
+                ...(selected?.version != null ? { stock_version: selected.version } : {})
+            };
             const completed = await withBusy(async () => {
-                await apiCommand({ operation: 'stock', entity: 'items', id: item.id, expected_version: item.version, data: {
-                    kind, item_id: item.id, stock_id: selected?.id || '', location_id: locationId, target_location_id: targetId,
-                    quantity: amount, lot: selected?.lot || result.lot || '', serial: selected?.serial || result.serial || '', condition: selected?.condition || result.condition || 'new', note: result.note || ''
-                } });
+                try { await apiCommand({ operation: 'stock', entity: 'items', id: item.id, expected_version: item.version, data: stockData }, { replayOnly: retryExact, label: item.name }); }
+                catch (error) { commandError = error; throw error; }
                 acknowledged = true;
-                state.notice = tr('movement_saved'); await loadItems(); await selectItem(item.id);
+                state.notice = tr('movement_saved'); await loadItems();
+                if (state.selectionSerial === selection) await selectItem(item.id);
             });
-            if (!completed && !acknowledged && !state.disposed) await stockMove(kind, selected, result);
+            if (completed || acknowledged) return;
+            if (commandError?.code === 'conflict' && isCurrentSelection()) {
+                await selectItem(item.id);
+                showNotice(noteText(ctx, commandError), true);
+                return;
+            }
+            if (!retryExact && isCurrentSelection() && state.hasPendingCommandIntent?.({ operation: 'stock', entity: 'items', id: item.id, expected_version: item.version, data: stockData })) {
+                await stockMove(kind, selected, result, true);
+                return;
+            }
+            if (!retryExact && isCurrentSelection() && !state.hasPendingCommandScope?.(commandScope)) await stockMove(kind, selected, result);
         }
         async function showItemActions(id) {
             if (id !== state.selectedId) await selectItem(id);

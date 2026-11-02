@@ -1,0 +1,20 @@
+{
+  "calc": "decibel_ratio",
+  "sets": [
+    {"choices": {"qty": "voltage"}, "values": {"a1": 1, "a2": 10, "g": 20, "f": 10}, "ref": "definition: G = 20 * log10(10 / 1) = 20 dB"},
+    {"choices": {"qty": "voltage"}, "values": {"a1": 0.5, "a2": 50, "g": 40, "f": 100}, "ref": "definition: G = 20 * log10(50 / 0.5) = 20 * log10(100) = 40 dB"},
+    {"choices": {"qty": "voltage"}, "values": {"a1": 2, "a2": 1, "g": -6.020599913279624, "f": 0.5}, "ref": "definition: G = 20 * log10(1 / 2) = -20 * 0.30102999566398120 = -6.0206 dB (log10 2 = 0.3010299956639812)"},
+    {"choices": {"qty": "power"}, "values": {"a1": 2, "a2": 200, "g": 20, "f": 100}, "ref": "definition: G = 10 * log10(200 / 2) = 10 * log10(100) = 20 dB"},
+    {"choices": {"qty": "power"}, "values": {"a1": 1, "a2": 1000, "g": 30, "f": 1000}, "ref": "definition: G = 10 * log10(1000) = 30 dB"},
+    {"choices": {"qty": "power"}, "values": {"a1": 1, "a2": 2, "g": 3.010299956639812, "f": 2}, "ref": "definition: G = 10 * log10(2) = 3.0103 dB (log10 2 = 0.3010299956639812)"}
+  ],
+  "solve": [
+    {"inputs": {"a1": 1, "a2": 10}, "expect": {"g": 20, "f": 10}, "ref": "definition: the default option is voltage / current, G = 20 * log10(10) = 20 dB"},
+    {"inputs": {"a1": 1, "a2": 10}, "choices": {"qty": "power"}, "expect": {"g": 10, "f": 10}, "ref": "definition: for power G = 10 * log10(10) = 10 dB"},
+    {"inputs": {"a1": 1, "a2": 10}, "choices": {"qty": "bogus"}, "expect": {"g": 20}, "ref": "an unknown option falls back to the default option (voltage / current)"},
+    {"inputs": {"a1": 1, "a2": 0.1}, "expect": {"g": -20, "f": 0.1}, "ref": "definition: G = 20 * log10(0.1) = -20 dB"},
+    {"inputs": {"a1": 1, "g": 6}, "choices": {"qty": "power"}, "expect": {"a2": 3.9810717055349727, "f": 3.9810717055349727}, "ref": "definition: A_2 = A_1 * 10^(6 / 10) = 10^0.6 = 3.98107170553497"},
+    {"inputs": {"a2": 100, "g": 40}, "expect": {"a1": 1, "f": 100}, "ref": "definition: A_1 = 100 / 10^(40 / 20) = 100 / 100 = 1"},
+    {"inputs": {"a1": 1, "a2": 0}, "expect": {"f": 0}, "errors": {"a2": "range", "g": "nonfinite"}, "ref": "hand: A_2 = 0 is out of range and 20 * log10(0) is minus infinity"}
+  ]
+}

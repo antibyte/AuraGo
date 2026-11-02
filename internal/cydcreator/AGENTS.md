@@ -814,7 +814,8 @@ OTA updates and the ZIP export and import.
 ## Work Guidance
 
 - Icon assets: `icons.go` owns the immutable catalog and strict external-resource
-  manifest; `ImportIcon` validates every selected frame before publishing under
+  manifest. Artwork, motif parity and export preservation follow `assets/cyd-icons/AGENTS.md`.
+  `ImportIcon` validates every selected frame before publishing under
   the project lock and required layout version. IDs deduplicate encoding plus
   content. Optional asset `encoding: a8` counts one byte per pixel; empty keeps
   the old RGB565/RGB565A8 path. `icon` records provenance and is never a disk
@@ -826,6 +827,10 @@ OTA updates and the ZIP export and import.
   owns flash frame arrays, theme/default tint and visible-only bounded updates;
   widget deletion releases timer/state. Keep `TestIcon*`, `TestGenerateIconGolden`
   and the nine `icons@board` compile fixtures aligned with the exporter.
+  Image widgets scale their source proportionally to fit the widget rectangle,
+  with nearest-neighbour sampling. Keep LVGL CENTER plus explicit scale: automatic
+  CONTAIN disables rotation effects. Source resolution and asset budgets stay independent
+  of widget dimensions; button icons retain their selected source size.
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
 - A new board profile records its source URL and must pass `TestEveryEmbeddedBoardLoads`.

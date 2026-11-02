@@ -303,6 +303,8 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		SkillScopeRestricted: s.runCfg.AllowedAgentSkills != nil,
 		VaultSecretPrompter:  s.runCfg.VaultSecretPrompter,
 		VaultSecretTarget:    s.runCfg.VaultSecretTarget,
+
+		AuthorizingUserIntent: delegatedAuthorizingIntent(s.runCfg),
 	}
 }
 
@@ -431,7 +433,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 	sessionTokens := s.sessionTokens
 	recoveryPolicy := s.recoveryPolicy
-	recoveryState := s.recoveryState
 	emptyRetried := s.emptyRetried
 	streamIdleRetried := false
 	retry422Count := s.retry422Count
@@ -520,6 +521,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	loopIterationCount := 0
 	personalityPrepared := false
 	var personalityBasis *memory.PersonalitySnapshot
+	personaBoosterTicked := false
+	var personaBoosterTurnPrompt personaBoosterPrompt
 	for {
 		if err := ctx.Err(); err != nil {
 			return openai.ChatCompletionResponse{}, err
@@ -1380,11 +1383,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.EmotionDescription = emotionDescription
 			}
 
-			// Inner Voice: inject if available and not decayed. During active
-			// tool recovery, keep the next prompt strictly procedural. The flags
-			// outlive the iteration, so the gate decides afresh every time.
+			// Inner Voice: inject if available and not decayed. Excluded during
+			// active tool-error recovery (strictly procedural prompt); successful
+			// tool rounds keep it so the final answer sees it. The flags outlive
+			// the iteration, so the gate decides afresh every time.
 			flags.InnerVoice = ""
-			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent, lastResponseWasTool) {
+			if shouldInjectInnerVoiceIntoPrompt(cfg, s.recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent) {
 				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
 					// The category selects a fixed Go-written hint for the trusted
@@ -1399,6 +1403,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 		}
+
+		// Persona booster: one tick per user turn. The phase text stays fixed for
+		// all iterations of this turn; flags may be reloaded from s.flags, so the
+		// fields are applied again on every iteration.
+		if !personaBoosterTicked {
+			personaBoosterTicked = true
+			personaBoosterTurnPrompt = preparePersonaBoosterTurn(runCfg, flags, s.currentLogger, personaBoosterTurn{
+				Now:             time.Now(),
+				InactivityHours: userInactivityHours,
+				MoodAvailable:   personalityEnabled && shortTermMem != nil,
+			})
+		}
+		personaBoosterTurnPrompt.apply(&flags)
 
 		// User Profiling: inject behavioral instruction + collected profile data
 		if !runCfg.IsMission && !isAutonomousRun && cfg.Personality.UserProfiling {
@@ -1895,7 +1912,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Prompt log: append full request JSON to prompts.log when enabled.
 		// Logged AFTER sanitization so the record reflects what is actually sent.
-		appendPreparedPromptLog(cfg, req, telemetryScope.ProviderType, builderPromptRevision, recoveryState, retry422Count, s.toolCallCount, s.currentLogger)
+		appendPreparedPromptLog(cfg, req, telemetryScope.ProviderType, builderPromptRevision, s.recoveryState, retry422Count, s.toolCallCount, s.currentLogger)
 
 		// ── Temperature: base from config + personality modulation ──
 		baseTemp := cfg.LLM.Temperature
@@ -2417,8 +2434,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2 && personalityBasis != nil
 
+		// Turn-end snapshot of the live recovery state for the post-turn work below;
+		// the closures launched via sideEffects.Go must not read s.recoveryState later.
+		turnConsecutiveErrors, turnTotalErrors := s.recoveryState.ConsecutiveErrorCount, s.recoveryState.TotalErrorCount
+		rememberPersonaBoosterToolErrors(sessionID, turnConsecutiveErrors)
+
 		if isAutonomousRun && !isRelayAutonomousRun(runCfg, sessionID) && personalityEnabled && shortTermMem != nil {
-			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, recoveryState.ConsecutiveErrorCount, s.toolCallCount)
+			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, turnConsecutiveErrors, s.toolCallCount)
 		}
 
 		// Phase D: Final mood + trait update + milestone check at session end
@@ -2445,9 +2467,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						content,
 						meta,
 						cfg.Personality.UserProfiling,
-						recoveryState.ConsecutiveErrorCount,
-						recoveryState.TotalErrorCount,
-						s.toolCallCount-recoveryState.ConsecutiveErrorCount,
+						turnConsecutiveErrors,
+						turnTotalErrors,
+						s.toolCallCount-turnConsecutiveErrors,
 						flags.IsMission,
 						flags.IsCoAgent,
 						personalityBasis,
@@ -2485,10 +2507,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
 				emotionEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer, personalityBasis)
 				traits, _ := shortTermMem.GetTraits()
-				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
-				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
+				batchSuccessCount := s.toolCallCount - turnConsecutiveErrors
+				batchTaskCompleted := turnConsecutiveErrors == 0 && batchSuccessCount > 0
 				// Only reserve a generation slot when the batch can use it.
-				batchIVEnabled := emotionEligible && shouldGenerateInnerVoice(sessionID, cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
+				batchIVEnabled := emotionEligible && shouldGenerateInnerVoice(sessionID, cfg, turnConsecutiveErrors, turnTotalErrors, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
 				// Fetch inner voice history for narrative continuity
 				var batchIVHistory string
 				if batchIVEnabled && shortTermMem != nil {
@@ -2511,13 +2533,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					TriggerType:        userEmotionTrigger,
 					TriggerDetail:      userEmotionTriggerDetail,
 					InactivityHours:    userInactivityHours,
-					ErrorCount:         recoveryState.ConsecutiveErrorCount,
+					ErrorCount:         turnConsecutiveErrors,
 					SuccessCount:       batchSuccessCount,
 					InnerVoiceEnabled:  batchIVEnabled,
 					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
 					InnerVoiceHistory:  batchIVHistory,
 
-					InnerVoiceTaskStatus: deriveTaskStatus(recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount),
+					InnerVoiceTaskStatus: deriveTaskStatus(turnConsecutiveErrors, turnTotalErrors, batchSuccessCount),
 					InnerVoicePhase:      deriveConversationPhase(innerVoiceUserTurns(req.Messages), batchSuccessCount),
 					InnerVoiceTools:      summarizeToolUsage(activityToolNames),
 				}
@@ -2567,9 +2589,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							aResp,
 							meta,
 							cfg.Personality.UserProfiling,
-							recoveryState.ConsecutiveErrorCount,
-							recoveryState.TotalErrorCount,
-							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
+							turnConsecutiveErrors,
+							turnTotalErrors,
+							s.toolCallCount-turnConsecutiveErrors,
 							flags.IsMission,
 							flags.IsCoAgent,
 							personalityBasis,
@@ -2619,8 +2641,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							userEmotionTriggerDetail,
 							userInactivityHours,
 							cfg.Personality.UserProfiling,
-							recoveryState.ConsecutiveErrorCount,
-							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
+							turnConsecutiveErrors,
+							s.toolCallCount-turnConsecutiveErrors,
 							personalityResult, analysisCtx,
 						)
 					} else {
@@ -2645,9 +2667,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							aResp,
 							meta,
 							cfg.Personality.UserProfiling,
-							recoveryState.ConsecutiveErrorCount,
-							recoveryState.TotalErrorCount,
-							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
+							turnConsecutiveErrors,
+							turnTotalErrors,
+							s.toolCallCount-turnConsecutiveErrors,
 							flags.IsMission,
 							flags.IsCoAgent,
 							personalityBasis,

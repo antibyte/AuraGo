@@ -424,16 +424,6 @@ func TestAgentToolLoopDoesNotWriteLegacyToolCallAuditRows(t *testing.T) {
 	}
 }
 
-func TestCoAgentRunConfigSetsMessageSource(t *testing.T) {
-	src, err := os.ReadFile("coagent.go")
-	if err != nil {
-		t.Fatalf("read coagent.go: %v", err)
-	}
-	if !strings.Contains(string(src), `MessageSource:`) || !strings.Contains(string(src), `"co_agent"`) {
-		t.Fatal("co-agent RunConfig must set MessageSource to co_agent for ledger attribution")
-	}
-}
-
 func TestActionLedgerNeverPromotesUnconfirmedDispatchToSuccess(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

@@ -38,6 +38,12 @@
         scopeTitle.setAttribute('aria-live','polite');scopeHead.append(el('strong','',L('sysworld.city.scope')),scopeZoom,scopeBearing);
         scopeTag.append(scopeTitle,scopeState,scopeMetric,scopeRange);scopeView.hidden=true;
         scopeView.append(el('div','sw-scope-lens'),el('div','sw-scope-reticle'),scopeHead,scopeTag,el('div','sw-scope-hint',L('sysworld.city.scope_hint')));shell.append(scopeView);
+        // Hover-pack readout: altitude, speed, controls. Only the landing note is a live region, so the
+        // fast-changing numbers never flood a screen reader; the panel never takes focus or pointer input.
+        const flightView=el('div','sw-flight sw-glass'),flightState=el('span','sw-flight-state'),flightAltitude=el('strong'),flightSpeed=el('strong'),flightStats=el('div','sw-flight-stats');
+        flightView.hidden=true;flightView.setAttribute('role','group');flightView.setAttribute('aria-label',L('sysworld.city.flight_title'));flightState.setAttribute('role','status');
+        for(const [key,value]of[['sysworld.city.flight_altitude',flightAltitude],['sysworld.city.flight_speed',flightSpeed]]){const stat=el('span','sw-flight-stat');stat.append(el('span','sw-muted',L(key)),value);flightStats.append(stat);}
+        flightView.append(el('strong','sw-flight-title',L('sysworld.city.flight_title')),flightState,flightStats,el('div','sw-flight-hint',L('sysworld.city.flight_hint')));shell.append(flightView);
         const header = el('header','sw-top sw-glass');
         const wordmark = el('div','sw-wordmark','AURA / '); wordmark.append(el('strong','',L('sysworld.city.metropolis')));
         header.append(wordmark);
@@ -140,11 +146,21 @@
         const help=el('div','sw-street-help sw-glass');help.hidden=true;help.append(el('span','',L('sysworld.city.street_help')));
         const lock=btn('pointer-lock',L('sysworld.city.mouse_look'),'eye');lock.addEventListener('click',()=>inst.city?.lockPointer()?.catch(()=>{}));help.append(lock);
         const movement=el('div','sw-movement');
+        // A pad button holds its key while pressed and must not take focus from the canvas: that blur clears every key.
+        const holdKey=(button,key)=>{
+            button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);inst.city?.moveKey(key,true);});
+            button.addEventListener('mousedown',e=>e.preventDefault());
+            ['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>inst.city?.moveKey(key,false)));
+        };
         for(const [key,label]of[['KeyW','↑'],['KeyA','←'],['KeyS','↓'],['KeyD','→']]){
             const button=btn(key,label,'');button.setAttribute('aria-label',L('sysworld.city.move')+' '+label);
-            button.addEventListener('pointerdown',e=>{button.setPointerCapture(e.pointerId);inst.city?.moveKey(key,true);});
-            ['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>inst.city?.moveKey(key,false)));
-            movement.append(button);
+            holdKey(button,key);movement.append(button);
+        }
+        // Hover-pack climb and descend on the same pad (Space and C for the scene), shown by CSS only while flying.
+        const flightKeys=[];
+        for(const [key,action,symbol,name]of[['Space','flight-up','▲','sysworld.city.flight_up'],['KeyC','flight-down','▼','sysworld.city.flight_down']]){
+            const button=btn(action,symbol,''),text=L(name);button.classList.add('sw-flight-key');button.title=text;button.setAttribute('aria-label',text);
+            holdKey(button,key);movement.append(button);flightKeys.push(key);
         }help.append(movement);shell.append(help);
         const message=el('div','sw-message sw-glass');message.setAttribute('role','status');message.hidden=true;shell.append(message);
         // Loading card fed by real byte progress (models of the tier plus surface textures).
@@ -357,6 +373,16 @@
                 const title=d?L(d[1]):L('sysworld.city.scope_idle');if(scopeTitle.textContent!==title)scopeTitle.textContent=title;
                 scopeTag.classList.toggle('sw-idle',!d);scopeState.hidden=!e;scopeState.textContent=e?stateText(e):'';scopeState.dataset.state=e?(e.stale?'stale':e.state):'unknown';
                 scopeMetric.textContent=row?L(row.key)+' '+format(row.value,row.format):'';scopeRange.textContent=d&&view.distance?view.distance.toLocaleString()+' m':'';
+            },
+            // Hover pack: `{altitude m, speed km/h, landing}` while flying, null once the ride has ended.
+            flight(state){
+                const on=!!state;if(flightView.hidden===on){flightView.hidden=!on;root.classList.toggle('sw-flying',on);}
+                // The buttons vanish with the flight: a key still held then must not carry into the next one.
+                if(!on){for(const key of flightKeys)inst.city?.moveKey(key,false);return;}
+                const altitude=state.altitude.toLocaleString()+' m',speed=state.speed.toLocaleString()+' km/h',note=state.landing?L('sysworld.city.flight_landing'):'';
+                if(flightAltitude.textContent!==altitude)flightAltitude.textContent=altitude;
+                if(flightSpeed.textContent!==speed)flightSpeed.textContent=speed;
+                if(flightState.textContent!==note)flightState.textContent=note;
             },
             progress(loaded,expected){
                 const percent=expected>0?Math.min(99,Math.floor(loaded/expected*100)):0;if(percent<=loadingPercent)return;

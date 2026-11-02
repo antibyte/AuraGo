@@ -25,7 +25,7 @@ func toolRuntimeUnavailable(dc *DispatchContext, name string) string {
 			return "Contacts database not available."
 		}
 	case "findit":
-		if !tools.FindItAvailable() {
+		if !tools.FindItAvailableFor(dc.Cfg) {
 			return "FindIt storage is not enabled or available for agent access."
 		}
 	case "send_whatsapp":

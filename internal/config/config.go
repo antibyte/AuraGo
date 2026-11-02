@@ -417,6 +417,7 @@ func Load(path string) (*Config, error) {
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
 	ApplyWhatsAppDefaults(&cfg.WhatsApp)
+	cfg.Personality.PersonaBooster = DefaultPersonaBoosterConfig()
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
 	// These are set before unmarshal so that keys absent from the YAML file keep the
 	// correct default; explicit 'enabled: false' in the YAML will still override them.
@@ -2098,6 +2099,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EngineV2 {
 		cfg.Personality.EngineV2 = true
 		cfg.Personality.Engine = true
+	}
+	if rawIntensity := cfg.Personality.PersonaBooster.Intensity; NormalizePersonaBoosterConfig(&cfg.Personality.PersonaBooster) {
+		slog.Warn("[Config] Invalid personality.persona_booster.intensity; using strong", "value", rawIntensity)
 	}
 	// InnerVoice is prompt-injected agent self-talk and must stay explicit opt-in.
 	// EmotionSynthesizer can run on its own to update mood state without injecting

@@ -1,0 +1,1887 @@
+{
+  "version": 1,
+  "lang": "en",
+  "units": {
+    "prefixes": [
+      {
+        "id": "p",
+        "factor": 1e-12
+      },
+      {
+        "id": "n",
+        "factor": 1e-9
+      },
+      {
+        "id": "µ",
+        "factor": 0.000001
+      },
+      {
+        "id": "m",
+        "factor": 0.001
+      },
+      {
+        "id": "k",
+        "factor": 1000
+      },
+      {
+        "id": "M",
+        "factor": 1000000
+      },
+      {
+        "id": "G",
+        "factor": 1000000000
+      }
+    ],
+    "dims": [
+      {
+        "id": "voltage",
+        "symbol": "V",
+        "aliases": [],
+        "prefixes": [
+          "n",
+          "µ",
+          "m",
+          "",
+          "k",
+          "M"
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "dBV",
+            "symbol": "dBV",
+            "factor": 0,
+            "to": "10^(x/20)",
+            "from": "20*log10(x)"
+          },
+          {
+            "id": "dBu",
+            "symbol": "dBu",
+            "factor": 0,
+            "to": "0.7745966692414834*10^(x/20)",
+            "from": "20*log10(x/0.7745966692414834)"
+          }
+        ]
+      },
+      {
+        "id": "current",
+        "symbol": "A",
+        "aliases": [],
+        "prefixes": [
+          "p",
+          "n",
+          "µ",
+          "m",
+          "",
+          "k"
+        ],
+        "positive": false,
+        "units": []
+      },
+      {
+        "id": "resistance",
+        "symbol": "Ω",
+        "aliases": [
+          "ohm",
+          "Ohm",
+          "R"
+        ],
+        "prefixes": [
+          "m",
+          "",
+          "k",
+          "M",
+          "G"
+        ],
+        "positive": true,
+        "units": []
+      },
+      {
+        "id": "power",
+        "symbol": "W",
+        "aliases": [],
+        "prefixes": [
+          "n",
+          "µ",
+          "m",
+          "",
+          "k",
+          "M"
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "dBm",
+            "symbol": "dBm",
+            "factor": 0,
+            "to": "10^((x-30)/10)",
+            "from": "10*log10(x)+30"
+          }
+        ]
+      },
+      {
+        "id": "charge",
+        "symbol": "C",
+        "aliases": [],
+        "prefixes": [
+          "µ",
+          "m",
+          ""
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "mAh",
+            "symbol": "mAh",
+            "factor": 3.6,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "Ah",
+            "symbol": "Ah",
+            "factor": 3600,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "energy",
+        "symbol": "J",
+        "aliases": [],
+        "prefixes": [
+          "m",
+          "",
+          "k",
+          "M"
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "mWh",
+            "symbol": "mWh",
+            "factor": 3.6,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "Wh",
+            "symbol": "Wh",
+            "factor": 3600,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "kWh",
+            "symbol": "kWh",
+            "factor": 3600000,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "number",
+        "symbol": "",
+        "aliases": [],
+        "prefixes": [],
+        "positive": true,
+        "units": []
+      },
+      {
+        "id": "gain",
+        "symbol": "dB",
+        "aliases": [],
+        "prefixes": [],
+        "positive": false,
+        "units": []
+      }
+    ]
+  },
+  "categories": [
+    {
+      "id": "basics",
+      "name": "Basics"
+    },
+    {
+      "id": "passive",
+      "name": "Passive"
+    },
+    {
+      "id": "filters",
+      "name": "Filters"
+    },
+    {
+      "id": "semiconductors",
+      "name": "Semiconductors"
+    },
+    {
+      "id": "power",
+      "name": "Power supply"
+    },
+    {
+      "id": "opamps",
+      "name": "Op-amps"
+    },
+    {
+      "id": "timers",
+      "name": "Timers"
+    },
+    {
+      "id": "rf",
+      "name": "RF"
+    },
+    {
+      "id": "digital",
+      "name": "Digital"
+    },
+    {
+      "id": "wiring",
+      "name": "Wiring & PCB"
+    },
+    {
+      "id": "tables",
+      "name": "Tables"
+    },
+    {
+      "id": "codes",
+      "name": "Codes"
+    },
+    {
+      "id": "pinouts",
+      "name": "Pinouts"
+    }
+  ],
+  "items": [
+    {
+      "kind": "calculator",
+      "id": "ohms_law",
+      "category": "basics",
+      "name": "Ohm's law and power",
+      "name_en": "Ohm's law and power",
+      "doc": "Ohm's law relates voltage, current and resistance (U = R × I); the electrical power is P = U × I. Any two of the four values determine the other two.",
+      "tags": [
+        "ohm",
+        "ohms law",
+        "voltage",
+        "current",
+        "resistance",
+        "power",
+        "watt",
+        "ohmsches gesetz",
+        "spannung",
+        "strom",
+        "widerstand",
+        "leistung"
+      ],
+      "source": "Ohm's law and Joule's law (P = U·I); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "u",
+          "dim": "voltage",
+          "label": "U",
+          "name": "Voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Current",
+          "default": 0.02,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Power",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "u",
+          "alts": [
+            "i*r",
+            "p/i",
+            "sqrt(p*r)"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "u/r",
+            "p/u",
+            "sqrt(p/r)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "u/i",
+            "u^2/p",
+            "p/i^2"
+          ]
+        },
+        {
+          "target": "p",
+          "alts": [
+            "u*i",
+            "i^2*r",
+            "u^2/r"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "u = r * i",
+        "p = u * i"
+      ],
+      "schematic": "ohms_law",
+      "sets": [
+        [
+          "u",
+          "i"
+        ],
+        [
+          "u",
+          "r"
+        ],
+        [
+          "u",
+          "p"
+        ],
+        [
+          "i",
+          "r"
+        ],
+        [
+          "i",
+          "p"
+        ],
+        [
+          "r",
+          "p"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "voltage_divider",
+      "category": "basics",
+      "name": "Voltage divider",
+      "name_en": "Voltage divider",
+      "doc": "Two resistors in series divide the input voltage: V_out = V_in × R2 / (R1 + R2). The output is unloaded; for a divider that drives a load use the loaded voltage divider. The current and power are those of the divider chain itself.",
+      "tags": [
+        "divider",
+        "voltage divider",
+        "potentiometer",
+        "attenuator",
+        "teiler",
+        "spannungsteiler",
+        "widerstand"
+      ],
+      "source": "Voltage divider rule; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 2",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Upper resistor",
+          "default": 4700,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Lower resistor",
+          "default": 2200,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "vin*r2/(r1+r2)"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "vout*r1/(vin-vout)"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "r2*(vin-vout)/vout"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout*(r1+r2)/r2"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Divider current",
+          "alts": [
+            "vin/(r1+r2)"
+          ],
+          "unit": ""
+        },
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Divider power",
+          "alts": [
+            "vin*i"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout >= vin",
+          "warn": "V_out is not below V_in: a passive divider can only attenuate."
+        }
+      ],
+      "formula": [
+        "vout = vin * r2 / (r1 + r2)"
+      ],
+      "schematic": "voltage_divider",
+      "sets": [
+        [
+          "vin",
+          "r1",
+          "r2"
+        ],
+        [
+          "vin",
+          "r1",
+          "vout"
+        ],
+        [
+          "vin",
+          "r2",
+          "vout"
+        ],
+        [
+          "r1",
+          "r2",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "loaded_divider",
+      "category": "basics",
+      "name": "Loaded voltage divider",
+      "name_en": "Loaded voltage divider",
+      "doc": "A voltage divider that drives a load R_L. The load is in parallel with R2, so V_out = V_in × R_P / (R1 + R_P) with R_P = R2 ∥ R_L. The unloaded output V_nl shows how much the load pulls the voltage down.",
+      "tags": [
+        "divider",
+        "loaded divider",
+        "load",
+        "voltage divider",
+        "teiler",
+        "belasteter spannungsteiler",
+        "last"
+      ],
+      "source": "Voltage divider with a load (R2 in parallel with R_L); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Upper resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Lower resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rl",
+          "dim": "resistance",
+          "label": "R_L",
+          "name": "Load resistance",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage under load",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "vin*rp/(r1+rp)"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout*(r1+rp)/rp"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "rp*(vin-vout)/vout"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "rp*rl/(rl-rp)"
+          ]
+        },
+        {
+          "target": "rl",
+          "alts": [
+            "rp*r2/(r2-rp)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rp",
+          "dim": "resistance",
+          "label": "R_P",
+          "name": "R2 ∥ RL",
+          "alts": [
+            "r2*rl/(r2+rl)",
+            "vout*r1/(vin-vout)"
+          ],
+          "unit": ""
+        },
+        {
+          "id": "vnl",
+          "dim": "voltage",
+          "label": "V_nl",
+          "name": "Unloaded output voltage",
+          "alts": [
+            "vin*r2/(r1+r2)"
+          ],
+          "unit": ""
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Input current",
+          "alts": [
+            "vin/(r1+rp)"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout >= vin",
+          "warn": "V_out is not below V_in: a passive divider can only attenuate."
+        },
+        {
+          "when": "rp >= r2",
+          "warn": "R_P must be smaller than R2; these values do not fit together (a load always pulls the lower resistance down)."
+        }
+      ],
+      "formula": [
+        "vout = vin * rp / (r1 + rp)",
+        "rp = r2 * rl / (r2 + rl)"
+      ],
+      "schematic": "loaded_divider",
+      "sets": [
+        [
+          "vin",
+          "r1",
+          "r2",
+          "rl"
+        ],
+        [
+          "vin",
+          "r1",
+          "r2",
+          "vout"
+        ],
+        [
+          "vin",
+          "r1",
+          "rl",
+          "vout"
+        ],
+        [
+          "vin",
+          "r2",
+          "rl",
+          "vout"
+        ],
+        [
+          "r1",
+          "r2",
+          "rl",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "current_divider",
+      "category": "basics",
+      "name": "Current divider",
+      "name_en": "Current divider",
+      "doc": "Two resistors in parallel share the total current in inverse proportion to their resistance: I_1 = I × R2 / (R1 + R2) and I_2 = I × R1 / (R1 + R2). The voltage across both is U = I_1 × R1. The two branch currents alone cannot fix the resistors, only their ratio.",
+      "tags": [
+        "current divider",
+        "parallel",
+        "shunt",
+        "branch current",
+        "stromteiler",
+        "parallelschaltung",
+        "strom",
+        "zweigstrom"
+      ],
+      "source": "Current divider rule (Kirchhoff's current law with Ohm's law); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 2",
+      "vars": [
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Total current",
+          "default": 0.1,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Resistor 1",
+          "default": 100,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Resistor 2",
+          "default": 220,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i1",
+          "dim": "current",
+          "label": "I_1",
+          "name": "Current through R1",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i2",
+          "dim": "current",
+          "label": "I_2",
+          "name": "Current through R2",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "i1",
+          "alts": [
+            "i*r2/(r1+r2)",
+            "i-i2",
+            "i2*r2/r1"
+          ]
+        },
+        {
+          "target": "i2",
+          "alts": [
+            "i*r1/(r1+r2)",
+            "i-i1",
+            "i1*r1/r2"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "i1+i2",
+            "i1*(r1+r2)/r2",
+            "i2*(r1+r2)/r1"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "i2*r2/i1"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "i1*r1/i2"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "u",
+          "dim": "voltage",
+          "label": "U",
+          "name": "Voltage across both",
+          "alts": [
+            "i1*r1"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "i1 = i * r2 / (r1 + r2)",
+        "i2 = i * r1 / (r1 + r2)"
+      ],
+      "schematic": "current_divider",
+      "sets": [
+        [
+          "i",
+          "r1",
+          "r2"
+        ],
+        [
+          "i",
+          "r1",
+          "i1"
+        ],
+        [
+          "i",
+          "r1",
+          "i2"
+        ],
+        [
+          "i",
+          "r2",
+          "i1"
+        ],
+        [
+          "i",
+          "r2",
+          "i2"
+        ],
+        [
+          "r1",
+          "r2",
+          "i1"
+        ],
+        [
+          "r1",
+          "r2",
+          "i2"
+        ],
+        [
+          "r1",
+          "i1",
+          "i2"
+        ],
+        [
+          "r2",
+          "i1",
+          "i2"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "series_parallel",
+      "category": "basics",
+      "name": "Series and parallel resistors",
+      "name_en": "Series and parallel resistors",
+      "doc": "Resistors in series add up: R_S = R_1 + R_2 + …. Resistors in parallel combine as 1/R_P = 1/R_1 + 1/R_2 + …. Enter the values as a list, for example 4k7, 10k, 2k2.",
+      "tags": [
+        "series",
+        "parallel",
+        "resistors",
+        "combination",
+        "reihenschaltung",
+        "parallelschaltung",
+        "widerstände",
+        "ersatzwiderstand"
+      ],
+      "source": "Series and parallel resistor combination; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "rs",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistors",
+          "default": null,
+          "default_list": [
+            4700,
+            10000,
+            2200
+          ],
+          "unit": "",
+          "eseries": false,
+          "list": true,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [],
+      "derived": [
+        {
+          "id": "rser",
+          "dim": "resistance",
+          "label": "R_S",
+          "name": "Series resistance",
+          "alts": [
+            "sum(rs)"
+          ],
+          "unit": ""
+        },
+        {
+          "id": "rpar",
+          "dim": "resistance",
+          "label": "R_P",
+          "name": "Parallel resistance",
+          "alts": [
+            "par(rs)"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "rser = sum(rs)",
+        "rpar = par(rs)"
+      ],
+      "schematic": "series_parallel",
+      "sets": [
+        [
+          "rs"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "decibel_ratio",
+      "category": "basics",
+      "name": "Decibel ratio",
+      "name_en": "Decibel ratio",
+      "doc": "The decibel expresses a ratio on a logarithmic scale: G = 20 × log10(A_2 / A_1) for voltages and currents (field quantities) and G = 10 × log10(A_2 / A_1) for power. Choose the quantity first: +20 dB is a factor of 10 for voltages but a factor of 100 for power.",
+      "tags": [
+        "decibel",
+        "db",
+        "gain",
+        "ratio",
+        "attenuation",
+        "logarithm",
+        "dezibel",
+        "verstärkung",
+        "dämpfung",
+        "verhältnis",
+        "pegel"
+      ],
+      "source": "Definition of the decibel (field quantities 20·log10, power quantities 10·log10), cf. IEC 60027-3 (logarithmic quantities and their units)",
+      "vars": [
+        {
+          "id": "a1",
+          "dim": "number",
+          "label": "A_1",
+          "name": "Reference value",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "a2",
+          "dim": "number",
+          "label": "A_2",
+          "name": "Compared value",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "g",
+          "dim": "gain",
+          "label": "G",
+          "name": "Level difference",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "qty",
+          "name": "Quantity",
+          "default": "voltage",
+          "options": [
+            {
+              "id": "voltage",
+              "name": "Voltage / current",
+              "consts": {
+                "k": 20
+              }
+            },
+            {
+              "id": "power",
+              "name": "Power",
+              "consts": {
+                "k": 10
+              }
+            }
+          ]
+        }
+      ],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "g",
+          "alts": [
+            "k*log10(a2/a1)"
+          ]
+        },
+        {
+          "target": "a2",
+          "alts": [
+            "a1*10^(g/k)"
+          ]
+        },
+        {
+          "target": "a1",
+          "alts": [
+            "a2/10^(g/k)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "f",
+          "dim": "number",
+          "label": "F",
+          "name": "Ratio A_2 / A_1",
+          "alts": [
+            "a2/a1"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "g = k * log10(a2 / a1)"
+      ],
+      "schematic": "",
+      "sets": [
+        [
+          "a1",
+          "a2"
+        ],
+        [
+          "a1",
+          "g"
+        ],
+        [
+          "a2",
+          "g"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "db_levels",
+      "category": "basics",
+      "name": "dB levels",
+      "name_en": "dB levels",
+      "doc": "Absolute levels in decibels: dBm is relative to 1 mW, dBV to 1 V and dBu to 0.7746 V, the voltage that dissipates 1 mW in 600 Ω. From a voltage and a load resistance the power follows; the derived values are shown as dBm, dBV and dBu.",
+      "tags": [
+        "dbm",
+        "dbv",
+        "dbu",
+        "level",
+        "audio",
+        "milliwatt",
+        "600 ohm",
+        "pegel"
+      ],
+      "source": "Definitions: dBm = 10·log10(P / 1 mW), dBV = 20·log10(U / 1 V), dBu = 20·log10(U / 0.7746 V) with 0.7746 V = sqrt(0.6) V (1 mW in 600 Ω); decibel per IEC 60027-3",
+      "vars": [
+        {
+          "id": "v",
+          "dim": "voltage",
+          "label": "V",
+          "name": "Voltage",
+          "default": 0.7746,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Load resistance",
+          "default": 600,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Power",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "p",
+          "alts": [
+            "v^2/r"
+          ]
+        },
+        {
+          "target": "v",
+          "alts": [
+            "sqrt(p*r)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "v^2/p"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "p_dbm",
+          "dim": "power",
+          "label": "P_dBm",
+          "name": "Power level",
+          "alts": [
+            "p"
+          ],
+          "unit": "dBm"
+        },
+        {
+          "id": "v_dbv",
+          "dim": "voltage",
+          "label": "V_dBV",
+          "name": "Voltage level re 1 V",
+          "alts": [
+            "v"
+          ],
+          "unit": "dBV"
+        },
+        {
+          "id": "v_dbu",
+          "dim": "voltage",
+          "label": "V_dBu",
+          "name": "Voltage level re 0.7746 V",
+          "alts": [
+            "v"
+          ],
+          "unit": "dBu"
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "p = v^2 / r"
+      ],
+      "schematic": "",
+      "sets": [
+        [
+          "v",
+          "r"
+        ],
+        [
+          "v",
+          "p"
+        ],
+        [
+          "r",
+          "p"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "wheatstone",
+      "category": "basics",
+      "name": "Wheatstone bridge",
+      "name_en": "Wheatstone bridge",
+      "doc": "A Wheatstone bridge is two voltage dividers side by side: R1 over R2 on the left and R3 over R4 on the right. The bridge voltage V_D between the two midpoints is V_D = V_S × (R2 / (R1 + R2) − R4 / (R3 + R4)). It is zero when R1 × R4 = R2 × R3; R_4b shows the R4 that balances the bridge.",
+      "tags": [
+        "bridge",
+        "wheatstone",
+        "balance",
+        "sensor",
+        "strain gauge",
+        "brücke",
+        "abgleich",
+        "messbrücke",
+        "dehnungsmessstreifen"
+      ],
+      "source": "Wheatstone bridge as two voltage dividers with the balance condition R1·R4 = R2·R3; e.g. C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits (resistance measurement with the Wheatstone bridge)",
+      "vars": [
+        {
+          "id": "vs",
+          "dim": "voltage",
+          "label": "V_S",
+          "name": "Supply voltage",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Upper left resistor",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Lower left resistor",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r3",
+          "dim": "resistance",
+          "label": "R_3",
+          "name": "Upper right resistor",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r4",
+          "dim": "resistance",
+          "label": "R_4",
+          "name": "Lower right resistor",
+          "default": 1100,
+          "default_list": null,
+          "unit": "",
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vd",
+          "dim": "voltage",
+          "label": "V_D",
+          "name": "Bridge voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 5,
+      "rules": [
+        {
+          "target": "vd",
+          "alts": [
+            "vs*(r2/(r1+r2)-r4/(r3+r4))"
+          ]
+        },
+        {
+          "target": "vs",
+          "alts": [
+            "vd/(r2/(r1+r2)-r4/(r3+r4))"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "r2*(1-(r4/(r3+r4)+vd/vs))/(r4/(r3+r4)+vd/vs)"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "r1*(r4/(r3+r4)+vd/vs)/(1-(r4/(r3+r4)+vd/vs))"
+          ]
+        },
+        {
+          "target": "r3",
+          "alts": [
+            "r4*(1-(r2/(r1+r2)-vd/vs))/(r2/(r1+r2)-vd/vs)"
+          ]
+        },
+        {
+          "target": "r4",
+          "alts": [
+            "r3*(r2/(r1+r2)-vd/vs)/(1-(r2/(r1+r2)-vd/vs))"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "r4bal",
+          "dim": "resistance",
+          "label": "R_4b",
+          "name": "R4 for balance",
+          "alts": [
+            "r2*r3/r1"
+          ],
+          "unit": ""
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "vd = vs * (r2 / (r1 + r2) - r4 / (r3 + r4))",
+        "r4bal = r2 * r3 / r1"
+      ],
+      "schematic": "wheatstone",
+      "sets": [
+        [
+          "vs",
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        [
+          "vs",
+          "r1",
+          "r2",
+          "r3",
+          "vd"
+        ],
+        [
+          "vs",
+          "r1",
+          "r2",
+          "r4",
+          "vd"
+        ],
+        [
+          "vs",
+          "r1",
+          "r3",
+          "r4",
+          "vd"
+        ],
+        [
+          "vs",
+          "r2",
+          "r3",
+          "r4",
+          "vd"
+        ],
+        [
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "vd"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "star_delta",
+      "category": "basics",
+      "name": "Star-delta transform",
+      "name_en": "Star-delta transform",
+      "doc": "Converts between a star (Y) network of three resistors R_A, R_B, R_C and the equivalent delta (Δ) network R_AB, R_BC, R_CA. Delta to star: R_A = R_AB × R_CA / (R_AB + R_BC + R_CA), and cyclically. Star to delta: R_AB = (R_A R_B + R_B R_C + R_C R_A) / R_C, and cyclically. Enter either the three delta or the three star resistors.",
+      "tags": [
+        "star delta",
+        "wye delta",
+        "y-delta",
+        "delta",
+        "star",
+        "wye",
+        "transformation",
+        "stern dreieck",
+        "dreieck",
+        "stern",
+        "umwandlung"
+      ],
+      "source": "Wye-delta (star-delta) transformation; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 2",
+      "vars": [
+        {
+          "id": "rab",
+          "dim": "resistance",
+          "label": "R_AB",
+          "name": "Delta resistor A-B",
+          "default": 30,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rbc",
+          "dim": "resistance",
+          "label": "R_BC",
+          "name": "Delta resistor B-C",
+          "default": 60,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rca",
+          "dim": "resistance",
+          "label": "R_CA",
+          "name": "Delta resistor C-A",
+          "default": 90,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "ra",
+          "dim": "resistance",
+          "label": "R_A",
+          "name": "Star resistor at A",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rb",
+          "dim": "resistance",
+          "label": "R_B",
+          "name": "Star resistor at B",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rc",
+          "dim": "resistance",
+          "label": "R_C",
+          "name": "Star resistor at C",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "ra",
+          "alts": [
+            "rab*rca/(rab+rbc+rca)"
+          ]
+        },
+        {
+          "target": "rb",
+          "alts": [
+            "rab*rbc/(rab+rbc+rca)"
+          ]
+        },
+        {
+          "target": "rc",
+          "alts": [
+            "rbc*rca/(rab+rbc+rca)"
+          ]
+        },
+        {
+          "target": "rab",
+          "alts": [
+            "(ra*rb+rb*rc+rc*ra)/rc"
+          ]
+        },
+        {
+          "target": "rbc",
+          "alts": [
+            "(ra*rb+rb*rc+rc*ra)/ra"
+          ]
+        },
+        {
+          "target": "rca",
+          "alts": [
+            "(ra*rb+rb*rc+rc*ra)/rb"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "ra = rab * rca / (rab + rbc + rca)",
+        "rab = (ra * rb + rb * rc + rc * ra) / rc"
+      ],
+      "schematic": "star_delta",
+      "sets": [
+        [
+          "rab",
+          "rbc",
+          "rca"
+        ],
+        [
+          "ra",
+          "rb",
+          "rc"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "rms_waveform",
+      "category": "basics",
+      "name": "RMS, peak and average",
+      "name_en": "RMS, peak and average",
+      "doc": "Converts between the RMS value, the peak value, the peak-to-peak value and the average of the rectified waveform for a sine, square or triangle wave. The crest factor is V_pk / V_rms and the form factor is V_rms / V_avg; for a sine wave they are √2 and π / (2√2) ≈ 1.1107. The average is the mean of the absolute value (the rectified average), not the mean of the signal, which is zero for a symmetric wave.",
+      "tags": [
+        "rms",
+        "peak",
+        "average",
+        "crest factor",
+        "form factor",
+        "sine",
+        "square",
+        "triangle",
+        "effektivwert",
+        "spitzenwert",
+        "mittelwert",
+        "scheitelfaktor",
+        "formfaktor",
+        "gleichrichtwert"
+      ],
+      "source": "Standard waveform relations: sine rms = peak/√2 and rectified average = 2·peak/π; square rms = rectified average = peak; triangle rms = peak/√3 and rectified average = peak/2 (integration of the waveform); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (signals)",
+      "vars": [
+        {
+          "id": "vrms",
+          "dim": "voltage",
+          "label": "V_rms",
+          "name": "RMS value",
+          "default": 230,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vpk",
+          "dim": "voltage",
+          "label": "V_pk",
+          "name": "Peak value",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vpp",
+          "dim": "voltage",
+          "label": "V_pp",
+          "name": "Peak-to-peak value",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vavg",
+          "dim": "voltage",
+          "label": "V_avg",
+          "name": "Average of the rectified wave",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "wave",
+          "name": "Waveform",
+          "default": "sine",
+          "options": [
+            {
+              "id": "sine",
+              "name": "Sine",
+              "consts": {
+                "cf": 1.4142135623730951,
+                "ff": 1.1107207345395915
+              }
+            },
+            {
+              "id": "square",
+              "name": "Square",
+              "consts": {
+                "cf": 1,
+                "ff": 1
+              }
+            },
+            {
+              "id": "triangle",
+              "name": "Triangle",
+              "consts": {
+                "cf": 1.7320508075688772,
+                "ff": 1.1547005383792515
+              }
+            }
+          ]
+        }
+      ],
+      "dof": 1,
+      "rules": [
+        {
+          "target": "vrms",
+          "alts": [
+            "vpk/cf",
+            "vpp/(2*cf)",
+            "vavg*ff"
+          ]
+        },
+        {
+          "target": "vpk",
+          "alts": [
+            "vrms*cf",
+            "vpp/2",
+            "vavg*ff*cf"
+          ]
+        },
+        {
+          "target": "vpp",
+          "alts": [
+            "2*vpk",
+            "2*vrms*cf",
+            "2*vavg*ff*cf"
+          ]
+        },
+        {
+          "target": "vavg",
+          "alts": [
+            "vrms/ff",
+            "vpk/(cf*ff)",
+            "vpp/(2*cf*ff)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "vpk = vrms * cf",
+        "vrms = vavg * ff"
+      ],
+      "schematic": "",
+      "sets": [
+        [
+          "vrms"
+        ],
+        [
+          "vpk"
+        ],
+        [
+          "vpp"
+        ],
+        [
+          "vavg"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "charge_energy",
+      "category": "basics",
+      "name": "Charge and energy",
+      "name_en": "Charge and energy",
+      "doc": "Charge Q in ampere-hours (1 Ah = 3600 C) and energy E in watt-hours (1 Wh = 3600 J) are related by the voltage: E = Q × U. A 2 Ah cell at 3.7 V holds 7.4 Wh. The nominal voltage is only an average; real batteries deliver less energy at high load.",
+      "tags": [
+        "charge",
+        "energy",
+        "battery",
+        "capacity",
+        "mah",
+        "ah",
+        "wh",
+        "joule",
+        "coulomb",
+        "ladung",
+        "energie",
+        "akku",
+        "kapazität"
+      ],
+      "source": "Definitions of charge and energy: E = Q·U (1 C·V = 1 J), 1 Ah = 3600 C, 1 Wh = 3600 J; The International System of Units (SI Brochure, BIPM)",
+      "vars": [
+        {
+          "id": "q",
+          "dim": "charge",
+          "label": "Q",
+          "name": "Charge",
+          "default": 7200,
+          "default_list": null,
+          "unit": "Ah",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "v",
+          "dim": "voltage",
+          "label": "U",
+          "name": "Voltage",
+          "default": 3.7,
+          "default_list": null,
+          "unit": "",
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "e",
+          "dim": "energy",
+          "label": "E",
+          "name": "Energy",
+          "default": null,
+          "default_list": null,
+          "unit": "Wh",
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "e",
+          "alts": [
+            "q*v"
+          ]
+        },
+        {
+          "target": "q",
+          "alts": [
+            "e/v"
+          ]
+        },
+        {
+          "target": "v",
+          "alts": [
+            "e/q"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "e = q * v"
+      ],
+      "schematic": "",
+      "sets": [
+        [
+          "q",
+          "v"
+        ],
+        [
+          "q",
+          "e"
+        ],
+        [
+          "v",
+          "e"
+        ]
+      ]
+    }
+  ]
+}

@@ -135,6 +135,14 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 	if !routeContractExists(contracts, "/api/health/discord", "session") {
 		t.Fatal("/api/health/discord must have an explicit session route contract")
 	}
+	if !routeContractExists(contracts, "/api/ecalc/catalog", "session") {
+		t.Fatal("/api/ecalc/catalog must have an explicit session route contract")
+	}
+	for _, contract := range contracts {
+		if contract.Pattern == "/api/ecalc/catalog" && !slices.Equal(contract.Methods, []string{"GET"}) {
+			t.Fatalf("/api/ecalc/catalog contract %+v must be GET only", contract)
+		}
+	}
 
 	routes := extractLiteralRoutes(t, repoPath("internal/server"))
 	for _, route := range routes {

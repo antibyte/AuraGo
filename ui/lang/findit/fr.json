@@ -447,8 +447,8 @@
   "findit.initial_location": "Lieu de départ",
   "findit.initial_location_required": "Choisissez un emplacement de stockage pour le stock de départ.",
   "findit.initial_quantity": "Quantité de départ",
-  "findit.initial_stock_pending": "L'article a été enregistré, mais son stock d'ouverture est toujours en attente. Réessayez cette entrée de stock ci-dessous avant de créer un autre article.",
-  "findit.initial_stock_retry_intro": "L'élément existe déjà. Ajustez les détails du stock et réessayez ; cela ne créera pas un autre élément.",
+  "findit.initial_stock_pending": "L’article est enregistré, mais le résultat du stock initial n’est pas confirmé. Résous la requête enregistrée ci-dessous avant de créer un autre article.",
+  "findit.initial_stock_retry_intro": "Cette action répète exactement l'entrée de stock enregistrée avec son identifiant de requête d'origine. Si elle a déjà abouti, la même requête n'ajoutera pas le stock une seconde fois.",
   "findit.initial_stock_saved": "Stock de départ enregistré",
   "findit.invalid_quantity": "Entrez une quantité positive avec jusqu'à six décimales. Les quantités de pièces doivent être des nombres entiers.",
   "findit.invalid_template_fields": "Champs de modèle non valides",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Cette fiche a changé. Recharge-la avant de l’enregistrer.",
   "findit.error_disabled": "L’accès à FindIt est actuellement désactivé.",
   "findit.error_invalid": "Vérifie les données saisies et réessaie.",
-  "findit.error_retry_conflict": "Cette nouvelle tentative diffère de la demande précédente. Recharge d’abord la fiche."
+  "findit.error_retry_conflict": "Cette nouvelle tentative diffère de la demande précédente. Recharge d’abord la fiche.",
+  "findit.serial_initial_stock_rules": "Pour les articles suivis par numéro de série, utilise l’unité « pièce ». Le stock initial doit être exactement de 1 et inclure le numéro de série.",
+  "findit.initial_stock_rejected": "Le stock initial a été définitivement refusé. L’article est enregistré ; ajoute son stock avec une réception normale.",
+  "findit.pending_command_intro": "Le résultat de cette modification de stock ou réservation est inconnu. Rejoue exactement la requête enregistrée avant une autre modification pour cet article ou projet.",
+  "findit.retry_exact_command": "Réessayer la requête exacte",
+  "findit.pending_command_queue_full": "Trop de modifications de stock ou réservations sont en attente dans cet onglet. Résous une requête en attente avant toute nouvelle modification.",
+  "findit.pending_command_storage_unavailable": "Cet onglet n’a pas pu enregistrer la requête en attente ; la modification n’a donc pas été envoyée. Active le stockage de session et réessaie.",
+  "findit.pending_command": "Résoudre la modification en attente"
 }

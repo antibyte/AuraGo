@@ -263,6 +263,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Calendar / Todo / People / Pet Picker** | Scheduling, tasks, contacts (KG-enriched), and the animated persona pets (OpenPets) picker |
 | **Cheater** | Cheat-sheet manager with Markdown and attachments |
 | **Calculator / Settings / System Info / Log Viewer** | Calculator, desktop settings, system diagnostics, and a live log tail |
+| **ECalc** | Electronics formula collection: interactive calculators with schematics, typeset formulas and live results, plus E-series values for resistors. Runs in the browser and needs no setup ([Chapter 32](32-ecalc.md)) |
 | **Galaxa Deluxe / Chess / NASSCAD / System World** | Arcade shooter, chess (with agent opponent), docking game, and an explorable 3D system city with robots, telemetry, and tower voice |
 | **Newspaper** | Personal daily edition: server-side research with vetted sources, sections, an archive of all editions, and optional email/Telegram delivery |
 | **Detective** | Bounded desktop research with adjustable effort, cited reports, and exports |

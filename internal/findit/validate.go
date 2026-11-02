@@ -131,18 +131,22 @@ func parseNumeric(value any) (float64, error) {
 		return 0, domainError("invalid", "numeric value is invalid")
 	}
 	if parts := engineeringRKM.FindStringSubmatch(raw); parts != nil {
-		left, _ := strconv.ParseInt(parts[1], 10, 64)
-		right, _ := strconv.ParseInt(parts[3], 10, 64)
-		digits := len(parts[3])
-		base := float64(left) + float64(right)/math.Pow10(digits)
-		switch strings.ToLower(parts[2]) {
-		case "r":
-			return base, nil
-		case "k":
-			return base * 1e3, nil
-		case "m":
-			return base * 1e6, nil
+		base, err := strconv.ParseFloat(parts[1]+"."+parts[3], 64)
+		if err != nil || math.IsInf(base, 0) {
+			return 0, domainError("invalid", "numeric value is invalid")
 		}
+		switch parts[2] {
+		case "k", "K":
+			base *= 1e3
+		case "M":
+			base *= 1e6
+		case "m":
+			base *= 1e-3
+		}
+		if math.IsInf(base, 0) {
+			return 0, domainError("invalid", "numeric value is invalid")
+		}
+		return base, nil
 	}
 	if parts := engineering.FindStringSubmatch(raw); parts != nil {
 		n, err := strconv.ParseFloat(parts[1], 64)

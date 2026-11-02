@@ -1759,6 +1759,15 @@ if (appId === 'system-info') {
                 }));
             }
         }
+        if (appId === 'ecalc') {
+            if (!window.ECalcApp) {
+                window.AuraDesktopModules.loadAppScript('ecalc').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ECalcApp.render === 'function') {
+                return window.ECalcApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t }));
+            }
+        }
         if (appId === 'tresor') {
             if (!window.TresorApp) {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

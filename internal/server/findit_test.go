@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"aurago/internal/findit"
+	"gopkg.in/yaml.v3"
 )
 
 func findItHTTPFixture(t *testing.T) (*Server, func(string, string, any) *httptest.ResponseRecorder) {
@@ -29,6 +30,24 @@ func findItHTTPFixture(t *testing.T) (*Server, func(string, string, any) *httpte
 	s.Cfg.Directories.SkillsDir = filepath.Join(base, "skills")
 	s.Cfg.Directories.ToolsDir = filepath.Join(base, "tools")
 	s.Cfg.Directories.WorkspaceDir = filepath.Join(base, "workspace")
+	fixtureConfig, err := yaml.Marshal(map[string]any{
+		"server": map[string]any{"port": 1234},
+		"directories": map[string]any{
+			"data_dir":      s.Cfg.Directories.DataDir,
+			"prompts_dir":   s.Cfg.Directories.PromptsDir,
+			"skills_dir":    s.Cfg.Directories.SkillsDir,
+			"tools_dir":     s.Cfg.Directories.ToolsDir,
+			"workspace_dir": s.Cfg.Directories.WorkspaceDir,
+		},
+		"virtual_desktop": map[string]any{"enabled": true},
+		"findit":          map[string]any{"enabled": true},
+	})
+	if err != nil {
+		t.Fatalf("marshal FindIt fixture config: %v", err)
+	}
+	if err := os.WriteFile(s.Cfg.ConfigPath, fixtureConfig, 0o600); err != nil {
+		t.Fatalf("write FindIt fixture config: %v", err)
+	}
 	s.startFindIt()
 	if s.findIt == nil || s.findIt.err != nil {
 		t.Fatalf("FindIt init: %+v", s.findIt)

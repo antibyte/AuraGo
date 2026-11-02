@@ -1,0 +1,15 @@
+{
+  "calc": "voltage_divider",
+  "sets": [
+    {"values": {"vin": 10, "r1": 1000, "r2": 4000, "vout": 8, "i": 0.002, "p": 0.02}, "ref": "hand: 10 V * 4k / (1k + 4k) = 8 V; I = 10 V / 5k = 2 mA; P = 10 V * 2 mA = 20 mW"},
+    {"values": {"vin": 9, "r1": 2000, "r2": 1000, "vout": 3, "i": 0.003, "p": 0.027}, "ref": "hand: 9 V * 1k / 3k = 3 V; I = 9 V / 3k = 3 mA; P = 9 V * 3 mA = 27 mW"},
+    {"values": {"vin": 12, "r1": 4700, "r2": 2200, "vout": 3.82608695652174, "i": 0.00173913043478261, "p": 0.0208695652173913}, "ref": "hand: V_out = 12 V * 2200 / 6900 = 88/23 V = 3.8260869565 V; I = 12 V / 6900 ohm = 1/575 A; P = 12/575 W"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 12, "r1": 4700, "r2": 2200}, "expect": {"vout": 3.82608695652174, "i": 0.00173913043478261, "p": 0.0208695652173913}, "ref": "hand: 12 V * 2200 / 6900 = 88/23 V; I = 1/575 A; P = 12/575 W"},
+    {"inputs": {"r1": 1000, "r2": 4000, "vout": 8}, "expect": {"vin": 10}, "ref": "hand: V_in = 8 V * (1k + 4k) / 4k = 10 V"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 6}, "errors": {"r2": "range"}, "warnings": [0], "ref": "hand: V_out above V_in gives R2 = 6 V * 1k / (5 V - 6 V) = -6000 ohm, out of range; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 5}, "errors": {"r2": "nonfinite"}, "warnings": [0], "ref": "hand: V_out = V_in needs R2 = 5 V * 1k / 0 V = infinity; the check fires"},
+    {"inputs": {"vin": 12, "r1": 4700}, "errors": {"r2": "undetermined", "vout": "undetermined"}, "ref": "two of the three inputs are missing"}
+  ]
+}

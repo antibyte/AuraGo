@@ -72,6 +72,7 @@ type stockInput struct {
 	LocationID       string `json:"location_id"`
 	TargetLocationID string `json:"target_location_id"`
 	Quantity         string `json:"quantity"`
+	StockVersion     int64  `json:"stock_version,omitempty"`
 	Lot              string `json:"lot"`
 	Condition        string `json:"condition"`
 	Serial           string `json:"serial"`

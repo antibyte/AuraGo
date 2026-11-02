@@ -99,6 +99,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	if tc == nil || dc == nil {
 		return *actionPolicyRefusal("policy_unavailable", "Execution policy is unavailable.", ToolResultDenied)
 	}
+	if dc.AuthorizingUserIntent != nil {
+		userContext = *dc.AuthorizingUserIntent
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -156,7 +159,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		regexLevel := guardian.ScanForInjection(toolCallScanText(subject)).Level
 		// Build guardian context: prefer the triggering user message over tc.Content
 		guardianCtx := userContext
-		if guardianCtx == "" {
+		if guardianCtx == "" && dc.AuthorizingUserIntent == nil {
 			guardianCtx = subject.Content
 		}
 		if len(guardianCtx) > 300 {

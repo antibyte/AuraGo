@@ -6,6 +6,7 @@
 - Reuse CodeMirror, keep unknown metadata/attachments/original MIME bundles, and match output to session, revision, cell and execution. A changed draft cannot receive stale output. Buffer early events while execution HTTP responses are pending. Reconnect never reruns code; expired replay windows are visible.
 - Track document changes (including outputs) separately from source generations. Save acknowledgements only clear the exact saved content; execution refuses a source changed during its prerequisite save. Retire only an unchanged recovered draft after a successful save, preserving newer drafts in other windows.
 - Creation dialogs keep invalid/conflicting inputs and inline errors visible, focus the invalid field and expose an accessible name. CodeMirror editors identify their cell. Search has one query field with optional advanced filters; defined project choices show project titles.
+- The shell groups navigation into Browse and Activity, keeps the connection state in the sidebar and reports every action through a dismissible status banner. Result lists carry a counter, a cursor pager and a reference copy; job rows keep the operation as their first strong element and pair it with a state chip. The notebook toolbar separates document, runtime and Kaggle actions, shows the unsaved draft and the kernel state, keeps Ctrl/Cmd+S for saving and restores keyboard focus after cells move or disappear.
 - HTML outputs use DOMPurify plus an opaque sandboxed iframe/CSP. Notebook JavaScript, widgets and remote resources stay inert. On close dispose editors, requests, modal promises and SSE observers; backend jobs/kernels remain owned by their services. Conflicting drafts stay exportable.
 - All copy belongs to the sixteen `lang/kaggle` locale sets. Container queries use the window host, not the app's own container. Verify `TestKaggleNotebookBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`, both themes and concurrent narrow/wide windows. Domain contracts: `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md`.
 - `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
@@ -20,12 +21,25 @@
   an unacknowledged write failure; replay the same payload with the same request ID. Once a
   write is acknowledged, a later refresh error must not retry the mutation. Create the item and opening
   stock separately; preserve the item ID and offer stock retry if the second command fails.
+  Opening-stock receipts and uncertain stock/reservation commands survive FindIt window recreation
+  in tab session storage with their exact immutable payloads and request IDs. Opening stock is keyed
+  by item and request ID; remove only the matching acknowledged receipt. The bounded command queue
+  never evicts unresolved writes, blocks a new mutation for the same item/project scope, and resolves
+  only after acknowledgement or a definitive domain rejection. Other command request IDs remain
+  window-scoped.
   Photo uploads accept JPEG, PNG or WebP within the server size limit; explicit photos/icons
   override the bundled realistic sprite atlas.
 - Item package names refer to the physical electronic package (DIP-16, TQFP-100), not carton size. Typed template fields drive property filters and editor controls. Locations form the storage tree. Project edits require the backend lifecycle; only released BOMs can reserve stock, cancellation releases remaining holds, and completion does not consume them. The pick list groups active reservations by storage path; release and consume remain explicit.
 - QR labels cover both items and locations. Accept only validated same-origin FindIt deep links or printed I-/L- identifiers; opening a record never mutates stock. Label visibility uses `status.can_print`, independently of FindIt read-only status. Camera/upload scanning uses the shared QR dialog. Keep print layouts at 50×30 mm and A4.
 - Import/export flows preview and validate mapped CSV before all-or-nothing import. Keep row skip/resolution decisions explicit, paginate the full preview, and preserve request IDs for uncertain retries. Admin activation uses the status `config_revision`; settings drafts do not alter other desktop configuration.
 - Keep visible copy in `ui/lang/findit/*.json` across all sixteen locales. Verify `go test ./ui -run TestDesktopFindIt -count=1`, JavaScript syntax checks for every `findit*.js`, and the real-handler browser flow `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`. The backend contract is `internal/findit/AGENTS.md`.
+
+## ECalc
+
+- `ecalc/` holds eleven classic scripts in this load order (module-loader entry `ecalc`, pinned by `TestECalcIsWiredIntoTheDesktopCore`): the DOM-free core `ecalc-expr.js`, `ecalc-units.js`, `ecalc-eseries.js`, `ecalc-solve.js` (`window.ECalcCore`, a mirror of `internal/ecalc`; no `eval`, no `Function`), `ecalc-typeset.js`, `ecalc-symbols.js`, `ecalc-schematics.js` (exactly `window.ECalcSchematics = {JSON};`), `ecalc-store.js`, `ecalc-calc-page.js`, `ecalc-shell.js`, then the composition root `ecalc.js` (`window.ECalcApp`). Style: `css/desktop-app-ecalc.css`, tokens only, motion gated. The catalog comes from `GET /api/ecalc/catalog?lang=` once per window; every string is a `desktop.ecalc_*` key.
+- The core must give the results of Go. `scripts/test-ecalc-core.mjs` (`npm run test:ecalc`) runs `internal/ecalc/testdata/vectors/**` and `testdata/catalog.en.json` against it: change an expression rule, a unit or the solver in Go, in JavaScript and in the vectors together. Inputs persist as raw texts under `aurago.ecalc.v1`; a computed value that becomes an input keeps its value with 12 significant digits. Lists keep the decimal point in every language because the comma separates their items.
+- The page never observes itself (its layout changes its own height and would loop the ResizeObserver); the shell observes the page host and the root. Field chips sit at the anchors of the schematic only when the page is as wide as the drawing plus the stage padding, otherwise they are listed under it; below 720 px the shell is one stack with a back button. Ctrl/Cmd+K focuses the search and stops propagation so the desktop Spotlight stays closed.
+- A schematic is a grid spec (20 px units) keyed by the calculator id. `TestECalcSchematicsMatchTheCatalog` checks ids, anchors and symbols against the catalog; `TestDesktopECalcBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`) checks that the chips of every schematic stay apart (and those of the divider in every desktop skin), plus live solving, locks, the star-delta set switch, the compact stack and Ctrl+K.
 
 ## Email exports
 
@@ -790,6 +804,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Preferences include section-bound RSS feeds. A new revision can carry an optional correction note; the reader displays it on the published issue without changing older revisions.
 - Show configured research capabilities and actionable setup reasons separately from last-attempt errors. Preserve optional run counters (candidates/read pages/accepted stories) and missing-topic labels after completion or failure. Escape topic labels like all other external text; older run JSON without counters must remain readable. Config exposes `max_searches` with default 32 and range 1–64. Verify `TestNewspaperResearchTranslations` and `TestNewspaperConfigResearchBrowser` alongside the reader matrix.
 - Escape all source text and allow only safe HTTP(S) source links. Show actual publication and source times, partial coverage, single-source disclosure, run progress and delivery uncertainty. Keep the same issue when moving between views and preserve reading position.
+- A redraw must not steal reader input: restore focus, text selection and the confirmation code across repaints, and keep the unsaved-changes hint in step with the draft. Cite sources as numbered markers that match the numbered source list, and report delivery status as a coloured chip. Run counters stay visible after completion or failure. Verify with `TestDesktopNewspaperBrowser`.
 - Show localized email-confirmation bounce suppression, rejection, configuration failure, uncertainty and cooldown messages from structured API codes. Send code first saves the selected sender account and recipient address, without saving unrelated draft preferences; never send through a stale stored account. Do not render raw AgentMail response text or repeat a blocked send automatically.
 - Load `desktop-app-newspaper.css` lazily, use both Desktop themes, all 16 `newspaper.*` locale entries and the Papirus/WhiteSur Newspaper icons. Verify with `TestDesktopNewspaperBrowser` and `TestNewspaperTranslations`.
 
@@ -1519,6 +1534,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   RGB565 PNGs or alpha masks; animate only the selection, respect reduced
   motion, and dispose observers with the dialog. Names/filters/errors belong
   to all 16 CYD locales. Browser test: `TestDesktopCYDCreatorIconsBrowser`.
+  Shared motif/artwork/export rules live in `assets/cyd-icons/AGENTS.md`; category translations follow the catalog's category IDs.
+- Image widgets fit their source proportionally into the current widget rectangle, including live resize previews, masks and all animation frames. Icon insertion/replacement preserves that rectangle, including edits made during import. The picker size selects source resolution and memory use; it is independent of image widget geometry. Button icons retain their selected source size.
 - The eleven designer modules load right after `cyd-creator-events.js` in this order (`cydDesignerScripts`,
   `TestCYDCreatorDesignerModulesLoadInOrder`): `cyd-creator-geometry`, `-model`, `-render` (pure, run in Node),
   `-canvas`, `-interact`, `-palette`, `-inspector-fields`, `-icons`, `-inspector`, `-screens`, `-designer` last; each stays
@@ -4269,6 +4286,17 @@ registration lives in `internal/desktop/types.go`.
   wheel or +/-, hide their model while in use and report the reticle's district via
   `onScope`; the HUD draws lens, reticle and a live tag. Escape leaves a viewer
   before it leaves street mode. Verify with the layout script and the expansion round.
+- Hover pack (`sysworld-hover.js`, `hoverPads` in `sysworld-layout.js`, ride kind `hover` in
+  `sysworld-experience.js`): five docks on open pavement (never lanes or rails, 3 m from every
+  other placement), each holding a removable `pack` node of the `hover-pack` asset; no asset in
+  the manifest means no pads and no prompt. `createHoverFlight` is pure and deterministic: takeoff
+  1.5 m in 0.7 s, WASD along the camera yaw (12 m/s, Shift 26), Space/C 7 m/s, eased velocity,
+  axis-sliding collision through the visitor's `traffic.clear`, floor = street eye height (never
+  `experience.floor`, which answers 72 m above 40 m), ceiling 150 m, |x| <= 140, z in [-150, 130].
+  E lands (glide <= 8 m/s, <= 6 m/s down) on the nearest walkable street spot; `endRide()` and
+  reduced motion land at once and re-dock the pack. Not offered under reduced motion. `move()`
+  routes to `experience.fly` first, even without a key. The HUD readout (`hud.flight`) only makes
+  the landing note a live region. Verify with `node scripts/test-system-world-hover.mjs`.
 - `sysworld-controls.js` owns destinations, discoveries, environment, three audio
   buses, the typed terminal and 24-hour replay. UI hints must not mutate the DOM
   every frame. Replay immediately disables system actions and private memory feeds;
@@ -4990,6 +5018,26 @@ registration lives in `internal/desktop/types.go`.
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.
+- The todo window stays readable while it refreshes: a reload restores the
+  focused field, the caret inside it and the checklist item the user was
+  typing in. The detail form marks itself as changed
+  (`desktop.todo_unsaved_changes`) as soon as a field differs from the stored
+  task, and Escape returns the form to the stored values. Ctrl/Cmd+S saves the
+  open task, Escape clears the search or leaves the list, and the arrow keys
+  walk the task list. The sidebar shows how many tasks each filter holds, the
+  list shows how many are visible, and the search narrows by title and
+  description.
+- Every todo request reports itself in the pane (`desktop.todo_saved`,
+  `desktop.todo_created`, `desktop.todo_completed`, `desktop.todo_reopened`,
+  `desktop.todo_deleted`, `desktop.todo_failed`) instead of only in a desktop
+  toast. An empty list explains itself (`desktop.todo_empty_title`,
+  `desktop.todo_empty_hint`, `desktop.todo_no_results`,
+  `desktop.todo_clear_search`, `desktop.todo_select_hint`,
+  `desktop.todo_checklist_empty`), and the state, the reminder, the due day and
+  the overdue warning travel as chips whose tone mixes the theme text, so they
+  stay readable on the light and on the dark surface of every theme. Keep all
+  `desktop.todo_*` keys in every `ui/lang/desktop/*.json`. Verify
+  `go test ./ui -run TestDesktopTodo -count=1`.
 - `quickconnect-launchpad-chat.js` - Quick Connect (`renderQuickConnect`
   device list and session chrome), store/launchpad and generated-app
   host. The synthetic AuraGo host card uses `desktop.qc_aurago_host` and

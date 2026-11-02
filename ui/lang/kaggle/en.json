@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "CPU cores reserved for each local session.",
   "config.kaggle.memory_help": "Memory limit for each local session, in MiB.",
   "config.kaggle.idle_timeout_help": "Minutes of inactivity after which a local session is stopped.",
-  "config.kaggle.cell_timeout_help": "Maximum run time of a single cell in minutes before it is stopped."
+  "config.kaggle.cell_timeout_help": "Maximum run time of a single cell in minutes before it is stopped.",
+  "kaggle.browse": "Browse",
+  "kaggle.activity": "Activity",
+  "kaggle.results": "Results",
+  "kaggle.refresh": "Refresh",
+  "kaggle.copy": "Copy reference",
+  "kaggle.copied": "Copied",
+  "kaggle.all": "All",
+  "kaggle.active": "Active",
+  "kaggle.no_results": "No matching results. Adjust the search or choose another operation.",
+  "kaggle.kernel": "Kernel",
+  "kaggle.empty_notebook": "This notebook has no cells yet.",
+  "kaggle.back": "Back"
 }

@@ -881,8 +881,8 @@ func (s *Store) archiveProject(ctx context.Context, id string, expected int64) (
 
 func archiveProjectTx(ctx context.Context, tx *sql.Tx, id string, expected int64) (any, error) {
 	var version int64
-	var active int64
-	if err := tx.QueryRowContext(ctx, `SELECT p.version,COALESCE((SELECT sum(quantity_micro-consumed_micro-released_micro) FROM reservations WHERE project_id=p.id),0) FROM projects p WHERE p.id=? AND p.archived=0`, id).Scan(&version, &active); errors.Is(err, sql.ErrNoRows) {
+	var active int
+	if err := tx.QueryRowContext(ctx, `SELECT p.version,EXISTS(SELECT 1 FROM reservations WHERE project_id=p.id AND quantity_micro>consumed_micro+released_micro) FROM projects p WHERE p.id=? AND p.archived=0`, id).Scan(&version, &active); errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, wrapError("unavailable", "read FindIt project", err)
@@ -890,7 +890,7 @@ func archiveProjectTx(ctx context.Context, tx *sql.Tx, id string, expected int64
 	if version != expected {
 		return nil, ErrConflict
 	}
-	if active > 0 {
+	if active != 0 {
 		return nil, domainError("conflict", "project with active reservations cannot be archived")
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE projects SET archived=1,version=version+1,updated_at=? WHERE id=? AND version=?`, nowString(), id, expected); err != nil {

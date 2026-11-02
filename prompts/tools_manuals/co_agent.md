@@ -65,8 +65,18 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | **researcher** | Internet research, fact-finding, source verification | Web search skills, API requests, memory/RAG |
 | **coder** | Code writing, debugging, testing, architecture | Shell, Python, filesystem, git |
 | **designer** | Image generation, layouts, visual concepts | Image generation, filesystem |
-| **security** | Vulnerability audits, code review, system hardening | Shell (read), Python, filesystem (read) |
-| **writer** | Articles, docs, creative writing, communication | No runtime tools by default; optimized for fast text generation |
+| **security** | Vulnerability audits, code review, system hardening | Shell/Python for analysis; native filesystem tools are read-only |
+| **writer** | Articles, docs, creative writing, communication | No runtime tools; writes from supplied material |
+
+### Delegated permissions and execution
+
+Children inherit the parent's tool and Agent Skill scopes; an explicitly empty scope grants nothing. Role restrictions and current runtime permissions can narrow these scopes, never widen them. Approved read tools receive the parent's initialized storage/service handles. Model-written tasks do not replace the initiating human request, and external/private-content provenance survives delegation.
+
+Researcher permits Python data processing, including saved Python tools and Python-only sandbox/Agent Skill scripts, but no shell, sudo or remote shell. Designer cannot run free code or Agent Skill scripts. Sudo requires the shell capability; remote shell also requires remote access. Security retains Shell/Python under existing permissions and sandbox rules: these interpreters are not technically read-only. Registered skills keep their existing gates.
+
+The resolved `max_tool_calls` is a hard bound, including Homepage workflows. Tokens and begun tool calls accumulate across rounds and retries, remain visible while running, and survive errors or cancellation. Budget/quota checks apply to new starts and queue promotion; `list`, `get_result`, `stop`, and `stop_all` remain available after quota exhaustion. Stop still requires an explicit user request.
+
+`max_context_hint_chars` counts Unicode code points. Prompt byte/token budgets remain additional bounds. The selected provider's identity and capabilities apply to both the model client and the child loop.
 
 ### list — Show all co-agents and their status
 ```json

@@ -117,11 +117,24 @@ func decodeFindItJSON(w http.ResponseWriter, r *http.Request, target any, limit 
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(target) != nil || decoder.Decode(new(any)) != io.EOF {
-		findItHTTPError(w, http.StatusBadRequest, "invalid_json")
+	if err := decoder.Decode(target); err != nil {
+		findItDecodeError(w, err)
+		return false
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		findItDecodeError(w, err)
 		return false
 	}
 	return true
+}
+
+func findItDecodeError(w http.ResponseWriter, err error) {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		findItHTTPError(w, http.StatusRequestEntityTooLarge, "request_too_large")
+		return
+	}
+	findItHTTPError(w, http.StatusBadRequest, "invalid_json")
 }
 
 func findItConfigRevision(cfg *config.Config) string {
@@ -185,6 +198,12 @@ func (s *Server) allowFindItReadResult(w http.ResponseWriter, r *http.Request, a
 		return false
 	}
 	return true
+}
+
+func (s *Server) findItReadError(w http.ResponseWriter, r *http.Request, admitted *config.Config, err error) {
+	if s.allowFindItReadResult(w, r, admitted) {
+		findItStoreError(w, err)
+	}
 }
 
 func handleFindIt(s *Server) http.HandlerFunc {
@@ -254,7 +273,7 @@ func handleFindIt(s *Server) http.HandlerFunc {
 		case path == "/catalog" && r.Method == http.MethodGet:
 			catalog, err := runtime.store.Catalog(ctx)
 			if err != nil {
-				findItStoreError(w, err)
+				s.findItReadError(w, r, cfg, err)
 				return
 			}
 			if !s.allowFindItReadResult(w, r, cfg) {
@@ -268,7 +287,7 @@ func handleFindIt(s *Server) http.HandlerFunc {
 			}
 			result, err := runtime.store.Query(ctx, req)
 			if err != nil {
-				findItStoreError(w, err)
+				s.findItReadError(w, r, cfg, err)
 				return
 			}
 			if !s.allowFindItReadResult(w, r, cfg) {
@@ -304,7 +323,11 @@ func handleFindIt(s *Server) http.HandlerFunc {
 				result, err = runtime.store.ImportCSV(ctx, req)
 			}
 			if err != nil {
-				findItStoreError(w, err)
+				if path == "/import/preview" {
+					s.findItReadError(w, r, cfg, err)
+				} else {
+					findItStoreError(w, err)
+				}
 				return
 			}
 			if path == "/import/preview" && !s.allowFindItReadResult(w, r, cfg) {
@@ -314,7 +337,7 @@ func handleFindIt(s *Server) http.HandlerFunc {
 		case path == "/export" && r.Method == http.MethodGet:
 			data, err := runtime.store.ExportCSV(ctx, r.URL.Query().Get("entity"), r.URL.Query().Get("project_id"))
 			if err != nil {
-				findItStoreError(w, err)
+				s.findItReadError(w, r, cfg, err)
 				return
 			}
 			if !s.allowFindItReadResult(w, r, cfg) {

@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "Jádra CPU vyhrazená pro každou místní relaci.",
   "config.kaggle.memory_help": "Limit paměti pro každou místní relaci v MiB.",
   "config.kaggle.idle_timeout_help": "Počet minut nečinnosti, po kterých se místní relace ukončí.",
-  "config.kaggle.cell_timeout_help": "Maximální doba běhu jedné buňky v minutách, než se zastaví."
+  "config.kaggle.cell_timeout_help": "Maximální doba běhu jedné buňky v minutách, než se zastaví.",
+  "kaggle.browse": "Procházet",
+  "kaggle.activity": "Aktivita",
+  "kaggle.results": "Výsledky",
+  "kaggle.refresh": "Obnovit",
+  "kaggle.copy": "Kopírovat odkaz",
+  "kaggle.copied": "Zkopírováno",
+  "kaggle.all": "Vše",
+  "kaggle.active": "Aktivní",
+  "kaggle.no_results": "Žádné odpovídající výsledky. Upravte hledání nebo zvolte jinou operaci.",
+  "kaggle.kernel": "Jádro",
+  "kaggle.empty_notebook": "Tento notebook zatím nemá žádné buňky.",
+  "kaggle.back": "Zpět"
 }

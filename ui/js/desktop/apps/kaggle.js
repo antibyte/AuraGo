@@ -2,33 +2,54 @@
     'use strict';
     const instances = new Map();
     const domains = ['overview', 'datasets', 'models', 'notebooks', 'competitions', 'benchmarks', 'forums', 'jobs'];
+    const navGroups = [{ label: 'browse', domains: ['overview', 'datasets', 'models', 'notebooks', 'competitions', 'benchmarks', 'forums'] }, { label: 'activity', domains: ['jobs'] }];
     const listOperations = { datasets: 'list_datasets', models: 'list_models', notebooks: 'list_kernels', competitions: 'list_competitions', benchmarks: 'list_benchmark_tasks', forums: 'list_topics' };
     const verb = name => name.startsWith('batch_schedule') ? 'run' : name.includes('cancel') ? 'cancel' : name.split('_')[0];
     const fieldWords = { ownerSlug: 'owner', userName: 'owner', user: 'owner', owner: 'owner', slug: 'reference', datasetSlug: 'reference', modelSlug: 'reference', kernelSlug: 'reference', instanceSlug: 'variant', competitionName: 'reference', fileName: 'file', filePath: 'file', path: 'file', title: 'title', newTitle: 'title', search: 'search', searchQuery: 'search', description: 'description', subtitle: 'description', pageSize: 'limit', page: 'page', pageToken: 'page', versionNumber: 'version', datasetVersionNumber: 'version', versionLabel: 'version', isPrivate: 'private', isPublic: 'public', enableGpu: 'gpu', enableTpu: 'tpu', enableInternet: 'internet', language: 'language', files: 'files', text: 'source', forumSlug: 'forum', topicId: 'topic', id: 'reference', framework: 'framework', licenseName: 'license', contentLength: 'bytes', kernelExecutionType: 'execution', sessionTimeoutSeconds: 'timeout' };
+    const activeStates = ['queued', 'running', 'remote_running', 'cancel_requested'];
+    const jobTones = { completed: 'ok', running: 'busy', remote_running: 'busy', queued: 'info', failed: 'bad', unknown: 'warn', resolved_unknown: 'warn', cancel_requested: 'warn', cancelled: 'muted' };
 
     function render(host, windowId, ctx) {
         dispose(windowId);
         const t = key => ctx.t('kaggle.' + key);
-        let disposed = false, active = 'overview', generation = 0, editor = null, status = {}, catalog = [], defs = {}, projects = [], selectedProject = '', eventSource;
+        let disposed = false, active = 'overview', generation = 0, editor = null, status = {}, catalog = [], defs = {}, projects = [], selectedProject = '', eventSource, jobFilter = 'all';
         const requests = new Set();
         host.classList.add('kg-host');
         const root = document.createElement('section'); root.className = 'kg-app'; host.replaceChildren(root);
         const nav = document.createElement('nav'); nav.className = 'kg-nav'; nav.setAttribute('aria-label', t('navigation')); root.append(nav);
+        for (const group of navGroups) {
+            const wrap = document.createElement('div'); wrap.className = 'kg-nav-group';
+            const label = document.createElement('span'); label.className = 'kg-nav-label'; label.textContent = t(group.label); wrap.append(label);
+            for (const domain of group.domains) { const b = button(wrap, domain, () => navigate(domain)); b.dataset.domain = domain; }
+            nav.append(wrap);
+        }
+        const navFoot = document.createElement('div'); navFoot.className = 'kg-nav-foot';
+        const navChip = document.createElement('span'); navChip.className = 'kg-chip'; navChip.dataset.tone = 'muted'; navFoot.append(navChip); nav.append(navFoot);
         const main = document.createElement('main'); main.className = 'kg-main'; root.append(main);
-        const notice = document.createElement('p'); notice.className = 'kg-notice'; notice.setAttribute('role', 'status'); main.append(notice);
+        const notice = document.createElement('div'); notice.className = 'kg-notice'; notice.hidden = true;
+        const noticeText = document.createElement('p'); noticeText.className = 'kg-notice-text'; noticeText.setAttribute('role', 'status');
+        const noticeClose = document.createElement('button'); noticeClose.type = 'button'; noticeClose.className = 'kg-notice-close'; noticeClose.textContent = '×'; noticeClose.setAttribute('aria-label', t('close'));
+        noticeClose.addEventListener('click', () => { notice.hidden = true; });
+        notice.append(noticeText, noticeClose); main.append(notice);
         const panel = document.createElement('div'); panel.className = 'kg-panel'; main.append(panel);
-        function message(text) { if (!disposed) notice.textContent = text; }
-        function error(err) { message(t('error') + ': ' + err.message); }
+        function message(text, tone) { if (disposed) return; noticeText.textContent = text || ''; notice.dataset.tone = tone || 'info'; notice.hidden = !text; }
+        function error(err) { message(t('error') + ': ' + err.message, 'error'); }
         async function api(path, options = {}) {
             const controller = new AbortController(); requests.add(controller);
             try { const init = { credentials: 'same-origin', ...options, signal: controller.signal, headers: { ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }; if (init.body !== undefined && !(init.body instanceof Blob)) init.body = JSON.stringify(init.body); const response = await fetch('/api/kaggle' + path, init); const body = await response.json(); if (!response.ok) throw Error(response.status === 409 ? t('conflict') : body.error || body.message || response.status); return body; }
             finally { requests.delete(controller); }
         }
-        function button(parent, key, action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t(key); b.addEventListener('click', async () => { if (b.getAttribute('aria-busy') === 'true') return; b.setAttribute('aria-busy', 'true'); try { await action(); } catch (err) { const inline = b.closest('dialog')?.querySelector('[role="alert"]'); if (inline) inline.textContent = t('error') + ': ' + err.message; else error(err); } finally { b.removeAttribute('aria-busy'); b.disabled = b.dataset.blocked === 'true'; } }); parent.append(b); return b; }
+        function button(parent, key, action, variant) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t(key); if (variant) b.classList.add('kg-btn-' + variant); b.addEventListener('click', async () => { if (b.getAttribute('aria-busy') === 'true') return; b.setAttribute('aria-busy', 'true'); try { await action(); } catch (err) { const inline = b.closest('dialog')?.querySelector('[role="alert"]'); if (inline) inline.textContent = t('error') + ': ' + err.message; else error(err); } finally { b.removeAttribute('aria-busy'); b.disabled = b.dataset.blocked === 'true'; } }); parent.append(b); return b; }
         function blockButton(b, reason) { b.dataset.blocked = String(!!reason); b.disabled = !!reason; b.title = reason; }
         function title(parent, key) { const h = document.createElement('h2'); h.textContent = t(key); parent.append(h); }
         function text(parent, value, tag = 'p') { const e = document.createElement(tag); e.textContent = value; parent.append(e); return e; }
+        function node(value) { return document.createTextNode(String(value)); }
+        function chip(label, tone) { const c = document.createElement('span'); c.className = 'kg-chip'; c.dataset.tone = tone || 'muted'; c.textContent = label; return c; }
         function disposeEditor() { editor?.dispose(); editor = null; }
+        function syncNavStatus() {
+            navChip.dataset.tone = !status.enabled ? 'muted' : status.configured ? 'ok' : 'warn';
+            navChip.textContent = !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing');
+        }
         function unavailable(op) {
             const policy = status.policy || {}, access = status.access || {};
             if (!status.enabled) return t('enable_first');
@@ -46,25 +67,30 @@
             if (!policy['allow_' + grant] && !(op.operation === 'save_kernel' && policy.allow_create)) return t('allow_' + grant) + ': ' + t('disabled');
             return access.write ? '' : t('policy_help');
         }
-        domains.forEach(domain => { const b = button(nav, domain, () => navigate(domain)); b.dataset.domain = domain; });
         async function navigate(domain) {
-            const epoch = ++generation; active = domain; disposeEditor(); panel.replaceChildren(); message(''); nav.querySelectorAll('button').forEach(b => b.setAttribute('aria-current', b.dataset.domain === domain ? 'page' : 'false'));
-            try { status = await api('/status'); if (disposed || epoch !== generation) return; if (domain === 'overview') await overview(epoch); else if (domain === 'jobs') await jobs(epoch); else await resources(domain, epoch); } catch (err) { if (epoch === generation) error(err); }
+            const epoch = ++generation; active = domain; disposeEditor(); panel.replaceChildren(); message(''); nav.querySelectorAll('button[data-domain]').forEach(b => b.setAttribute('aria-current', b.dataset.domain === domain ? 'page' : 'false'));
+            try { status = await api('/status'); if (disposed || epoch !== generation) return; syncNavStatus(); if (domain === 'overview') await overview(epoch); else if (domain === 'jobs') await jobs(epoch); else await resources(domain, epoch); } catch (err) { if (epoch === generation) error(err); }
         }
         async function overview(epoch) {
-            const [next, allProjects, allJobs] = await Promise.all([api('/status'), api('/projects'), api('/jobs')]); if (disposed || epoch !== generation) return; status = next; projects = allProjects;
+            const [next, allProjects, allJobs] = await Promise.all([api('/status'), api('/projects'), api('/jobs')]); if (disposed || epoch !== generation) return; status = next; projects = allProjects; syncNavStatus();
             title(panel, 'overview');
             const stats = document.createElement('div'); stats.className = 'kg-stats'; panel.append(stats);
-            const activeJobs = allJobs.filter(job => ['queued', 'running', 'remote_running', 'cancel_requested'].includes(job.status));
-            const jobCard = document.createElement('div'); text(jobCard, t('active_jobs'), 'small'); text(jobCard, String(activeJobs.length), 'strong'); stats.append(jobCard);
-            for (const [label, value] of [['connection', !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing')], ['permissions', status.read_only ? t('read_only') : t('granted')], ['storage', (status.storage_bytes / 1073741824).toFixed(2) + ' / ' + (status.max_storage_bytes / 1073741824).toFixed(0) + ' GiB']]) { const card = document.createElement('div'); text(card, t(label), 'small'); text(card, value, 'strong'); stats.append(card); }
+            const tile = (label, value) => { const card = document.createElement('div'); text(card, t(label), 'small'); text(card, value, 'strong'); stats.append(card); return card; };
+            const activeJobs = allJobs.filter(job => activeStates.includes(job.status));
+            tile('active_jobs', String(activeJobs.length));
+            tile('connection', !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing'));
+            tile('permissions', status.read_only ? t('read_only') : t('granted'));
+            const used = Number(status.storage_bytes) || 0, max = Number(status.max_storage_bytes) || 0;
+            const storage = tile('storage', (used / 1073741824).toFixed(2) + ' / ' + (max / 1073741824).toFixed(0) + ' GiB');
+            const meter = document.createElement('div'); meter.className = 'kg-meter'; const fill = document.createElement('i'); fill.style.width = (max ? Math.min(100, Math.round(used / max * 100)) : 0) + '%'; meter.append(fill); storage.append(meter);
             const actions = document.createElement('div'); actions.className = 'kg-toolbar'; panel.append(actions);
-            blockButton(button(actions, 'test', async () => { const result = await api('/test', { method: 'POST', body: {} }); message(t('connected') + ': ' + result.account); }), unavailable({ grant: 'read' }));
+            blockButton(button(actions, 'test', async () => { const result = await api('/test', { method: 'POST', body: {} }); message(t('connected') + ': ' + result.account, 'success'); }), unavailable({ grant: 'read' }));
             blockButton(button(actions, 'quotas', async () => details(t('quotas'), await api('/quotas'))), unavailable({ grant: 'read' }));
             const config = document.createElement('a'); config.href = '/config#kaggle'; config.target = '_blank'; config.rel = 'noopener'; config.textContent = t('settings'); actions.append(config);
             title(panel, 'projects');
-            blockButton(button(panel, 'new_project', async () => { const result = await formDialog(t('new_project'), { title: { type: 'string', minLength: 1 } }, {}, '', values => api('/projects', { method: 'POST', body: values })); if (!result) return; selectedProject = result.id; await navigate('overview'); }), unavailable({ grant: 'write' }));
-            const projectSelect = select(panel, projects.map(p => [p.id, p.title]), selectedProject); projectSelect.setAttribute('aria-label', t('projects')); selectedProject = projectSelect.value;
+            const projectActions = document.createElement('div'); projectActions.className = 'kg-toolbar'; panel.append(projectActions);
+            blockButton(button(projectActions, 'new_project', async () => { const result = await formDialog(t('new_project'), { title: { type: 'string', minLength: 1 } }, {}, '', values => api('/projects', { method: 'POST', body: values })); if (!result) return; selectedProject = result.id; await navigate('overview'); }, 'primary'), unavailable({ grant: 'write' }));
+            const projectSelect = select(projectActions, projects.map(p => [p.id, p.title]), selectedProject); projectSelect.setAttribute('aria-label', t('projects')); selectedProject = projectSelect.value;
             const filePanel = document.createElement('div'); panel.append(filePanel);
             projectSelect.addEventListener('change', () => { selectedProject = projectSelect.value; showFiles(filePanel).catch(error); });
             await showFiles(filePanel);
@@ -82,50 +108,108 @@
                     return name;
                 });
                 if (name) await openNotebook(project, name);
-            }), unavailable({ grant: 'write' }));
-            for (const file of files) { const row = document.createElement('div'); row.className = 'kg-resource'; text(row, file.name, 'strong'); text(row, (file.size / 1024).toFixed(1) + ' KiB', 'small'); if (file.name.toLowerCase().endsWith('.ipynb')) button(row, 'open', () => openNotebook(project, file.name)); if (/\.(txt|log|csv|tsv|json|md)$/i.test(file.name)) button(row, 'details', async () => { const preview = await api('/runtime', { method: 'POST', body: { operation: 'read_file', project_id: project, file: file.name } }); details(file.name, preview); }); const link = document.createElement('a'); link.href = '/api/kaggle/projects/' + project + '/files/' + encodeURIComponent(file.name); link.download = file.name; link.textContent = t('export'); row.append(link); target.append(row); }
+            }, 'primary'), unavailable({ grant: 'write' }));
+            for (const file of files) {
+                const row = document.createElement('div'); row.className = 'kg-resource';
+                const main = document.createElement('div'); main.className = 'kg-resource-main';
+                text(main, file.name, 'strong'); text(main, (file.size / 1024).toFixed(1) + ' KiB', 'small');
+                const rowActions = document.createElement('div'); rowActions.className = 'kg-resource-actions';
+                if (file.name.toLowerCase().endsWith('.ipynb')) button(rowActions, 'open', () => openNotebook(project, file.name), 'primary');
+                if (/\.(txt|log|csv|tsv|json|md)$/i.test(file.name)) button(rowActions, 'details', async () => { const preview = await api('/runtime', { method: 'POST', body: { operation: 'read_file', project_id: project, file: file.name } }); details(file.name, preview); });
+                const link = document.createElement('a'); link.href = '/api/kaggle/projects/' + project + '/files/' + encodeURIComponent(file.name); link.download = file.name; link.textContent = t('export'); rowActions.append(link);
+                row.append(main, rowActions); target.append(row);
+            }
         }
-        async function importFiles(project) { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.addEventListener('change', async () => { try { for (const file of input.files) { const response = await fetch('/api/kaggle/projects/' + project + '/files/' + encodeURIComponent(file.name), { method: 'PUT', credentials: 'same-origin', body: file }); if (!response.ok) throw Error((await response.json()).error || t('error')); } navigate('overview'); } catch (err) { error(err); } }); input.click(); }
-        async function openNotebook(project, file) { const epoch = ++generation; disposeEditor(); panel.replaceChildren(); message(''); active = 'notebooks'; nav.querySelectorAll('button').forEach(b => b.setAttribute('aria-current', b.dataset.domain === active ? 'page' : 'false')); const next = await window.KaggleNotebook(panel, { api, t, project, file, windowId, notify: message, selectFiles, unavailable, isClosed: () => disposed || epoch !== generation, remote: (doc, revision) => remoteNotebook(project, file, doc, revision) }); if (disposed || epoch !== generation) next.dispose(); else editor = next; }
+        async function importFiles(project) { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.addEventListener('change', async () => { try { message(t('loading')); for (const file of input.files) { const response = await fetch('/api/kaggle/projects/' + project + '/files/' + encodeURIComponent(file.name), { method: 'PUT', credentials: 'same-origin', body: file }); if (!response.ok) throw Error((await response.json()).error || t('error')); } navigate('overview'); } catch (err) { error(err); } }); input.click(); }
+        async function openNotebook(project, file) {
+            const epoch = ++generation, returnDomain = active; disposeEditor(); panel.replaceChildren(); message(''); active = 'notebooks';
+            nav.querySelectorAll('button[data-domain]').forEach(b => b.setAttribute('aria-current', b.dataset.domain === active ? 'page' : 'false'));
+            const next = await window.KaggleNotebook(panel, { api, t, project, file, windowId, notify: message, selectFiles, unavailable, isClosed: () => disposed || epoch !== generation, remote: (doc, revision) => remoteNotebook(project, file, doc, revision), exit: () => navigate(returnDomain) });
+            if (disposed || epoch !== generation) next.dispose(); else editor = next;
+        }
         async function selectFiles(project) { const files = await api('/projects/' + project + '/files'); return new Promise(resolve => { const dialog = modal(t('select_files')); files.forEach(file => { const label = document.createElement('label'); const check = document.createElement('input'); check.type = 'checkbox'; check.value = file.name; label.append(check, document.createTextNode(file.name)); dialog.body.append(label); }); text(dialog.body, t('local_files_hint')); button(dialog.actions, 'continue', () => { const values = [...dialog.body.querySelectorAll('input:checked')].map(c => c.value); dialog.close(); resolve(values); }); dialog.cancel = () => resolve(null); }); }
         async function remoteNotebook(project, file, doc, revision) {
             status = await api('/status'); const reason = unavailable({ grant: 'execute' }); if (reason) throw Error(reason);
             const values = await formDialog(t('kaggle_run'), { slug: { type: 'string' }, newTitle: { type: 'string' }, datasetDataSources: { type: 'array', items: { type: 'string' } }, competitionDataSources: { type: 'array', items: { type: 'string' } }, modelDataSources: { type: 'array', items: { type: 'string' } } }, {}, t('remote_hint'));
             if (!values) return;
             const result = await api('/operations', { method: 'POST', body: { domain: 'notebooks', operation: 'save_kernel', parameters: { ...values, text: JSON.stringify(doc), kernelType: 'notebook', language: 'python', kernelExecutionType: 'SAVE_AND_RUN_ALL', isPrivate: true, enableGpu: false, enableTpu: false, enableInternet: false } } });
-            message(t('job_created') + ': ' + result.job.id);
+            message(t('job_created') + ': ' + result.job.id, 'success');
         }
         async function resources(domain, epoch) {
             title(panel, domain); if (!status.enabled) { text(panel, t('enable_first')); return; }
             const controls = document.createElement('div'); controls.className = 'kg-toolbar'; panel.append(controls);
             const search = document.createElement('input'); search.type = 'search'; search.placeholder = t('search'); search.setAttribute('aria-label', t('search')); controls.append(search);
             const items = catalog.filter(op => op.domain === domain); const chooser = select(controls, items.map(op => [op.operation, t('verb_' + verb(op.operation)) + ' · ' + op.operation]), listOperations[domain]); chooser.setAttribute('aria-label', t('operation'));
-            const filters = document.createElement('details'); filters.className = 'kg-filters'; const summary = document.createElement('summary'); summary.textContent = t('filters'); filters.append(summary); panel.append(filters);
+            const filters = document.createElement('details'); filters.className = 'kg-filters'; const summary = document.createElement('summary'); summary.textContent = t('filters'); filters.append(summary);
             const fields = document.createElement('div'); fields.className = 'kg-fields'; filters.append(fields);
             let readForm;
             let executeButton;
+            let refreshButton;
             const reason = document.createElement('p'); reason.className = 'kg-state'; filters.before(reason);
             const searchField = domain === 'forums' ? 'searchQuery' : domain === 'benchmarks' ? 'regexFilter' : 'search';
             const drawForm = () => { const op = items.find(o => o.operation === chooser.value); fields.replaceChildren(); const properties = { ...op.schema.properties }; search.hidden = !properties[searchField]; delete properties[searchField]; filters.open = op.operation !== listOperations[domain]; readForm = schemaFields(fields, properties, {}, 0); const why = unavailable(op); reason.textContent = why; if (executeButton) blockButton(executeButton, why); };
             chooser.addEventListener('change', drawForm);
             const output = document.createElement('div'); output.className = 'kg-results'; panel.append(output);
-            const execute = async (pageToken) => {
-                status = await api('/status'); const why = unavailable(items.find(o => o.operation === chooser.value)); if (why) { drawForm(); throw Error(why); }
-                const op = items.find(o => o.operation === chooser.value), parameters = readForm(); if (search.value && op.schema.properties[searchField]) parameters[searchField] = search.value; if (pageToken) parameters.pageToken = pageToken;
+            const execute = async (pageToken, append) => {
+                status = await api('/status'); const op = items.find(o => o.operation === chooser.value); const why = unavailable(op); if (why) { drawForm(); throw Error(why); }
+                const parameters = readForm(); if (search.value && op.schema.properties[searchField]) parameters[searchField] = search.value; if (pageToken) parameters.pageToken = pageToken;
                 let transfer = {};
                 if (op.grant === 'download' || op.operation.includes('upload')) { transfer = await formDialog(t('destination'), { project_id: { type: 'string', enum: projects.map(p => p.id) }, file: { type: 'string' } }); if (!transfer) return; }
                 message(t('loading')); const result = await api('/operations', { method: 'POST', body: { domain, operation: op.operation, parameters, ...transfer } }); if (disposed || epoch !== generation) return;
-                if (result.job) { message(t('job_created') + ': ' + result.job.id); return; }
-                message(''); renderResults(output, result.data, domain);
-                const token = result.data?.nextPageToken || result.data?.pageToken; if (token) button(output, 'next', () => execute(token));
+                if (result.job) { message(t('job_created') + ': ' + result.job.id, 'success'); return; }
+                message(''); renderResults(output, result.data, domain, append, token => execute(token, true)); if (refreshButton) refreshButton.disabled = false;
             };
-            executeButton = button(controls, 'execute', () => execute()); drawForm(); search.addEventListener('keydown', event => { if (event.key === 'Enter' && !executeButton.disabled) execute().catch(error); });
+            executeButton = button(controls, 'execute', () => execute(), 'primary');
+            refreshButton = button(controls, 'refresh', () => execute(), 'quiet'); refreshButton.disabled = true;
+            drawForm(); search.addEventListener('keydown', event => { if (event.key === 'Enter' && !executeButton.disabled) execute().catch(error); });
             text(panel, t('api_fields_hint'), 'small');
         }
-        function renderResults(parent, data, domain) { parent.replaceChildren(); const list = Array.isArray(data) ? data : Object.values(data || {}).find(Array.isArray); if (!list) { detailsInto(parent, data); return; } if (!list.length) { text(parent, t('empty')); return; } for (const item of list) { const row = document.createElement('div'); row.className = 'kg-resource'; text(row, item.title || item.name || item.ref || item.slug || item.id || '—', 'strong'); const description = item.subtitle || item.description || item.url || ''; text(row, String(description).slice(0, 220), 'small'); button(row, 'details', () => details(t(domain), item)); if (domain === 'notebooks') button(row, 'import_notebook', () => importNotebook(item)); parent.append(row); } }
+        function referenceOf(item) {
+            if (!item || typeof item !== 'object') return '';
+            if (item.ref) return String(item.ref);
+            if (item.author && item.slug) return String(item.author) + '/' + String(item.slug);
+            return item.slug || item.name || item.id || '';
+        }
+        async function copyReference(value) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(value);
+                else { const area = document.createElement('textarea'); area.value = value; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0'; document.body.append(area); area.select(); try { document.execCommand('copy'); } catch (_) {} area.remove(); }
+                message(t('copied') + ': ' + value, 'success');
+            } catch (_) { message(t('error'), 'error'); }
+        }
+        function renderResults(parent, data, domain, append, next) {
+            const list = Array.isArray(data) ? data : Object.values(data || {}).find(Array.isArray);
+            if (!list) { if (!append) { parent.replaceChildren(); parent.dataset.shown = '0'; } detailsInto(parent, data); return; }
+            let head = parent.querySelector('.kg-results-head'), listBox = parent.querySelector('.kg-results-list'), pager = parent.querySelector('.kg-pager');
+            if (!head || !listBox || !pager) {
+                head = document.createElement('div'); head.className = 'kg-results-head';
+                listBox = document.createElement('div'); listBox.className = 'kg-results-list';
+                pager = document.createElement('div'); pager.className = 'kg-pager';
+                parent.append(head, listBox, pager);
+            }
+            if (!append) { listBox.replaceChildren(); parent.dataset.shown = '0'; }
+            const shown = Number(parent.dataset.shown || 0) + list.length; parent.dataset.shown = String(shown);
+            const headLabel = document.createElement('span'); headLabel.textContent = t('results');
+            const headCount = document.createElement('strong'); headCount.textContent = String(shown);
+            head.replaceChildren(headLabel, headCount);
+            pager.replaceChildren();
+            if (!shown) { const empty = document.createElement('div'); empty.className = 'kg-empty'; text(empty, t('no_results')); listBox.append(empty); return; }
+            for (const item of list) {
+                const row = document.createElement('div'); row.className = 'kg-resource';
+                const main = document.createElement('div'); main.className = 'kg-resource-main';
+                text(main, item.title || item.name || item.ref || item.slug || item.id || '—', 'strong');
+                const description = item.subtitle || item.description || item.url || ''; if (description) text(main, String(description).slice(0, 220), 'small');
+                const rowActions = document.createElement('div'); rowActions.className = 'kg-resource-actions';
+                const reference = referenceOf(item); if (reference) button(rowActions, 'copy', () => copyReference(reference), 'quiet');
+                button(rowActions, 'details', () => details(t(domain), item));
+                if (domain === 'notebooks') button(rowActions, 'import_notebook', () => importNotebook(item));
+                row.append(main, rowActions); listBox.append(row);
+            }
+            const token = data?.nextPageToken || data?.pageToken; if (token && next) button(pager, 'next', () => next(token));
+        }
         async function importNotebook(item) { const ref = item.ref || (item.author && item.slug ? item.author + '/' + item.slug : ''); const values = await formDialog(t('import_notebook'), { userName: { type: 'string' }, kernelSlug: { type: 'string' }, project_id: { type: 'string', enum: projects.map(p => p.id) }, fileName: { type: 'string' } }, { userName: ref.split('/')[0] || '', kernelSlug: ref.split('/')[1] || '', fileName: (ref.split('/')[1] || 'notebook') + '.ipynb' }); if (!values) return; const { project_id, fileName, ...parameters } = values; const result = await api('/operations', { method: 'POST', body: { domain: 'notebooks', operation: 'get_kernel', parameters } }); const content = JSON.parse(result.data.blob.source); await api('/projects/' + project_id + '/notebooks/' + encodeURIComponent(fileName), { method: 'PUT', headers: { 'If-None-Match': '*' }, body: content }); await openNotebook(project_id, fileName); }
         function detailsInto(parent, data) { if (!data || typeof data !== 'object') { text(parent, String(data ?? '')); return; } const list = document.createElement('dl'); for (const [key, value] of Object.entries(data)) { text(list, fieldLabel(key), 'dt'); const term = document.createElement('dd'); if (value && typeof value === 'object') { const pre = document.createElement('pre'); pre.textContent = JSON.stringify(value, null, 2); term.append(pre); } else term.textContent = String(value ?? ''); list.append(term); } parent.append(list); }
-        function details(name, data) { const d = modal(name); detailsInto(d.body, data); button(d.actions, 'close', d.close); }
+        function details(name, data) { const d = modal(name); detailsInto(d.body, data); button(d.actions, 'close', d.close, 'primary'); }
         function cancelUnavailable(job) {
             if (job.status !== 'remote_running') return '';
             if (!status.configured) return t('credentials_missing');
@@ -142,7 +226,7 @@
                 if (!check.checked) return;
                 await api('/jobs/' + job.id + '/resolve-unknown', { method: 'POST', body: { confirmed_inactive: true } });
                 dialog.close(); await jobs(epoch);
-            });
+            }, 'primary');
             blockButton(submit, t('resolve_unknown_confirm'));
             check.addEventListener('change', () => blockButton(submit, check.checked ? '' : t('resolve_unknown_confirm')));
             check.focus();
@@ -151,30 +235,41 @@
             const [all, current] = await Promise.all([api('/jobs'), api('/status')]);
             if (disposed || epoch !== generation) return;
             status = current; panel.replaceChildren(); title(panel, 'jobs');
-            if (!all.length) text(panel, t('empty'));
-            for (const job of all) {
+            const filters = document.createElement('div'); filters.className = 'kg-toolbar'; panel.append(filters);
+            for (const key of ['all', 'active', 'state_failed']) {
+                const chipButton = button(filters, key, () => { jobFilter = key === 'state_failed' ? 'failed' : key; jobs(epoch).catch(error); }, 'quiet');
+                chipButton.setAttribute('aria-pressed', jobFilter === (key === 'state_failed' ? 'failed' : key) ? 'true' : 'false');
+            }
+            const visible = all.filter(job => jobFilter === 'active' ? activeStates.includes(job.status) : jobFilter === 'failed' ? job.status === 'failed' : true);
+            if (!visible.length) text(panel, t('empty'));
+            for (const job of visible) {
                 const row = document.createElement('div'); row.className = 'kg-resource';
-                text(row, job.operation, 'strong'); text(row, t('state_' + job.status) + ' · ' + job.id, 'small');
-                if (job.error) text(row, job.error);
-                if (job.progress) text(row, (job.progress / 1048576).toFixed(1) + ' MiB');
-                button(row, 'details', () => details(t('jobs'), job.result || job));
+                const main = document.createElement('div'); main.className = 'kg-resource-main';
+                text(main, job.operation, 'strong');
+                const meta = document.createElement('div'); meta.className = 'kg-resource-meta';
+                meta.append(chip(t('state_' + job.status), jobTones[job.status]), node(job.domain + ' · ' + job.id));
+                main.append(meta);
+                if (job.error) text(main, job.error, 'small');
+                if (job.progress) { const meter = document.createElement('div'); meter.className = 'kg-meter'; const fill = document.createElement('i'); fill.style.width = '100%'; meter.append(fill); main.append(meter); }
+                const rowActions = document.createElement('div'); rowActions.className = 'kg-resource-actions';
+                button(rowActions, 'details', () => details(t('jobs'), job.result || job));
                 const cancelOnSite = job.domain === 'notebooks' && job.status === 'remote_running' && !job.result?.kernelSessionId;
                 if (['queued', 'running', 'remote_running'].includes(job.status) && !cancelOnSite) {
-                    const cancel = button(row, 'cancel', async () => {
+                    const cancel = button(rowActions, 'cancel', async () => {
                         status = await api('/status');
                         const reason = cancelUnavailable(job); blockButton(cancel, reason);
                         if (reason) throw Error(reason);
                         await api('/jobs/' + job.id + '/cancel', { method: 'POST', body: {} }); await jobs(epoch);
-                    });
+                    }, 'danger');
                     blockButton(cancel, cancelUnavailable(job));
                 }
-                if (job.status === 'unknown' && status.can_resolve_unknown) button(row, 'resolve_unknown', () => resolveUnknown(job, epoch));
+                if (job.status === 'unknown' && status.can_resolve_unknown) button(rowActions, 'resolve_unknown', () => resolveUnknown(job, epoch));
                 if (cancelOnSite) {
                     const link = document.createElement('a'); const ref = job.result?.ref;
                     link.href = typeof ref === 'string' && /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(ref) ? 'https://www.kaggle.com/code/' + ref : 'https://www.kaggle.com/code';
-                    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('cancel_on_site'); link.title = t('cancel_on_site'); row.append(link);
+                    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('cancel_on_site'); link.title = t('cancel_on_site'); rowActions.append(link);
                 }
-                panel.append(row);
+                row.append(main, rowActions); panel.append(row);
             }
         }
         function fieldLabel(key) { return fieldWords[key] ? t(fieldWords[key]) : key; }
@@ -198,8 +293,8 @@
             const returnFocus = document.activeElement;
             const dialog = document.createElement('dialog'); dialog.className = 'kg-dialog'; dialog.setAttribute('aria-label', name); const heading = document.createElement('h2'); heading.textContent = name; dialog.append(heading); const body = document.createElement('div'); body.className = 'kg-dialog-body'; dialog.append(body); const feedback = document.createElement('p'); feedback.className = 'kg-error'; feedback.setAttribute('role', 'alert'); dialog.append(feedback); const actions = document.createElement('div'); actions.className = 'kg-toolbar'; dialog.append(actions); root.append(dialog); const result = { body, actions, cancel: null, close() { dialog.close(); dialog.remove(); if (returnFocus?.isConnected) returnFocus.focus(); } }; dialog.addEventListener('cancel', event => { event.preventDefault(); result.cancel?.(); result.close(); }); button(actions, 'cancel', () => { result.cancel?.(); result.close(); }); dialog.showModal(); return result;
         }
-        function formDialog(name, properties, initial = {}, hint = '', submit) { return new Promise(resolve => { const dialog = modal(name); if (hint) text(dialog.body, hint); const read = schemaFields(dialog.body, properties, initial, 0); button(dialog.actions, 'continue', async () => { const values = read(); const result = submit ? await submit(values) : values; if (!dialog.body.isConnected) return; dialog.close(); resolve(result); }); dialog.cancel = () => resolve(null); dialog.body.querySelector('input,select,textarea')?.focus(); }); }
-        (async () => { try { const [capabilities, next, allProjects] = await Promise.all([api('/capabilities'), api('/status'), api('/projects')]); if (disposed) return; catalog = capabilities.operations; defs = capabilities.definitions; status = next; projects = allProjects; await navigate('overview'); eventSource = new EventSource('/api/kaggle/events'); eventSource.addEventListener('job', () => { if (active === 'jobs') jobs(generation).catch(error); }); } catch (err) { error(err); } })();
+        function formDialog(name, properties, initial = {}, hint = '', submit) { return new Promise(resolve => { const dialog = modal(name); if (hint) text(dialog.body, hint); const read = schemaFields(dialog.body, properties, initial, 0); button(dialog.actions, 'continue', async () => { const values = read(); const result = submit ? await submit(values) : values; if (!dialog.body.isConnected) return; dialog.close(); resolve(result); }, 'primary'); dialog.cancel = () => resolve(null); dialog.body.querySelector('input,select,textarea')?.focus(); }); }
+        (async () => { try { const [capabilities, next, allProjects] = await Promise.all([api('/capabilities'), api('/status'), api('/projects')]); if (disposed) return; catalog = capabilities.operations; defs = capabilities.definitions; status = next; projects = allProjects; syncNavStatus(); await navigate('overview'); eventSource = new EventSource('/api/kaggle/events'); eventSource.addEventListener('job', () => { if (active === 'jobs') jobs(generation).catch(error); }); } catch (err) { error(err); } })();
         instances.set(windowId, { dispose() { disposed = true; generation++; disposeEditor(); eventSource?.close(); requests.forEach(c => c.abort()); root.querySelectorAll('dialog').forEach(d => d.dispatchEvent(new Event('cancel'))); host.classList.remove('kg-host'); } });
     }
     function dispose(id) { instances.get(id)?.dispose(); instances.delete(id); }

@@ -14,7 +14,7 @@ OUTPUT = ROOT / "ui/img/cyd-icons"
 STYLES = ("playful", "modern", "comic", "sober")
 TONES = ("color", "mono")
 SIZES = (24, 32, 48, 64)
-ROWS = (
+ORIGINAL_ROWS = (
     "home menu back forward up down search settings add close",
     "folder file save trash check error warning info lock unlock",
     "wifi ethernet bluetooth server cloud upload download sync power cpu",
@@ -22,9 +22,22 @@ ROWS = (
     "battery battery_charging energy solar sun moon cloudy rain snow wind",
     "play pause stop volume mute microphone camera bell message clock",
 )
-MOTIFS = " ".join(ROWS).split()
+EXPANSION_ROWS = (
+    "garage air_quality air_conditioner dishwasher faucet smoke_detector blinds washing_machine vacuum_robot coffee_machine",
+    "sunrise sunset fog leaf flower tree ev_charger wind_turbine water_pump thunderstorm",
+    "antenna ssd memory usb shield key router database printer bug",
+    "music_note headphones calendar location heart shopping_cart radio gamepad alarm_clock hourglass",
+    "cat dog fish smile sad sleep gopher robot bird rocket",
+)
+ORIGINAL_MOTIFS = " ".join(ORIGINAL_ROWS).split()
+EXPANSION_MOTIFS = " ".join(EXPANSION_ROWS).split()
+MOTIFS = ORIGINAL_MOTIFS + EXPANSION_MOTIFS
 MOTION = ("wifi upload download bulb fan battery_charging".split(),
           "rain snow wind volume microphone bell".split())
+EXPANSION_FRAMES = ("blinds washing_machine vacuum_robot coffee_machine ev_charger "
+                    "wind_turbine water_pump thunderstorm router database printer bug radio gamepad "
+                    "alarm_clock hourglass gopher robot bird rocket").split()
+EXPANSION_MOTION = [EXPANSION_FRAMES[i:i + 5] for i in range(0, len(EXPANSION_FRAMES), 5)]
 
 
 def cells(path, cols, rows):
@@ -33,10 +46,10 @@ def cells(path, cols, rows):
     alpha = image.getchannel("A")
     # Generated sheets have slightly unequal margins. Split only in transparent
     # gutters, never at a nominal grid line through the neighbouring icon.
-    def cuts(length, count, horizontal):
+    def cuts(length, count, horizontal, mask=alpha):
         blank = []
         for i in range(length):
-            strip = alpha.crop((i, 0, i + 1, image.height) if horizontal else (0, i, image.width, i + 1))
+            strip = mask.crop((i, 0, i + 1, mask.height) if horizontal else (0, i, mask.width, i + 1))
             blank.append(strip.getextrema()[1] < 8)
         gaps, start = [], None
         for i, empty in enumerate(blank + [False]):
@@ -55,18 +68,25 @@ def cells(path, cols, rows):
             ):
                 target = length * 0.21
             candidates = [g for g in gaps if abs(g - target) < length / count * 0.45 and g > boundaries[-1]]
-            assert candidates, f"Missing gutter {n}: {path}"
+            assert candidates, f"Missing {'column' if horizontal else 'row'} gutter {n}: {path}"
             boundaries.append(min(candidates, key=lambda g: abs(g - target)))
         return boundaries + [length]
-    xs, ys = cuts(image.width, cols, True), cuts(image.height, rows, False)
-    width, height = max(b - a for a, b in zip(xs, xs[1:])), max(b - a for a, b in zip(ys, ys[1:]))
-    result = []
+    ys = cuts(image.height, rows, False)
+    boxes = []
+    original_xs = cuts(image.width, cols, True) if "-expansion-1" not in path.name else None
     for y in range(rows):
-        for x in range(cols):
-            cell = image.crop((xs[x], ys[y], xs[x + 1], ys[y + 1]))
-            padded = Image.new("RGBA", (width, height))
-            padded.paste(cell, ((width - cell.width) // 2, (height - cell.height) // 2))
-            result.append(padded)
+        # New sheets align each row independently. A detached drop or water-flow
+        # dash in one row must not force a cut through a different row's artwork.
+        mask = alpha.crop((0, ys[y], image.width, ys[y + 1])) if "-expansion-1" in path.name else alpha
+        xs = original_xs if original_xs is not None else cuts(image.width, cols, True, mask)
+        boxes.extend((xs[x], ys[y], xs[x + 1], ys[y + 1]) for x in range(cols))
+    width, height = max(b[2] - b[0] for b in boxes), max(b[3] - b[1] for b in boxes)
+    result = []
+    for box in boxes:
+        cell = image.crop(box)
+        padded = Image.new("RGBA", (width, height))
+        padded.paste(cell, ((width - cell.width) // 2, (height - cell.height) // 2))
+        result.append(padded)
     return result
 
 
@@ -116,10 +136,12 @@ def main():
     parser.add_argument("--contact-sheets", type=Path)
     args = parser.parse_args()
     manifest = {"version": 1, "files": {}}
-    assert len(MOTIFS) == len(set(MOTIFS)) == 60
+    assert len(MOTIFS) == len(set(MOTIFS)) == 110
+    assert len(EXPANSION_FRAMES) == len(set(EXPANSION_FRAMES)) == 20
     for style in STYLES:
         for tone in TONES:
-            masters = {name: [cell] for name, cell in zip(MOTIFS, cells(SOURCE / f"{style}-{tone}.png", 10, 6))}
+            masters = {name: [cell] for name, cell in zip(ORIGINAL_MOTIFS, cells(SOURCE / f"{style}-{tone}.png", 10, 6))}
+            masters.update({name: [cell] for name, cell in zip(EXPANSION_MOTIFS, cells(SOURCE / f"{style}-{tone}-expansion-1.png", 10, 5))})
             for group, names in enumerate(MOTION):
                 atlas = cells(SOURCE / f"{style}-{tone}-motion-{group}.png", 6, 6)
                 for row, name in enumerate(names):
@@ -129,10 +151,18 @@ def main():
                     # The still image must show the complete symbol, e.g. all Wi-Fi arcs.
                     start = 3 if name in ("wifi", "upload", "bulb", "battery_charging", "volume", "microphone", "rain") else 0
                     masters[name] = masters[name][start:] + masters[name][:start]
+            for group, names in enumerate(EXPANSION_MOTION):
+                atlas = cells(SOURCE / f"{style}-{tone}-expansion-1-motion-{group}.png", 6, 5)
+                for row, name in enumerate(names):
+                    masters[name] = atlas[row * 6:(row + 1) * 6]
             for size in SIZES:
                 thumbnails = []
                 for name in MOTIFS:
                     frames = export(masters[name], size, tone)
+                    if name in EXPANSION_FRAMES:
+                        # A monochrome sequence must move in alpha too, not just change colour.
+                        unique = {frame.getchannel("A").tobytes() if tone == "mono" else frame.tobytes() for frame in frames}
+                        assert len(unique) > 1, f"Static animation: {style}/{tone}/{name}/{size}"
                     thumbnails.append(frames[0])
                     for number, frame in enumerate(frames):
                         buffer = io.BytesIO()
@@ -144,7 +174,7 @@ def main():
                 if args.contact_sheets:
                     for bg, color in (("light", "#f4f4f4"), ("dark", "#202833")):
                         pitch = size + 12
-                        sheet = Image.new("RGB", (pitch * 10, pitch * 6), color)
+                        sheet = Image.new("RGB", (pitch * 10, pitch * ((len(MOTIFS) + 9) // 10)), color)
                         for index, frame in enumerate(thumbnails):
                             if tone == "mono" and bg == "light":
                                 frame = frame.copy()
@@ -155,15 +185,17 @@ def main():
                         path = args.contact_sheets / f"{style}-{tone}-{size}-{bg}.png"
                         path.parent.mkdir(parents=True, exist_ok=True)
                         sheet.save(path)
-    assert len(manifest["files"]) == 3840
-    write(OUTPUT / "manifest.json", (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode(), args.check)
+    assert len(manifest["files"]) == 8640
+    manifest_raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+    assert len(manifest_raw) <= 2 << 20, "Icon manifest exceeds the loader limit"
+    write(OUTPUT / "manifest.json", manifest_raw, args.check)
     write(ROOT / "assets/cyd-icons/export-manifest.json", (json.dumps({
         "version": 1, "sets": 16, "motifs": MOTIFS, "styles": STYLES, "tones": TONES,
-        "sizes": SIZES, "variants": 960, "png_files": 3840, "fps": 6,
+        "sizes": SIZES, "variants": 1760, "png_files": 8640, "fps": 6,
         "source_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(SOURCE.glob("*.png"))},
-        "runtime_manifest_sha256": hashlib.sha256((OUTPUT / "manifest.json").read_bytes()).hexdigest(),
+        "runtime_manifest_sha256": hashlib.sha256(manifest_raw).hexdigest(),
     }, indent=2) + "\n").encode(), args.check)
-    print(f"{'Verified' if args.check else 'Exported'} 16 sets, 960 variants, {len(manifest['files'])} PNGs")
+    print(f"{'Verified' if args.check else 'Exported'} 16 sets, 1760 variants, {len(manifest['files'])} PNGs")
 
 
 if __name__ == "__main__":

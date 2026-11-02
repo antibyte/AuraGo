@@ -16,12 +16,36 @@
 @container todo (max-width: 760px) {
     .vd-todo {
         grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1.25fr) minmax(0, 1fr);
+    }
+
+    .vd-todo-sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-right: 0;
+        border-bottom: 1px solid var(--todo-line);
+    }
+
+    .vd-todo-sidebar button {
+        width: auto;
+        min-width: 120px;
     }
 }
 
 .vd-todo {
     --todo-line: var(--vd-mat-divider, var(--vd-theme-border));
     background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
+
+    /* The tone tokens mix the theme text into the hue, so a chip keeps its contrast on the light and on the dark
+       surface of every theme. */
+    --todo-ink: var(--vd-text);
+    --todo-muted: var(--vd-muted, var(--vd-theme-muted));
+    --todo-ok: color-mix(in srgb, #4caf7d 62%, var(--vd-text));
+    --todo-busy: color-mix(in srgb, #4f9ad9 62%, var(--vd-text));
+    --todo-warn: color-mix(in srgb, #e0a33e 62%, var(--vd-text));
+    --todo-bad: color-mix(in srgb, #e0645b 62%, var(--vd-text));
+    --todo-radius: 10px;
 }
 
 .vd-todo-sidebar,
@@ -41,6 +65,51 @@
     box-shadow: var(--vd-mat-side-edge, none);
 
     padding: 12px;
+}
+
+.vd-todo-sidebar button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--todo-ink);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-todo-sidebar button:hover {
+    background: var(--vd-mat-hover, var(--vd-theme-accent-soft));
+}
+
+.vd-todo-sidebar button.active {
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
+    color: var(--vd-mat-selected-text, inherit);
+    border-color: var(--vd-theme-accent-border, var(--vd-accent));
+    font-weight: 600;
+}
+
+.vd-todo-filter-count {
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vd-text) 10%, transparent);
+    color: var(--todo-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.vd-todo-sidebar button.active .vd-todo-filter-count {
+    background: color-mix(in srgb, var(--vd-text) 18%, transparent);
+    color: inherit;
 }
 
 .vd-todo-detail {
@@ -74,6 +143,89 @@
     height: 16px;
     margin: 0;
     accent-color: var(--vd-accent);
+}
+
+/* The notice reports what the last request did. It stays in the pane instead of vanishing with the desktop toast. */
+.vd-todo-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 9px 8px 9px 12px;
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-left-width: 3px;
+    border-radius: var(--todo-radius);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
+    font-size: 13px;
+}
+
+.vd-todo-notice[hidden] {
+    display: none;
+}
+
+.vd-todo-notice[data-tone="ok"] { border-left-color: var(--todo-ok); }
+.vd-todo-notice[data-tone="info"] { border-left-color: var(--todo-busy); }
+.vd-todo-notice[data-tone="warn"] { border-left-color: var(--todo-warn); }
+.vd-todo-notice[data-tone="bad"] { border-left-color: var(--todo-bad); }
+
+.vd-todo-notice-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.vd-todo-notice-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--todo-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.vd-todo-notice-close:hover {
+    background: color-mix(in srgb, var(--vd-text) 10%, transparent);
+    color: var(--todo-ink);
+}
+
+.vd-todo-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.vd-todo-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.vd-todo-search-icon {
+    position: absolute;
+    left: 9px;
+    display: inline-flex;
+    color: var(--todo-muted);
+    pointer-events: none;
+}
+
+.vd-todo .vd-todo-search input.vd-todo-search-input {
+    padding-left: 30px;
+}
+
+.vd-todo-list-count {
+    flex: 0 0 auto;
+    color: var(--todo-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .vd-todo-list,
@@ -112,10 +264,51 @@
 }
 
 .vd-todo-card-copy strong,
-.vd-todo-card-copy small {
+.vd-todo-card-copy small,
+.vd-todo-card-title {
     min-width: 0;
     overflow-wrap: anywhere;
 }
+
+.vd-todo-card-title {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: 600;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-todo-card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-width: 0;
+}
+
+/* A chip carries one fact: the state, the reminder, the due day or the overdue warning. */
+.vd-todo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vd-text) 9%, transparent);
+    color: var(--todo-muted);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.vd-todo-chip[data-tone="ok"] { background: color-mix(in srgb, var(--todo-ok) 18%, transparent); color: var(--todo-ok); }
+.vd-todo-chip[data-tone="info"] { background: color-mix(in srgb, var(--todo-busy) 18%, transparent); color: var(--todo-busy); }
+.vd-todo-chip[data-tone="busy"] { background: color-mix(in srgb, var(--todo-busy) 18%, transparent); color: var(--todo-busy); }
+.vd-todo-chip[data-tone="warn"] { background: color-mix(in srgb, var(--todo-warn) 20%, transparent); color: var(--todo-warn); }
+.vd-todo-chip[data-tone="bad"] { background: color-mix(in srgb, var(--todo-bad) 18%, transparent); color: var(--todo-bad); }
 
 .vd-todo-card-copy small {
     color: var(--vd-muted);
@@ -136,12 +329,13 @@
     box-shadow: var(--vd-mat-selected-edge, var(--vd-mat-card-shadow, none));
 }
 
-.vd-todo-card.active .vd-todo-card-copy small {
+.vd-todo-card.active .vd-todo-card-copy small,
+.vd-todo-card.active .vd-todo-chip[data-tone="muted"] {
     color: var(--vd-mat-selected-text, var(--vd-muted));
 }
 
 .vd-todo-card.overdue {
-    border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 55%, var(--vd-mat-divider, var(--vd-theme-border)));
+    border-color: color-mix(in srgb, var(--todo-bad) 55%, var(--vd-mat-divider, var(--vd-theme-border)));
 }
 
 .vd-todo-priority {
@@ -153,9 +347,39 @@
     white-space: nowrap;
 }
 
-.vd-todo-priority.high { background: color-mix(in srgb, var(--vd-coral, #ff8066) 22%, transparent); color: color-mix(in srgb, var(--vd-coral, #ff8066) 72%, var(--vd-text)); }
-.vd-todo-priority.medium { background: color-mix(in srgb, var(--vd-gold, #f2b84b) 22%, transparent); color: color-mix(in srgb, var(--vd-gold, #f2b84b) 72%, var(--vd-text)); }
-.vd-todo-priority.low { background: var(--vd-theme-accent-soft); color: color-mix(in srgb, var(--vd-accent) 72%, var(--vd-text)); }
+.vd-todo-priority.high { background: color-mix(in srgb, var(--todo-bad) 18%, transparent); color: var(--todo-bad); }
+.vd-todo-priority.medium { background: color-mix(in srgb, var(--todo-warn) 20%, transparent); color: var(--todo-warn); }
+.vd-todo-priority.low { background: color-mix(in srgb, var(--vd-accent) 16%, transparent); color: color-mix(in srgb, var(--vd-accent) 72%, var(--vd-text)); }
+
+/* An empty view says why it is empty and offers the way out of it. */
+.vd-todo-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 26px 18px;
+    border: 1px dashed color-mix(in srgb, var(--vd-text) 18%, transparent);
+    border-radius: var(--todo-radius);
+    color: var(--todo-muted);
+    text-align: center;
+}
+
+.vd-todo-empty strong {
+    color: var(--todo-ink);
+    font-size: 14px;
+}
+
+.vd-todo-empty p {
+    margin: 0;
+    max-width: 34ch;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+.vd-todo-empty .vd-todo-action-icon {
+    color: var(--todo-muted);
+    opacity: .75;
+}
 
 .vd-todo-progress {
     height: 5px;
@@ -174,6 +398,81 @@
 .vd-todo-detail textarea {
     min-height: 90px;
     resize: vertical;
+}
+
+.vd-todo-detail-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--todo-line);
+}
+
+.vd-todo-detail-title {
+    margin: 0;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* The badge shows that the open form differs from the stored task. */
+.vd-todo-dirty {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--todo-warn) 20%, transparent);
+    color: var(--todo-warn);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.vd-todo-dirty[hidden] {
+    display: none;
+}
+
+.vd-todo-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vd-todo-label {
+    color: var(--todo-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+.vd-todo-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.vd-todo-subhead {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.vd-todo-items-empty {
+    margin: 0;
+    color: var(--todo-muted);
+    font-size: 12.5px;
+}
+
+/* Save is the primary action, completing is quiet and deleting is the one that takes something away. */
+.vd-todo-button-danger {
+    border-color: color-mix(in srgb, var(--todo-bad) 45%, transparent);
+    color: var(--todo-bad);
+}
+
+.vd-todo-button-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--todo-bad) 16%, transparent);
+    color: var(--todo-bad);
 }
 
 .vd-check {
@@ -217,6 +516,47 @@
 .vd-todo-item-delete:hover {
     border-color: rgba(239, 68, 68, 0.45);
     background: rgba(239, 68, 68, 0.12);
+}
+
+/* The focus ring belongs to every control of the app, so the keyboard path is visible on each theme. */
+.vd-todo :is(button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--vd-theme-accent-border, var(--vd-accent));
+    outline-offset: 2px;
+}
+
+.vd-todo input:focus-visible,
+.vd-todo textarea:focus-visible,
+.vd-todo select:focus-visible {
+    outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-todo *,
+    .vd-todo *::before,
+    .vd-todo *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* A finger needs a target of 40 px, so the small controls grow on a narrow window. */
+@media (max-width: 620px) {
+    .vd-todo-item {
+        grid-template-columns: 24px minmax(0, 1fr) 40px;
+    }
+
+    .vd-todo-item-delete,
+    .vd-todo-notice-close {
+        width: 40px;
+        height: 40px;
+    }
+
+    .vd-todo input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 .vd-webamp-launcher {

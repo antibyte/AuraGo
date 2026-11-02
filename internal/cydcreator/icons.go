@@ -39,8 +39,15 @@ func Icons() IconCatalog {
 		{"home", "bulb outlet switch thermometer humidity fan heater door window motion"},
 		{"weather", "battery battery_charging energy solar sun moon cloudy rain snow wind"},
 		{"media", "play pause stop volume mute microphone camera bell message clock"},
+		{"home", "garage air_quality air_conditioner dishwasher faucet smoke_detector blinds washing_machine vacuum_robot coffee_machine"},
+		{"weather", "sunrise sunset fog leaf flower tree ev_charger wind_turbine water_pump thunderstorm"},
+		{"system", "antenna ssd memory usb shield key router database printer bug"},
+		{"media", "music_note headphones calendar location heart shopping_cart radio gamepad alarm_clock hourglass"},
+		{"characters", "cat dog fish smile sad sleep gopher robot bird rocket"},
 	}
-	frames := strings.Fields("wifi upload download bulb fan battery_charging rain snow wind volume microphone bell")
+	frames := strings.Fields("wifi upload download bulb fan battery_charging rain snow wind volume microphone bell " +
+		"blinds washing_machine vacuum_robot coffee_machine ev_charger wind_turbine water_pump thunderstorm " +
+		"router database printer bug radio gamepad alarm_clock hourglass gopher robot bird rocket")
 	for _, group := range groups {
 		for _, id := range strings.Fields(group.ids) {
 			motion := "pulse"

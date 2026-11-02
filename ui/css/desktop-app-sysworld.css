@@ -181,6 +181,19 @@
 .sw-scope-tag.sw-idle strong { font-size: 12px; font-weight: 500; color: var(--sw-muted); }
 .sw-scope-hint { position: absolute; left: 50%; bottom: 9%; transform: translateX(-50%); max-width: 80%; padding: 4px 12px; border-radius: 999px; background: #04121bb3; font-size: 10px; color: var(--sw-muted); text-align: center; }
 .sysworld.sw-scoping .sw-street-help { display: none; }
+/* Hover pack: a quiet readout above the interaction prompt; it never takes pointer input and never animates. */
+.sw-flight { position: absolute; left: 50%; bottom: 208px; transform: translateX(-50%); display: grid; grid-template-columns: 1fr auto; gap: 5px 18px; align-items: baseline; width: max-content; max-width: min(420px,calc(100% - 32px)); padding: 10px 16px; font-size: 12px; font-variant-numeric: tabular-nums; pointer-events: none; border-color: color-mix(in srgb,var(--sw-accent) 45%,var(--sw-border)); }
+.sw-flight-title { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--sw-accent); }
+.sw-flight-state { min-height: 1.45em; color: var(--sw-muted); text-align: right; }
+.sw-flight-stats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 22px; }
+.sw-flight-stat { display: inline-flex; gap: 8px; align-items: baseline; }
+.sw-flight-stat strong { font-size: 15px; font-weight: 600; }
+.sw-flight-hint { grid-column: 1 / -1; font-size: 10px; color: var(--sw-muted); }
+.sysworld.sw-flying .sw-street-help > span:first-child { display: none; }
+/* Climb and descend sit on the movement pad, only while a hover-pack flight runs. */
+.sysworld:not(.sw-flying) .sw-flight-key { display: none; }
+.sw-flight-key { touch-action: none; }
+.sw-flight-key[data-sw-action="flight-up"] { margin-left: 8px; }
 .sw-rail .sw-rail-toggle { display: none; }
 .sw-pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 4px 8px; background: #081925c7; border: 1px solid #8ac9d855; border-radius: 5px; color: #c7e9ef !important; font-size: 10px !important; white-space: nowrap; box-shadow: 0 2px 15px #0003; transition: opacity 180ms ease, visibility 0s, border-color 140ms, background-color 140ms; }
 .sw-pin::after { content: ''; position: absolute; height: 14px; width: 1px; background: #8ac9d888; left: 50%; top: 100%; }
@@ -284,6 +297,7 @@
     .sw-photo-bar { bottom: 10px; }
     .sw-scope-tag { left: 50%; top: calc(50% + 84px); transform: translateX(-50%); max-width: calc(100% - 32px); border-left: 0; border-top: 2px solid var(--sw-accent); border-radius: 0 0 8px 8px; }
     .sw-scope-tag::before { display: none; }
+    .sw-flight { bottom: 262px; }
 }
 @container (max-width: 520px) {
     .sw-compass { --sw-half: 58px; }
@@ -291,7 +305,8 @@
 }
 @media(pointer:coarse) {
     .sysworld .sw-btn, .sw-entity, .sw-quality { min-height: 44px; }
-    .sw-interaction kbd { display: none; }
+    .sw-interaction kbd, .sw-flight-hint { display: none; }
+    .sw-movement .sw-flight-key { min-width: 44px; min-height: 44px; }
     .sw-world>summary { min-height: 52px; }
 }
 @media(prefers-reduced-motion:reduce) {

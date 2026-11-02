@@ -66,6 +66,12 @@
 .fi-message > button { width: 28px; height: 26px; color: inherit; font-size: 18px; }
 .fi-message.is-error { color: var(--fi-bad); background: color-mix(in srgb, var(--fi-bad) 7%, var(--fi-canvas)); }
 .fi-message.is-success { color: var(--fi-good); background: color-mix(in srgb, var(--fi-good) 7%, var(--fi-canvas)); }
+.fi-message.fi-pending-commands { align-items: stretch; flex-direction: column; gap: 7px; padding: 10px 14px; }
+.fi-pending-command-list { display: grid; width: 100%; max-height: 210px; gap: 3px; overflow: auto; scrollbar-width: thin; }
+.fi-pending-command-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 3px 0; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.fi-pending-command-row > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
+.fi-pending-command-row small { font-size: 10px; opacity: .8; }
+.fi-pending-command-row button { min-width: 44px; min-height: 44px; white-space: normal; }
 .fi-readonly-note { display: flex; align-items: center; gap: 7px; padding: 6px 14px; border-bottom: 1px solid var(--fi-line); color: var(--fi-muted); font-size: 11px; }
 .fi-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; flex: 0 0 auto; padding: 4px 12px; border-top: 1px solid var(--fi-line); color: var(--fi-muted); background: var(--vd-mat-bar, var(--fi-panel)); box-shadow: var(--vd-mat-bar-edge, none); font-size: 10px; font-variant-numeric: tabular-nums; }
 .fi-statusbar-state { display: inline-flex; align-items: center; gap: 6px; }

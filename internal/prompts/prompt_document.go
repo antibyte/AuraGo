@@ -226,7 +226,7 @@ func markdownHeadingLevel(line string) int {
 
 func promptSectionDirectPolicy(id string) (int, bool, bool) {
 	id = canonicalPromptSectionID(id)
-	if id == promptSectionPersona || id == promptSectionPersonaState || id == promptSectionTaskRules {
+	if id == promptSectionPersona || id == promptSectionPersonaState || id == promptSectionPersonaPhase || id == promptSectionTaskRules {
 		return 1000, true, true
 	}
 	for priority, header := range promptOptionalHeaders(false) {
@@ -267,6 +267,7 @@ const (
 	promptSectionAgentSkills           = "# AGENT SKILLS CATALOG"
 	promptSectionPersonaSignals        = "### PERSONA SIGNALS"
 	promptSectionPersonaState          = "### PERSONA STATE"
+	promptSectionPersonaPhase          = "### PERSONA PHASE"
 	promptSectionPersonaCharacter      = "### PERSONA CHARACTER"
 	promptSectionPersona               = "# PERSONA"
 	promptSectionAvailableContextIndex = "# AVAILABLE CONTEXT INDEX"

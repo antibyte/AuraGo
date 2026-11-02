@@ -15,6 +15,9 @@ from mathutils import Matrix, Vector
 from build_city import Geometry, create_asset, materials, bounds_and_triangles, ROOT
 from living_assets import ASSETS as LIVING_ASSETS, build_living, living_navigation
 from landmark_assets import ASSETS as LANDMARK_ASSETS, PIVOTS as LANDMARK_PIVOTS, build_landmark, landmark_navigation
+from robot_assets import (KINDS as ROBOT_KINDS, create_robot_asset, animate_robot, robot_materials,
+                          bounds_and_triangles_tree, motion_bounds_tree)
+from hover_assets import ASSETS as HOVER_ASSETS, create_hover_asset, animate_hover, hover_navigation
 
 OUT = ROOT / 'ui/3d/system-world/v2'
 PIVOTS = {}
@@ -24,37 +27,6 @@ LANDMARK_CLIPS = {'tidal-turbine': 'spin', 'data-monument': 'spin',
 # Agent tower sky deck: the crown terrace sits at 72.2 m, the east lift starts on the
 # 0.88 m podium. Mirrored by `skyDeck` in ui/js/desktop/apps/sysworld-layout.js.
 SKY_TRAVEL = 71.32
-
-
-def robot(g, kind):
-    accent = {'courier': 'bronze', 'technician': 'jade', 'archivist': 'cyan'}[kind]
-    g.box((0, 0, 1.25), (.65, .4, .72), 'ceramic', .12)
-    g.box((0, -.22, 1.3), (.42, .04, .28), accent)
-    g.cyl((0, 0, .91), .2, .12, 'graphite')
-    g.part = 'head'
-    g.box((0, 0, 1.91), (.58, .43, .42), 'ceramic', .13)
-    g.box((0, -.235, 1.93), (.45, .06, .17), 'glass')
-    for x in (-.12, .12):
-        g.box((x, -.273, 1.94), (.065, .018, .055), accent, 0)
-    for side in (-1, 1):
-        g.part = 'arm_l' if side < 0 else 'arm_r'
-        g.cyl((side*.47, 0, 1.58), .13, .18, 'graphite')
-        g.box((side*.47, 0, 1.3), (.22, .25, .62), 'ceramic', .09)
-        g.box((side*.47, -.015, .96), (.21, .24, .16), 'titanium')
-        g.part = 'leg_l' if side < 0 else 'leg_r'
-        g.box((side*.2, 0, .5), (.25, .3, .76), 'titanium', .06)
-        g.box((side*.2, -.12, .1), (.3, .5, .2), 'graphite')
-    g.part = 'structure'
-    if kind == 'courier':
-        g.part = 'parcel'
-        g.box((0, -.52, 1.16), (.72, .4, .52), 'bronze', .1)
-        g.box((0, -.735, 1.16), (.5, .025, .05), 'ivory')
-        g.part = 'structure'
-    elif kind == 'technician':
-        g.box((.4, .04, 1), (.15, .2, .2), 'bronze')
-        g.pipe((-.2, .26, 1.1), (.2, .26, 1.52), .04, 'jade')
-    else:
-        g.ring((0, 0, 2.18), .3, .035, 'bronze')
 
 
 def module(g, kind):
@@ -261,12 +233,10 @@ def lookout(g, kind):
 
 
 def animate(root, asset):
-    clips = ['idle','walk','turn','greet','work','carry'] if asset.startswith('robot-') else \
-        ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else \
+    clips = ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else \
         [LANDMARK_CLIPS[asset]] if asset in LANDMARK_CLIPS else []
     parts = {o.get('component'): o for o in root.children}
-    pivots = {'head':(0,0,1.7),'arm_l':(-.47,0,1.62),'arm_r':(.47,0,1.62),
-              'leg_l':(-.2,0,.9),'leg_r':(.2,0,.9),'fan':(0,0,3.1),
+    pivots = {'fan':(0,0,3.1),
               'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05),'tube':(0,0,2.05),
               **LANDMARK_PIVOTS}
     for part, pos in pivots.items():
@@ -280,15 +250,7 @@ def animate(root, asset):
             for frame in range(1,50,4):
                 t=(frame-1)/48;wave=sin(t*pi*2);side=-1 if part.endswith('_l') else 1
                 obj.rotation_euler=(0,0,0);obj.location=base
-                if asset.startswith('robot-'):
-                    if clip in ('walk','carry'):
-                        if part.startswith('leg'): obj.rotation_euler.x=wave*side*.55
-                        if part.startswith('arm'): obj.rotation_euler.x=(-.8 if clip=='carry' else -wave*side*.45)
-                    if clip=='idle' and part=='head': obj.rotation_euler.z=wave*.08
-                    if clip=='turn' and part=='head': obj.rotation_euler.z=wave*.5
-                    if clip=='greet' and part=='arm_r': obj.rotation_euler.y=-1.8+wave*.4
-                    if clip=='work' and part.startswith('arm'): obj.rotation_euler.x=-.8+wave*.3
-                elif clip=='open':
+                if clip=='open':
                     if asset=='door': obj.location.x=base.x+side*1.6*t
                     else: obj.location.y=base.y+1.7*t
                 elif asset=='lift': obj.location.z=base.z+4*t
@@ -321,6 +283,7 @@ def navigation(asset):
     # named Blender empties so authors can inspect movement separately from art.
     if asset in LIVING_ASSETS: return living_navigation(asset)
     if asset in LANDMARK_ASSETS: return landmark_navigation(asset)
+    if asset in HOVER_ASSETS: return hover_navigation(asset)
     data={'colliders':[], 'surfaces':[], 'portals':[]}
     if asset in ('floor','ceiling'):
         if asset=='floor': data['surfaces']=[{'rect':[-2,-2,2,2], 'height':0}]
@@ -357,78 +320,72 @@ def navigation(asset):
     return data
 
 
-def motion_bounds(root, clips):
-    bounds,_=bounds_and_triangles(root)
-    scene=bpy.context.scene
-    moving=[o for o in root.children if o.animation_data]
-    bases=[(o,o.location.copy(),o.rotation_euler.copy()) for o in moving]
-    for clip in clips:
-        for o in moving:
-            track=next((t for t in o.animation_data.nla_tracks if t.name==clip),None)
-            o.animation_data.action=track.strips[0].action if track else None
-        for frame in range(1,50):
-            scene.frame_set(frame);bpy.context.view_layer.update()
-            current,_=bounds_and_triangles(root)
-            for i in range(3):
-                bounds['min'][i]=min(bounds['min'][i],current['min'][i])
-                bounds['max'][i]=max(bounds['max'][i],current['max'][i])
-    for o,location,rotation in bases:
-        o.animation_data.action=None;o.location=location;o.rotation_euler=rotation
-    scene.frame_set(1);bpy.context.view_layer.update()
-    # Small margin covers interpolation between the sampled export frames.
-    return {'min':[v-.025 for v in bounds['min']], 'max':[v+.025 for v in bounds['max']]}
-
-
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     scene=bpy.context.scene;scene.render.fps=24;scene.frame_start=1;scene.frame_end=49
     collection=bpy.data.collections.new('AURAGO_WORLD_2');scene.collection.children.link(collection)
-    mats=materials(); entries=[]; roots=[]
+    mats=robot_materials(materials()); entries=[]; roots=[]
     glass=mats['glass'].copy();glass.name='city.garden-glass';glass.diffuse_color=(.18,.42,.4,.2)
     glass.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.18,.42,.4,.2)
     glass.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value=.2
     glass.surface_render_method='DITHERED';mats['garden-glass']=glass
     factories={k:(lambda g,k=k:module(g,k)) for k in ['arcade','bridge','stairs','ramp','garden','quay','floor','wall','ceiling','window','door','lift','railing']}
     factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
-    factories.update({'robot-'+k:(lambda g,k=k:robot(g,k)) for k in ['courier','technician','archivist']})
+    factories.update({'robot-'+k:None for k in ROBOT_KINDS})
     factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
     factories.update({k:(lambda g,k=k:build_landmark(g,k)) for k in LANDMARK_ASSETS})
     factories.update({k:(lambda g,k=k:lookout(g,k)) for k in ['telescope','sky-deck','sky-lift']})
+    factories.update({k:None for k in HOVER_ASSETS})
     for asset,factory in factories.items():
         entry={'id':asset,'lods':[], 'navigation':navigation(asset)}
+        robot=asset.startswith('robot-');hover=asset in HOVER_ASSETS;rigged=robot or hover;signature=None
         for lod in range(3):
-            root=create_asset(asset,factory,lod,collection,mats);clips=animate(root,asset)
-            if lod==0 and asset.startswith('robot-'): entry['motion_bounds']=motion_bounds(root,clips)
+            if robot:
+                # Residents are articulated: a real parent hierarchy, keyed by the gait solver.
+                root=create_robot_asset(asset,asset[6:],lod,collection,mats);clips=animate_robot(root,asset[6:])
+                if lod==0: entry['motion_bounds']=motion_bounds_tree(root,clips)
+            elif hover: root=create_hover_asset(asset,lod,collection,mats);clips=animate_hover(root)
+            else: root=create_asset(asset,factory,lod,collection,mats);clips=animate(root,asset)
             for kind,items in entry['navigation'].items():
                 for i,item in enumerate(items):
                     marker=bpy.data.objects.new(f'nav_{kind}_{i}',None);collection.objects.link(marker);marker.parent=root
                     marker['component']=f'nav_{kind}_{i}';marker['navigation']=json.dumps(item,sort_keys=True);marker.empty_display_type='CUBE';marker.empty_display_size=.4
             bpy.ops.object.select_all(action='DESELECT');root.select_set(True)
-            for obj in root.children: obj.select_set(True)
+            for obj in root.children_recursive: obj.select_set(True)
             bpy.context.view_layer.objects.active=root;bpy.context.view_layer.update()
-            bounds,triangles=bounds_and_triangles(root)
+            bounds,triangles=bounds_and_triangles_tree(root) if rigged else bounds_and_triangles(root)
             output=OUT/f'{asset}.lod{lod}.glb'
+            # Resident clips are keyed on every frame but exported every second frame (smaller files).
             bpy.ops.export_scene.gltf(filepath=str(output),export_format='GLB',use_selection=True,
                 export_animations=bool(clips),export_animation_mode='NLA_TRACKS',export_nla_strips_merged_animation_name='Animation',
-                export_extras=True,export_yup=True,export_cameras=False,export_lights=False)
+                export_extras=True,export_yup=True,export_cameras=False,export_lights=False,**({'export_frame_step':2} if robot else {}))
             data=output.read_bytes();jlen=struct.unpack_from('<I',data,12)[0];doc=json.loads(data[20:20+jlen])
             for n in doc.get('nodes',[]): n['name']=n.get('extras',{}).get('component',n.get('extras',{}).get('asset_id',n.get('name')))
+            if rigged:
+                # Stable mesh names (the runtime swaps LODs per mesh name) and identical, ordered
+                # material lists per part at every LOD: one draw call per part x material.
+                for n in doc['nodes']:
+                    if 'mesh' in n: doc['meshes'][n['mesh']]['name']=asset+'.'+n['name']
+                current={n['name']:[doc['materials'][p['material']]['name'] for p in doc['meshes'][n['mesh']]['primitives']] for n in doc['nodes'] if 'mesh' in n}
+                if signature is None: signature=current
+                assert current==signature,(asset,lod,'material lists differ between LODs')
+                assert all(len(v)<=3 for v in current.values()) and len({m for v in current.values() for m in v})<=9,(asset,current)
             payload=json.dumps(doc,separators=(',',':'),sort_keys=True).encode();payload+=b' '*(-len(payload)%4);tail=data[20+jlen:]
             data=struct.pack('<III',0x46546c67,2,20+len(payload)+len(tail))+struct.pack('<II',len(payload),0x4e4f534a)+payload+tail
             output.write_bytes(data)
             actual=sorted(a['name'] for a in doc.get('animations',[]))
             assert set(clips)==set(actual),(asset,clips,actual)
             entry['lods'].append({'level':lod,'file':output.name,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'bounds':bounds,'triangles':triangles})
-            entry['animations']=actual;entry['components']=[o.get('component') for o in root.children]
+            entry['animations']=actual;entry['components']=[o.get('component') for o in root.children_recursive]
             if lod==0: roots.append(root)
             else:
-                for o in list(root.children): bpy.data.objects.remove(o,do_unlink=True)
+                for o in list(root.children_recursive): bpy.data.objects.remove(o,do_unlink=True)
                 bpy.data.objects.remove(root,do_unlink=True)
         entries.append(entry);print('WORLD2',asset)
-    manifest={'schema_version':2,'version':'2.3.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
+    manifest={'schema_version':2,'version':'2.4.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
-              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py']}}
+              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py','hover_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)

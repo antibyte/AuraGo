@@ -673,6 +673,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/cutout/prepare", handlePixelCutoutPrepare(s))
 	mux.HandleFunc("/api/pixel/cutout", handlePixelCutout(s))
 
+	// ECalc formula catalog (read-only, embedded in the binary)
+	registerECalcRoutes(mux, s)
+
 	// Galaxa Deluxe highscore endpoints
 	mux.HandleFunc("/api/desktop/galaxa/highscore", handleGalaxaHighscoreGet(s))
 	mux.HandleFunc("/api/desktop/galaxa/highscore/submit", handleGalaxaHighscorePost(s))

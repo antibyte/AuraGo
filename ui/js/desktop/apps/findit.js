@@ -5,9 +5,14 @@
     const D = window.FindItDialogs;
     const CSV = window.FindItCSV;
     const instances = new Map();
+    const inFlightCommands = new Map();
     const SAVED_SEARCHES_KEY = 'aurago.desktop.findit.saved-searches.v1';
     const LIST_MODE_KEY = 'aurago.desktop.findit.list-mode.v1';
     const LIST_COLUMNS_KEY = 'aurago.desktop.findit.list-columns.v1';
+    const PENDING_INITIAL_KEY = 'aurago.desktop.findit.pending-initial.v2';
+    const PENDING_COMMANDS_KEY = 'aurago.desktop.findit.pending-commands.v1';
+    const LEGACY_PENDING_INITIAL_PREFIX = 'aurago.desktop.findit.pending-initial.v1.';
+    const MAX_PENDING_COMMANDS = 100;
     const DEFAULT_LIST_COLUMNS = ['part', 'location', 'package', 'available', 'minimum'];
     const NAME = 'FindIt';
 
@@ -56,6 +61,68 @@
     const statusClass = status => ({ draft: 'is-draft', released: 'is-released', completed: 'is-completed', cancelled: 'is-cancelled' }[status] || '');
     const safeLocalStorage = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch (_) { return fallback; } };
     const storeLocal = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* Preferences are optional. */ } };
+    const pendingInitialReceiptKey = value => value?.item_id && value?.request_id ? `${value.item_id}:${value.request_id}` : '';
+    const freezeValue = value => {
+        if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+        Object.values(value).forEach(freezeValue);
+        return Object.freeze(value);
+    };
+    const cloneFrozen = value => freezeValue(JSON.parse(JSON.stringify(value)));
+    function pendingCommandScope(payload) {
+        if (payload?.entity === 'items' && payload.operation === 'stock') {
+            const itemId = M.safeId(payload.data?.item_id || payload.id);
+            return itemId ? `stock:${itemId}` : '';
+        }
+        if (payload?.entity === 'projects' && ['reserve', 'release', 'consume'].includes(payload.operation)) {
+            const projectId = M.safeId(payload.data?.project_id || payload.id);
+            return projectId ? `reservations:${projectId}` : '';
+        }
+        return '';
+    }
+    function isDefinitiveCommandRejection(error) {
+        const status = Number(error?.status), code = String(error?.code || '');
+        return status === 404 && code === 'not_found' || status === 409 && code === 'conflict' || status === 422 && code === 'invalid';
+    }
+    function readPendingCommands() {
+        const records = new Map();
+        try {
+            const rows = JSON.parse(sessionStorage.getItem(PENDING_COMMANDS_KEY) || '[]');
+            for (const row of Array.isArray(rows) ? rows : []) {
+                const requestId = typeof row?.request_id === 'string' ? row.request_id : '';
+                const payload = row?.payload, scope = pendingCommandScope(payload);
+                if (!requestId || payload?.request_id !== requestId || !scope || row.scope !== scope) continue;
+                records.set(requestId, { request_id: requestId, payload: cloneFrozen(payload), scope, label: String(row.label || '').slice(0, 256) });
+            }
+        } catch (_) { /* Pending mutation recovery is unavailable when session storage cannot be read. */ }
+        return [...records.values()];
+    }
+    function readPendingInitialStocks() {
+        const records = new Map();
+        const add = value => {
+            const rows = Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
+            for (const row of rows) {
+                const itemId = M.safeId(row?.item_id), requestId = typeof row?.request_id === 'string' ? row.request_id : '';
+                if (!itemId || !requestId || !row.stock_data || typeof row.stock_data !== 'object') continue;
+                const record = { ...row, item_id: itemId, request_id: requestId };
+                records.set(pendingInitialReceiptKey(record), record);
+            }
+        };
+        try {
+            add(JSON.parse(sessionStorage.getItem(PENDING_INITIAL_KEY) || '[]'));
+            const legacyKeys = [];
+            for (let index = 0; index < sessionStorage.length; index++) {
+                const key = sessionStorage.key(index);
+                if (!key?.startsWith(LEGACY_PENDING_INITIAL_PREFIX)) continue;
+                legacyKeys.push(key);
+                try { add(JSON.parse(sessionStorage.getItem(key) || 'null')); } catch (_) { /* Ignore malformed legacy receipts. */ }
+            }
+            if (legacyKeys.length) {
+                sessionStorage.setItem(PENDING_INITIAL_KEY, JSON.stringify([...records.values()]));
+                legacyKeys.forEach(key => sessionStorage.removeItem(key));
+            }
+        } catch (_) { /* Opening-stock recovery is best-effort when session storage is unavailable. */ }
+        return [...records.values()];
+    }
     const compactNumber = value => M.fmtQuantity(value ?? '0');
     const noteText = (ctx, error) => {
         const code = String(error?.code || '');
@@ -76,7 +143,9 @@
             readonly: 'readonly_notice', conflict: 'error_conflict', stale: 'error_conflict', not_found: 'error_not_found',
             disabled: 'error_disabled', invalid: 'error_invalid', request_id_conflict: 'error_retry_conflict',
             insufficient_stock: 'error_insufficient_stock', active_reservations: 'release_holds_first',
-            unavailable: 'error_generic', policy_changed: 'error_disabled'
+            unavailable: 'error_generic', policy_changed: 'error_disabled', pending_command: 'pending_command_intro',
+            pending_command_queue_full: 'pending_command_queue_full', pending_command_storage_unavailable: 'pending_command_storage_unavailable',
+            initial_stock_rejected: 'initial_stock_rejected'
         }[code];
         return t(ctx, known || 'error_generic');
     };
@@ -86,9 +155,6 @@
     function render(host, windowId, context) {
         dispose(windowId);
         const ctx = context || {}, abort = new AbortController();
-        const pendingInitialKey = 'aurago.desktop.findit.pending-initial.v1.' + encodeURIComponent(String(windowId));
-        let savedInitialStock = null;
-        try { savedInitialStock = JSON.parse(sessionStorage.getItem(pendingInitialKey) || 'null'); } catch (_) { /* Recovery is best-effort. */ }
         const requestIDsKey = 'aurago.desktop.findit.requests.v1.' + encodeURIComponent(String(windowId));
         let savedCommandRequests = [];
         try { savedCommandRequests = JSON.parse(sessionStorage.getItem(requestIDsKey) || '[]'); } catch (_) { /* Retry tokens are best-effort. */ }
@@ -105,10 +171,11 @@
             mobilePanel: 'list', mobile: false, searchTimer: 0, requestSerial: 0, selectionSerial: 0, csvCandidate: null, printImage: '',
             scanCandidate: '', focusAfterDraw: '', forceReload: false,
             commandRequestIds: new Map(Array.isArray(savedCommandRequests) ? savedCommandRequests.filter(row => Array.isArray(row) && row.length === 2 && typeof row[0] === 'string' && typeof row[1] === 'string').slice(-96) : []),
-            pendingInitialStock: savedInitialStock?.item_id && savedInitialStock?.stock_data ? savedInitialStock : null
+            pendingCommands: readPendingCommands(), pendingInitialStocks: readPendingInitialStocks(), pendingInitialStock: null
         };
+        state.pendingInitialStock = state.pendingInitialStocks[0] || null;
         instances.set(windowId, state);
-        const itemFeatures = window.FindItItems.create({ state, host, ctx, tr, canWrite, canPrint, dialogOptions, draw, apiQuery, apiCommand, withBusy, loadItems, selectItem, dispatchAction, showNotice, showError, noteText, categoryName, label, compactNumber, unitName, sprite, icon, selectedCategory });
+        const itemFeatures = window.FindItItems.create({ state, host, ctx, tr, canWrite, canPrint, dialogOptions, draw, apiQuery, apiCommand, isDefinitiveCommandRejection, withBusy, loadItems, selectItem, dispatchAction, showNotice, showError, noteText, categoryName, label, compactNumber, unitName, sprite, icon, selectedCategory });
         const projectFeatures = window.FindItProjects.create({ state, host, ctx, tr, canWrite, canPrint, dialogOptions, draw, apiQuery, apiCommand, withBusy, loadItems, loadProjects, loadLocations, selectProject, showNotice, noteText: error => noteText(ctx, error), categoryName, compactNumber, statusClass, sprite, icon });
         const templateFeatures = window.FindItTemplates.create({ state, ctx, tr, canWrite, dialogOptions, draw, apiCommand, withBusy, showNotice, categoryName, icon });
         const workflowFeatures = window.FindItWorkflows.create({ state, host, ctx, tr, canWrite, draw, apiQuery, apiCommand, withBusy, loadItems, loadProjects, selectItem, selectProject, selectLocation, showNotice: (value, error) => showNotice(value, error), noteText: error => noteText(ctx, error), icon });
@@ -155,7 +222,53 @@
             const sort = value => Array.isArray(value) ? value.map(sort) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).filter(key => key !== 'request_id').sort().map(key => [key, sort(value[key])])) : value;
             return JSON.stringify(sort(payload));
         }
-        async function apiCommand(payload) {
+        function pendingCommands() {
+            const records = new Map();
+            for (const value of [...readPendingCommands(), ...[...instances.values()].flatMap(instance => instance.pendingCommands || [])]) {
+                if (value?.request_id && value?.scope) records.set(value.request_id, value);
+            }
+            return [...records.values()];
+        }
+        function pendingInitialStocks() {
+            const records = new Map();
+            for (const value of [...readPendingInitialStocks(), ...[...instances.values()].flatMap(instance => instance.pendingInitialStocks || [])]) {
+                const key = pendingInitialReceiptKey(value); if (key) records.set(key, value);
+            }
+            return [...records.values()];
+        }
+        function pendingCommandCount() { return pendingCommands().length + pendingInitialStocks().length; }
+        function hasPendingCommandScope(payload, requestId = '') {
+            const scope = pendingCommandScope(payload); if (!scope) return false;
+            if (pendingCommands().some(value => value.scope === scope && value.request_id !== requestId)) return true;
+            return scope.startsWith('stock:') && pendingInitialStocks().some(value => `stock:${value.item_id}` === scope && value.request_id !== requestId);
+        }
+        function hasPendingCommandIntent(payload) {
+            const fingerprint = commandFingerprint(payload);
+            if (pendingCommands().some(value => commandFingerprint(value.payload) === fingerprint)) return true;
+            return pendingInitialStocks().some(value => commandFingerprint({ operation: 'stock', entity: 'items', id: value.item_id, expected_version: value.item_version, data: value.stock_data }) === fingerprint);
+        }
+        function persistPendingCommand(record = null, removeRequestId = '') {
+            const queue = new Map(pendingCommands().map(value => [value.request_id, value]));
+            const replacing = !!record && queue.has(record.request_id);
+            if (removeRequestId) queue.delete(removeRequestId);
+            if (record) queue.set(record.request_id, record);
+            const rows = [...queue.values()];
+            if (rows.length > MAX_PENDING_COMMANDS && record && !replacing) return false;
+            try { sessionStorage.setItem(PENDING_COMMANDS_KEY, JSON.stringify(rows)); }
+            catch (_) { return false; }
+            for (const instance of instances.values()) {
+                instance.pendingCommands = rows.map(value => ({ ...value, payload: cloneFrozen(value.payload) }));
+                instance.draw?.();
+            }
+            return true;
+        }
+        function forgetCommandRequest(requestId) {
+            for (const [fingerprint, value] of state.commandRequestIds) {
+                if (value === requestId) state.commandRequestIds.delete(fingerprint);
+            }
+            persistCommandRequestIds();
+        }
+        async function apiCommand(payload, options = {}) {
             const key = commandFingerprint(payload);
             const requestId = payload.request_id || state.commandRequestIds.get(key) || crypto.randomUUID();
             if (!payload.request_id) {
@@ -164,21 +277,90 @@
                 while (state.commandRequestIds.size > 96) state.commandRequestIds.delete(state.commandRequestIds.keys().next().value);
                 persistCommandRequestIds();
             }
-            const result = await M.command({ ...payload, request_id: requestId }, state.signal);
-            if (!payload.request_id && state.commandRequestIds.get(key) === requestId) { state.commandRequestIds.delete(key); persistCommandRequestIds(); }
-            return result;
-        }
-        function persistPendingInitialStock() {
+            const command = cloneFrozen({ ...payload, request_id: requestId });
+            const scope = options.initialStock ? '' : pendingCommandScope(command);
+            let queued = null;
+            if (options.replayOnly && !options.initialStock) {
+                const exactReceipt = readPendingCommands().find(value => value.request_id === requestId);
+                if (!exactReceipt || commandFingerprint(exactReceipt.payload) !== commandFingerprint(command)) {
+                    if (!payload.request_id && state.commandRequestIds.get(key) === requestId) forgetCommandRequest(requestId);
+                    throw Object.assign(new Error(tr('pending_command_intro')), { code: 'pending_command' });
+                }
+            }
+            if (scope) {
+                const existing = pendingCommands().find(value => value.request_id === requestId);
+                if (existing && commandFingerprint(existing.payload) !== commandFingerprint(command)) throw Object.assign(new Error(tr('error_retry_conflict')), { code: 'request_id_conflict' });
+                if (hasPendingCommandScope(command, requestId)) {
+                    if (!payload.request_id && state.commandRequestIds.get(key) === requestId) forgetCommandRequest(requestId);
+                    throw Object.assign(new Error(tr('pending_command_intro')), { code: 'pending_command' });
+                }
+                if (!existing && pendingCommandCount() >= MAX_PENDING_COMMANDS) {
+                    if (!payload.request_id && state.commandRequestIds.get(key) === requestId) forgetCommandRequest(requestId);
+                    throw Object.assign(new Error(tr('pending_command_queue_full')), { code: 'pending_command_queue_full' });
+                }
+                queued = existing || { request_id: requestId, payload: command, scope, label: String(options.label || '').slice(0, 256) };
+                if (!persistPendingCommand(queued)) {
+                    if (!payload.request_id && state.commandRequestIds.get(key) === requestId) forgetCommandRequest(requestId);
+                    const full = pendingCommandCount() >= MAX_PENDING_COMMANDS;
+                    throw Object.assign(new Error(tr(full ? 'pending_command_queue_full' : 'pending_command_storage_unavailable')), { code: full ? 'pending_command_queue_full' : 'pending_command_storage_unavailable' });
+                }
+            } else if (options.initialStock) {
+                const receipt = readPendingInitialStocks().find(value => value.item_id === command.id && value.request_id === requestId);
+                const expected = receipt && { operation: 'stock', entity: 'items', id: receipt.item_id, expected_version: receipt.item_version, request_id: receipt.request_id, data: receipt.stock_data };
+                if (!receipt || commandFingerprint(expected) !== commandFingerprint(command)) throw Object.assign(new Error(tr('error_retry_conflict')), { code: 'request_id_conflict' });
+                if (hasPendingCommandScope(command, requestId)) throw Object.assign(new Error(tr('pending_command_intro')), { code: 'pending_command' });
+            }
+            const tracked = !!scope || !!options.initialStock;
+            let execution = tracked ? inFlightCommands.get(requestId) : null;
+            const ownsExecution = !execution;
+            if (!execution) {
+                execution = M.command(command, state.signal);
+                if (tracked) inFlightCommands.set(requestId, execution);
+            }
             try {
-                if (state.pendingInitialStock) sessionStorage.setItem(pendingInitialKey, JSON.stringify(state.pendingInitialStock));
-                else sessionStorage.removeItem(pendingInitialKey);
-            } catch (_) { /* A retry remains available while the window stays open. */ }
+                const result = await execution;
+                if (scope) { persistPendingCommand(null, requestId); forgetCommandRequest(requestId); }
+                else if (!payload.request_id && state.commandRequestIds.get(key) === requestId) { state.commandRequestIds.delete(key); persistCommandRequestIds(); }
+                return result;
+            } catch (error) {
+                if (scope && isDefinitiveCommandRejection(error)) {
+                    persistPendingCommand(null, requestId);
+                    forgetCommandRequest(requestId);
+                }
+                throw error;
+            } finally {
+                if (tracked && ownsExecution && inFlightCommands.get(requestId) === execution) inFlightCommands.delete(requestId);
+            }
+        }
+        function persistPendingInitialStock(record = state.pendingInitialStock, remove = null) {
+            const queue = new Map();
+            for (const value of [...readPendingInitialStocks(), ...[...instances.values()].flatMap(instance => instance.pendingInitialStocks || [])]) {
+                const key = pendingInitialReceiptKey(value); if (key) queue.set(key, value);
+            }
+            if (remove?.item_id && remove?.request_id) queue.delete(pendingInitialReceiptKey(remove));
+            const recordKey = record && pendingInitialReceiptKey(record);
+            if (record && !queue.has(recordKey) && pendingCommands().length + queue.size >= MAX_PENDING_COMMANDS) return false;
+            if (record) queue.set(recordKey, record);
+            const rows = [...queue.values()];
+            let persisted = true;
+            try { sessionStorage.setItem(PENDING_INITIAL_KEY, JSON.stringify(rows)); } catch (_) { persisted = false; }
+            for (const instance of instances.values()) {
+                const current = pendingInitialReceiptKey(instance.pendingInitialStock);
+                instance.pendingInitialStocks = rows;
+                instance.pendingInitialStock = rows.find(value => pendingInitialReceiptKey(value) === current) || rows[0] || null;
+                instance.draw?.();
+            }
+            return persisted;
         }
         function persistCommandRequestIds() {
             try { sessionStorage.setItem(requestIDsKey, JSON.stringify([...state.commandRequestIds])); }
             catch (_) { /* Exact retry is still retained in memory. */ }
         }
         state.persistPendingInitialStock = persistPendingInitialStock;
+        state.hasPendingCommandScope = hasPendingCommandScope;
+        state.hasPendingCommandIntent = hasPendingCommandIntent;
+        state.pendingCommandCount = pendingCommandCount;
+        state.hasPendingCommandCapacity = () => pendingCommandCount() < MAX_PENDING_COMMANDS;
         function appTitle() {
             const key = 'desktop.app_findit';
             const value = ctx.t ? ctx.t(key) : '';
@@ -231,13 +413,22 @@
             }
         }
 
+        function renderPendingCommands() {
+            if (!state.pendingCommands?.length) return '';
+            const actionKey = payload => payload.operation === 'stock'
+                ? ({ receive: 'receive_stock', issue: 'issue_stock', transfer: 'transfer', adjust: 'adjust_stock', return: 'return_stock' }[payload.data?.kind] || 'stock_actions')
+                : ({ reserve: 'reserve', release: 'release_reserved', consume: 'consume_reserved' }[payload.operation] || 'reserve');
+            return `<div class="fi-message is-error fi-pending-commands" role="alert"><span>${M.esc(tr('pending_command_intro'))}</span><div class="fi-pending-command-list">${state.pendingCommands.map(record => `<div class="fi-pending-command-row"><span><b>${M.esc(record.label || record.scope.split(':').at(-1))}</b><small>${M.esc(tr(actionKey(record.payload)))}</small></span><button type="button" class="fi-text-button" data-pending-command="${M.esc(record.request_id)}" ${canWrite() && !isBusy() ? '' : 'disabled'}>${M.esc(tr('retry_exact_command'))}</button></div>`).join('')}</div></div>`;
+        }
+
         function draw() {
             if (stale()) return;
             const app = `<section class="fi-app" data-view="${M.esc(state.view)}" data-mode="${M.esc(state.viewMode)}" data-mobile-panel="${M.esc(state.mobilePanel)}" data-busy="${isBusy()}">
                 ${renderHeader()}
                 ${state.error ? `<div class="fi-message is-error" role="alert">${icon('close', 16)}<span>${M.esc(state.error)}</span><button type="button" data-action="dismiss-message" aria-label="${M.esc(tr('dismiss'))}">×</button></div>` : ''}
                 ${state.notice ? `<div class="fi-message is-success" role="status" aria-live="polite">${icon('check', 16)}<span>${M.esc(state.notice)}</span><button type="button" data-action="dismiss-message" aria-label="${M.esc(tr('dismiss'))}">×</button></div>` : ''}
-                ${state.pendingInitialStock ? `<div class="fi-message is-error fi-pending-stock" role="alert"><span>${M.esc(tr('initial_stock_pending'))}</span><button type="button" class="fi-text-button" data-action="retry-initial-stock">${icon('refresh', 14)}${M.esc(tr('retry_initial_stock'))}</button></div>` : ''}
+                ${renderPendingCommands()}
+                ${state.pendingInitialStock ? `<div class="fi-message is-error fi-pending-stock" role="alert"><span>${M.esc(tr('initial_stock_pending'))}${state.pendingInitialStock.item_name ? ` · ${M.esc(state.pendingInitialStock.item_name)}` : ''}</span><button type="button" class="fi-text-button" data-action="retry-initial-stock" ${canWrite() ? '' : 'disabled'}>${icon('refresh', 14)}${M.esc(tr('retry_initial_stock'))}</button></div>` : ''}
                 ${state.status?.readonly || !canWrite() && state.status?.enabled ? `<div class="fi-readonly-note">${icon('settings', 15)}<span>${M.esc(tr('readonly_notice'))}</span></div>` : ''}
                 ${state.status?.enabled ? renderView() : renderActivation()}
                 ${renderStatusbar()}
@@ -258,12 +449,13 @@
             restoreViewState(nextApp, snapshot);
             if (state.focusAfterDraw) { const focus = nextApp.querySelector(`[data-focus="${CSS.escape(state.focusAfterDraw)}"]`); focus?.focus({ preventScroll: true }); state.focusAfterDraw = ''; }
         }
+        state.draw = draw;
         function renderHeader() {
             const nav = [['items', 'workbench'], ['projects', 'projects'], ['locations', 'locations'], ['templates', 'templates']];
             return `<header class="fi-header"><div class="fi-header-main">
                 <div class="fi-brand"><span class="fi-brand-mark">${icon('box', 19)}</span><div><strong>${M.esc(appTitle())}</strong><small>${M.esc(tr('subtitle'))}</small></div></div>
                 <nav class="fi-primary-nav" aria-label="${M.esc(tr('navigation'))}" role="tablist">${nav.map(([id, key]) => `<button type="button" role="tab" aria-selected="${state.view === id}" class="${state.view === id ? 'is-active' : ''}" data-view="${id}">${M.esc(tr(key))}</button>`).join('')}</nav>
-                <div class="fi-header-actions"><button type="button" class="fi-capture-button" data-action="capture" ${canWrite() && !state.pendingInitialStock ? '' : 'disabled'}>${icon('camera', 16)}<span>${M.esc(tr('capture'))}</span></button>${state.status?.can_manage ? `<button type="button" class="fi-icon-button" data-action="app-settings" aria-label="${M.esc(tr('findit_settings'))}" title="${M.esc(tr('findit_settings'))}">${icon('settings', 17)}</button>` : ''}<button type="button" class="fi-icon-button" data-action="scan-qr" aria-label="${M.esc(tr('scan_qr'))}" title="${M.esc(tr('scan_qr'))}">${icon('qr', 17)}</button><button type="button" class="fi-icon-button" data-action="refresh" aria-label="${M.esc(tr('refresh'))}" title="${M.esc(tr('refresh'))}">${icon('refresh', 17)}</button></div>
+                <div class="fi-header-actions"><button type="button" class="fi-capture-button" data-action="capture" ${canWrite() && !state.pendingInitialStocks?.length ? '' : 'disabled'}>${icon('camera', 16)}<span>${M.esc(tr('capture'))}</span></button>${state.status?.can_manage ? `<button type="button" class="fi-icon-button" data-action="app-settings" aria-label="${M.esc(tr('findit_settings'))}" title="${M.esc(tr('findit_settings'))}">${icon('settings', 17)}</button>` : ''}<button type="button" class="fi-icon-button" data-action="scan-qr" aria-label="${M.esc(tr('scan_qr'))}" title="${M.esc(tr('scan_qr'))}">${icon('qr', 17)}</button><button type="button" class="fi-icon-button" data-action="refresh" aria-label="${M.esc(tr('refresh'))}" title="${M.esc(tr('refresh'))}">${icon('refresh', 17)}</button></div>
             </div>${state.status?.readonly ? `<div class="fi-banner"><span>${M.esc(tr('readonly_banner'))}</span></div>` : ''}</header>`;
         }
         function renderStatusbar() {
@@ -517,35 +709,71 @@
         async function retryInitialStock() {
             const pending = state.pendingInitialStock;
             if (!pending || !canWrite()) return;
-            const item = state.selected?.id === pending.item_id ? state.selected : { id: pending.item_id, name: pending.item_name, unit: pending.unit, version: pending.item_version, track_serials: pending.track_serials };
-            const old = pending.stock_data;
-            const result = await D.openForm(dialogOptions({
+            const selection = state.selectionSerial;
+            const item = { id: pending.item_id, name: pending.item_name, unit: pending.unit, version: pending.item_version, track_serials: pending.track_serials };
+            const stockData = pending.stock_data;
+            const location = asList(state.locations).find(value => value.id === stockData.location_id)?.name || stockData.location_id || tr('unknown_location');
+            const details = `<dl class="fi-detail-fields fi-retry-stock-summary"><div><dt>${M.esc(tr('part'))}</dt><dd>${M.esc(item.name || item.id)}</dd></div><div><dt>${M.esc(tr('location'))}</dt><dd>${M.esc(location)}</dd></div><div><dt>${M.esc(tr('quantity'))}</dt><dd>${M.esc(M.fmtQuantity(stockData.quantity))} ${M.esc(label(ctx, unitName(state.catalog, item.unit) || item.unit || 'piece'))}</dd></div>${stockData.lot ? `<div><dt>${M.esc(tr('lot'))}</dt><dd>${M.esc(stockData.lot)}</dd></div>` : ''}${stockData.serial ? `<div><dt>${M.esc(tr('serial_short'))}</dt><dd>${M.esc(stockData.serial)}</dd></div>` : ''}</dl>`;
+            const confirmed = await D.openConfirm(dialogOptions({
                 kicker: 'retry_initial_stock', title: 'retry_initial_stock', description: 'initial_stock_retry_intro',
-                fields: [
-                    { key: 'location_id', label: 'location', type: 'select', required: true, options: asList(state.locations).map(value => ({ value: value.id, label: value.name })) },
-                    { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal' },
-                    { key: 'lot', label: 'lot', type: 'text' },
-                    ...(item.track_serials ? [{ key: 'serial', label: 'serial_short', type: 'text', required: true }] : [])
-                ],
-                values: { location_id: old.location_id || '', quantity: old.quantity || '', lot: old.lot || '', serial: old.serial || '' }, submitLabel: 'save_movement'
+                contentHTML: details, confirmLabel: 'retry_initial_stock'
             }));
-            if (!result) return;
-            if (M.quantityUnits(result.quantity) == null || M.quantityCompare(result.quantity, '0') <= 0) return showNotice(tr('invalid_quantity'), true);
-            if (item.unit === 'piece' && !M.wholeQuantity(result.quantity)) return showNotice(tr('whole_piece_quantity'), true);
-            const stockData = { ...old, location_id: result.location_id, quantity: M.normalizeQuantity(result.quantity), lot: result.lot || '', serial: result.serial || '' };
-            if (JSON.stringify(stockData) !== JSON.stringify(old)) pending.request_id = crypto.randomUUID();
-            pending.stock_data = stockData;
-            persistPendingInitialStock();
+            if (!confirmed) return;
+            const exactReceipt = readPendingInitialStocks().find(value => value.item_id === pending.item_id && value.request_id === pending.request_id);
+            if (!exactReceipt || commandFingerprint({ operation: 'stock', entity: 'items', id: exactReceipt.item_id, expected_version: exactReceipt.item_version, data: exactReceipt.stock_data }) !== commandFingerprint({ operation: 'stock', entity: 'items', id: pending.item_id, expected_version: pending.item_version, data: pending.stock_data })) return;
+            if (!canWrite() || stale()) return;
             await withBusy(async () => {
                 try {
-                    await apiCommand({ operation: 'stock', entity: 'items', id: item.id, expected_version: item.version, request_id: pending.request_id, data: stockData });
+                    await apiCommand({ operation: 'stock', entity: 'items', id: item.id, expected_version: pending.item_version, request_id: pending.request_id, data: stockData }, { initialStock: true, replayOnly: true, label: pending.item_name });
                 } catch (error) {
-                    state.error = tr('initial_stock_pending', pending.item_name || '');
+                    if (isDefinitiveCommandRejection(error)) {
+                        persistPendingInitialStock(null, { item_id: pending.item_id, request_id: pending.request_id });
+                        state.error = tr('initial_stock_rejected');
+                        state.notice = '';
+                        await loadItems(); if (state.selectionSerial === selection && state.view === 'items' && state.selectedId === item.id) await selectItem(item.id);
+                        return;
+                    }
+                    state.error = tr('initial_stock_pending');
                     throw error;
                 }
-                state.pendingInitialStock = null; persistPendingInitialStock();
+                persistPendingInitialStock(null, { item_id: pending.item_id, request_id: pending.request_id });
                 state.notice = tr('initial_stock_saved');
-                await loadItems(); await selectItem(item.id);
+                await loadItems(); if (state.selectionSerial === selection && state.view === 'items' && state.selectedId === item.id) await selectItem(item.id);
+            });
+        }
+        function pendingCommandDetails(record) {
+            const payload = record.payload, data = payload.data || {};
+            const operationKey = payload.operation === 'stock'
+                ? ({ receive: 'receive_stock', issue: 'issue_stock', transfer: 'transfer', adjust: 'adjust_stock', return: 'return_stock' }[data.kind] || 'stock_actions')
+                : ({ reserve: 'reserve', release: 'release_reserved', consume: 'consume_reserved' }[payload.operation] || 'reserve');
+            const rows = [[tr(payload.operation === 'stock' ? 'part' : 'project'), record.label || data.item_id || data.project_id || payload.id || ''], [tr('stock_actions'), tr(operationKey)]];
+            if (data.quantity != null) rows.push([tr('quantity'), M.fmtQuantity(data.quantity)]);
+            if (data.location_id) rows.push([tr('location'), asList(state.locations).find(value => value.id === data.location_id)?.name || data.location_id]);
+            if (data.target_location_id) rows.push([tr('target_location'), asList(state.locations).find(value => value.id === data.target_location_id)?.name || data.target_location_id]);
+            if (data.stock_id) rows.push([tr('stock_record'), data.stock_id]);
+            if (data.serial) rows.push([tr('serial_short'), data.serial]);
+            return `<dl class="fi-detail-fields fi-retry-stock-summary">${rows.map(([key, value]) => `<div><dt>${M.esc(key)}</dt><dd>${M.esc(value)}</dd></div>`).join('')}</dl>`;
+        }
+        async function retryPendingCommand(requestId) {
+            const pending = state.pendingCommands.find(value => value.request_id === requestId);
+            if (!pending || !canWrite() || isBusy()) return;
+            const selection = state.selectionSerial;
+            const confirmed = await D.openConfirm(dialogOptions({ title: 'pending_command', message: 'pending_command_intro', contentHTML: pendingCommandDetails(pending), confirmLabel: 'retry_exact_command' }));
+            if (!confirmed) return;
+            const exactCommand = readPendingCommands().find(value => value.request_id === requestId);
+            if (!exactCommand || commandFingerprint(exactCommand.payload) !== commandFingerprint(pending.payload) || !canWrite() || stale()) return;
+            await withBusy(async () => {
+                await apiCommand(pending.payload, { replayOnly: true, label: pending.label });
+                state.notice = tr(({ stock: 'movement_saved', reserve: 'reservation_created', release: 'reservation_released', consume: 'stock_consumed' })[pending.payload.operation] || 'item_saved');
+                if (pending.payload.operation === 'stock') {
+                    await loadItems();
+                    const itemId = pending.payload.data?.item_id || pending.payload.id;
+                    if (state.selectionSerial === selection && state.view === 'items' && state.selectedId === itemId) await selectItem(itemId);
+                } else if (state.view === 'projects') {
+                    await loadProjects();
+                    const projectId = pending.payload.data?.project_id || pending.payload.id;
+                    if (state.selectionSerial === selection && state.project?.id === projectId) await selectProject(projectId);
+                }
             });
         }
         async function saveSearch() {
@@ -570,6 +798,7 @@
         function handleClick(event) {
             const target = event.target.closest('button,[data-select-item],[data-select-project],[data-select-location],[data-select-template],[data-page]');
             if (!target || !host.contains(target)) return;
+            if (target.dataset.pendingCommand) { void retryPendingCommand(target.dataset.pendingCommand); return; }
             if (target.dataset.view) { void setView(target.dataset.view); return; }
             if (target.dataset.mode) { state.viewMode = target.dataset.mode === 'tiles' ? 'tiles' : 'list'; storeLocal(LIST_MODE_KEY, state.viewMode); draw(); return; }
             if (target.dataset.category != null) { state.category = target.dataset.category; state.offset = 0; void loadItems(); return; }

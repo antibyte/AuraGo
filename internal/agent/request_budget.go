@@ -1173,7 +1173,7 @@ func minimumBudgetToolSchemas(runCfg RunConfig, req openai.ChatCompletionRequest
 	if runCfg.Config == nil {
 		return req.Tools
 	}
-	intent := strings.TrimSpace(runCfg.UserIntent)
+	intent := strings.TrimSpace(runTaskIntent(runCfg))
 	if intent == "" {
 		for i := len(req.Messages) - 1; i >= 0; i-- {
 			if req.Messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(req.Messages[i]) {

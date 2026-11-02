@@ -18,11 +18,12 @@ Same toolbox. Different attitude. Permissions do not come from the persona.
 6. [Temperature Modulation (V2)](#temperature-modulation-v2)
 7. [Emotion Synthesizer (V2)](#emotion-synthesizer-v2)
 8. [Inner Voice (V2)](#inner-voice-v2)
-9. [Adaptive Dynamics](#adaptive-dynamics)
-10. [Example Comparison](#example-comparison)
-11. [Best Practices](#best-practices)
-12. [Troubleshooting](#troubleshooting)
-13. [Summary](#summary)
+9. [Persona Booster](#persona-booster)
+10. [Adaptive Dynamics](#adaptive-dynamics)
+11. [Example Comparison](#example-comparison)
+12. [Best Practices](#best-practices)
+13. [Troubleshooting](#troubleshooting)
+14. [Summary](#summary)
 
 ---
 
@@ -264,6 +265,43 @@ The inner voice is a brief, private agent thought. After a chat turn, the helper
 `error_streak_min` is retired and ignored. Older config files still load, with a deprecation notice.
 
 **Requirements:** `personality.engine_v2: true`, `personality.emotion_synthesizer.enabled: true`. A configured Helper LLM is preferred; without one, a bounded main-model fallback is used and charged to the personality budget. Inner voice is explicit opt-in and is not auto-enabled with the emotion synthesizer.
+
+---
+
+## Persona Booster
+
+The persona booster makes the selected persona noticeably more distinct. It works on two levels:
+
+- **Base amplifier:** every persona has a fixed extra paragraph that sharpens its voice for good. Punk swears more freely and talks back, Evil gets more pompous, Psycho jumpier. With `intensity: mild` the paragraph is left out.
+- **Phases:** from time to time the persona goes through a phase, for example Punk `rage`, Thinker `existential` or Friend `worried`. A phase lasts a number of minutes or turns. It ends when its time runs out, when a counter-trigger arrives (such as praise) or when a stronger trigger replaces it.
+
+Phases are triggered by the time of day (0–4 am), a long absence (≥ 24 h), long sessions (≥ 2 h or ≥ 40 messages), simple text cues (capital letters, "!!!", swearing, "stop it") and chance. With the personality engine on, mood signals are added. With engine V2 the helper analysis also supplies a context cue (provocation, criticism, praise, distress and so on). No extra LLM call is made.
+
+In some phases the edge may also be aimed at you, in the persona's own style: Punk crude but humorous, Evil condescending, Mistress cutting, Friend at most sulky. Fixed limits always apply: no slurs or attacks on identity, no real threats, no self-harm references, no sexual content, no conspiracy claims about real people. Facts, code, tool rules and confirmations stay exact. If you seem distressed or write "stop it" or "calm down", a hostile phase ends at once and stays blocked for 6 hours.
+
+The phase is invisible: the chat shows no indicator. The log records `[PersonaBooster] phase started|ended|replaced` with persona, phase, variant and trigger. Missions, co-agents, autonomous runs and the neutral persona get no phases.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enabled` | `true` | Enable the base amplifier and phases |
+| `intensity` | `strong` | `mild` (no base amplifier, phases ×0.6), `strong` (phases ×1) or `wild` (phases ×1.5, more extreme) |
+| `spontaneous` | `true` | Allow random phases |
+| `cooldown_minutes` | `20` | For this long after a phase, only strong triggers (criticism, provocation, distress) start a new one (0–1440) |
+
+### YAML Reference
+
+```yaml
+personality:
+  persona_booster:
+    enabled: true
+    intensity: strong
+    spontaneous: true
+    cooldown_minutes: 20
+```
+
+### Custom phases
+
+The catalogs are embedded as `prompts/persona_phases/<persona>.yaml`. A file with the same name in `<prompts_dir>/persona_phases/` overrides the built-in catalog. An invalid file is skipped with a warning in the log. Custom personas without a catalog use `_generic.yaml`. Which generic phases they get depends on `volatility`, `empathy_bias` and `conflict_response` in the profile.
 
 ---
 

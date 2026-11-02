@@ -15,6 +15,8 @@ Secrets live in the encrypted Vault (`kaggle_api_token`, `kaggle_legacy_key`, op
 
 The Desktop app contains Overview, Datasets, Models, Notebooks, Competitions, Benchmarks, Forums and Jobs. Choose an operation to display its typed fields. Defined API values use dropdowns; optional empty values use the operation's default. Details display external text inertly. Pagination follows Kaggle cursors. Projects hold imported notebooks, selected datasets and downloaded results. Text/log/CSV/JSON files have bounded previews; binary files can be exported.
 
+Navigation is grouped into Browse and Activity, the sidebar reports the credential and network state, and every action reports back in a dismissible status banner. Result lists show how many entries were loaded, follow Kaggle cursors with a **Next** pager and copy a resource reference to the clipboard. Jobs can be narrowed to all, active or failed work; each row pairs its operation with a state chip, and a cancel button keeps its reason as a tooltip when the policy forbids the cancellation.
+
 Search uses one query field; expand **More filters and options** for the remaining API fields. Creation dialogs retain invalid or conflicting input so you can correct it. Closing a dialog returns keyboard focus to its originating control. A passive configured status means credentials are stored; only the explicit connection test verifies access.
 
 | Area | Supported scope |
@@ -50,6 +52,8 @@ The limits are configurable. The configuration editor rejects values above 300 s
 ## Local Python versus Kaggle execution
 
 **Local – Jupyter** starts an AuraGo-managed container. Select the project files to copy into the session. Python cells share variables until restart, stop, revocation or idle expiry. Shift+Enter executes a code cell; the toolbar also offers Run all, Interrupt and Restart. The agent can stop a session through `kaggle_runtime.stop`; disabling local execution stops affected sessions. Internet is independently opt-in (`internet: true` for an authorized runtime start); the Desktop's normal start is offline.
+
+The notebook toolbar separates document actions (Save, Export, add cell), runtime actions (Local, Run all, Interrupt, Restart) and the Kaggle submission. The window title marks an unsaved draft and a chip reports the kernel state; Ctrl/Cmd+S saves, Escape leaves the editor outside a code cell, and moving or deleting a cell keeps the keyboard focus on the affected cell. An empty notebook offers to add its first Python cell.
 
 Outputs received during a save remain unsaved until a later save includes them. Editing a cell during its prerequisite save prevents that execution, so an older saved source cannot masquerade as the current draft. A successful save retires the unchanged recovered draft without removing newer work from another window. If Docker cannot confirm container removal, cleanup remains pending and retains its session slot until a retry succeeds.
 

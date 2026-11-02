@@ -152,12 +152,22 @@ trotzdem.
 ## Icon-Bibliothek
 
 Wähle ein Bild oder eine Schaltfläche und öffne im Inspector die
-**Icon-Bibliothek**. Sie enthält 60 Motive in vier Stilen, jeweils farbig oder
-monochrom sowie statisch oder animiert: insgesamt 960 Varianten. Suche nach
-einem Namen, filtere nach Kategorie und wähle 24, 32, 48 oder 64 Pixel. Die
-Vorschau auf hellem und dunklem Grund zeigt Geräte-Pixel; die Speicheranzeige
+**Icon-Bibliothek**. Sie enthält 110 Motive in vier Stilen, jeweils farbig oder
+monochrom sowie statisch oder animiert: insgesamt 1.760 Varianten. Suche nach
+einem Namen, filtere nach Kategorie und wähle 24, 32, 48 oder 64 Pixel als
+Bildauflösung. Die Darstellungsgröße von Bild-Widgets änderst Du über den Rahmen
+im Designer oder über Breite/Höhe im Inspector; die Proportionen bleiben erhalten.
+Ein anderes Icon oder eine andere Auflösung verändert den Rahmen nicht.
+Icons auf Schaltflächen verwenden die gewählte Quellgröße. Die
+Vorschau auf hellem und dunklem Grund zeigt Quellpixel; die Speicheranzeige
 hilft dir bei der Auswahl. Monochrome Icons übernehmen die Textfarbe des
 Gerätethemas. Eine eigene Icon-Farbe kannst du im Inspector setzen.
+
+Du findest Haushaltsgeräte, Energie- und Naturmotive, Netzwerkgeräte,
+Alltagsgegenstände sowie Tiere und Figuren. 32 Motive besitzen Animationen aus
+sechs Einzelbildern, darunter Gopher, Kaffeemaschine, Roboter und Rakete. Weitere
+Motive bieten einfache Bewegungseffekte; jede Animation lässt sich auch als
+Standbild verwenden.
 
 Nur ausgewählte Varianten werden übernommen. Wiederverwendete Bilder und
 Frames belegen ihren Bildspeicher einmal. Reicht das Budget nicht, wähle eine

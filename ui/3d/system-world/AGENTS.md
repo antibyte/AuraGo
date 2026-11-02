@@ -21,14 +21,17 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   Five residents share its geometry/materials/textures. Total kit plus robot
   remains below 12 MiB; hashes and source hashes must pass `check_assets.py`.
 - Manifest hashes, sizes, bounds and triangle counts must match actual GLBs.
-- `v2/` contains 40 Blender-authored designs and 120 GLBs with animation and
-  navigation metadata. Verify with `test-system-world-expansion.mjs` and
-  `test-system-world-layout.mjs`; upper floors must match actual rendered lift
-  landings. The complete app (models, renderer, scripts, locales) has a 48 MiB
+- `v2/` contains 41 Blender-authored designs and 123 GLBs with animation and
+  navigation metadata. Verify with `test-system-world-expansion.mjs`,
+  `test-system-world-layout.mjs` and `test-system-world-hover.mjs`; upper floors must
+  match actual rendered lift landings. The complete app (models, renderer, scripts, locales) has a 48 MiB
   budget and first display stays below 12 MiB. New installations initially use
   LOD2; nearby detail follows camera distance and the quality cap. Their collision
   envelopes and work/interaction markers are always independent of visual LOD.
   Robot `motion_bounds` must contain the actual GLB geometry throughout every clip.
+- Rigged v2 assets (`robot-*`, `hover-pack`) keep one ordered material list per part and
+  stable mesh names at every LOD, so the runtime swaps LODs by mesh name. The
+  `hover-pack` `pack` node is hidden while the visitor flies; keep it one removable node.
 - Load and instance models through the isolated renderer; do not mutate shared legacy Three.js.
 
 ## Verification

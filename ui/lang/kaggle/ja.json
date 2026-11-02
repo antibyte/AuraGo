@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "各ローカルセッションに割り当てるCPUコア数です。",
   "config.kaggle.memory_help": "各ローカルセッションのメモリ上限です（MiB）。",
   "config.kaggle.idle_timeout_help": "ローカルセッションが停止されるまでの無操作時間です（分）。",
-  "config.kaggle.cell_timeout_help": "1つのセルが停止されるまでの最大実行時間です（分）。"
+  "config.kaggle.cell_timeout_help": "1つのセルが停止されるまでの最大実行時間です（分）。",
+  "kaggle.browse": "参照",
+  "kaggle.activity": "アクティビティ",
+  "kaggle.results": "結果",
+  "kaggle.refresh": "更新",
+  "kaggle.copy": "参照をコピー",
+  "kaggle.copied": "コピーしました",
+  "kaggle.all": "すべて",
+  "kaggle.active": "実行中",
+  "kaggle.no_results": "一致する結果がありません。検索条件を変えるか、別の操作を選んでください。",
+  "kaggle.kernel": "カーネル",
+  "kaggle.empty_notebook": "このノートブックにはまだセルがありません。",
+  "kaggle.back": "戻る"
 }

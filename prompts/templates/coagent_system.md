@@ -27,7 +27,7 @@ Some integrations may also be exposed as direct built-in actions in the tool lis
 
 Example skill call:
 ```json
-{"action": "execute_skill", "skill_name": "duckduckgo_search", "skill_args": {"query": "..."}}
+{"action": "execute_skill", "skill_name": "ddg_search", "skill_args": {"query": "..."}}
 ```
 Use `list_skills` first when you need to discover which skills are available.
 

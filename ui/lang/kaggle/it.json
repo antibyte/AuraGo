@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "Core CPU riservati a ogni sessione locale.",
   "config.kaggle.memory_help": "Limite di memoria per ogni sessione locale, in MiB.",
   "config.kaggle.idle_timeout_help": "Minuti di inattività dopo i quali una sessione locale viene fermata.",
-  "config.kaggle.cell_timeout_help": "Tempo massimo di esecuzione di una singola cella in minuti prima che venga fermata."
+  "config.kaggle.cell_timeout_help": "Tempo massimo di esecuzione di una singola cella in minuti prima che venga fermata.",
+  "kaggle.browse": "Sfoglia",
+  "kaggle.activity": "Attività",
+  "kaggle.results": "Risultati",
+  "kaggle.refresh": "Aggiorna",
+  "kaggle.copy": "Copia riferimento",
+  "kaggle.copied": "Copiato",
+  "kaggle.all": "Tutti",
+  "kaggle.active": "Attive",
+  "kaggle.no_results": "Nessun risultato corrispondente. Modifica la ricerca o scegli un’altra operazione.",
+  "kaggle.kernel": "Kernel",
+  "kaggle.empty_notebook": "Questo notebook non contiene ancora celle.",
+  "kaggle.back": "Indietro"
 }

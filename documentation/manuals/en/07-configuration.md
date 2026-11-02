@@ -628,7 +628,7 @@ embeddings:
 
 The `personality` section controls AuraGo's personality engine, mood analysis, and user profiling.
 
-> 🖥️ **Web UI:** Go to **Config → Personality** to select the core profile, enable V2, and configure emotion synthesizer and inner voice.
+> 🖥️ **Web UI:** Go to **Config → Personality** to select the core profile, enable V2, and configure emotion synthesizer, inner voice and the persona booster.
 
 ### YAML Reference
 ```yaml
@@ -650,6 +650,11 @@ personality:
         max_per_session: 20
         decay_turns: 3
         decay_max_age_secs: 300
+    persona_booster:
+        enabled: true                  # stronger persona voice + temporary phases (not for neutral)
+        intensity: strong              # mild | strong | wild
+        spontaneous: true              # allow random phases
+        cooldown_minutes: 20           # only strong triggers start a new phase for N minutes (0-1440)
 ```
 
 ### Personality Options Explained
@@ -664,6 +669,10 @@ personality:
 | `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis for responses |
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
 | `inner_voice.enabled` | `false` | Optional short first-person agent thought after each chat turn, injected into the next system prompt as untrusted, tone-only data; its category may add one fixed working-style hint |
+| `persona_booster.enabled` | `true` | Stronger base voice plus temporary persona phases (not for `neutral`, missions or co-agents) |
+| `persona_booster.intensity` | `strong` | `mild`, `strong` or `wild` |
+| `persona_booster.spontaneous` | `true` | Allow random phases |
+| `persona_booster.cooldown_minutes` | `20` | Minutes after a phase in which only strong triggers start a new one (0–1440) |
 
 ### Adaptive Dynamics
 

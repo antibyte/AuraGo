@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -165,6 +168,139 @@ func TestDesktopTodoBundleCarriesTheCivilDay(t *testing.T) {
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop bundle missing %q", marker)
+		}
+	}
+}
+
+// A reload rebuilds the panes of the todo window. The focused field, the caret inside it and the checklist item the
+// user was typing in must survive that, and the open form must say that it differs from the stored task.
+func TestDesktopTodoPolishKeepsTheReadingPosition(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"function captureTodoFocus(",
+		"function restoreTodoFocus(",
+		"function setTodoNotice(",
+		"function syncTodoDirtyState(",
+		"function revertTodoEdits(",
+		"function renderTodoList(",
+		"function updateTodoFilterCounts(",
+		"function updateTodoListMeta(",
+		"function todoMatchesQuery(",
+		"restoreTodoFocus(pane, focus)",
+		"restoreTodoFocus(list, listFocus)",
+		"vd-todo-notice",
+		"vd-todo-filter-count",
+		"vd-todo-search-input",
+		"vd-todo-card-chips",
+		"vd-todo-chip",
+		"vd-todo-dirty",
+		"vd-todo-empty",
+		"desktop.todo_unsaved_changes",
+		"desktop.todo_saved",
+		"desktop.todo_created",
+		"desktop.todo_completed",
+		"desktop.todo_reopened",
+		"desktop.todo_deleted",
+		"desktop.todo_failed",
+		"desktop.todo_no_results",
+		"desktop.todo_checklist_empty",
+		"desktop.todo_title_label",
+		"desktop.todo_progress_aria",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo polish marker missing %q", marker)
+		}
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-app-planning.css")
+	for _, marker := range []string{
+		"--todo-ok:",
+		"--todo-busy:",
+		"--todo-warn:",
+		"--todo-bad:",
+		".vd-todo-chip",
+		".vd-todo-notice",
+		".vd-todo-filter-count",
+		".vd-todo-empty",
+		".vd-todo-dirty",
+		".vd-todo-card-title",
+		":focus-visible",
+		"prefers-reduced-motion",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("todo polish style marker missing %q", marker)
+		}
+	}
+}
+
+// The polish adds eighteen user-visible strings. Every locale carries them, the placeholders survive the
+// translation, and a locale that copies the English text is a fallback rather than a translation.
+func TestDesktopTodoTranslations(t *testing.T) {
+	t.Parallel()
+
+	newKeys := []string{
+		"desktop.todo_checklist_empty",
+		"desktop.todo_clear_search",
+		"desktop.todo_count",
+		"desktop.todo_created",
+		"desktop.todo_completed",
+		"desktop.todo_deleted",
+		"desktop.todo_dismiss",
+		"desktop.todo_empty_hint",
+		"desktop.todo_empty_title",
+		"desktop.todo_failed",
+		"desktop.todo_no_results",
+		"desktop.todo_progress_aria",
+		"desktop.todo_reopened",
+		"desktop.todo_saved",
+		"desktop.todo_search_placeholder",
+		"desktop.todo_select_hint",
+		"desktop.todo_title_label",
+		"desktop.todo_unsaved_changes",
+	}
+	placeholders := map[string]string{
+		"desktop.todo_count":         "{{count}}",
+		"desktop.todo_no_results":    "{{query}}",
+		"desktop.todo_progress_aria": "{{percent}}",
+	}
+
+	var english map[string]string
+	for _, locale := range []string{"en", "de", "cs", "da", "el", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		b, err := os.ReadFile(filepath.Join("lang", "desktop", locale+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		labels := map[string]string{}
+		if err := json.Unmarshal(b, &labels); err != nil {
+			t.Fatal(err)
+		}
+		for _, key := range newKeys {
+			if strings.TrimSpace(labels[key]) == "" {
+				t.Errorf("%s missing %s", locale, key)
+			}
+		}
+		for key, want := range placeholders {
+			if !strings.Contains(labels[key], want) {
+				t.Errorf("%s %s lost the %s placeholder", locale, key, want)
+			}
+		}
+		if locale == "en" {
+			english = labels
+			continue
+		}
+		if english == nil {
+			t.Fatal("en.json was not read first")
+		}
+		copies := 0
+		for _, key := range newKeys {
+			if labels[key] == english[key] {
+				copies++
+			}
+		}
+		if copies*2 >= len(newKeys) {
+			t.Errorf("%s copies %d of the %d new todo strings from English", locale, copies, len(newKeys))
 		}
 	}
 }

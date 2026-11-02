@@ -86,9 +86,28 @@ func protectedSystemFilesFromConfig(cfg *config.Config) []string {
 	return out
 }
 
+// protectedSystemDirsFromConfig lists the directory trees besides data_dir that
+// agent file tools must never touch: directories.prompts_dir holds the persona
+// profiles, rules and persona phase catalogs loaded as trusted system-prompt
+// text every turn. Administrator prompt editors save through server handlers.
+func protectedSystemDirsFromConfig(cfg *config.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	promptsDir := strings.TrimSpace(cfg.Directories.PromptsDir)
+	if promptsDir == "" {
+		return nil
+	}
+	if abs, err := filepath.Abs(promptsDir); err == nil {
+		promptsDir = abs
+	}
+	return []string{promptsDir}
+}
+
 // IsProtectedSystemPath reports whether rawPath names AuraGo configuration,
-// credential or database state: the active config file, the vault and its lock,
-// everything under directories.data_dir, configured SQLite files with WAL/SHM,
+// credential, database or trusted prompt state: the active config file, the
+// vault and its lock, everything under directories.data_dir and
+// directories.prompts_dir, configured SQLite files with WAL/SHM,
 // aurago_master.key and any file named .env or ending in .env. rawPath may be
 // relative to workspaceDir. Matching is case-insensitive and symlink-resolved.
 func IsProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) bool {
@@ -101,7 +120,8 @@ func IsProtectedSystemPath(rawPath, workspaceDir string, cfg *config.Config) boo
 	} else {
 		abs = filepath.Clean(filepath.Join(workspaceDir, rawPath))
 	}
-	return requireUnprotectedProcessPath(abs, false) != nil || isProtectedSystemPathAbs(abs, cfg.Directories.DataDir, protectedSystemFilesFromConfig(cfg))
+	dirs := append([]string{cfg.Directories.DataDir}, protectedSystemDirsFromConfig(cfg)...)
+	return requireUnprotectedProcessPath(abs, false) != nil || isProtectedSystemPathAbs(abs, dirs, protectedSystemFilesFromConfig(cfg))
 }
 
 // requireUnprotectedSystemPath applies IsProtectedSystemPath to a path that
@@ -112,7 +132,8 @@ func requireUnprotectedSystemPath(path, userPath string) error {
 		return err
 	}
 	perms, _ := currentRuntimePermissions()
-	if isProtectedSystemPathAbs(path, perms.ProtectedDataDir, perms.ProtectedSystemFiles) {
+	dirs := append([]string{perms.ProtectedDataDir}, perms.ProtectedSystemDirs...)
+	if isProtectedSystemPathAbs(path, dirs, perms.ProtectedSystemFiles) {
 		return fmt.Errorf("path '%s' refers to protected AuraGo configuration, credential or database state", userPath)
 	}
 	return nil
@@ -132,7 +153,9 @@ func isWhatsAppDeviceStoreName(path string) bool {
 	return false
 }
 
-func isProtectedSystemPathAbs(abs, dataDir string, protectedFiles []string) bool {
+// isProtectedSystemPathAbs applies the file-name rules, then refuses abs at or
+// below any of protectedDirs and equal to any of protectedFiles.
+func isProtectedSystemPathAbs(abs string, protectedDirs, protectedFiles []string) bool {
 	candidates := protectedPathCandidates(abs)
 	for _, cand := range candidates {
 		base := strings.ToLower(filepath.Base(cand))
@@ -146,10 +169,13 @@ func isProtectedSystemPathAbs(abs, dataDir string, protectedFiles []string) bool
 			return true
 		}
 	}
-	if dataDir = strings.TrimSpace(dataDir); dataDir != "" {
-		for _, dataRoot := range protectedPathCandidates(filepath.Clean(dataDir)) {
+	for _, dir := range protectedDirs {
+		if dir = strings.TrimSpace(dir); dir == "" {
+			continue
+		}
+		for _, root := range protectedPathCandidates(filepath.Clean(dir)) {
 			for _, cand := range candidates {
-				if pathHasProtectedPrefix(dataRoot, cand) {
+				if pathHasProtectedPrefix(root, cand) {
 					return true
 				}
 			}
@@ -170,10 +196,13 @@ func isProtectedSystemPathAbs(abs, dataDir string, protectedFiles []string) bool
 	return false
 }
 
+// protectedPathCandidates returns path and its symlink-resolved spelling. A
+// path that does not exist yet resolves through its deepest existing ancestor,
+// so a new file behind a symlinked directory still matches its real target.
 func protectedPathCandidates(path string) []string {
 	path = filepath.Clean(path)
 	out := []string{path}
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+	if resolved, err := secureResolveFinalPath(path); err == nil {
 		resolved = filepath.Clean(resolved)
 		if !pathsEqualFold(resolved, path) {
 			out = append(out, resolved)

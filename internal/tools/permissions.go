@@ -18,9 +18,12 @@ import (
 type RuntimePermissions struct {
 	ProtectedNotesRoots []string
 	// ProtectedDataDir and ProtectedSystemFiles feed secureResolve's denylist
-	// for AuraGo configuration, credential and database state.
+	// for AuraGo configuration, credential and database state;
+	// ProtectedSystemDirs adds further directory trees: prompts_dir, whose
+	// files are trusted system-prompt text.
 	ProtectedDataDir           string
 	ProtectedSystemFiles       []string
+	ProtectedSystemDirs        []string
 	AllowShell                 bool
 	AllowPython                bool
 	AllowUnsafeHostExecution   bool
@@ -125,6 +128,7 @@ func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
 		ProtectedNotesRoots:        unionRuntimePaths(a.ProtectedNotesRoots, b.ProtectedNotesRoots),
 		ProtectedDataDir:           firstNonEmptyRuntimePath(a.ProtectedDataDir, b.ProtectedDataDir),
 		ProtectedSystemFiles:       unionRuntimePaths(a.ProtectedSystemFiles, b.ProtectedSystemFiles),
+		ProtectedSystemDirs:        unionRuntimePaths(a.ProtectedSystemDirs, b.ProtectedSystemDirs),
 		AllowShell:                 a.AllowShell && b.AllowShell,
 		AllowPython:                a.AllowPython && b.AllowPython,
 		AllowUnsafeHostExecution:   a.AllowUnsafeHostExecution && b.AllowUnsafeHostExecution,
@@ -190,6 +194,7 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		ProtectedNotesRoots:        protectedNotes,
 		ProtectedDataDir:           cfg.Directories.DataDir,
 		ProtectedSystemFiles:       protectedSystemFilesFromConfig(cfg),
+		ProtectedSystemDirs:        protectedSystemDirsFromConfig(cfg),
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
 		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,

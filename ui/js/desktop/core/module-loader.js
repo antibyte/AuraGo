@@ -26,6 +26,10 @@
             styles: appStyles('/css/desktop-app-findit.css'),
             scripts: ['/js/desktop/apps/findit-model.js', '/js/desktop/apps/findit-dialogs.js', '/js/desktop/apps/findit-csv.js', '/js/desktop/apps/findit-items.js', '/js/desktop/apps/findit-projects.js', '/js/desktop/apps/findit-templates.js', '/js/desktop/apps/findit-workflows.js', '/js/desktop/apps/findit.js']
         },
+        ecalc: {
+            styles: appStyles('/css/desktop-app-ecalc.css'),
+            scripts: ['/js/desktop/apps/ecalc/ecalc-expr.js', '/js/desktop/apps/ecalc/ecalc-units.js', '/js/desktop/apps/ecalc/ecalc-eseries.js', '/js/desktop/apps/ecalc/ecalc-solve.js', '/js/desktop/apps/ecalc/ecalc-typeset.js', '/js/desktop/apps/ecalc/ecalc-symbols.js', '/js/desktop/apps/ecalc/ecalc-schematics.js', '/js/desktop/apps/ecalc/ecalc-store.js', '/js/desktop/apps/ecalc/ecalc-calc-page.js', '/js/desktop/apps/ecalc/ecalc-shell.js', '/js/desktop/apps/ecalc/ecalc.js']
+        },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']

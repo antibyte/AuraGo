@@ -447,8 +447,8 @@
   "findit.initial_location": "Starting locatie",
   "findit.initial_location_required": "Kies een opslaglocatie voor de beginvoorraad.",
   "findit.initial_quantity": "Starting aantal",
-  "findit.initial_stock_pending": "Het artikel is opgeslagen, maar de beginvoorraad is nog niet toegevoegd. Probeer de voorraad hieronder opnieuw toe te voegen voordat je een nieuw artikel aanmaakt.",
-  "findit.initial_stock_retry_intro": "Het artikel bestaat al. Pas de voorraadgegevens aan en probeer het opnieuw; er wordt geen tweede artikel aangemaakt.",
+  "findit.initial_stock_pending": "Het artikel is opgeslagen, maar het resultaat van de beginvoorraad is niet bevestigd. Los het opgeslagen verzoek hieronder op voordat je een nieuw artikel aanmaakt.",
+  "findit.initial_stock_retry_intro": "De opgeslagen voorraadboeking wordt met het oorspronkelijke aanvraag-ID exact herhaald. Als deze al is gelukt, voegt dezelfde aanvraag de voorraad niet nogmaals toe.",
   "findit.initial_stock_saved": "Starting voorraad opgeslagen",
   "findit.invalid_quantity": "Voer een positieve hoeveelheid in met maximaal zes decimalen. Aantallen in stuks moeten hele getallen zijn.",
   "findit.invalid_template_fields": "Controleer de sjabloonvelden.",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Dit item is gewijzigd. Laad het opnieuw voordat je opslaat.",
   "findit.error_disabled": "Toegang tot FindIt is momenteel uitgeschakeld.",
   "findit.error_invalid": "Controleer je invoer en probeer het opnieuw.",
-  "findit.error_retry_conflict": "Deze poging wijkt af van het vorige verzoek. Laad het item eerst opnieuw."
+  "findit.error_retry_conflict": "Deze poging wijkt af van het vorige verzoek. Laad het item eerst opnieuw.",
+  "findit.serial_initial_stock_rules": "Gebruik voor artikelen met serienummer de eenheid „stuk“. De beginvoorraad moet precies 1 zijn en een serienummer bevatten.",
+  "findit.initial_stock_rejected": "De beginvoorraad is definitief afgewezen. Het artikel is opgeslagen; voeg voorraad toe via een gewone ontvangst.",
+  "findit.pending_command_intro": "Het resultaat van deze voorraadwijziging of reservering is onbekend. Herhaal exact het opgeslagen verzoek voordat je een andere wijziging voor dit artikel of project start.",
+  "findit.retry_exact_command": "Exact verzoek opnieuw proberen",
+  "findit.pending_command_queue_full": "Er zijn te veel onopgeloste voorraadwijzigingen of reserveringen in dit tabblad. Los een verzoek op voordat je een nieuwe wijziging maakt.",
+  "findit.pending_command_storage_unavailable": "Dit browsertabblad kon het openstaande verzoek niet opslaan, dus de wijziging is niet verzonden. Schakel sessieopslag in en probeer opnieuw.",
+  "findit.pending_command": "Openstaande wijziging oplossen"
 }

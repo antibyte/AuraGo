@@ -113,19 +113,25 @@ func applyCatalogEntryPolicies(catalog *ToolCatalog, dc *DispatchContext) {
 				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusNeedsSetup, reason
 			}
 		}
-		if !entry.Enabled || entry.Kind != ToolKindNative {
+		if !entry.Enabled {
+			continue
+		}
+		if entry.Kind != ToolKindNative {
+			if catalogRoleToolRestriction(ToolCall{Action: catalogEntryAction(entry)}, dc) != "" {
+				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "role_restricted"
+			}
 			continue
 		}
 		ops := toolCatalogOperationField(entry, "operation")
 		if len(ops) == 0 {
-			if roleToolRestriction(ToolCall{Action: entry.Name}, dc) != "" {
+			if catalogRoleToolRestriction(ToolCall{Action: entry.Name}, dc) != "" {
 				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "role_restricted"
 			}
 			continue
 		}
 		allowed := make([]string, 0, len(ops))
 		for _, op := range ops {
-			if roleToolRestriction(ToolCall{Action: entry.Name, Operation: op}, dc) == "" {
+			if catalogRoleToolRestriction(ToolCall{Action: entry.Name, Operation: op}, dc) == "" {
 				allowed = append(allowed, op)
 			}
 		}
@@ -150,6 +156,10 @@ func applyCatalogEntryPolicies(catalog *ToolCatalog, dc *DispatchContext) {
 }
 
 func catalogEntryAllowed(dc *DispatchContext, entry *ToolCatalogEntry) bool {
+	return dispatchToolAllowed(dc, catalogEntryAction(entry))
+}
+
+func catalogEntryAction(entry *ToolCatalogEntry) string {
 	action := entry.Routing.NativeAction
 	if entry.Kind == ToolKindSkill {
 		action = "execute_skill"
@@ -160,7 +170,7 @@ func catalogEntryAllowed(dc *DispatchContext, entry *ToolCatalogEntry) bool {
 	if action == "" {
 		action = entry.Name
 	}
-	return dispatchToolAllowed(dc, action)
+	return action
 }
 
 func addIntegrationCatalogEntries(catalog *ToolCatalog, dc *DispatchContext) {

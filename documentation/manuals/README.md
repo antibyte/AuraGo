@@ -72,6 +72,7 @@ Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [Eng
 | 29 · Infra | [Infra](de/29-infra.md) | [Infra](en/29-infra.md) | The homelab map: Map, Topology and List views |
 | 30 · RuView | [RuView](de/30-ruview.md) | [RuView](en/30-ruview.md) | Experimental Wi-Fi sensing |
 | 31 · Pixel | [Pixel](de/31-pixel.md) | [Pixel](en/31-pixel.md) | Layered image editor, filters, generators, AI background removal |
+| 32 · ECalc | [ECalc](de/32-ecalc.md) | [ECalc](en/32-ecalc.md) | Electronics formula collection: calculators, live results, E series |
 | FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
 
 ## What this book is
@@ -80,7 +81,7 @@ AuraGo is a self-hosted Go agent for a home lab. The backend is one portable bin
 
 These chapters stay in sync with the product, not with a marketing checklist. If a sentence and the code disagree, the code wins. Deep dives for MeshCore, Game Maker, SIP, Speech Lab, Docker and web assets live next to this handbook under [`documentation/`](../).
 
-**Stand: 22. Oktober 2026.** Both languages cover the same 31 chapters. German uses *du*.
+**Stand: 1. November 2026.** Both languages cover the same 32 chapters. German uses *du*.
 
 ## Nearby docs
 

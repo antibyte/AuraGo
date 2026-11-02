@@ -204,6 +204,15 @@ func (g *uiGen) renderTypeLines(w *codeWriter, gw *genWidget, parent string, ind
 	case "image":
 		if asset := ps("asset"); asset != "" {
 			w.line(ind, "lv_image_set_src(%s, &%s);", h, imageSymbol(asset))
+			for _, a := range g.p.Assets {
+				if a.ID == asset {
+					// Keep CENTER: LVGL's automatic CONTAIN mode disables icon rotation.
+					scale := max(1, min(wd.W*256/a.W, wd.H*256/a.H))
+					w.line(ind, "lv_image_set_scale(%s, %d);", h, scale)
+					w.line(ind, "lv_image_set_antialias(%s, false);", h)
+					break
+				}
+			}
 			g.renderIcon(w, gw, h, asset, ind)
 		}
 		w.line(ind, "lv_image_set_inner_align(%s, LV_IMAGE_ALIGN_CENTER);", h)

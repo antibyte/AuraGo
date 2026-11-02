@@ -21,8 +21,8 @@ func iconFixture(t *testing.T, board string) Project {
 		t.Fatal(err)
 	}
 	requests := []IconRequest{
-		{Style: "modern", Tone: "color", Motif: "fan", Size: 32, Animated: true},
-		{Style: "playful", Tone: "mono", Motif: "wifi", Size: 32, Animated: true},
+		{Style: "modern", Tone: "color", Motif: "gopher", Size: 32, Animated: true},
+		{Style: "playful", Tone: "mono", Motif: "coffee_machine", Size: 32, Animated: true},
 		{Style: "modern", Tone: "mono", Motif: "settings", Size: 24, Animated: true},
 		{Style: "comic", Tone: "color", Motif: "back", Size: 48, Animated: true},
 		{Style: "sober", Tone: "mono", Motif: "home", Size: 64, Animated: true},
@@ -57,6 +57,12 @@ func iconFixture(t *testing.T, board string) Project {
 		}
 		w := Widget{ID: fmt.Sprintf("w_icon_%d", i), Type: "image", X: 8 + i*40, Y: 30, W: r.Size, H: r.Size,
 			Props: map[string]any{"asset": frames[0], "icon_animate": r.Animated, "icon_motion": m.Motion}}
+		if i == 0 {
+			w.W, w.H = 64, 64
+		}
+		if i == 1 {
+			w.W, w.H = 80, 48
+		}
 		if n == 6 {
 			w.Props["icon_frames"] = frames
 		}
@@ -89,6 +95,51 @@ func iconFixtureAssets(t *testing.T, p Project) map[string][]byte {
 		}
 	}
 	return assets
+}
+
+func TestGenerateImagesScaleWithinWidgetBounds(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		index      int
+		w, h, want int
+		plain      bool
+	}{
+		{"colour_frames_up", 0, 64, 64, 512, false},
+		{"mono_frames_rectangular", 1, 80, 48, 384, false},
+		{"rotating_icon_down", 2, 12, 20, 128, false},
+		{"ordinary_image_rectangular", 0, 80, 48, 384, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := iconFixture(t, "esp32-2432s028r")
+			assets := iconFixtureAssets(t, p)
+			widget := p.Screens[0].Widgets[tc.index]
+			widget.Name, widget.W, widget.H = "scaled", tc.w, tc.h
+			if tc.plain {
+				asset := widget.Props["asset"].(string)
+				widget.Props = map[string]any{"asset": asset}
+				for i := range p.Assets {
+					if p.Assets[i].ID == asset {
+						p.Assets[i].Icon = ""
+					}
+				}
+			}
+			p.Screens[0].Widgets = []Widget{widget}
+			out, err := Generate(GenerateInput{Project: p, ProjectID: testProjectID, Assets: assets, AppFiles: ScaffoldAppFiles(p)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cpp := string(out.Files["src/generated/ui.cpp"])
+			for _, want := range []string{
+				fmt.Sprintf("lv_image_set_scale(ui_scaled, %d);", tc.want),
+				"lv_image_set_antialias(ui_scaled, false);",
+				"lv_image_set_inner_align(ui_scaled, LV_IMAGE_ALIGN_CENTER);",
+			} {
+				if !strings.Contains(cpp, want) {
+					t.Errorf("generated image is missing %q", want)
+				}
+			}
+		})
+	}
 }
 
 func TestGenerateIconGolden(t *testing.T) {

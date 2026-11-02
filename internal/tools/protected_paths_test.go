@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestSecureResolveRejectsProtectedSystemPaths(t *testing.T) {
@@ -42,6 +44,63 @@ func TestSecureResolveRejectsProtectedSystemPaths(t *testing.T) {
 		if _, err := secureResolve(workdir, path); err != nil {
 			t.Fatalf("secureResolve(%q) = %v, want allowed", path, err)
 		}
+	}
+}
+
+// prompts_dir holds trusted system-prompt text (persona profiles, rules,
+// persona phase catalogs), so an agent write there would inject trusted
+// prompt text. The jail here contains prompts_dir to prove the protected-path
+// rule, not the jail, refuses it.
+func TestAgentWritesIntoPromptsDirAreDenied(t *testing.T) {
+	jail := filepath.Join(t.TempDir(), "agent_workspace")
+	workdir := filepath.Join(jail, "workdir")
+	promptsDir := filepath.Join(jail, "prompts")
+	profile := filepath.Join(promptsDir, "personalities", "friend.md")
+	for _, dir := range []string{workdir, filepath.Dir(profile), filepath.Join(promptsDir, "persona_phases")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(profile, []byte("trusted persona"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.Directories.PromptsDir = promptsDir
+	perms := defaultRuntimePermissionsForTests()
+	perms.ProtectedSystemDirs = RuntimePermissionsFromConfig(cfg).ProtectedSystemDirs
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+
+	targets := []string{
+		filepath.Join("..", "prompts", "personalities", "friend.md"),
+		filepath.Join("..", "prompts", "persona_phases", "friend.yaml"),
+		filepath.Join("..", "prompts", "rules", "injected.md"),
+		profile,
+	}
+	if err := os.Symlink(promptsDir, filepath.Join(workdir, "link")); err == nil {
+		targets = append(targets, filepath.Join("link", "personalities", "new.md"))
+	} else {
+		t.Logf("symlink case skipped: %v", err)
+	}
+	for _, target := range targets {
+		if !IsProtectedSystemPath(target, workdir, cfg) {
+			t.Errorf("IsProtectedSystemPath(%q) = false, want prompts_dir protected", target)
+		}
+		out := ExecuteFilesystem("write_file", target, "", "injected", nil, workdir, 0, 0)
+		if !strings.Contains(out, "protected AuraGo") {
+			t.Errorf("write_file %q = %s, want protected-path denial", target, out)
+		}
+	}
+	if data, err := os.ReadFile(profile); err != nil || string(data) != "trusted persona" {
+		t.Fatalf("persona profile = %q, %v; want unchanged", data, err)
+	}
+	for _, created := range []string{filepath.Join(promptsDir, "persona_phases", "friend.yaml"), filepath.Join(promptsDir, "personalities", "new.md")} {
+		if _, err := os.Stat(created); !os.IsNotExist(err) {
+			t.Fatalf("%s exists after denied writes (stat error %v)", created, err)
+		}
+	}
+	if out := ExecuteFilesystem("write_file", "notes.txt", "", "ok", nil, workdir, 0, 0); strings.Contains(out, "protected AuraGo") {
+		t.Fatalf("write_file notes.txt = %s, want allowed", out)
 	}
 }
 

@@ -407,6 +407,21 @@ func (r *CoAgentRegistry) SetStructuredResult(id string, structured CoAgentStruc
 	a.mu.Unlock()
 }
 
+// RecordUsage accounts observed responses and begun handlers, including work
+// finishing cancellation. It never changes lifecycle state or books costs.
+func (r *CoAgentRegistry) RecordUsage(id string, tokens, calls int) {
+	r.mu.RLock()
+	a := r.agents[id]
+	r.mu.RUnlock()
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.TokensUsed += max(0, tokens)
+	a.ToolCalls += max(0, calls)
+}
+
 // Complete marks a co-agent as successfully finished.
 func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int) {
 	r.mu.Lock()
@@ -421,8 +436,8 @@ func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int)
 		a.State = CoAgentCompleted
 		a.CompletedAt = time.Now()
 		a.Result = result
-		a.TokensUsed = tokensUsed
-		a.ToolCalls = toolCalls
+		a.TokensUsed = max(a.TokensUsed, tokensUsed)
+		a.ToolCalls = max(a.ToolCalls, toolCalls)
 		a.mu.Unlock()
 		if wasRunning {
 			r.runningCount.Add(-1)
@@ -447,8 +462,8 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 		a.CompletedAt = time.Now()
 		a.Error = errMsg
 		a.LastError = errMsg
-		a.TokensUsed = tokensUsed
-		a.ToolCalls = toolCalls
+		a.TokensUsed = max(a.TokensUsed, tokensUsed)
+		a.ToolCalls = max(a.ToolCalls, toolCalls)
 		a.mu.Unlock()
 		if wasRunning {
 			r.runningCount.Add(-1)

@@ -1,0 +1,147 @@
+# Part I notes: integration of A, D, C, R, B and E on main `561685cde`
+
+Worktree (uncommitted, nothing committed, no branch): `C:/Users/Andi/AppData/Local/Temp/claude/C--Users-Andi-Documents-repo-AuraGo/f2c97a7f-addd-4aa7-bd49-85d6c9b3f2a1/scratchpad/sm-wt-i` (detached at `561685cde`).
+Plan part: `part-I.md` (6 tasks, I1 to I6, generated from the verified files by `part-i-tools/make-plan-i.mjs`; the diffs are `git diff --no-index` between the files as the plan leaves them before part I and the files in the worktree). Task B15 in `part-B.md` was rewritten (`part-i-tools/rewrite-b15.mjs`). Helper scripts: `part-i-tools/` (`verify-anchors.mjs`, `fix-anchors.mjs`, `fix-docs-and-gitignore.mjs`, `regen-b11-diff.mjs`, `rewrite-b15.mjs`, `make-plan-i.mjs`, `lib.mjs`); logs and saved originals: `sm-tmp-i/`.
+
+## The merged tree
+
+- Base `561685cde` (35 commits after the drafting base `0248bc133`). The overlay (`overlay.mjs`) put 299 new files (319 copies; R overwrote 20 of C's and D's paths) and 59 edits of tracked files on it with zero conflicts. The tree now has 303 untracked files (the 299, plus the four server test files of this part) and 60 modified tracked files (the 59 plus the regenerated `main.bundle.js`). Three files were missing from the overlay: `internal/storymaker/AGENTS.md` (A), `internal/storymaker/render/AGENTS.md` (B) and `ui/js/storymaker/AGENTS.md` (E). `.gitignore` line 142 ignores every `AGENTS.md` except the root one, and the overlay copies what `git status` lists. I copied the three by hand and applied task B14's section to A's file.
+- Files that main changed since the base AND that the parts edit: `config_template.yaml` (+5 lines), `internal/config/config.go` (+4), `internal/config/config_types.go` (+1), `internal/server/config_handlers_main.go` (+26), `ui/js/desktop/apps/AGENTS.md` (+22), `ui/lang/desktop/*.json` (+20 each), `ui/js/desktop/bundles/main.bundle.js` (generated). Every other tracked file the parts edit is byte-identical at the base and at `561685cde`, so their anchors and line numbers hold.
+- Generated files regenerated from the merged sources: `main.bundle.js`, `host.bundle.js` (5 parts), `player.bundle.js` (21 parts); `npm run check:ui` green. Catalog version `ab33e88a6b77` (R's); `node scripts/build-storymaker-catalog.mjs --check` green.
+
+## Task B15 on the merged files
+
+The diff of `part-b-tools/c-request.diff` was written against C's pre-R files; R changed `09-host-render.mjs` (TEST_LIMITS) and the player. Applied to the merged files: `host-render.js` (three hunks), `09-host-render.mjs`, and the Go browser tests that read the frame number: `ui/storymaker_player_gate_browser_test.go` and R's `ui/storymaker_parity_browser_test.go` (B's note said R's harness was unaffected; it is not, it read `X-SM-Frame` too and now reads `?n=`). Additions beyond the old diff: the gate test now requires `Content-Type: text/plain`, no `X-SM-Frame` header and no preflight that hits `/frame` (it counted OPTIONS before, which `POST /report` still produces); the Node suite has a check that `boot.frame_deadline_ms` becomes the frame deadline (it records the timers the engine asks for: the offered 5000 replaces the 40 of the control run, and 3,600,000 is capped to 60,000); B's spike test (`TestGuardAndRequestOverheadSpike`) gets `preflightFrameRequests` so its "preflight per frame" variant still means that after B15, and `recommendedPlayerChanges` no longer adds the deadline line a second time. Node suite: 71 + 1 = 72 checks. With the old player and the new tests 4 checks fail (recorded in B15 step 2).
+
+## App and server reconciliation
+
+Compared in both directions, every item of both lists ("requests to part B" in `part-E-notes.md`, "what E must do" in `part-B-notes.md`) against the code.
+
+| Item | Result |
+| --- | --- |
+| `status` shape incl. `limits.max_narration_chars`, `read_only`, `enabled` | matches (the app reads exactly these) |
+| `POST /projects` 201 `{project, story, etag}`; `GET` `{project, story, etag, issues, code_scenes}`; `PUT .../story` `{etag, issues, defaults_applied, story}`; 412 with the current `ETag` header; 428 | matches |
+| 404 for a missing code source (`code_not_found`) and a failed bundle (`bundle_not_found`) | matches |
+| Flat error bodies `{error, code, message, issues?}` incl. 401, 403 `desktop_scope_required`/`desktop_readonly`/`storymaker_disabled`, 422 `invalid_story` | matches |
+| SSE `event: job` with `{"job": ...}`; snapshot of the latest five jobs oldest first on open; the app adopts an active job and ignores finished ones it did not start | matches (I1 proves the stream and the replay, I2 the app on top) |
+| `GET /player` with the session cookie only, in `allowDesktopIframe`, exact CSP | matches (I2 loads it in a sandboxed iframe) |
+| Config PUT accepts `storymaker.enabled` and `storymaker.render.*` and `GET /api/config` returns them | matches, now with a positive test (B11 had only the rejecting ones) |
+| 429 `busy`, 409 `ffmpeg_unavailable`/`browser_unavailable`, 422 `invalid_story`/`code_error` on a render start | codes match; the 422 texts were wrong (below) |
+| Export enabled when `ffmpeg.ready && (browser.ready \|\| browser.can_download)` | **mismatch**: the app required `browser.ready`. Fixed in the app (I4); B follows contract section 5 plus its documented `can_download`, so E adapts |
+| First `status` call up to 7 s | measured 3.1 s here; the app shows its loading state meanwhile. Not changed (see open issues) |
+| `GET /projects/{id}/jobs` | exists; the app does not need it (the stream replays the jobs) |
+| `story: null` + `story_text` for an unreadable `story.json` (B's addition) | **mismatch**: the app threw a TypeError. Fixed (I4) |
+| 422 on `POST .../render` shown as "the story was not saved" | **mismatch**, fixed with a `render` context for `describe` (I4) |
+| Code file of a deleted code scene stays on the server (no DELETE for code files); the app creates with `If-None-Match: *` and reused the id | **mismatch**, fixed (I4) |
+| `NewBrowsersWithProbe` hid the pinned Chromium, so "downloadable" could not be tested | fixed in B's seam (I3) |
+| A seek (scrubber, End key) while the preview reloads after an edit | **bug found through a flaky tour** (E8 failed 2 of 17 runs at the End step): the player host drops a seek that arrives before its compile is done and answers a later one out of order, and the bridge replayed a resume frame captured when the load started, so the playhead fell back to 0, to the captured frame or to the last frame of the previous report and the host showed frame 0. Fixed in the app (I4): the playhead `inst.frame` is authoritative, seeks wait while the host loads, the first `time` message after the compile brings the host to the playhead, the bridge keeps no resume frame. Regression step in the tour (End pressed in the task that shows the "preparing" note, checks the host's last `time` message; fails 2 of 2 on the old code); the tour also waits for the reload after the code fix before pressing End (a race of the test itself, seen as playhead 302 of 407). 0 failures in 11 runs of the whole E set afterwards (8 + the 3 of the final matrix); before the fix 2 of 6 in one batch and 1 of 11 in another |
+
+Not mismatches but worth knowing: the real `GET /projects/{id}` answers the story as `json.Marshal(Story)` (decoded and re-encoded), the fixture answered the stored bytes; the app only uses the parsed object and the tour passes. The `ETag` of a code source is a strong quoted SHA-256 in the header only; behind a proxy that weakens ETags (`W/"..."`) a code save would get 400 `precondition_invalid`; the story etag travels in the JSON body and is unaffected. The in-process gzip middleware leaves ETags alone and skips `text/event-stream`.
+
+## What runs where
+
+- `internal/server/storymaker_e2e_test.go`: `TestStorymakerExportEndToEnd` (API level, real HTTP server around `handleStorymaker`, SSE reader, ffprobe of the MP4 in the desktop workspace) and the helpers `storymakerRealServer`, `storymakerFFprobe`, `storymakerReadSSE`. B's `TestRealRender` publishes to memory and keeps covering the pixels, determinism and the pipeline; the e2e test adds the HTTP layer, `Idempotency-Key`, the workspace write (`WriteFileStreamConditional`), the job record file, the replay on a new stream, and a different story (`firewall.json` with its code scene, 1920x1080, same frame count as B's).
+- `internal/server/storymaker_config_test.go`: the config round trip (runs without a browser).
+- `internal/server/storymaker_app_browser_test.go`: `TestStorymakerAppRealServerBrowser`, the E8 tour against the real handlers plus an export that renders for real. It could not live in package `ui`: that package can import `internal/server` (`ui/desktop_retro_games_browser_test.go` does, for an exported helper) but cannot build a configured `Server`; the setup is in `internal/server`'s unexported test helpers (`testDesktopPermissionServer`, `configureDesktopAppsHandlerTest`). The harness is a copy of the seam in `ui/desktop_audit_browser_test.go` (shell HTML with scripts stripped, `main.bundle.js` cut before `ensureDesktopRadialMenuAnchor();`, generic `/api/` answers), with the Storymaker handler mounted on `/api/desktop/storymaker/` and `Auth.Enabled = false`.
+- `internal/server/storymaker_app_states_browser_test.go`: six states of the real server against the app.
+
+## Plan corrections made in other part files
+
+- `part-A.md` A1: line numbers moved to HEAD (`config_types.go:2195`, `config.go:572`/`1084`, `config_template.yaml:2363`) with a note; A8: `git add -f internal/storymaker/AGENTS.md`.
+- `part-B.md`: B11 header `config_handlers_main.go:692`; the B11 diff block regenerated from the integration tree against `561685cde` (only `config_handlers_main.go` differed: hunk offset and blob id); B1 wording (file identical at both commits); B13 step 4 listed `render/AGENTS.md`, which B14 creates later (removed); B14 step 2 says to insert the section before `## Child DOX Index` and fill the index (the old "append" put it after the index); `git add -f` for `render/AGENTS.md` and `internal/storymaker/AGENTS.md`; B15 rewritten.
+- `part-E.md`: apps `AGENTS.md` anchor and hunk header (`after line 43`, `@@ -41,6 +41,16 @@`); E10 `git add -f ui/js/storymaker/AGENTS.md`; the intro says part I runs the app against the real handlers.
+- `part-C.md`, `part-D.md`, `part-R.md`: no change needed. `verify-anchors.mjs` checks the old side of every diff and Old block of the six parts against `git show 561685cde:<file>` (49 blocks): all found; the two reported "without a tracked file nearby" are B15's blocks (C's untracked files) and the `en.json` example of E1 (a brace list, checked by hand).
+
+
+`part-i-tools/apply-check.mjs` replays every diff block of the six parts with `git apply --check` against the files of `561685cde`: 38 file diffs apply, 0 fail (6 are files that exist only in the tree, B15's player files). `part-e-tools/verify-plan-e.mjs` still passes (42 file blocks, 30 diff blocks, 0 problems).
+
+## What this step changed in the code of the other parts
+
+- Part B: `internal/storymaker/render/browser.go` (`NewBrowsersWithProbe` keeps the pin table, refuses downloads) and `browser_test.go` (one test); `browser_smoke_test.go` (spike variants, B15).
+- Part C/R files (task B15): `ui/js/storymaker/host-render.js`, `host.bundle.js` (generated), `scripts/storymaker-tests/09-host-render.mjs`, `ui/storymaker_player_gate_browser_test.go`, `ui/storymaker_parity_browser_test.go`.
+- Part E: `ui/js/desktop/apps/storymaker-{model,export,core,player}.js` and `storymaker.js` (storymaker.js 911 -> 929 lines, all modules still under 1100), `ui/cfg/virtual_desktop.js`, `ui/lang/storymaker/*.json` (+2 keys each, 210 keys per file), `ui/desktop_storymaker_{model,api,browser,fixture}_test.go`, `ui/js/desktop/apps/AGENTS.md`, `documentation/storymaker.md`.
+- New: the four test files in `internal/server` (I1, I2, I4).
+- The three `AGENTS.md` files that the overlay missed were added to the tree (not as tasks: the plan creates them in A8, B14 and E10).
+
+## Matrix (integration tree, main `561685cde`, Windows 11, 16 CPUs, Go 1.27.3, Node 24.11.1, Chrome 156.0.8078.74, FFmpeg 8.1.1 from WinGet)
+
+| Command | Result |
+| --- | --- |
+| `npm run build:ui`, `npm run check:ui` | green; bundles regenerated from the merged sources |
+| `node scripts/test-storymaker-player.mjs` | 72 passed, 0 failed |
+| `node scripts/build-storymaker-catalog.mjs --check` | `storymaker catalog ab33e88a6b77 is up to date` |
+| D's seven `node --test assets/storymaker/test/*.test.mjs` files | 6, 3, 5, 4, 3, 4, 6 passing |
+| `go test ./internal/storymaker/... ./internal/config/ ./internal/desktop/ ./internal/security/ ./internal/videostudio/ -count=1` | all ok (storymaker 1.5 s, render 10 s, config 12 s, desktop 52 s, security 83 s, videostudio 409 s) |
+| `go test ./cmd/config-merger ./internal/setup -count=1` | ok |
+| `go test ./internal/server/ -count=1` | 353 s; one failure, `TestGetDesktopServiceReusesCanonicalConfigWithRelativeDefaults`, pre-existing (below) |
+| `go test ./ui -count=1` | 82 s; two failures, both pre-existing (below) |
+| `GOOS=linux go build ./...`, `GOOS=linux go vet ./internal/storymaker/... ./internal/security/ ./internal/server/`, `GOOS=darwin go vet ./internal/storymaker/render/` | exit 0 |
+| `gofmt -l` on all new or changed Go files, `go vet` of `./internal/storymaker/... ./internal/server ./internal/security ./internal/config ./internal/desktop ./internal/videostudio ./ui` | clean |
+| Browser (`AURAGO_RUN_BROWSER_SMOKE=1`): C's four tests | PASS, 25 s (png/webp/raw, firewall twice bit-identical, screenshot) |
+| R's `TestStorymakerParityBrowser` (opt-in dir) | PASS, 94 s (cast sheet 27 frames, firewall in 16:9, 9:16, 1:1) |
+| B's `TestBrowserStatusProbe`, `TestRealRender*`, `TestEgressLayers*` | PASS, 127 s (real render 33 s, deterministic 68 s, egress six sub-runs 24 s) |
+| B's `TestStorymakerParityAppPlayerAndRenderPage` (server) | PASS, 43 s (9 frames identical, 342-frame export) |
+| E's `TestStorymakerApp*`, `TestConfigStorymakerBrowser`, three runs in a row | PASS, 71 s |
+| `TestStorymakerAppRealServerBrowser` (I2) | PASS, 26 s (start screen after 3.2 s, export 13.2 s) |
+| `TestStorymakerAppRealServerStatesBrowser` (I4), six states | PASS, 27 s |
+| `TestStorymakerExportEndToEnd` (I1) | PASS, 24 s |
+| `TestStorymakerConfigPatchOfTheConfigPageIsAcceptedAndRoundTrips` (I1) | PASS, 0.06 s |
+
+Red-before-green evidence is recorded in the plan: B15 step 2 (68 passed, 4 failed), I3 step 2, I4 step 2 (two Node checks, the tour step, two real-server states).
+
+## Verified pre-existing failures
+
+Reproduced on a clean detached worktree of `561685cde` (created next to the integration tree, `node_modules` junction removed before `git worktree remove`; `git worktree list` no longer shows it):
+
+- `go test ./ui -count=1` there: `TestChatFrontend_IntegrationsDrawerRemainsWired` and `TestFrontend_StaticI18nKeysExistInEnglishBundle` fail, nothing else (identical to the integration tree).
+- `go test ./internal/server -run TestGetDesktopServiceReusesCanonicalConfigWithRelativeDefaults` there: the same `Rel: can't make D:\tmp\go-build\...\workspace relative to C:\...` failure.
+- `go test ./internal/audit` (A's note: `TestUpdateConfigFallbackOnlyTrustedTransactionBackups`, bash `chmod 770` on NTFS) is not in the brief's matrix and was not run again; still unproven.
+
+## Open issues
+
+- **aurago-test is untouched.** What only that box can answer stays in the repeatable steps of B13: the transport spike on Linux (10 fps target), Chrome's sandbox (AppArmor), the FFmpeg floor 5.1, hardware encoders, and the pinned Chromium download and launch (`TestPinnedChromiumDownloadsVerifiesAndLaunches`, `AURAGO_STORYMAKER_PINNED=1`). I3/I4 prove that the app shows the "downloaded once" note and does not block; the 190 MB download itself was not run here.
+- **The start screen waits for `GET /status`**, whose first call launches Chrome (3.2 s here, up to about 7 s on a slow box). The app shows its loading state meanwhile. Showing the project list first and filling the banner when `status` arrives would be a small change (`start()` in `storymaker.js`); not done because the list is fast and the banner is part of the first screen.
+- **Code-scene files are never deleted** (no DELETE for code files in contract section 5); deleting a code scene leaves `scenes/<id>.js`. I4 only keeps new ids from colliding with them.
+- **ETag of a code source is only in the response header.** A proxy that turns it into a weak tag makes `PUT .../code` answer 400 `precondition_invalid`. The story etag is also in the JSON body and is not affected. Nothing in the repo's own middleware weakens it (gzip leaves ETags alone).
+- **Production middleware chain.** The server tests call `handleStorymaker` directly (B's player test does go through `securityHeadersMiddleware`); the full chain (`authMiddleware`, `accessLogMiddleware`, gzip) was only read: SSE is skipped by gzip, `statusRecorder` and the gzip writer implement `Flush`, there is no `WriteTimeout` on the server. A scratch instance run (memory: "Local scratch AuraGo on Windows") would cover cookies and the embedded asset set (`uiFiles` instead of `os.DirFS`); not done.
+- **Embedded assets.** `storymakerUIFiles()` falls back to `uiFiles` (webassets) in production; every test injects `os.DirFS("../../ui")`. The assetpack allowlist (`assets/web-assets.json`) covers the Storymaker files (directories `js`, `css`, `lang`, `fonts`, `img`; extensions `.js .css .json .svg .woff2`), checked by D's test, but an assetpack-built binary was not started.
+- **GitNexus.** `impact` for `NewBrowsersWithProbe` answered `Target not found` (UNKNOWN: the symbol is in an uncommitted file the main index does not know); its callers are two server tests (grep). The JavaScript functions that were edited (`describeError`, `addScene`, `newSceneId`, `openProject`, `pumpSeek`, `blockers`, `capabilities`) are not indexed either; their callers are inside `ui/js/desktop/apps/storymaker*.js` (grep). `detect_changes` belongs to the commit steps of the plan (I4 step 5 and the others), nothing is committed here.
+- **Tests that need the box.** The new server tests skip without `AURAGO_RUN_BROWSER_SMOKE=1`, FFmpeg (`AURAGO_TEST_FFMPEG_DIR`, `PATH` or the WinGet folder) or an installed Chrome. They set `Auth.Enabled = false` on a fixture server that listens on loopback only.
+- **Review rounds.** Four reviewers read this tree in parallel; their findings were not available to this step.
+
+## Review fixes (second pass over the integrated tree)
+
+Six findings came from four reviewers and were verified before this step; the ids repeat across reviewers (three are called SM-1), so they are named by reviewer: SB, CG, CJ. Each one was checked again against the code here (and probed where a probe was possible), then fixed with a test that failed first. The fixes are tasks I7 to I10 at the end of `part-I.md` (generated by `part-i-tools/make-plan-i-fixes.mjs` from the verified files and the exact old/new strings in `sm-tmp-i/review-pairs.json`; running it again replaces the section). Nothing is committed. `gitnexus impact` knows only committed code, so for `SaveCodeScene`, `Browsers.download`, `newLauncher`, `openProject`, `addScene` and `leaveProject` it answered "not found" (UNKNOWN); the callers were taken from grep and are named in the tasks.
+
+| Finding | Verdict | What changed | Test | Task |
+| --- | --- | --- | --- | --- |
+| SM-2 (CG) stale bundle after a failed code-scene save | confirmed, both scenarios | `SaveCodeScene` checks the precondition itself, removes the old bundle, then writes source and new bundle; new `checkCodePrecondition` | `TestSaveCodeSceneFailureNeverLeavesAStaleBundle` (4 cases through a fault-injecting store); 2 of 4 failed before | I7 |
+| SM-1 (CG) download outside the render timeout | confirmed | 60 s without a received byte ends the download (`downloadIdleTimeout`, field `idleTimeout` for tests); `execute` runs `Ensure` under `render.timeout_seconds` | `TestPinnedChromiumDownloadGivesUpOnAStalledConnection`, `...KeepsASlowConnectionAlive`, `TestRunBoundsTheBrowserSetupByTheRenderTimeout`; failed (20 s guard) and hung (45 s test timeout) before | I8 |
+| SM-1 (SB) DevTools port exposes the prefix and full control | confirmed | no DevTools port: `--remote-debugging-pipe`, rod gets a pipe `cdp.Client` (`devtools_pipe*.go`) | `TestRenderBrowserOpensNoDevToolsPort` (failed before), `devtools_pipe_test.go` (6 tests, fake browser) | I9 |
+| SM-1 (CJ) Back after a failed save discards the text | confirmed | `leaveProject` asks whenever `flushEdits` did not save | `TestStorymakerAppReviewFixesBrowser/leaving_after_a_failed_save_asks_first` | I10 |
+| SM-3 (CJ) two quick opens race | confirmed | `openProject` takes `inst.openSeq`; a late answer or failure of an older open is dropped | `.../two_quick_opens_end_in_the_last_one` | I10 |
+| SM-4 (CJ) add code scene after a delete fails with a misleading conflict | confirmed | a 412 on the `If-None-Match: *` create tries the next id (20 attempts) | `.../a_code_scene_can_be_added_again_after_one_was_deleted` | I10 |
+
+Where the fix differs from the reviewer's proposal:
+
+- **SM-2 (CG).** The proposal (remove the bundle right after the source write) leaves the case where the removal itself fails: the new source stays, the old bundle stays, and the status is ok. Removing the bundle first closes it. Removing first would drop the bundle of a scene whose save is refused for a stale `If-Match`, so the precondition is checked before (the store's own check at write time stays). Failure states now: removal failed, nothing changed; any later step failed, new source without bundle ("has not been bundled yet", the render is blocked).
+- **SM-1 (CG).** A fixed 15 minute cap would abort a legitimate slow download (the archive needs about 2.4 Mbit/s for that). The bounds are an idle limit that every received byte resets (started before the request, so the wait for headers counts) and `render.timeout_seconds` around the whole setup (also bounds one byte a minute). `OpenPage` keeps the job context: rod ties the browser's lifetime to it. The download lock `dlMu` is held for the download, so the stall also blocked the next export; it is free again after the limit.
+- **SM-1 (SB).** The proposed placeholder URL is not enough (the verification said so too): the prefix stays in the page's DOM (`data-sm-base`, the script URLs) and the control path stays open, and a navigation to `file://` through DevTools would read files of the AuraGo user. The pipe removes the control path itself. `--remote-debugging-pipe` is old Chromium (the pinned revision 1321438 is Chromium 128); on Windows Chromium finds the pipe through `--remote-debugging-io-pipes=<read>,<write>` (inherited handles, `SysProcAttr.AdditionalInheritedHandles`), which Chrome 156 here accepts.
+
+### What the pipe launcher does for the launcher it replaces
+
+rod's `Launch()` only understands "DevTools listening on ws://...", so `startBrowserProcess` starts the process itself and keeps what the launcher did: flags from `newLauncher` (minus the port and the leakless helper, plus the pipe flag), stdout and stderr into a 4 KiB tail that goes into the start-up error (`launchIssue` still sees "No usable sandbox" and "shared libraries"), a 60 s start-up limit (kills a silent browser), `Close` = close the input (the browser quits when its input ends, so a crashed AuraGo leaves no browser behind), wait 5 s, kill the process group (Unix) or the tree (`taskkill /T`, Windows), remove the profile with retries. `browserProcess.PID()` replaces `session.l.PID()` (one spike test). `newLauncher` lost its unused context parameter. Only `probeLaunch` and `openRodSession` start a render browser; the test harness browsers in `internal/server` launch their own Chrome for the app side and are untouched.
+
+### Measured
+
+- Windows 11, Chrome 156.0.8078.74: the real-browser suite of the render package, 128.9 s, green with the pipe (probe, real render of `firewall.json`, determinism, egress layers x6); `TestRenderBrowserOpensNoDevToolsPort` green (no `DevToolsActivePort`, no listening socket in the browser tree; the same helper finds the DevTools port of the old launcher in every sample); `go test ./internal/server -run TestStorymaker` 113.7 s green (real-server app tour with an export, the API end to end, parity, six states); `TestStorymakerApp*` + `TestConfigStorymakerBrowser` + the three new app states 30.5 s green.
+- Linux, new evidence for part of the old "aurago-test" open item: the render test binary cross-built for linux/amd64 and run in a Debian 12 container (`aurago-ci-tests:20261028`, `apt install chromium ffmpeg`, root, `AURAGO_TEST_NO_SANDBOX=1`). Chromium 156.0.8078.73 and FFmpeg 5.1.9 (the floor): the fake-browser tests, the probe, `TestRenderBrowserOpensNoDevToolsPort`, the real render of `firewall.json` (342 frames in 33.4 s, 10.2 fps overall: the 10 fps target of the spike) and `TestEgressLayersEachStopTheProbe` (six sub-runs) all pass. Still not covered: the Chrome sandbox under AppArmor on the Ubuntu host, hardware encoders, and the real 190 MB pinned download.
+- Full suites after the fixes: `go test ./internal/storymaker/...` ok; `go test ./ui -count=1`: only `TestChatFrontend_IntegrationsDrawerRemainsWired` and `TestFrontend_StaticI18nKeysExistInEnglishBundle` fail; `go test ./internal/server -count=1` (302 s): only `TestGetDesktopServiceReusesCanonicalConfigWithRelativeDefaults` fails; all three are the failures that already exist on the base commit (see above). `npm run build:ui` / `check:ui` change no bundle (the app modules are not bundled); `node scripts/test-storymaker-player.mjs` 72 passed. `gofmt -l` is clean on all touched files (three foreign files in `ui/` are listed by gofmt on this tree and are not part of this work); `go vet` for windows, linux and darwin (render) clean; `GOOS=linux go build ./...` ok.
+
+### Observations and open points
+
+- **One hang in a full run.** In one run of `TestStorymakerAppStatesBrowser` the `conflict` state timed out after 180 s (a rod call without an answer; the run overlapped with a Go compile and test run in another shell). It passed in 3 + 4 + 1 reruns (alone, with the other states, and in the full set), and nothing the fixes touch is on its path (create project, type, 412, overwrite). Recorded as a suspected load flake of the harness (the E8 tour had a real race of this family before, see I4); not investigated further.
+- **The spec still says the prefix is "defence in depth" and is silent about the browser's DevTools endpoint.** The spec lives in the main checkout, which this step must not touch; contract section 12, item 10, records the deviation and task I9 step 3 names the sentence to add to the Security section when the plan is committed.
+- **What the pipe does not cover.** Code running as the same OS user as AuraGo can still read its memory or attach with ptrace; that is the same trust domain. The listener's prefix is still readable by scene code inside the sandbox (unchanged, documented in `render/AGENTS.md`).
+- **Windows handle inheritance.** The two pipe handles are passed by an explicit handle list, so other child processes AuraGo starts at the same time do not inherit them. On Unix the pipe ends are close-on-exec except in the browser (`ExtraFiles`).
+- **Still open from before:** aurago-test is not exercised (Ubuntu AppArmor sandbox, hardware encoders, the real pinned Chromium download and launch, which now goes through the pipe too: `TestPinnedChromiumDownloadsVerifiesAndLaunches`); the production middleware chain and the embedded asset set; code-scene files are never deleted (SM-4 only keeps new ids from colliding).

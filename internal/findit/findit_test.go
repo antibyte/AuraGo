@@ -741,11 +741,15 @@ func BenchmarkSearchItems50k(b *testing.B) {
 		b.Fatal(err)
 	}
 	itemStmt, err := tx.Prepare(`INSERT INTO items(id,version,name,category,template_id,unit,minimum_stock_micro,tags_json,datasheet_urls_json,properties_json,created_at,updated_at)
-		VALUES(?,1,?,'other','generic','piece',0,'[]','[]','{}','2026-01-01','2026-01-01')`)
+		VALUES(?,1,?,'electronic_component','resistor','piece',0,'[]','[]','{}','2026-01-01','2026-01-01')`)
 	if err != nil {
 		b.Fatal(err)
 	}
 	ftsStmt, err := tx.Prepare(`INSERT INTO findit_items_fts(item_id,name,description,manufacturer,part_number,category,package_family,tags,properties) VALUES(?,?,?,'','','other','','fixture','')`)
+	if err != nil {
+		b.Fatal(err)
+	}
+	propertyStmt, err := tx.Prepare(`INSERT INTO item_properties(item_id,field_key,value_type,number_value) VALUES(?,'resistance_ohms','number',4700)`)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -758,16 +762,28 @@ func BenchmarkSearchItems50k(b *testing.B) {
 		if _, err := ftsStmt.Exec(id, name, "searchable 50k fixture"); err != nil {
 			b.Fatal(err)
 		}
+		if _, err := propertyStmt.Exec(id); err != nil {
+			b.Fatal(err)
+		}
 	}
 	_ = itemStmt.Close()
 	_ = ftsStmt.Close()
+	_ = propertyStmt.Close()
 	if err := tx.Commit(); err != nil {
 		b.Fatal(err)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err := store.Query(context.Background(), QueryRequest{Operation: "search", Entity: "items", Query: "searchable", Limit: 50}); err != nil {
-			b.Fatal(err)
-		}
+	for _, benchmark := range []struct{ name, query string }{
+		{name: "text", query: "searchable"},
+		{name: "engineering-number", query: "4k7"},
+		{name: "engineering-unit", query: "4.7 kΩ"},
+	} {
+		b.Run(benchmark.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if _, err := store.Query(context.Background(), QueryRequest{Operation: "search", Entity: "items", Query: benchmark.query, Limit: 50}); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

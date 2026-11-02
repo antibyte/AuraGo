@@ -112,8 +112,17 @@ func searchItems(ctx context.Context, db queryer, req QueryRequest, limit, offse
 		where = append(where, "i.id>=? AND i.id<?")
 		args = append(args, prefix, prefix+"\uffff")
 	} else if match != "" {
-		where = append(where, "i.id IN (SELECT f.item_id FROM findit_items_fts f WHERE findit_items_fts MATCH ?)")
-		args = append(args, match)
+		textClause := "i.id IN (SELECT f.item_id FROM findit_items_fts f WHERE findit_items_fts MATCH ?)"
+		if quantityClause, quantityArgs, ok := quantitySearchClause(req.Query); ok {
+			where = append(where, "("+textClause+" OR "+quantityClause+")")
+			// Numeric properties are compared exactly, without case-folding SI
+			// prefixes or trusting stale derived aliases in older FTS rows.
+			args = append(args, "- properties : ("+match+")")
+			args = append(args, quantityArgs...)
+		} else {
+			where = append(where, textClause)
+			args = append(args, match)
+		}
 	}
 	if req.LocationID != "" {
 		if err := validateID(req.LocationID, "location id", true); err != nil {
@@ -204,8 +213,8 @@ func propertyFilter(ctx context.Context, db queryer, templateID string, filter P
 	}
 	typeName := fields[0].Type
 	for _, field := range fields[1:] {
-		if field.Type != typeName {
-			return "", nil, domainError("invalid", "property filter field has inconsistent types")
+		if field.Type != typeName || (typeName == "number" && field.Unit != fields[0].Unit) {
+			return "", nil, domainError("invalid", "property filter field has inconsistent types or units; select a template")
 		}
 	}
 	operator := map[string]string{"eq": "=", "ne": "<>", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[filter.Operator]
@@ -259,7 +268,7 @@ func propertyFilter(ctx context.Context, db queryer, templateID string, filter P
 }
 
 func templateFieldsForFilter(ctx context.Context, db queryer, templateID, key string) ([]PropertyDefinition, error) {
-	query := `SELECT fields_json FROM templates WHERE archived=0`
+	query := `SELECT fields_json FROM templates WHERE (archived=0 OR EXISTS(SELECT 1 FROM items WHERE items.template_id=templates.id))`
 	args := []any{}
 	if templateID != "" {
 		query += ` AND id=?`
@@ -879,11 +888,14 @@ func engineeringAliases(value float64) []string {
 	units := []struct {
 		scale  float64
 		suffix string
-	}{{1e12, "p"}, {1e9, "n"}, {1e6, "u"}, {1e3, "k"}, {1, ""}, {1e-3, "m"}, {1e-6, "u"}, {1e-9, "n"}, {1e-12, "p"}}
+	}{{1e12, "T"}, {1e9, "G"}, {1e6, "M"}, {1e3, "k"}, {1, ""}, {1e-3, "m"}, {1e-6, "u"}, {1e-9, "n"}, {1e-12, "p"}}
 	for _, unit := range units {
 		mantissa := abs / unit.scale
 		if mantissa >= 1 && mantissa < 1000 {
 			text := strconv.FormatFloat(mantissa, 'f', -1, 64)
+			if value < 0 {
+				text = "-" + text
+			}
 			aliases := []string{text + unit.suffix}
 			if unit.suffix != "" && strings.Contains(text, ".") {
 				parts := strings.SplitN(text, ".", 2)

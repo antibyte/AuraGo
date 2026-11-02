@@ -1784,6 +1784,11 @@ personality:
         max_per_session: 20            # maximum inner voice thoughts per session
         decay_turns: 3                 # inner voice thought expires after N turns
         decay_max_age_secs: 300        # absolute age limit, even if no new turn arrives
+    persona_booster:
+        enabled: true                  # stronger persona voice + temporary phases (not for neutral, missions, co-agents)
+        intensity: strong              # mild | strong | wild
+        spontaneous: true              # allow random phases now and then
+        cooldown_minutes: 20           # after a phase, only strong triggers start a new one for N minutes (0-1440)
 rocketchat:
     enabled: false
     url: ""

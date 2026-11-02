@@ -1,0 +1,14 @@
+{
+  "calc": "charge_energy",
+  "sets": [
+    {"values": {"q": 7200, "v": 3.7, "e": 26640}, "ref": "hand: 2 Ah = 7200 C; 7200 C * 3.7 V = 26640 J = 7.4 Wh"},
+    {"values": {"q": 3.6, "v": 5, "e": 18}, "ref": "hand: 1 mAh = 3.6 C; 3.6 C * 5 V = 18 J = 5 mWh"},
+    {"values": {"q": 18000, "v": 12, "e": 216000}, "ref": "hand: 5 Ah = 18000 C; 18000 C * 12 V = 216000 J = 60 Wh"}
+  ],
+  "solve": [
+    {"inputs": {"q": 7200, "v": 3.7}, "expect": {"e": 26640}, "ref": "hand: 7200 C * 3.7 V = 26640 J"},
+    {"inputs": {"e": 26640, "v": 3.7}, "expect": {"q": 7200}, "ref": "hand: 26640 J / 3.7 V = 7200 C = 2 Ah"},
+    {"inputs": {"e": 216000, "q": 18000}, "expect": {"v": 12}, "ref": "hand: 216000 J / 18000 C = 12 V"},
+    {"inputs": {"e": 100, "q": 0}, "errors": {"v": "nonfinite"}, "ref": "hand: 100 J / 0 C is infinite"}
+  ]
+}

@@ -447,8 +447,8 @@
   "findit.initial_location": "Starting posizione",
   "findit.initial_location_required": "Scegli una posizione di stoccaggio per le scorte iniziali.",
   "findit.initial_quantity": "Starting quantità",
-  "findit.initial_stock_pending": "L'articolo è stato salvato, ma il carico iniziale è ancora in sospeso. Riprova qui sotto prima di creare un altro articolo.",
-  "findit.initial_stock_retry_intro": "L'articolo esiste già. Modifica i dettagli della scorta e riprova: non verrà creato un altro articolo.",
+  "findit.initial_stock_pending": "L’articolo è stato salvato, ma l’esito della giacenza iniziale non è confermato. Risolvi qui sotto la richiesta salvata prima di creare un altro articolo.",
+  "findit.initial_stock_retry_intro": "Questa operazione ripete esattamente il carico salvato con il suo ID richiesta originale. Se è già riuscito, la stessa richiesta non aggiungerà di nuovo la scorta.",
   "findit.initial_stock_saved": "Starting scorta salvato",
   "findit.invalid_quantity": "Inserisci una quantità positiva con al massimo sei cifre decimali. Le quantità in pezzi devono essere intere.",
   "findit.invalid_template_fields": "Controlla i campi del nuovo modello.",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Questa voce è stata modificata. Ricaricala prima di salvare.",
   "findit.error_disabled": "L’accesso a FindIt è attualmente disattivato.",
   "findit.error_invalid": "Controlla i dati inseriti e riprova.",
-  "findit.error_retry_conflict": "Questo tentativo differisce dalla richiesta precedente. Ricarica prima la voce."
+  "findit.error_retry_conflict": "Questo tentativo differisce dalla richiesta precedente. Ricarica prima la voce.",
+  "findit.serial_initial_stock_rules": "Per gli articoli con numero di serie usa l’unità «pezzo». La giacenza iniziale deve essere esattamente 1 e includere il numero di serie.",
+  "findit.initial_stock_rejected": "La giacenza iniziale è stata rifiutata in modo definitivo. L’articolo è salvato; aggiungi la giacenza con una normale registrazione di carico.",
+  "findit.pending_command_intro": "L’esito di questa modifica di giacenza o prenotazione è sconosciuto. Ripeti esattamente la richiesta salvata prima di un’altra modifica per l’articolo o il progetto.",
+  "findit.retry_exact_command": "Ripeti la richiesta esatta",
+  "findit.pending_command_queue_full": "In questa scheda ci sono troppe modifiche di giacenza o prenotazioni irrisolte. Risolvi una richiesta in sospeso prima di un’altra modifica.",
+  "findit.pending_command_storage_unavailable": "Questa scheda non ha potuto salvare la richiesta in sospeso, quindi la modifica non è stata inviata. Attiva l’archiviazione di sessione e riprova.",
+  "findit.pending_command": "Risolvi la modifica in sospeso"
 }

@@ -447,8 +447,8 @@
   "findit.initial_location": "Startsted",
   "findit.initial_location_required": "Vælg et lagersted til startlager.",
   "findit.initial_quantity": "Startmængde",
-  "findit.initial_stock_pending": "Varen blev gemt, men dens åbningslager afventer stadig. Prøv den lagerindgang nedenfor, før du opretter en anden vare.",
-  "findit.initial_stock_retry_intro": "Elementet findes allerede. Juster lageroplysningerne og prøv igen; dette vil ikke oprette et andet element.",
+  "findit.initial_stock_pending": "Varen er gemt, men bekræftelsen af startbeholdningen mangler. Afklar den gemte anmodning nedenfor, før du opretter en ny vare.",
+  "findit.initial_stock_retry_intro": "Dette gentager den gemte lagerpost præcis med dens oprindelige anmodnings-id. Hvis den allerede lykkedes, tilføjer den samme anmodning ikke lageret igen.",
   "findit.initial_stock_saved": "Startlager gemt",
   "findit.invalid_quantity": "Indtast en positiv mængde med op til seks decimaler. Stykmængder skal være hele tal.",
   "findit.invalid_template_fields": "Ugyldige skabelonfelter",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Denne post er ændret. Genindlæs den, før du gemmer.",
   "findit.error_disabled": "Adgang til FindIt er deaktiveret i øjeblikket.",
   "findit.error_invalid": "Kontrollér dine indtastninger, og prøv igen.",
-  "findit.error_retry_conflict": "Dette forsøg er forskelligt fra den tidligere anmodning. Genindlæs først."
+  "findit.error_retry_conflict": "Dette forsøg er forskelligt fra den tidligere anmodning. Genindlæs først.",
+  "findit.serial_initial_stock_rules": "Brug enheden „stk.“ til varer med serienummer. Startbeholdningen skal være præcis 1 og have et serienummer.",
+  "findit.initial_stock_rejected": "Startbeholdningen blev afvist. Varen er stadig gemt; tilføj beholdningen med en almindelig modtagelse.",
+  "findit.pending_command_intro": "Resultatet af lagerændringen eller reservationen er ukendt. Gentag præcis den gemte anmodning, før du starter en ny ændring for varen eller projektet.",
+  "findit.retry_exact_command": "Gentag præcis anmodning",
+  "findit.pending_command_queue_full": "For mange lagerændringer eller reservationer afventer afklaring i denne fane. Afklar en ventende anmodning før en ny ændring.",
+  "findit.pending_command_storage_unavailable": "Browserfanen kunne ikke gemme den ventende anmodning, så ændringen blev ikke sendt. Aktivér sessionslager, og prøv igen.",
+  "findit.pending_command": "Afklar ventende ændring"
 }

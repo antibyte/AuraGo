@@ -229,6 +229,7 @@ export async function createCity(host, options) {
   experience=createExperience(scene,{
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
     assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),surfaces,
+    clear:(from,to)=>traffic.clear(visitor,{...from,heading:0},{...to,heading:0},false),onFlight:state=>options.onFlight?.(state),
     onInteraction:options.onInteraction,onScope:state=>options.onScope?.(state),onDiscover:options.onDiscover,onSound:options.onSound,onGait:options.onGait,onTerminal:options.onTerminal,onSociety:options.onSociety,
     onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
     onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
@@ -365,7 +366,7 @@ export async function createCity(host, options) {
     rippleMaterial.uniforms.alpha.value = 0; rippleTime = 0; ripple.visible = !reduced;
     hoverRing.visible = !!hovered && hovered !== selected;
     if (mode === 'street') {
-      options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
+      experience.endRide(); options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
       settleCamera();
     } else {
       flyTo(new THREE.Vector3(d.x + d.radius * 2.7, d.height * .7 + 18, d.z + d.radius * 4),
@@ -437,6 +438,10 @@ export async function createCity(host, options) {
     if (mode === 'street' && ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft'].includes(e.code)) {
       keys.add(e.code); e.preventDefault(); e.stopPropagation();
     }
+    // Hover pack: Space climbs and C descends; shortcuts such as Ctrl+C keep their meaning.
+    if (mode === 'street' && ['Space','KeyC'].includes(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      keys.add(e.code); e.preventDefault(); e.stopPropagation();
+    }
   });
   listen(canvas, 'keyup', e => keys.delete(e.code));
   listen(canvas, 'wheel', e => { if (mode === 'street' && experience.zoom(e.deltaY)) e.preventDefault(); }, { passive: false });
@@ -448,6 +453,8 @@ export async function createCity(host, options) {
     const speed = (keys.has('ShiftLeft') ? 25 : 11) * dt;
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
     let right = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
+    // A hover-pack flight runs even without a key held, so the velocity can ease out.
+    if (experience.hovering()) { experience.fly(dt, { forward, right, up: Number(keys.has('Space')) - Number(keys.has('KeyC')), boost: keys.has('ShiftLeft') }); return; }
     if (!forward && !right) return;
     if(experience.walkRide(forward,dt,right))return;
     const scale = speed / Math.hypot(forward, right);

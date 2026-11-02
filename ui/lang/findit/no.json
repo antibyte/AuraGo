@@ -447,8 +447,8 @@
   "findit.initial_location": "Starting plassering",
   "findit.initial_location_required": "Velg et oppbevaringssted for startbeholdningen.",
   "findit.initial_quantity": "Starting antall",
-  "findit.initial_stock_pending": "Varen ble lagret, men startbeholdningen venter fortsatt. Prøv lagerføringen på nytt nedenfor før du oppretter en ny vare.",
-  "findit.initial_stock_retry_intro": "Varen finnes allerede. Endre lagerdetaljene og prøv igjen; det opprettes ikke en ny vare.",
+  "findit.initial_stock_pending": "Varen ble lagret, men resultatet for startbeholdningen er ikke bekreftet. Løs den lagrede forespørselen nedenfor før du oppretter en ny vare.",
+  "findit.initial_stock_retry_intro": "Den lagrede lagerføringen gjentas nøyaktig med den opprinnelige forespørsels-ID-en. Hvis den allerede ble gjennomført, legger ikke samme forespørsel til lageret på nytt.",
   "findit.initial_stock_saved": "Starting lager lagret",
   "findit.invalid_quantity": "Skriv inn et positivt antall med opptil seks desimaler. Stykkmengder må være hele tall.",
   "findit.invalid_template_fields": "Kontroller malfeltene.",
@@ -865,5 +865,12 @@
   "findit.error_conflict": "Denne oppføringen er endret. Last den inn på nytt før du lagrer.",
   "findit.error_disabled": "Tilgang til FindIt er deaktivert for øyeblikket.",
   "findit.error_invalid": "Kontroller opplysningene og prøv igjen.",
-  "findit.error_retry_conflict": "Dette forsøket er forskjellig fra den forrige forespørselen. Last oppføringen inn på nytt først."
+  "findit.error_retry_conflict": "Dette forsøket er forskjellig fra den forrige forespørselen. Last oppføringen inn på nytt først.",
+  "findit.serial_initial_stock_rules": "Bruk enheten «stk.» for varer med serienummer. Startbeholdningen må være nøyaktig 1 og ha et serienummer.",
+  "findit.initial_stock_rejected": "Startbeholdningen ble definitivt avvist. Varen er fortsatt lagret; legg til beholdningen med en vanlig mottakelse.",
+  "findit.pending_command_intro": "Resultatet av lagerendringen eller reservasjonen er ukjent. Kjør nøyaktig den lagrede forespørselen på nytt før du starter en ny endring for varen eller prosjektet.",
+  "findit.retry_exact_command": "Prøv nøyaktig forespørsel på nytt",
+  "findit.pending_command_queue_full": "For mange lagerendringer eller reservasjoner er uavklart i denne fanen. Løs en ventende forespørsel før en ny endring.",
+  "findit.pending_command_storage_unavailable": "Denne fanen kunne ikke lagre den ventende forespørselen, så endringen ble ikke sendt. Slå på øktlagring og prøv på nytt.",
+  "findit.pending_command": "Løs ventende endring"
 }

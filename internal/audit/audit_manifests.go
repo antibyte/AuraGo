@@ -168,6 +168,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/desktop/local-wikipedia/", Methods: []string{"GET", "HEAD"}, Auth: "session-or-desktop-token", Category: "local-wikipedia", ContentTypes: []string{"application/json", "zim-content"}},
 		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/virtual-computers/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session-or-desktop-token", Category: "desktop", ContentTypes: []string{"application/json", "websocket", "proxy"}},
+		{Pattern: "/api/ecalc/catalog", Methods: []string{"GET"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dograh/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},

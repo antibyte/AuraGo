@@ -141,9 +141,19 @@ co_agents:
 
 Ein Co-Agent in der Warteschlange wartet höchstens `timeout_seconds` auf einen freien Slot. Wird rechtzeitig keiner frei, endet er als `failed` und belegt keinen Slot. Das Laufzeitbudget `timeout_seconds` beginnt erst, wenn der Co-Agent die Warteschlange verlässt.
 
+### Vererbte Rechte und Grenzen
+
+Ein Kindagent übernimmt die Tool- und Agent-Skill-Beschränkungen seines Elternlaufs. Eine ausdrücklich leere Freigabeliste erlaubt nichts; Rollenregeln und die aktuelle Konfiguration dürfen Rechte nur weiter einschränken. Der ursprüngliche menschliche Auftrag bleibt die Autorisierungsgrundlage, getrennt von der modellgeschriebenen Teilaufgabe. Herkunftsmarkierungen externer und privater Inhalte samt Ablaufzeiten bleiben erhalten. Initialisierte Datenbanken und Dienste stehen für erlaubte Lesezugriffe bereit.
+
+Researcher behält Python zur Datenverarbeitung einschließlich Python-Sandbox und Python-Agent-Skill-Skripten, darf aber keine Shell, Sudo oder Remote-Shell verwenden. Designer darf keinen freien Code und keine Agent-Skill-Skripte ausführen. Security behält Shell/Python für Analysen unter den bestehenden Freigaben und Sandbox-Regeln; diese Interpreter sind technisch nicht schreibgeschützt. Registrierte Skills behalten ihre konfigurierten Freigaben. Writer hat keine Tools.
+
+Der aufgelöste Wert von `max_tool_calls` bleibt auch bei Homepage-Aufgaben eine feste Obergrenze. `max_tokens` umfasst alle erfassten Modellantworten über Runden und Wiederholungen hinweg; nach Erschöpfung beginnt keine weitere Arbeit. Statuszähler werden laufend erhöht und bleiben bei Fehlern, Timeout und Abbruch erhalten. Budget und Quote sperren neue Starts einschließlich wartender Aufträge beim Ausführungsbeginn, aber keine Statusabfragen, Ergebnisse oder ausdrücklich beauftragten Stopps. Das Ende des HTTP-Requests des Elternlaufs stoppt den Kindagenten nicht.
+
+`max_context_hint_chars` zählt Unicode-Codepoints. Zusätzlich gelten UTF-8-sichere Byte- und Tokenlimits für den Prompt. Kindlauf und Modellverbindung verwenden dieselbe Provider-Identität und dieselben Modellfähigkeiten.
+
 ### Standardprompt für den Writer-Spezialisten
 
-Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Writer-Co-Agenten laufen standardmäßig ohne Runtime-Tool-Schemas, damit kurze Schreibaufgaben nicht die Latenz unpassender Tools mitbezahlen. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
+Der `writer`-Spezialist nutzt standardmäßig einen mehrsprachigen Natural-Writing-Zusatzprompt in `co_agents.specialists.writer.additional_prompt`. Er hilft dem Autor-Co-Agenten, generische KI-Formulierungen zu vermeiden, Sprache und Register der Aufgabe zu erhalten und bei Umschreibungen keine Fakten zu erfinden. Writer-Co-Agenten haben keine Laufzeit-Tools und schreiben aus dem übergebenen Material. Fehlende Fakten melden sie dem Hauptagenten; der Stilprompt kann keine Tool-Rechte erteilen. Setze das Feld auf `""`, um den Default zu deaktivieren, oder ersetze ihn durch eigene Schreibregeln.
 
 Der kompakte Zusatz übernimmt das Konzept von [Humanizer 3.0](https://github.com/blader/humanizer/blob/main/SKILL.md): künstliche Gegensätze, aufgeblasene Aussagen und wiederholte Schlusssätze gezielt überarbeiten, ohne die eigene Stimme zu glätten. Er ergänzt Regeln für deutsche und mehrsprachige Texte, schützt Zitate und technische Angaben und prüft vor der Ausgabe still auf verlorene Aussagen, erfundene Details und neue Floskeln. Bestehende eigene Zusatzprompts werden bei Updates nicht ersetzt. Herkunft und MIT-Lizenz stehen in `THIRD_PARTY_NOTICES.md`.
 
@@ -356,7 +366,7 @@ Wenn der Co-Agent noch queued oder running ist, wartet `get_result` serverseitig
 | **Nested Co-Agents** | Verboten | Co-Agenten können keine Sub-Co-Agenten spawnen |
 | **Memory Writes** | Verboten | Co-Agenten können Memory/Notes/KG nicht verändern |
 | **Cron-Jobs** | Verboten | Kein Zugriff auf Scheduler |
-| **User-Interaktion** | Keine | Co-Agenten nutzen `NoopBroker` |
+| **User-Interaktion** | Keine | Fortschritt und Ergebnisse gehen an die Registry |
 
 ### Tool-Blacklist für Co-Agenten
 
@@ -417,11 +427,11 @@ circuit_breaker:
 ```yaml
 # Optional: Token-Limit pro Co-Agent
 circuit_breaker:
-  max_tokens: 8000          # Co-Agent muss bei Überschreitung zusammenfassen
+  max_tokens: 8000          # Kumulatives Budget für alle Modellantworten
 ```
 
 > [!TIP]
-> Setze `max_tokens` für kostenkontrollierte Umgebungen. Der Co-Agent erhält dann eine Systemnachricht, seine Ergebnisse zu komprimieren.
+> Setze `max_tokens` für kostenkontrollierte Umgebungen. Das Budget zählt alle erfassten Modellantworten einschließlich Wiederholungen; bei Erschöpfung beginnt keine weitere Arbeit.
 
 ---
 
@@ -446,7 +456,7 @@ circuit_breaker:
 2. **Slot-Limit:** Begrenzt parallele Ausführung
 3. **Timeout:** Hartes Zeitlimit pro Co-Agent
 4. **Token-Budget:** Optional begrenzbar
-5. **Kein User-Kontakt:** `NoopBroker` statt Event-Broker
+5. **Kein User-Kontakt:** Fortschritt wird intern erfasst; keine Rückfragen an Dich
 6. **Memory-Isolation:** Write-Ops per Tool-Blacklist blockiert
 
 ### Risiko-Analyse
@@ -519,12 +529,13 @@ Co-Agent-Aktivitäten werden mit `component=co-agent` geloggt:
 Main-Agent                          Co-Agent Goroutine
     │                                      │
     ├─ spawn("Analysiere X")               │
-    │   ├─ Slot prüfen ✓                   │
-    │   ├─ context.WithTimeout()           │
+    │   ├─ Rechte kopieren; Quote prüfen   │
+    │   ├─ Eigener Abbruchkontext          │
     │   ├─ Registry.Register() ──────────► │ Goroutine startet
-    │   └─ return co_agent_id              │ ├─ Eigener LLM-Client
-    │                                      │ ├─ System-Prompt (Helfer)
-    │   ... Main-Agent arbeitet weiter ... │ ├─ RunSyncAgentLoop()
+    │   └─ return co_agent_id              │ ├─ Ggf. auf freien Slot warten
+    │                                      │ ├─ Quote prüfen; Timeout starten
+    │                                      │ ├─ Provider/Client + Prompt
+    │   ... Main-Agent arbeitet weiter ... │ ├─ ExecuteAgentLoop()
     │                                      │ │  ├─ LLM Call
     ├─ list() ← Status: "running"         │ │  ├─ Tool Dispatch
     │                                      │ │  ├─ LLM Call
@@ -540,7 +551,7 @@ Main-Agent                          Co-Agent Goroutine
 
 | Ressource | Sharing-Modell | Begründung |
 |-----------|---------------|------------|
-| **Config** | Shallow Copy mit Overrides | Eigene Limits, Personality deaktiviert |
+| **Config** | Eigener Provider-/Konfigurationssnapshot | Eigene Limits, Personality deaktiviert |
 | **LLM Client** | Eigene Instanz | Anderes Model, eigene Rate-Limits |
 | **ShortTermMem** | Shared, Read-Only | SQLite ist thread-safe |
 | **LongTermMem** | Shared, Read-Only | VectorDB mit RWMutex |

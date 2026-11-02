@@ -376,5 +376,17 @@
   "config.kaggle.cpu_cores_help": "हर स्थानीय सत्र के लिए आरक्षित CPU कोर।",
   "config.kaggle.memory_help": "हर स्थानीय सत्र की मेमोरी सीमा, MiB में।",
   "config.kaggle.idle_timeout_help": "कितने मिनट निष्क्रिय रहने के बाद स्थानीय सत्र रोका जाता है।",
-  "config.kaggle.cell_timeout_help": "एक सेल रोके जाने से पहले उसका अधिकतम चलने का समय, मिनटों में।"
+  "config.kaggle.cell_timeout_help": "एक सेल रोके जाने से पहले उसका अधिकतम चलने का समय, मिनटों में।",
+  "kaggle.browse": "ब्राउज़ करें",
+  "kaggle.activity": "गतिविधि",
+  "kaggle.results": "परिणाम",
+  "kaggle.refresh": "ताज़ा करें",
+  "kaggle.copy": "संदर्भ कॉपी करें",
+  "kaggle.copied": "कॉपी किया गया",
+  "kaggle.all": "सभी",
+  "kaggle.active": "सक्रिय",
+  "kaggle.no_results": "कोई मेल खाता परिणाम नहीं। खोज को समायोजित करें या कोई अन्य क्र्रिया चुनें।",
+  "kaggle.kernel": "कर्नेल",
+  "kaggle.empty_notebook": "इस नोटबुक में अभी तक कोई सेल नहीं है।",
+  "kaggle.back": "वापस"
 }

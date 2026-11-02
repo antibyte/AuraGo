@@ -15,6 +15,8 @@ export const KINDS = {
   'city.graphite': {top: 'gravel', side: 'panels', albedo: .42, rough: .5, bump: .016, wet: .8, metalTop: .3},
   'city.titanium': {top: 'panels', side: 'panels', albedo: .2, rough: .45, bump: .006, wet: .6},
   'city.bronze': {top: 'panels', side: 'panels', albedo: .18, rough: .4, bump: .006, wet: .6},
+  // Robot-local rubber (soles, flex sleeves, belts): dark, rough, barely wet.
+  'city.robot-rubber': {top: 'panels', side: 'panels', albedo: .3, rough: .75, bump: .008, wet: .25},
   'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.464, .460]},
   'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5},
   ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516], waterline: true},

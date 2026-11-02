@@ -1,0 +1,14 @@
+{
+  "calc": "db_levels",
+  "sets": [
+    {"values": {"v": 0.7745966692414834, "r": 600, "p": 0.001, "p_dbm": 0.001, "v_dbv": 0.7745966692414834, "v_dbu": 0.7745966692414834}, "ref": "definition: 0 dBu = sqrt(0.6) V = 0.7745966692414834 V dissipates 0.6 V^2 / 600 ohm = 1 mW"},
+    {"values": {"v": 10, "r": 50, "p": 2, "p_dbm": 2, "v_dbv": 10, "v_dbu": 10}, "ref": "hand: 10 V across 50 ohm: 100 / 50 = 2 W"},
+    {"values": {"v": 1, "r": 600, "p": 0.0016666666666666668, "p_dbm": 0.0016666666666666668, "v_dbv": 1, "v_dbu": 1}, "ref": "hand: 1 V across 600 ohm: 1 / 600 = 1.6667 mW"}
+  ],
+  "solve": [
+    {"inputs": {"v": 0.7746, "r": 600}, "expect": {"p": 0.0010000086}, "ref": "hand: 0.7746^2 / 600 = 0.60000516 / 600 = 1.0000086 mW"},
+    {"inputs": {"p": 2, "r": 50}, "expect": {"v": 10}, "ref": "hand: V = sqrt(2 W * 50 ohm) = sqrt(100) = 10 V"},
+    {"inputs": {"v": 10, "p": 2}, "expect": {"r": 50}, "ref": "hand: R = 10^2 / 2 = 50 ohm"},
+    {"inputs": {"v": 10, "r": 0}, "errors": {"r": "range", "p": "nonfinite"}, "ref": "hand: a zero resistance is out of range and 100 / 0 is infinite"}
+  ]
+}

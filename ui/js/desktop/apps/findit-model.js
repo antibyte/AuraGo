@@ -116,6 +116,15 @@
         const packageName = `${name}${Number.isFinite(pins) && pins > 0 ? '-' + pins : ''}`;
         return detail && detail.toLowerCase() !== family.toLowerCase() ? `${packageName} · ${detail}` : packageName || t('not_set');
     }
+    const CATEGORY_ICONS = Object.freeze({
+        electronic_component: 'chip', pc_component: 'cpu', networking: 'network', server: 'storage',
+        development: 'devboard', instruments: 'meter', consumable: 'generic', other: 'generic'
+    });
+    function categoryIconId(category, manifest) {
+        const id = safeId(category), mapped = CATEGORY_ICONS[id] || id;
+        if (mapped && manifest?.icons?.has(mapped)) return mapped;
+        return manifest?.icons?.has('generic') ? 'generic' : '';
+    }
     function iconId(item, manifest) {
         const explicit = safeId(item?.icon_id);
         if (explicit && manifest?.icons?.has(explicit)) return explicit;
@@ -134,9 +143,9 @@
             voltage_regulator: 'regulator', optoisolator: 'optocoupler', memory_ic: 'memory', radio_module: 'radio'
         };
         const template = safeId(item?.template_id), templateIcon = templateAliases[template] || template;
-        if (templateIcon && manifest?.icons?.has(templateIcon)) return templateIcon;
-        const category = safeId(item?.category);
-        return category && manifest?.icons?.has(category) ? category : 'generic';
+        const categoryIcon = categoryIconId(item?.category, manifest);
+        if (templateIcon && manifest?.icons?.has(templateIcon) && !(templateIcon === 'generic' && categoryIcon && categoryIcon !== 'generic')) return templateIcon;
+        return categoryIcon || 'generic';
     }
     function itemImage(item, manifest, t, compact = false) {
         const image = item?.image_id && imageURL(item.image_id, compact);
@@ -147,7 +156,7 @@
         return `<span class="fi-item-sprite" role="img" aria-label="${esc(t('category_' + icon, item?.category || icon))}" style="--fi-atlas:url('${esc(manifest?.atlasURL || '/img/findit/atlas.webp')}');--fi-x:${columns <= 1 ? 0 : x * 100 / (columns - 1)}%;--fi-y:${rows <= 1 ? 0 : y * 100 / (rows - 1)}%;--fi-grid:${columns}"></span>`;
     }
     function categoryIcon(category, manifest) {
-        const id = safeId(category);
+        const id = categoryIconId(category, manifest);
         const index = manifest?.icons?.get(id) ?? manifest?.icons?.get('generic') ?? 0;
         const columns = Number(manifest?.columns) || 8, rows = Number(manifest?.rows) || 8;
         return `<span class="fi-category-sprite" aria-hidden="true" style="--fi-atlas:url('${esc(manifest?.atlasURL || '/img/findit/atlas.webp')}');--fi-x:${columns <= 1 ? 0 : (index % columns) * 100 / (columns - 1)}%;--fi-y:${rows <= 1 ? 0 : Math.floor(index / columns) * 100 / (rows - 1)}%;--fi-grid:${columns}"></span>`;

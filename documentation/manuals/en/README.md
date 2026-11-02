@@ -130,6 +130,7 @@ Your data stays with the installation. **Hosted models still see their request i
 29. [Infra](29-infra.md) — The shared homelab map: map, topology and list views with live power readings
 30. [RuView](30-ruview.md) — Experimental Wi-Fi sensing with ESP32 boards (extends chapter 8)
 31. [Pixel](31-pixel.md) — Layered image editor with masks, 80 filters, 43 generators, AI background removal and OpenRaster projects
+32. [ECalc](32-ecalc.md) — Electronics formula collection: calculators with schematics, live results and E-series values for resistors
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 

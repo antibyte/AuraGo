@@ -104,4 +104,8 @@ type DispatchContext struct {
 	SkillScopeRestricted bool
 	VaultSecretPrompter  *vaultprompt.Manager
 	VaultSecretTarget    vaultprompt.Target
+
+	// AuthorizingUserIntent pins a delegated run to its human request, including
+	// an explicitly empty request. Model-written task text cannot replace it.
+	AuthorizingUserIntent *string
 }

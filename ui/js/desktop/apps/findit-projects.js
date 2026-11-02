@@ -7,7 +7,7 @@
         const asList = M.asArray;
         function renderProjects() {
             const rows = asList(state.projects);
-            return `<div class="fi-page-toolbar"><div><p class="fi-eyebrow">${M.esc(tr('work_planning'))}</p><h1>${M.esc(tr('projects'))}</h1><p>${M.esc(tr('projects_intro'))}</p></div><div class="fi-page-actions"><button type="button" class="fi-tool-button" data-action="import-project-csv">${icon('import', 16)}${M.esc(tr('import_bom_csv'))}</button><button type="button" class="fi-tool-button" data-action="export-project-csv" ${state.project ? '' : 'disabled'}>${icon('export', 16)}${M.esc(tr('export_bom'))}</button>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-project">${icon('plus', 16)}${M.esc(tr('new_project'))}</button>` : ''}</div></div><div class="fi-project-layout ${state.mobilePanel === 'detail' ? 'fi-show-detail' : ''}"><section class="fi-project-list" aria-label="${M.esc(tr('project_list'))}"><header><strong>${M.esc(tr('project_list'))}</strong><span>${rows.length}</span></header>${rows.length ? rows.map(project => `<button type="button" class="fi-project-row ${state.project?.id === project.id ? 'is-selected' : ''}" data-select-project="${M.esc(project.id)}"><span class="fi-project-symbol">${icon('file', 17)}</span><span class="fi-project-row-copy"><b>${M.esc(project.name)}</b><small>${M.esc(project.description || tr('no_description'))}</small></span><i class="fi-state-pill ${statusClass(project.status)}">${M.esc(tr('status_' + project.status, project.status))}</i></button>`).join('') : `<div class="fi-empty-compact"><p>${M.esc(tr('no_projects'))}</p>${canWrite() ? `<button type="button" class="fi-text-button" data-action="new-project">${icon('plus', 14)}${M.esc(tr('create_project'))}</button>` : ''}</div>`}</section><section class="fi-project-detail">${state.project ? renderProjectDetail(state.project) : `<div class="fi-detail-empty"><div class="fi-detail-empty-icon">${icon('file', 25)}</div><h2>${M.esc(tr('select_project'))}</h2><p>${M.esc(tr('select_project_help'))}</p></div>`}</section></div>`;
+            return `<div class="fi-page-toolbar"><div><p class="fi-eyebrow">${M.esc(tr('work_planning'))}</p><h1>${M.esc(tr('projects'))}</h1><p>${M.esc(tr('projects_intro'))}</p></div><div class="fi-page-actions">${canWrite() ? `<button type="button" class="fi-tool-button" data-action="import-project-csv">${icon('import', 16)}${M.esc(tr('import_bom_csv'))}</button>` : ''}<button type="button" class="fi-tool-button" data-action="export-project-csv" ${state.project ? '' : 'disabled'}>${icon('export', 16)}${M.esc(tr('export_bom'))}</button>${canWrite() ? `<button type="button" class="fi-primary" data-action="new-project">${icon('plus', 16)}${M.esc(tr('new_project'))}</button>` : ''}</div></div><div class="fi-project-layout ${state.mobilePanel === 'detail' ? 'fi-show-detail' : ''}"><section class="fi-project-list" aria-label="${M.esc(tr('project_list'))}"><header><strong>${M.esc(tr('project_list'))}</strong><span>${rows.length}</span></header>${rows.length ? rows.map(project => `<button type="button" class="fi-project-row ${state.project?.id === project.id ? 'is-selected' : ''}" data-select-project="${M.esc(project.id)}"><span class="fi-project-symbol">${icon('file', 17)}</span><span class="fi-project-row-copy"><b>${M.esc(project.name)}</b><small>${M.esc(project.description || tr('no_description'))}</small></span><i class="fi-state-pill ${statusClass(project.status)}">${M.esc(tr('status_' + project.status, project.status))}</i></button>`).join('') : `<div class="fi-empty-compact"><p>${M.esc(tr('no_projects'))}</p>${canWrite() ? `<button type="button" class="fi-text-button" data-action="new-project">${icon('plus', 14)}${M.esc(tr('create_project'))}</button>` : ''}</div>`}</section><section class="fi-project-detail">${state.project ? renderProjectDetail(state.project) : `<div class="fi-detail-empty"><div class="fi-detail-empty-icon">${icon('file', 25)}</div><h2>${M.esc(tr('select_project'))}</h2><p>${M.esc(tr('select_project_help'))}</p></div>`}</section></div>`;
         }
         function renderProjectDetail(project) {
             const lines = asList(project.lines), shortages = asList(state.projectShortages?.lines);
@@ -104,13 +104,16 @@
         }
         async function addProjectLine(retryDraft = null) {
             const project = state.project; if (!project || project.status !== 'draft' || !canWrite()) return;
+            const selection = state.selectionSerial;
             const itemId = retryDraft?.itemId || await chooseItem(); if (!itemId) return;
+            if (state.disposed || state.signal.aborted || state.selectionSerial !== selection || state.project?.id !== project.id) { showNotice(tr('error_conflict'), true); return false; }
             const result = await D.openForm(dialogOptions({ title: 'add_line', fields: [
                 { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal' },
                 { key: 'note', label: 'note', type: 'text', wide: true }
             ], values: retryDraft?.values || { quantity: '1', note: '' }, submitLabel: 'add_line', validate: values =>
                 M.quantityUnits(values.quantity) == null || M.quantityCompare(values.quantity, '0') <= 0 ? { message: 'invalid_quantity', field: 'quantity' } : null }));
             if (!result) return false;
+            if (state.disposed || state.signal.aborted || state.selectionSerial !== selection || state.project?.id !== project.id) { showNotice(tr('error_conflict'), true); return false; }
             result.quantity = M.normalizeQuantity(result.quantity);
             let commandAcknowledged = false;
             const saved = await updateProject({ lines: [...asList(project.lines), { id: '', item_id: itemId, quantity: result.quantity, note: result.note || '' }] }, () => { commandAcknowledged = true; });
@@ -140,10 +143,19 @@
                 await loadProjects(); await selectProject(project.id);
             });
         }
-        async function reserveLine(lineId, retryDraft = null) {
+        async function reserveLine(lineId, retryDraft = null, retryExact = false) {
             const project = state.project, line = asList(project?.lines).find(value => value.id === lineId);
             if (!project || !line || !canWrite()) return false;
-            const availability = await M.query({ operation: 'availability', entity: 'items', id: line.item_id }, state.signal);
+            const commandScope = { operation: 'reserve', entity: 'projects', id: project.id, data: { project_id: project.id } };
+            if (!retryExact && state.hasPendingCommandScope?.(commandScope)) return showNotice(tr('pending_command_intro'), true);
+            const selection = state.selectionSerial;
+            let availability;
+            try { availability = await M.query({ operation: 'availability', entity: 'items', id: line.item_id }, state.signal); }
+            catch (error) {
+                if (!state.disposed && !state.signal.aborted && error?.name !== 'AbortError') showNotice(noteText(error), true);
+                return false;
+            }
+            if (state.disposed || state.signal.aborted || state.selectionSerial !== selection || state.project?.id !== project.id) return false;
             const allStocks = asList(availability?.stocks || availability?.locations);
             const stocks = allStocks.filter(stock => M.quantityCompare(stock.available ?? stock.quantity ?? '0', '0') > 0);
             if (retryDraft?.stock && !stocks.some(stock => stock.id === retryDraft.stock.id)) {
@@ -151,42 +163,61 @@
                 stocks.unshift({ ...(latest || retryDraft.stock), available: latest?.available ?? '0' });
             }
             if (!stocks.length) return showNotice(tr('no_available_stock'), true);
-            const result = await D.openForm(dialogOptions({ title: 'reserve', fields: [
-                { key: 'stock_id', label: 'storage_location', type: 'select', required: true, options: stocks.map(stock => ({ value: stock.id, label: `${stock.location_name || stock.location || stock.location_id} · ${compactNumber(stock.available ?? stock.quantity)}` })) },
-                { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal' }
-            ], values: retryDraft?.values || { stock_id: stocks[0].id, quantity: line.quantity || '1' }, submitLabel: 'reserve', validate: values =>
+            const result = await D.openForm(dialogOptions({ title: 'reserve', description: retryExact ? 'pending_command_intro' : undefined, fields: [
+                { key: 'stock_id', label: 'storage_location', type: 'select', required: true, disabled: retryExact, options: stocks.map(stock => ({ value: stock.id, label: `${stock.location_name || stock.location || stock.location_id} · ${compactNumber(stock.available ?? stock.quantity)}` })) },
+                { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal', disabled: retryExact }
+            ], values: retryDraft?.values || { stock_id: stocks[0].id, quantity: line.quantity || '1' }, submitLabel: retryExact ? 'retry_exact_command' : 'reserve', validate: values =>
                 M.quantityUnits(values.quantity) == null || M.quantityCompare(values.quantity, '0') <= 0 ? { message: 'invalid_quantity', field: 'quantity' } : null }));
             if (!result) return false;
+            if (state.disposed || state.signal.aborted || state.selectionSerial !== selection || state.project?.id !== project.id) { showNotice(tr('error_conflict'), true); return false; }
             result.quantity = M.normalizeQuantity(result.quantity);
             const selectedStock = stocks.find(stock => stock.id === result.stock_id);
             let commandAcknowledged = false;
+            let commandError = null;
+            const reserveCommand = { operation: 'reserve', entity: 'projects', id: project.id, expected_version: project.version,
+                data: { project_id: project.id, line_id: line.id, stock_id: result.stock_id, quantity: result.quantity } };
             const saved = await withBusy(async () => {
-                await apiCommand({ operation: 'reserve', entity: 'projects', id: project.id, expected_version: project.version,
-                    data: { project_id: project.id, line_id: line.id, stock_id: result.stock_id, quantity: result.quantity } });
+                try { await apiCommand(reserveCommand, { replayOnly: retryExact, label: project.name }); }
+                catch (error) { commandError = error; throw error; }
                 commandAcknowledged = true;
-                state.notice = tr('reservation_created'); await loadProjects(); await selectProject(project.id);
+                state.notice = tr('reservation_created'); await loadProjects(); if (state.selectionSerial === selection) await selectProject(project.id);
             });
-            if (!saved && !commandAcknowledged && canWrite() && !state.disposed && !state.signal.aborted) return reserveLine(lineId, { stock: selectedStock, values: result });
+            if (!saved && !commandAcknowledged && !state.disposed && !state.signal.aborted && state.selectionSerial === selection && state.project?.id === project.id) {
+                if (commandError?.code === 'conflict') { await selectProject(project.id); showNotice(noteText(commandError), true); return false; }
+                if (!retryExact && state.hasPendingCommandIntent?.(reserveCommand)) return reserveLine(lineId, { stock: selectedStock, values: result }, true);
+                if (!retryExact && !state.hasPendingCommandScope?.(commandScope)) return reserveLine(lineId, { stock: selectedStock, values: result });
+            }
             return saved;
         }
-        async function reservationAction(action, reservationId, retryValues = null) {
+        async function reservationAction(action, reservationId, retryValues = null, retryExact = false) {
             const project = state.project;
             const reservation = asList(project?.reservations || state.projectShortages?.reservations).find(item => item.id === reservationId);
             if (!project || !reservation || !canWrite()) return showNotice(tr('reservation_not_found'), true);
+            const commandScope = { operation: action, entity: 'projects', id: project.id, data: { project_id: project.id } };
+            if (!retryExact && state.hasPendingCommandScope?.(commandScope)) return showNotice(tr('pending_command_intro'), true);
+            const selection = state.selectionSerial;
             const remaining = String(reservation.remaining ?? reservation.remaining_quantity ?? reservation.quantity ?? '1');
-            const result = await D.openForm(dialogOptions({ title: action === 'consume' ? 'consume_reserved' : 'release_reserved', fields: [
-                { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal' }
-            ], values: retryValues || { quantity: remaining }, submitLabel: action, validate: values =>
+            const result = await D.openForm(dialogOptions({ title: action === 'consume' ? 'consume_reserved' : 'release_reserved', description: retryExact ? 'pending_command_intro' : undefined, fields: [
+                { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal', disabled: retryExact }
+            ], values: retryValues || { quantity: remaining }, submitLabel: retryExact ? 'retry_exact_command' : action, validate: values =>
                 M.quantityUnits(values.quantity) == null || M.quantityCompare(values.quantity, '0') <= 0 ? { message: 'invalid_quantity', field: 'quantity' } : null }));
             if (!result) return false;
+            if (!retryExact && (state.disposed || state.signal.aborted || state.selectionSerial !== selection || state.project?.id !== project.id)) { showNotice(tr('error_conflict'), true); return false; }
             result.quantity = M.normalizeQuantity(result.quantity);
             let commandAcknowledged = false;
+            let commandError = null;
+            const actionCommand = { operation: action, entity: 'projects', id: project.id, expected_version: project.version, data: { reservation_id: reservationId, quantity: result.quantity } };
             const saved = await withBusy(async () => {
-                await apiCommand({ operation: action, entity: 'projects', id: project.id, expected_version: project.version, data: { reservation_id: reservationId, quantity: result.quantity } });
+                try { await apiCommand(actionCommand, { replayOnly: retryExact, label: project.name }); }
+                catch (error) { commandError = error; throw error; }
                 commandAcknowledged = true;
-                state.notice = action === 'consume' ? tr('stock_consumed') : tr('reservation_released'); await loadProjects(); await selectProject(project.id);
+                state.notice = action === 'consume' ? tr('stock_consumed') : tr('reservation_released'); await loadProjects(); if (state.selectionSerial === selection) await selectProject(project.id);
             });
-            if (!saved && !commandAcknowledged && canWrite() && !state.disposed && !state.signal.aborted) return reservationAction(action, reservationId, result);
+            if (!saved && !commandAcknowledged && !state.disposed && !state.signal.aborted && state.selectionSerial === selection && state.project?.id === project.id) {
+                if (commandError?.code === 'conflict') { await selectProject(project.id); showNotice(noteText(commandError), true); return false; }
+                if (!retryExact && state.hasPendingCommandIntent?.(actionCommand)) return reservationAction(action, reservationId, result, true);
+                if (!retryExact && !state.hasPendingCommandScope?.(commandScope)) return reservationAction(action, reservationId, result);
+            }
             return saved;
         }
         async function locationForm(location = null, retryValues = null) {

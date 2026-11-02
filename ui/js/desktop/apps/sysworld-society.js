@@ -3,6 +3,8 @@ import {bodyShape} from './sysworld-traffic.js';
 import {createSocialSignals} from './sysworld-signals.js';
 
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
+// The walk and carry clips are authored for 1.65 m/s with planted feet; a faster stride plays them faster.
+const stride=(a,name,speed)=>{const action=a.play?.(name);if(action)action.timeScale=speed/1.65;};
 export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait}) {
   const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor),signals=createSocialSignals(scene);
   let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='';
@@ -90,7 +92,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
           const probe={x:a.body.x+dx*distance,y:a.body.y,z:a.body.z+dz*distance,heading:a.body.heading};
           if(!traffic.clear(a.body,a.body,probe))continue;
           const next={...probe,x:a.body.x+dx*dt*1.8,z:a.body.z+dz*dt*1.8};next.y=a.pause?a.body.y:floor(next.x,next.z);
-          traffic.propose(a.body,next,(_,b)=>{a.node.position.set(b.x,b.y,b.z);a.play?.('walk');});a.state='yield';a.cooldown=clock+5;break;
+          traffic.propose(a.body,next,(_,b)=>{a.node.position.set(b.x,b.y,b.z);stride(a,'walk',1.8);});a.state='yield';a.cooldown=clock+5;break;
         }
         continue;
       }
@@ -119,7 +121,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         traffic.propose(a.body,{x,y:floor(x,z),z,heading},(accepted,b)=>{
           a.node.position.set(b.x,b.y,b.z);a.node.rotation.y=b.heading;
           if(!accepted||!moving){a.wait=(a.wait||0)+dt;a.play('idle');a.state='yield';}
-          else{a.wait=0;a.state=a.guide?'guide':a.carrying?'carry':'walk';a.play(a.carrying?'carry':'walk');}
+          else{a.wait=0;a.state=a.guide?'guide':a.carrying?'carry':'walk';stride(a,a.carrying?'carry':'walk',speed);}
           if(a.wait>2.5){a.wait=0;release(a);a.state=a.guide?'guide':'idle';a.until=clock+.5;if(a.guide)a.path=finder.route(a.body,a.guide);}
         });
       } else if(a.state==='walk'||a.state==='carry'||a.state==='guide'||a.state==='yield') {

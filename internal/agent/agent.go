@@ -1162,6 +1162,9 @@ type RunConfig struct {
 	// points should set it explicitly; direct callers retain the compatibility
 	// fallback to the last initial user message.
 	UserIntent string
+	// DelegatedTask is model-authored work context for a local co-agent. It is
+	// separate from UserIntent, which retains the initiating human request.
+	DelegatedTask string
 	// TrustedPromptAddenda contains request-local execution contracts that are
 	// fitted into the generated system prompt. Callers must never place user or
 	// external content here.
@@ -1241,6 +1244,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	local := *dc
 	local.Ctx = ctx
 	dc = &local
+	if dc.AuthorizingUserIntent != nil {
+		dc.UserContext = *dc.AuthorizingUserIntent
+	}
 	ctx = context.WithValue(ctx, projectRunKey{}, dc)
 	tc = prepareToolCall(tc, dc)
 	if tc.PreparationError != "" {
@@ -1271,6 +1277,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 		return refusal.Output
 	}
 
+	unavailable := toolRuntimeUnavailable(dc, tc.Action)
+	if unavailable != "" && (dc.ExecutionHooks == nil || dc.ExecutionHooks.HandleTool == nil) {
+		return toolSetupRequiredOutput(unavailable)
+	}
 	if hooks := dc.ExecutionHooks; hooks != nil {
 		if hooks.BeforeTool != nil {
 			if err := hooks.BeforeTool(ctx, tc); err != nil {
@@ -1286,8 +1296,8 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 			}
 		}
 	}
-	if reason := toolRuntimeUnavailable(dc, tc.Action); reason != "" {
-		return toolSetupRequiredOutput(reason)
+	if unavailable != "" {
+		return toolSetupRequiredOutput(unavailable)
 	}
 	if tc.Action == "brave_search" && dc.MessageSource == "meshcore_reply" {
 		return dispatchMeshCoreSearch(tc, dc)
