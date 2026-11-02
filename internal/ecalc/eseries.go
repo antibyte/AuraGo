@@ -70,6 +70,11 @@ var eseriesTables = map[string][]float64{
 	"E3": e3, "E6": e6, "E12": e12, "E24": e24, "E48": e48, "E96": e96, "E192": e192,
 }
 
+// minNormal is the smallest normal double, 2^-1022. Below it the doubles are denormal and math.Log10 is wrong there
+// (Log10(1e-321) = -307.95), so the decade of such a value cannot be found: Nearest and Combine refuse them, like the
+// JavaScript twin.
+const minNormal = 0x1p-1022
+
 // ESeriesIDs lists the supported series from coarse to fine.
 var ESeriesIDs = []string{"E3", "E6", "E12", "E24", "E48", "E96", "E192"}
 
@@ -83,14 +88,14 @@ func ESeriesValues(series string) ([]float64, bool) {
 }
 
 // Nearest returns the standard value of the series closest to v (smallest relative deviation, a tie goes to the
-// lower value) and its deviation (value-v)/v in percent. v must be finite and greater than zero.
+// lower value) and its deviation (value-v)/v in percent. v must be finite and at least minNormal (so greater than zero).
 func Nearest(series string, v float64) (value, devPct float64, err error) {
 	tbl, ok := eseriesTables[series]
 	if !ok {
 		return 0, 0, fmt.Errorf("unknown E-series %q", series)
 	}
-	if !(v > 0) || math.IsInf(v, 0) {
-		return 0, 0, fmt.Errorf("E-series lookup needs a finite value greater than zero, got %v", v)
+	if !(v >= minNormal) || math.IsInf(v, 0) {
+		return 0, 0, fmt.Errorf("E-series lookup needs a finite value of at least %v, got %v", minNormal, v)
 	}
 	d := math.Pow10(int(math.Floor(log10(v))))
 	best, bestDev := 0.0, math.Inf(1)
@@ -126,8 +131,14 @@ type Combo struct {
 }
 
 // comboCandidates lists the three-digit values mantissa x 10^k of the series that lie in [lo, hi], ascending. Each is
-// roundSig(m*10^k, 3), the double nearest to the decimal (and the same number in JavaScript).
+// roundSig(m*10^k, 3), the double nearest to the decimal (and the same number in JavaScript). A range whose bounds are
+// not usable has no candidates: lo must be at least minNormal (a lower bound of 0 or a denormal, which target/1000
+// reaches for a tiny target) and hi finite (target*1000 reaches +Inf for a huge one). That also bounds the decade loop
+// to the 620 decades of the doubles; it never depends on how a float outside the integers converts.
 func comboCandidates(mantissas []float64, lo, hi float64) []float64 {
+	if !(lo >= minNormal) || !(hi >= lo) || math.IsInf(hi, 0) {
+		return nil
+	}
 	var out []float64
 	for k := int(math.Floor(log10(lo))) - 1; k <= int(math.Floor(log10(hi)))+1; k++ {
 		scale := math.Pow10(k)
@@ -189,7 +200,8 @@ func (b *comboBest) offer(c Combo) {
 // most limit pairs in series (both values in [target/1000, target]) and at most limit pairs in parallel (both values in
 // [target, 1000*target]). Each group is ordered by |DevPct| (deviations that agree to 1e-9 percent are equal), then R1,
 // then R2, and a pair appears once. A limit below one leaves the single entry and a limit above ComboMaxLimit counts as
-// ComboMaxLimit. The series must be known and target finite and greater than zero.
+// ComboMaxLimit. The series must be known and target finite and at least minNormal. A group whose range bound is not
+// usable (target/1000 below minNormal, target*1000 beyond the doubles) is skipped.
 func Combine(series string, target float64, limit int) ([]Combo, error) {
 	value, dev, err := Nearest(series, target)
 	if err != nil {

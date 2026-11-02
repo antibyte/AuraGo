@@ -19,7 +19,15 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const eq = (actual, expected, message) => assert.deepStrictEqual(plain(actual), plain(expected), message);
 
 const window = {};
-vm.runInNewContext(files.map(file => read('ui/js/desktop/apps/ecalc/' + file)).join('\n'), { window });
+const sandbox = vm.createContext({ window });
+vm.runInContext(files.map(file => read('ui/js/desktop/apps/ecalc/' + file)).join('\n'), sandbox);
+// A call that must terminate runs inside the vm under a time limit, so a regression that loops forever fails this test
+// ("Script execution timed out") instead of freezing it.
+const bounded = (code, args) => {
+    sandbox.args = args;
+    try { return vm.runInContext(code, sandbox, { timeout: 5000 }); } finally { delete sandbox.args; }
+};
+const combineWithin = (series, target, limit) => bounded('window.ECalcCore.eseries.combine(...args)', [series, target, limit]);
 const core = window.ECalcCore, Typeset = window.ECalcTypeset;
 assert.ok(core && core.expr && core.units && core.eseries && core.solve && Typeset, 'the core files publish window.ECalcCore and window.ECalcTypeset');
 const catalog = JSON.parse(read('internal/ecalc/testdata/catalog.en.json'));
@@ -83,11 +91,11 @@ for (const v of vectors.eseries) {
     same(found.dev, v.dev, `eseries ${v.series} ${v.v} deviation`);
     count += 1;
 }
-for (const v of vectors.eseries_error) { assert.equal(core.eseries.nearest(v.series, decode(v.v)), null, `eseries error ${v.series} ${v.v}`); count += 1; }
+for (const v of vectors.eseries_error) { assert.equal(bounded('window.ECalcCore.eseries.nearest(...args)', [v.series, decode(v.v)]), null, `eseries error ${v.series} ${v.v}`); count += 1; }
 // The standard-value combiner: the same entries in the same order as Combine in Go (devPct is dev_pct in the vectors).
 function checkCombine(v, where) {
     assert.ok(v.ref, `${where}: the combine vector has no ref`);
-    const got = core.eseries.combine(v.series, v.target, v.limit);
+    const got = combineWithin(v.series, v.target, v.limit);
     const label = `${where}: combine ${v.series} ${v.target} limit ${v.limit}`;
     assert.ok(Array.isArray(got), `${label} gives a list`);
     assert.equal(got.length, v.want.length, `${label}: number of entries`);
@@ -100,8 +108,8 @@ function checkCombine(v, where) {
     });
 }
 for (const v of vectors.combine) { checkCombine(v, 'core.json'); count += 1; }
-for (const v of vectors.combine_count) { assert.equal(core.eseries.combine(v.series, v.target, v.limit).length, v.want, `combine count ${v.series} ${v.target} limit ${v.limit}`); count += 1; }
-for (const v of vectors.combine_error) { assert.equal(core.eseries.combine(v.series, decode(v.target), 5), null, `combine error ${v.series} ${v.target}`); count += 1; }
+for (const v of vectors.combine_count) { assert.equal(combineWithin(v.series, v.target, v.limit).length, v.want, `combine count ${v.series} ${v.target} limit ${v.limit}`); count += 1; }
+for (const v of vectors.combine_error) { assert.equal(combineWithin(v.series, decode(v.target), 5), null, `combine error ${v.series} ${v.target}`); count += 1; }
 assert.ok(vectors.combine.length >= 6, 'core.json has at least six combiner cases');
 assert.ok(vectors.eseries_tables, 'core.json carries the E-series tables');
 for (const [name, table] of Object.entries(vectors.eseries_tables)) { eq(core.eseries.TABLES[name], table, 'table ' + name); count += 1; }

@@ -199,14 +199,18 @@
     {"series": "E96", "v": 990, "want": 1000, "dev": 1.0101010101010102},
     {"series": "E192", "v": 1.014, "want": 1.01, "dev": -0.39447731755424065},
     {"series": "E192", "v": 9.2, "want": 9.2, "dev": 0},
-    {"series": "E192", "v": 9.19, "want": 9.2, "dev": 0.1088139281828074}
+    {"series": "E192", "v": 9.19, "want": 9.2, "dev": 0.1088139281828074},
+    {"series": "E24", "v": 2.2250738585072014e-308, "want": 2.2e-308, "dev": -1.1268775825726163}
   ],
-  "_doc_eseries_error": "eseries_error: Nearest(series, v) must fail (unknown series, v not finite or not greater than zero).",
+  "_doc_eseries_error": "eseries_error: Nearest(series, v) must fail (unknown series, v not finite, not greater than zero, or below the smallest normal double 2.2250738585072014e-308: the logarithm of a denormal is not reliable).",
   "eseries_error": [
     {"series": "E24", "v": 0},
     {"series": "E24", "v": -5},
     {"series": "E24", "v": "inf"},
     {"series": "E24", "v": "nan"},
+    {"series": "E24", "v": 2.225073858507201e-308},
+    {"series": "E24", "v": 1e-310},
+    {"series": "E24", "v": 5e-324},
     {"series": "E5", "v": 10}
   ],
   "_doc_combine": "combine: Combine(series, target, limit) returns want. The first entry is the single nearest standard value (kind single, r2 0); then up to limit series pairs (r1 >= r2, value r1 + r2, both values in [target/1000, target]) and up to limit parallel pairs (r1 <= r2, value r1*r2/(r1+r2), both values in [target, 1000*target]). Candidates are mantissa x 10^k rounded to 3 significant digits. Each group is ordered by the absolute deviation (deviations that are equal within 1e-9 percent are ties), then r1, then r2 ascending. dev_pct = (value - target) / target * 100; r1, r2 and value match at 1e-12 relative, dev_pct at 1e-9 (absolute 1e-12 when the expected deviation is 0). The order of the entries must match exactly.",
@@ -220,7 +224,9 @@
     {"series": "E24", "target": 0.47, "limit": 2, "ref": "hand: 0.27+0.2 is 0.47000000000000003 in doubles (deviation 1e-14 percent) and ties with the exact 0.36+0.11: deviations equal within 1e-9 percent are ties, so R1 ascending puts 0.27 first", "want": [{"kind": "single", "r1": 0.47, "r2": 0, "value": 0.47, "dev_pct": 0}, {"kind": "series", "r1": 0.27, "r2": 0.2, "value": 0.47000000000000003, "dev_pct": 1.1810883240693154e-14}, {"kind": "series", "r1": 0.36, "r2": 0.11, "value": 0.47, "dev_pct": 0}, {"kind": "parallel", "r1": 0.82, "r2": 1.1, "value": 0.4697916666666667, "dev_pct": -0.04432624113473508}, {"kind": "parallel", "r1": 0.47, "r2": 470, "value": 0.46953046953046945, "dev_pct": -0.09990009990011094}]},
     {"series": "E192", "target": 333.3, "limit": 2, "ref": "hand: the neighbours of 333.3 are 332 (-0.39%) and 336; 2.61+72.3 and 2.84+49.3 are exactly 333.3", "want": [{"kind": "single", "r1": 332, "r2": 0, "value": 332, "dev_pct": -0.3900390039003934}, {"kind": "series", "r1": 261, "r2": 72.3, "value": 333.3, "dev_pct": 0}, {"kind": "series", "r1": 284, "r2": 49.3, "value": 333.3, "dev_pct": 0}, {"kind": "parallel", "r1": 370, "r2": 3360, "value": 333.29758713136727, "dev_pct": -0.0007239329831220559}, {"kind": "parallel", "r1": 340, "r2": 16900, "value": 333.29466357308587, "dev_pct": -0.0016010881830606529}]},
     {"series": "E12", "target": 5000, "limit": 0, "ref": "hand: a limit of 0 leaves only the single entry", "want": [{"kind": "single", "r1": 4700, "r2": 0, "value": 4700, "dev_pct": -6}]},
-    {"series": "E24", "target": 2200000, "limit": 1, "ref": "hand: 2.2M is an E24 value; 1.1M+1.1M = 2.2M; 2.2M || 2.2G = 2.1978M", "want": [{"kind": "single", "r1": 2200000, "r2": 0, "value": 2200000, "dev_pct": 0}, {"kind": "series", "r1": 1100000, "r2": 1100000, "value": 2200000, "dev_pct": 0}, {"kind": "parallel", "r1": 2200000, "r2": 2200000000, "value": 2197802.1978021977, "dev_pct": -0.09990009990010665}]}
+    {"series": "E24", "target": 2200000, "limit": 1, "ref": "hand: 2.2M is an E24 value; 1.1M+1.1M = 2.2M; 2.2M || 2.2G = 2.1978M", "want": [{"kind": "single", "r1": 2200000, "r2": 0, "value": 2200000, "dev_pct": 0}, {"kind": "series", "r1": 1100000, "r2": 1100000, "value": 2200000, "dev_pct": 0}, {"kind": "parallel", "r1": 2200000, "r2": 2200000000, "value": 2197802.1978021977, "dev_pct": -0.09990009990010665}]},
+    {"series": "E24", "target": 1e306, "limit": 5, "ref": "hand: 1e306 is an E24 value (single, deviation 0); target*1000 overflows to +Inf, so the parallel group has no range and is skipped; 8.2e305+1.8e305 = 1e306 exactly, 9.1e305+9.1e304 and 1e306+1e303 are +0.1%, then 1e306+1.1e303 (+0.11%) and 1e306+1.2e303 (+0.12%)", "want": [{"kind": "single", "r1": 1e306, "r2": 0, "value": 1e306, "dev_pct": 0}, {"kind": "series", "r1": 8.2e305, "r2": 1.8e305, "value": 1e306, "dev_pct": 0}, {"kind": "series", "r1": 9.1e305, "r2": 9.1e304, "value": 1.001e306, "dev_pct": 0.1}, {"kind": "series", "r1": 1e306, "r2": 1e303, "value": 1.001e306, "dev_pct": 0.1}, {"kind": "series", "r1": 1e306, "r2": 1.1e303, "value": 1.0011e306, "dev_pct": 0.11}, {"kind": "series", "r1": 1e306, "r2": 1.2e303, "value": 1.0012e306, "dev_pct": 0.12}]},
+    {"series": "E24", "target": 1.8e305, "limit": 5, "ref": "hand: 1.8e305 is an E24 value (single, deviation 0); 1000*target is above the largest double, so the parallel group is skipped; 1.5e305+3e304 and 1.6e305+2e304 are exactly 1.8e305, then 1.8e305 plus 1.8e302, 2e302 and 2.2e302 (+0.1%, +0.1111%, +0.1222%)", "want": [{"kind": "single", "r1": 1.8e305, "r2": 0, "value": 1.8e305, "dev_pct": 0}, {"kind": "series", "r1": 1.5e305, "r2": 3e304, "value": 1.8e305, "dev_pct": 0}, {"kind": "series", "r1": 1.6e305, "r2": 2e304, "value": 1.8e305, "dev_pct": 0}, {"kind": "series", "r1": 1.8e305, "r2": 1.8e302, "value": 1.8018e305, "dev_pct": 0.1}, {"kind": "series", "r1": 1.8e305, "r2": 2e302, "value": 1.802e305, "dev_pct": 0.1111111111111111}, {"kind": "series", "r1": 1.8e305, "r2": 2.2e302, "value": 1.8022e305, "dev_pct": 0.12222222222222222}]}
   ],
   "_doc_combine_count": "combine_count: Combine(series, target, limit) returns exactly want entries: 1 + the series pairs + the parallel pairs, each group capped at min(limit, 1000). E3 has 10 values in each of the two three-decade ranges around 100, so 10*11/2 = 55 pairs per group; E96 around 5000 has more than 1000 pairs per group, so a huge limit is capped.",
   "combine_count": [
@@ -231,14 +237,16 @@
     {"series": "E96", "target": 5000, "limit": 100000, "want": 2001},
     {"series": "E96", "target": 5000, "limit": 1000, "want": 2001}
   ],
-  "_doc_combine_error": "combine_error: Combine(series, target, 5) must fail (unknown series, target not finite or not greater than zero).",
+  "_doc_combine_error": "combine_error: Combine(series, target, 5) must fail (unknown series, target not finite, not greater than zero, or a denormal: below 2.2250738585072014e-308, like eseries_error). A group whose range bound is 0, a denormal or +Inf (target/1000 or target*1000 outside the doubles) has no range and is skipped, see the 1e306 and 1.8e305 cases of combine.",
   "combine_error": [
     {"series": "E5", "target": 5000},
     {"series": "", "target": 5000},
     {"series": "E12", "target": 0},
     {"series": "E12", "target": -5},
     {"series": "E12", "target": "inf"},
-    {"series": "E12", "target": "nan"}
+    {"series": "E12", "target": "nan"},
+    {"series": "E24", "target": 1e-321},
+    {"series": "E24", "target": 1e-322}
   ],
   "_doc_units_parse": "units_parse: Parse(in, dim, unit) returns want in the SI base unit. unit is the selected explicit unit id (absent or empty = none).",
   "units_parse": [

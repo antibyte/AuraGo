@@ -19,13 +19,16 @@
     };
     // The series the pages offer (E3 is too coarse to be useful as a suggestion).
     const SERIES = ['E6', 'E12', 'E24', 'E48', 'E96', 'E192'];
+    // The smallest normal double (2^-1022). Go's math.Log10 is wrong for denormals, so nearest and combine refuse a value
+    // below it, exactly like Nearest and Combine in Go.
+    const MIN_NORMAL = 2.2250738585072014e-308;
 
     // Nearest standard value of a series, by relative distance, a tie going to the lower value. The candidates of
     // the decade of v include the first value of the next decade, so a v just below a power of ten is handled.
-    // Returns {value, dev} with dev in percent ((value - v) / v * 100), or null for v <= 0, a non-finite v or an
-    // unknown series.
+    // Returns {value, dev} with dev in percent ((value - v) / v * 100), or null for a v below MIN_NORMAL (so v <= 0 too),
+    // a non-finite v or an unknown series.
     function nearest(series, v) {
-        if (!Object.prototype.hasOwnProperty.call(TABLES, series) || !Number.isFinite(v) || v <= 0) return null;
+        if (!Object.prototype.hasOwnProperty.call(TABLES, series) || !Number.isFinite(v) || !(v >= MIN_NORMAL)) return null;
         const decade = Math.pow(10, Math.floor(Math.log10(v)));
         let best = 0, bestError = Infinity;
         for (const entry of TABLES[series].concat([10])) {
@@ -38,9 +41,12 @@
     }
 
     // The three-digit values mantissa x 10^k of a series in [lo, hi], ascending; each is the double nearest to the
-    // decimal (Number(x.toPrecision(3)), the roundSig of internal/ecalc/eseries.go).
+    // decimal (Number(x.toPrecision(3)), the roundSig of internal/ecalc/eseries.go). A range whose bounds are not usable has
+    // no candidates (lo must be at least MIN_NORMAL, hi finite: target / 1000 and target * 1000 leave the doubles for a
+    // tiny or a huge target), which also bounds the decade loop; without this guard it never ends for lo = 0 or hi = Infinity.
     function comboCandidates(table, lo, hi) {
         const out = [];
+        if (!(lo >= MIN_NORMAL) || !(hi >= lo) || !Number.isFinite(hi)) return out;
         for (let k = Math.floor(Math.log10(lo)) - 1; k <= Math.floor(Math.log10(hi)) + 1; k += 1) {
             const scale = Math.pow(10, k);
             for (const mantissa of table) {
@@ -84,7 +90,8 @@
     // (r1 <= r2, both in [target, 1000 * target]), each group by |devPct|, then r1, then r2. A limit below one leaves the
     // single entry; a limit above 1000 counts as 1000. Entries are {kind: 'single' | 'series' | 'parallel', r1, r2,
     // value, devPct}; r2 is 0 for the single value. Returns null for an unknown series or a target that is not finite
-    // and greater than zero.
+    // and at least MIN_NORMAL. A group whose range bound is not usable (target / 1000 below MIN_NORMAL, target * 1000
+    // beyond the doubles) is skipped.
     function combine(series, target, limit) {
         const single = nearest(series, target);
         if (!single) return null;
