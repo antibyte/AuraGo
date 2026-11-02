@@ -20,7 +20,7 @@
                     ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
-                <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <span class="cs-terminal-state" data-terminal-state data-state="stopped">${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
                 <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
             `;
@@ -75,10 +75,20 @@
         state.fitAddon = session?.fitAddon || null;
     }
 
+    function terminalStateName(key) {
+        if (key === 'codeStudio.running') return 'running';
+        if (key === 'codeStudio.terminalLineMode') return 'line';
+        if (key === 'codeStudio.terminalUnavailable') return 'error';
+        return 'stopped';
+    }
+
     function terminalSessionStatus(session, key) {
         if (session !== activeTerminalSession()) return;
         const label = shellPart('[data-terminal-state]');
-        if (label) label.textContent = tr(key);
+        if (label) {
+            label.textContent = tr(key);
+            label.dataset.state = terminalStateName(key);
+        }
     }
 
     function endTerminalSocket(ws) {
@@ -292,6 +302,7 @@
             const key = session.lineMode ? 'codeStudio.terminalLineMode' : (open ? 'codeStudio.running' : 'codeStudio.stopped');
             const fallback = session.lineMode ? 'Line mode' : (open ? 'Running...' : 'Stopped');
             label.textContent = tr(key, fallback);
+            label.dataset.state = terminalStateName(key);
         }
         sendTerminalResize(session);
     }

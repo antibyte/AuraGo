@@ -205,7 +205,19 @@
             .replaceAll("'", '&#39;');
     }
 
+    // The shared mini sprite scales 64px artwork down to 15px; thin strokes such as the copy
+    // glyph collapse into an unreadable block. These actions get crisp line glyphs instead,
+    // painted in the button's own text colour so they follow every theme.
+    const CS_LINE_GLYPHS = {
+        copy: '<rect x="2.75" y="6" width="8.5" height="7.5" rx="1.75"/><path d="M5.5 4.5v-.25A1.75 1.75 0 0 1 7.25 2.5h5A1.75 1.75 0 0 1 14 4.25v5A1.75 1.75 0 0 1 12.25 11v-.25"/>'
+    };
+
     function iconMarkup(key, fallback, className, size) {
+        const glyph = CS_LINE_GLYPHS[key];
+        if (glyph) {
+            const pixels = Number(size || 15) || 15;
+            return `<svg class="${esc(className || 'cs-papirus-icon')} cs-line-glyph" viewBox="0 0 16 16" width="${pixels}" height="${pixels}" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${glyph}</svg>`;
+        }
         if (state && typeof state.iconMarkup === 'function') {
             return state.iconMarkup(key, fallback, className || 'cs-papirus-icon', size || 15);
         }
@@ -782,7 +794,7 @@
                 <button type="button" class="cs-icon-button" data-action="upload" title="${esc(tr('codeStudio.upload', 'Upload'))}">${iconMarkup('upload', 'U', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 16)}</button>
             </span>
-            <span class="cs-toolbar-filename">${fileName ? '<strong>' + esc(fileName) + '</strong>' + (tab && tab.modified ? ' <span style="color:var(--cs-accent)">*</span>' : '') : esc(tr('codeStudio.title', 'Code Studio'))}</span>
+            <span class="cs-toolbar-filename">${fileName ? '<strong>' + esc(fileName) + '</strong>' + (tab && tab.modified ? ' <span class="cs-toolbar-modified"></span>' : '') : esc(tr('codeStudio.title', 'Code Studio'))}</span>
             <span class="cs-toolbar-group">
                 <button type="button" class="cs-icon-button" data-action="command-palette" title="${esc(tr('codeStudio.commandPalette', 'Command Palette'))} (Ctrl+Shift+P)">${iconMarkup('search', 'P', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-button primary" data-action="run" title="${esc(tr('codeStudio.run', 'Run'))} (F5)">${iconMarkup('run', 'R', 'cs-button-icon', 15)}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
@@ -880,7 +892,7 @@
         const fileName = tab ? baseName(tab.path) : '';
         label.title = tab ? tab.path : '';
         label.innerHTML = fileName
-            ? '<strong>' + esc(fileName) + '</strong>' + (tab.modified ? ' <span class="cs-toolbar-modified">●</span>' : '')
+            ? '<strong>' + esc(fileName) + '</strong>' + (tab.modified ? ' <span class="cs-toolbar-modified"></span>' : '')
             : esc(tr('codeStudio.title', 'Code Studio'));
     }
 
@@ -986,12 +998,12 @@
         }
         const relPath = tab.path.replace(WORKSPACE_ROOT + '/', '').replace(WORKSPACE_ROOT, '');
         if (!relPath) {
-            bar.innerHTML = `<span class="cs-breadcrumb-item current">${esc(tr('codeStudio.title', 'Code Studio'))}</span>`;
+            bar.innerHTML = `<span class="cs-breadcrumb-item current">${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</span>`;
             return;
         }
         const parts = relPath.split('/').filter(Boolean);
         const items = [];
-        items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(WORKSPACE_ROOT)}">${esc(tr('codeStudio.title', 'Code Studio'))}</button>`);
+        items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(WORKSPACE_ROOT)}">${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</button>`);
         let buildPath = WORKSPACE_ROOT;
         parts.forEach((part, i) => {
             buildPath += '/' + part;

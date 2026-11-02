@@ -3938,6 +3938,13 @@ registration lives in `internal/desktop/types.go`.
   panels.js, shortcuts.js, command-palette.js.
 - Code Studio visible UI strings use `codeStudio.*` keys in all
   `ui/lang/desktop/*.json` files.
+- Code Studio overlays mounted on `document.body` (command palette, shortcut sheet,
+  modals, context menu) get their `--cs-*` scope from the shared token rule in
+  `css/code-studio.css`; keep those roots in that selector list, otherwise the danger
+  button falls back to a transparent background and the palette loses its match
+  highlight. Action glyphs the shared 64 px mini sprite cannot render legibly come
+  from `CS_LINE_GLYPHS` in `core.js` as inline `currentColor` SVG; keep that map in
+  `core.js` with the other `const` declarations.
 - Code Studio New File uses the file API's `create_only` mode; a conflict leaves
   the existing disk file and open editor unchanged and uses the shared localized
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.

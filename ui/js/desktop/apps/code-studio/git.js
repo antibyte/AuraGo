@@ -165,13 +165,9 @@
         }).join('');
         editor.innerHTML = `<div class="cs-diff-view">
             <div class="cs-diff-view-head">
-                <strong>${esc(baseName(tab.path))}</strong>
-                <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>
+                <span class="cs-diff-view-title"><strong>${esc(baseName(tab.path))}</strong><span class="cs-diff-badge">${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span></span>
                 <span class="cs-diff-view-spacer"></span>
-                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}">
-                    <option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option>
-                    <option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option>
-                </select>
+                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}"><option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option><option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option></select>
                 <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
             </div>
             <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffHtml : esc(tr('codeStudio.noChanges', 'No changes'))}</div>

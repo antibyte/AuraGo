@@ -19,7 +19,7 @@
                 (state.searchTruncated ? `<div class="cs-search-summary">${esc(tr('codeStudio.resultsTruncated', 'Showing the first 200 results.'))}</div>` : '') +
                 state.searchResults.map(result => `
                 <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}" title="${esc(result.path)}">
-                    <span><strong>${esc(searchResultLabel(result.path))}</strong>:${esc(result.line)}</span>
+                    <span><strong>${esc(searchResultLabel(result.path))}</strong><em class="cs-search-line">${esc(result.line)}</em></span>
                     <code>${esc(result.preview)}</code>
                 </button>`).join('');
         }
