@@ -2193,6 +2193,7 @@ type Config struct {
 	Newspaper         NewspaperConfig         `yaml:"newspaper"`
 	Flows             FlowsConfig             `yaml:"flows"`
 	VideoStudio       VideoStudioConfig       `yaml:"video_studio"`
+	Storymaker        StorymakerConfig        `yaml:"storymaker" json:"storymaker"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

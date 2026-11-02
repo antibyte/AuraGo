@@ -2363,6 +2363,16 @@ video_studio:
     hardware_encoding: auto
     hardware_device: ""
 
+# Desktop explainer-video maker. Export renders frames in a headless Chrome/Chromium and encodes
+# them with FFmpeg (video_studio.ffmpeg_path, or PATH). The editor and preview work without both.
+storymaker:
+    enabled: true
+    render:
+        timeout_seconds: 3600       # minimum render timeout (60-14400); long videos raise it
+        max_duration_seconds: 900   # longest video a render accepts (10-3600)
+        browser_path: ""            # optional absolute path of Chrome/Chromium; empty = system browser, then pinned download
+        transport: ""               # frame transport: empty = automatic, or png, webp, raw, screenshot
+
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access
     daily_summary: true                     # generated during maintenance
