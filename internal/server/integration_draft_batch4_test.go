@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/remote"
 	"aurago/internal/testutil"
 	"aurago/internal/tools"
 )
@@ -139,6 +140,10 @@ func TestGitHubReposUsesDraftTokenAndOwner(t *testing.T) {
 
 func TestHomepageTestUsesDraftTarget(t *testing.T) {
 	s := newDraftTestServer(t)
+	// The closed-port probe needs no host key or machine-local known_hosts file.
+	priorHostKeyPolicy := remote.InsecureHostKey
+	remote.InsecureHostKey = true
+	defer func() { remote.InsecureHostKey = priorHostKeyPolicy }()
 	handler := handleHomepageTestConnection(s)
 
 	rec := postDraft(handler, "/api/homepage/test-connection", "")

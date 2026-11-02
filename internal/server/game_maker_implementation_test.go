@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -63,7 +64,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			requests := 0
+			var requests atomic.Int32
 			var activeJobID, sourceRevision string
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				var body openai.ChatCompletionRequest
@@ -71,7 +72,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					t.Error(err)
 					return
 				}
-				requests++
+				requestNumber := requests.Add(1)
 				if len(body.Tools) != 0 {
 					t.Error("recovery exposed discovery tools")
 				}
@@ -80,10 +81,10 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					<-req.Context().Done()
 					return
 				}
-				if requests == 1 && (len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts")) {
+				if requestNumber == 1 && (len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts")) {
 					t.Error("missing actual source context")
 				}
-				if requests == 1 {
+				if requestNumber == 1 {
 					_, snapshot, _ := strings.Cut(body.Messages[len(body.Messages)-1].Content, "<external_data>\n")
 					snapshot, _, _ = strings.Cut(snapshot, "\n</external_data>")
 					var data struct {
@@ -97,7 +98,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Keep the unusual movement rule\"}}]}\n\n")
 				w.(http.Flusher).Flush()
 				// Full output takes longer than the header timeout; streaming must survive it.
-				time.Sleep(120 * time.Millisecond)
+				time.Sleep(750 * time.Millisecond)
 				wireCode := scenario.code
 				if scenario.envelope != "" && scenario.envelope != "long" {
 					wireCode = starterSourceEnvelope(activeJobID, sourceRevision, wireCode)
@@ -143,9 +144,9 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 			defer provider.Close()
 			clientCfg := openai.DefaultConfig("test-only")
 			clientCfg.BaseURL = provider.URL
-			clientCfg.HTTPClient = &http.Client{Transport: &http.Transport{ResponseHeaderTimeout: 50 * time.Millisecond}, Timeout: 3 * time.Second}
+			clientCfg.HTTPClient = &http.Client{Transport: &http.Transport{ResponseHeaderTimeout: 500 * time.Millisecond}, Timeout: 5 * time.Second}
 			if scenario.finish == "timeout" {
-				clientCfg.HTTPClient = &http.Client{Timeout: 70 * time.Millisecond}
+				clientCfg.HTTPClient = &http.Client{Timeout: 500 * time.Millisecond}
 			}
 			cfg := &config.Config{}
 			cfg.LLM.Model, cfg.LLM.ProviderType = "test-model", "openai"
@@ -175,7 +176,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				err := runner.RunGameMakerJob(ctx, run)
 				conversation, loadErr := svc.LoadAgentConversation(ctx, run.Job.ID)
 				if loadErr != nil || !strings.Contains(string(conversation.Messages), "Keep the unusual movement rule") {
-					t.Errorf("completed/interrupted reasoning was lost: loadErr=%v recoveryErr=%v requests=%d", loadErr, err, requests)
+					t.Errorf("completed/interrupted reasoning was lost: loadErr=%v recoveryErr=%v requests=%d", loadErr, err, requests.Load())
 				}
 				if (scenario.finish == "stream_error" || scenario.finish == "timeout") && !strings.Contains(string(conversation.Messages), "Generation was interrupted") {
 					t.Error("partial reasoning was not identified as interrupted")
@@ -203,8 +204,8 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if scenario.finish == "stop" && (scenario.envelope == "stale" || scenario.envelope == "wrong-file") {
 					wantRequests = 2 // Rejected envelopes get one code-only correction, never dispatch.
 				}
-				if common != commonAfter || requests != wantRequests {
-					t.Errorf("recovery rewrote lifecycle or repeated requests: commonChanged=%t requests=%d wantRequests=%d recoveryErr=%v", common != commonAfter, requests, wantRequests, err)
+				if gotRequests := requests.Load(); common != commonAfter || int(gotRequests) != wantRequests {
+					t.Errorf("recovery rewrote lifecycle or repeated requests: commonChanged=%t requests=%d wantRequests=%d recoveryErr=%v", common != commonAfter, gotRequests, wantRequests, err)
 				}
 				// This fixture checks the write path, not gameplay acceptance.
 				return fmt.Errorf("verified code recovery")

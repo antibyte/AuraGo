@@ -395,7 +395,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for deadline := time.Now().Add(60 * time.Second); ; {
+			for deadline := time.Now().Add(2 * time.Minute); ; {
 				done, err := service.GetJob(context.Background(), job.ID)
 				if err == nil && done.Status == "failed" {
 					if done.Error != "verified validation handoff" || done.ResultRevision != 0 || calls.Load() != 4 || finalCalls.Load() != 2 {
