@@ -1129,6 +1129,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `go test -count=1 ./ui/... -run 'TestPrecisionOperationalStylesAreIntegratedAndPageScoped|TestPrecisionChangedPageAssetsUseReleaseBuildVersion'`.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
+- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates runs the full UI package with this flag in its Linux browser job.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,
   failure, search, disclosure and dialog interactions. Run an individual matrix

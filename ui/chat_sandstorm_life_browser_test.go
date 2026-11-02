@@ -131,7 +131,7 @@ func TestSandstormDesertLifeBrowserSmoke(t *testing.T) {
 	defer server.Close()
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()

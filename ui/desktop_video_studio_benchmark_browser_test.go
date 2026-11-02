@@ -79,15 +79,15 @@ type videoStudioBenchLauncher struct {
 //     iGPU, and the Renoir container passes use-gl=angle use-angle=gl-egl disable-gpu-sandbox ozone-platform=headless).
 //   - swiftshader: newWebGLSmokeBrowser's switches.
 //
-// AURAGO_VS_BENCH_BROWSER names the binary. Otherwise browserExecutable (Windows paths only) finds Chrome or Edge, and
-// the test skips without one.
+// AURAGO_VS_BENCH_BROWSER names the binary. Otherwise browserExecutable finds Chrome or Edge, and
+// missing browsers follow the shared smoke-test opt-in requirement.
 func videoStudioBenchLaunchers(t *testing.T) []videoStudioBenchLauncher {
 	t.Helper()
 	bin, explicit := strings.TrimSpace(os.Getenv("AURAGO_VS_BENCH_BROWSER")), true
 	if bin == "" {
 		found, ok := browserExecutable()
 		if !ok {
-			t.Skip("the preview benchmark needs Chrome or Edge, or AURAGO_VS_BENCH_BROWSER")
+			browserSmokeUnavailable(t, "the preview benchmark needs Chrome or Edge, or AURAGO_VS_BENCH_BROWSER")
 		}
 		bin, explicit = found, false
 	} else if _, err := os.Stat(bin); err != nil {
@@ -147,7 +147,7 @@ func videoStudioBenchBrowser(t *testing.T, l videoStudioBenchLauncher) *rod.Brow
 		if l.explicit {
 			t.Fatalf("the %s launcher could not start AURAGO_VS_BENCH_BROWSER=%s: %v", l.name, l.bin, err)
 		}
-		t.Skipf("the %s launcher could not start %s: %v", l.name, l.bin, err)
+		browserSmokeUnavailable(t, "the %s launcher could not start %s: %v", l.name, l.bin, err)
 	}
 	browser := rod.New().ControlURL(controlURL)
 	if err := browser.Connect(); err != nil {

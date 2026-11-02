@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -56,7 +57,7 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("headless browser smoke test requires Chrome or Edge")
+		browserSmokeUnavailable(t, "headless browser smoke test requires Chrome or Edge (set CHROME_BIN)")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
@@ -75,7 +76,7 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 	}
 	u, err := l.Launch()
 	if err != nil {
-		t.Skipf("headless browser smoke test skipped; browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
 	}
 	browser := rod.New().ControlURL(u)
 	if err := browser.Connect(); err != nil {
@@ -86,18 +87,33 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 }
 
 func browserExecutable() (string, bool) {
+	if explicit := strings.TrimSpace(os.Getenv("CHROME_BIN")); explicit != "" {
+		bin, err := exec.LookPath(explicit)
+		return bin, err == nil
+	}
 	candidates := []string{
+		"google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome", "msedge",
 		`C:\Program Files\Google\Chrome\Application\chrome.exe`,
 		`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
 		`C:\Program Files\Microsoft\Edge\Application\msedge.exe`,
 		`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 	}
 	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, true
+		if bin, err := exec.LookPath(candidate); err == nil {
+			return bin, true
 		}
 	}
 	return "", false
+}
+
+func browserSmokeUnavailable(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("AURAGO_RUN_BROWSER_SMOKE") == "1" {
+		t.Fatalf(format, args...)
+	}
+	t.Skipf(format, args...)
 }
 
 func TestContainersDestructiveDeleteFlowBrowserSmoke(t *testing.T) {

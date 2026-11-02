@@ -78,7 +78,7 @@ func TestGalaxyBrowserSmoke(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
 	extract := func(path, pattern string) string {
 		s := regexp.MustCompile(pattern).FindString(readDesktopAssetText(t, path))

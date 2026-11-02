@@ -61,6 +61,7 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 - Before tests check encoding and `git diff --check`; JS: `node --check <file.js>`; JSON: `python -m json.tool <file.json>` or another parser. Windows isolated build/release checks use `scripts/invoke-clean-worktree.ps1` (`finally` removes worktree/prunes metadata), not ad-hoc `%TEMP%` worktrees.
 - GitHub Pages renders `docs/` with Jekyll 3.10. Wrap literal Liquid-like code in `{% raw %}` / `{% endraw %}`; Security Gates build the same documentation without deployment.
 - Linux Security Gates Go tests serialize packages (`-p 1`) to keep compilers, tests and race instrumentation within runner resources. The race run covers `llm`, `server`, `memory`, `tools`, `telegram`, `whatsapp`, and `agent` with a 30-minute per-package timeout.
+- Security Gates installs and verifies FFmpeg/FFprobe before Go tests. Its separate Linux UI job requires Chrome and runs `go test ./ui -p 1 -count=1 -timeout=30m` with `AURAGO_RUN_BROWSER_SMOKE=1`; missing browsers or launch failures must fail that job.
 - Commit completed changes locally with a descriptive message, only intended files. Before each commit inspect `git diff --cached`, run `git diff --cached --check` and scan contextually for secrets without exposing values. Temporary scripts/files go in `disposable/`; clean up temporary files/logs and never push them.
 
 ### Configuration
