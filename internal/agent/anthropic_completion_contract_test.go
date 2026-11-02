@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -109,5 +110,42 @@ func TestAnthropicAgentRejectsSpecialNativeFinishReasons(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestAnthropicStreamFailureBooksOnceWithoutReplay(t *testing.T) {
+	for _, minimal := range []bool{false, true} {
+		t.Run(fmt.Sprintf("minimal=%t", minimal), func(t *testing.T) {
+			var requests atomic.Int32
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, "event: message_start\ndata: {\"message\":{\"id\":\"msg_fixture\",\"model\":\"claude-sonnet-4-6\",\"usage\":{\"input_tokens\":4,\"output_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}}\n\n")
+				fmt.Fprint(w, "event: content_block_delta\ndata: {\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Observed partial answer before native failure\"}}\n\n")
+				fmt.Fprint(w, "event: error\ndata: {\"error\":{\"type\":\"overloaded_error\",\"message\":\"synthetic provider failure\"}}\n\n")
+			}))
+			defer provider.Close()
+			run, _, cleanup := newPromptPipelineTestRunConfig(t, t.Name(), "web")
+			defer cleanup()
+			run.Config.LLM.ProviderType, run.Config.LLM.Model, run.Config.LLM.BaseURL = "anthropic", "claude-sonnet-4-6", provider.URL+"/v1"
+			run.Config.Budget.Enabled, run.Config.Budget.DailyLimitUSD = true, 100
+			run.BudgetTracker = budget.NewTracker(run.Config, run.Logger, t.TempDir())
+			t.Cleanup(run.BudgetTracker.Flush)
+			run.IsMission, run.SuppressTurnSideEffects, run.RequireCompleteStream = true, true, true
+			run.PreparedPrompt, _ = NewPreparedPromptProfile("anthropic/failure", "Answer the current task.", nil)
+			run.LLMClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(run.Config, "anthropic", provider.URL+"/v1", "fixture", ""))
+			ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
+			defer cancel()
+			var err error
+			if minimal {
+				_, _, err = ExecuteMinimalLoop(ctx, run.LLMClient, run.Config.LLM.Model, "", "Fixture task.", nil, &DispatchContext{Cfg: run.Config, BudgetTracker: run.BudgetTracker}, nil, run.Logger, &MinimalLoopOptions{PreparedPrompt: run.PreparedPrompt, MaxToolRounds: 0, StreamText: true})
+			} else {
+				_, err = ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: run.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Fixture task."}}}, run, true, NoopBroker{})
+			}
+			booked := run.BudgetTracker.GetStatus().Models[run.Config.LLM.Model]
+			if err == nil || requests.Load() != 1 || booked.Calls != 1 || booked.InputTokens != 4 || booked.OutputTokens <= 0 {
+				t.Fatalf("lost failure/accounting or replayed response: requests=%d booked=%+v err=%v", requests.Load(), booked, err)
+			}
+		})
 	}
 }

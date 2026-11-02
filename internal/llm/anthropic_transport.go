@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type thinkingCallbackContextKey struct{}
@@ -1127,20 +1131,34 @@ func translateAnthropicError(resp *http.Response) (*http.Response, error) {
 
 func translateAnthropicStream(resp *http.Response, model string, thinkingCB func(content, state string)) (*http.Response, error) {
 	pr, pw := io.Pipe()
-	originalBody := resp.Body // capture before replacing
+	body := &anthropicStreamBody{PipeReader: pr, original: resp.Body}
 
 	go func() {
-		defer pw.Close()
-		err := translateStreamEvents(originalBody, pw, model, thinkingCB)
-		originalBody.Close()
-		if err != nil {
-			pw.CloseWithError(err)
-		}
+		defer body.closeOriginal()
+		_ = pw.CloseWithError(translateStreamEvents(body.original, pw, model, thinkingCB))
 	}()
 
-	resp.Body = pr
+	resp.Body = body
+	resp.ContentLength = -1
+	resp.Header.Del("Content-Length")
 	// Keep Content-Type as text/event-stream
 	return resp, nil
+}
+
+type anthropicStreamBody struct {
+	*io.PipeReader
+	original io.ReadCloser
+	once     sync.Once
+	closeErr error
+}
+
+func (b *anthropicStreamBody) closeOriginal() error {
+	b.once.Do(func() { b.closeErr = b.original.Close() })
+	return b.closeErr
+}
+
+func (b *anthropicStreamBody) Close() error {
+	return errors.Join(b.PipeReader.Close(), b.closeOriginal())
 }
 
 func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thinkingCB func(content, state string)) error {
@@ -1151,6 +1169,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 	var currentEvent string
 	var msgID string
 	var msgModel string
+	var finishReason string
 
 	// Anthropic sends input_tokens in message_start and output_tokens in message_delta.
 	// We need to cache the start usage so the final delta can report complete usage.
@@ -1158,37 +1177,53 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 	// Track tool call indices: block index → tool_calls array index
 	toolCallIndex := 0
-	// Track block index → tool name mapping for streaming
-	blockToolNames := map[int]string{}
 	blockToolIDs := map[int]string{}
 
 	// Track active thinking block state
 	thinkingBlockActive := false
+	defer func() {
+		if thinkingBlockActive && thinkingCB != nil {
+			thinkingCB("", "stop")
+		}
+	}()
 	var thinkingBlocks []json.RawMessage
 	thinkingIndices := map[int]int{}
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if strings.HasPrefix(line, "event: ") {
-			currentEvent = strings.TrimPrefix(line, "event: ")
+		if value, ok := strings.CutPrefix(line, "event:"); ok {
+			currentEvent = strings.TrimSpace(value)
 			continue
 		}
 
-		if !strings.HasPrefix(line, "data: ") {
+		data, ok := strings.CutPrefix(line, "data:")
+		if !ok {
 			continue
 		}
 
-		data := strings.TrimPrefix(line, "data: ")
+		data = strings.TrimSpace(data)
 		if data == "" {
 			continue
+		}
+		switch currentEvent {
+		case "message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop", "error":
+			if !strings.HasPrefix(data, "{") {
+				return fmt.Errorf("anthropic stream: expected an object for %s", currentEvent)
+			}
+		}
+		if finishReason != "" && (currentEvent == "message_start" || currentEvent == "content_block_start" || currentEvent == "content_block_delta") {
+			return fmt.Errorf("anthropic stream: content after stop reason")
 		}
 
 		switch currentEvent {
 		case "message_start":
 			var evt anthropicStreamMessageStart
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode message_start: %w", err)
+			}
+			if evt.Message.ID == "" {
+				return fmt.Errorf("anthropic stream: message_start has no message ID")
 			}
 			msgID = "chatcmpl-" + strings.TrimPrefix(evt.Message.ID, "msg_")
 			msgModel = evt.Message.Model
@@ -1207,15 +1242,19 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			}
 			initialUsage := msgStartUsage.openAI()
 			chunk.Usage = &initialUsage
-			writeSSEChunk(writer, chunk)
+			if err := writeSSEChunk(writer, chunk); err != nil {
+				return err
+			}
 
 		case "content_block_start":
 			var evt anthropicStreamContentBlockStart
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode content_block_start: %w", err)
+			}
+			if evt.Index < 0 || evt.ContentBlock.Type == "" {
+				return fmt.Errorf("anthropic stream: invalid content_block_start")
 			}
 			if evt.ContentBlock.Type == "tool_use" {
-				blockToolNames[evt.Index] = evt.ContentBlock.Name
 				blockToolIDs[evt.Index] = evt.ContentBlock.ID
 				idx := toolCallIndex
 				chunk := openaiStreamChunk{
@@ -1238,7 +1277,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 				toolCallIndex++
 			} else if evt.ContentBlock.Type == "thinking" || evt.ContentBlock.Type == "redacted_thinking" {
 				thinkingIndices[evt.Index] = len(thinkingBlocks)
@@ -1252,8 +1293,11 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 		case "content_block_delta":
 			var evt anthropicStreamContentBlockDelta
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode content_block_delta: %w", err)
+			}
+			if evt.Index < 0 || evt.Delta.Type == "" {
+				return fmt.Errorf("anthropic stream: invalid content_block_delta")
 			}
 
 			switch evt.Delta.Type {
@@ -1266,7 +1310,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						{Index: 0, Delta: &openaiRespDelta{Content: evt.Delta.Text}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 
 			case "input_json_delta":
 				// Find the correct tool_calls index for this block
@@ -1288,7 +1334,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 
 			case "signature_delta":
 				if i, ok := thinkingIndices[evt.Index]; ok {
@@ -1304,6 +1352,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			}
 
 		case "content_block_stop":
+			if !json.Valid([]byte(data)) {
+				return fmt.Errorf("anthropic stream: invalid content_block_stop")
+			}
 			if thinkingBlockActive {
 				thinkingBlockActive = false
 				if thinkingCB != nil {
@@ -1313,12 +1364,17 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 		case "message_delta":
 			var evt anthropicStreamMessageDelta
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode message_delta: %w", err)
+			}
+			if evt.Delta.StopReason != "" && finishReason != "" {
+				return fmt.Errorf("anthropic stream: duplicate stop reason")
 			}
 			if evt.Delta.StopReason != "" && len(thinkingBlocks) > 0 {
-				writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
-					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}})
+				if err := writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
+					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}}); err != nil {
+					return err
+				}
 				thinkingBlocks = nil
 			}
 			chunk := openaiStreamChunk{
@@ -1328,8 +1384,8 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				Choices: []openaiChoice{},
 			}
 			if evt.Delta.StopReason != "" {
-				finishReason := mapStopReason(evt.Delta.StopReason)
-				chunk.Choices = []openaiChoice{{Index: 0, FinishReason: &finishReason}}
+				// The native terminal event must arrive before success reaches the SDK.
+				finishReason = mapStopReason(evt.Delta.StopReason)
 			}
 			if evt.Usage != nil {
 				combined := *evt.Usage
@@ -1348,51 +1404,30 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				usage := combined.openAI()
 				chunk.Usage = &usage
 			}
-			writeSSEChunk(writer, chunk)
+			if err := writeSSEChunk(writer, chunk); err != nil {
+				return err
+			}
 
 		case "message_stop":
-			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return nil
+			if !json.Valid([]byte(data)) || finishReason == "" {
+				return io.ErrUnexpectedEOF
+			}
+			if err := writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
+				Choices: []openaiChoice{{Index: 0, FinishReason: &finishReason}}}); err != nil {
+				return err
+			}
+			_, err := io.WriteString(writer, "data: [DONE]\n\n")
+			return err
 
 		case "error":
 			var evt anthropicStreamError
-			if json.Unmarshal([]byte(data), &evt) == nil {
-				// Complete any in-progress tool calls with empty arguments to avoid partial JSON
-				for idx, name := range blockToolNames {
-					completeChunk := openaiStreamChunk{
-						ID:     msgID,
-						Object: "chat.completion.chunk",
-						Model:  msgModel,
-						Choices: []openaiChoice{
-							{Index: 0, Delta: &openaiRespDelta{
-								ToolCalls: []openaiToolCall{
-									{
-										Index: &idx,
-										Function: openaiToolCallFn{
-											Name:      name,
-											Arguments: "{}",
-										},
-									},
-								},
-							}},
-						},
-					}
-					writeSSEChunk(writer, completeChunk)
-				}
-				errChunk := openaiStreamChunk{
-					ID:     msgID,
-					Object: "chat.completion.chunk",
-					Model:  msgModel,
-					Choices: []openaiChoice{
-						{Index: 0, Delta: &openaiRespDelta{
-							Content: "[Anthropic Error: " + evt.Error.Message + "]",
-						}},
-					},
-				}
-				writeSSEChunk(writer, errChunk)
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode error event: %w", err)
 			}
-			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return nil
+			if evt.Error.Type == "" || evt.Error.Message == "" {
+				return fmt.Errorf("anthropic stream: incomplete error event")
+			}
+			return &openai.APIError{HTTPStatusCode: anthropicStreamErrorStatus(evt.Error.Type), Type: evt.Error.Type, Message: evt.Error.Message}
 
 		case "ping":
 			// Ignore Anthropic ping events
@@ -1401,12 +1436,31 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 		currentEvent = ""
 	}
 
-	// If we exit the scanner without message_stop, send [DONE] anyway
-	fmt.Fprint(writer, "data: [DONE]\n\n")
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	return nil
+	return io.ErrUnexpectedEOF
+}
+
+func anthropicStreamErrorStatus(kind string) int {
+	switch kind {
+	case "invalid_request_error":
+		return http.StatusBadRequest
+	case "authentication_error":
+		return http.StatusUnauthorized
+	case "permission_error":
+		return http.StatusForbidden
+	case "not_found_error":
+		return http.StatusNotFound
+	case "request_too_large":
+		return http.StatusRequestEntityTooLarge
+	case "rate_limit_error":
+		return http.StatusTooManyRequests
+	case "overloaded_error":
+		return 529
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // findToolIndex maps Anthropic's block index to the OpenAI tool_calls array index.
@@ -1421,10 +1475,11 @@ func findToolIndex(blockIndex int, blockToolIDs map[int]string, totalTools int) 
 	return idx
 }
 
-func writeSSEChunk(w io.Writer, chunk openaiStreamChunk) {
+func writeSSEChunk(w io.Writer, chunk openaiStreamChunk) error {
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		return
+		return err
 	}
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	_, err = fmt.Fprintf(w, "data: %s\n\n", data)
+	return err
 }
