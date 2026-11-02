@@ -226,7 +226,10 @@ func extractTarGz(archivePath, destDir string) error {
 
 		// Security: prevent path traversal. Fatal on purpose — partial
 		// extraction of a malicious archive is worse than a hard failure.
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)) {
+		// A string prefix test would let a sibling such as "<dest>-evil" through,
+		// so compare the relative path instead.
+		rel, relErr := filepath.Rel(destDir, target)
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("illegal path in archive: %s", hdr.Name)
 		}
 

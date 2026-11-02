@@ -292,6 +292,58 @@ func TestExtractTarGzContinuesOnFileError(t *testing.T) {
 	os.Chmod(roDir, 0o755)
 }
 
+// An archive entry must stay below the install directory. A plain string prefix test would accept
+// a sibling directory that merely starts with the same name (".../aurago-evil" next to ".../aurago").
+func TestExtractTarGzRejectsEntriesOutsideTheInstallDirectory(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, entry string
+		wantErr     bool
+	}{
+		{"parent directory", "../escaped.txt", true},
+		{"sibling with the same prefix", "../aurago-evil/x", true},
+		{"nested escape", "sub/../../aurago-evil/x", true},
+		{"dots inside a file name", "..notes/ok.txt", false},
+		{"nested file", "licences/texts/GPL-3.0-only.txt", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			base := t.TempDir()
+			dest := filepath.Join(base, "aurago")
+			if err := os.MkdirAll(dest, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			tw := tar.NewWriter(gz)
+			body := []byte("x\n")
+			if err := tw.WriteHeader(&tar.Header{Name: tc.entry, Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+				t.Fatal(err)
+			}
+			tw.Write(body)
+			tw.Close()
+			gz.Close()
+			archivePath := filepath.Join(base, "resources.dat")
+			if err := os.WriteFile(archivePath, buf.Bytes(), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			err := extractTarGz(archivePath, dest)
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("extractTarGz error = %v, want error %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				if _, statErr := os.Stat(filepath.Join(base, "aurago-evil")); statErr == nil {
+					t.Fatal("the sibling directory was written")
+				}
+				if _, statErr := os.Stat(filepath.Join(base, "escaped.txt")); statErr == nil {
+					t.Fatal("a file outside the install directory was written")
+				}
+			}
+		})
+	}
+}
+
 func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 	t.Parallel()
 
