@@ -265,12 +265,33 @@ func containsStopPhrase(text, phrase string, continuations []string) bool {
 		if r, _ := utf8.DecodeRuneInString(rest); strings.ContainsRune(".!?,;", r) {
 			return true
 		}
-		next := strings.FieldsFunc(rest, func(r rune) bool { return !unicode.IsLetter(r) })
-		if len(next) > 0 && slices.Contains(continuations, next[0]) {
+		if slices.Contains(continuations, firstLetterRun(rest)) {
 			return true
 		}
 	}
 	return false
+}
+
+// firstLetterRun returns the first run of letters in s, skipping leading
+// non-letters ("(bitte)" yields "bitte"), or "" when s has none. It stops at
+// the end of that run, so the cost never depends on how much text follows; a
+// message made of one stop phrase repeated stays linear.
+func firstLetterRun(s string) string {
+	start := -1
+	for i, r := range s {
+		switch {
+		case unicode.IsLetter(r):
+			if start < 0 {
+				start = i
+			}
+		case start >= 0:
+			return s[start:i]
+		}
+	}
+	if start < 0 {
+		return ""
+	}
+	return s[start:]
 }
 
 func letterBoundary(text string, start, end int) bool {

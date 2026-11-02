@@ -3,6 +3,7 @@ package personabooster
 import (
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -42,11 +43,33 @@ func TestDetectTextSignals(t *testing.T) {
 		{"lass das zu", nil},
 		{"how do I stop it from crashing", nil},
 		{"it would be nice to have tests", nil},
+		{"Hör auf (bitte)", []string{SignalTextStop}},
+		{"stop it - now", []string{SignalTextStop}},
 		{"", nil},
 	}
 	for _, tc := range cases {
 		if got := DetectTextSignals(tc.msg); !slices.Equal(got, tc.want) {
 			t.Errorf("DetectTextSignals(%q) = %v, want %v", tc.msg, got, tc.want)
+		}
+	}
+}
+
+// TestDetectTextSignalsStaysLinear guards the stop phrase scan: a phrase that
+// is not followed by a listed continuation must not cost a pass over the rest
+// of the message, or a megabyte of repeated phrases takes minutes.
+func TestDetectTextSignalsStaysLinear(t *testing.T) {
+	for _, phrase := range []string{"stop it ", "hör auf ", "lass das ", "beruhig dich "} {
+		message := strings.Repeat(phrase, (1<<20)/len(phrase)) + "x"
+		start := time.Now()
+		got := DetectTextSignals(message)
+		elapsed := time.Since(start)
+		t.Logf("%q x %d bytes: %v in %v", phrase, len(message), got, elapsed)
+		if elapsed > 2*time.Second {
+			t.Errorf("DetectTextSignals(%q repeated) took %v", phrase, elapsed)
+		}
+		wantStop := phrase == "beruhig dich " // a nil continuation list accepts any word
+		if hasStop := slices.Contains(got, SignalTextStop); hasStop != wantStop {
+			t.Errorf("DetectTextSignals(%q repeated) = %v, want stop=%v", phrase, got, wantStop)
 		}
 	}
 }
