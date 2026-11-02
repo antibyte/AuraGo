@@ -147,6 +147,32 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
         if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==6)throw Error('Hologram, atmosphere or drones inactive: '+dump);
         if(s.life.navigation.states.some(state=>state!=='cruise'&&state!=='turn'))throw Error('Unknown robot state');}`)
+	if os.Getenv("AURAGO_SYSTEM_WORLD_JITTER") == "1" {
+		// The headless browser reports "prefers-reduced-motion: reduce" and would
+		// freeze the city. The measurement phase switches motion on over the real
+		// control, so the sampled residents are the ones the user sees.
+		page.MustEval(`()=>{const motion=document.querySelector('select[data-world-motion]');if(!motion)throw Error('Motion control missing');motion.value='on';motion.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.motion?.reduced===false`)
+		t.Logf("motion: %s", page.MustEval(`()=>JSON.stringify({reduced:SysWorldApp.inspect(cityId).motion,media:matchMedia('(prefers-reduced-motion: reduce)').matches,animations:document.body.dataset.animations})`).Str())
+		metrics := page.Timeout(120 * time.Second).MustEval(`async()=>{
+            const samples=[];
+            const end=Date.now()+30000;
+            while(Date.now()<end){
+                await new Promise(r=>setTimeout(r,100));
+                const s=SysWorldApp.inspect(cityId);
+                samples.push({t:Date.now(),visible:s.visible,reduced:s.motion?.reduced,frames:s.frames,
+                    traffic:(s.traffic?.poses||[]).map(p=>[p.id,+p.x.toFixed(2),+p.z.toFixed(2),+p.heading.toFixed(3),+p.blocked.toFixed(2),p.obstruction||'']),
+                    patrol:(s.life?.positions||[]).map(p=>[p[0],p[2]]),
+                    residents:(s.experience?.society?.residents||[]).map(r=>[r.id,r.state,r.x,r.z,r.heading])});
+            }
+            return JSON.stringify(samples);
+        }`).Str()
+		if err := os.WriteFile(filepath.Join(dir, "jitter-samples.json"), []byte(metrics), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("jitter samples: %d bytes", len(metrics))
+		return
+	}
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
