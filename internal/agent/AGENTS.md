@@ -207,6 +207,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- XML fallback integer parameters handled by the default branch must populate both typed `ToolCall` fields and `Params` through the existing decoder. Use the destination integer width, preserve exact values and leave invalid/overflowing text unchanged. Preserve specialized XML parameters, duplicate precedence, empty skill parameters and native/invoke semantics. Verify `TestXMLInteger*`, `TestToolArgIntAcceptsBoundedDecimalText` and `TestFF1XMLSkillCallsKeepTheirArguments`.
+
 - S3 keeps one `s3_storage` schema (`s3` canonical alias). Config-only catalogs apply managed enablement/agent access; run catalogs also use the passive readiness callback. Dispatch uses `S3ConfigFromConfig`/`ExecuteS3Context`, preserving caller cancellation, private target leases and leaf permissions. Provider/target identity changes require a fresh run when S3 is enabled in either snapshot; editing dormant targets while S3 stays disabled must not fence unrelated tools or learning. Compound RustFS permissions use the existing live intersection. Action targets encode both S3 object identities without treating key bytes as filesystem paths. Verify `TestS3*` and `TestLiveAuthorization*`.
 
 - MiniMax M3/M3.1 routes, including `minimax/` model IDs, retain native tool

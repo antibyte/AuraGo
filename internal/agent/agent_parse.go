@@ -608,6 +608,24 @@ var numericStringToolFields = map[string]bool{
 	"tail":         true,
 }
 
+var xmlIntegerToolFields = func() map[string]int {
+	fields := make(map[string]int, len(numericStringToolFields))
+	for name := range numericStringToolFields {
+		fields[name] = strconv.IntSize
+	}
+	typ := reflect.TypeOf(ToolCall{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if field.Type.Kind() < reflect.Int || field.Type.Kind() > reflect.Int64 {
+			continue
+		}
+		if name := strings.Split(field.Tag.Get("json"), ",")[0]; name != "" && name != "-" {
+			fields[name] = field.Type.Bits()
+		}
+	}
+	return fields
+}()
+
 // normalizeTagsInJSON pre-processes a JSON string before unmarshaling into ToolCall.
 // It fixes a few recurring type mismatches that would otherwise cause the whole
 // tool call to be discarded:
@@ -1530,6 +1548,7 @@ func parseWrappedToolCallJSON(raw string) (ToolCall, bool) {
 
 func parseXMLParams(tc *ToolCall, body string) {
 	hasXMLParams := false
+	var integerParams map[string]int
 	lowerBody := strings.ToLower(body)
 	paramSearch := lowerBody
 
@@ -1648,6 +1667,12 @@ func parseXMLParams(tc *ToolCall, body string) {
 				}
 				if _, alreadySet := tc.Params[paramName]; !alreadySet {
 					tc.Params[paramName] = paramVal
+					if bits, integer := xmlIntegerToolFields[paramName]; integer {
+						if integerParams == nil {
+							integerParams = make(map[string]int)
+						}
+						integerParams[paramName] = bits
+					}
 				}
 			}
 		}
@@ -1659,6 +1684,9 @@ func parseXMLParams(tc *ToolCall, body string) {
 		}
 		paramSearch = paramSearch[advance:]
 		body = body[advance:]
+	}
+	if len(integerParams) > 0 {
+		normalizeXMLIntegerParams(tc, integerParams)
 	}
 
 	// 2. If no XML parameters were found, fallback to parsing as JSON
@@ -1677,6 +1705,41 @@ func parseXMLParams(tc *ToolCall, body string) {
 			_ = json.Unmarshal([]byte(jsonBody), tc)
 		}
 	}
+}
+
+func normalizeXMLIntegerParams(tc *ToolCall, fields map[string]int) {
+	values := make(map[string]int64, len(fields))
+	for name, bits := range fields {
+		raw := tc.Params[name]
+		text, ok := raw.(string)
+		if !ok {
+			encoded, err := json.Marshal(raw)
+			if err != nil {
+				continue
+			}
+			text = string(encoded)
+		}
+		if value, err := strconv.ParseInt(strings.TrimSpace(text), 10, bits); err == nil {
+			values[name] = value
+		}
+	}
+	if len(values) == 0 {
+		return
+	}
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return
+	}
+	decoded := *tc
+	if err := json.Unmarshal([]byte(normalizeTagsInJSON(string(encoded))), &decoded); err != nil {
+		return
+	}
+	for name, value := range values {
+		// Keep large integers exact, including a skill_args map sharing Params.
+		tc.Params[name] = value
+		decoded.Params[name] = value
+	}
+	*tc = decoded
 }
 
 func parseInvokeXMLToolCall(content, lowerContent string, searchStart int) (ToolCall, bool) {

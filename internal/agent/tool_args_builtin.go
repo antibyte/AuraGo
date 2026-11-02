@@ -98,6 +98,14 @@ func toolArgInt(args map[string]interface{}, fallback int, keys ...string) int {
 				return int(value)
 			case float32:
 				return int(value)
+			case string:
+				if parsed, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
+					return parsed
+				}
+			case json.Number:
+				if parsed, err := strconv.Atoi(value.String()); err == nil {
+					return parsed
+				}
 			}
 		}
 	}
