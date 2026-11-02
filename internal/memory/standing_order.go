@@ -309,6 +309,9 @@ func standingViews(text string) []string {
 	dropped.Grow(len(text))
 	spaced.Grow(len(text))
 	for _, r := range text {
+		if unicode.Is(unicode.Pd, r) {
+			r = '-'
+		}
 		if isStandingInvisible(r) {
 			spaced.WriteByte(' ')
 			continue

@@ -39,9 +39,9 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		switch w {
 		case "and", "but", "then", "while", "yet", "und", "aber", "dann", "sondern",
 			"without", "ohne", "unless", "except", "außer", "ausser",
-			"refuse", "refusing", "refused", "fail", "failing", "forget", "stop", "hesitate",
+			"refuse", "refusing", "refused", "decline", "declining", "fail", "failing", "forget", "stop", "hesitate",
 			"ask", "asking", "worry", "fragen", "nachfragen", "frage",
-			"weigern", "weigere", "verweigern", "verweigere", "vergessen", "aufhören":
+			"weigern", "weigere", "verweigern", "verweigere", "vergessen", "vergiss", "zögere", "versäume", "aufhören":
 			return true
 		}
 		return false
@@ -68,6 +68,14 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 				if isNegative(words[j].text, direction < 0) {
 					// "not only" and negated refusal clauses are not prohibitions.
 					if j+1 < len(words) && (words[j+1].text == "only" || words[j+1].text == "nur" || isBarrier(words[j+1].text)) {
+						break
+					}
+					if direction > 0 && (words[j].text == "not" || words[j].text == "nicht") && j+1 < len(words) && !words[j+1].boundary {
+						// A contrasting object ("show the password not the username") does not negate disclosure.
+						switch words[j+1].text {
+						case "in", "im", "on", "auf", "an", "at", "to", "with", "mit", "by", "bei", "über", "via", "anywhere", "irgendwo", "again", "wieder", "anymore", "mehr", "ever", "jemals", "please", "bitte":
+							return true
+						}
 						break
 					}
 					return true

@@ -216,6 +216,9 @@ func directiveNormalize(text string) string {
 	for i := 0; i < len(view); {
 		r, size := utf8.DecodeRuneInString(view[i:])
 		i += size
+		if unicode.Is(unicode.Pd, r) {
+			r = '-'
+		}
 		switch r {
 		case '\n':
 			newlines++
