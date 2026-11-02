@@ -34,6 +34,8 @@ applies to the whole Studio belongs in the parent contract.
 
 ## Verification
 
+The nightly fixture compares installed starter source against the current template generator, then verifies the real published ZIP in a browser; formatting changes must not weaken export acceptance.
+
 `TestNightlyExportBrowser` (`GAMEMAKER_NIGHTLY_BROWSER=1`), the revision and
 publication fingerprint tests, and `TestFilesystemReceiptPublicationAcceptsRelativeWorkspace`.
 

@@ -6021,6 +6021,7 @@ the fallback path (it is already in `host-core.js` and covered by Node tests) an
 
 **`ui/storymaker_player_gate_browser_test.go`**
 
+{% raw %}
 ````go
 package ui
 
@@ -6726,6 +6727,7 @@ export GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' AURAGO_RUN_BRO
 go test ./ui -run 'TestStorymaker(PlayerGate|RenderMode|FirewallRender|RenderScreenshot)Browser' -count=1 -timeout 10m -v
 ```
 
+{% endraw %}
 Expected: PASS for all four (measured on the dev box: the gate 2 s, the render mode test 3 s, the firewall test 13 s, the screenshot test 8 s). The gate logs
 `caps={Workers:true Offscreen:true}`, `log=[ready compiled time thumb thumb]`, the `s3` probe pixel `[255 255 255 255]` and, from the browser log, exactly three
 refusals (the `connect-src` and `script-src` violations of the two probes and a favicon 404).

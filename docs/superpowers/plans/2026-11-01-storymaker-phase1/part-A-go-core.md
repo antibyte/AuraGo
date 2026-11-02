@@ -2924,6 +2924,7 @@ func TestApplyDefaultsShowBeatInstanceIDs(t *testing.T) {
 
 `internal/storymaker/issues_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -2984,6 +2985,7 @@ func TestHasErrors(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/storymaker/ -run 'Defaults|CapIssues|ClosestNames|HasErrors' -count=1`
@@ -3439,6 +3441,7 @@ git commit -m "feat(storymaker): static defaults and issue helpers" -m "Co-Autho
 
 `internal/storymaker/validate_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -3923,6 +3926,7 @@ func TestCreateLikeStoryIsValid(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/storymaker/ -run 'TestValidate|TestCreateLike' -count=1`
@@ -3932,6 +3936,7 @@ Expected: FAIL (build failed: `undefined: Validate`)
 
 `internal/storymaker/validate.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -4995,6 +5000,7 @@ func (v *validator) checkTarget(path, target string, refs *sceneRefs) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./internal/storymaker/ -run 'TestValidate|TestCreateLike' -count=1`, then `go test ./internal/storymaker/ -count=1`
@@ -5248,6 +5254,7 @@ Expected: FAIL (build failed: `undefined: BundleCodeScene`)
 
 `internal/storymaker/codebundle.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -5849,6 +5856,7 @@ func (s *jsScanner) scanRegex() bool {
 }
 ```
 
+{% endraw %}
 The golden bundle is generated, not typed. Generate it once, check its hash, then cross-check it with Node esbuild (the player part
 reproduces these bytes in its own tests; the repo pins esbuild 0.28.2 in `go.mod` and `package.json`):
 
@@ -5994,6 +6002,7 @@ func TestValidProjectID(t *testing.T) {
 
 `internal/storymaker/project_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -6387,6 +6396,7 @@ func TestSaveCodeSceneConcurrentSavesStayConsistent(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/storymaker/ -run 'TestSlugify|TestValidProjectID|TestProject|TestSaveStory|TestSaveCodeScene|TestCodeScene|TestMemStore' -count=1`
@@ -6675,6 +6685,7 @@ func (m *MemStore) Dirs() []string {
 
 `internal/storymaker/project.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -7142,6 +7153,7 @@ func (p *ProjectStore) Delete(ctx context.Context, id string) error {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./internal/storymaker/ -run 'TestSlugify|TestValidProjectID|TestProject|TestSaveStory|TestSaveCodeScene|TestCodeScene|TestMemStore' -count=1`, then `go test ./internal/storymaker/ -count=1`

@@ -3456,6 +3456,7 @@ git commit -m "feat(ecalc): catalog schema, strict loader and validation with th
 
 Create `internal/ecalc/solve_test.go` with exactly this content:
 
+{% raw %}
 ```go
 package ecalc
 
@@ -3602,6 +3603,7 @@ func TestLoadRejectsUnsolvableCalculators(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test and watch it fail**
 
 ```bash
@@ -3982,6 +3984,7 @@ Every set and solve vector carries a `ref`; the expected numbers were computed b
 
 Create `internal/ecalc/calculators_test.go` with exactly this content:
 
+{% raw %}
 ```go
 package ecalc
 
@@ -4235,8 +4238,10 @@ func TestRoundTripAllCalculators(t *testing.T) {
 }
 ```
 
+{% endraw %}
 Create `internal/ecalc/basics_sets_test.go` with exactly this content:
 
+{% raw %}
 ```go
 package ecalc
 
@@ -4282,6 +4287,7 @@ func TestSolvableSetsOfBasics(t *testing.T) {
 }
 ```
 
+{% endraw %}
 Create `internal/ecalc/testdata/vectors/calculators/ohms_law.json` with exactly this content:
 
 ```json
@@ -4575,6 +4581,7 @@ git commit -m "feat(ecalc): Ohm's law, dividers and series/parallel calculators 
 
 Create `internal/ecalc/basics_test.go` with exactly this content:
 
+{% raw %}
 ```go
 package ecalc
 
@@ -4616,15 +4623,19 @@ func TestPhaseOneCalculators(t *testing.T) {
 }
 ```
 
+{% endraw %}
 In `internal/ecalc/basics_sets_test.go`, replace this exact text (it occurs once):
 
+{% raw %}
 ```go
 		{"series_parallel", [][]string{{"rs"}}},
 	}
 ```
 
+{% endraw %}
 with:
 
+{% raw %}
 ```go
 		{"series_parallel", [][]string{{"rs"}}},
 		{"decibel_ratio", [][]string{{"a1", "a2"}, {"a1", "g"}, {"a2", "g"}}},
@@ -4640,6 +4651,7 @@ with:
 	}
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the tests and watch them fail**
 
 ```bash
@@ -6209,7 +6221,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ### Task B3: Locale keys for all 16 desktop languages
 
-No Go symbol is touched (JSON data and one test file). The keys are the 43 of contract section 10: `desktop.app_ecalc` plus 42 `desktop.ecalc_*`. Placeholders use the single-brace form `{series}`; the shared `t()` replaces both `{x}` and `{{x}}`.
+{% raw %}No Go symbol is touched (JSON data and one test file). The keys are the 43 of contract section 10: `desktop.app_ecalc` plus 42 `desktop.ecalc_*`. Placeholders use the single-brace form `{series}`; the shared `t()` replaces both `{x}` and `{{x}}`.{% endraw %}
 
 **Placement convention:** `ui/lang/desktop/*.json` are in one common order in all 16 files and the main region is alphabetical by key (compare the `desktop.calc_*` block). So `desktop.app_ecalc` goes between `desktop.app_delete_permanent` and `desktop.app_editor`, and the 42 `desktop.ecalc_*` keys go in one alphabetical block between `desktop.done` and `desktop.edit`. Anchors are matched by their text; the line numbers are those of the base commit (they are the same in all 16 files, and the second anchor moves down by one line after the first insertion).
 
@@ -10748,6 +10760,7 @@ Expected: FAIL, `js/desktop/apps/ecalc holds 7 scripts, want the 11 of the plan`
 
 `ui/js/desktop/apps/ecalc/ecalc.js`:
 
+{% raw %}
 ```javascript
 /* ECalc app: the composition root. It fetches the catalog of the desktop language once per open window, shows a retry
    screen when that fails, hands the data to the shell (rail, list, page) and cleans up when the window closes. The
@@ -10844,6 +10857,7 @@ Expected: FAIL, `js/desktop/apps/ecalc holds 7 scripts, want the 11 of the plan`
 })();
 ```
 
+{% endraw %}
 - [ ] **Step 4: Run the tests and see them pass**
 
 ```powershell

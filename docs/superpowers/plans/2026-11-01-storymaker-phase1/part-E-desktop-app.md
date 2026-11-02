@@ -159,6 +159,7 @@ done
 
 And for `en.json` apply this diff:
 
+{% raw %}
 ```diff
 --- a/ui/lang/desktop/en.json
 +++ b/ui/lang/desktop/en.json
@@ -172,6 +173,7 @@ And for `en.json` apply this diff:
    "desktop.app_error_renderer_missing": "{{app}} renderer is not loaded",
 ```
 
+{% endraw %}
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./internal/desktop ./ui -run 'TestBuiltin|TestStorymakerAppNameExistsInAllLanguages|TestDesktopBuiltinAppNamesExistInAllLanguages' -count=1`

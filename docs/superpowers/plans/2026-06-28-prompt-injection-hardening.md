@@ -565,6 +565,7 @@ func guardianProviderSupportsSystemRole(providerType string) bool {
 
 Change `buildMessages` to:
 
+{% raw %}
 ```go
 func (g *LLMGuardian) buildMessages(systemPrompt, userPrompt string) []map[string]string {
 	if guardianProviderSupportsSystemRole(g.providerType) {
@@ -580,6 +581,7 @@ func (g *LLMGuardian) buildMessages(systemPrompt, userPrompt string) []map[strin
 }
 ```
 
+{% endraw %}
 - [ ] **Step 4: Run LLMGuardian tests**
 
 Run:

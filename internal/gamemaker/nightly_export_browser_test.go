@@ -97,8 +97,14 @@ func installNightlyStarter(t *testing.T, dimension, template string) (*Service, 
 		if !bytes.Equal(main, want) {
 			t.Fatal("2D export is not the unmodified starter")
 		}
-	} else if !bytes.Contains(main, []byte(`"mode":"exploration"`)) || !bytes.Contains(main, []byte(`"objects":[{`)) {
-		t.Fatal("guided 3D export is not the exploration starter")
+	} else {
+		want, err := threeTemplateSources(plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(main, want["main.ts"]) {
+			t.Fatal("guided 3D export is not the unmodified generated starter")
+		}
 	}
 	return service, project, root
 }

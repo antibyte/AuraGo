@@ -1266,6 +1266,7 @@ git commit -m "feat(homepage): annotation snapshot endpoint resolving the previe
 
 - [ ] **Step 2: Write the failing tests** — create `internal/server/desktop_chat_annotations_test.go`:
 
+{% raw %}
 ```go
 package server
 
@@ -1383,6 +1384,7 @@ func TestDesktopAnnotationTurnSurvivesAFailedImageFallback(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 3: Run them to see them fail**
 
 Run: `go test ./internal/server -run 'HomepageAnnotations|HomepageStudioAgentContextIncludesAnnotations|DesktopAnnotationTurn' -count=1`
@@ -3087,10 +3089,11 @@ and add `renderSitePill,` to the `window.HomepageStudioSites = { … }` export a
 Run: `wc -l ui/js/desktop/apps/homepage-studio.js`
 Expected: below 1100 (about 1097). If it is 1100 or more, do not add an exemption; tell the controller.
 
-- [ ] **Step 7: Add the translations** — write `<scratchpad>/annotate-i18n.json` (Write tool) with one object per locale. `en` and `de` are below. Write the other 14 (cs, da, el, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh) as natural translations of the English strings: informal address where the locale's existing Homepage Studio strings use it, and keep `{{n}}` and `{{max}}` unchanged.
+{% raw %}- [ ] **Step 7: Add the translations** — write `<scratchpad>/annotate-i18n.json` (Write tool) with one object per locale. `en` and `de` are below. Write the other 14 (cs, da, el, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh) as natural translations of the English strings: informal address where the locale's existing Homepage Studio strings use it, and keep `{{n}}` and `{{max}}` unchanged.{% endraw %}
 
 `en`:
 
+{% raw %}
 ```json
 {
   "homepage_studio.annotate_button": "Annotate page",
@@ -3129,8 +3132,10 @@ Expected: below 1100 (about 1097). If it is 1100 or more, do not add an exemptio
 }
 ```
 
+{% endraw %}
 `de`:
 
+{% raw %}
 ```json
 {
   "homepage_studio.annotate_button": "Seite annotieren",
@@ -3169,6 +3174,7 @@ Expected: below 1100 (about 1097). If it is 1100 or more, do not add an exemptio
 }
 ```
 
+{% endraw %}
 The file shape is `{ "en": { … }, "de": { … }, "cs": { … }, … }`.
 
 - [ ] **Step 8: Insert the keys** — write `<scratchpad>/add-annotate-i18n.cjs` (Write tool):

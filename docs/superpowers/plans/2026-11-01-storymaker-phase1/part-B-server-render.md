@@ -342,6 +342,7 @@ git commit -m "feat(security): strict capture proxy mode that dials only the all
 
 - [ ] **Step 1: Write the failing test**
 
+{% raw %}
 ```go
 package videostudio
 
@@ -384,6 +385,7 @@ func TestResolveFFmpegUsesTheSharedPolicy(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/videostudio/ -run "TestEncoderExports|TestResolveFFmpegUses" -count=1`
@@ -3240,6 +3242,7 @@ Frames are accepted only in the running state, strictly in order from 0, below t
 
 `internal/storymaker/render/ingest_test.go`:
 
+{% raw %}
 ```go
 package render
 
@@ -3520,6 +3523,7 @@ func TestIngestRestartsWithSoftwareWhenTheHardwareEncoderFails(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/storymaker/render/ -run "TestIngest|TestMaxFrameBytes" -count=1`
@@ -3756,6 +3760,7 @@ The listener binds `127.0.0.1:0`, uses plain HTTP with its own timeouts and no l
 
 `internal/storymaker/render/listener_test.go`:
 
+{% raw %}
 ```go
 package render
 
@@ -4082,6 +4087,7 @@ func TestListenerCloseStopsServing(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./internal/storymaker/render/ -run "TestListener|TestStartListener" -count=1`
@@ -4841,6 +4847,7 @@ func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal)
 
 `internal/storymaker/render/egress.go`:
 
+{% raw %}
 ```go
 package render
 
@@ -5081,6 +5088,7 @@ func (g *egressGuard) guardWorker(ctx context.Context, b *rod.Browser, ev proto.
 }
 ```
 
+{% endraw %}
 `internal/storymaker/render/session.go`:
 
 ```go
