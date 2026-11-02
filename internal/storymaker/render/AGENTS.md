@@ -41,3 +41,14 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
   fake page plays the render page against the real listener). The browser tests need `AURAGO_RUN_BROWSER_SMOKE=1`; the transport spike also
   needs `AURAGO_STORYMAKER_SPIKE=1`. On the Windows development box run them through `go test` with `GOTMPDIR=D:\tmp\go-build` (a repo-built
   executable cannot start Chrome there).
+- **Transport spike** (task B13; `firewall.json`, 342 frames, 1920x1080, 30 fps, strict proxy and CDP guard active, every transport rendered
+  twice; the two renders and all three transports give one sequence hash, so every transport is deterministic and pixel-identical to png).
+  Development box (Windows, 16 CPUs, Chrome 156, FFmpeg 8.1.1): png 10.2 fps, WebP 4.9 to 5.3, screenshot 3.8; png peaks at 708 MB Chrome and
+  40 MB Go heap. aurago-test (Linux, 12 CPUs, about 2 load from the live service, pinned Chromium 128, FFmpeg 8.0.1): png 8.7 to 8.9 fps
+  (342 frames in 42 s), WebP 4.9, screenshot 4.0. png stays `DefaultTransport` (the fastest deterministic one), but on aurago-test it is below
+  the 10 fps target of the spec; `measuredFPS` (6, 2.5, 1, 2.5) was not recalculated: 60 percent of 8.8 fps is 5.3, which would give a 15 minute
+  video a 15300 s watchdog, above the 14400 s ceiling of `render.timeout_seconds` and the 13500 s that `TestRenderTimeoutFormula` pins.
+  Pinned Chromium on aurago-test: the download (181 MB), checksum, unpacking, launch (Chrome 128.0.6568.0) and the export of `firewall.json`
+  pass with `AURAGO_TEST_NO_SANDBOX=1`. Without it the launch fails with `No usable sandbox`: the AppArmor profile of the installation guide
+  only names `~/.cache/rod/browser/chromium-*/chrome`, not the data folder the pinned download goes to. FFmpeg 8.0.1 there passes the
+  frame-input tests (the 5.1.9 floor is still unmeasured).

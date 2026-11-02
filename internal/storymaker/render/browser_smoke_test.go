@@ -537,6 +537,7 @@ func TestPinnedChromiumDownloadsVerifiesAndLaunches(t *testing.T) {
 	// The player must run on the pinned revision (Chromium 128) as well: export the firewall story with it.
 	fx := newRealFixture(t, bin)
 	fx.loadFirewall(t)
+	fx.rebuild(t)
 	if job := fx.render(t); job.Status != StatusSucceeded {
 		t.Fatalf("export with the pinned Chromium: %+v error %+v", job, job.Error)
 	}
