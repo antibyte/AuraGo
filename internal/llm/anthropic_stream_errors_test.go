@@ -21,17 +21,11 @@ import (
 const anthropicStreamStartFixture = "event: message_start\ndata: {\"message\":{\"id\":\"msg_fixture\",\"model\":\"claude-sonnet-4-6\",\"usage\":{\"input_tokens\":4,\"output_tokens\":0}}}\n\n"
 const anthropicStreamFinishFixture = "event: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":3}}\n\n"
 
-type anthropicStreamFixtureTransport func(*http.Request) (*http.Response, error)
-
-func (f anthropicStreamFixtureTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
-
 func anthropicSDKStreamForTest(t *testing.T, source io.ReadCloser) *openai.ChatCompletionStream {
 	t.Helper()
 	cfg := openai.DefaultConfig("fixture")
 	cfg.BaseURL = "https://fixture.invalid/v1"
-	cfg.HTTPClient = &http.Client{Transport: &anthropicTransport{base: anthropicStreamFixtureTransport(func(req *http.Request) (*http.Response, error) {
+	cfg.HTTPClient = &http.Client{Transport: &anthropicTransport{base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"text/event-stream"}}, Body: source, Request: req}, nil
 	})}}
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)

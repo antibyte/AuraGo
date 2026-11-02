@@ -675,7 +675,7 @@ func TestAnthropicStreamToolUse(t *testing.T) {
 	transport := &anthropicTransport{base: base}
 	client := &http.Client{Transport: transport}
 
-	body := `{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":"Weather?"}],"stream":true,"tools":[{"type":"function","function":{"name":"get_weather","parameters":{}}}]}`
+	body := `{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":"Weather?"}],"stream":true,"tools":[{"type":"function","function":{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]}`
 	resp, err := client.Post("https://api.anthropic.com/v1/chat/completions", "application/json", strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("request: %v", err)
