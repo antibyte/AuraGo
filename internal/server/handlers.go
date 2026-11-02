@@ -279,6 +279,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		followUpKey := "default"
 		if missionID != "" {
 			followUpKey = "mission-" + missionID
+		} else if trustedMailIngress(r, s) {
+			// Mail deliveries are independent events, not continuations of the
+			// model's default follow-up chain. Bound concurrent deliveries only.
+			followUpKey = "external-email"
 		} else if executionID := r.Header.Get("X-Background-Execution-ID"); isFollowUp && executionID != "" && r.Header.Get("X-Session-ID") == "background-"+executionID {
 			followUpKey = "background-" + executionID
 		}
@@ -288,8 +292,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		} else {
 			followUpDepths[followUpKey]++
 			if followUpDepths[followUpKey] > 10 {
+				depth := followUpDepths[followUpKey]
+				followUpDepths[followUpKey]-- // A rejected request never owns a slot.
 				muFollowUp.Unlock()
-				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", followUpDepths[followUpKey], "key", followUpKey)
+				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", depth, "key", followUpKey)
 				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_followup_circuit_breaker"), http.StatusTooManyRequests)
 				return
 			}

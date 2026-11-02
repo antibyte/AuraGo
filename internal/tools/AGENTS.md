@@ -355,6 +355,13 @@ None.
 - Record intent before side effects and preserve partial/unknown results with retry_safe:false. Serialize workspace mutations. Never silently rebind a pinned workspace or infer a moved site's identity.
 - Revision contents exclude credentials and generated manifests, remain bounded and restore only complete hash-verified states with rooted atomic replacement. Preserve unknown external files and retain complete recovery preimages on partial restore.
 - Schema v1 backs up v0 before DDL and preserves target links. Never prune delta revisions without verified checkpoints. See documentation/homepage-ledger.md and Homepage regression tests.
+- New managed local project identities cannot name an existing file. Reconciliation
+  retains missing directories and legacy file identities as unavailable
+  (`local_status: missing`, `drift_status: local_changed`), preserving revisions,
+  file-state rows and Git identity. Record one event per state transition and
+  resume observation when the directory returns. Genuine I/O errors still fail.
+  Verify `TestEnsureHomepageProjectForDirRejectsFileBeforeRegistration` and
+  `TestReconcileHomepageProjectRetainsUnavailableHistory`.
 - Bound project_dir changes use relocate under the workspace mutation lock; metadata updates must not split locations from revision history. Snapshot existing scaffold files before overwriting and retain their unknown provenance.
 - Restore validates every path and filesystem shape before writes, propagates request cancellation, tracks permission-only changes and rejects legacy sensitive contents. Migration backups are private before VACUUM copies any data.
 - Homepage Docker file reads/edits use bounded archive downloads, never truncated exec output. File writes use archive uploads with `copyUIDGID=true` so new/replaced files belong to the configured container user, never content in shell arguments; preserve complete content through 2 MiB and fail closed on malformed/oversized reads. A writable-directory probe does not prove an existing file is writable. `ledger_updated` confirms audit persistence, while `status` determines execution success. Verify Homepage file-transfer and ledger regressions.
