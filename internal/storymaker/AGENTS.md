@@ -55,6 +55,12 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 
 - `go test ./internal/storymaker/... -count=1` and `go test ./internal/config/... -count=1`.
 
+## Render and server (part B)
+
+- `render/` turns a story into an MP4 (job manager, listener, ingest, browser, egress guard, FFmpeg); its contract is `render/AGENTS.md`. The package has no dependency on `internal/server`; the handlers are `internal/server/storymaker_*.go`.
+- The server implements `Store` and `render.Publisher` over `*desktop.Service` (`storymakerStore`), passes `Limits.MaxDurationSeconds = storymaker.render.max_duration_seconds` to the validator and gives every request its own `Story` copy (`Validate` and `ApplyDefaults` mutate).
+- Catalog version, canvas sizes (1920x1080, 1080x1920, 1080x1080), the support matrix and the error codes of a job (`invalid_story`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `busy`, `code_error`, `interrupted`, `storymaker_disabled`) are shared with the app through `GET /status` and the job document.
+
 ## Child DOX Index
 
-None yet.
+- `render/AGENTS.md`: the render pipeline contract (job manager, listener, ingest, browser, egress guard, FFmpeg).
