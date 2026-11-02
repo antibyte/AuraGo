@@ -7111,7 +7111,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
-            radio: { width: 1320, height: 920 },
+            radio: { width: 960, height: 660 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
             bluetooth: { width: 720, height: 620 },
