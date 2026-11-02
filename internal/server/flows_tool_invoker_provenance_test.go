@@ -11,6 +11,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 func TestFlowPDFCreateThenTelegramUsesGeneratedAttachment(t *testing.T) {
@@ -56,48 +57,71 @@ func TestFlowPDFCreateThenTelegramUsesGeneratedAttachment(t *testing.T) {
 	}
 }
 
+// failingWhatsAppSender is a ready owner sender that fails the test when anything reaches it.
+type failingWhatsAppSender struct{ t *testing.T }
+
+func (*failingWhatsAppSender) Ready() bool { return true }
+
+func (f *failingWhatsAppSender) SendOwnerMessage(context.Context, string, string) (tools.WhatsAppSendResult, error) {
+	f.t.Helper()
+	f.t.Error("a denied send reached the WhatsApp owner sender")
+	return tools.WhatsAppSendResult{}, nil
+}
+
+// Flow data that reaches an egress tool passes the action policy and the copy gate: with no
+// rule the call asks for one, and a rule does not exempt text copied from an external source.
+// send_whatsapp is proven with a ready sender that fails the test when it is reached.
 func TestFlowCopyRefusalDoesNotRecommendAnAllowRule(t *testing.T) {
-	for _, copied := range []bool{false, true} {
-		name := "missing_rule"
-		if copied {
-			name = "copied_text"
-		}
-		t.Run(name, func(t *testing.T) {
-			cfg := &config.Config{}
-			cfg.Telegram.BotToken = "test-placeholder-not-a-real-token"
-			cfg.Telegram.UserID = 123
-			cfg.Agent.ActionPolicy.Enabled = true
+	for _, tool := range []string{"send_telegram", "send_whatsapp"} {
+		for _, copied := range []bool{false, true} {
+			name := "missing_rule"
 			if copied {
-				cfg.Agent.ActionPolicy.Allow = []config.ActionPolicyRule{{Tool: "send_telegram", Operation: "execute", Target: "tool:send_telegram", RunType: "flow", ScopeID: t.Name()}}
+				name = "copied_text"
 			}
-			message := "The source paragraph contains a detailed release announcement and several verified public facts."
-			if copied {
-				agent.RecordExternalIngress("flow-"+t.Name(), security.ExternalEmail, message)
-			}
-			inv, _, _ := c13Invoker(cfg, map[string]bool{"send_telegram": true}, func(ctx context.Context, tc *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult {
-				dc.ExecutionHooks = &agent.ExecutionHooks{HandleTool: func(context.Context, agent.ToolCall) (string, bool) {
-					t.Fatal("denied send reached the delivery handler")
-					return "", true
-				}}
-				return agent.DispatchToolCallResult(ctx, tc, dc, "")
-			})
-			req := c13Request("send_telegram", map[string]any{"message": message})
-			req.FlowID = t.Name()
-			_, err := inv.InvokeTool(context.Background(), req)
-			var ne *flows.NodeError
-			if !errors.As(err, &ne) {
-				t.Fatalf("expected a nonretryable node refusal, got %v", err)
-			}
-			want := "FLOW_ACTION_RULE_REQUIRED"
-			if copied {
-				want = "FLOW_TOOL_DENIED"
-				if !strings.Contains(ne.Message, "exact call") || !strings.Contains(ne.Message, "does not exempt") || strings.Contains(ne.Message, message) {
-					t.Fatalf("copy refusal lost its safe explanation: %s", ne.Message)
+			t.Run(tool+"_"+name, func(t *testing.T) {
+				cfg := &config.Config{}
+				switch tool {
+				case "send_telegram":
+					cfg.Telegram.BotToken = "test-placeholder-not-a-real-token"
+					cfg.Telegram.UserID = 123
+				case "send_whatsapp":
+					cfg.WhatsApp.Enabled = true
+					tools.SetWhatsAppOwnerSender(&failingWhatsAppSender{t: t})
+					t.Cleanup(func() { tools.SetWhatsAppOwnerSender(nil) })
 				}
-			}
-			if ne.Code != want {
-				t.Fatalf("refusal code = %s, want %s", ne.Code, want)
-			}
-		})
+				cfg.Agent.ActionPolicy.Enabled = true
+				if copied {
+					cfg.Agent.ActionPolicy.Allow = []config.ActionPolicyRule{{Tool: tool, Operation: "execute", Target: "tool:" + tool, RunType: "flow", ScopeID: t.Name()}}
+				}
+				message := "The source paragraph contains a detailed release announcement and several verified public facts."
+				if copied {
+					agent.RecordExternalIngress("flow-"+t.Name(), security.ExternalEmail, message)
+				}
+				inv, _, _ := c13Invoker(cfg, map[string]bool{tool: true}, func(ctx context.Context, tc *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult {
+					dc.ExecutionHooks = &agent.ExecutionHooks{HandleTool: func(context.Context, agent.ToolCall) (string, bool) {
+						t.Fatal("denied send reached the delivery handler")
+						return "", true
+					}}
+					return agent.DispatchToolCallResult(ctx, tc, dc, "")
+				})
+				req := c13Request(tool, map[string]any{"message": message})
+				req.FlowID = t.Name()
+				_, err := inv.InvokeTool(context.Background(), req)
+				var ne *flows.NodeError
+				if !errors.As(err, &ne) {
+					t.Fatalf("expected a nonretryable node refusal, got %v", err)
+				}
+				want := "FLOW_ACTION_RULE_REQUIRED"
+				if copied {
+					want = "FLOW_TOOL_DENIED"
+					if !strings.Contains(ne.Message, "exact call") || !strings.Contains(ne.Message, "does not exempt") || strings.Contains(ne.Message, message) {
+						t.Fatalf("copy refusal lost its safe explanation: %s", ne.Message)
+					}
+				}
+				if ne.Code != want {
+					t.Fatalf("refusal code = %s, want %s", ne.Code, want)
+				}
+			})
+		}
 	}
 }

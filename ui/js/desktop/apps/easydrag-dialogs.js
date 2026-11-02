@@ -225,7 +225,7 @@
             '<div class="ed-input-unit ed-input-unit--pair">' + runInput('max_run_minutes', run[0], 1440, 'easydrag.ui.unit_minutes') + runInput('max_run_seconds', run[1], 59, 'easydrag.ui.unit_seconds') + '</div>' +
             '<p class="ed-hint" id="' + esc(hintId) + '">' + esc(t('easydrag.ui.flow_max_run_hint')) + '</p><p class="ed-error" id="' + esc(errorId) + '" role="alert" data-ed-max-run-error hidden></p></div>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_notify')) + '</span><select class="ed-input" data-ed-set="notify_on_error"' + (ro ? ' disabled' : '') + '>' +
-            ['desktop', 'push', 'telegram', 'off'].map(v => opt(v, s.notify_on_error || 'desktop', t('easydrag.ui.notify_' + v))).join('') + '</select></label>';
+            ['desktop', 'push', 'telegram', 'whatsapp', 'off'].map(v => opt(v, s.notify_on_error || 'desktop', t('easydrag.ui.notify_' + v))).join('') + '</select></label>';
         const modal = core.modal(ed.root, {
             title: t('easydrag.ui.flow_settings'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--settings', body,
             actions: ro ? [{ id: 'close-dialog', label: t('easydrag.ui.close') }] : [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'apply', label: t('easydrag.ui.apply'), primary: true }],

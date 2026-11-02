@@ -68,9 +68,10 @@ func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOp
 //   - email_accounts: the default account, then the accounts that may send (neither
 //     disabled nor read-only).
 //   - notification_channels: "all" and "push", then the channels tools.SendNotification
-//     sends to: Telegram with a bot token and a user, Discord when it is enabled, not
-//     read-only and has a default channel (SendNotification refuses the others), ntfy and
-//     Pushover when enabled.
+//     sends to: Telegram with a bot token and a user, WhatsApp when it is enabled, not
+//     read-only and a linked device runs, Discord when it is enabled, not read-only and
+//     has a default channel (SendNotification refuses the others), ntfy and Pushover when
+//     enabled.
 //   - ai_models: the default route (flows.ai_provider, else the main model), then the
 //     providers that can answer an ai.step (flowChatProvider).
 //   - missions: every Mission Control mission; the hint is its execution type ("flow",
@@ -120,6 +121,9 @@ func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowO
 			flowOption{Value: "push", Label: tr("easydrag.option.channel_push")})
 		if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 && !cfg.Telegram.ReadOnly {
 			out = append(out, flowOption{Value: "telegram", Label: "Telegram"})
+		}
+		if s.whatsAppOwnerReady(cfg) {
+			out = append(out, flowOption{Value: "whatsapp", Label: "WhatsApp"})
 		}
 		if cfg.Discord.Enabled && !cfg.Discord.ReadOnly && strings.TrimSpace(cfg.Discord.DefaultChannelID) != "" {
 			out = append(out, flowOption{Value: "discord", Label: "Discord"})

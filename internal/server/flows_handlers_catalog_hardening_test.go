@@ -481,10 +481,11 @@ func TestC19AIModelOptionsAreChatProviders(t *testing.T) {
 }
 
 // B8: notification channel options are channels tools.SendNotification sends to; a
-// read-only Discord, or one without a default channel, is not offered.
+// read-only Discord, or one without a default channel, is not offered. WhatsApp is offered
+// only when it is enabled, writable and a linked device runs.
 func TestC19NotificationChannelOptions(t *testing.T) {
 	s, _ := newFlowsTestServer(t)
-	accepted := []string{string(tools.ChannelAll), string(tools.ChannelPush), string(tools.ChannelTelegram), string(tools.ChannelDiscord),
+	accepted := []string{string(tools.ChannelAll), string(tools.ChannelPush), string(tools.ChannelTelegram), string(tools.ChannelDiscord), string(tools.ChannelWhatsApp),
 		string(tools.ChannelNtfy), string(tools.ChannelPushover), string(tools.ChannelTelnyx), string(tools.ChannelCYD)}
 	channels := func() []string {
 		t.Helper()
@@ -513,6 +514,33 @@ func TestC19NotificationChannelOptions(t *testing.T) {
 	s.Cfg.Discord.DefaultChannelID = "123"
 	if got := channels(); !slices.Contains(got, "discord") {
 		t.Fatalf("usable Discord: %v", got)
+	}
+
+	// WhatsApp, after Telegram: enabled, writable and a ready fake Bot.
+	s.Cfg.Discord.Enabled = false
+	fake := &fakeWhatsAppOwner{ready: true}
+	useFakeWhatsAppOwner(t, fake)
+	s.Cfg.WhatsApp.Enabled = true
+	if got := channels(); !slices.Equal(got, []string{"all", "push", "telegram", "whatsapp", "ntfy", "pushover"}) {
+		t.Fatalf("ready WhatsApp: %v", got)
+	}
+	s.Cfg.WhatsApp.ReadOnly = true
+	if got := channels(); slices.Contains(got, "whatsapp") {
+		t.Fatalf("read-only WhatsApp: %v", got)
+	}
+	s.Cfg.WhatsApp.ReadOnly = false
+	fake.mu.Lock()
+	fake.ready = false
+	fake.mu.Unlock()
+	if got := channels(); slices.Contains(got, "whatsapp") {
+		t.Fatalf("WhatsApp without a linked device: %v", got)
+	}
+	fake.mu.Lock()
+	fake.ready = true
+	fake.mu.Unlock()
+	s.Cfg.WhatsApp.Enabled = false
+	if got := channels(); slices.Contains(got, "whatsapp") {
+		t.Fatalf("disabled WhatsApp: %v", got)
 	}
 }
 

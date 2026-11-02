@@ -82,9 +82,11 @@ var flowRefusalRules = []flowRefusalRule{
 	flowRule(`url validation failed: `, agent.ToolResultDenied),
 	// Read-only integrations: Home Assistant (internal/agent/agent_dispatch_services.go:1385,
 	// internal/tools/homeassistant.go:186), MQTT (internal/agent/dispatch_network.go:174),
-	// Discord (internal/agent/dispatch_messaging.go:107, internal/tools/notification.go:96) and
-	// Telnyx (internal/agent/dispatch_messaging.go:192, internal/tools/notification.go:104).
-	flowRule(`(?:home assistant|mqtt|discord|telnyx) is in read-only mode`, agent.ToolResultDenied),
+	// Discord (internal/agent/dispatch_messaging.go:107, internal/tools/notification.go:96),
+	// Telnyx (internal/agent/dispatch_messaging.go:192, internal/tools/notification.go:104) and
+	// WhatsApp (internal/agent/dispatch_messaging.go:54, internal/tools/whatsapp_send.go:27,
+	// internal/whatsapp/errors.go:20).
+	flowRule(`(?:home assistant|mqtt|discord|telnyx|whatsapp) is in read-only mode`, agent.ToolResultDenied),
 	// Home Assistant's service lists (internal/agent/home_assistant_policy.go:12 and :23).
 	flowRule(`home assistant service \S+ is blocked by home_assistant\.blocked_services$`, agent.ToolResultDenied),
 	flowRule(`home assistant service \S+ is not allowed by home_assistant\.allowed_services$`, agent.ToolResultDenied),
@@ -94,8 +96,9 @@ var flowRefusalRules = []flowRefusalRule{
 	// (internal/agent/agent_dispatch_services.go:1379), MQTT (internal/agent/dispatch_network.go:171),
 	// Discord (internal/agent/dispatch_messaging.go:104), email (internal/agent/dispatch_email.go:180),
 	// Brave (internal/agent/tool_builtin_handlers.go:124) and the notification channels
-	// (internal/tools/notification.go:163, :221, :304, :319, :360).
-	flowRule(`(?:home assistant integration|mqtt|discord|email|brave search integration|ntfy|pushover|telnyx|cyd) is not enabled`, agent.ToolResultNeedsSetup),
+	// (internal/tools/notification.go:163, :221, :304, :319, :360) and WhatsApp
+	// (internal/agent/dispatch_messaging.go:51, internal/tools/whatsapp_send.go:26).
+	flowRule(`(?:home assistant integration|mqtt|discord|email|brave search integration|ntfy|pushover|telnyx|cyd|whatsapp) is not enabled`, agent.ToolResultNeedsSetup),
 	// Email without a usable account (internal/agent/dispatch_email.go:193 and :196).
 	flowRule(`no active email account configured\.`, agent.ToolResultNeedsSetup),
 	flowRule(`email account '.*' is disabled\. enable it in settings > email\.$`, agent.ToolResultNeedsSetup),
@@ -109,6 +112,11 @@ var flowRefusalRules = []flowRefusalRule{
 	flowRule(`(?:pushover user_key and app_token|telegram bot_token and telegram_user_id) must be configured$`, agent.ToolResultNeedsSetup),
 	// send_notification to "all" with no channel set up (internal/tools/notification.go:147).
 	flowRule(`no notification channels are enabled$`, agent.ToolResultNeedsSetup),
+	// WhatsApp without a running linked device (internal/tools/whatsapp_send.go:28), and an owner
+	// number WhatsApp does not know (internal/whatsapp/errors.go:16, wrapped at send.go:241 with
+	// a masked reason after the colon).
+	flowRule(`whatsapp is not linked or not running`, agent.ToolResultNeedsSetup),
+	flowRule(`whatsapp owner number is not registered on whatsapp`, agent.ToolResultNeedsSetup),
 }
 
 // flowTransportPrefixes start messages that wrap what a remote server or a transport said:
@@ -275,7 +283,9 @@ func flowEnvelope(text string) map[string]any {
 // the call is reported with that status (denied if any channel was refused, else
 // needs_setup), and the rewritten answer carries the channels' texts as its message. A
 // channel that failed for any other reason keeps the answer as it is: the node then fails
-// with the retried FLOW_NOTIFY_FAILED.
+// with the retried FLOW_NOTIFY_FAILED. send_whatsapp is not handled here: it answers a failed
+// send with a top-level error status, never a success with failed channels, so the refusal
+// rules reach it through the failed branch of flowToolOutcome.
 func flowNotifyRefusal(envelope map[string]any) (agent.ToolResultStatus, string) {
 	results, ok := envelope["results"].([]any)
 	if !ok || len(results) == 0 {

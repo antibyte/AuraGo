@@ -39,6 +39,32 @@ func TestTelegramNode(t *testing.T) {
 	}
 }
 
+const whatsAppOK = `Tool Output: {"status":"success","kind":"document","results":[{"channel":"whatsapp","status":"sent"}]}`
+
+func TestWhatsAppNode(t *testing.T) {
+	tools := &fakeTools{respond: toolReply(whatsAppOK)}
+	def := lookupDef(t, notifyRegistry(t), TypeWhatsApp)
+	if def.Tool != "send_whatsapp" || def.Icon != "brand-whatsapp" || !reflect.DeepEqual(def.Effects, []Effect{EffectSendsMessage}) {
+		t.Fatalf("whatsapp = tool %q, icon %q, effects %v", def.Tool, def.Icon, def.Effects)
+	}
+	res, err := execDef(def, map[string]any{"message": "Hallo", "file": FileRef("/data/documents/ki.pdf", "", "", "", 0)}, &Services{Tools: tools})
+	if err != nil || res.Output["sent"] != true {
+		t.Fatalf("whatsapp = %#v, %v", res.Output, err)
+	}
+	// The tool takes no title and no recipient: exactly the message and the file path.
+	want := map[string]any{"message": "Hallo", "file_path": "/data/documents/ki.pdf"}
+	if args := tools.last(t).Args; !reflect.DeepEqual(args, want) {
+		t.Fatalf("args = %#v", args)
+	}
+	tools.respond = toolReply(`Tool Output: {"status":"success","results":[{"channel":"whatsapp","status":"error","detail":"x"}]}`)
+	if _, err := execDef(def, map[string]any{"message": "x"}, &Services{Tools: tools}); asNodeError(err).Code != "FLOW_NOTIFY_FAILED" || asNodeError(err).Message != "x" {
+		t.Fatalf("failed channel = %v", err)
+	}
+	if _, err := execDef(def, map[string]any{"message": " "}, &Services{Tools: tools}); asNodeError(err).Code != "FLOW_PARAM_INVALID" {
+		t.Fatalf("empty message = %v", err)
+	}
+}
+
 func TestEmailNode(t *testing.T) {
 	tools := &fakeTools{respond: toolReply(`Tool Output: {"status":"success","message":"Email sent"}`)}
 	def := lookupDef(t, notifyRegistry(t), TypeEmail)

@@ -29,6 +29,7 @@ func TestNotifyTestConstants(t *testing.T) {
 // notifyReplies answer each notification tool with a success of its own shape.
 var notifyReplies = map[string]string{
 	"send_telegram":     sentOK,
+	"send_whatsapp":     whatsAppOK,
 	"send_email":        `Tool Output: {"status":"success","message":"Email sent"}`,
 	"send_notification": `Tool Output: {"status":"success","results":[{"channel":"ntfy","status":"sent"}]}`,
 	"send_discord":      `Tool Output: {"status":"success","message":"Message sent"}`,
@@ -293,6 +294,7 @@ func TestAttachmentsAreBoundedAndNeverDropped(t *testing.T) {
 func TestNotifySinkFlags(t *testing.T) {
 	sinks := map[string][]string{
 		TypeTelegram: {"file"},
+		TypeWhatsApp: {"file"},
 		TypeEmail:    {"to", "attachment", "account"},
 		TypePush:     {"channel"},
 		TypeDiscord:  {"channel_id"},
@@ -311,7 +313,7 @@ func TestNotifySinkFlags(t *testing.T) {
 			t.Errorf("%s: sink parameters %v, want %v", typ, got, want)
 		}
 	}
-	for _, typ := range []string{TypeTelegram, TypeEmail, TypePush, TypeDiscord} {
+	for _, typ := range []string{TypeTelegram, TypeWhatsApp, TypeEmail, TypePush, TypeDiscord} {
 		def := lookupDef(t, reg, typ)
 		if def.UntrustedOutput || !reflect.DeepEqual(def.Effects, []Effect{EffectSendsMessage}) {
 			t.Errorf("%s: untrusted %v, effects %v", typ, def.UntrustedOutput, def.Effects)
@@ -328,6 +330,7 @@ func TestNotifySinkFlags(t *testing.T) {
 	ref := func(name string) string { return "{{trigger.data.payload." + name + "}}" }
 	nodes := map[string]string{
 		"tg": b.node("tg", TypeTelegram, map[string]any{"message": ref("m"), "title": ref("t"), "file": ref("f")}),
+		"wa": b.node("wa", TypeWhatsApp, map[string]any{"message": ref("m"), "file": ref("f")}),
 		"em": b.node("em", TypeEmail, map[string]any{"to": ref("to"), "subject": ref("s"), "body": ref("b"), "attachment": ref("a"), "account": ref("acc")}),
 		"pu": b.node("pu", TypePush, map[string]any{"channel": ref("c"), "title": ref("t"), "message": ref("m")}),
 		"dc": b.node("dc", TypeDiscord, map[string]any{"message": ref("m"), "channel_id": ref("c")}),
@@ -343,7 +346,7 @@ func TestNotifySinkFlags(t *testing.T) {
 		byNode[is.NodeID] = append(byNode[is.NodeID], is.Param)
 	}
 	wantWarned := map[string][]string{
-		nodes["tg"]: {"file"}, nodes["em"]: {"account", "attachment", "to"}, nodes["pu"]: {"channel"}, nodes["dc"]: {"channel_id"},
+		nodes["tg"]: {"file"}, nodes["wa"]: {"file"}, nodes["em"]: {"account", "attachment", "to"}, nodes["pu"]: {"channel"}, nodes["dc"]: {"channel_id"},
 	}
 	for id, want := range wantWarned {
 		got := byNode[id]
@@ -526,6 +529,12 @@ func TestNotifyLimitsAreTheDocumentedNumbers(t *testing.T) {
 		{"telegram title 251", TypeTelegram, map[string]any{"message": "m", "title": rep("t", 251)}, false},
 		{"telegram file 4096", TypeTelegram, map[string]any{"message": "m", "file": rep("p", 4096)}, true},
 		{"telegram file 4097", TypeTelegram, map[string]any{"message": "m", "file": rep("p", 4097)}, false},
+		// WhatsApp: 4000 characters (one message of the Bot's sender), counted in runes, and no title.
+		{"whatsapp 4000", TypeWhatsApp, map[string]any{"message": rep("m", 4000)}, true},
+		{"whatsapp 4001", TypeWhatsApp, map[string]any{"message": rep("m", 4001)}, false},
+		{"whatsapp 4000 umlauts", TypeWhatsApp, map[string]any{"message": rep("ä", 4000)}, true},
+		{"whatsapp file 4096", TypeWhatsApp, map[string]any{"message": "m", "file": rep("p", 4096)}, true},
+		{"whatsapp file 4097", TypeWhatsApp, map[string]any{"message": "m", "file": rep("p", 4097)}, false},
 		// Email: a subject of 700 bytes, 20 recipients, a body of 64 KiB.
 		{"subject 700", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "subject": rep("s", 700)}, true},
 		{"subject 701", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "subject": rep("s", 701)}, false},

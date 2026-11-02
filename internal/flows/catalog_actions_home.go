@@ -15,7 +15,7 @@ const (
 	TypeTodoAdd        = "planner.todo_add"
 )
 
-// RegisterActionNodes registers the 15 curated action nodes of phase 1.
+// RegisterActionNodes registers the 16 curated action nodes of phase 1.
 func RegisterActionNodes(reg *Registry, env CatalogEnv) error {
 	for _, register := range []func(*Registry, CatalogEnv) error{registerDocNodes, registerWebNodes, registerNotifyNodes, registerHomeNodes} {
 		if err := register(reg, env); err != nil {

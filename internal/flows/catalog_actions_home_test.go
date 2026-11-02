@@ -96,7 +96,7 @@ func TestRegisterActionNodes(t *testing.T) {
 	if err := RegisterActionNodes(reg, nil); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(reg.All()); n != 15 {
-		t.Fatalf("RegisterActionNodes registered %d types, want 15", n)
+	if n := len(reg.All()); n != 16 {
+		t.Fatalf("RegisterActionNodes registered %d types, want 16", n)
 	}
 }

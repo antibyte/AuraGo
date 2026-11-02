@@ -11,8 +11,8 @@ import (
 	"aurago/internal/security"
 )
 
-// Per-tool argument handling of the flow tool invoker: types, secrets and the Telegram text
-// that must not be sent twice. The log handler is in flows_tool_invoker_log.go.
+// Per-tool argument handling of the flow tool invoker: types, secrets and the Telegram and
+// WhatsApp text that must not be sent twice. The log handler is in flows_tool_invoker_log.go.
 
 // flowNormalizeMQTTArgs gives mqtt_publish its qos as an int and retain as a bool. The
 // agent's decoder (decodeMQTTArgs) reads qos with toolArgInt, which takes int and float64,
@@ -116,8 +116,8 @@ func flowRedactSecrets(output string, secrets []string) string {
 	return output
 }
 
-// flowTextSentRetention is how long the invoker remembers that a Telegram text went out
-// while its document failed: the longest run plus an hour.
+// flowTextSentRetention is how long the invoker remembers that a Telegram or WhatsApp text
+// went out while its document (or the rest) failed: the longest run plus an hour.
 var flowTextSentRetention = time.Duration(flows.MaxRunSecondsLimit)*time.Second + time.Hour
 
 // flowTextSentKey identifies one node of one run, or "" when either id is missing.
@@ -129,7 +129,7 @@ func flowTextSentKey(req flows.ToolRequest) string {
 }
 
 // textAlreadySent reports whether an earlier attempt of this node in this run sent the text
-// of a Telegram message whose document then failed.
+// of a Telegram or WhatsApp message whose document (or the rest) then failed.
 func (i *flowToolInvoker) textAlreadySent(key string) bool {
 	if key == "" {
 		return false
@@ -158,8 +158,10 @@ func (i *flowToolInvoker) rememberTextSent(key string, now time.Time) {
 	i.textSent[key] = now
 }
 
-// flowTelegramTextSent reports whether a send_telegram answer says the text went out as a
-// message of its own while the call failed (tools.SendTelegramFile sets "text_sent": true).
+// flowTelegramTextSent reports whether a send_telegram or send_whatsapp answer says the text
+// went out as a message of its own while the call failed (tools.SendTelegramFile and
+// tools.SendWhatsAppMessage set "text_sent": true). The name stays: it parses the generic
+// field, and a successful answer is never reported.
 func flowTelegramTextSent(output string) bool {
 	if len(output) > flowStatusParseLimit {
 		return false
