@@ -25,8 +25,8 @@ func ecalcScripts(t *testing.T) map[string]string {
 			scripts[entry.Name()] = readDesktopAssetText(t, ecalcDir+"/"+entry.Name())
 		}
 	}
-	if len(scripts) != 20 {
-		t.Fatalf("%s holds %d scripts, want the 20 of the plan", ecalcDir, len(scripts))
+	if len(scripts) != 21 {
+		t.Fatalf("%s holds %d scripts, want the 21 of the plan", ecalcDir, len(scripts))
 	}
 	return scripts
 }
@@ -221,7 +221,7 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
 		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
 	}
-	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)
@@ -242,6 +242,29 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	} {
 		if !strings.Contains(readDesktopAssetText(t, check.file), check.marker) {
 			t.Errorf("%s is missing %q", check.file, check.marker)
+		}
+	}
+}
+
+// The chart builder is a DOM-free string builder (it is run by the page, the markup uses currentColor and the ec-chart-*
+// classes of the stylesheet), so it holds no document access and no colour of its own.
+func TestECalcChartIsADomFreeStringBuilder(t *testing.T) {
+	t.Parallel()
+	chart := ecalcScripts(t)["ecalc-chart.js"]
+	for _, marker := range []string{"window.ECalcChart = { svg };", "function svg(spec, sample)", "function axis(lo, hi)", "const TICKS = 5,", `stroke="currentColor"`, `class="ec-chart-curve"`, `class="ec-chart-dot"`, `class="ec-chart-axis"`} {
+		if !strings.Contains(chart, marker) {
+			t.Errorf("ecalc-chart.js is missing %q", marker)
+		}
+	}
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(chart, "")
+	for label, pattern := range map[string]string{
+		"document access": `\bdocument\b`,
+		"DOM write":       `\b(?:innerHTML|createElement|appendChild)\b`,
+		"hex colour":      `#[0-9a-fA-F]{3,8}\b`,
+		"colour function": `\b(?:rgba?|hsla?)\(`,
+	} {
+		if regexp.MustCompile(pattern).MatchString(body) {
+			t.Errorf("ecalc-chart.js must not contain a %s", label)
 		}
 	}
 }
