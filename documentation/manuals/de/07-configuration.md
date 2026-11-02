@@ -112,6 +112,7 @@ rules:            # Aufgabenbezogene Agent-Leitplanken
 
 # Integrationen (Auswahl)
 telegram:         # Telegram Bot
+whatsapp:         # WhatsApp-Kanal (verknüpftes Gerät)
 discord:          # Discord Bot
 email:            # E-Mail (IMAP/SMTP)
 home_assistant:   # Home Assistant
@@ -524,6 +525,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | Block | Zweck | YAML-Kurzbeispiel |
 |-------|-------|-------------------|
 | `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `whatsapp` | WhatsApp-Kanal | `whatsapp:`<br>`  enabled: false`<br>`  mode: dedicated`<br>`  owner_numbers: []`<br>`  readonly: false` |
 | `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |

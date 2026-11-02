@@ -620,6 +620,8 @@ Das Compose-Profil `browser-automation` startet `browser-egress` neben dem Sidec
 
 Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-/macOS-Host-Shell ohne wirksame Sandbox braucht `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`; Updates über `update.sh` und Docker schreiben `allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`). Konfigurationen, die nie durch den config-merger laufen und in denen der Schlüssel nie geschrieben wurde, bleiben auch dann freigestellt, wenn die Shell später aktiviert wird; schreibe `agent.allow_unsandboxed_shell` ausdrücklich, damit die Entscheidung dauerhaft gilt. Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.
 
+Befehle, die so laufen, können AuraGos Datenordner lesen, auch `data/vault.bin` und die Schlüssel des verknüpften WhatsApp-Geräts in `data/whatsapp/device.db`; die Datei-Tools des Agenten verweigern beide Dateien, diese Ausnahme nicht.
+
 ```yaml
 agent:
   allow_unsafe_host_execution: false   # unsicher: nur nach bewusster Entscheidung setzen

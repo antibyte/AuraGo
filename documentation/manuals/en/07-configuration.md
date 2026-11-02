@@ -57,6 +57,7 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `tools` | Built-in tool permissions and timeouts |
 | `rules` | Task-specific Markdown guardrails for the agent |
 | `telegram` | Telegram bot integration |
+| `whatsapp` | WhatsApp channel (linked device, owner numbers) |
 | `discord` | Discord bot integration |
 | `email` | IMAP/SMTP email settings |
 | `home_assistant` | Smart home integration |
@@ -123,6 +124,7 @@ rules:            # Task-related agent guardrails
 
 # Integrations (selection)
 telegram:         # Telegram bot
+whatsapp:         # WhatsApp channel (linked device)
 discord:          # Discord bot
 email:            # Email (IMAP/SMTP)
 home_assistant:   # Home Assistant
@@ -1031,6 +1033,7 @@ The following blocks can also be configured through the Web UI or additionally i
 | Block | Purpose | YAML quick example |
 |-------|---------|--------------------|
 | `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `whatsapp` | WhatsApp channel | `whatsapp:`<br>`  enabled: false`<br>`  mode: dedicated`<br>`  owner_numbers: []`<br>`  readonly: false` |
 | `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | Email IMAP/SMTP (array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(legacy)* Email IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |

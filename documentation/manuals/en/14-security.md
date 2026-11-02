@@ -577,6 +577,8 @@ Compose profile `browser-automation` starts `browser-egress` beside the sidecar.
 
 Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker write `allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise). Configurations that never run config-merger and never had the key written are grandfathered even if the shell is enabled later; write `agent.allow_unsandboxed_shell` explicitly to make the decision durable. Desktop Notes protection and file jails apply regardless.
 
+Host commands that run this way can read AuraGo's data folder, including `data/vault.bin` and the linked WhatsApp device keys in `data/whatsapp/device.db`; agent file tools refuse both files, this exception does not.
+
 ```yaml
 agent:
   allow_unsafe_host_execution: false   # unsafe: set only after a deliberate decision

@@ -14,7 +14,7 @@ Neun thematische Gruppen, jede Integration ein eigener Abschnitt:
 
 | Gruppe | Integrationen |
 |--------|---------------|
-| [Messaging & Telefonie](#messaging--telefonie) | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [E-Mail](#e-mail-imapsmtp-konfiguration), [AgentMail](#agentmail-integration), [Rocket.Chat](#rocketchat-integration), [Telnyx](#telnyx-integration), [SIP-Telefonie](#native-sip-telefonie), [Realtime Speech](#realtime-speech), [TTS/Whisper](#tts--whisper), [Whisper](#whisper-integration), [Speech Lab](#speech-lab-integration), [Notifications](#notifications), [Web Push/PWA](#web-push--pwa-benachrichtigungen), [MeshCore](#meshcore-funk) |
+| [Messaging & Telefonie](#messaging--telefonie) | [Telegram](#telegram-bot-setup), [WhatsApp](#whatsapp-einrichten), [Discord](#discord-bot-setup), [E-Mail](#e-mail-imapsmtp-konfiguration), [AgentMail](#agentmail-integration), [Rocket.Chat](#rocketchat-integration), [Telnyx](#telnyx-integration), [SIP-Telefonie](#native-sip-telefonie), [Realtime Speech](#realtime-speech), [TTS/Whisper](#tts--whisper), [Whisper](#whisper-integration), [Speech Lab](#speech-lab-integration), [Notifications](#notifications), [Web Push/PWA](#web-push--pwa-benachrichtigungen), [MeshCore](#meshcore-funk) |
 | [Smart Home, IoT & Kameras](#smart-home-iot--kameras) | [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Bluetooth](#bluetooth-integration), [Chromecast](#chromecast-integration), [Frigate](#frigate-integration), [go2rtc](#go2rtc-kameraintegration), [3D-Drucker](#3d-drucker-integration), [CYD](#cheap-yellow-display) |
 | [Infrastruktur, Storage & Netz](#infrastruktur-storage--netz) | [Docker](#docker-integration), [Package Manager](#package-manager-integration), [Proxmox](#proxmox-integration), [Ansible](#ansible-integration), [TrueNAS](#truenas-integration), [MeshCentral](#meshcentral), [Tailscale](#tailscale), [Cloudflare Tunnel](#cloudflare-tunnel), [S3 Storage](#s3-kompatible-cloud-storage), [OneDrive](#onedrive-integration), [WebDAV/Koofr](#webdavkoofr), [SMB/NFS](#lokale-smb--und-nfs-freigaben), [LDAP](#ldap-integration), [Homepage](#homepage-integration), [Grafana](#grafana-integration), [Uptime Kuma](#uptime-kuma-integration), [Netlify](#netlify-integration), [Vercel](#vercel-integration) |
 | [KI-Modelle & Generierung](#ki-modelle--generierung) | [Ollama](#ollama-integration), [HuggingFace](#huggingface-plattform-integration), [AI Gateway](#cloudflare-ai-gateway), [Fallback LLM](#fallback-llm), [LLM Guardian](#llm-guardian), [YepAPI](#yepapi-integration), [Image Generation](#image-generation), [Video Generation](#video-generation), [Music Generation](#music-generation), [MCP](#mcp-model-context-protocol), [Composio](#composio-integration), [A2A](#a2a-protocol), [Manus](#manus-integration), [OmniRoute](#omniroute-integration) |
@@ -86,6 +86,37 @@ telegram:
   bot_token: "123456789:ABC..."
   telegram_user_id: 12345678
 ```
+
+### WhatsApp einrichten
+
+AuraGo kann dich über WhatsApp erreichen. Es meldet sich als verknüpftes Gerät an deinem Konto an und antwortet nur auf deine Besitzernummern. Die vollständige Anleitung mit Statustabelle und Fehlerbehebung steht im [WhatsApp-Setup-Leitfaden](../../whatsapp_setup.md) (auf Englisch).
+
+#### Einrichtung in der Web-UI
+1. Öffne **Config → Kommunikation → WhatsApp**.
+2. Aktiviere **WhatsApp aktivieren**, wähle den Modus **Nummer** (empfohlen: **Eigene AuraGo-Nummer**) und trage unter **Besitzernummern** deine Nummer im internationalen Format ein, z. B. `+491701234567`. Speichere.
+3. Verknüpfe das Konto unter **Verknüpftes Gerät** mit **Per QR-Code verknüpfen** (auf dem Handy: Einstellungen → Verknüpfte Geräte → Gerät hinzufügen) oder mit **Per Telefonnummer verknüpfen** und dem angezeigten Code.
+4. Sobald der Status `healthy` zeigt, drücke **Testnachricht senden**.
+
+> [!WARNING]
+> - Öffne WhatsApp auf dem verknüpften Handy mindestens alle 14 Tage, sonst entfernt WhatsApp die verknüpften Geräte.
+> - Pro Konto sind bis zu 4 verknüpfte Geräte möglich.
+> - Nutze für AuraGo eine eigene Nummer. WhatsApp verbietet automatisierte Nachrichten, und Konten können gesperrt werden.
+> - Kein Massenversand: Sende nie Massennachrichten oder Skripte für den Massenversand über das verknüpfte Gerät.
+
+#### YAML-Referenz
+```yaml
+whatsapp:
+    enabled: false
+    # dedicated: AuraGo hat eine eigene Nummer, der Besitzer schreibt an sie.
+    # self_chat: deine persönliche Nummer; nur der Chat mit dir selbst erreicht AuraGo.
+    mode: dedicated
+    owner_numbers: ["+491701234567"]  # internationales Format, z. B. "+491701234567"; im Modus dedicated erforderlich
+    readonly: false                    # true blockiert send_whatsapp und Benachrichtigungen; Antworten an den Besitzer funktionieren weiter
+    send_read_receipts: true           # nur im Modus dedicated
+    self_chat_prefix: "🤖 "            # kennzeichnet die Nachrichten von AuraGo im Modus self_chat
+```
+
+Schalte `enabled` ein, bevor du verknüpfst, denn die Vorlage liefert `false` aus. Im Modus `self_chat` werden die Besitzernummern nicht verwendet. Der Leitfaden erklärt das Selbst-Chat-Präfix, den Nur-Lesen-Modus und die Statuswerte.
 
 ### Discord Bot Setup
 
