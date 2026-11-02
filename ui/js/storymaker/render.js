@@ -1,0 +1,224 @@
+// Storymaker player: renderFrame(timeline, n, ctx, assets, opts). It draws one frame of the compiled timeline into a 2D
+// context of the output size: environment layers with parallax, back props, actors by depth, front props, shapes, texts;
+// code scenes come in as ImageBitmaps (assets.codeFrames) and during a transition the two scenes are drawn into two
+// canvases (assets.canvas) and composited. The result depends only on the arguments and on n. Classic script;
+// publishes StorymakerCore.render.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+
+    var FALLBACK_TEXT_STYLE = { font: 'default', size: 0.06, weight: 700, color: '$text', align: 'center', max_lines: 2 };
+    var SHADOW_ALPHA = 0.16;
+
+    function R() { return SM.rig; }
+    function scaleM(sx, sy) { return [sx, 0, 0, sy, 0, 0]; }
+    function setM(ctx, m) { ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]); }
+
+    function makeContext(timeline, assets, W, H) {
+        return {
+            W: W, H: H, aspect: timeline.aspect, fps: timeline.fps, palette: timeline.palette, cat: timeline.cat,
+            families: timeline.fontFamilies, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
+            assets: assets || {}, codeFrames: (assets && assets.codeFrames) || {}, codeErrors: (assets && assets.codeErrors) || {}
+        };
+    }
+
+    function stageFor(sc, rc) {
+        var key = rc.W + 'x' + rc.H;
+        if (!sc.stages) sc.stages = {};
+        if (!sc.stages[key]) sc.stages[key] = SM.stage.create({ aspect: rc.aspect, width: rc.W, height: rc.H, env: sc.env, safe: rc.safe });
+        return sc.stages[key];
+    }
+
+    function familyOf(rc, style) {
+        var name = !style.font || style.font === 'default' ? rc.styleFont : style.font;
+        return rc.families[name] || rc.families.default || 'sans-serif';
+    }
+
+    function drawBackdrop(ctx, rc) {
+        var g = ctx.createLinearGradient(0, 0, 0, rc.H);
+        g.addColorStop(0, rc.palette.bg);
+        g.addColorStop(1, rc.palette.bg2 || rc.palette.bg);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, rc.W, rc.H);
+    }
+
+    function drawEnvironment(ctx, sc, rc, win, bw, Mv) {
+        var env = sc.env && rc.assets.envs && rc.assets.envs[sc.env.file];
+        if (!env) return;
+        var tokens = env.tokens && (env.tokens[sc.variant] || env.tokens.day);
+        var resolve = SM.parts.makeResolver([tokens, rc.palette]);
+        var layers = (env.layers || []).map(function (l, k) { return { l: l, k: k }; })
+            .sort(function (a, b) { return (a.l.parallax || 0) - (b.l.parallax || 0) || a.k - b.k; });
+        for (var i = 0; i < layers.length; i++) {
+            var p = typeof layers[i].l.parallax === 'number' ? layers[i].l.parallax : 1;
+            var dx = (1 - p) * (win.x - bw.x), dy = (1 - p) * (win.y - bw.y);
+            setM(ctx, R().mul(Mv, R().translate(dx, dy)));
+            SM.parts.drawShapes(ctx, layers[i].l.shapes, resolve, 1);
+        }
+    }
+
+    function drawProp(ctx, st, rc, stage, Mv) {
+        var entry = rc.cat.byId[st.item], part = entry && rc.assets.props && rc.assets.props[entry.file];
+        if (!part) return;
+        var vb = part.viewbox || [0, 0, 100, 100], anchor = entry.anchor || { x: 0.5, y: 1 };
+        var depth = stage.depthScale(st.y, st.depth);
+        var k = (entry.size && entry.size.h > 0 ? entry.size.h : 0.15) * SM.stage.DESIGN_H * depth * st.scale / (vb[3] || 100);
+        var m = R().mul(Mv, R().mul(R().translate(st.x, st.y), R().mul(R().rotate(st.rot), R().mul(scaleM(k, k), R().translate(-(vb[0] + anchor.x * vb[2]), -(vb[1] + anchor.y * vb[3]))))));
+        setM(ctx, m);
+        SM.parts.drawPart(ctx, part, SM.parts.makeResolver([rc.palette]), st.alpha);
+    }
+
+    // rigState(st, t, rc, rig): the draw state of an actor from its logical state (pose blend, gesture, walk or idle cycle).
+    function rigState(st, t, rc, rig) {
+        var cat = rc.cat, rg = R();
+        var poseA = cat.poses[st.pose.a] || cat.poses.stand || { bones: {} };
+        var poseB = cat.poses[st.pose.b] || cat.poses.stand || { bones: {} };
+        var u = st.pose.u;
+        var bones = rg.lerpBones(poseA.bones, poseB.bones, u);
+        var seated = ((poseA.seated ? 1 - u : 0) + (poseB.seated ? u : 0));
+        var hands = u >= 0.5 ? poseB.hands : poseA.hands;
+        var walking = st.walkTime !== null && st.walkTime !== undefined;
+        var cyc = walking ? cat.cycles.walk : cat.cycles.idle;
+        var cd = cyc ? rg.sampleKeys(cyc.keys, rg.cyclePhase(cyc, walking ? st.walkTime : t + st.phase)) : { bones: {}, offset_y: 0 };
+        var gd = { bones: {}, offset_y: 0 }, gestureHands = null;
+        if (st.gesture) {
+            var ge = cat.gestures[st.gesture.name];
+            if (ge) {
+                gd = rg.sampleKeys(ge.keys, st.gesture.frac);
+                gestureHands = rg.handsAt(ge.keys, st.gesture.frac);
+            }
+        }
+        var handsOut = {};
+        if (hands) { if (hands.l) handsOut.l = hands.l; if (hands.r) handsOut.r = hands.r; }
+        if (gestureHands) { if (gestureHands.l) handsOut.l = gestureHands.l; if (gestureHands.r) handsOut.r = gestureHands.r; }
+        var view = walking ? 'profile' : (st.look === 'camera' ? 'front' : (poseB.view || 'three_quarter'));
+        var expr = cat.expressions[st.expression] || cat.expressions.neutral || {};
+        return {
+            view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
+            mouth: null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
+            offsetY: seated * rg.seatedOffset(rig) + (cd.offset_y || 0) + (gd.offset_y || 0)
+        };
+    }
+
+    function drawActor(ctx, st, t, rc, stage, Mv) {
+        var rig = rc.assets.rig;
+        if (!rig) return;
+        var body = R().bodyOf(rig, st.params.body), depth = stage.depthScale(st.y, st.depth);
+        var s = R().scaleFor(rig, SM.stage.DESIGN_H, depth, st.scale, body);
+        var anchorM = R().mul(Mv, R().translate(st.x, st.y));
+        // ground shadow
+        var rx = s * (rig.units_height || 400) * 0.17;
+        setM(ctx, anchorM);
+        ctx.globalAlpha = SHADOW_ALPHA * st.alpha;
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, rx * 0.22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        var m = R().mul(anchorM, scaleM(s * (st.facing < 0 ? -1 : 1), s));
+        var resolve = SM.parts.makeResolver([R().tokensFor(rig, st.params), rc.palette]);
+        R().drawActor(ctx, rig, st.params, rigState(st, t, rc, rig), m, resolve, st.alpha);
+    }
+
+    function drawShapeEntity(ctx, st, rc, Mv) {
+        var resolve = SM.parts.makeResolver([rc.palette]);
+        setM(ctx, R().mul(Mv, R().mul(R().translate(st.x, st.y), R().mul(R().rotate(st.rot), scaleM(st.scale, st.scale)))));
+        ctx.globalAlpha = st.alpha > 1 ? 1 : st.alpha;
+        if (st.kind === 'circle') {
+            ctx.fillStyle = resolve(st.color);
+            ctx.beginPath();
+            ctx.arc(0, 0, st.w, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (st.kind === 'line') {
+            ctx.strokeStyle = resolve(st.stroke || st.color);
+            ctx.lineWidth = st.h;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-st.w / 2, 0);
+            ctx.lineTo(st.w / 2, 0);
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = resolve(st.color);
+            ctx.fillRect(-st.w / 2, -st.h / 2, st.w, st.h);
+            if (st.stroke) { ctx.strokeStyle = resolve(st.stroke); ctx.lineWidth = 3; ctx.strokeRect(-st.w / 2, -st.h / 2, st.w, st.h); }
+        }
+    }
+
+    function drawText(ctx, st, rc, stage, bw) {
+        if (!(st.alpha > 0) || !st.text) return;
+        var style = rc.cat.textStyles[st.style] || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
+        var pos = stage.toCanvas(st.x, st.y, bw), align = style.align || 'center';
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        var lay = SM.text.layout(ctx, st.text, style, { canvasH: rc.H, maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, pos.x, align), family: familyOf(rc, style) });
+        SM.text.draw(ctx, lay, style, pos.x, pos.y, SM.parts.makeResolver([rc.palette]), st.alpha);
+    }
+
+    // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
+    function drawScene(ctx, sc, t, rc) {
+        var stage = stageFor(sc, rc);
+        var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
+        drawBackdrop(ctx, rc);
+        drawEnvironment(ctx, sc, rc, win, bw, Mv);
+        var states = sc.entities.map(function (e, k) { var s = SM.scene.evalEntity(e, t); s.k = k; return s; });
+        var live = function (s) { return s.alpha > 0; };
+        states.filter(function (s) { return s.type === 'prop' && s.layer === 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
+        states.filter(function (s) { return s.type === 'actor' && live(s); })
+            .sort(function (a, b) { return a.y - b.y || a.k - b.k; })
+            .forEach(function (s) { drawActor(ctx, s, t, rc, stage, Mv); });
+        states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
+        states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
+        states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw); });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+    }
+
+    function drawPlaceholder(ctx, sc, rc) {
+        drawBackdrop(ctx, rc);
+        var msg = (rc.codeErrors[sc.id]) || (sc.code && sc.code.error && sc.code.error.message) || 'Code scene';
+        var stage = stageFor(sc, rc), bw = stage.baseWindow();
+        drawText(ctx, { alpha: 1, text: 'Code scene "' + sc.id + '"', style: 'title', x: stage.focusX, y: 440 }, rc, stage, bw);
+        drawText(ctx, { alpha: 1, text: String(msg), style: 'caption', x: stage.focusX, y: 600 }, rc, stage, bw);
+    }
+
+    function drawLayer(ctx, timeline, layer, rc) {
+        var sc = timeline.scenes[layer.i];
+        if (sc.kind === 'code') {
+            var bmp = rc.codeFrames[sc.id];
+            if (bmp) {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.globalAlpha = 1;
+                ctx.drawImage(bmp, 0, 0, rc.W, rc.H);
+            } else drawPlaceholder(ctx, sc, rc);
+            return;
+        }
+        drawScene(ctx, sc, layer.f / timeline.fps, rc);
+    }
+
+    // renderFrame(timeline, n, ctx, assets, opts): assets = {rig, props: {file: json}, envs: {file: json}, codeFrames,
+    // codeErrors, canvas(name, w, h) -> {canvas, ctx}}; opts.width renders at another width (thumbnails).
+    function renderFrame(timeline, n, ctx, assets, opts) {
+        var W = opts && opts.width > 0 ? Math.round(opts.width) : timeline.width;
+        var H = opts && opts.width > 0 ? Math.round(opts.width * timeline.height / timeline.width) : timeline.height;
+        var rc = makeContext(timeline, assets, W, H);
+        var plan = SM.schedule.framePlan(timeline.schedule, n);
+        if (!plan.layers.length) {
+            drawBackdrop(ctx, rc);
+            return;
+        }
+        if (!plan.transition) {
+            drawLayer(ctx, timeline, plan.layers[0], rc);
+            return;
+        }
+        var prev = assets.canvas('prev', W, H), cur = assets.canvas('cur', W, H);
+        drawLayer(prev.ctx, timeline, plan.layers[0], rc);
+        drawLayer(cur.ctx, timeline, plan.layers[1], rc);
+        SM.transitions.composite(ctx, plan.transition.kind, plan.transition.p, W, H, prev.canvas, cur.canvas);
+    }
+
+    SM.render = {
+        renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
+        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor
+    };
+    SM.renderFrame = renderFrame;
+})(typeof globalThis !== 'undefined' ? globalThis : self);
