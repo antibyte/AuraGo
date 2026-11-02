@@ -244,6 +244,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Telnyx | `internal/telnyx/AGENTS.md` | Call/SMS transport/bounded provider-confirmed reconciliation. |
 | Desktop Tresor | `internal/tresor/AGENTS.md` | Browser-encrypted storage/revisions/backups/agent file protection. |
 | Agent tools | `internal/tools/AGENTS.md` | Filesystem Jail/Docker Inspect/Managed Space Agent/treg catalog gateway safety. |
+| Rust TUI | `tools/aurago-tui/AGENTS.md` | Terminal client HTTP/SSE timeouts, private session files and locked Rust verification. |
 | Updates | `internal/upkeep/AGENTS.md` | Transactions/artifact retention/maintenance CLI/cleanup safeguards. |
 | Release verification | `internal/releaseverify/AGENTS.md`, `internal/upkeep/AGENTS.md` | Offline signature checks, pinned automatic bootstrap and old-updater repair. |
 | Virtual Computers | `internal/virtualcomputers/AGENTS.md` | Workspace leases/managed Garage storage lifecycle. |

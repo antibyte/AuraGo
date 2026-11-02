@@ -276,10 +276,22 @@ pub async fn delete_media(client: &ApiClient, id: i64) -> Result<serde_json::Val
 // ── Session persistence ───────────────────────────────────────────────────────
 
 pub fn save_session_cookie(cookie: &str, path: &std::path::Path) -> Result<()> {
+    use std::io::Write;
+    #[cfg(unix)]
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, cookie)?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options.open(path)?;
+    #[cfg(unix)]
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    file.set_len(0)?;
+    file.write_all(cookie.as_bytes())?;
     Ok(())
 }
 
@@ -299,6 +311,34 @@ mod tests {
     use super::*;
     use crate::api::test_server::{self, Route};
     use reqwest::StatusCode;
+
+    #[test]
+    fn saved_sessions_are_private_and_existing_permissions_are_repaired() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("aurago-tui-session-{}-{nonce}", std::process::id()));
+        let path = dir.join("session.txt");
+        save_session_cookie("test-session-first", &path).unwrap();
+        assert_eq!(load_session_cookie(&path).as_deref(), Some("test-session-first"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        save_session_cookie("short", &path).unwrap();
+        assert_eq!(load_session_cookie(&path).as_deref(), Some("short"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        delete_session_cookie(&path).unwrap();
+        assert!(load_session_cookie(&path).is_none());
+        std::fs::remove_dir(dir).unwrap();
+    }
 
     #[test]
     fn remove_path_adds_the_confirmation_only_when_asked() {

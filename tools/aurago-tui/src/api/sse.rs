@@ -208,3 +208,64 @@ fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
         _ => SseEvent::Unknown(format!("unknown event type: {}", wrapper.event_type)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::ApiClient;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+
+    #[tokio::test]
+    async fn streaming_survives_thirty_seconds_while_regular_requests_expire() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut workers = Vec::new();
+            for connection in listener.incoming().take(2) {
+                let mut connection = connection.unwrap();
+                workers.push(std::thread::spawn(move || {
+                    connection.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                    let mut reader = BufReader::new(connection.try_clone().unwrap());
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    let streaming = line.starts_with("GET /events ");
+                    loop {
+                        line.clear();
+                        if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
+                            break;
+                        }
+                    }
+                    if streaming {
+                        connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\ndata: {\"type\":\"llm_stream_delta\",\"payload\":{\"content\":\"before\"}}\n\n").unwrap();
+                    }
+                    std::thread::sleep(Duration::from_secs(31));
+                    if streaming {
+                        let _ = connection.write_all(b"data: {\"type\":\"llm_stream_done\",\"payload\":{}}\n\n");
+                    } else {
+                        let _ = connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
+                    }
+                }));
+            }
+            for worker in workers {
+                worker.join().unwrap();
+            }
+        });
+        let client = ApiClient::new(&url, false).unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let stream_url = client.sse_url("/events");
+        let stream = connect_sse_once(&client.client, &stream_url, &url, None, &tx);
+        let request = client.request::<(), Value>(reqwest::Method::GET, "/slow", None);
+        let (connected, response) = tokio::time::timeout(Duration::from_secs(40), async {
+            tokio::join!(stream, request)
+        }).await.expect("local timeout regression server did not finish");
+        assert!(connected);
+        assert!(response.unwrap_err().downcast_ref::<reqwest::Error>().is_some_and(|err| err.is_timeout()));
+        let mut completed = false;
+        while let Ok(event) = rx.try_recv() {
+            completed |= matches!(event, SseEvent::DeltaDone);
+        }
+        assert!(completed, "the stream lost its event after the ordinary request deadline");
+        server.join().unwrap();
+    }
+}

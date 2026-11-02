@@ -21,7 +21,7 @@ impl ApiClient {
     pub fn new(base_url: &str, insecure: bool) -> Result<Self> {
         let mut builder = ClientBuilder::new()
             .cookie_store(false)
-            .timeout(Duration::from_secs(30));
+            .connect_timeout(Duration::from_secs(30));
         if insecure {
             builder = builder.danger_accept_invalid_certs(true);
         }
@@ -99,7 +99,7 @@ impl ApiClient {
         B: Serialize,
     {
         let url = format!("{}{}", self.base_url, path);
-        let mut req = self.client.request(method, &url);
+        let mut req = self.client.request(method, &url).timeout(Duration::from_secs(30));
         req = req.header("Origin", &self.base_url);
         if let Some(b) = body {
             req = req.json(b);
