@@ -117,9 +117,22 @@ jobs:
         run: node scripts/build-ui-bundles.js --check
 
   ui-browser:
-    name: UI browser tests
+    name: UI browser tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: General
+            run: '.'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$'
+          - name: Populated config
+            run: '^TestConfigRefreshPopulatedBrowser$'
+            skip: '^$'
+          - name: Config layout
+            run: '^TestConfigRefreshRealSectionsBrowser$'
+            skip: '^$'
     permissions:
       contents: read
     env:
@@ -154,7 +167,7 @@ jobs:
           "$browser" --version
           echo "CHROME_BIN=$browser" >> "$GITHUB_ENV"
       - name: Run UI browser tests
-        run: go test ./ui -p 1 -count=1 -timeout=30m
+        run: go test ./ui -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   go-race:
     name: Go race tests
