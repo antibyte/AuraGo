@@ -1,0 +1,14 @@
+{
+  "calc": "via_current",
+  "sets": [
+    {"values": {"d": 0.0003, "tp": 2.5e-05, "h": 0.0016, "dt": 10, "a": 2.552544031041707e-08, "rho": 1.724137931034483e-08, "r": 0.001080733831074939, "i": 0.951169582073519}, "ref": "hand (independent script): 0.3 mm hole, 25 um plating, 1.6 mm board, 10 K: A = pi * Tp * (D + Tp) = 2.55254e-08 m2 (39.5645 mil2); R = (1/58e6) * H / A = 0.00108073 ohm; I = 0.024 * dT^0.44 * A^0.725 = 0.024 * 2.75423 * 14.3895 = 0.95117 A"},
+    {"values": {"d": 0.0002, "tp": 2e-05, "h": 0.0008, "dt": 20, "a": 1.382300767579509e-08, "rho": 1.724137931034483e-08, "r": 0.0009978366338049864, "i": 0.8271654744637098}, "ref": "hand (independent script): 0.2 mm hole, 20 um plating, 0.8 mm board, 20 K: A = pi * Tp * (D + Tp) = 1.3823e-08 m2 (21.4257 mil2); R = (1/58e6) * H / A = 0.000997837 ohm; I = 0.024 * dT^0.44 * A^0.725 = 0.024 * 3.7364 * 9.22418 = 0.827165 A"},
+    {"values": {"d": 0.0005, "tp": 3.5e-05, "h": 0.0024, "dt": 30, "a": 5.882632243846888e-08, "rho": 1.724137931034483e-08, "r": 0.0007034148767009784, "i": 2.8253690699121723}, "ref": "hand (independent script): 0.5 mm hole, 35 um plating, 2.4 mm board, 30 K: A = pi * Tp * (D + Tp) = 5.88263e-08 m2 (91.181 mil2); R = (1/58e6) * H / A = 0.000703415 ohm; I = 0.024 * dT^0.44 * A^0.725 = 0.024 * 4.46615 * 26.3591 = 2.82537 A"}
+  ],
+  "solve": [
+    {"inputs": {"d": 0.0003, "tp": 2.5e-05, "h": 0.0016, "dt": 10}, "expect": {"a": 2.552544031041707e-08, "r": 0.001080733831074939, "i": 0.951169582073519}, "ref": "hand (independent script): the defaults, A = 0.0255254 mm2, R = 1.08073 mohm, I = 0.95117 A"},
+    {"inputs": {"d": 0.0003, "tp": 2.5e-05, "h": 0.0032, "dt": 10}, "expect": {"r": 0.002161467662149878, "i": 0.951169582073519}, "ref": "hand: a board twice as thick doubles the barrel length and so the resistance (2 * 0.00108073 ohm); the area and the current stay the same"},
+    {"inputs": {"d": 0.0003, "tp": 2.5e-05, "h": 0.0016, "dt": 120}, "expect": {"i": 2.838557536084198}, "warnings": [0], "ref": "hand (independent script): I = 0.024 * 120^0.44 * 39.5645^0.725 = 2.83856 A; 120 K is above the 100 K range of the curves, the check fires"},
+    {"inputs": {"d": 0.0003, "tp": 2.5e-05, "dt": 10}, "expect": {"a": 2.552544031041707e-08}, "errors": {"h": "undetermined"}, "ref": "the board thickness is missing; the cross-section needs only D and Tp"}
+  ]
+}

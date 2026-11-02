@@ -11910,6 +11910,861 @@
           "vavg"
         ]
       ]
+    },
+    {
+      "kind": "calculator",
+      "id": "ipc2221_trace_width",
+      "category": "wiring",
+      "name": "PCB trace width (IPC-2221)",
+      "name_en": "PCB trace width (IPC-2221)",
+      "doc": "Current-carrying capacity of a printed-circuit trace after the IPC-2221 equation I = k × ΔT^0.44 × A^0.725, with the current I in A, the temperature rise ΔT in °C and the copper cross-section A in mil² (1 mil = 25.4 µm). The constant k is 0.048 for traces on external layers and 0.024 for internal layers. The cross-section is the copper thickness times the trace width; 1 oz copper is a layer of about 35 µm. The defaults (2 A, 10 °C rise, 1 oz, external) need a trace about 0.78 mm (31 mil) wide. The IPC-2221 curves cover temperature rises of about 10 °C to 100 °C and currents up to about 35 A. The result is a guide value for a single trace: neighbouring copper, vias and the board thickness change the real temperature rise, and the newer IPC-2152 gives more detailed data for critical designs.",
+      "tags": [
+        "ipc-2221",
+        "trace width",
+        "pcb",
+        "current capacity",
+        "temperature rise",
+        "copper",
+        "oz",
+        "mil",
+        "leiterbahnbreite",
+        "leiterbahn",
+        "strombelastbarkeit",
+        "leiterplatte",
+        "kupferdicke",
+        "temperaturanstieg"
+      ],
+      "source": "IPC-2221 (generic standard on printed board design), current-carrying capacity equation I = k × ΔT^0.44 × A^0.725 with k = 0.048 (external) and k = 0.024 (internal layers); see also IPC-2152",
+      "vars": [
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Current",
+          "default": 2,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dt",
+          "dim": "tempdiff",
+          "label": "ΔT",
+          "name": "Temperature rise",
+          "default": 10,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "length",
+          "label": "T",
+          "name": "Copper thickness",
+          "default": 0.000035,
+          "default_list": null,
+          "unit": "oz",
+          "units": [
+            "oz",
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "w",
+          "dim": "length",
+          "label": "W",
+          "name": "Trace width",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "layer",
+          "name": "Layer",
+          "default": "external",
+          "options": [
+            {
+              "id": "external",
+              "name": "External",
+              "consts": {
+                "k": 0.048
+              },
+              "ignore": []
+            },
+            {
+              "id": "internal",
+              "name": "Internal",
+              "consts": {
+                "k": 0.024
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "i",
+          "alts": [
+            "k*dt^0.44*(a/6.4516e-10)^0.725"
+          ]
+        },
+        {
+          "target": "w",
+          "alts": [
+            "6.4516e-10*(i/(k*dt^0.44))^(1/0.725)/t"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "6.4516e-10*(i/(k*dt^0.44))^(1/0.725)/w"
+          ]
+        },
+        {
+          "target": "dt",
+          "alts": [
+            "(i/(k*(a/6.4516e-10)^0.725))^(1/0.44)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "a",
+          "dim": "area",
+          "label": "A",
+          "name": "Copper cross-section",
+          "alts": [
+            "t*w"
+          ],
+          "unit": "mil2",
+          "units": [
+            "mil2",
+            "mm2"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "i > 35",
+          "warn": "The current is above the range of the IPC-2221 curves (about 35 A); the result is an extrapolation."
+        },
+        {
+          "when": "dt > 100",
+          "warn": "The temperature rise is above the range of the IPC-2221 curves (about 100 °C); the result is an extrapolation."
+        }
+      ],
+      "formula": [
+        "i = k * dt^0.44 * a^0.725",
+        "a = t * w"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "i",
+          "dt",
+          "t"
+        ],
+        [
+          "i",
+          "dt",
+          "w"
+        ],
+        [
+          "i",
+          "t",
+          "w"
+        ],
+        [
+          "dt",
+          "t",
+          "w"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "trace_resistance",
+      "category": "wiring",
+      "name": "PCB trace resistance",
+      "name_en": "PCB trace resistance",
+      "doc": "Resistance of a copper trace: R = ρ × L / (W × T), with the resistivity at the trace temperature ρ = ρ_20 × (1 + α × (θ − 20 °C)). For copper ρ_20 = 1/58 Ω·mm²/m (17.24 nΩ·m) and α = 0.00393 /K (annealed copper, IEC 60028). The voltage drop is R × I and the dissipated power R × I². The sheet resistance R_sq = ρ / T is the resistance of a square of any size. The defaults (0.25 mm wide, 35 µm thick, 50 mm long, 25 °C, 1 A) give about 0.1 Ω, so 0.1 V and 0.1 W. Enter the temperature of the trace, not of the room: at the temperature rise of a heavily loaded trace the resistance is noticeably higher.",
+      "tags": [
+        "trace resistance",
+        "pcb",
+        "copper",
+        "resistance",
+        "sheet resistance",
+        "voltage drop",
+        "leiterbahn",
+        "leiterbahnwiderstand",
+        "kupfer",
+        "widerstand",
+        "flächenwiderstand",
+        "spannungsfall"
+      ],
+      "source": "Resistance of a prismatic conductor R = ρ × L / A; annealed copper ρ_20 = 1/58 Ω·mm²/m and α = 0.00393 /K per IEC 60028; resistivity at temperature ρ = ρ_20 × (1 + α × (θ − 20 °C))",
+      "vars": [
+        {
+          "id": "w",
+          "dim": "length",
+          "label": "W",
+          "name": "Trace width",
+          "default": 0.00025,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "length",
+          "label": "T",
+          "name": "Copper thickness",
+          "default": 0.000035,
+          "default_list": null,
+          "unit": "oz",
+          "units": [
+            "oz",
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "length",
+          "label": "L",
+          "name": "Trace length",
+          "default": 0.05,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "temp",
+          "dim": "temperature",
+          "label": "θ",
+          "name": "Trace temperature",
+          "default": 298.15,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Current",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Trace resistance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "v",
+          "dim": "voltage",
+          "label": "ΔU",
+          "name": "Voltage drop",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Power dissipated",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 5,
+      "rules": [
+        {
+          "target": "r",
+          "alts": [
+            "rho_t*l/(w*t)",
+            "v/i",
+            "p/i^2",
+            "v^2/p"
+          ]
+        },
+        {
+          "target": "v",
+          "alts": [
+            "r*i",
+            "p/i",
+            "sqrt(p*r)"
+          ]
+        },
+        {
+          "target": "p",
+          "alts": [
+            "r*i^2",
+            "v*i",
+            "v^2/r"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "v/r",
+            "p/v",
+            "sqrt(p/r)"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "r*w*t/rho_t"
+          ]
+        },
+        {
+          "target": "w",
+          "alts": [
+            "rho_t*l/(r*t)"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "rho_t*l/(r*w)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rho_t",
+          "dim": "resistivity",
+          "label": "ρ_θ",
+          "name": "Resistivity at the trace temperature",
+          "alts": [
+            "1.7241379310344827e-8*(1+0.00393*(temp-293.15))"
+          ],
+          "unit": "ohmmm2m",
+          "units": [
+            "",
+            "ohmmm2m"
+          ]
+        },
+        {
+          "id": "rsq",
+          "dim": "resistance",
+          "label": "R_sq",
+          "name": "Sheet resistance (per square)",
+          "alts": [
+            "rho_t/t"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "r = rho_t * l / (w * t)",
+        "v = r * i",
+        "p = r * i^2"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "w",
+          "t",
+          "l",
+          "temp",
+          "i"
+        ],
+        [
+          "w",
+          "t",
+          "l",
+          "temp",
+          "v"
+        ],
+        [
+          "w",
+          "t",
+          "l",
+          "temp",
+          "p"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "i",
+          "r"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "i",
+          "v"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "i",
+          "p"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "r",
+          "v"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "r",
+          "p"
+        ],
+        [
+          "w",
+          "t",
+          "temp",
+          "v",
+          "p"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "i",
+          "r"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "i",
+          "v"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "i",
+          "p"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "r",
+          "v"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "r",
+          "p"
+        ],
+        [
+          "w",
+          "l",
+          "temp",
+          "v",
+          "p"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "i",
+          "r"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "i",
+          "v"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "i",
+          "p"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "r",
+          "v"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "r",
+          "p"
+        ],
+        [
+          "t",
+          "l",
+          "temp",
+          "v",
+          "p"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "via_current",
+      "category": "wiring",
+      "name": "Via current capacity",
+      "name_en": "Via current capacity",
+      "doc": "Estimate for a plated through-hole via. The copper barrel is a tube of length H (the board thickness) with the finished hole diameter D and the plating thickness T_p, so its copper cross-section is A = π × T_p × (D + T_p) and its resistance at 20 °C is R = ρ × H / A with ρ = 1/58 Ω·mm²/m (IEC 60028). The IPC-2221 equation is written for traces; applying it to a via barrel is a common engineering approximation, not a rule of the standard. Here the barrel cross-section is used with the constant for internal layers: I = 0.024 × ΔT^0.44 × A^0.725 (A in mil²), which is the lower of the two IPC-2221 constants. Several vias in parallel share the current. The defaults (0.3 mm finished hole, 25 µm plating, 1.6 mm board, 10 °C rise) give A = 0.0255 mm², R = 1.08 mΩ and I = 0.95 A.",
+      "tags": [
+        "via",
+        "plated through hole",
+        "pcb",
+        "current capacity",
+        "barrel",
+        "resistance",
+        "durchkontaktierung",
+        "via",
+        "strombelastbarkeit",
+        "hülse",
+        "widerstand",
+        "leiterplatte"
+      ],
+      "source": "Tube cross-section A = π × T_p × (D + T_p) and R = ρ × H / A with ρ = 1/58 Ω·mm²/m (IEC 60028); current from the IPC-2221 equation I = k × ΔT^0.44 × A^0.725 with the internal-layer constant k = 0.024 applied to the barrel as an approximation",
+      "vars": [
+        {
+          "id": "d",
+          "dim": "length",
+          "label": "D",
+          "name": "Finished hole diameter",
+          "default": 0.0003,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "tp",
+          "dim": "length",
+          "label": "T_p",
+          "name": "Plating thickness",
+          "default": 0.000024999999999999998,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil",
+            "oz"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "h",
+          "dim": "length",
+          "label": "H",
+          "name": "Board thickness",
+          "default": 0.0016,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dt",
+          "dim": "tempdiff",
+          "label": "ΔT",
+          "name": "Temperature rise",
+          "default": 10,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [],
+      "derived": [
+        {
+          "id": "a",
+          "dim": "area",
+          "label": "A",
+          "name": "Copper cross-section of the barrel",
+          "alts": [
+            "pi*tp*(d+tp)"
+          ],
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "mil2"
+          ]
+        },
+        {
+          "id": "rho",
+          "dim": "resistivity",
+          "label": "ρ_20",
+          "name": "Resistivity of copper at 20 °C",
+          "alts": [
+            "1.7241379310344827e-8"
+          ],
+          "unit": "ohmmm2m",
+          "units": [
+            "",
+            "ohmmm2m"
+          ]
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Barrel resistance",
+          "alts": [
+            "rho*h/a"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Current for the temperature rise (IPC-2221, internal)",
+          "alts": [
+            "0.024*dt^0.44*(a/6.4516e-10)^0.725"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "dt > 100",
+          "warn": "The temperature rise is above the range of the IPC-2221 curves (about 100 °C); the result is an extrapolation."
+        }
+      ],
+      "formula": [
+        "a = pi * tp * (d + tp)",
+        "r = rho * h / a",
+        "i = 0.024 * dt^0.44 * a^0.725"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "d",
+          "tp",
+          "h",
+          "dt"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "awg_conversion",
+      "category": "wiring",
+      "name": "AWG wire size conversion",
+      "name_en": "AWG wire size conversion",
+      "doc": "American Wire Gauge: the diameter of the gauge n is d = 0.005 in × 92^((36 − n) / 39) (ASTM B258), a factor of about 1.123 per gauge step and about 2 for every 6 steps. The cross-section is A = π / 4 × d². Enter the diameter in AWG, mm, mil or inch, or the cross-section in AWG, mm², kcmil or mil²; a circular mil is the area of a circle 1 mil in diameter, so 1 kcmil = 0.5067 mm². The gauges 0000, 000 and 00 are −3, −2 and −1. The default AWG 10 is 2.588 mm in diameter and 5.261 mm² (ASTM B258 lists 2.588 mm). The resistance of 1 km is for annealed copper at 20 °C (1/58 Ω·mm²/m).",
+      "tags": [
+        "awg",
+        "wire gauge",
+        "wire size",
+        "diameter",
+        "cross-section",
+        "kcmil",
+        "circular mil",
+        "mm2",
+        "drahtstärke",
+        "drahtdurchmesser",
+        "querschnitt",
+        "leitungsquerschnitt",
+        "umrechnung"
+      ],
+      "source": "ASTM B258 (standard nominal diameters and cross-sectional areas of AWG sizes of solid round wires): d = 0.005 in × 92^((36 − n) / 39); 1 circular mil = π / 4 mil²; copper resistivity 1/58 Ω·mm²/m (IEC 60028)",
+      "vars": [
+        {
+          "id": "d",
+          "dim": "length",
+          "label": "d",
+          "name": "Wire diameter",
+          "default": 0.0025881867280128632,
+          "default_list": null,
+          "unit": "AWG",
+          "units": [
+            "",
+            "mil",
+            "in",
+            "AWG"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "a",
+          "dim": "area",
+          "label": "A",
+          "name": "Cross-section",
+          "default": null,
+          "default_list": null,
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "AWG",
+            "kcmil",
+            "mil2"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [
+        {
+          "target": "a",
+          "alts": [
+            "pi/4*d^2"
+          ]
+        },
+        {
+          "target": "d",
+          "alts": [
+            "sqrt(4*a/pi)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rkm",
+          "dim": "resistance",
+          "label": "R_km",
+          "name": "Copper resistance of 1 km at 20 °C",
+          "alts": [
+            "1.7241379310344827e-8*1000/a"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "a = pi / 4 * d^2"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "d"
+        ],
+        [
+          "a"
+        ]
+      ]
     }
   ]
 }

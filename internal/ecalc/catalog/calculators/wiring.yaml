@@ -1,0 +1,117 @@
+# Wiring and PCB calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in
+# English and German (other languages fall back to English). Rules are written out for every direction, in the order the
+# solver tries them: the first alternative whose variables are all known wins.
+
+- id: ipc2221_trace_width
+  kind: calculator
+  category: wiring
+  name: {cs: "Šířka cesty na DPS (IPC-2221)", da: "Ledningsbredde på PCB (IPC-2221)", de: "Leiterbahnbreite (IPC-2221)", el: "Πλάτος αγωγού PCB (IPC-2221)", en: "PCB trace width (IPC-2221)", es: "Ancho de pista de PCB (IPC-2221)", fr: "Largeur de piste de circuit imprimé (IPC-2221)", hi: "PCB ट्रेस चौड़ाई (IPC-2221)", it: "Larghezza della pista PCB (IPC-2221)", ja: "基板パターン幅（IPC-2221）", nl: "Printbaanbreedte (IPC-2221)", no: "Sporbredde på kretskort (IPC-2221)", pl: "Szerokość ścieżki PCB (IPC-2221)", pt: "Largura da trilha de PCB (IPC-2221)", sv: "Ledarbredd på kretskort (IPC-2221)", zh: "PCB 走线宽度（IPC-2221）"}
+  doc:
+    en: "Current-carrying capacity of a printed-circuit trace after the IPC-2221 equation I = k × ΔT^0.44 × A^0.725, with the current I in A, the temperature rise ΔT in °C and the copper cross-section A in mil² (1 mil = 25.4 µm). The constant k is 0.048 for traces on external layers and 0.024 for internal layers. The cross-section is the copper thickness times the trace width; 1 oz copper is a layer of about 35 µm. The defaults (2 A, 10 °C rise, 1 oz, external) need a trace about 0.78 mm (31 mil) wide. The IPC-2221 curves cover temperature rises of about 10 °C to 100 °C and currents up to about 35 A. The result is a guide value for a single trace: neighbouring copper, vias and the board thickness change the real temperature rise, and the newer IPC-2152 gives more detailed data for critical designs."
+    de: "Strombelastbarkeit einer Leiterbahn nach der IPC-2221-Gleichung I = k · ΔT^0,44 · A^0,725; der Strom I in A, der Temperaturanstieg ΔT in °C und der Kupferquerschnitt A in mil² (1 mil = 25,4 µm). Die Konstante k ist 0,048 für Leiterbahnen auf Außenlagen und 0,024 für Innenlagen. Der Querschnitt ist Kupferdicke mal Leiterbahnbreite; 1 oz Kupfer ist eine Schicht von etwa 35 µm. Die Vorgaben (2 A, 10 °C Anstieg, 1 oz, außen) erfordern eine Leiterbahn von etwa 0,78 mm (31 mil) Breite. Die IPC-2221-Kurven decken Temperaturanstiege von etwa 10 °C bis 100 °C und Ströme bis etwa 35 A ab. Das Ergebnis ist ein Richtwert für eine einzelne Leiterbahn: Benachbartes Kupfer, Vias und die Leiterplattendicke verändern den tatsächlichen Temperaturanstieg, und die neuere IPC-2152 liefert für kritische Entwürfe genauere Daten."
+  tags: [ipc-2221, trace width, pcb, current capacity, temperature rise, copper, oz, mil, leiterbahnbreite, leiterbahn, strombelastbarkeit, leiterplatte, kupferdicke, temperaturanstieg]
+  source: "IPC-2221 (generic standard on printed board design), current-carrying capacity equation I = k × ΔT^0.44 × A^0.725 with k = 0.048 (external) and k = 0.024 (internal layers); see also IPC-2152"
+  vars:
+    i: {dim: current, label: I, name: {en: "Current", de: "Strom"}, default: "2 A"}
+    dt: {dim: tempdiff, label: ΔT, name: {en: "Temperature rise", de: "Temperaturanstieg"}, default: 10, unit: degC, units: [degC, degF, ""]}
+    t: {dim: length, label: T, name: {en: "Copper thickness", de: "Kupferdicke"}, default: "1 oz", unit: oz, units: [oz, "", mil]}
+    w: {dim: length, label: W, name: {en: "Trace width", de: "Leiterbahnbreite"}, units: ["", mil]}
+  choices:
+    layer:
+      name: {cs: "Vrstva", da: "Lag", de: "Lage", el: "Στρώμα", en: "Layer", es: "Capa", fr: "Couche", hi: "परत", it: "Strato", ja: "層", nl: "Laag", no: "Lag", pl: "Warstwa", pt: "Camada", sv: "Lager", zh: "层"}
+      default: external
+      options:
+        external:
+          name: {cs: "Vnější", da: "Yderlag", de: "Außenlage", el: "Εξωτερικό", en: "External", es: "Externa", fr: "Externe", hi: "बाहरी", it: "Esterno", ja: "外層", nl: "Buitenlaag", no: "Ytre lag", pl: "Zewnętrzna", pt: "Externa", sv: "Yttre lager", zh: "外层"}
+          consts: {k: 0.048}
+        internal:
+          name: {cs: "Vnitřní", da: "Indre lag", de: "Innenlage", el: "Εσωτερικό", en: "Internal", es: "Interna", fr: "Interne", hi: "आंतरिक", it: "Interno", ja: "内層", nl: "Binnenlaag", no: "Indre lag", pl: "Wewnętrzna", pt: "Interna", sv: "Inre lager", zh: "内层"}
+          consts: {k: 0.024}
+  dof: 3
+  rules:
+    i: ["k*dt^0.44*(a/6.4516e-10)^0.725"]
+    w: ["6.4516e-10*(i/(k*dt^0.44))^(1/0.725)/t"]
+    t: ["6.4516e-10*(i/(k*dt^0.44))^(1/0.725)/w"]
+    dt: ["(i/(k*(a/6.4516e-10)^0.725))^(1/0.44)"]
+  derived:
+    a: {dim: area, label: A, name: {en: "Copper cross-section", de: "Kupferquerschnitt"}, expr: "t*w", unit: mil2, units: [mil2, mm2]}
+  checks:
+    - {when: "i > 35", warn: {en: "The current is above the range of the IPC-2221 curves (about 35 A); the result is an extrapolation.", de: "Der Strom liegt über dem Bereich der IPC-2221-Kurven (etwa 35 A); das Ergebnis ist eine Extrapolation."}}
+    - {when: "dt > 100", warn: {en: "The temperature rise is above the range of the IPC-2221 curves (about 100 °C); the result is an extrapolation.", de: "Der Temperaturanstieg liegt über dem Bereich der IPC-2221-Kurven (etwa 100 °C); das Ergebnis ist eine Extrapolation."}}
+  formula: ["i = k * dt^0.44 * a^0.725", "a = t * w"]
+
+- id: trace_resistance
+  kind: calculator
+  category: wiring
+  name: {cs: "Odpor cesty na DPS", da: "PCB-sporets modstand", de: "Leiterbahnwiderstand", el: "Αντίσταση αγωγού PCB", en: "PCB trace resistance", es: "Resistencia de pista de PCB", fr: "Résistance d'une piste de circuit imprimé", hi: "PCB ट्रेस प्रतिरोध", it: "Resistenza della pista PCB", ja: "基板パターンの抵抗", nl: "Weerstand van een printbaan", no: "Sporresistans på kretskort", pl: "Rezystancja ścieżki PCB", pt: "Resistência da trilha de PCB", sv: "Ledarresistans på kretskort", zh: "PCB 走线电阻"}
+  doc:
+    en: "Resistance of a copper trace: R = ρ × L / (W × T), with the resistivity at the trace temperature ρ = ρ_20 × (1 + α × (θ − 20 °C)). For copper ρ_20 = 1/58 Ω·mm²/m (17.24 nΩ·m) and α = 0.00393 /K (annealed copper, IEC 60028). The voltage drop is R × I and the dissipated power R × I². The sheet resistance R_sq = ρ / T is the resistance of a square of any size. The defaults (0.25 mm wide, 35 µm thick, 50 mm long, 25 °C, 1 A) give about 0.1 Ω, so 0.1 V and 0.1 W. Enter the temperature of the trace, not of the room: at the temperature rise of a heavily loaded trace the resistance is noticeably higher."
+    de: "Widerstand einer Kupfer-Leiterbahn: R = ρ · L / (W · T), mit dem spezifischen Widerstand bei Leiterbahntemperatur ρ = ρ_20 · (1 + α · (θ − 20 °C)). Für Kupfer gilt ρ_20 = 1/58 Ω·mm²/m (17,24 nΩ·m) und α = 0,00393 /K (weichgeglühtes Kupfer, IEC 60028). Der Spannungsfall ist R · I und die Verlustleistung R · I². Der Flächenwiderstand R_sq = ρ / T ist der Widerstand eines Quadrats beliebiger Größe. Die Vorgaben (0,25 mm breit, 35 µm dick, 50 mm lang, 25 °C, 1 A) ergeben etwa 0,1 Ω, also 0,1 V und 0,1 W. Die Temperatur der Leiterbahn eingeben, nicht die des Raums: Bei der Erwärmung einer stark belasteten Leiterbahn ist der Widerstand merklich höher."
+  tags: [trace resistance, pcb, copper, resistance, sheet resistance, voltage drop, leiterbahn, leiterbahnwiderstand, kupfer, widerstand, flächenwiderstand, spannungsfall]
+  source: "Resistance of a prismatic conductor R = ρ × L / A; annealed copper ρ_20 = 1/58 Ω·mm²/m and α = 0.00393 /K per IEC 60028; resistivity at temperature ρ = ρ_20 × (1 + α × (θ − 20 °C))"
+  vars:
+    w: {dim: length, label: W, name: {en: "Trace width", de: "Leiterbahnbreite"}, default: "0.25 mm", units: ["", mil]}
+    t: {dim: length, label: T, name: {en: "Copper thickness", de: "Kupferdicke"}, default: "1 oz", unit: oz, units: [oz, "", mil]}
+    l: {dim: length, label: L, name: {en: "Trace length", de: "Leiterbahnlänge"}, default: "50 mm", units: ["", mil, in]}
+    temp: {dim: temperature, label: θ, name: {en: "Trace temperature", de: "Leiterbahntemperatur"}, default: "25", unit: degC, units: [degC, degF, ""]}
+    i: {dim: current, label: I, name: {en: "Current", de: "Strom"}, default: "1 A"}
+    r: {dim: resistance, label: R, name: {en: "Trace resistance", de: "Leiterbahnwiderstand"}}
+    v: {dim: voltage, label: ΔU, name: {en: "Voltage drop", de: "Spannungsfall"}}
+    p: {dim: power, label: P, name: {en: "Power dissipated", de: "Verlustleistung"}}
+  dof: 5
+  rules:
+    r: ["rho_t*l/(w*t)", "v/i", "p/i^2", "v^2/p"]
+    v: ["r*i", "p/i", "sqrt(p*r)"]
+    p: ["r*i^2", "v*i", "v^2/r"]
+    i: ["v/r", "p/v", "sqrt(p/r)"]
+    l: ["r*w*t/rho_t"]
+    w: ["rho_t*l/(r*t)"]
+    t: ["rho_t*l/(r*w)"]
+  derived:
+    rho_t: {dim: resistivity, label: ρ_θ, name: {en: "Resistivity at the trace temperature", de: "Spezifischer Widerstand bei Leiterbahntemperatur"}, expr: "1.7241379310344827e-8*(1+0.00393*(temp-293.15))", unit: ohmmm2m, units: ["", ohmmm2m]}
+    rsq: {dim: resistance, label: R_sq, name: {en: "Sheet resistance (per square)", de: "Flächenwiderstand (pro Quadrat)"}, expr: "rho_t/t"}
+  formula: ["r = rho_t * l / (w * t)", "v = r * i", "p = r * i^2"]
+
+- id: via_current
+  kind: calculator
+  category: wiring
+  name: {cs: "Proudová zatížitelnost prokovu", da: "Via – strømbelastning", de: "Strombelastbarkeit einer Durchkontaktierung", el: "Ικανότητα ρεύματος οπής διέλευσης (via)", en: "Via current capacity", es: "Capacidad de corriente de una vía", fr: "Courant admissible d'un via", hi: "वाया की धारा क्षमता", it: "Portata di corrente di un via", ja: "ビアの電流容量", nl: "Stroomdraagvermogen van een via", no: "Strømkapasitet for via", pl: "Obciążalność prądowa przelotki", pt: "Capacidade de corrente de uma via", sv: "Strömkapacitet för via", zh: "过孔载流能力"}
+  doc:
+    en: "Estimate for a plated through-hole via. The copper barrel is a tube of length H (the board thickness) with the finished hole diameter D and the plating thickness T_p, so its copper cross-section is A = π × T_p × (D + T_p) and its resistance at 20 °C is R = ρ × H / A with ρ = 1/58 Ω·mm²/m (IEC 60028). The IPC-2221 equation is written for traces; applying it to a via barrel is a common engineering approximation, not a rule of the standard. Here the barrel cross-section is used with the constant for internal layers: I = 0.024 × ΔT^0.44 × A^0.725 (A in mil²), which is the lower of the two IPC-2221 constants. Several vias in parallel share the current. The defaults (0.3 mm finished hole, 25 µm plating, 1.6 mm board, 10 °C rise) give A = 0.0255 mm², R = 1.08 mΩ and I = 0.95 A."
+    de: "Abschätzung für eine durchkontaktierte Via. Die Kupferhülse ist ein Rohr der Länge H (Leiterplattendicke) mit dem Fertigloch-Durchmesser D und der Hülsendicke T_p; ihr Kupferquerschnitt ist A = π · T_p · (D + T_p) und ihr Widerstand bei 20 °C R = ρ · H / A mit ρ = 1/58 Ω·mm²/m (IEC 60028). Die IPC-2221-Gleichung ist für Leiterbahnen geschrieben; sie auf eine Via-Hülse anzuwenden ist eine übliche technische Näherung, keine Regel der Norm. Hier wird der Hülsenquerschnitt mit der Konstanten für Innenlagen verwendet: I = 0,024 · ΔT^0,44 · A^0,725 (A in mil²), der kleineren der beiden IPC-2221-Konstanten. Mehrere parallele Vias teilen sich den Strom. Die Vorgaben (0,3 mm Fertigloch, 25 µm Hülse, 1,6 mm Leiterplatte, 10 °C Anstieg) ergeben A = 0,0255 mm², R = 1,08 mΩ und I = 0,95 A."
+  tags: [via, plated through hole, pcb, current capacity, barrel, resistance, durchkontaktierung, via, strombelastbarkeit, hülse, widerstand, leiterplatte]
+  source: "Tube cross-section A = π × T_p × (D + T_p) and R = ρ × H / A with ρ = 1/58 Ω·mm²/m (IEC 60028); current from the IPC-2221 equation I = k × ΔT^0.44 × A^0.725 with the internal-layer constant k = 0.024 applied to the barrel as an approximation"
+  vars:
+    d: {dim: length, label: D, name: {en: "Finished hole diameter", de: "Fertigloch-Durchmesser"}, default: "0.3 mm", units: ["", mil]}
+    tp: {dim: length, label: T_p, name: {en: "Plating thickness", de: "Hülsendicke (Kupfer)"}, default: "25 µm", units: ["", mil, oz]}
+    h: {dim: length, label: H, name: {en: "Board thickness", de: "Leiterplattendicke"}, default: "1.6 mm", units: ["", mil]}
+    dt: {dim: tempdiff, label: ΔT, name: {en: "Temperature rise", de: "Temperaturanstieg"}, default: 10, unit: degC, units: [degC, degF, ""]}
+  dof: 4
+  derived:
+    a: {dim: area, label: A, name: {en: "Copper cross-section of the barrel", de: "Kupferquerschnitt der Hülse"}, expr: "pi*tp*(d+tp)", unit: mm2, units: [mm2, mil2]}
+    rho: {dim: resistivity, label: ρ_20, name: {en: "Resistivity of copper at 20 °C", de: "Spezifischer Widerstand von Kupfer bei 20 °C"}, expr: "1.7241379310344827e-8", unit: ohmmm2m, units: ["", ohmmm2m]}
+    r: {dim: resistance, label: R, name: {en: "Barrel resistance", de: "Hülsenwiderstand"}, expr: "rho*h/a"}
+    i: {dim: current, label: I, name: {en: "Current for the temperature rise (IPC-2221, internal)", de: "Strom beim Temperaturanstieg (IPC-2221, innen)"}, expr: "0.024*dt^0.44*(a/6.4516e-10)^0.725"}
+  checks:
+    - {when: "dt > 100", warn: {en: "The temperature rise is above the range of the IPC-2221 curves (about 100 °C); the result is an extrapolation.", de: "Der Temperaturanstieg liegt über dem Bereich der IPC-2221-Kurven (etwa 100 °C); das Ergebnis ist eine Extrapolation."}}
+  formula: ["a = pi * tp * (d + tp)", "r = rho * h / a", "i = 0.024 * dt^0.44 * a^0.725"]
+
+- id: awg_conversion
+  kind: calculator
+  category: wiring
+  name: {cs: "Převod AWG (průměr a průřez vodiče)", da: "AWG-omregning (tråddiameter og tværsnit)", de: "AWG-Umrechnung (Drahtdurchmesser und Querschnitt)", el: "Μετατροπή AWG (διάμετρος και διατομή αγωγού)", en: "AWG wire size conversion", es: "Conversión AWG (diámetro y sección del conductor)", fr: "Conversion AWG (diamètre et section du fil)", hi: "AWG तार आकार रूपांतरण", it: "Conversione AWG (diametro e sezione del filo)", ja: "AWG変換（線径と断面積）", nl: "AWG-omrekening (draaddiameter en doorsnede)", no: "AWG-omregning (trådtykkelse og tverrsnitt)", pl: "Przeliczanie AWG (średnica i przekrój przewodu)", pt: "Conversão AWG (diâmetro e secção do fio)", sv: "AWG-omräkning (tråddiameter och area)", zh: "AWG 线规换算（线径与截面积）"}
+  doc:
+    en: "American Wire Gauge: the diameter of the gauge n is d = 0.005 in × 92^((36 − n) / 39) (ASTM B258), a factor of about 1.123 per gauge step and about 2 for every 6 steps. The cross-section is A = π / 4 × d². Enter the diameter in AWG, mm, mil or inch, or the cross-section in AWG, mm², kcmil or mil²; a circular mil is the area of a circle 1 mil in diameter, so 1 kcmil = 0.5067 mm². The gauges 0000, 000 and 00 are −3, −2 and −1. The default AWG 10 is 2.588 mm in diameter and 5.261 mm² (ASTM B258 lists 2.588 mm). The resistance of 1 km is for annealed copper at 20 °C (1/58 Ω·mm²/m)."
+    de: "American Wire Gauge: Der Durchmesser der Größe n ist d = 0,005 in · 92^((36 − n) / 39) (ASTM B258), ein Faktor von etwa 1,123 je Größenstufe und etwa 2 je 6 Stufen. Der Querschnitt ist A = π / 4 · d². Den Durchmesser in AWG, mm, mil oder Zoll eingeben, oder den Querschnitt in AWG, mm², kcmil oder mil²; ein Circular Mil ist die Fläche eines Kreises von 1 mil Durchmesser, daher gilt 1 kcmil = 0,5067 mm². Die Größen 0000, 000 und 00 sind −3, −2 und −1. Der Vorgabewert AWG 10 hat 2,588 mm Durchmesser und 5,261 mm² (ASTM B258 nennt 2,588 mm). Der Widerstand von 1 km gilt für weichgeglühtes Kupfer bei 20 °C (1/58 Ω·mm²/m)."
+  tags: [awg, wire gauge, wire size, diameter, cross-section, kcmil, circular mil, mm2, drahtstärke, drahtdurchmesser, querschnitt, leitungsquerschnitt, umrechnung]
+  source: "ASTM B258 (standard nominal diameters and cross-sectional areas of AWG sizes of solid round wires): d = 0.005 in × 92^((36 − n) / 39); 1 circular mil = π / 4 mil²; copper resistivity 1/58 Ω·mm²/m (IEC 60028)"
+  vars:
+    d: {dim: length, label: d, name: {en: "Wire diameter", de: "Drahtdurchmesser"}, default: "10", unit: AWG, units: ["", mil, in, AWG]}
+    a: {dim: area, label: A, name: {en: "Cross-section", de: "Querschnitt"}, unit: mm2, units: [mm2, AWG, kcmil, mil2]}
+  dof: 1
+  rules:
+    a: ["pi/4*d^2"]
+    d: ["sqrt(4*a/pi)"]
+  derived:
+    rkm: {dim: resistance, label: R_km, name: {en: "Copper resistance of 1 km at 20 °C", de: "Kupferwiderstand von 1 km bei 20 °C"}, expr: "1.7241379310344827e-8*1000/a"}
+  formula: ["a = pi / 4 * d^2"]
