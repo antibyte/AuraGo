@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { storymakerHostParts, storymakerPlayerParts } from './storymaker-bundle-parts.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkOnly = process.argv.includes('--check');
@@ -209,7 +210,10 @@ const jsBundles = [
   {
     out: 'ui/js/chat/main.js',
     parts: chatMainParts
-  }
+  },
+  // Storymaker player: the document-realm host page and the worker-realm player (part lists shared with the tests).
+  { out: 'ui/js/storymaker/host.bundle.js', parts: storymakerHostParts },
+  { out: 'ui/js/storymaker/player.bundle.js', parts: storymakerPlayerParts }
 ];
 
 const cssBundles = [

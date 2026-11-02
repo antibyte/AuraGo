@@ -27,6 +27,7 @@ ui/js/chat/bundles/*.js text eol=lf
 ui/js/chat/main.js text eol=lf
 ui/js/desktop/bundles/*.js text eol=lf
 ui/js/desktop/aura-desktop-sdk.js text eol=lf
+ui/js/storymaker/*.bundle.js text eol=lf
 
 # Reproducible icon output and its pinned import inputs.
 assets/desktop-icon-themes/** text=auto eol=lf

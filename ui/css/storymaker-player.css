@@ -1,0 +1,23 @@
+/* Storymaker player host page (the only stylesheet of the sandboxed player iframe, named in its CSP).
+   The canvas fills the page and keeps the video's aspect ratio (letterboxing on the host background); there are no
+   scrollbars. The render page has no stylesheet at all: it sets its body margin through the CSSOM. */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+#sm-stage {
+    display: block;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+    image-rendering: auto;
+}
