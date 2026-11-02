@@ -17,7 +17,10 @@ func TestPersonalityAppraisalBoosterCue(t *testing.T) {
 	if cue, ok := appraisal.BoosterCue(); !ok || cue != personabooster.CueDeepTopic {
 		t.Fatalf("cue = %q, ok = %v", cue, ok)
 	}
-	for _, rejected := range []PersonalityAppraisal{{Cue: "deep_topic", Confidence: 0.49}, {Cue: "none", Confidence: 1}, {Cue: "tantrum", Confidence: 1}} {
+	const ref = "current_user_message"
+	for _, rejected := range []PersonalityAppraisal{
+		{Cue: "deep_topic", Confidence: 0.49, Reference: ref}, {Cue: "none", Confidence: 1, Reference: ref}, {Cue: "tantrum", Confidence: 1, Reference: ref},
+	} {
 		if _, ok := rejected.BoosterCue(); ok {
 			t.Errorf("accepted %+v", rejected)
 		}
@@ -25,6 +28,21 @@ func TestPersonalityAppraisalBoosterCue(t *testing.T) {
 	var missing *PersonalityAppraisal
 	if _, ok := missing.BoosterCue(); ok {
 		t.Error("nil appraisal produced a cue")
+	}
+}
+
+func TestPersonalityAppraisalBoosterCueNeedsCurrentUserMessage(t *testing.T) {
+	for _, reference := range []string{"", "assistant_reply", "tool_output", "history"} {
+		appraisal := PersonalityAppraisal{Cue: "criticism", Confidence: 0.9, Reference: reference}
+		if cue, ok := appraisal.BoosterCue(); ok {
+			t.Errorf("reference %q produced cue %q", reference, cue)
+		}
+	}
+	for _, reference := range []string{"current_user_message", " current_user_message\n"} {
+		appraisal := PersonalityAppraisal{Cue: "criticism", Confidence: 0.5, Reference: reference}
+		if cue, ok := appraisal.BoosterCue(); !ok || cue != personabooster.CueCriticism {
+			t.Errorf("reference %q: cue = %q, ok = %v", reference, cue, ok)
+		}
 	}
 }
 
