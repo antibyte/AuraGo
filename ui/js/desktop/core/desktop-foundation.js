@@ -612,6 +612,7 @@
             notes: 'NotesApp',
             findit: 'FindItApp',
             ecalc: 'ECalcApp',
+            storymaker: 'StorymakerApp',
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
