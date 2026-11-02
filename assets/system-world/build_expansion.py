@@ -149,10 +149,24 @@ def furnishing(g, kind):
                 g.box((0,y-.1,2.4),(2.4,.04,.8),'glass')
         for x in (-1.35,1.35):
             for y in (-length*.36,length*.36):
-                g.box((x,y,2),(.12,length*.23,2.5),'ceramic')
-                g.box((x,y,2.4),(.14,length*.19,.8),'glass')
+                if kind == 'tram':
+                    # Open side windows, matching the end windscreen: neither
+                    # a solid backing wall nor the opaque kit glass may cross them.
+                    g.box((x,y,1.375),(.12,length*.23,1.25),'ceramic')
+                    g.box((x,y,3.025),(.12,length*.23,.45),'ceramic')
+                    for edge in (-1,1):
+                        g.box((x,y+edge*length*.105,2.4),(.12,length*.02,.8),'ceramic')
+                else:
+                    g.box((x,y,2),(.12,length*.23,2.5),'ceramic')
+                    g.box((x,y,2.4),(.14,length*.19,.8),'glass')
             g.part='door_l' if x<0 else 'door_r'
-            g.box((x,0,2),(.12,1.6,2.3),'glass'); g.part='structure'
+            if kind == 'tram':
+                g.box((x,0,1.425),(.12,1.6,1.15),'ceramic')
+                g.box((x,0,2.975),(.12,1.6,.35),'ceramic')
+                for y in (-.74,.74): g.box((x,y,2.4),(.12,.12,.8),'ceramic')
+            else:
+                g.box((x,0,2),(.12,1.6,2.3),'glass')
+            g.part='structure'
             g.box((x*.65,0,1.25),(.6,length*.65,.2),'bronze')
         g.box((0,0,3.3),(3,length,.18),'graphite')
         for x in (-.8,.8): g.box((x,-length/2-.1,1.1),(.4,.05,.15),'ivory')
