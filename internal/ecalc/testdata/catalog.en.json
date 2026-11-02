@@ -2497,6 +2497,1017 @@
     },
     {
       "kind": "calculator",
+      "id": "adc",
+      "category": "digital",
+      "name": "ADC (voltage to code)",
+      "name_en": "ADC (voltage to code)",
+      "doc": "An ideal N-bit analog-to-digital converter divides the reference range V_ref into 2^N steps of one LSB = V_ref / 2^N and outputs the code floor(V_in / LSB), limited to 0 … 2^N − 1 (straight binary, unipolar). The code is shown in decimal, hexadecimal and binary. Real converters add offset, gain and linearity errors, and some round to the nearest code instead of truncating; check the datasheet. Example: 12 bit with V_ref = 3.3 V has an LSB of 0.806 mV, and 1 V reads as code 1241 (0x4D9).",
+      "tags": [
+        "adc",
+        "analog to digital",
+        "converter",
+        "resolution",
+        "lsb",
+        "bits",
+        "quantization",
+        "code",
+        "microcontroller",
+        "ad-wandler",
+        "analog-digital-wandler",
+        "auflösung",
+        "quantisierung",
+        "mikrocontroller"
+      ],
+      "source": "Ideal N-bit converter transfer function with LSB = V_ref/2^N (terminology of IEEE Std 1241 for analog-to-digital converters); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (A/D and D/A conversion)",
+      "vars": [
+        {
+          "id": "vref",
+          "dim": "voltage",
+          "label": "V_ref",
+          "name": "Reference voltage",
+          "default": 3.3,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "bits",
+          "dim": "integer",
+          "label": "N",
+          "name": "Resolution in bits",
+          "default": 12,
+          "default_list": null,
+          "unit": "dec",
+          "units": [
+            "dec"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [],
+      "derived": [
+        {
+          "id": "lsb",
+          "dim": "voltage",
+          "label": "LSB",
+          "name": "LSB (step size)",
+          "alts": [
+            "vref/2^bits"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "code",
+          "dim": "integer",
+          "label": "Code",
+          "name": "Code (decimal)",
+          "alts": [
+            "min(max(floor(vin/lsb),0),2^bits-1)"
+          ],
+          "unit": "dec",
+          "units": []
+        },
+        {
+          "id": "code_hex",
+          "dim": "integer",
+          "label": "Code_hex",
+          "name": "Code (hexadecimal)",
+          "alts": [
+            "code"
+          ],
+          "unit": "hex",
+          "units": []
+        },
+        {
+          "id": "code_bin",
+          "dim": "integer",
+          "label": "Code_bin",
+          "name": "Code (binary)",
+          "alts": [
+            "code"
+          ],
+          "unit": "bin",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vin >= vref",
+          "warn": "V_in is at or above V_ref: the code is clamped to full scale (2^N − 1)."
+        },
+        {
+          "when": "vin < 0",
+          "warn": "V_in is negative: a unipolar ADC reads code 0."
+        },
+        {
+          "when": "bits < 1",
+          "warn": "A resolution below 1 bit leaves a single code."
+        }
+      ],
+      "formula": [
+        "lsb = vref / 2^bits",
+        "code = floor(vin / lsb)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vref",
+          "bits",
+          "vin"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "dac",
+      "category": "digital",
+      "name": "DAC (code to voltage)",
+      "name_en": "DAC (code to voltage)",
+      "doc": "An ideal N-bit digital-to-analog converter outputs V_out = code × V_ref / 2^N for a code of 0 … 2^N − 1 (straight binary, unipolar). One LSB is V_ref / 2^N; the full-scale code gives V_ref − 1 LSB. From V_ref, N and a code the output voltage follows; from V_ref, N and a wanted V_out the nearest code is found (rounded, so the real output of that code differs slightly). The number of bits N must be entered, it cannot be computed. Real converters have offset, gain and linearity errors. Example: 12 bit, V_ref = 3.3 V and code 2048 give 1.65 V.",
+      "tags": [
+        "dac",
+        "digital to analog",
+        "converter",
+        "resolution",
+        "lsb",
+        "bits",
+        "code",
+        "microcontroller",
+        "da-wandler",
+        "digital-analog-wandler",
+        "auflösung",
+        "mikrocontroller"
+      ],
+      "source": "Ideal N-bit converter transfer function V_out = code·V_ref/2^N; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (A/D and D/A conversion)",
+      "vars": [
+        {
+          "id": "vref",
+          "dim": "voltage",
+          "label": "V_ref",
+          "name": "Reference voltage",
+          "default": 3.3,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "bits",
+          "dim": "integer",
+          "label": "N",
+          "name": "Resolution in bits",
+          "default": 12,
+          "default_list": null,
+          "unit": "dec",
+          "units": [
+            "dec"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "code",
+          "dim": "integer",
+          "label": "Code",
+          "name": "Code",
+          "default": 2048,
+          "default_list": null,
+          "unit": "dec",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "code*vref/2^bits"
+          ]
+        },
+        {
+          "target": "code",
+          "alts": [
+            "round(vout*2^bits/vref)"
+          ]
+        },
+        {
+          "target": "vref",
+          "alts": [
+            "vout*2^bits/code"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "lsb",
+          "dim": "voltage",
+          "label": "LSB",
+          "name": "LSB (step size)",
+          "alts": [
+            "vref/2^bits"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "code >= 2^bits",
+          "warn": "The code does not fit the resolution: the largest code is 2^N − 1."
+        }
+      ],
+      "formula": [
+        "vout = code * vref / 2^bits",
+        "lsb = vref / 2^bits"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vref",
+          "bits",
+          "code"
+        ],
+        [
+          "vref",
+          "bits",
+          "vout"
+        ],
+        [
+          "bits",
+          "code",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "i2c_pullup",
+      "category": "digital",
+      "name": "I²C pull-up resistors",
+      "name_en": "I²C pull-up resistors",
+      "doc": "The pull-up resistor of an I²C line must be small enough to pull the line up within the allowed rise time and large enough for the driver to sink the current: R_max = t_r / (0.8473 × C_b) from the 30 % to 70 % rise of an RC network, and R_min = (V_DD − V_OL) / I_OL. t_r is the maximum rise time of the mode: 1000 ns (standard-mode), 300 ns (fast-mode) and 120 ns (fast-mode plus). Pick a standard value between R_min and R_max (the nearest E-series values are shown). The drivers of standard and fast-mode sink 3 mA at V_OL = 0.4 V, fast-mode plus drivers 20 mA: enter the value of your driver. Example: 3.3 V, 100 pF, standard-mode and 3 mA give 967 Ω ≤ R ≤ 11.8 kΩ (4.7 kΩ is a common choice).",
+      "tags": [
+        "i2c",
+        "iic",
+        "twi",
+        "pull-up",
+        "pullup",
+        "resistor",
+        "sda",
+        "scl",
+        "rise time",
+        "bus capacitance",
+        "open drain",
+        "pull-up-widerstand",
+        "anstiegszeit",
+        "buskapazität",
+        "busleitung",
+        "open-drain"
+      ],
+      "source": "NXP UM10204: I²C-bus specification and user manual (pull-up resistor sizing R_p(max) = t_r/(0.8473·C_b) and R_p(min) = (V_DD − V_OL(max))/I_OL; maximum rise times and bus capacitance of standard-mode, fast-mode and fast-mode plus)",
+      "vars": [
+        {
+          "id": "vdd",
+          "dim": "voltage",
+          "label": "V_DD",
+          "name": "Supply voltage",
+          "default": 3.3,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vol",
+          "dim": "voltage",
+          "label": "V_OL",
+          "name": "Low-level output voltage",
+          "default": 0.4,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iol",
+          "dim": "current",
+          "label": "I_OL",
+          "name": "Sink current at V_OL",
+          "default": 0.003,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "cb",
+          "dim": "capacitance",
+          "label": "C_b",
+          "name": "Bus capacitance",
+          "default": 1e-10,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rmin",
+          "dim": "resistance",
+          "label": "R_min",
+          "name": "Smallest pull-up",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rmax",
+          "dim": "resistance",
+          "label": "R_max",
+          "name": "Largest pull-up",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "mode",
+          "name": "Mode",
+          "default": "standard",
+          "options": [
+            {
+              "id": "standard",
+              "name": "Standard-mode (100 kHz)",
+              "consts": {
+                "cbmax": 4e-10,
+                "tr": 0.000001
+              },
+              "ignore": []
+            },
+            {
+              "id": "fast",
+              "name": "Fast-mode (400 kHz)",
+              "consts": {
+                "cbmax": 4e-10,
+                "tr": 3e-7
+              },
+              "ignore": []
+            },
+            {
+              "id": "fastplus",
+              "name": "Fast-mode Plus (1 MHz)",
+              "consts": {
+                "cbmax": 5.5e-10,
+                "tr": 1.2e-7
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "rmin",
+          "alts": [
+            "(vdd-vol)/iol"
+          ]
+        },
+        {
+          "target": "iol",
+          "alts": [
+            "(vdd-vol)/rmin"
+          ]
+        },
+        {
+          "target": "vdd",
+          "alts": [
+            "vol+rmin*iol"
+          ]
+        },
+        {
+          "target": "vol",
+          "alts": [
+            "vdd-rmin*iol"
+          ]
+        },
+        {
+          "target": "rmax",
+          "alts": [
+            "tr/(0.8473*cb)"
+          ]
+        },
+        {
+          "target": "cb",
+          "alts": [
+            "tr/(0.8473*rmax)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [
+        {
+          "when": "rmin >= rmax",
+          "warn": "R_min is not below R_max: no pull-up resistor meets both limits. Lower the bus capacitance, use a driver with a higher sink current, or choose a slower mode."
+        },
+        {
+          "when": "cb > cbmax",
+          "warn": "C_b exceeds the maximum bus capacitance of the selected mode (400 pF; 550 pF in fast-mode plus)."
+        }
+      ],
+      "formula": [
+        "rmin = (vdd - vol) / iol",
+        "rmax = tr / (0.8473 * cb)"
+      ],
+      "schematic": "i2c_pullup",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vdd",
+          "vol",
+          "iol",
+          "cb"
+        ],
+        [
+          "vdd",
+          "vol",
+          "iol",
+          "rmax"
+        ],
+        [
+          "vdd",
+          "vol",
+          "cb",
+          "rmin"
+        ],
+        [
+          "vdd",
+          "vol",
+          "rmin",
+          "rmax"
+        ],
+        [
+          "vdd",
+          "iol",
+          "cb",
+          "rmin"
+        ],
+        [
+          "vdd",
+          "iol",
+          "rmin",
+          "rmax"
+        ],
+        [
+          "vol",
+          "iol",
+          "cb",
+          "rmin"
+        ],
+        [
+          "vol",
+          "iol",
+          "rmin",
+          "rmax"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "level_shift_divider",
+      "category": "digital",
+      "name": "Level shifter (resistor divider)",
+      "name_en": "Level shifter (resistor divider)",
+      "doc": "A resistor divider shifts a 5 V logic signal down to 3.3 V in one direction: V_out = V_in × R2 / (R1 + R2). The receiver sees a logic high only while V_out stays above its input-high threshold V_IH (take it from the datasheet: 2.0 V for 3.3 V LVTTL inputs, 0.7 × V_DD = 2.31 V is typical for CMOS inputs), and V_out must stay below the absolute maximum input voltage of the pin (often V_DD + 0.3 V). Enter the guaranteed high level of the driver as V_in. A divider loads the driver and slows the edges (R1 ∥ R2 with the pin capacitance); for fast or bidirectional signals such as I²C use a level-shifter IC or a MOSFET shifter. Example: 5 V into 1 kΩ / 2 kΩ gives 3.33 V, which is 1.33 V above V_IH = 2 V, at 1.67 mA.",
+      "tags": [
+        "level shifter",
+        "level shift",
+        "voltage divider",
+        "5v to 3.3v",
+        "logic level",
+        "vih",
+        "gpio",
+        "microcontroller",
+        "pegelwandler",
+        "pegelanpassung",
+        "spannungsteiler",
+        "logikpegel",
+        "mikrocontroller"
+      ],
+      "source": "Voltage divider rule; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (logic interfacing); the input threshold V_IH comes from the datasheet of the receiving device",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "High level of the driver",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Upper resistor",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Lower resistor",
+          "default": 2000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vih",
+          "dim": "voltage",
+          "label": "V_IH",
+          "name": "Input-high threshold of the receiver",
+          "default": 2,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Voltage at the receiver",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "vin*r2/(r1+r2)"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "vout*r1/(vin-vout)"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "r2*(vin-vout)/vout"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout*(r1+r2)/r2"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "margin",
+          "dim": "voltage",
+          "label": "ΔV",
+          "name": "Margin above V_IH",
+          "alts": [
+            "vout-vih"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Divider current",
+          "alts": [
+            "vin/(r1+r2)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout < vih",
+          "warn": "V_out is below V_IH: the receiver may not see a logic high."
+        },
+        {
+          "when": "vout >= vin",
+          "warn": "V_out is not below V_in: a passive divider can only attenuate."
+        }
+      ],
+      "formula": [
+        "vout = vin * r2 / (r1 + r2)",
+        "margin = vout - vih"
+      ],
+      "schematic": "level_shift_divider",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vin",
+          "r1",
+          "r2",
+          "vih"
+        ],
+        [
+          "vin",
+          "r1",
+          "vih",
+          "vout"
+        ],
+        [
+          "vin",
+          "r2",
+          "vih",
+          "vout"
+        ],
+        [
+          "r1",
+          "r2",
+          "vih",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "uart_baud_error",
+      "category": "digital",
+      "name": "UART baud rate error",
+      "name_en": "UART baud rate error",
+      "doc": "A UART derives its bit clock by dividing the peripheral clock: baud = f_clk / (N × divisor), with N = 16 samples per bit (normal) or 8 (double-speed mode) and a whole-number divisor, so the real baud rate differs from the wanted one. The divisor is rounded to the nearest integer and the error is (actual − wanted) / wanted. As a rule of thumb keep it below ±2 %: the errors of sender and receiver add up, and an 8N1 frame tolerates only a few percent in total. Some UARTs have a fractional divider and do better. On some chips the register holds the divisor minus one. Example: 16 MHz and 115 200 Bd with 16× sampling gives divisor 9, 111 111 Bd and −3.55 %; double speed (8×) gives divisor 17 and +2.12 %; an 11.0592 MHz crystal hits 115 200 Bd exactly.",
+      "tags": [
+        "uart",
+        "usart",
+        "baud rate",
+        "baud",
+        "serial",
+        "divisor",
+        "error",
+        "oversampling",
+        "clock",
+        "rs232",
+        "avr",
+        "baudrate",
+        "serielle schnittstelle",
+        "teiler",
+        "fehler",
+        "abweichung",
+        "taktfrequenz"
+      ],
+      "source": "UART baud-rate generator: baud = f_clk/(N·divisor) with N = 16 or 8 samples per bit; e.g. the USART chapter of the ATmega328P datasheet (Microchip), where the register holds the divisor minus one",
+      "vars": [
+        {
+          "id": "fclk",
+          "dim": "frequency",
+          "label": "f_clk",
+          "name": "Clock frequency",
+          "default": 16000000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "baud",
+          "dim": "baudrate",
+          "label": "Baud",
+          "name": "Wanted baud rate",
+          "default": 115200,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "os",
+          "name": "Oversampling",
+          "default": "x16",
+          "options": [
+            {
+              "id": "x16",
+              "name": "16× (normal)",
+              "consts": {
+                "os": 16
+              },
+              "ignore": []
+            },
+            {
+              "id": "x8",
+              "name": "8× (double speed)",
+              "consts": {
+                "os": 8
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 2,
+      "rules": [],
+      "derived": [
+        {
+          "id": "div",
+          "dim": "integer",
+          "label": "Divisor",
+          "name": "Divisor",
+          "alts": [
+            "max(round(fclk/(os*baud)),1)"
+          ],
+          "unit": "dec",
+          "units": []
+        },
+        {
+          "id": "actual",
+          "dim": "baudrate",
+          "label": "Baud_act",
+          "name": "Actual baud rate",
+          "alts": [
+            "fclk/(os*div)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "err",
+          "dim": "ratio",
+          "label": "Error",
+          "name": "Baud rate error",
+          "alts": [
+            "(actual-baud)/baud"
+          ],
+          "unit": "pct",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "abs(err) > 0.02",
+          "warn": "The baud rate error is above ±2 %: the receiver may mis-sample bits (rule of thumb; the errors of both ends add up)."
+        }
+      ],
+      "formula": [
+        "div = round(fclk / (os * baud))",
+        "actual = fclk / (os * div)",
+        "err = (actual - baud) / baud"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "fclk",
+          "baud"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "number_systems",
+      "category": "digital",
+      "name": "Number systems (dec, hex, bin, oct)",
+      "name_en": "Number systems (dec, hex, bin, oct)",
+      "doc": "Shows one whole number in decimal, hexadecimal, binary and octal. Type it into any field: hex takes an optional 0x, bin an optional 0b and oct an optional 0o prefix, and digits may be separated by _ or blanks. The value is limited to 0 … 2^53 − 1 (9 007 199 254 740 991), the range in which whole numbers stay exact in the calculator. Long hex and binary results are grouped for readability. Example: 255 = 0xFF = 0o377 (eight one bits in binary).",
+      "tags": [
+        "number systems",
+        "hex",
+        "hexadecimal",
+        "binary",
+        "octal",
+        "decimal",
+        "radix",
+        "base conversion",
+        "bits",
+        "bytes",
+        "zahlensystem",
+        "hexadezimal",
+        "binär",
+        "oktal",
+        "dezimal",
+        "umrechnung",
+        "basis"
+      ],
+      "source": "Positional number systems with radix 2, 8, 10 and 16; D. E. Knuth: The Art of Computer Programming, vol. 2 (Seminumerical Algorithms), ch. 4.1 (positional number systems)",
+      "vars": [
+        {
+          "id": "dec",
+          "dim": "integer",
+          "label": "DEC",
+          "name": "Decimal",
+          "default": 255,
+          "default_list": null,
+          "unit": "dec",
+          "units": [
+            "dec"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "hex",
+          "dim": "integer",
+          "label": "HEX",
+          "name": "Hexadecimal",
+          "default": null,
+          "default_list": null,
+          "unit": "hex",
+          "units": [
+            "hex"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "bin",
+          "dim": "integer",
+          "label": "BIN",
+          "name": "Binary",
+          "default": null,
+          "default_list": null,
+          "unit": "bin",
+          "units": [
+            "bin"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "oct",
+          "dim": "integer",
+          "label": "OCT",
+          "name": "Octal",
+          "default": null,
+          "default_list": null,
+          "unit": "oct",
+          "units": [
+            "oct"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [
+        {
+          "target": "dec",
+          "alts": [
+            "hex",
+            "bin",
+            "oct"
+          ]
+        },
+        {
+          "target": "hex",
+          "alts": [
+            "dec",
+            "bin",
+            "oct"
+          ]
+        },
+        {
+          "target": "bin",
+          "alts": [
+            "dec",
+            "hex",
+            "oct"
+          ]
+        },
+        {
+          "target": "oct",
+          "alts": [
+            "dec",
+            "hex",
+            "bin"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "dec = hex = bin = oct"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "dec"
+        ],
+        [
+          "hex"
+        ],
+        [
+          "bin"
+        ],
+        [
+          "oct"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "rc_lowpass",
       "category": "filters",
       "name": "RC low-pass filter",

@@ -1,0 +1,22 @@
+{
+  "calc": "adc",
+  "sets": [
+    {"values": {"vref": 3.3, "bits": 12, "vin": 1, "lsb": 0.0008056640625, "code": 1241, "code_hex": 1241, "code_bin": 1241}, "ref": "hand: LSB = 3.3 V / 4096 = 0.0008056640625 V; 1 V / LSB = 1241.2121, floor = 1241 = 0x4D9 (1024 + 128 + 64 + 16 + 8 + 1)"},
+    {"values": {"vref": 5, "bits": 10, "vin": 2.5, "lsb": 0.0048828125, "code": 512, "code_hex": 512, "code_bin": 512}, "ref": "hand: LSB = 5 V / 1024 = 0.0048828125 V; 2.5 V / LSB = 512 exactly (mid scale) = 0x200 (2^9)"},
+    {"values": {"vref": 2.5, "bits": 8, "vin": 1, "lsb": 0.009765625, "code": 102, "code_hex": 102, "code_bin": 102}, "ref": "hand: LSB = 2.5 V / 256 = 0.009765625 V; 1 V / LSB = 102.4, floor = 102 = 0x66 (64 + 32 + 4 + 2)"},
+    {"values": {"vref": 3.3, "bits": 12, "vin": 3.3, "lsb": 0.0008056640625, "code": 4095, "code_hex": 4095, "code_bin": 4095}, "ref": "hand: LSB = 3.3 V / 4096; 3.3 V / LSB = 4096 is above the largest code, so the code is clamped to 4095 = 0xFFF (twelve one bits)"},
+    {"values": {"vref": 3.3, "bits": 12, "vin": -0.5, "lsb": 0.0008056640625, "code": 0, "code_hex": 0, "code_bin": 0}, "ref": "hand: -0.5 V / 0.0008056640625 V = -620.6, floor = -621, clamped up to the smallest code 0"}
+  ],
+  "solve": [
+    {"inputs": {"vref": 3.3, "bits": 12, "vin": 1}, "expect": {"lsb": 0.0008056640625, "code": 1241, "code_hex": 1241, "code_bin": 1241}, "errors": {}, "warnings": [], "ref": "hand: LSB = 3.3 / 4096 = 0.0008056640625 V; floor(1 / LSB) = floor(1241.2121) = 1241 (the default example)"},
+    {"inputs": {"vref": 5, "bits": 10, "vin": 2.5}, "expect": {"lsb": 0.0048828125, "code": 512}, "errors": {}, "warnings": [], "ref": "hand: LSB = 5 / 1024 V; 2.5 / LSB = 512 exactly, code 512"},
+    {"inputs": {"vref": 2.5, "bits": 8, "vin": 1}, "expect": {"lsb": 0.009765625, "code": 102}, "errors": {}, "warnings": [], "ref": "hand: LSB = 2.5 / 256 V; floor(1 / LSB) = floor(102.4) = 102"},
+    {"inputs": {"vref": 3.3, "bits": 12, "vin": 3.3}, "expect": {"code": 4095}, "errors": {}, "warnings": [0], "ref": "hand: V_in = V_ref gives 4096, clamped to 4095; the V_in >= V_ref check fires"},
+    {"inputs": {"vref": 3.3, "bits": 12, "vin": 5}, "expect": {"code": 4095}, "errors": {}, "warnings": [0], "ref": "hand: 5 V / 0.0008056640625 V = 6206 is above the largest code, clamped to 4095; the V_in >= V_ref check fires"},
+    {"inputs": {"vref": 3.3, "bits": 12, "vin": -0.5}, "expect": {"code": 0}, "errors": {}, "warnings": [1], "ref": "hand: floor(-620.6) = -621, clamped to 0; the negative-input check fires"},
+    {"inputs": {"vref": 3.3, "bits": 8, "vin": 0.01}, "expect": {"lsb": 0.012890625, "code": 0}, "errors": {}, "warnings": [], "ref": "hand: LSB = 3.3 / 256 = 0.012890625 V; 0.01 V / LSB = 0.7757, floor = 0"},
+    {"inputs": {"vref": 3.3, "bits": 0, "vin": 1}, "expect": {"lsb": 3.3, "code": 0}, "errors": {}, "warnings": [2], "ref": "hand: 0 bits leave one code: LSB = 3.3 V, code = min(max(floor(0.303), 0), 2^0 - 1) = 0; the bits < 1 check fires"},
+    {"inputs": {"vref": 3.3, "bits": 12.5, "vin": 1}, "errors": {"bits": "range"}, "warnings": [], "ref": "hand: 12.5 bits is not a whole number, an integer quantity is out of range"},
+    {"inputs": {"vref": 3.3, "bits": 12}, "errors": {"vin": "undetermined"}, "ref": "hand: V_in is missing, so LSB is known but the code is not"}
+  ]
+}

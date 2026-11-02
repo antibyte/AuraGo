@@ -1,0 +1,23 @@
+{
+  "calc": "level_shift_divider",
+  "sets": [
+    {"values": {"vin": 5, "r1": 1000, "r2": 2000, "vih": 2, "vout": 3.3333333333333335, "margin": 1.3333333333333333, "i": 0.0016666666666666668}, "ref": "hand: V_out = 5 V * 2k / (1k + 2k) = 10/3 = 3.333333 V; margin = 3.333333 - 2 = 1.333333 V; I = 5 V / 3k = 1.666667 mA (the default example)"},
+    {"values": {"vin": 5, "r1": 1800, "r2": 3300, "vih": 2.31, "vout": 3.235294117647059, "margin": 0.9252941176470588, "i": 0.000980392156862745}, "ref": "hand: V_out = 5 V * 3.3k / 5.1k = 55/17 = 3.235294 V; margin = 3.235294 - 2.31 = 0.925294 V; I = 5 V / 5.1k = 0.980392 mA"},
+    {"values": {"vin": 4.4, "r1": 1000, "r2": 2000, "vih": 2, "vout": 2.933333333333333, "margin": 0.9333333333333333, "i": 0.0014666666666666667}, "ref": "hand: a weak high level V_OH = 4.4 V: V_out = 4.4 * 2/3 = 2.933333 V; margin = 0.933333 V; I = 4.4 / 3k = 1.466667 mA"},
+    {"values": {"vin": 5, "r1": 10000, "r2": 20000, "vih": 2, "vout": 3.3333333333333335, "margin": 1.3333333333333333, "i": 0.00016666666666666666}, "ref": "hand: V_out = 5 * 20k / 30k = 3.333333 V (the same ratio as 1k / 2k); margin 1.333333 V; I = 5 V / 30k = 0.1666667 mA"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 5, "r1": 1000, "r2": 2000, "vih": 2}, "expect": {"vout": 3.3333333333333335, "margin": 1.3333333333333333, "i": 0.0016666666666666668}, "errors": {}, "warnings": [], "ref": "hand: V_out = 5 * 2000 / 3000 = 3.333333 V, margin 1.333333 V, I = 5 / 3000 = 1.666667 mA"},
+    {"inputs": {"vin": 5, "r1": 1800, "r2": 3300, "vih": 2.31}, "expect": {"vout": 3.235294117647059, "margin": 0.9252941176470588, "i": 0.000980392156862745}, "errors": {}, "warnings": [], "ref": "hand: V_out = 5 * 3300 / 5100 = 3.235294 V, margin 0.925294 V, I = 0.980392 mA"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 3.3, "vih": 2}, "expect": {"r2": 1941.1764705882354}, "errors": {}, "warnings": [], "ref": "hand: R_2 = V_out * R_1 / (V_in - V_out) = 3.3 * 1000 / 1.7 = 1941.176 ohm"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 3.3333333333333335, "vih": 2}, "expect": {"r2": 2000}, "errors": {}, "warnings": [], "ref": "hand: R_2 = (10/3) * 1000 / (5 - 10/3) = 3333.333 / 1.666667 = 2000 ohm"},
+    {"inputs": {"vin": 5, "r2": 2000, "vout": 3.3, "vih": 2}, "expect": {"r1": 1030.3030303030303}, "errors": {}, "warnings": [], "ref": "hand: R_1 = R_2 * (V_in - V_out) / V_out = 2000 * 1.7 / 3.3 = 1030.303 ohm"},
+    {"inputs": {"vin": 5, "r2": 3300, "vout": 3.235294117647059, "vih": 2.31}, "expect": {"r1": 1800}, "errors": {}, "warnings": [], "ref": "hand: R_1 = 3300 * (5 - 55/17) / (55/17) = 3300 * (30/17) / (55/17) = 3300 * 30 / 55 = 1800 ohm"},
+    {"inputs": {"r1": 1000, "r2": 2000, "vout": 3.3, "vih": 2}, "expect": {"vin": 4.95}, "errors": {}, "warnings": [], "ref": "hand: V_in = V_out * (R_1 + R_2) / R_2 = 3.3 * 3000 / 2000 = 4.95 V"},
+    {"inputs": {"r1": 1000, "r2": 2000, "vout": 2.9333333333333336, "vih": 2}, "expect": {"vin": 4.4}, "errors": {}, "warnings": [], "ref": "hand: V_in = 2.933333 * 3000 / 2000 = 4.4 V"},
+    {"inputs": {"vin": 3, "r1": 1000, "r2": 1000, "vih": 2.31}, "expect": {"vout": 1.5, "margin": -0.81}, "errors": {}, "warnings": [0], "ref": "hand: V_out = 3 * 1k / 2k = 1.5 V is below V_IH = 2.31 V; the V_IH check fires"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 6, "vih": 2}, "errors": {"r2": "range"}, "warnings": [1], "ref": "hand: V_out = 6 V above V_in: R_2 = 6 * 1000 / (5 - 6) = -6000 ohm, out of range; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 5, "r1": 1000, "vout": 5, "vih": 2}, "errors": {"r2": "nonfinite"}, "warnings": [1], "ref": "hand: V_out = V_in needs R_2 = 5 * 1000 / 0, infinite; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 5, "r1": 1000, "r2": 2000}, "expect": {"vout": 3.3333333333333335}, "errors": {"vih": "undetermined"}, "ref": "hand: V_IH has no rule and is missing, so only V_out is known"}
+  ]
+}

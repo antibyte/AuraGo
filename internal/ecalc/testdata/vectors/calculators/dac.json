@@ -1,0 +1,25 @@
+{
+  "calc": "dac",
+  "sets": [
+    {"values": {"vref": 3.3, "bits": 12, "code": 2048, "vout": 1.65, "lsb": 0.0008056640625}, "ref": "hand: V_out = 2048 * 3.3 V / 4096 = 3.3 / 2 = 1.65 V (mid scale); LSB = 3.3 / 4096 = 0.0008056640625 V"},
+    {"values": {"vref": 5, "bits": 8, "code": 51, "vout": 0.99609375, "lsb": 0.01953125}, "ref": "hand: LSB = 5 / 256 = 0.01953125 V; V_out = 51 * 0.01953125 = 0.99609375 V"},
+    {"values": {"vref": 2.5, "bits": 16, "code": 65535, "vout": 2.4999618530273438, "lsb": 3.814697265625e-05}, "ref": "hand: LSB = 2.5 / 65536 = 0.00003814697265625 V; V_out = 65535 * LSB = 2.5 - LSB = 2.49996185302734375 V (full scale is one LSB below V_ref)"},
+    {"values": {"vref": 3.3, "bits": 10, "code": 1000, "vout": 3.22265625, "lsb": 0.00322265625}, "ref": "hand: LSB = 3.3 / 1024 = 0.00322265625 V; V_out = 1000 * 0.00322265625 = 3.22265625 V"}
+  ],
+  "solve": [
+    {"inputs": {"vref": 5, "bits": 8, "code": 128}, "expect": {"vout": 2.5, "lsb": 0.01953125}, "errors": {}, "warnings": [], "ref": "hand: V_out = 128 * 5 / 256 = 2.5 V; LSB = 0.01953125 V"},
+    {"inputs": {"vref": 3.3, "bits": 12, "code": 2048}, "expect": {"vout": 1.65}, "errors": {}, "warnings": [], "ref": "hand: V_out = 2048 * 3.3 / 4096 = 1.65 V (the default example)"},
+    {"inputs": {"vref": 5, "bits": 8, "code": 51}, "expect": {"vout": 0.99609375}, "errors": {}, "warnings": [], "ref": "hand: V_out = 51 * 5 / 256 = 255 / 256 = 0.99609375 V"},
+    {"inputs": {"vref": 3.3, "bits": 12, "code": 0}, "expect": {"vout": 0}, "errors": {}, "warnings": [], "ref": "hand: code 0 gives 0 V"},
+    {"inputs": {"vref": 5, "bits": 8, "code": 256}, "expect": {"vout": 5}, "errors": {}, "warnings": [0], "ref": "hand: code 256 does not fit 8 bits (largest 255); V_out = 256 * 5 / 256 = 5 V and the code check fires"},
+    {"inputs": {"vref": 5, "bits": 8, "vout": 2.5}, "expect": {"code": 128}, "errors": {}, "warnings": [], "ref": "hand: code = round(2.5 * 256 / 5) = round(128) = 128"},
+    {"inputs": {"vref": 3.3, "bits": 12, "vout": 1}, "expect": {"code": 1241}, "errors": {}, "warnings": [], "ref": "hand: code = round(1 * 4096 / 3.3) = round(1241.2121) = 1241 (the nearest code, so the real output is 1241 * LSB = 0.99985 V)"},
+    {"inputs": {"vref": 2.5, "bits": 16, "vout": 2.4999618530273438}, "expect": {"code": 65535}, "errors": {}, "warnings": [], "ref": "hand: code = round(2.49996185302734375 * 65536 / 2.5) = round(65535) = 65535"},
+    {"inputs": {"vref": 4, "bits": 2, "vout": 1.5}, "expect": {"code": 2}, "errors": {}, "warnings": [], "ref": "hand: LSB = 4 / 4 = 1 V; 1.5 V is exactly half way between codes 1 and 2, round takes the code away from zero: 2"},
+    {"inputs": {"bits": 8, "code": 128, "vout": 2.5}, "expect": {"vref": 5}, "errors": {}, "warnings": [], "ref": "hand: V_ref = 2.5 * 256 / 128 = 5 V"},
+    {"inputs": {"bits": 12, "code": 2048, "vout": 1.65}, "expect": {"vref": 3.3}, "errors": {}, "warnings": [], "ref": "hand: V_ref = 1.65 * 4096 / 2048 = 3.3 V"},
+    {"inputs": {"bits": 10, "code": 1000, "vout": 3.22265625}, "expect": {"vref": 3.3}, "errors": {}, "warnings": [], "ref": "hand: V_ref = 3.22265625 * 1024 / 1000 = 3300 / 1000 = 3.3 V"},
+    {"inputs": {"vref": 3.3, "bits": 12, "vout": -1}, "errors": {"code": "range"}, "ref": "hand: code = round(-1 * 4096 / 3.3) = -1241 is not a valid code (below 0), out of range"},
+    {"inputs": {"vref": 3.3, "code": 2048, "vout": 1.65}, "errors": {"bits": "undetermined"}, "ref": "hand: the number of bits cannot be computed from the other three, so it stays undetermined"}
+  ]
+}
