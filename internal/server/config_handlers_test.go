@@ -431,6 +431,7 @@ func TestHandleUpdateConfigEnablesGo2RTCWithBlankDefaultURL(t *testing.T) {
 	configYAML := `docker:
   enabled: true
   read_only: false
+  host: "tcp://docker.example.invalid:2375"
 go2rtc:
   enabled: false
   url: ""

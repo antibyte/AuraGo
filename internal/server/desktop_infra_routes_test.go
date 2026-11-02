@@ -302,8 +302,9 @@ func TestDesktopInfraRefreshContextHonoursRevocation(t *testing.T) {
 	revoked := &config.Config{}
 	revoked.VirtualDesktop.Enabled = true
 	revoked.VirtualDesktop.Infra.Enabled = false
-	s.Cfg = revoked
-	s.initConfigSnapshot()
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(revoked)
+	s.CfgMu.Unlock()
 	if _, finish, ok := desktopInfraRefreshContext(s, request, cfg, runtime); ok {
 		finish()
 		t.Fatal("a revoked configuration still registered a refresh context")
