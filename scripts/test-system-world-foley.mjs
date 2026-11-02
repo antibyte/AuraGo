@@ -45,6 +45,9 @@ try{
   foley.setActive(true);
   assert.equal(foley.action('robot_greet',2,0,0),true,'An audible city lets a resident answer');
   assert.equal(foley.stats().played,1);
+  // The robot layer has to be heard over the city bed, whose mixed RMS is about
+  // .01. A sound that stays below that is swallowed by the drones and the murmur.
+  assert.ok(foley.stats().peak>.15,'A resident beside the listener is loud enough to hear');
   assert.ok(kinds().at(-1)>.9,'A resident beside the listener sits to the right of the view');
   assert.equal(foley.action('robot_greet',100,0,100),false,'A distant resident stays silent');
   // A resident of the district you look at stays audible even from far above.
@@ -90,6 +93,9 @@ try{
   foley.gait('c',0,0,0,true,false,'glide');
   foley.gait('c',1.7,0,0,true,false,'glide');
   assert.equal(foley.stats().steps,4,'A gliding resident keeps its own longer stride');
+  // A footfall beside the listener is the quietest sound of the layer and still
+  // has to be louder than the city bed.
+  assert.ok(foley.stats().peak>.2,'A footfall beside the listener is loud enough to hear');
   flush();
   foley.setActive(false);
   assert.equal(foley.stats().voices,0,'A muted city releases every robot voice');

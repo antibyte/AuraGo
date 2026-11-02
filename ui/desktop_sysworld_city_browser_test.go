@@ -173,6 +173,49 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		t.Logf("jitter samples: %d bytes", len(metrics))
 		return
 	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_AUDIO") == "1" {
+		// The mix is measured on the master bus, so the numbers are the ones the
+		// speakers would receive. Each channel is muted in turn to see what the
+		// robot foley really contributes to the mix.
+		page.MustElement(`[data-sw-action="sound"]`).MustClick()
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.sound?.state==='running'`)
+		// The headless browser reports "prefers-reduced-motion: reduce" and would
+		// freeze the city. A frozen city has no footfalls, so the robot foley would
+		// have nothing to play.
+		page.MustEval(`()=>{const motion=document.querySelector('select[data-world-motion]');if(!motion)throw Error('Motion control missing');motion.value='on';motion.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.motion?.reduced===false`)
+		page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+		measure := func(label string) string {
+			return page.Timeout(30 * time.Second).MustEval(`async()=>{
+                const samples=[];
+                const end=Date.now()+4000;
+                while(Date.now()<end){await new Promise(requestAnimationFrame);samples.push(SysWorldApp.inspect(cityId).sound.rms);}
+                const sorted=[...samples].sort((a,b)=>a-b);
+                const f=SysWorldApp.inspect(cityId).sound.foley;
+                return JSON.stringify({frames:samples.length,max:+sorted.at(-1).toFixed(5),p95:+sorted[Math.floor(sorted.length*.95)].toFixed(5),
+                    median:+sorted[Math.floor(sorted.length*.5)].toFixed(5),above1:samples.filter(v=>v>.001).length,
+                    foley:{played:f.played,steps:f.steps,voices:f.voices,rejected:f.rejected}});
+            }`).Str()
+		}
+		setChannel := func(index int, value float64) {
+			page.MustEval(`()=>{const section=[...document.querySelectorAll('details.sw-world-section')].find(d=>d.querySelectorAll('input[type=range]').length===3);if(!section)throw Error('Audio section missing');window.cityAudioRanges=[...section.querySelectorAll('input[type=range]')];}`)
+			page.MustEval(`()=>{const input=window.cityAudioRanges[` + fmt.Sprint(index) + `];input.value=String(` + fmt.Sprint(int(value*100)) + `);input.dispatchEvent(new Event('input'));}`)
+		}
+		t.Logf("overview all: %s", measure("overview-all"))
+		setChannel(0, 0)
+		t.Logf("overview no ambience: %s", measure("overview-no-ambience"))
+		setChannel(1, 0)
+		t.Logf("overview no ambience, no effects: %s", measure("overview-effects-off"))
+		setChannel(0, 1)
+		setChannel(1, 1)
+		page.MustEval(`()=>{document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
+		page.Timeout(12 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+		t.Logf("street all: %s", measure("street-all"))
+		setChannel(0, 0)
+		t.Logf("street no ambience: %s", measure("street-no-ambience"))
+		setChannel(0, 1)
+		return
+	}
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
@@ -329,7 +372,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	// The residents answer for themselves: the foley has to build voices, not only
 	// count strides. A silent foley is invisible in the mix, so it is asserted here.
 	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.foley.played>0`)
-	page.MustEval(`()=>{const f=SysWorldApp.inspect(cityId).sound.foley;if(f.played<1||f.steps<1)throw Error('Residents stay silent: '+JSON.stringify(f));}`)
+	page.MustEval(`()=>{const f=SysWorldApp.inspect(cityId).sound.foley;if(f.played<1||f.steps<1)throw Error('Residents stay silent: '+JSON.stringify(f));if(f.peak<.025)throw Error('Robot sounds stay under the city bed: '+JSON.stringify(f));}`)
 	t.Logf("city foley: %s", page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId).sound.foley)`).Str())
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
 	page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.voice.state==='speaking'`)
