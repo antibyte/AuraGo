@@ -25,7 +25,7 @@ const cityPanelsApart = `()=>{
     const q=s=>{const n=document.querySelector(s);return n&&!n.closest('[hidden]')&&getComputedStyle(n).display!=='none'?n.getBoundingClientRect():null;};
     const hit=(a,b)=>a&&b&&a.width&&b.width&&a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
     for(const [a,b] of [['.sw-world>summary','.sw-rail'],['.sw-world>summary','.sw-info'],['.sw-world>summary','.sw-top'],['.sw-world>summary','.sw-bottom'],['.sw-rail','.sw-info'],['.sw-info','.sw-bottom'],['.sw-rail','.sw-bottom']])
-        if(hit(q(a),q(b)))throw Error(a+' overlaps '+b);
+        if(hit(q(a),q(b)))throw Error(a+' overlaps '+b+' '+JSON.stringify({a:q(a),b:q(b)}));
 }`
 
 // assertRenderedCity fails when the central canvas area of a screenshot is a flat colour. A
@@ -300,6 +300,11 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.effects.weather!=='rain')throw Error('Audio lost the environment selected before unmute');const weather=document.querySelectorAll('.sw-world select')[1];weather.value='clear';weather.dispatchEvent(new Event('change'));}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+	// The residents answer for themselves: the foley has to build voices, not only
+	// count strides. A silent foley is invisible in the mix, so it is asserted here.
+	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.foley.played>0`)
+	page.MustEval(`()=>{const f=SysWorldApp.inspect(cityId).sound.foley;if(f.played<1||f.steps<1)throw Error('Residents stay silent: '+JSON.stringify(f));}`)
+	t.Logf("city foley: %s", page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId).sound.foley)`).Str())
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
 	page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.voice.state==='speaking'`)
 	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;
