@@ -155,7 +155,7 @@ func TestPushResultsAreCleaned(t *testing.T) {
 // answer, another status. Denials and setup problems keep their final codes.
 func TestNotifyFailsClosed(t *testing.T) {
 	params := map[string]map[string]any{
-		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
+		TypeTelegram: {"message": "m"}, TypeWhatsApp: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
 	}
 	hugeRefusal := "[PERMISSION DENIED] " + strings.Repeat("no ", 5000)
 	refusals := map[string]ToolResponse{
@@ -242,6 +242,10 @@ func TestNotifyValidate(t *testing.T) {
 		{"telegram title", TypeTelegram, map[string]any{"message": "m", "title": "a" + notifyLF + "b"}, []string{"title"}},
 		{"telegram file", TypeTelegram, map[string]any{"file": map[string]any{"name": "x"}}, []string{"file"}},
 		{"telegram templates", TypeTelegram, map[string]any{"message": "{{trigger.data.m}}", "title": "{{trigger.data.t}}", "file": "{{trigger.data.f}}"}, nil},
+		{"whatsapp fine", TypeWhatsApp, map[string]any{"message": "m", "file": "a.pdf"}, nil},
+		{"whatsapp too long", TypeWhatsApp, map[string]any{"message": long(whatsAppTextLimit + 1)}, []string{"message"}},
+		{"whatsapp file", TypeWhatsApp, map[string]any{"file": map[string]any{"name": "x"}}, []string{"file"}},
+		{"whatsapp templates", TypeWhatsApp, map[string]any{"message": "{{trigger.data.m}}", "file": "{{trigger.data.f}}"}, nil},
 		{"push fine", TypePush, map[string]any{"message": "m", "channel": "ntfy", "priority": "high"}, nil},
 		{"push bad", TypePush, map[string]any{"message": long(maxPushMessageBytes + 1), "channel": "a b", "priority": "urgent", "title": "a" + notifyLF}, []string{"channel", "message", "priority"}},
 		{"push templates", TypePush, map[string]any{"message": "{{x.y}}", "channel": "{{x.c}}", "priority": "{{x.p}}"}, nil},
@@ -280,7 +284,7 @@ func TestNotifyValidate(t *testing.T) {
 			}
 		}
 	}
-	for _, typ := range []string{TypeTelegram, TypeEmail, TypePush, TypeDiscord} {
+	for _, typ := range []string{TypeTelegram, TypeWhatsApp, TypeEmail, TypePush, TypeDiscord} {
 		if issues := lookupDef(t, reg, typ).Validate(nil, ValidateContext{}); issues != nil {
 			t.Errorf("%s: nil node: %+v", typ, issues)
 		}
@@ -330,6 +334,10 @@ func notifyCheckArgs(c ToolRequest) string {
 		if title := str("title"); utf8.RuneCountInString(title) > maxNotifyTitleRunes || !validHeaderValue(title) || telegramUnits(title, str("message")) > telegramTextLimit {
 			return "a telegram text that does not fit"
 		}
+	case "send_whatsapp":
+		if _, ok := c.Args["title"]; ok || utf8.RuneCountInString(str("message")) > whatsAppTextLimit {
+			return "a whatsapp text that does not fit"
+		}
 	case "send_notification":
 		ch := str("channel")
 		if _, err := pushChannel(ch); err != nil || ch == "" || len(str("message")) > maxPushMessageBytes || !validHeaderValue(str("title")) {
@@ -357,7 +365,7 @@ func TestNotifyHooksSurviveOddParams(t *testing.T) {
 	reg := notifyRegistry(t)
 	vc := ValidateContext{Mode: ModePublish}
 	bases := map[string]map[string]any{
-		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
+		TypeTelegram: {"message": "m"}, TypeWhatsApp: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
 	}
 	var failures []string
 	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
@@ -474,12 +482,12 @@ func TestNotifyHooksSurviveOddParams(t *testing.T) {
 	}
 }
 
-// send_telegram and send_notification both run SendNotification, which always lists the
-// channels it tried. A success without a list confirms no send: it fails closed, for
-// the telegram and the push node alike (the push node would otherwise report
-// "sent" and an empty result list).
+// send_telegram, send_whatsapp and send_notification all list the channels they tried.
+// A success without a list confirms no send: it fails closed, for the telegram, the
+// whatsapp and the push node alike (the push node would otherwise report "sent" and an
+// empty result list).
 func TestNotifyNeedsAListedChannel(t *testing.T) {
-	for _, typ := range []string{TypeTelegram, TypePush} {
+	for _, typ := range []string{TypeTelegram, TypeWhatsApp, TypePush} {
 		def := lookupDef(t, notifyRegistry(t), typ)
 		for name, reply := range map[string]string{
 			"no results":    `Tool Output: {"status":"success"}`,

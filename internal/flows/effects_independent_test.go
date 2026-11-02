@@ -195,6 +195,7 @@ func TestLintOutputIndependentParams(t *testing.T) {
 		out    string
 	}{
 		{TypeTelegram, map[string]any{"message": untrusted, "title": untrusted}, "{{n.sent}}"},
+		{TypeWhatsApp, map[string]any{"message": untrusted}, "{{n.sent}}"},
 		{TypePush, map[string]any{"message": untrusted, "title": untrusted}, "{{n.results}}"},
 		{TypeDiscord, map[string]any{"message": untrusted}, "{{n.sent}}"},
 		{TypeEmail, map[string]any{"to": "a@b.de", "subject": untrusted, "body": untrusted}, "{{n.to}}"},

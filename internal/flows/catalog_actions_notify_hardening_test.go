@@ -244,6 +244,7 @@ func TestAttachmentsAreBoundedAndNeverDropped(t *testing.T) {
 		base            map[string]any
 	}{
 		{TypeTelegram, "file", "file_path", map[string]any{"message": "m"}},
+		{TypeWhatsApp, "file", "file_path", map[string]any{"message": "m"}},
 		{TypeEmail, "attachment", "attachments", map[string]any{"to": "a@b.de", "body": "b"}},
 	}
 	path4096 := strings.Repeat("p", maxFilePathBytes)
@@ -500,7 +501,7 @@ func TestDiscordRules(t *testing.T) {
 // The output is JSON and the engine stores it: make sure what the nodes return can be encoded.
 func TestNotifyOutputsAreJSON(t *testing.T) {
 	for typ, params := range map[string]map[string]any{
-		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
+		TypeTelegram: {"message": "m"}, TypeWhatsApp: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
 	} {
 		_, res, err := notifyRun(t, typ, params)
 		if _, jsonErr := json.Marshal(res.Output); err != nil || jsonErr != nil || res.Output["sent"] != true {

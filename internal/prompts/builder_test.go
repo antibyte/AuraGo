@@ -2862,11 +2862,12 @@ func TestBuildEnabledToolsOverviewCoversAuditTogglesAndExactSkips(t *testing.T) 
 		NetworkScanEnabled:       true,
 		UPnPScanEnabled:          true,
 		TelegramEnabled:          true,
+		WhatsAppEnabled:          true,
 		SpaceAgentEnabled:        true,
 		SkipIntegrationTools:     []string{"network_ping"},
 	}
 	overview := buildEnabledToolsOverview(flags)
-	for _, want := range []string{"music_generation", "browser_automation", "network_scan", "upnp_scan", "telegram", "space_agent"} {
+	for _, want := range []string{"music_generation", "browser_automation", "network_scan", "upnp_scan", "telegram", "whatsapp", "space_agent"} {
 		if !strings.Contains(overview, want) {
 			t.Fatalf("overview missing %q: %s", want, overview)
 		}

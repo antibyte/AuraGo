@@ -23,8 +23,8 @@ import (
 // doc.pdf_create writes into the documents folder (tools.document_creator.output_dir) and
 // returns its absolute path, but file.read (filesystem read_file) and doc.pdf_read (the
 // pdf_extractor skill) read only inside the workspace jail. Attachments need no bridge:
-// send_telegram and send_email open their files with tools.OpenOutgoingAttachment, which
-// accepts the documents folder.
+// send_telegram, send_whatsapp and send_email open their files with
+// tools.OpenOutgoingAttachment, which accepts the documents folder.
 //
 // For those two reads, a path that names a file of the documents folder (the absolute path
 // document_creator returned, or the served form /files/documents/<name>) is opened with

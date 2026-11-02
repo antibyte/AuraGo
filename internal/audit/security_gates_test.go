@@ -42,7 +42,7 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 					t.Errorf("%s must serialize packages within runner resources", check)
 				}
 				if check == "race" {
-					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "agent"} {
+					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp", "agent"} {
 						if !strings.Contains(step.Run, "./internal/"+pkg) {
 							t.Errorf("race check omits %s", pkg)
 						}
