@@ -158,6 +158,13 @@ on, so the residents are audible from above as a distant murmur instead of falli
 silent. Both layers are bounded, synthesized without assets, and silent while the
 city is muted, hidden, unfocused, in map mode or under reduced motion.
 
+The robot layer has to be heard over the city bed: the bed mixes at a level of about
+0.01, so a footfall that stays below that is swallowed by the drones and the murmur.
+The whole robot layer therefore shares one gain above the bed, the distance and
+height fall gently, and the level of the loudest sound is reported in the foley
+statistics. A footfall next to the listener peaks clearly above the bed, a resident
+at the far edge of the district only murmurs.
+
 ## Shared system view
 
 The existing server metrics worker records once per ten seconds regardless of

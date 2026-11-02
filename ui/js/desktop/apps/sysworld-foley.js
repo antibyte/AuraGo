@@ -10,12 +10,17 @@
 // map mode.
 export function createCityFoley(context,destination,ambience=destination) {
   const MAX_VOICES=10,MAX_DISTANCE=48,RETRIGGER=.25;
+  // The robot layer has to be heard over the city bed. The bed sits at a mixed
+  // RMS of roughly .01, so a footfall that stays below that is swallowed by the
+  // drones and the murmur. LAYER lifts the whole robot layer above the bed, the
+  // table below keeps the balance between the single sounds.
+  const LAYER=4.5;
   const voices=new Set(),gaits=new Map(),recent=new Map();
   const listener={x:0,y:0,z:0,fx:0,fz:-1};
   // The acoustic origin is where the view rests, not where the camera floats:
   // on the street ahead of you, or on the district the overview is centred on.
   const origin={x:0,z:0};
-  let active=false,inside=false,played=0,steps=0;
+  let active=false,inside=false,played=0,steps=0,peak=0;
   const rejected={kind:0,inactive:0,distant:0,pool:0,retrigger:0,quiet:0};
 
   const noise=context.createBuffer(1,context.sampleRate*2,context.sampleRate);
@@ -23,7 +28,8 @@ export function createCityFoley(context,destination,ambience=destination) {
   for(let i=0;i<samples.length;i++){seed=Math.imul(seed,1664525)+1013904223|0;samples[i]=(seed>>>0)/2147483648-1;}
 
   // A sound is a short stack of layers: noise taps carry the transient, tones
-  // carry the body. Gains stay low because the city bed has to stay dominant.
+  // carry the body. The gains are relative to each other; LAYER sets the level
+  // of the whole robot layer against the city bed.
   const SOUNDS={
     step:{gain:.07,layers:[
       {wave:'noise',f:1900,q:1.7,dur:.05,lvl:.5},
@@ -66,13 +72,15 @@ export function createCityFoley(context,destination,ambience=destination) {
     const now=context.currentTime;
     if(id!=null){const last=recent.get(id);if(last!=null&&now-last<RETRIGGER){rejected.retrigger++;return false;}recent.set(id,now);}
     const height=Math.abs(y-listener.y);
-    const level=spec.gain/(1+distance*.16)/(1+height*.008)*(inside?.5:1);
-    if(level<.0004){rejected.quiet++;return false;}
+    // The distance falls gently: a resident a few metres away has to be audible,
+    // one at the far edge of the district only murmurs.
+    const level=spec.gain*LAYER/(1+distance*.12)/(1+height*.0045)*(inside?.5:1);
+    if(level<.002){rejected.quiet++;return false;}
     // The pan follows the picture, so the direction stays true from any view.
     const cx=x-listener.x,cz=z-listener.z;
     const pan=Math.max(-1,Math.min(1,(cx*-listener.fz+cz*listener.fx)/Math.max(1,Math.hypot(cx,cz))));
     const bus=context.createGain(),panner=context.createStereoPanner(),send=context.createGain();
-    bus.gain.value=level;panner.pan.value=pan;send.gain.value=inside?.2:.4;
+    bus.gain.value=level;panner.pan.value=pan;send.gain.value=inside?.14:.26;
     // Distance dulls the sound, so a far resident is a murmur and not a click.
     const tone=context.createBiquadFilter();tone.type='lowpass';tone.Q.value=.6;
     tone.frequency.value=Math.max(700,Math.min(11000,11000-distance*130));
@@ -106,6 +114,7 @@ export function createCityFoley(context,destination,ambience=destination) {
     // Only the longest layer ends the voice, so a two-note greeting is not cut.
     if(latest)latest.onended=entry.release;
     played++;
+    if(level>peak)peak=level;
     return true;
   }
 
@@ -139,7 +148,7 @@ export function createCityFoley(context,destination,ambience=destination) {
     action(kind,x,y,z,id){return voice(kind,x,y,z,id);},
     gait,
     reset(){gaits.clear();recent.clear();},
-    stats:()=>({voices:voices.size,played,steps,gaits:gaits.size,inside,rejected:{...rejected}}),
+    stats:()=>({voices:voices.size,played,steps,gaits:gaits.size,inside,peak:+peak.toFixed(4),rejected:{...rejected}}),
     dispose(){active=false;clear();},
   };
 }

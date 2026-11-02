@@ -4251,6 +4251,12 @@ registration lives in `internal/desktop/types.go`.
   sounds while the city is muted, hidden, unfocused, in map mode or under reduced
   motion. Robot kinds travel over the existing `onSound` channel and never reach the
   world-effect engine. `stats().foley.rejected` counts why a sound was dropped.
+  The whole robot layer shares one gain above the city bed, which mixes at about
+  0.01: a footfall that stays below that is swallowed by the drones and the murmur.
+  Distance and height fall gently, so a footfall next to the listener peaks clearly
+  above the bed and a resident at the far edge of the district only murmurs.
+  `stats().foley.peak` reports the loudest level, so a layer that only counts
+  events cannot pass as a working one.
 - The sound layer listens from the **acoustic origin**, not from the camera: on the
   street you stand on, or — from the overview, where the camera floats 100 m above
   the city — the district the view rests on. `onListener` carries that origin as its
