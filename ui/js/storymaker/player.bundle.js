@@ -710,7 +710,7 @@
 // Storymaker player: text. Text styles come from the catalog (font, size as a fraction of the canvas height, weight,
 // colour, optional box, alignment, max_lines). Wrapping measures the real font through measureText and ends an
 // over-long text with an ellipsis after max_lines. Text is drawn in screen space on top of the scene. Classic script;
-// publishes StorymakerCore.text.
+// publishes StorymakerCore.text. A text style's box.pad and box.radius are fractions of the canvas height, like size.
 (function (root) {
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
@@ -772,10 +772,15 @@
         var wrapped = wrap(measure, text, opts.maxWidth, style.max_lines);
         var width = 0;
         wrapped.lines.forEach(function (l) { var w = measure(l); if (w > width) width = w; });
-        var pad = style.box ? Math.round((style.box.pad > 0 ? style.box.pad : 0.4) * px) : 0;
+        // box.pad and box.radius are fractions of the canvas height; a box without them gets 0.4 em padding and 0.3 em corners
+        var pad = 0, radius = 0;
+        if (style.box) {
+            pad = Math.round(style.box.pad > 0 ? style.box.pad * opts.canvasH : 0.4 * px);
+            radius = Math.round(style.box.radius >= 0 ? style.box.radius * opts.canvasH : 0.3 * px);
+        }
         return {
             lines: wrapped.lines, truncated: wrapped.truncated, px: px, lineH: px * LINE_HEIGHT,
-            width: width, height: wrapped.lines.length * px * LINE_HEIGHT, pad: pad, font: ctx.font
+            width: width, height: wrapped.lines.length * px * LINE_HEIGHT, pad: pad, radius: radius, font: ctx.font
         };
     }
 
@@ -802,9 +807,8 @@
         var left = align === 'left' ? x : (align === 'right' ? x - lay.width : x - lay.width / 2);
         ctx.globalAlpha = alpha > 1 ? 1 : alpha;
         if (style.box) {
-            var radius = Math.round((style.box.radius >= 0 ? style.box.radius : 0.3) * lay.px);
             ctx.fillStyle = resolve(style.box.fill || '$bg2');
-            roundRect(ctx, left - lay.pad, y - lay.height / 2 - lay.pad, lay.width + lay.pad * 2, lay.height + lay.pad * 2, radius);
+            roundRect(ctx, left - lay.pad, y - lay.height / 2 - lay.pad, lay.width + lay.pad * 2, lay.height + lay.pad * 2, lay.radius);
             ctx.fill();
         }
         ctx.font = lay.font;

@@ -54,3 +54,24 @@ check('real catalog: the typing woman at the desk spot sits on the chair seat of
     near(hips, 774, 15, 'hip joint height in design pixels');
 });
 
+// ---- text box units -----------------------------------------------------------------------------------------------------
+
+check('text: box pad and radius are fractions of the canvas height, like the size (real caption and label styles)', () => {
+    const caption = entry('text.caption'), label = entry('text.label'), title = entry('text.title');
+    const lay = (style, h) => SM.text.layout(new FakeCanvas(10, 10).ctx, 'Hallo Welt', style, { canvasH: h, maxWidth: 1500, family: 'Geist' });
+    assert.equal(lay(caption, 1080).pad, 13, 'round(0.012 x 1080)');
+    assert.equal(lay(caption, 1080).radius, 13);
+    assert.equal(lay(caption, 540).pad, 6);
+    assert.equal(lay(label, 1080).pad, 11, 'round(0.010 x 1080)');
+    assert.equal(lay(label, 1080).radius, 22, 'round(0.020 x 1080)');
+    assert.equal(lay(title, 1080).pad, 0, 'no box, no padding');
+    // a box without numbers falls back to em: 0.4 x the font size, radius 0.3 x the font size
+    const bare = lay({ ...caption, box: { fill: '#000000' } }, 1000);
+    assert.equal(bare.pad, Math.round(0.4 * bare.px));
+    assert.equal(bare.radius, Math.round(0.3 * bare.px));
+    // and the corners that are drawn use the radius
+    const cv = new FakeCanvas(1920, 1080), l = lay(caption, 1080);
+    SM.text.draw(cv.ctx, l, caption, 960, 900, SM.parts.makeResolver([{}]), 1);
+    assert.equal(cv.ctx.log.filter(x => x.startsWith('arcTo(') && x.endsWith(',13)')).length, 4, 'four rounded corners of radius 13');
+});
+
