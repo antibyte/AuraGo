@@ -2494,6 +2494,1725 @@
           "target"
         ]
       ]
+    },
+    {
+      "kind": "calculator",
+      "id": "reactance_c",
+      "category": "passive",
+      "name": "Capacitive reactance",
+      "name_en": "Capacitive reactance",
+      "doc": "A capacitor opposes an alternating current with the reactance X_C = 1 / (2π × f × C). It falls as the frequency or the capacitance rises: a capacitor blocks DC and passes high frequencies. The current through an ideal capacitor leads the voltage by 90°. Example: 100 nF at 1 kHz has X_C ≈ 1.59 kΩ. ESR, ESL and dielectric losses are ignored.",
+      "tags": [
+        "reactance",
+        "capacitive reactance",
+        "capacitor",
+        "xc",
+        "impedance",
+        "ac",
+        "blindwiderstand",
+        "kapazitiver blindwiderstand",
+        "kondensator",
+        "reaktanz",
+        "wechselstrom"
+      ],
+      "source": "Capacitive reactance X_C = 1/(ωC) with ω = 2πf; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors)",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitance",
+          "default": 1.0000000000000001e-7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "xc",
+          "dim": "resistance",
+          "label": "X_C",
+          "name": "Capacitive reactance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "xc",
+          "alts": [
+            "1/(2*pi*f*c)"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "1/(2*pi*c*xc)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "1/(2*pi*f*xc)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "xc = 1 / (2 * pi * f * c)"
+      ],
+      "schematic": "reactance_c",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f",
+          "c"
+        ],
+        [
+          "f",
+          "xc"
+        ],
+        [
+          "c",
+          "xc"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "reactance_l",
+      "category": "passive",
+      "name": "Inductive reactance",
+      "name_en": "Inductive reactance",
+      "doc": "An inductor opposes an alternating current with the reactance X_L = 2π × f × L. It rises with the frequency or the inductance: an inductor passes DC and blocks high frequencies. The current through an ideal inductor lags the voltage by 90°. Example: 10 mH at 1 kHz has X_L ≈ 62.8 Ω. Winding resistance and self-capacitance are ignored.",
+      "tags": [
+        "reactance",
+        "inductive reactance",
+        "inductor",
+        "coil",
+        "xl",
+        "impedance",
+        "ac",
+        "blindwiderstand",
+        "induktiver blindwiderstand",
+        "spule",
+        "induktivität",
+        "reaktanz",
+        "wechselstrom"
+      ],
+      "source": "Inductive reactance X_L = ωL with ω = 2πf; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors)",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": 0.01,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "xl",
+          "dim": "resistance",
+          "label": "X_L",
+          "name": "Inductive reactance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "xl",
+          "alts": [
+            "2*pi*f*l"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "xl/(2*pi*l)"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "xl/(2*pi*f)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "xl = 2 * pi * f * l"
+      ],
+      "schematic": "reactance_l",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f",
+          "l"
+        ],
+        [
+          "f",
+          "xl"
+        ],
+        [
+          "l",
+          "xl"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "impedance_series",
+      "category": "passive",
+      "name": "Series impedance (RC, RL, RLC)",
+      "name_en": "Series impedance (RC, RL, RLC)",
+      "doc": "The impedance of a resistor R in series with an inductor L, a capacitor C or both, at the frequency f. The reactances are X_L = 2π × f × L and X_C = 1 / (2π × f × C); the net reactance is X = X_L − X_C, the magnitude |Z| = √(R² + X²) and the phase φ = arctan(X / R) (positive: inductive, negative: capacitive). Choose the circuit first; the component that is not used is dimmed. At resonance X = 0 and |Z| = R. Example: 100 Ω, 10 mH and 1 µF at 1 kHz give X ≈ −96.3 Ω, |Z| ≈ 138.8 Ω and φ ≈ −43.9°.",
+      "tags": [
+        "impedance",
+        "series",
+        "rc",
+        "rl",
+        "rlc",
+        "phase",
+        "reactance",
+        "magnitude",
+        "impedanz",
+        "reihenschaltung",
+        "phasenwinkel",
+        "blindwiderstand",
+        "betrag",
+        "wechselstrom"
+      ],
+      "source": "Impedance of series RC, RL and RLC circuits (Z = R + jX, X = ωL − 1/(ωC)); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": 100,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": 0.01,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitance",
+          "default": 0.000001,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "circuit",
+          "name": "Circuit",
+          "default": "rlc",
+          "options": [
+            {
+              "id": "rc",
+              "name": "RC",
+              "consts": {
+                "uc": 1,
+                "ul": 0
+              },
+              "ignore": [
+                "l"
+              ]
+            },
+            {
+              "id": "rl",
+              "name": "RL",
+              "consts": {
+                "uc": 0,
+                "ul": 1
+              },
+              "ignore": [
+                "c"
+              ]
+            },
+            {
+              "id": "rlc",
+              "name": "RLC",
+              "consts": {
+                "uc": 1,
+                "ul": 1
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 4,
+      "rules": [],
+      "derived": [
+        {
+          "id": "xl",
+          "dim": "resistance",
+          "label": "X_L",
+          "name": "Inductive reactance",
+          "alts": [
+            "ul*2*pi*f*l"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "xc",
+          "dim": "resistance",
+          "label": "X_C",
+          "name": "Capacitive reactance",
+          "alts": [
+            "uc/(2*pi*f*c)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "x",
+          "dim": "resistance",
+          "label": "X",
+          "name": "Net reactance",
+          "alts": [
+            "xl-xc"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "z",
+          "dim": "resistance",
+          "label": "|Z|",
+          "name": "Impedance magnitude",
+          "alts": [
+            "sqrt(r^2+x^2)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "phi",
+          "dim": "angle",
+          "label": "φ",
+          "name": "Phase angle",
+          "alts": [
+            "atan(x/r)"
+          ],
+          "unit": "deg",
+          "units": [
+            "deg",
+            ""
+          ]
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "x = xl - xc",
+        "z = sqrt(r^2 + x^2)",
+        "phi = atan(x / r)"
+      ],
+      "schematic": "impedance_series",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "l",
+          "c",
+          "f"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "impedance_parallel",
+      "category": "passive",
+      "name": "Parallel impedance (RC, RL, RLC)",
+      "name_en": "Parallel impedance (RC, RL, RLC)",
+      "doc": "The impedance of a resistor R in parallel with an inductor L, a capacitor C or both, at the frequency f. The admittance is Y = 1/R + j × B with the susceptance B = 2π × f × C − 1 / (2π × f × L); the magnitude is |Z| = 1 / √((1/R)² + B²) and the phase φ = arctan(R × (1 / (2π × f × L) − 2π × f × C)) (positive: inductive, negative: capacitive). ECalc has no unit for a susceptance, so it shows the equivalent parallel reactance X_p = −1 / B instead; at resonance B = 0, the LC branch is an open circuit and X_p is infinite (shown as –). Choose the circuit first; the component that is not used is dimmed. Example: 100 Ω, 10 mH and 1 µF in parallel at 1 kHz give |Z| ≈ 72.0 Ω and φ ≈ +43.9°.",
+      "tags": [
+        "impedance",
+        "parallel",
+        "rc",
+        "rl",
+        "rlc",
+        "admittance",
+        "susceptance",
+        "phase",
+        "impedanz",
+        "parallelschaltung",
+        "admittanz",
+        "blindleitwert",
+        "phasenwinkel",
+        "wechselstrom"
+      ],
+      "source": "Impedance of parallel RC, RL and RLC circuits (admittance Y = 1/R + j(ωC − 1/(ωL)), Z = 1/Y); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": 100,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": 0.01,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitance",
+          "default": 0.000001,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "circuit",
+          "name": "Circuit",
+          "default": "rlc",
+          "options": [
+            {
+              "id": "rc",
+              "name": "RC",
+              "consts": {
+                "uc": 1,
+                "ul": 0
+              },
+              "ignore": [
+                "l"
+              ]
+            },
+            {
+              "id": "rl",
+              "name": "RL",
+              "consts": {
+                "uc": 0,
+                "ul": 1
+              },
+              "ignore": [
+                "c"
+              ]
+            },
+            {
+              "id": "rlc",
+              "name": "RLC",
+              "consts": {
+                "uc": 1,
+                "ul": 1
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 4,
+      "rules": [],
+      "derived": [
+        {
+          "id": "xp",
+          "dim": "resistance",
+          "label": "X_p",
+          "name": "Equivalent parallel reactance",
+          "alts": [
+            "1/(ul/(2*pi*f*l)-uc*2*pi*f*c)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "z",
+          "dim": "resistance",
+          "label": "|Z|",
+          "name": "Impedance magnitude",
+          "alts": [
+            "1/sqrt(1/r^2+(uc*2*pi*f*c-ul/(2*pi*f*l))^2)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "phi",
+          "dim": "angle",
+          "label": "φ",
+          "name": "Phase angle",
+          "alts": [
+            "atan(r*(ul/(2*pi*f*l)-uc*2*pi*f*c))"
+          ],
+          "unit": "deg",
+          "units": [
+            "deg",
+            ""
+          ]
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "z = 1 / sqrt(1 / r^2 + (uc * 2 * pi * f * c - ul / (2 * pi * f * l))^2)",
+        "phi = atan(r * (ul / (2 * pi * f * l) - uc * 2 * pi * f * c))"
+      ],
+      "schematic": "impedance_parallel",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "l",
+          "c",
+          "f"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "rc_time_constant",
+      "category": "passive",
+      "name": "RC time constant",
+      "name_en": "RC time constant",
+      "doc": "A capacitor C charges or discharges through a resistor R with the time constant τ = R × C. In general V_C = V_f + (V_i − V_f) × e^(−t/τ) with the initial voltage V_i and the final voltage V_f. Charging towards the supply voltage V_0 means V_i = 0 and V_f = V_0, so V_C = V_0 × (1 − e^(−t/τ)); discharging from the initial voltage V_0 means V_i = V_0 and V_f = 0, so V_C = V_0 × e^(−t/τ). After 1 τ the capacitor has covered 63.2 % of the way, after 5 τ 99.3 %. Example: 10 kΩ and 100 µF have τ = 1 s; charging from a 5 V supply, V_C is 3.16 V after 1 s. The chart shows V_C from 0 to 5 τ.",
+      "tags": [
+        "rc",
+        "time constant",
+        "tau",
+        "charge",
+        "discharge",
+        "capacitor",
+        "timing",
+        "exponential",
+        "zeitkonstante",
+        "aufladen",
+        "entladen",
+        "kondensator",
+        "ladekurve",
+        "entladekurve"
+      ],
+      "source": "First-order RC step response V_C(t) = V_f + (V_i − V_f)·e^(−t/RC); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC circuits); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 7 (first-order circuits)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitance",
+          "default": 0.00009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "v0",
+          "dim": "voltage",
+          "label": "V_0",
+          "name": "Supply or initial voltage",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "t",
+          "name": "Time",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vc",
+          "dim": "voltage",
+          "label": "V_C",
+          "name": "Capacitor voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "mode",
+          "name": "Process",
+          "default": "charge",
+          "options": [
+            {
+              "id": "charge",
+              "name": "Charging",
+              "consts": {
+                "kf": 1,
+                "ki": 0
+              },
+              "ignore": []
+            },
+            {
+              "id": "discharge",
+              "name": "Discharging",
+              "consts": {
+                "kf": 0,
+                "ki": 1
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vc",
+          "alts": [
+            "vf+(vi-vf)*exp(-t/(r*c))"
+          ]
+        },
+        {
+          "target": "v0",
+          "alts": [
+            "vc/(kf+(ki-kf)*exp(-t/(r*c)))"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "-r*c*ln((vc-vf)/(vi-vf))"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "-t/(c*ln((vc-vf)/(vi-vf)))"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "-t/(r*ln((vc-vf)/(vi-vf)))"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "tau",
+          "dim": "time",
+          "label": "τ",
+          "name": "Time constant",
+          "alts": [
+            "r*c"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "vi",
+          "dim": "voltage",
+          "label": "V_i",
+          "name": "Initial voltage",
+          "alts": [
+            "v0*ki"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "vf",
+          "dim": "voltage",
+          "label": "V_f",
+          "name": "Final voltage",
+          "alts": [
+            "v0*kf"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ntau",
+          "dim": "number",
+          "label": "t / τ",
+          "name": "Time in time constants",
+          "alts": [
+            "t/(r*c)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "lvl",
+          "dim": "ratio",
+          "label": "level",
+          "name": "Capacitor voltage relative to V_0",
+          "alts": [
+            "vc/v0"
+          ],
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "(vc-vf)/(vi-vf) <= 0",
+          "warn": "V_C is at or beyond the final voltage V_f (V_0 when charging, 0 V when discharging). The capacitor only approaches V_f, so no finite time reaches it."
+        },
+        {
+          "when": "(vc-vf)/(vi-vf) > 1",
+          "warn": "V_C lies on the far side of the initial voltage V_i: the capacitor starts at V_i and moves towards V_f, so this value would need a negative time."
+        }
+      ],
+      "formula": [
+        "vc = vf + (vi - vf) * exp(-t / tau)",
+        "tau = r * c"
+      ],
+      "schematic": "rc_time_constant",
+      "finder": "",
+      "chart": {
+        "x": "t",
+        "y": "vc",
+        "to": "5*r*c",
+        "samples": 101
+      },
+      "sets": [
+        [
+          "r",
+          "c",
+          "v0",
+          "t"
+        ],
+        [
+          "r",
+          "c",
+          "v0",
+          "vc"
+        ],
+        [
+          "r",
+          "c",
+          "t",
+          "vc"
+        ],
+        [
+          "r",
+          "v0",
+          "t",
+          "vc"
+        ],
+        [
+          "c",
+          "v0",
+          "t",
+          "vc"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "capacitors_series_parallel",
+      "category": "passive",
+      "name": "Series and parallel capacitors",
+      "name_en": "Series and parallel capacitors",
+      "doc": "Capacitors in parallel add up: C_P = C_1 + C_2 + …. Capacitors in series combine like resistors in parallel: 1/C_S = 1/C_1 + 1/C_2 + …, so the total is smaller than the smallest capacitor. In series the voltage divides in inverse proportion to the capacitance; polarised capacitors in series need balancing resistors. Enter the values as a list, for example 4.7µ, 10µ, 22µ.",
+      "tags": [
+        "capacitor",
+        "series",
+        "parallel",
+        "combination",
+        "total capacitance",
+        "kondensator",
+        "reihenschaltung",
+        "parallelschaltung",
+        "gesamtkapazität",
+        "ersatzkapazität"
+      ],
+      "source": "Series and parallel capacitor combination; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "cs",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitors",
+          "default": null,
+          "default_list": [
+            0.0000047,
+            0.000009999999999999999,
+            0.000022
+          ],
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": true,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [],
+      "derived": [
+        {
+          "id": "cser",
+          "dim": "capacitance",
+          "label": "C_S",
+          "name": "Series capacitance",
+          "alts": [
+            "par(cs)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "cpar",
+          "dim": "capacitance",
+          "label": "C_P",
+          "name": "Parallel capacitance",
+          "alts": [
+            "sum(cs)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "cser = par(cs)",
+        "cpar = sum(cs)"
+      ],
+      "schematic": "capacitors_series_parallel",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "cs"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "inductors_series_parallel",
+      "category": "passive",
+      "name": "Series and parallel inductors",
+      "name_en": "Series and parallel inductors",
+      "doc": "Inductors in series add up: L_S = L_1 + L_2 + …. Inductors in parallel combine like resistors in parallel: 1/L_P = 1/L_1 + 1/L_2 + …, so the total is smaller than the smallest inductor. This holds only while the coils do not couple magnetically; mutual inductance is ignored. Enter the values as a list, for example 1m, 2.2m, 4.7m.",
+      "tags": [
+        "inductor",
+        "coil",
+        "series",
+        "parallel",
+        "combination",
+        "total inductance",
+        "spule",
+        "induktivität",
+        "reihenschaltung",
+        "parallelschaltung",
+        "gesamtinduktivität",
+        "ersatzinduktivität"
+      ],
+      "source": "Series and parallel inductor combination (no mutual coupling); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "ls",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductors",
+          "default": null,
+          "default_list": [
+            0.001,
+            0.0022,
+            0.0047
+          ],
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": true,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 1,
+      "rules": [],
+      "derived": [
+        {
+          "id": "lser",
+          "dim": "inductance",
+          "label": "L_S",
+          "name": "Series inductance",
+          "alts": [
+            "sum(ls)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "lpar",
+          "dim": "inductance",
+          "label": "L_P",
+          "name": "Parallel inductance",
+          "alts": [
+            "par(ls)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "lser = sum(ls)",
+        "lpar = par(ls)"
+      ],
+      "schematic": "inductors_series_parallel",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "ls"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "capacitor_energy",
+      "category": "passive",
+      "name": "Capacitor energy and charge",
+      "name_en": "Capacitor energy and charge",
+      "doc": "The energy stored in a capacitor is E = ½ × C × U² and its charge is Q = C × U; also E = ½ × Q × U = Q² / (2 × C). Any two of the four values determine the other two. Example: 1000 µF at 12 V stores 72 mJ and 12 mC. Large or high-voltage capacitors can keep a dangerous charge long after switch-off: discharge them through a suitable resistor before touching them.",
+      "tags": [
+        "capacitor",
+        "energy",
+        "charge",
+        "joule",
+        "coulomb",
+        "stored energy",
+        "kondensator",
+        "energie",
+        "ladung",
+        "speicherenergie",
+        "flash",
+        "blitz"
+      ],
+      "source": "Energy stored in a capacitor E = ½CU² and charge Q = CU; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1",
+      "vars": [
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Capacitance",
+          "default": 0.001,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "u",
+          "dim": "voltage",
+          "label": "U",
+          "name": "Voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "e",
+          "dim": "energy",
+          "label": "E",
+          "name": "Stored energy",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "q",
+          "dim": "charge",
+          "label": "Q",
+          "name": "Charge",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "e",
+          "alts": [
+            "c*u^2/2",
+            "q*u/2",
+            "q^2/(2*c)"
+          ]
+        },
+        {
+          "target": "q",
+          "alts": [
+            "c*u",
+            "2*e/u",
+            "sqrt(2*e*c)"
+          ]
+        },
+        {
+          "target": "u",
+          "alts": [
+            "q/c",
+            "2*e/q",
+            "sqrt(2*e/c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "q/u",
+            "2*e/u^2",
+            "q^2/(2*e)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "e = c * u^2 / 2",
+        "q = c * u"
+      ],
+      "schematic": "capacitor_energy",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "c",
+          "u"
+        ],
+        [
+          "c",
+          "e"
+        ],
+        [
+          "c",
+          "q"
+        ],
+        [
+          "u",
+          "e"
+        ],
+        [
+          "u",
+          "q"
+        ],
+        [
+          "e",
+          "q"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "air_coil",
+      "category": "passive",
+      "name": "Air-core coil (Wheeler)",
+      "name_en": "Air-core coil (Wheeler)",
+      "doc": "Inductance of a single-layer, close-wound air-core coil (solenoid) by Wheeler's formula: L [µH] = N² × r² / (9 × r + 10 × ℓ), with the mean coil radius r and the winding length ℓ both in inches. In the SI units used here this is L = N² × D² / (50800 × (9 × D + 20 × ℓ)) with the mean diameter D (to the centre of the wire) and the length ℓ in metres. It is accurate to about 1 % for ℓ ≥ 0.8 × r (a coil at least 0.4 diameters long) and becomes rough for shorter coils; it assumes an air core and a wire much thinner than the coil. The wire length is the helix at the mean diameter without leads. Example: 25 turns on a 20 mm diameter, 30 mm long winding give about 6.3 µH.",
+      "tags": [
+        "coil",
+        "air core",
+        "inductor",
+        "solenoid",
+        "wheeler",
+        "turns",
+        "single layer",
+        "inductance",
+        "spule",
+        "luftspule",
+        "zylinderspule",
+        "windungen",
+        "induktivität",
+        "einlagig"
+      ],
+      "source": "H. A. Wheeler: Simple Inductance Formulas for Radio Coils, Proceedings of the IRE, vol. 16, no. 10, October 1928 (single-layer coil L = N²r²/(9r + 10ℓ) in inches and microhenries, accurate to about 1 % for ℓ > 0.8r)",
+      "vars": [
+        {
+          "id": "d",
+          "dim": "length",
+          "label": "D",
+          "name": "Mean coil diameter",
+          "default": 0.02,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "len",
+          "dim": "length",
+          "label": "ℓ",
+          "name": "Winding length",
+          "default": 0.03,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "n",
+          "dim": "number",
+          "label": "N",
+          "name": "Turns",
+          "default": 25,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "l",
+          "alts": [
+            "n^2*d^2/(50800*(9*d+20*len))"
+          ]
+        },
+        {
+          "target": "n",
+          "alts": [
+            "sqrt(l*50800*(9*d+20*len))/d"
+          ]
+        },
+        {
+          "target": "len",
+          "alts": [
+            "(n^2*d^2/(50800*l)-9*d)/20"
+          ]
+        },
+        {
+          "target": "d",
+          "alts": [
+            "(9*50800*l+sqrt((9*50800*l)^2+80*50800*l*n^2*len))/(2*n^2)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rin",
+          "dim": "number",
+          "label": "r_in",
+          "name": "Mean radius in inches (Wheeler's unit)",
+          "alts": [
+            "d/0.0508"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "lin",
+          "dim": "number",
+          "label": "ℓ_in",
+          "name": "Winding length in inches (Wheeler's unit)",
+          "alts": [
+            "len/0.0254"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "wire",
+          "dim": "length",
+          "label": "ℓ_w",
+          "name": "Wire length (without leads)",
+          "alts": [
+            "n*sqrt((pi*d)^2+(len/n)^2)"
+          ],
+          "unit": "",
+          "units": [
+            "",
+            "in"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "len < 0.4*d",
+          "warn": "The coil is shorter than 0.4 × its diameter: Wheeler's formula is only a rough estimate here (it is accurate to about 1 % from a length of 0.8 × the radius)."
+        }
+      ],
+      "formula": [
+        "l = 1e-6 * n^2 * rin^2 / (9 * rin + 10 * lin)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "d",
+          "len",
+          "n"
+        ],
+        [
+          "d",
+          "len",
+          "l"
+        ],
+        [
+          "d",
+          "n",
+          "l"
+        ],
+        [
+          "len",
+          "n",
+          "l"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "toroid_al",
+      "category": "passive",
+      "name": "Toroid inductance (A_L)",
+      "name_en": "Toroid inductance (A_L)",
+      "doc": "The inductance of a winding on a ferrite or powdered-iron core follows from the inductance factor A_L of the core: L = A_L × N². Data sheets print A_L in nH per turn² (1 nH/N² corresponds to 1 mH per 1000 turns); enter it with the unit prefix, for example 250n for 250 nH. N counts the turns through the centre of the core. A_L holds for small signals below saturation and is stated with a tolerance, so the result is only as exact as the core. N_w is the turn count rounded up to whole turns. Example: A_L = 250 nH and 20 turns give 100 µH.",
+      "tags": [
+        "toroid",
+        "ring core",
+        "al value",
+        "inductance factor",
+        "ferrite",
+        "powdered iron",
+        "turns",
+        "nh per turn squared",
+        "ringkern",
+        "al-wert",
+        "induktivitätsfaktor",
+        "windungen",
+        "ferrit",
+        "eisenpulver"
+      ],
+      "source": "Definition of the inductance factor A_L of a magnetic core, L = A_L·N² (A_L in nH/N² as printed in the data sheets of ferrite and powdered-iron core makers)",
+      "vars": [
+        {
+          "id": "al",
+          "dim": "inductance",
+          "label": "A_L",
+          "name": "Inductance factor (per turn²)",
+          "default": 2.5000000000000004e-7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "n",
+          "dim": "number",
+          "label": "N",
+          "name": "Turns",
+          "default": 20,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "l",
+          "alts": [
+            "al*n^2"
+          ]
+        },
+        {
+          "target": "al",
+          "alts": [
+            "l/n^2"
+          ]
+        },
+        {
+          "target": "n",
+          "alts": [
+            "sqrt(l/al)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "nw",
+          "dim": "number",
+          "label": "N_w",
+          "name": "Whole turns (rounded up)",
+          "alts": [
+            "ceil(n-1e-6)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "l = al * n^2"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "al",
+          "n"
+        ],
+        [
+          "al",
+          "l"
+        ],
+        [
+          "n",
+          "l"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "wire_resistance",
+      "category": "passive",
+      "name": "Wire resistance",
+      "name_en": "Wire resistance",
+      "doc": "DC resistance of a straight conductor: R = ρ(T) × ℓ / A with ρ(T) = ρ20 × (1 + α × (T − 20 °C)). ρ20 and the temperature coefficient α are those of the selected material at 20 °C: annealed copper per IEC 60028 (ρ20 = 0.017241 Ω·mm²/m, α = 0.00393 1/K); aluminium per IEC 60889, hard-drawn aluminium wire (ρ20 = 0.028264 Ω·mm²/m, the 61 % IACS value, α = 0.00403 1/K); silver is a typical handbook value. Values of real wires vary with purity and alloy. The cross-section can be entered in mm², AWG (ASTM B258) or kcmil. For a two-wire run use twice the one-way length. The linear temperature model is reliable only in a moderate range around 20 °C. Example: 10 m of 1.5 mm² copper at 20 °C have 0.115 Ω.",
+      "tags": [
+        "wire",
+        "resistance",
+        "conductor",
+        "copper",
+        "aluminium",
+        "silver",
+        "awg",
+        "cross-section",
+        "resistivity",
+        "temperature coefficient",
+        "leitung",
+        "leitungswiderstand",
+        "draht",
+        "kupfer",
+        "aluminium",
+        "querschnitt",
+        "spezifischer widerstand",
+        "temperaturkoeffizient"
+      ],
+      "source": "R = ρ·ℓ/A with ρ(T) = ρ20·(1 + α·(T − 20 °C)); annealed copper ρ20 = 1/58 Ω·mm²/m (rounded to 0.017241) and α20 = 0.00393 1/K per IEC 60028; aluminium ρ20 = 0.028264 Ω·mm²/m (the 61 % IACS value) and α = 0.00403 1/K per IEC 60889 (hard-drawn aluminium wire for overhead line conductors); silver 1.59 nΩ·m with α ≈ 0.0038 1/K as typical handbook values (e.g. CRC Handbook of Chemistry and Physics); AWG per ASTM B258",
+      "vars": [
+        {
+          "id": "len",
+          "dim": "length",
+          "label": "ℓ",
+          "name": "Length",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "ft",
+            "in"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "a",
+          "dim": "area",
+          "label": "A",
+          "name": "Cross-section",
+          "default": 0.0000015,
+          "default_list": null,
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "AWG",
+            "kcmil",
+            "mil2"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "temperature",
+          "label": "T",
+          "name": "Temperature",
+          "default": 293.15,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Resistance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "material",
+          "name": "Material",
+          "default": "copper",
+          "options": [
+            {
+              "id": "copper",
+              "name": "Copper",
+              "consts": {
+                "alpha": 0.00393,
+                "rho": 1.7241e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "aluminium",
+              "name": "Aluminium",
+              "consts": {
+                "alpha": 0.00403,
+                "rho": 2.8264e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "silver",
+              "name": "Silver",
+              "consts": {
+                "alpha": 0.0038,
+                "rho": 1.59e-8
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "r",
+          "alts": [
+            "rho*(1+alpha*(t-293.15))*len/a"
+          ]
+        },
+        {
+          "target": "len",
+          "alts": [
+            "r*a/(rho*(1+alpha*(t-293.15)))"
+          ]
+        },
+        {
+          "target": "a",
+          "alts": [
+            "rho*(1+alpha*(t-293.15))*len/r"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "293.15+(r*a/(rho*len)-1)/alpha"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rho20",
+          "dim": "resistivity",
+          "label": "ρ20",
+          "name": "Resistivity at 20 °C",
+          "alts": [
+            "rho"
+          ],
+          "unit": "ohmmm2m",
+          "units": []
+        },
+        {
+          "id": "tcr",
+          "dim": "tempco",
+          "label": "α",
+          "name": "Temperature coefficient at 20 °C",
+          "alts": [
+            "alpha"
+          ],
+          "unit": "pctK",
+          "units": []
+        },
+        {
+          "id": "dt",
+          "dim": "tempdiff",
+          "label": "ΔT",
+          "name": "Temperature difference to 20 °C",
+          "alts": [
+            "t-293.15"
+          ],
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ]
+        },
+        {
+          "id": "rho_t",
+          "dim": "resistivity",
+          "label": "ρ(T)",
+          "name": "Resistivity at the temperature T",
+          "alts": [
+            "rho*(1+alpha*(t-293.15))"
+          ],
+          "unit": "ohmmm2m",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "(t < 223.15) + (t > 423.15)",
+          "warn": "The temperature is far from 20 °C (below −50 °C or above 150 °C): the linear temperature model loses accuracy there."
+        }
+      ],
+      "formula": [
+        "r = rho20 * (1 + tcr * dt) * len / a"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "len",
+          "a",
+          "t"
+        ],
+        [
+          "len",
+          "a",
+          "r"
+        ],
+        [
+          "len",
+          "t",
+          "r"
+        ],
+        [
+          "a",
+          "t",
+          "r"
+        ]
+      ]
     }
   ]
 }

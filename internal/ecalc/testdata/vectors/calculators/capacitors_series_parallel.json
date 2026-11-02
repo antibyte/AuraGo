@@ -1,0 +1,18 @@
+{
+  "calc": "capacitors_series_parallel",
+  "sets": [
+    {"values": {"cs": [1e-06, 1e-06], "cser": 5e-07, "cpar": 2e-06}, "ref": "hand: two 1 uF: parallel 1 + 1 = 2 uF; series 1 * 1 / (1 + 1) = 0.5 uF"},
+    {"values": {"cs": [4.7e-06, 1e-05, 2.2e-05], "cser": 2.791576673866e-06, "cpar": 3.67e-05}, "ref": "hand (independent script): parallel 4.7 + 10 + 22 = 36.7 uF; series 1 / (1/4.7 + 1/10 + 1/22) = 1 / (0.2127660 + 0.1 + 0.0454545) = 2.791577 uF"},
+    {"values": {"cs": [1e-07, 1e-07, 1e-07, 1e-07], "cser": 2.5e-08, "cpar": 4e-07}, "ref": "hand: four 100 nF: parallel 4 * 100 = 400 nF; series 100 / 4 = 25 nF"},
+    {"values": {"cs": [3e-06, 6e-06], "cser": 2e-06, "cpar": 9e-06}, "ref": "hand: parallel 3 + 6 = 9 uF; series 3 * 6 / (3 + 6) = 2 uF"}
+  ],
+  "solve": [
+    {"inputs": {"cs": [4.7e-06, 1e-05, 2.2e-05]}, "expect": {"cser": 2.791576673866e-06, "cpar": 3.67e-05}, "ref": "hand (independent script): parallel 36.7 uF; series 1 / (1/4.7 + 1/10 + 1/22) = 2.791577 uF"},
+    {"inputs": {"cs": [2.2e-06]}, "expect": {"cser": 2.2e-06, "cpar": 2.2e-06}, "ref": "hand: a single capacitor is its own series and parallel value"},
+    {"inputs": {"cs": [1e-06, 2e-06, 3e-06, 6e-06]}, "expect": {"cser": 5e-07, "cpar": 1.2e-05}, "ref": "hand: parallel 1 + 2 + 3 + 6 = 12 uF; series 1 / (1 + 1/2 + 1/3 + 1/6) = 1 / 2 = 0.5 uF"},
+    {"inputs": {"cs": [1e-06, 0]}, "errors": {"cs": "range"}, "ref": "hand: a zero capacitor is out of range"},
+    {"inputs": {"cs": [-1e-06, 2e-06]}, "errors": {"cs": "range"}, "ref": "hand: a negative capacitor is out of range"},
+    {"inputs": {"cs": [-1e-06, "inf"]}, "errors": {"cs": "nonfinite"}, "ref": "contract: a list is checked for finiteness before its range"},
+    {"inputs": {}, "errors": {"cs": "undetermined"}, "ref": "the list is the only input"}
+  ]
+}

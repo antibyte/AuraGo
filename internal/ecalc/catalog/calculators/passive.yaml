@@ -1,0 +1,322 @@
+# Passive-component calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in
+# English and German (other languages fall back to English). Rules are written out for every direction, in the order
+# the solver tries them: the first alternative whose variables are all known wins. Calculators without rules
+# (impedances, series/parallel lists) are forward-only: an inversion is not meaningful there.
+
+- id: reactance_c
+  kind: calculator
+  category: passive
+  name: {cs: "Kapacitní reaktance", da: "Kapacitiv reaktans", de: "Kapazitiver Blindwiderstand", el: "Χωρητική αντίσταση", en: "Capacitive reactance", es: "Reactancia capacitiva", fr: "Réactance capacitive", hi: "धारितीय प्रतिघात", it: "Reattanza capacitiva", ja: "容量性リアクタンス", nl: "Capacitieve reactantie", no: "Kapasitiv reaktans", pl: "Reaktancja pojemnościowa", pt: "Reatância capacitiva", sv: "Kapacitiv reaktans", zh: "容抗"}
+  doc:
+    en: "A capacitor opposes an alternating current with the reactance X_C = 1 / (2π × f × C). It falls as the frequency or the capacitance rises: a capacitor blocks DC and passes high frequencies. The current through an ideal capacitor leads the voltage by 90°. Example: 100 nF at 1 kHz has X_C ≈ 1.59 kΩ. ESR, ESL and dielectric losses are ignored."
+    de: "Ein Kondensator setzt einem Wechselstrom den Blindwiderstand X_C = 1 / (2π · f · C) entgegen. Er sinkt mit steigender Frequenz oder Kapazität: Ein Kondensator sperrt Gleichstrom und lässt hohe Frequenzen durch. Beim idealen Kondensator eilt der Strom der Spannung um 90° voraus. Beispiel: 100 nF bei 1 kHz haben X_C ≈ 1,59 kΩ. ESR, ESL und dielektrische Verluste bleiben unberücksichtigt."
+  tags: [reactance, capacitive reactance, capacitor, xc, impedance, ac, blindwiderstand, kapazitiver blindwiderstand, kondensator, reaktanz, wechselstrom]
+  source: "Capacitive reactance X_C = 1/(ωC) with ω = 2πf; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors)"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1 kHz"}
+    c: {dim: capacitance, label: C, name: {en: "Capacitance", de: "Kapazität"}, default: "100 nF", eseries: true}
+    xc: {dim: resistance, label: X_C, name: {en: "Capacitive reactance", de: "Kapazitiver Blindwiderstand"}}
+  dof: 2
+  rules:
+    xc: ["1/(2*pi*f*c)"]
+    f: ["1/(2*pi*c*xc)"]
+    c: ["1/(2*pi*f*xc)"]
+  formula: ["xc = 1 / (2 * pi * f * c)"]
+  schematic: reactance_c
+
+- id: reactance_l
+  kind: calculator
+  category: passive
+  name: {cs: "Induktivní reaktance", da: "Induktiv reaktans", de: "Induktiver Blindwiderstand", el: "Επαγωγική αντίσταση", en: "Inductive reactance", es: "Reactancia inductiva", fr: "Réactance inductive", hi: "प्रेरकीय प्रतिघात", it: "Reattanza induttiva", ja: "誘導性リアクタンス", nl: "Inductieve reactantie", no: "Induktiv reaktans", pl: "Reaktancja indukcyjna", pt: "Reatância indutiva", sv: "Induktiv reaktans", zh: "感抗"}
+  doc:
+    en: "An inductor opposes an alternating current with the reactance X_L = 2π × f × L. It rises with the frequency or the inductance: an inductor passes DC and blocks high frequencies. The current through an ideal inductor lags the voltage by 90°. Example: 10 mH at 1 kHz has X_L ≈ 62.8 Ω. Winding resistance and self-capacitance are ignored."
+    de: "Eine Spule setzt einem Wechselstrom den Blindwiderstand X_L = 2π · f · L entgegen. Er steigt mit der Frequenz oder der Induktivität: Eine Spule lässt Gleichstrom durch und sperrt hohe Frequenzen. Beim idealen Induktor eilt der Strom der Spannung um 90° nach. Beispiel: 10 mH bei 1 kHz haben X_L ≈ 62,8 Ω. Wicklungswiderstand und Eigenkapazität bleiben unberücksichtigt."
+  tags: [reactance, inductive reactance, inductor, coil, xl, impedance, ac, blindwiderstand, induktiver blindwiderstand, spule, induktivität, reaktanz, wechselstrom]
+  source: "Inductive reactance X_L = ωL with ω = 2πf; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors)"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1 kHz"}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "10 mH", eseries: true}
+    xl: {dim: resistance, label: X_L, name: {en: "Inductive reactance", de: "Induktiver Blindwiderstand"}}
+  dof: 2
+  rules:
+    xl: ["2*pi*f*l"]
+    f: ["xl/(2*pi*l)"]
+    l: ["xl/(2*pi*f)"]
+  formula: ["xl = 2 * pi * f * l"]
+  schematic: reactance_l
+
+- id: impedance_series
+  kind: calculator
+  category: passive
+  name: {cs: "Impedance sériového obvodu (RC, RL, RLC)", da: "Impedans, serieforbindelse (RC, RL, RLC)", de: "Impedanz der Reihenschaltung (RC, RL, RLC)", el: "Σύνθετη αντίσταση σε σειρά (RC, RL, RLC)", en: "Series impedance (RC, RL, RLC)", es: "Impedancia en serie (RC, RL, RLC)", fr: "Impédance série (RC, RL, RLC)", hi: "श्रेणी प्रतिबाधा (RC, RL, RLC)", it: "Impedenza serie (RC, RL, RLC)", ja: "直列インピーダンス（RC・RL・RLC）", nl: "Serie-impedantie (RC, RL, RLC)", no: "Impedans i serie (RC, RL, RLC)", pl: "Impedancja szeregowa (RC, RL, RLC)", pt: "Impedância em série (RC, RL, RLC)", sv: "Serieimpedans (RC, RL, RLC)", zh: "串联阻抗（RC、RL、RLC）"}
+  doc:
+    en: "The impedance of a resistor R in series with an inductor L, a capacitor C or both, at the frequency f. The reactances are X_L = 2π × f × L and X_C = 1 / (2π × f × C); the net reactance is X = X_L − X_C, the magnitude |Z| = √(R² + X²) and the phase φ = arctan(X / R) (positive: inductive, negative: capacitive). Choose the circuit first; the component that is not used is dimmed. At resonance X = 0 and |Z| = R. Example: 100 Ω, 10 mH and 1 µF at 1 kHz give X ≈ −96.3 Ω, |Z| ≈ 138.8 Ω and φ ≈ −43.9°."
+    de: "Die Impedanz eines Widerstands R in Reihe mit einer Spule L, einem Kondensator C oder beidem bei der Frequenz f. Die Blindwiderstände sind X_L = 2π · f · L und X_C = 1 / (2π · f · C); der resultierende Blindwiderstand ist X = X_L − X_C, der Betrag |Z| = √(R² + X²) und die Phase φ = arctan(X / R) (positiv: induktiv, negativ: kapazitiv). Zuerst die Schaltung wählen; das nicht benutzte Bauteil wird abgeblendet. Bei Resonanz ist X = 0 und |Z| = R. Beispiel: 100 Ω, 10 mH und 1 µF bei 1 kHz ergeben X ≈ −96,3 Ω, |Z| ≈ 138,8 Ω und φ ≈ −43,9°."
+  tags: [impedance, series, rc, rl, rlc, phase, reactance, magnitude, impedanz, reihenschaltung, phasenwinkel, blindwiderstand, betrag, wechselstrom]
+  source: "Impedance of series RC, RL and RLC circuits (Z = R + jX, X = ωL − 1/(ωC)); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "100", eseries: true}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "10 mH", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitance", de: "Kapazität"}, default: "1 µF", eseries: true}
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1 kHz"}
+  choices:
+    circuit:
+      name: {cs: "Obvod", da: "Kreds", de: "Schaltung", el: "Κύκλωμα", en: "Circuit", es: "Circuito", fr: "Circuit", hi: "परिपथ", it: "Circuito", ja: "回路", nl: "Schakeling", no: "Krets", pl: "Układ", pt: "Circuito", sv: "Krets", zh: "电路"}
+      default: rlc
+      options:
+        rc:
+          name: {cs: "RC", da: "RC", de: "RC", el: "RC", en: "RC", es: "RC", fr: "RC", hi: "RC", it: "RC", ja: "RC", nl: "RC", no: "RC", pl: "RC", pt: "RC", sv: "RC", zh: "RC"}
+          consts: {ul: 0, uc: 1}
+          ignore: [l]
+        rl:
+          name: {cs: "RL", da: "RL", de: "RL", el: "RL", en: "RL", es: "RL", fr: "RL", hi: "RL", it: "RL", ja: "RL", nl: "RL", no: "RL", pl: "RL", pt: "RL", sv: "RL", zh: "RL"}
+          consts: {ul: 1, uc: 0}
+          ignore: [c]
+        rlc:
+          name: {cs: "RLC", da: "RLC", de: "RLC", el: "RLC", en: "RLC", es: "RLC", fr: "RLC", hi: "RLC", it: "RLC", ja: "RLC", nl: "RLC", no: "RLC", pl: "RLC", pt: "RLC", sv: "RLC", zh: "RLC"}
+          consts: {ul: 1, uc: 1}
+  dof: 4
+  derived:
+    xl: {dim: resistance, label: X_L, name: {en: "Inductive reactance", de: "Induktiver Blindwiderstand"}, expr: "ul*2*pi*f*l"}
+    xc: {dim: resistance, label: X_C, name: {en: "Capacitive reactance", de: "Kapazitiver Blindwiderstand"}, expr: "uc/(2*pi*f*c)"}
+    x: {dim: resistance, label: X, name: {en: "Net reactance", de: "Resultierender Blindwiderstand"}, expr: "xl-xc"}
+    z: {dim: resistance, label: "|Z|", name: {en: "Impedance magnitude", de: "Impedanzbetrag"}, expr: "sqrt(r^2+x^2)"}
+    phi: {dim: angle, label: φ, name: {en: "Phase angle", de: "Phasenwinkel"}, expr: "atan(x/r)", unit: deg, units: [deg, ""]}
+  formula: ["x = xl - xc", "z = sqrt(r^2 + x^2)", "phi = atan(x / r)"]
+  schematic: impedance_series
+
+- id: impedance_parallel
+  kind: calculator
+  category: passive
+  name: {cs: "Impedance paralelního obvodu (RC, RL, RLC)", da: "Impedans, parallelforbindelse (RC, RL, RLC)", de: "Impedanz der Parallelschaltung (RC, RL, RLC)", el: "Σύνθετη αντίσταση παράλληλα (RC, RL, RLC)", en: "Parallel impedance (RC, RL, RLC)", es: "Impedancia en paralelo (RC, RL, RLC)", fr: "Impédance parallèle (RC, RL, RLC)", hi: "समानांतर प्रतिबाधा (RC, RL, RLC)", it: "Impedenza parallelo (RC, RL, RLC)", ja: "並列インピーダンス（RC・RL・RLC）", nl: "Parallel-impedantie (RC, RL, RLC)", no: "Impedans i parallell (RC, RL, RLC)", pl: "Impedancja równoległa (RC, RL, RLC)", pt: "Impedância em paralelo (RC, RL, RLC)", sv: "Parallellimpedans (RC, RL, RLC)", zh: "并联阻抗（RC、RL、RLC）"}
+  doc:
+    en: "The impedance of a resistor R in parallel with an inductor L, a capacitor C or both, at the frequency f. The admittance is Y = 1/R + j × B with the susceptance B = 2π × f × C − 1 / (2π × f × L); the magnitude is |Z| = 1 / √((1/R)² + B²) and the phase φ = arctan(R × (1 / (2π × f × L) − 2π × f × C)) (positive: inductive, negative: capacitive). ECalc has no unit for a susceptance, so it shows the equivalent parallel reactance X_p = −1 / B instead; at resonance B = 0, the LC branch is an open circuit and X_p is infinite (shown as –). Choose the circuit first; the component that is not used is dimmed. Example: 100 Ω, 10 mH and 1 µF in parallel at 1 kHz give |Z| ≈ 72.0 Ω and φ ≈ +43.9°."
+    de: "Die Impedanz eines Widerstands R parallel zu einer Spule L, einem Kondensator C oder beidem bei der Frequenz f. Die Admittanz ist Y = 1/R + j · B mit dem Blindleitwert B = 2π · f · C − 1 / (2π · f · L); der Betrag ist |Z| = 1 / √((1/R)² + B²) und die Phase φ = arctan(R · (1 / (2π · f · L) − 2π · f · C)) (positiv: induktiv, negativ: kapazitiv). ECalc hat keine Einheit für einen Blindleitwert und zeigt deshalb den äquivalenten Parallelblindwiderstand X_p = −1 / B; bei Resonanz ist B = 0, der LC-Zweig wirkt wie eine Unterbrechung und X_p ist unendlich (angezeigt als –). Zuerst die Schaltung wählen; das nicht benutzte Bauteil wird abgeblendet. Beispiel: 100 Ω, 10 mH und 1 µF parallel bei 1 kHz ergeben |Z| ≈ 72,0 Ω und φ ≈ +43,9°."
+  tags: [impedance, parallel, rc, rl, rlc, admittance, susceptance, phase, impedanz, parallelschaltung, admittanz, blindleitwert, phasenwinkel, wechselstrom]
+  source: "Impedance of parallel RC, RL and RLC circuits (admittance Y = 1/R + j(ωC − 1/(ωL)), Z = 1/Y); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 9 (sinusoids and phasors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "100", eseries: true}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "10 mH", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitance", de: "Kapazität"}, default: "1 µF", eseries: true}
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1 kHz"}
+  choices:
+    circuit:
+      name: {cs: "Obvod", da: "Kreds", de: "Schaltung", el: "Κύκλωμα", en: "Circuit", es: "Circuito", fr: "Circuit", hi: "परिपथ", it: "Circuito", ja: "回路", nl: "Schakeling", no: "Krets", pl: "Układ", pt: "Circuito", sv: "Krets", zh: "电路"}
+      default: rlc
+      options:
+        rc:
+          name: {cs: "RC", da: "RC", de: "RC", el: "RC", en: "RC", es: "RC", fr: "RC", hi: "RC", it: "RC", ja: "RC", nl: "RC", no: "RC", pl: "RC", pt: "RC", sv: "RC", zh: "RC"}
+          consts: {ul: 0, uc: 1}
+          ignore: [l]
+        rl:
+          name: {cs: "RL", da: "RL", de: "RL", el: "RL", en: "RL", es: "RL", fr: "RL", hi: "RL", it: "RL", ja: "RL", nl: "RL", no: "RL", pl: "RL", pt: "RL", sv: "RL", zh: "RL"}
+          consts: {ul: 1, uc: 0}
+          ignore: [c]
+        rlc:
+          name: {cs: "RLC", da: "RLC", de: "RLC", el: "RLC", en: "RLC", es: "RLC", fr: "RLC", hi: "RLC", it: "RLC", ja: "RLC", nl: "RLC", no: "RLC", pl: "RLC", pt: "RLC", sv: "RLC", zh: "RLC"}
+          consts: {ul: 1, uc: 1}
+  dof: 4
+  derived:
+    xp: {dim: resistance, label: X_p, name: {en: "Equivalent parallel reactance", de: "Äquivalenter Parallelblindwiderstand"}, expr: "1/(ul/(2*pi*f*l)-uc*2*pi*f*c)"}
+    z: {dim: resistance, label: "|Z|", name: {en: "Impedance magnitude", de: "Impedanzbetrag"}, expr: "1/sqrt(1/r^2+(uc*2*pi*f*c-ul/(2*pi*f*l))^2)"}
+    phi: {dim: angle, label: φ, name: {en: "Phase angle", de: "Phasenwinkel"}, expr: "atan(r*(ul/(2*pi*f*l)-uc*2*pi*f*c))", unit: deg, units: [deg, ""]}
+  formula: ["z = 1 / sqrt(1 / r^2 + (uc * 2 * pi * f * c - ul / (2 * pi * f * l))^2)", "phi = atan(r * (ul / (2 * pi * f * l) - uc * 2 * pi * f * c))"]
+  schematic: impedance_parallel
+
+- id: rc_time_constant
+  kind: calculator
+  category: passive
+  name: {cs: "Časová konstanta RC", da: "RC-tidskonstant", de: "RC-Zeitkonstante", el: "Σταθερά χρόνου RC", en: "RC time constant", es: "Constante de tiempo RC", fr: "Constante de temps RC", hi: "RC समय स्थिरांक", it: "Costante di tempo RC", ja: "RC時定数", nl: "RC-tijdconstante", no: "RC-tidskonstant", pl: "Stała czasowa RC", pt: "Constante de tempo RC", sv: "RC-tidskonstant", zh: "RC时间常数"}
+  doc:
+    en: "A capacitor C charges or discharges through a resistor R with the time constant τ = R × C. In general V_C = V_f + (V_i − V_f) × e^(−t/τ) with the initial voltage V_i and the final voltage V_f. Charging towards the supply voltage V_0 means V_i = 0 and V_f = V_0, so V_C = V_0 × (1 − e^(−t/τ)); discharging from the initial voltage V_0 means V_i = V_0 and V_f = 0, so V_C = V_0 × e^(−t/τ). After 1 τ the capacitor has covered 63.2 % of the way, after 5 τ 99.3 %. Example: 10 kΩ and 100 µF have τ = 1 s; charging from a 5 V supply, V_C is 3.16 V after 1 s. The chart shows V_C from 0 to 5 τ."
+    de: "Ein Kondensator C lädt oder entlädt sich über einen Widerstand R mit der Zeitkonstante τ = R · C. Allgemein gilt V_C = V_f + (V_i − V_f) · e^(−t/τ) mit der Anfangsspannung V_i und der Endspannung V_f. Beim Aufladen auf die Speisespannung V_0 ist V_i = 0 und V_f = V_0, also V_C = V_0 · (1 − e^(−t/τ)); beim Entladen von der Anfangsspannung V_0 ist V_i = V_0 und V_f = 0, also V_C = V_0 · e^(−t/τ). Nach 1 τ hat der Kondensator 63,2 % des Weges zurückgelegt, nach 5 τ 99,3 %. Beispiel: 10 kΩ und 100 µF haben τ = 1 s; beim Aufladen aus einer 5-V-Quelle beträgt V_C nach 1 s 3,16 V. Das Diagramm zeigt V_C von 0 bis 5 τ."
+  tags: [rc, time constant, tau, charge, discharge, capacitor, timing, exponential, zeitkonstante, aufladen, entladen, kondensator, ladekurve, entladekurve]
+  source: "First-order RC step response V_C(t) = V_f + (V_i − V_f)·e^(−t/RC); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (RC circuits); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 7 (first-order circuits)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "10k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitance", de: "Kapazität"}, default: "100 µF", eseries: true}
+    v0: {dim: voltage, label: V_0, name: {en: "Supply or initial voltage", de: "Speise- bzw. Anfangsspannung"}, default: "5 V"}
+    t: {dim: time, label: t, name: {en: "Time", de: "Zeit"}, default: "1 s"}
+    vc: {dim: voltage, label: V_C, name: {en: "Capacitor voltage", de: "Kondensatorspannung"}}
+  choices:
+    mode:
+      name: {cs: "Děj", da: "Forløb", de: "Vorgang", el: "Διαδικασία", en: "Process", es: "Proceso", fr: "Processus", hi: "प्रक्रिया", it: "Processo", ja: "動作", nl: "Proces", no: "Forløp", pl: "Proces", pt: "Processo", sv: "Förlopp", zh: "过程"}
+      default: charge
+      options:
+        charge:
+          name: {cs: "Nabíjení", da: "Opladning", de: "Aufladen", el: "Φόρτιση", en: "Charging", es: "Carga", fr: "Charge", hi: "चार्ज होना", it: "Carica", ja: "充電", nl: "Opladen", no: "Lading", pl: "Ładowanie", pt: "Carga", sv: "Laddning", zh: "充电"}
+          consts: {ki: 0, kf: 1}
+        discharge:
+          name: {cs: "Vybíjení", da: "Afladning", de: "Entladen", el: "Εκφόρτιση", en: "Discharging", es: "Descarga", fr: "Décharge", hi: "डिस्चार्ज होना", it: "Scarica", ja: "放電", nl: "Ontladen", no: "Utlading", pl: "Rozładowanie", pt: "Descarga", sv: "Urladdning", zh: "放电"}
+          consts: {ki: 1, kf: 0}
+  dof: 4
+  rules:
+    vc: ["vf+(vi-vf)*exp(-t/(r*c))"]
+    v0: ["vc/(kf+(ki-kf)*exp(-t/(r*c)))"]
+    t: ["-r*c*ln((vc-vf)/(vi-vf))"]
+    r: ["-t/(c*ln((vc-vf)/(vi-vf)))"]
+    c: ["-t/(r*ln((vc-vf)/(vi-vf)))"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant", de: "Zeitkonstante"}, expr: "r*c"}
+    vi: {dim: voltage, label: V_i, name: {en: "Initial voltage", de: "Anfangsspannung"}, expr: "v0*ki"}
+    vf: {dim: voltage, label: V_f, name: {en: "Final voltage", de: "Endspannung"}, expr: "v0*kf"}
+    ntau: {dim: number, label: "t / τ", name: {en: "Time in time constants", de: "Zeit in Zeitkonstanten"}, expr: "t/(r*c)"}
+    lvl: {dim: ratio, label: "level", name: {en: "Capacitor voltage relative to V_0", de: "Kondensatorspannung bezogen auf V_0"}, expr: "vc/v0", unit: pct, units: [pct, ""]}
+  checks:
+    - {when: "(vc-vf)/(vi-vf) <= 0", warn: {en: "V_C is at or beyond the final voltage V_f (V_0 when charging, 0 V when discharging). The capacitor only approaches V_f, so no finite time reaches it.", de: "V_C liegt bei oder jenseits der Endspannung V_f (V_0 beim Aufladen, 0 V beim Entladen). Der Kondensator nähert sich V_f nur an, daher erreicht keine endliche Zeit diesen Wert."}}
+    - {when: "(vc-vf)/(vi-vf) > 1", warn: {en: "V_C lies on the far side of the initial voltage V_i: the capacitor starts at V_i and moves towards V_f, so this value would need a negative time.", de: "V_C liegt jenseits der Anfangsspannung V_i: Der Kondensator startet bei V_i und bewegt sich auf V_f zu, dieser Wert würde daher eine negative Zeit erfordern."}}
+  formula: ["vc = vf + (vi - vf) * exp(-t / tau)", "tau = r * c"]
+  chart: {x: t, y: vc, to: "5*r*c", samples: 101}
+  schematic: rc_time_constant
+
+- id: capacitors_series_parallel
+  kind: calculator
+  category: passive
+  name: {cs: "Sériové a paralelní zapojení kondenzátorů", da: "Serie- og parallelforbundne kondensatorer", de: "Reihen- und Parallelschaltung von Kondensatoren", el: "Σύνδεση πυκνωτών σε σειρά και παράλληλα", en: "Series and parallel capacitors", es: "Condensadores en serie y en paralelo", fr: "Condensateurs en série et en parallèle", hi: "श्रेणी और समानांतर संधारित्र", it: "Condensatori in serie e in parallelo", ja: "コンデンサの直列・並列接続", nl: "Condensatoren in serie en parallel", no: "Seriekoblede og parallellkoblede kondensatorer", pl: "Kondensatory połączone szeregowo i równolegle", pt: "Condensadores em série e em paralelo", sv: "Seriekopplade och parallellkopplade kondensatorer", zh: "电容串联与并联"}
+  doc:
+    en: "Capacitors in parallel add up: C_P = C_1 + C_2 + …. Capacitors in series combine like resistors in parallel: 1/C_S = 1/C_1 + 1/C_2 + …, so the total is smaller than the smallest capacitor. In series the voltage divides in inverse proportion to the capacitance; polarised capacitors in series need balancing resistors. Enter the values as a list, for example 4.7µ, 10µ, 22µ."
+    de: "Parallel geschaltete Kondensatoren addieren sich: C_P = C_1 + C_2 + …. In Reihe geschaltete Kondensatoren ergeben sich wie parallele Widerstände: 1/C_S = 1/C_1 + 1/C_2 + …, die Gesamtkapazität ist also kleiner als der kleinste Kondensator. In Reihe teilt sich die Spannung umgekehrt proportional zur Kapazität; gepolte Kondensatoren in Reihe brauchen Symmetrierwiderstände. Die Werte als Liste eingeben, zum Beispiel 4,7µ, 10µ, 22µ."
+  tags: [capacitor, series, parallel, combination, total capacitance, kondensator, reihenschaltung, parallelschaltung, gesamtkapazität, ersatzkapazität]
+  source: "Series and parallel capacitor combination; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    cs: {dim: capacitance, label: C, name: {en: "Capacitors", de: "Kondensatoren"}, list: true, default: ["4.7µ", "10µ", "22µ"]}
+  dof: 1
+  derived:
+    cser: {dim: capacitance, label: C_S, name: {en: "Series capacitance", de: "Reihenkapazität"}, expr: "par(cs)"}
+    cpar: {dim: capacitance, label: C_P, name: {en: "Parallel capacitance", de: "Parallelkapazität"}, expr: "sum(cs)"}
+  formula: ["cser = par(cs)", "cpar = sum(cs)"]
+  schematic: capacitors_series_parallel
+
+- id: inductors_series_parallel
+  kind: calculator
+  category: passive
+  name: {cs: "Sériové a paralelní zapojení cívek", da: "Serie- og parallelforbundne spoler", de: "Reihen- und Parallelschaltung von Spulen", el: "Σύνδεση πηνίων σε σειρά και παράλληλα", en: "Series and parallel inductors", es: "Bobinas en serie y en paralelo", fr: "Bobines en série et en parallèle", hi: "श्रेणी और समानांतर प्रेरक", it: "Induttori in serie e in parallelo", ja: "インダクタの直列・並列接続", nl: "Spoelen in serie en parallel", no: "Seriekoblede og parallellkoblede spoler", pl: "Cewki połączone szeregowo i równolegle", pt: "Indutores em série e em paralelo", sv: "Seriekopplade och parallellkopplade spolar", zh: "电感串联与并联"}
+  doc:
+    en: "Inductors in series add up: L_S = L_1 + L_2 + …. Inductors in parallel combine like resistors in parallel: 1/L_P = 1/L_1 + 1/L_2 + …, so the total is smaller than the smallest inductor. This holds only while the coils do not couple magnetically; mutual inductance is ignored. Enter the values as a list, for example 1m, 2.2m, 4.7m."
+    de: "In Reihe geschaltete Spulen addieren sich: L_S = L_1 + L_2 + …. Parallel geschaltete Spulen ergeben sich wie parallele Widerstände: 1/L_P = 1/L_1 + 1/L_2 + …, die Gesamtinduktivität ist also kleiner als die kleinste Spule. Das gilt nur, solange die Spulen nicht magnetisch gekoppelt sind; die Gegeninduktivität bleibt unberücksichtigt. Die Werte als Liste eingeben, zum Beispiel 1m, 2,2m, 4,7m."
+  tags: [inductor, coil, series, parallel, combination, total inductance, spule, induktivität, reihenschaltung, parallelschaltung, gesamtinduktivität, ersatzinduktivität]
+  source: "Series and parallel inductor combination (no mutual coupling); C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    ls: {dim: inductance, label: L, name: {en: "Inductors", de: "Spulen"}, list: true, default: ["1m", "2.2m", "4.7m"]}
+  dof: 1
+  derived:
+    lser: {dim: inductance, label: L_S, name: {en: "Series inductance", de: "Reiheninduktivität"}, expr: "sum(ls)"}
+    lpar: {dim: inductance, label: L_P, name: {en: "Parallel inductance", de: "Parallelinduktivität"}, expr: "par(ls)"}
+  formula: ["lser = sum(ls)", "lpar = par(ls)"]
+  schematic: inductors_series_parallel
+
+- id: capacitor_energy
+  kind: calculator
+  category: passive
+  name: {cs: "Energie a náboj kondenzátoru", da: "Kondensatorens energi og ladning", de: "Kondensatorenergie und -ladung", el: "Ενέργεια και φορτίο πυκνωτή", en: "Capacitor energy and charge", es: "Energía y carga de un condensador", fr: "Énergie et charge d'un condensateur", hi: "संधारित्र की ऊर्जा और आवेश", it: "Energia e carica di un condensatore", ja: "コンデンサのエネルギーと電荷", nl: "Energie en lading van een condensator", no: "Kondensatorens energi og ladning", pl: "Energia i ładunek kondensatora", pt: "Energia e carga de um condensador", sv: "Kondensatorns energi och laddning", zh: "电容器的能量与电荷"}
+  doc:
+    en: "The energy stored in a capacitor is E = ½ × C × U² and its charge is Q = C × U; also E = ½ × Q × U = Q² / (2 × C). Any two of the four values determine the other two. Example: 1000 µF at 12 V stores 72 mJ and 12 mC. Large or high-voltage capacitors can keep a dangerous charge long after switch-off: discharge them through a suitable resistor before touching them."
+    de: "Die in einem Kondensator gespeicherte Energie ist E = ½ · C · U², seine Ladung Q = C · U; außerdem gilt E = ½ · Q · U = Q² / (2 · C). Je zwei der vier Größen bestimmen die beiden anderen. Beispiel: 1000 µF bei 12 V speichern 72 mJ und 12 mC. Große oder hochspannungsführende Kondensatoren können lange nach dem Abschalten eine gefährliche Ladung behalten: vor dem Berühren über einen geeigneten Widerstand entladen."
+  tags: [capacitor, energy, charge, joule, coulomb, stored energy, kondensator, energie, ladung, speicherenergie, flash, blitz]
+  source: "Energy stored in a capacitor E = ½CU² and charge Q = CU; C. K. Alexander, M. N. O. Sadiku: Fundamentals of Electric Circuits, ch. 6 (capacitors and inductors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    c: {dim: capacitance, label: C, name: {en: "Capacitance", de: "Kapazität"}, default: "1000 µF", eseries: true}
+    u: {dim: voltage, label: U, name: {en: "Voltage", de: "Spannung"}, default: "12 V"}
+    e: {dim: energy, label: E, name: {en: "Stored energy", de: "Gespeicherte Energie"}, units: [""]}
+    q: {dim: charge, label: Q, name: {en: "Charge", de: "Ladung"}, units: [""]}
+  dof: 2
+  rules:
+    e: ["c*u^2/2", "q*u/2", "q^2/(2*c)"]
+    q: ["c*u", "2*e/u", "sqrt(2*e*c)"]
+    u: ["q/c", "2*e/q", "sqrt(2*e/c)"]
+    c: ["q/u", "2*e/u^2", "q^2/(2*e)"]
+  formula: ["e = c * u^2 / 2", "q = c * u"]
+  schematic: capacitor_energy
+
+- id: air_coil
+  kind: calculator
+  category: passive
+  name: {cs: "Vzduchová cívka (Wheeler)", da: "Luftspole (Wheeler)", de: "Luftspule (Wheeler)", el: "Πηνίο αέρα (Wheeler)", en: "Air-core coil (Wheeler)", es: "Bobina con núcleo de aire (Wheeler)", fr: "Bobine à air (Wheeler)", hi: "वायु-क्रोड कुंडली (व्हीलर)", it: "Bobina in aria (Wheeler)", ja: "空芯コイル（ウィーラー）", nl: "Luchtspoel (Wheeler)", no: "Luftspole (Wheeler)", pl: "Cewka powietrzna (Wheeler)", pt: "Bobina com núcleo de ar (Wheeler)", sv: "Luftspole (Wheeler)", zh: "空心线圈（惠勒公式）"}
+  doc:
+    en: "Inductance of a single-layer, close-wound air-core coil (solenoid) by Wheeler's formula: L [µH] = N² × r² / (9 × r + 10 × ℓ), with the mean coil radius r and the winding length ℓ both in inches. In the SI units used here this is L = N² × D² / (50800 × (9 × D + 20 × ℓ)) with the mean diameter D (to the centre of the wire) and the length ℓ in metres. It is accurate to about 1 % for ℓ ≥ 0.8 × r (a coil at least 0.4 diameters long) and becomes rough for shorter coils; it assumes an air core and a wire much thinner than the coil. The wire length is the helix at the mean diameter without leads. Example: 25 turns on a 20 mm diameter, 30 mm long winding give about 6.3 µH."
+    de: "Induktivität einer einlagigen, dicht gewickelten Luftspule (Zylinderspule) nach der Formel von Wheeler: L [µH] = N² · r² / (9 · r + 10 · ℓ), mit mittlerem Spulenradius r und Wicklungslänge ℓ jeweils in Zoll. In den hier verwendeten SI-Einheiten lautet sie L = N² · D² / (50800 · (9 · D + 20 · ℓ)) mit dem mittleren Durchmesser D (bis zur Drahtmitte) und der Länge ℓ in Metern. Sie ist für ℓ ≥ 0,8 · r (eine Spule von mindestens 0,4 Durchmessern Länge) auf etwa 1 % genau und wird für kürzere Spulen ungenau; sie setzt einen Luftkern und einen Draht voraus, der viel dünner als die Spule ist. Die Drahtlänge ist die Schraubenlinie auf dem mittleren Durchmesser ohne Anschlussdrähte. Beispiel: 25 Windungen auf einer Wicklung von 20 mm Durchmesser und 30 mm Länge ergeben etwa 6,3 µH."
+  tags: [coil, air core, inductor, solenoid, wheeler, turns, single layer, inductance, spule, luftspule, zylinderspule, windungen, induktivität, einlagig]
+  source: "H. A. Wheeler: Simple Inductance Formulas for Radio Coils, Proceedings of the IRE, vol. 16, no. 10, October 1928 (single-layer coil L = N²r²/(9r + 10ℓ) in inches and microhenries, accurate to about 1 % for ℓ > 0.8r)"
+  vars:
+    d: {dim: length, label: D, name: {en: "Mean coil diameter", de: "Mittlerer Spulendurchmesser"}, default: "20 mm", units: ["", in]}
+    len: {dim: length, label: ℓ, name: {en: "Winding length", de: "Wicklungslänge"}, default: "30 mm", units: ["", in]}
+    n: {dim: number, label: N, name: {en: "Turns", de: "Windungen"}, default: 25}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}}
+  dof: 3
+  rules:
+    l: ["n^2*d^2/(50800*(9*d+20*len))"]
+    n: ["sqrt(l*50800*(9*d+20*len))/d"]
+    len: ["(n^2*d^2/(50800*l)-9*d)/20"]
+    d: ["(9*50800*l+sqrt((9*50800*l)^2+80*50800*l*n^2*len))/(2*n^2)"]
+  derived:
+    rin: {dim: number, label: r_in, name: {en: "Mean radius in inches (Wheeler's unit)", de: "Mittlerer Radius in Zoll (Einheit von Wheeler)"}, expr: "d/0.0508"}
+    lin: {dim: number, label: ℓ_in, name: {en: "Winding length in inches (Wheeler's unit)", de: "Wicklungslänge in Zoll (Einheit von Wheeler)"}, expr: "len/0.0254"}
+    wire: {dim: length, label: ℓ_w, name: {en: "Wire length (without leads)", de: "Drahtlänge (ohne Anschlüsse)"}, expr: "n*sqrt((pi*d)^2+(len/n)^2)", units: ["", in]}
+  checks:
+    - {when: "len < 0.4*d", warn: {en: "The coil is shorter than 0.4 × its diameter: Wheeler's formula is only a rough estimate here (it is accurate to about 1 % from a length of 0.8 × the radius).", de: "Die Spule ist kürzer als 0,4 × ihr Durchmesser: Die Formel von Wheeler liefert hier nur einen groben Näherungswert (sie ist ab einer Länge von 0,8 × dem Radius auf etwa 1 % genau)."}}
+  formula: ["l = 1e-6 * n^2 * rin^2 / (9 * rin + 10 * lin)"]
+
+- id: toroid_al
+  kind: calculator
+  category: passive
+  name: {cs: "Indukčnost toroidu (A_L)", da: "Toroides induktans (A_L)", de: "Ringkerninduktivität (A_L)", el: "Επαγωγή τοροειδούς πυρήνα (A_L)", en: "Toroid inductance (A_L)", es: "Inductancia de toroide (A_L)", fr: "Inductance d'un tore (A_L)", hi: "टॉरॉयड प्रेरकत्व (A_L)", it: "Induttanza di toroide (A_L)", ja: "トロイダルコアのインダクタンス（A_L）", nl: "Inductantie van een ringkern (A_L)", no: "Toroidspolens induktans (A_L)", pl: "Indukcyjność toroidu (A_L)", pt: "Indutância de toroide (A_L)", sv: "Toroidspolens induktans (A_L)", zh: "环形磁芯电感（A_L）"}
+  doc:
+    en: "The inductance of a winding on a ferrite or powdered-iron core follows from the inductance factor A_L of the core: L = A_L × N². Data sheets print A_L in nH per turn² (1 nH/N² corresponds to 1 mH per 1000 turns); enter it with the unit prefix, for example 250n for 250 nH. N counts the turns through the centre of the core. A_L holds for small signals below saturation and is stated with a tolerance, so the result is only as exact as the core. N_w is the turn count rounded up to whole turns. Example: A_L = 250 nH and 20 turns give 100 µH."
+    de: "Die Induktivität einer Wicklung auf einem Ferrit- oder Eisenpulverkern folgt aus dem Induktivitätsfaktor A_L des Kerns: L = A_L · N². Datenblätter geben A_L in nH pro Windung² an (1 nH/N² entsprechen 1 mH pro 1000 Windungen); mit Einheitenvorsatz eingeben, zum Beispiel 250n für 250 nH. N zählt die Windungen durch die Kernmitte. A_L gilt für kleine Signale unterhalb der Sättigung und ist mit einer Toleranz angegeben, das Ergebnis ist also nur so genau wie der Kern. N_w ist die auf ganze Windungen aufgerundete Windungszahl. Beispiel: A_L = 250 nH und 20 Windungen ergeben 100 µH."
+  tags: [toroid, ring core, al value, inductance factor, ferrite, powdered iron, turns, nh per turn squared, ringkern, al-wert, induktivitätsfaktor, windungen, ferrit, eisenpulver]
+  source: "Definition of the inductance factor A_L of a magnetic core, L = A_L·N² (A_L in nH/N² as printed in the data sheets of ferrite and powdered-iron core makers)"
+  vars:
+    al: {dim: inductance, label: A_L, name: {en: "Inductance factor (per turn²)", de: "Induktivitätsfaktor (je Windung²)"}, default: "250 nH"}
+    n: {dim: number, label: N, name: {en: "Turns", de: "Windungen"}, default: 20}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}}
+  dof: 2
+  rules:
+    l: ["al*n^2"]
+    al: ["l/n^2"]
+    n: ["sqrt(l/al)"]
+  derived:
+    nw: {dim: number, label: N_w, name: {en: "Whole turns (rounded up)", de: "Ganze Windungen (aufgerundet)"}, expr: "ceil(n-1e-6)"}
+  formula: ["l = al * n^2"]
+
+- id: wire_resistance
+  kind: calculator
+  category: passive
+  name: {cs: "Odpor vodiče", da: "Ledningsmodstand", de: "Leitungswiderstand", el: "Αντίσταση αγωγού", en: "Wire resistance", es: "Resistencia de un conductor", fr: "Résistance d'un fil", hi: "तार का प्रतिरोध", it: "Resistenza di un conduttore", ja: "電線の抵抗", nl: "Draadweerstand", no: "Ledermotstand", pl: "Rezystancja przewodu", pt: "Resistência de um fio", sv: "Ledningsresistans", zh: "导线电阻"}
+  doc:
+    en: "DC resistance of a straight conductor: R = ρ(T) × ℓ / A with ρ(T) = ρ20 × (1 + α × (T − 20 °C)). ρ20 and the temperature coefficient α are those of the selected material at 20 °C: annealed copper per IEC 60028 (ρ20 = 0.017241 Ω·mm²/m, α = 0.00393 1/K); aluminium per IEC 60889, hard-drawn aluminium wire (ρ20 = 0.028264 Ω·mm²/m, the 61 % IACS value, α = 0.00403 1/K); silver is a typical handbook value. Values of real wires vary with purity and alloy. The cross-section can be entered in mm², AWG (ASTM B258) or kcmil. For a two-wire run use twice the one-way length. The linear temperature model is reliable only in a moderate range around 20 °C. Example: 10 m of 1.5 mm² copper at 20 °C have 0.115 Ω."
+    de: "Gleichstromwiderstand eines geraden Leiters: R = ρ(T) · ℓ / A mit ρ(T) = ρ20 · (1 + α · (T − 20 °C)). ρ20 und der Temperaturkoeffizient α sind die des gewählten Materials bei 20 °C: geglühtes Kupfer nach IEC 60028 (ρ20 = 0,017241 Ω·mm²/m, α = 0,00393 1/K); Aluminium nach IEC 60889, hartgezogener Aluminiumdraht (ρ20 = 0,028264 Ω·mm²/m, der Wert von 61 % IACS, α = 0,00403 1/K); Silber ist ein üblicher Tabellenwert. Werte realer Drähte schwanken mit Reinheit und Legierung. Der Querschnitt kann in mm², AWG (ASTM B258) oder kcmil eingegeben werden. Für eine Hin- und Rückleitung die doppelte einfache Länge einsetzen. Das lineare Temperaturmodell gilt nur in einem mäßigen Bereich um 20 °C. Beispiel: 10 m Kupfer mit 1,5 mm² haben bei 20 °C 0,115 Ω."
+  tags: [wire, resistance, conductor, copper, aluminium, silver, awg, cross-section, resistivity, temperature coefficient, leitung, leitungswiderstand, draht, kupfer, aluminium, querschnitt, spezifischer widerstand, temperaturkoeffizient]
+  source: "R = ρ·ℓ/A with ρ(T) = ρ20·(1 + α·(T − 20 °C)); annealed copper ρ20 = 1/58 Ω·mm²/m (rounded to 0.017241) and α20 = 0.00393 1/K per IEC 60028; aluminium ρ20 = 0.028264 Ω·mm²/m (the 61 % IACS value) and α = 0.00403 1/K per IEC 60889 (hard-drawn aluminium wire for overhead line conductors); silver 1.59 nΩ·m with α ≈ 0.0038 1/K as typical handbook values (e.g. CRC Handbook of Chemistry and Physics); AWG per ASTM B258"
+  vars:
+    len: {dim: length, label: ℓ, name: {en: "Length", de: "Länge"}, default: "10 m", units: ["", ft, in]}
+    a: {dim: area, label: A, name: {en: "Cross-section", de: "Querschnitt"}, default: "1.5", unit: mm2, units: [mm2, AWG, kcmil, mil2]}
+    t: {dim: temperature, label: T, name: {en: "Temperature", de: "Temperatur"}, default: "20", unit: degC, units: [degC, degF, ""]}
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}}
+  choices:
+    material:
+      name: {cs: "Materiál", da: "Materiale", de: "Material", el: "Υλικό", en: "Material", es: "Material", fr: "Matériau", hi: "सामग्री", it: "Materiale", ja: "材質", nl: "Materiaal", no: "Materiale", pl: "Materiał", pt: "Material", sv: "Material", zh: "材料"}
+      default: copper
+      options:
+        copper:
+          name: {cs: "Měď", da: "Kobber", de: "Kupfer", el: "Χαλκός", en: "Copper", es: "Cobre", fr: "Cuivre", hi: "तांबा", it: "Rame", ja: "銅", nl: "Koper", no: "Kobber", pl: "Miedź", pt: "Cobre", sv: "Koppar", zh: "铜"}
+          consts: {rho: 1.7241e-8, alpha: 0.00393}
+        aluminium:
+          name: {cs: "Hliník", da: "Aluminium", de: "Aluminium", el: "Αλουμίνιο", en: "Aluminium", es: "Aluminio", fr: "Aluminium", hi: "एल्यूमीनियम", it: "Alluminio", ja: "アルミニウム", nl: "Aluminium", no: "Aluminium", pl: "Aluminium", pt: "Alumínio", sv: "Aluminium", zh: "铝"}
+          consts: {rho: 2.8264e-8, alpha: 0.00403}
+        silver:
+          name: {cs: "Stříbro", da: "Sølv", de: "Silber", el: "Ασήμι", en: "Silver", es: "Plata", fr: "Argent", hi: "चाँदी", it: "Argento", ja: "銀", nl: "Zilver", no: "Sølv", pl: "Srebro", pt: "Prata", sv: "Silver", zh: "银"}
+          consts: {rho: 1.59e-8, alpha: 0.0038}
+  dof: 3
+  rules:
+    r: ["rho*(1+alpha*(t-293.15))*len/a"]
+    len: ["r*a/(rho*(1+alpha*(t-293.15)))"]
+    a: ["rho*(1+alpha*(t-293.15))*len/r"]
+    t: ["293.15+(r*a/(rho*len)-1)/alpha"]
+  derived:
+    rho20: {dim: resistivity, label: ρ20, name: {en: "Resistivity at 20 °C", de: "Spezifischer Widerstand bei 20 °C"}, expr: "rho", unit: ohmmm2m}
+    tcr: {dim: tempco, label: α, name: {en: "Temperature coefficient at 20 °C", de: "Temperaturkoeffizient bei 20 °C"}, expr: "alpha", unit: pctK}
+    dt: {dim: tempdiff, label: ΔT, name: {en: "Temperature difference to 20 °C", de: "Temperaturdifferenz zu 20 °C"}, expr: "t-293.15", unit: degC, units: [degC, degF, ""]}
+    rho_t: {dim: resistivity, label: ρ(T), name: {en: "Resistivity at the temperature T", de: "Spezifischer Widerstand bei der Temperatur T"}, expr: "rho*(1+alpha*(t-293.15))", unit: ohmmm2m}
+  checks:
+    - {when: "(t < 223.15) + (t > 423.15)", warn: {en: "The temperature is far from 20 °C (below −50 °C or above 150 °C): the linear temperature model loses accuracy there.", de: "Die Temperatur liegt weit von 20 °C entfernt (unter −50 °C oder über 150 °C): Das lineare Temperaturmodell wird dort ungenau."}}
+  formula: ["r = rho20 * (1 + tcr * dt) * len / a"]

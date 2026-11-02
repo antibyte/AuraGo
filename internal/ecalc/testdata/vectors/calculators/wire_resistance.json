@@ -1,0 +1,31 @@
+{
+  "calc": "wire_resistance",
+  "sets": [
+    {"choices": {"material": "copper"}, "values": {"len": 10, "a": 1.5e-06, "t": 293.15, "r": 0.11494, "rho20": 1.7241e-08, "tcr": 0.00393, "dt": 0.0, "rho_t": 1.7241e-08}, "ref": "hand: copper at 20 C: R = 1.7241e-8 * 10 / 1.5e-6 = 1.7241e-7 / 1.5e-6 = 0.11494 ohm"},
+    {"choices": {"material": "copper"}, "values": {"len": 100, "a": 2.5e-06, "t": 343.15, "r": 0.82515426, "rho20": 1.7241e-08, "tcr": 0.00393, "dt": 50.0, "rho_t": 2.06288565e-08}, "ref": "hand: copper at 70 C: rho = 1.7241e-8 * (1 + 0.00393 * 50) = 1.7241e-8 * 1.1965 = 2.06288565e-8 ohm m; R = 2.06288565e-8 * 100 / 2.5e-6 = 0.82515426 ohm"},
+    {"choices": {"material": "copper"}, "values": {"len": 1000, "a": 1e-05, "t": 253.15, "r": 1.45307148, "rho20": 1.7241e-08, "tcr": 0.00393, "dt": -40.0, "rho_t": 1.45307148e-08}, "ref": "hand (independent script): copper at -20 C: factor 1 + 0.00393 * (-40) = 0.8428; R = 1.7241e-8 * 0.8428 * 1000 / 1e-5 = 1.7241 * 0.8428 = 1.453 ohm"},
+    {"choices": {"material": "aluminium"}, "values": {"len": 100, "a": 1.6e-05, "t": 293.15, "r": 0.17665, "rho20": 2.8264e-08, "tcr": 0.00403, "dt": 0.0, "rho_t": 2.8264e-08}, "ref": "hand: aluminium at 20 C: R = 2.8264e-8 * 100 / 16e-6 = 2.8264e-6 / 1.6e-5 = 0.17665 ohm"},
+    {"choices": {"material": "aluminium"}, "values": {"len": 50, "a": 1e-05, "t": 313.15, "r": 0.152710392, "rho20": 2.8264e-08, "tcr": 0.00403, "dt": 20.0, "rho_t": 3.05420784e-08}, "ref": "hand (independent script): aluminium at 40 C: factor 1 + 0.00403 * 20 = 1.0806; rho = 2.8264e-8 * 1.0806 = 3.054208e-8; R = 3.054208e-8 * 50 / 1e-5 = 0.1527104 ohm"},
+    {"choices": {"material": "silver"}, "values": {"len": 1, "a": 1e-06, "t": 293.15, "r": 0.0159, "rho20": 1.59e-08, "tcr": 0.0038, "dt": 0.0, "rho_t": 1.59e-08}, "ref": "hand: silver at 20 C: R = 1.59e-8 * 1 / 1e-6 = 0.0159 ohm"},
+    {"choices": {"material": "silver"}, "values": {"len": 2, "a": 5e-07, "t": 373.15, "r": 0.0829344, "rho20": 1.59e-08, "tcr": 0.0038, "dt": 80.0, "rho_t": 2.07336e-08}, "ref": "hand: silver at 100 C: factor 1 + 0.0038 * 80 = 1.304; rho = 1.59e-8 * 1.304 = 2.07336e-8; R = 2.07336e-8 * 2 / 5e-7 = 0.0829344 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"len": 10, "a": 1.5e-06, "t": 293.15}, "expect": {"len": 10, "a": 1.5e-06, "t": 293.15, "r": 0.11494, "rho20": 1.7241e-08, "tcr": 0.00393, "dt": 0.0, "rho_t": 1.7241e-08}, "ref": "hand: 10 m of 1.5 mm2 copper at 20 C: R = 0.11494 ohm; rho20 = 17.241 nohm m = 0.017241 ohm mm2/m, alpha = 0.393 %/K"},
+    {"inputs": {"len": 10, "a": 1.5e-06, "t": 293.15}, "choices": {"material": "aluminium"}, "expect": {"r": 0.1884266666667}, "ref": "hand: the same wire in aluminium: R = 2.8264e-8 * 10 / 1.5e-6 = 0.188427 ohm"},
+    {"inputs": {"len": 1, "a": 1e-06, "t": 293.15}, "choices": {"material": "silver"}, "expect": {"r": 0.0159}, "ref": "hand: 1 m of 1 mm2 silver at 20 C: R = 1.59e-8 / 1e-6 = 0.0159 ohm"},
+    {"inputs": {"len": 100, "a": 5.26115495451e-06, "t": 293.15}, "expect": {"r": 0.3277037104794}, "ref": "hand (independent script): AWG 10 has the diameter 0.000127 * 92^(26/39) = 2.588 mm and the cross-section pi/4 * d^2 = 5.2612 mm2 (ASTM B258); 100 m of copper at 20 C: R = 1.7241e-6 / 5.2612e-6 = 0.3277 ohm"},
+    {"inputs": {"a": 1.5e-06, "t": 293.15, "r": 0.11494}, "expect": {"len": 10}, "ref": "hand: length = R * A / rho = 0.11494 * 1.5e-6 / 1.7241e-8 = 1.7241e-7 / 1.7241e-8 = 10 m"},
+    {"inputs": {"a": 2.5e-06, "t": 343.15, "r": 0.82515426}, "expect": {"len": 100}, "ref": "hand: length = 0.82515426 * 2.5e-6 / (1.7241e-8 * 1.1965) = 2.06288565e-6 / 2.06288565e-8 = 100 m"},
+    {"inputs": {"len": 10, "t": 293.15, "r": 0.11494}, "expect": {"a": 1.5e-06}, "ref": "hand: A = rho * length / R = 1.7241e-8 * 10 / 0.11494 = 1.5 mm2"},
+    {"inputs": {"len": 100, "t": 343.15, "r": 0.82515426}, "expect": {"a": 2.5e-06}, "ref": "hand: A = 2.06288565e-8 * 100 / 0.82515426 = 2.5 mm2"},
+    {"inputs": {"len": 100, "a": 2.5e-06, "r": 0.82515426}, "expect": {"t": 343.15}, "ref": "hand: T = 293.15 + (R * A / (rho * length) - 1) / alpha = 293.15 + (1.1965 - 1) / 0.00393 = 293.15 + 50 = 343.15 K (70 C)"},
+    {"inputs": {"len": 10, "a": 1.5e-06, "r": 0.11494}, "expect": {"t": 293.15, "dt": 0}, "ref": "hand: the resistance of the cold wire: R A / (rho length) = 1, so T = 293.15 K (20 C)"},
+    {"inputs": {"len": 100, "a": 1.6e-05, "r": 0.19088799}, "choices": {"material": "aluminium"}, "expect": {"t": 313.15}, "ref": "hand: aluminium, T = 293.15 + (1.0806 - 1) / 0.00403 = 293.15 + 20 = 313.15 K (40 C)"},
+    {"inputs": {"len": 10, "a": 1.5e-06, "t": 500}, "expect": {"r": 0.20837708227}, "warnings": [0], "ref": "hand: 500 K is far from 20 C, the temperature check fires; R = 1.7241e-8 * (1 + 0.00393 * 206.85) * 10 / 1.5e-6"},
+    {"inputs": {"len": 10, "a": 1.5e-06, "t": 200}, "expect": {"r": 0.07286282227}, "warnings": [0], "ref": "hand: 200 K (-73 C) is below the range of the linear model, the check fires"},
+    {"inputs": {"len": 10, "a": 1.5e-06, "t": 423.15}, "expect": {"r": 0.173662846}, "warnings": [], "ref": "hand: 150 C is the upper end of the range, no warning"},
+    {"inputs": {"len": 0, "a": 1.5e-06, "t": 293.15}, "errors": {"len": "range", "r": "range"}, "ref": "hand: a length of 0 is out of range"},
+    {"inputs": {"len": 10, "a": -1.5e-06, "t": 293.15}, "errors": {"a": "range", "r": "range"}, "ref": "hand: a negative cross-section is out of range and gives a negative resistance"},
+    {"inputs": {"len": 10, "a": 1.5e-06}, "errors": {"t": "undetermined", "r": "undetermined"}, "ref": "one input is missing"}
+  ]
+}

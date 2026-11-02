@@ -1,0 +1,18 @@
+{
+  "calc": "toroid_al",
+  "sets": [
+    {"values": {"al": 2.5e-07, "n": 20, "l": 0.0001, "nw": 20}, "ref": "hand: L = 250 nH * 20^2 = 250 nH * 400 = 100 uH; 20 turns are whole turns"},
+    {"values": {"al": 1e-06, "n": 10, "l": 0.0001, "nw": 10}, "ref": "hand: L = 1 uH * 10^2 = 100 uH; 10 whole turns"},
+    {"values": {"al": 1e-07, "n": 12.5, "l": 1.5625e-05, "nw": 13}, "ref": "hand: L = 100 nH * 12.5^2 = 100 nH * 156.25 = 15.625 uH; 12.5 turns round up to 13"},
+    {"values": {"al": 4e-09, "n": 7.2, "l": 2.0736e-07, "nw": 8}, "ref": "hand: L = 4 nH * 7.2^2 = 4 nH * 51.84 = 207.36 nH; 7.2 turns round up to 8"}
+  ],
+  "solve": [
+    {"inputs": {"al": 2.5e-07, "n": 20}, "expect": {"l": 0.0001, "nw": 20}, "ref": "hand: L = 250 nH * 400 = 100 uH"},
+    {"inputs": {"al": 2.5e-07, "l": 0.001}, "expect": {"n": 63.24555320337, "nw": 64}, "ref": "hand: N = sqrt(L / A_L) = sqrt(1e-3 / 250e-9) = sqrt(4000) = 63.24555; rounded up 64 whole turns"},
+    {"inputs": {"al": 1e-06, "l": 0.0001}, "expect": {"n": 10, "nw": 10}, "ref": "hand: N = sqrt(100 uH / 1 uH) = sqrt(100) = 10, exactly 10 whole turns (the round-up has a tolerance of 1e-6 turns)"},
+    {"inputs": {"n": 20, "l": 0.0001}, "expect": {"al": 2.5e-07}, "ref": "hand: A_L = L / N^2 = 100 uH / 400 = 250 nH"},
+    {"inputs": {"n": 12.5, "l": 1.5625e-05}, "expect": {"al": 1e-07}, "ref": "hand: A_L = 15.625 uH / 156.25 = 100 nH"},
+    {"inputs": {"al": 2.5e-07, "n": 0}, "errors": {"n": "range", "l": "range"}, "ref": "hand: N = 0 is out of range; L = 0 is out of range for an inductance"},
+    {"inputs": {"al": 2.5e-07}, "errors": {"n": "undetermined", "l": "undetermined"}, "ref": "one input is missing"}
+  ]
+}

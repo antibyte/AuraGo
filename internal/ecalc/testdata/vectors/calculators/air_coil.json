@@ -1,0 +1,20 @@
+{
+  "calc": "air_coil",
+  "sets": [
+    {"values": {"d": 0.0508, "len": 0.0254, "n": 10, "l": 5.263157894737e-06, "rin": 1.0, "lin": 1.0, "wire": 1.596131182003}, "ref": "hand (independent script): Wheeler in inches: r = 1 in, length = 1 in, N = 10: L = 100 * 1^2 / (9 * 1 + 10 * 1) = 100 / 19 = 5.263158 uH; wire = 10 * sqrt((pi * 0.0508)^2 + 0.00254^2) = 1.596 m"},
+    {"values": {"d": 0.0254, "len": 0.0508, "n": 100, "l": 0.0001020408163265, "rin": 0.5, "lin": 2.0, "wire": 7.979807039902}, "ref": "hand (independent script): Wheeler in inches: r = 0.5 in, length = 2 in, N = 100: L = 10000 * 0.25 / (4.5 + 20) = 2500 / 24.5 = 102.0408 uH"},
+    {"values": {"d": 0.02, "len": 0.03, "n": 25, "l": 6.30930749041e-06, "rin": 0.3937007874016, "lin": 1.181102362205, "wire": 1.571082779573}, "ref": "hand (independent script): SI form: L = 25^2 * 0.02^2 / (50800 * (9 * 0.02 + 20 * 0.03)) = 0.25 / (50800 * 0.78) = 0.25 / 39624 = 6.309308 uH (the default coil)"},
+    {"values": {"d": 0.0508, "len": 0.0508, "n": 20, "l": 1.379310344828e-05, "rin": 1.0, "lin": 2.0, "wire": 3.192262364006}, "ref": "hand (independent script): Wheeler in inches: r = 1 in, length = 2 in, N = 20: L = 400 * 1 / (9 + 20) = 400 / 29 = 13.79310 uH"}
+  ],
+  "solve": [
+    {"inputs": {"d": 0.02, "len": 0.03, "n": 25}, "expect": {"d": 0.02, "len": 0.03, "n": 25, "l": 6.30930749041e-06, "rin": 0.3937007874016, "lin": 1.181102362205, "wire": 1.571082779573}, "ref": "hand (independent script): L = 0.25 / 39624 = 6.309308 uH; r = 0.02 / 0.0508 = 0.393701 in, length 0.03 / 0.0254 = 1.181102 in"},
+    {"inputs": {"d": 0.0254, "len": 0.0508, "n": 100}, "expect": {"l": 0.0001020408163265}, "ref": "hand: Wheeler's own units: r = 0.5 in and length = 2 in give 2500 / 24.5 = 102.0408 uH"},
+    {"inputs": {"len": 0.0508, "n": 100, "l": 0.0001020408163265}, "expect": {"d": 0.0254}, "ref": "hand (independent script): D from the quadratic N^2 D^2 - 9 * 50800 L * D - 20 * 50800 L * length = 0 with L = 102.0408 uH: D = 0.0254 m"},
+    {"inputs": {"d": 0.0508, "n": 20, "l": 1.379310344828e-05}, "expect": {"len": 0.0508}, "ref": "hand (independent script): length = (N^2 D^2 / (50800 L) - 9 D) / 20 = (400 * 0.00258064 / (50800 * 13.7931e-6) - 0.4572) / 20 = (1.4732 - 0.4572) / 20 = 0.0508 m"},
+    {"inputs": {"d": 0.0508, "len": 0.0508, "l": 1.379310344828e-05}, "expect": {"n": 20}, "ref": "hand (independent script): N = sqrt(L * 50800 * (9 D + 20 length)) / D = sqrt(13.7931e-6 * 50800 * 1.4732) / 0.0508 = sqrt(1.03225) / 0.0508 = 20 turns"},
+    {"inputs": {"d": 0.02, "len": 0.005, "n": 10}, "expect": {"l": 2.81214848144e-06}, "warnings": [0], "ref": "hand: a coil only 0.25 diameters long (5 mm on 20 mm) is outside Wheeler's range; L = 100 * 4e-4 / (50800 * (0.18 + 0.1)) = 0.04 / 14224 = 2.812 uH and the check fires"},
+    {"inputs": {"d": 0.02, "len": 0.01, "n": 10}, "expect": {"l": 2.072109407377e-06}, "warnings": [], "ref": "hand: half a diameter (10 mm on 20 mm) is inside the range, no warning; L = 100 * 4e-4 / (50800 * (0.18 + 0.2)) = 0.04 / 19304 = 2.072 uH"},
+    {"inputs": {"d": 0.02, "n": 10, "l": 0.001}, "errors": {"len": "range"}, "warnings": [0], "ref": "hand: 10 turns on a 20 mm form cannot reach 1 mH: length = (N^2 D^2 / (50800 L) - 9 D) / 20 = (0.04 / 50.8 - 0.18) / 20 = (0.000787 - 0.18) / 20 = -0.00896 m is out of range; a negative length is shorter than 0.4 D, so the check fires"},
+    {"inputs": {"d": 0, "len": 0.03, "n": 25}, "errors": {"d": "range", "l": "range"}, "warnings": [], "ref": "hand: D = 0 is out of range and gives L = 0, also out of range for an inductance"}
+  ]
+}
