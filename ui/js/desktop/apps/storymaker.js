@@ -189,9 +189,11 @@
 
     // true when the project is open; a failure is shown on the start screen (or as a state card) and answers false
     async function openProject(inst, id, fresh) {
+        // The list stays clickable while a project loads: only the answer to the latest open may build the editor.
+        const seq = inst.openSeq = (inst.openSeq || 0) + 1;
         try {
             const data = fresh || await inst.api.getProject(id);
-            if (inst.disposed) return;
+            if (inst.disposed || seq !== inst.openSeq) return false;
             // A story.json that was edited by hand into something unreadable comes back as story: null with the issues; there is
             // no document to edit, so the project stays closed and the list says why.
             if (!data.story || typeof data.story !== 'object' || Array.isArray(data.story)) {
@@ -216,7 +218,7 @@
             reloadPlayer(inst);
             return true;
         } catch (err) {
-            if (inst.disposed || (err && err.aborted)) return false;
+            if (inst.disposed || seq !== inst.openSeq || (err && err.aborted)) return false;
             const view = inst.parts.projects;
             if (view) view.setError(S.errors.describe(inst.t, err)); else showRoot(inst, startFailure(inst, err));
             return false;
@@ -509,13 +511,20 @@
 
     async function addScene(inst, kind) {
         if (inst.readonly) return;
-        const draft = S.model.cloneStory(inst.story);
-        const index = S.model.addScene(draft, inst.selected, { kind, taken: (inst.codeStatus || []).map(item => item.scene_id) });
-        const id = draft.scenes[index].id;
-        if (kind === 'code') {
+        // ids whose code file exists on the server although no scene of the story has them
+        const taken = (inst.codeStatus || []).map(item => item.scene_id);
+        let draft, index, id;
+        for (let attempt = 0; ; attempt++) {
+            draft = S.model.cloneStory(inst.story);
+            index = S.model.addScene(draft, inst.selected, { kind, taken });
+            id = draft.scenes[index].id;
+            if (kind !== 'code') break;
             try {
                 await inst.api.putCode(inst.projectId, id, S.codeTemplate, null);
+                break;
             } catch (err) {
+                // 412: the file of a code scene that was deleted earlier is still there (there is no DELETE for code files); try the next id
+                if (S.errors.normalize(err).status === 412 && attempt < 20 && !inst.disposed) { taken.push(id); continue; }
                 notify(inst, S.errors.describe(inst.t, err), 'error');
                 return;
             }
@@ -869,7 +878,7 @@
 
     async function leaveProject(inst) {
         const saved = await flushEdits(inst);
-        if (!saved && inst.conflict) {
+        if (!saved) {
             const leave = await askConfirm(inst, inst.t('storymaker.leave_title'), inst.t('storymaker.leave_text'));
             if (!leave) return;
         }
