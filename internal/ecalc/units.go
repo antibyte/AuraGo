@@ -58,15 +58,23 @@ type Prefix struct {
 
 // Unit is an explicit display unit of a dimension. A linear unit has a Factor (base = x * Factor); a non-linear one
 // has To and From expressions in the expression language, where x is the value in this unit (To) or in the base
-// unit (From).
+// unit (From). Aliases are further spellings that input accepts exactly like the Symbol (the longest spelling is
+// tried first); they are never shown.
 type Unit struct {
-	ID     string  `json:"id"`
-	Symbol string  `json:"symbol"`
-	Factor float64 `json:"factor"`
-	To     string  `json:"to"`
-	From   string  `json:"from"`
+	ID      string   `json:"id"`
+	Symbol  string   `json:"symbol"`
+	Aliases []string `json:"aliases"`
+	Factor  float64  `json:"factor"`
+	To      string   `json:"to"`
+	From    string   `json:"from"`
 
 	to, from *Node
+}
+
+// exName is one spelling of an explicit unit (its symbol or an alias) that input may carry behind the number.
+type exName struct {
+	text string
+	unit *Unit
 }
 
 // Dim is a physical dimension (voltage, resistance, ...). Values are stored in its SI base unit.
@@ -80,7 +88,7 @@ type Dim struct {
 
 	pfx      []Prefix // Prefixes resolved, ascending by factor
 	suffixes []string // base symbol and aliases, longest first
-	exUnits  []*Unit  // explicit units, longest symbol first
+	exNames  []exName // spellings of the explicit units, longest first
 }
 
 // Units is the unit model loaded from catalog/units.yaml.
@@ -93,11 +101,12 @@ type Units struct {
 }
 
 type rawUnit struct {
-	ID     string  `yaml:"id"`
-	Symbol string  `yaml:"symbol"`
-	Factor float64 `yaml:"factor"`
-	To     string  `yaml:"to"`
-	From   string  `yaml:"from"`
+	ID      string   `yaml:"id"`
+	Symbol  string   `yaml:"symbol"`
+	Aliases []string `yaml:"aliases"`
+	Factor  float64  `yaml:"factor"`
+	To      string   `yaml:"to"`
+	From    string   `yaml:"from"`
 }
 
 type rawDim struct {
@@ -160,8 +169,35 @@ func loadUnits(data []byte) (*Units, error) {
 		sort.Slice(d.pfx, func(i, j int) bool { return d.pfx[i].Factor < d.pfx[j].Factor })
 		d.Units = make([]Unit, 0, len(rd.Units))
 		seen := map[string]bool{}
+		// Every spelling input may carry (base symbol, aliases, unit symbols, unit aliases) belongs to one thing only.
+		spelled := map[string]string{}
+		spell := func(text, what string) {
+			switch {
+			case text == "":
+				fail("dim %q: %s must not be empty", d.ID, what)
+			case spelled[text] != "":
+				fail("dim %q: %q is used by %s and by %s", d.ID, text, spelled[text], what)
+			default:
+				spelled[text] = what
+			}
+		}
+		if d.Symbol != "" {
+			spell(d.Symbol, "the base symbol")
+		}
+		for _, a := range d.Aliases {
+			spell(a, "an alias of the dimension")
+		}
 		for _, ru := range rd.Units {
-			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Factor: ru.Factor, To: ru.To, From: ru.From}
+			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Aliases: ru.Aliases, Factor: ru.Factor, To: ru.To, From: ru.From}
+			if un.Aliases == nil {
+				un.Aliases = []string{}
+			}
+			if un.Symbol != "" {
+				spell(un.Symbol, "the symbol of unit "+strconv.Quote(un.ID))
+			}
+			for _, a := range un.Aliases {
+				spell(a, "an alias of unit "+strconv.Quote(un.ID))
+			}
 			switch {
 			case un.ID == "" || un.Symbol == "" || seen[un.ID]:
 				fail("dim %q: unit %q needs a unique id and a symbol", d.ID, un.ID)
@@ -189,9 +225,13 @@ func loadUnits(data []byte) (*Units, error) {
 		}
 		sort.SliceStable(d.suffixes, func(a, b int) bool { return len(d.suffixes[a]) > len(d.suffixes[b]) })
 		for j := range d.Units {
-			d.exUnits = append(d.exUnits, &d.Units[j])
+			un := &d.Units[j]
+			d.exNames = append(d.exNames, exName{un.Symbol, un})
+			for _, a := range un.Aliases {
+				d.exNames = append(d.exNames, exName{a, un})
+			}
 		}
-		sort.SliceStable(d.exUnits, func(a, b int) bool { return len(d.exUnits[a].Symbol) > len(d.exUnits[b].Symbol) })
+		sort.SliceStable(d.exNames, func(a, b int) bool { return textLength(d.exNames[a].text) > textLength(d.exNames[b].text) })
 	}
 	return u, nil
 }
@@ -372,11 +412,11 @@ func (u *Units) parseValue(d *Dim, s, unitID string) (float64, error) {
 	orig := s
 	bad := func() (float64, error) { return 0, fmt.Errorf("cannot read %q as a %s", orig, d.ID) }
 
-	// An explicit unit written after the number (10dBm, 2Ah).
-	for _, un := range d.exUnits {
-		if rest, ok := strings.CutSuffix(s, un.Symbol); ok && plainNumRe.MatchString(rest) {
+	// An explicit unit written after the number (10dBm, 2Ah, 25degC): its symbol or one of its aliases.
+	for _, en := range d.exNames {
+		if rest, ok := strings.CutSuffix(s, en.text); ok && plainNumRe.MatchString(rest) {
 			x, _ := strconv.ParseFloat(rest, 64)
-			return un.ToBase(x), nil
+			return en.unit.ToBase(x), nil
 		}
 	}
 	// The base symbol or an alias (V, Ω, ohm, R), possibly behind a prefix (kΩ, mA).

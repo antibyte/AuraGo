@@ -5,6 +5,7 @@
 #           suffix on input, the prefixes it may be written with ("" = the bare base unit), positive (values must
 #           be greater than zero) and optional explicit units. An explicit unit is either linear (factor: base =
 #           x * factor) or non-linear (to/from expressions in the expression language, x = the value in the unit).
+#           A unit may list aliases: extra spellings that input accepts like the symbol (25degC) and that are never shown.
 prefixes:
   - {id: p, factor: 1e-12}
   - {id: n, factor: 1e-9}
@@ -14,11 +15,29 @@ prefixes:
   - {id: M, factor: 1e6}
   - {id: G, factor: 1e9}
 dims:
-  voltage: {symbol: V, prefixes: [n, µ, m, "", k, M], units: [{id: dBV, symbol: dBV, to: "10^(x/20)", from: "20*log10(x)"}, {id: dBu, symbol: dBu, to: "0.7745966692414834*10^(x/20)", from: "20*log10(x/0.7745966692414834)"}]}
+  voltage: {symbol: V, prefixes: [n, µ, m, "", k, M], units: [{id: dBV, symbol: dBV, to: "10^(x/20)", from: "20*log10(x)"}, {id: dBu, symbol: dBu, to: "0.7745966692414834*10^(x/20)", from: "20*log10(x/0.7745966692414834)"}, {id: dBuV, symbol: dBµV, aliases: [dBuV], to: "1e-6*10^(x/20)", from: "20*log10(x/1e-6)"}]}
   current: {symbol: A, prefixes: [p, n, µ, m, "", k]}
   resistance: {symbol: Ω, aliases: [ohm, Ohm, R], prefixes: [m, "", k, M, G], positive: true}
   power: {symbol: W, prefixes: [n, µ, m, "", k, M], units: [{id: dBm, symbol: dBm, to: "10^((x-30)/10)", from: "10*log10(x)+30"}]}
-  charge: {symbol: C, prefixes: [µ, m, ""], units: [{id: mAh, symbol: mAh, factor: 3.6}, {id: Ah, symbol: Ah, factor: 3600}]}
-  energy: {symbol: J, prefixes: [m, "", k, M], units: [{id: mWh, symbol: mWh, factor: 3.6}, {id: Wh, symbol: Wh, factor: 3600}, {id: kWh, symbol: kWh, factor: 3.6e6}]}
+  charge: {symbol: C, prefixes: [n, µ, m, ""], units: [{id: mAh, symbol: mAh, factor: 3.6}, {id: Ah, symbol: Ah, factor: 3600}]}
+  energy: {symbol: J, prefixes: [n, µ, m, "", k, M], units: [{id: mWh, symbol: mWh, factor: 3.6}, {id: Wh, symbol: Wh, factor: 3600}, {id: kWh, symbol: kWh, factor: 3.6e6}]}
   number: {symbol: "", prefixes: [], positive: true}
   gain: {symbol: dB, prefixes: []}
+  capacitance: {symbol: F, prefixes: [p, n, µ, m, ""], positive: true}
+  inductance: {symbol: H, prefixes: [n, µ, m, ""], positive: true}
+  frequency: {symbol: Hz, prefixes: ["", k, M, G], positive: true}
+  time: {symbol: s, prefixes: [p, n, µ, m, ""], positive: true, units: [{id: min, symbol: min, factor: 60}, {id: h, symbol: h, factor: 3600}]}
+  # Wire and copper dimensions. oz is the copper weight (1 oz/ft² is a layer of about 35 µm). AWG is the American Wire
+  # Gauge diameter, d(n) = 0.005 in * 92^((36 - n) / 39) with 0.005 in = 0.000127 m (ASTM B258: AWG 0 = 8.251 mm, AWG 10 = 2.588 mm,
+  # AWG 36 = 0.127 mm); the area unit AWG is the cross-section of that diameter, AWG 10 = 5.261 mm².
+  length: {symbol: m, prefixes: [µ, m, "", k], positive: true, units: [{id: mil, symbol: mil, factor: 25.4e-6}, {id: in, symbol: in, factor: 0.0254}, {id: ft, symbol: ft, factor: 0.3048}, {id: oz, symbol: oz, factor: 35e-6}, {id: AWG, symbol: AWG, to: "0.000127*92^((36-x)/39)", from: "36-39*ln(x/0.000127)/ln(92)"}]}
+  area: {symbol: m², prefixes: [""], positive: true, units: [{id: mm2, symbol: mm², aliases: [mm2], factor: 1e-6}, {id: mil2, symbol: mil², factor: 6.4516e-10}, {id: kcmil, symbol: kcmil, factor: 5.067074790975e-7}, {id: AWG, symbol: AWG, to: "pi/4*(0.000127*92^((36-x)/39))^2", from: "36-39*ln(sqrt(4*x/pi)/0.000127)/ln(92)"}]}
+  # Temperature has an offset unit (degC, degF); a temperature difference (tempdiff) only scales.
+  temperature: {symbol: K, prefixes: [""], positive: true, units: [{id: degC, symbol: °C, aliases: [C, degC], to: "x+273.15", from: "x-273.15"}, {id: degF, symbol: °F, aliases: [F, degF], to: "(x-32)*5/9+273.15", from: "(x-273.15)*9/5+32"}]}
+  tempdiff: {symbol: K, prefixes: [""], units: [{id: degC, symbol: °C, factor: 1}, {id: degF, symbol: °F, factor: 0.5555555555555556}]}
+  thermal_resistance: {symbol: K/W, prefixes: [""], positive: true, units: [{id: degCW, symbol: °C/W, factor: 1}]}
+  resistivity: {symbol: Ω·m, prefixes: [n, µ, m, ""], positive: true, units: [{id: ohmmm2m, symbol: Ω·mm²/m, factor: 1e-6}]}
+  tempco: {symbol: 1/K, prefixes: [""], units: [{id: ppmK, symbol: ppm/K, factor: 1e-6}, {id: pctK, symbol: "%/K", factor: 0.01}]}
+  ratio: {symbol: "", prefixes: [""], units: [{id: pct, symbol: "%", factor: 0.01}]}
+  angle: {symbol: rad, prefixes: [m, ""], units: [{id: deg, symbol: °, aliases: [deg], factor: 0.017453292519943295}]}
+  baudrate: {symbol: Bd, prefixes: ["", k, M], positive: true}

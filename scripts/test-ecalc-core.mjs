@@ -269,12 +269,14 @@ for (const item of calculators) {
     same(units.parse('5V', 'voltage', 'prefix:m'), 5, 'a typed unit wins');
     same(units.parse('5k', 'voltage', 'prefix:m'), 5000, 'a typed prefix wins');
     throwsCode(() => units.parse('5', 'voltage', 'prefix:x'), 'parse', 'an unknown fixed prefix');
-    eq(units.options('voltage').map(option => option.id), ['', 'prefix:n', 'prefix:µ', 'prefix:m', 'prefix:', 'prefix:k', 'prefix:M', 'dBV', 'dBu']);
+    eq(units.options('voltage').map(option => option.id), ['', 'prefix:n', 'prefix:µ', 'prefix:m', 'prefix:', 'prefix:k', 'prefix:M', 'dBV', 'dBu', 'dBuV']);
     eq(units.options('number').map(option => option.id), ['']);
     eq(units.options('resistance').map(option => option.label), ['', 'mΩ', 'Ω', 'kΩ', 'MΩ', 'GΩ']);
+    eq(units.options('area').map(option => option.id), ['', 'prefix:', 'mm2', 'mil2', 'kcmil', 'AWG'], 'aliases are input spellings, not dropdown entries');
+    eq(units.options('temperature').map(option => option.label), ['', 'K', '°C', '°F']);
     same(units.parse('4.7kΩ', 'resistance', ''), 4700, 'the ohm sign');
     same(units.parse('3μA', 'current', ''), 3e-6, 'the Greek mu');
-    count += 12;
+    count += 14;
 }
 
 // ---- a unit that cannot show a value falls back to the automatic text (dBV for zero or a negative voltage) ------------------

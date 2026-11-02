@@ -50,6 +50,7 @@
           {
             "id": "dBV",
             "symbol": "dBV",
+            "aliases": [],
             "factor": 0,
             "to": "10^(x/20)",
             "from": "20*log10(x)"
@@ -57,9 +58,20 @@
           {
             "id": "dBu",
             "symbol": "dBu",
+            "aliases": [],
             "factor": 0,
             "to": "0.7745966692414834*10^(x/20)",
             "from": "20*log10(x/0.7745966692414834)"
+          },
+          {
+            "id": "dBuV",
+            "symbol": "dBµV",
+            "aliases": [
+              "dBuV"
+            ],
+            "factor": 0,
+            "to": "1e-6*10^(x/20)",
+            "from": "20*log10(x/1e-6)"
           }
         ]
       },
@@ -113,6 +125,7 @@
           {
             "id": "dBm",
             "symbol": "dBm",
+            "aliases": [],
             "factor": 0,
             "to": "10^((x-30)/10)",
             "from": "10*log10(x)+30"
@@ -124,6 +137,7 @@
         "symbol": "C",
         "aliases": [],
         "prefixes": [
+          "n",
           "µ",
           "m",
           ""
@@ -133,6 +147,7 @@
           {
             "id": "mAh",
             "symbol": "mAh",
+            "aliases": [],
             "factor": 3.6,
             "to": "",
             "from": ""
@@ -140,6 +155,7 @@
           {
             "id": "Ah",
             "symbol": "Ah",
+            "aliases": [],
             "factor": 3600,
             "to": "",
             "from": ""
@@ -151,6 +167,8 @@
         "symbol": "J",
         "aliases": [],
         "prefixes": [
+          "n",
+          "µ",
           "m",
           "",
           "k",
@@ -161,6 +179,7 @@
           {
             "id": "mWh",
             "symbol": "mWh",
+            "aliases": [],
             "factor": 3.6,
             "to": "",
             "from": ""
@@ -168,6 +187,7 @@
           {
             "id": "Wh",
             "symbol": "Wh",
+            "aliases": [],
             "factor": 3600,
             "to": "",
             "from": ""
@@ -175,6 +195,7 @@
           {
             "id": "kWh",
             "symbol": "kWh",
+            "aliases": [],
             "factor": 3600000,
             "to": "",
             "from": ""
@@ -195,6 +216,357 @@
         "aliases": [],
         "prefixes": [],
         "positive": false,
+        "units": []
+      },
+      {
+        "id": "capacitance",
+        "symbol": "F",
+        "aliases": [],
+        "prefixes": [
+          "p",
+          "n",
+          "µ",
+          "m",
+          ""
+        ],
+        "positive": true,
+        "units": []
+      },
+      {
+        "id": "inductance",
+        "symbol": "H",
+        "aliases": [],
+        "prefixes": [
+          "n",
+          "µ",
+          "m",
+          ""
+        ],
+        "positive": true,
+        "units": []
+      },
+      {
+        "id": "frequency",
+        "symbol": "Hz",
+        "aliases": [],
+        "prefixes": [
+          "",
+          "k",
+          "M",
+          "G"
+        ],
+        "positive": true,
+        "units": []
+      },
+      {
+        "id": "time",
+        "symbol": "s",
+        "aliases": [],
+        "prefixes": [
+          "p",
+          "n",
+          "µ",
+          "m",
+          ""
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "min",
+            "symbol": "min",
+            "aliases": [],
+            "factor": 60,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "h",
+            "symbol": "h",
+            "aliases": [],
+            "factor": 3600,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "length",
+        "symbol": "m",
+        "aliases": [],
+        "prefixes": [
+          "µ",
+          "m",
+          "",
+          "k"
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "mil",
+            "symbol": "mil",
+            "aliases": [],
+            "factor": 0.0000254,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "in",
+            "symbol": "in",
+            "aliases": [],
+            "factor": 0.0254,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "ft",
+            "symbol": "ft",
+            "aliases": [],
+            "factor": 0.3048,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "oz",
+            "symbol": "oz",
+            "aliases": [],
+            "factor": 0.000035,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "AWG",
+            "symbol": "AWG",
+            "aliases": [],
+            "factor": 0,
+            "to": "0.000127*92^((36-x)/39)",
+            "from": "36-39*ln(x/0.000127)/ln(92)"
+          }
+        ]
+      },
+      {
+        "id": "area",
+        "symbol": "m²",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "mm2",
+            "symbol": "mm²",
+            "aliases": [
+              "mm2"
+            ],
+            "factor": 0.000001,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "mil2",
+            "symbol": "mil²",
+            "aliases": [],
+            "factor": 6.4516e-10,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "kcmil",
+            "symbol": "kcmil",
+            "aliases": [],
+            "factor": 5.067074790975e-7,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "AWG",
+            "symbol": "AWG",
+            "aliases": [],
+            "factor": 0,
+            "to": "pi/4*(0.000127*92^((36-x)/39))^2",
+            "from": "36-39*ln(sqrt(4*x/pi)/0.000127)/ln(92)"
+          }
+        ]
+      },
+      {
+        "id": "temperature",
+        "symbol": "K",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "degC",
+            "symbol": "°C",
+            "aliases": [
+              "C",
+              "degC"
+            ],
+            "factor": 0,
+            "to": "x+273.15",
+            "from": "x-273.15"
+          },
+          {
+            "id": "degF",
+            "symbol": "°F",
+            "aliases": [
+              "F",
+              "degF"
+            ],
+            "factor": 0,
+            "to": "(x-32)*5/9+273.15",
+            "from": "(x-273.15)*9/5+32"
+          }
+        ]
+      },
+      {
+        "id": "tempdiff",
+        "symbol": "K",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "degC",
+            "symbol": "°C",
+            "aliases": [],
+            "factor": 1,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "degF",
+            "symbol": "°F",
+            "aliases": [],
+            "factor": 0.5555555555555556,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "thermal_resistance",
+        "symbol": "K/W",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "degCW",
+            "symbol": "°C/W",
+            "aliases": [],
+            "factor": 1,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "resistivity",
+        "symbol": "Ω·m",
+        "aliases": [],
+        "prefixes": [
+          "n",
+          "µ",
+          "m",
+          ""
+        ],
+        "positive": true,
+        "units": [
+          {
+            "id": "ohmmm2m",
+            "symbol": "Ω·mm²/m",
+            "aliases": [],
+            "factor": 0.000001,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "tempco",
+        "symbol": "1/K",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "ppmK",
+            "symbol": "ppm/K",
+            "aliases": [],
+            "factor": 0.000001,
+            "to": "",
+            "from": ""
+          },
+          {
+            "id": "pctK",
+            "symbol": "%/K",
+            "aliases": [],
+            "factor": 0.01,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "ratio",
+        "symbol": "",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "pct",
+            "symbol": "%",
+            "aliases": [],
+            "factor": 0.01,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "angle",
+        "symbol": "rad",
+        "aliases": [],
+        "prefixes": [
+          "m",
+          ""
+        ],
+        "positive": false,
+        "units": [
+          {
+            "id": "deg",
+            "symbol": "°",
+            "aliases": [
+              "deg"
+            ],
+            "factor": 0.017453292519943295,
+            "to": "",
+            "from": ""
+          }
+        ]
+      },
+      {
+        "id": "baudrate",
+        "symbol": "Bd",
+        "aliases": [],
+        "prefixes": [
+          "",
+          "k",
+          "M"
+        ],
+        "positive": true,
         "units": []
       }
     ]

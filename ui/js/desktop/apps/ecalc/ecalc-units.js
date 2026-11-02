@@ -56,7 +56,7 @@
                 const linear = !unit.to;
                 const toAst = linear ? null : expr.parseCached(unit.to), fromAst = linear ? null : expr.parseCached(unit.from);
                 return {
-                    id: unit.id, symbol: unit.symbol,
+                    id: unit.id, symbol: unit.symbol, aliases: unit.aliases || [],
                     toBase: x => (linear ? x * unit.factor : expr.evaluate(toAst, { x })),
                     fromBase: v => (linear ? v / unit.factor : expr.evaluate(fromAst, { x: v }))
                 };
@@ -64,7 +64,8 @@
             dims.set(raw.id, {
                 id: raw.id, symbol: raw.symbol || '', aliases: raw.aliases || [], positive: !!raw.positive, prefixes, units,
                 unitById: new Map(units.map(unit => [unit.id, unit])),
-                bySymbolLength: units.slice().sort((a, b) => b.symbol.length - a.symbol.length),
+                // The spellings of the explicit units (symbol and aliases), longest first; Array.sort is stable.
+                unitNames: units.flatMap(unit => [unit.symbol].concat(unit.aliases).map(text => ({ text, unit }))).sort((a, b) => b.text.length - a.text.length),
                 names: [raw.symbol || ''].concat(raw.aliases || []).filter(Boolean).sort((a, b) => b.length - a.length)
             });
         }
@@ -85,11 +86,11 @@
             if (text === '') throw fail('empty input');
             text = text.replace(/,/g, '.');
 
-            // An explicit unit typed behind the number wins over everything else (longest symbol first).
-            for (const unit of d.bySymbolLength) {
-                if (text.endsWith(unit.symbol)) {
-                    const rest = text.slice(0, text.length - unit.symbol.length);
-                    if (NUMBER.test(rest)) return finite(unit.toBase(Number(rest)));
+            // An explicit unit typed behind the number wins over everything else (symbol or alias, longest first).
+            for (const entry of d.unitNames) {
+                if (text.endsWith(entry.text)) {
+                    const rest = text.slice(0, text.length - entry.text.length);
+                    if (NUMBER.test(rest)) return finite(entry.unit.toBase(Number(rest)));
                 }
             }
             // The base symbol or an alias may follow (4.7kΩ, 10mA, 100R); a prefix in front of it stays in the text.

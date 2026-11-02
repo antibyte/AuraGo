@@ -1,6 +1,8 @@
 package ecalc
 
 import (
+	"fmt"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -113,11 +115,93 @@ func TestLoadUnitsRejectsBrokenDefinitions(t *testing.T) {
 		{"conversion with a foreign variable", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, to: \"y*2\", from: \"x/2\"}]}\n", "only x"},
 		{"conversion that does not parse", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, to: \"x*\", from: \"x/2\"}]}\n", "unit \"u\""},
 		{"duplicate dim", "prefixes: []\ndims:\n  a: {symbol: A}\n  a: {symbol: B}\n", "duplicate key"},
+		{"empty alias", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1, aliases: [\"\"]}]}\n", "must not be empty"},
+		{"alias used by two units", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1, aliases: [x]}, {id: v, symbol: v, factor: 2, aliases: [x]}]}\n", `"x" is used by`},
+		{"alias equal to the base symbol", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1, aliases: [A]}]}\n", `"A" is used by`},
+		{"alias equal to another unit symbol", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 1}, {id: v, symbol: v, factor: 2, aliases: [u]}]}\n", `"u" is used by`},
+		{"alias equal to a dimension alias", "prefixes: []\ndims:\n  a: {symbol: A, aliases: [z], units: [{id: u, symbol: u, factor: 1, aliases: [z]}]}\n", `"z" is used by`},
 	}
 	for _, c := range cases {
 		_, err := loadUnits([]byte(c.yaml))
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error = %v, want it to contain %q", c.name, err, c.want)
+		}
+	}
+}
+
+// The dimensions of units.yaml in their order, with the base symbol, the prefixes, the positive flag and the ids of the
+// explicit units. The unit dropdowns of the app follow this order, and the vectors rely on these definitions.
+func TestUnitsCatalogDimensions(t *testing.T) {
+	u := testUnits(t)
+	want := []string{
+		"voltage|V|n µ m '' k M|false|dBV dBu dBuV",
+		"current|A|p n µ m '' k|false|",
+		"resistance|Ω|m '' k M G|true|",
+		"power|W|n µ m '' k M|false|dBm",
+		"charge|C|n µ m ''|false|mAh Ah",
+		"energy|J|n µ m '' k M|false|mWh Wh kWh",
+		"number||(none)|true|",
+		"gain|dB|(none)|false|",
+		"capacitance|F|p n µ m ''|true|",
+		"inductance|H|n µ m ''|true|",
+		"frequency|Hz|'' k M G|true|",
+		"time|s|p n µ m ''|true|min h",
+		"length|m|µ m '' k|true|mil in ft oz AWG",
+		"area|m²|''|true|mm2 mil2 kcmil AWG",
+		"temperature|K|''|true|degC degF",
+		"tempdiff|K|''|false|degC degF",
+		"thermal_resistance|K/W|''|true|degCW",
+		"resistivity|Ω·m|n µ m ''|true|ohmmm2m",
+		"tempco|1/K|''|false|ppmK pctK",
+		"ratio||''|false|pct",
+		"angle|rad|m ''|false|deg",
+		"baudrate|Bd|'' k M|true|",
+	}
+	var got []string
+	for _, d := range u.Dims {
+		prefixes := make([]string, len(d.Prefixes))
+		for i, p := range d.Prefixes {
+			prefixes[i] = p
+			if p == "" {
+				prefixes[i] = "''"
+			}
+		}
+		if len(prefixes) == 0 {
+			prefixes = []string{"(none)"}
+		}
+		ids := make([]string, len(d.Units))
+		for i, un := range d.Units {
+			ids[i] = un.ID
+		}
+		got = append(got, fmt.Sprintf("%s|%s|%s|%t|%s", d.ID, d.Symbol, strings.Join(prefixes, " "), d.Positive, strings.Join(ids, " ")))
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("dimensions of units.yaml\n got:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// The units whose conversion is a formula or a published constant: AWG (ASTM B258; the published table is rounded to
+// four digits, hence the loose tolerance on those rows), the degree in radians and the Fahrenheit degree of a
+// temperature difference.
+func TestUnitsReferenceConstants(t *testing.T) {
+	u := testUnits(t)
+	awgLen, awgArea := u.Dim("length").Unit("AWG"), u.Dim("area").Unit("AWG")
+	for _, c := range []struct {
+		name      string
+		got, want float64
+		tol       float64
+	}{
+		{"AWG 0 diameter, 8.251 mm", awgLen.ToBase(0), 8.251e-3, 5e-4},
+		{"AWG 10 diameter, 2.588 mm", awgLen.ToBase(10), 2.588e-3, 5e-4},
+		{"AWG 36 diameter, 0.127 mm", awgLen.ToBase(36), 0.127e-3, 1e-12},
+		{"AWG 10 area, 5.261 mm2", awgArea.ToBase(10), 5.261e-6, 5e-4},
+		{"AWG number of 0.127 mm", awgLen.FromBase(0.127e-3), 36, 1e-12},
+		{"AWG number of 5.261154954510375 mm2", awgArea.FromBase(5.261154954510375e-6), 10, 1e-12},
+		{"9 degF of temperature difference in K", u.Dim("tempdiff").Unit("degF").ToBase(9), 5, 1e-12},
+		{"180 degrees in radians", u.Dim("angle").Unit("deg").ToBase(180), math.Pi, 1e-12},
+	} {
+		if !near(c.got, c.want, c.tol) {
+			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
 		}
 	}
 }
