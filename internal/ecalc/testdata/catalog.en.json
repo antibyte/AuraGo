@@ -5635,6 +5635,955 @@
           "r"
         ]
       ]
+    },
+    {
+      "kind": "calculator",
+      "id": "ne555_astable",
+      "category": "timers",
+      "name": "NE555 astable (oscillator)",
+      "name_en": "NE555 astable (oscillator)",
+      "doc": "Astable multivibrator with an NE555 timer: the capacitor charges through R_1 + R_2 up to 2/3 of the supply and discharges through R_2 down to 1/3. The high time is t_H = ln 2 × (R_1 + R_2) × C (ln 2 ≈ 0.693), the low time t_L = ln 2 × R_2 × C, the frequency f = 1 / (t_H + t_L) = 1.44 / ((R_1 + 2 R_2) × C) and the duty cycle D = t_H / (t_H + t_L) = (R_1 + R_2) / (R_1 + 2 R_2), which is always above 50 %. Enter any three independent values (for example f, D and C to design the resistors). Example with the defaults: R_1 = 1 kΩ, R_2 = 68 kΩ and C = 10 nF give about 1.05 kHz at 50.4 % duty cycle (t_H ≈ 478 µs, t_L ≈ 471 µs). With the control pin not driven the result does not depend on the supply voltage; real parts add the tolerances of R and C, leakage and switching delays, so very high frequencies and very small resistors deviate.",
+      "tags": [
+        "555",
+        "ne555",
+        "timer",
+        "astable",
+        "oscillator",
+        "multivibrator",
+        "blinker",
+        "flasher",
+        "frequency",
+        "duty cycle",
+        "astabil",
+        "oszillator",
+        "blinkschaltung",
+        "rechteckgenerator",
+        "tastverhältnis",
+        "frequenz"
+      ],
+      "source": "NE555 datasheet (Texas Instruments NE555 / SE555 precision timer), astable operation: f = 1.44/((R_A + 2R_B)·C), t_H = ln 2·(R_A + R_B)·C, t_L = ln 2·R_B·C; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (timers)",
+      "vars": [
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Resistor R_1 (supply to discharge pin)",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Resistor R_2 (discharge pin to capacitor)",
+          "default": 68000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Timing capacitor",
+          "default": 1e-8,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "th",
+          "dim": "time",
+          "label": "t_H",
+          "name": "High time",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "tl",
+          "dim": "time",
+          "label": "t_L",
+          "name": "Low time",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "duty",
+          "dim": "ratio",
+          "label": "D",
+          "name": "Duty cycle",
+          "default": null,
+          "default_list": null,
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "f",
+          "alts": [
+            "1/(th+tl)",
+            "duty/th",
+            "(1-duty)/tl"
+          ]
+        },
+        {
+          "target": "th",
+          "alts": [
+            "ln(2)*(r1+r2)*c",
+            "duty/f",
+            "1/f-tl"
+          ]
+        },
+        {
+          "target": "tl",
+          "alts": [
+            "ln(2)*r2*c",
+            "(1-duty)/f",
+            "1/f-th"
+          ]
+        },
+        {
+          "target": "duty",
+          "alts": [
+            "th/(th+tl)",
+            "th*f"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "th/(ln(2)*c)-r2",
+            "(th-tl)/(ln(2)*c)"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "tl/(ln(2)*c)",
+            "(1/(f*ln(2)*c)-r1)/2"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "tl/(ln(2)*r2)",
+            "th/(ln(2)*(r1+r2))",
+            "(th-tl)/(ln(2)*r1)",
+            "1/(f*ln(2)*(r1+2*r2))"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "period",
+          "dim": "time",
+          "label": "T",
+          "name": "Period",
+          "alts": [
+            "1/f"
+          ],
+          "unit": "",
+          "units": [
+            ""
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "duty <= 0.5",
+          "warn": "The duty cycle is not above 50 %: a standard NE555 astable cannot do that (R_1 would be zero or negative). A diode across R_2 allows lower duty cycles."
+        }
+      ],
+      "formula": [
+        "th = ln(2) * (r1 + r2) * c",
+        "tl = ln(2) * r2 * c",
+        "f = 1 / (th + tl)",
+        "duty = th / (th + tl)"
+      ],
+      "schematic": "ne555_astable",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r1",
+          "r2",
+          "c"
+        ],
+        [
+          "r1",
+          "r2",
+          "f"
+        ],
+        [
+          "r1",
+          "r2",
+          "th"
+        ],
+        [
+          "r1",
+          "r2",
+          "tl"
+        ],
+        [
+          "r1",
+          "c",
+          "f"
+        ],
+        [
+          "r1",
+          "c",
+          "tl"
+        ],
+        [
+          "r1",
+          "f",
+          "th"
+        ],
+        [
+          "r1",
+          "f",
+          "tl"
+        ],
+        [
+          "r1",
+          "f",
+          "duty"
+        ],
+        [
+          "r1",
+          "th",
+          "tl"
+        ],
+        [
+          "r1",
+          "th",
+          "duty"
+        ],
+        [
+          "r1",
+          "tl",
+          "duty"
+        ],
+        [
+          "r2",
+          "c",
+          "f"
+        ],
+        [
+          "r2",
+          "c",
+          "th"
+        ],
+        [
+          "r2",
+          "c",
+          "duty"
+        ],
+        [
+          "r2",
+          "f",
+          "th"
+        ],
+        [
+          "r2",
+          "f",
+          "tl"
+        ],
+        [
+          "r2",
+          "f",
+          "duty"
+        ],
+        [
+          "r2",
+          "th",
+          "tl"
+        ],
+        [
+          "r2",
+          "th",
+          "duty"
+        ],
+        [
+          "r2",
+          "tl",
+          "duty"
+        ],
+        [
+          "c",
+          "f",
+          "th"
+        ],
+        [
+          "c",
+          "f",
+          "tl"
+        ],
+        [
+          "c",
+          "f",
+          "duty"
+        ],
+        [
+          "c",
+          "th",
+          "tl"
+        ],
+        [
+          "c",
+          "th",
+          "duty"
+        ],
+        [
+          "c",
+          "tl",
+          "duty"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "ne555_monostable",
+      "category": "timers",
+      "name": "NE555 monostable (one-shot)",
+      "name_en": "NE555 monostable (one-shot)",
+      "doc": "Monostable (one-shot) with an NE555 timer: a trigger pulse at pin 2 starts the output pulse, during which the capacitor charges through R from 0 up to 2/3 of the supply. The pulse width is t = R × C × ln 3 ≈ 1.0986 × R × C (the datasheet rounds this to 1.1 × R × C). Enter any two of R, C and t. Example with the defaults: 100 kΩ and 10 µF give a pulse of about 1.1 s. The trigger pulse must be shorter than the output pulse; the real width varies with the capacitor tolerance and leakage (use film or low-leakage capacitors for long times).",
+      "tags": [
+        "555",
+        "ne555",
+        "timer",
+        "monostable",
+        "one-shot",
+        "one shot",
+        "pulse",
+        "delay",
+        "monoflop",
+        "monostabil",
+        "impuls",
+        "verzögerung",
+        "zeitglied",
+        "pulsbreite"
+      ],
+      "source": "NE555 datasheet (Texas Instruments NE555 / SE555 precision timer), monostable operation: t_w = 1.1·R_A·C, exactly ln 3·R_A·C (charging from 0 to 2/3 V_CC); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (timers)",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Timing resistor",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Timing capacitor",
+          "default": 0.000009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "t",
+          "name": "Pulse width",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "t",
+          "alts": [
+            "ln(3)*r*c"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "t/(ln(3)*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "t/(ln(3)*r)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [],
+      "formula": [
+        "t = ln(3) * r * c"
+      ],
+      "schematic": "ne555_monostable",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "c"
+        ],
+        [
+          "r",
+          "t"
+        ],
+        [
+          "c",
+          "t"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "crystal_load_caps",
+      "category": "timers",
+      "name": "Crystal load capacitors",
+      "name_en": "Crystal load capacitors",
+      "doc": "Load capacitors for a parallel-resonant quartz crystal in a Pierce oscillator: two capacitors C_1 = C_2 from the crystal pins to ground. The crystal sees the load capacitance C_L = C_1 × C_2 / (C_1 + C_2) + C_stray, where C_stray is the pin, trace and board capacitance (a few pF as a rough estimate, 2 to 5 pF). With C_1 = C_2 = C this gives C = 2 × (C_L − C_stray). Take C_L from the crystal datasheet. Example with the defaults: C_L = 18 pF and C_stray = 4 pF give C_1 = C_2 = 28 pF (use the nearest standard value, 27 pF).",
+      "tags": [
+        "crystal",
+        "quartz",
+        "xtal",
+        "load capacitance",
+        "load capacitor",
+        "pierce oscillator",
+        "oscillator",
+        "microcontroller",
+        "quarz",
+        "schwingquarz",
+        "lastkapazität",
+        "lastkondensator",
+        "pierce",
+        "oszillator",
+        "mikrocontroller"
+      ],
+      "source": "Load capacitance of a parallel-resonant crystal in a Pierce oscillator: C_L = C_1·C_2/(C_1 + C_2) + C_stray (series connection of the two capacitors plus stray capacitance); the crystal datasheet states C_L; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (crystal oscillators)",
+      "vars": [
+        {
+          "id": "cl",
+          "dim": "capacitance",
+          "label": "C_L",
+          "name": "Crystal load capacitance (datasheet)",
+          "default": 1.8e-11,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "cs",
+          "dim": "capacitance",
+          "label": "C_stray",
+          "name": "Stray capacitance (pins, traces)",
+          "default": 4e-12,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C_1,2",
+          "name": "Load capacitor C_1 = C_2 (each)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "c",
+          "alts": [
+            "2*(cl-cs)"
+          ]
+        },
+        {
+          "target": "cl",
+          "alts": [
+            "c/2+cs"
+          ]
+        },
+        {
+          "target": "cs",
+          "alts": [
+            "cl-c/2"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "cser",
+          "dim": "capacitance",
+          "label": "C_ser",
+          "name": "Series combination C_1·C_2/(C_1 + C_2)",
+          "alts": [
+            "c/2"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "cs >= cl",
+          "warn": "C_stray is not below C_L: the board already provides the load capacitance, no load capacitors are needed (or the crystal needs a lower load capacitance)."
+        }
+      ],
+      "formula": [
+        "cl = c / 2 + cs",
+        "c = 2 * (cl - cs)"
+      ],
+      "schematic": "crystal_load_caps",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "cl",
+          "cs"
+        ],
+        [
+          "cl",
+          "c"
+        ],
+        [
+          "cs",
+          "c"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "frequency_period",
+      "category": "timers",
+      "name": "Frequency, period and duty cycle",
+      "name_en": "Frequency, period and duty cycle",
+      "doc": "Converts between the frequency f, the period T = 1 / f and the duty cycle D of a rectangular signal: t_high = D × T and t_low = T − t_high. Enter any two independent values (the frequency and the period alone do not fix the duty cycle). Example with the defaults: 1 kHz at a duty cycle of 30 % is a period of 1 ms with 300 µs high and 700 µs low.",
+      "tags": [
+        "frequency",
+        "period",
+        "duty cycle",
+        "duty",
+        "pulse width",
+        "square wave",
+        "rectangular",
+        "pwm",
+        "hertz",
+        "frequenz",
+        "periodendauer",
+        "tastverhältnis",
+        "tastgrad",
+        "pulsbreite",
+        "rechteck"
+      ],
+      "source": "Definitions: frequency f = 1/T (hertz = 1/s, SI Brochure, BIPM) and duty cycle D = t_high/T of a periodic rectangular signal",
+      "vars": [
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Frequency",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "T",
+          "name": "Period",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "duty",
+          "dim": "ratio",
+          "label": "D",
+          "name": "Duty cycle",
+          "default": 0.3,
+          "default_list": null,
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "th",
+          "dim": "time",
+          "label": "t_high",
+          "name": "High time",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "tl",
+          "dim": "time",
+          "label": "t_low",
+          "name": "Low time",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 2,
+      "rules": [
+        {
+          "target": "f",
+          "alts": [
+            "1/t",
+            "duty/th",
+            "(1-duty)/tl"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "1/f",
+            "th+tl",
+            "th/duty",
+            "tl/(1-duty)"
+          ]
+        },
+        {
+          "target": "duty",
+          "alts": [
+            "th/t",
+            "1-tl/t",
+            "th/(th+tl)"
+          ]
+        },
+        {
+          "target": "th",
+          "alts": [
+            "duty*t",
+            "t-tl",
+            "tl*duty/(1-duty)"
+          ]
+        },
+        {
+          "target": "tl",
+          "alts": [
+            "(1-duty)*t",
+            "t-th",
+            "th*(1-duty)/duty"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [
+        {
+          "when": "if(duty <= 0, 1, duty >= 1)",
+          "warn": "The duty cycle must be between 0 % and 100 %."
+        }
+      ],
+      "formula": [
+        "t = 1 / f",
+        "th = duty * t",
+        "tl = t - th"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "f",
+          "duty"
+        ],
+        [
+          "f",
+          "th"
+        ],
+        [
+          "f",
+          "tl"
+        ],
+        [
+          "t",
+          "duty"
+        ],
+        [
+          "t",
+          "th"
+        ],
+        [
+          "t",
+          "tl"
+        ],
+        [
+          "duty",
+          "th"
+        ],
+        [
+          "duty",
+          "tl"
+        ],
+        [
+          "th",
+          "tl"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "pwm_average",
+      "category": "timers",
+      "name": "PWM average voltage",
+      "name_en": "PWM average voltage",
+      "doc": "Average and RMS value of a rectangular PWM signal that switches between V_low and V_high with the duty cycle D: V_avg = V_low + D × (V_high − V_low) (a low-pass filter, or the inertia of a motor, LED or heater, turns the PWM into this DC voltage) and V_rms = √(D × V_high² + (1 − D) × V_low²) (the heating effect in a resistive load). Enter any three of D, V_high, V_low and V_avg. Example with the defaults: 25 % duty cycle between 0 V and 5 V gives V_avg = 1.25 V and V_rms = 2.5 V.",
+      "tags": [
+        "pwm",
+        "pulse width modulation",
+        "average",
+        "mean",
+        "rms",
+        "duty cycle",
+        "dimming",
+        "motor speed",
+        "pulsweitenmodulation",
+        "mittelwert",
+        "effektivwert",
+        "tastverhältnis",
+        "dimmen",
+        "drehzahl"
+      ],
+      "source": "Average and RMS value of a rectangular two-level waveform over one period (integration of the waveform); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (signals)",
+      "vars": [
+        {
+          "id": "duty",
+          "dim": "ratio",
+          "label": "D",
+          "name": "Duty cycle",
+          "default": 0.25,
+          "default_list": null,
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vh",
+          "dim": "voltage",
+          "label": "V_high",
+          "name": "High level",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vl",
+          "dim": "voltage",
+          "label": "V_low",
+          "name": "Low level",
+          "default": 0,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vavg",
+          "dim": "voltage",
+          "label": "V_avg",
+          "name": "Average voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "vavg",
+          "alts": [
+            "vl+duty*(vh-vl)"
+          ]
+        },
+        {
+          "target": "duty",
+          "alts": [
+            "(vavg-vl)/(vh-vl)"
+          ]
+        },
+        {
+          "target": "vh",
+          "alts": [
+            "vl+(vavg-vl)/duty"
+          ]
+        },
+        {
+          "target": "vl",
+          "alts": [
+            "(vavg-duty*vh)/(1-duty)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "vrms",
+          "dim": "voltage",
+          "label": "V_rms",
+          "name": "RMS voltage",
+          "alts": [
+            "sqrt(duty*vh^2+(1-duty)*vl^2)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "if(duty < 0, 1, duty > 1)",
+          "warn": "The duty cycle must be between 0 % and 100 %."
+        }
+      ],
+      "formula": [
+        "vavg = vl + duty * (vh - vl)",
+        "vrms = sqrt(duty * vh^2 + (1 - duty) * vl^2)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "duty",
+          "vh",
+          "vl"
+        ],
+        [
+          "duty",
+          "vh",
+          "vavg"
+        ],
+        [
+          "duty",
+          "vl",
+          "vavg"
+        ],
+        [
+          "vh",
+          "vl",
+          "vavg"
+        ]
+      ]
     }
   ]
 }

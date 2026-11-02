@@ -1,0 +1,20 @@
+{
+  "calc": "ne555_monostable",
+  "sets": [
+    {"values": {"r": 100000, "c": 1e-05, "t": 1.0986122886681098}, "ref": "hand (independent script), the defaults (R·C = 1 s, t = ln 3 s): t = R·C·ln3 = 100 kΩ·10 µF·1.098612 = 1.09861 s (datasheet rounding 1.1·R·C = 1.1 s)"},
+    {"values": {"r": 10000, "c": 1e-06, "t": 0.010986122886681098}, "ref": "definition (R·C = 10 ms, t = ln 3 · 10 ms): t = R·C·ln3 = 10 kΩ·1 µF·1.098612 = 10.9861 ms (datasheet rounding 1.1·R·C = 11 ms)"},
+    {"values": {"r": 47000, "c": 2.2e-05, "t": 1.1359651064828256}, "ref": "hand (independent script): t = R·C·ln3 = 47 kΩ·22 µF·1.098612 = 1.13597 s (datasheet rounding 1.1·R·C = 1.1374 s)"},
+    {"values": {"r": 1000000, "c": 1e-09, "t": 0.0010986122886681097}, "ref": "definition (R·C = 1 ms): t = R·C·ln3 = 1 MΩ·1 nF·1.098612 = 1.09861 ms (datasheet rounding 1.1·R·C = 1.1 ms)"}
+  ],
+  "solve": [
+    {"inputs": {"r": 100000, "c": 1e-05}, "expect": {"t": 1.0986122886681098}, "ref": "definition (t = RC·ln 3 with ln 3 = 1.0986123): t = R·C·ln3 = 100 kΩ·10 µF·1.098612 = 1.09861 s (datasheet rounding 1.1·R·C = 1.1 s)"},
+    {"inputs": {"r": 47000, "c": 2.2e-05}, "expect": {"t": 1.1359651064828256}, "ref": "hand (independent script): t = R·C·ln3 = 47 kΩ·22 µF·1.098612 = 1.13597 s (datasheet rounding 1.1·R·C = 1.1374 s)"},
+    {"inputs": {"c": 1e-05, "t": 1}, "expect": {"r": 91023.92266268372}, "ref": "hand (independent script): R = t/(ln3·C) = 1 s/(1.098612·10 µF) = 91.0239 kΩ; t = R·C·ln3 = 91.0239 kΩ·10 µF·1.098612 = 1 s (datasheet rounding 1.1·R·C = 1.00126 s)"},
+    {"inputs": {"r": 10000, "t": 0.5}, "expect": {"c": 4.551196133134187e-05}, "ref": "hand (independent script): C = t/(ln3·R) = 0.5 s/(1.098612·10 kΩ) = 45.512 µF; t = R·C·ln3 = 10 kΩ·45.512 µF·1.098612 = 500 ms (datasheet rounding 1.1·R·C = 500.632 ms)"},
+    {"inputs": {"r": 100000, "c": 1e-06}, "expect": {"t": 0.10986122886681098}, "ref": "definition (R·C = 0.1 s): t = R·C·ln3 = 100 kΩ·1 µF·1.098612 = 109.861 ms (datasheet rounding 1.1·R·C = 110 ms)"},
+    {"inputs": {"r": 2200, "t": 0.001}, "expect": {"c": 4.137451030121988e-07}, "ref": "hand (independent script): C = 1 ms/(ln3·2.2 kΩ) = 413.745 nF; t = R·C·ln3 = 2.2 kΩ·413.745 nF·1.098612 = 1 ms (datasheet rounding 1.1·R·C = 1.00126 ms)"},
+    {"inputs": {"c": 4.7e-06, "t": 0.25}, "expect": {"r": 48416.98013972539}, "ref": "hand (independent script): R = 0.25 s/(ln3·4.7 µF) = 48.417 kΩ; t = R·C·ln3 = 48.417 kΩ·4.7 µF·1.098612 = 250 ms (datasheet rounding 1.1·R·C = 250.316 ms)"},
+    {"inputs": {"r": -100000, "c": 1e-05}, "expect": {"t": -1.09861228866811}, "errors": {"r": "range", "t": "range"}, "warnings": [], "ref": "hand: a negative resistor is out of range and t = ln3·R·C = −1.098612 s is negative too"},
+    {"inputs": {"r": 100000}, "expect": {}, "errors": {"c": "undetermined", "t": "undetermined"}, "warnings": [], "ref": "one of the two values is missing"}
+  ]
+}

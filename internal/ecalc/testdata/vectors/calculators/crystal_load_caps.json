@@ -1,0 +1,20 @@
+{
+  "calc": "crystal_load_caps",
+  "sets": [
+    {"values": {"cl": 1.8e-11, "cs": 4e-12, "c": 2.8e-11, "cser": 1.4e-11}, "ref": "hand (independent script), the defaults: C_1 = C_2 = 2·(C_L − C_stray) = 2·(18 pF − 4 pF) = 28 pF; check: C·C/(C+C) + C_stray = 14 pF + 4 pF = 18 pF"},
+    {"values": {"cl": 1.25e-11, "cs": 3e-12, "c": 1.9e-11, "cser": 9.5e-12}, "ref": "hand: C_1 = C_2 = 2·(C_L − C_stray) = 2·(12.5 pF − 3 pF) = 19 pF; check: C·C/(C+C) + C_stray = 9.5 pF + 3 pF = 12.5 pF"},
+    {"values": {"cl": 2e-11, "cs": 5e-12, "c": 3e-11, "cser": 1.5e-11}, "ref": "hand: C_1 = C_2 = 2·(C_L − C_stray) = 2·(20 pF − 5 pF) = 30 pF; check: C·C/(C+C) + C_stray = 15 pF + 5 pF = 20 pF"},
+    {"values": {"cl": 8e-12, "cs": 2e-12, "c": 1.2e-11, "cser": 6e-12}, "ref": "hand: C_1 = C_2 = 2·(C_L − C_stray) = 2·(8 pF − 2 pF) = 12 pF; check: C·C/(C+C) + C_stray = 6 pF + 2 pF = 8 pF"}
+  ],
+  "solve": [
+    {"inputs": {"cl": 1.8e-11, "cs": 4e-12}, "expect": {"c": 2.8e-11, "cser": 1.4e-11}, "ref": "hand: C_1 = C_2 = 2·(C_L − C_stray) = 2·(18 pF − 4 pF) = 28 pF; check: C·C/(C+C) + C_stray = 14 pF + 4 pF = 18 pF"},
+    {"inputs": {"cl": 1.25e-11, "cs": 3e-12}, "expect": {"c": 1.9e-11, "cser": 9.5e-12}, "ref": "hand: C_1 = C_2 = 2·(C_L − C_stray) = 2·(12.5 pF − 3 pF) = 19 pF; check: C·C/(C+C) + C_stray = 9.5 pF + 3 pF = 12.5 pF"},
+    {"inputs": {"cl": 2e-11, "c": 3e-11}, "expect": {"cs": 5e-12, "cser": 1.5e-11}, "ref": "hand: C_stray = C_L − C/2 = 20 pF − 15 pF = 5 pF; C_1 = C_2 = 2·(C_L − C_stray) = 2·(20 pF − 5 pF) = 30 pF; check: C·C/(C+C) + C_stray = 15 pF + 5 pF = 20 pF"},
+    {"inputs": {"cl": 8e-12, "c": 1.2e-11}, "expect": {"cs": 2e-12, "cser": 6e-12}, "ref": "hand: C_stray = 8 pF − 6 pF = 2 pF; C_1 = C_2 = 2·(C_L − C_stray) = 2·(8 pF − 2 pF) = 12 pF; check: C·C/(C+C) + C_stray = 6 pF + 2 pF = 8 pF"},
+    {"inputs": {"cs": 4e-12, "c": 2.8e-11}, "expect": {"cl": 1.8e-11, "cser": 1.4e-11}, "ref": "hand: C_L = C/2 + C_stray = 14 pF + 4 pF = 18 pF; C_1 = C_2 = 2·(C_L − C_stray) = 2·(18 pF − 4 pF) = 28 pF; check: C·C/(C+C) + C_stray = 14 pF + 4 pF = 18 pF"},
+    {"inputs": {"cs": 3e-12, "c": 1.9e-11}, "expect": {"cl": 1.25e-11, "cser": 9.5e-12}, "ref": "hand: C_L = 19 pF/2 + 3 pF = 12.5 pF; C_1 = C_2 = 2·(C_L − C_stray) = 2·(12.5 pF − 3 pF) = 19 pF; check: C·C/(C+C) + C_stray = 9.5 pF + 3 pF = 12.5 pF"},
+    {"inputs": {"cl": 1.8e-11, "cs": 1.8e-11}, "expect": {}, "errors": {"c": "range"}, "warnings": [0], "ref": "hand: C_stray equal to C_L gives C = 2·(18 pF − 18 pF) = 0, out of range; the check fires"},
+    {"inputs": {"cl": 1e-11, "cs": 1.2e-11}, "expect": {"c": -4e-12}, "errors": {"c": "range"}, "warnings": [0], "ref": "hand: C = 2·(10 pF − 12 pF) = −4 pF, out of range; the check fires"},
+    {"inputs": {"cl": 1.8e-11}, "expect": {}, "errors": {"cs": "undetermined", "c": "undetermined"}, "warnings": [], "ref": "one of the two values is missing"}
+  ]
+}
