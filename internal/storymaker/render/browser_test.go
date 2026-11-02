@@ -339,3 +339,22 @@ func TestPinnedArchivesExtract(t *testing.T) {
 		})
 	}
 }
+
+// The resolver of tests above this package (NewBrowsersWithProbe) must still know the pinned
+// Chromium, so a status can say "downloadable", and must never download it.
+func TestBrowsersWithProbeKnowsThePinnedChromiumButNeverDownloadsIt(t *testing.T) {
+	if _, ok := pinnedChromium[runtime.GOOS+"_"+runtime.GOARCH]; !ok {
+		t.Skip("no pinned Chromium for this platform")
+	}
+	b := NewBrowsersWithProbe(t.TempDir(),
+		func() (string, bool) { return "", false },
+		func(context.Context, string) (string, error) { return "", errors.New("no browser") })
+	st := b.Status(context.Background(), "")
+	if st.Ready || !st.CanDownload || st.Source != SourcePinned || !strings.Contains(st.Issue, "first export downloads") {
+		t.Fatalf("status = %+v, want not ready, downloadable, source pinned", st)
+	}
+	st, exe := b.Ensure(context.Background(), "", nil)
+	if exe != "" || st.Ready || !strings.Contains(st.Issue, "switched off") {
+		t.Fatalf("Ensure = %+v %q, want no download", st, exe)
+	}
+}

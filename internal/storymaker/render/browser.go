@@ -143,12 +143,20 @@ func (b *Browsers) pinnedInstalled() (string, bool) {
 }
 
 // NewBrowsersWithProbe is NewBrowsers with the system browser lookup and the launch probe replaced
-// (tests of the layers above this package use it to avoid starting a browser).
+// (tests of the layers above this package use it to avoid starting a browser). The pinned Chromium
+// stays known, so a status can say that it is downloadable, but the resolver never downloads it.
 func NewBrowsersWithProbe(dir string, lookPath func() (string, bool), probe func(ctx context.Context, bin string) (string, error)) *Browsers {
 	b := NewBrowsers(dir)
 	b.lookPath, b.launchProbe = lookPath, probe
-	b.pins = map[string]PinnedChromium{}
+	b.client = &http.Client{Transport: refuseDownloads{}}
 	return b
+}
+
+// refuseDownloads is the transport of the test resolver: nothing is fetched.
+type refuseDownloads struct{}
+
+func (refuseDownloads) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("downloads are switched off in this resolver")
 }
 
 // Status reports the browser without downloading anything.
