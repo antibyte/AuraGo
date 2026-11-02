@@ -1,0 +1,24 @@
+{
+  "calc": "opamp_difference",
+  "sets": [
+    {"values": {"r1": 10000, "r2": 100000, "g": 10, "v1": 1, "v2": 1.2, "vout": 2, "vdiff": 0.2, "vcm": 1.1, "rid": 20000}, "ref": "hand: G = 100k / 10k = 10; V_2 - V_1 = 0.2 V; V_out = 10 * 0.2 V = 2 V; common mode (1 V + 1.2 V) / 2 = 1.1 V; R_id = 2 * 10k = 20k"},
+    {"values": {"r1": 4700, "r2": 4700, "g": 1, "v1": 3, "v2": 2.5, "vout": -0.5, "vdiff": -0.5, "vcm": 2.75, "rid": 9400}, "ref": "hand: G = 4.7k / 4.7k = 1; V_2 - V_1 = -0.5 V; V_out = -0.5 V; common mode (3 V + 2.5 V) / 2 = 2.75 V; R_id = 9.4k"},
+    {"values": {"r1": 1000, "r2": 22000, "g": 22, "v1": 0.05, "v2": 0, "vout": -1.1, "vdiff": -0.05, "vcm": 0.025, "rid": 2000}, "ref": "hand: G = 22k / 1k = 22; V_2 - V_1 = -0.05 V; V_out = 22 * (-0.05 V) = -1.1 V; common mode 0.025 V; R_id = 2k"},
+    {"values": {"r1": 2200, "r2": 6600, "g": 3, "v1": -1, "v2": 0.5, "vout": 4.5, "vdiff": 1.5, "vcm": -0.25, "rid": 4400}, "ref": "hand: G = 6.6k / 2.2k = 3; V_2 - V_1 = 0.5 V - (-1 V) = 1.5 V; V_out = 3 * 1.5 V = 4.5 V; common mode (-1 V + 0.5 V) / 2 = -0.25 V; R_id = 4.4k"}
+  ],
+  "solve": [
+    {"inputs": {"r1": 10000, "r2": 100000, "v1": 1, "v2": 1.2}, "expect": {"g": 10, "vout": 2, "vdiff": 0.2}, "warnings": [], "ref": "hand: G = 10, V_out = 10 * (1.2 V - 1 V) = 2 V"},
+    {"inputs": {"r1": 4700, "r2": 4700, "v1": 3, "v2": 2.5}, "expect": {"g": 1, "vout": -0.5}, "warnings": [], "ref": "hand: G = 1, V_out = 2.5 V - 3 V = -0.5 V"},
+    {"inputs": {"r1": 1000, "g": 22, "v1": 0.05, "v2": 0}, "expect": {"r2": 22000, "vout": -1.1}, "ref": "hand: R_2 = G * R_1 = 22 * 1k = 22k; V_out = 22 * (0 - 0.05 V) = -1.1 V"},
+    {"inputs": {"r1": 10000, "g": 10, "v1": 1, "vout": 2}, "expect": {"r2": 100000, "v2": 1.2}, "ref": "hand: R_2 = 10 * 10k = 100k; V_2 = V_1 + V_out / G = 1 V + 0.2 V = 1.2 V"},
+    {"inputs": {"r2": 22000, "g": 22, "v1": 0.05, "v2": 0}, "expect": {"r1": 1000, "vout": -1.1}, "ref": "hand: R_1 = R_2 / G = 22k / 22 = 1k; V_out = 22 * (-0.05 V) = -1.1 V"},
+    {"inputs": {"r2": 6600, "g": 3, "v2": 0.5, "vout": 4.5}, "expect": {"r1": 2200, "v1": -1}, "ref": "hand: R_1 = 6.6k / 3 = 2.2k; V_1 = V_2 - V_out / G = 0.5 V - 1.5 V = -1 V"},
+    {"inputs": {"r1": 10000, "r2": 100000, "v1": 1, "vout": 2}, "expect": {"g": 10, "v2": 1.2}, "ref": "hand: G = 100k / 10k = 10; V_2 = 1 V + 2 V / 10 = 1.2 V"},
+    {"inputs": {"r1": 2200, "r2": 6600, "v1": -1, "vout": 4.5}, "expect": {"g": 3, "v2": 0.5}, "ref": "hand: G = 6.6k / 2.2k = 3; V_2 = -1 V + 4.5 V / 3 = 0.5 V"},
+    {"inputs": {"r1": 10000, "r2": 100000, "v2": 1.2, "vout": 2}, "expect": {"g": 10, "v1": 1}, "ref": "hand: G = 10; V_1 = V_2 - V_out / G = 1.2 V - 0.2 V = 1 V"},
+    {"inputs": {"r1": 1000, "r2": 22000, "v2": 0, "vout": -1.1}, "expect": {"g": 22, "v1": 0.05}, "ref": "hand: G = 22; V_1 = 0 V - (-1.1 V) / 22 = 0.05 V"},
+    {"inputs": {"r1": 10000, "v1": 1, "v2": 1.2, "vout": 2}, "expect": {"g": 10, "r2": 100000}, "ref": "hand: G = V_out / (V_2 - V_1) = 2 V / 0.2 V = 10; R_2 = 10 * 10k = 100k"},
+    {"inputs": {"r2": 6600, "v1": -1, "v2": 0.5, "vout": 4.5}, "expect": {"g": 3, "r1": 2200}, "ref": "hand: G = 4.5 V / 1.5 V = 3; R_1 = 6.6k / 3 = 2.2k"},
+    {"inputs": {"r1": 10000, "v1": 1, "v2": 1, "vout": 0.5}, "expect": {"vdiff": 0, "vcm": 1}, "errors": {"g": "nonfinite", "r2": "nonfinite"}, "warnings": [], "ref": "hand: V_2 = V_1 leaves a 0.5 V output unexplained: G = 0.5 V / 0 V = infinity, and so is R_2 = G * R_1"}
+  ]
+}

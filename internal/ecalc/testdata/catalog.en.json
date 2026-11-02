@@ -3919,6 +3919,1614 @@
     },
     {
       "kind": "calculator",
+      "id": "opamp_inverting",
+      "category": "opamps",
+      "name": "Inverting amplifier",
+      "name_en": "Inverting amplifier",
+      "doc": "The inverting op-amp amplifier: the input signal V_in reaches the inverting input through R_in, and the feedback resistor R_f returns part of the output to the same node. With an ideal op-amp this node is a virtual ground, so the gain is A_v = −R_f / R_in and V_out = A_v × V_in. The input resistance of the stage is R_in. Example with the defaults: R_in = 10 kΩ and R_f = 100 kΩ give a gain of −10 (20 dB), so 0.1 V in gives −1 V out. The noise gain 1 + R_f / R_in = 11 sets the usable bandwidth (gain-bandwidth product divided by the noise gain). The output cannot exceed the supply rails.",
+      "tags": [
+        "opamp",
+        "op-amp",
+        "operational amplifier",
+        "inverting",
+        "inverting amplifier",
+        "gain",
+        "virtual ground",
+        "operationsverstärker",
+        "invertierend",
+        "verstärkung",
+        "virtuelle masse",
+        "rückkopplung"
+      ],
+      "source": "Inverting amplifier with an ideal op-amp (virtual ground): A_v = −R_f / R_in; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4",
+      "vars": [
+        {
+          "id": "rin",
+          "dim": "resistance",
+          "label": "R_in",
+          "name": "Input resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rf",
+          "dim": "resistance",
+          "label": "R_f",
+          "name": "Feedback resistor",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "av",
+          "dim": "ratio",
+          "label": "A_v",
+          "name": "Voltage gain",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 0.1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "av",
+          "alts": [
+            "-rf/rin",
+            "vout/vin"
+          ]
+        },
+        {
+          "target": "rf",
+          "alts": [
+            "-av*rin"
+          ]
+        },
+        {
+          "target": "rin",
+          "alts": [
+            "-rf/av"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "av*vin"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout/av"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "iin",
+          "dim": "current",
+          "label": "I_in",
+          "name": "Input current",
+          "alts": [
+            "vin/rin",
+            "-vout/rf"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "adb",
+          "dim": "gain",
+          "label": "A_dB",
+          "name": "Gain magnitude in dB",
+          "alts": [
+            "20*log10(abs(av))"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ngain",
+          "dim": "number",
+          "label": "G_n",
+          "name": "Noise gain 1 + R_f / R_in",
+          "alts": [
+            "1+rf/rin",
+            "1-av"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "av > 0",
+          "warn": "An inverting amplifier has a negative gain (−R_f / R_in): a positive gain is not possible with this circuit."
+        }
+      ],
+      "formula": [
+        "av = -rf / rin",
+        "vout = av * vin"
+      ],
+      "schematic": "opamp_inverting",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "rin",
+          "rf",
+          "vin"
+        ],
+        [
+          "rin",
+          "rf",
+          "vout"
+        ],
+        [
+          "rin",
+          "av",
+          "vin"
+        ],
+        [
+          "rin",
+          "av",
+          "vout"
+        ],
+        [
+          "rin",
+          "vin",
+          "vout"
+        ],
+        [
+          "rf",
+          "av",
+          "vin"
+        ],
+        [
+          "rf",
+          "av",
+          "vout"
+        ],
+        [
+          "rf",
+          "vin",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "opamp_noninverting",
+      "category": "opamps",
+      "name": "Non-inverting amplifier",
+      "name_en": "Non-inverting amplifier",
+      "doc": "The non-inverting op-amp amplifier: the signal drives the non-inverting input, and the divider R_f / R_g in the feedback path sets the gain G = 1 + R_f / R_g, which is always 1 or more (V_out = G × V_in, same sign as the input). The input resistance is that of the op-amp input and very high. Example with the defaults: R_f = 10 kΩ and R_g = 1 kΩ give a gain of 11 (20.8 dB), so 0.1 V in gives 1.1 V out. For a gain of exactly 1 leave out R_g and replace R_f by a wire (voltage follower).",
+      "tags": [
+        "opamp",
+        "op-amp",
+        "operational amplifier",
+        "non-inverting",
+        "noninverting",
+        "amplifier",
+        "gain",
+        "voltage follower",
+        "operationsverstärker",
+        "nichtinvertierend",
+        "verstärkung",
+        "spannungsfolger",
+        "rückkopplung"
+      ],
+      "source": "Non-inverting amplifier with an ideal op-amp: G = 1 + R_f / R_g; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4",
+      "vars": [
+        {
+          "id": "rf",
+          "dim": "resistance",
+          "label": "R_f",
+          "name": "Feedback resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rg",
+          "dim": "resistance",
+          "label": "R_g",
+          "name": "Resistor to ground",
+          "default": 1000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "g",
+          "dim": "number",
+          "label": "G",
+          "name": "Voltage gain",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 0.1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "g",
+          "alts": [
+            "1+rf/rg",
+            "vout/vin"
+          ]
+        },
+        {
+          "target": "rf",
+          "alts": [
+            "(g-1)*rg"
+          ]
+        },
+        {
+          "target": "rg",
+          "alts": [
+            "rf/(g-1)"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "g*vin"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout/g"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "ifb",
+          "dim": "current",
+          "label": "I_fb",
+          "name": "Current through the feedback divider",
+          "alts": [
+            "vin/rg",
+            "vout/(rf+rg)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "adb",
+          "dim": "gain",
+          "label": "G_dB",
+          "name": "Gain in dB",
+          "alts": [
+            "20*log10(g)"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "g <= 1",
+          "warn": "The gain must be above 1: a non-inverting amplifier cannot attenuate. For a gain of exactly 1 use a voltage follower (no R_g, R_f replaced by a wire)."
+        }
+      ],
+      "formula": [
+        "g = 1 + rf / rg",
+        "vout = g * vin"
+      ],
+      "schematic": "opamp_noninverting",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "rf",
+          "rg",
+          "vin"
+        ],
+        [
+          "rf",
+          "rg",
+          "vout"
+        ],
+        [
+          "rf",
+          "g",
+          "vin"
+        ],
+        [
+          "rf",
+          "g",
+          "vout"
+        ],
+        [
+          "rf",
+          "vin",
+          "vout"
+        ],
+        [
+          "rg",
+          "g",
+          "vin"
+        ],
+        [
+          "rg",
+          "g",
+          "vout"
+        ],
+        [
+          "rg",
+          "vin",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "opamp_difference",
+      "category": "opamps",
+      "name": "Difference amplifier",
+      "name_en": "Difference amplifier",
+      "doc": "The classic op-amp difference amplifier with four resistors, R_3 = R_1 and R_4 = R_2: the signal V_1 reaches the inverting input through R_1, the signal V_2 reaches the non-inverting input through R_3 (which forms a divider with R_4 to ground), and R_2 is the feedback resistor. The output is V_out = (R_2 / R_1) × (V_2 − V_1): only the difference is amplified and a common-mode voltage is rejected, but only as well as the resistor ratios R_2 / R_1 and R_4 / R_3 match. The differential input resistance is 2 × R_1. Example with the defaults: R_1 = 10 kΩ and R_2 = 100 kΩ give a gain of 10, so V_2 − V_1 = 0.2 V gives 2 V out.",
+      "tags": [
+        "opamp",
+        "op-amp",
+        "difference amplifier",
+        "differential amplifier",
+        "subtractor",
+        "common mode",
+        "cmrr",
+        "differenzverstärker",
+        "subtrahierer",
+        "gleichtaktunterdrückung",
+        "operationsverstärker"
+      ],
+      "source": "Difference amplifier with R_3 = R_1 and R_4 = R_2 (ideal op-amp): V_out = (R_2 / R_1) × (V_2 − V_1); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4; A. S. Sedra, K. C. Smith: Microelectronic Circuits (operational amplifiers)",
+      "vars": [
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Input resistors R_1 = R_3",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Feedback resistors R_2 = R_4",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "g",
+          "dim": "number",
+          "label": "G",
+          "name": "Differential gain R_2 / R_1",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "v1",
+          "dim": "voltage",
+          "label": "V_1",
+          "name": "Inverting-side input voltage",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "v2",
+          "dim": "voltage",
+          "label": "V_2",
+          "name": "Non-inverting-side input voltage",
+          "default": 1.2,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "g",
+          "alts": [
+            "r2/r1",
+            "vout/(v2-v1)"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "g*r1"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "r2/g"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "g*(v2-v1)"
+          ]
+        },
+        {
+          "target": "v2",
+          "alts": [
+            "v1+vout/g"
+          ]
+        },
+        {
+          "target": "v1",
+          "alts": [
+            "v2-vout/g"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "vdiff",
+          "dim": "voltage",
+          "label": "V_d",
+          "name": "Differential input voltage V_2 − V_1",
+          "alts": [
+            "v2-v1",
+            "vout/g"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "vcm",
+          "dim": "voltage",
+          "label": "V_cm",
+          "name": "Common-mode input voltage",
+          "alts": [
+            "(v1+v2)/2"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "rid",
+          "dim": "resistance",
+          "label": "R_id",
+          "name": "Differential input resistance 2 × R_1",
+          "alts": [
+            "2*r1"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "g = r2 / r1",
+        "vout = g * (v2 - v1)"
+      ],
+      "schematic": "opamp_difference",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r1",
+          "r2",
+          "v1",
+          "v2"
+        ],
+        [
+          "r1",
+          "r2",
+          "v1",
+          "vout"
+        ],
+        [
+          "r1",
+          "r2",
+          "v2",
+          "vout"
+        ],
+        [
+          "r1",
+          "g",
+          "v1",
+          "v2"
+        ],
+        [
+          "r1",
+          "g",
+          "v1",
+          "vout"
+        ],
+        [
+          "r1",
+          "g",
+          "v2",
+          "vout"
+        ],
+        [
+          "r1",
+          "v1",
+          "v2",
+          "vout"
+        ],
+        [
+          "r2",
+          "g",
+          "v1",
+          "v2"
+        ],
+        [
+          "r2",
+          "g",
+          "v1",
+          "vout"
+        ],
+        [
+          "r2",
+          "g",
+          "v2",
+          "vout"
+        ],
+        [
+          "r2",
+          "v1",
+          "v2",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "opamp_summing",
+      "category": "opamps",
+      "name": "Summing amplifier",
+      "name_en": "Summing amplifier",
+      "doc": "The inverting summing amplifier with equal input resistors R: every input V_k reaches the summing node through its own resistor R, the currents add, and the output is V_out = −(R_f / R) × (V_1 + V_2 + … + V_n). Every input has the same gain −R_f / R, and the inputs do not influence each other because the summing node is a virtual ground. With R_f = R / n the output is the inverted average of the n inputs. Enter the input voltages as a list, for example 1 V, 0.5 V, 0.25 V. Example with the defaults: inputs of 1 V, 0.5 V and 0.25 V with R = R_f = 10 kΩ give −1.75 V.",
+      "tags": [
+        "opamp",
+        "op-amp",
+        "summing amplifier",
+        "summer",
+        "adder",
+        "mixer",
+        "summing junction",
+        "summierverstärker",
+        "addierer",
+        "mischer",
+        "summationspunkt",
+        "operationsverstärker"
+      ],
+      "source": "Inverting summing amplifier with an ideal op-amp: V_out = −R_f × Σ(V_k / R); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4",
+      "vars": [
+        {
+          "id": "vs",
+          "dim": "voltage",
+          "label": "V_k",
+          "name": "Input voltages",
+          "default": null,
+          "default_list": [
+            1,
+            0.5,
+            0.25
+          ],
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": true,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Input resistor (each)",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rf",
+          "dim": "resistance",
+          "label": "R_f",
+          "name": "Feedback resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "-rf/r*sum(vs)"
+          ]
+        },
+        {
+          "target": "rf",
+          "alts": [
+            "-vout*r/sum(vs)"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "-rf*sum(vs)/vout"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "vsum",
+          "dim": "voltage",
+          "label": "V_sum",
+          "name": "Sum of the input voltages",
+          "alts": [
+            "sum(vs)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "gi",
+          "dim": "number",
+          "label": "G_k",
+          "name": "Gain magnitude per input R_f / R",
+          "alts": [
+            "rf/r"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ifb",
+          "dim": "current",
+          "label": "I_fb",
+          "name": "Current through the feedback resistor",
+          "alts": [
+            "vsum/r",
+            "-vout/rf"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "vout = -rf / r * sum(vs)"
+      ],
+      "schematic": "opamp_summing",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vs",
+          "r",
+          "rf"
+        ],
+        [
+          "vs",
+          "r",
+          "vout"
+        ],
+        [
+          "vs",
+          "rf",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "opamp_integrator",
+      "category": "opamps",
+      "name": "Integrator",
+      "name_en": "Integrator",
+      "doc": "The ideal inverting integrator: a constant input V_in through R charges the feedback capacitor C with the current V_in / R, so the output ramps linearly, V_out = −V_in × t / (R × C), starting from zero at t = 0. For sine signals the gain falls as 1 / (2π f R C) and is 1 at the unity-gain frequency f = 1 / (2π R C). A real circuit needs a resistor in parallel with C or a reset switch, otherwise offset voltage and bias current drive the output into the supply rails. Example with the defaults: 1 V into R = 10 kΩ and C = 100 nF (R × C = 1 ms) gives −2 V after 2 ms.",
+      "tags": [
+        "opamp",
+        "op-amp",
+        "integrator",
+        "ramp",
+        "integrating amplifier",
+        "capacitor",
+        "unity gain frequency",
+        "integrierer",
+        "integrator",
+        "rampe",
+        "operationsverstärker",
+        "transitfrequenz"
+      ],
+      "source": "Ideal inverting integrator: V_out = −(1 / RC) ∫ V_in dt; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage (constant)",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Input resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Feedback capacitor",
+          "default": 1.0000000000000001e-7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "t",
+          "name": "Time since the start",
+          "default": 0.002,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "-vin*t/(r*c)"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "-vout*r*c/t"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "-vin*t/(vout*c)"
+          ]
+        },
+        {
+          "target": "c",
+          "alts": [
+            "-vin*t/(vout*r)"
+          ]
+        },
+        {
+          "target": "t",
+          "alts": [
+            "-vout*r*c/vin"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "tau",
+          "dim": "time",
+          "label": "τ",
+          "name": "Time constant R × C",
+          "alts": [
+            "r*c"
+          ],
+          "unit": "",
+          "units": [
+            ""
+          ]
+        },
+        {
+          "id": "fu",
+          "dim": "frequency",
+          "label": "f_u",
+          "name": "Unity-gain frequency 1 / (2π R C)",
+          "alts": [
+            "1/(2*pi*r*c)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "iin",
+          "dim": "current",
+          "label": "I_in",
+          "name": "Charging current V_in / R",
+          "alts": [
+            "vin/r",
+            "-vout*c/t"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "abs(vout) > 15",
+          "warn": "|V_out| is above 15 V: a real op-amp saturates at its supply rails long before this time."
+        }
+      ],
+      "formula": [
+        "vout = -vin * t / (r * c)",
+        "fu = 1 / (2 * pi * r * c)"
+      ],
+      "schematic": "opamp_integrator",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vin",
+          "r",
+          "c",
+          "t"
+        ],
+        [
+          "vin",
+          "r",
+          "c",
+          "vout"
+        ],
+        [
+          "vin",
+          "r",
+          "t",
+          "vout"
+        ],
+        [
+          "vin",
+          "c",
+          "t",
+          "vout"
+        ],
+        [
+          "r",
+          "c",
+          "t",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "schmitt_trigger",
+      "category": "opamps",
+      "name": "Schmitt trigger",
+      "name_en": "Schmitt trigger",
+      "doc": "Inverting Schmitt trigger with a reference: the input signal drives the inverting input, the non-inverting input sits between the reference V_ref (through R_1) and the output (through R_2, positive feedback). The output is at V_OH or V_OL, its saturation levels close to the supply rails (read them from the datasheet or measure them). The threshold at the non-inverting input is V_TH = V_ref + (V_OH − V_ref) × k with the output high and V_TL = V_ref + (V_OL − V_ref) × k with the output low, where k = R_1 / (R_1 + R_2). The output switches low when the input rises above V_TH and high when it falls below V_TL; the hysteresis is V_TH − V_TL = k × (V_OH − V_OL). For a design enter the four voltages and R_1 (or R_2) to get the other resistor and V_ref. Example with the defaults: a 5 V supply (V_OH = 5 V, V_OL = 0 V), V_ref = 2.5 V, R_1 = 10 kΩ and R_2 = 100 kΩ give V_TH ≈ 2.73 V, V_TL ≈ 2.27 V and a hysteresis of about 0.45 V.",
+      "tags": [
+        "schmitt trigger",
+        "schmitt",
+        "hysteresis",
+        "comparator",
+        "threshold",
+        "opamp",
+        "op-amp",
+        "positive feedback",
+        "schmitt-trigger",
+        "hysterese",
+        "komparator",
+        "schwelle",
+        "mitkopplung",
+        "operationsverstärker"
+      ],
+      "source": "Inverting Schmitt trigger with positive feedback through R_2 and a reference at R_1: V_TH, V_TL = V_ref + (V_O − V_ref) × R_1 / (R_1 + R_2); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4; A. S. Sedra, K. C. Smith: Microelectronic Circuits (bistable circuits)",
+      "vars": [
+        {
+          "id": "vref",
+          "dim": "voltage",
+          "label": "V_ref",
+          "name": "Reference voltage",
+          "default": 2.5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "voh",
+          "dim": "voltage",
+          "label": "V_OH",
+          "name": "Output high level",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vol",
+          "dim": "voltage",
+          "label": "V_OL",
+          "name": "Output low level",
+          "default": 0,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Reference resistor",
+          "default": 10000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Feedback resistor",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vth",
+          "dim": "voltage",
+          "label": "V_TH",
+          "name": "Upper threshold",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vtl",
+          "dim": "voltage",
+          "label": "V_TL",
+          "name": "Lower threshold",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 5,
+      "rules": [
+        {
+          "target": "vth",
+          "alts": [
+            "vref+(voh-vref)*k"
+          ]
+        },
+        {
+          "target": "vtl",
+          "alts": [
+            "vref+(vol-vref)*k"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "r1*(1-k)/k"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "r2*k/(1-k)"
+          ]
+        },
+        {
+          "target": "vref",
+          "alts": [
+            "(vth-voh*k)/(1-k)",
+            "(vtl-vol*k)/(1-k)"
+          ]
+        },
+        {
+          "target": "voh",
+          "alts": [
+            "vref+(vth-vref)/k"
+          ]
+        },
+        {
+          "target": "vol",
+          "alts": [
+            "vref+(vtl-vref)/k"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "k",
+          "dim": "ratio",
+          "label": "k",
+          "name": "Feedback fraction R_1 / (R_1 + R_2)",
+          "alts": [
+            "r1/(r1+r2)",
+            "(vth-vtl)/(voh-vol)",
+            "(vth-vref)/(voh-vref)",
+            "(vtl-vref)/(vol-vref)"
+          ],
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ]
+        },
+        {
+          "id": "vh",
+          "dim": "voltage",
+          "label": "V_H",
+          "name": "Hysteresis V_TH − V_TL",
+          "alts": [
+            "vth-vtl",
+            "k*(voh-vol)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "vc",
+          "dim": "voltage",
+          "label": "V_C",
+          "name": "Centre of the thresholds",
+          "alts": [
+            "(vth+vtl)/2"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "voh <= vol",
+          "warn": "V_OH must be above V_OL."
+        }
+      ],
+      "formula": [
+        "k = r1 / (r1 + r2)",
+        "vth = vref + (voh - vref) * k",
+        "vtl = vref + (vol - vref) * k"
+      ],
+      "schematic": "schmitt_trigger",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vref",
+          "voh",
+          "vol",
+          "r1",
+          "r2"
+        ],
+        [
+          "vref",
+          "voh",
+          "vol",
+          "r1",
+          "vth"
+        ],
+        [
+          "vref",
+          "voh",
+          "vol",
+          "r1",
+          "vtl"
+        ],
+        [
+          "vref",
+          "voh",
+          "vol",
+          "r2",
+          "vth"
+        ],
+        [
+          "vref",
+          "voh",
+          "vol",
+          "r2",
+          "vtl"
+        ],
+        [
+          "vref",
+          "voh",
+          "r1",
+          "r2",
+          "vtl"
+        ],
+        [
+          "vref",
+          "voh",
+          "r1",
+          "vth",
+          "vtl"
+        ],
+        [
+          "vref",
+          "voh",
+          "r2",
+          "vth",
+          "vtl"
+        ],
+        [
+          "vref",
+          "vol",
+          "r1",
+          "r2",
+          "vth"
+        ],
+        [
+          "vref",
+          "vol",
+          "r1",
+          "vth",
+          "vtl"
+        ],
+        [
+          "vref",
+          "vol",
+          "r2",
+          "vth",
+          "vtl"
+        ],
+        [
+          "vref",
+          "r1",
+          "r2",
+          "vth",
+          "vtl"
+        ],
+        [
+          "voh",
+          "vol",
+          "r1",
+          "r2",
+          "vth"
+        ],
+        [
+          "voh",
+          "vol",
+          "r1",
+          "r2",
+          "vtl"
+        ],
+        [
+          "voh",
+          "vol",
+          "r1",
+          "vth",
+          "vtl"
+        ],
+        [
+          "voh",
+          "vol",
+          "r2",
+          "vth",
+          "vtl"
+        ],
+        [
+          "voh",
+          "r1",
+          "r2",
+          "vth",
+          "vtl"
+        ],
+        [
+          "vol",
+          "r1",
+          "r2",
+          "vth",
+          "vtl"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "instrumentation_amp",
+      "category": "opamps",
+      "name": "Instrumentation amplifier",
+      "name_en": "Instrumentation amplifier",
+      "doc": "The classic instrumentation amplifier in the three-op-amp topology: two input buffer stages share one gain resistor R_G between their inverting inputs, and a unity-gain difference amplifier (four equal resistors) forms the output stage. The differential gain is G = 1 + 2R / R_G, where R is each of the two feedback resistors of the input stage (integrated types state the sum: G = 1 + 50 kΩ / R_G for the Texas Instruments INA128, G = 1 + 49.4 kΩ / R_G for the Analog Devices AD620). Only the differential input V_diff = V+ − V− is amplified by G; a common-mode voltage passes the input stage with a gain of 1 and is rejected by the output stage. Without R_G the gain is 1. Example with the defaults: R = 25 kΩ and R_G = 500 Ω give G = 101 (40.1 dB), so 10 mV differential input gives 1.01 V.",
+      "tags": [
+        "instrumentation amplifier",
+        "ina",
+        "in-amp",
+        "three op-amp",
+        "differential amplifier",
+        "sensor",
+        "bridge amplifier",
+        "gain resistor",
+        "ina128",
+        "ad620",
+        "instrumentenverstärker",
+        "messverstärker",
+        "differenzverstärker",
+        "verstärkungswiderstand",
+        "brückenverstärker"
+      ],
+      "source": "Three-op-amp instrumentation amplifier, G = 1 + 2R / R_G (ideal op-amps, equal output-stage resistors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (instrumentation amplifiers); gain equations of the INA128 (Texas Instruments) and AD620 (Analog Devices) data sheets",
+      "vars": [
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Input-stage feedback resistor (each)",
+          "default": 25000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "rg",
+          "dim": "resistance",
+          "label": "R_G",
+          "name": "Gain resistor",
+          "default": 500,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "g",
+          "dim": "number",
+          "label": "G",
+          "name": "Differential gain",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vdiff",
+          "dim": "voltage",
+          "label": "V_diff",
+          "name": "Differential input voltage",
+          "default": 0.01,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "g",
+          "alts": [
+            "1+2*r/rg",
+            "vout/vdiff"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "(g-1)*rg/2"
+          ]
+        },
+        {
+          "target": "rg",
+          "alts": [
+            "2*r/(g-1)"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "g*vdiff"
+          ]
+        },
+        {
+          "target": "vdiff",
+          "alts": [
+            "vout/g"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "adb",
+          "dim": "gain",
+          "label": "G_dB",
+          "name": "Gain in dB",
+          "alts": [
+            "20*log10(g)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "rsum",
+          "dim": "resistance",
+          "label": "2R",
+          "name": "Sum of the two feedback resistors 2R",
+          "alts": [
+            "2*r"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "g <= 1",
+          "warn": "The gain must be above 1: without R_G (open) the gain is exactly 1."
+        }
+      ],
+      "formula": [
+        "g = 1 + 2 * r / rg",
+        "vout = g * vdiff"
+      ],
+      "schematic": "instrumentation_amp",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "r",
+          "rg",
+          "vdiff"
+        ],
+        [
+          "r",
+          "rg",
+          "vout"
+        ],
+        [
+          "r",
+          "g",
+          "vdiff"
+        ],
+        [
+          "r",
+          "g",
+          "vout"
+        ],
+        [
+          "r",
+          "vdiff",
+          "vout"
+        ],
+        [
+          "rg",
+          "g",
+          "vdiff"
+        ],
+        [
+          "rg",
+          "g",
+          "vout"
+        ],
+        [
+          "rg",
+          "vdiff",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "reactance_c",
       "category": "passive",
       "name": "Capacitive reactance",

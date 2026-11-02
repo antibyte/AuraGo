@@ -1,0 +1,218 @@
+# Op-amp calculators. All of them assume an ideal op-amp (infinite gain, no input current, output limited only by the
+# supply rails). Every name is written in all 16 desktop locales; docs, variable names and warnings in English and
+# German (other languages fall back to English). Rules are written out for every direction, in the order the solver
+# tries them: the first alternative whose variables are all known wins.
+
+- id: opamp_inverting
+  kind: calculator
+  category: opamps
+  name: {cs: "Invertující zesilovač", da: "Inverterende forstærker", de: "Invertierender Verstärker", el: "Αναστρέφων ενισχυτής", en: "Inverting amplifier", es: "Amplificador inversor", fr: "Amplificateur inverseur", hi: "इन्वर्टिंग एम्पलीफायर", it: "Amplificatore invertente", ja: "反転増幅回路", nl: "Inverterende versterker", no: "Inverterende forsterker", pl: "Wzmacniacz odwracający", pt: "Amplificador inversor", sv: "Inverterande förstärkare", zh: "反相放大器"}
+  doc:
+    en: "The inverting op-amp amplifier: the input signal V_in reaches the inverting input through R_in, and the feedback resistor R_f returns part of the output to the same node. With an ideal op-amp this node is a virtual ground, so the gain is A_v = −R_f / R_in and V_out = A_v × V_in. The input resistance of the stage is R_in. Example with the defaults: R_in = 10 kΩ and R_f = 100 kΩ give a gain of −10 (20 dB), so 0.1 V in gives −1 V out. The noise gain 1 + R_f / R_in = 11 sets the usable bandwidth (gain-bandwidth product divided by the noise gain). The output cannot exceed the supply rails."
+    de: "Der invertierende Operationsverstärker: Das Eingangssignal V_in gelangt über R_in an den invertierenden Eingang, der Rückkopplungswiderstand R_f führt einen Teil des Ausgangs an denselben Knoten zurück. Beim idealen Operationsverstärker ist dieser Knoten eine virtuelle Masse, die Verstärkung beträgt daher A_v = −R_f / R_in und V_out = A_v · V_in. Der Eingangswiderstand der Stufe ist R_in. Beispiel mit den Vorgaben: R_in = 10 kΩ und R_f = 100 kΩ ergeben die Verstärkung −10 (20 dB); 0,1 V am Eingang ergeben −1 V am Ausgang. Die Rauschverstärkung 1 + R_f / R_in = 11 bestimmt die nutzbare Bandbreite (Verstärkungs-Bandbreite-Produkt geteilt durch die Rauschverstärkung). Der Ausgang kann die Versorgungsspannungen nicht überschreiten."
+  tags: [opamp, op-amp, operational amplifier, inverting, inverting amplifier, gain, virtual ground, operationsverstärker, invertierend, verstärkung, virtuelle masse, rückkopplung]
+  source: "Inverting amplifier with an ideal op-amp (virtual ground): A_v = −R_f / R_in; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4"
+  vars:
+    rin: {dim: resistance, label: R_in, name: {en: "Input resistor", de: "Eingangswiderstand"}, default: "10k", eseries: true}
+    rf: {dim: resistance, label: R_f, name: {en: "Feedback resistor", de: "Rückkopplungswiderstand"}, default: "100k", eseries: true}
+    av: {dim: ratio, label: A_v, name: {en: "Voltage gain", de: "Spannungsverstärkung"}, units: [""]}
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "0.1 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    av: ["-rf/rin", "vout/vin"]
+    rf: ["-av*rin"]
+    rin: ["-rf/av"]
+    vout: ["av*vin"]
+    vin: ["vout/av"]
+  derived:
+    iin: {dim: current, label: I_in, name: {en: "Input current", de: "Eingangsstrom"}, expr: ["vin/rin", "-vout/rf"]}
+    adb: {dim: gain, label: A_dB, name: {en: "Gain magnitude in dB", de: "Betrag der Verstärkung in dB"}, expr: "20*log10(abs(av))"}
+    ngain: {dim: number, label: G_n, name: {en: "Noise gain 1 + R_f / R_in", de: "Rauschverstärkung 1 + R_f / R_in"}, expr: ["1+rf/rin", "1-av"]}
+  checks:
+    - {when: "av > 0", warn: {en: "An inverting amplifier has a negative gain (−R_f / R_in): a positive gain is not possible with this circuit.", de: "Ein invertierender Verstärker hat eine negative Verstärkung (−R_f / R_in): Eine positive Verstärkung ist mit dieser Schaltung nicht möglich."}}
+  formula: ["av = -rf / rin", "vout = av * vin"]
+  schematic: opamp_inverting
+
+- id: opamp_noninverting
+  kind: calculator
+  category: opamps
+  name: {cs: "Neinvertující zesilovač", da: "Ikke-inverterende forstærker", de: "Nichtinvertierender Verstärker", el: "Μη αναστρέφων ενισχυτής", en: "Non-inverting amplifier", es: "Amplificador no inversor", fr: "Amplificateur non inverseur", hi: "नॉन-इन्वर्टिंग एम्पलीफायर", it: "Amplificatore non invertente", ja: "非反転増幅回路", nl: "Niet-inverterende versterker", no: "Ikke-inverterende forsterker", pl: "Wzmacniacz nieodwracający", pt: "Amplificador não inversor", sv: "Icke-inverterande förstärkare", zh: "同相放大器"}
+  doc:
+    en: "The non-inverting op-amp amplifier: the signal drives the non-inverting input, and the divider R_f / R_g in the feedback path sets the gain G = 1 + R_f / R_g, which is always 1 or more (V_out = G × V_in, same sign as the input). The input resistance is that of the op-amp input and very high. Example with the defaults: R_f = 10 kΩ and R_g = 1 kΩ give a gain of 11 (20.8 dB), so 0.1 V in gives 1.1 V out. For a gain of exactly 1 leave out R_g and replace R_f by a wire (voltage follower)."
+    de: "Der nichtinvertierende Operationsverstärker: Das Signal liegt am nichtinvertierenden Eingang, der Teiler R_f / R_g im Rückkopplungszweig legt die Verstärkung G = 1 + R_f / R_g fest, die immer mindestens 1 beträgt (V_out = G · V_in, gleiches Vorzeichen wie der Eingang). Der Eingangswiderstand ist der des Operationsverstärkereingangs und sehr hoch. Beispiel mit den Vorgaben: R_f = 10 kΩ und R_g = 1 kΩ ergeben die Verstärkung 11 (20,8 dB); 0,1 V am Eingang ergeben 1,1 V am Ausgang. Für genau die Verstärkung 1 R_g weglassen und R_f durch eine Drahtbrücke ersetzen (Spannungsfolger)."
+  tags: [opamp, op-amp, operational amplifier, non-inverting, noninverting, amplifier, gain, voltage follower, operationsverstärker, nichtinvertierend, verstärkung, spannungsfolger, rückkopplung]
+  source: "Non-inverting amplifier with an ideal op-amp: G = 1 + R_f / R_g; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4"
+  vars:
+    rf: {dim: resistance, label: R_f, name: {en: "Feedback resistor", de: "Rückkopplungswiderstand"}, default: "10k", eseries: true}
+    rg: {dim: resistance, label: R_g, name: {en: "Resistor to ground", de: "Widerstand nach Masse"}, default: "1k", eseries: true}
+    g: {dim: number, label: G, name: {en: "Voltage gain", de: "Spannungsverstärkung"}}
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "0.1 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    g: ["1+rf/rg", "vout/vin"]
+    rf: ["(g-1)*rg"]
+    rg: ["rf/(g-1)"]
+    vout: ["g*vin"]
+    vin: ["vout/g"]
+  derived:
+    ifb: {dim: current, label: I_fb, name: {en: "Current through the feedback divider", de: "Strom durch den Rückkopplungsteiler"}, expr: ["vin/rg", "vout/(rf+rg)"]}
+    adb: {dim: gain, label: G_dB, name: {en: "Gain in dB", de: "Verstärkung in dB"}, expr: "20*log10(g)"}
+  checks:
+    - {when: "g <= 1", warn: {en: "The gain must be above 1: a non-inverting amplifier cannot attenuate. For a gain of exactly 1 use a voltage follower (no R_g, R_f replaced by a wire).", de: "Die Verstärkung muss über 1 liegen: Ein nichtinvertierender Verstärker kann nicht abschwächen. Für genau die Verstärkung 1 einen Spannungsfolger verwenden (kein R_g, R_f durch eine Drahtbrücke ersetzt)."}}
+  formula: ["g = 1 + rf / rg", "vout = g * vin"]
+  schematic: opamp_noninverting
+
+- id: opamp_difference
+  kind: calculator
+  category: opamps
+  name: {cs: "Rozdílový zesilovač", da: "Differensforstærker", de: "Differenzverstärker", el: "Διαφορικός ενισχυτής", en: "Difference amplifier", es: "Amplificador diferencial", fr: "Amplificateur différentiel", hi: "डिफरेंस एम्पलीफायर", it: "Amplificatore differenziale", ja: "差動増幅回路", nl: "Verschilversterker", no: "Differanseforsterker", pl: "Wzmacniacz różnicowy", pt: "Amplificador diferencial", sv: "Differensförstärkare", zh: "差分放大器"}
+  doc:
+    en: "The classic op-amp difference amplifier with four resistors, R_3 = R_1 and R_4 = R_2: the signal V_1 reaches the inverting input through R_1, the signal V_2 reaches the non-inverting input through R_3 (which forms a divider with R_4 to ground), and R_2 is the feedback resistor. The output is V_out = (R_2 / R_1) × (V_2 − V_1): only the difference is amplified and a common-mode voltage is rejected, but only as well as the resistor ratios R_2 / R_1 and R_4 / R_3 match. The differential input resistance is 2 × R_1. Example with the defaults: R_1 = 10 kΩ and R_2 = 100 kΩ give a gain of 10, so V_2 − V_1 = 0.2 V gives 2 V out."
+    de: "Der klassische Differenzverstärker mit vier Widerständen, R_3 = R_1 und R_4 = R_2: Das Signal V_1 gelangt über R_1 an den invertierenden Eingang, das Signal V_2 über R_3 an den nichtinvertierenden Eingang (der mit R_4 nach Masse einen Teiler bildet), R_2 ist der Rückkopplungswiderstand. Die Ausgangsspannung ist V_out = (R_2 / R_1) · (V_2 − V_1): Nur die Differenz wird verstärkt und Gleichtaktspannung wird unterdrückt, allerdings nur so gut, wie die Widerstandsverhältnisse R_2 / R_1 und R_4 / R_3 übereinstimmen. Der differenzielle Eingangswiderstand beträgt 2 · R_1. Beispiel mit den Vorgaben: R_1 = 10 kΩ und R_2 = 100 kΩ ergeben die Verstärkung 10; V_2 − V_1 = 0,2 V ergibt 2 V am Ausgang."
+  tags: [opamp, op-amp, difference amplifier, differential amplifier, subtractor, common mode, cmrr, differenzverstärker, subtrahierer, gleichtaktunterdrückung, operationsverstärker]
+  source: "Difference amplifier with R_3 = R_1 and R_4 = R_2 (ideal op-amp): V_out = (R_2 / R_1) × (V_2 − V_1); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4; A. S. Sedra, K. C. Smith: Microelectronic Circuits (operational amplifiers)"
+  vars:
+    r1: {dim: resistance, label: R_1, name: {en: "Input resistors R_1 = R_3", de: "Eingangswiderstände R_1 = R_3"}, default: "10k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Feedback resistors R_2 = R_4", de: "Rückkopplungswiderstände R_2 = R_4"}, default: "100k", eseries: true}
+    g: {dim: number, label: G, name: {en: "Differential gain R_2 / R_1", de: "Differenzverstärkung R_2 / R_1"}}
+    v1: {dim: voltage, label: V_1, name: {en: "Inverting-side input voltage", de: "Eingangsspannung invertierende Seite"}, default: "1 V"}
+    v2: {dim: voltage, label: V_2, name: {en: "Non-inverting-side input voltage", de: "Eingangsspannung nichtinvertierende Seite"}, default: "1.2 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 4
+  rules:
+    g: ["r2/r1", "vout/(v2-v1)"]
+    r2: ["g*r1"]
+    r1: ["r2/g"]
+    vout: ["g*(v2-v1)"]
+    v2: ["v1+vout/g"]
+    v1: ["v2-vout/g"]
+  derived:
+    vdiff: {dim: voltage, label: V_d, name: {en: "Differential input voltage V_2 − V_1", de: "Differenzeingangsspannung V_2 − V_1"}, expr: ["v2-v1", "vout/g"]}
+    vcm: {dim: voltage, label: V_cm, name: {en: "Common-mode input voltage", de: "Gleichtaktspannung am Eingang"}, expr: "(v1+v2)/2"}
+    rid: {dim: resistance, label: R_id, name: {en: "Differential input resistance 2 × R_1", de: "Differenzieller Eingangswiderstand 2 · R_1"}, expr: "2*r1"}
+  formula: ["g = r2 / r1", "vout = g * (v2 - v1)"]
+  schematic: opamp_difference
+
+- id: opamp_summing
+  kind: calculator
+  category: opamps
+  name: {cs: "Sumační zesilovač", da: "Sumforstærker", de: "Summierverstärker", el: "Αθροιστικός ενισχυτής", en: "Summing amplifier", es: "Amplificador sumador", fr: "Amplificateur sommateur", hi: "समिंग एम्पलीफायर", it: "Amplificatore sommatore", ja: "加算回路", nl: "Sommeerversterker", no: "Summeforsterker", pl: "Wzmacniacz sumujący", pt: "Amplificador somador", sv: "Summerande förstärkare", zh: "加法放大器"}
+  doc:
+    en: "The inverting summing amplifier with equal input resistors R: every input V_k reaches the summing node through its own resistor R, the currents add, and the output is V_out = −(R_f / R) × (V_1 + V_2 + … + V_n). Every input has the same gain −R_f / R, and the inputs do not influence each other because the summing node is a virtual ground. With R_f = R / n the output is the inverted average of the n inputs. Enter the input voltages as a list, for example 1 V, 0.5 V, 0.25 V. Example with the defaults: inputs of 1 V, 0.5 V and 0.25 V with R = R_f = 10 kΩ give −1.75 V."
+    de: "Der invertierende Summierverstärker mit gleichen Eingangswiderständen R: Jeder Eingang V_k gelangt über einen eigenen Widerstand R an den Summationspunkt, die Ströme addieren sich, und die Ausgangsspannung ist V_out = −(R_f / R) · (V_1 + V_2 + … + V_n). Jeder Eingang hat dieselbe Verstärkung −R_f / R, und die Eingänge beeinflussen sich nicht, weil der Summationspunkt eine virtuelle Masse ist. Mit R_f = R / n ist der Ausgang der invertierte Mittelwert der n Eingänge. Die Eingangsspannungen als Liste eingeben, zum Beispiel 1 V, 0,5 V, 0,25 V. Beispiel mit den Vorgaben: Eingänge mit 1 V, 0,5 V und 0,25 V bei R = R_f = 10 kΩ ergeben −1,75 V."
+  tags: [opamp, op-amp, summing amplifier, summer, adder, mixer, summing junction, summierverstärker, addierer, mischer, summationspunkt, operationsverstärker]
+  source: "Inverting summing amplifier with an ideal op-amp: V_out = −R_f × Σ(V_k / R); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4"
+  vars:
+    vs: {dim: voltage, label: V_k, name: {en: "Input voltages", de: "Eingangsspannungen"}, list: true, default: ["1 V", "0.5 V", "0.25 V"]}
+    r: {dim: resistance, label: R, name: {en: "Input resistor (each)", de: "Eingangswiderstand (je Eingang)"}, default: "10k", eseries: true}
+    rf: {dim: resistance, label: R_f, name: {en: "Feedback resistor", de: "Rückkopplungswiderstand"}, default: "10k", eseries: true}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    vout: ["-rf/r*sum(vs)"]
+    rf: ["-vout*r/sum(vs)"]
+    r: ["-rf*sum(vs)/vout"]
+  derived:
+    vsum: {dim: voltage, label: V_sum, name: {en: "Sum of the input voltages", de: "Summe der Eingangsspannungen"}, expr: "sum(vs)"}
+    gi: {dim: number, label: G_k, name: {en: "Gain magnitude per input R_f / R", de: "Verstärkungsbetrag je Eingang R_f / R"}, expr: "rf/r"}
+    ifb: {dim: current, label: I_fb, name: {en: "Current through the feedback resistor", de: "Strom durch den Rückkopplungswiderstand"}, expr: ["vsum/r", "-vout/rf"]}
+  formula: ["vout = -rf / r * sum(vs)"]
+  schematic: opamp_summing
+
+- id: opamp_integrator
+  kind: calculator
+  category: opamps
+  name: {cs: "Integrátor", da: "Integrator", de: "Integrierer", el: "Ολοκληρωτής", en: "Integrator", es: "Integrador", fr: "Intégrateur", hi: "इंटीग्रेटर", it: "Integratore", ja: "積分回路", nl: "Integrator", no: "Integrator", pl: "Integrator", pt: "Integrador", sv: "Integrator", zh: "积分器"}
+  doc:
+    en: "The ideal inverting integrator: a constant input V_in through R charges the feedback capacitor C with the current V_in / R, so the output ramps linearly, V_out = −V_in × t / (R × C), starting from zero at t = 0. For sine signals the gain falls as 1 / (2π f R C) and is 1 at the unity-gain frequency f = 1 / (2π R C). A real circuit needs a resistor in parallel with C or a reset switch, otherwise offset voltage and bias current drive the output into the supply rails. Example with the defaults: 1 V into R = 10 kΩ and C = 100 nF (R × C = 1 ms) gives −2 V after 2 ms."
+    de: "Der ideale invertierende Integrierer: Eine konstante Eingangsspannung V_in lädt über R den Rückkopplungskondensator C mit dem Strom V_in / R, daher steigt der Ausgang linear an, V_out = −V_in · t / (R · C), ausgehend von null bei t = 0. Bei Sinussignalen fällt die Verstärkung mit 1 / (2π f R C) und ist bei der Transitfrequenz f = 1 / (2π R C) gleich 1. Eine reale Schaltung braucht einen Widerstand parallel zu C oder einen Rücksetzschalter, sonst treiben Offsetspannung und Eingangsruhestrom den Ausgang an die Versorgungsgrenzen. Beispiel mit den Vorgaben: 1 V an R = 10 kΩ und C = 100 nF (R · C = 1 ms) ergeben nach 2 ms −2 V."
+  tags: [opamp, op-amp, integrator, ramp, integrating amplifier, capacitor, unity gain frequency, integrierer, integrator, rampe, operationsverstärker, transitfrequenz]
+  source: "Ideal inverting integrator: V_out = −(1 / RC) ∫ V_in dt; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage (constant)", de: "Eingangsspannung (konstant)"}, default: "1 V"}
+    r: {dim: resistance, label: R, name: {en: "Input resistor", de: "Eingangswiderstand"}, default: "10k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Feedback capacitor", de: "Rückkopplungskondensator"}, default: "100 nF"}
+    t: {dim: time, label: t, name: {en: "Time since the start", de: "Zeit seit dem Start"}, default: "2 ms", units: [""]}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 4
+  rules:
+    vout: ["-vin*t/(r*c)"]
+    vin: ["-vout*r*c/t"]
+    r: ["-vin*t/(vout*c)"]
+    c: ["-vin*t/(vout*r)"]
+    t: ["-vout*r*c/vin"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant R × C", de: "Zeitkonstante R · C"}, expr: "r*c", units: [""]}
+    fu: {dim: frequency, label: f_u, name: {en: "Unity-gain frequency 1 / (2π R C)", de: "Transitfrequenz 1 / (2π R C)"}, expr: "1/(2*pi*r*c)"}
+    iin: {dim: current, label: I_in, name: {en: "Charging current V_in / R", de: "Ladestrom V_in / R"}, expr: ["vin/r", "-vout*c/t"]}
+  checks:
+    - {when: "abs(vout) > 15", warn: {en: "|V_out| is above 15 V: a real op-amp saturates at its supply rails long before this time.", de: "|V_out| liegt über 15 V: Ein realer Operationsverstärker läuft lange vorher an seinen Versorgungsgrenzen in die Begrenzung."}}
+  formula: ["vout = -vin * t / (r * c)", "fu = 1 / (2 * pi * r * c)"]
+  schematic: opamp_integrator
+
+- id: schmitt_trigger
+  kind: calculator
+  category: opamps
+  name: {cs: "Schmittův klopný obvod", da: "Schmitt-trigger", de: "Schmitt-Trigger", el: "Σκανδαλιστής Schmitt", en: "Schmitt trigger", es: "Disparador Schmitt", fr: "Trigger de Schmitt", hi: "श्मिट ट्रिगर", it: "Trigger di Schmitt", ja: "シュミットトリガ回路", nl: "Schmitt-trigger", no: "Schmitt-trigger", pl: "Przerzutnik Schmitta", pt: "Disparador de Schmitt", sv: "Schmitt-trigger", zh: "施密特触发器"}
+  doc:
+    en: "Inverting Schmitt trigger with a reference: the input signal drives the inverting input, the non-inverting input sits between the reference V_ref (through R_1) and the output (through R_2, positive feedback). The output is at V_OH or V_OL, its saturation levels close to the supply rails (read them from the datasheet or measure them). The threshold at the non-inverting input is V_TH = V_ref + (V_OH − V_ref) × k with the output high and V_TL = V_ref + (V_OL − V_ref) × k with the output low, where k = R_1 / (R_1 + R_2). The output switches low when the input rises above V_TH and high when it falls below V_TL; the hysteresis is V_TH − V_TL = k × (V_OH − V_OL). For a design enter the four voltages and R_1 (or R_2) to get the other resistor and V_ref. Example with the defaults: a 5 V supply (V_OH = 5 V, V_OL = 0 V), V_ref = 2.5 V, R_1 = 10 kΩ and R_2 = 100 kΩ give V_TH ≈ 2.73 V, V_TL ≈ 2.27 V and a hysteresis of about 0.45 V."
+    de: "Invertierender Schmitt-Trigger mit Referenz: Das Eingangssignal liegt am invertierenden Eingang, der nichtinvertierende Eingang hängt zwischen der Referenz V_ref (über R_1) und dem Ausgang (über R_2, Mitkopplung). Der Ausgang steht auf V_OH oder V_OL, seinen Sättigungspegeln nahe den Versorgungsspannungen (dem Datenblatt entnehmen oder messen). Die Schwelle am nichtinvertierenden Eingang ist V_TH = V_ref + (V_OH − V_ref) · k bei hohem Ausgang und V_TL = V_ref + (V_OL − V_ref) · k bei niedrigem Ausgang mit k = R_1 / (R_1 + R_2). Der Ausgang kippt nach niedrig, wenn der Eingang über V_TH steigt, und nach hoch, wenn er unter V_TL fällt; die Hysterese ist V_TH − V_TL = k · (V_OH − V_OL). Für einen Entwurf die vier Spannungen und R_1 (oder R_2) eingeben, um den anderen Widerstand und V_ref zu erhalten. Beispiel mit den Vorgaben: 5 V Versorgung (V_OH = 5 V, V_OL = 0 V), V_ref = 2,5 V, R_1 = 10 kΩ und R_2 = 100 kΩ ergeben V_TH ≈ 2,73 V, V_TL ≈ 2,27 V und eine Hysterese von etwa 0,45 V."
+  tags: [schmitt trigger, schmitt, hysteresis, comparator, threshold, opamp, op-amp, positive feedback, schmitt-trigger, hysterese, komparator, schwelle, mitkopplung, operationsverstärker]
+  source: "Inverting Schmitt trigger with positive feedback through R_2 and a reference at R_1: V_TH, V_TL = V_ref + (V_O − V_ref) × R_1 / (R_1 + R_2); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 4; A. S. Sedra, K. C. Smith: Microelectronic Circuits (bistable circuits)"
+  vars:
+    vref: {dim: voltage, label: V_ref, name: {en: "Reference voltage", de: "Referenzspannung"}, default: "2.5 V"}
+    voh: {dim: voltage, label: V_OH, name: {en: "Output high level", de: "Ausgangspegel high"}, default: "5 V"}
+    vol: {dim: voltage, label: V_OL, name: {en: "Output low level", de: "Ausgangspegel low"}, default: "0 V"}
+    r1: {dim: resistance, label: R_1, name: {en: "Reference resistor", de: "Referenzwiderstand"}, default: "10k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Feedback resistor", de: "Rückkopplungswiderstand"}, default: "100k", eseries: true}
+    vth: {dim: voltage, label: V_TH, name: {en: "Upper threshold", de: "Obere Schwelle"}}
+    vtl: {dim: voltage, label: V_TL, name: {en: "Lower threshold", de: "Untere Schwelle"}}
+  dof: 5
+  rules:
+    vth: ["vref+(voh-vref)*k"]
+    vtl: ["vref+(vol-vref)*k"]
+    r2: ["r1*(1-k)/k"]
+    r1: ["r2*k/(1-k)"]
+    vref: ["(vth-voh*k)/(1-k)", "(vtl-vol*k)/(1-k)"]
+    voh: ["vref+(vth-vref)/k"]
+    vol: ["vref+(vtl-vref)/k"]
+  derived:
+    k: {dim: ratio, label: k, name: {en: "Feedback fraction R_1 / (R_1 + R_2)", de: "Rückkopplungsanteil R_1 / (R_1 + R_2)"}, expr: ["r1/(r1+r2)", "(vth-vtl)/(voh-vol)", "(vth-vref)/(voh-vref)", "(vtl-vref)/(vol-vref)"], unit: pct, units: [pct, ""]}
+    vh: {dim: voltage, label: V_H, name: {en: "Hysteresis V_TH − V_TL", de: "Hysterese V_TH − V_TL"}, expr: ["vth-vtl", "k*(voh-vol)"]}
+    vc: {dim: voltage, label: V_C, name: {en: "Centre of the thresholds", de: "Mitte der Schwellen"}, expr: "(vth+vtl)/2"}
+  checks:
+    - {when: "voh <= vol", warn: {en: "V_OH must be above V_OL.", de: "V_OH muss über V_OL liegen."}}
+  formula: ["k = r1 / (r1 + r2)", "vth = vref + (voh - vref) * k", "vtl = vref + (vol - vref) * k"]
+  schematic: schmitt_trigger
+
+- id: instrumentation_amp
+  kind: calculator
+  category: opamps
+  name: {cs: "Přístrojový zesilovač", da: "Instrumenteringsforstærker", de: "Instrumentenverstärker", el: "Ενισχυτής οργανολογίας", en: "Instrumentation amplifier", es: "Amplificador de instrumentación", fr: "Amplificateur d'instrumentation", hi: "इंस्ट्रूमेंटेशन एम्पलीफायर", it: "Amplificatore da strumentazione", ja: "計装アンプ", nl: "Instrumentatieversterker", no: "Instrumentasjonsforsterker", pl: "Wzmacniacz instrumentalny", pt: "Amplificador de instrumentação", sv: "Instrumentationsförstärkare", zh: "仪表放大器"}
+  doc:
+    en: "The classic instrumentation amplifier in the three-op-amp topology: two input buffer stages share one gain resistor R_G between their inverting inputs, and a unity-gain difference amplifier (four equal resistors) forms the output stage. The differential gain is G = 1 + 2R / R_G, where R is each of the two feedback resistors of the input stage (integrated types state the sum: G = 1 + 50 kΩ / R_G for the Texas Instruments INA128, G = 1 + 49.4 kΩ / R_G for the Analog Devices AD620). Only the differential input V_diff = V+ − V− is amplified by G; a common-mode voltage passes the input stage with a gain of 1 and is rejected by the output stage. Without R_G the gain is 1. Example with the defaults: R = 25 kΩ and R_G = 500 Ω give G = 101 (40.1 dB), so 10 mV differential input gives 1.01 V."
+    de: "Der klassische Instrumentenverstärker in der Drei-Operationsverstärker-Schaltung: Zwei Eingangspufferstufen teilen sich einen Verstärkungswiderstand R_G zwischen ihren invertierenden Eingängen, ein Differenzverstärker mit der Verstärkung 1 (vier gleiche Widerstände) bildet die Ausgangsstufe. Die Differenzverstärkung ist G = 1 + 2R / R_G, wobei R jeder der beiden Rückkopplungswiderstände der Eingangsstufe ist (integrierte Typen geben die Summe an: G = 1 + 50 kΩ / R_G beim INA128 von Texas Instruments, G = 1 + 49,4 kΩ / R_G beim AD620 von Analog Devices). Nur die Differenzeingangsspannung V_diff = V+ − V− wird mit G verstärkt; eine Gleichtaktspannung passiert die Eingangsstufe mit der Verstärkung 1 und wird von der Ausgangsstufe unterdrückt. Ohne R_G ist die Verstärkung 1. Beispiel mit den Vorgaben: R = 25 kΩ und R_G = 500 Ω ergeben G = 101 (40,1 dB); 10 mV Differenzeingang ergeben 1,01 V."
+  tags: [instrumentation amplifier, ina, in-amp, three op-amp, differential amplifier, sensor, bridge amplifier, gain resistor, ina128, ad620, instrumentenverstärker, messverstärker, differenzverstärker, verstärkungswiderstand, brückenverstärker]
+  source: "Three-op-amp instrumentation amplifier, G = 1 + 2R / R_G (ideal op-amps, equal output-stage resistors); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (instrumentation amplifiers); gain equations of the INA128 (Texas Instruments) and AD620 (Analog Devices) data sheets"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Input-stage feedback resistor (each)", de: "Rückkopplungswiderstand der Eingangsstufe (je)"}, default: "25k", eseries: true}
+    rg: {dim: resistance, label: R_G, name: {en: "Gain resistor", de: "Verstärkungswiderstand"}, default: "500", eseries: true}
+    g: {dim: number, label: G, name: {en: "Differential gain", de: "Differenzverstärkung"}}
+    vdiff: {dim: voltage, label: V_diff, name: {en: "Differential input voltage", de: "Differenzeingangsspannung"}, default: "10 mV"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    g: ["1+2*r/rg", "vout/vdiff"]
+    r: ["(g-1)*rg/2"]
+    rg: ["2*r/(g-1)"]
+    vout: ["g*vdiff"]
+    vdiff: ["vout/g"]
+  derived:
+    adb: {dim: gain, label: G_dB, name: {en: "Gain in dB", de: "Verstärkung in dB"}, expr: "20*log10(g)"}
+    rsum: {dim: resistance, label: 2R, name: {en: "Sum of the two feedback resistors 2R", de: "Summe der beiden Rückkopplungswiderstände 2R"}, expr: "2*r"}
+  checks:
+    - {when: "g <= 1", warn: {en: "The gain must be above 1: without R_G (open) the gain is exactly 1.", de: "Die Verstärkung muss über 1 liegen: Ohne R_G (offen) beträgt sie genau 1."}}
+  formula: ["g = 1 + 2 * r / rg", "vout = g * vdiff"]
+  schematic: instrumentation_amp

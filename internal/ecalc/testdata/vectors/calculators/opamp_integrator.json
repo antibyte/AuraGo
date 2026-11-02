@@ -1,0 +1,22 @@
+{
+  "calc": "opamp_integrator",
+  "sets": [
+    {"values": {"vin": 1, "r": 10000, "c": 1e-07, "t": 0.002, "vout": -2, "tau": 0.001, "fu": 159.15494309189532, "iin": 0.0001}, "ref": "hand: R * C = 10k * 100 nF = 1 ms; V_out = -1 V * 2 ms / 1 ms = -2 V; f_u = 1 / (2 pi * 1 ms) = 159.155 Hz; I_in = 1 V / 10k = 0.1 mA (= -(-2 V) * 100 nF / 2 ms)"},
+    {"values": {"vin": 0.5, "r": 22000, "c": 1e-07, "t": 0.0044, "vout": -1, "tau": 0.0022, "fu": 72.34315595086152, "iin": 2.2727272727272726e-05}, "ref": "hand: R * C = 22k * 100 nF = 2.2 ms; V_out = -0.5 V * 4.4 ms / 2.2 ms = -1 V; f_u = 1 / (2 pi * 2.2 ms) = 72.343 Hz; I_in = 0.5 V / 22k = 22.727 uA (= 1 V * 100 nF / 4.4 ms)"},
+    {"values": {"vin": -3, "r": 4700, "c": 2.2e-07, "t": 0.002068, "vout": 6, "tau": 0.001034, "fu": 153.92160840608832, "iin": -0.0006382978723404255}, "ref": "hand: R * C = 4.7k * 220 nF = 1.034 ms; V_out = -(-3 V) * 2.068 ms / 1.034 ms = +6 V (t = 2 * R * C); f_u = 1 / (2 pi * 1.034 ms) = 153.92 Hz; I_in = -3 V / 4.7k = -0.6383 mA (= -6 V * 220 nF / 2.068 ms)"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 1, "r": 10000, "c": 1e-07, "t": 0.002}, "expect": {"vout": -2, "tau": 0.001, "fu": 159.1549430918953}, "warnings": [], "ref": "hand: V_out = -1 V * 2 ms / 1 ms = -2 V; f_u = 1 / (2 pi * 1 ms) = 159.15494309 Hz (1 / 2pi = 0.15915494309189535)"},
+    {"inputs": {"vin": 0.5, "r": 22000, "c": 1e-07, "t": 0.0044}, "expect": {"vout": -1, "tau": 0.0022}, "warnings": [], "ref": "hand: V_out = -0.5 V * 4.4 ms / 2.2 ms = -1 V"},
+    {"inputs": {"r": 10000, "c": 1e-07, "t": 0.002, "vout": -2}, "expect": {"vin": 1, "iin": 0.0001}, "ref": "hand: V_in = -V_out * R * C / t = 2 V * 1 ms / 2 ms = 1 V"},
+    {"inputs": {"r": 22000, "c": 1e-07, "t": 0.0044, "vout": -1}, "expect": {"vin": 0.5}, "ref": "hand: V_in = 1 V * 2.2 ms / 4.4 ms = 0.5 V"},
+    {"inputs": {"vin": 1, "c": 1e-07, "t": 0.002, "vout": -2}, "expect": {"r": 10000}, "ref": "hand: R = -V_in * t / (V_out * C) = 1 V * 2 ms / (2 V * 100 nF) = 10k"},
+    {"inputs": {"vin": 0.5, "c": 1e-07, "t": 0.0044, "vout": -1}, "expect": {"r": 22000}, "ref": "hand: R = 0.5 V * 4.4 ms / (1 V * 100 nF) = 2.2e-3 / 1e-7 = 22k"},
+    {"inputs": {"vin": 1, "r": 10000, "t": 0.002, "vout": -2}, "expect": {"c": 1e-07}, "ref": "hand: C = -V_in * t / (V_out * R) = 1 V * 2 ms / (2 V * 10k) = 100 nF"},
+    {"inputs": {"vin": -3, "r": 4700, "t": 0.002068, "vout": 6}, "expect": {"c": 2.2e-07}, "ref": "hand: C = 3 V * 2.068 ms / (6 V * 4.7k) = 6.204e-3 / 28200 = 220 nF"},
+    {"inputs": {"vin": 1, "r": 10000, "c": 1e-07, "vout": -2}, "expect": {"t": 0.002}, "ref": "hand: t = -V_out * R * C / V_in = 2 V * 1 ms / 1 V = 2 ms"},
+    {"inputs": {"vin": -3, "r": 4700, "c": 2.2e-07, "vout": 6}, "expect": {"t": 0.002068}, "ref": "hand: t = -6 V * 1.034 ms / -3 V = 2.068 ms"},
+    {"inputs": {"vin": 1, "c": 1e-07, "t": 0.002, "vout": 2}, "errors": {"r": "range"}, "ref": "hand: a positive output for a positive input needs R = -1 V * 2 ms / (2 V * 100 nF) = -10k, out of range"},
+    {"inputs": {"vin": 10, "r": 1000, "c": 1e-08, "t": 0.005}, "expect": {"vout": -5000, "tau": 1e-05}, "warnings": [0], "ref": "hand: R * C = 1k * 10 nF = 10 us; V_out = -10 V * 5 ms / 10 us = -5000 V, far above 15 V, so the saturation check fires"}
+  ]
+}
