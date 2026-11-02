@@ -1,5 +1,5 @@
 // ECalc desktop app: parity test of the JavaScript core against the shared vectors of the Go package.
-// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset}.js run in a Node vm (no document),
+// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset,chart}.js run in a Node vm (no document),
 // the calculators come from internal/ecalc/testdata/catalog.en.json (the catalog JSON of the server route), and every case
 // of internal/ecalc/testdata/vectors/core.json and vectors/calculators/*.json must give the same result as Go: numbers match
 // at a relative error of 1e-12 (calculator vectors 1e-9), a zero want allows an absolute error of 1e-12, and the strings
@@ -13,7 +13,7 @@ import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js'];
+const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js', 'ecalc-chart.js'];
 const plain = value => JSON.parse(JSON.stringify(value));
 // The core runs in its own vm realm, so what it returns is compared as plain JSON.
 const eq = (actual, expected, message) => assert.deepStrictEqual(plain(actual), plain(expected), message);
@@ -468,6 +468,35 @@ for (const item of calculators) {
     const live = Typeset.liveHTML(expr.parseFormula('vout = vin / r2'), Object.assign({}, ctx, { valueOf: name => (name === 'vin' ? { html: '12 V', prec: 3 } : name === 'vout' ? { html: '3.8 V', prec: 3 } : null) }));
     assert.ok(live.includes('12 V') && live.includes('3.8 V') && live.includes('ec-u'), 'the live line shows values, the unknown variable keeps its label');
     count += 5;
+}
+
+// ---- the chart: whatever range the data spans, svg ends and writes finite numbers only ------------------------------------
+{
+    assert.ok(window.ECalcChart && typeof window.ECalcChart.svg === 'function', 'ecalc-chart.js publishes window.ECalcChart');
+    // The sample is lo for the first half of x = 0 .. 1 and hi for the second. 5e-324 used to make the axis step 0 and the
+    // search for it loop forever.
+    const draw = (lo, hi) => bounded('window.ECalcChart.svg({ xMax: 1, samples: 11, label: "t" }, x => (x < 0.5 ? args[0] : args[1]))', [lo, hi]);
+    const finiteOnly = (markup, label) => {
+        assert.equal(typeof markup, 'string', `${label}: a string`);
+        assert.ok(!/NaN|Infinity|undefined/.test(markup), `${label}: no non-finite number in the markup`);
+    };
+    // Vanishing, flat and large ranges draw on a finite axis (the vanishing ones on the fixed axis 0 .. 4).
+    for (const [lo, hi] of [[0, 5e-324], [0, 1e-320], [0, 1e-301], [0, 1e-300], [0, 1e300], [0, Infinity], [0, 0]]) {
+        const markup = draw(lo, hi);
+        finiteOnly(markup, `chart ${lo} .. ${hi}`);
+        assert.ok(markup.startsWith('<svg'), `chart ${lo} .. ${hi} is drawn`);
+        count += 1;
+    }
+    // Data near the largest doubles has no finite axis: nothing is drawn (the page hides the chart), and the call ends.
+    for (const [lo, hi] of [[0, 1.7e308], [-1.7976931348623157e308, 1.7976931348623157e308]]) {
+        assert.equal(draw(lo, hi), '', `chart ${lo} .. ${hi} draws nothing`);
+        count += 1;
+    }
+    // An ordinary range keeps its round ticks.
+    const ordinary = draw(0, 1);
+    for (const tick of ['>0<', '>0.25<', '>0.5<', '>0.75<', '>1<']) assert.ok(ordinary.includes(tick), `the y axis of 0 .. 1 has the tick ${tick}`);
+    assert.ok(draw(0, 1e300).includes('>1e+300<'), 'a range up to 1e300 keeps a real axis');
+    count += 2;
 }
 
 console.log(`ecalc core tests: ${count} cases ok`);

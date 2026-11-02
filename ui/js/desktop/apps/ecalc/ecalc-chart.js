@@ -3,7 +3,8 @@
    one inline SVG string, like the schematics do: every stroke is currentColor, the colours of the curve and the dot come
    from the classes ec-chart-* in css/desktop-app-ecalc.css (tokens only).
 
-   ECalcChart.svg(spec, sample) -> SVG markup, or '' when there is nothing to draw (no finite sample, xMax not > 0).
+   ECalcChart.svg(spec, sample) -> SVG markup, or '' when there is nothing to draw (no finite sample, xMax not > 0, data
+   whose range the y axis cannot span in finite numbers).
      spec:   {xMax, samples, label, xLabel, yLabel, fmtX, fmtY, point}
              xMax      the curve runs from x = 0 to xMax (base units)
              samples   number of points, clamped to 11..401 (default 101)
@@ -31,17 +32,24 @@
         return escape(label.slice(0, at)) + '<tspan class="ec-chart-sub" dy="3">' + escape(label.slice(at + 1)) + '</tspan>';
     }
 
-    // The y axis for data between lo and hi: {min, max, step} with max = min + 4 * step, 0 inside.
+    // The y axis for data between lo and hi: {min, max, step} with max = min + 4 * step, 0 inside. A range that is flat or
+    // below MIN_SPAN gets the fixed axis 0 .. 4 (the data is 0 for the eye); its quarter would be 0 and the search for a step
+    // would never end (a range of 5e-324 made the page freeze). A range with no finite span, or for which the bounded
+    // search finds no finite axis (data near the largest doubles), has no axis: null, and svg draws nothing.
+    const MIN_SPAN = 1e-300, MAX_PASSES = 8;
     function axis(lo, hi) {
-        const low = Math.min(0, lo), high = Math.max(0, hi);
-        if (!(high > low)) return { min: 0, max: TICKS - 1, step: 1 };
-        const raw = (high - low) / (TICKS - 1);
-        for (let scale = Math.pow(10, Math.floor(Math.log10(raw))); ; scale *= 10) {
+        const low = Math.min(0, lo), high = Math.max(0, hi), span = high - low;
+        if (!(span >= MIN_SPAN)) return { min: 0, max: TICKS - 1, step: 1 };
+        if (!Number.isFinite(span)) return null;
+        const raw = span / (TICKS - 1);
+        let scale = Math.pow(10, Math.floor(Math.log10(raw)));
+        for (let pass = 0; pass < MAX_PASSES && scale > 0 && Number.isFinite(scale); pass += 1, scale *= 10) {
             for (const factor of [1, 1.5, 2, 2.5, 3, 4, 5]) {
-                const step = factor * scale, min = round12(Math.floor(low / step + 1e-9) * step);
-                if (min + step * (TICKS - 1) >= high - step * 1e-9) return { min, max: round12(min + step * (TICKS - 1)), step };
+                const step = factor * scale, min = round12(Math.floor(low / step + 1e-9) * step), top = min + step * (TICKS - 1);
+                if (Number.isFinite(min) && Number.isFinite(top) && top >= high - step * 1e-9) return { min, max: round12(top), step };
             }
         }
+        return null;
     }
 
     function svg(spec, sample) {
@@ -61,6 +69,7 @@
         const dot = spec.point && Number.isFinite(spec.point.x) && Number.isFinite(spec.point.y) && spec.point.x >= 0 && spec.point.x <= xMax ? spec.point : null;
         if (dot) { lo = Math.min(lo, dot.y); hi = Math.max(hi, dot.y); }
         const y = axis(lo, hi);
+        if (!y) return '';
         const left = LEFT, right = W - RIGHT, top = TOP, bottom = H - BOTTOM;
         const px = x => left + x / xMax * (right - left);
         const py = value => bottom - (value - y.min) / (y.max - y.min) * (bottom - top);
