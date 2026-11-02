@@ -1,2 +1,2 @@
 # Keep the original runtime PNGs byte-identical when regenerating atlases.
-Pillow==12.2.0
+Pillow==13.0.0

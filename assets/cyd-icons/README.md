@@ -29,7 +29,7 @@ silhouettes with transparent interior details; only alpha enters the white,
 tintable exports.
 
 Install `assets/cyd-icons/requirements.txt` in a development environment, then run
-`python scripts/export-cyd-icons.py` from the repository root. Pillow 12.2.0 is
+`python scripts/export-cyd-icons.py` from the repository root. Pillow 13.0.0 is
 pinned to preserve the original PNG bytes.
 `--check` regenerates in memory and compares every byte and manifest hash.
 `--contact-sheets reports/cyd-icons/contact-sheets` writes every combination at

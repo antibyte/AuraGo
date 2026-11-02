@@ -19,7 +19,7 @@ Original realistic miniature sprites and app artwork for the physical inventory.
 
 ## Work Guidance
 
-Keep masters and prompts. Export with Pillow 12.2.0; no network is needed to rebuild. New icons require a stable ID and manifest coverage.
+Keep masters and prompts. Export with Pillow 13.0.0; no network is needed to rebuild. New icons require a stable ID and manifest coverage.
 
 ## Verification
 

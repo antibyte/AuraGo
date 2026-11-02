@@ -26,6 +26,21 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+FindIt and CYD icon authoring pin Pillow 13.0.0 in their respective
+`assets/*/requirements.txt` files. Keep both pins aligned and run
+`scripts/export-findit-assets.py --check`, `scripts/export-cyd-icons.py --check`
+and `scripts/test_export_cyd_icons.py` in that environment before changing them.
+Pillow is an authoring dependency, not part of the Go runtime.
+
+The root npm lock retains `deepmerge` 4.3.1 through
+`@rollup/plugin-node-resolve` 16.0.3. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
+has no patched release as of 2026-11-02. The installed plugin calls `deepMerge`
+only to clone its built-in `defaults` when initializing `DEFAULTS`; it does not
+pass build options or application input into that call. AuraGo uses the plugin
+in the CodeMirror, chess and Writer vendor builders, not in the browser runtime.
+Retain the alert and recheck this call path when upgrading the plugin; do not
+downgrade or suppress the advisory merely to clear the audit count.
+
 `golang.org/x/net` must be at least v0.62.0: its HTML parser and renderer fix
 GO-2026-6860 and GO-2026-6866, reachable through Office and mail sanitization.
 

@@ -1,5 +1,6 @@
 """Focused regression checks for atlas slicing and tintable frame exports."""
 import importlib.util
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,6 +13,17 @@ SPEC.loader.exec_module(ICONS)
 
 
 class IconExports(unittest.TestCase):
+    def test_narrow_mono_icon_preserves_original_pngs(self):
+        frames = ICONS.cells(ICONS.SOURCE / "sober-mono.png", 10, 6)
+        frame = frames[ICONS.ORIGINAL_MOTIFS.index("thermometer")]
+        for size in ICONS.SIZES:
+            with self.subTest(size=size):
+                exported = ICONS.export([frame.copy()], size, "mono")[0]
+                buffer = io.BytesIO()
+                exported.save(buffer, format="PNG", optimize=False, compress_level=9)
+                original = ICONS.OUTPUT / f"sober/mono/thermometer/{size}/0.png"
+                self.assertEqual(buffer.getvalue(), original.read_bytes())
+
     def test_expansion_uses_each_rows_gutters(self):
         atlas = Image.new("RGBA", (20, 20))
         # No single vertical cut can separate both rows without losing artwork.
