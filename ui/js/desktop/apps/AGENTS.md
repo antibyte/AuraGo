@@ -3776,6 +3776,15 @@ registration lives in `internal/desktop/types.go`.
   Retry actions with an error status. A confirmed 404 clears the shell's stored
   path; temporary failures retain it for retry. New uses a fresh create-only
   path and never recreates the missing file. Verify `TestDesktopSheetsLoadRecoveryBrowser`.
+- The table chrome owns its feedback: every view button mirrors the panel it
+  opened with `aria-pressed`, the three alignment buttons carry their own
+  artwork (one shared glyph cannot tell them apart), the toolbar overflow menu
+  holds print, XLSX, CSV and sheet options, and one popover stays open at a
+  time. The sheet owns Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z and Ctrl+B/I/U; a text
+  field keeps its own undo. Chrome labels live in the 16 desktop locales, and
+  the selection size names rows and columns instead of guessing a plural.
+  Verify `TestDesktopSheetsAppBrowser` (chrome block) and
+  `TestDesktopSheetsChromeI18n`.
 - Use the engine's formula, selection, clipboard, structural-reference and undo
   APIs. Do not restore the removed HTML grid or browser formula evaluator.
   Expand shared formulas before persistence, preserve forced strings, and parse

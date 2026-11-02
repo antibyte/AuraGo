@@ -93,6 +93,22 @@ func TestDesktopSheetsEnhancedFeatures(t *testing.T) {
 	}
 }
 
+func TestDesktopSheetsChromeContract(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/sheets.js")
+	for _, marker := range []string{"syncViewState", "sheets-align-icon", "sheets-more-menu", "positionMoreMenu", "capture:true"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Missing sheets chrome contract %q", marker)
+		}
+	}
+	style := readDesktopAssetText(t, "css/desktop-app-sheets.css")
+	for _, marker := range []string{".sheets-align-icon", ".sheets-more-menu", ".sheets-zoom", ".sheets-spinner"} {
+		if !strings.Contains(style, marker) {
+			t.Fatalf("Missing sheets chrome style %q", marker)
+		}
+	}
+}
+
 func TestDesktopOfficeAppsRespectReadonlyMode(t *testing.T) {
 	t.Parallel()
 

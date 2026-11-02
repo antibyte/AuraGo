@@ -117,3 +117,19 @@
 
 .desktop-body[data-theme=fruity] .sheets-app{font-family:-apple-system,BlinkMacSystemFont,Geist,system-ui,sans-serif}
 .desktop-body[data-theme=fruity] .sheets-documentbar{background:var(--vd-mat-bar,linear-gradient(180deg,#ffffff07,transparent))}
+
+/* Table polish: own alignment artwork, a visible open panel, a real overflow menu, grouped zoom and a loading ring. */
+.sheets-align-icon{width:16px;height:16px;display:block;color:currentColor}
+.sheets-toolbar{background:radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.22),rgba(0,0,0,0)) left center,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.22),rgba(0,0,0,0)) right center,linear-gradient(to right,var(--sheets-bar) 42%,rgba(0,0,0,0)) left center,linear-gradient(to left,var(--sheets-bar) 42%,rgba(0,0,0,0)) right center,var(--sheets-bar);background-repeat:no-repeat;background-size:14px 100%,14px 100%,46px 100%,46px 100%,100% 100%;background-attachment:scroll,scroll,local,local,scroll}
+.sheets-more-menu{position:absolute;z-index:12;display:grid;gap:2px;min-width:214px;max-width:calc(100% - 16px);padding:6px;background:var(--sheets-card);border:1px solid var(--vd-mat-card-border,var(--sheets-border));border-radius:var(--vd-mat-card-radius,10px);box-shadow:var(--vd-mat-card-shadow,0 0 #0000),0 18px 40px #0006}
+.sheets-more-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left}
+.sheets-more-menu .sheets-icon{width:16px;height:16px;flex:0 0 auto}
+.sheets-formula-wrap>button{position:absolute;right:4px;top:4px;width:26px;height:22px;min-height:22px;padding:0;display:grid;place-items:center;color:var(--sheets-muted)}
+.sheets-formula-wrap textarea{padding-right:32px!important}
+.sheets-zoom{display:flex;align-items:center;gap:1px;padding:1px;border:1px solid var(--sheets-border);border-radius:8px;background:var(--sheets-control)}
+.sheets-zoom button{width:24px;height:22px;min-height:22px;padding:0;display:grid;place-items:center}
+.sheets-zoom [data-zoom]{width:auto;min-width:46px;padding:0 6px;font-variant-numeric:tabular-nums}
+.sheets-spinner{display:none;width:22px;height:22px;margin:0 auto 12px;border:2px solid var(--sheets-border);border-top-color:var(--sheets-accent);border-radius:50%}
+.sheets-loading[data-state=loading] .sheets-spinner{display:block}
+@media(prefers-reduced-motion:no-preference){.sheets-spinner{animation:sheets-spin .8s linear infinite}}
+@keyframes sheets-spin{to{transform:rotate(360deg)}}

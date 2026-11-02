@@ -250,12 +250,68 @@ func testSheetsAppWorkflows(t *testing.T, page *rod.Page) {
 			t.Fatal(err)
 		}
 	}
+	testSheetsAppChrome(t, page)
 	testSheetsAppInteractions(t, page)
 	testSheetsClipboardAIPrint(t, page)
 	testSheetsSessions(t, page)
 	testSheetsNativeTyping(t, page)
 	testSheetsLargeWorkbook(t, page)
 	page.MustEval(`()=>SheetsApp.dispose('test')`)
+}
+
+// The chrome polish: the view switcher mirrors the open panel, the alignment buttons carry their own
+// artwork, the overflow menu holds the actions that stay out of the toolbar, and the keyboard owns
+// undo, redo and the text formats the edit menu advertises.
+func testSheetsAppChrome(t *testing.T, page *rod.Page) {
+	t.Helper()
+	value := page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test'),sheet=app.book.getActiveSheet(),root=document.querySelector('.sheets-app');
+  const check=(yes,message)=>{if(!yes)throw Error(message)},wait=()=>new Promise(r=>setTimeout(r,120));
+  const press=(key,opts={})=>root.dispatchEvent(new KeyboardEvent('keydown',{key,ctrlKey:!!opts.ctrl,shiftKey:!!opts.shift,bubbles:true,cancelable:true}));
+  await app.act('closeRight');
+  check(root.querySelector('[data-panel="format"]').getAttribute('aria-pressed')==='false','A closed panel leaves the view unpressed');
+  await app.act('format');
+  check(root.querySelector('[data-panel="format"]').getAttribute('aria-pressed')==='true','The open panel presses its view');
+  await app.act('closeRight');
+  check(root.querySelector('[data-panel="format"]').getAttribute('aria-pressed')==='false','Closing the panel clears the view');
+  const artwork=[...root.querySelectorAll('[data-action="left"] svg.sheets-align-icon path,[data-action="center"] svg.sheets-align-icon path,[data-action="right"] svg.sheets-align-icon path')].map(path=>path.getAttribute('d'));
+  check(artwork.length===3&&new Set(artwork).size===3,'The three alignments need their own artwork: '+JSON.stringify(artwork));
+  sheet.getRange('T30').activate();
+  sheet.getRange('T30').setValue('first');await wait();
+  sheet.getRange('T30').setValue('second');await wait();
+  press('z',{ctrl:true});await wait();
+  check(sheet.getRange('T30').getRawValue()==='first','Ctrl+Z undoes one step: '+sheet.getRange('T30').getRawValue());
+  press('y',{ctrl:true});await wait();
+  check(sheet.getRange('T30').getRawValue()==='second','Ctrl+Y redoes the step: '+sheet.getRange('T30').getRawValue());
+  press('b',{ctrl:true});await wait();
+  check(sheet.getRange('T30').getCellStyleData()?.bl===1,'Ctrl+B bolds the selection');
+  press('b',{ctrl:true});await wait();
+  check(sheet.getRange('T30').getCellStyleData()?.bl!==1,'Ctrl+B toggles bold off');
+  const selection=root.querySelector('[data-selection]').textContent;
+  check(/Rows: \d+ . Columns: \d+/.test(selection),'The selection size names both dimensions: '+selection);
+  root.querySelector('[data-action="more"]').click();await wait();
+  const menu=root.querySelector('[data-more-menu]');
+  check(!menu.hidden,'The overflow menu opens');
+  const actions=[...menu.querySelectorAll('button')].map(item=>item.dataset.action);
+  check(actions.join(',')==='print,xlsx,csv,sheetMenu','The overflow menu holds the hidden actions: '+actions.join(','));
+  return {viewState:true,alignArtwork:true,overflowMenu:true,keyboardUndo:true,keyboardBold:true,selectionText:selection};
+}`)
+	t.Logf("Sheets chrome: %s", value.JSON("", ""))
+	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if out == "" {
+		out = "../reports/sheets"
+	}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		t.Fatal(err)
+	}
+	shot, err := page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(out+"/overflow-menu.png", shot, 0644); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async()=>{const root=document.querySelector('.sheets-app');root.querySelector('[data-left]').click();await new Promise(r=>setTimeout(r,120));const menu=root.querySelector('[data-more-menu]');if(!menu.hidden)throw Error('A click outside must close the overflow menu');}`)
 }
 
 func testSheetsLoadRecovery(t *testing.T, page *rod.Page) {
