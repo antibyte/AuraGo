@@ -1,0 +1,9 @@
+{"schema":"storymaker/1","title":"Was ist eine Firewall?","format":{"aspect":"16:9","fps":30},"style":{"palette":"sunny","font":"default","captions":true},"voice":null,"music":null,
+ "cast":[{"id":"anna","name":"Anna","character":"char.office-woman-1"}],
+ "scenes":[
+  {"id":"s1","environment":"env.office","transition":"fade","narration":"Anna arbeitet im Homeoffice. {1}Plötzlich klopft ein Unbekannter an.","speaker":"narrator",
+   "actors":[{"cast":"anna","at":"desk","pose":"typing"}],
+   "beats":[{"cue":1,"do":"emote","who":"anna","expression":"surprised"},{"do":"show","item":"prop.lock","at":"right","entry":"pop"}]},
+  {"id":"s2","environment":"env.abstract-tech","narration":"Eine Firewall prüft jedes Paket.","actors":[{"cast":"anna","at":"left"}],
+   "beats":[{"do":"walk","who":"anna","to":"center"},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"show","item":"prop.shield","at":"right","entry":"fade"},{"do":"camera","op":"zoom","amount":1.2}]},
+  {"id":"s3","kind":"code","narration":"So sieht das in Zahlen aus."}]}
