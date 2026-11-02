@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"encoding/json"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -10,9 +11,18 @@ import (
 )
 
 const (
-	ecalcSchematicsPath = "js/desktop/apps/ecalc/ecalc-schematics.js"
-	ecalcSymbolsPath    = "js/desktop/apps/ecalc/ecalc-symbols.js"
+	ecalcSymbolsPath = "js/desktop/apps/ecalc/ecalc-symbols.js"
+	// ecalcSchematicsWrapper starts every schematics file; the JSON object of the file follows and `);` closes it.
+	ecalcSchematicsWrapper = "window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, "
 )
+
+// ecalcSchematicCategories are the categories that own a schematics file, in the load order of the module loader
+// (basics first, the rest alphabetical). The catalog has more categories (tables, codes, pinouts) without drawings.
+var ecalcSchematicCategories = []string{"basics", "digital", "filters", "opamps", "passive", "power", "rf", "semiconductors", "timers", "wiring"}
+
+func ecalcSchematicsPath(category string) string {
+	return "js/desktop/apps/ecalc/ecalc-schematics-" + category + ".js"
+}
 
 // ecalcSchematic is the schema of one entry of window.ECalcSchematics; unknown fields fail the decode, so a typo in a
 // key cannot silently drop part of a drawing.
@@ -60,27 +70,41 @@ type ecalcSchematic struct {
 type ecalcCatalogItem struct {
 	Kind      string `json:"kind"`
 	ID        string `json:"id"`
+	Category  string `json:"category"`
 	Schematic string `json:"schematic"`
 	Vars      []struct {
 		ID string `json:"id"`
 	} `json:"vars"`
 }
 
-func loadECalcSchematics(t *testing.T) map[string]ecalcSchematic {
+// loadECalcSchematics reads the ten schematics files. Each is exactly
+// `window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {JSON});`; the schematics of all files are merged
+// by id and a duplicate id fails. files maps every schematic id to the category of the file that holds it.
+func loadECalcSchematics(t *testing.T) (specs map[string]ecalcSchematic, files map[string]string) {
 	t.Helper()
-	text := strings.TrimSpace(readDesktopAssetText(t, ecalcSchematicsPath))
-	const prefix = "window.ECalcSchematics = {"
-	if !strings.HasPrefix(text, prefix) || !strings.HasSuffix(text, "};") {
-		t.Fatalf("%s must be exactly `window.ECalcSchematics = {JSON};`", ecalcSchematicsPath)
+	specs, files = map[string]ecalcSchematic{}, map[string]string{}
+	for _, category := range ecalcSchematicCategories {
+		path := ecalcSchematicsPath(category)
+		text := strings.TrimSpace(readDesktopAssetText(t, path))
+		if !strings.HasPrefix(text, ecalcSchematicsWrapper+"{") || !strings.HasSuffix(text, "});") {
+			t.Fatalf("%s must be exactly `%s{JSON});`", path, ecalcSchematicsWrapper)
+		}
+		body := strings.TrimSuffix(strings.TrimPrefix(text, ecalcSchematicsWrapper), ");")
+		decoder := json.NewDecoder(bytes.NewReader([]byte(body)))
+		decoder.DisallowUnknownFields()
+		var own map[string]ecalcSchematic
+		if err := decoder.Decode(&own); err != nil {
+			t.Fatalf("%s is not strict JSON of the schematic schema: %v", path, err)
+		}
+		for id, spec := range own {
+			if first, dup := files[id]; dup {
+				t.Errorf("schematic %q is defined in both ecalc-schematics-%s.js and ecalc-schematics-%s.js", id, first, category)
+				continue
+			}
+			specs[id], files[id] = spec, category
+		}
 	}
-	body := strings.TrimSuffix(strings.TrimPrefix(text, "window.ECalcSchematics = "), ";")
-	decoder := json.NewDecoder(bytes.NewReader([]byte(body)))
-	decoder.DisallowUnknownFields()
-	var specs map[string]ecalcSchematic
-	if err := decoder.Decode(&specs); err != nil {
-		t.Fatalf("%s is not strict JSON of the schematic schema: %v", ecalcSchematicsPath, err)
-	}
-	return specs
+	return specs, files
 }
 
 func loadECalcCatalogItems(t *testing.T) []ecalcCatalogItem {
@@ -106,7 +130,7 @@ func loadECalcCatalogItems(t *testing.T) []ecalcCatalogItem {
 // names a variable of its calculator; the drawing itself stays inside its grid and uses symbols the library has.
 func TestECalcSchematicsMatchTheCatalog(t *testing.T) {
 	t.Parallel()
-	specs := loadECalcSchematics(t)
+	specs, files := loadECalcSchematics(t)
 	symbols := readDesktopAssetText(t, ecalcSymbolsPath)
 	users := map[string][]ecalcCatalogItem{}
 	for _, item := range loadECalcCatalogItems(t) {
@@ -116,7 +140,7 @@ func TestECalcSchematicsMatchTheCatalog(t *testing.T) {
 	}
 	for id := range users {
 		if _, ok := specs[id]; !ok {
-			t.Errorf("the catalog names the schematic %q but %s has no entry for it", id, ecalcSchematicsPath)
+			t.Errorf("the catalog names the schematic %q but the ecalc-schematics-*.js files have no entry for it", id)
 		}
 	}
 	for id, spec := range specs {
@@ -124,6 +148,11 @@ func TestECalcSchematicsMatchTheCatalog(t *testing.T) {
 		if len(owners) == 0 {
 			t.Errorf("schematic %q belongs to no calculator of the catalog", id)
 			continue
+		}
+		for _, owner := range owners {
+			if owner.Category != files[id] {
+				t.Errorf("schematic %q sits in ecalc-schematics-%s.js but its calculator %q is in the category %q", id, files[id], owner.ID, owner.Category)
+			}
 		}
 		inside := func(what string, x, y float64) {
 			if x < 0 || y < 0 || x > spec.W || y > spec.H {
@@ -163,6 +192,43 @@ func TestECalcSchematicsMatchTheCatalog(t *testing.T) {
 					t.Errorf("schematic %q anchors %q, which is no variable of the calculator %q", id, anchor.Var, owner.ID)
 				}
 			}
+		}
+	}
+}
+
+// The split is complete: exactly the ten category files exist (the old single file is gone), every one starts with the
+// wrapper and ends with `});`, and the symbol library holds the two symbols that phase 2 adds, with the pin names the
+// schematic authors rely on (switch: a, b; pot: a, b and the wiper w).
+func TestECalcSchematicFilesAndNewSymbols(t *testing.T) {
+	t.Parallel()
+	entries, err := fs.ReadDir(Content, ecalcDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", ecalcDir, err)
+	}
+	found := map[string]bool{}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "ecalc-schematics") {
+			found[entry.Name()] = true
+		}
+	}
+	for _, category := range ecalcSchematicCategories {
+		name := "ecalc-schematics-" + category + ".js"
+		if !found[name] {
+			t.Errorf("%s/%s is missing", ecalcDir, name)
+		}
+		delete(found, name)
+		text := strings.TrimSpace(readDesktopAssetText(t, ecalcSchematicsPath(category)))
+		if !strings.HasPrefix(text, ecalcSchematicsWrapper+"{") || !strings.HasSuffix(text, "});") || strings.Count(text, "window.ECalcSchematics") != 2 {
+			t.Errorf("%s must be exactly `%s{JSON});`", name, ecalcSchematicsWrapper)
+		}
+	}
+	for name := range found {
+		t.Errorf("%s/%s is not one of the ten category files (the single ecalc-schematics.js is gone)", ecalcDir, name)
+	}
+	symbols := readDesktopAssetText(t, ecalcSymbolsPath)
+	for _, marker := range []string{"        switch: {", "        pot: {", "pins: () => ({ a: [0, 0], b: [4, 0], w: [2, -2] }),"} {
+		if !strings.Contains(symbols, marker) {
+			t.Errorf("%s is missing %q", ecalcSymbolsPath, marker)
 		}
 	}
 }

@@ -5,7 +5,8 @@
    Geometry: one grid unit is 20 px. A symbol is drawn in its own frame with pin 1 at the origin; a part places it with
    {sym, x, y, rot, flip} (x and y in grid units, rot in degrees clockwise, flip mirrors it across its own x axis
    before the rotation). Two-terminal symbols run from pin a (0,0) to pin b (3,0); a is the positive side of sources,
-   batteries and polarised capacitors and the anode of diodes, so rot 90 stands them upright with a on top.
+   batteries and polarised capacitors and the anode of diodes, so rot 90 stands them upright with a on top. The
+   switch is such a two-terminal symbol; the potentiometer is four units wide (a (0,0), b (4,0), wiper w (2,-2)).
 
    A schematic spec is {w, h, parts, wires, dots, terminals, arrows, texts, anchors}: w and h in grid units, wires as
    polylines of [x, y] points, dots (junctions), terminals (open circles), arrows ({x, y, dir} with dir in degrees,
@@ -52,6 +53,18 @@
         zener: { pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -10L38 0L22 10Z') + path('M42 -14L38 -10V10L34 14') },
         crystal: { pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -12V12M38 -12V12') + '<rect x="26" y="-8" width="8" height="16"/>' },
         fuse: { pins: twoPins, draw: () => path('M0 0H10M50 0H60') + '<rect x="10" y="-7" width="40" height="14"/>' + path('M10 0H50') },
+        // SPST switch, drawn open: pins a (0,0) and b (3,0); the blade lifts off the contact at b.
+        switch: {
+            pins: twoPins,
+            draw: () => path('M0 0H15M45 0H60') + path('M15 0L42 -15') + '<circle cx="15" cy="0" r="2.5"/><circle cx="45" cy="0" r="2.5"/>'
+        },
+        // Potentiometer, four grid units wide: pins a (0,0), b (4,0) and the wiper w (2,-2) above the body (flip puts it below).
+        pot: {
+            pins: () => ({ a: [0, 0], b: [4, 0], w: [2, -2] }),
+            draw: standard => (standard === 'ansi'
+                ? path('M0 0H10L16 -8L28 8L40 -8L52 8L64 -8L70 0H80')
+                : path('M0 0H10M70 0H80') + '<rect x="10" y="-7" width="60" height="14"/>') + path('M40 -40V-16') + head(40, -8, 0, 1, 8, 3.5)
+        },
         source: { pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 22, 0, plus(0, 0)) + upright(part, 38, 0, path('M-3 0h6')) },
         acsource: { pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0Q25.5 -9 30 0T39 0') },
         isource: { pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0H38') + head(40, 0, 1, 0, 7, 4) },

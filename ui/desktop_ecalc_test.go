@@ -25,8 +25,8 @@ func ecalcScripts(t *testing.T) map[string]string {
 			scripts[entry.Name()] = readDesktopAssetText(t, ecalcDir+"/"+entry.Name())
 		}
 	}
-	if len(scripts) != 11 {
-		t.Fatalf("%s holds %d scripts, want the 11 of the plan", ecalcDir, len(scripts))
+	if len(scripts) != 20 {
+		t.Fatalf("%s holds %d scripts, want the 20 of the plan", ecalcDir, len(scripts))
 	}
 	return scripts
 }
@@ -215,7 +215,7 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
 		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
 	}
-	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-schematics.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)

@@ -1,4 +1,4 @@
-window.ECalcSchematics = {
+window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
  "ohms_law": {
   "w": 22, "h": 10,
   "parts": [
@@ -97,7 +97,7 @@ window.ECalcSchematics = {
   ]
  },
  "wheatstone": {
-  "w": 32, "h": 11,
+  "w": 32, "h": 12,
   "parts": [
    {"sym": "source", "x": 8, "y": 3, "rot": 90},
    {"sym": "resistor", "x": 16, "y": 2, "rot": 90},
@@ -106,15 +106,15 @@ window.ECalcSchematics = {
    {"sym": "resistor", "x": 24, "y": 5, "rot": 90},
    {"sym": "meter", "x": 18.5, "y": 5, "text": "V"}
   ],
-  "wires": [[[8, 3], [8, 2], [24, 2]], [[8, 6], [8, 9], [24, 9]], [[16, 8], [16, 9]], [[24, 8], [24, 9]], [[16, 5], [18.5, 5]], [[21.5, 5], [24, 5]]],
-  "dots": [[16, 5], [24, 5]],
+  "wires": [[[8, 3], [8, 2], [24, 2]], [[8, 6], [8, 10], [24, 10]], [[16, 8], [16, 10]], [[24, 8], [24, 10]], [[16, 5], [18.5, 5]], [[21.5, 5], [24, 5]]],
+  "dots": [[16, 2], [16, 5], [24, 5], [16, 10]],
   "anchors": [
    {"var": "vs", "x": 7.4, "y": 4.5, "side": "left"},
    {"var": "r1", "x": 15.6, "y": 3.65, "side": "left"},
    {"var": "r2", "x": 15.6, "y": 6.6, "side": "left"},
    {"var": "r3", "x": 24.6, "y": 3.5, "side": "right"},
    {"var": "r4", "x": 24.6, "y": 6.5, "side": "right"},
-   {"var": "vd", "x": 20, "y": 5.8, "side": "bottom"}
+   {"var": "vd", "x": 20, "y": 6.2, "side": "bottom"}
   ]
  },
  "star_delta": {
@@ -149,4 +149,4 @@ window.ECalcSchematics = {
    {"var": "rc", "x": 16.5, "y": 19.4, "side": "bottom"}
   ]
  }
-};
+});
