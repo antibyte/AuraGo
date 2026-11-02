@@ -317,11 +317,20 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	if run.st.FFmpegPath == "" {
 		return Output{}, Fail(CodeFFmpegUnavailable, "FFmpeg was not found.")
 	}
-	status, bin := r.deps.Browsers.Ensure(ctx, run.st.BrowserPath, func(done, total int64) {
+	// A first export may download the pinned Chromium. That happens before the render clock starts
+	// (wait), so the render timeout bounds it here; OpenPage keeps the job context, because rod ties
+	// the browser's lifetime to the context it is given.
+	setupTimeout := time.Duration(run.st.TimeoutSeconds) * time.Second
+	if setupTimeout <= 0 {
+		setupTimeout = time.Hour
+	}
+	setupCtx, cancelSetup := context.WithTimeout(ctx, setupTimeout)
+	status, bin := r.deps.Browsers.Ensure(setupCtx, run.st.BrowserPath, func(done, total int64) {
 		if total > 0 {
 			h.SetProgress(0.05 * float64(done) / float64(total))
 		}
 	})
+	cancelSetup()
 	if !status.Ready {
 		return Output{}, Fail(CodeBrowserUnavailable, "%s", status.Issue)
 	}

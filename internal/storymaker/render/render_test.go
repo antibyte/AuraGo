@@ -670,3 +670,26 @@ func TestPrepareCollectsCodeSceneBundles(t *testing.T) {
 		t.Fatalf("bundles = %v", plan.Bundles)
 	}
 }
+
+// The browser setup of a first export (the pinned Chromium download) runs before the render clock
+// starts, so the render timeout has to bound it separately: a peer that stops sending must not
+// hold the single render worker.
+func TestRunBoundsTheBrowserSetupByTheRenderTimeout(t *testing.T) {
+	fx := newRunFixture(t)
+	archive := fakeChromiumZip(t, "chrome-x", nil)
+	srv := stalledArchiveServer(t, archive)
+	b := fx.deps.Browsers
+	b.lookPath = func() (string, bool) { return "", false }
+	b.pins = map[string]PinnedChromium{b.platform: pinFor(srv.URL, archive)}
+	b.idleTimeout = time.Hour // only the render timeout can end this download
+	fx.settings.TimeoutSeconds = 1
+	fx.playing(playOptions{frames: 10})
+	start := time.Now()
+	job := fx.render(t)
+	if job.Status != StatusFailed || job.Error == nil || job.Error.Code != CodeBrowserUnavailable || !strings.Contains(job.Error.Message, "downloaded") {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if took := time.Since(start); took > 20*time.Second {
+		t.Fatalf("the setup ran %s although render.timeout_seconds is 1", took)
+	}
+}

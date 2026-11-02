@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/fileutil"
@@ -68,6 +69,10 @@ const (
 	probeOKCacheFor     = 10 * time.Minute
 	probeFailCacheFor   = 30 * time.Second
 	browserProbeTimeout = 45 * time.Second
+	// downloadIdleTimeout is how long the pinned Chromium download may go without receiving a byte
+	// (the wait for the response headers included) before it is given up. The size of the archive
+	// is not limited by it: a slow link that keeps delivering is left alone.
+	downloadIdleTimeout = 60 * time.Second
 )
 
 // BrowserStatus is the browser part of GET /status.
@@ -95,6 +100,7 @@ type Browsers struct {
 	client      *http.Client
 	pins        map[string]PinnedChromium
 	platform    string
+	idleTimeout time.Duration // download stall limit; 0 selects downloadIdleTimeout
 
 	probeMu sync.Mutex
 	probes  map[string]probeResult
@@ -413,15 +419,33 @@ func (b *Browsers) install(ctx context.Context, pin PinnedChromium, progress Bro
 }
 
 func (b *Browsers) download(ctx context.Context, pin PinnedChromium, dest string, progress BrowserProgress) error {
+	idle := b.idleTimeout
+	if idle <= 0 {
+		idle = downloadIdleTimeout
+	}
+	// A peer that keeps the connection open but sends nothing would hold the caller (the single
+	// render worker) forever: the timer cancels the request when no byte arrived for idle.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var stalled atomic.Bool
+	timer := time.AfterFunc(idle, func() { stalled.Store(true); cancel() })
+	defer timer.Stop()
+	fail := func(err error) error {
+		if stalled.Load() {
+			return fmt.Errorf("download: no data for %s, the connection stalled", idle)
+		}
+		return fmt.Errorf("download: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pin.URL, nil)
 	if err != nil {
 		return err
 	}
 	res, err := b.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("download: %w", err)
+		return fail(err)
 	}
 	defer res.Body.Close()
+	timer.Reset(idle)
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("download: the server answered %d", res.StatusCode)
 	}
@@ -434,10 +458,11 @@ func (b *Browsers) download(ctx context.Context, pin PinnedChromium, dest string
 	}
 	hash := sha256.New()
 	counter := &countingWriter{progress: progress, total: pin.Size}
-	n, copyErr := io.Copy(io.MultiWriter(out, hash, counter), io.LimitReader(res.Body, pin.Size+1))
+	body := tickReader{r: io.LimitReader(res.Body, pin.Size+1), tick: func() { timer.Reset(idle) }}
+	n, copyErr := io.Copy(io.MultiWriter(out, hash, counter), body)
 	closeErr := out.Close()
 	if copyErr != nil {
-		return fmt.Errorf("download: %w", copyErr)
+		return fail(copyErr)
 	}
 	if closeErr != nil {
 		return closeErr
@@ -449,6 +474,20 @@ func (b *Browsers) download(ctx context.Context, pin PinnedChromium, dest string
 		return fmt.Errorf("download: the SHA-256 of the archive (%s) does not match the pinned value", got)
 	}
 	return nil
+}
+
+// tickReader calls tick after every read that delivered bytes.
+type tickReader struct {
+	r    io.Reader
+	tick func()
+}
+
+func (t tickReader) Read(p []byte) (int, error) {
+	n, err := t.r.Read(p)
+	if n > 0 {
+		t.tick()
+	}
+	return n, err
 }
 
 type countingWriter struct {

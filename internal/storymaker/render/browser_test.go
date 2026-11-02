@@ -12,9 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func exeName() string {
@@ -356,5 +358,81 @@ func TestBrowsersWithProbeKnowsThePinnedChromiumButNeverDownloadsIt(t *testing.T
 	st, exe := b.Ensure(context.Background(), "", nil)
 	if exe != "" || st.Ready || !strings.Contains(st.Issue, "switched off") {
 		t.Fatalf("Ensure = %+v %q, want no download", st, exe)
+	}
+}
+
+// stalledArchiveServer sends the headers and the first bytes of the archive and then goes silent
+// without closing the connection.
+func stalledArchiveServer(t *testing.T, archive []byte) *httptest.Server {
+	t.Helper()
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(archive)))
+		_, _ = w.Write(archive[:100])
+		w.(http.Flusher).Flush()
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	t.Cleanup(func() { close(release); srv.Close() })
+	return srv
+}
+
+func TestPinnedChromiumDownloadGivesUpOnAStalledConnection(t *testing.T) {
+	archive := fakeChromiumZip(t, "chrome-x", nil)
+	srv := stalledArchiveServer(t, archive)
+	b, _ := newTestBrowsers(t)
+	b.pins = map[string]PinnedChromium{b.platform: pinFor(srv.URL, archive)}
+	b.idleTimeout = 300 * time.Millisecond
+
+	// The guard only turns a missing stall timeout into a failure instead of a hung test.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	start := time.Now()
+	st, bin := b.Ensure(ctx, "", nil)
+	if st.Ready || bin != "" || !strings.Contains(st.Issue, "stalled") {
+		t.Fatalf("Ensure after a stall: %+v %q", st, bin)
+	}
+	if took := time.Since(start); took > 10*time.Second {
+		t.Fatalf("the stalled download held the caller for %s", took)
+	}
+	if parts, _ := filepath.Glob(filepath.Join(b.dir, "chromium-*")); len(parts) != 0 {
+		t.Fatalf("a stalled download left %v", parts)
+	}
+	// The lock is free again: a second export is not stuck behind the first.
+	done := make(chan struct{})
+	go func() { b.Ensure(ctx, "", nil); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the download lock was not released")
+	}
+}
+
+// The stall limit is an idle limit, not a deadline for the whole download: a slow link that keeps
+// delivering must finish.
+func TestPinnedChromiumDownloadKeepsASlowConnectionAlive(t *testing.T) {
+	archive := fakeChromiumZip(t, "chrome-x", nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(archive)))
+		for off := 0; off < len(archive); off += 60 {
+			end := min(off+60, len(archive))
+			_, _ = w.Write(archive[off:end])
+			w.(http.Flusher).Flush()
+			time.Sleep(120 * time.Millisecond)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	b, _ := newTestBrowsers(t)
+	b.pins = map[string]PinnedChromium{b.platform: pinFor(srv.URL, archive)}
+	b.idleTimeout = 500 * time.Millisecond
+	start := time.Now()
+	st, bin := b.Ensure(context.Background(), "", nil)
+	if !st.Ready || bin == "" {
+		t.Fatalf("a slow download was cut: %+v", st)
+	}
+	if took := time.Since(start); took < b.idleTimeout {
+		t.Fatalf("the download finished in %s, which does not exercise the idle limit (%s)", took, b.idleTimeout)
 	}
 }

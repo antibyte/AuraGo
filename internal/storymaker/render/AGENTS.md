@@ -34,13 +34,15 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
 - **Browser** (`browser.go`): `render.browser_path`, else `launcher.LookPath()`, else the pinned Chromium (revision 1321438, SHA-256 per
   platform in `pinnedChromium`, downloaded into `<DataDir>/storymaker/chromium-<rev>/` by the first export, never by a status request). A
   browser is `ready` only after a cached headless launch probe. Production launches never set `NoSandbox` (`newLauncher` deletes the flag rod adds
-  inside containers); `SetNoSandboxForTests` is the only way to set it and nothing outside tests calls it. On Ubuntu 23.10+ the pinned
+  inside containers); `SetNoSandboxForTests` is the only way to set it and nothing outside tests calls it. The pinned download gives up when no
+  byte arrives for 60 s (`downloadIdleTimeout`; a slow link that keeps delivering is left alone). On Ubuntu 23.10+ the pinned
   download only starts with its sandbox when `install.sh`/`update.sh` wrote the AppArmor profile that names
   `<install dir>/data/storymaker/chromium-*/chrome` (second profile of `/etc/apparmor.d/aurago-chromium-<user>`); the folder must stay
   below the data folder, because the hardened systemd unit can write only below the install directory. Moving it needs the profile
   (`chromium_sandbox_profile_text` in both scripts, pinned by `internal/audit/chromium_sandbox_profile_test.go`) and the installation
   guide changed with it.
-- **Timeouts**: report within 3 minutes of the navigation, no frame within 10 s after `start` kills the job as `code_error`, overall
+- **Timeouts**: the browser setup of a first export (the Chromium download) runs under `render.timeout_seconds` before the render clock starts
+  (`OpenPage` keeps the job context: the browser lives as long as it). Report within 3 minutes of the navigation, no frame within 10 s after `start` kills the job as `code_error`, overall
   `max(render.timeout_seconds, 3 x frames / measuredFPS[transport])`. Any `POST /error` from the page is fatal.
 - **Tests**: everything but `browser_smoke_test.go`, `egress_smoke_test.go` and the parity test in `internal/server` runs without a browser (a
   fake page plays the render page against the real listener). The browser tests need `AURAGO_RUN_BROWSER_SMOKE=1`; the transport spike also
