@@ -206,3 +206,153 @@ check('camera: a close framing on an actor of the real catalog shows the head an
     near(win.h, 1080 / 1.9, 1e-6);
 });
 
+// ---- the data of the real catalog ---------------------------------------------------------------------------------------
+
+const castsheet = playerStory('castsheet');
+
+check('real catalog: every character x view x expression resolves every slot to a variant or a deliberate "none"', () => {
+    const rig = files.rig, R = SM.rig, expressions = catalog.entries.filter(e => e.kind === 'expression'), characters = catalog.entries.filter(e => e.kind === 'character');
+    assert.equal(characters.length, 4);
+    assert.equal(expressions.length, 10);
+    const valueOf = (params, slot) => {
+        const outfit = rig.params.outfit[params.outfit];
+        switch (slot.param) {
+            case 'hair_back': return params.hair;
+            case 'top': case 'bottom': case 'shoes': return outfit[slot.param];
+            case 'eyes': case 'brows': case 'mouth': case 'hand': return 'drawn';
+            default: return params[slot.param];
+        }
+    };
+    let resolved = 0, none = 0;
+    for (const ch of characters) {
+        for (const view of R.VIEWS) {
+            for (const expr of expressions) {
+                const state = { expr, hands: {}, mouth: null, blink: false };
+                for (const slot of rig.slots) {
+                    const shapes = R.pickVariant(rig, ch.params, slot, state, view), where = ch.id + ' ' + view + ' ' + expr.name + ' ' + slot.name;
+                    if (shapes === null) {
+                        assert.equal(valueOf(ch.params, slot), 'none', where + ' has no variant and is not a deliberate none');
+                        none++;
+                    } else {
+                        assert.ok(Array.isArray(shapes), where);
+                        resolved++;
+                    }
+                }
+            }
+        }
+    }
+    assert.ok(resolved > 4 * 3 * 10 * 20 && none > 0, resolved + ' resolved, ' + none + ' deliberate');
+    // every variant has all three views, so no view silently falls back to another
+    for (const slot of rig.slots) {
+        for (const [key, v] of Object.entries(rig.variants[slot.name])) for (const view of R.VIEWS) assert.ok(Array.isArray(v[view]), slot.name + '/' + key + ' lacks ' + view);
+    }
+    // every hand shape a pose or gesture names, and every mouth an expression names, exists
+    const handShapes = Object.keys(rig.variants.hand_l), mouths = Object.keys(rig.variants.mouth);
+    for (const e of catalog.entries) {
+        for (const h of Object.values(e.hands || {})) assert.ok(handShapes.includes(h), e.id + ' hand ' + h);
+        for (const k of e.keys || []) for (const h of Object.values(k.hands || {})) assert.ok(handShapes.includes(h), e.id + ' key hand ' + h);
+        if (e.kind === 'expression') assert.ok(mouths.includes(e.mouth), e.id + ' mouth ' + e.mouth);
+    }
+});
+
+check('real catalog: firewall, minimal and the cast sheet compile with only the issues of a silent phase 1', () => {
+    const allowed = new Set(['narration_missing', 'not_supported_yet', 'layout_unverified']);
+    for (const [name, s] of [['firewall', firewall], ['minimal', story('minimal')], ['castsheet', castsheet]]) {
+        const out = compileReal(s), report = out.report, codes = [...report.issues, ...report.unverified].map(i => i.code);
+        assert.deepEqual(codes.filter(c => !allowed.has(c)), [], name + ': ' + JSON.stringify(report.issues.filter(i => !allowed.has(i.code))));
+        assert.equal(report.catalog_version, catalog.version);
+        assert.ok(out.needs.includes('catalog:rig/human.json') || name === 'minimal', name + ' needs the rig');
+    }
+    assert.equal(compileReal(castsheet).report.issues.length, 0, 'the cast sheet has no issue at all');
+    const ranges = compiled.report.scenes;
+    assert.deepEqual(plain(ranges.map(s => s.id)), ['s1', 's2', 's3']);
+    assert.ok(ranges.every((s, i) => s.end_frame > s.start_frame && (i === 0 || s.start_frame < ranges[i - 1].end_frame)), 'scenes follow each other, transitions overlap');
+    assert.equal(compiled.report.frame_count, Math.max(...ranges.map(s => s.end_frame)));
+});
+
+// drawn(tl, n, width): the call log of frame n, with the logs of the two transition canvases appended
+function drawn(tl, n, width) {
+    const cv = new FakeCanvas(width || tl.width, width ? Math.round(width * tl.height / tl.width) : tl.height), extra = [];
+    const canvas = (name, w, h) => { const c = new FakeCanvas(w, h); extra.push(c); return { canvas: c, ctx: c.ctx }; };
+    SM.renderFrame(tl, n, cv.ctx, realAssets({ canvas }), width ? { width } : undefined);
+    return [...cv.ctx.log, ...extra.flatMap(c => c.ctx.log)];
+}
+const noMagenta = (log, what) => assert.ok(!log.some(l => /#ff00ff/i.test(l)), what + ' draws an unresolved token colour');
+
+check('real catalog: frames of firewall.json in 16:9, 9:16 and 1:1 draw without an unresolved token', () => {
+    SM.parts.resetUnresolved();
+    for (const aspect of ['16:9', '9:16', '1:1']) {
+        const tl = compileReal({ ...firewall, format: { aspect, fps: 30 } }).timeline;
+        for (const n of [0, 40, 100, 114, 125, 150, 200, 233, 300, tl.frame_count - 1]) {
+            const log = drawn(tl, n);
+            assert.ok(log.length > 10, aspect + ' frame ' + n + ' draws something (a code scene draws its placeholder)');
+            noMagenta(log, aspect + ' frame ' + n);
+        }
+    }
+    assert.deepEqual(plain(SM.parts.unresolvedTokens()), []);
+});
+
+check('real catalog: every scene of the cast sheet, in both palettes, draws without an unresolved token or an exception', () => {
+    SM.parts.resetUnresolved();
+    for (const palette of ['sunny', 'calm']) {
+        const tl = compileReal({ ...castsheet, style: { ...castsheet.style, palette } }).timeline;
+        assert.equal(tl.scenes.length, castsheet.scenes.length);
+        for (const sc of tl.scenes) {
+            const log = drawn(tl, sc.start_frame + 21);
+            assert.ok(log.length > 100, sc.id + ' draws something');
+            noMagenta(log, palette + ' ' + sc.id);
+            // the scene's entities are all on the canvas: every actor's drawn parts exist (rig slots) and the text was laid out
+            if (sc.entities.some(e => e.type === 'actor')) assert.ok(log.filter(l => l.startsWith('setTransform')).length > 25, sc.id + ' draws the actors');
+        }
+    }
+    assert.deepEqual(plain(SM.parts.unresolvedTokens()), []);
+});
+
+check('real catalog: a prop stands on its spot (anchor bottom centre, size.h of the stage height) and a text keeps its style', () => {
+    const tl = compileReal({ scenes: [{ id: 'a', environment: 'env.plain-stage', props: [{ item: 'prop.lock', at: 'right' }], beats: [{ do: 'show', text: 'Paket', style: 'caption', at: 'center', entry: 'none' }] }] }).timeline;
+    const log = drawn(tl, 5), sc = tl.scenes[0], stage = SM.render.stageFor(sc, SM.render.makeContext(tl, realAssets(), 1920, 1080));
+    const lock = entry('prop.lock'), vb = files.props['props/lock.json'].viewbox, depth = stage.depthScale(0.88 * 1080), k = lock.size.h * 1080 * depth / vb[3];
+    const tx = 0.7 * 1920 - k * (vb[0] + 0.5 * vb[2]), ty = 0.88 * 1080 - k * (vb[1] + vb[3]);
+    assert.ok(log.some(l => l.startsWith('setTransform(' + [k, 0, 0, k, tx, ty].map(v => String(Math.round(v * 1000) / 1000)).join(','))), 'the padlock is placed with its bottom centre on the spot');
+    assert.ok(log.some(l => l === 'set font=500 45px "Geist", sans-serif'), 'the caption uses the weight 500 face of the default font at 0.042 of the height');
+    assert.ok(log.some(l => l.startsWith('fillText(Paket,960,')), 'the caption is centred');
+});
+
+check('real catalog: a left-facing actor is mirrored as a whole about the root', () => {
+    const mk = at => compileReal({ cast: [{ id: 'a', character: 'char.office-man-1' }], scenes: [{ id: 's', actors: [{ cast: 'a', at, facing: 'left' }] }] }).timeline;
+    const log = drawn(mk('center'), 3), flips = log.filter(l => l.startsWith('setTransform(-'));
+    assert.ok(flips.length > 20, 'the rig parts are drawn under a mirrored matrix');
+});
+
+// ---- the remaining rules of the catalog: views, walking, bodies, spots with a depth, fonts -------------------------------
+
+check('real catalog: pose view hints, the walk cycle and its speed, body types, spot depth and the four font weights', () => {
+    // pose.view hints, walking wins over everything
+    assert.equal(rigStateOf({ pose: { a: 'arms-crossed', b: 'arms-crossed', u: 1 } }).view, 'front');
+    assert.equal(rigStateOf({ pose: { a: 'wave', b: 'wave', u: 1 } }).view, 'three_quarter');
+    assert.equal(rigStateOf({ pose: { a: 'arms-crossed', b: 'arms-crossed', u: 1 }, walkTime: 0.1 }).view, 'profile');
+    // cycle keys: offset_y is positive = down (the root drops at the contact pose), the walk is periodic with its catalog period
+    assert.equal(rigStateOf({ walkTime: 0 }).offsetY, 21);
+    assert.equal(rigStateOf({ walkTime: 0.25 }).offsetY, 0);
+    assert.equal(rigStateOf({ walkTime: 1 }).offsetY, 21, 'one period later: the same pose');
+    // walk.speed (16) is percent of the design width per second at depth 1: left (30 %) to centre (50 %) at 88 % height
+    const out = compileReal({ cast: [{ id: 'anna', character: 'char.office-woman-1' }], scenes: [{ id: 's', actors: [{ cast: 'anna', at: 'left' }], beats: [{ do: 'walk', who: 'anna', to: 'center' }] }] });
+    const actor = out.timeline.scenes[0].entities[0], stage = SM.render.stageFor(out.timeline.scenes[0], SM.render.makeContext(out.timeline, realAssets(), 1920, 1080));
+    near(actor.x.end(), 0.2 * 1920 / (0.16 * 1920 * stage.depthScale(0.88 * 1080)), 1e-6, 'seconds of the walk');
+    // body types: a rest override merges per coordinate, the scale multiplies the screen scale
+    const R = SM.rig, rig = files.rig, broad = R.boneMatrices(rig, 'front', R.bodyOf(rig, 'broad'), {}), child = R.boneMatrices(rig, 'front', R.bodyOf(rig, 'child'), {});
+    near(broad.upper_arm_r[4], 96, 1e-9); near(broad.upper_arm_r[5], -440 - 25 - 209, 1e-9);
+    near(child.hips[5], -375, 1e-9);
+    near(R.scaleFor(rig, 1080, 1, 1, R.bodyOf(rig, 'elder')), 0.55 * 1080 * 0.97 / 1000, 1e-9);
+    // a spot with a depth (0 far .. 1 near) overrides the floor lookup; the starter catalog has none, so build one
+    const env = { ...entry('env.office'), spots: { ...entry('env.office').spots, shelf: { x: 80, y: 60, depth: 1 } } };
+    const st = SM.stage.create({ aspect: '16:9', env }), shelf = st.spot('shelf');
+    assert.equal(shelf.depth, 1);
+    near(st.depthScale(shelf.y, shelf.depth), env.floor.scale_near, 1e-9);
+    // fonts: the default font has four weights, the text styles pick 700, 500 and 600
+    assert.deepEqual(catalog.fonts.map(f => f.weight), [400, 500, 600, 700]);
+    const texts = compileReal({ scenes: [{ id: 'a', beats: [
+        { do: 'show', text: 'a', entry: 'none' }, { do: 'show', text: 'b', style: 'caption', at: { x: 50, y: 80 }, entry: 'none', with: 'prev' },
+        { do: 'show', text: 'c', style: 'label', at: { x: 20, y: 50 }, entry: 'none', with: 'prev' }] }] });
+    assert.deepEqual(plain(texts.needs.filter(n => n.startsWith('font:'))), ['font:default/500', 'font:default/600', 'font:default/700']);
+});
