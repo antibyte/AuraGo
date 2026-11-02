@@ -81,6 +81,73 @@ func TestExecuteSudoHonorsForegroundCancellation(t *testing.T) {
 	}
 }
 
+func TestSudoRechecksPermissionsAfterAuthentication(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sudo commands are Unix-only")
+	}
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	previous := sudoRunCommand
+	t.Cleanup(func() { sudoRunCommand = previous })
+	for _, test := range []struct {
+		name      string
+		operation string
+		revoke    func(*RuntimePermissions)
+	}{
+		{"shell allowed", "", nil},
+		{"package allowed", "install", nil},
+		{"shell", "", func(p *RuntimePermissions) { p.AllowShell = false }},
+		{"host", "", func(p *RuntimePermissions) { p.AllowUnsafeHostExecution, p.AllowUnsandboxedShell = false, false }},
+		{"package manager", "install", func(p *RuntimePermissions) { p.PackageManagerEnabled = false }},
+		{"package readonly", "install", func(p *RuntimePermissions) { p.PackageManagerReadOnly = true }},
+		{"package install", "install", func(p *RuntimePermissions) { p.PackageManagerAllowInstall = false }},
+		{"package remove", "remove", func(p *RuntimePermissions) { p.PackageManagerAllowRemove = false }},
+		{"package update", "update", func(p *RuntimePermissions) { p.PackageManagerAllowUpgrade = false }},
+		{"package upgrade", "upgrade", func(p *RuntimePermissions) { p.PackageManagerAllowUpgrade = false }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			perms := defaultRuntimePermissionsForTests()
+			perms.PackageManagerEnabled, perms.PackageManagerAllowInstall = true, true
+			perms.PackageManagerAllowRemove, perms.PackageManagerAllowUpgrade = true, true
+			ConfigureRuntimePermissions(perms)
+			started := false
+			sudoRunCommand = func(_, dir string) *exec.Cmd {
+				started = true
+				cmd := exec.Command(os.Args[0], "-test.run=^$")
+				cmd.Dir = dir
+				return cmd
+			}
+			// Authentication revokes the grant; sudo and package managers are never executed.
+			t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+				Passwordless: func(context.Context, string) error { return errors.New("password required") },
+				Validate: func(context.Context, string, string) ([]byte, error) {
+					if test.revoke != nil {
+						test.revoke(&perms)
+						ConfigureRuntimePermissions(perms)
+					}
+					return nil, nil
+				},
+				Probe: func(context.Context, string) error { return nil },
+				Drop:  func() {},
+			}))
+			ctx := WithRuntimePermissions(context.Background(), perms)
+			var err error
+			if test.operation != "" {
+				_, _, err = runPackageManagerMutation(ctx, "apt", test.operation, "test-only", true, "test-only")
+			} else {
+				_, _, err = ExecuteSudo(ctx, "echo test-only", t.TempDir(), "test-only")
+			}
+			if test.revoke == nil {
+				if !started || err != nil {
+					t.Fatalf("allowed command: started=%v, error=%v", started, err)
+				}
+			} else if started || err == nil {
+				t.Fatalf("revoked permission reached command construction: started=%v, error=%v", started, err)
+			}
+		})
+	}
+}
+
 func TestNormalizeSudoStderrLeavesRegularErrors(t *testing.T) {
 	stderr := "permission denied"
 	got := normalizeSudoStderr(stderr)

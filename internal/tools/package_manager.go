@@ -86,7 +86,9 @@ func runPackageManagerMutation(ctx context.Context, pm, operation, pkg string, s
 		if strings.TrimSpace(password) == "" {
 			return "", "", fmt.Errorf("sudo password is required for %s with %s; store sudo_password in the vault", operation, pm)
 		}
-		stdout, stderr, err := ExecuteSudo(ctx, shellJoin(cmd.Args), ".", password)
+		stdout, stderr, err := executeSudo(ctx, shellJoin(cmd.Args), ".", password, func() error {
+			return requirePackageManagerMutationPermission(ctx, operation)
+		})
 		return NormalizePMOutput(stdout), NormalizePMOutput(stderr), err
 	}
 	stdout, stderr, err := runPackageManagerCommand(ctx, cmd)

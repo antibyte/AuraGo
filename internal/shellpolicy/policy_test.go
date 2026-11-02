@@ -120,3 +120,15 @@ func TestValidateCommandRespectsShellEscapesAndComments(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCommandKeepsQuotedOptionArgumentsLiteral(t *testing.T) {
+	t.Parallel()
+	for _, escape := range []byte{'\\', '`', '^'} {
+		for _, argument := range []string{"-n; rm", "-n|rm", "-n & rm", "-n\t; rm"} {
+			command := `echo "` + argument + `" "-rf" classification-only`
+			if err := ValidateCommandWithEscape(command, escape); err != nil {
+				t.Errorf("quoted option argument %q with escape %q was treated as a command: %v", argument, escape, err)
+			}
+		}
+	}
+}

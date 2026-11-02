@@ -36,7 +36,7 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		word, end := literalCommandWord(command, i, escape, breaks)
 		i = end
 		if !atHead {
-			if strings.HasPrefix(word, "-") {
+			if strings.HasPrefix(word, "-") && !strings.ContainsAny(word, " \t\r\n;&|") {
 				out.WriteString(word)
 			} else {
 				out.WriteString(command[start:end])

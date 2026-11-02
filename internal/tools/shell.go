@@ -217,6 +217,10 @@ func ExecuteShellBackground(ctx context.Context, command, workspaceDir string, r
 // It returns stdout, stderr, and any execution or timeout error.
 // On Windows this is a no-op and returns an unsupported error.
 func ExecuteSudo(ctx context.Context, command, workspaceDir, password string) (string, string, error) {
+	return executeSudo(ctx, command, workspaceDir, password, nil)
+}
+
+func executeSudo(ctx context.Context, command, workspaceDir, password string, recheck func() error) (string, string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -245,6 +249,19 @@ func ExecuteSudo(ctx context.Context, command, workspaceDir, password string) (s
 		return "", normalizeSudoStderr(authOut), err
 	}
 	defer lease.Release()
+
+	// Authentication can wait while the administrator revokes a grant.
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
+	if err := requireHostShellExecutionContext(ctx); err != nil {
+		return "", "", err
+	}
+	if recheck != nil {
+		if err := recheck(); err != nil {
+			return "", "", err
+		}
+	}
 
 	cmd := sudoRunCommand(command, absWorkDir)
 	ensureFilteredShellEnv(cmd)
