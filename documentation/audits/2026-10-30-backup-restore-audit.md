@@ -44,6 +44,35 @@ Tests:
     - Die Server-Meldungen des Backups sind deutsch, auch bei englischer UI (bestehende Konvention des Handlers).
 - Abnahme auf aurago-test (Linux, echte Daten) steht noch aus.
 
+### Welle 3 (2026-11-02)
+
+Welle 3 ist auf main; `9641f205f` ist noch nicht gepusht, nichts ist deployed.
+
+| Befund | Commit | Kern der Änderung |
+| --- | --- | --- |
+| U3, U4, U5 | `858ed5a4d` | `update.sh` sichert und stellt `-wal`/`-shm` mit jeder DB her (veraltete Sidecars werden entfernt); das alte `agent_workspace/prompts` wird nur gelöscht, wenn `find` und Kopie erfolgreich waren und kein Ziel abweicht; kein `/tmp`-Fallback mehr, eine fehlende `config.yaml` kommt nur aus einer vertrauenswürdigen Transaktionssicherung |
+| B9, B10, B6, B5 | `cbf612cb8` | Import vergleicht mit der laufenden Instanz (Login aus, `server.host`, Passwort-Hash, TOTP/Passkeys, `require_origin_header`, neue oder geänderte Tokens inkl. Scopes, Prompts/Skills/Agent-Skills/Tools, Cronjobs, Credential-DBs); bei Änderungen wartet die Wiederherstellung auf `POST /api/backup/restore-status {"action":"confirm","id"}`, der Start wendet unbestätigte nicht an; unbekannte Token-Scopes → 400; UI mit Liste, Bestätigen und Verwerfen (16 Sprachen). Ohne Login antworten die Backup-Endpunkte nur für IP-Literal, localhost, Rechnernamen, konfigurierte Domains und den exakten Tailscale-Namen, sonst 403 `login_required_for_host`. Verzeichnisse kommen aus der aktiven Config (Symlink- und Containment-Prüfung); DBs, die der eigene Import ablehnen würde, werden beim Erstellen übersprungen und gemeldet. Ausschlüsse gelten relativ zum durchlaufenen Verzeichnis |
+| M2, M3 | `f72b35b01`, `9641f205f` | Ohne verifizierten Snapshot von heute überspringt die Wartung alle löschenden Schritte (Ledger: `destructive_steps_skipped_no_snapshot`), Skill-Löschungen werden zu `review_required`; ein nicht konfigurierter Snapshot blockiert nicht. Fehlgeschlagene `auto-*`-Verzeichnisse werden sofort entfernt, liegengebliebene ab 24 h (nur bekannte Dateien) |
+| Doku | `1fb2857ce` | Handbuch en/de (Sicherheit, Anhang, API-Referenz), `tresor.md` |
+
+Tests:
+
+- `restorepending`, Backup-Tests im Server-Paket (inkl. `backup_wave3_test.go`), `ui`, Memory-Paket und Wartungstests in `internal/agent` grün.
+- Updater-Tests unter Linux im Container `golang:1.27.3` grün.
+- Rote Tests in `internal/audit` kommen von fremden Kopien unter `.tmp_aurago/baseline-check/` und haben mit Welle 3 nichts zu tun.
+
+Verhaltensänderungen:
+
+- Eigene Backups mit Tokens, deren Scopes heute unbekannt sind, werden mit 400 abgelehnt.
+- Ein älteres eigenes Backup, dessen Tokens, Skills, Tools, Prompts oder Cronjobs vom laufenden Stand abweichen, braucht jetzt eine Bestätigung vor dem Neustart.
+- Ohne Login sind die Backup-Endpunkte über fremde Hostnamen (DNS-Rebinding) gesperrt.
+
+Noch offen:
+
+- Abnahme auf aurago-test.
+- Das Scratch-Skript der Welle-2-Abnahme braucht einen Bestätigungsschritt.
+- Low-Punkte.
+
 Neu offen aus dem Review:
 
 - `snapshot.publication.correction.*`: Eine fehlgeschlagene Korrektur behält ihren Marker, bis dieselbe Korrektur erneut angewendet wird (`correction_apply.go:129-137`). Wird sie nie wiederholt, bleiben Snapshots gesperrt.
