@@ -1,0 +1,16 @@
+{
+  "calc": "mosfet_losses",
+  "sets": [
+    {"values": {"i_d": 10, "rds": 0.01, "duty": 0.5, "vds": 12, "tr": 2e-08, "tf": 2e-08, "fsw": 200000, "vdson": 0.1, "pcond": 0.5, "psw": 0.48, "ptot": 0.98}, "ref": "hand: V_DS(on) = 10 A * 10 mohm = 0.1 V; P_cond = 0.5 * (10 A)^2 * 10 mohm = 0.5 * 100 * 0.01 = 0.5 W; P_sw = 0.5 * 12 V * 10 A * (20 ns + 20 ns) * 200 kHz = 60 W * 0.008 = 0.48 W; P_tot = 0.98 W"},
+    {"values": {"i_d": 30, "rds": 0.004, "duty": 0.25, "vds": 48, "tr": 5e-08, "tf": 3e-08, "fsw": 100000, "vdson": 0.12, "pcond": 0.9, "psw": 5.76, "ptot": 6.66}, "ref": "hand: V_DS(on) = 30 A * 4 mohm = 0.12 V; P_cond = 0.25 * (30 A)^2 * 4 mohm = 0.25 * 900 * 0.004 = 0.9 W; P_sw = 0.5 * 48 V * 30 A * (50 ns + 30 ns) * 100 kHz = 720 W * 0.008 = 5.76 W; P_tot = 6.66 W"},
+    {"values": {"i_d": 5, "rds": 0.05, "duty": 1, "vds": 5, "tr": 1e-08, "tf": 1e-08, "fsw": 1000000, "vdson": 0.25, "pcond": 1.25, "psw": 0.25, "ptot": 1.5}, "ref": "hand: V_DS(on) = 5 A * 50 mohm = 0.25 V; P_cond = 1 * (5 A)^2 * 50 mohm = 1.25 W; P_sw = 0.5 * 5 V * 5 A * (10 ns + 10 ns) * 1 MHz = 12.5 W * 0.02 = 0.25 W; P_tot = 1.5 W"},
+    {"values": {"i_d": 20, "rds": 0.005, "duty": 0.8, "vds": 24, "tr": 1.5e-08, "tf": 2.5e-08, "fsw": 50000, "vdson": 0.1, "pcond": 1.6, "psw": 0.48, "ptot": 2.08}, "ref": "hand: V_DS(on) = 20 A * 5 mohm = 0.1 V; P_cond = 0.8 * (20 A)^2 * 5 mohm = 0.8 * 400 * 0.005 = 1.6 W; P_sw = 0.5 * 24 V * 20 A * (15 ns + 25 ns) * 50 kHz = 240 W * 0.002 = 0.48 W; P_tot = 2.08 W"}
+  ],
+  "solve": [
+    {"inputs": {"i_d": 10, "rds": 0.01, "duty": 0.5, "vds": 12, "tr": 2e-08, "tf": 2e-08, "fsw": 200000}, "expect": {"vdson": 0.1, "pcond": 0.5, "psw": 0.48, "ptot": 0.98}, "warnings": [], "ref": "hand: the first set - 0.5 W conduction + 0.48 W switching = 0.98 W"},
+    {"inputs": {"i_d": 10, "rds": 0.01, "duty": 0, "vds": 12, "tr": 2e-08, "tf": 2e-08, "fsw": 200000}, "expect": {"pcond": 0, "psw": 0.48, "ptot": 0.48}, "warnings": [], "ref": "hand: with D = 0 the conduction loss is 0 * ... = 0; the switching loss formula does not contain D, so P_sw = 0.48 W is unchanged"},
+    {"inputs": {"i_d": 10, "rds": 0.01, "duty": 1.2, "vds": 12, "tr": 2e-08, "tf": 2e-08, "fsw": 200000}, "expect": {"pcond": 1.2, "ptot": 1.68}, "warnings": [0], "ref": "hand: D = 1.2 (120 %) gives P_cond = 1.2 * 100 * 0.01 = 1.2 W and fires the duty check; P_tot = 1.2 W + 0.48 W = 1.68 W"},
+    {"inputs": {"i_d": 10, "rds": 0.01, "duty": 0.5, "vds": 12, "tr": 4e-07, "tf": 4e-07, "fsw": 1000000}, "expect": {"pcond": 0.5, "psw": 48, "ptot": 48.5}, "warnings": [1], "ref": "hand: (t_r + t_f) * f_sw = 800 ns * 1 MHz = 0.8 is above 0.5 (second check); P_sw = 0.5 * 12 V * 10 A * 0.8 = 48 W; P_tot = 0.5 W + 48 W = 48.5 W"},
+    {"inputs": {"i_d": 10, "rds": 0.01, "duty": 0.5, "vds": 12, "tr": 2e-08, "tf": 2e-08}, "errors": {"fsw": "undetermined"}, "warnings": [], "ref": "the switching frequency is missing: it is an input of this forward-only calculator, so it is undetermined"}
+  ]
+}

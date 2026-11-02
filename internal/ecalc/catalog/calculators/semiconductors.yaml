@@ -1,0 +1,213 @@
+# Semiconductor calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in
+# English and German (other languages fall back to English). Rules are written out for every direction, in the order
+# the solver tries them: the first alternative whose variables are all known wins. bjt_divider_bias and mosfet_losses
+# are forward-only (every variable is an input, only derived quantities are results).
+
+- id: led_resistor
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Předřadný rezistor pro LED", da: "Forkoblingsmodstand til LED", de: "LED-Vorwiderstand", el: "Αντίσταση περιορισμού ρεύματος LED", en: "LED series resistor", es: "Resistencia limitadora para LED", fr: "Résistance série pour LED", hi: "LED श्रेणी प्रतिरोधक", it: "Resistenza in serie per LED", ja: "LEDの電流制限抵抗", nl: "Voorschakelweerstand voor LED", no: "Seriemotstand for LED", pl: "Rezystor szeregowy do diody LED", pt: "Resistência em série para LED", sv: "Serieresistor för LED", zh: "LED限流电阻"}
+  doc:
+    en: "An LED needs a series resistor that takes up the part of the supply voltage the LEDs do not use: R = (V_S − n × V_F) / I_F for a string of n LEDs in series. Parallel strings each get their own resistor, so the supply delivers m × I_F in total; never let several parallel strings share one resistor. Example with the defaults: a 12 V supply and two strings of three red LEDs (V_F ≈ 2 V) at 20 mA need 300 Ω per string; the supply delivers 40 mA (0.48 W), and half of that power is lost in the resistors. Take V_F from the datasheet for the chosen current; it varies with colour, current and temperature."
+    de: "Eine LED braucht einen Vorwiderstand, der den Teil der Versorgungsspannung aufnimmt, den die LEDs nicht benötigen: R = (V_S − n · V_F) / I_F für einen Strang aus n LEDs in Reihe. Parallele Stränge erhalten je einen eigenen Widerstand, die Versorgung liefert dann insgesamt m · I_F; mehrere parallele Stränge nie an einem gemeinsamen Widerstand betreiben. Beispiel mit den Vorgaben: Bei 12 V Versorgung brauchen zwei Stränge aus je drei roten LEDs (V_F ≈ 2 V) mit 20 mA je 300 Ω; die Versorgung liefert 40 mA (0,48 W), die Hälfte dieser Leistung geht in den Widerständen verloren. V_F dem Datenblatt für den gewählten Strom entnehmen; er hängt von Farbe, Strom und Temperatur ab."
+  tags: [led, series resistor, current limiting resistor, forward voltage, led resistor, vorwiderstand, led-vorwiderstand, flussspannung, strombegrenzung, leuchtdiode]
+  source: "Kirchhoff's voltage law and Ohm's law for an LED string (the LED as a diode with a forward voltage); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (LEDs and diode circuits)"
+  vars:
+    vs: {dim: voltage, label: V_S, name: {en: "Supply voltage", de: "Versorgungsspannung"}, default: "12 V"}
+    vf: {dim: voltage, label: V_F, name: {en: "Forward voltage per LED", de: "Flussspannung je LED"}, default: "2 V"}
+    n: {dim: number, label: n, name: {en: "LEDs per string", de: "LEDs je Strang"}, default: 3}
+    m: {dim: number, label: m, name: {en: "Parallel strings", de: "Parallele Stränge"}, default: 2}
+    i: {dim: current, label: I_F, name: {en: "Current per LED", de: "Strom je LED"}, default: "20 mA"}
+    r: {dim: resistance, label: R, name: {en: "Series resistor per string", de: "Vorwiderstand je Strang"}, eseries: true}
+  dof: 5
+  rules:
+    r: ["(vs-n*vf)/i"]
+    i: ["(vs-n*vf)/r"]
+    vs: ["i*r+n*vf"]
+    vf: ["(vs-i*r)/n"]
+    n: ["(vs-i*r)/vf"]
+  derived:
+    vr: {dim: voltage, label: V_R, name: {en: "Voltage across the resistor", de: "Spannung am Vorwiderstand"}, expr: ["vs-n*vf", "i*r"]}
+    itot: {dim: current, label: I_tot, name: {en: "Total current (all strings)", de: "Gesamtstrom (alle Stränge)"}, expr: "m*i"}
+    pr: {dim: power, label: P_R, name: {en: "Power in each resistor", de: "Verlustleistung je Widerstand"}, expr: ["i^2*r", "vr*i"]}
+    pled: {dim: power, label: P_LED, name: {en: "Power in each LED", de: "Leistung je LED"}, expr: "vf*i"}
+    ptot: {dim: power, label: P_tot, name: {en: "Total power from the supply", de: "Gesamtleistung aus der Versorgung"}, expr: ["vs*itot", "m*(pr+n*pled)"]}
+    eta: {dim: ratio, label: η, name: {en: "Share of the power in the LEDs", de: "Leistungsanteil in den LEDs"}, expr: "n*vf/vs", unit: pct}
+  checks:
+    - {when: "vs <= n*vf", warn: {en: "The supply voltage does not exceed the forward voltage of the string: no resistor can set the current.", de: "Die Versorgungsspannung liegt nicht über der Flussspannung des Strangs: Kein Vorwiderstand kann den Strom einstellen."}}
+    - {when: "(abs(n-round(n)) > 0.000001) + (abs(m-round(m)) > 0.000001) > 0", warn: {en: "The number of LEDs per string and the number of strings must be whole numbers.", de: "Die Anzahl der LEDs je Strang und die Anzahl der Stränge müssen ganze Zahlen sein."}}
+    - {when: "pr > 0.25", warn: {en: "The resistor dissipates more than 0.25 W: use a resistor with a higher power rating.", de: "Der Vorwiderstand setzt mehr als 0,25 W um: einen Widerstand mit höherer Nennleistung verwenden."}}
+  formula: ["r = (vs - n * vf) / i", "itot = m * i", "ptot = vs * itot"]
+  schematic: led_resistor
+
+- id: zener_regulator
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Stabilizátor se Zenerovou diodou", da: "Zener-spændingsregulator", de: "Z-Dioden-Stabilisierung", el: "Σταθεροποιητής με δίοδο Zener", en: "Zener regulator", es: "Regulador con diodo Zener", fr: "Régulateur à diode Zener", hi: "ज़ेनर रेगुलेटर", it: "Regolatore con diodo Zener", ja: "ツェナーダイオード定電圧回路", nl: "Zenerdiode-stabilisator", no: "Zenerregulator", pl: "Stabilizator z diodą Zenera", pt: "Regulador com díodo Zener", sv: "Zenerregulator", zh: "齐纳稳压电路"}
+  doc:
+    en: "A shunt regulator: a series resistor R feeds a Zener diode in parallel with the load. R must pass the maximum load current I_L plus the minimum Zener current I_Z(min) that keeps the Zener in regulation: R = (V_in − V_Z) / (I_L + I_Z(min)). Without load the whole current flows through the Zener, so its power is V_Z × I_R at no load, the worst case. The Zener is treated as ideal (dynamic resistance neglected). Use the lowest input voltage to size R and check the powers with the highest. Example with the defaults: 12 V to 5.1 V at 20 mA load and 5 mA minimum Zener current needs 276 Ω (270 Ω is the nearest E24 value); the Zener then dissipates about 0.13 W without load."
+    de: "Ein Parallelregler: Ein Vorwiderstand R speist eine Z-Diode parallel zur Last. R muss den maximalen Laststrom I_L plus den minimalen Z-Strom I_Z(min) führen, der die Z-Diode in der Regelung hält: R = (V_in − V_Z) / (I_L + I_Z(min)). Ohne Last fließt der gesamte Strom durch die Z-Diode, ihre Leistung ist dann V_Z · I_R, der ungünstigste Fall. Die Z-Diode wird als ideal behandelt (differenzieller Widerstand vernachlässigt). R mit der kleinsten Eingangsspannung bemessen und die Leistungen mit der größten prüfen. Beispiel mit den Vorgaben: Von 12 V auf 5,1 V bei 20 mA Last und 5 mA minimalem Z-Strom braucht man 276 Ω (270 Ω ist der nächste E24-Wert); die Z-Diode setzt ohne Last dann etwa 0,13 W um."
+  tags: [zener, zener diode, shunt regulator, voltage regulator, regulator, voltage reference, z-diode, spannungsstabilisierung, parallelregler, stabilisierung, vorwiderstand]
+  source: "Zener shunt regulator (series resistor R = (V_in − V_Z) / (I_L + I_Z) with an ideal Zener); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (Zener diode regulators)"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    vz: {dim: voltage, label: V_Z, name: {en: "Zener voltage", de: "Z-Spannung"}, default: "5.1 V"}
+    il: {dim: current, label: I_L, name: {en: "Maximum load current", de: "Maximaler Laststrom"}, default: "20 mA"}
+    izmin: {dim: current, label: I_Zmin, name: {en: "Minimum Zener current", de: "Minimaler Z-Strom"}, default: "5 mA"}
+    r: {dim: resistance, label: R, name: {en: "Series resistor", de: "Vorwiderstand"}, eseries: true}
+  dof: 4
+  rules:
+    r: ["(vin-vz)/(il+izmin)"]
+    il: ["(vin-vz)/r-izmin"]
+    izmin: ["(vin-vz)/r-il"]
+    vin: ["r*(il+izmin)+vz"]
+    vz: ["vin-r*(il+izmin)"]
+  derived:
+    ir: {dim: current, label: I_R, name: {en: "Resistor current (Zener current without load)", de: "Widerstandsstrom (Z-Strom ohne Last)"}, expr: ["il+izmin", "(vin-vz)/r"]}
+    pz: {dim: power, label: P_Z, name: {en: "Zener power without load", de: "Z-Dioden-Leistung ohne Last"}, expr: ["vz*ir", "vin*ir-pr"]}
+    pr: {dim: power, label: P_R, name: {en: "Resistor power", de: "Leistung im Vorwiderstand"}, expr: ["(vin-vz)*ir", "ir^2*r"]}
+    pl: {dim: power, label: P_L, name: {en: "Load power", de: "Lastleistung"}, expr: "vz*il"}
+    eta: {dim: ratio, label: η, name: {en: "Efficiency at full load", de: "Wirkungsgrad bei Volllast"}, expr: "pl/(vin*ir)", unit: pct}
+  checks:
+    - {when: "vin <= vz", warn: {en: "V_in must be above V_Z: otherwise no current flows through the series resistor.", de: "V_in muss über V_Z liegen: Sonst fließt kein Strom durch den Vorwiderstand."}}
+    - {when: "(il < 0) + (izmin < 0) > 0", warn: {en: "The resistor cannot supply the load current plus the minimum Zener current (one of the currents comes out negative).", de: "Der Widerstand kann Laststrom und minimalen Z-Strom nicht liefern (einer der Ströme wird negativ)."}}
+    - {when: "pz > 0.5", warn: {en: "The Zener dissipates more than 0.5 W without load: a 500 mW Zener is not enough.", de: "Die Z-Diode setzt ohne Last mehr als 0,5 W um: Eine 500-mW-Diode reicht nicht."}}
+    - {when: "pr > 0.25", warn: {en: "The series resistor dissipates more than 0.25 W: use a resistor with a higher power rating.", de: "Der Vorwiderstand setzt mehr als 0,25 W um: einen Widerstand mit höherer Nennleistung verwenden."}}
+  formula: ["r = (vin - vz) / (il + izmin)", "pz = vz * ir"]
+  schematic: zener_regulator
+
+- id: transistor_switch
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Tranzistor jako spínač", da: "Transistor som kontakt", de: "Transistor als Schalter", el: "Τρανζίστορ ως διακόπτης", en: "Transistor switch", es: "Transistor como interruptor", fr: "Transistor en commutation", hi: "ट्रांजिस्टर स्विच", it: "Transistor come interruttore", ja: "トランジスタスイッチ", nl: "Transistor als schakelaar", no: "Transistor som bryter", pl: "Tranzystor jako przełącznik", pt: "Transístor como interruptor", sv: "Transistor som brytare", zh: "晶体管开关"}
+  doc:
+    en: "An NPN transistor as a saturated low-side switch: the base resistor must pass enough base current to drive the collector current I_C into saturation. The minimum base current is I_C / h_FE; the overdrive factor multiplies it (a factor of 2 to 10 is common) so that the transistor stays saturated despite spread and temperature: I_B = overdrive × I_C / h_FE and R_B = (V_in − V_BE) / I_B. Use the minimum h_FE from the datasheet at this collector current, not the typical value. Example with the defaults: a 5 V logic output switching 100 mA with h_FE = 100 and an overdrive of 5 needs 5 mA of base current and R_B = 860 Ω. The forced gain h_FE / overdrive is the ratio I_C / I_B the circuit actually uses."
+    de: "Ein NPN-Transistor als gesättigter Low-Side-Schalter: Der Basiswiderstand muss genug Basisstrom führen, um den Kollektorstrom I_C in die Sättigung zu treiben. Der Mindest-Basisstrom ist I_C / h_FE; der Übersteuerungsfaktor vergrößert ihn (üblich sind Faktoren von 2 bis 10), damit der Transistor trotz Streuung und Temperatur gesättigt bleibt: I_B = Übersteuerung · I_C / h_FE und R_B = (V_in − V_BE) / I_B. Den Mindestwert von h_FE aus dem Datenblatt bei diesem Kollektorstrom verwenden, nicht den typischen. Beispiel mit den Vorgaben: Ein 5-V-Logikausgang, der 100 mA schaltet, braucht bei h_FE = 100 und 5-facher Übersteuerung 5 mA Basisstrom und R_B = 860 Ω. Die Zwangsstromverstärkung h_FE / Übersteuerung ist das Verhältnis I_C / I_B, das die Schaltung tatsächlich nutzt."
+  tags: [transistor, bjt, npn, switch, saturation, base resistor, overdrive, hfe, forced beta, transistor schalter, basiswiderstand, sättigung, übersteuerung, stromverstärkung]
+  source: "Saturated BJT switch (R_B = (V_in − V_BE) / I_B with I_B = overdrive × I_C / h_FE); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 2"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Drive voltage", de: "Ansteuerspannung"}, default: "5 V"}
+    vbe: {dim: voltage, label: V_BE, name: {en: "Base-emitter voltage", de: "Basis-Emitter-Spannung"}, default: "0.7 V"}
+    ic: {dim: current, label: I_C, name: {en: "Collector current", de: "Kollektorstrom"}, default: "100 mA"}
+    hfe: {dim: number, label: h_FE, name: {en: "Current gain (minimum)", de: "Stromverstärkung (Minimum)"}, default: 100}
+    od: {dim: number, label: k, name: {en: "Overdrive factor", de: "Übersteuerungsfaktor"}, default: 5}
+    rb: {dim: resistance, label: R_B, name: {en: "Base resistor", de: "Basiswiderstand"}, eseries: true}
+  dof: 5
+  rules:
+    rb: ["(vin-vbe)*hfe/(od*ic)"]
+    ic: ["(vin-vbe)*hfe/(od*rb)"]
+    hfe: ["od*ic*rb/(vin-vbe)"]
+    od: ["(vin-vbe)*hfe/(ic*rb)"]
+    vin: ["od*ic*rb/hfe+vbe"]
+    vbe: ["vin-od*ic*rb/hfe"]
+  derived:
+    ib: {dim: current, label: I_B, name: {en: "Base current", de: "Basisstrom"}, expr: "od*ic/hfe"}
+    vrb: {dim: voltage, label: V_RB, name: {en: "Voltage across the base resistor", de: "Spannung am Basiswiderstand"}, expr: ["vin-vbe", "ib*rb"]}
+    betaf: {dim: number, label: β_forced, name: {en: "Forced gain I_C / I_B", de: "Zwangsstromverstärkung I_C / I_B"}, expr: ["hfe/od", "ic/ib"]}
+    prb: {dim: power, label: P_RB, name: {en: "Base resistor power", de: "Leistung im Basiswiderstand"}, expr: ["ib^2*rb", "vrb*ib"]}
+  checks:
+    - {when: "vin <= vbe", warn: {en: "V_in does not exceed V_BE: no base current can flow.", de: "V_in liegt nicht über V_BE: Es kann kein Basisstrom fließen."}}
+    - {when: "od < 1", warn: {en: "Overdrive below 1: the base current is smaller than I_C / h_FE, so the transistor does not saturate.", de: "Übersteuerung unter 1: Der Basisstrom ist kleiner als I_C / h_FE, der Transistor sättigt nicht."}}
+  formula: ["rb = (vin - vbe) / ib", "ib = od * ic / hfe"]
+  schematic: transistor_switch
+
+- id: bjt_divider_bias
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Nastavení pracovního bodu tranzistoru děličem", da: "Transistorarbejdspunkt med spændingsdeler", de: "Transistor-Arbeitspunkt mit Basisspannungsteiler", el: "Πόλωση BJT με διαιρέτη τάσης", en: "BJT divider bias", es: "Polarización de BJT por divisor de tensión", fr: "Polarisation de transistor par pont diviseur", hi: "BJT विभाजक बायस", it: "Polarizzazione BJT con partitore", ja: "BJTの分圧バイアス回路", nl: "BJT-instelling met spanningsdeler", no: "BJT-forspenning med spenningsdeler", pl: "Polaryzacja tranzystora dzielnikiem napięcia", pt: "Polarização de TBJ com divisor de tensão", sv: "BJT-förspänning med spänningsdelare", zh: "BJT分压偏置"}
+  doc:
+    en: "DC operating point of a common-emitter stage with voltage-divider bias (four resistors). The divider R1 / R2 is replaced by its Thevenin equivalent, V_TH = V_CC × R2 / (R1 + R2) with R_TH = R1 ∥ R2, and the base current is taken into account: I_B = (V_TH − V_BE) / (R_TH + (β + 1) × R_E), I_C = β × I_B, I_E = (β + 1) × I_B, V_E = I_E × R_E, V_B = V_E + V_BE and V_CE = V_CC − I_C × R_C − I_E × R_E. The model assumes the forward-active region; this calculator is forward-only (enter all seven values). Example with the defaults: 12 V, R1 = 47 kΩ, R2 = 10 kΩ, R_E = 1 kΩ, R_C = 4.7 kΩ and β = 100 give I_C ≈ 1.29 mA and V_CE ≈ 4.66 V. The warning for a soft divider appears when R_TH exceeds a tenth of (β + 1) × R_E: then I_C depends noticeably on β."
+    de: "Gleichstrom-Arbeitspunkt einer Emitterschaltung mit Basisspannungsteiler (vier Widerstände). Der Teiler R1 / R2 wird durch seine Thevenin-Ersatzquelle ersetzt, V_TH = V_CC · R2 / (R1 + R2) mit R_TH = R1 ∥ R2, und der Basisstrom wird berücksichtigt: I_B = (V_TH − V_BE) / (R_TH + (β + 1) · R_E), I_C = β · I_B, I_E = (β + 1) · I_B, V_E = I_E · R_E, V_B = V_E + V_BE und V_CE = V_CC − I_C · R_C − I_E · R_E. Das Modell setzt den Normalbetrieb (aktiver Bereich) voraus; der Rechner arbeitet nur vorwärts (alle sieben Werte eingeben). Beispiel mit den Vorgaben: 12 V, R1 = 47 kΩ, R2 = 10 kΩ, R_E = 1 kΩ, R_C = 4,7 kΩ und β = 100 ergeben I_C ≈ 1,29 mA und V_CE ≈ 4,66 V. Die Warnung vor einem weichen Teiler erscheint, wenn R_TH größer als ein Zehntel von (β + 1) · R_E ist: Dann hängt I_C merklich von β ab."
+  tags: [bjt, transistor, bias, operating point, voltage divider bias, common emitter, thevenin, q point, arbeitspunkt, basisspannungsteiler, emitterschaltung, transistor, vorspannung]
+  source: "Voltage-divider bias with the Thevenin base circuit and (β + 1) × R_E; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 2; A. S. Sedra, K. C. Smith: Microelectronic Circuits (BJT biasing)"
+  vars:
+    vcc: {dim: voltage, label: V_CC, name: {en: "Supply voltage", de: "Versorgungsspannung"}, default: "12 V"}
+    r1: {dim: resistance, label: R_1, name: {en: "Upper divider resistor", de: "Oberer Teilerwiderstand"}, default: "47k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Lower divider resistor", de: "Unterer Teilerwiderstand"}, default: "10k", eseries: true}
+    re: {dim: resistance, label: R_E, name: {en: "Emitter resistor", de: "Emitterwiderstand"}, default: "1k", eseries: true}
+    rc: {dim: resistance, label: R_C, name: {en: "Collector resistor", de: "Kollektorwiderstand"}, default: "4k7", eseries: true}
+    vbe: {dim: voltage, label: V_BE, name: {en: "Base-emitter voltage", de: "Basis-Emitter-Spannung"}, default: "0.7 V"}
+    beta: {dim: number, label: β, name: {en: "Current gain", de: "Stromverstärkung"}, default: 100}
+  dof: 7
+  derived:
+    vth: {dim: voltage, label: V_TH, name: {en: "Thevenin base voltage", de: "Thevenin-Basisspannung"}, expr: "vcc*r2/(r1+r2)"}
+    rth: {dim: resistance, label: R_TH, name: {en: "Thevenin base resistance", de: "Thevenin-Basiswiderstand"}, expr: "r1*r2/(r1+r2)"}
+    ib: {dim: current, label: I_B, name: {en: "Base current", de: "Basisstrom"}, expr: "(vth-vbe)/(rth+(beta+1)*re)"}
+    ic: {dim: current, label: I_C, name: {en: "Collector current", de: "Kollektorstrom"}, expr: "beta*ib"}
+    ie: {dim: current, label: I_E, name: {en: "Emitter current", de: "Emitterstrom"}, expr: "(beta+1)*ib"}
+    ve: {dim: voltage, label: V_E, name: {en: "Emitter voltage", de: "Emitterspannung"}, expr: "ie*re"}
+    vb: {dim: voltage, label: V_B, name: {en: "Base voltage", de: "Basisspannung"}, expr: "ve+vbe"}
+    vce: {dim: voltage, label: V_CE, name: {en: "Collector-emitter voltage", de: "Kollektor-Emitter-Spannung"}, expr: "vcc-ic*rc-ve"}
+    ptr: {dim: power, label: P_tr, name: {en: "Transistor power", de: "Verlustleistung des Transistors"}, expr: "vce*ic+vbe*ib"}
+  checks:
+    - {when: "vth <= vbe", warn: {en: "V_TH does not exceed V_BE: the transistor is off and the model does not apply.", de: "V_TH liegt nicht über V_BE: Der Transistor sperrt, das Modell gilt nicht."}}
+    - {when: "vce < 0.2", warn: {en: "V_CE is below 0.2 V, a typical saturation voltage: the transistor is saturated and the active-region result is not valid.", de: "V_CE liegt unter 0,2 V, einer typischen Sättigungsspannung: Der Transistor ist gesättigt, das Ergebnis des aktiven Bereichs gilt nicht."}}
+    - {when: "rth > 0.1*(beta+1)*re", warn: {en: "The base divider is soft: R_TH is more than a tenth of (β + 1) × R_E, so I_C depends noticeably on β.", de: "Der Basisteiler ist weich: R_TH ist größer als ein Zehntel von (β + 1) · R_E, I_C hängt daher merklich von β ab."}}
+  formula: ["vth = vcc * r2 / (r1 + r2)", "ib = (vth - vbe) / (rth + (beta + 1) * re)", "vce = vcc - ic * rc - ve"]
+  schematic: bjt_divider_bias
+
+- id: mosfet_losses
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Ztráty MOSFETu", da: "MOSFET-tab", de: "MOSFET-Verluste", el: "Απώλειες MOSFET", en: "MOSFET losses", es: "Pérdidas de un MOSFET", fr: "Pertes d'un MOSFET", hi: "MOSFET हानियाँ", it: "Perdite del MOSFET", ja: "MOSFETの損失", nl: "MOSFET-verliezen", no: "MOSFET-tap", pl: "Straty mocy w MOSFET", pt: "Perdas num MOSFET", sv: "MOSFET-förluster", zh: "MOSFET损耗"}
+  doc:
+    en: "Estimated losses of a MOSFET that switches the current I_D against the voltage V_DS at the frequency f_sw with the duty cycle D. Conduction loss: P_cond = D × I_D² × R_DS(on). Switching loss with linear, overlapping voltage and current transitions: P_sw = ½ × V_DS × I_D × (t_r + t_f) × f_sw. Gate-drive loss, output-capacitance loss, reverse-recovery and body-diode loss are not included, and R_DS(on) rises with temperature, so enter the value at operating temperature from the datasheet. The calculator is forward-only. Example with the defaults: 10 A at 12 V, R_DS(on) = 10 mΩ, D = 50 %, t_r = t_f = 20 ns and 200 kHz give 0.5 W conduction plus 0.48 W switching, 0.98 W in total."
+    de: "Geschätzte Verluste eines MOSFETs, der den Strom I_D gegen die Spannung V_DS mit der Frequenz f_sw und dem Tastgrad D schaltet. Durchlassverlust: P_cond = D · I_D² · R_DS(on). Schaltverlust bei linearen, sich überlappenden Spannungs- und Stromflanken: P_sw = ½ · V_DS · I_D · (t_r + t_f) · f_sw. Gate-Treiber-Verluste, Verluste der Ausgangskapazität sowie Sperrverzögerungs- und Body-Dioden-Verluste sind nicht enthalten; R_DS(on) steigt mit der Temperatur, daher den Wert bei Betriebstemperatur aus dem Datenblatt eingeben. Der Rechner arbeitet nur vorwärts. Beispiel mit den Vorgaben: 10 A bei 12 V, R_DS(on) = 10 mΩ, D = 50 %, t_r = t_f = 20 ns und 200 kHz ergeben 0,5 W Durchlassverlust plus 0,48 W Schaltverlust, zusammen 0,98 W."
+  tags: [mosfet, losses, conduction loss, switching loss, rds on, power loss, switching, buck, durchlassverlust, schaltverlust, verlustleistung, mosfet-verluste, schaltnetzteil]
+  source: "Conduction loss D·I²·R_DS(on) and the linear-transition switching loss ½·V·I·(t_r + t_f)·f_sw; R. W. Erickson, D. Maksimović: Fundamentals of Power Electronics (switching loss); N. Mohan, T. M. Undeland, W. P. Robbins: Power Electronics (power MOSFET losses)"
+  vars:
+    i_d: {dim: current, label: I_D, name: {en: "Drain current (on-state)", de: "Drainstrom (eingeschaltet)"}, default: "10 A"}
+    rds: {dim: resistance, label: R_DS(on), name: {en: "On-resistance", de: "Einschaltwiderstand"}, default: "10 mΩ"}
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastgrad"}, default: "50 %", unit: pct, units: [pct, ""]}
+    vds: {dim: voltage, label: V_DS, name: {en: "Drain-source voltage (off-state)", de: "Drain-Source-Spannung (ausgeschaltet)"}, default: "12 V"}
+    tr: {dim: time, label: t_r, name: {en: "Rise time", de: "Anstiegszeit"}, default: "20 ns", units: [""]}
+    tf: {dim: time, label: t_f, name: {en: "Fall time", de: "Abfallzeit"}, default: "20 ns", units: [""]}
+    fsw: {dim: frequency, label: f_sw, name: {en: "Switching frequency", de: "Schaltfrequenz"}, default: "200 kHz"}
+  dof: 7
+  derived:
+    vdson: {dim: voltage, label: V_DS(on), name: {en: "On-state voltage drop", de: "Durchlassspannung"}, expr: "i_d*rds"}
+    pcond: {dim: power, label: P_cond, name: {en: "Conduction loss", de: "Durchlassverlust"}, expr: ["duty*i_d^2*rds", "duty*i_d*vdson"]}
+    psw: {dim: power, label: P_sw, name: {en: "Switching loss", de: "Schaltverlust"}, expr: "vds*i_d*(tr+tf)*fsw/2"}
+    ptot: {dim: power, label: P_tot, name: {en: "Total loss", de: "Gesamtverlust"}, expr: "pcond+psw"}
+  checks:
+    - {when: "(duty < 0) + (duty > 1) > 0", warn: {en: "The duty cycle must be between 0 % and 100 %.", de: "Der Tastgrad muss zwischen 0 % und 100 % liegen."}}
+    - {when: "(tr+tf)*fsw > 0.5", warn: {en: "The switching times take more than half of the period: the linear switching-loss model does not apply.", de: "Die Schaltzeiten nehmen mehr als die halbe Periode ein: Das lineare Schaltverlustmodell gilt nicht."}}
+  formula: ["pcond = duty * i_d^2 * rds", "psw = vds * i_d * (tr + tf) * fsw / 2", "ptot = pcond + psw"]
+  schematic: mosfet_losses
+
+- id: heatsink
+  kind: calculator
+  category: semiconductors
+  name: {cs: "Chladič", da: "Køleplade", de: "Kühlkörper", el: "Ψύκτρα", en: "Heatsink", es: "Disipador de calor", fr: "Dissipateur thermique", hi: "हीटसिंक", it: "Dissipatore di calore", ja: "ヒートシンク", nl: "Koellichaam", no: "Kjøleribbe", pl: "Radiator", pt: "Dissipador de calor", sv: "Kylfläns", zh: "散热器"}
+  doc:
+    en: "Steady-state thermal model of a power device: a chain of thermal resistances from the junction to the ambient air, T_J = T_A + P × (R_thJC + R_thCS + R_thSA), with junction-to-case, case-to-heatsink (insulator, grease) and heatsink-to-ambient resistance. Every stage drops P × R degrees. Enter the maximum junction temperature of the datasheet as T_J (for example 125 °C or 150 °C) together with the power and the other resistances to find the heatsink resistance R_thSA you need; a result of zero or below means no heatsink is good enough. Example with the defaults: 10 W at 25 °C ambient with 1.5 + 0.5 + 3 °C/W gives a junction temperature of 75 °C."
+    de: "Thermisches Gleichgewichtsmodell eines Leistungsbauteils: eine Kette von Wärmewiderständen von der Sperrschicht zur Umgebungsluft, T_J = T_A + P · (R_thJC + R_thCS + R_thSA), mit den Widerständen Sperrschicht–Gehäuse, Gehäuse–Kühlkörper (Isolierfolie, Wärmeleitpaste) und Kühlkörper–Umgebung. Jede Stufe verursacht einen Temperaturabfall von P · R. T_J (die maximale Sperrschichttemperatur aus dem Datenblatt, zum Beispiel 125 °C oder 150 °C) zusammen mit Leistung und den übrigen Widerständen eingeben, um den benötigten Kühlkörperwiderstand R_thSA zu erhalten; ein Ergebnis von null oder darunter bedeutet, dass kein Kühlkörper ausreicht. Beispiel mit den Vorgaben: 10 W bei 25 °C Umgebung mit 1,5 + 0,5 + 3 °C/W ergeben eine Sperrschichttemperatur von 75 °C."
+  tags: [heatsink, heat sink, thermal resistance, junction temperature, cooling, power dissipation, rth, kühlkörper, wärmewiderstand, sperrschichttemperatur, kühlung, verlustleistung]
+  source: "Steady-state thermal resistance network (the thermal analogue of Ohm's law: ΔT = P × R_th); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (heat and power design)"
+  vars:
+    ta: {dim: temperature, label: T_A, name: {en: "Ambient temperature", de: "Umgebungstemperatur"}, default: "25 °C", unit: degC, units: [degC, degF, ""]}
+    p: {dim: power, label: P, name: {en: "Power dissipation", de: "Verlustleistung"}, default: "10 W"}
+    rjc: {dim: thermal_resistance, label: R_thJC, name: {en: "Junction to case", de: "Sperrschicht–Gehäuse"}, default: "1.5 °C/W", unit: degCW, units: [degCW, ""]}
+    rcs: {dim: thermal_resistance, label: R_thCS, name: {en: "Case to heatsink", de: "Gehäuse–Kühlkörper"}, default: "0.5 °C/W", unit: degCW, units: [degCW, ""]}
+    rsa: {dim: thermal_resistance, label: R_thSA, name: {en: "Heatsink to ambient", de: "Kühlkörper–Umgebung"}, default: "3 °C/W", unit: degCW, units: [degCW, ""]}
+    tj: {dim: temperature, label: T_J, name: {en: "Junction temperature", de: "Sperrschichttemperatur"}, unit: degC, units: [degC, degF, ""]}
+  dof: 5
+  rules:
+    tj: ["ta+p*(rjc+rcs+rsa)"]
+    ta: ["tj-p*(rjc+rcs+rsa)"]
+    p: ["(tj-ta)/(rjc+rcs+rsa)"]
+    rsa: ["(tj-ta)/p-rjc-rcs"]
+    rcs: ["(tj-ta)/p-rjc-rsa"]
+    rjc: ["(tj-ta)/p-rcs-rsa"]
+  derived:
+    rtot: {dim: thermal_resistance, label: R_thJA, name: {en: "Total junction to ambient", de: "Gesamt Sperrschicht–Umgebung"}, expr: ["rjc+rcs+rsa", "(tj-ta)/p"], unit: degCW, units: [degCW, ""]}
+    dtj: {dim: tempdiff, label: ΔT_J, name: {en: "Junction temperature rise", de: "Sperrschicht-Übertemperatur"}, expr: ["tj-ta", "p*rtot"], unit: degC, units: [degC, degF, ""]}
+    dtjc: {dim: tempdiff, label: ΔT_JC, name: {en: "Drop junction to case", de: "Abfall Sperrschicht–Gehäuse"}, expr: "p*rjc", unit: degC, units: [degC, degF, ""]}
+    dtcs: {dim: tempdiff, label: ΔT_CS, name: {en: "Drop case to heatsink", de: "Abfall Gehäuse–Kühlkörper"}, expr: "p*rcs", unit: degC, units: [degC, degF, ""]}
+    dtsa: {dim: tempdiff, label: ΔT_SA, name: {en: "Drop heatsink to ambient", de: "Abfall Kühlkörper–Umgebung"}, expr: "p*rsa", unit: degC, units: [degC, degF, ""]}
+    tc: {dim: temperature, label: T_C, name: {en: "Case temperature", de: "Gehäusetemperatur"}, expr: ["ta+p*(rcs+rsa)", "tj-p*rjc"], unit: degC, units: [degC, degF, ""]}
+    ts: {dim: temperature, label: T_S, name: {en: "Heatsink temperature", de: "Kühlkörpertemperatur"}, expr: ["ta+p*rsa", "tc-p*rcs"], unit: degC, units: [degC, degF, ""]}
+  checks:
+    - {when: "tj > 423.15", warn: {en: "The junction temperature is above 150 °C, a common absolute maximum for silicon power devices: check the datasheet limit.", de: "Die Sperrschichttemperatur liegt über 150 °C, einem üblichen Höchstwert für Silizium-Leistungsbauteile: Den Grenzwert im Datenblatt prüfen."}}
+  formula: ["tj = ta + p * (rjc + rcs + rsa)"]
+  schematic: heatsink
