@@ -160,3 +160,49 @@ check('stage: in 9:16 and 1:1 every spot of the real environments is inside the 
     assert.ok(far.x >= mini.vis.x && far.x <= mini.vis.x + mini.vis.w);
 });
 
+// ---- text colours and the camera ----------------------------------------------------------------------------------------
+
+check('render: text colours resolve from the environment variant first, then the palette', () => {
+    const env = { viewbox: [0, 0, 1920, 1080], layers: [], tokens: { day: {}, night: { text: '#f2f4ff', bg2: '#2c356b' } } };
+    const story2 = variant => ({ scenes: [{ id: 'a', environment: 'env.office', variant, beats: [
+        { do: 'show', text: 'Titel', entry: 'none' }, { do: 'show', text: 'Marke', style: 'label', at: { x: 50, y: 60 }, entry: 'none', with: 'prev' }] }] });
+    const fills = variant => {
+        const tl = compileReal(story2(variant)).timeline, cv = new FakeCanvas(tl.width, tl.height);
+        SM.renderFrame(tl, 5, cv.ctx, realAssets({ envs: { 'environments/office.json': env } }));
+        return cv.ctx.log.filter(l => l.startsWith('set fillStyle=')).map(l => l.slice('set fillStyle='.length));
+    };
+    assert.ok(fills('night').includes('#f2f4ff'), 'the title takes the night text colour');
+    assert.ok(fills('night').includes('#2c356b'), 'the label box takes the night bg2');
+    assert.ok(fills('day').includes('#1f2a44') && !fills('day').includes('#f2f4ff'), 'the day variant has no text token: the palette decides');
+});
+
+// WCAG contrast of two #rrggbb colours
+const luminance = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
+const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+
+check('real catalog: the label and title text colours are readable in every environment, variant and palette', () => {
+    const label = entry('text.label');
+    for (const name of ['plain-stage', 'office', 'home-office', 'abstract-tech']) {
+        const env = files.envs['environments/' + name + '.json'];
+        for (const variant of ['day', 'night']) {
+            for (const pal of catalog.palettes) {
+                const tokens = { ...pal.tokens, ...env.tokens[variant] };
+                const boxFill = tokens[label.box.fill.slice(1)], labelInk = tokens[label.color.slice(1)];
+                assert.ok(contrast(labelInk, boxFill) >= 4.5, name + ' ' + variant + ' ' + pal.name + ': label ' + labelInk + ' on ' + boxFill);
+                // the title has no box and the palette's text colour is dark: every dark environment (night, abstract-tech) carries a light one
+                const dark = variant === 'night' || name === 'abstract-tech';
+                if (dark) assert.ok(env.tokens[variant].text && luminance(env.tokens[variant].text) > 0.6, name + ' ' + variant + ' has a light text token');
+            }
+        }
+    }
+});
+
+check('camera: a close framing on an actor of the real catalog shows the head and the feet', () => {
+    const out = compileReal({ cast: [{ id: 'anna', character: 'char.office-woman-1' }], scenes: [{ id: 's', environment: 'env.office', camera: { framing: 'close', target: 'anna' }, actors: [{ cast: 'anna', at: 'desk', pose: 'typing' }] }] });
+    const sc = out.timeline.scenes[0], stage = SM.render.stageFor(sc, SM.render.makeContext(out.timeline, realAssets(), 1920, 1080));
+    const st = SM.scene.evalEntity(sc.entities[0], 0), win = stage.cameraWindow(SM.camera.at(sc.camera, 0));
+    const depth = stage.depthScale(st.y, st.depth), headTop = st.y - 0.55 * 1080 * depth;
+    assert.ok(win.y <= headTop && win.y + win.h >= st.y, 'window ' + Math.round(win.y) + '..' + Math.round(win.y + win.h) + ' holds ' + Math.round(headTop) + '..' + Math.round(st.y));
+    near(win.h, 1080 / 1.9, 1e-6);
+});
+

@@ -1,4 +1,4 @@
-{"schema":"storymaker-catalog/1","version":"70d5cf51a9a9","stage":{"width":1920,"height":1080,"safe":{"x":5,"y":5,"w":90,"h":90}},"rig":{"id":"rig.human/1","file":"rig/human.json"},
+{"schema":"storymaker-catalog/1","version":"ab33e88a6b77","stage":{"width":1920,"height":1080,"safe":{"x":5,"y":5,"w":90,"h":90}},"rig":{"id":"rig.human/1","file":"rig/human.json"},
  "fonts":[
   {"name":"default","family":"Geist","weight":400,"file":"/fonts/Geist-Regular.woff2","licence":"OFL-1.1"},
   {"name":"default","family":"Geist","weight":500,"file":"/fonts/Geist-Medium.woff2","licence":"OFL-1.1"},

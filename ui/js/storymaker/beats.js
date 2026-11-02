@@ -8,7 +8,9 @@
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
 
-    var ACTOR_REACH = 200;   // design pixels from the feet to the visual centre of a standing actor at scale 1
+    // design pixels from the feet to the visual centre of a standing actor at depth scale 1: half of rig.height (0.55 of the
+    // design height in the starter catalog). The manifest does not carry rig.height, so the camera uses this constant.
+    var ACTOR_REACH = 297;
     var DEFAULT_ACTOR_SPOTS = ['left', 'right', 'far-left', 'far-right'];
     var TEXT_ROW_Y = 28;     // percent of the frame height: texts shown at a floor spot sit in the upper third
 

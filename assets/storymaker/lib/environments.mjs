@@ -1,6 +1,7 @@
 // The four starter environments (1920 x 1080 design frame). Layers are drawn in array order; parallax runs from
 // 0 (fixed sky) to 1 (floor). Day colours follow the palette where possible ($bg, $bg2, $accent, $accent2); the night
-// tokens override bg/bg2 and the local tokens. Local tokens exist in both variants.
+// tokens override bg/bg2, the text colour (light: the player draws texts with these tokens first) and the local tokens.
+// Local tokens exist in both variants. The dark abstract-tech environment carries bg2 and text in both variants.
 
 import {
   fill, shade, light, line, linear, radial, ellipse, circle, rect, roundRect, roundRect4, poly, M, L, C, Z, A, rng,
@@ -85,7 +86,7 @@ function plainStage() {
     layers: [{ name: 'sky', parallax: 0, shapes: sky }, { name: 'hills', parallax: 0.3, shapes: back }, { name: 'floor', parallax: 1, shapes: floor }],
     tokens: {
       day: { star: '#ffffff' },
-      night: { bg: '#1b2142', bg2: '#2c356b', star: '#dfe6ff' },
+      night: { bg: '#1b2142', bg2: '#2c356b', text: '#f2f4ff', star: '#dfe6ff' },
     },
   };
 }
@@ -244,7 +245,7 @@ function office() {
     layers: [{ name: 'wall', parallax: 0.1, shapes: wall }, { name: 'floor', parallax: 1, shapes: floor }, { name: 'furniture', parallax: 0.7, shapes: furniture }],
     tokens: {
       day: { wall2: '#efe2cf', wood: '#c9a27a', wood2: '#b58a62', frame: '#ffffff', sky: '#a9dcf3', sky2: '#e6f6fd', city: '#8eb2cc', city2: '#7399b6', lit: '#a9c6da', orb: '#fff3b8', floor: '#d9b894', floor2: '#c8a37c', board: '#ffffff', boardframe: '#c3cad8', ink: '#2b3350', lampglow: '#ffffff' },
-      night: { bg: '#232a4d', bg2: '#2f3865', wall2: '#1d2442', wood: '#7a5a44', wood2: '#664a38', frame: '#c9d0ea', sky: '#141a3a', sky2: '#27306a', city: '#1e2650', city2: '#2a3470', lit: '#ffd98a', orb: '#f4f1de', floor: '#3a3b5c', floor2: '#2f304e', board: '#e9edf7', boardframe: '#8c95b3', ink: '#0f1226', lampglow: '#ffd98a' },
+      night: { bg: '#232a4d', bg2: '#2f3865', text: '#f2f4ff', wall2: '#1d2442', wood: '#7a5a44', wood2: '#664a38', frame: '#c9d0ea', sky: '#141a3a', sky2: '#27306a', city: '#1e2650', city2: '#2a3470', lit: '#ffd98a', orb: '#f4f1de', floor: '#3a3b5c', floor2: '#2f304e', board: '#e9edf7', boardframe: '#8c95b3', ink: '#0f1226', lampglow: '#ffd98a' },
     },
   };
 }
@@ -338,7 +339,7 @@ function homeOffice() {
     layers: [{ name: 'wall', parallax: 0.1, shapes: wall }, { name: 'floor', parallax: 1, shapes: floor }, { name: 'furniture', parallax: 0.7, shapes: furniture }],
     tokens: {
       day: { wallh: '#f3e6d6', wallh2: '#ead9c3', wood: '#c9a27a', wood2: '#b58a62', deskwood: '#e7cfae', deskwood2: '#d3b48c', frame: '#ffffff', sky: '#bfe6f6', sky2: '#eaf8fd', hill: '#8fcf9a', tree: '#52b788', orb: '#fff3b8', floor: '#d8b48c', floor2: '#c79f77', shelfback: '#efe0c9', sun: '#fff1b8', lampglow: '#ffffff' },
-      night: { bg: '#2c2540', bg2: '#3d3560', wallh: '#2d2744', wallh2: '#352e52', wood: '#6e5340', wood2: '#5c4535', deskwood: '#8a6f58', deskwood2: '#74594a', frame: '#c4c0de', sky: '#14193a', sky2: '#2a2f6a', hill: '#1f3b4a', tree: '#19424a', orb: '#f4f1de', floor: '#3b3354', floor2: '#322b49', shelfback: '#241f38', sun: '#8d8fe0', lampglow: '#ffd98a' },
+      night: { bg: '#2c2540', bg2: '#3d3560', text: '#f2f4ff', wallh: '#2d2744', wallh2: '#352e52', wood: '#6e5340', wood2: '#5c4535', deskwood: '#8a6f58', deskwood2: '#74594a', frame: '#c4c0de', sky: '#14193a', sky2: '#2a2f6a', hill: '#1f3b4a', tree: '#19424a', orb: '#f4f1de', floor: '#3b3354', floor2: '#322b49', shelfback: '#241f38', sun: '#8d8fe0', lampglow: '#ffd98a' },
     },
   };
 }
@@ -397,8 +398,8 @@ function abstractTech() {
   return {
     layers: [{ name: 'sky', parallax: 0, shapes: sky }, { name: 'network', parallax: 0.3, shapes: back }, { name: 'cards', parallax: 0.5, shapes: mid }, { name: 'floor', parallax: 1, shapes: floor }, { name: 'hud', parallax: 0.7, shapes: board }],
     tokens: {
-      day: { t1: '#16295f', t2: '#2c58c8', grid: '#7fbaff', panel: '#0e1a47' },
-      night: { t1: '#090d2b', t2: '#1b2160', grid: '#4f7dff', panel: '#070b22' },
+      day: { bg2: '#0e1a47', text: '#f4f7ff', t1: '#16295f', t2: '#2c58c8', grid: '#7fbaff', panel: '#0e1a47' },
+      night: { bg2: '#070b22', text: '#f4f7ff', t1: '#090d2b', t2: '#1b2160', grid: '#4f7dff', panel: '#070b22' },
     },
   };
 }

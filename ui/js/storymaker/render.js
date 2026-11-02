@@ -44,10 +44,16 @@
         ctx.fillRect(0, 0, rc.W, rc.H);
     }
 
+    // envTokens(sc, rc): the colour tokens of the scene's environment variant (the day tokens when the variant has none), or null.
+    function envTokens(sc, rc) {
+        var env = sc.env && rc.assets.envs && rc.assets.envs[sc.env.file];
+        return (env && env.tokens && (env.tokens[sc.variant] || env.tokens.day)) || null;
+    }
+
     function drawEnvironment(ctx, sc, rc, win, bw, Mv) {
         var env = sc.env && rc.assets.envs && rc.assets.envs[sc.env.file];
         if (!env) return;
-        var tokens = env.tokens && (env.tokens[sc.variant] || env.tokens.day);
+        var tokens = envTokens(sc, rc);
         var resolve = SM.parts.makeResolver([tokens, rc.palette]);
         // the layers are listed back to front; parallax only says how much a layer follows the camera (it is not a draw order)
         var layers = env.layers || [];
@@ -155,13 +161,15 @@
         }
     }
 
-    function drawText(ctx, st, rc, stage, bw) {
+    // drawText: tokens (optional) are the environment's colour tokens; they win over the palette, so a dark environment can carry
+    // its own text colour and label box colour.
+    function drawText(ctx, st, rc, stage, bw, tokens) {
         if (!(st.alpha > 0) || !st.text) return;
         var style = rc.cat.textStyles[st.style] || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
         var pos = stage.toCanvas(st.x, st.y, bw), align = style.align || 'center';
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         var lay = SM.text.layout(ctx, st.text, style, { canvasH: rc.H, maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, pos.x, align), family: familyOf(rc, style) });
-        SM.text.draw(ctx, lay, style, pos.x, pos.y, SM.parts.makeResolver([rc.palette]), st.alpha);
+        SM.text.draw(ctx, lay, style, pos.x, pos.y, SM.parts.makeResolver([tokens, rc.palette]), st.alpha);
     }
 
     // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
@@ -178,7 +186,8 @@
             .forEach(function (s) { drawActor(ctx, s, t, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
-        states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw); });
+        var tokens = envTokens(sc, rc);
+        states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw, tokens); });
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
     }
