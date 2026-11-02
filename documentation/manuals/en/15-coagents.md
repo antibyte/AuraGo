@@ -135,9 +135,19 @@ co_agents:
 
 A queued co-agent waits at most `timeout_seconds` for a free slot. If no slot frees up in time it is marked `failed` and never occupies a slot. The `timeout_seconds` runtime budget starts when the co-agent leaves the queue.
 
+### Delegated rights and limits
+
+A child inherits its parent's tool and Agent Skill scopes. An explicitly empty scope allows nothing; role restrictions and current configuration may only narrow permissions. The original human request remains the authorization context, separate from the model-written assignment. External/private-content provenance and its expiry times survive delegation. Initialized databases and services remain available for permitted reads.
+
+Researcher keeps Python data processing, including Python sandbox and Agent Skill scripts, but cannot use shell, sudo or remote shell. Designer cannot execute free code or Agent Skill scripts. Security keeps Shell/Python for analysis under the existing permissions and sandbox; these interpreters are not technically read-only. Registered skills retain their configured gates. Writer has no tools.
+
+The resolved `max_tool_calls` is a hard bound even in Homepage workflows. `max_tokens` covers all accounted model responses across rounds and retries; exhaustion stops further work. Status counters accumulate while running and survive errors, timeout and cancellation. Budget/quota exhaustion blocks new starts, including queued work at promotion, but not status, results or an explicitly requested stop. Ending the parent's HTTP request does not stop a child.
+
+`max_context_hint_chars` counts Unicode code points, with additional UTF-8-safe prompt byte/token limits. Both the child loop and its transport use the selected provider's identity and capabilities.
+
 ### Writer Specialist Default
 
-The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents run without runtime tool schemas by default so short writing tasks do not pay the latency cost of unrelated tools. Set the field to `""` to disable this default, or replace it with your own writing rules.
+The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents have no runtime tools and write from supplied material. Missing facts are returned to the main agent; the style prompt cannot grant tool access. Set the field to `""` to disable this default, or replace it with your own writing rules.
 
 The compact guidance adapts [Humanizer 3.0](https://github.com/blader/humanizer/blob/main/SKILL.md): revise artificial contrasts, inflated claims, and repetitive closing lines while preserving the writer's voice. It adds German and multilingual conventions, protects quotations and technical literals, and silently checks for lost claims, invented details, and fresh formulaic phrasing before delivery. Updates preserve existing custom additional prompts. Attribution and the MIT license are in `THIRD_PARTY_NOTICES.md`.
 
@@ -428,12 +438,13 @@ Specialists are best used for bounded, independently verifiable work: research, 
 Main Agent                          Co-Agent Goroutine
     │                                      │
     ├─ spawn("Analyse X")                  │
-    │   ├─ Check slot ✓                    │
-    │   ├─ context.WithTimeout()           │
+    │   ├─ Snapshot authority; check quota │
+    │   ├─ Independent cancel context     │
     │   ├─ Registry.Register() ──────────► │ Goroutine starts
-    │   └─ return co_agent_id              │ ├─ Own LLM client
-    │                                      │ ├─ System prompt (helper)
-    │   ... Main agent keeps working ...   │ ├─ RunSyncAgentLoop()
+    │   └─ return co_agent_id              │ ├─ Wait for slot if queued
+    │                                      │ ├─ Recheck quota; start timeout
+    │                                      │ ├─ Own provider/client + prompt
+    │   ... Main agent keeps working ...   │ ├─ ExecuteAgentLoop()
     │                                      │ │  ├─ LLM Call
     ├─ list() ◄─ Status: "running"         │ │  ├─ Tool Dispatch
     │                                      │ │  ├─ LLM Call
@@ -449,7 +460,7 @@ Main Agent                          Co-Agent Goroutine
 
 | Resource | Sharing model | Reason |
 |----------|---------------|--------|
-| **Config** | Shallow copy with overrides | Own limits, personality disabled |
+| **Config** | Independent provider/config snapshot | Own limits, personality disabled |
 | **LLM client** | Own instance | Different model, own rate limits |
 | **ShortTermMem** | Shared, read-only | SQLite is thread-safe |
 | **LongTermMem** | Shared, read-only | VectorDB with RWMutex |
