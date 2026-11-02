@@ -144,6 +144,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Local Contracts
 
+- Config VM regressions load the production rendering/feedback dependencies through `scripts/config-test-runtime.mjs`, model response status/body methods and await confirmed asynchronous deletions. Atomic list credentials follow the current draft entry after reorder/removal; a saved numeric index cannot restore another entry's mask. Verify `node scripts/test-ui-regressions.mjs` and the Config browser tests.
+
 - Shared QR editing is lazy key `qr`: `js/desktop/shared/qr-dialog.js` and
   `css/desktop-qr.css`. Writer, Sheets and Pixel use the same local Go renderer,
   scanner, configuration normalizer and CSV batch service. Payloads stay in POST

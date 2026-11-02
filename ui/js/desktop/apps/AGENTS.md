@@ -14,6 +14,8 @@
 
 ## FindIt
 
+- Arrow/Enter/Space item navigation belongs only to the active list/grid. Ignore already-handled events, dialogs, editable elements and unrelated controls; never move background focus while a dialog is open. Verify `TestDesktopFindItBrowser`.
+
 - `findit.js` composes the lazy-loaded `findit-model.js`, dialogs, item, project, template, CSV and workflow modules. Each window owns its AbortController, drafts and observers; narrow mode follows the app host width, and close/disposal ignores late responses. Keep the list server-paginated and load complete location/template catalogs through bounded pages.
 - API calls use `/api/desktop/findit`. Keep quantity values as decimal strings, send a stable
   `request_id` for every command, and retain it for an exact uncertain retry. Project/location,

@@ -76,6 +76,32 @@ async () => {
   app.status = writableStatus; app.draw();
 
   const location = await createLocation('FindIt audit stock drawer');
+  await createItem('Keyboard navigation one', location.id);
+  await createItem('Keyboard navigation two', location.id);
+  click('[data-view="items"]'); await wait(() => app.view === 'items' && !app.busy, 'keyboard items view');
+  click('[data-action="refresh"]'); await wait(() => !app.busy && host.querySelectorAll('[data-select-item]').length >= 2, 'keyboard rows');
+  const rows = [...host.querySelectorAll('.fi-list-scroll [data-select-item], .fi-item-grid [data-select-item]')];
+  const key = (target, name, handled = false) => {
+    const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+    if (handled) event.preventDefault();
+    target.dispatchEvent(event);
+  };
+  rows[0].focus(); key(rows[0], 'ArrowDown');
+  assert(document.activeElement === rows[1], 'ArrowDown must navigate inside the item list');
+  rows[0].focus(); key(rows[0], 'ArrowDown', true);
+  assert(document.activeElement === rows[0], 'An already handled key must not move background focus');
+  const toolbar = host.querySelector('[data-action="new-item"]'); toolbar.focus(); key(toolbar, 'ArrowDown');
+  assert(document.activeElement === toolbar, 'Toolbar keys must not move the item list');
+  const editable = document.createElement('div'); editable.contentEditable = 'true'; editable.tabIndex = 0;
+  rows[0].parentElement.append(editable); editable.focus(); key(editable, 'ArrowDown');
+  assert(document.activeElement === editable, 'Editable list content must keep its keys'); editable.remove();
+  click('[data-action="new-item"]'); await wait(() => !!openDialog(), 'keyboard dialog');
+  const dialog = openDialog(), field = dialog.querySelector('input'); field.focus(); key(field, 'ArrowDown');
+  assert(document.activeElement === field, 'Dialog keys must not navigate the background list');
+  dialog.querySelector('[data-cancel]').click();
+  if (dialog.isConnected) { dialog.dispatchEvent(new Event('cancel', { cancelable: true })); }
+  await wait(() => !openDialog(), 'keyboard dialog closed');
+
   click('[data-view="items"]'); await wait(() => app.view === 'items' && !app.busy, 'items for serial validation');
   const fetchBeforeSerialValidation = window.fetch; let itemCreatesDuringValidation = 0;
   window.fetch = async (url, options = {}) => {

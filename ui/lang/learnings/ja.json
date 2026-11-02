@@ -53,7 +53,7 @@
   "learnings.graph_enable": "ネイティブコードグラフを有効にする",
   "learnings.graph_help": "既定では無効です。承認済みプロジェクトを初回使用時に解析し、自動更新します。ソースと索引はメモリ内に保持されます。",
   "codeStudio.knowledge": "知見",
-  "game_maker.knowledge": "知見",
+  "game_maker.knowledge": "ナレッジ",
   "config.memory_analysis.learnings_enable": "知見を有効にする",
   "config.memory_analysis.learnings_help": "既定では無効です。既存の会話解析が確認済みの人間の証拠から学習します。書き込み可能なメモリが必要で、不確かな内容は提案のままです。",
   "config.memory_analysis.graph_enable": "ネイティブコードグラフを有効にする",

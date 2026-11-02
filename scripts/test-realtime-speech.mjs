@@ -842,10 +842,11 @@ function testLauncherActivityIndicator() {
 }
 
 function testProfileDeleteButtonAlignment() {
-  const styles = read('ui/css/config-realtime-speech.css');
+  const styles = read('ui/css/config-workspace.css');
+  assert.match(read('ui/cfg/realtime_speech.js'), /cfgDeleteButton\(\{ iconOnly: true/);
   assert.match(
     styles,
-    /\.rs-icon-button\s*\{[\s\S]*?justify-content:\s*center;/,
+    /\.cfg-delete-btn\s*\{[\s\S]*?justify-content:\s*center;/,
     'the realtime speech profile delete glyph must be centered inside its square button'
   );
 }

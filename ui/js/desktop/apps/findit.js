@@ -903,10 +903,16 @@
                 if (event.target.matches('[data-settings-form]')) { event.preventDefault(); void saveSettings({ enabled: event.target.elements.enabled.checked, agent_access: event.target.elements.agent_access.checked, readonly: event.target.elements.readonly.checked }).catch(error => showError(error)); }
             }, { signal: state.signal });
             host.addEventListener('keydown', event => {
+                const target = event.target;
+                if (event.defaultPrevented || target?.isContentEditable || target?.closest('dialog, [role="dialog"], input, textarea, select, [contenteditable]')) return;
+                const list = target?.closest('.fi-list-scroll, .fi-item-grid');
+                if (!list || !host.contains(list)) return;
+                const control = target.closest('button, a, [role="button"]');
+                if (control && !control.matches('[data-select-item]')) return;
                 const row = event.target.closest('[data-select-item]');
                 if (row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); void selectItem(row.dataset.selectItem); return; }
                 if (['ArrowDown', 'ArrowUp'].includes(event.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName || '')) {
-                    const rows = [...host.querySelectorAll('[data-select-item]')];
+                    const rows = [...list.querySelectorAll('[data-select-item]')];
                     if (!rows.length) return;
                     const index = row ? rows.indexOf(row) : -1;
                     const next = row ? rows[index + (event.key === 'ArrowDown' ? 1 : -1)] : rows[event.key === 'ArrowDown' ? 0 : rows.length - 1];

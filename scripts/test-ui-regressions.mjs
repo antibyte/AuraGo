@@ -1,3 +1,4 @@
+import { loadConfigRuntime, configTestElement } from './config-test-runtime.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -538,6 +539,7 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     };
     vm.createContext(context);
     vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
+    vm.runInContext(sourceBetween(app, 'function compactOptIn(', 'function bindModelLimits('), context);
     vm.runInContext(sourceBetween(app, 'async function confirmSmallModel(', 'function applyStartedJob('), context);
     vm.runInContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
     vm.runInContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
@@ -2494,14 +2496,15 @@ async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus(
   assert.equal(renderCount, 1);
   assert.equal(loadButton.disabled, false);
 
-  const statusSource = sourceBetween(source, 'async function manusRefreshStatus()', 'async function manusSaveAPIKey()');
-  const banner = { className: '', textContent: '' };
+  const statusSource = sourceBetween(source, 'async function manusRefreshStatus()', 'async function manusTestConnection()');
+  const banner = configTestElement();
   let ready = false;
   let actionsEnabled = null;
   const statusContext = {
-    document: { getElementById: id => id === 'manus-status-banner' ? banner : null },
+    document: { getElementById: id => id === 'manus-status-banner' ? banner : null, createElement: configTestElement, querySelector: () => null },
     fetch: async () => ({
-      ok: true,
+      ok: true, status: 200,
+      text: async () => JSON.stringify(ready ? { status: 'ready', enabled: true, configured: true } : { status: 'missing_key', enabled: true, configured: false }),
       json: async () => ready
         ? { status: 'ready', enabled: true, configured: true }
         : { status: 'missing_key', enabled: true, configured: false }
@@ -2511,6 +2514,7 @@ async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus(
     manusSetActionAvailability(value) { actionsEnabled = value; }
   };
   vm.createContext(statusContext);
+  loadConfigRuntime(statusContext);
   vm.runInContext(`${statusSource}; globalThis.refreshStatusForTest = manusRefreshStatus;`, statusContext);
   await statusContext.refreshStatusForTest();
   assert.equal(actionsEnabled, false, 'enabled without a configured key must keep remote actions locked');
@@ -3315,6 +3319,7 @@ function createSQLConnectionsFormContext(source) {
     if (!elements.has(id)) {
       const classes = new Set();
       elements.set(id, {
+        ...configTestElement(),
         id, value: '', checked: false, disabled: false, readOnly: false, placeholder: '', textContent: '', files: [],
         classList: {
           add: name => classes.add(name),
@@ -3334,15 +3339,17 @@ function createSQLConnectionsFormContext(source) {
   const requests = [];
   const context = {
     window: { addEventListener() {} },
-    document: { getElementById: element },
+    document: { getElementById: element, createElement: configTestElement, querySelector: () => null },
     t: key => key,
     configData: {},
+    openModal() {}, closeModal() {},
     fetch: async (url, opts = {}) => {
       requests.push({ url: String(url), method: opts.method || 'GET', body: typeof opts.body === 'string' ? JSON.parse(opts.body) : null });
-      return { ok: true, json: async () => (opts.method ? { id: 'sql-new' } : []) };
+      return new Response(JSON.stringify(opts.method ? { id: 'sql-new' } : []), { status: 200 });
     }
   };
   vm.createContext(context);
+  loadConfigRuntime(context);
   vm.runInContext(`${source}\nglobalThis.setSQLConnCacheForTest = list => { sqlConnCache = list; };`, context);
   return { context, element, requests };
 }
@@ -4289,6 +4296,7 @@ function configFlowsContext({ flows, tools = {}, providers = [], loaded = true }
     attachChangeListeners() {}
   };
   vm.createContext(context);
+  loadConfigRuntime(context);
   vm.runInContext(read('ui/js/config/catalog.js'), context);
   vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
   vm.runInContext(sourceBetween(main, 'function cfgChoiceSource(', 'async function retryConfigChoiceLists('), context);
@@ -4350,9 +4358,10 @@ function fakeConfigContent() {
         const classes = new Set((attributes.class || '').split(/\s+/));
         return {
           type: attributes.type || '',
-          step: '',
+          step: attributes.step || '',
+          checked: /\schecked(?:\s|>)/.test(tag),
           value: attributes.value || '',
-          dataset: { path: attributes['data-path'] },
+          dataset: { path: attributes['data-path'], type: attributes['data-type'] },
           classList: { contains: name => classes.has(name) }
         };
       });
@@ -4414,6 +4423,7 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
     document: { getElementById: id => (id === 'content' ? content : (elements.get(id) || null)), dispatchEvent() {} },
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
     attachChangeListeners() {},
+    showConfirmDialog: async () => ({ confirmed: true }),
     setDirty(dirty) {
       if (dirty) context.window.AuraConfigState.syncFromDOM(content);
       context.isDirty = context.window.AuraConfigState.isDirty();
@@ -4421,6 +4431,7 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
     ...globals
   };
   vm.createContext(context);
+  loadConfigRuntime(context);
   vm.runInContext(read('ui/js/config/state.js'), context);
   vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
   // Provider dropdown helpers that section modules (A2A) call while rendering.
@@ -4458,7 +4469,7 @@ function typeConfigControl(context, dataPath, value) {
 // Config section "A2A": skills and remote agents save as complete lists. Fields the rows do not show (skill
 // tags, the masked agent credentials the server reports) survive, adding or removing an entry keeps typed
 // edits and never shifts one entry's fields onto another, and other typed fields outside the lists stay.
-function testConfigA2AListsSaveAsCompleteLists() {
+async function testConfigA2AListsSaveAsCompleteLists() {
   const skill = (id, name) => ({ id, name, description: name + ' help', tags: [id, 'aurago'] });
   const agent = (id, name) => ({ id, name, card_url: `https://${id}.example/.well-known/agent-card.json`, enabled: true, api_key: '••••••••', bearer_token: '••••••••' });
   const context = configSectionContext({
@@ -4466,16 +4477,16 @@ function testConfigA2AListsSaveAsCompleteLists() {
     a2a: {
       server: {
         enabled: true, agent_name: 'Aura', agent_description: '', agent_version: '1.0.0', agent_url: '', port: 8091, base_path: '/a2a',
+        bindings: { rest: true, jsonrpc: false, grpc: false, grpc_port: 50051 }, streaming: false, push_notifications: false,
         skills: [skill('search', 'Search'), skill('notes', 'Notes'), skill('lights', 'Lights')]
       },
       client: { enabled: true, remote_agents: [agent('alpha', 'Alpha'), agent('beta', 'Beta'), agent('gamma', 'Gamma')] },
-      auth: {},
+      auth: { api_key_enabled: false, bearer_enabled: false, api_key: '', bearer_secret: '' },
       llm: {}
     }
   }, ['ui/cfg/a2a.js'], {
     regions: ['a2a-skills-list', 'a2a-remote-agents'],
     globals: {
-      AuraConfigForm: { toggle: () => '', number: () => '' },
       cfgSecretPlaceholder: (value, fallback) => fallback,
       cfgSecretValue: () => '',
       EYE_OPEN_SVG: ''
@@ -4501,17 +4512,17 @@ function testConfigA2AListsSaveAsCompleteLists() {
   assert.equal(state.get('a2a.server.agent_name'), 'Aura 2');
   assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'an added skill')[1], [...edited, addedSkill]);
 
-  context.a2aRemoveSkill(0);
+  await context.a2aRemoveSkill(0);
   state.syncFromDOM(context.content);
   assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'a removed skill')[1], [edited[1], edited[2], addedSkill],
     'a removed skill does not shift fields onto its neighbour');
-  [2, 1, 0].forEach(index => context.a2aRemoveSkill(index));
+  for (const index of [2, 1, 0]) await context.a2aRemoveSkill(index);
   state.syncFromDOM(context.content);
   assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', skills], 'no skills')[1], [], 'removing every skill sends an empty list');
 
   typeConfigControl(context, 'a2a.client.remote_agents.2.card_url', 'https://gamma.example/card.json');
   const gamma = { ...agent('gamma', 'Gamma'), card_url: 'https://gamma.example/card.json' };
-  context.a2aRemoveRemoteAgent(0);
+  await context.a2aRemoveRemoteAgent(0);
   state.syncFromDOM(context.content);
   assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', agents, skills], 'a removed agent')[1], [agent('beta', 'Beta'), gamma],
     'a removed agent keeps the others whole');
@@ -4519,13 +4530,13 @@ function testConfigA2AListsSaveAsCompleteLists() {
   state.syncFromDOM(context.content);
   assert.equal(context.content.control('a2a.client.remote_agents.1.card_url').value, 'https://gamma.example/card.json');
   assert.deepEqual(configListPatch(state, ['a2a.server.agent_name', agents, skills], 'an added agent')[1],
-    [agent('beta', 'Beta'), gamma, { id: '', name: '', card_url: '', enabled: true }]);
+    [agent('beta', 'Beta'), gamma, { id: '', name: '', card_url: '', enabled: true, api_key: '', bearer_token: '' }]);
 }
 
 // Config section "3D printers": both printer lists save as complete lists (with the masked Klipper key and
 // fields like webcam_name), each list only when it changed, and adding or removing a printer re-renders
 // before the controls are read back, so typed edits survive and nothing shifts between printers.
-function testConfigThreeDPrinterListsSaveAsCompleteLists() {
+async function testConfigThreeDPrinterListsSaveAsCompleteLists() {
   const elegoo = (id, name) => ({ id, name, url: `ws://${id}.local/websocket`, mainboard_id: id + '-board', timeout_seconds: 10 });
   const klipper = (id, name) => ({ id, name, url: `http://${id}.local:7125`, api_key: '••••••••', timeout_seconds: 15, webcam_name: id + '-cam' });
   const context = configSectionContext({
@@ -4549,7 +4560,7 @@ function testConfigThreeDPrinterListsSaveAsCompleteLists() {
   assert.deepEqual(configListPatch(state, [klipperPath], 'a printer edit'), [[klipper('voron', 'Voron'), ender, klipper('prusa', 'Prusa')]],
     'a printer edit sends every Klipper printer and leaves the Elegoo list alone');
 
-  context.threeDPrinterRemove('klipper', 0);
+  await context.threeDPrinterRemove('klipper', 0);
   state.syncFromDOM(context.content);
   assert.equal(context.content.control(klipperPath + '.0.name').value, 'Ender 3', 'the re-render shows the typed edit');
   assert.deepEqual(configListPatch(state, [klipperPath], 'a removed printer'), [[ender, klipper('prusa', 'Prusa')]],
@@ -4561,8 +4572,8 @@ function testConfigThreeDPrinterListsSaveAsCompleteLists() {
   assert.deepEqual(configListPatch(state, [elegooPath, klipperPath], 'an added printer'),
     [[elegoo('lab', 'Lab'), elegoo('shop', 'Shop'), added], [ender, klipper('prusa', 'Prusa')]]);
 
-  context.threeDPrinterRemove('klipper', 1);
-  context.threeDPrinterRemove('klipper', 0);
+  await context.threeDPrinterRemove('klipper', 1);
+  await context.threeDPrinterRemove('klipper', 0);
   state.syncFromDOM(context.content);
   assert.deepEqual(configListPatch(state, [elegooPath, klipperPath], 'no Klipper printers')[1], [], 'removing every printer sends an empty list');
 }
@@ -4570,7 +4581,7 @@ function testConfigThreeDPrinterListsSaveAsCompleteLists() {
 // Config section "go2rtc": the server replaces go2rtc.streams wholesale, so a save sends the complete list,
 // including fields the stream cards do not show (detection, source_configured). Adding or removing a camera
 // keeps typed edits and never shifts one camera's fields onto another.
-function testConfigGo2RTCStreamsSaveAsCompleteList() {
+async function testConfigGo2RTCStreamsSaveAsCompleteList() {
   const plain = value => JSON.parse(JSON.stringify(value));
   const legacy = configGo2RTCContext({ enabled: false, auto_start: true, agent_access: true, store_media: true, web_ui_enabled: false,
     image: 'alexxit/go2rtc:test', container_name: 'aurago_go2rtc', api_host_port: 1984, webrtc: { enabled: false, port: 8555 },
@@ -4631,10 +4642,11 @@ function testConfigGo2RTCStreamsSaveAsCompleteList() {
   assert.deepEqual(patchStreams('an added camera'), [...edited, added], 'an added camera keeps the typed edit and the other cameras');
 
   context.go2rtcRemoveStream(0);
+  await Promise.resolve();
   state.syncFromDOM(context.content);
   assert.deepEqual(patchStreams('a removed camera'), [edited[1], edited[2], added], 'a removed camera does not shift fields onto its neighbour');
 
-  [2, 1, 0].forEach(index => context.go2rtcRemoveStream(index));
+  for (const index of [2, 1, 0]) { context.go2rtcRemoveStream(index); await Promise.resolve(); }
   state.syncFromDOM(context.content);
   assert.deepEqual(patchStreams('no cameras'), [], 'removing every camera sends an empty list');
 }
@@ -4669,7 +4681,10 @@ function testConfigFlowsSection() {
   assert.equal(select.value, 'gone');
   assert.equal(hintsRemoved, 1);
 
-  const numberInputs = [...html.matchAll(/<input class="field-input" type="number" min="(\d+)" max="(\d+)" value="(\d+)" data-path="(flows\.[a-z_]+)"/g)];
+  const numberInputs = [...html.matchAll(/<input\b[^>]*>/g)].map(([tag]) => {
+    const attrs = Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+    return attrs.type === 'number' ? [tag, attrs.min, attrs.max, attrs.value, attrs['data-path']] : null;
+  }).filter(Boolean);
   assert.equal(JSON.stringify(numberInputs.map(match => [match[4], Number(match[1]), Number(match[2])])),
     JSON.stringify([['flows.max_parallel_runs', 1, 32], ['flows.max_parallel_nodes_per_run', 1, 16], ['flows.run_retention_days', 1, 365], ['flows.max_runs_per_flow', 10, 5000]]));
   const numberElements = values => numberInputs.map(([, , , value, dataPath]) => ({ type: 'number', step: '', value: values[dataPath] || value, dataset: { path: dataPath }, classList: { contains: () => false } }));
