@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Número próprio: o AuraGo tem seu próprio número (recomendado). Meu número: só a sua conversa consigo mesmo chega ao AuraGo.",
   "help.whatsapp.owner_numbers": "Formato internacional, separados por vírgulas. Só esses números chegam ao AuraGo.",
   "help.whatsapp.readonly": "As respostas para você continuam funcionando; o agente não pode enviar por conta própria.",
-  "help.whatsapp.send_read_receipts": "Apenas com número próprio do AuraGo."
+  "help.whatsapp.send_read_receipts": "Apenas com número próprio do AuraGo.",
+  "help.whatsapp.self_chat_prefix": "Apenas no modo conversa consigo mesmo. O AuraGo começa as suas mensagens com este prefixo (no máximo 16 caracteres). Notas para si mesmo que começam com esse prefixo são ignoradas, para que o AuraGo nunca responda ao próprio eco."
 }

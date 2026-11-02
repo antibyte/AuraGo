@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Dedicated: AuraGo has its own number (recommended). Own number: only your Message yourself chat reaches AuraGo.",
   "help.whatsapp.owner_numbers": "International format, separated by commas. Only these numbers can reach AuraGo.",
   "help.whatsapp.readonly": "Replies to you still work; the agent cannot send on its own.",
-  "help.whatsapp.send_read_receipts": "Dedicated mode only."
+  "help.whatsapp.send_read_receipts": "Dedicated mode only.",
+  "help.whatsapp.self_chat_prefix": "Self-chat mode only. AuraGo starts its messages with this text (at most 16 characters). Notes to yourself that start with it are ignored, so AuraGo never answers its own echo."
 }

@@ -46,7 +46,7 @@ function renderWhatsAppSection(section) {
             { titleKey: 'config.refresh.settings', content:
                 toggle('readonly', t('config.whatsapp.readonly'), t('help.whatsapp.readonly')) +
                 toggle('send_read_receipts', t('config.whatsapp.send_read_receipts'), t('help.whatsapp.send_read_receipts')) +
-                field('self_chat_prefix', t('config.whatsapp.self_chat_prefix'))
+                field('self_chat_prefix', t('config.whatsapp.self_chat_prefix'), { help: t('help.whatsapp.self_chat_prefix') })
             }
         ]
     });

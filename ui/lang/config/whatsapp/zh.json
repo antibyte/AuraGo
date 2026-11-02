@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "专用号码：AuraGo 拥有自己的号码（推荐）。我的号码：只有你与自己的聊天会发送到 AuraGo。",
   "help.whatsapp.owner_numbers": "国际格式，以逗号分隔。只有这些号码能联系 AuraGo。",
   "help.whatsapp.readonly": "回复你的消息仍可正常发送；代理不能主动发送。",
-  "help.whatsapp.send_read_receipts": "仅适用于 AuraGo 专用号码。"
+  "help.whatsapp.send_read_receipts": "仅适用于 AuraGo 专用号码。",
+  "help.whatsapp.self_chat_prefix": "仅适用于自聊模式。AuraGo 发出的消息都以此前缀开头（最多 16 个字符）。发给自己、以此前缀开头的备忘会被忽略，因此 AuraGo 永远不会回复自己的回声。"
 }

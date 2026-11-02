@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Eget AuraGo-nummer: AuraGo har sit eget nummer (anbefalet). Mit nummer: Kun din chat med dig selv når AuraGo.",
   "help.whatsapp.owner_numbers": "Internationalt format, adskilt med kommaer. Kun disse numre kan nå AuraGo.",
   "help.whatsapp.readonly": "Svar til dig virker stadig; agenten kan ikke sende af sig selv.",
-  "help.whatsapp.send_read_receipts": "Kun med eget AuraGo-nummer."
+  "help.whatsapp.send_read_receipts": "Kun med eget AuraGo-nummer.",
+  "help.whatsapp.self_chat_prefix": "Kun i selvchat-tilstand. AuraGo starter sine beskeder med dette præfiks (højst 16 tegn). Noter til dig selv, der begynder med præfikset, ignoreres, så AuraGo aldrig svarer på sit eget ekko."
 }

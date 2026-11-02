@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Osobny numer: AuraGo ma własny numer (zalecane). Mój numer: do AuraGo trafia tylko Twój czat z samym sobą.",
   "help.whatsapp.owner_numbers": "Format międzynarodowy, oddzielone przecinkami. Tylko te numery docierają do AuraGo.",
   "help.whatsapp.readonly": "Odpowiedzi do Ciebie nadal działają; agent nie może wysyłać z własnej inicjatywy.",
-  "help.whatsapp.send_read_receipts": "Tylko z osobnym numerem AuraGo."
+  "help.whatsapp.send_read_receipts": "Tylko z osobnym numerem AuraGo.",
+  "help.whatsapp.self_chat_prefix": "Tylko w trybie czatu z samym sobą. AuraGo zaczyna swoje wiadomości od tego prefiksu (maksymalnie 16 znaków). Notatki do samego siebie, które zaczynają się od prefiksu, są ignorowane, dzięki czemu AuraGo nigdy nie odpowiada na własne echo."
 }

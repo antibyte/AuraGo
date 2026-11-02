@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Numero dedicato: AuraGo ha un proprio numero (consigliato). Il mio numero: solo la tua chat con te stesso raggiunge AuraGo.",
   "help.whatsapp.owner_numbers": "Formato internazionale, separati da virgole. Solo questi numeri raggiungono AuraGo.",
   "help.whatsapp.readonly": "Le risposte a te funzionano ancora; l'agente non può inviare di sua iniziativa.",
-  "help.whatsapp.send_read_receipts": "Solo con numero dedicato ad AuraGo."
+  "help.whatsapp.send_read_receipts": "Solo con numero dedicato ad AuraGo.",
+  "help.whatsapp.self_chat_prefix": "Solo in modalità chat con te stesso. AuraGo inizia i suoi messaggi con questo prefisso (massimo 16 caratteri). Le note a te stesso che iniziano con questo prefisso vengono ignorate, così AuraGo non risponde mai al proprio eco."
 }

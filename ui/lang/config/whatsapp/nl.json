@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Eigen AuraGo-nummer: AuraGo heeft een eigen nummer (aanbevolen). Mijn nummer: alleen je chat met jezelf bereikt AuraGo.",
   "help.whatsapp.owner_numbers": "Internationaal formaat, gescheiden door komma's. Alleen deze nummers bereiken AuraGo.",
   "help.whatsapp.readonly": "Antwoorden aan jou blijven werken; de agent kan niet uit zichzelf versturen.",
-  "help.whatsapp.send_read_receipts": "Alleen met een eigen AuraGo-nummer."
+  "help.whatsapp.send_read_receipts": "Alleen met een eigen AuraGo-nummer.",
+  "help.whatsapp.self_chat_prefix": "Alleen in de modus chat met jezelf. AuraGo begint zijn berichten met dit voorvoegsel (maximaal 16 tekens). Notities aan jezelf die met dit voorvoegsel beginnen, worden genegeerd, zodat AuraGo nooit antwoordt op zijn eigen echo."
 }

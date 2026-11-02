@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "Eget AuraGo-nummer: AuraGo har sitt eget nummer (anbefalt). Mitt nummer: bare chatten med deg selv når AuraGo.",
   "help.whatsapp.owner_numbers": "Internasjonalt format, adskilt med komma. Bare disse numrene når AuraGo.",
   "help.whatsapp.readonly": "Svar til deg virker fortsatt; agenten kan ikke sende på egen hånd.",
-  "help.whatsapp.send_read_receipts": "Bare med eget AuraGo-nummer."
+  "help.whatsapp.send_read_receipts": "Bare med eget AuraGo-nummer.",
+  "help.whatsapp.self_chat_prefix": "Bare i modusen for chat med deg selv. AuraGo starter meldingene sine med dette prefikset (maks. 16 tegn). Notater til deg selv som begynner med prefikset, blir ignorert, slik at AuraGo aldri svarer på sitt eget ekko."
 }

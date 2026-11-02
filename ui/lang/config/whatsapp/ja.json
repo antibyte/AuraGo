@@ -49,5 +49,6 @@
   "help.whatsapp.mode": "専用の番号：AuraGo が自分の番号を持ちます（推奨）。自分の番号：自分とのチャットだけが AuraGo に届きます。",
   "help.whatsapp.owner_numbers": "国際形式でカンマ区切り。これらの番号だけが AuraGo に届きます。",
   "help.whatsapp.readonly": "あなたへの返信は引き続き動作します。エージェントが自発的に送信することはできません。",
-  "help.whatsapp.send_read_receipts": "AuraGo 専用の番号の場合のみ。"
+  "help.whatsapp.send_read_receipts": "AuraGo 専用の番号の場合のみ。",
+  "help.whatsapp.self_chat_prefix": "自分とのチャットモードの場合のみ。AuraGo は送信するメッセージの先頭にこの接頭辞を付けます（16 文字以内）。この接頭辞で始まる自分へのメモは無視されるため、AuraGo が自分のエコーに返信することはありません。"
 }
