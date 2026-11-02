@@ -4272,11 +4272,17 @@ registration lives in `internal/desktop/types.go`.
   retain their destination while blocked and resume when a route becomes free.
   Camera flights validate each segment, use nearby clear exits before climbing
   above roofs, and wait or stop when blocked. Manual orbit input cancels a flight.
+  A blocked street robot waits 2.5 s before it turns around, so a short blockage
+  is driven through instead of turned back from.
 - `sysworld-places/society/signals/machinery.js` own a bounded waypoint graph,
   reserved work slots, courier pickup/delivery, maintenance, archive exchanges,
   visitor greetings/guides and six local installation demonstrations. Guides
   wait for the visitor; the camera remains user-controlled. Residents clear
   approaching rails; conflicting drones use distinct vertical escape decisions.
+  A blocked resident steps aside only, never backwards, commits to that side for
+  1.2 s and keeps facing the goal; the step has to open the street, otherwise the
+  resident waits instead of circling its obstacle. The walk bob follows the
+  distance covered, so a standing robot hovers quietly.
   Cancel, hide, replay and close release reservations and packets. Local exchanges
   are labelled City life, never successful system actions. Eight reusable local
   wave packets show direction, receipt and reply; genuine building waves retain

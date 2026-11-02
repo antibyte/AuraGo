@@ -89,7 +89,7 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
   }
   function reverse(a) {
     a.dir = -a.dir; a.lane = -a.lane; a.laneTarget = defaultLane; a.laneVel = 0;
-    a.state = 'turn'; a.cooldown = 4; a.wait = 0; a.target = 0; a.turns++;
+    a.state = 'turn'; a.cooldown = 4; a.wait = 0; a.target = 0; a.turns++; a.blocked = 0;
   }
   function steer(a, dt) {
     if(a.held){a.target=0;a.speed=0;a.laneVel=0;return;}
@@ -107,7 +107,16 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
     let chosen = null;
     const ordered = [...lanes].sort((p, q) => Math.abs(p - defaultLane) - Math.abs(q - defaultLane) || q - p);
     for (const lane of ordered) if (laneClear(a, lane)) { chosen = lane; break; }
-    if (chosen === null) { if (a.cooldown <= 0) reverse(a); else a.target = 0; return; }
+    if (chosen === null) {
+      // A lane can be blocked for a moment while a tram or a neighbour passes. Waiting
+      // that out keeps the resident on its street; only a street that stays blocked is
+      // worth the U-turn, or the resident turns around in a loop and never gets going.
+      a.blocked = (a.blocked || 0) + dt;
+      a.target = 0;
+      if (a.blocked > 2.5 && a.cooldown <= 0) { a.blocked = 0; reverse(a); }
+      return;
+    }
+    a.blocked = 0;
     a.laneTarget = chosen; a.target = a.cruise;
     // Slow down while sidestepping out of a blocked lane so the lateral move completes first.
     if (Math.abs(a.laneTarget - a.lane) > .5 && !laneClear(a, a.lane)) a.target = Math.min(a.target, 2.4);

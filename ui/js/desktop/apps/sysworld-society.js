@@ -88,12 +88,20 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         const escape=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8),Math.sin(i*Math.PI/8),2]);
         const away=([x,z])=>x*(a.body.x-tram.x)+z*(a.body.z-tram.z);
         exits.push(...escape.filter(v=>away(v)>.2).sort((a,b)=>away(b)-away(a)));
-        for(const [dx,dz,distance] of exits){
+        // Keep the chosen side for a moment: re-picking it every frame makes the
+        // resident step left and right on the spot while the tram passes.
+        const held=a.escape&&clock<a.escape.until?a.escape:null;
+        const order=held?exits.filter(e=>e[0]===held.x&&e[1]===held.z).concat(exits.filter(e=>!(e[0]===held.x&&e[1]===held.z))):exits;
+        let stepped=false;
+        for(const [dx,dz,distance] of order){
           const probe={x:a.body.x+dx*distance,y:a.body.y,z:a.body.z+dz*distance,heading:a.body.heading};
           if(!traffic.clear(a.body,a.body,probe))continue;
           const next={...probe,x:a.body.x+dx*dt*1.8,z:a.body.z+dz*dt*1.8};next.y=a.pause?a.body.y:floor(next.x,next.z);
-          traffic.propose(a.body,next,(_,b)=>{a.node.position.set(b.x,b.y,b.z);stride(a,'walk',1.8);});a.state='yield';a.cooldown=clock+5;break;
+          traffic.propose(a.body,next,(_,b)=>{a.node.position.set(b.x,b.y,b.z);stride(a,'walk',1.8);});
+          a.escape={x:dx,z:dz,until:clock+.8};a.state='yield';a.cooldown=clock+5;stepped=true;break;
         }
+        // Nowhere free to step onto: stand still instead of marching on the spot.
+        if(!stepped){a.play?.('idle');a.state='yield';}
         continue;
       }
       if(a.trafficYield){a.trafficYield=false;a.pause?.(false,a.body);a.state=a.pause?'patrol':a.path.length?'walk':'idle';}
@@ -109,13 +117,27 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         // Predict nearby traffic before entering a gap; prefer the right side.
         const probe={x:a.body.x+forward.x*1.8,y:floor(x,z),z:a.body.z+forward.z*1.8,heading};
         if(!traffic.clear(a.body,a.body,probe)) {
+          // Step around the obstruction, but stay committed to one side and keep facing
+          // the goal: alternating sides turn the resident left and right on the spot.
+          // Backing up is no detour at all - it opens the way for one frame and sends
+          // the resident back and forth in front of the obstacle.
+          const sides=[[forward.z,-forward.x],[-forward.z,forward.x]];
+          const held=a.detour&&clock<a.detour.until?sides.findIndex(s=>s[0]===a.detour.x&&s[1]===a.detour.z):-1;
+          const order=held>=0?[sides[held],...sides.filter((_,i)=>i!==held)]:sides;
           let clear=false;
-          for(const [sx,sz] of [[forward.z,-forward.x],[-forward.z,forward.x],[-forward.x,-forward.z]]) {
+          for(const [sx,sz] of order) {
             const candidate={x:a.body.x+sx*1.3,y:a.body.y,z:a.body.z+sz*1.3,heading:a.body.heading};
-            if(traffic.clear(a.body,a.body,candidate)){x=a.body.x+sx*advance;z=a.body.z+sz*advance;heading=turn(a.body.heading,Math.atan2(sx,sz),dt);clear=true;break;}
+            if(!traffic.clear(a.body,a.body,candidate))continue;
+            // The step must actually open the way. A sidestep that leaves the street
+            // blocked sends the resident circling its obstacle instead of past it.
+            // The probe starts at the candidate: a diagonal sweep from the resident
+            // clips the corner of the obstacle and refuses a sidestep that fits.
+            const beyond={x:candidate.x+forward.x*1.8,y:floor(candidate.x,candidate.z),z:candidate.z+forward.z*1.8,heading:a.body.heading};
+            if(!traffic.clear(a.body,candidate,beyond))continue;
+            x=a.body.x+sx*advance;z=a.body.z+sz*advance;a.detour={x:sx,z:sz,until:clock+1.2};clear=true;break;
           }
           if(!clear){x=a.body.x;z=a.body.z;}
-        }
+        } else a.detour=null;
         if(!traffic.clear(a.body,a.body,{x,y:floor(x,z),z,heading},false))heading=a.body.heading;
         const moving=Math.hypot(x-a.body.x,z-a.body.z)>.001;
         traffic.propose(a.body,{x,y:floor(x,z),z,heading},(accepted,b)=>{
@@ -188,7 +210,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       const place=livingPlaces.find(p=>p.district===(e.to==='agent'?e.from:e.to));
       if(place&&places.has(place.id))onDemonstrate?.(place.id,2,e.state);
     },
-    stats:()=>({completed,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z})),places:[...places.keys()]}),
+    stats:()=>({completed,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
     dispose(){disposed=true;suspend();actors.forEach(a=>traffic.remove(a.id));actors.length=0;places.clear();slots.length=0;signals.dispose();},
   };
 }

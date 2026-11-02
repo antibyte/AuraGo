@@ -90,6 +90,14 @@ turn clips are included in the model catalog. Decorative life is independent of
 telemetry. Cargo movements require fresh, observed mission state changes; initial
 snapshots, replay and hidden/reduced-motion windows do not synthesize activity.
 
+Residents and white robots share one collision world and one movement rule: nobody
+jitters, paces or walks on the spot. A blocked resident steps aside only, never
+backwards, stays on that side for 1.2 seconds and keeps its face on the goal; the
+step has to open the street, otherwise the resident waits instead of circling its
+obstacle. A blocked street robot waits 2.5 seconds before it turns around, so a
+short blockage is driven through instead of turned back from. A standing robot
+hovers quietly, because the walk bob follows the distance it actually covers.
+
 Lighting follows browser-local time unless day, evening or night is selected.
 Clear weather is the default; rain and fog are user choices and never signal a
 system fault. Rain adjusts particles, fog, surface wetness, puddles and ambience.
@@ -245,6 +253,7 @@ node scripts/test-system-world-surfaces.mjs
 node scripts/test-system-world-expansion.mjs
 node scripts/test-system-world-traffic.mjs
 node scripts/test-system-world-living.mjs
+node scripts/test-system-world-jitter.mjs
 node scripts/test-system-world-layout.mjs
 node scripts/test-system-world-hover.mjs
 node scripts/test-system-world-voice.mjs

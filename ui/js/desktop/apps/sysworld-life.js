@@ -103,7 +103,7 @@ export function createCityLife(scene, districts, options) {
     const glow=new THREE.Mesh(glowGeometry,glowMaterial);glow.rotation.x=-Math.PI/2;glow.position.y=.58;group.add(glow);
     const jet=new THREE.Mesh(jetGeometry,jetMaterial);jet.rotation.z=Math.PI;jet.position.y=-.45;root.add(jet);
     root.visible=false;glow.visible=false;
-    residents.push({root,body,glow,jet,agent:navigator.agents[i]});
+    residents.push({root,body,glow,jet,agent:navigator.agents[i],lastX:0,lastZ:0,phase:0,gait:0});
   });
   function releaseModel(model) {
     model.traverse(n=>{
@@ -180,12 +180,23 @@ export function createCityLife(scene, districts, options) {
     for(const [i,r]of residents.entries()) {
       const a=r.agent, moving=Math.hypot(a.vx,a.vz);
       const position=(!animated||a.held)&&bodies[i]?bodies[i]:a;
-      r.root.position.set(position.x,1.6+Math.sin(time*1.6+i*1.9)*.18,position.z);
+      // The walk bob belongs to the distance a robot covers. A robot that only rolls
+      // the last centimetres must not swing, and a resident that stands still must
+      // not sway as if it walked: the walk belongs to the movement, the rest gets a
+      // quiet hover. The phase follows the covered distance, so the bob cannot jump
+      // when a robot brakes, and the amplitude is damped over the next frames.
+      const distance=Math.hypot(position.x-r.lastX,position.z-r.lastZ);
+      const moved=distance>.5?0:distance;
+      r.lastX=position.x;r.lastZ=position.z;
+      r.phase+=moved*1.4;
+      r.gait=THREE.MathUtils.damp(r.gait,Math.min(1,moved/Math.max(step,1e-4)/1.2),6,step);
+      const gait=r.gait,rest=1-gait;
+      r.root.position.set(position.x,1.6+Math.sin(r.phase)*.14*gait+Math.sin(time*.7+i*2.1)*.03*rest,position.z);
       r.root.rotation.y=position.heading;
       // Lean into lateral moves and turns; a stopped or turning robot stays level.
       const lateral=(a.vx*a.rx+a.vz*a.rz)/Math.max(1,moving);
-      r.body.rotation.z=Math.sin(time*.85+i)*.035-lateral*.08;
-      r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018-Math.min(.09,moving*.015);
+      r.body.rotation.z=Math.sin(time*.85+i)*.035*gait-lateral*.08;
+      r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018*gait-Math.min(.09,moving*.015);
       r.glow.position.x=position.x;r.glow.position.z=position.z;
       r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
       if(animated&&bodies[i]&&!a.held){
@@ -230,7 +241,7 @@ export function createCityLife(scene, districts, options) {
   options.signal?.addEventListener('abort',dispose,{once:true});
   if(options.signal?.aborted)dispose();else void loadRobot();
   return {update,setData,attachLandmarks,dispose,
-    stats:()=>({robots:robotsLoaded?residents.filter(r=>r.root.visible).length:0,robotError,time,navigation:navigator.stats(),
+    stats:()=>({robots:robotsLoaded?residents.filter(r=>r.root.visible).length:0,robotError,time,navigation:{...navigator.stats(),gaits:residents.map(r=>+(r.gait||0).toFixed(2)),held:residents.map(r=>!!r.agent.held),enabled:residents.map(r=>!!bodies[residents.indexOf(r)]?.enabled)},
       positions:residents.map(r=>r.root.position.toArray()),
       transmissions:packets.filter(p=>p.waves.some(m=>m.visible)).map(p=>({from:p.from,to:p.to,state:p.state,age:Date.now()-p.at})),
       signals:signals.map(s=>({id:s.id,state:s.state,intensity:s.material.opacity})),
