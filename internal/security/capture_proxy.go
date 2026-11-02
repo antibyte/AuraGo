@@ -58,6 +58,11 @@ type CaptureProxyLimits struct {
 	// MaxBytes is the total number of bytes relayed in both directions; the
 	// connections are cut when it is exceeded.
 	MaxBytes int64
+	// ResponseHeaderTimeout is how long the proxy waits for an upstream to start
+	// answering a plain HTTP request. Zero selects 20 seconds; a strict proxy in
+	// front of a server that answers late (a render listener that starts FFmpeg
+	// before it replies) raises it.
+	ResponseHeaderTimeout time.Duration
 }
 
 // CaptureProxy is an in-process forward proxy for one headless-browser capture.
@@ -71,6 +76,7 @@ type CaptureProxyLimits struct {
 // validated IP itself is dialed, so there is no second lookup to rebind.
 type CaptureProxy struct {
 	allowed string // canonical host:port of the trusted origin, "" for none
+	strict  bool   // dial the allowed origin only; no SSRF-checked public destinations
 	limits  CaptureProxyLimits
 	idle    time.Duration // tunnel idle timeout
 
@@ -100,7 +106,24 @@ func StartCaptureProxy(allowed *url.URL, limits CaptureProxyLimits) (*CapturePro
 	return startCaptureProxy(allowed, limits, captureProxyIdleTimeout)
 }
 
+// StartStrictCaptureProxy is StartCaptureProxy for a page that must talk to its own
+// origin and nothing else (the Storymaker render page). The proxy dials the allowed
+// origin's host:port exactly as given and refuses every other destination: other
+// loopback ports, other hosts, public addresses, name forms of the same address
+// (localhost) and the AURAGO_SSRF_ALLOW_LOOPBACK escape hatch included. A destination
+// is never resolved, so a refusal costs no DNS lookup. allowed is required.
+func StartStrictCaptureProxy(allowed *url.URL, limits CaptureProxyLimits) (*CaptureProxy, error) {
+	if allowed == nil {
+		return nil, fmt.Errorf("strict capture proxy needs an allowed origin")
+	}
+	return startCaptureProxyMode(allowed, limits, captureProxyIdleTimeout, true)
+}
+
 func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration) (*CaptureProxy, error) {
+	return startCaptureProxyMode(allowed, limits, idle, false)
+}
+
+func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration, strict bool) (*CaptureProxy, error) {
 	allowedHostPort := ""
 	if allowed != nil {
 		if (allowed.Scheme != "http" && allowed.Scheme != "https") || allowed.Hostname() == "" {
@@ -117,6 +140,9 @@ func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Du
 	if limits.MaxBytes <= 0 {
 		limits.MaxBytes = defaultCaptureProxyBytes
 	}
+	if limits.ResponseHeaderTimeout <= 0 {
+		limits.ResponseHeaderTimeout = captureProxyResponseTimeout
+	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("capture proxy listen: %w", err)
@@ -125,6 +151,7 @@ func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Du
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &CaptureProxy{
 		allowed:  allowedHostPort,
+		strict:   strict,
 		limits:   limits,
 		idle:     idle,
 		listener: listener,
@@ -141,7 +168,7 @@ func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Du
 		MaxIdleConns:           limits.MaxConcurrent,
 		MaxIdleConnsPerHost:    2,
 		IdleConnTimeout:        idle,
-		ResponseHeaderTimeout:  captureProxyResponseTimeout,
+		ResponseHeaderTimeout:  limits.ResponseHeaderTimeout,
 		MaxResponseHeaderBytes: 256 << 10,
 	}
 	p.server = &http.Server{
@@ -264,6 +291,9 @@ func (p *CaptureProxy) destination(ctx context.Context, hostPort string) (string
 	}
 	if p.allowed != "" && captureHostPort(host, port) == p.allowed {
 		return p.allowed, nil
+	}
+	if p.strict {
+		return "", fmt.Errorf("%w: only the render origin is reachable", errCaptureDestinationBlocked)
 	}
 	target, _, err := validatedSSRFDialTarget(ctx, hostPort)
 	if err != nil {
