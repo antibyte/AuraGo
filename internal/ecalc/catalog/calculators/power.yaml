@@ -1,0 +1,332 @@
+# Power supply calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in
+# English and German (other languages fall back to English). Rules are written out for every direction, in the order the
+# solver tries them: the first alternative whose variables are all known wins.
+
+- id: lm317_voltage
+  kind: calculator
+  category: power
+  name: {cs: "LM317 – výstupní napětí", da: "LM317 – udgangsspænding", de: "LM317 Ausgangsspannung", el: "LM317 – τάση εξόδου", en: "LM317 output voltage", es: "LM317: tensión de salida", fr: "LM317 : tension de sortie", hi: "LM317 आउटपुट वोल्टेज", it: "LM317: tensione di uscita", ja: "LM317 出力電圧", nl: "LM317-uitgangsspanning", no: "LM317 utgangsspenning", pl: "LM317 – napięcie wyjściowe", pt: "LM317: tensão de saída", sv: "LM317 utspänning", zh: "LM317 输出电压"}
+  doc:
+    en: "The adjustable regulator LM317 holds its reference voltage V_ref (about 1.25 V) between the OUT and ADJ pins. R_1 from OUT to ADJ and R_2 from ADJ to ground set the output voltage: V_out = V_ref × (1 + R_2 / R_1) + I_adj × R_2. The adjustment-pin current I_adj (typically 50 µA) also flows through R_2. About 240 Ω is the usual value for R_1. V_ref and I_adj are typical datasheet values and vary from part to part (V_ref from 1.2 V to 1.3 V). The defaults R_1 = 240 Ω and R_2 = 720 Ω give 5.036 V. The input voltage must stay above V_out by at least the dropout voltage of the regulator."
+    de: "Der einstellbare Spannungsregler LM317 hält seine Referenzspannung V_ref (etwa 1,25 V) zwischen den Anschlüssen OUT und ADJ. R_1 von OUT nach ADJ und R_2 von ADJ nach Masse legen die Ausgangsspannung fest: V_out = V_ref · (1 + R_2 / R_1) + I_adj · R_2. Der Strom des Einstellanschlusses I_adj (typisch 50 µA) fließt zusätzlich durch R_2. Für R_1 sind etwa 240 Ω üblich. V_ref und I_adj sind typische Datenblattwerte und streuen von Exemplar zu Exemplar (V_ref von 1,2 V bis 1,3 V). Mit den Vorgaben R_1 = 240 Ω und R_2 = 720 Ω ergeben sich 5,036 V. Die Eingangsspannung muss mindestens um die Dropout-Spannung des Reglers über V_out liegen."
+  tags: [lm317, adjustable regulator, linear regulator, voltage regulator, output voltage, reference voltage, einstellbarer spannungsregler, spannungsregler, linearregler, ausgangsspannung, referenzspannung]
+  source: "LM317 datasheets (Texas Instruments, STMicroelectronics): V_OUT = V_REF × (1 + R2 / R1) + I_ADJ × R2 with the typical V_REF = 1.25 V and I_ADJ = 50 µA"
+  vars:
+    vref: {dim: voltage, label: V_ref, name: {en: "Reference voltage", de: "Referenzspannung"}, default: "1.25 V"}
+    iadj: {dim: current, label: I_adj, name: {en: "Adjustment-pin current", de: "Strom des Einstellanschlusses"}, default: "50 µA"}
+    r1: {dim: resistance, label: R_1, name: {en: "Resistor OUT to ADJ", de: "Widerstand OUT nach ADJ"}, default: "240", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Resistor ADJ to ground", de: "Widerstand ADJ nach Masse"}, default: "720", eseries: true}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 4
+  rules:
+    vout: ["vref*(1+r2/r1)+iadj*r2"]
+    r2: ["(vout-vref)/(vref/r1+iadj)"]
+    r1: ["vref*r2/(vout-vref-iadj*r2)"]
+    vref: ["(vout-iadj*r2)/(1+r2/r1)"]
+    iadj: ["(vout-vref*(1+r2/r1))/r2"]
+  derived:
+    i1: {dim: current, label: I_1, name: {en: "Current through R1", de: "Strom durch R1"}, expr: "vref/r1"}
+  checks:
+    - {when: "vout < vref", warn: {en: "V_out is below the reference voltage: the LM317 cannot regulate lower than about 1.25 V.", de: "V_out liegt unter der Referenzspannung: Der LM317 kann nicht tiefer als etwa 1,25 V regeln."}}
+  formula: ["vout = vref * (1 + r2 / r1) + iadj * r2"]
+  schematic: lm317_voltage
+
+- id: lm317_current
+  kind: calculator
+  category: power
+  name: {cs: "LM317 – zdroj konstantního proudu", da: "LM317 – konstantstrømkilde", de: "LM317 Konstantstromquelle", el: "LM317 – πηγή σταθερού ρεύματος", en: "LM317 constant-current source", es: "LM317: fuente de corriente constante", fr: "LM317 : source de courant constant", hi: "LM317 स्थिर धारा स्रोत", it: "LM317: generatore di corrente costante", ja: "LM317 定電流源", nl: "LM317-constantestroombron", no: "LM317 konstantstrømkilde", pl: "LM317 – źródło prądu stałego", pt: "LM317: fonte de corrente constante", sv: "LM317 konstantströmkälla", zh: "LM317 恒流源"}
+  doc:
+    en: "The LM317 as a constant-current source: the regulator keeps V_ref (about 1.25 V) across the resistor R between its OUT and ADJ pins, so R carries V_ref / R. The load sits between the ADJ pin and ground and also receives the adjustment-pin current I_adj (typically 50 µA): I = V_ref / R + I_adj. The resistor dissipates V_ref² / R. The default R = 10 Ω gives 125 mA with about 156 mW in the resistor. The input voltage must exceed the load voltage plus V_ref plus the dropout voltage of the regulator."
+    de: "Der LM317 als Konstantstromquelle: Der Regler hält V_ref (etwa 1,25 V) am Widerstand R zwischen seinen Anschlüssen OUT und ADJ, R führt also V_ref / R. Die Last liegt zwischen dem ADJ-Anschluss und Masse und erhält zusätzlich den Strom des Einstellanschlusses I_adj (typisch 50 µA): I = V_ref / R + I_adj. Der Widerstand setzt V_ref² / R um. Mit dem Vorgabewert R = 10 Ω fließen 125 mA, im Widerstand werden etwa 156 mW umgesetzt. Die Eingangsspannung muss größer sein als Lastspannung plus V_ref plus Dropout-Spannung des Reglers."
+  tags: [lm317, constant current, current source, current regulator, led driver, konstantstrom, konstantstromquelle, stromquelle, led treiber]
+  source: "LM317 datasheets (Texas Instruments, STMicroelectronics): constant-current connection with the resistor between OUT and ADJ, I = V_REF / R + I_ADJ (V_REF = 1.25 V and I_ADJ = 50 µA typical)"
+  vars:
+    vref: {dim: voltage, label: V_ref, name: {en: "Reference voltage", de: "Referenzspannung"}, default: "1.25 V"}
+    iadj: {dim: current, label: I_adj, name: {en: "Adjustment-pin current", de: "Strom des Einstellanschlusses"}, default: "50 µA"}
+    r: {dim: resistance, label: R, name: {en: "Current-setting resistor", de: "Stromeinstellender Widerstand"}, default: "10", eseries: true}
+    i: {dim: current, label: I, name: {en: "Load current", de: "Laststrom"}}
+  dof: 3
+  rules:
+    i: ["vref/r+iadj"]
+    r: ["vref/(i-iadj)"]
+    vref: ["(i-iadj)*r"]
+    iadj: ["i-vref/r"]
+  derived:
+    pr: {dim: power, label: P_R, name: {en: "Resistor power", de: "Verlustleistung im Widerstand"}, expr: "vref^2/r"}
+  checks:
+    - {when: "i > 1.5", warn: {en: "The load current is above the rated output current of the LM317 (1.5 A).", de: "Der Laststrom liegt über dem Nennausgangsstrom des LM317 (1,5 A)."}}
+    - {when: "i <= iadj", warn: {en: "The load current must be larger than the adjustment-pin current I_adj; no resistor can set it.", de: "Der Laststrom muss größer sein als der Strom des Einstellanschlusses I_adj; kein Widerstand kann ihn einstellen."}}
+  formula: ["i = vref / r + iadj", "pr = vref^2 / r"]
+  schematic: lm317_current
+
+- id: linear_regulator_loss
+  kind: calculator
+  category: power
+  name: {cs: "Ztráty lineárního stabilizátoru", da: "Tab i lineær regulator", de: "Verlustleistung Linearregler", el: "Απώλειες γραμμικού ρυθμιστή", en: "Linear regulator power loss", es: "Pérdidas del regulador lineal", fr: "Pertes d'un régulateur linéaire", hi: "रैखिक रेगुलेटर की हानि", it: "Perdite del regolatore lineare", ja: "リニアレギュレータの損失", nl: "Verlies van een lineaire regelaar", no: "Tap i lineær regulator", pl: "Straty stabilizatora liniowego", pt: "Perdas do regulador linear", sv: "Förlusteffekt i linjär regulator", zh: "线性稳压器功耗"}
+  doc:
+    en: "A linear regulator turns the voltage difference between input and output into heat: P = (V_in − V_out) × I_out + V_in × I_q, where I_q is the quiescent current the regulator draws from the input in addition to the load current. The efficiency is η = V_out × I_out / (V_in × (I_out + I_q)). The defaults (12 V to 5 V at 500 mA with 5 mA quiescent current) dissipate 3.56 W at an efficiency of 41 %; this heat has to be removed with a heat sink, or the input voltage has to be lowered."
+    de: "Ein Linearregler wandelt die Spannungsdifferenz zwischen Eingang und Ausgang in Wärme um: P = (V_in − V_out) · I_out + V_in · I_q; I_q ist der Ruhestrom, den der Regler zusätzlich zum Laststrom aus dem Eingang zieht. Der Wirkungsgrad ist η = V_out · I_out / (V_in · (I_out + I_q)). Die Vorgaben (12 V auf 5 V bei 500 mA und 5 mA Ruhestrom) erzeugen 3,56 W Verlustleistung bei 41 % Wirkungsgrad; diese Wärme muss über einen Kühlkörper abgeführt oder die Eingangsspannung gesenkt werden."
+  tags: [linear regulator, ldo, 7805, dropout, dissipation, heat, efficiency, quiescent current, linearregler, spannungsregler, verlustleistung, wirkungsgrad, ruhestrom, wärme]
+  source: "Power balance of a series (linear) regulator: P = (V_in − V_out) × I_out + V_in × I_q; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}, default: "5 V"}
+    iout: {dim: current, label: I_out, name: {en: "Output current", de: "Ausgangsstrom"}, default: "500 mA"}
+    iq: {dim: current, label: I_q, name: {en: "Quiescent current", de: "Ruhestrom"}, default: "5 mA"}
+    p: {dim: power, label: P, name: {en: "Power dissipated in the regulator", de: "Verlustleistung im Regler"}}
+  dof: 4
+  rules:
+    p: ["(vin-vout)*iout+vin*iq"]
+    vin: ["(p+vout*iout)/(iout+iq)"]
+    vout: ["(vin*(iout+iq)-p)/iout"]
+    iout: ["(p-vin*iq)/(vin-vout)"]
+    iq: ["(p-(vin-vout)*iout)/vin"]
+  derived:
+    pin: {dim: power, label: P_in, name: {en: "Input power", de: "Eingangsleistung"}, expr: "vin*(iout+iq)"}
+    pout: {dim: power, label: P_out, name: {en: "Output power", de: "Ausgangsleistung"}, expr: "vout*iout"}
+    eta: {dim: ratio, label: η, name: {en: "Efficiency", de: "Wirkungsgrad"}, expr: "vout*iout/(vin*(iout+iq))", unit: pct}
+  checks:
+    - {when: "vout >= vin", warn: {en: "V_out is not below V_in: a linear regulator needs an input voltage above the output voltage (plus its dropout voltage).", de: "V_out liegt nicht unter V_in: Ein Linearregler braucht eine Eingangsspannung über der Ausgangsspannung (plus Dropout-Spannung)."}}
+  formula: ["p = (vin - vout) * iout + vin * iq", "eta = vout * iout / (vin * (iout + iq))"]
+  schematic: linear_regulator_loss
+
+- id: buck_converter
+  kind: calculator
+  category: power
+  name: {cs: "Snižující měnič (buck)", da: "Buck-konverter (step-down)", de: "Tiefsetzsteller (Buck)", el: "Μετατροπέας υποβιβασμού (buck)", en: "Buck converter (step-down)", es: "Convertidor reductor (buck)", fr: "Convertisseur abaisseur (buck)", hi: "बक कन्वर्टर (स्टेप-डाउन)", it: "Convertitore buck (step-down)", ja: "降圧コンバータ（バック）", nl: "Buck-omzetter (step-down)", no: "Buck-omformer (nedtrapping)", pl: "Przetwornica obniżająca (buck)", pt: "Conversor abaixador (buck)", sv: "Buck-omvandlare (nedtrappning)", zh: "降压变换器（Buck）"}
+  doc:
+    en: "An ideal step-down (buck) converter in continuous conduction: the duty cycle is D = V_out / V_in and the peak-to-peak inductor ripple current is ΔI_L = V_out × (V_in − V_out) / (V_in × f_sw × L). The inductor current swings between I_out − ΔI_L / 2 and I_out + ΔI_L / 2, so the inductor and the switch must handle the peak current I_pk = I_out + ΔI_L / 2. Assumptions: lossless components, constant input and output voltages, continuous conduction (the valley current stays above zero); I_out is the average output current. A ripple of 20 % to 40 % of I_out is a common design target. The defaults (12 V to 5 V, 1 A, 100 kHz, 100 µH) give D = 41.7 %, ΔI_L = 0.29 A and I_pk = 1.15 A. V_out and I_out are always inputs (V_out cannot be solved from the ripple current, because two output voltages give the same ripple)."
+    de: "Ein idealer Tiefsetzsteller (Buck) im lückfreien Betrieb: Das Tastverhältnis ist D = V_out / V_in und der Spitze-Spitze-Rippelstrom der Spule ΔI_L = V_out · (V_in − V_out) / (V_in · f_sw · L). Der Spulenstrom pendelt zwischen I_out − ΔI_L / 2 und I_out + ΔI_L / 2; Spule und Schalter müssen daher den Spitzenstrom I_pk = I_out + ΔI_L / 2 verkraften. Annahmen: verlustfreie Bauteile, konstante Ein- und Ausgangsspannung, lückfreier Betrieb (der Talstrom bleibt über null); I_out ist der mittlere Ausgangsstrom. Ein Rippel von 20 % bis 40 % von I_out ist ein gängiges Auslegungsziel. Die Vorgaben (12 V auf 5 V, 1 A, 100 kHz, 100 µH) ergeben D = 41,7 %, ΔI_L = 0,29 A und I_pk = 1,15 A. V_out und I_out sind immer Eingaben (V_out lässt sich nicht aus dem Rippelstrom bestimmen, weil zwei Ausgangsspannungen denselben Rippel ergeben)."
+  tags: [buck, step-down, dc-dc, switching regulator, inductor ripple, duty cycle, peak current, tiefsetzsteller, abwärtswandler, schaltregler, spule, rippelstrom, tastverhältnis, spitzenstrom]
+  source: "Ideal continuous-conduction buck converter (D = V_out / V_in, ΔI_L = (V_in − V_out) × D / (f_sw × L)); R. W. Erickson, D. Maksimović: Fundamentals of Power Electronics, 3rd ed., ch. 2; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}, default: "5 V"}
+    iout: {dim: current, label: I_out, name: {en: "Output current", de: "Ausgangsstrom"}, default: "1 A"}
+    f: {dim: frequency, label: f_sw, name: {en: "Switching frequency", de: "Schaltfrequenz"}, default: "100 kHz"}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "100 µH"}
+    dil: {dim: current, label: ΔI_L, name: {en: "Inductor ripple current (peak to peak)", de: "Spulen-Rippelstrom (Spitze-Spitze)"}}
+  dof: 5
+  rules:
+    dil: ["vout*(vin-vout)/(vin*f*l)"]
+    l: ["vout*(vin-vout)/(vin*f*dil)"]
+    f: ["vout*(vin-vout)/(vin*l*dil)"]
+    vin: ["vout^2/(vout-dil*f*l)"]
+  derived:
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, expr: "vout/vin", unit: pct}
+    ipk: {dim: current, label: I_pk, name: {en: "Peak inductor current", de: "Spitzenstrom der Spule"}, expr: "iout+dil/2"}
+    ival: {dim: current, label: I_valley, name: {en: "Valley inductor current", de: "Talstrom der Spule"}, expr: "iout-dil/2"}
+  checks:
+    - {when: "vout >= vin", warn: {en: "V_out is not below V_in: a buck converter can only step down.", de: "V_out liegt nicht unter V_in: Ein Tiefsetzsteller kann nur herunterwandeln."}}
+    - {when: "dil > 2*iout", warn: {en: "The ripple current exceeds twice the output current: the inductor current falls to zero and the converter leaves continuous conduction, so these formulas no longer apply.", de: "Der Rippelstrom übersteigt den doppelten Ausgangsstrom: Der Spulenstrom fällt auf null, der Wandler verlässt den lückfreien Betrieb und diese Formeln gelten nicht mehr."}}
+  formula: ["duty = vout / vin", "dil = vout * (vin - vout) / (vin * f * l)", "ipk = iout + dil / 2"]
+  schematic: buck_converter
+
+- id: boost_converter
+  kind: calculator
+  category: power
+  name: {cs: "Zvyšující měnič (boost)", da: "Boost-konverter (step-up)", de: "Hochsetzsteller (Boost)", el: "Μετατροπέας ανύψωσης (boost)", en: "Boost converter (step-up)", es: "Convertidor elevador (boost)", fr: "Convertisseur élévateur (boost)", hi: "बूस्ट कन्वर्टर (स्टेप-अप)", it: "Convertitore boost (step-up)", ja: "昇圧コンバータ（ブースト）", nl: "Boost-omzetter (step-up)", no: "Boost-omformer (opptrapping)", pl: "Przetwornica podwyższająca (boost)", pt: "Conversor elevador (boost)", sv: "Boost-omvandlare (uppstegning)", zh: "升压变换器（Boost）"}
+  doc:
+    en: "An ideal step-up (boost) converter in continuous conduction: the duty cycle is D = 1 − V_in / V_out, the average inductor current (equal to the input current) is I_L = I_out × V_out / V_in, and the peak-to-peak ripple current is ΔI_L = V_in × (V_out − V_in) / (V_out × f_sw × L). The inductor and the switch must handle the peak current I_pk = I_L + ΔI_L / 2. Assumptions: lossless components, constant input and output voltages, continuous conduction (the valley current stays above zero); I_out is the average output current. The defaults (5 V to 12 V, 0.5 A, 100 kHz, 100 µH) give D = 58.3 %, I_L = 1.2 A, ΔI_L = 0.29 A and I_pk = 1.35 A. V_in and I_out are always inputs (V_in cannot be solved from the ripple current, because two input voltages give the same ripple)."
+    de: "Ein idealer Hochsetzsteller (Boost) im lückfreien Betrieb: Das Tastverhältnis ist D = 1 − V_in / V_out, der mittlere Spulenstrom (gleich dem Eingangsstrom) I_L = I_out · V_out / V_in und der Spitze-Spitze-Rippelstrom ΔI_L = V_in · (V_out − V_in) / (V_out · f_sw · L). Spule und Schalter müssen den Spitzenstrom I_pk = I_L + ΔI_L / 2 verkraften. Annahmen: verlustfreie Bauteile, konstante Ein- und Ausgangsspannung, lückfreier Betrieb (der Talstrom bleibt über null); I_out ist der mittlere Ausgangsstrom. Die Vorgaben (5 V auf 12 V, 0,5 A, 100 kHz, 100 µH) ergeben D = 58,3 %, I_L = 1,2 A, ΔI_L = 0,29 A und I_pk = 1,35 A. V_in und I_out sind immer Eingaben (V_in lässt sich nicht aus dem Rippelstrom bestimmen, weil zwei Eingangsspannungen denselben Rippel ergeben)."
+  tags: [boost, step-up, dc-dc, switching regulator, inductor ripple, duty cycle, peak current, hochsetzsteller, aufwärtswandler, schaltregler, spule, rippelstrom, tastverhältnis, spitzenstrom]
+  source: "Ideal continuous-conduction boost converter (D = 1 − V_in / V_out, I_L = I_out / (1 − D), ΔI_L = V_in × D / (f_sw × L)); R. W. Erickson, D. Maksimović: Fundamentals of Power Electronics, 3rd ed., ch. 2; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "5 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}, default: "12 V"}
+    iout: {dim: current, label: I_out, name: {en: "Output current", de: "Ausgangsstrom"}, default: "500 mA"}
+    f: {dim: frequency, label: f_sw, name: {en: "Switching frequency", de: "Schaltfrequenz"}, default: "100 kHz"}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "100 µH"}
+    dil: {dim: current, label: ΔI_L, name: {en: "Inductor ripple current (peak to peak)", de: "Spulen-Rippelstrom (Spitze-Spitze)"}}
+  dof: 5
+  rules:
+    dil: ["vin*(vout-vin)/(vout*f*l)"]
+    l: ["vin*(vout-vin)/(vout*f*dil)"]
+    f: ["vin*(vout-vin)/(vout*l*dil)"]
+    vout: ["vin^2/(vin-dil*f*l)"]
+  derived:
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, expr: "1-vin/vout", unit: pct}
+    il: {dim: current, label: I_L, name: {en: "Average inductor current", de: "Mittlerer Spulenstrom"}, expr: "iout*vout/vin"}
+    ipk: {dim: current, label: I_pk, name: {en: "Peak inductor current", de: "Spitzenstrom der Spule"}, expr: "il+dil/2"}
+    ival: {dim: current, label: I_valley, name: {en: "Valley inductor current", de: "Talstrom der Spule"}, expr: "il-dil/2"}
+  checks:
+    - {when: "vout <= vin", warn: {en: "V_out is not above V_in: a boost converter can only step up.", de: "V_out liegt nicht über V_in: Ein Hochsetzsteller kann nur heraufwandeln."}}
+    - {when: "dil > 2*il", warn: {en: "The ripple current exceeds twice the average inductor current: the inductor current falls to zero and the converter leaves continuous conduction, so these formulas no longer apply.", de: "Der Rippelstrom übersteigt den doppelten mittleren Spulenstrom: Der Spulenstrom fällt auf null, der Wandler verlässt den lückfreien Betrieb und diese Formeln gelten nicht mehr."}}
+  formula: ["duty = 1 - vin / vout", "dil = vin * (vout - vin) / (vout * f * l)", "ipk = il + dil / 2"]
+  schematic: boost_converter
+
+- id: smoothing_capacitor
+  kind: calculator
+  category: power
+  name: {cs: "Filtrační kondenzátor (usměrňovač)", da: "Udjævningskondensator (ensretter)", de: "Glättungskondensator (Gleichrichter)", el: "Πυκνωτής εξομάλυνσης (ανορθωτής)", en: "Smoothing capacitor", es: "Condensador de filtrado (rectificador)", fr: "Condensateur de lissage (redresseur)", hi: "स्मूदिंग संधारित्र (दिष्टकारी)", it: "Condensatore di livellamento (raddrizzatore)", ja: "平滑コンデンサ（整流）", nl: "Afvlakcondensator (gelijkrichter)", no: "Utjevningskondensator (likeretter)", pl: "Kondensator filtrujący (prostownik)", pt: "Capacitor de filtragem (retificador)", sv: "Utjämningskondensator (likriktare)", zh: "整流滤波电容"}
+  doc:
+    en: "The capacitor behind a rectifier supplies the load between the charging peaks. The peak-to-peak ripple is approximately ΔV = I / (m × f × C), where f is the mains frequency and m the number of charging peaks per mains cycle: 1 for a half-wave rectifier, 2 for a full-wave (bridge) rectifier. The estimate takes the whole period between the peaks as the discharge time and neglects the short charging time, so the real ripple is slightly lower. The defaults (1 A, 50 Hz, 1 V ripple, full wave) need 10 mF (10 000 µF). The drawing shows the bridge; for half-wave use a single diode."
+    de: "Der Kondensator hinter einem Gleichrichter versorgt die Last zwischen den Ladespitzen. Der Spitze-Spitze-Rippel ist näherungsweise ΔV = I / (m · f · C); f ist die Netzfrequenz und m die Zahl der Ladespitzen pro Netzperiode: 1 beim Einweggleichrichter, 2 beim Zweiweg- (Brücken-)Gleichrichter. Die Näherung setzt die ganze Zeit zwischen den Spitzen als Entladezeit an und vernachlässigt die kurze Ladezeit, der tatsächliche Rippel ist daher etwas kleiner. Die Vorgaben (1 A, 50 Hz, 1 V Rippel, Zweiweg) erfordern 10 mF (10 000 µF). Die Zeichnung zeigt die Brücke; für Einweg genügt eine einzelne Diode."
+  tags: [smoothing, filter capacitor, reservoir capacitor, rectifier, ripple, power supply, bridge rectifier, glättung, siebkondensator, ladekondensator, gleichrichter, brummspannung, welligkeit, netzteil]
+  source: "Capacitor-input filter ripple estimate ΔV = I / (m × f × C) with m = 1 (half-wave) or 2 (full-wave), charging time neglected; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9"
+  vars:
+    i: {dim: current, label: I, name: {en: "Load current", de: "Laststrom"}, default: "1 A"}
+    f: {dim: frequency, label: f, name: {en: "Mains frequency", de: "Netzfrequenz"}, default: "50 Hz"}
+    dv: {dim: voltage, label: ΔV, name: {en: "Ripple voltage (peak to peak)", de: "Rippelspannung (Spitze-Spitze)"}, default: "1 V"}
+    c: {dim: capacitance, label: C, name: {en: "Smoothing capacitance", de: "Glättungskapazität"}}
+  choices:
+    rect:
+      name: {cs: "Usměrnění", da: "Ensretning", de: "Gleichrichtung", el: "Ανόρθωση", en: "Rectification", es: "Rectificación", fr: "Redressement", hi: "दिष्टकरण", it: "Raddrizzamento", ja: "整流方式", nl: "Gelijkrichting", no: "Likeretting", pl: "Prostowanie", pt: "Retificação", sv: "Likriktning", zh: "整流方式"}
+      default: full
+      options:
+        half:
+          name: {cs: "Jednocestné", da: "Enkeltvejs", de: "Einweg", el: "Απλή ανόρθωση (μισού κύματος)", en: "Half-wave", es: "Media onda", fr: "Simple alternance", hi: "अर्ध-तरंग", it: "Semionda", ja: "半波", nl: "Enkelzijdig (halve golf)", no: "Enveis", pl: "Jednopołówkowe", pt: "Meia onda", sv: "Enkelriktad (halvvåg)", zh: "半波"}
+          consts: {m: 1}
+        full:
+          name: {cs: "Dvoucestné (můstek)", da: "Tovejs (bro)", de: "Zweiweg (Brücke)", el: "Πλήρους κύματος (γέφυρα)", en: "Full-wave (bridge)", es: "Onda completa (puente)", fr: "Double alternance (pont)", hi: "पूर्ण-तरंग (ब्रिज)", it: "Onda intera (ponte)", ja: "全波（ブリッジ）", nl: "Dubbelzijdig (brug)", no: "Tovegs (bro)", pl: "Dwupołówkowe (mostek)", pt: "Onda completa (ponte)", sv: "Helvåg (brygga)", zh: "全波（桥式）"}
+          consts: {m: 2}
+  dof: 3
+  rules:
+    c: ["i/(m*f*dv)"]
+    i: ["c*m*f*dv"]
+    f: ["i/(m*c*dv)"]
+    dv: ["i/(m*f*c)"]
+  derived:
+    fr: {dim: frequency, label: f_r, name: {en: "Ripple frequency", de: "Rippelfrequenz"}, expr: "m*f"}
+  formula: ["c = i / (m * f * dv)"]
+  schematic: smoothing_capacitor
+
+- id: battery_runtime
+  kind: calculator
+  category: power
+  name: {cs: "Doba provozu na baterii", da: "Batteritid", de: "Akku-Laufzeit", el: "Διάρκεια λειτουργίας μπαταρίας", en: "Battery runtime", es: "Autonomía de la batería", fr: "Autonomie de la batterie", hi: "बैटरी चलने का समय", it: "Autonomia della batteria", ja: "バッテリー駆動時間", nl: "Batterijduur", no: "Batteritid", pl: "Czas pracy na baterii", pt: "Autonomia da bateria", sv: "Batteritid", zh: "电池续航时间"}
+  doc:
+    en: "The runtime of a battery follows from its capacity and the load current: t = Q × usable fraction / I. The usable fraction is the part of the rated capacity you can actually draw; the cut-off voltage, ageing, low temperature and high discharge currents reduce it. The defaults (a 2500 mAh cell, 250 mA load, 80 % usable) run for 8 hours. The calculation assumes a constant load current; the rated capacity is only valid for the discharge rate stated in the cell's datasheet."
+    de: "Die Laufzeit eines Akkus folgt aus seiner Kapazität und dem Laststrom: t = Q · nutzbarer Anteil / I. Der nutzbare Anteil ist der Teil der Nennkapazität, den man tatsächlich entnehmen kann; Abschaltspannung, Alterung, niedrige Temperatur und hohe Entladeströme verringern ihn. Die Vorgaben (eine Zelle mit 2500 mAh, 250 mA Last, 80 % nutzbar) laufen 8 Stunden. Die Rechnung nimmt einen konstanten Laststrom an; die Nennkapazität gilt nur für den im Datenblatt der Zelle genannten Entladestrom."
+  tags: [battery, runtime, capacity, discharge, mah, ah, lifetime, autonomy, akku, batterie, laufzeit, kapazität, entladung, betriebsdauer]
+  source: "Definition of charge Q = I × t (1 Ah = 3600 C, SI Brochure, BIPM) with a usable-capacity fraction; background: D. Linden, T. B. Reddy (eds.): Handbook of Batteries, 3rd ed. (capacity depends on discharge rate and temperature)"
+  vars:
+    cap: {dim: charge, label: Q, name: {en: "Battery capacity", de: "Akkukapazität"}, default: "2500 mAh", unit: mAh, units: [mAh, Ah]}
+    i: {dim: current, label: I, name: {en: "Load current", de: "Laststrom"}, default: "250 mA"}
+    use: {dim: ratio, label: k, name: {en: "Usable fraction of the capacity", de: "Nutzbarer Anteil der Kapazität"}, default: 0.8, unit: pct}
+    t: {dim: time, label: t, name: {en: "Runtime", de: "Laufzeit"}, unit: h, units: ["", min, h]}
+  dof: 3
+  rules:
+    t: ["cap*use/i"]
+    cap: ["t*i/use"]
+    i: ["cap*use/t"]
+    use: ["t*i/cap"]
+  checks:
+    - {when: "use > 1", warn: {en: "A usable fraction above 100 % is not possible: more energy is drawn than the battery holds.", de: "Ein nutzbarer Anteil über 100 % ist nicht möglich: Es würde mehr entnommen, als der Akku enthält."}}
+  formula: ["t = cap * use / i"]
+
+- id: battery_charge_time
+  kind: calculator
+  category: power
+  name: {cs: "Doba nabíjení baterie", da: "Opladningstid", de: "Akku-Ladezeit", el: "Χρόνος φόρτισης μπαταρίας", en: "Battery charge time", es: "Tiempo de carga de la batería", fr: "Durée de charge de la batterie", hi: "बैटरी चार्ज होने का समय", it: "Tempo di ricarica della batteria", ja: "バッテリー充電時間", nl: "Oplaadtijd batterij", no: "Ladetid for batteri", pl: "Czas ładowania baterii", pt: "Tempo de carga da bateria", sv: "Laddtid för batteri", zh: "电池充电时间"}
+  doc:
+    en: "The charge time follows from the capacity and the charge current: t = Q / (I × η). The charge efficiency η is the share of the supplied charge that ends up stored; the rest is lost. With a constant-current/constant-voltage charger the current also tapers off near the end, which lengthens the real time further. The default of 80 % is a planning assumption, not a datasheet value; use the charge figure of the battery's datasheet where there is one. The defaults (2500 mAh, 1 A, 80 %) give 3.125 h (3 h 7.5 min)."
+    de: "Die Ladezeit folgt aus der Kapazität und dem Ladestrom: t = Q / (I · η). Der Ladewirkungsgrad η ist der Anteil der zugeführten Ladung, der tatsächlich gespeichert wird; der Rest geht verloren. Bei einem Lader mit Konstantstrom-/Konstantspannungs-Kennlinie sinkt der Strom gegen Ende zusätzlich, was die reale Zeit weiter verlängert. Der Vorgabewert von 80 % ist eine Planungsannahme, kein Datenblattwert; wo das Datenblatt des Akkus eine Angabe enthält, diese verwenden. Die Vorgaben (2500 mAh, 1 A, 80 %) ergeben 3,125 h (3 h 7,5 min)."
+  tags: [battery, charge time, charging, charge current, capacity, efficiency, akku, batterie, ladezeit, laden, ladestrom, kapazität, wirkungsgrad]
+  source: "Definition of charge Q = I × t (1 Ah = 3600 C, SI Brochure, BIPM) with a charge efficiency; background: D. Linden, T. B. Reddy (eds.): Handbook of Batteries, 3rd ed. (charging of secondary cells)"
+  vars:
+    cap: {dim: charge, label: Q, name: {en: "Battery capacity", de: "Akkukapazität"}, default: "2500 mAh", unit: mAh, units: [mAh, Ah]}
+    i: {dim: current, label: I, name: {en: "Charge current", de: "Ladestrom"}, default: "1 A"}
+    eta: {dim: ratio, label: η, name: {en: "Charge efficiency", de: "Ladewirkungsgrad"}, default: 0.8, unit: pct}
+    t: {dim: time, label: t, name: {en: "Charge time", de: "Ladezeit"}, unit: h, units: ["", min, h]}
+  dof: 3
+  rules:
+    t: ["cap/(i*eta)"]
+    cap: ["t*i*eta"]
+    i: ["cap/(t*eta)"]
+    eta: ["cap/(t*i)"]
+  checks:
+    - {when: "eta > 1", warn: {en: "A charge efficiency above 100 % is not possible: more charge would be stored than supplied.", de: "Ein Ladewirkungsgrad über 100 % ist nicht möglich: Es würde mehr Ladung gespeichert als zugeführt."}}
+  formula: ["t = cap / (i * eta)"]
+
+- id: battery_pack
+  kind: calculator
+  category: power
+  name: {cs: "Bateriový balíček (sériově/paralelně)", da: "Batteripakke (serie/parallel)", de: "Akkupack (Reihe/parallel)", el: "Πακέτο μπαταριών (σειρά/παράλληλα)", en: "Battery pack (series/parallel)", es: "Paquete de baterías (serie/paralelo)", fr: "Pack de batteries (série/parallèle)", hi: "बैटरी पैक (श्रेणी/समानांतर)", it: "Pacco batterie (serie/parallelo)", ja: "バッテリーパック（直列/並列）", nl: "Accupakket (serie/parallel)", no: "Batteripakke (serie/parallell)", pl: "Pakiet ogniw (szeregowo/równolegle)", pt: "Pacote de baterias (série/paralelo)", sv: "Batteripack (serie/parallell)", zh: "电池组（串联/并联）"}
+  doc:
+    en: "A pack of N_s cells in series and N_p such strings in parallel: the pack voltage is N_s × the cell voltage, the pack capacity is N_p × the cell capacity, and the stored energy is the product of both. The defaults (3S2P with 3.7 V, 2500 mAh cells) give 11.1 V, 5 Ah and 55.5 Wh. The cell voltage is the nominal voltage: a fully charged lithium-ion cell is higher (about 4.2 V), an empty one lower. Real packs also need cell balancing and protection."
+    de: "Ein Pack aus N_s in Reihe geschalteten Zellen und N_p solchen Strängen parallel: Die Packspannung ist N_s · Zellspannung, die Packkapazität N_p · Zellkapazität, und die gespeicherte Energie ist das Produkt beider. Die Vorgaben (3S2P mit Zellen zu 3,7 V und 2500 mAh) ergeben 11,1 V, 5 Ah und 55,5 Wh. Die Zellspannung ist die Nennspannung: Eine voll geladene Lithium-Ionen-Zelle liegt höher (etwa 4,2 V), eine leere niedriger. Reale Packs brauchen außerdem Zellenausgleich und Schutzschaltung."
+  tags: [battery pack, series, parallel, cells, voltage, capacity, energy, 3s2p, lithium, akkupack, reihenschaltung, parallelschaltung, zellen, spannung, kapazität, energie]
+  source: "Series connection adds voltages, parallel connection adds capacities, E = U × Q (1 Wh = 3600 J); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 and 9"
+  vars:
+    ns: {dim: number, label: N_s, name: {en: "Cells in series", de: "Zellen in Reihe"}, default: 3}
+    np: {dim: number, label: N_p, name: {en: "Strings in parallel", de: "Stränge parallel"}, default: 2}
+    vcell: {dim: voltage, label: U_cell, name: {en: "Cell voltage", de: "Zellspannung"}, default: "3.7 V"}
+    qcell: {dim: charge, label: Q_cell, name: {en: "Cell capacity", de: "Zellkapazität"}, default: "2500 mAh", unit: mAh, units: [mAh, Ah]}
+    vpack: {dim: voltage, label: U_pack, name: {en: "Pack voltage", de: "Packspannung"}}
+    qpack: {dim: charge, label: Q_pack, name: {en: "Pack capacity", de: "Packkapazität"}, unit: Ah, units: [mAh, Ah]}
+    e: {dim: energy, label: E, name: {en: "Pack energy", de: "Packenergie"}, unit: Wh, units: [mWh, Wh, kWh]}
+  dof: 4
+  rules:
+    vpack: ["ns*vcell", "e/qpack"]
+    qpack: ["np*qcell", "e/vpack"]
+    e: ["vpack*qpack"]
+    ns: ["vpack/vcell"]
+    np: ["qpack/qcell"]
+    vcell: ["vpack/ns"]
+    qcell: ["qpack/np"]
+  derived:
+    cells: {dim: number, label: N, name: {en: "Total number of cells", de: "Gesamtzahl der Zellen"}, expr: "ns*np"}
+  checks:
+    - {when: "ns != floor(ns)", warn: {en: "The number of cells in series must be a whole number.", de: "Die Zahl der Zellen in Reihe muss eine ganze Zahl sein."}}
+    - {when: "np != floor(np)", warn: {en: "The number of strings in parallel must be a whole number.", de: "Die Zahl der parallelen Stränge muss eine ganze Zahl sein."}}
+  formula: ["vpack = ns * vcell", "qpack = np * qcell", "e = vpack * qpack"]
+
+- id: cable_voltage_drop
+  kind: calculator
+  category: power
+  name: {cs: "Úbytek napětí na kabelu", da: "Spændingsfald i kabel", de: "Spannungsfall im Kabel", el: "Πτώση τάσης σε καλώδιο", en: "Cable voltage drop", es: "Caída de tensión en cable", fr: "Chute de tension dans un câble", hi: "केबल में वोल्टेज ड्रॉप", it: "Caduta di tensione nel cavo", ja: "ケーブルの電圧降下", nl: "Spanningsval in kabel", no: "Spenningsfall i kabel", pl: "Spadek napięcia na kablu", pt: "Queda de tensão no cabo", sv: "Spänningsfall i kabel", zh: "电缆压降"}
+  doc:
+    en: "Voltage drop of a copper or aluminium cable: ΔU = b × ρ × L × I × cos φ / A with the resistivity ρ at the conductor temperature, the one-way cable length L and the conductor cross-section A. b is 2 for direct current and single-phase AC (outgoing and return conductor) and √3 for three-phase AC (drop between the lines); cos φ does not apply to DC. The percentage is related to the nominal voltage U_n. Resistivity at 20 °C: copper 1/58 Ω·mm²/m (IEC 60028), aluminium 0.028264 Ω·mm²/m (IEC 60889); it rises with the temperature coefficient 0.00393 /K for copper (IEC 60028) and 0.00403 /K for aluminium (IEC 60889). The cable reactance is neglected, which is acceptable for small cross-sections; it adds to the drop at large cross-sections. The defaults (copper, single-phase 230 V, 20 m, 16 A, 2.5 mm², cos φ = 1, 70 °C) give about 5.3 V (2.3 %). Safety: mains voltage is dangerous. The results are guide values only; the design of a mains installation must follow the installation standard (for example DIN VDE 0100-520 or IEC 60364-5-52) and the local rules, and must be done and checked by a qualified electrician."
+    de: "Spannungsfall eines Kupfer- oder Aluminiumkabels: ΔU = b · ρ · L · I · cos φ / A mit dem spezifischen Widerstand ρ bei Leitertemperatur, der einfachen Kabellänge L und dem Leiterquerschnitt A. b ist 2 für Gleichstrom und einphasigen Wechselstrom (Hin- und Rückleiter) und √3 für Drehstrom (Spannungsfall zwischen den Außenleitern); cos φ gilt nicht für Gleichstrom. Die Prozentangabe bezieht sich auf die Nennspannung U_n. Spezifischer Widerstand bei 20 °C: Kupfer 1/58 Ω·mm²/m (IEC 60028), Aluminium 0,028264 Ω·mm²/m (IEC 60889); er steigt mit dem Temperaturkoeffizienten 0,00393 /K bei Kupfer (IEC 60028) und 0,00403 /K bei Aluminium (IEC 60889). Der Blindwiderstand des Kabels wird vernachlässigt, was bei kleinen Querschnitten zulässig ist; bei großen Querschnitten erhöht er den Spannungsfall. Die Vorgaben (Kupfer, einphasig 230 V, 20 m, 16 A, 2,5 mm², cos φ = 1, 70 °C) ergeben etwa 5,3 V (2,3 %). Sicherheit: Netzspannung ist gefährlich. Die Ergebnisse sind nur Richtwerte; die Auslegung einer Netzinstallation muss der Installationsnorm (zum Beispiel DIN VDE 0100-520 oder IEC 60364-5-52) und den örtlichen Vorschriften folgen und von einer Elektrofachkraft ausgeführt und geprüft werden."
+  tags: [cable, voltage drop, wire, copper, aluminium, conductor, cross-section, mains, kabel, spannungsfall, leitung, kupfer, aluminium, querschnitt, leitungsverlust, netz, vde]
+  source: "Resistive voltage drop of a conductor ΔU = b × ρ × L × I × cos φ / A; cf. IEC 60364-5-52 and DIN VDE 0100-520 (voltage drop in consumers' installations); resistivity at 20 °C of annealed copper 1/58 Ω·mm²/m with α = 0.00393 /K (IEC 60028) and of hard-drawn aluminium 0.028264 Ω·mm²/m with α = 0.00403 /K (IEC 60889)"
+  vars:
+    l: {dim: length, label: L, name: {en: "Cable length (one way)", de: "Kabellänge (einfach)"}, default: "20 m", units: ["", ft]}
+    i: {dim: current, label: I, name: {en: "Current", de: "Strom"}, default: "16 A"}
+    a: {dim: area, label: A, name: {en: "Conductor cross-section", de: "Leiterquerschnitt"}, default: "2.5 mm2", unit: mm2, units: [mm2, AWG, kcmil]}
+    cosphi: {dim: number, label: cos φ, name: {en: "Power factor", de: "Leistungsfaktor"}, default: 1}
+    un: {dim: voltage, label: U_n, name: {en: "Nominal voltage", de: "Nennspannung"}, default: "230 V"}
+    theta: {dim: temperature, label: θ, name: {en: "Conductor temperature", de: "Leitertemperatur"}, default: "70 degC", unit: degC, units: [degC, degF, ""]}
+    du: {dim: voltage, label: ΔU, name: {en: "Voltage drop", de: "Spannungsfall"}}
+    dup: {dim: ratio, label: ΔU%, name: {en: "Voltage drop in % of U_n", de: "Spannungsfall in % von U_n"}, unit: pct}
+  choices:
+    material:
+      name: {cs: "Materiál vodiče", da: "Ledermateriale", de: "Leitermaterial", el: "Υλικό αγωγού", en: "Conductor material", es: "Material del conductor", fr: "Matériau du conducteur", hi: "चालक सामग्री", it: "Materiale del conduttore", ja: "導体材料", nl: "Geleidermateriaal", no: "Lederens materiale", pl: "Materiał przewodu", pt: "Material do condutor", sv: "Ledarmaterial", zh: "导体材料"}
+      default: copper
+      options:
+        copper:
+          name: {cs: "Měď", da: "Kobber", de: "Kupfer", el: "Χαλκός", en: "Copper", es: "Cobre", fr: "Cuivre", hi: "तांबा", it: "Rame", ja: "銅", nl: "Koper", no: "Kobber", pl: "Miedź", pt: "Cobre", sv: "Koppar", zh: "铜"}
+          consts: {rho20: 1.7241379310344827e-8, alpha: 0.00393}
+        aluminium:
+          name: {cs: "Hliník", da: "Aluminium", de: "Aluminium", el: "Αλουμίνιο", en: "Aluminium", es: "Aluminio", fr: "Aluminium", hi: "एल्युमीनियम", it: "Alluminio", ja: "アルミニウム", nl: "Aluminium", no: "Aluminium", pl: "Aluminium", pt: "Alumínio", sv: "Aluminium", zh: "铝"}
+          consts: {rho20: 2.8264e-8, alpha: 0.00403}
+    system:
+      name: {cs: "Soustava", da: "System", de: "Stromart", el: "Σύστημα", en: "System", es: "Sistema", fr: "Système", hi: "प्रणाली", it: "Sistema", ja: "方式", nl: "Systeem", no: "System", pl: "Układ", pt: "Sistema", sv: "System", zh: "供电方式"}
+      default: single
+      options:
+        dc:
+          name: {cs: "Stejnosměrný", da: "Jævnstrøm", de: "Gleichstrom", el: "Συνεχές ρεύμα", en: "DC", es: "Corriente continua", fr: "Courant continu", hi: "डीसी", it: "Corrente continua", ja: "直流", nl: "Gelijkstroom", no: "Likestrøm", pl: "Prąd stały", pt: "Corrente contínua", sv: "Likström", zh: "直流"}
+          consts: {b: 2, n: 2, u: 0}
+          ignore: [cosphi]
+        single:
+          name: {cs: "Jednofázový střídavý", da: "Enfaset vekselstrøm", de: "Wechselstrom einphasig", el: "Μονοφασικό εναλλασσόμενο", en: "Single-phase AC", es: "Alterna monofásica", fr: "Alternatif monophasé", hi: "एकल-फेज़ एसी", it: "Alternata monofase", ja: "単相交流", nl: "Eenfase wisselstroom", no: "Enfase vekselstrøm", pl: "Prąd przemienny jednofazowy", pt: "Alternada monofásica", sv: "Enfas växelström", zh: "单相交流"}
+          consts: {b: 2, n: 2, u: 1}
+        three:
+          name: {cs: "Třífázový střídavý", da: "Trefaset vekselstrøm", de: "Drehstrom dreiphasig", el: "Τριφασικό εναλλασσόμενο", en: "Three-phase AC", es: "Alterna trifásica", fr: "Alternatif triphasé", hi: "त्रि-फेज़ एसी", it: "Alternata trifase", ja: "三相交流", nl: "Driefase wisselstroom", no: "Trefase vekselstrøm", pl: "Prąd przemienny trójfazowy", pt: "Alternada trifásica", sv: "Trefas växelström", zh: "三相交流"}
+          consts: {b: 1.7320508075688772, n: 3, u: 1}
+  dof: 6
+  rules:
+    du: ["b*rho_t*l*i*(1-u+u*cosphi)/a", "dup*un"]
+    dup: ["du/un"]
+    a: ["b*rho_t*l*i*(1-u+u*cosphi)/du"]
+    l: ["du*a/(b*rho_t*i*(1-u+u*cosphi))"]
+    i: ["du*a/(b*rho_t*l*(1-u+u*cosphi))"]
+    un: ["du/dup"]
+  derived:
+    rho_t: {dim: resistivity, label: ρ_θ, name: {en: "Resistivity at the conductor temperature", de: "Spezifischer Widerstand bei Leitertemperatur"}, expr: "rho20*(1+alpha*(theta-293.15))", unit: ohmmm2m, units: ["", ohmmm2m]}
+    ploss: {dim: power, label: P_loss, name: {en: "Power loss in the conductors", de: "Verlustleistung in den Leitern"}, expr: "n*rho_t*l*i^2/a"}
+  checks:
+    - {when: "dup > 0.05", warn: {en: "The voltage drop is above 5 %: check the permissible value in the installation standard, and use a larger cross-section or a shorter run.", de: "Der Spannungsfall liegt über 5 %: Den zulässigen Wert in der Installationsnorm prüfen und einen größeren Querschnitt oder eine kürzere Leitung wählen."}}
+    - {when: "cosphi > 1", warn: {en: "cos φ cannot be larger than 1.", de: "cos φ kann nicht größer als 1 sein."}}
+  formula: ["du = b * rho_t * l * i * cosphi / a", "dup = du / un"]

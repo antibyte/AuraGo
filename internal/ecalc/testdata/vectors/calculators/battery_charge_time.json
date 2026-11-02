@@ -1,0 +1,16 @@
+{
+  "calc": "battery_charge_time",
+  "sets": [
+    {"values": {"cap": 9000, "i": 1, "eta": 0.8, "t": 11250}, "ref": "hand: Q = 2.5 Ah = 9000 C; t = 9000 / (1 * 0.8) = 11250 s = 3.125 h"},
+    {"values": {"cap": 14400, "i": 2, "eta": 0.9, "t": 8000}, "ref": "hand: Q = 4 Ah = 14400 C; t = 14400 / (2 * 0.9) = 8000 s = 2.2222 h"},
+    {"values": {"cap": 3600, "i": 0.5, "eta": 1, "t": 7200}, "ref": "hand: Q = 1 Ah = 3600 C; t = 3600 / (0.5 * 1) = 7200 s = 2 h"}
+  ],
+  "solve": [
+    {"inputs": {"cap": 9000, "i": 1, "eta": 0.8}, "expect": {"t": 11250}, "ref": "hand: the defaults, t = 9000 / (1 * 0.8) = 11250 s = 3.125 h"},
+    {"inputs": {"i": 2, "eta": 0.9, "t": 8000}, "expect": {"cap": 14400}, "ref": "hand: Q = t * I * eta = 8000 * 2 * 0.9 = 14400 C = 4 Ah"},
+    {"inputs": {"cap": 9000, "eta": 0.8, "t": 11250}, "expect": {"i": 1}, "ref": "hand: I = Q / (t * eta) = 9000 / (11250 * 0.8) = 1 A"},
+    {"inputs": {"cap": 14400, "i": 2, "t": 8000}, "expect": {"eta": 0.9}, "ref": "hand: eta = Q / (t * I) = 14400 / (8000 * 2) = 0.9"},
+    {"inputs": {"cap": 3600, "i": 1, "t": 1800}, "expect": {"eta": 2}, "warnings": [0], "ref": "hand: eta = 3600 / (1800 * 1) = 2, more charge stored than supplied; the efficiency check fires"},
+    {"inputs": {"cap": 9000, "i": 1}, "errors": {"eta": "undetermined", "t": "undetermined"}, "ref": "neither the efficiency nor the charge time is known"}
+  ]
+}

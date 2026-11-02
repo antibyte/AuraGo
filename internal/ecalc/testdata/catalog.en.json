@@ -7246,6 +7246,2181 @@
     },
     {
       "kind": "calculator",
+      "id": "lm317_voltage",
+      "category": "power",
+      "name": "LM317 output voltage",
+      "name_en": "LM317 output voltage",
+      "doc": "The adjustable regulator LM317 holds its reference voltage V_ref (about 1.25 V) between the OUT and ADJ pins. R_1 from OUT to ADJ and R_2 from ADJ to ground set the output voltage: V_out = V_ref × (1 + R_2 / R_1) + I_adj × R_2. The adjustment-pin current I_adj (typically 50 µA) also flows through R_2. About 240 Ω is the usual value for R_1. V_ref and I_adj are typical datasheet values and vary from part to part (V_ref from 1.2 V to 1.3 V). The defaults R_1 = 240 Ω and R_2 = 720 Ω give 5.036 V. The input voltage must stay above V_out by at least the dropout voltage of the regulator.",
+      "tags": [
+        "lm317",
+        "adjustable regulator",
+        "linear regulator",
+        "voltage regulator",
+        "output voltage",
+        "reference voltage",
+        "einstellbarer spannungsregler",
+        "spannungsregler",
+        "linearregler",
+        "ausgangsspannung",
+        "referenzspannung"
+      ],
+      "source": "LM317 datasheets (Texas Instruments, STMicroelectronics): V_OUT = V_REF × (1 + R2 / R1) + I_ADJ × R2 with the typical V_REF = 1.25 V and I_ADJ = 50 µA",
+      "vars": [
+        {
+          "id": "vref",
+          "dim": "voltage",
+          "label": "V_ref",
+          "name": "Reference voltage",
+          "default": 1.25,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iadj",
+          "dim": "current",
+          "label": "I_adj",
+          "name": "Adjustment-pin current",
+          "default": 0.000049999999999999996,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r1",
+          "dim": "resistance",
+          "label": "R_1",
+          "name": "Resistor OUT to ADJ",
+          "default": 240,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r2",
+          "dim": "resistance",
+          "label": "R_2",
+          "name": "Resistor ADJ to ground",
+          "default": 720,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vout",
+          "alts": [
+            "vref*(1+r2/r1)+iadj*r2"
+          ]
+        },
+        {
+          "target": "r2",
+          "alts": [
+            "(vout-vref)/(vref/r1+iadj)"
+          ]
+        },
+        {
+          "target": "r1",
+          "alts": [
+            "vref*r2/(vout-vref-iadj*r2)"
+          ]
+        },
+        {
+          "target": "vref",
+          "alts": [
+            "(vout-iadj*r2)/(1+r2/r1)"
+          ]
+        },
+        {
+          "target": "iadj",
+          "alts": [
+            "(vout-vref*(1+r2/r1))/r2"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "i1",
+          "dim": "current",
+          "label": "I_1",
+          "name": "Current through R1",
+          "alts": [
+            "vref/r1"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout < vref",
+          "warn": "V_out is below the reference voltage: the LM317 cannot regulate lower than about 1.25 V."
+        }
+      ],
+      "formula": [
+        "vout = vref * (1 + r2 / r1) + iadj * r2"
+      ],
+      "schematic": "lm317_voltage",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vref",
+          "iadj",
+          "r1",
+          "r2"
+        ],
+        [
+          "vref",
+          "iadj",
+          "r1",
+          "vout"
+        ],
+        [
+          "vref",
+          "iadj",
+          "r2",
+          "vout"
+        ],
+        [
+          "vref",
+          "r1",
+          "r2",
+          "vout"
+        ],
+        [
+          "iadj",
+          "r1",
+          "r2",
+          "vout"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "lm317_current",
+      "category": "power",
+      "name": "LM317 constant-current source",
+      "name_en": "LM317 constant-current source",
+      "doc": "The LM317 as a constant-current source: the regulator keeps V_ref (about 1.25 V) across the resistor R between its OUT and ADJ pins, so R carries V_ref / R. The load sits between the ADJ pin and ground and also receives the adjustment-pin current I_adj (typically 50 µA): I = V_ref / R + I_adj. The resistor dissipates V_ref² / R. The default R = 10 Ω gives 125 mA with about 156 mW in the resistor. The input voltage must exceed the load voltage plus V_ref plus the dropout voltage of the regulator.",
+      "tags": [
+        "lm317",
+        "constant current",
+        "current source",
+        "current regulator",
+        "led driver",
+        "konstantstrom",
+        "konstantstromquelle",
+        "stromquelle",
+        "led treiber"
+      ],
+      "source": "LM317 datasheets (Texas Instruments, STMicroelectronics): constant-current connection with the resistor between OUT and ADJ, I = V_REF / R + I_ADJ (V_REF = 1.25 V and I_ADJ = 50 µA typical)",
+      "vars": [
+        {
+          "id": "vref",
+          "dim": "voltage",
+          "label": "V_ref",
+          "name": "Reference voltage",
+          "default": 1.25,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iadj",
+          "dim": "current",
+          "label": "I_adj",
+          "name": "Adjustment-pin current",
+          "default": 0.000049999999999999996,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "r",
+          "dim": "resistance",
+          "label": "R",
+          "name": "Current-setting resistor",
+          "default": 10,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": true,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Load current",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "i",
+          "alts": [
+            "vref/r+iadj"
+          ]
+        },
+        {
+          "target": "r",
+          "alts": [
+            "vref/(i-iadj)"
+          ]
+        },
+        {
+          "target": "vref",
+          "alts": [
+            "(i-iadj)*r"
+          ]
+        },
+        {
+          "target": "iadj",
+          "alts": [
+            "i-vref/r"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "pr",
+          "dim": "power",
+          "label": "P_R",
+          "name": "Resistor power",
+          "alts": [
+            "vref^2/r"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "i > 1.5",
+          "warn": "The load current is above the rated output current of the LM317 (1.5 A)."
+        },
+        {
+          "when": "i <= iadj",
+          "warn": "The load current must be larger than the adjustment-pin current I_adj; no resistor can set it."
+        }
+      ],
+      "formula": [
+        "i = vref / r + iadj",
+        "pr = vref^2 / r"
+      ],
+      "schematic": "lm317_current",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vref",
+          "iadj",
+          "r"
+        ],
+        [
+          "vref",
+          "iadj",
+          "i"
+        ],
+        [
+          "vref",
+          "r",
+          "i"
+        ],
+        [
+          "iadj",
+          "r",
+          "i"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "linear_regulator_loss",
+      "category": "power",
+      "name": "Linear regulator power loss",
+      "name_en": "Linear regulator power loss",
+      "doc": "A linear regulator turns the voltage difference between input and output into heat: P = (V_in − V_out) × I_out + V_in × I_q, where I_q is the quiescent current the regulator draws from the input in addition to the load current. The efficiency is η = V_out × I_out / (V_in × (I_out + I_q)). The defaults (12 V to 5 V at 500 mA with 5 mA quiescent current) dissipate 3.56 W at an efficiency of 41 %; this heat has to be removed with a heat sink, or the input voltage has to be lowered.",
+      "tags": [
+        "linear regulator",
+        "ldo",
+        "7805",
+        "dropout",
+        "dissipation",
+        "heat",
+        "efficiency",
+        "quiescent current",
+        "linearregler",
+        "spannungsregler",
+        "verlustleistung",
+        "wirkungsgrad",
+        "ruhestrom",
+        "wärme"
+      ],
+      "source": "Power balance of a series (linear) regulator: P = (V_in − V_out) × I_out + V_in × I_q; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iout",
+          "dim": "current",
+          "label": "I_out",
+          "name": "Output current",
+          "default": 0.5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iq",
+          "dim": "current",
+          "label": "I_q",
+          "name": "Quiescent current",
+          "default": 0.005,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "p",
+          "dim": "power",
+          "label": "P",
+          "name": "Power dissipated in the regulator",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "p",
+          "alts": [
+            "(vin-vout)*iout+vin*iq"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "(p+vout*iout)/(iout+iq)"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "(vin*(iout+iq)-p)/iout"
+          ]
+        },
+        {
+          "target": "iout",
+          "alts": [
+            "(p-vin*iq)/(vin-vout)"
+          ]
+        },
+        {
+          "target": "iq",
+          "alts": [
+            "(p-(vin-vout)*iout)/vin"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "pin",
+          "dim": "power",
+          "label": "P_in",
+          "name": "Input power",
+          "alts": [
+            "vin*(iout+iq)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "pout",
+          "dim": "power",
+          "label": "P_out",
+          "name": "Output power",
+          "alts": [
+            "vout*iout"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "eta",
+          "dim": "ratio",
+          "label": "η",
+          "name": "Efficiency",
+          "alts": [
+            "vout*iout/(vin*(iout+iq))"
+          ],
+          "unit": "pct",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout >= vin",
+          "warn": "V_out is not below V_in: a linear regulator needs an input voltage above the output voltage (plus its dropout voltage)."
+        }
+      ],
+      "formula": [
+        "p = (vin - vout) * iout + vin * iq",
+        "eta = vout * iout / (vin * (iout + iq))"
+      ],
+      "schematic": "linear_regulator_loss",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vin",
+          "vout",
+          "iout",
+          "iq"
+        ],
+        [
+          "vin",
+          "vout",
+          "iout",
+          "p"
+        ],
+        [
+          "vin",
+          "vout",
+          "iq",
+          "p"
+        ],
+        [
+          "vin",
+          "iout",
+          "iq",
+          "p"
+        ],
+        [
+          "vout",
+          "iout",
+          "iq",
+          "p"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "buck_converter",
+      "category": "power",
+      "name": "Buck converter (step-down)",
+      "name_en": "Buck converter (step-down)",
+      "doc": "An ideal step-down (buck) converter in continuous conduction: the duty cycle is D = V_out / V_in and the peak-to-peak inductor ripple current is ΔI_L = V_out × (V_in − V_out) / (V_in × f_sw × L). The inductor current swings between I_out − ΔI_L / 2 and I_out + ΔI_L / 2, so the inductor and the switch must handle the peak current I_pk = I_out + ΔI_L / 2. Assumptions: lossless components, constant input and output voltages, continuous conduction (the valley current stays above zero); I_out is the average output current. A ripple of 20 % to 40 % of I_out is a common design target. The defaults (12 V to 5 V, 1 A, 100 kHz, 100 µH) give D = 41.7 %, ΔI_L = 0.29 A and I_pk = 1.15 A. V_out and I_out are always inputs (V_out cannot be solved from the ripple current, because two output voltages give the same ripple).",
+      "tags": [
+        "buck",
+        "step-down",
+        "dc-dc",
+        "switching regulator",
+        "inductor ripple",
+        "duty cycle",
+        "peak current",
+        "tiefsetzsteller",
+        "abwärtswandler",
+        "schaltregler",
+        "spule",
+        "rippelstrom",
+        "tastverhältnis",
+        "spitzenstrom"
+      ],
+      "source": "Ideal continuous-conduction buck converter (D = V_out / V_in, ΔI_L = (V_in − V_out) × D / (f_sw × L)); R. W. Erickson, D. Maksimović: Fundamentals of Power Electronics, 3rd ed., ch. 2; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iout",
+          "dim": "current",
+          "label": "I_out",
+          "name": "Output current",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f_sw",
+          "name": "Switching frequency",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": 0.00009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dil",
+          "dim": "current",
+          "label": "ΔI_L",
+          "name": "Inductor ripple current (peak to peak)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 5,
+      "rules": [
+        {
+          "target": "dil",
+          "alts": [
+            "vout*(vin-vout)/(vin*f*l)"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "vout*(vin-vout)/(vin*f*dil)"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "vout*(vin-vout)/(vin*l*dil)"
+          ]
+        },
+        {
+          "target": "vin",
+          "alts": [
+            "vout^2/(vout-dil*f*l)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "duty",
+          "dim": "ratio",
+          "label": "D",
+          "name": "Duty cycle",
+          "alts": [
+            "vout/vin"
+          ],
+          "unit": "pct",
+          "units": []
+        },
+        {
+          "id": "ipk",
+          "dim": "current",
+          "label": "I_pk",
+          "name": "Peak inductor current",
+          "alts": [
+            "iout+dil/2"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ival",
+          "dim": "current",
+          "label": "I_valley",
+          "name": "Valley inductor current",
+          "alts": [
+            "iout-dil/2"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout >= vin",
+          "warn": "V_out is not below V_in: a buck converter can only step down."
+        },
+        {
+          "when": "dil > 2*iout",
+          "warn": "The ripple current exceeds twice the output current: the inductor current falls to zero and the converter leaves continuous conduction, so these formulas no longer apply."
+        }
+      ],
+      "formula": [
+        "duty = vout / vin",
+        "dil = vout * (vin - vout) / (vin * f * l)",
+        "ipk = iout + dil / 2"
+      ],
+      "schematic": "buck_converter",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vin",
+          "vout",
+          "iout",
+          "f",
+          "l"
+        ],
+        [
+          "vin",
+          "vout",
+          "iout",
+          "f",
+          "dil"
+        ],
+        [
+          "vin",
+          "vout",
+          "iout",
+          "l",
+          "dil"
+        ],
+        [
+          "vout",
+          "iout",
+          "f",
+          "l",
+          "dil"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "boost_converter",
+      "category": "power",
+      "name": "Boost converter (step-up)",
+      "name_en": "Boost converter (step-up)",
+      "doc": "An ideal step-up (boost) converter in continuous conduction: the duty cycle is D = 1 − V_in / V_out, the average inductor current (equal to the input current) is I_L = I_out × V_out / V_in, and the peak-to-peak ripple current is ΔI_L = V_in × (V_out − V_in) / (V_out × f_sw × L). The inductor and the switch must handle the peak current I_pk = I_L + ΔI_L / 2. Assumptions: lossless components, constant input and output voltages, continuous conduction (the valley current stays above zero); I_out is the average output current. The defaults (5 V to 12 V, 0.5 A, 100 kHz, 100 µH) give D = 58.3 %, I_L = 1.2 A, ΔI_L = 0.29 A and I_pk = 1.35 A. V_in and I_out are always inputs (V_in cannot be solved from the ripple current, because two input voltages give the same ripple).",
+      "tags": [
+        "boost",
+        "step-up",
+        "dc-dc",
+        "switching regulator",
+        "inductor ripple",
+        "duty cycle",
+        "peak current",
+        "hochsetzsteller",
+        "aufwärtswandler",
+        "schaltregler",
+        "spule",
+        "rippelstrom",
+        "tastverhältnis",
+        "spitzenstrom"
+      ],
+      "source": "Ideal continuous-conduction boost converter (D = 1 − V_in / V_out, I_L = I_out / (1 − D), ΔI_L = V_in × D / (f_sw × L)); R. W. Erickson, D. Maksimović: Fundamentals of Power Electronics, 3rd ed., ch. 2; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9",
+      "vars": [
+        {
+          "id": "vin",
+          "dim": "voltage",
+          "label": "V_in",
+          "name": "Input voltage",
+          "default": 5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vout",
+          "dim": "voltage",
+          "label": "V_out",
+          "name": "Output voltage",
+          "default": 12,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "iout",
+          "dim": "current",
+          "label": "I_out",
+          "name": "Output current",
+          "default": 0.5,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f_sw",
+          "name": "Switching frequency",
+          "default": 100000,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "l",
+          "dim": "inductance",
+          "label": "L",
+          "name": "Inductance",
+          "default": 0.00009999999999999999,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dil",
+          "dim": "current",
+          "label": "ΔI_L",
+          "name": "Inductor ripple current (peak to peak)",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 5,
+      "rules": [
+        {
+          "target": "dil",
+          "alts": [
+            "vin*(vout-vin)/(vout*f*l)"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "vin*(vout-vin)/(vout*f*dil)"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "vin*(vout-vin)/(vout*l*dil)"
+          ]
+        },
+        {
+          "target": "vout",
+          "alts": [
+            "vin^2/(vin-dil*f*l)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "duty",
+          "dim": "ratio",
+          "label": "D",
+          "name": "Duty cycle",
+          "alts": [
+            "1-vin/vout"
+          ],
+          "unit": "pct",
+          "units": []
+        },
+        {
+          "id": "il",
+          "dim": "current",
+          "label": "I_L",
+          "name": "Average inductor current",
+          "alts": [
+            "iout*vout/vin"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ipk",
+          "dim": "current",
+          "label": "I_pk",
+          "name": "Peak inductor current",
+          "alts": [
+            "il+dil/2"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ival",
+          "dim": "current",
+          "label": "I_valley",
+          "name": "Valley inductor current",
+          "alts": [
+            "il-dil/2"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "vout <= vin",
+          "warn": "V_out is not above V_in: a boost converter can only step up."
+        },
+        {
+          "when": "dil > 2*il",
+          "warn": "The ripple current exceeds twice the average inductor current: the inductor current falls to zero and the converter leaves continuous conduction, so these formulas no longer apply."
+        }
+      ],
+      "formula": [
+        "duty = 1 - vin / vout",
+        "dil = vin * (vout - vin) / (vout * f * l)",
+        "ipk = il + dil / 2"
+      ],
+      "schematic": "boost_converter",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "vin",
+          "vout",
+          "iout",
+          "f",
+          "l"
+        ],
+        [
+          "vin",
+          "vout",
+          "iout",
+          "f",
+          "dil"
+        ],
+        [
+          "vin",
+          "vout",
+          "iout",
+          "l",
+          "dil"
+        ],
+        [
+          "vin",
+          "iout",
+          "f",
+          "l",
+          "dil"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "smoothing_capacitor",
+      "category": "power",
+      "name": "Smoothing capacitor",
+      "name_en": "Smoothing capacitor",
+      "doc": "The capacitor behind a rectifier supplies the load between the charging peaks. The peak-to-peak ripple is approximately ΔV = I / (m × f × C), where f is the mains frequency and m the number of charging peaks per mains cycle: 1 for a half-wave rectifier, 2 for a full-wave (bridge) rectifier. The estimate takes the whole period between the peaks as the discharge time and neglects the short charging time, so the real ripple is slightly lower. The defaults (1 A, 50 Hz, 1 V ripple, full wave) need 10 mF (10 000 µF). The drawing shows the bridge; for half-wave use a single diode.",
+      "tags": [
+        "smoothing",
+        "filter capacitor",
+        "reservoir capacitor",
+        "rectifier",
+        "ripple",
+        "power supply",
+        "bridge rectifier",
+        "glättung",
+        "siebkondensator",
+        "ladekondensator",
+        "gleichrichter",
+        "brummspannung",
+        "welligkeit",
+        "netzteil"
+      ],
+      "source": "Capacitor-input filter ripple estimate ΔV = I / (m × f × C) with m = 1 (half-wave) or 2 (full-wave), charging time neglected; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 9",
+      "vars": [
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Load current",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "f",
+          "dim": "frequency",
+          "label": "f",
+          "name": "Mains frequency",
+          "default": 50,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dv",
+          "dim": "voltage",
+          "label": "ΔV",
+          "name": "Ripple voltage (peak to peak)",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "c",
+          "dim": "capacitance",
+          "label": "C",
+          "name": "Smoothing capacitance",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "rect",
+          "name": "Rectification",
+          "default": "full",
+          "options": [
+            {
+              "id": "half",
+              "name": "Half-wave",
+              "consts": {
+                "m": 1
+              },
+              "ignore": []
+            },
+            {
+              "id": "full",
+              "name": "Full-wave (bridge)",
+              "consts": {
+                "m": 2
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "c",
+          "alts": [
+            "i/(m*f*dv)"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "c*m*f*dv"
+          ]
+        },
+        {
+          "target": "f",
+          "alts": [
+            "i/(m*c*dv)"
+          ]
+        },
+        {
+          "target": "dv",
+          "alts": [
+            "i/(m*f*c)"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "fr",
+          "dim": "frequency",
+          "label": "f_r",
+          "name": "Ripple frequency",
+          "alts": [
+            "m*f"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [],
+      "formula": [
+        "c = i / (m * f * dv)"
+      ],
+      "schematic": "smoothing_capacitor",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "i",
+          "f",
+          "dv"
+        ],
+        [
+          "i",
+          "f",
+          "c"
+        ],
+        [
+          "i",
+          "dv",
+          "c"
+        ],
+        [
+          "f",
+          "dv",
+          "c"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "battery_runtime",
+      "category": "power",
+      "name": "Battery runtime",
+      "name_en": "Battery runtime",
+      "doc": "The runtime of a battery follows from its capacity and the load current: t = Q × usable fraction / I. The usable fraction is the part of the rated capacity you can actually draw; the cut-off voltage, ageing, low temperature and high discharge currents reduce it. The defaults (a 2500 mAh cell, 250 mA load, 80 % usable) run for 8 hours. The calculation assumes a constant load current; the rated capacity is only valid for the discharge rate stated in the cell's datasheet.",
+      "tags": [
+        "battery",
+        "runtime",
+        "capacity",
+        "discharge",
+        "mah",
+        "ah",
+        "lifetime",
+        "autonomy",
+        "akku",
+        "batterie",
+        "laufzeit",
+        "kapazität",
+        "entladung",
+        "betriebsdauer"
+      ],
+      "source": "Definition of charge Q = I × t (1 Ah = 3600 C, SI Brochure, BIPM) with a usable-capacity fraction; background: D. Linden, T. B. Reddy (eds.): Handbook of Batteries, 3rd ed. (capacity depends on discharge rate and temperature)",
+      "vars": [
+        {
+          "id": "cap",
+          "dim": "charge",
+          "label": "Q",
+          "name": "Battery capacity",
+          "default": 9000,
+          "default_list": null,
+          "unit": "mAh",
+          "units": [
+            "mAh",
+            "Ah"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Load current",
+          "default": 0.25,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "use",
+          "dim": "ratio",
+          "label": "k",
+          "name": "Usable fraction of the capacity",
+          "default": 0.8,
+          "default_list": null,
+          "unit": "pct",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "t",
+          "name": "Runtime",
+          "default": null,
+          "default_list": null,
+          "unit": "h",
+          "units": [
+            "",
+            "min",
+            "h"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "t",
+          "alts": [
+            "cap*use/i"
+          ]
+        },
+        {
+          "target": "cap",
+          "alts": [
+            "t*i/use"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "cap*use/t"
+          ]
+        },
+        {
+          "target": "use",
+          "alts": [
+            "t*i/cap"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [
+        {
+          "when": "use > 1",
+          "warn": "A usable fraction above 100 % is not possible: more energy is drawn than the battery holds."
+        }
+      ],
+      "formula": [
+        "t = cap * use / i"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "cap",
+          "i",
+          "use"
+        ],
+        [
+          "cap",
+          "i",
+          "t"
+        ],
+        [
+          "cap",
+          "use",
+          "t"
+        ],
+        [
+          "i",
+          "use",
+          "t"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "battery_charge_time",
+      "category": "power",
+      "name": "Battery charge time",
+      "name_en": "Battery charge time",
+      "doc": "The charge time follows from the capacity and the charge current: t = Q / (I × η). The charge efficiency η is the share of the supplied charge that ends up stored; the rest is lost. With a constant-current/constant-voltage charger the current also tapers off near the end, which lengthens the real time further. The default of 80 % is a planning assumption, not a datasheet value; use the charge figure of the battery's datasheet where there is one. The defaults (2500 mAh, 1 A, 80 %) give 3.125 h (3 h 7.5 min).",
+      "tags": [
+        "battery",
+        "charge time",
+        "charging",
+        "charge current",
+        "capacity",
+        "efficiency",
+        "akku",
+        "batterie",
+        "ladezeit",
+        "laden",
+        "ladestrom",
+        "kapazität",
+        "wirkungsgrad"
+      ],
+      "source": "Definition of charge Q = I × t (1 Ah = 3600 C, SI Brochure, BIPM) with a charge efficiency; background: D. Linden, T. B. Reddy (eds.): Handbook of Batteries, 3rd ed. (charging of secondary cells)",
+      "vars": [
+        {
+          "id": "cap",
+          "dim": "charge",
+          "label": "Q",
+          "name": "Battery capacity",
+          "default": 9000,
+          "default_list": null,
+          "unit": "mAh",
+          "units": [
+            "mAh",
+            "Ah"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Charge current",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "eta",
+          "dim": "ratio",
+          "label": "η",
+          "name": "Charge efficiency",
+          "default": 0.8,
+          "default_list": null,
+          "unit": "pct",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "t",
+          "dim": "time",
+          "label": "t",
+          "name": "Charge time",
+          "default": null,
+          "default_list": null,
+          "unit": "h",
+          "units": [
+            "",
+            "min",
+            "h"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 3,
+      "rules": [
+        {
+          "target": "t",
+          "alts": [
+            "cap/(i*eta)"
+          ]
+        },
+        {
+          "target": "cap",
+          "alts": [
+            "t*i*eta"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "cap/(t*eta)"
+          ]
+        },
+        {
+          "target": "eta",
+          "alts": [
+            "cap/(t*i)"
+          ]
+        }
+      ],
+      "derived": [],
+      "checks": [
+        {
+          "when": "eta > 1",
+          "warn": "A charge efficiency above 100 % is not possible: more charge would be stored than supplied."
+        }
+      ],
+      "formula": [
+        "t = cap / (i * eta)"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "cap",
+          "i",
+          "eta"
+        ],
+        [
+          "cap",
+          "i",
+          "t"
+        ],
+        [
+          "cap",
+          "eta",
+          "t"
+        ],
+        [
+          "i",
+          "eta",
+          "t"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "battery_pack",
+      "category": "power",
+      "name": "Battery pack (series/parallel)",
+      "name_en": "Battery pack (series/parallel)",
+      "doc": "A pack of N_s cells in series and N_p such strings in parallel: the pack voltage is N_s × the cell voltage, the pack capacity is N_p × the cell capacity, and the stored energy is the product of both. The defaults (3S2P with 3.7 V, 2500 mAh cells) give 11.1 V, 5 Ah and 55.5 Wh. The cell voltage is the nominal voltage: a fully charged lithium-ion cell is higher (about 4.2 V), an empty one lower. Real packs also need cell balancing and protection.",
+      "tags": [
+        "battery pack",
+        "series",
+        "parallel",
+        "cells",
+        "voltage",
+        "capacity",
+        "energy",
+        "3s2p",
+        "lithium",
+        "akkupack",
+        "reihenschaltung",
+        "parallelschaltung",
+        "zellen",
+        "spannung",
+        "kapazität",
+        "energie"
+      ],
+      "source": "Series connection adds voltages, parallel connection adds capacities, E = U × Q (1 Wh = 3600 J); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 and 9",
+      "vars": [
+        {
+          "id": "ns",
+          "dim": "number",
+          "label": "N_s",
+          "name": "Cells in series",
+          "default": 3,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "np",
+          "dim": "number",
+          "label": "N_p",
+          "name": "Strings in parallel",
+          "default": 2,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vcell",
+          "dim": "voltage",
+          "label": "U_cell",
+          "name": "Cell voltage",
+          "default": 3.7,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "qcell",
+          "dim": "charge",
+          "label": "Q_cell",
+          "name": "Cell capacity",
+          "default": 9000,
+          "default_list": null,
+          "unit": "mAh",
+          "units": [
+            "mAh",
+            "Ah"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "vpack",
+          "dim": "voltage",
+          "label": "U_pack",
+          "name": "Pack voltage",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "qpack",
+          "dim": "charge",
+          "label": "Q_pack",
+          "name": "Pack capacity",
+          "default": null,
+          "default_list": null,
+          "unit": "Ah",
+          "units": [
+            "mAh",
+            "Ah"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "e",
+          "dim": "energy",
+          "label": "E",
+          "name": "Pack energy",
+          "default": null,
+          "default_list": null,
+          "unit": "Wh",
+          "units": [
+            "mWh",
+            "Wh",
+            "kWh"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [],
+      "dof": 4,
+      "rules": [
+        {
+          "target": "vpack",
+          "alts": [
+            "ns*vcell",
+            "e/qpack"
+          ]
+        },
+        {
+          "target": "qpack",
+          "alts": [
+            "np*qcell",
+            "e/vpack"
+          ]
+        },
+        {
+          "target": "e",
+          "alts": [
+            "vpack*qpack"
+          ]
+        },
+        {
+          "target": "ns",
+          "alts": [
+            "vpack/vcell"
+          ]
+        },
+        {
+          "target": "np",
+          "alts": [
+            "qpack/qcell"
+          ]
+        },
+        {
+          "target": "vcell",
+          "alts": [
+            "vpack/ns"
+          ]
+        },
+        {
+          "target": "qcell",
+          "alts": [
+            "qpack/np"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "cells",
+          "dim": "number",
+          "label": "N",
+          "name": "Total number of cells",
+          "alts": [
+            "ns*np"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "ns != floor(ns)",
+          "warn": "The number of cells in series must be a whole number."
+        },
+        {
+          "when": "np != floor(np)",
+          "warn": "The number of strings in parallel must be a whole number."
+        }
+      ],
+      "formula": [
+        "vpack = ns * vcell",
+        "qpack = np * qcell",
+        "e = vpack * qpack"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "ns",
+          "np",
+          "vcell",
+          "qcell"
+        ],
+        [
+          "ns",
+          "np",
+          "vcell",
+          "qpack"
+        ],
+        [
+          "ns",
+          "np",
+          "vcell",
+          "e"
+        ],
+        [
+          "ns",
+          "np",
+          "qcell",
+          "vpack"
+        ],
+        [
+          "ns",
+          "np",
+          "qcell",
+          "e"
+        ],
+        [
+          "ns",
+          "np",
+          "vpack",
+          "qpack"
+        ],
+        [
+          "ns",
+          "np",
+          "vpack",
+          "e"
+        ],
+        [
+          "ns",
+          "np",
+          "qpack",
+          "e"
+        ],
+        [
+          "ns",
+          "vcell",
+          "qcell",
+          "qpack"
+        ],
+        [
+          "ns",
+          "vcell",
+          "qcell",
+          "e"
+        ],
+        [
+          "ns",
+          "qcell",
+          "vpack",
+          "qpack"
+        ],
+        [
+          "ns",
+          "qcell",
+          "vpack",
+          "e"
+        ],
+        [
+          "ns",
+          "qcell",
+          "qpack",
+          "e"
+        ],
+        [
+          "np",
+          "vcell",
+          "qcell",
+          "vpack"
+        ],
+        [
+          "np",
+          "vcell",
+          "qcell",
+          "e"
+        ],
+        [
+          "np",
+          "vcell",
+          "vpack",
+          "qpack"
+        ],
+        [
+          "np",
+          "vcell",
+          "vpack",
+          "e"
+        ],
+        [
+          "np",
+          "vcell",
+          "qpack",
+          "e"
+        ],
+        [
+          "vcell",
+          "qcell",
+          "vpack",
+          "qpack"
+        ],
+        [
+          "vcell",
+          "qcell",
+          "vpack",
+          "e"
+        ],
+        [
+          "vcell",
+          "qcell",
+          "qpack",
+          "e"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "cable_voltage_drop",
+      "category": "power",
+      "name": "Cable voltage drop",
+      "name_en": "Cable voltage drop",
+      "doc": "Voltage drop of a copper or aluminium cable: ΔU = b × ρ × L × I × cos φ / A with the resistivity ρ at the conductor temperature, the one-way cable length L and the conductor cross-section A. b is 2 for direct current and single-phase AC (outgoing and return conductor) and √3 for three-phase AC (drop between the lines); cos φ does not apply to DC. The percentage is related to the nominal voltage U_n. Resistivity at 20 °C: copper 1/58 Ω·mm²/m (IEC 60028), aluminium 0.028264 Ω·mm²/m (IEC 60889); it rises with the temperature coefficient 0.00393 /K for copper (IEC 60028) and 0.00403 /K for aluminium (IEC 60889). The cable reactance is neglected, which is acceptable for small cross-sections; it adds to the drop at large cross-sections. The defaults (copper, single-phase 230 V, 20 m, 16 A, 2.5 mm², cos φ = 1, 70 °C) give about 5.3 V (2.3 %). Safety: mains voltage is dangerous. The results are guide values only; the design of a mains installation must follow the installation standard (for example DIN VDE 0100-520 or IEC 60364-5-52) and the local rules, and must be done and checked by a qualified electrician.",
+      "tags": [
+        "cable",
+        "voltage drop",
+        "wire",
+        "copper",
+        "aluminium",
+        "conductor",
+        "cross-section",
+        "mains",
+        "kabel",
+        "spannungsfall",
+        "leitung",
+        "kupfer",
+        "aluminium",
+        "querschnitt",
+        "leitungsverlust",
+        "netz",
+        "vde"
+      ],
+      "source": "Resistive voltage drop of a conductor ΔU = b × ρ × L × I × cos φ / A; cf. IEC 60364-5-52 and DIN VDE 0100-520 (voltage drop in consumers' installations); resistivity at 20 °C of annealed copper 1/58 Ω·mm²/m with α = 0.00393 /K (IEC 60028) and of hard-drawn aluminium 0.028264 Ω·mm²/m with α = 0.00403 /K (IEC 60889)",
+      "vars": [
+        {
+          "id": "l",
+          "dim": "length",
+          "label": "L",
+          "name": "Cable length (one way)",
+          "default": 20,
+          "default_list": null,
+          "unit": "",
+          "units": [
+            "",
+            "ft"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "i",
+          "dim": "current",
+          "label": "I",
+          "name": "Current",
+          "default": 16,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "a",
+          "dim": "area",
+          "label": "A",
+          "name": "Conductor cross-section",
+          "default": 0.0000024999999999999998,
+          "default_list": null,
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "AWG",
+            "kcmil"
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "cosphi",
+          "dim": "number",
+          "label": "cos φ",
+          "name": "Power factor",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "un",
+          "dim": "voltage",
+          "label": "U_n",
+          "name": "Nominal voltage",
+          "default": 230,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "theta",
+          "dim": "temperature",
+          "label": "θ",
+          "name": "Conductor temperature",
+          "default": 343.15,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "du",
+          "dim": "voltage",
+          "label": "ΔU",
+          "name": "Voltage drop",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "dup",
+          "dim": "ratio",
+          "label": "ΔU%",
+          "name": "Voltage drop in % of U_n",
+          "default": null,
+          "default_list": null,
+          "unit": "pct",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "material",
+          "name": "Conductor material",
+          "default": "copper",
+          "options": [
+            {
+              "id": "copper",
+              "name": "Copper",
+              "consts": {
+                "alpha": 0.00393,
+                "rho20": 1.7241379310344825e-8
+              },
+              "ignore": []
+            },
+            {
+              "id": "aluminium",
+              "name": "Aluminium",
+              "consts": {
+                "alpha": 0.00403,
+                "rho20": 2.8264e-8
+              },
+              "ignore": []
+            }
+          ]
+        },
+        {
+          "id": "system",
+          "name": "System",
+          "default": "single",
+          "options": [
+            {
+              "id": "dc",
+              "name": "DC",
+              "consts": {
+                "b": 2,
+                "n": 2,
+                "u": 0
+              },
+              "ignore": [
+                "cosphi"
+              ]
+            },
+            {
+              "id": "single",
+              "name": "Single-phase AC",
+              "consts": {
+                "b": 2,
+                "n": 2,
+                "u": 1
+              },
+              "ignore": []
+            },
+            {
+              "id": "three",
+              "name": "Three-phase AC",
+              "consts": {
+                "b": 1.7320508075688772,
+                "n": 3,
+                "u": 1
+              },
+              "ignore": []
+            }
+          ]
+        }
+      ],
+      "dof": 6,
+      "rules": [
+        {
+          "target": "du",
+          "alts": [
+            "b*rho_t*l*i*(1-u+u*cosphi)/a",
+            "dup*un"
+          ]
+        },
+        {
+          "target": "dup",
+          "alts": [
+            "du/un"
+          ]
+        },
+        {
+          "target": "a",
+          "alts": [
+            "b*rho_t*l*i*(1-u+u*cosphi)/du"
+          ]
+        },
+        {
+          "target": "l",
+          "alts": [
+            "du*a/(b*rho_t*i*(1-u+u*cosphi))"
+          ]
+        },
+        {
+          "target": "i",
+          "alts": [
+            "du*a/(b*rho_t*l*(1-u+u*cosphi))"
+          ]
+        },
+        {
+          "target": "un",
+          "alts": [
+            "du/dup"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "rho_t",
+          "dim": "resistivity",
+          "label": "ρ_θ",
+          "name": "Resistivity at the conductor temperature",
+          "alts": [
+            "rho20*(1+alpha*(theta-293.15))"
+          ],
+          "unit": "ohmmm2m",
+          "units": [
+            "",
+            "ohmmm2m"
+          ]
+        },
+        {
+          "id": "ploss",
+          "dim": "power",
+          "label": "P_loss",
+          "name": "Power loss in the conductors",
+          "alts": [
+            "n*rho_t*l*i^2/a"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "dup > 0.05",
+          "warn": "The voltage drop is above 5 %: check the permissible value in the installation standard, and use a larger cross-section or a shorter run."
+        },
+        {
+          "when": "cosphi > 1",
+          "warn": "cos φ cannot be larger than 1."
+        }
+      ],
+      "formula": [
+        "du = b * rho_t * l * i * cosphi / a",
+        "dup = du / un"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "l",
+          "i",
+          "a",
+          "cosphi",
+          "un",
+          "theta"
+        ],
+        [
+          "l",
+          "i",
+          "a",
+          "cosphi",
+          "theta",
+          "dup"
+        ],
+        [
+          "l",
+          "i",
+          "cosphi",
+          "un",
+          "theta",
+          "du"
+        ],
+        [
+          "l",
+          "i",
+          "cosphi",
+          "un",
+          "theta",
+          "dup"
+        ],
+        [
+          "l",
+          "i",
+          "cosphi",
+          "theta",
+          "du",
+          "dup"
+        ],
+        [
+          "l",
+          "a",
+          "cosphi",
+          "un",
+          "theta",
+          "du"
+        ],
+        [
+          "l",
+          "a",
+          "cosphi",
+          "un",
+          "theta",
+          "dup"
+        ],
+        [
+          "l",
+          "a",
+          "cosphi",
+          "theta",
+          "du",
+          "dup"
+        ],
+        [
+          "i",
+          "a",
+          "cosphi",
+          "un",
+          "theta",
+          "du"
+        ],
+        [
+          "i",
+          "a",
+          "cosphi",
+          "un",
+          "theta",
+          "dup"
+        ],
+        [
+          "i",
+          "a",
+          "cosphi",
+          "theta",
+          "du",
+          "dup"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "led_resistor",
       "category": "semiconductors",
       "name": "LED series resistor",

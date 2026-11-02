@@ -1,0 +1,16 @@
+{
+  "calc": "lm317_current",
+  "sets": [
+    {"values": {"vref": 1.25, "iadj": 5e-05, "r": 10, "i": 0.12505, "pr": 0.15625}, "ref": "hand: I = 1.25 / 10 + 50e-6 = 0.125 + 0.00005 = 0.12505 A; P_R = 1.25^2 / 10 = 1.5625 / 10 = 0.15625 W"},
+    {"values": {"vref": 1.25, "iadj": 5e-05, "r": 62, "i": 0.020211290322580646, "pr": 0.025201612903225805}, "ref": "hand: I = 1.25 / 62 + 50e-6 = 0.0201612903 + 0.00005 = 0.0202112903 A; P_R = 1.5625 / 62 = 0.0252016129 W"},
+    {"values": {"vref": 1.2, "iadj": 0.0001, "r": 5, "i": 0.2401, "pr": 0.288}, "ref": "hand: V_ref = 1.2 V, I_adj = 100 uA: I = 1.2 / 5 + 100e-6 = 0.24 + 0.0001 = 0.2401 A; P_R = 1.44 / 5 = 0.288 W"}
+  ],
+  "solve": [
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r": 10}, "expect": {"i": 0.12505, "pr": 0.15625}, "ref": "hand: the defaults, I = 0.125 + 0.00005 = 0.12505 A; P_R = 1.5625 / 10 = 0.15625 W"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "i": 0.02}, "expect": {"r": 62.65664160401003}, "ref": "hand (independent script): R = V_ref / (I - I_adj) = 1.25 / (0.02 - 0.00005) = 1.25 / 0.01995 = 62.6566416 ohm"},
+    {"inputs": {"iadj": 5e-05, "r": 10, "i": 0.12505}, "expect": {"vref": 1.25}, "ref": "hand: V_ref = (I - I_adj) * R = (0.12505 - 0.00005) * 10 = 1.25 V"},
+    {"inputs": {"vref": 1.25, "r": 10, "i": 0.12505}, "expect": {"iadj": 5e-05}, "ref": "hand: I_adj = I - V_ref / R = 0.12505 - 0.125 = 50 uA"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "i": 2}, "expect": {"r": 0.6250156253906348}, "warnings": [0], "ref": "hand (independent script): R = 1.25 / (2 - 0.00005) = 0.6250156254 ohm; 2 A is above the 1.5 A rating, the first check fires"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "i": 4e-05}, "errors": {"r": "range"}, "warnings": [1], "ref": "hand: R = 1.25 / (40e-6 - 50e-6) = -125000 ohm is out of range; the load current is not above I_adj, the second check fires"}
+  ]
+}

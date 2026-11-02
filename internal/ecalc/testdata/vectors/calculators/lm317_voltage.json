@@ -1,0 +1,17 @@
+{
+  "calc": "lm317_voltage",
+  "sets": [
+    {"values": {"vref": 1.25, "iadj": 5e-05, "r1": 240, "r2": 720, "vout": 5.036, "i1": 0.005208333333333333}, "ref": "hand: V_out = 1.25 * (1 + 720/240) + 50e-6 * 720 = 1.25 * 4 + 0.036 = 5.036 V; I_1 = 1.25 / 240 = 5.2083 mA"},
+    {"values": {"vref": 1.25, "iadj": 5e-05, "r1": 240, "r2": 2400, "vout": 13.87, "i1": 0.005208333333333333}, "ref": "hand: V_out = 1.25 * (1 + 2400/240) + 50e-6 * 2400 = 1.25 * 11 + 0.12 = 13.87 V; I_1 = 1.25 / 240 = 5.2083 mA"},
+    {"values": {"vref": 1.2, "iadj": 0.0001, "r1": 120, "r2": 360, "vout": 4.836, "i1": 0.01}, "ref": "hand: datasheet extremes V_ref = 1.2 V and I_adj = 100 uA: V_out = 1.2 * (1 + 360/120) + 100e-6 * 360 = 4.8 + 0.036 = 4.836 V; I_1 = 1.2 / 120 = 10 mA"}
+  ],
+  "solve": [
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r1": 240, "r2": 720}, "expect": {"vout": 5.036, "i1": 0.005208333333333333}, "ref": "hand: the defaults, V_out = 1.25 * 4 + 0.036 = 5.036 V; I_1 = 1.25 / 240 A"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r1": 240, "vout": 5}, "expect": {"r2": 713.1537242472266}, "ref": "hand (independent script): R_2 = (V_out - V_ref) / (V_ref / R_1 + I_adj) = 3.75 / (1.25/240 + 50e-6) = 3.75 / 0.00525833333 = 713.1537242 ohm"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r2": 720, "vout": 5.036}, "expect": {"r1": 240}, "ref": "hand: R_1 = V_ref * R_2 / (V_out - V_ref - I_adj * R_2) = 1.25 * 720 / (5.036 - 1.25 - 0.036) = 900 / 3.75 = 240 ohm"},
+    {"inputs": {"iadj": 5e-05, "r1": 240, "r2": 720, "vout": 5.036}, "expect": {"vref": 1.25}, "ref": "hand: V_ref = (V_out - I_adj * R_2) / (1 + R_2 / R_1) = (5.036 - 0.036) / 4 = 1.25 V"},
+    {"inputs": {"vref": 1.25, "r1": 240, "r2": 720, "vout": 5.036}, "expect": {"iadj": 5e-05}, "ref": "hand: I_adj = (V_out - V_ref * (1 + R_2 / R_1)) / R_2 = (5.036 - 5) / 720 = 50 uA"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r1": 240, "vout": 1}, "errors": {"r2": "range"}, "warnings": [0], "ref": "hand: V_out = 1 V is below V_ref, so R_2 = (1 - 1.25) / (1.25/240 + 50e-6) = -47.5 ohm is out of range; the V_out < V_ref check fires"},
+    {"inputs": {"vref": 1.25, "iadj": 5e-05, "r1": 240}, "errors": {"r2": "undetermined", "vout": "undetermined"}, "ref": "neither R_2 nor V_out is known"}
+  ]
+}

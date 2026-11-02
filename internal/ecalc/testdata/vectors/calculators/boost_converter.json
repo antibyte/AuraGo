@@ -1,0 +1,17 @@
+{
+  "calc": "boost_converter",
+  "sets": [
+    {"values": {"vin": 5, "vout": 12, "iout": 0.5, "f": 100000, "l": 0.0001, "dil": 0.2916666666666667, "duty": 0.5833333333333334, "il": 1.2, "ipk": 1.3458333333333334, "ival": 1.0541666666666667}, "ref": "hand: dI_L = 5 * (12 - 5) / (12 * 100e3 * 100e-6) = 35 / 120 = 0.29167 A; D = 1 - 5/12 = 0.58333; I_L = 0.5 * 12 / 5 = 1.2 A; I_pk = 1.2 + 0.14583 = 1.34583 A; I_valley = 1.05417 A"},
+    {"values": {"vin": 3.7, "vout": 5, "iout": 1, "f": 500000, "l": 2.2e-06, "dil": 0.8745454545454545, "duty": 0.26, "il": 1.3513513513513513, "ipk": 1.7886240786240786, "ival": 0.9140786240786241}, "ref": "hand: dI_L = 3.7 * (5 - 3.7) / (5 * 500e3 * 2.2e-6) = 4.81 / 5.5 = 0.874545 A; D = 1 - 3.7/5 = 0.26; I_L = 1 * 5 / 3.7 = 1.351351 A; I_pk = 1.351351 + 0.437273 = 1.788624 A; I_valley = 0.914078 A"},
+    {"values": {"vin": 12, "vout": 24, "iout": 1, "f": 200000, "l": 5e-05, "dil": 0.6, "duty": 0.5, "il": 2, "ipk": 2.3, "ival": 1.7}, "ref": "hand: dI_L = 12 * (24 - 12) / (24 * 200e3 * 50e-6) = 144 / 240 = 0.6 A; D = 1 - 12/24 = 0.5; I_L = 1 * 24 / 12 = 2 A; I_pk = 2 + 0.3 = 2.3 A; I_valley = 1.7 A"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 5, "vout": 12, "iout": 0.5, "f": 100000, "l": 0.0001}, "expect": {"dil": 0.2916666666666667, "duty": 0.5833333333333334, "il": 1.2, "ipk": 1.3458333333333334, "ival": 1.0541666666666667}, "ref": "hand: the defaults, dI_L = 35 / 120 = 0.291667 A, D = 7/12, I_L = 1.2 A, I_pk = 1.2 + 0.145833 = 1.345833 A, I_valley = 1.054167 A"},
+    {"inputs": {"vin": 12, "vout": 24, "iout": 1, "f": 200000, "dil": 0.6}, "expect": {"l": 5e-05}, "ref": "hand: L = V_in * (V_out - V_in) / (V_out * f * dI_L) = 144 / (24 * 200e3 * 0.6) = 144 / 2880000 = 50 uH"},
+    {"inputs": {"vin": 12, "vout": 24, "iout": 1, "l": 5e-05, "dil": 0.6}, "expect": {"f": 200000}, "ref": "hand: f = 144 / (24 * 50e-6 * 0.6) = 144 / 0.72 = 200 kHz"},
+    {"inputs": {"vin": 12, "iout": 1, "f": 200000, "l": 5e-05, "dil": 0.6}, "expect": {"vout": 24, "duty": 0.5, "il": 2, "ipk": 2.3, "ival": 1.7}, "ref": "hand: V_out = V_in^2 / (V_in - dI_L * f * L) = 144 / (12 - 0.6 * 200e3 * 50e-6) = 144 / 6 = 24 V; D = 0.5; I_L = 2 A; I_pk = 2.3 A; I_valley = 1.7 A"},
+    {"inputs": {"vin": 5, "vout": 5, "iout": 1, "f": 100000, "l": 0.0001}, "expect": {"dil": 0, "duty": 0, "il": 1, "ipk": 1}, "warnings": [0], "ref": "hand: V_out = V_in gives dI_L = 0, D = 0 and I_L = I_out; the V_out <= V_in check fires"},
+    {"inputs": {"vin": 5, "vout": 3, "iout": 1, "f": 100000, "l": 0.0001}, "expect": {"dil": -0.3333333333333333, "duty": -0.6666666666666666, "il": 0.6, "ipk": 0.43333333333333335}, "warnings": [0], "ref": "hand: dI_L = 5 * (3 - 5) / (3 * 100e3 * 100e-6) = -10 / 30 = -0.333333 A; D = 1 - 5/3 = -0.666667; I_L = 1 * 3 / 5 = 0.6 A; I_pk = 0.6 - 0.166667 = 0.433333 A; the V_out <= V_in check fires"},
+    {"inputs": {"vin": 5, "vout": 12, "iout": 0.05, "f": 100000, "l": 0.0001}, "expect": {"il": 0.12, "dil": 0.2916666666666667, "ival": -0.025833333333333333}, "warnings": [1], "ref": "hand: I_L = 0.05 * 12 / 5 = 0.12 A; dI_L = 0.291667 A is above 2 * 0.12 A = 0.24 A, the valley current 0.12 - 0.145833 = -0.025833 A is negative: discontinuous conduction, the second check fires"}
+  ]
+}
