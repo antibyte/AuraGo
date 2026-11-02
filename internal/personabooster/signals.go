@@ -175,7 +175,7 @@ var stopPhrases = map[string][]string{
 	"beruhig dich":  nil,
 	"beruhige dich": nil,
 	"sei netter":    nil,
-	"calm down":     nil,
+	"calm down":     {"please", "now", "already"},
 	"hör auf":       {"damit", "bitte", "jetzt", "zu"},
 	"hoer auf":      {"damit", "bitte", "jetzt", "zu"},
 	"lass das":      {"bitte", "jetzt", "sein"},

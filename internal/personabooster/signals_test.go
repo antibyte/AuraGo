@@ -45,6 +45,12 @@ func TestDetectTextSignals(t *testing.T) {
 		{"it would be nice to have tests", nil},
 		{"Hör auf (bitte)", []string{SignalTextStop}},
 		{"stop it - now", []string{SignalTextStop}},
+		{"calm down the retry loop", nil},
+		{"please calm down the retry loop and log the error", nil},
+		{"calm down please", []string{SignalTextStop}},
+		{"calm down now", []string{SignalTextStop}},
+		{"calm down.", []string{SignalTextStop}},
+		{"calm down", []string{SignalTextStop}},
 		{"", nil},
 	}
 	for _, tc := range cases {
@@ -58,7 +64,7 @@ func TestDetectTextSignals(t *testing.T) {
 // is not followed by a listed continuation must not cost a pass over the rest
 // of the message, or a megabyte of repeated phrases takes minutes.
 func TestDetectTextSignalsStaysLinear(t *testing.T) {
-	for _, phrase := range []string{"stop it ", "hör auf ", "lass das ", "beruhig dich "} {
+	for _, phrase := range []string{"stop it ", "hör auf ", "lass das ", "calm down ", "beruhig dich "} {
 		message := strings.Repeat(phrase, (1<<20)/len(phrase)) + "x"
 		start := time.Now()
 		got := DetectTextSignals(message)
