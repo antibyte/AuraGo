@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/personabooster"
 	"aurago/internal/prompts"
 	"github.com/sashabaranov/go-openai"
 )
@@ -60,11 +61,13 @@ func TestPersonalityInvalidEmotionKeepsProfileWithOneBilledCall(t *testing.T) {
 	}}
 	tracker := newHelperTurnBudget(t)
 	billed := &emotionCompletionClient{client: client, cfg: cfg, tracker: tracker, mainFallback: true}
-	mood, affinity, traits, profiles, emotion, thought, category, confidence, err := stm.AnalyzeMoodV2WithEmotion(context.Background(), billed, cfg.LLM.Model, "Assistant context only", input.Text, memory.DefaultPersonalityMeta(), true, memory.EmotionInput{UserMessage: input.Text, Snapshot: basis}, "English")
-	if err != nil || client.calls != 1 || billed.calls != 1 || emotion != nil || thought != "" || len(profiles) != 1 {
-		t.Fatalf("partial result: calls=%d profile=%+v emotion=%+v err=%v", client.calls, profiles, emotion, err)
+	analysis, err := stm.AnalyzeMoodV2WithEmotion(context.Background(), billed, cfg.LLM.Model, "Assistant context only", input.Text, memory.DefaultPersonalityMeta(), true, memory.EmotionInput{UserMessage: input.Text, Snapshot: basis}, "English")
+	if err != nil || client.calls != 1 || billed.calls != 1 || analysis.Emotion != nil || analysis.InnerThought != "" || len(analysis.ProfileUpdates) != 1 {
+		t.Fatalf("partial result: calls=%d profile=%+v emotion=%+v err=%v", client.calls, analysis.ProfileUpdates, analysis.Emotion, err)
 	}
-	applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, input.Text, memory.EmotionTriggerConversation, "", 0, true, 0, 0, personalityV2AnalysisResult{Input: input, Basis: basis, ObservationID: input.TurnID, Mood: mood, AffinityDelta: affinity, TraitDeltas: traits, ProfileUpdates: profiles, SynthesizedEmotion: emotion, InnerThought: thought, NudgeCategory: category, NudgeConfidence: confidence})
+	result := personalityV2AnalysisResult{Input: input, Basis: basis, ObservationID: input.TurnID}
+	result.setMoodEmotion(analysis)
+	applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, input.Text, memory.EmotionTriggerConversation, "", 0, true, 0, 0, result)
 	entries, _ := stm.GetProfileEntries("tech")
 	if len(entries) != 1 || entries[0].Confidence != 1 {
 		t.Fatalf("lost valid profile: %+v", entries)
@@ -75,6 +78,41 @@ func TestPersonalityInvalidEmotionKeepsProfileWithOneBilledCall(t *testing.T) {
 	usage := tracker.GetStatus().Models[cfg.LLM.Model]
 	if usage.Calls != 1 || usage.InputTokens != 100 || usage.OutputTokens != 40 {
 		t.Fatalf("incorrect billing: %+v", usage)
+	}
+}
+
+// A valid appraisal must outlive a malformed emotion_state: it still carries the
+// relationship evidence and the persona booster cue.
+func TestPersonalityInvalidEmotionKeepsAppraisalAndBoosterCue(t *testing.T) {
+	fixedPersonaBoosterRand(t, 0)
+	stm := newTestPersonalityRuntimeMemory(t)
+	cfg := personaBoosterTestConfig()
+	cfg.Personality.CorePersonality = "friend"
+	cfg.Personality.Engine, cfg.Personality.EngineV2 = true, true
+	cfg.LLM.Model = "gpt-4o-mini"
+	const message = "Ich komme mit dem Deployment heute einfach nicht weiter"
+	input := memory.NewHumanInput(message, "default")
+	basis := prepareTurnEmotion(context.Background(), RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "invalid-emotion-cue", HumanInput: input}, prompts.ContextFlags{}, message, memory.DefaultPersonalityMeta(), slog.Default())
+	if basis == nil {
+		t.Fatal("missing basis")
+	}
+	client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonStop, Message: openai.ChatCompletionMessage{Content: `{"appraisal":{"signal":"criticism","target":"agent","cue":"distress","confidence":0.9,"reference":"current_user_message"},"mood_analysis":{"user_sentiment":"frustrated","agent_appropriate_response_mood":"focused","relationship_delta":-0.1,"trait_deltas":{}},"emotion_state":"invalid optional block"}`}}}}, nil
+	}}
+	analysis, err := stm.AnalyzeMoodV2WithEmotion(context.Background(), client, cfg.LLM.Model, "Assistant context only", input.Text, memory.DefaultPersonalityMeta(), false, memory.EmotionInput{UserMessage: input.Text, Snapshot: basis}, "English")
+	if err != nil || analysis.Emotion != nil || analysis.Appraisal == nil || analysis.Appraisal.Cue != "distress" {
+		t.Fatalf("appraisal lost with the emotion block: %+v err=%v", analysis, err)
+	}
+	result := personalityV2AnalysisResult{Input: input, Basis: basis, ObservationID: input.TurnID}
+	result.setMoodEmotion(analysis)
+	applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, input.Text, memory.EmotionTriggerConversation, "", 0, false, 0, 0, result)
+	after, err := stm.GetPersonalitySnapshotAt(time.Now())
+	if err != nil || after.Dynamics.Friction <= basis.Dynamics.Friction {
+		t.Fatalf("relationship evidence lost: friction %.3f -> %.3f err=%v", basis.Dynamics.Friction, after.Dynamics.Friction, err)
+	}
+	state, err := stm.LoadPersonaBoosterState()
+	if err != nil || state.Trigger != personabooster.CueDistress || (state.PhaseID != "worried" && state.PhaseID != "protective") {
+		t.Fatalf("booster cue lost: state = %+v, err = %v", state, err)
 	}
 }
 

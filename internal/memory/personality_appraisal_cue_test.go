@@ -68,14 +68,14 @@ func TestAnalyzeMoodV2WithEmotionRequestsAndKeepsAppraisalCue(t *testing.T) {
 	mock := &mockPersonalityAnalysisClient{
 		response: `{"appraisal":{"signal":"none","target":"unknown","cue":"deep_topic","confidence":0.9,"reference":"current_user_message"},"mood_analysis":{"user_sentiment":"curious","agent_appropriate_response_mood":"focused","relationship_delta":0.02,"trait_deltas":{"curiosity":0.05},"user_profile_updates":[]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"steady","valence":0.2,"arousal":0.3,"confidence":0.8,"cause":"the request is clear","recommended_response_style":"calm_and_precise"}}`,
 	}
-	_, _, _, _, emotion, _, _, _, err := stm.AnalyzeMoodV2WithEmotion(context.Background(), mock, "test-model", "history", "user statements", PersonalityMeta{}, false, EmotionInput{UserMessage: "Was ist Bewusstsein?"}, "English")
+	analysis, err := stm.AnalyzeMoodV2WithEmotion(context.Background(), mock, "test-model", "history", "user statements", PersonalityMeta{}, false, EmotionInput{UserMessage: "Was ist Bewusstsein?"}, "English")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(mock.request.Messages[0].Content, AppraisalCueRule) {
 		t.Fatal("AnalyzeMoodV2WithEmotion does not request the cue")
 	}
-	if emotion == nil || emotion.Appraisal == nil || emotion.Appraisal.Cue != "deep_topic" {
-		t.Fatalf("emotion appraisal = %+v", emotion)
+	if analysis.Emotion == nil || analysis.Appraisal == nil || analysis.Appraisal.Cue != "deep_topic" {
+		t.Fatalf("analysis appraisal = %+v emotion = %+v", analysis.Appraisal, analysis.Emotion)
 	}
 }

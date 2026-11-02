@@ -188,7 +188,7 @@ func TestPersonalityBothAnalysisPathsUseBoundedBilledRequests(t *testing.T) {
 			stm := newTestPersonalityRuntimeMemory(t)
 			var err error
 			if combined {
-				_, _, _, _, _, _, _, _, err = stm.AnalyzeMoodV2WithEmotion(t.Context(), adapter, "gpt-4o-mini", "user: hello", "hello", memory.DefaultPersonalityMeta(), false, memory.EmotionInput{}, "English")
+				_, err = stm.AnalyzeMoodV2WithEmotion(t.Context(), adapter, "gpt-4o-mini", "user: hello", "hello", memory.DefaultPersonalityMeta(), false, memory.EmotionInput{}, "English")
 			} else {
 				_, _, _, _, err = stm.AnalyzeMoodV2(t.Context(), adapter, "gpt-4o-mini", "user: hello", "hello", memory.DefaultPersonalityMeta(), false)
 			}

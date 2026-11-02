@@ -130,6 +130,14 @@ type personalityV2AnalysisResult struct {
 	NudgeConfidence    float64
 }
 
+// setMoodEmotion copies a combined helper analysis. The appraisal travels on its
+// own, so a malformed emotion block keeps relationship evidence and the booster cue.
+func (r *personalityV2AnalysisResult) setMoodEmotion(a memory.MoodEmotionAnalysis) {
+	r.Mood, r.AffinityDelta, r.TraitDeltas, r.ProfileUpdates = a.Mood, a.AffinityDelta, a.TraitDeltas, a.ProfileUpdates
+	r.Appraisal, r.SynthesizedEmotion = a.Appraisal, a.Emotion
+	r.InnerThought, r.NudgeCategory, r.NudgeConfidence = a.InnerThought, a.NudgeCategory, a.NudgeConfidence
+}
+
 // A malformed optional narration (emotion_state, inner_voice) must not reject valid mood or profile fields.
 func (p *helperTurnPersonalityBlock) UnmarshalJSON(data []byte) error {
 	type plain helperTurnPersonalityBlock
@@ -477,7 +485,8 @@ func launchAsyncPersonalityV2Analysis(
 					combinedInput.InnerVoiceHistory = memory.FormatInnerVoiceHistory(ivEntries)
 				}
 			}
-			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, result.InnerThought, result.NudgeCategory, result.NudgeConfidence, err = stm.AnalyzeMoodV2WithEmotion(
+			var analysis memory.MoodEmotionAnalysis
+			analysis, err = stm.AnalyzeMoodV2WithEmotion(
 				v2Ctx,
 				analyzerClient,
 				modelName,
@@ -488,6 +497,7 @@ func launchAsyncPersonalityV2Analysis(
 				combinedInput,
 				cfg.Agent.SystemLanguage,
 			)
+			result.setMoodEmotion(analysis)
 			if !combinedInput.InnerVoiceEnabled {
 				result.InnerThought, result.NudgeCategory, result.NudgeConfidence = "", "", 0 // only a requested thought is accepted
 			}
@@ -525,9 +535,6 @@ func launchAsyncPersonalityV2Analysis(
 
 		// Success — reset circuit breaker failure count.
 		result.Basis, result.ObservationID, result.Input = basis, runCfg.HumanInput.TurnID, runCfg.HumanInput
-		if result.SynthesizedEmotion != nil {
-			result.Appraisal = result.SynthesizedEmotion.Appraisal
-		}
 		v2FailCount.Store(0)
 
 		applyPersonalityV2AnalysisResult(

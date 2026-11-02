@@ -229,6 +229,20 @@ type moodEmotionAnalysisResult struct {
 	InnerVoice   json.RawMessage       `json:"inner_voice,omitempty"` // decoded tolerantly into innerVoiceResult
 }
 
+// MoodEmotionAnalysis is the combined helper result. Appraisal is returned on
+// its own so a malformed emotion_state keeps relationship evidence and the cue.
+type MoodEmotionAnalysis struct {
+	Mood            Mood
+	AffinityDelta   float64
+	TraitDeltas     map[string]float64
+	ProfileUpdates  []ProfileUpdate
+	Emotion         *EmotionState
+	Appraisal       *PersonalityAppraisal
+	InnerThought    string
+	NudgeCategory   string
+	NudgeConfidence float64
+}
+
 // innerVoiceResult is the JSON shape returned by the batched LLM call for inner voice.
 type innerVoiceResult struct {
 	InnerThought  string  `json:"inner_thought"`
@@ -531,7 +545,8 @@ func NormalizeHelperMoodAnalysis(userSentiment, agentMood string, relationshipDe
 
 // AnalyzeMoodV2WithEmotion combines mood analysis and emotion synthesis in one helper-model call.
 // When emotionInput.InnerVoiceEnabled is true, also generates an inner voice thought.
-func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, string, string, float64, error) {
+// A malformed emotion_state leaves Emotion nil but still returns the Appraisal.
+func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (MoodEmotionAnalysis, error) {
 	meta = meta.Normalized()
 	if modelName == "" {
 		modelName = "gpt-4o-mini"
@@ -704,43 +719,46 @@ Rules for emotion_state:
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("llm analyze mood+emotion: %w", err)
+		return MoodEmotionAnalysis{Mood: MoodFocused}, fmt.Errorf("llm analyze mood+emotion: %w", err)
 	}
 	if len(resp.Choices) == 0 || resp.Choices[0].FinishReason == openai.FinishReasonLength {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("empty chat completion choices")
+		return MoodEmotionAnalysis{Mood: MoodFocused}, fmt.Errorf("empty chat completion choices")
 	}
 
 	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("malformed JSON in mood/emotion response")
+		return MoodEmotionAnalysis{Mood: MoodFocused}, fmt.Errorf("malformed JSON in mood/emotion response")
 	}
 
 	var result moodEmotionAnalysisResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("parse mood/emotion response: %w", err)
+		return MoodEmotionAnalysis{Mood: MoodFocused}, fmt.Errorf("parse mood/emotion response: %w", err)
 	}
 
 	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
 	if !ok {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("normalize mood analysis result failed")
+		return MoodEmotionAnalysis{Mood: MoodFocused}, fmt.Errorf("normalize mood analysis result failed")
+	}
+	analysis := MoodEmotionAnalysis{
+		Mood: mood, AffinityDelta: relationshipDelta, TraitDeltas: traitDeltas, ProfileUpdates: profileUpdates,
+		Appraisal: result.Appraisal,
 	}
 
 	emotionState, err := ParseStructuredEmotionState(string(result.EmotionState), mood)
 	if err != nil {
-		return mood, relationshipDelta, traitDeltas, profileUpdates, nil, "", "", 0, nil
+		return analysis, nil
 	}
 
 	// Extract inner voice if present
 	emotionState.Appraisal = result.Appraisal
-	var innerThought, nudgeCategory string
-	var nudgeConfidence float64
+	analysis.Emotion = emotionState
 	// A malformed inner_voice is dropped without failing mood and emotion.
 	var voice innerVoiceResult
 	if len(result.InnerVoice) > 0 && json.Unmarshal(result.InnerVoice, &voice) == nil && voice.InnerThought != "" {
-		innerThought = voice.InnerThought
-		nudgeCategory = voice.NudgeCategory
-		nudgeConfidence = voice.Confidence
+		analysis.InnerThought = voice.InnerThought
+		analysis.NudgeCategory = voice.NudgeCategory
+		analysis.NudgeConfidence = voice.Confidence
 	}
 
-	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, innerThought, nudgeCategory, nudgeConfidence, nil
+	return analysis, nil
 }
