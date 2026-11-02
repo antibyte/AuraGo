@@ -30,6 +30,10 @@
             styles: appStyles('/css/desktop-app-ecalc.css'),
             scripts: ['/js/desktop/apps/ecalc/ecalc-expr.js', '/js/desktop/apps/ecalc/ecalc-units.js', '/js/desktop/apps/ecalc/ecalc-eseries.js', '/js/desktop/apps/ecalc/ecalc-solve.js', '/js/desktop/apps/ecalc/ecalc-typeset.js', '/js/desktop/apps/ecalc/ecalc-symbols.js', '/js/desktop/apps/ecalc/ecalc-schematics.js', '/js/desktop/apps/ecalc/ecalc-store.js', '/js/desktop/apps/ecalc/ecalc-calc-page.js', '/js/desktop/apps/ecalc/ecalc-shell.js', '/js/desktop/apps/ecalc/ecalc.js']
         },
+        storymaker: {
+            styles: appStyles('/css/desktop-app-storymaker.css'),
+            scripts: ['/js/desktop/apps/storymaker-core.js', '/js/desktop/apps/storymaker-model.js', '/js/desktop/apps/storymaker-api.js', '/js/desktop/apps/storymaker-assets.js', '/js/desktop/apps/storymaker-player.js', '/js/desktop/apps/storymaker-projects.js', '/js/desktop/apps/storymaker-strip.js', '/js/desktop/apps/storymaker-inspector.js', '/js/desktop/apps/storymaker-code.js', '/js/desktop/apps/storymaker-export.js', '/js/desktop/apps/storymaker.js']
+        },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
@@ -675,6 +679,7 @@
         'bluetooth': ['bluetooth'],
         'pixel': ['pixel', 'stickers'],
         'system-world': ['sysworld'],
+        storymaker: ['storymaker'],
         'viewer': ['viewer'],
         'viewer-3d': ['viewer'],
         'zipper': ['zipper'],

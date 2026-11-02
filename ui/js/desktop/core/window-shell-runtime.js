@@ -1320,6 +1320,7 @@
             notes: { width: 1060, height: 680 },
             findit: { width: 1320, height: 820 },
             ecalc: { width: 1100, height: 760 },
+            storymaker: { width: 1320, height: 840 },
             tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
@@ -1354,7 +1355,7 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true, storymaker: true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'kaggle') return { width: 360, height: 420 };
@@ -1363,6 +1364,7 @@
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'findit') return { width: 360, height: 480 };
         if (appId === 'ecalc') return { width: 640, height: 480 };
+        if (appId === 'storymaker') return { width: 640, height: 480 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };

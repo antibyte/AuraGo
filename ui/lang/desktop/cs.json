@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "Trvale smazat",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "Editor",
   "desktop.app_error_fallback": "Chyba",
   "desktop.app_error_renderer_missing": "Renderer {{app}} není načtený",

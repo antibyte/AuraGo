@@ -1768,6 +1768,19 @@ if (appId === 'system-info') {
                 return window.ECalcApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t }));
             }
         }
+        if (appId === 'storymaker') {
+            if (!window.StorymakerApp) {
+                window.AuraDesktopModules.loadAppScript('storymaker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.StorymakerApp.render === 'function') {
+                return window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog,
+                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    isActive: () => state.activeWindowId === id
+                }));
+            }
+        }
         if (appId === 'tresor') {
             if (!window.TresorApp) {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

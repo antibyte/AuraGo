@@ -111,10 +111,10 @@ func TestConfigWave1Batch4SecretsAndRuntimeActions(t *testing.T) {
 	}
 
 	desktop := readWave0File(t, "cfg/virtual_desktop.js")
-	if got := strings.Count(desktop, `data-config-action-draft="false"`); got != 3 {
-		t.Errorf("virtual_desktop: want 3 runtime-only status checks, found %d", got)
+	if got := strings.Count(desktop, `data-config-action-draft="false"`); got != 4 {
+		t.Errorf("virtual_desktop: want 4 runtime-only status checks, found %d", got)
 	}
-	for _, want := range []string{"cfgActionResult.html('vd-cfg-result')", "cfgActionResult.html('vd-video-studio-result')", "cfgActionResult.html('vd-retro-games-result')"} {
+	for _, want := range []string{"cfgActionResult.html('vd-cfg-result')", "cfgActionResult.html('vd-video-studio-result')", "cfgActionResult.html('vd-retro-games-result')", "cfgActionResult.html('vd-storymaker-result')"} {
 		if !strings.Contains(desktop, want) {
 			t.Errorf("virtual_desktop missing %q", want)
 		}

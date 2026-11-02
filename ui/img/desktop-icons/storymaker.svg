@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Storymaker">
+  <defs>
+    <linearGradient id="g" x1="18" y1="14" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff8a4c"/>
+      <stop offset="1" stop-color="#c2255c"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#g)"/>
+  <rect x="24" y="42" width="80" height="58" rx="10" fill="#fff7e6"/>
+  <path d="M24 42V34a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v8z" fill="#1f2a44"/>
+  <path d="M34 28h12l-8 14H26zM58 28h12l-8 14H50zM82 28h12l-8 14H74z" fill="#fff7e6"/>
+  <circle cx="80" cy="62" r="7" fill="#ffb84d"/>
+  <path d="M70 90h24" stroke="#36cfc9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M74 80h16" stroke="#1f2a44" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="47" cy="63" r="8" fill="#1f2a44"/>
+  <path d="M33 92c0-9 6-16 14-16s14 7 14 16z" fill="#36cfc9"/>
+  <path d="m100 14 2.4 6.3 6.3 2.4-6.3 2.4-2.4 6.3-2.4-6.3-6.3-2.4 6.3-2.4L100 14Z" fill="#fff4a8"/>
+</svg>

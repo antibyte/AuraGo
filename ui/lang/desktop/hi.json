@@ -749,6 +749,7 @@
   "desktop.app_code_studio": "Code Studio",
   "desktop.app_delete_permanent": "स्थायी रूप से हटाएँ",
   "desktop.app_ecalc": "ECalc",
+  "desktop.app_storymaker": "Storymaker",
   "desktop.app_editor": "एडिटर",
   "desktop.app_error_fallback": "त्रुटि",
   "desktop.app_error_renderer_missing": "{{app}} रेंडरर लोड नहीं हुआ है",
