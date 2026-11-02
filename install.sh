@@ -1444,9 +1444,12 @@ systemd_serial_groups_line() {
 # Ubuntu 23.10+ lets only programs with an AppArmor profile create user
 # namespaces. The Chromium that AuraGo's headless browser tools download into
 # ~/.cache/rod then aborts with "No usable sandbox". Keep its sandbox on and
-# give that one path a profile instead of switching the sandbox off.
+# give that one path a profile instead of switching the sandbox off. The
+# pinned Chromium of the Storymaker video export is downloaded into the data
+# folder of the installation (the service cannot write below the home folder),
+# so that folder gets its own profile.
 chromium_sandbox_profile_text() {
-    local user="$1" home="$2"
+    local user="$1" home="$2" data="${3:-}"
     cat <<EOF
 # Managed by AuraGo install.sh/update.sh. The Chromium that AuraGo's headless
 # browser tools download runs unconfined under this profile, so it can create
@@ -1461,6 +1464,15 @@ profile aurago-chromium-${user} ${home}/.cache/rod/browser/chromium-*/chrome fla
   include if exists <local/aurago-chromium-${user}>
 }
 EOF
+    if [ -n "$data" ]; then
+        cat <<EOF
+
+# The pinned Chromium of the Storymaker export lives in the data folder of this installation.
+profile aurago-chromium-${user}-storymaker ${data}/storymaker/chromium-*/chrome flags=(unconfined) {
+  userns,
+}
+EOF
+    fi
 }
 
 # Installs that profile for <service-user> when the host restricts user
@@ -1468,12 +1480,12 @@ EOF
 # do not overwrite each other. Never fails the caller: a problem only
 # produces a warning.
 apply_chromium_sandbox_profile() {
-    local user="${1:-}"
+    local user="${1:-}" install_dir="${2:-}"
     local sysctl_file="${CHROMIUM_USERNS_SYSCTL:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}"
     local dir="${CHROMIUM_APPARMOR_DIR:-/etc/apparmor.d}"
     local hint="See documentation/installation.md (Headless browser sandbox)."
     local PATH="$PATH:/usr/sbin:/sbin"
-    local home="" profile="" tmp=""
+    local home="" data="" profile="" tmp=""
 
     [ -r "$sysctl_file" ] && [ "$(cat "$sysctl_file" 2>/dev/null || true)" = "1" ] || return 0
     case "$user" in ''|root) return 0 ;; esac
@@ -1493,10 +1505,19 @@ apply_chromium_sandbox_profile() {
         warn "AppArmor blocks Chromium's sandbox, but apparmor_parser or $dir/abi/4.0 is missing. $hint"
         return 0
     fi
+    if [ -n "$install_dir" ]; then
+        data="$(cd "$install_dir" 2>/dev/null && pwd -P || true)"
+        if printf '%s\n' "$data" | LC_ALL=C grep -Eq '^/[A-Za-z0-9._/-]+$'; then
+            data="$data/data"
+        else
+            warn "AppArmor blocks Chromium's sandbox, but the install directory is unusable for a profile, so the Storymaker export browser gets none. $hint"
+            data=""
+        fi
+    fi
     profile="$dir/aurago-chromium-$user"
 
     # Already in place: no sudo prompt on every update.
-    if [ -f "$profile" ] && [ "$(cat "$profile" 2>/dev/null || true)" = "$(chromium_sandbox_profile_text "$user" "$home")" ]; then
+    if [ -f "$profile" ] && [ "$(cat "$profile" 2>/dev/null || true)" = "$(chromium_sandbox_profile_text "$user" "$home" "$data")" ]; then
         return 0
     fi
 
@@ -1505,7 +1526,7 @@ apply_chromium_sandbox_profile() {
         warn "AppArmor blocks Chromium's sandbox, but no temporary file could be created. $hint"
         return 0
     fi
-    chromium_sandbox_profile_text "$user" "$home" > "$tmp" || true
+    chromium_sandbox_profile_text "$user" "$home" "$data" > "$tmp" || true
     if ! apparmor_parser -Q -K "$tmp" >/dev/null 2>&1; then
         warn "AppArmor blocks Chromium's sandbox, but the generated profile did not validate. $hint"
     elif ! $SUDO install -m 0644 "$tmp" "$profile"; then
@@ -2823,7 +2844,7 @@ EOF
 fi
 
 # ── Chromium sandbox on AppArmor hosts (also for installs without a service) ──
-apply_chromium_sandbox_profile "${SERVICE_USER:-${SUDO_USER:-$(id -un)}}"
+apply_chromium_sandbox_profile "${SERVICE_USER:-${SUDO_USER:-$(id -un)}}" "$INSTALL_DIR"
 
 # ── Bluetooth without a service: prepare it for the installing user ──────
 if [ "$SERVICE_INSTALLED" != "true" ]; then

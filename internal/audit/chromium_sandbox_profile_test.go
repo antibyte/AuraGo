@@ -35,7 +35,9 @@ func TestChromiumSandboxHelpersAreIdenticalInInstallAndUpdate(t *testing.T) {
 }
 
 func TestChromiumSandboxProfileCallSites(t *testing.T) {
-	const call = `apply_chromium_sandbox_profile "$(bluetooth_service_user)"`
+	// The second argument is the install directory: the Storymaker export downloads its pinned
+	// Chromium into <install>/data/storymaker, which the service can write (ProtectSystem=strict).
+	const call = `apply_chromium_sandbox_profile "$(bluetooth_service_user)" "$DIR"`
 	update := readRepoFile(t, "update.sh")
 	if got := strings.Count(update, `apply_chromium_sandbox_profile "`); got != 3 {
 		t.Fatalf("update.sh calls apply_chromium_sandbox_profile %d times, want 3", got)
@@ -51,7 +53,7 @@ func TestChromiumSandboxProfileCallSites(t *testing.T) {
 	}
 
 	install := readRepoFile(t, "install.sh")
-	const installCall = `apply_chromium_sandbox_profile "${SERVICE_USER:-${SUDO_USER:-$(id -un)}}"`
+	const installCall = `apply_chromium_sandbox_profile "${SERVICE_USER:-${SUDO_USER:-$(id -un)}}" "$INSTALL_DIR"`
 	if strings.Count(install, `apply_chromium_sandbox_profile "`) != 1 || !strings.Contains(install, "\n"+installCall+"\n") {
 		t.Fatal("install.sh must call apply_chromium_sandbox_profile exactly once with the service user")
 	}
@@ -134,6 +136,16 @@ profile aurago-chromium-aurago /home/aurago/.cache/rod/browser/chromium-*/chrome
 PROFILE
 )
 
+inst="$root/install"
+mkdir -p "$inst" "$root/with space"
+instreal=$(cd "$inst" && pwd -P)
+expected_sm="$expected
+
+# The pinned Chromium of the Storymaker export lives in the data folder of this installation.
+profile aurago-chromium-aurago-storymaker $instreal/data/storymaker/chromium-*/chrome flags=(unconfined) {
+  userns,
+}"
+
 reset; printf '0\n' > "$root/sysctl"
 apply_chromium_sandbox_profile aurago
 silent || fail "sysctl 0 must be a silent no-op"
@@ -183,6 +195,25 @@ apply_chromium_sandbox_profile aurago
 [ "$(sed -n 3p "$calls")" = "apparmor_parser -r $profile" ] || fail "the failing reload was not attempted"
 nofiles && one_warning && [ ! -s "$oks" ] || fail "a failed reload must remove the profile and warn once"
 grep -q 'removed again' "$warns" || fail "the warning must say the file was removed"
+
+# With the install directory the profile also names the pinned Chromium of the Storymaker export.
+reset
+apply_chromium_sandbox_profile aurago "$inst"
+[ "$(cat "$profile")" = "$expected_sm" ] || fail "profile with the Storymaker browser differs"
+[ "$(grep -c '' "$calls")" = 3 ] && [ "$(grep -c '' "$oks")" = 1 ] && [ ! -s "$warns" ] || fail "want validate, install, reload, one ok, no warning"
+: > "$calls"; : > "$oks"
+apply_chromium_sandbox_profile aurago "$inst"
+[ ! -s "$calls" ] && [ ! -s "$warns" ] && [ ! -s "$oks" ] || fail "an identical profile must not be touched"
+printf '%s\n' "$expected" > "$profile"
+apply_chromium_sandbox_profile aurago "$inst"
+[ "$(cat "$profile")" = "$expected_sm" ] && [ -s "$calls" ] || fail "a profile without the Storymaker block must be replaced"
+
+# An install directory that cannot go into a profile only costs the Storymaker block.
+for bad in "$root/with space" "$root/missing"; do
+    reset
+    apply_chromium_sandbox_profile aurago "$bad"
+    one_warning && [ "$(cat "$profile")" = "$expected" ] || fail "install dir '$bad' must warn once and keep the rod profile"
+done
 
 # Two service users on one host keep separate profiles.
 reset

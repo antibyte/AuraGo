@@ -268,17 +268,17 @@ rm -rf ~/aurago
 
 ## Headless browser sandbox
 
-**Symptom:** Homepage Studio says page capture can't start Chromium because the system blocks its sandbox, and the AuraGo log contains `No usable sandbox`. The scraper, web capture, form and performance tools fail the same way.
+**Symptom:** Homepage Studio says page capture can't start Chromium because the system blocks its sandbox, and the AuraGo log contains `No usable sandbox`. The scraper, web capture, form and performance tools fail the same way, and so does the video export of Storymaker when it has to use the Chromium it downloaded itself.
 
 **Cause:** Chromium builds its sandbox from unprivileged user namespaces. AuraGo keeps that sandbox on instead of starting Chromium with `--no-sandbox`, so Chromium refuses to start where the host forbids those namespaces.
 
 ### Ubuntu 23.10+ (AppArmor)
 
-Ubuntu 23.10+ sets `kernel.apparmor_restrict_unprivileged_userns = 1`. Only programs with an AppArmor profile that grants `userns` may create user namespaces, and the Chromium that AuraGo downloads into `~/.cache/rod/browser/` has no such profile.
+Ubuntu 23.10+ sets `kernel.apparmor_restrict_unprivileged_userns = 1`. Only programs with an AppArmor profile that grants `userns` may create user namespaces, and the Chromium that AuraGo downloads into `~/.cache/rod/browser/` has no such profile. The same holds for the pinned Chromium that the Storymaker export downloads on its first run when the host has no Chrome or Chromium: it goes into `data/storymaker/chromium-<revision>/` of the installation, because the systemd service can write only below its install directory.
 
-**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium-<user>` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). There is one profile per user, so several AuraGo instances on one host do not overwrite each other. Run `./update.sh` once, even if AuraGo is already up to date. An already-current update repairs a missing or stale profile without rebuilding or restarting AuraGo; an unchanged profile needs no privileged command.
+**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium-<user>` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). The file holds two profiles, one for each of the two places above (the Storymaker one uses the `data` folder of the installation that ran the script). There is one file per user, so several AuraGo instances of different users on one host do not overwrite each other; two installations of the same user share the file, and the one that ran the script last wins. Run `./update.sh` once, even if AuraGo is already up to date. An already-current update repairs a missing or stale profile without rebuilding or restarting AuraGo; an unchanged profile needs no privileged command.
 
-**Other setups** (manual installs, a different user or home directory): replace `aurago` in the file name, the profile name and the `local/` include with the user that runs AuraGo, and `/home/aurago` with that user's home directory, then load the profile.
+**Other setups** (manual installs, a different user, home directory or data folder): replace `aurago` in the file name, the profile names and the `local/` include with the user that runs AuraGo, `/home/aurago` with that user's home directory and `/opt/aurago/data` with the data folder of the installation (`directories.data_dir`, `<install directory>/data` by default), then load the profile. Without Storymaker you can leave out the second profile.
 
 ```bash
 sudo tee /etc/apparmor.d/aurago-chromium-aurago >/dev/null <<'EOF'
@@ -290,12 +290,16 @@ profile aurago-chromium-aurago /home/aurago/.cache/rod/browser/chromium-*/chrome
 
   include if exists <local/aurago-chromium-aurago>
 }
+
+profile aurago-chromium-aurago-storymaker /opt/aurago/data/storymaker/chromium-*/chrome flags=(unconfined) {
+  userns,
+}
 EOF
 sudo apparmor_parser -r /etc/apparmor.d/aurago-chromium-aurago
 sysctl kernel.apparmor_restrict_unprivileged_userns   # 1 = restricted, the profile is needed
 ```
 
-**Trade-off:** `flags=(unconfined)` means the Chromium at that path runs without AppArmor confinement, like every program without a profile on a stock Ubuntu host, and may create user namespaces. The AuraGo user can write to that path, so any program it places there is treated the same way. This is the same trade-off as Puppeteer's documented profile for its cached Chrome, and it keeps Chromium's own sandbox active instead of switching it off.
+**Trade-off:** `flags=(unconfined)` means the Chromium at those paths runs without AppArmor confinement, like every program without a profile on a stock Ubuntu host, and may create user namespaces. The AuraGo user can write to those paths, so any program it places there is treated the same way. This is the same trade-off as Puppeteer's documented profile for its cached Chrome, and it keeps Chromium's own sandbox active instead of switching it off.
 
 ### Other systems
 
