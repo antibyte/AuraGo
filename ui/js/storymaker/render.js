@@ -49,13 +49,13 @@
         if (!env) return;
         var tokens = env.tokens && (env.tokens[sc.variant] || env.tokens.day);
         var resolve = SM.parts.makeResolver([tokens, rc.palette]);
-        var layers = (env.layers || []).map(function (l, k) { return { l: l, k: k }; })
-            .sort(function (a, b) { return (a.l.parallax || 0) - (b.l.parallax || 0) || a.k - b.k; });
+        // the layers are listed back to front; parallax only says how much a layer follows the camera (it is not a draw order)
+        var layers = env.layers || [];
         for (var i = 0; i < layers.length; i++) {
-            var p = typeof layers[i].l.parallax === 'number' ? layers[i].l.parallax : 1;
+            var p = typeof layers[i].parallax === 'number' ? layers[i].parallax : 1;
             var dx = (1 - p) * (win.x - bw.x), dy = (1 - p) * (win.y - bw.y);
             setM(ctx, R().mul(Mv, R().translate(dx, dy)));
-            SM.parts.drawShapes(ctx, layers[i].l.shapes, resolve, 1);
+            SM.parts.drawShapes(ctx, layers[i].shapes, resolve, 1);
         }
     }
 

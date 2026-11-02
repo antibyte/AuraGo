@@ -117,3 +117,46 @@ check('rig: a gesture hand shape holds until a later key sets another one (D: co
     assert.equal(rigStateOf({ pose: { a: 'think', b: 'think', u: 1 } }).hands.r, 'fist', 'a pose hand shape without a gesture');
 });
 
+// ---- environments -------------------------------------------------------------------------------------------------------
+
+check('render: environment layers draw in their listed order, parallax only moves them', () => {
+    const env = {
+        viewbox: [0, 0, 1920, 1080], tokens: { day: {}, night: {} },
+        layers: [
+            { name: 'wall', parallax: 0.1, shapes: [{ d: 'M0,0 L1,1', fill: '#111111' }] },
+            { name: 'floor', parallax: 1, shapes: [{ d: 'M0,0 L2,2', fill: '#222222' }] },
+            { name: 'furniture', parallax: 0.7, shapes: [{ d: 'M0,0 L3,3', fill: '#333333' }] }
+        ]
+    };
+    const tl = SM.compile({ scenes: [{ id: 'a', environment: 'env.office', silent: true }] }, {}, catalog).timeline;
+    const cv = new FakeCanvas(tl.width, tl.height);
+    SM.renderFrame(tl, 3, cv.ctx, realAssets({ envs: { 'environments/office.json': env } }));
+    const order = cv.ctx.log.filter(l => /^set fillStyle=#[123]{6}$/.test(l)).map(l => l.slice(-6));
+    assert.deepEqual(order, ['111111', '222222', '333333']);
+    // the real files list the layers back to front, and parallax is not monotonic in them
+    for (const name of ['office', 'abstract-tech']) {
+        const par = files.envs['environments/' + name + '.json'].layers.map(l => l.parallax);
+        assert.ok(par.some((p, i) => i && p < par[i - 1]), name + ': parallax is not sorted, so the order must come from the list');
+    }
+});
+
+check('stage: in 9:16 and 1:1 every spot of the real environments is inside the visible slice, and a spot without an override keeps its design position', () => {
+    for (const env of catalog.entries.filter(e => e.kind === 'environment')) {
+        for (const aspect of ['9:16', '1:1']) {
+            const stage = SM.stage.create({ aspect, env, safe: catalog.stage.safe });
+            const over = env.aspects[aspect], vis = stage.vis;
+            for (const name of Object.keys(env.spots)) {
+                const s = stage.spot(name);
+                assert.ok(s.x >= vis.x + 0.03 * vis.w - 1e-6 && s.x <= vis.x + 0.97 * vis.w + 1e-6, env.id + ' ' + aspect + ' ' + name + ' at ' + Math.round(s.x) + ' is outside ' + Math.round(vis.x) + '..' + Math.round(vis.x + vis.w));
+                const o = over.spots && over.spots[name];
+                near(s.x, (o ? o.x : env.spots[name].x) / 100 * 1920, 1e-6, env.id + ' ' + aspect + ' ' + name);
+                near(s.y, (o && o.y !== undefined ? o.y : env.spots[name].y) / 100 * 1080, 1e-6);
+            }
+            near(stage.vis.x + stage.vis.w / 2, over.focus_x / 100 * 1920, 1e-6, 'the slice is centred on focus_x');
+        }
+    }
+    // a catalog without overrides (the mini catalog) still squeezes a spot that is outside the slice into it
+    const mini = SM.stage.create({ aspect: '9:16', env: t.byId('env.office'), safe: t.catalog.stage.safe }), far = mini.spot('far-left');
+    assert.ok(far.x >= mini.vis.x && far.x <= mini.vis.x + mini.vis.w);
+});
+

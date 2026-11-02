@@ -16,6 +16,7 @@
         'far-right': { x: 88, y: 88 }, 'board': { x: 72, y: 60 }
     };
     var BASE_SPOTS = ['far-left', 'left', 'center', 'right', 'far-right'];
+    var SLICE_MARGIN = 0.03;   // a spot closer than this fraction of the slice width to its edge counts as outside
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
     function num(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
@@ -75,17 +76,20 @@
             return !!((env && env.spots && env.spots[name]) || DEFAULT_SPOTS[name]);
         };
 
-        // spot(name) = {x, y, face, depth, name} in design pixels, or null for an unknown name. The per-aspect override
-        // wins; otherwise a spot of a cropped aspect is squeezed into the visible slice so left/centre/right stay on screen.
+        // spot(name) = {x, y, face, depth, name} in design pixels, or null for an unknown name. The per-aspect override wins;
+        // without one the spot keeps its design position (furniture such as the desk is drawn there), unless a cropped aspect
+        // would put it outside the visible slice (3 percent margin): then it is squeezed into the slice, so a catalog that
+        // lists no overrides still keeps left, centre and right on screen.
         stage.spot = function (name) {
             var src = (env && env.spots && env.spots[name]) || DEFAULT_SPOTS[name];
             if (!src) return null;
             var o = over && over.spots && over.spots[name];
-            var xPct = num(o && o.x, src.x), yPct = num(o && o.y, src.y), x;
-            if (o && typeof o.x === 'number') x = xPct / 100 * DESIGN_W;
-            else if (cropped) x = vis.x + xPct / 100 * vis.w;
-            else x = xPct / 100 * DESIGN_W;
-            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: src.face || null, depth: typeof src.depth === 'number' ? src.depth : null };
+            var xPct = num(o && o.x, src.x), yPct = num(o && o.y, src.y), x = xPct / 100 * DESIGN_W;
+            if (cropped && !(o && typeof o.x === 'number') && (x < vis.x + SLICE_MARGIN * vis.w || x > vis.x + (1 - SLICE_MARGIN) * vis.w)) {
+                x = vis.x + xPct / 100 * vis.w;
+            }
+            var face = (o && o.face) || src.face || null;
+            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: face, depth: typeof src.depth === 'number' ? src.depth : null };
         };
 
         // resolve(at, fallbackName): a spot name or {x, y} to {x, y, face, depth, spot}. Unknown values give null.

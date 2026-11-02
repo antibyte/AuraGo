@@ -24,11 +24,12 @@ check('stage: mapping for 16:9, 9:16 and 1:1 with cover fit, focus and spot over
     const c = tall.toCanvas(960, 540);
     near(c.x, 540, 1e-9); near(c.y, 960, 1e-9);
     near(tall.spot('left').x, 0.42 * 1920, 1e-9, 'the 9:16 override of the environment wins');
-    near(tall.spot('center').x, 960, 1e-9, 'a spot without an override is squeezed into the visible slice');
-    near(tall.spot('board').x, tall.vis.x + 0.74 * tall.vis.w, 1e-9);
+    near(tall.spot('center').x, 960, 1e-9, 'a spot without an override and inside the slice keeps its design position');
+    near(tall.spot('board').x, tall.vis.x + 0.74 * tall.vis.w, 1e-9, 'a spot without an override that is outside the slice is squeezed into it');
     const officeTall = SM.stage.create({ aspect: '9:16', env: office });
     near(officeTall.vis.x, 0.40 * 1920 - 303.75, 1e-9, 'focus_x of the environment');
-    near(officeTall.spot('desk').x, officeTall.vis.x + 0.36 * officeTall.vis.w, 1e-9);
+    near(officeTall.spot('desk').x, 0.36 * 1920, 1e-9, 'the desk is inside the slice: the furniture is drawn there, so the actor stays there');
+    assert.ok(officeTall.spot('far-left').x >= officeTall.vis.x, 'far-left would be outside the slice and is squeezed into it');
     assert.equal(officeTall.spot('desk').face, 'right');
 
     const square = SM.stage.create({ aspect: '1:1', env: office });
