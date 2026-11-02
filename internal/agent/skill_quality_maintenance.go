@@ -64,6 +64,13 @@ type maintenanceDaemonSupervisor interface {
 }
 
 func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger *slog.Logger, fallback llm.ChatClient, guardian *security.LLMGuardian, daemonSupervisor maintenanceDaemonSupervisor, cronManager *tools.CronManager) skillQualityMaintenanceResult {
+	return runSkillQualityMaintenanceGated(ctx, cfg, logger, fallback, guardian, daemonSupervisor, cronManager, true)
+}
+
+// runSkillQualityMaintenanceGated is runSkillQualityMaintenance with an explicit
+// deletion switch. allowDeletion=false (no verified snapshot) turns would-be
+// deletions into review_required entries; improvements and bookkeeping continue.
+func runSkillQualityMaintenanceGated(ctx context.Context, cfg *config.Config, logger *slog.Logger, fallback llm.ChatClient, guardian *security.LLMGuardian, daemonSupervisor maintenanceDaemonSupervisor, cronManager *tools.CronManager, allowDeletion bool) skillQualityMaintenanceResult {
 	var result skillQualityMaintenanceResult
 	if cfg == nil || !cfg.Tools.SkillManager.Enabled {
 		result.Skipped = true
@@ -252,6 +259,11 @@ func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger 
 			if cfg.Tools.SkillManager.ReadOnly {
 				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", "read-only mode: "+reason)
 				result.add(candidate, "review_required", decision.Confidence, "read-only mode: "+reason)
+				continue
+			}
+			if !allowDeletion {
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", "no verified automatic snapshot: "+reason)
+				result.add(candidate, "review_required", decision.Confidence, "no verified automatic snapshot: "+reason)
 				continue
 			}
 			if ctx.Err() != nil {

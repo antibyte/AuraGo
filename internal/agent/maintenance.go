@@ -509,7 +509,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Deterministic skill quality review runs before the free-form maintenance
 	// agent. It is provenance-gated and never exposes source in the run ledger.
-	skillResult := runSkillQualityMaintenance(taskCtx, cfg, logger, client, guardian, daemonSupervisor, cronManager)
+	skillResult := runSkillQualityMaintenanceGated(taskCtx, cfg, logger, client, guardian, daemonSupervisor, cronManager, destructiveOK)
 	ledger.phaseResults.SkillsReviewed = skillResult.Reviewed
 	ledger.phaseResults.SkillsImproved = skillResult.Improved
 	ledger.phaseResults.SkillsDeleted = skillResult.Deleted

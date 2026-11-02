@@ -309,3 +309,15 @@ func TestSkillQualityMaintenanceCancellationAfterDaemonStopRestoresDaemon(t *tes
 		t.Fatalf("cancellation after daemon stop deleted skill: %v", err)
 	}
 }
+
+func TestSkillQualityMaintenanceWithoutSnapshotNeverDeletes(t *testing.T) {
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	client := skillQualityTestClient{response: decisionJSON(t, candidate, "delete", 0.99, []string{"placeholder"})}
+	result := runSkillQualityMaintenanceGated(context.Background(), cfg, slog.Default(), client, nil, nil, nil, false)
+	if result.Deleted != 0 || result.ReviewRequired != 1 || result.Reviewed != 1 {
+		t.Fatalf("result=%+v", result)
+	}
+	if _, err := manager.GetSkill(candidate.ID); err != nil {
+		t.Fatalf("snapshot-less run deleted skill: %v", err)
+	}
+}

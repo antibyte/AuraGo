@@ -53,7 +53,7 @@ func consolidateSTMtoLTMWithDurableProgress(ctx context.Context, cfg *config.Con
 		budget = &consolidationRunBudget{remaining: maxMessages}
 		ctx = context.WithValue(ctx, consolidationRunBudgetContextKey{}, budget)
 		defer func() {
-			if ctx.Err() != nil || cfg == nil || cfg.Consolidation.ArchiveRetainDays <= 0 {
+			if ctx.Err() != nil || cfg == nil || cfg.Consolidation.ArchiveRetainDays <= 0 || maintenanceDestructiveBlocked(ctx) {
 				return
 			}
 			if _, err := stm.CleanOldArchivedMessagesContext(ctx, cfg.Consolidation.ArchiveRetainDays, 250); err != nil {
