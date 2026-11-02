@@ -19,7 +19,7 @@
     const core = (window.ECalcCore = window.ECalcCore || {});
 
     // Exact arity per function; a negative number means "at least that many".
-    const ARITY = { sqrt: 1, ln: 1, log10: 1, exp: 1, sin: 1, cos: 1, tan: 1, atan: 1, abs: 1, round: 1, min: -2, max: -2, if: 3, sum: 1, par: 1 };
+    const ARITY = { sqrt: 1, ln: 1, log10: 1, exp: 1, sin: 1, cos: 1, tan: 1, atan: 1, abs: 1, round: 1, floor: 1, ceil: 1, min: -2, max: -2, if: 3, sum: 1, par: 1 };
     const COMPARISONS = { '<': true, '<=': true, '>': true, '>=': true, '==': true, '!=': true };
     const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
     const isDigit = char => char >= '0' && char <= '9';
@@ -239,6 +239,8 @@
                     case 'atan': return Math.atan(x[0]);
                     case 'abs': return Math.abs(x[0]);
                     case 'round': return roundHalfAway(x[0]);
+                    case 'floor': return Math.floor(x[0]);
+                    case 'ceil': return Math.ceil(x[0]);
                     case 'min': return Math.min(...x);
                     case 'max': return Math.max(...x);
                     default: throw fail('unknown function ' + node.name, 'eval');
