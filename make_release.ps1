@@ -105,7 +105,7 @@ $env:GOARCH = $hostGoArch
 
 # A GPL-3.0-incompatible module linked into the binary blocks the release (licences/AGENTS.md).
 go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1
-if ($LASTEXITCODE -ne 0) { throw 'A module linked into cmd/aurago has no reviewed GPL-3.0-compatible licence; nothing was built.' }
+if ($LASTEXITCODE -ne 0) { throw 'A module linked into cmd/aurago, cmd/remote or cmd/config-merger has no reviewed GPL-3.0-compatible licence; nothing was built.' }
 
 if (Test-Path "deploy") {
     Get-ChildItem -LiteralPath 'deploy' -Force |
@@ -482,7 +482,7 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 
 ### License and source
 
-AuraGo's source code is MIT licensed. The binaries of this release link the GPL-3.0 WhatsApp stack (`go.mau.fi/libsignal` through `go.mau.fi/whatsmeow`), so they are distributed as GPL-3.0 combined works.
+AuraGo's source code is MIT licensed. The binaries of this release link GPL-3.0 code, `go.mau.fi/libsignal` through `go.mau.fi/whatsmeow` and the GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`, so they are distributed as GPL-3.0 combined works.
 
 - Corresponding source: tag [{VERSION}](https://github.com/antibyte/AuraGo/tree/{VERSION}) ([tar.gz](https://github.com/antibyte/AuraGo/archive/refs/tags/{VERSION}.tar.gz)), with the module versions pinned in `go.mod` and `go.sum`.
 - License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`, and [online at the tag](https://github.com/antibyte/AuraGo/blob/{VERSION}/THIRD_PARTY_NOTICES.md).

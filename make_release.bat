@@ -74,6 +74,13 @@ if not defined RELEASE_PYTHON (
 )
 echo     Python: !RELEASE_PYTHON!
 "!RELEASE_PYTHON!" scripts\build-release-verifier.py --scripts-only --require-published || exit /b 1
+REM -- A GPL-3.0-incompatible module linked into a release binary blocks the release.
+REM    Runs before any dependency install, bundle build or git add.
+go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1
+if errorlevel 1 (
+    echo [ERROR] A module linked into cmd/aurago, cmd/remote or cmd/config-merger has no reviewed GPL-3.0-compatible licence. Nothing was built.
+    exit /b 1
+)
 where node >nul 2>&1
 if errorlevel 1 (
     echo     Node.js: not found; skipping CodeMirror bundle build
@@ -110,13 +117,6 @@ if not defined BUILD_VCS_TIME (
 )
 if defined BUILD_DIRTY (
     echo [ERROR] Refusing to build release artifacts from a dirty worktree.
-    exit /b 1
-)
-
-REM -- A GPL-3.0-incompatible module linked into the binary blocks the release.
-go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1
-if errorlevel 1 (
-    echo [ERROR] A module linked into cmd/aurago has no reviewed GPL-3.0-compatible licence. Nothing was built.
     exit /b 1
 )
 set "MAIN_LDFLAGS=-s -w -X aurago/internal/buildinfo.BuildID=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSRevision=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSTime=!BUILD_VCS_TIME! -X aurago/internal/buildinfo.BuildVCSModified=false"
@@ -220,13 +220,9 @@ if errorlevel 1 (
     echo [ERROR] deploy\resources.dat is not a readable tar.gz archive.
     exit /b 1
 )
-for %%N in ("./LICENSE" "./THIRD_PARTY_NOTICES.md" "./licences/texts/GPL-3.0-only.txt" "./licences/linked-go-modules.tsv") do (
-    tar -tzf "deploy\resources.dat" | findstr /l /x /c:%%~N >nul
-    if errorlevel 1 (
-        echo [ERROR] deploy\resources.dat lacks %%~N. Nothing was published.
-        exit /b 1
-    )
-)
+REM Whole-entry match in PowerShell: bsdtar writes CRLF, which findstr /x would compare as part of the entry.
+powershell -nologo -noprofile -ExecutionPolicy Bypass -Command "$e=@(tar -tzf 'deploy\resources.dat'); foreach ($n in @('./LICENSE','./THIRD_PARTY_NOTICES.md','./licences/texts/GPL-3.0-only.txt','./licences/linked-go-modules.tsv')) { if ($e -notcontains $n) { Write-Host ('[ERROR] deploy\resources.dat lacks ' + $n + '. Nothing was published.'); exit 1 } }"
+if errorlevel 1 exit /b 1
 echo     [OK] deploy\resources.dat
 
 REM -- [2/5] Compile all binaries
@@ -422,7 +418,7 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo.
     echo ### License and source
     echo.
-    echo AuraGo's source code is MIT licensed. The binaries of this release link the GPL-3.0 WhatsApp stack ^(`go.mau.fi/libsignal` through `go.mau.fi/whatsmeow`^), so they are distributed as GPL-3.0 combined works.
+    echo AuraGo's source code is MIT licensed. The binaries of this release link GPL-3.0 code, `go.mau.fi/libsignal` through `go.mau.fi/whatsmeow` and the GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`, so they are distributed as GPL-3.0 combined works.
     echo.
     echo - Corresponding source: tag [!VERSION!]^(https://github.com/antibyte/AuraGo/tree/!VERSION!^), tar.gz https://github.com/antibyte/AuraGo/archive/refs/tags/!VERSION!.tar.gz, with the module versions pinned in `go.mod` and `go.sum`.
     echo - License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`.

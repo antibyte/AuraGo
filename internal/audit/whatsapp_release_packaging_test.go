@@ -54,6 +54,8 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 			path: "make_release.bat",
 			gate: "go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1",
 			before: []string{
+				"npm ci --no-audit --no-fund",
+				"git add -- ui/js/vendor/codemirror-bundle.esm.js",
 				"Get-ChildItem -LiteralPath 'deploy'",
 				"tar -czf",
 			},
@@ -98,9 +100,19 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 		}
 	}
 
-	// Installers and updaters copy the notices out of the verified, extracted resources.dat.
+	// bsdtar lists entries with CRLF and findstr /x would compare the CR, so the batch builder
+	// matches whole entries in PowerShell, as make_release.ps1 does.
+	if bat := text("make_release.bat"); strings.Contains(bat, "findstr /l /x") || !strings.Contains(bat, "$e -notcontains $n") {
+		t.Error("make_release.bat must match the resources.dat entries whole in PowerShell, not with findstr /x")
+	}
+
+	// Installers and updaters copy the notices out of the verified, extracted resources.dat and
+	// never follow a link inside it.
 	for _, path := range []string{"install.sh", "update.sh"} {
-		requireAll(t, path, text(path), []string{`"$TMPEXT/licences"`, "THIRD_PARTY_NOTICES.md"})
+		requireAll(t, path, text(path), []string{
+			`"$TMPEXT/licences"`, "THIRD_PARTY_NOTICES.md",
+			`find "$TMPEXT" -type l`, `[ ! -L "$TMPEXT/$notice" ]`, `[ ! -L "$TMPEXT/licences" ]`,
+		})
 	}
 
 	requireAll(t, "Dockerfile", text("Dockerfile"), []string{
@@ -120,4 +132,18 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 	requireAll(t, ".github/workflows/security-gates.yml", text(".github/workflows/security-gates.yml"), []string{
 		"test -s /app/licences/texts/GPL-3.0-only.txt",
 	})
+
+	// The notices name every GPL-3.0 and MPL-2.0 source the binaries compile, and ship Paho's EDL-1.0 text.
+	requireAll(t, "licences/texts/EDL-1.0.txt", text("licences/texts/EDL-1.0.txt"), []string{
+		"Eclipse Distribution License - v 1.0", "Copyright (c) 2007, Eclipse Foundation, Inc. and its licensors.",
+	})
+	requireAll(t, "THIRD_PARTY_NOTICES.md", text("THIRD_PARTY_NOTICES.md"), []string{
+		"`caddy_scanner.go` (GPL-3.0", "`disassembly_scanner.go` (GPL-3.0", "`nim_scanner.go` with `support_nim.go` (MPL-2.0",
+		"`MIT AND GPL-3.0-only AND MPL-2.0`",
+		"## Eclipse Paho MQTT client", "Copyright (c) 2007, Eclipse Foundation, Inc. and its", "`licences/texts/EDL-1.0.txt`",
+	})
+	for _, path := range []string{"make_release.ps1", "make_release.bat"} {
+		requireAll(t, path, text(path), []string{"`go.mau.fi/libsignal`", "GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`"})
+	}
+	requireAll(t, "documentation/whatsapp_setup.md", text("documentation/whatsapp_setup.md"), []string{"`go.mau.fi/libsignal`", "GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`"})
 }

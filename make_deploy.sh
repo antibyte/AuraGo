@@ -177,7 +177,7 @@ derive_cleanup_artifact_lists
 
 # A GPL-3.0-incompatible module linked into the binary blocks the release (licences/AGENTS.md).
 go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1 || {
-  echo "A module linked into cmd/aurago has no reviewed GPL-3.0-compatible licence; nothing was built." >&2
+  echo "A module linked into cmd/aurago, cmd/remote or cmd/config-merger has no reviewed GPL-3.0-compatible licence; nothing was built." >&2
   exit 1
 }
 
