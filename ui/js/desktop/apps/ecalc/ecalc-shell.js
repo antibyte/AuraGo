@@ -149,7 +149,10 @@
             const given = object => !!object && typeof object === 'object' && !Array.isArray(object) && Object.keys(object).length > 0;
             if (item.kind === 'calculator' && (given(payload.values) || given(payload.choices))) {
                 const Page = window.ECalcCalcPage;
-                store.saveCalc(item.id, Page.launchState(item, payload, units, Page.unitFor(item, store, units)));
+                const launched = Page.launchState(item, payload, units, Page.unitFor(item, store, units));
+                // The texts were read in the catalog unit of their variables: those fields show that unit again.
+                for (const name of launched.launched) store.setUnit(item.id, name, '');
+                store.saveCalc(item.id, launched);
             }
             ui.query = '';
             searchEl.value = '';

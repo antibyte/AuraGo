@@ -1,5 +1,6 @@
 // ECalc desktop app: parity test of the JavaScript core against the shared vectors of the Go package.
-// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset,chart}.js run in a Node vm (no document),
+// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset,chart}.js run in a Node vm (no document;
+// ecalc-calc-page.js is loaded too, only its launchState is called),
 // the calculators come from internal/ecalc/testdata/catalog.en.json (the catalog JSON of the server route), and every case
 // of internal/ecalc/testdata/vectors/core.json and vectors/calculators/*.json must give the same result as Go: numbers match
 // at a relative error of 1e-12 (calculator vectors 1e-9), a zero want allows an absolute error of 1e-12, and the strings
@@ -13,7 +14,7 @@ import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js', 'ecalc-chart.js'];
+const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js', 'ecalc-chart.js', 'ecalc-calc-page.js'];
 const plain = value => JSON.parse(JSON.stringify(value));
 // The core runs in its own vm realm, so what it returns is compared as plain JSON.
 const eq = (actual, expected, message) => assert.deepStrictEqual(plain(actual), plain(expected), message);
@@ -508,6 +509,29 @@ for (const item of calculators) {
     for (const tick of ['>0<', '>0.25<', '>0.5<', '>0.75<', '>1<']) assert.ok(ordinary.includes(tick), `the y axis of 0 .. 1 has the tick ${tick}`);
     assert.ok(draw(0, 1e300).includes('>1e+300<'), 'a range up to 1e300 keeps a real axis');
     count += 2;
+}
+
+// ---- launchState: a launched bare number is read in the catalog unit of its variable (the Go twin: Catalog.Check) ------------
+{
+    const Page = window.ECalcCalcPage;
+    assert.ok(Page && typeof Page.launchState === 'function', 'ecalc-calc-page.js publishes window.ECalcCalcPage.launchState');
+    const dac = calcOf('dac'), divider = calcOf('voltage_divider');
+    const catalogUnit = (calc, name) => calc.vars.find(v => v.id === name).unit || '';
+    // The user last picked hex for the code field (its catalog unit is dec): 255 is still 255, FF is not a decimal number.
+    const hexPicked = name => (name === 'code' ? 'hex' : catalogUnit(dac, name));
+    const dec = Page.launchState(dac, { values: { code: '255' } }, units, hexPicked);
+    assert.equal(dec.inputs.code, '255');
+    same(core.solve.readInputs(dac, dec, units, name => catalogUnit(dac, name)).values.code, 255, 'the launched 255 is 255');
+    eq(dec.launched, ['code'], 'the launched variables are reported for the shell to reset their display unit');
+    const hex = Page.launchState(dac, { values: { code: 'FF' } }, units, hexPicked);
+    assert.equal(hex.inputs.code, core.solve.defaultState(dac, units, hexPicked).inputs.code, 'FF does not read as a dec number, so it is skipped like Check does');
+    eq(hex.launched, [], 'a skipped value is not reported');
+    // 4700 on R1 is 4.7 kOhm whatever fixed prefix the user picked there before.
+    const kPicked = name => (name === 'r1' ? 'prefix:k' : '');
+    const divided = Page.launchState(divider, { values: { r1: '4700' } }, units, kPicked);
+    same(core.solve.readInputs(divider, divided, units, name => catalogUnit(divider, name)).values.r1, 4700, 'the launched 4700 on R1 is 4700 ohm');
+    eq(divided.launched, ['r1']);
+    count += 8;
 }
 
 console.log(`ecalc core tests: ${count} cases ok`);

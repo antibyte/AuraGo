@@ -205,6 +205,25 @@ func TestDesktopECalcLaunchBrowser(t *testing.T) {
 	if got := fields(); got != "vin=9 V(input) r1=1 kΩ(input) r2=2 kΩ(input) vout=6 V(computed)" {
 		t.Fatalf("the reopened window shows %s", got)
 	}
+
+	// 7. A launched bare number is read in the catalog unit of its variable, as the tool's Check reads it, not in the display
+	// unit the user picked last: R1 is set to fixed kilo-ohms, the agent sends 4700 (ohm) for it, and the field shows 4.7 kOhm in
+	// its automatic unit again (not 4700 kOhm = 4.7 MOhm).
+	id = windowID()
+	page.MustEval(`()=>{const s=document.querySelector('.ec-field[data-var="r1"] .ec-unit');s.value='prefix:k';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>document.querySelector('.ec-field[data-var="r1"] .ec-unit').value==='prefix:k'`)
+	n := page.MustEval(`()=>window.launchLog.length`).Int()
+	sendRaw(`{"id":"evt-10","type":"open_app","payload":{"app_id":"ecalc","ecalc":{"page":"voltage_divider","values":{"r1":"4700"}}}}`)
+	wait(fmt.Sprintf(`()=>window.launchLog.length===%d`, n+1))
+	if got := fields(); got != "vin=12 V(input) r1=4,7 kΩ(input) r2=2,2 kΩ(input) vout=3,826 V(computed)" {
+		t.Fatalf("a launched 4700 on a field picked to kilo-ohms shows %s", got)
+	}
+	if got := page.MustEval(`()=>document.querySelector('.ec-field[data-var="r1"] .ec-unit').value`).Str(); got != "" {
+		t.Fatalf("the unit of R1 shows %q after the launch, want the catalog default (automatic)", got)
+	}
+	if got := page.MustEval(`()=>JSON.stringify(window.launchLog[window.launchLog.length-1])`).Str(); !strings.HasPrefix(got, `{"kind":"launch","id":"`+id+`"`) {
+		t.Fatalf("the launch for the open window was handed over as %s", got)
+	}
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}

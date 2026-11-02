@@ -51,10 +51,16 @@
     // then the given options, then the given values entered one after the other exactly as if they were typed (so the
     // recency follows the given order, the inputs that are not given keep their defaults, nothing is locked). Unknown
     // variables, choices and options, variables that cannot be inputs and texts that do not read as a value of their
-    // variable are skipped.
+    // variable are skipped. A launched text is read like the agent tool reads it (Catalog.Check in Go): a bare number is
+    // in the catalog unit of its variable, whatever display unit the user picked there last; the field shows it in that
+    // unit. The returned state lists the variables it took in `launched`, so that the caller resets their stored display
+    // unit to the catalog default (the state is saved with store.saveCalc, which keeps the other members only).
     function launchState(calc, payload, units, unitOf) {
         const given = payload && typeof payload === 'object' ? payload : {};
         const plain = object => (object && typeof object === 'object' && !Array.isArray(object) ? object : {});
+        const launched = [];
+        const catalogUnit = name => { const v = calc.vars.find(entry => entry.id === name); return v && v.unit ? v.unit : ''; };
+        const unitIn = name => (launched.includes(name) ? catalogUnit(name) : unitOf(name));
         let state = S.defaultState(calc, units, unitOf);
         const wanted = plain(given.choices);
         for (const choice of calc.choices || []) {
@@ -64,14 +70,15 @@
             const v = calc.vars.find(entry => entry.id === name);
             if (!v || v.input === false || typeof raw !== 'string') continue;
             try {
-                if (v.list) units.parseList(raw, v.dim, unitOf(name)); else units.parse(raw, v.dim, unitOf(name));
+                if (v.list) units.parseList(raw, v.dim, catalogUnit(name)); else units.parse(raw, v.dim, catalogUnit(name));
             } catch (error) {
                 continue;
             }
-            const shown = S.solve(calc, S.readInputs(calc, state, units, unitOf).values, state.choices, units).values;
-            state = S.applyEdit(calc, state, name, raw, units, unitOf, shown);
+            launched.push(name);
+            const shown = S.solve(calc, S.readInputs(calc, state, units, unitIn).values, state.choices, units).values;
+            state = S.applyEdit(calc, state, name, raw, units, unitIn, shown);
         }
-        return state;
+        return Object.assign(state, { launched });
     }
 
     // options: {calc, units, store, t, icon, uid, decimalComma, schematics, onFavorite}
