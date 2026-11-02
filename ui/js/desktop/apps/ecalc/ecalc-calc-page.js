@@ -3,7 +3,11 @@
    the actions (favorite, copy results, reset). A field is an input (the user's value), computed (success tint), in
    error (danger tint with a message) and, for inputs, lockable. Typing parses after a short pause; a text that does not
    parse changes nothing. The state that decides which variables are inputs lives in ECalcCore.solve (see there);
-   this file only draws it and feeds the typed texts into it. Publishes window.ECalcCalcPage. */
+   this file only draws it and feeds the typed texts into it. The `units` list of a variable narrows its unit dropdown,
+   the fields in the `ignore` list of a selected choice option are dimmed and left out of the copied results, a
+   `finder: combine` calculator lists the standard-value combinations of its target (five per group) and a calculator
+   with a `chart` draws the curve under its formula (ECalcChart).
+   Publishes window.ECalcCalcPage = { create, unitFor }. */
 (function () {
     'use strict';
 
@@ -14,6 +18,34 @@
     const FORMULA_COLUMN = 324; // the formula column of the split layout plus its gap
     const STAGE_INSET = 26; // padding and border of the stage around the drawing
     const NARROW_BELOW = 760; // under this width the action buttons show their icon only
+    const COMBO_LIMIT = 5; // series and parallel combinations listed by the standard-value combiner
+    const COMBO_PAUSE_MS = 120; // the search runs after a pause: the finest series needs a few hundred milliseconds
+    const TICK_DIGITS = 3; // significant digits of the chart ticks
+
+    // The unit choices of a field: every choice of its dimension, narrowed by the `units` list of the variable when it
+    // has one. "" in the list admits the automatic prefix and the fixed prefixes of the base symbol; every other entry
+    // is an explicit unit of the dimension.
+    function unitChoices(v, units) {
+        const all = units.options(v.dim), allowed = Array.isArray(v.units) && v.units.length ? v.units : null;
+        if (!allowed) return all;
+        const list = all.filter(option => (option.kind === 'explicit' ? allowed.includes(option.id) : allowed.includes('')));
+        return list.length ? list : all;
+    }
+
+    // The display unit of every variable of a calculator as a function of the variable id: the stored choice when this
+    // catalog still offers it ('auto' is the automatic prefix), else the default unit of the variable (else the first
+    // unit its list offers).
+    function unitFor(calc, store, units) {
+        const varById = new Map(calc.vars.map(v => [v.id, v]));
+        return id => {
+            const v = varById.get(id);
+            if (!v) return '';
+            const stored = store.unitOf(calc.id, id), choice = stored === 'auto' ? '' : stored, offered = unitChoices(v, units);
+            if (stored !== undefined && offered.some(option => option.id === choice)) return choice;
+            if (v.unit) return v.unit;
+            return offered.some(option => option.id === '') || !offered.length ? '' : offered[0].id;
+        };
+    }
 
     // options: {calc, units, store, t, icon, uid, decimalComma, schematics, onFavorite}
     function create(options) {
@@ -25,14 +57,11 @@
         if (spec) for (const anchor of spec.anchors || []) if (varById.has(anchor.var)) anchors.set(anchor.var, anchor);
         const formulas = calc.formula.map(line => core.expr.parseFormula(line));
 
-        // The unit of a field: the stored choice when this catalog still offers it ('auto' is the automatic prefix),
-        // else the default unit of the variable.
-        const unitOf = id => {
-            const v = varById.get(id), stored = store.unitOf(calc.id, id);
-            const choice = stored === 'auto' ? '' : stored;
-            if (v && stored !== undefined && units.options(v.dim).some(option => option.id === choice)) return choice;
-            return v && v.unit ? v.unit : '';
-        };
+        const unitOf = unitFor(calc, store, units);
+        // A radix field (hex, bin, oct) takes letters, so it must not ask the phone for a decimal pad.
+        const isRadix = v => v.dim === 'integer' || !!units.dim(v.dim).integer;
+        const comboVar = calc.finder === 'combine' ? calc.vars.find(v => v.dim === 'resistance' && !v.list) || null : null;
+        const chart = calc.chart && typeof calc.chart === 'object' ? calc.chart : null;
         const sig = () => store.prefs().sig;
         const comma = text => (options.decimalComma ? text.replace(/(\d)\.(\d)/g, '$1,$2') : text);
         // A unit that cannot show a finite value (dBV for a negative voltage) gives way to the automatic prefix.
@@ -46,7 +75,17 @@
         let state = S.restoreState(calc, store.calcState(calc.id), units, unitOf);
         let result = null, parseErrors = {}, typing = {};
         const timers = new Map(), fields = new Map();
-        let copyTimer = 0;
+        let copyTimer = 0, comboTimer = 0, comboKey = '', combos = { series: '', list: [] };
+
+        // The variables the selected options of the choices do not use (the `ignore` lists of those options).
+        function ignoredIds() {
+            const out = new Set();
+            for (const choice of calc.choices || []) {
+                const option = choice.options.find(entry => entry.id === state.choices[choice.id]);
+                if (option) for (const id of option.ignore || []) out.add(id);
+            }
+            return out;
+        }
 
         function errorText(code) {
             switch (code) {
@@ -64,19 +103,19 @@
 
         function fieldMarkup(v) {
             const id = uid + '-' + v.id;
-            const choices = units.options(v.dim);
+            const choices = unitChoices(v, units);
             let unit = '';
             if (choices.length > 1) {
                 unit = '<span class="ec-unit-wrap"><select class="ec-unit" aria-label="' + esc(t('desktop.ecalc_dim_' + v.dim)) + '" title="' + esc(t('desktop.ecalc_dim_' + v.dim)) + '">'
                     + choices.map(option => '<option value="' + esc(option.id) + '">' + esc(option.kind === 'auto' ? t('desktop.ecalc_unit_auto') : option.label) + '</option>').join('') + '</select></span>';
             } else {
-                const symbol = units.dim(v.dim).symbol;
+                const symbol = choices.length === 1 && choices[0].kind === 'explicit' ? choices[0].label : units.dim(v.dim).symbol;
                 if (symbol) unit = '<span class="ec-unit-static">' + esc(symbol) + '</span>';
             }
             return '<div class="ec-field" role="group" data-var="' + esc(v.id) + '" data-state="input" data-dim="' + esc(v.dim) + '"' + (v.list ? ' data-list="true"' : '') + ' aria-labelledby="' + id + '-label">'
                 + '<div class="ec-field-head"><label class="ec-field-label" id="' + id + '-label" for="' + id + '" title="' + esc(v.name || '') + '">' + Typeset.labelHTML(v.label || v.id) + '</label>'
                 + '<button type="button" class="ec-lock" aria-pressed="false" data-action="lock">' + icon('lock') + '</button></div>'
-                + '<div class="ec-field-row"><input class="ec-input" id="' + id + '" type="text" inputmode="decimal" maxlength="' + units.maxLength(!!v.list) + '" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="' + id + '-msg">' + unit + '</div>'
+                + '<div class="ec-field-row"><input class="ec-input" id="' + id + '" type="text" inputmode="' + (isRadix(v) ? 'text' : 'decimal') + '" maxlength="' + units.maxLength(!!v.list) + '" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="' + id + '-msg">' + unit + '</div>'
                 + '<div class="ec-field-msg" id="' + id + '-msg" aria-live="polite"></div></div>';
         }
 
@@ -97,16 +136,20 @@
             + '<button type="button" class="ec-btn" data-action="copy" title="' + esc(t('desktop.ecalc_copy_results')) + '" aria-label="' + esc(t('desktop.ecalc_copy_results')) + '">' + icon('copy') + '<span class="ec-btn-label" data-label="copy">' + esc(t('desktop.ecalc_copy_results')) + '</span></button>'
             + '<button type="button" class="ec-btn" data-action="reset" title="' + esc(t('desktop.ecalc_reset')) + '" aria-label="' + esc(t('desktop.ecalc_reset')) + '">' + icon('reset') + '<span class="ec-btn-label">' + esc(t('desktop.ecalc_reset')) + '</span></button></div></header>'
             + ((calc.choices || []).length ? '<div class="ec-choices">' + calc.choices.map(choiceMarkup).join('') + '</div>' : '')
-            + '<div class="ec-main"><section class="ec-stage" aria-label="' + esc(t('desktop.ecalc_inputs')) + '">'
+            + '<div class="ec-main"' + (formulas.length || chart ? '' : ' data-solo="true"') + '><section class="ec-stage" aria-label="' + esc(t('desktop.ecalc_inputs')) + '">'
             + (spec ? '<div class="ec-sch-wrap" style="--ec-w:' + spec.w + ';--ec-ar:' + spec.w + '/' + spec.h + '"><div class="ec-sch-art"></div><div class="ec-chips"></div></div>' : '')
             + '<div class="ec-fields"></div></section>'
-            + '<section class="ec-math-card"><div class="ec-formulas">' + formulas.map((_, index) => '<div class="ec-formula" data-line="' + index + '"><div class="ec-math" data-math="formula"></div><div class="ec-math ec-live" data-math="live"></div></div>').join('') + '</div></section></div>'
+            + (formulas.length || chart ? '<section class="ec-math-card"><div class="ec-formulas">' + formulas.map((_, index) => '<div class="ec-formula" data-line="' + index + '"><div class="ec-math" data-math="formula"></div><div class="ec-math ec-live" data-math="live"></div></div>').join('') + '</div>'
+                + (chart ? '<div class="ec-chart" data-block="chart" hidden><h3>' + esc(t('desktop.ecalc_chart')) + '</h3><div class="ec-chart-art"></div></div>' : '') + '</section>' : '') + '</div>'
+            + (comboVar ? '<section class="ec-block ec-combos" data-block="combos" hidden><h3 data-label="combos"></h3><div class="ec-combo-wrap"></div></section>' : '')
             + '<div class="ec-below"><section class="ec-block" data-block="eseries"><h3 data-label="eseries"></h3><ul class="ec-rows" data-rows="eseries"></ul></section>'
             + '<section class="ec-block" data-block="derived"><h3>' + esc(t('desktop.ecalc_derived')) + '</h3><ul class="ec-rows" data-rows="derived"></ul></section></div>'
             + '<ul class="ec-warnings" aria-label="' + esc(t('desktop.ecalc_warnings')) + '"></ul>'
             + '<details class="ec-doc"><summary>' + esc(t('desktop.ecalc_explanation')) + '</summary><div class="ec-doc-body">' + docMarkup + '<p class="ec-source"><strong>' + esc(t('desktop.ecalc_source')) + ':</strong> ' + esc(calc.source || '') + '</p></div></details>';
 
         const chipsEl = el.querySelector('.ec-chips'), fieldsEl = el.querySelector('.ec-fields'), artEl = el.querySelector('.ec-sch-art');
+        const chartBlock = el.querySelector('[data-block="chart"]'), chartArt = el.querySelector('.ec-chart-art');
+        const combosBlock = el.querySelector('[data-block="combos"]'), combosWrap = el.querySelector('.ec-combo-wrap');
         for (const v of calc.vars) {
             const holder = document.createElement('div');
             holder.innerHTML = fieldMarkup(v);
@@ -141,8 +184,13 @@
         function paintField(refs, keep) {
             const v = refs.v, isInput = has(state.inputs, v.id) && v.input !== false, locked = state.locked.includes(v.id);
             const value = result.values[v.id];
-            const code = typing[v.id] || parseErrors[v.id] || result.errors[v.id] || '';
-            refs.root.dataset.state = code === 'undetermined' ? 'pending' : code ? 'error' : isInput ? 'input' : 'computed';
+            // The verdict of the solver (computed, undetermined, out of range) does not apply to a field that the selected
+            // option does not use; only a text the user typed that cannot be read still says so.
+            const unused = ignoredIds().has(v.id);
+            const code = typing[v.id] || parseErrors[v.id] || (unused ? '' : result.errors[v.id]) || '';
+            refs.root.dataset.state = code === 'undetermined' ? 'pending' : code ? 'error' : isInput || unused ? 'input' : 'computed';
+            refs.root.dataset.unused = unused ? 'true' : 'false';
+            if (unused) refs.root.title = t('desktop.ecalc_unused_field'); else refs.root.removeAttribute('title');
             refs.root.dataset.locked = locked ? 'true' : 'false';
             refs.lock.hidden = !isInput;
             refs.lock.setAttribute('aria-pressed', locked ? 'true' : 'false');
@@ -195,7 +243,8 @@
         }
         function paintResults() {
             const series = store.prefs().eseries;
-            const eRows = calc.vars.filter(v => v.eseries).map(v => {
+            const unused = ignoredIds();
+            const eRows = calc.vars.filter(v => v.eseries && !unused.has(v.id)).map(v => {
                 const value = result.values[v.id], near = Number.isFinite(value) && value > 0 && !Array.isArray(value) ? core.eseries.nearest(series, value) : null;
                 if (!near) return '';
                 const tone = Math.abs(near.dev) < 1 ? 'ok' : Math.abs(near.dev) >= 5 ? 'warn' : 'mid';
@@ -212,6 +261,95 @@
             el.querySelector('[data-block="derived"]').hidden = !dRows;
             el.querySelector('[data-rows="derived"]').innerHTML = dRows;
             el.querySelector('.ec-warnings').innerHTML = result.warnings.map(index => '<li>' + icon('warning') + '<span>' + esc(calc.checks[index].warn) + '</span></li>').join('');
+        }
+
+        // The standard-value combinations of the target of a `finder: combine` calculator for the E series of the settings:
+        // the nearest single value, then the best series and the best parallel pairs, each with its deviation. Finding them
+        // takes up to a few hundred milliseconds in the finest series, so the search waits for a pause in the typing and is
+        // not repeated while series and target stay the same (a change of the digits only draws the texts again).
+        function paintCombos() {
+            if (!combosBlock) return;
+            const series = store.prefs().eseries, target = result.values[comboVar.id], key = series + '|' + target;
+            if (!(Number.isFinite(target) && target > 0)) {
+                clearTimeout(comboTimer);
+                comboKey = '';
+                combos = { series, list: [] };
+            } else if (key !== comboKey) {
+                clearTimeout(comboTimer);
+                comboTimer = setTimeout(() => {
+                    comboKey = key;
+                    let list = [];
+                    try { list = typeof core.eseries.combine === 'function' ? core.eseries.combine(series, target, COMBO_LIMIT) || [] : []; } catch (error) { list = []; }
+                    combos = { series, list };
+                    drawCombos();
+                }, COMBO_PAUSE_MS);
+                return;
+            }
+            drawCombos();
+        }
+        function drawCombos() {
+            const { series, list } = combos;
+            combosBlock.hidden = !list.length;
+            if (!list.length) return;
+            const show = x => esc(display(comboVar, x, ''));
+            const rowOf = combo => {
+                const size = Math.abs(combo.devPct), tone = size < 1 ? 'ok' : size >= 5 ? 'warn' : 'mid';
+                const parts = combo.kind === 'single' ? '–' : show(combo.r1) + (combo.kind === 'series' ? ' + ' : ' ∥ ') + show(combo.r2);
+                return '<tr><th scope="row" class="ec-combo-parts">' + parts + '</th><td class="ec-row-val">' + show(combo.value) + '</td><td class="ec-row-dev" data-tone="' + tone + '">' + esc(percent(combo.devPct)) + '</td></tr>';
+            };
+            const groups = [['single', 'desktop.ecalc_combo_single'], ['series', 'desktop.ecalc_combo_series'], ['parallel', 'desktop.ecalc_combo_parallel']];
+            const body = groups.map(([kind, key]) => {
+                const rows = list.filter(combo => combo.kind === kind);
+                return rows.length ? '<tbody data-kind="' + kind + '"><tr class="ec-combo-group"><th scope="rowgroup" colspan="3">' + esc(t(key)) + '</th></tr>' + rows.map(rowOf).join('') + '</tbody>' : '';
+            }).join('');
+            const title = t('desktop.ecalc_combos', { series });
+            combosBlock.querySelector('[data-label="combos"]').textContent = title;
+            combosWrap.innerHTML = '<table class="ec-combo-table"><thead><tr><th scope="col" class="ec-sr">' + esc(title) + '</th><th scope="col">' + esc(t('desktop.ecalc_combo_value')) + '</th><th scope="col">' + esc(t('desktop.ecalc_combo_deviation')) + '</th></tr></thead>' + body + '</table>';
+        }
+
+        // The chart of y over x from 0 to `to`, every other quantity held at the value on the page. It exists only while x,
+        // the end of the range and everything y needs besides x are known. Returns {spec, sample} for ECalcChart.svg, or null.
+        function chartData() {
+            if (!chart || !window.ECalcChart) return null;
+            const xv = varById.get(chart.x), yv = varById.get(chart.y) || derivedById.get(chart.y);
+            if (!xv || !yv || xv.list || yv.list) return null;
+            const consts = S.choiceConsts(calc, state.choices), env = Object.assign({}, consts), known = new Set(Object.keys(consts));
+            for (const [name, value] of Object.entries(result.values)) {
+                if (finite(value)) { env[name] = value; known.add(name); }
+            }
+            const rule = calc.rules.find(entry => entry.target === chart.y), alts = rule ? rule.alts : derivedById.has(chart.y) ? derivedById.get(chart.y).alts : [];
+            if (!alts.some(alt => core.expr.deps(core.expr.parseCached(alt)).every(name => name === chart.x || known.has(name)))) return null;
+            let to;
+            try {
+                const ast = core.expr.parseCached(chart.to);
+                if (!core.expr.deps(ast).every(name => known.has(name))) return null;
+                to = core.expr.evaluate(ast, env);
+            } catch (error) {
+                return null;
+            }
+            if (!(to > 0) || !Number.isFinite(to)) return null;
+            const base = {};
+            for (const v of calc.vars) if (v.id !== chart.x && v.id !== chart.y && finite(result.values[v.id])) base[v.id] = result.values[v.id];
+            const sample = x => S.solve(calc, Object.assign({}, base, { [chart.x]: x }), state.choices, units).values[chart.y];
+            const digits = Math.min(sig(), TICK_DIGITS);
+            const tick = (entry, unitId) => value => comma(units.format(value, entry.dim, unitId, digits) || units.format(value, entry.dim, '', digits));
+            const plainLabel = entry => String(entry.label || entry.id).replace('_', '');
+            const x = result.values[chart.x], y = result.values[chart.y];
+            return {
+                sample,
+                spec: {
+                    xMax: to, samples: chart.samples, label: t('desktop.ecalc_chart') + ': ' + plainLabel(yv) + '(' + plainLabel(xv) + ')',
+                    xLabel: xv.label || xv.id, yLabel: yv.label || yv.id,
+                    fmtX: tick(xv, unitOf(chart.x)), fmtY: tick(yv, varById.has(chart.y) ? unitOf(chart.y) : yv.unit || ''),
+                    point: Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+                }
+            };
+        }
+        function paintChart() {
+            if (!chartBlock) return;
+            const data = chartData(), markup = data ? window.ECalcChart.svg(data.spec, data.sample) : '';
+            chartBlock.hidden = !markup;
+            chartArt.innerHTML = markup;
         }
 
         function paintChoices() {
@@ -232,6 +370,8 @@
             for (const refs of fields.values()) paintField(refs, refs.v.id === editing);
             paintFormulas(false);
             paintResults();
+            paintCombos();
+            paintChart();
         }
 
         // ---- events --------------------------------------------------------------------------------------------
@@ -304,8 +444,9 @@
         });
 
         function plainText() {
-            const lines = [calc.name];
+            const lines = [calc.name], unused = ignoredIds();
             for (const v of calc.vars) {
+                if (unused.has(v.id)) continue;
                 const value = result.values[v.id];
                 if (finite(value)) lines.push((v.label || v.id) + ' = ' + display(v, value, unitOf(v.id)));
             }
@@ -401,10 +542,11 @@
                 for (const timer of timers.values()) clearTimeout(timer);
                 timers.clear();
                 clearTimeout(copyTimer);
+                clearTimeout(comboTimer);
                 store.flush();
             }
         };
     }
 
-    window.ECalcCalcPage = { create };
+    window.ECalcCalcPage = { create, unitFor };
 })();

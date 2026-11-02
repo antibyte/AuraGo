@@ -193,7 +193,7 @@ func TestECalcStylesheetUsesOnlyTokens(t *testing.T) {
 	if strings.Count(body, "!important") != 1 || !strings.Contains(body, ".ec-app [hidden] { display: none !important; }") {
 		t.Error("the only !important allowed is the [hidden] rule")
 	}
-	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`} {
+	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`, `.ec-field[data-unused="true"]`, ".ec-combo-table", ".ec-chart-curve", ".ec-chart-dot", ".ec-sr {"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("css/desktop-app-ecalc.css is missing %q", marker)
 		}
@@ -265,6 +265,23 @@ func TestECalcChartIsADomFreeStringBuilder(t *testing.T) {
 	} {
 		if regexp.MustCompile(pattern).MatchString(body) {
 			t.Errorf("ecalc-chart.js must not contain a %s", label)
+		}
+	}
+}
+
+// The page extensions of phase 2 are wired where the contract puts them: the unit whitelist, the dimmed fields of an
+// `ignore` list, the radix keyboard, the combiner block and the chart block.
+func TestECalcPageExtensionsAreWired(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-calc-page.js"]
+	for _, marker := range []string{
+		"function unitChoices(v, units)", "function unitFor(calc, store, units)", "function ignoredIds()", "dataset.unused",
+		"desktop.ecalc_unused_field", "isRadix(v) ? 'text' : 'decimal'", "calc.finder === 'combine'",
+		"core.eseries.combine(series, target, COMBO_LIMIT)", "function paintCombos()", "function drawCombos()", "clearTimeout(comboTimer);", "function chartData()",
+		"window.ECalcChart.svg(data.spec, data.sample)", "if (unused.has(v.id)) continue;",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-calc-page.js is missing %q", marker)
 		}
 	}
 }

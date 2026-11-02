@@ -11,6 +11,9 @@
 .ec-glyph { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ec-glyph-dot { display: inline-block; width: 6px; height: 6px; margin: 0 5px; border-radius: 50%; background: currentColor; opacity: .45; }
 
+/* Text for assistive technology only */
+.ec-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
 /* Loading and failure */
 .ec-status, .ec-fail { display: grid; place-content: center; justify-items: center; gap: 12px; height: 100%; grid-row: 1 / -1; padding: 24px; text-align: center; }
 .ec-fail p { margin: 0; max-width: 36ch; }
@@ -85,6 +88,7 @@
 .ec-choice legend { float: left; padding: 0; margin-right: 10px; color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-size: 13px; font-weight: 600; }
 .ec-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .ec-page[data-layout="split"] .ec-main { grid-template-columns: minmax(0, 1fr) 300px; }
+.ec-page[data-layout="split"] .ec-main[data-solo] { grid-template-columns: minmax(0, 1fr); }
 .ec-stage { --ec-stage-bg: var(--vd-mat-well-color, var(--vd-theme-app-bg)); display: grid; align-content: start; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-well, var(--ec-card)); box-shadow: var(--vd-mat-well-shadow, none); }
 .ec-math-card, .ec-block { min-width: 0; padding: 14px 16px; border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, none); }
 
@@ -118,6 +122,8 @@
 .ec-field[data-state="pending"] { --ec-tint: color-mix(in srgb, var(--ec-warn) 10%, transparent); border-style: dashed; }
 .ec-field[data-locked="true"] { --ec-edge: color-mix(in srgb, var(--vd-accent) 70%, var(--vd-mat-field-border, var(--vd-theme-border))); }
 .ec-field:focus-within { --ec-edge: var(--ds-color-border-focus); }
+.ec-field[data-unused="true"] { opacity: .5; }
+.ec-field[data-unused="true"]:hover, .ec-field[data-unused="true"]:focus-within { opacity: .85; }
 .ec-field-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 20px; }
 .ec-field-label { min-width: 0; overflow: hidden; color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-size: 12.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .ec-field-label sub, .ec-title sub, .ec-row-name sub, .ec-math sub { font-size: .75em; line-height: 0; }
@@ -162,6 +168,28 @@
 .ec-rad { margin-right: 1px; }
 .ec-radb { margin-top: .08em; padding: 0 .18em; border-top: 1px solid currentColor; }
 
+/* Chart under the formula: the curve and the dot take the accent, everything else the text colour */
+.ec-chart { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ec-line); }
+.ec-chart h3 { margin: 0 0 6px; color: var(--vd-mat-heading-color, var(--vd-text)); font-family: var(--vd-mat-heading-font, inherit); font-size: 13.5px; font-weight: var(--vd-mat-heading-weight, 600); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
+.ec-chart-svg { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; color: var(--vd-text); overflow: visible; }
+.ec-chart-grid { stroke: var(--ec-line); stroke-width: 1; }
+.ec-chart-axis { stroke: var(--vd-theme-muted); stroke-width: 1.2; }
+.ec-chart-curve { stroke: var(--vd-accent); stroke-width: 2; }
+.ec-chart-guide { stroke: var(--vd-theme-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.ec-chart-dot { fill: var(--vd-accent); stroke: var(--ec-card); stroke-width: 1.5; }
+.ec-chart-text { fill: var(--vd-theme-muted); font: 10px/1 var(--vd-font-ui, system-ui, sans-serif); }
+.ec-chart-sub { font-size: 8px; }
+
+/* Standard-value combiner: the single value, the best series pairs and the best parallel pairs */
+.ec-combo-wrap { overflow-x: auto; }
+.ec-combo-table { width: 100%; max-width: 560px; border-collapse: collapse; }
+.ec-combo-table :is(th, td) { padding: 4px 12px 4px 0; font-weight: 400; text-align: right; white-space: nowrap; }
+.ec-combo-table thead th { color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-size: 12px; font-weight: 600; }
+.ec-combo-table .ec-combo-parts { text-align: left; font-family: var(--ec-mono); font-variant-numeric: tabular-nums; white-space: normal; }
+.ec-combo-table .ec-combo-group th { padding-top: 10px; border-bottom: 1px solid var(--ec-line); color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-weight: 600; text-align: left; }
+.ec-combo-table tbody:first-of-type .ec-combo-group th { padding-top: 2px; }
+.ec-combo-table td:last-child, .ec-combo-table thead th:last-child { padding-right: 0; }
+
 /* E-series, derived quantities, warnings, explanation */
 .ec-below { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .ec-block h3 { margin: 0 0 8px; color: var(--vd-mat-heading-color, var(--vd-text)); font-family: var(--vd-mat-heading-font, inherit); font-size: 13.5px; font-weight: var(--vd-mat-heading-weight, 600); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
@@ -196,6 +224,7 @@
 @media (pointer: coarse) { .ec-btn, .ec-icon-btn, .ec-rail-btn, .ec-item, .ec-seg span, .ec-unit, .ec-input { min-height: 44px; } .ec-lock { width: 32px; height: 32px; } }
 
 @media (prefers-reduced-motion: no-preference) {
+    body:not([data-animations="false"]) .ec-field[data-unused] { transition: background-color .12s ease, border-color .12s ease, color .12s ease, opacity .12s ease; }
     body:not([data-animations="false"]) .ec-btn, body:not([data-animations="false"]) .ec-rail-btn, body:not([data-animations="false"]) .ec-item, body:not([data-animations="false"]) .ec-icon-btn, body:not([data-animations="false"]) .ec-field { transition: background-color .12s ease, border-color .12s ease, color .12s ease; }
     body:not([data-animations="false"]) .ec-lock .ec-shackle { transition: transform .14s ease; }
     body:not([data-animations="false"]) .ec-spinner { animation: ec-spin .8s linear infinite; }
