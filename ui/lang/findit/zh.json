@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "重试完全相同的请求",
   "findit.pending_command_queue_full": "此标签页中有太多尚未解决的库存变更或预留。请先解决待处理请求，再进行其他变更。",
   "findit.pending_command_storage_unavailable": "此浏览器标签页无法保存待处理请求，因此没有发送变更。请启用会话存储后重试。",
-  "findit.pending_command": "解决待处理的变更"
+  "findit.pending_command": "解决待处理的变更",
+  "findit.invalid_number": "请输入有效数字。",
+  "findit.invalid_url": "请输入有效的网址。",
+  "findit.required_field": "此字段为必填项。"
 }

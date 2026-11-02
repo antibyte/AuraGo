@@ -169,7 +169,7 @@
             filterTemplateID: '', propertyFilters: {}, propertyFilterOperators: {},
             savedSearches: asList(safeLocalStorage(SAVED_SEARCHES_KEY, [])), busy: false, actionBusy: false, error: '', notice: '',
             mobilePanel: 'list', mobile: false, searchTimer: 0, requestSerial: 0, selectionSerial: 0, csvCandidate: null, printImage: '',
-            scanCandidate: '', focusAfterDraw: '', forceReload: false,
+            scanCandidate: '', focusAfterDraw: '', forceReload: false, lastLoadedAt: 0,
             commandRequestIds: new Map(Array.isArray(savedCommandRequests) ? savedCommandRequests.filter(row => Array.isArray(row) && row.length === 2 && typeof row[0] === 'string' && typeof row[1] === 'string').slice(-96) : []),
             pendingCommands: readPendingCommands(), pendingInitialStocks: readPendingInitialStocks(), pendingInitialStock: null
         };
@@ -460,7 +460,8 @@
         }
         function renderStatusbar() {
             const start = state.total ? state.offset + 1 : 0, end = Math.min(state.offset + state.limit, state.total);
-            return `<footer class="fi-statusbar"><span>${M.esc(tr('last_updated'))} ${M.esc(new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date()))}</span><span>${M.esc(tr('page_range'))} ${M.esc(`${start}–${end} / ${state.total}`)}</span><span class="fi-statusbar-state"><i></i>${isBusy() ? M.esc(tr('working')) : M.esc(tr('ready'))}</span></footer>`;
+            const stamp = state.lastLoadedAt ? new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(state.lastLoadedAt)) : '—';
+            return `<footer class="fi-statusbar"><span>${M.esc(tr('last_updated'))} ${M.esc(stamp)}</span><span>${M.esc(tr('page_range'))} ${M.esc(`${start}–${end} / ${state.total}`)}</span><span class="fi-statusbar-state"><i></i>${isBusy() ? M.esc(tr('working')) : M.esc(tr('ready'))}</span></footer>`;
         }
         function renderActivation() {
             const enabled = !!state.status?.enabled, canManage = !!state.status?.can_manage;
@@ -549,6 +550,7 @@
                     template_id: state.filterTemplateID || undefined, filters: payloadFilters(), limit: state.limit, offset: state.offset });
                 if (!isCurrent(serial)) return;
                 state.rows = asList(body?.items); state.total = Number(body?.total) || 0;
+                state.lastLoadedAt = Date.now();
                 if (state.selectedId && !state.rows.some(item => item.id === state.selectedId)) { state.selected = null; state.selectedId = ''; state.availability = null; }
             } catch (error) { if (isCurrent(serial) && error?.name !== 'AbortError') state.error = noteText(ctx, error); }
             finally { if (isCurrent(serial)) { state.busy = false; draw(); } }
@@ -888,6 +890,7 @@
             host.addEventListener('change', event => {
                 const target = event.target;
                 if (target.matches('[data-filter-category]')) { state.category = target.value; state.offset = 0; void loadItems(); }
+                else if (target.matches('[data-filter-location]')) { state.locationId = target.value; state.offset = 0; void loadItems(); }
                 else if (target.matches('[data-filter-package]')) { state.packageFamily = target.value; state.offset = 0; void loadItems(); }
                 else if (target.matches('[data-filter-template]')) { state.filterTemplateID = target.value; state.propertyFilters = {}; state.propertyFilterOperators = {}; state.offset = 0; draw(); void loadItems(); }
                 else if (target.matches('[data-filter-property]')) { state.propertyFilters[target.dataset.filterProperty] = target.value; state.offset = 0; void loadItems(); }
@@ -902,8 +905,11 @@
             host.addEventListener('keydown', event => {
                 const row = event.target.closest('[data-select-item]');
                 if (row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); void selectItem(row.dataset.selectItem); return; }
-                if (row && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
-                    const rows = [...host.querySelectorAll('[data-select-item]')], index = rows.indexOf(row), next = rows[index + (event.key === 'ArrowDown' ? 1 : -1)];
+                if (['ArrowDown', 'ArrowUp'].includes(event.key) && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName || '')) {
+                    const rows = [...host.querySelectorAll('[data-select-item]')];
+                    if (!rows.length) return;
+                    const index = row ? rows.indexOf(row) : -1;
+                    const next = row ? rows[index + (event.key === 'ArrowDown' ? 1 : -1)] : rows[event.key === 'ArrowDown' ? 0 : rows.length - 1];
                     if (next) { event.preventDefault(); next.focus(); next.scrollIntoView({ block: 'nearest' }); }
                 }
             }, { signal: state.signal });

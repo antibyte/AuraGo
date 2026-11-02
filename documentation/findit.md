@@ -8,6 +8,8 @@ Open **FindIt** from the Desktop. An administrator enables it in the app's setti
 
 The list combines text search with category, template, package, location, availability and minimum-stock filters. Engineering values such as `4k7` and `4,7 kΩ` search numeric specifications; SI prefixes distinguish `M` (mega) from `m` (milli) and `u`/`µ` (micro). Select a template when a custom field name has different types or units across templates. Select an item to inspect its properties and stock. Locations may be nested, for example Workshop → Shelf A → Organizer → Drawer 12. A small window uses one pane at a time. List and card views use the same records.
 
+Every filter stays available in a narrow window: open **Filters** to narrow by category, location, package and template. The location list in the filter shows the full storage path, so nested places stay distinguishable when the sidebar is hidden. The status bar reports when the inventory data was last loaded, and the arrow keys move through the list once it has focus.
+
 Templates provide typed fields without inventing specifications. Electronic function, package family, pin count, pitch and dimensions are independent. Check technical values against the actual manufacturer datasheet; miniature artwork illustrates a family, not an exact footprint. Missing values remain unknown. Custom templates retain stable field keys and do not overwrite existing article values.
 
 Archiving preserves history. An archived custom template remains readable on existing items but cannot be assigned to new ones. Items used by an active project BOM must be removed from that BOM before archiving. Empty stock positions remain available for returns and inventory corrections.

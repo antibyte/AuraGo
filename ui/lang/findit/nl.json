@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Exact verzoek opnieuw proberen",
   "findit.pending_command_queue_full": "Er zijn te veel onopgeloste voorraadwijzigingen of reserveringen in dit tabblad. Los een verzoek op voordat je een nieuwe wijziging maakt.",
   "findit.pending_command_storage_unavailable": "Dit browsertabblad kon het openstaande verzoek niet opslaan, dus de wijziging is niet verzonden. Schakel sessieopslag in en probeer opnieuw.",
-  "findit.pending_command": "Openstaande wijziging oplossen"
+  "findit.pending_command": "Openstaande wijziging oplossen",
+  "findit.invalid_number": "Voer een geldig getal in.",
+  "findit.invalid_url": "Voer een geldig webadres in.",
+  "findit.required_field": "Dit veld is verplicht."
 }

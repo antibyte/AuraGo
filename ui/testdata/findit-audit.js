@@ -334,6 +334,24 @@ async () => {
   category.value = 'electronic_component'; category.dispatchEvent(new Event('change', { bubbles: true }));
   await wait(() => app.offset === 0 && !app.busy, 'filter resets pagination');
 
+  // The location filter must stay reachable in the filter panel, because the sidebar tree is hidden on narrow windows.
+  const locationFilter = host.querySelector('[data-filter-location]');
+  assert(locationFilter, 'Location filter must be present in the filter panel');
+  const locationOptions = [...locationFilter.options].map(option => option.value).filter(Boolean);
+  assert(locationOptions.length > 0, 'Location filter must offer the stored locations');
+  const locationWithStock = app.locations.find(location => locationOptions.includes(location.id));
+  if (locationWithStock) {
+    locationFilter.value = locationWithStock.id; locationFilter.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(() => app.locationId === locationWithStock.id && app.offset === 0 && !app.busy, 'location filter applies');
+    click('[data-action="clear-filters"]'); await wait(() => app.locationId === '' && !app.busy, 'clear filters resets the location filter');
+  }
+
+  // List columns are addressed by key, so a narrow layout keeps hiding the same columns for a custom column set.
+  const headers = [...host.querySelectorAll('.fi-item-table thead th[data-column]')];
+  assert(headers.length > 0 && headers.every(header => header.dataset.column), 'Item table columns must carry their key');
+  const partHeader = host.querySelector('.fi-item-table thead th[data-column="part"]');
+  assert(partHeader, 'The item table must keep a part column');
+
   // A committed opening-stock response loss must remain retryable in a newly opened window.
   const originalHost = document.getElementById('findit-fixture-root');
   const createName = 'FindIt opening-stock recovery audit';

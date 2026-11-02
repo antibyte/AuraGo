@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Prøv nøyaktig forespørsel på nytt",
   "findit.pending_command_queue_full": "For mange lagerendringer eller reservasjoner er uavklart i denne fanen. Løs en ventende forespørsel før en ny endring.",
   "findit.pending_command_storage_unavailable": "Denne fanen kunne ikke lagre den ventende forespørselen, så endringen ble ikke sendt. Slå på øktlagring og prøv på nytt.",
-  "findit.pending_command": "Løs ventende endring"
+  "findit.pending_command": "Løs ventende endring",
+  "findit.invalid_number": "Skriv inn et gyldig tall.",
+  "findit.invalid_url": "Skriv inn en gyldig webadresse.",
+  "findit.required_field": "Dette feltet er obligatorisk."
 }

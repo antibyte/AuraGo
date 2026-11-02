@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "同じリクエストを再実行",
   "findit.pending_command_queue_full": "このタブには未解決の在庫変更または予約が多すぎます。次の変更を行う前に、保留中のリクエストを解決してください。",
   "findit.pending_command_storage_unavailable": "このブラウザータブでは保留中のリクエストを保存できず、変更は送信されませんでした。セッションストレージを有効にして再試行してください。",
-  "findit.pending_command": "保留中の変更を解決"
+  "findit.pending_command": "保留中の変更を解決",
+  "findit.invalid_number": "有効な数値を入力してください。",
+  "findit.invalid_url": "有効な Web アドレスを入力してください。",
+  "findit.required_field": "この項目は必須です。"
 }

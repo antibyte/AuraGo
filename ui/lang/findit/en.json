@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Retry exact request",
   "findit.pending_command_queue_full": "Too many stock changes or reservations are unresolved in this tab. Resolve a pending request before making another change.",
   "findit.pending_command_storage_unavailable": "This browser tab could not save the pending request, so the change was not sent. Enable session storage and try again.",
-  "findit.pending_command": "Resolve pending change"
+  "findit.pending_command": "Resolve pending change",
+  "findit.invalid_number": "Enter a valid number.",
+  "findit.invalid_url": "Enter a valid web address.",
+  "findit.required_field": "This field is required."
 }

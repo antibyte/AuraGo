@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Exakte Anfrage wiederholen",
   "findit.pending_command_queue_full": "Zu viele Lageränderungen oder Reservierungen in diesem Tab sind ungeklärt. Kläre eine offene Anfrage vor einer weiteren Änderung.",
   "findit.pending_command_storage_unavailable": "Dieser Browser-Tab konnte die offene Anfrage nicht speichern. Die Änderung wurde deshalb nicht gesendet. Aktiviere den Sitzungsspeicher und versuche es erneut.",
-  "findit.pending_command": "Offene Änderung klären"
+  "findit.pending_command": "Offene Änderung klären",
+  "findit.invalid_number": "Bitte eine gültige Zahl eingeben.",
+  "findit.invalid_url": "Bitte eine gültige Webadresse eingeben.",
+  "findit.required_field": "Dieses Feld ist erforderlich."
 }
