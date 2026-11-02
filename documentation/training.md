@@ -12,6 +12,8 @@ Moving or duplicating these Go packages into an unrelated module would break Go'
 
 ## Verify and refresh
 
+ECalc has paired German/English search, describe, calculate and open fixtures. Co-agent examples explicitly manage only the initiating session and request cancellation directly. Preserve Kaggle/FindIt and other curated contracts when refreshing; never replace a complete local training history with an older remote pin.
+
 From the AuraGo root:
 
 ```sh
