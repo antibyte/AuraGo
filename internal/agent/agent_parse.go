@@ -1735,9 +1735,14 @@ func normalizeXMLIntegerParams(tc *ToolCall, fields map[string]int) {
 		return
 	}
 	for name, value := range values {
-		// Keep large integers exact, including a skill_args map sharing Params.
-		tc.Params[name] = value
-		decoded.Params[name] = value
+		// Match JSON numeric arguments for existing consumers; retain large integers
+		// exactly, including a skill_args map sharing Params.
+		var normalized interface{} = value
+		if value >= -(1<<53) && value <= 1<<53 {
+			normalized = float64(value)
+		}
+		tc.Params[name] = normalized
+		decoded.Params[name] = normalized
 	}
 	*tc = decoded
 }

@@ -74,6 +74,45 @@ func TestXMLIntegerParamsPreserveInvalidValuesAndParameterPriority(t *testing.T)
 	}
 }
 
+func TestXMLIntegerParamsPreserveJSONNumericConsumers(t *testing.T) {
+	for _, body := range []string{
+		`<parameter=limit>9</parameter>`,
+		`<parameter=limit>3</parameter><parameter=params>{"limit":9}</parameter>`,
+		`<parameter=limit>3</parameter><parameter=skill_args>{"limit":9}</parameter>`,
+		`<parameter=params>{"limit":9}</parameter><parameter=limit>3</parameter>`,
+		`<parameter=skill_args>{"limit":9}</parameter><parameter=limit>3</parameter>`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			tc := ParseToolCall(`<tool_call><function=sip_phone>` + body + `</function></tool_call>`)
+			if got := decodeSIPPhoneToolArgs(tc).Limit; got != 9 {
+				t.Fatalf("SIP limit = %d, want 9", got)
+			}
+			// Game Maker asset search reads this JSON numeric representation directly.
+			if value, ok := tc.Params["limit"].(float64); !ok || value != 9 {
+				t.Fatalf("JSON numeric argument = %v (%T), want float64(9)", tc.Params["limit"], tc.Params["limit"])
+			}
+			if strings.Contains(body, "skill_args") && tc.SkillArgs["limit"] != float64(9) {
+				t.Fatal("skill_args and Params numeric values diverged")
+			}
+		})
+	}
+}
+
+func TestXMLIntegerParamsKeepLargeAliasValuesExact(t *testing.T) {
+	for _, container := range []string{"params", "skill_args"} {
+		for _, value := range []int64{-(1 << 53) - 1, 1 << 53, 1<<53 + 1, int64(^uint64(0) >> 1)} {
+			body := fmt.Sprintf(`<parameter=%s>{"label":"kept"}</parameter><parameter=entry_id>%d</parameter>`, container, value)
+			tc := ParseToolCall(`<tool_call><function=demo>` + body + `</function></tool_call>`)
+			if tc.EntryID != value || toolArgInt64(tc.Params, "entry_id") != value {
+				t.Fatalf("integer lost precision: typed=%d raw=%v want=%d", tc.EntryID, tc.Params["entry_id"], value)
+			}
+			if tc.Params["label"] != "kept" || tc.SkillArgs["entry_id"] != tc.Params["entry_id"] {
+				t.Fatal("numeric normalization changed alias contents")
+			}
+		}
+	}
+}
+
 func TestXMLIntegerLimitReachesQueryMemory(t *testing.T) {
 	stm, _ := newMemorySafetyStore(t)
 	for i := 0; i < 6; i++ {
