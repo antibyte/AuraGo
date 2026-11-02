@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/personabooster"
 )
@@ -47,6 +48,56 @@ func TestPersonaPhaseBlockSitsInTurnContextAndKeepsPrefixStable(t *testing.T) {
 	}
 	if !strings.Contains(promptSection(suffixA, "### PERSONA PHASE"), personabooster.LimitsLine) {
 		t.Fatal("phase limits line missing")
+	}
+}
+
+// multibytePhase renders a phase whose variant text has the validator's
+// maximum of 700 runes in the given character, like a disk override would.
+func multibytePhase(t *testing.T, char, intensity string) (rendered, variantText string) {
+	t.Helper()
+	variantText = strings.Repeat(char, personabooster.MaxVariantChars)
+	cat := &personabooster.Catalog{Persona: "sample", Phases: []personabooster.Phase{{
+		ID: "rage", Name: strings.Repeat(char, 60),
+		Variants: []personabooster.Variant{{ID: "hot", Name: strings.Repeat(char, 60), Text: variantText}},
+	}}}
+	rendered = personabooster.RenderPhase(cat, personabooster.State{Persona: "sample", PhaseID: "rage", VariantID: "hot"}, intensity)
+	if rendered == "" {
+		t.Fatal("fixture did not render")
+	}
+	return rendered, variantText
+}
+
+func TestPersonaPhaseKeepsFixedLinesForMultibyteVariants(t *testing.T) {
+	for _, char := range []string{"ä", "—", "😈"} {
+		for _, intensity := range []string{personabooster.IntensityStrong, personabooster.IntensityWild} {
+			rendered, variantText := multibytePhase(t, char, intensity)
+			block := buildTrustedPersonaPhase(&ContextFlags{PersonaBoosterEnabled: true, PersonaPhase: rendered})
+			if !strings.HasSuffix(block, personabooster.LimitsLine) {
+				t.Errorf("%q/%s: block does not end with the limits line (%d bytes)", char, intensity, len(block))
+			}
+			if !strings.Contains(block, variantText) {
+				t.Errorf("%q/%s: a valid variant was truncated", char, intensity)
+			}
+			if wild := strings.Contains(block, personabooster.WildLine+"\n"+personabooster.LimitsLine); wild != (intensity == personabooster.IntensityWild) {
+				t.Errorf("%q/%s: wild line present = %v", char, intensity, wild)
+			}
+		}
+	}
+}
+
+func TestPersonaPhaseCapsOnlyTheVariablePart(t *testing.T) {
+	phase := "Temporary phase: Rage – Cold.\n" + strings.Repeat("ä", 20000) + "\n" + personabooster.WildLine + "\n" + personabooster.LimitsLine
+	block := buildTrustedPersonaPhase(&ContextFlags{PersonaBoosterEnabled: true, PersonaPhase: phase})
+	fixed := "\n" + personabooster.WildLine + "\n" + personabooster.LimitsLine
+	head, ok := strings.CutSuffix(block, fixed)
+	if !ok {
+		t.Fatalf("fixed lines were cut or altered: %q", block[max(0, len(block)-len(fixed)-20):])
+	}
+	if !strings.HasPrefix(head, "Temporary phase: Rage – Cold.\nä") || !strings.HasSuffix(head, "...") || len(head) > maxPersonaPhaseBytes {
+		t.Fatalf("variable part not capped at %d bytes: %d bytes", maxPersonaPhaseBytes, len(head))
+	}
+	if !utf8.ValidString(block) {
+		t.Fatal("truncation split a rune")
 	}
 }
 
