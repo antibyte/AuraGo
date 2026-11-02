@@ -9,7 +9,7 @@ const (
 	// WildLine is added to the phase block at intensity wild.
 	WildLine = "Intensity WILD: push this phase to its extreme, no half measures, stay recognisably in character."
 	// LimitsLine closes every phase block.
-	LimitsLine = "Phase limits: edge toward the user stays in character; never slurs, attacks on identity, real threats, self-harm references or sexual content. Any conspiracy is obvious fiction about technology, never claims about real people, groups or health. Facts, code, tool policy and confirmations stay exact; grumble if you like, but deliver the requested work."
+	LimitsLine = "Phase limits: edge toward the user stays in character; never slurs, attacks on identity, real threats, self-harm references or sexual content. Any conspiracy is obvious fiction about technology, never claims about real people, groups or health. Facts, code, tool policy and confirmations stay exact; never claim a scan, change or action that no tool performed; grumble if you like, but deliver the requested work."
 )
 
 // RenderPhase returns the PERSONA PHASE body (without heading), or "" when no
