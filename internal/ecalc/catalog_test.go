@@ -1,7 +1,9 @@
 package ecalc
 
 import (
+	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -141,6 +143,160 @@ func TestLoadRejectsBrokenCalculators(t *testing.T) {
 		}
 		broken := strings.Replace(baseCalc, c.old, c.new, 1)
 		_, err := Load(fixtureFS(t, map[string]string{"t.yaml": broken}))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v, want it to contain %q", c.name, err, c.want)
+		}
+	}
+}
+
+// mutate applies old/new pairs to a fixture (each old text once) and fails the test when a pair does not apply.
+func mutate(t *testing.T, base string, pairs ...string) string {
+	t.Helper()
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if !strings.Contains(base, pairs[i]) {
+			t.Fatalf("fixture does not contain %q", pairs[i])
+		}
+		base = strings.Replace(base, pairs[i], pairs[i+1], 1)
+	}
+	return base
+}
+
+// choiceYAML is a choice q whose option o ignores the variables of ignoreO (a YAML flow list) and whose option p ignores
+// none; both define the constant k. It ends with the dof line of baseCalc, so it replaces "  dof: 2".
+func choiceYAML(ignoreO, rest string) string {
+	return "  choices:\n    q: {name: " + flow16("Q") + ", default: o, options: {o: {name: " + flow16("O") + ", consts: {k: 1}" + ignoreO +
+		"}, p: {name: " + flow16("P") + ", consts: {k: 2}}}}\n" + rest + "  dof: 2"
+}
+
+// combineCalc is the smallest standard-value combiner: one scalar resistance, dof 1, no rules, no formula.
+var combineCalc = strings.ReplaceAll(`- id: t_combine
+  kind: calculator
+  category: basics
+  name: NAME16
+  doc: {en: "Doc.", de: "Doku."}
+  tags: [test]
+  source: "Textbook"
+  vars:
+    target: {dim: resistance, label: R, name: {en: "R", de: "R"}, default: "5k"}
+  dof: 1
+  finder: combine
+`, "NAME16", flow16("T"))
+
+// The schema extensions of phase 2: the display-unit whitelist of a variable or derived quantity (units), the variables
+// an option does not use (ignore), the chart and the finder.
+func TestLoadAcceptsDisplayUnitsIgnoreChartAndFinder(t *testing.T) {
+	src := mutate(t, baseCalc,
+		`default: "10 V"}`, `default: "10 V", unit: dBV, units: ["", dBV, dBu]}`,
+		`expr: "a*c"}`, `expr: "a*c", unit: dBm, units: [dBm, ""]}`,
+		"  dof: 2", choiceYAML(", ignore: [b]", `  chart: {x: a, y: c, to: "10", samples: 21}`+"\n"))
+	cat, err := Load(fixtureFS(t, map[string]string{"t.yaml": src}))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c := cat.Calculator("t_div")
+	if got := c.Var("a").Units; !reflect.DeepEqual(got, []string{"", "dBV", "dBu"}) {
+		t.Errorf("var a units = %q", got)
+	}
+	if got := c.Derived[0].Units; !reflect.DeepEqual(got, []string{"dBm", ""}) {
+		t.Errorf("derived p units = %q", got)
+	}
+	if o := c.Choices[0].Options; !reflect.DeepEqual(o[0].Ignore, []string{"b"}) || len(o[1].Ignore) != 0 {
+		t.Errorf("ignore lists = %q / %q, want [b] and none", o[0].Ignore, o[1].Ignore)
+	}
+	if ch := c.Chart; ch == nil || ch.X != "a" || ch.Y != "c" || ch.To.Src != "10" || ch.Samples != 21 {
+		t.Errorf("chart = %+v, want x a, y c, to 10, 21 samples", ch)
+	}
+
+	// The catalog JSON carries all of it; a missing list is [] and no chart is null (never a missing key).
+	body, _, err := cat.LocalizedJSON("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Items []struct {
+			Finder string `json:"finder"`
+			Chart  *struct {
+				X       string `json:"x"`
+				Y       string `json:"y"`
+				To      string `json:"to"`
+				Samples int    `json:"samples"`
+			} `json:"chart"`
+			Vars    []struct{ Units []string } `json:"vars"`
+			Derived []struct{ Units []string } `json:"derived"`
+			Choices []struct {
+				Options []struct{ Ignore []string } `json:"options"`
+			} `json:"choices"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatal(err)
+	}
+	it := doc.Items[0]
+	if it.Chart == nil || it.Chart.X != "a" || it.Chart.Y != "c" || it.Chart.To != "10" || it.Chart.Samples != 21 || it.Finder != "" {
+		t.Errorf("item JSON chart/finder = %+v / %q", it.Chart, it.Finder)
+	}
+	if !reflect.DeepEqual(it.Vars[0].Units, []string{"", "dBV", "dBu"}) || it.Vars[1].Units == nil || len(it.Vars[1].Units) != 0 ||
+		!reflect.DeepEqual(it.Derived[0].Units, []string{"dBm", ""}) {
+		t.Errorf("JSON units = %q / %q / %q", it.Vars[0].Units, it.Vars[1].Units, it.Derived[0].Units)
+	}
+	if o := it.Choices[0].Options; !reflect.DeepEqual(o[0].Ignore, []string{"b"}) || o[1].Ignore == nil || len(o[1].Ignore) != 0 {
+		t.Errorf("JSON ignore = %q / %q", o[0].Ignore, o[1].Ignore)
+	}
+	if !strings.Contains(string(body), `"chart":{"x":"a","y":"c","to":"10","samples":21}`) {
+		t.Errorf("the chart is not written as {x, y, to, samples}: %s", body)
+	}
+
+	// Samples default to 101.
+	dflt := mutate(t, src, `, samples: 21`, ``)
+	if c := loadOne(t, dflt); c.Chart == nil || c.Chart.Samples != 101 {
+		t.Errorf("default samples = %+v, want 101", c.Chart)
+	}
+
+	// The combiner finder: no formula, no rules.
+	combiner, err := Load(fixtureFS(t, map[string]string{"t.yaml": combineCalc}))
+	if err != nil {
+		t.Fatalf("Load combiner: %v", err)
+	}
+	cc := combiner.Calculator("t_combine")
+	if cc.Finder != "combine" || len(cc.Formula) != 0 || len(cc.Rules) != 0 || cc.Chart != nil {
+		t.Errorf("combine calculator = finder %q formula %q rules %d chart %v", cc.Finder, cc.Formula, len(cc.Rules), cc.Chart)
+	}
+	cb, _, _ := combiner.LocalizedJSON("en")
+	if !strings.Contains(string(cb), `"finder":"combine"`) || !strings.Contains(string(cb), `"chart":null`) || !strings.Contains(string(cb), `"formula":[]`) {
+		t.Errorf("combine JSON lacks finder, chart null or an empty formula: %s", cb)
+	}
+}
+
+func TestLoadRejectsBrokenDisplayUnitsIgnoreChartAndFinder(t *testing.T) {
+	withChart := func(chart string) string {
+		return mutate(t, baseCalc, "  dof: 2", "  chart: "+chart+"\n  dof: 2")
+	}
+	extraDerived := mutate(t, baseCalc, "    p: {dim: power,", "    q: {dim: resistance, label: Q, name: {en: \"Q\", de: \"Q\"}, expr: \"b*2\"}\n    p: {dim: power,")
+	cases := []struct{ name, src, want string }{
+		{"units entry that is no explicit unit", mutate(t, baseCalc, `default: "10 V"}`, `default: "10 V", units: [dBm]}`), `units entry "dBm" is not an explicit unit of voltage`},
+		{"units entry listed twice", mutate(t, baseCalc, `default: "10 V"}`, `default: "10 V", units: [dBV, dBV]}`), `units entry "dBV" is listed twice`},
+		{"unit that is not in the units list", mutate(t, baseCalc, `default: "10 V"}`, `default: "10 V", unit: dBV, units: [dBu]}`), `unit "dBV" is not in its units list`},
+		{"derived units entry that is no explicit unit", mutate(t, baseCalc, `expr: "a*c"}`, `expr: "a*c", units: [Ah]}`), `units entry "Ah" is not an explicit unit of power`},
+		{"ignore of an unknown variable", mutate(t, baseCalc, "  dof: 2", choiceYAML(", ignore: [zz]", "")), `ignore "zz" is not a variable`},
+		{"ignore listed twice", mutate(t, baseCalc, "  dof: 2", choiceYAML(", ignore: [b, b]", "")), `ignore "b" is listed twice`},
+		{"unknown finder", mutate(t, baseCalc, "  dof: 2", "  finder: bogus\n  dof: 2"), `finder "bogus" must be empty or combine`},
+		{"combine finder with dof 2", mutate(t, baseCalc, "  dof: 2", "  finder: combine\n  dof: 2"), "finder combine needs dof 1"},
+		{"combine finder without a resistance variable", mutate(t, baseCalc, "  dof: 2", "  finder: combine\n  dof: 2", "b: {dim: resistance", "b: {dim: current"), "exactly one scalar resistance variable, found 0"},
+		{"combine finder with a list resistance", mutate(t, combineCalc, `target: {dim: resistance, label: R, name: {en: "R", de: "R"}, default: "5k"}`, `target: {dim: resistance, label: R, name: {en: "R", de: "R"}, list: true, default: ["5k"]}`), "exactly one scalar resistance variable, found 0"},
+		{"no formula without the combine finder", mutate(t, combineCalc, "  finder: combine\n", ""), "formula is required"},
+		{"unknown chart field", withChart(`{x: a, y: c, to: "10", color: red}`), "color"},
+		{"chart x that is not a variable", withChart(`{x: zz, y: c, to: "10"}`), `chart: x "zz" is not a variable`},
+		{"chart y without a rule", withChart(`{x: a, y: zz, to: "10"}`), `chart: y "zz" needs a rule or a derived expression`},
+		{"chart y that does not use x", mutate(t, extraDerived, "  dof: 2", "  chart: {x: a, y: q, to: \"10\"}\n  dof: 2"), `chart: y "q" does not depend on x "a"`},
+		{"chart to that does not parse", withChart(`{x: a, y: c, to: "1+"}`), "chart: to:"},
+		{"chart to with an unknown name", withChart(`{x: a, y: c, to: "zz"}`), `unknown name "zz"`},
+		{"chart to that uses x", withChart(`{x: a, y: c, to: "a*2"}`), `must not depend on x "a"`},
+		{"chart with too few samples", withChart(`{x: a, y: c, to: "10", samples: 10}`), "samples must be between 11 and 401"},
+		{"chart with too many samples", withChart(`{x: a, y: c, to: "10", samples: 402}`), "samples must be between 11 and 401"},
+		{"chart over a list variable", mutate(t, mixCalc, "  dof: 2", "  chart: {x: rs, y: y, to: \"10\"}\n  dof: 2"), `chart: x "rs" is a list variable`},
+	}
+	for _, c := range cases {
+		_, err := Load(fixtureFS(t, map[string]string{"t.yaml": c.src}))
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error = %v, want it to contain %q", c.name, err, c.want)
 		}

@@ -204,6 +204,18 @@ func TestLocalizedJSONNeverHasNullCollections(t *testing.T) {
 				t.Errorf("dim %v: %s = %#v, want an array", d["id"], key, d[key])
 			}
 		}
+		if _, ok := d["integer"].(bool); !ok {
+			t.Errorf("dim %v: integer = %#v, want a boolean", d["id"], d["integer"])
+		}
+		for _, un := range d["units"].([]any) {
+			um := un.(map[string]any)
+			if _, ok := um["aliases"].([]any); !ok {
+				t.Errorf("dim %v unit %v: aliases = %#v, want an array", d["id"], um["id"], um["aliases"])
+			}
+			if _, ok := um["radix"].(float64); !ok {
+				t.Errorf("dim %v unit %v: radix = %#v, want a number", d["id"], um["id"], um["radix"])
+			}
+		}
 	}
 	for _, it := range doc.Items {
 		for _, key := range []string{"tags", "vars", "choices", "rules", "derived", "checks", "formula", "sets"} {
@@ -211,11 +223,33 @@ func TestLocalizedJSONNeverHasNullCollections(t *testing.T) {
 				t.Errorf("item %v: %s = %#v, want an array", it["id"], key, it[key])
 			}
 		}
+		if _, ok := it["finder"].(string); !ok {
+			t.Errorf("item %v: finder = %#v, want a string", it["id"], it["finder"])
+		}
+		chart, hasChart := it["chart"]
+		if _, isObject := chart.(map[string]any); !hasChart || (chart != nil && !isObject) {
+			t.Errorf("item %v: chart = %#v, want null or an object", it["id"], chart)
+		}
 		for _, v := range it["vars"].([]any) {
 			vm := v.(map[string]any)
 			for _, key := range []string{"id", "dim", "label", "name", "default", "default_list", "unit", "eseries", "list", "input"} {
 				if _, ok := vm[key]; !ok {
 					t.Errorf("item %v var %v lacks the key %s", it["id"], vm["id"], key)
+				}
+			}
+			if _, ok := vm["units"].([]any); !ok {
+				t.Errorf("item %v var %v: units = %#v, want an array", it["id"], vm["id"], vm["units"])
+			}
+		}
+		for _, d := range it["derived"].([]any) {
+			if _, ok := d.(map[string]any)["units"].([]any); !ok {
+				t.Errorf("item %v derived %v: units is not an array", it["id"], d.(map[string]any)["id"])
+			}
+		}
+		for _, ch := range it["choices"].([]any) {
+			for _, o := range ch.(map[string]any)["options"].([]any) {
+				if _, ok := o.(map[string]any)["ignore"].([]any); !ok {
+					t.Errorf("item %v choice option %v: ignore is not an array", it["id"], o.(map[string]any)["id"])
 				}
 			}
 		}

@@ -755,6 +755,7 @@
           "default": 12,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -767,6 +768,7 @@
           "default": 0.02,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -779,6 +781,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -791,6 +794,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -839,6 +843,8 @@
         "p = u * i"
       ],
       "schematic": "ohms_law",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "u",
@@ -892,6 +898,7 @@
           "default": 12,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -904,6 +911,7 @@
           "default": 4700,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -916,6 +924,7 @@
           "default": 2200,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -928,6 +937,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -970,7 +980,8 @@
           "alts": [
             "vin/(r1+r2)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         },
         {
           "id": "p",
@@ -980,7 +991,8 @@
           "alts": [
             "vin*i"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [
@@ -993,6 +1005,8 @@
         "vout = vin * r2 / (r1 + r2)"
       ],
       "schematic": "voltage_divider",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "vin",
@@ -1042,6 +1056,7 @@
           "default": 12,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1054,6 +1069,7 @@
           "default": 10000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1066,6 +1082,7 @@
           "default": 10000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1078,6 +1095,7 @@
           "default": 10000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1090,6 +1108,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1139,7 +1158,8 @@
             "r2*rl/(r2+rl)",
             "vout*r1/(vin-vout)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         },
         {
           "id": "vnl",
@@ -1149,7 +1169,8 @@
           "alts": [
             "vin*r2/(r1+r2)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         },
         {
           "id": "i",
@@ -1159,7 +1180,8 @@
           "alts": [
             "vin/(r1+rp)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [
@@ -1177,6 +1199,8 @@
         "rp = r2 * rl / (r2 + rl)"
       ],
       "schematic": "loaded_divider",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "vin",
@@ -1237,6 +1261,7 @@
           "default": 0.1,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1249,6 +1274,7 @@
           "default": 100,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1261,6 +1287,7 @@
           "default": 220,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1273,6 +1300,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1285,6 +1313,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1339,7 +1368,8 @@
           "alts": [
             "i1*r1"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [],
@@ -1348,6 +1378,8 @@
         "i2 = i * r1 / (r1 + r2)"
       ],
       "schematic": "current_divider",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "i",
@@ -1427,6 +1459,7 @@
             2200
           ],
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": true,
           "input": true
@@ -1444,7 +1477,8 @@
           "alts": [
             "sum(rs)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         },
         {
           "id": "rpar",
@@ -1454,7 +1488,8 @@
           "alts": [
             "par(rs)"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [],
@@ -1463,6 +1498,8 @@
         "rpar = par(rs)"
       ],
       "schematic": "series_parallel",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "rs"
@@ -1499,6 +1536,7 @@
           "default": 1,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1511,6 +1549,7 @@
           "default": 10,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1523,6 +1562,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1539,14 +1579,16 @@
               "name": "Voltage / current",
               "consts": {
                 "k": 20
-              }
+              },
+              "ignore": []
             },
             {
               "id": "power",
               "name": "Power",
               "consts": {
                 "k": 10
-              }
+              },
+              "ignore": []
             }
           ]
         }
@@ -1581,7 +1623,8 @@
           "alts": [
             "a2/a1"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [],
@@ -1589,6 +1632,8 @@
         "g = k * log10(a2 / a1)"
       ],
       "schematic": "",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "a1",
@@ -1631,6 +1676,7 @@
           "default": 0.7746,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1643,6 +1689,7 @@
           "default": 600,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1655,6 +1702,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1691,7 +1739,8 @@
           "alts": [
             "p"
           ],
-          "unit": "dBm"
+          "unit": "dBm",
+          "units": []
         },
         {
           "id": "v_dbv",
@@ -1701,7 +1750,8 @@
           "alts": [
             "v"
           ],
-          "unit": "dBV"
+          "unit": "dBV",
+          "units": []
         },
         {
           "id": "v_dbu",
@@ -1711,7 +1761,8 @@
           "alts": [
             "v"
           ],
-          "unit": "dBu"
+          "unit": "dBu",
+          "units": []
         }
       ],
       "checks": [],
@@ -1719,6 +1770,8 @@
         "p = v^2 / r"
       ],
       "schematic": "",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "v",
@@ -1762,6 +1815,7 @@
           "default": 5,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1774,6 +1828,7 @@
           "default": 1000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1786,6 +1841,7 @@
           "default": 1000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1798,6 +1854,7 @@
           "default": 1000,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1810,6 +1867,7 @@
           "default": 1100,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": true,
           "list": false,
           "input": true
@@ -1822,6 +1880,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1876,7 +1935,8 @@
           "alts": [
             "r2*r3/r1"
           ],
-          "unit": ""
+          "unit": "",
+          "units": []
         }
       ],
       "checks": [],
@@ -1885,6 +1945,8 @@
         "r4bal = r2 * r3 / r1"
       ],
       "schematic": "wheatstone",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "vs",
@@ -1960,6 +2022,7 @@
           "default": 30,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1972,6 +2035,7 @@
           "default": 60,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1984,6 +2048,7 @@
           "default": 90,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -1996,6 +2061,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2008,6 +2074,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2020,6 +2087,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2072,6 +2140,8 @@
         "rab = (ra * rb + rb * rc + rc * ra) / rc"
       ],
       "schematic": "star_delta",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "rab",
@@ -2118,6 +2188,7 @@
           "default": 230,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2130,6 +2201,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2142,6 +2214,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2154,6 +2227,7 @@
           "default": null,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2171,7 +2245,8 @@
               "consts": {
                 "cf": 1.4142135623730951,
                 "ff": 1.1107207345395915
-              }
+              },
+              "ignore": []
             },
             {
               "id": "square",
@@ -2179,7 +2254,8 @@
               "consts": {
                 "cf": 1,
                 "ff": 1
-              }
+              },
+              "ignore": []
             },
             {
               "id": "triangle",
@@ -2187,7 +2263,8 @@
               "consts": {
                 "cf": 1.7320508075688772,
                 "ff": 1.1547005383792515
-              }
+              },
+              "ignore": []
             }
           ]
         }
@@ -2234,6 +2311,8 @@
         "vrms = vavg * ff"
       ],
       "schematic": "",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "vrms"
@@ -2281,6 +2360,7 @@
           "default": 7200,
           "default_list": null,
           "unit": "Ah",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2293,6 +2373,7 @@
           "default": 3.7,
           "default_list": null,
           "unit": "",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2305,6 +2386,7 @@
           "default": null,
           "default_list": null,
           "unit": "Wh",
+          "units": [],
           "eseries": false,
           "list": false,
           "input": true
@@ -2338,6 +2420,8 @@
         "e = q * v"
       ],
       "schematic": "",
+      "finder": "",
+      "chart": null,
       "sets": [
         [
           "q",
