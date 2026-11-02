@@ -14,6 +14,8 @@ AuraGo commit of the release plus the module versions pinned in `go.mod` and
 `go.sum`. The modules are used unmodified. License texts:
 `licences/texts/GPL-3.0-only.txt` and `licences/texts/MPL-2.0.txt`.
 
+Release archives (`resources.dat`) and the Docker image (`/app`) carry `LICENSE`, this file and `licences/texts/`; each release's notes link the tagged source. `licences/linked-go-modules.tsv` records every module linked into `cmd/aurago` with the licence AuraGo relies on; `TestLinkedGoModulesHaveGPL3CompatibleLicenses` blocks a release on any other licence.
+
 ## Kaggle wire contracts and optional Jupyter runtime
 
 The generated Go request types and JSON contracts are adapted from Kaggle SDK
@@ -72,6 +74,14 @@ in that exact module records these MIT works:
   Copyright (c) 2016 Max Brunsfeld.
 
 The complete MIT terms are retained in `licences/texts/MIT.txt`.
+Those grammar packages import the module's `grammars/runtime` package, which also
+compiles a hand-written Go port of the tree-sitter-caddy external scanner
+(`caddy_scanner.go`, GPL-3.0, Copyright Vladimir Levin). The module's
+`gotreesitter_no_copyleft` build tag would remove it; the release builders do not
+set that tag, so the unmodified `github.com/odvcencio/gotreesitter` module is a
+GPL-3.0 component of the binaries as well. `licences/linked-go-modules.tsv`
+records it as `MIT AND GPL-3.0-only`. The GPL-3.0 text is retained in
+`licences/texts/GPL-3.0-only.txt`.
 Source and pinned grammar provenance:
 [gotreesitter v0.56.0](https://github.com/odvcencio/gotreesitter/tree/v0.56.0),
 [`licenses/grammars.json`](https://github.com/odvcencio/gotreesitter/blob/v0.56.0/licenses/grammars.json).

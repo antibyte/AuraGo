@@ -76,7 +76,7 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/emiago/sipgo` | v1.6.0 | BSD-2-Clause | https://github.com/emiago/sipgo |
 | `github.com/dlclark/regexp2` | v1.12.0 | MIT | https://github.com/dlclark/regexp2 |
 | `github.com/ebitengine/purego` | v0.11.1 | Apache-2.0 | https://github.com/ebitengine/purego |
-| `github.com/eclipse/paho.mqtt.golang` | v1.5.1 | EPL-2.0 | https://github.com/eclipse/paho.mqtt.golang |
+| `github.com/eclipse/paho.mqtt.golang` | v1.5.1 | EPL-2.0 or EDL-1.0 (BSD-3-Clause); GPL-3.0 binaries use EDL-1.0 | https://github.com/eclipse/paho.mqtt.golang |
 | `github.com/go-ldap/ldap/v3` | v3.4.15 | MIT | https://github.com/go-ldap/ldap |
 | `github.com/go-rod/rod` | v0.116.2 | MIT | https://github.com/go-rod/rod |
 | `github.com/go-sql-driver/mysql` | v1.10.1 | MPL-2.0 | https://github.com/go-sql-driver/mysql |
@@ -361,7 +361,7 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | whatsmeow | MPL-2.0 | WhatsApp channel |
 | go.mau.fi/util | MPL-2.0 | WhatsApp channel (whatsmeow dependency) |
 | go.mau.fi/libsignal | GPL-3.0 | WhatsApp channel (whatsmeow dependency); makes distributed AuraGo binaries GPL-3.0 combined works |
-| Eclipse Paho MQTT | EPL-2.0 | MQTT client |
+| Eclipse Paho MQTT | EPL-2.0 or EDL-1.0 (BSD-3-Clause); GPL-3.0 binaries use EDL-1.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
 | Arduino-ESP32 core | LGPL-2.1-or-later | CYD Creator builder image; linked into CYD firmware |
 | esptool | GPL-2.0-or-later | CYD Creator builder image (`merge_bin`) |
@@ -380,9 +380,8 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 go list -m all
 go list -m -json all   # machine-readable, includes path
 
-# Optional license scan (if go-licenses is installed)
-# go install github.com/google/go-licenses@latest
-# go-licenses report ./...
+# Licences of every module linked into cmd/aurago (blocks a release on anything else)
+go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1
 
 # Frontend declared deps
 npm ls --all
