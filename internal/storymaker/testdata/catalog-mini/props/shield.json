@@ -1,0 +1,1 @@
+{"viewbox":[0,0,100,120],"shapes":[{"d":"M50,6 L92,20 L92,62 C92,92 66,110 50,116 C34,110 8,92 8,62 L8,20 Z","gradient":{"type":"linear","stops":[[0,"$accent2"],[1,"$accent"]],"x1":0,"y1":0,"x2":100,"y2":120},"stroke":"$outline","stroke_width":4},{"d":"M30,60 L45,76 L72,42","fill":"none","stroke":"$bg","stroke_width":9}]}
