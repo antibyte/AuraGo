@@ -37,7 +37,10 @@ Der native Codegraph verwendet zusätzlich `github.com/odvcencio/gotreesitter`
 Go-, JavaScript-, TypeScript-/TSX- und Python-Grammatiken (MIT; Max Brunsfeld,
 2014 für Go/JavaScript, 2017 für TypeScript/TSX, 2016 für Python). Die genauen
 Revisionen und Urheberzeilen stehen in `THIRD_PARTY_NOTICES.md`, der Lizenztext
-in `licences/texts/MIT.txt`.
+in `licences/texts/MIT.txt`. Das Paket `grammars/runtime` kompiliert zusätzlich
+Scanner-Portierungen unter GPL-3.0 (`caddy_scanner.go`, `disassembly_scanner.go`)
+und MPL-2.0 (`nim_scanner.go`), solange der Build-Tag `gotreesitter_no_copyleft`
+fehlt. Die Release-Builder setzen ihn nicht (siehe Sonderfälle).
 
 Stand: 14. Oktober 2026. AuraGo selbst steht unter der MIT-Lizenz in `LICENSE`.
 Diese Datei listet fremde Projekte, die der Quellbaum direkt einbindet, auf dem
@@ -92,7 +95,8 @@ Diese Einträge binden enger als MIT.
 | QuakeJS / ioquake3 | GPL-2.0 für die Engine | Spieldaten sind Werke von id Software und keine Open-Source-Lizenz. |
 | noVNC, Diago, go-sql-driver/mysql, chromem-go | MPL-2.0 | Dateiweise Copyleft. Text: `texts/MPL-2.0.txt`. |
 | whatsmeow, go.mau.fi/util, go.mau.fi/libsignal | MPL-2.0, MPL-2.0, GPL-3.0 | WhatsApp-Kanal, in die AuraGo-Binärdatei kompiliert. Der Quellcode von AuraGo bleibt MIT. Weitergegebene Binärdateien sind dadurch GPL-3.0-Gesamtwerke und kommen mit Lizenztext und dem Quellcode des getaggten Commits. Texte: `texts/GPL-3.0-only.txt`, `texts/MPL-2.0.txt`. |
-| Eclipse Paho MQTT | EPL-2.0 OR BSD-3-Clause | MQTT-Client. Text: `texts/EPL-2.0.txt`. |
+| gotreesitter (`grammars/runtime`) | MIT; GPL-3.0 für `caddy_scanner.go` und `disassembly_scanner.go`; MPL-2.0 für `nim_scanner.go` | Native Codegraph. Die Scanner werden standardmäßig mitkompiliert; der Linker verwirft ihre Funktionen, behält aber die Daten. Weitergegebene Binärdateien sind deshalb auch dadurch GPL-3.0-Gesamtwerke. Texte: `texts/GPL-3.0-only.txt`, `texts/MPL-2.0.txt`. |
+| Eclipse Paho MQTT | EPL-2.0 OR BSD-3-Clause | MQTT-Client. Die GPL-3.0-Binärdateien nutzen die EDL-1.0 (BSD-3-Clause). Text: `texts/EDL-1.0.txt`, Alternative `texts/EPL-2.0.txt`. |
 | elkjs | EPL-2.0 | Transitiv über Mermaid im Browser-Bundle. |
 | espeak-ng | GPL-3.0 | Wird für sanoTTS getrennt installiert, nicht im Wheel. |
 | Px437 IBM VGA | CC BY-SA 4.0 | Terminal-Schrift, unverändert. Text: `texts/CC-BY-SA-4.0.txt`. |
@@ -368,7 +372,8 @@ enthält Platzhalter für Jahr und Namen. Die konkreten Zeilen ersetzen diese Pl
 | `MIT.txt` | MIT-Projekte |
 | `Apache-2.0.txt` | Apache-2.0-Projekte |
 | `BSD-2-Clause.txt` | BSD-2-Clause |
-| `BSD-3-Clause.txt` | BSD-3-Clause und die EDL-Alternative von Paho |
+| `BSD-3-Clause.txt` | BSD-3-Clause |
+| `EDL-1.0.txt` | Eclipse Distribution License 1.0 (Paho), Originaltext mit der Urheberzeile der Eclipse Foundation |
 | `ISC.txt` | ISC, darunter Lucide |
 | `MPL-2.0.txt` | MPL-2.0 |
 | `EPL-2.0.txt` | EPL-2.0, Paho und elkjs |

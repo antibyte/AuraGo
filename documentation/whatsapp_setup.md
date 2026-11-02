@@ -158,6 +158,6 @@ On a failed line, the code is the last error code from the status, for example `
 ## License
 
 - AuraGo's own source code is MIT-licensed (`LICENSE`).
-- Release binaries link `go.mau.fi/libsignal`, which is GPL-3.0. The release binaries are therefore GPL-3.0 combined works, and they are distributed under GPL-3.0 terms.
+- Release binaries link `go.mau.fi/libsignal`, which is GPL-3.0, and the GPL-3.0 scanners of `github.com/odvcencio/gotreesitter` (native code graph). The release binaries are therefore GPL-3.0 combined works, and they are distributed under GPL-3.0 terms.
 - The third-party notices are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md). They name the GPL-3.0 text, `licences/texts/GPL-3.0-only.txt`.
 - Each release's notes link the tagged source of that release.

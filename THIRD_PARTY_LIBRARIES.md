@@ -92,6 +92,7 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/lib/pq` | v1.12.3 | MIT | https://github.com/lib/pq |
 | `github.com/miekg/dns` | v1.1.73 | BSD-3-Clause | https://github.com/miekg/dns |
 | `github.com/minio/minio-go/v7` | v7.4.1 | Apache-2.0 | https://github.com/minio/minio-go |
+| `github.com/odvcencio/gotreesitter` | v0.56.0 | MIT; `grammars/runtime` also compiles two GPL-3.0 scanners (caddy, disassembly) and MPL-2.0 nim files, see §9 | https://github.com/odvcencio/gotreesitter |
 | `github.com/pdfcpu/pdfcpu` | v0.15.0 | Apache-2.0 | https://github.com/pdfcpu/pdfcpu |
 | `github.com/philippgille/chromem-go` | v0.7.0 | MPL-2.0 | https://github.com/philippgille/chromem-go |
 | `github.com/pkg/sftp` | v1.13.11 | BSD-2-Clause | https://github.com/pkg/sftp |
@@ -361,6 +362,8 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | whatsmeow | MPL-2.0 | WhatsApp channel |
 | go.mau.fi/util | MPL-2.0 | WhatsApp channel (whatsmeow dependency) |
 | go.mau.fi/libsignal | GPL-3.0 | WhatsApp channel (whatsmeow dependency); makes distributed AuraGo binaries GPL-3.0 combined works |
+| gotreesitter `grammars/runtime`: `caddy_scanner.go`, `disassembly_scanner.go` | GPL-3.0 | Native code graph; compiled by default (build tag `!gotreesitter_no_copyleft`, not set by the release builders); the linker drops the scanner functions and keeps their data; distributed AuraGo binaries are GPL-3.0 combined works for this reason as well |
+| gotreesitter `grammars/runtime`: `nim_scanner.go`, `support_nim.go` | MPL-2.0 | Native code graph; same build tag and linker behaviour |
 | Eclipse Paho MQTT | EPL-2.0 or EDL-1.0 (BSD-3-Clause); GPL-3.0 binaries use EDL-1.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
 | Arduino-ESP32 core | LGPL-2.1-or-later | CYD Creator builder image; linked into CYD firmware |
