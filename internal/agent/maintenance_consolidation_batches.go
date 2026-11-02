@@ -111,13 +111,8 @@ func extractConsolidationBatchesWithLLM(
 			{Role: openai.ChatMessageRoleSystem, Content: helperConsolidationBatchPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: strings.TrimSpace(prompt.String())},
 		},
-		MaxTokens: 1700,
-		ResponseFormat: func() *openai.ChatCompletionResponseFormat {
-			if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
-				return llm.JSONResponseFormat(caps.StructuredOutputs)
-			}
-			return nil
-		}(),
+		MaxTokens:      1700,
+		ResponseFormat: maintenanceJSONResponseFormat(cfg, model),
 	}
 	maxTokens, err := maintenanceCompletionBudget(cfg, request)
 	if err != nil {

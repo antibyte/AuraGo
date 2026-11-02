@@ -157,9 +157,7 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 	if errors.Is(openai.NewReasoningValidator().Validate(req), openai.ErrReasoningModelMaxTokensDeprecated) {
 		req.MaxTokens, req.MaxCompletionTokens, req.Temperature = 0, outputTokens, 0
 	}
-	if caps, ok := llm.CapabilitiesFromRegistry(route.ProviderType, req.Model); ok {
-		req.ResponseFormat = llm.JSONResponseFormat(caps.StructuredOutputs)
-	}
+	req.ResponseFormat = llm.JSONResponseFormatForModel(route.ProviderType, req.Model)
 	c.calls++
 	callCtx, capture := llm.CaptureUsage(ctx)
 	response, err := c.client.CreateChatCompletion(callCtx, req)

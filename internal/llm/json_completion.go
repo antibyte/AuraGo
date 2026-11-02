@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"aurago/internal/config"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -43,6 +45,17 @@ func JSONResponseFormat(supported bool) *openai.ChatCompletionResponseFormat {
 		return nil
 	}
 	return &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject}
+}
+
+// JSONResponseFormatForModel bounds known model support by the actual provider
+// transport. Unknown models keep the existing prompt/parse fallback.
+func JSONResponseFormatForModel(providerType, model string) *openai.ChatCompletionResponseFormat {
+	caps, known := CapabilitiesFromRegistry(providerType, model)
+	if !known {
+		return nil
+	}
+	caps = finishProviderCapabilities(config.ProviderEntry{Type: providerType, Model: model}, caps)
+	return JSONResponseFormat(caps.StructuredOutputs)
 }
 
 // JSONContentFromResponse validates completion state and returns normalized

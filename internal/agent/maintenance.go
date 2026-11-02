@@ -1264,13 +1264,8 @@ Conversation:
 			{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		MaxTokens: 1000,
-		ResponseFormat: func() *openai.ChatCompletionResponseFormat {
-			if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
-				return llm.JSONResponseFormat(caps.StructuredOutputs)
-			}
-			return nil
-		}(),
+		MaxTokens:      1000,
+		ResponseFormat: maintenanceJSONResponseFormat(cfg, model),
 	}
 	maxTokens, err := maintenanceCompletionBudget(cfg, request)
 	if err != nil {

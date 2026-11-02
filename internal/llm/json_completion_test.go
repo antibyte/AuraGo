@@ -2,10 +2,39 @@ package llm
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func TestJSONResponseFormatForModelBoundsKnownCapabilities(t *testing.T) {
+	for _, test := range []struct {
+		provider, model string
+		want            bool
+	}{
+		{"anthropic", "claude-sonnet-4-6", false},
+		{"opencode-go", "MiniMax-M3", false},
+		{"minimax", "MiniMax-M3", true},
+		{"opencode-go", "glm-5", true},
+		{"openai", "gpt-4o", true},
+		{"openai", "claude-sonnet-4-6", true},
+		{"aurago-local", "gpt-4o", false},
+		{"openai", "gpt-fixture-unknown-json-model", false},
+	} {
+		t.Run(test.provider+"/"+test.model, func(t *testing.T) {
+			before, known := CapabilitiesFromRegistry(test.provider, test.model)
+			format := JSONResponseFormatForModel(test.provider, test.model)
+			if (format != nil) != test.want || format != nil && format.Type != openai.ChatCompletionResponseFormatTypeJSONObject {
+				t.Fatalf("unexpected JSON response format: %+v", format)
+			}
+			after, afterKnown := CapabilitiesFromRegistry(test.provider, test.model)
+			if known != afterKnown || !reflect.DeepEqual(before, after) {
+				t.Fatal("format projection mutated raw model metadata")
+			}
+		})
+	}
+}
 
 func TestNormalizeJSONContentStripsThinkingAndCodeFence(t *testing.T) {
 	got, err := NormalizeJSONContent("<thinking>private reasoning</thinking>\n```json\n{\"ok\":true}\n```")

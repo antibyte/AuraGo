@@ -30,3 +30,11 @@ func maintenanceCompletionBudget(cfg *config.Config, request openai.ChatCompleti
 	}
 	return llm.JSONCompletionOutputBudget(limits, request.MaxTokens, inputTokens)
 }
+
+func maintenanceJSONResponseFormat(cfg *config.Config, model string) *openai.ChatCompletionResponseFormat {
+	providerType := cfg.LLM.ProviderType
+	if helper := llm.ResolveHelperLLM(cfg); helper.Enabled && helper.Model != "" {
+		providerType = helper.ProviderType
+	}
+	return llm.JSONResponseFormatForModel(providerType, model)
+}
