@@ -196,11 +196,21 @@
         return (rig.height || units) * designHeight * depth * actorScale * ((body && body.scale) || 1) / units;
     }
 
-    // seatedOffset(rig): how far the root drops (rig units) for seated poses.
+    // seatedOffset(rig): how far the root drops (rig units) for a seated pose that has no offset_y of its own: the rig's
+    // seat_drop, else seated_offset, else the length of the lower leg, else a fraction of the height.
     function seatedOffset(rig) {
+        if (typeof rig.seat_drop === 'number') return rig.seat_drop;
         if (typeof rig.seated_offset === 'number') return rig.seated_offset;
         var idx = index(rig), lower = idx.byName.lower_leg_l;
         return lower && lower.length > 0 ? lower.length : 0.24 * (rig.units_height || 400);
+    }
+
+    // poseDrop(rig, pose): how far a pose lowers the root (rig units, positive = down, like the cycle key offset_y): the
+    // pose's offset_y when it is a number, else seatedOffset for a seated pose, else 0.
+    function poseDrop(rig, pose) {
+        if (!pose) return 0;
+        if (typeof pose.offset_y === 'number') return pose.offset_y;
+        return pose.seated ? seatedOffset(rig) : 0;
     }
 
     // drawActor(ctx, rig, params, state, base, resolve, alpha): draws every visible slot. base is the matrix from rig
@@ -224,6 +234,6 @@
         VIEWS: VIEWS, IDENTITY: IDENTITY, mul: mul, translate: translate, rotate: rotate, index: index, bodyOf: bodyOf,
         addBones: addBones, lerpBones: lerpBones, boneAngles: boneAngles, boneMatrices: boneMatrices,
         sampleKeys: sampleKeys, handsAt: handsAt, cyclePhase: cyclePhase, tokensFor: tokensFor, scaleFor: scaleFor,
-        seatedOffset: seatedOffset, pickVariant: pickVariant, drawActor: drawActor
+        seatedOffset: seatedOffset, poseDrop: poseDrop, pickVariant: pickVariant, drawActor: drawActor
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

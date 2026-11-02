@@ -77,7 +77,7 @@
         var poseB = cat.poses[st.pose.b] || cat.poses.stand || { bones: {} };
         var u = st.pose.u;
         var bones = rg.lerpBones(poseA.bones, poseB.bones, u);
-        var seated = ((poseA.seated ? 1 - u : 0) + (poseB.seated ? u : 0));
+        var drop = rg.poseDrop(rig, poseA) * (1 - u) + rg.poseDrop(rig, poseB) * u;
         var hands = u >= 0.5 ? poseB.hands : poseA.hands;
         var walking = st.walkTime !== null && st.walkTime !== undefined;
         var cyc = walking ? cat.cycles.walk : cat.cycles.idle;
@@ -98,7 +98,7 @@
         return {
             view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
             mouth: null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
-            offsetY: seated * rg.seatedOffset(rig) + (cd.offset_y || 0) + (gd.offset_y || 0)
+            offsetY: drop + (cd.offset_y || 0) + (gd.offset_y || 0)
         };
     }
 

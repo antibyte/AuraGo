@@ -663,11 +663,21 @@
         return (rig.height || units) * designHeight * depth * actorScale * ((body && body.scale) || 1) / units;
     }
 
-    // seatedOffset(rig): how far the root drops (rig units) for seated poses.
+    // seatedOffset(rig): how far the root drops (rig units) for a seated pose that has no offset_y of its own: the rig's
+    // seat_drop, else seated_offset, else the length of the lower leg, else a fraction of the height.
     function seatedOffset(rig) {
+        if (typeof rig.seat_drop === 'number') return rig.seat_drop;
         if (typeof rig.seated_offset === 'number') return rig.seated_offset;
         var idx = index(rig), lower = idx.byName.lower_leg_l;
         return lower && lower.length > 0 ? lower.length : 0.24 * (rig.units_height || 400);
+    }
+
+    // poseDrop(rig, pose): how far a pose lowers the root (rig units, positive = down, like the cycle key offset_y): the
+    // pose's offset_y when it is a number, else seatedOffset for a seated pose, else 0.
+    function poseDrop(rig, pose) {
+        if (!pose) return 0;
+        if (typeof pose.offset_y === 'number') return pose.offset_y;
+        return pose.seated ? seatedOffset(rig) : 0;
     }
 
     // drawActor(ctx, rig, params, state, base, resolve, alpha): draws every visible slot. base is the matrix from rig
@@ -691,7 +701,7 @@
         VIEWS: VIEWS, IDENTITY: IDENTITY, mul: mul, translate: translate, rotate: rotate, index: index, bodyOf: bodyOf,
         addBones: addBones, lerpBones: lerpBones, boneAngles: boneAngles, boneMatrices: boneMatrices,
         sampleKeys: sampleKeys, handsAt: handsAt, cyclePhase: cyclePhase, tokensFor: tokensFor, scaleFor: scaleFor,
-        seatedOffset: seatedOffset, pickVariant: pickVariant, drawActor: drawActor
+        seatedOffset: seatedOffset, poseDrop: poseDrop, pickVariant: pickVariant, drawActor: drawActor
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
@@ -1919,7 +1929,7 @@
         var poseB = cat.poses[st.pose.b] || cat.poses.stand || { bones: {} };
         var u = st.pose.u;
         var bones = rg.lerpBones(poseA.bones, poseB.bones, u);
-        var seated = ((poseA.seated ? 1 - u : 0) + (poseB.seated ? u : 0));
+        var drop = rg.poseDrop(rig, poseA) * (1 - u) + rg.poseDrop(rig, poseB) * u;
         var hands = u >= 0.5 ? poseB.hands : poseA.hands;
         var walking = st.walkTime !== null && st.walkTime !== undefined;
         var cyc = walking ? cat.cycles.walk : cat.cycles.idle;
@@ -1940,7 +1950,7 @@
         return {
             view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
             mouth: null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
-            offsetY: seated * rg.seatedOffset(rig) + (cd.offset_y || 0) + (gd.offset_y || 0)
+            offsetY: drop + (cd.offset_y || 0) + (gd.offset_y || 0)
         };
     }
 

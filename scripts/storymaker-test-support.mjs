@@ -24,6 +24,24 @@ export const miniFiles = () => ({
     }
 });
 export const story = name => readJSON('internal/storymaker/testdata/stories/' + name + '.json');
+// stories that only the player tests use (the cast sheet that the parity browser test renders)
+export const playerStory = name => readJSON('internal/storymaker/testdata/player/' + name + '.json');
+
+// The real starter catalog (ui/img/storymaker, part D): the manifest, the rig, every prop and every environment file.
+export const REAL = 'ui/img/storymaker/';
+export const realCatalog = () => readJSON(REAL + 'catalog.json');
+let realCache = null;
+export function realFiles() {
+    if (!realCache) {
+        const cat = realCatalog(), props = {}, envs = {};
+        for (const e of cat.entries) {
+            if (e.kind === 'prop') props[e.file] = readJSON(REAL + e.file);
+            else if (e.kind === 'environment') envs[e.file] = readJSON(REAL + e.file);
+        }
+        realCache = { rig: readJSON(REAL + cat.rig.file), props, envs };
+    }
+    return realCache;
+}
 
 // ---- recording 2D context ---------------------------------------------------------------------------------------
 
@@ -138,8 +156,8 @@ export const hostSource = () => joined(storymakerHostParts);
 export const coreOf = context => context.StorymakerCore;
 
 // Render assets for the core tests: the mini catalog files and two canvases for transitions.
-export function renderAssets(extra = {}) {
-    const f = miniFiles(), canvases = {};
+export function renderAssets(extra = {}, files = miniFiles()) {
+    const f = files, canvases = {};
     return {
         rig: f.rig, props: f.props, envs: f.envs, codeFrames: {}, codeErrors: {},
         canvas(name, w, h) {
@@ -152,6 +170,9 @@ export function renderAssets(extra = {}) {
         ...extra
     };
 }
+
+// Render assets of the real starter catalog.
+export const realAssets = (extra = {}) => renderAssets(extra, realFiles());
 
 // ---- in-process worker --------------------------------------------------------------------------------------------
 
