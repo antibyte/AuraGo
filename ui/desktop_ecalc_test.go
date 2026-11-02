@@ -136,7 +136,11 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		ecalc_derived ecalc_eseries_nearest ecalc_eseries_series ecalc_lock ecalc_unlock ecalc_unit_auto ecalc_error_undetermined
 		ecalc_error_nonfinite ecalc_error_range ecalc_error_parse ecalc_error_locked ecalc_settings ecalc_settings_digits ecalc_settings_symbols ecalc_symbols_iec
 		ecalc_symbols_ansi ecalc_back ecalc_load_failed ecalc_retry ecalc_warnings ecalc_inputs ecalc_computed ecalc_dim_voltage ecalc_dim_current
-		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain`) {
+		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain
+		ecalc_dim_capacitance ecalc_dim_inductance ecalc_dim_frequency ecalc_dim_time ecalc_dim_length ecalc_dim_area ecalc_dim_temperature
+		ecalc_dim_tempdiff ecalc_dim_thermal_resistance ecalc_dim_resistivity ecalc_dim_tempco ecalc_dim_ratio ecalc_dim_angle ecalc_dim_baudrate
+		ecalc_dim_integer ecalc_unused_field ecalc_combos ecalc_combo_single ecalc_combo_series ecalc_combo_parallel ecalc_combo_value
+		ecalc_combo_deviation ecalc_chart`) {
 		allowed["desktop."+key] = true
 	}
 	keyPattern := regexp.MustCompile(`['"](desktop\.[A-Za-z0-9_.]+)['"]`)
@@ -158,7 +162,9 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		words := readMergedLangMap(t, lang)
-		for _, dim := range []string{"voltage", "current", "resistance", "power", "charge", "energy", "number", "gain"} {
+		for _, dim := range []string{"voltage", "current", "resistance", "power", "charge", "energy", "number", "gain",
+			"capacitance", "inductance", "frequency", "time", "length", "area", "temperature", "tempdiff", "thermal_resistance",
+			"resistivity", "tempco", "ratio", "angle", "baudrate", "integer"} {
 			if strings.TrimSpace(words["desktop.ecalc_dim_"+dim]) == "" {
 				t.Errorf("%s misses desktop.ecalc_dim_%s, which the unit dropdown looks up dynamically", lang, dim)
 			}

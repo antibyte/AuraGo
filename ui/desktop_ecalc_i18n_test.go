@@ -25,6 +25,13 @@ var ecalcLocaleKeys = []string{
 	"desktop.ecalc_dim_voltage", "desktop.ecalc_dim_current", "desktop.ecalc_dim_resistance",
 	"desktop.ecalc_dim_power", "desktop.ecalc_dim_charge", "desktop.ecalc_dim_energy",
 	"desktop.ecalc_dim_number", "desktop.ecalc_dim_gain",
+	// Phase 2: the dimensions of the calculator library, the dimmed field, the standard-value combiner and the chart.
+	"desktop.ecalc_dim_capacitance", "desktop.ecalc_dim_inductance", "desktop.ecalc_dim_frequency", "desktop.ecalc_dim_time",
+	"desktop.ecalc_dim_length", "desktop.ecalc_dim_area", "desktop.ecalc_dim_temperature", "desktop.ecalc_dim_tempdiff",
+	"desktop.ecalc_dim_thermal_resistance", "desktop.ecalc_dim_resistivity", "desktop.ecalc_dim_tempco", "desktop.ecalc_dim_ratio",
+	"desktop.ecalc_dim_angle", "desktop.ecalc_dim_baudrate", "desktop.ecalc_dim_integer",
+	"desktop.ecalc_unused_field", "desktop.ecalc_combos", "desktop.ecalc_combo_single", "desktop.ecalc_combo_series",
+	"desktop.ecalc_combo_parallel", "desktop.ecalc_combo_value", "desktop.ecalc_combo_deviation", "desktop.ecalc_chart",
 }
 
 func TestDesktopECalcLocaleKeysExistInAllLanguages(t *testing.T) {
@@ -47,6 +54,9 @@ func TestDesktopECalcLocaleKeysExistInAllLanguages(t *testing.T) {
 		}
 		if !strings.Contains(values["desktop.ecalc_eseries_nearest"], "{series}") {
 			t.Fatalf("%s: desktop.ecalc_eseries_nearest must keep the {series} placeholder: %q", path, values["desktop.ecalc_eseries_nearest"])
+		}
+		if !strings.Contains(values["desktop.ecalc_combos"], "{series}") {
+			t.Fatalf("%s: desktop.ecalc_combos must keep the {series} placeholder: %q", path, values["desktop.ecalc_combos"])
 		}
 	}
 }
