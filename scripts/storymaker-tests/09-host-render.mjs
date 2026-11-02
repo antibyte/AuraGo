@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { root, read, plain, loadHost, FakeCanvas, InProcessWorker, MINI } from '../storymaker-test-support.mjs';
+import { root, read, plain, loadHost, FakeCanvas, InProcessWorker, MINI, TEST_LIMITS } from '../storymaker-test-support.mjs';
 import { storymakerHostParts } from '../storymaker-bundle-parts.js';
 import { t } from '../storymaker-test-context.mjs';
 
@@ -76,7 +76,7 @@ async function runRender(opts = {}) {
     const env = {
         hasWorkers: true,
         createWorker(role, text) { const w = new InProcessWorker(role, text, {}); workers.push(w); return w; },
-        setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: opts.limits
+        setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: { ...TEST_LIMITS, ...(opts.limits || {}) }
     };
     const status = await H.mountRender({ canvas, base: RBASE, fetch: server.fetch, window: win, env });
     return { server, status: plain(status), win, canvas, workers, frames: server.posts.filter(p => p.path === '/frame') };

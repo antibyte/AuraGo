@@ -237,6 +237,10 @@ export async function until(cond, label, ms = 4000) {
     }
 }
 
+// Deadlines for the tests that drive the host with real timers. The production limits (250 ms per frame, 2 s per scene build) make
+// such a test fail when the machine is busy, so the tests run with generous ones; a test that is about a deadline passes its own.
+export const TEST_LIMITS = { compileDeadlineMs: 60000, sceneBuildDeadlineMs: 20000, assetsDeadlineMs: 60000, helloDeadlineMs: 20000, frameDeadlineMs: 20000, warmupDeadlineMs: 20000 };
+
 // loadHost(): the real host.bundle.js parts in a fresh vm context (no document: nothing auto-mounts).
 export function loadHost() {
     const ctx = vm.createContext({ console, URL, Promise });

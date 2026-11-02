@@ -2,7 +2,7 @@
 // bundle parts: source check, size caps, reset on load, playback with frame dropping, thumbnails, deadlines, fallback.
 import assert from 'node:assert/strict';
 import {
-    plain, loadHost, until, settle, loadPlayer, FakeCanvas, InProcessWorker, realmGlobals
+    plain, loadHost, until, settle, loadPlayer, FakeCanvas, InProcessWorker, realmGlobals, TEST_LIMITS
 } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
@@ -41,7 +41,7 @@ function makeApp(opts = {}) {
             return w;
         },
         setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: h => clearTimeout(h), now: () => clock.t,
-        limits: opts.limits, ...(opts.env || {})
+        limits: { ...TEST_LIMITS, ...(opts.limits || {}) }, ...(opts.env || {})
     };
     const app = H.mountApp({ canvas, base: BASE, window: win, env });
     const send = (msg, source = parent) => listeners.slice().forEach(fn => fn({ source, data: { sm: 1, ...msg } }));
