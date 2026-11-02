@@ -37,6 +37,15 @@ const (
 	MaxListLength  = 256
 )
 
+// A parsed value is 0 or has a magnitude within MinMagnitude .. MaxMagnitude (after the unit conversion); anything else
+// is a parse error. The rest of the engine and the page (a chart axis, the combiner's target/1000 and target*1000, the
+// E-series lookup) work on ordinary doubles; the limits keep typed numbers away from the denormals and the overflow,
+// 8 decades inside each end of the doubles.
+const (
+	MinMagnitude = 1e-300
+	MaxMagnitude = 1e300
+)
+
 // maxSafeInt is 2^53 - 1, the largest whole number that a double (and a JavaScript number) holds exactly. The values of
 // an integer dimension and the numbers of a radix unit stay within 0 .. maxSafeInt.
 const maxSafeInt = 9007199254740991
@@ -417,7 +426,8 @@ func (u *Units) ParseList(input, dimID, unitID string) ([]float64, error) {
 }
 
 // parseNormalized reads one value from folded text without blanks (a decimal comma already turned into a point). The
-// result must be finite, like in the ECMAScript twin: "1e400" or a product that overflows is a parse error.
+// result must be finite and 0 or of a magnitude within MinMagnitude .. MaxMagnitude, like in the ECMAScript twin:
+// "1e400", "1e301" or a product that overflows is a parse error.
 func (u *Units) parseNormalized(d *Dim, s, unitID string) (float64, error) {
 	v, err := u.parseValue(d, s, unitID)
 	if err != nil {
@@ -425,6 +435,9 @@ func (u *Units) parseNormalized(d *Dim, s, unitID string) (float64, error) {
 	}
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		return 0, fmt.Errorf("the value %q is out of range", s)
+	}
+	if a := math.Abs(v); a != 0 && (a < MinMagnitude || a > MaxMagnitude) {
+		return 0, fmt.Errorf("the value %q is out of range (0 or between %v and %v)", s, MinMagnitude, MaxMagnitude)
 	}
 	return v, nil
 }

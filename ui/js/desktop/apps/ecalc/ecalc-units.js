@@ -24,6 +24,10 @@
     // the same way).
     const MAX_VALUE_LENGTH = 64;
     const MAX_LIST_LENGTH = 256;
+    // A parsed value is 0 or has a magnitude within these limits (MinMagnitude and MaxMagnitude in units.go): the
+    // combiner, the chart axis and the E-series lookup only ever see ordinary doubles.
+    const MIN_MAGNITUDE = 1e-300;
+    const MAX_MAGNITUDE = 1e300;
     const PREFIX_UNIT = 'prefix:';
     // Number systems (radix units of an integer dimension): the optional prefix letter, the digit patterns (underscores
     // between digits) and the largest whole number a double holds exactly, 2^53 - 1.
@@ -170,8 +174,10 @@
             return finite(value * prefixFactor.get(prefix));
         }
 
+        // A parsed value is finite and 0 or of a magnitude within MIN_MAGNITUDE .. MAX_MAGNITUDE (after the unit conversion).
         function finite(value) {
-            if (!Number.isFinite(value)) throw fail('the value is out of range');
+            const magnitude = Math.abs(value);
+            if (!Number.isFinite(value) || (magnitude !== 0 && (magnitude < MIN_MAGNITUDE || magnitude > MAX_MAGNITUDE))) throw fail('the value is out of range');
             return value;
         }
 
@@ -232,5 +238,5 @@
         return { dim, parse, parseList, format, options, maxLength, roundSig, fmtNum, fmtSig };
     }
 
-    core.units = { create, roundSig, fmtNum, fmtSig, PREFIX_UNIT, MAX_VALUE_LENGTH, MAX_LIST_LENGTH };
+    core.units = { create, roundSig, fmtNum, fmtSig, PREFIX_UNIT, MAX_VALUE_LENGTH, MAX_LIST_LENGTH, MIN_MAGNITUDE, MAX_MAGNITUDE };
 })();

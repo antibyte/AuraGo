@@ -453,7 +453,18 @@ for (const item of calculators) {
     eq(S.restoreState(series, roomy, units, auto).inputs, roomy.inputs, 'a list text of 159 characters is within the list limit');
     const tooLong = { inputs: { rs: '1 '.repeat(129) }, recency: ['rs'], locked: [], choices: {} };
     eq(S.restoreState(series, tooLong, units, auto), S.defaultState(series, units, auto), 'a stored list beyond 256 characters is not used');
-    count += 23;
+    // A stored text that no longer parses (a value from before the magnitude limit, or text that never read) is not used, so
+    // an old poisoned value cannot keep a page closed: the state falls back to the defaults.
+    for (const [name, text] of [['r1', '1e305'], ['r1', '5e-324'], ['vin', '1e-301 V'], ['r2', 'abc'], ['r2', '']]) {
+        const poisoned = Object.assign({}, stored, { inputs: Object.assign({}, stored.inputs, { [name]: text }) });
+        eq(S.restoreState(divider, poisoned, units, auto), S.defaultState(divider, units, auto), `a stored ${name} of ${JSON.stringify(text)} is not used`);
+    }
+    const poisonedList = { inputs: { rs: '10k 1e305' }, recency: ['rs'], locked: [], choices: {} };
+    eq(S.restoreState(series, poisonedList, units, auto), S.defaultState(series, units, auto), 'a stored list with an item that no longer parses is not used');
+    // The text is read under the unit stored for its field.
+    const keV = S.restoreState(divider, { inputs: { vin: '5', r1: '1k', r2: '1k' }, recency: [], locked: [], choices: {} }, units, name => (name === 'vin' ? 'prefix:k' : ''));
+    eq(keV.inputs, { vin: '5', r1: '1k', r2: '1k' }, 'a bare number reads under the stored display unit of its field');
+    count += 30;
 }
 
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------

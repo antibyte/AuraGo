@@ -141,15 +141,25 @@
 
     // A stored state is only used when its inputs are one of the solvable sets; anything else falls back to the defaults.
     // A stored text longer than its field accepts (units.maxLength) counts as unusable, so such a state is not used
-    // either. Only inputs can be locked: a stored lock on any other variable is dropped.
+    // either, and neither is a stored text that no longer parses under the unit stored for its field (a value from before
+    // the magnitude limit of the parser, or text that never read): an old poisoned value cannot keep a page closed.
+    // Only inputs can be locked: a stored lock on any other variable is dropped.
     function restoreState(calc, stored, units, unitOf) {
         const base = defaultState(calc, units, unitOf);
         if (!stored || typeof stored !== 'object' || !stored.inputs || typeof stored.inputs !== 'object') return base;
         const names = Object.keys(stored.inputs);
         const sameSet = calc.sets.some(set => set.length === names.length && set.every(name => names.includes(name)));
+        const reads = (v, text) => {
+            try {
+                if (v.list) units.parseList(text, v.dim, unitOf(v.id)); else units.parse(text, v.dim, unitOf(v.id));
+                return true;
+            } catch (error) {
+                return false;
+            }
+        };
         const fits = name => {
-            const v = calc.vars.find(entry => entry.id === name);
-            return typeof stored.inputs[name] === 'string' && stored.inputs[name].length <= units.maxLength(!!(v && v.list));
+            const v = calc.vars.find(entry => entry.id === name), text = stored.inputs[name];
+            return typeof text === 'string' && text.length <= units.maxLength(!!(v && v.list)) && !!v && reads(v, text);
         };
         if (!sameSet || !names.every(fits)) return base;
         const recency = (Array.isArray(stored.recency) ? stored.recency : []).filter(name => names.includes(name));
