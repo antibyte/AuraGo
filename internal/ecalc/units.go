@@ -284,6 +284,9 @@ func parseUnitExpr(errs *[]error, dim, unit, src string) *Node {
 				err = fmt.Errorf("unknown variable %q (only x is allowed)", dep)
 			}
 		}
+		if hasTableCall(n) {
+			err = errors.New("table functions are not allowed in a unit conversion")
+		}
 	}
 	if err != nil {
 		*errs = append(*errs, fmt.Errorf("units: dim %q unit %q: %q: %v", dim, unit, src, err))

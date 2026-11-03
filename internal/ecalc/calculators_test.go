@@ -67,18 +67,6 @@ func loadVectors(t *testing.T, id string) calcVectors {
 	return v
 }
 
-// selectedConsts returns the constants of the selected option of every choice.
-func selectedConsts(c *Calculator, choices map[string]string) map[string]float64 {
-	out := map[string]float64{}
-	for i := range c.Choices {
-		ch := &c.Choices[i]
-		for name, x := range ch.option(choices[ch.ID]).Consts {
-			out[name] = x
-		}
-	}
-	return out
-}
-
 func TestCalculatorVectors(t *testing.T) {
 	cat, err := Default()
 	if err != nil {
@@ -129,7 +117,8 @@ func TestCalculatorVectors(t *testing.T) {
 				}
 
 				// (a) every alternative of every rule and derived quantity reproduces its target.
-				env := Env{Vals: selectedConsts(c, s.Choices), Lists: lists}
+				env := c.EvalEnv(s.Choices) // the constants and table aliases of the options, and the tables
+				env.Lists = lists
 				for k, x := range vals {
 					env.Vals[k] = x
 				}

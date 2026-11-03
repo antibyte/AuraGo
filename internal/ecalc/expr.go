@@ -30,17 +30,23 @@ type Node struct {
 	Parts []*Node
 }
 
-// Env holds the values an expression may reference: scalars by name and lists (for sum and par) by name.
+// Env holds the values an expression may reference: scalars by name and lists (for sum and par) by name. Refs and
+// Tables serve the table functions lookup, lookup_ge and interp: Refs maps the aliases that the selected choice options
+// define to table or column ids, Tables holds the tables of the catalog by id (see Calculator.EvalEnv).
 type Env struct {
-	Vals  map[string]float64
-	Lists map[string][]float64
+	Vals   map[string]float64
+	Lists  map[string][]float64
+	Refs   map[string]string
+	Tables map[string]*Table
 }
 
-// funcArity is the fixed function whitelist: name -> {min, max} argument count (max -1 = unbounded).
+// funcArity is the fixed function whitelist: name -> {min, max} argument count (max -1 = unbounded). lookup, lookup_ge
+// and interp are the table functions (tablefuncs.go); their table and column arguments must be plain names.
 var funcArity = map[string][2]int{
 	"sqrt": {1, 1}, "ln": {1, 1}, "log10": {1, 1}, "exp": {1, 1}, "sin": {1, 1}, "cos": {1, 1},
 	"tan": {1, 1}, "atan": {1, 1}, "abs": {1, 1}, "round": {1, 1}, "floor": {1, 1}, "ceil": {1, 1},
 	"min": {2, -1}, "max": {2, -1}, "if": {3, 3}, "sum": {1, 1}, "par": {1, 1},
+	"lookup": {3, 3}, "lookup_ge": {4, 4}, "interp": {4, 4},
 }
 
 func isFunc(name string) bool {
@@ -352,6 +358,13 @@ func (p *parser) parseCall(name token) (*Node, error) {
 	if len(args) < arity[0] || (arity[1] >= 0 && len(args) > arity[1]) {
 		return nil, fmt.Errorf("wrong number of arguments (%d) for function %q at position %d", len(args), name.text, name.pos)
 	}
+	if tf, ok := tableFuncs[name.text]; ok {
+		for _, p := range tf.refs {
+			if args[p].T != "id" {
+				return nil, fmt.Errorf("argument %d of %q must be a table or column name at position %d", p+1, name.text, name.pos)
+			}
+		}
+	}
 	return &Node{T: "call", Name: name.text, Args: args}, nil
 }
 
@@ -384,7 +397,8 @@ func sexpList(nodes []*Node) string {
 	return b.String()
 }
 
-// Deps returns the sorted, unique identifiers an expression uses, without function names and without pi.
+// Deps returns the sorted, unique identifiers an expression uses, without function names, without pi and without the
+// table and column names that the arguments of lookup, lookup_ge and interp carry.
 func Deps(n *Node) []string {
 	seen := map[string]bool{}
 	var walk func(*Node)
@@ -398,7 +412,7 @@ func Deps(n *Node) []string {
 		walk(n.A)
 		walk(n.L)
 		walk(n.R)
-		for _, a := range n.Args {
+		for _, a := range valueArgs(n) {
 			walk(a)
 		}
 		for _, a := range n.Parts {
@@ -502,6 +516,8 @@ func log10(x float64) float64 {
 
 func evalCall(n *Node, env Env) (float64, error) {
 	switch n.Name {
+	case "lookup", "lookup_ge", "interp":
+		return evalTableCall(n, env)
 	case "if":
 		c, err := Eval(n.Args[0], env)
 		if err != nil {

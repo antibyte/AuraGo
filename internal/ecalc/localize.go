@@ -48,6 +48,7 @@ type optionJSON struct {
 	Name   string             `json:"name"`
 	Consts map[string]float64 `json:"consts"`
 	Ignore []string           `json:"ignore"`
+	Refs   map[string]string  `json:"refs"`
 }
 
 type choiceJSON struct {
@@ -209,7 +210,11 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 				if consts == nil {
 					consts = map[string]float64{}
 				}
-				cj.Options = append(cj.Options, optionJSON{ID: o.ID, Name: o.Name.in(lang), Consts: consts, Ignore: orEmpty(o.Ignore)})
+				refs := o.Refs
+				if refs == nil {
+					refs = map[string]string{}
+				}
+				cj.Options = append(cj.Options, optionJSON{ID: o.ID, Name: o.Name.in(lang), Consts: consts, Ignore: orEmpty(o.Ignore), Refs: refs})
 			}
 			it.Choices = append(it.Choices, cj)
 		}

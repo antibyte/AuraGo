@@ -32,10 +32,22 @@
         return consts;
     }
 
+    // The table aliases (refs) of the selected option of every choice, for lookup, lookup_ge and interp.
+    function choiceRefs(calc, choices) {
+        const refs = {};
+        for (const choice of calc.choices || []) {
+            const wanted = choices && choices[choice.id];
+            const option = choice.options.find(entry => entry.id === wanted) || choice.options.find(entry => entry.id === choice.default) || choice.options[0];
+            if (option) Object.assign(refs, option.refs || {});
+        }
+        return refs;
+    }
+
     // Solve(calc, inputs, choices, units) -> {values, computed, errors, warnings}. `units` supplies dim(id).positive.
+    // The tables the calculator reads are those registered with ECalcCore.tables.
     function solve(calc, inputs, choices, units) {
         const env = Object.create(null), known = new Set();
-        const consts = choiceConsts(calc, choices);
+        const consts = choiceConsts(calc, choices), refs = choiceRefs(calc, choices);
         for (const name of Object.keys(consts)) { env[name] = consts[name]; known.add(name); }
         // Only primary variables can be inputs; any other name in `inputs` is ignored.
         for (const v of calc.vars) {
@@ -54,7 +66,7 @@
                     const ast = expr.parseCached(alt);
                     if (!expr.deps(ast).every(name => known.has(name))) continue;
                     let value;
-                    try { value = expr.evaluate(ast, env); } catch (error) { value = NaN; }
+                    try { value = expr.evaluate(ast, env, refs); } catch (error) { value = NaN; }
                     env[item.target] = value;
                     known.add(item.target);
                     computed.push(item.target);
@@ -85,7 +97,7 @@
             const ast = expr.parseCached(check.when);
             if (!expr.deps(ast).every(name => known.has(name) && isFiniteValue(env[name]))) return;
             let result;
-            try { result = expr.evaluate(ast, env); } catch (error) { return; }
+            try { result = expr.evaluate(ast, env, refs); } catch (error) { return; }
             if (result !== 0 && !Number.isNaN(result)) warnings.push(index);
         });
         return { values, computed, errors, warnings };
@@ -214,5 +226,5 @@
         return Object.assign({}, state, { locked });
     }
 
-    core.solve = { solve, chooseInputs, choiceConsts, defaultState, restoreState, readInputs, applyEdit, toggleLock, exactText };
+    core.solve = { solve, chooseInputs, choiceConsts, choiceRefs, defaultState, restoreState, readInputs, applyEdit, toggleLock, exactText };
 })();

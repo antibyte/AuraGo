@@ -1580,7 +1580,8 @@
               "consts": {
                 "k": 20
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "power",
@@ -1588,7 +1589,8 @@
               "consts": {
                 "k": 10
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -2246,7 +2248,8 @@
                 "cf": 1.4142135623730951,
                 "ff": 1.1107207345395915
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "square",
@@ -2255,7 +2258,8 @@
                 "cf": 1,
                 "ff": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "triangle",
@@ -2264,7 +2268,8 @@
                 "cf": 1.7320508075688772,
                 "ff": 1.1547005383792515
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -2903,7 +2908,8 @@
                 "cbmax": 4e-10,
                 "tr": 0.000001
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "fast",
@@ -2912,7 +2918,8 @@
                 "cbmax": 4e-10,
                 "tr": 3e-7
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "fastplus",
@@ -2921,7 +2928,8 @@
                 "cbmax": 5.5e-10,
                 "tr": 1.2e-7
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -3287,7 +3295,8 @@
               "consts": {
                 "os": 16
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "x8",
@@ -3295,7 +3304,8 @@
               "consts": {
                 "os": 8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -4109,7 +4119,8 @@
               "consts": {
                 "s": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "parallel",
@@ -4117,7 +4128,8 @@
               "consts": {
                 "s": -1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -6845,7 +6857,8 @@
               },
               "ignore": [
                 "l"
-              ]
+              ],
+              "refs": {}
             },
             {
               "id": "rl",
@@ -6856,7 +6869,8 @@
               },
               "ignore": [
                 "c"
-              ]
+              ],
+              "refs": {}
             },
             {
               "id": "rlc",
@@ -6865,7 +6879,8 @@
                 "uc": 1,
                 "ul": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -7043,7 +7058,8 @@
               },
               "ignore": [
                 "l"
-              ]
+              ],
+              "refs": {}
             },
             {
               "id": "rl",
@@ -7054,7 +7070,8 @@
               },
               "ignore": [
                 "c"
-              ]
+              ],
+              "refs": {}
             },
             {
               "id": "rlc",
@@ -7063,7 +7080,8 @@
                 "uc": 1,
                 "ul": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -7229,7 +7247,8 @@
                 "kf": 1,
                 "ki": 0
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "discharge",
@@ -7238,7 +7257,8 @@
                 "kf": 0,
                 "ki": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -8120,7 +8140,8 @@
                 "alpha": 0.00393,
                 "rho": 1.7241e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "aluminium",
@@ -8129,7 +8150,8 @@
                 "alpha": 0.00403,
                 "rho": 2.8264e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "silver",
@@ -8138,7 +8160,8 @@
                 "alpha": 0.0038,
                 "rho": 1.59e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -9328,7 +9351,8 @@
               "consts": {
                 "m": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "full",
@@ -9336,7 +9360,8 @@
               "consts": {
                 "m": 2
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -10202,7 +10227,8 @@
                 "alpha": 0.00393,
                 "rho20": 1.7241379310344825e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "aluminium",
@@ -10211,7 +10237,8 @@
                 "alpha": 0.00403,
                 "rho20": 2.8264e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         },
@@ -10230,7 +10257,8 @@
               },
               "ignore": [
                 "cosphi"
-              ]
+              ],
+              "refs": {}
             },
             {
               "id": "single",
@@ -10240,7 +10268,8 @@
                 "n": 2,
                 "u": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "three",
@@ -10250,7 +10279,8 @@
                 "n": 3,
                 "u": 1
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -11626,7 +11656,8 @@
               "consts": {
                 "rho": 1.7241e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "silver",
@@ -11634,7 +11665,8 @@
               "consts": {
                 "rho": 1.587e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "gold",
@@ -11642,7 +11674,8 @@
               "consts": {
                 "rho": 2.214e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "aluminium",
@@ -11650,7 +11683,8 @@
               "consts": {
                 "rho": 2.65e-8
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }
@@ -14293,7 +14327,8 @@
               "consts": {
                 "k": 0.048
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             },
             {
               "id": "internal",
@@ -14301,7 +14336,8 @@
               "consts": {
                 "k": 0.024
               },
-              "ignore": []
+              "ignore": [],
+              "refs": {}
             }
           ]
         }

@@ -1,5 +1,5 @@
 // ECalc desktop app: parity test of the JavaScript core against the shared vectors of the Go package.
-// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset,chart}.js run in a Node vm (no document;
+// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,tables,typeset,chart}.js run in a Node vm (no document;
 // ecalc-calc-page.js is loaded too, only its launchState is called),
 // the calculators come from internal/ecalc/testdata/catalog.en.json (the catalog JSON of the server route), and every case
 // of internal/ecalc/testdata/vectors/core.json and vectors/calculators/*.json must give the same result as Go: numbers match
@@ -14,7 +14,7 @@ import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js', 'ecalc-chart.js', 'ecalc-calc-page.js'];
+const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-tables.js', 'ecalc-typeset.js', 'ecalc-chart.js', 'ecalc-calc-page.js'];
 const plain = value => JSON.parse(JSON.stringify(value));
 // The core runs in its own vm realm, so what it returns is compared as plain JSON.
 const eq = (actual, expected, message) => assert.deepStrictEqual(plain(actual), plain(expected), message);
@@ -30,7 +30,7 @@ const bounded = (code, args) => {
 };
 const combineWithin = (series, target, limit) => bounded('window.ECalcCore.eseries.combine(...args)', [series, target, limit]);
 const core = window.ECalcCore, Typeset = window.ECalcTypeset;
-assert.ok(core && core.expr && core.units && core.eseries && core.solve && Typeset, 'the core files publish window.ECalcCore and window.ECalcTypeset');
+assert.ok(core && core.expr && core.units && core.eseries && core.solve && core.tables && Typeset, 'the core files publish window.ECalcCore and window.ECalcTypeset');
 const catalog = JSON.parse(read('internal/ecalc/testdata/catalog.en.json'));
 const units = core.units.create(catalog.units);
 const calcOf = id => {
@@ -73,7 +73,7 @@ let count = 0;
 
 // ---- core.json: expressions, units, E-series --------------------------------------------------------------------------
 const vectors = JSON.parse(read('internal/ecalc/testdata/vectors/core.json'));
-const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range', 'combine', 'combine_count', 'combine_error'];
+const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range', 'table_functions', 'table_function_errors', 'table_solve', 'combine', 'combine_count', 'combine_error'];
 for (const section of sections) assert.ok(Array.isArray(vectors[section]) && vectors[section].length > 0, `core.json has no ${section} vectors`);
 const expr = core.expr;
 const environment = v => Object.assign({}, v.env || {}, v.lists || {});
@@ -133,6 +133,34 @@ for (const v of vectors.solve_range) {
     count += 1;
 }
 
+// ---- tables: lookup, lookup_ge and interp against the fixture of core.json, and the tables of the catalog -------------
+// The catalog's tables are registered like the shell does after the catalog loads; the fixture adds t_fix, t_alt, t_dec
+// and t_txt and the calculator ec_fix, whose choice options select the table and the column through refs.
+core.tables.register(catalog.items);
+core.tables.register(vectors.table_fixture.items);
+const fixtureCalc = vectors.table_fixture.items.find(item => item.id === 'ec_fix');
+assert.ok(fixtureCalc && core.tables.get('t_fix') && core.tables.get('t_alt'), 'the fixture tables are registered');
+eq(core.tables.get('t_fix').item.finder, { calc: 'ec_fix', column: 'x', var: 'q', choices: { src: 'a' } }, 'the table item keeps its finder');
+assert.equal(core.tables.get('ec_fix'), null, 'a calculator is no table');
+for (const v of vectors.table_functions) {
+    assert.ok(v.ref, `table function ${v.expr} has no ref`);
+    same(expr.evaluate(expr.parse(v.expr), environment(v), v.refs), v.want, 'table function ' + v.expr);
+    count += 1;
+}
+for (const v of vectors.table_function_errors) { throwsCode(() => expr.evaluate(expr.parse(v.expr), environment(v), v.refs), 'eval', 'table function error: ' + v.expr); count += 1; }
+for (const v of vectors.table_solve) {
+    const result = core.solve.solve(fixtureCalc, v.inputs, v.choices || {}, units);
+    for (const [name, want] of Object.entries(v.expect)) same(result.values[name], want, `table solve ${v.ref}: ${name}`);
+    eq(result.errors, v.errors || {}, `table solve ${v.ref}: errors`);
+    count += 1;
+}
+assert.equal(core.tables.findRow('t_fix', 'x', 4), 2, 'findRow finds the row of a value');
+assert.equal(core.tables.findRow('t_fix', 'x', 4.0000000001), 2, 'findRow matches within 1e-9 relative');
+assert.equal(core.tables.findRow('t_fix', 'x', 5), -1, 'findRow gives -1 without a row');
+assert.throws(() => core.tables.findRow('t_fix', 'n', 1), error => error.code === 'eval', 'findRow refuses a text column');
+assert.throws(() => core.tables.findRow('t_nowhere', 'x', 1), error => error.code === 'eval', 'findRow refuses an unknown table');
+count += 5;
+
 // ---- calculators/*.json: consistent solutions and single solves -----------------------------------------------------
 const split = values => {
     const env = {};
@@ -156,9 +184,9 @@ for (const item of calculators) {
         const label = `${item.id} set ${index} (${entry.ref})`;
         const values = split(entry.values);
         // (a) every alternative of every rule and derived quantity reproduces its target
-        const env = Object.assign({}, core.solve.choiceConsts(item, entry.choices || {}), values);
+        const env = Object.assign({}, core.solve.choiceConsts(item, entry.choices || {}), values), refs = core.solve.choiceRefs(item, entry.choices || {});
         for (const target of item.rules.map(rule => ({ name: rule.target, alts: rule.alts })).concat(item.derived.map(d => ({ name: d.id, alts: d.alts })))) {
-            target.alts.forEach((alt, altIndex) => same(expr.evaluate(expr.parseCached(alt), env), values[target.name], `${label}: ${target.name} alternative ${altIndex} (${alt})`, SOLVE_TOLERANCE));
+            target.alts.forEach((alt, altIndex) => same(expr.evaluate(expr.parseCached(alt), env, refs), values[target.name], `${label}: ${target.name} alternative ${altIndex} (${alt})`, SOLVE_TOLERANCE));
         }
         // (b) every solvable input set reproduces the whole solution
         for (const names of item.sets) {

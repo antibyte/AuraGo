@@ -261,6 +261,9 @@ func TestLocalizedJSONNeverHasNullCollections(t *testing.T) {
 				if _, ok := o.(map[string]any)["ignore"].([]any); !ok {
 					t.Errorf("item %v choice option %v: ignore is not an array", it["id"], o.(map[string]any)["id"])
 				}
+				if _, ok := o.(map[string]any)["refs"].(map[string]any); !ok {
+					t.Errorf("item %v choice option %v: refs is not an object", it["id"], o.(map[string]any)["id"])
+				}
 			}
 		}
 	}

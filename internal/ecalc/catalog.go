@@ -63,12 +63,15 @@ type Var struct {
 }
 
 // ChoiceOption is one option of a choice; its consts become known names while it is selected. Ignore lists the
-// primary variables this option does not use (the page dims them); the solver does not change.
+// primary variables this option does not use (the page dims them); the solver does not change. Refs defines table
+// aliases: while the option is selected, the alias names the table or column in the table functions (every option of a
+// choice defines the same aliases, so the choice selects the table or the column).
 type ChoiceOption struct {
 	ID     string
 	Name   Text
 	Consts map[string]float64
 	Ignore []string
+	Refs   map[string]string
 }
 
 // Choice is a selector (for example the waveform) whose selected option supplies constants to the rules.
@@ -146,7 +149,9 @@ type Calculator struct {
 	// order (see SolvableSets). Load fills it in.
 	Sets [][]string
 
-	varByID map[string]*Var
+	varByID     map[string]*Var
+	aliasChoice map[string]int    // table alias -> index of the choice that defines it
+	tables      map[string]*Table // the tables of the catalog, set by Load
 }
 
 // Var returns the primary variable with the given id, or nil.
@@ -246,6 +251,7 @@ type rawOption struct {
 	Name   Text               `yaml:"name"`
 	Consts map[string]float64 `yaml:"consts"`
 	Ignore []string           `yaml:"ignore"`
+	Refs   map[string]string  `yaml:"refs"`
 }
 
 type rawDerived struct {
@@ -312,6 +318,8 @@ func Load(fsys fs.FS) (*Catalog, error) {
 	if err := l.codes(fsys, cat); err != nil {
 		return nil, err
 	}
+	l.checkTableUse(cat)
+	l.checkFinders(cat)
 	if len(l.errs) > 0 {
 		return nil, errors.Join(l.errs...)
 	}
@@ -442,7 +450,7 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 	c := &Calculator{
 		ID: r.ID, Kind: r.Kind, Category: r.Category, Name: r.Name, Doc: r.Doc, Tags: r.Tags,
 		Source: r.Source, DOF: r.DOF, Formula: r.Formula, Schematic: r.Schematic, Finder: r.Finder,
-		varByID: map[string]*Var{},
+		varByID: map[string]*Var{}, aliasChoice: map[string]int{},
 	}
 	l.claimID(r.ID, file, fail)
 	if r.Kind != "calculator" {
@@ -553,14 +561,14 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		if len(optEntries) < 2 {
 			fail("choice %s needs at least two options", ch.ID)
 		}
-		var constNames []string
+		var constNames, refNames []string
 		for i, oe := range optEntries {
 			var ro rawOption
 			if err := decodeNode(oe.Val, &ro); err != nil {
 				fail("choice %s option %s: %v", ch.ID, oe.Key, err)
 				continue
 			}
-			opt := ChoiceOption{ID: oe.Key, Name: ro.Name, Consts: ro.Consts, Ignore: ro.Ignore}
+			opt := ChoiceOption{ID: oe.Key, Name: ro.Name, Consts: ro.Consts, Ignore: ro.Ignore, Refs: ro.Refs}
 			text("choice "+ch.ID+" option "+opt.ID+": name", opt.Name, Locales)
 			ignored := map[string]bool{}
 			for _, id := range opt.Ignore {
@@ -577,13 +585,31 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
+			refKeys := make([]string, 0, len(opt.Refs))
+			for k, v := range opt.Refs {
+				refKeys = append(refKeys, k)
+				if !idRe.MatchString(v) {
+					fail("choice %s option %s: ref %s = %q must be a table or column id (%s)", ch.ID, opt.ID, k, v, idRe)
+				}
+			}
+			sort.Strings(refKeys)
 			if i == 0 {
-				constNames = keys
+				constNames, refNames = keys, refKeys
 				for _, k := range keys {
 					claim(k, "choice const")
 				}
-			} else if strings.Join(keys, ",") != strings.Join(constNames, ",") {
-				fail("choice %s: option %s defines different consts than %s", ch.ID, opt.ID, ch.Options[0].ID)
+				for _, k := range refKeys {
+					if claim(k, tableAlias) {
+						c.aliasChoice[k] = len(c.Choices)
+					}
+				}
+			} else {
+				if strings.Join(keys, ",") != strings.Join(constNames, ",") {
+					fail("choice %s: option %s defines different consts than %s", ch.ID, opt.ID, ch.Options[0].ID)
+				}
+				if strings.Join(refKeys, ",") != strings.Join(refNames, ",") {
+					fail("choice %s: option %s defines different refs than %s", ch.ID, opt.ID, ch.Options[0].ID)
+				}
 			}
 			ch.Options = append(ch.Options, opt)
 		}
@@ -649,8 +675,11 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 	// Every expression may only use known names; lists only inside sum() and par().
 	known := func(what string, ex Expr) {
 		for _, dep := range ex.Deps {
-			if names[dep] == "" {
+			switch names[dep] {
+			case "":
 				fail("%s: unknown name %q in %q", what, dep, ex.Src)
+			case tableAlias:
+				fail("%s: %q is a table alias, it can only name a table or a column in lookup, lookup_ge or interp (in %q)", what, dep, ex.Src)
 			}
 		}
 		checkListUse(ex.Node, lists, func(msg string) { fail("%s: %s in %q", what, msg, ex.Src) })
@@ -828,6 +857,9 @@ func buildChart(fail func(string, ...any), c *Calculator, rc *rawChart, known fu
 	if contains(to.Deps, ch.X) {
 		fail("chart: to %q must not depend on x %q", rc.To, ch.X)
 	}
+	if hasTableCall(to.Node) {
+		fail("chart: to %q must not use table functions", rc.To)
+	}
 	ch.To = to
 	return ch
 }
@@ -918,7 +950,7 @@ func checkListUse(n *Node, lists map[string]bool, report func(string)) {
 	checkListUse(n.A, lists, report)
 	checkListUse(n.L, lists, report)
 	checkListUse(n.R, lists, report)
-	for _, a := range n.Args {
+	for _, a := range valueArgs(n) {
 		checkListUse(a, lists, report)
 	}
 	for _, a := range n.Parts {

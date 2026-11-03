@@ -117,14 +117,10 @@ func listError(d *Dim, list []float64) string {
 // Solve computes every variable that the inputs determine: the constants of the selected choice options and the
 // inputs are known; rules and derived quantities are applied as a fixpoint; then errors and checks are evaluated.
 func (c *Calculator) Solve(in Inputs) Result {
-	env := Env{Vals: map[string]float64{}, Lists: map[string][]float64{}}
+	env := c.EvalEnv(in.Choices)
 	known := map[string]bool{}
-	for i := range c.Choices {
-		ch := &c.Choices[i]
-		for k, v := range ch.option(in.Choices[ch.ID]).Consts {
-			env.Vals[k] = v
-			known[k] = true
-		}
+	for k := range env.Vals {
+		known[k] = true
 	}
 	for _, v := range c.Vars {
 		if v.List {

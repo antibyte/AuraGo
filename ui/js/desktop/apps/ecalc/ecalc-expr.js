@@ -12,14 +12,21 @@
      atom   := number | ident '(' args? ')' | ident | '(' expr ')'
 
    AST nodes: {t:'num',v,raw} {t:'id',name} {t:'neg',a} {t:'pos',a} {t:'bin',op,l,r} {t:'call',name,args}; a formula is
-   {t:'eq',parts}. Errors carry code 'parse' or 'eval'. */
+   {t:'eq',parts}. Errors carry code 'parse' or 'eval'.
+
+   lookup(T, C, key), lookup_ge(T, C, x, OUT) and interp(T, X, Y, x) read the tables of window.ECalcCore.tables
+   (ecalc-tables.js). T, C, X, Y and OUT must be plain names: a table id, a column id, or an alias that the selected
+   choice option defines in its refs (evaluate() receives the aliases as its third argument). They are no variables, so
+   deps() leaves them out. */
 (function () {
     'use strict';
 
     const core = (window.ECalcCore = window.ECalcCore || {});
 
     // Exact arity per function; a negative number means "at least that many".
-    const ARITY = { sqrt: 1, ln: 1, log10: 1, exp: 1, sin: 1, cos: 1, tan: 1, atan: 1, abs: 1, round: 1, floor: 1, ceil: 1, min: -2, max: -2, if: 3, sum: 1, par: 1 };
+    const ARITY = { sqrt: 1, ln: 1, log10: 1, exp: 1, sin: 1, cos: 1, tan: 1, atan: 1, abs: 1, round: 1, floor: 1, ceil: 1, min: -2, max: -2, if: 3, sum: 1, par: 1, lookup: 3, lookup_ge: 4, interp: 4 };
+    // The table functions: the argument positions that name a table or a column (the table first) and the one argument that is an expression.
+    const TABLE_FUNCS = { lookup: { refs: [0, 1], value: 2 }, lookup_ge: { refs: [0, 1, 3], value: 2 }, interp: { refs: [0, 1, 2], value: 3 } };
     const COMPARISONS = { '<': true, '<=': true, '>': true, '>=': true, '==': true, '!=': true };
     const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
     const isDigit = char => char >= '0' && char <= '9';
@@ -144,6 +151,11 @@
                 if (!has(ARITY, token.v)) throw fail('unknown function ' + token.v);
                 const arity = ARITY[token.v];
                 if (arity >= 0 ? args.length !== arity : args.length < -arity) throw fail('wrong number of arguments for ' + token.v);
+                if (has(TABLE_FUNCS, token.v)) {
+                    for (const position of TABLE_FUNCS[token.v].refs) {
+                        if (args[position].t !== 'id') throw fail('argument ' + (position + 1) + ' of ' + token.v + ' must be a table or column name');
+                    }
+                }
                 return { t: 'call', name: token.v, args };
             }
             if (token.k === 'op' && token.v === '(') {
@@ -190,7 +202,26 @@
         throw fail(name + '() needs a list variable', 'eval');
     }
 
-    function evaluate(node, env) {
+    const NO_REFS = Object.freeze({});
+
+    // lookup, lookup_ge and interp: the names of the table and the columns are looked up in the aliases first.
+    function evalTable(node, env, refs) {
+        const tables = core.tables;
+        if (!tables) throw fail('the table functions need ecalc-tables.js', 'eval');
+        const spec = TABLE_FUNCS[node.name];
+        const name = index => {
+            const id = node.args[spec.refs[index]].name;
+            return has(refs, id) ? refs[id] : id;
+        };
+        const x = evaluate(node.args[spec.value], env, refs);
+        if (node.name === 'lookup') return tables.lookup(name(0), name(1), x);
+        if (node.name === 'lookup_ge') return tables.lookupGe(name(0), name(1), x, name(2));
+        return tables.interp(name(0), name(1), name(2), x);
+    }
+
+    // evaluate(node, env, refs): refs maps the table aliases of the selected choice options to table and column ids.
+    function evaluate(node, env, refs) {
+        const aliases = refs || NO_REFS;
         switch (node.t) {
             case 'num': return node.v;
             case 'id': {
@@ -200,10 +231,10 @@
                 if (Array.isArray(value)) throw fail('list ' + node.name + ' used outside sum() or par()', 'eval');
                 return value;
             }
-            case 'neg': return -evaluate(node.a, env);
-            case 'pos': return evaluate(node.a, env);
+            case 'neg': return -evaluate(node.a, env, aliases);
+            case 'pos': return evaluate(node.a, env, aliases);
             case 'bin': {
-                const l = evaluate(node.l, env), r = evaluate(node.r, env);
+                const l = evaluate(node.l, env, aliases), r = evaluate(node.r, env, aliases);
                 switch (node.op) {
                     case '+': return l + r;
                     case '-': return l - r;
@@ -222,12 +253,13 @@
             case 'call': {
                 const args = node.args;
                 if (node.name === 'if') {
-                    const condition = evaluate(args[0], env);
-                    return condition !== 0 && !Number.isNaN(condition) ? evaluate(args[1], env) : evaluate(args[2], env);
+                    const condition = evaluate(args[0], env, aliases);
+                    return condition !== 0 && !Number.isNaN(condition) ? evaluate(args[1], env, aliases) : evaluate(args[2], env, aliases);
                 }
                 if (node.name === 'sum') return listArgument(args[0], env, 'sum').reduce((total, x) => total + x, 0);
                 if (node.name === 'par') return 1 / listArgument(args[0], env, 'par').reduce((total, x) => total + 1 / x, 0);
-                const x = args.map(arg => evaluate(arg, env));
+                if (has(TABLE_FUNCS, node.name)) return evalTable(node, env, aliases);
+                const x = args.map(arg => evaluate(arg, env, aliases));
                 switch (node.name) {
                     case 'sqrt': return Math.sqrt(x[0]);
                     case 'ln': return Math.log(x[0]);
@@ -259,7 +291,7 @@
                 case 'id': if (n.name !== 'pi' && !has(ARITY, n.name)) found.add(n.name); break;
                 case 'neg': case 'pos': walk(n.a); break;
                 case 'bin': walk(n.l); walk(n.r); break;
-                case 'call': n.args.forEach(walk); break;
+                case 'call': (has(TABLE_FUNCS, n.name) ? [n.args[TABLE_FUNCS[n.name].value]] : n.args).forEach(walk); break;
                 case 'eq': n.parts.forEach(walk); break;
                 default: break;
             }
