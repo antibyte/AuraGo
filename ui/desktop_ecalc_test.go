@@ -226,7 +226,7 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
 		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
 	}
-	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)
@@ -335,6 +335,29 @@ func TestECalcTablePageIsWired(t *testing.T) {
 	} {
 		if regexp.MustCompile(pattern).MatchString(body) {
 			t.Errorf("ecalc-table-page.js must not contain a %s", label)
+		}
+	}
+}
+
+// The shell picks the page by kind, hands every creator the same options object, registers the tables for the table
+// functions and sections the Tables list by group; a kind without a page creator shows a message.
+func TestECalcShellRoutesByKind(t *testing.T) {
+	t.Parallel()
+	shell := ecalcScripts(t)["ecalc-shell.js"]
+	assertECalcMarkersInOrder(t, shell, []string{
+		"const TABLE_GROUPS = ['conductors', 'components', 'materials', 'general'];",
+		"core.tables.register(tableItems)",
+		"function pageCreator(item)", "return window.ECalcCalcPage || null;", "return window.ECalcTablePage || null;", "return window.ECalcCodePage || null;",
+		"function pageOptions(item)", "getItem: id => itemById.get(id) || null,",
+		"function unavailablePage(item)", "desktop.ecalc_page_unavailable",
+		"creator.create(pageOptions(item)) : unavailablePage(item)",
+	})
+	for _, marker := range []string{
+		"typeof page.layout === 'function'", "typeof page.refresh === 'function'", "typeof page.focusFilter === 'function'", `class="ec-page-host" tabindex="-1"`,
+		"'desktop.ecalc_group_' + group", "info: '<circle", "bolt: '<path",
+	} {
+		if !strings.Contains(shell, marker) {
+			t.Errorf("ecalc-shell.js is missing %q", marker)
 		}
 	}
 }

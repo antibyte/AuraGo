@@ -1,14 +1,20 @@
 /* ECalc shell: the top bar with the search box and the settings popover, the category rail (Favorites, Recent, then the
    categories that have items), the item list and the page host. Below 720 px of width the three columns collapse into
    one stack (rail, list, page) with a back button. Search covers the name in the current language, the English name and
-   the catalog tags. launch(payload) opens a page with pre-filled inputs (the pre-fill bridge of the agent tool). Publishes
-   window.ECalcShell; ecalc.js owns the data and the window lifecycle. */
+   the catalog tags. launch(payload) opens a page with pre-filled inputs (the pre-fill bridge of the agent tool). The page
+   of an item depends on its kind: a calculator gets ECalcCalcPage, a table ECalcTablePage and a code ECalcCodePage (a
+   kind without a page creator shows a message); every creator gets the same options object (see pageOptions) and returns
+   {el, dispose} plus the optional layout(), refresh() and focusFilter(). The Tables list is sectioned by `group`. The
+   shell registers the tables with ECalcCore.tables after the catalog has loaded, so that table functions can read them.
+   Publishes window.ECalcShell; ecalc.js owns the data and the window lifecycle. */
 (function () {
     'use strict';
 
     const core = window.ECalcCore, Typeset = window.ECalcTypeset;
     const esc = Typeset.escape;
     const COMPACT_BELOW = 720;
+    // The sections of the Tables list, in this order; a group the shell does not know follows, named by its id.
+    const TABLE_GROUPS = ['conductors', 'components', 'materials', 'general'];
 
     const ICONS = {
         search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
@@ -19,16 +25,39 @@
         copy: '<rect x="8" y="8" width="11" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h1"/>',
         reset: '<path d="M5 12a7 7 0 1 0 2.3-5.2"/><path d="M5 4.5V8h3.5"/>',
         lock: '<rect x="6" y="11" width="12" height="9" rx="2"/><path class="ec-shackle" d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>',
-        warning: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'
+        warning: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
+        info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>',
+        bolt: '<path d="M13.5 3L6 13.5h5.5L10.5 21 18 10.5h-5.5z"/>'
     };
     const icon = name => '<svg class="ec-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONS[name] || '') + '</svg>';
 
     // options: {root, catalog, t, store, schematics, decimalComma, uid, launch}; launch is an optional payload that opens the
     // app on a pre-filled page instead of the remembered one.
+    //
+    // The options object every page creator (ECalcCalcPage, ECalcTablePage, ECalcCodePage) receives from pageOptions():
+    //   item         the catalog item of the page (its JSON, see internal/ecalc/localize.go)
+    //   units        ECalcCore.units.create(catalog.units)
+    //   store        the ECalcStore of the window (favorites, recents, display units, inputs; see ecalc-store.js)
+    //   t            translator for desktop.* keys: t(key, {name: value}) fills {name}
+    //   icon         icon(name) -> svg markup of the shell glyph set
+    //   schematics   window.ECalcSchematics (calculators only)
+    //   uid          element id prefix of this page, unique per window and item
+    //   decimalComma true for the languages that write the decimal comma
+    //   getItem      id -> catalog item or null (a table uses it to find its finder calculator)
+    //   onFavorite   called after the page changed the favorite flag of its item (the shell repaints rail and list)
+    // The page object: el (the article the shell puts into the host) and dispose() are required; layout() (the host changed
+    // its size, also called once after the page is attached), refresh() (digits, E series or symbol standard changed) and
+    // focusFilter() (the "/" shortcut) are optional.
     function create(options) {
         const { root, catalog, t, store, schematics } = options;
         const units = core.units.create(catalog.units);
         const items = catalog.items;
+        // The table functions (lookup, lookup_ge, interp) read the tables of the catalog through ECalcCore.tables. A registry
+        // that refuses the tables must not take the whole app down: the pages still open, the table functions give no value.
+        const tableItems = items.filter(item => item.kind === 'table');
+        if (tableItems.length && core.tables && typeof core.tables.register === 'function') {
+            try { core.tables.register(tableItems); } catch (error) { /* the table functions then find no table */ }
+        }
         const itemById = new Map(items.map(item => [item.id, item]));
         const categories = (catalog.categories || []).filter(category => items.some(item => item.category === category.id));
         const categoryName = new Map((catalog.categories || []).map(category => [category.id, category.name]));
@@ -47,7 +76,7 @@
             + '<label><input type="radio" name="' + options.uid + '-symbols" value="ansi"><span>' + esc(t('desktop.ecalc_symbols_ansi')) + '</span></label></div></fieldset></div></div></header>'
             + '<div class="ec-body"><nav class="ec-rail"></nav>'
             + '<section class="ec-list"><h2 class="ec-list-title"></h2><ul class="ec-items"></ul><p class="ec-empty" hidden></p></section>'
-            + '<main class="ec-page-host"></main></div>';
+            + '<main class="ec-page-host" tabindex="-1"></main></div>';
 
         const q = selector => root.querySelector(selector);
         const searchEl = q('.ec-search-input'), railEl = q('.ec-rail'), listEl = q('.ec-list'), itemsEl = q('.ec-items'), emptyEl = q('.ec-empty');
@@ -90,15 +119,29 @@
                 + '<button type="button" class="ec-rail-btn" data-rail="' + esc(row.id) + '" title="' + esc(row.label) + '"' + (!searching && ui.rail === row.id ? ' aria-current="true"' : '') + '>'
                 + (row.glyph ? icon(row.glyph) : '<span class="ec-glyph ec-glyph-dot"></span>') + '<span class="ec-rail-label">' + esc(row.label) + '</span><span class="ec-count">' + row.count + '</span></button>').join('');
         }
+        function groupName(group) {
+            const key = 'desktop.ecalc_group_' + group, text = t(key);
+            return text && text !== key ? text : group;
+        }
         function paintList() {
             const searching = !!ui.query.trim(), rows = currentItems();
             const row = railRows().find(entry => entry.id === ui.rail);
             titleEl.textContent = searching ? '' : row ? row.label : '';
             titleEl.hidden = searching;
-            itemsEl.innerHTML = rows.map(item => '<li><button type="button" class="ec-item" data-id="' + esc(item.id) + '"' + (ui.selected === item.id ? ' aria-current="true"' : '') + '>'
+            const itemMarkup = item => '<li><button type="button" class="ec-item" data-id="' + esc(item.id) + '"' + (ui.selected === item.id ? ' aria-current="true"' : '') + '>'
                 + '<span class="ec-item-text"><span class="ec-item-name">' + esc(item.name) + '</span>'
                 + (searching || ui.rail === 'favorites' || ui.rail === 'recent' ? '<span class="ec-item-sub">' + esc(categoryName.get(item.category) || '') + '</span>' : '') + '</span>'
-                + (store.isFavorite(item.id) ? '<span class="ec-item-fav">' + icon('star') + '</span>' : '') + '</button></li>').join('');
+                + (store.isFavorite(item.id) ? '<span class="ec-item-fav">' + icon('star') + '</span>' : '') + '</button></li>';
+            // The Tables list is sectioned by group (catalog order inside a group); search results, favorites and recents are flat.
+            if (!searching && ui.rail !== 'favorites' && ui.rail !== 'recent' && rows.some(item => item.group)) {
+                const groups = TABLE_GROUPS.concat([...new Set(rows.map(item => item.group || ''))].filter(group => group && !TABLE_GROUPS.includes(group)));
+                itemsEl.innerHTML = groups.map(group => {
+                    const members = rows.filter(item => (item.group || '') === group);
+                    return members.length ? '<li class="ec-group"><h3 class="ec-group-title">' + esc(groupName(group)) + '</h3></li>' + members.map(itemMarkup).join('') : '';
+                }).join('') + rows.filter(item => !item.group).map(itemMarkup).join('');
+            } else {
+                itemsEl.innerHTML = rows.map(itemMarkup).join('');
+            }
             emptyEl.hidden = rows.length > 0;
             emptyEl.textContent = rows.length ? '' : searching ? t('desktop.ecalc_no_results') : ui.rail === 'favorites' ? t('desktop.ecalc_empty_favorites') : ui.rail === 'recent' ? t('desktop.ecalc_empty_recent') : t('desktop.ecalc_no_results');
         }
@@ -119,15 +162,36 @@
             setView(ui.view);
         }
 
+        // The page creator of an item kind (a catalog without a kind is the phase 1 shape: calculators only), or null.
+        function pageCreator(item) {
+            const kind = item.kind || 'calculator';
+            if (kind === 'calculator') return window.ECalcCalcPage || null;
+            if (kind === 'table') return window.ECalcTablePage || null;
+            if (kind === 'code') return window.ECalcCodePage || null;
+            return null;
+        }
+        function pageOptions(item) {
+            return {
+                item, units, store, t, icon, schematics, uid: options.uid + '-' + item.id, decimalComma: options.decimalComma,
+                getItem: id => itemById.get(id) || null,
+                onFavorite: () => { paintRail(); paintList(); }
+            };
+        }
+        // What an item shows when no page creator exists for its kind.
+        function unavailablePage(item) {
+            const el = document.createElement('article');
+            el.className = 'ec-page';
+            el.dataset.unavailable = item.id;
+            el.innerHTML = '<header class="ec-page-head"><h2 class="ec-title">' + esc(item.name) + '</h2></header><p class="ec-empty-page">' + esc(t('desktop.ecalc_page_unavailable')) + '</p>';
+            return { el, dispose() {} };
+        }
         function mountPage(item) {
             if (page) page.dispose();
-            page = window.ECalcCalcPage.create({
-                calc: item, units, store, t, icon, schematics, uid: options.uid + '-' + item.id, decimalComma: options.decimalComma,
-                onFavorite: () => { paintRail(); paintList(); }
-            });
+            const creator = pageCreator(item);
+            page = creator && typeof creator.create === 'function' ? creator.create(pageOptions(item)) : unavailablePage(item);
             hostEl.replaceChildren(page.el);
             hostEl.scrollTop = 0;
-            page.layout();
+            if (typeof page.layout === 'function') page.layout();
         }
         function openItem(id) {
             const item = itemById.get(id);
@@ -213,7 +277,7 @@
             else if (target.dataset.set === 'eseries') store.set('eseries', target.value);
             else if (target.type === 'radio') store.set('symbols', target.value);
             else return;
-            if (page) page.refresh();
+            if (page && typeof page.refresh === 'function') page.refresh();
         });
         searchEl.addEventListener('input', () => {
             ui.query = searchEl.value;
@@ -251,7 +315,12 @@
         arrowKeys(railEl, '.ec-rail-btn');
         arrowKeys(itemsEl, '.ec-item');
         root.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && popoverOpen) { event.preventDefault(); event.stopPropagation(); closePopover(); settingsEl.focus(); }
+            if (event.key === 'Escape' && popoverOpen) { event.preventDefault(); event.stopPropagation(); closePopover(); settingsEl.focus(); return; }
+            // "/" jumps to the filter box of a table page, unless the key is typed into a field.
+            if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && page && typeof page.focusFilter === 'function' && !event.target.closest('input, select, textarea, [contenteditable]')) {
+                event.preventDefault();
+                page.focusFilter();
+            }
         });
 
         const measure = width => setCompact(width > 0 && width < COMPACT_BELOW);
@@ -263,7 +332,7 @@
         }
         // The page lays itself out for the width of its host, which is not changed by that layout.
         if (typeof ResizeObserver === 'function') {
-            hostObserver = new ResizeObserver(() => { if (page) page.layout(); });
+            hostObserver = new ResizeObserver(() => { if (page && typeof page.layout === 'function') page.layout(); });
             hostObserver.observe(hostEl);
         }
 
