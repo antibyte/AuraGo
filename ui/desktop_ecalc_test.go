@@ -195,7 +195,10 @@ func TestECalcStylesheetUsesOnlyTokens(t *testing.T) {
 	if strings.Count(body, "!important") != 1 || !strings.Contains(body, ".ec-app [hidden] { display: none !important; }") {
 		t.Error("the only !important allowed is the [hidden] rule")
 	}
-	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`, `.ec-field[data-unused="true"]`, ".ec-combo-table", ".ec-chart-curve", ".ec-chart-dot", ".ec-sr {"} {
+	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`, `.ec-field[data-unused="true"]`, ".ec-combo-table", ".ec-chart-curve", ".ec-chart-dot", ".ec-sr {",
+		".ec-table-scroll", ".ec-table thead th { position: sticky; top: 0;", `.ec-table tbody tr[data-match="true"]`, `.ec-banner[data-kind="mains"]`, `.ec-banner[data-kind="guide"]`, ".ec-page[data-finder]", ".ec-group-title", ".ec-table-hidden",
+		// a wide control or table never widens the page or the list: the tracks of the grids have a zero minimum
+		".ec-page { display: grid; grid-template-columns: minmax(0, 1fr);", ".ec-items { display: grid; grid-template-columns: minmax(0, 1fr);", ".ec-item-text { display: grid; grid-template-columns: minmax(0, 1fr);", ".ec-seg { display: inline-flex; flex-wrap: wrap;"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("css/desktop-app-ecalc.css is missing %q", marker)
 		}
@@ -303,6 +306,35 @@ func TestECalcCalcPageHasAFinderHeaderMode(t *testing.T) {
 	} {
 		if !strings.Contains(page, marker) {
 			t.Errorf("ecalc-calc-page.js is missing %q", marker)
+		}
+	}
+}
+
+// The table page reads the table JSON (SI numbers, null, localized strings), shows numbers through the units formatter,
+// highlights the finder row with a relative tolerance of 1e-9 and shares the unit and clipboard helpers of the calculator page.
+func TestECalcTablePageIsWired(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-table-page.js"]
+	for _, marker := range []string{
+		"window.ECalcTablePage = { create };", "const MATCH_TOLERANCE = 1e-9;", "function sameValue(a, b)", "function findRow(rows, index, value)",
+		"function scopedStore(store, key)", "finderCalc.id + '@' + table.id", "Page.unitChoices(column, units)", "Page.unitFor({ id: table.id, vars: columns }, store, units)",
+		"Page.copyText(plainText())", "units.format(value, column.dim, id, sig())", "const NO_VALUE = '—';", "'aria-sort'", `role="region"`,
+		"el.dataset.table = table.id;", "header: {", "onResult(result)", "desktop.ecalc_table_copy", "desktop.ecalc_table_filter", "desktop.ecalc_table_rows_filtered",
+		"desktop.ecalc_table_no_match", "desktop.ecalc_table_columns_hidden", "el.dataset.hiddenColumns = String(hiddenCount);", "const shownColumns =", "desktop.ecalc_guide_values", "desktop.ecalc_mains_note", "focusFilter()", "tr[data-match]",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-table-page.js is missing %q", marker)
+		}
+	}
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(page, "")
+	for label, pattern := range map[string]string{
+		"hex colour":      `#[0-9a-fA-F]{3,8}\b`,
+		"colour function": `\b(?:rgba?|hsla?)\(`,
+		"inline style":    `\.style\.`,
+		"smooth scroll":   `behavior\s*:\s*['"]smooth`,
+	} {
+		if regexp.MustCompile(pattern).MatchString(body) {
+			t.Errorf("ecalc-table-page.js must not contain a %s", label)
 		}
 	}
 }
