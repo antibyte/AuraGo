@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 SRC="scripts/aurago-bluetooth.sh"
-TARGETS=(install.sh update.sh install_service_linux.sh)
+TARGETS=(install.sh update.sh scripts/install_service_linux.sh)
 
 block_file="$(mktemp)"
 trap 'rm -f "$block_file"' EXIT

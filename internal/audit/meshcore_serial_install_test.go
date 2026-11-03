@@ -36,7 +36,7 @@ func TestMeshCoreSerialServicePermissions(t *testing.T) {
 			t.Fatalf("serial permission check failed: %v\n%s", err, output)
 		}
 	}
-	for _, path := range []string{"install.sh", "install_service_linux.sh", "update.sh"} {
+	for _, path := range []string{"install.sh", "scripts/install_service_linux.sh", "update.sh"} {
 		t.Run(path, func(t *testing.T) {
 			source := readRepoFile(t, path)
 			helper := extract(source, "systemd_serial_groups_line() {", "\n}\n") + "\n}\n"

@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Managed Browser Automation, its egress proxy and Ansible use the configured Docker build context unchanged. Resolve a context-root Dockerfile first for existing custom contexts, then `deploy/docker/<Dockerfile>` for source checkouts. Share this through `sidecarDockerfilePath`; verify `TestSidecarDockerfilePath` and `TestBrowserAutomationBuildFindsRepositoryDockerfiles` alongside build/fallback tests.
+
 - Core-memory tool updates use memory.UpdateModelCoreFact with the trusted dispatch session; content and current model provenance commit together. Explicit user-edit and existing-fact reuse semantics remain memory-owned. Verify `TestManageMemoryUpdateRecordsCurrentModelOrigin`.
 
 - Dynamic Ansible error results use JSON encoding. ECalc enforces its effective UTF-8 byte budget on every response, including errors and desktop opens. Preserve error codes; omit optional describe detail before returning `output_budget_exceeded` for a calculation that cannot fit completely. Never present truncated quantities as a successful calculation. Verify `TestECalc*` and `TestAnsibleError*`.

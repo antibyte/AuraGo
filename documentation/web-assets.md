@@ -31,7 +31,7 @@ go build -trimpath -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago .
 
 PowerShell builds use `$assetFlags = Get-Content -Raw deploy/web-assets.ldflags`
 and `go build -trimpath -ldflags "-s -w $assetFlags" -o aurago.exe ./cmd/aurago`.
-`start.sh` and `start.bat` perform the packaging step. A plain, unpinned `go build`
+`scripts/start.sh` and `scripts/start.bat` perform the packaging step. A plain, unpinned `go build`
 intentionally provides recovery only. Never distribute that as a complete release.
 
 If recovery shows no resource identifier and disables download, the executable
@@ -56,8 +56,8 @@ otherwise the pages fail to parse on a packed install.
 
 The set ID hashes its per-file SHA-256 manifest. The executable pins this ID,
 archive SHA-256 and compressed byte length. Use `-release v...` on the packer
-to pin its immutable GitHub release download URL. `make_release.bat` does this
-with its selected tag; `make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
+to pin its immutable GitHub release download URL. `scripts/make_release.bat` does this
+with its selected tag; `scripts/make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
 
 The compressed archive limit is 1 GiB; the expanded set remains limited to
@@ -65,7 +65,7 @@ The compressed archive limit is 1 GiB; the expanded set remains limited to
 binary, so it applies the matching version's limits before activation.
 
 The release builders require a clean worktree so the binary identity matches
-the reviewed commit. A local `make_deploy.sh` diagnostic build from modified
+the reviewed commit. A local `scripts/make_deploy.sh` diagnostic build from modified
 sources must opt in with `--no-publish --allow-dirty`; it remains stamped as
 modified and cannot be published as a release artifact.
 

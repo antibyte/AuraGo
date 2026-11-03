@@ -241,7 +241,7 @@ services:
     profiles: ["browser-automation"]
     build:
       context: .
-      dockerfile: Dockerfile.browser_automation
+      dockerfile: deploy/docker/Dockerfile.browser_automation
     image: aurago-browser-automation:latest
     container_name: browser-automation
     restart: unless-stopped
@@ -294,7 +294,7 @@ services:
     profiles: ["browser-automation"]
     build:
       context: .
-      dockerfile: Dockerfile.browser_egress
+      dockerfile: deploy/docker/Dockerfile.browser_egress
     image: aurago-browser-egress:latest
     container_name: browser-egress
     restart: unless-stopped
@@ -347,7 +347,7 @@ services:
   # ansible:
   #   build:
   #     context: .
-  #     dockerfile: Dockerfile.ansible
+  #     dockerfile: deploy/docker/Dockerfile.ansible
   #   container_name: ansible_sidecar
   #   environment:
   #     # Required by default. Change this token and set the same value in config.yaml ansible.token.

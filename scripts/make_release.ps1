@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -and -not $Local -and -not $env:AURAGO_RELEASE_SIGNING_KEY) {
-    & (Join-Path $PSScriptRoot 'scripts\start-release-ci.ps1') -Version $Version
+    & (Join-Path $PSScriptRoot 'start-release-ci.ps1') -Version $Version
     return
 }
 $env:GOTOOLCHAIN = 'go1.27.3' # Pin the compiler used by CI and release artifacts.
@@ -61,10 +61,10 @@ try {
     exit 1
 }
 
-& (Join-Path $PSScriptRoot 'scripts\sign-release-checksums.ps1') -CheckPrerequisites
-$releasePython = & (Join-Path $PSScriptRoot 'scripts\find-release-python.ps1')
+& (Join-Path $PSScriptRoot 'sign-release-checksums.ps1') -CheckPrerequisites
+$releasePython = & (Join-Path $PSScriptRoot 'find-release-python.ps1')
 Write-Host "    Python: $releasePython" -ForegroundColor Green
-& $releasePython (Join-Path $PSScriptRoot 'scripts\build-release-verifier.py') --scripts-only --require-published
+& $releasePython (Join-Path $PSScriptRoot 'build-release-verifier.py') --scripts-only --require-published
 if ($LASTEXITCODE -ne 0) { throw 'The pinned bootstrap must be published before building an application release.' }
 
 Write-Host ""
@@ -84,10 +84,7 @@ Write-Host "  Release: $Version" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Prepare output dirs ──────────────────────────────────────────────────
-$scriptDir = $PSScriptRoot
-if ([string]::IsNullOrEmpty($scriptDir)) {
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-}
+$scriptDir = Split-Path -Parent $PSScriptRoot
 Set-Location $scriptDir
 
 $buildID = (git rev-parse --verify HEAD).Trim()
@@ -196,7 +193,7 @@ $configContent = $configContent -replace 'access_token: "[^"]*"', 'access_token:
 Set-Content -Path (Join-Path $tmpStage "config.yaml") -Value $configContent
 
 # GPL-3.0 combined work: the licence texts and notices travel with every binary.
-Copy-Item -LiteralPath 'LICENSE', 'THIRD_PARTY_NOTICES.md' -Destination $tmpStage -Force
+Copy-Item -LiteralPath 'LICENSE', 'licences\THIRD_PARTY_NOTICES.md' -Destination $tmpStage -Force
 $null = New-Item -ItemType Directory -Force -Path (Join-Path $tmpStage 'licences')
 Copy-Item -LiteralPath 'licences\texts' -Destination (Join-Path $tmpStage 'licences') -Recurse -Force
 Copy-Item -LiteralPath 'licences\linked-go-modules.tsv' -Destination (Join-Path $tmpStage 'licences') -Force
@@ -485,7 +482,7 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 AuraGo's source code is MIT licensed. The binaries of this release link GPL-3.0 code, `go.mau.fi/libsignal` through `go.mau.fi/whatsmeow` and the GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`, so they are distributed as GPL-3.0 combined works.
 
 - Corresponding source: tag [{VERSION}](https://github.com/antibyte/AuraGo/tree/{VERSION}) ([tar.gz](https://github.com/antibyte/AuraGo/archive/refs/tags/{VERSION}.tar.gz)), with the module versions pinned in `go.mod` and `go.sum`.
-- License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`, and [online at the tag](https://github.com/antibyte/AuraGo/blob/{VERSION}/THIRD_PARTY_NOTICES.md).
+- License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`, and [online at the tag](https://github.com/antibyte/AuraGo/blob/{VERSION}/licences/THIRD_PARTY_NOTICES.md).
 '@
 $notes = $notes -replace '\{VERSION\}', $Version
 

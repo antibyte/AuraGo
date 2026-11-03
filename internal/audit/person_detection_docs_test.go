@@ -53,8 +53,8 @@ func huggingFacePin(t *testing.T, rawURL string) (repository, revision string) {
 // follow.
 func TestPersonDetectionThirdPartyRecords(t *testing.T) {
 	t.Parallel()
-	notices := readRepoFile(t, "THIRD_PARTY_NOTICES.md")
-	libraries := readRepoFile(t, "THIRD_PARTY_LIBRARIES.md")
+	notices := readRepoFile(t, "licences/THIRD_PARTY_NOTICES.md")
+	libraries := readRepoFile(t, "licences/THIRD_PARTY_LIBRARIES.md")
 	records := map[string]string{"THIRD_PARTY_NOTICES.md": notices, "THIRD_PARTY_LIBRARIES.md": libraries}
 
 	requireAll(t, "THIRD_PARTY_NOTICES.md", notices, []string{

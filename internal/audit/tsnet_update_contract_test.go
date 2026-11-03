@@ -103,7 +103,7 @@ func TestUpdaterSudoStrategyUsesControllingTTY(t *testing.T) {
 func TestGeneratedSystemdUnitsHaveBoundedStopTimeout(t *testing.T) {
 	for _, path := range []string{
 		"install.sh",
-		"install_service_linux.sh",
+		"scripts/install_service_linux.sh",
 		"internal/setup/setup.go",
 	} {
 		source := readRepoFile(t, path)

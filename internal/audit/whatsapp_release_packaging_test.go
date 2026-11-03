@@ -22,7 +22,7 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 		staging []string
 	}{
 		{
-			path: "make_deploy.sh",
+			path: "scripts/make_deploy.sh",
 			gate: "go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1",
 			before: []string{
 				"[0/5] Building UI assets",
@@ -30,28 +30,28 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 				"tar -czf",
 			},
 			staging: []string{
-				`cp LICENSE THIRD_PARTY_NOTICES.md "$TMPDIR_RES/"`,
+				`cp LICENSE licences/THIRD_PARTY_NOTICES.md "$TMPDIR_RES/"`,
 				`cp -r licences/texts "$TMPDIR_RES/licences/"`,
 				`cp licences/linked-go-modules.tsv "$TMPDIR_RES/licences/"`,
 				"./licences/texts/GPL-3.0-only.txt",
 			},
 		},
 		{
-			path: "make_release.ps1",
+			path: "scripts/make_release.ps1",
 			gate: "go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1",
 			before: []string{
 				"Get-ChildItem -LiteralPath 'deploy'",
 				"tar -czf",
 			},
 			staging: []string{
-				`Copy-Item -LiteralPath 'LICENSE', 'THIRD_PARTY_NOTICES.md' -Destination $tmpStage -Force`,
+				`Copy-Item -LiteralPath 'LICENSE', 'licences\THIRD_PARTY_NOTICES.md' -Destination $tmpStage -Force`,
 				`Copy-Item -LiteralPath 'licences\texts' -Destination (Join-Path $tmpStage 'licences') -Recurse -Force`,
 				`Copy-Item -LiteralPath 'licences\linked-go-modules.tsv' -Destination (Join-Path $tmpStage 'licences') -Force`,
 				"./licences/texts/GPL-3.0-only.txt",
 			},
 		},
 		{
-			path: "make_release.bat",
+			path: "scripts/make_release.bat",
 			gate: "go test ./internal/audit -run TestLinkedGoModulesHaveGPL3CompatibleLicenses -count=1",
 			before: []string{
 				"npm ci --no-audit --no-fund",
@@ -61,7 +61,7 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 			},
 			staging: []string{
 				`copy /y "LICENSE" "%TMPSTAGE%\LICENSE"`,
-				`copy /y "THIRD_PARTY_NOTICES.md" "%TMPSTAGE%\THIRD_PARTY_NOTICES.md"`,
+				`copy /y "licences\THIRD_PARTY_NOTICES.md" "%TMPSTAGE%\THIRD_PARTY_NOTICES.md"`,
 				`xcopy /e /i /q "licences\texts" "%TMPSTAGE%\licences\texts"`,
 				`copy /y "licences\linked-go-modules.tsv" "%TMPSTAGE%\licences\linked-go-modules.tsv"`,
 				"./licences/texts/GPL-3.0-only.txt",
@@ -86,7 +86,7 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 	}
 
 	// The release notes of the two Windows builders link the tagged source, and retention keeps tags.
-	for _, path := range []string{"make_release.ps1", "make_release.bat"} {
+	for _, path := range []string{"scripts/make_release.ps1", "scripts/make_release.bat"} {
 		script := text(path)
 		requireAll(t, path, script, []string{
 			"https://github.com/antibyte/AuraGo/tree/",
@@ -101,9 +101,9 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 	}
 
 	// bsdtar lists entries with CRLF and findstr /x would compare the CR, so the batch builder
-	// matches whole entries in PowerShell, as make_release.ps1 does.
-	if bat := text("make_release.bat"); strings.Contains(bat, "findstr /l /x") || !strings.Contains(bat, "$e -notcontains $n") {
-		t.Error("make_release.bat must match the resources.dat entries whole in PowerShell, not with findstr /x")
+	// matches whole entries in PowerShell, as scripts/make_release.ps1 does.
+	if bat := text("scripts/make_release.bat"); strings.Contains(bat, "findstr /l /x") || !strings.Contains(bat, "$e -notcontains $n") {
+		t.Error("scripts/make_release.bat must match the resources.dat entries whole in PowerShell, not with findstr /x")
 	}
 
 	// Installers and updaters copy the notices out of the verified, extracted resources.dat and
@@ -116,7 +116,7 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 	}
 
 	requireAll(t, "Dockerfile", text("Dockerfile"), []string{
-		"COPY LICENSE THIRD_PARTY_NOTICES.md /app/\n",
+		"COPY LICENSE licences/THIRD_PARTY_NOTICES.md /app/\n",
 		"COPY licences/texts /app/licences/texts\n",
 		"COPY licences/linked-go-modules.tsv /app/licences/linked-go-modules.tsv\n",
 	})
@@ -137,12 +137,12 @@ func TestReleasePackagingCarriesTheGPLNotices(t *testing.T) {
 	requireAll(t, "licences/texts/EDL-1.0.txt", text("licences/texts/EDL-1.0.txt"), []string{
 		"Eclipse Distribution License - v 1.0", "Copyright (c) 2007, Eclipse Foundation, Inc. and its licensors.",
 	})
-	requireAll(t, "THIRD_PARTY_NOTICES.md", text("THIRD_PARTY_NOTICES.md"), []string{
+	requireAll(t, "THIRD_PARTY_NOTICES.md", text("licences/THIRD_PARTY_NOTICES.md"), []string{
 		"`caddy_scanner.go` (GPL-3.0", "`disassembly_scanner.go` (GPL-3.0", "`nim_scanner.go` with `support_nim.go` (MPL-2.0",
 		"`MIT AND GPL-3.0-only AND MPL-2.0`",
 		"## Eclipse Paho MQTT client", "Copyright (c) 2007, Eclipse Foundation, Inc. and its", "`licences/texts/EDL-1.0.txt`",
 	})
-	for _, path := range []string{"make_release.ps1", "make_release.bat"} {
+	for _, path := range []string{"scripts/make_release.ps1", "scripts/make_release.bat"} {
 		requireAll(t, path, text(path), []string{"`go.mau.fi/libsignal`", "GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`"})
 	}
 	requireAll(t, "documentation/whatsapp_setup.md", text("documentation/whatsapp_setup.md"), []string{"`go.mau.fi/libsignal`", "GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`"})

@@ -80,7 +80,7 @@ func TestDesktopTerminalC64FontIsVendoredWithLicense(t *testing.T) {
 			t.Fatalf(`the "Aura C64" @font-face misses %q: %s`, want, face)
 		}
 	}
-	thirdParty, err := os.ReadFile(filepath.Join("..", "THIRD_PARTY_LIBRARIES.md"))
+	thirdParty, err := os.ReadFile(filepath.Join("..", "licences", "THIRD_PARTY_LIBRARIES.md"))
 	if err != nil {
 		t.Fatalf("read THIRD_PARTY_LIBRARIES.md: %v", err)
 	}

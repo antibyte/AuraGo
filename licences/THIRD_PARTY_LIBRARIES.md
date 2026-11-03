@@ -5,15 +5,15 @@ Optional Horizon Labs `prompt-injection-guard-small` (Apache-2.0), revision
 and tokenizer, administrator-initiated download, size/SHA-256 pins in
 `internal/injectionguard/model.go`. Uses the shared ONNX Runtime 1.26.0 CPU bundles
 (MIT). Full Apache text: `licences/texts/Apache-2.0.txt`; provenance and operation:
-[prompt-injection protection](documentation/prompt-injection-protection.md).
+[prompt-injection protection](../documentation/prompt-injection-protection.md).
 
 Gradium Phonon `ptts` 0.4.0 (MIT/Apache-2.0), its Apache-2.0 voice catalog and
 the CC BY-NC 4.0, noncommercial-only Phonon 40m multilingual weights are delivered
-as separate local speech resources. See [provenance and attribution](documentation/phonon.md).
+as separate local speech resources. See [provenance and attribution](../documentation/phonon.md).
 
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
-The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
+The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](UEBERSICHT.md).
 
 Layerling 1.71.0 (commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`) is an optional
 AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
@@ -28,7 +28,7 @@ Its third-party components retain their own licenses. The complete notices,
 original/adapted checksums and local adaptation script are recorded in
 `internal/desktop/bundled_apps/nasscad/` and `scripts/vendor-nasscad.mjs`.
 
-- **AuraGo project license:** [MIT](LICENSE) for the source code; distributed binaries are GPL-3.0 combined works because the WhatsApp channel links GPL-3.0 code (see §9)
+- **AuraGo project license:** [MIT](../LICENSE) for the source code; distributed binaries are GPL-3.0 combined works because the WhatsApp channel links GPL-3.0 code (see §9)
 - **Reviewed:** 2026-10-31
 - **Sources:** `go.mod`, root `package.json`, `browser_automation_sidecar/package.json`, `ui/js/vendor/`, `ui/fonts/`, `ui/img/`, `THIRD_PARTY_NOTICES.md`
 

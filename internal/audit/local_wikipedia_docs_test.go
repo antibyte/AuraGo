@@ -106,7 +106,7 @@ func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
 		"documentation/manuals/en/13-dashboard.md":      {"Local Wikipedia shows **New edition**"},
 		"documentation/manuals/de/13-dashboard.md":      {"Lokale Wikipedia zeigt **Neue Ausgabe**"},
 		"documentation/manuals/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
-		"documentation/manuals/de/22-internal-tools.md":  {"### `local_wikipedia`"},
+		"documentation/manuals/de/22-internal-tools.md": {"### `local_wikipedia`"},
 		"documentation/manuals/en/21-api-reference.md": {
 			"[Memory & Knowledge APIs](#memory--knowledge-apis)", "[Local Wikipedia](#local-wikipedia-api)",
 			"[SSE Events](#sse-events)", "### Local Wikipedia API",
@@ -155,7 +155,7 @@ func TestLocalWikipediaContractIsRouted(t *testing.T) {
 
 func TestLocalWikipediaThirdPartyRecords(t *testing.T) {
 	t.Parallel()
-	notices := readRepoFile(t, "THIRD_PARTY_NOTICES.md")
+	notices := readRepoFile(t, "licences/THIRD_PARTY_NOTICES.md")
 	requireAll(t, "THIRD_PARTY_NOTICES.md", notices, []string{
 		"| klauspost/compress", "| ulikunitz/xz", "| blevesearch/snowballstem",
 		"https://github.com/ulikunitz/xz", "https://github.com/blevesearch/snowballstem", "https://github.com/klauspost/compress",
@@ -167,7 +167,7 @@ func TestLocalWikipediaThirdPartyRecords(t *testing.T) {
 			t.Errorf("THIRD_PARTY_NOTICES.md names %s, which must exist: %v", dir, err)
 		}
 	}
-	libraries := readRepoFile(t, "THIRD_PARTY_LIBRARIES.md")
+	libraries := readRepoFile(t, "licences/THIRD_PARTY_LIBRARIES.md")
 	requireAll(t, "THIRD_PARTY_LIBRARIES.md", libraries, []string{
 		"| `github.com/blevesearch/snowballstem` |", "| `github.com/klauspost/compress` |", "| `github.com/ulikunitz/xz` |",
 		"Kiwix Wikipedia ZIM edition",

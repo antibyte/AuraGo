@@ -87,7 +87,7 @@
   "help.ansible.container_name": "(Endast sidecar-läge) Docker-containernamn för den automatiskt hanterade Ansible-sidecaren. Standard: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Endast lokalt läge) Standardfil för inventering (t.ex. '/etc/ansible/hosts'). Miljövariabel: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Aktiverar Ansible-integrationen. Stöder två lägen: 'sidecar' (Docker-API) och 'local' (ansible-CLI direkt på värden).",
-  "help.ansible.image": "(Endast sidecar-läge) Docker-avbild för Ansible-sidecarcontainern. Standard: 'aurago-ansible:latest'. Bygg med: docker build -f Dockerfile.ansible -t aurago-ansible .",
+  "help.ansible.image": "(Endast sidecar-läge) Docker-avbild för Ansible-sidecarcontainern. Standard: 'aurago-ansible:latest'. Bygg med: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Körläge: 'sidecar' = Ansible-API-container (Docker), 'local' = anropa ansible-binärer direkt på värden. Standard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Endast lokalt läge) Katalog med Ansible-playbooks (t.ex. '/opt/ansible/playbooks'). Miljövariabel: ANSIBLE_PLAYBOOKS_DIR.",
   "help.ansible.read_only": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks.",

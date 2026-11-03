@@ -53,7 +53,7 @@ The separate local speech package contains Gradium's Phonon `ptts` 0.4.0 runtime
 (MIT/Apache-2.0), the Apache-2.0 `gradium/phonon-voices` catalog and the unchanged
 q8 weights of `gradium/phonon-40m-multilingual` (CC BY-NC 4.0, noncommercial only).
 Attribution, source URLs, exact revisions and checksums are in
-[`documentation/phonon.md`](documentation/phonon.md). Packages carry that notice,
+[`documentation/phonon.md`](../documentation/phonon.md). Packages carry that notice,
 the original runtime MIT text and the Apache-2.0 and CC BY-NC 4.0 license texts.
 These component licenses do not change AuraGo's own MIT license.
 
@@ -154,7 +154,7 @@ The upstream projects and their complete license texts remain authoritative:
 - https://github.com/ulikunitz/xz
 - https://github.com/blevesearch/snowballstem
 
-AuraGo's own license remains the MIT License in [LICENSE](LICENSE).
+AuraGo's own license remains the MIT License in [LICENSE](https://github.com/antibyte/AuraGo/blob/main/LICENSE).
 
 ## Humanizer writing guidance
 
@@ -270,7 +270,7 @@ the Arduino-ESP32 core, Adafruit NeoPixel, Debian 12 packages) and MPL-2.0
 certifi.
 
 - The image carries `/usr/share/doc/aurago-cyd-builder/NOTICE`, generated from
-  [`deploy/docker/cyd-builder/NOTICE`](deploy/docker/cyd-builder/NOTICE). It
+  [`deploy/docker/cyd-builder/NOTICE`](../deploy/docker/cyd-builder/NOTICE). It
   lists each GPL, LGPL and MPL component with its exact version, where its
   licence text is in the image, and its upstream source. It also lists every
   installed Debian package with its source package version, and says how to
@@ -380,7 +380,7 @@ Copyright © 1998-2004  David Turner and Werner Lemberg
 
 The complete MIT, BSD-3-Clause, Unlicense and Apache-2.0 texts are retained under `licences/texts/`.
 
-The verified external QR font set contains Noto Sans Arabic and Devanagari (Copyright 2022 The Noto Project Authors), Noto Sans CJK SC, Noto Emoji (Copyright 2013 Google LLC), and Liberation Serif (digitised data Copyright 2010 Google Corporation, reserved names Arimo/Tinos/Cousine; Copyright 2012 Red Hat, Inc., reserved name Liberation). All retain their original OFL-1.1 texts alongside the font bytes. Exact font sources, immutable revisions, hashes and lengths are in [`ui/fonts/qr/manifest.json`](ui/fonts/qr/manifest.json). Go Sans/Mono are supplied by the already pinned `golang.org/x/image/font/gofont` dependency.
+The verified external QR font set contains Noto Sans Arabic and Devanagari (Copyright 2022 The Noto Project Authors), Noto Sans CJK SC, Noto Emoji (Copyright 2013 Google LLC), and Liberation Serif (digitised data Copyright 2010 Google Corporation, reserved names Arimo/Tinos/Cousine; Copyright 2012 Red Hat, Inc., reserved name Liberation). All retain their original OFL-1.1 texts alongside the font bytes. Exact font sources, immutable revisions, hashes and lengths are in [`ui/fonts/qr/manifest.json`](../ui/fonts/qr/manifest.json). Go Sans/Mono are supplied by the already pinned `golang.org/x/image/font/gofont` dependency.
 
 Go Sans/Mono: Copyright (c) 2016 Bigelow & Holmes Inc., all rights reserved. The original BSD-style font terms (including the Google/contributor endorsement clause) are preserved in `ui/fonts/qr/Go-fonts-LICENSE.txt` and accompany the resource set.
 

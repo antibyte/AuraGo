@@ -5,7 +5,7 @@
 # Managed hosts are reached via SSH from this container.
 #
 # Build:
-#   docker build -f Dockerfile.ansible -t aurago-ansible .
+#   docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .
 #
 # Or use via docker-compose.yml (see the commented block in docker-compose.yml).
 # ============================================================

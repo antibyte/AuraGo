@@ -13,13 +13,13 @@ func TestWhatsAppLicenseNoticesStayAligned(t *testing.T) {
 	if !strings.Contains(license, "MIT License") || strings.Contains(license, "GNU GENERAL PUBLIC LICENSE") {
 		t.Fatal("LICENSE must stay the MIT text")
 	}
-	requireAll(t, "THIRD_PARTY_NOTICES.md", readRepoFile(t, "THIRD_PARTY_NOTICES.md"), []string{
+	requireAll(t, "THIRD_PARTY_NOTICES.md", readRepoFile(t, "licences/THIRD_PARTY_NOTICES.md"), []string{
 		"## WhatsApp channel (whatsmeow and libsignal)",
 		"`go.mau.fi/libsignal`",
 		"GNU General Public License version 3",
 		"`licences/texts/GPL-3.0-only.txt`",
 	})
-	requireAll(t, "THIRD_PARTY_LIBRARIES.md", readRepoFile(t, "THIRD_PARTY_LIBRARIES.md"), []string{
+	requireAll(t, "THIRD_PARTY_LIBRARIES.md", readRepoFile(t, "licences/THIRD_PARTY_LIBRARIES.md"), []string{
 		"| `go.mau.fi/whatsmeow` | v0.0.0-20261030195514-56e5ad0581ce | MPL-2.0 |",
 		"| go.mau.fi/libsignal | GPL-3.0 |",
 	})

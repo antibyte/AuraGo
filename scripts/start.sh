@@ -1,10 +1,12 @@
 #!/bin/bash
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$DIR" || exit 1
+
 # Kill existing processes and remove stale lock files
-./kill_all.sh 2>/dev/null || true
+./scripts/kill_all.sh 2>/dev/null || true
 
 # Remove stale lock files that kill_all.sh might have missed
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 rm -f "$DIR/data/aurago.lock" "$DIR/data/maintenance.lock" 2>/dev/null || true
 
 echo "Building AuraGo..."
@@ -34,8 +36,8 @@ if ! go build -ldflags="$(cat deploy/web-assets.ldflags)" -o bin/aurago ./cmd/au
 fi
 
 # Auto-load master key from .env if not already set in environment
-if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$(dirname "$0")/.env" ]; then
-    source "$(dirname "$0")/.env"
+if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
+    source "$DIR/.env"
 fi
 
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then

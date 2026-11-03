@@ -31,7 +31,7 @@ func TestReleaseCIRequiresReviewedSourceAndVerifiedKeylessPublication(t *testing
 		`gh run watch "$training_gate" --exit-status`,
 		"ref: ${{ github.sha }}", "cosign-release: v3.1.4",
 		"AURAGO_KEEP_RELEASES: '1'", "--from-release latest",
-		"./make_release.ps1 -Version $env:RELEASE_VERSION",
+		"./scripts/make_release.ps1 -Version $env:RELEASE_VERSION",
 		"gh workflow run docker-publish.yml", "--ref $env:RELEASE_VERSION",
 	} {
 		if !strings.Contains(workflow, required) {

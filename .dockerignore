@@ -21,7 +21,7 @@ deploy/*
 !deploy/phonon/runtime/linux_arm64/ptts
 *.bat
 *.sh
-!docker-entrypoint.sh
+!deploy/docker/docker-entrypoint.sh
 
 # Git / IDE
 .git/

@@ -72,7 +72,7 @@ The updater owns transaction manifests; this package verifies them before collec
 - Optional local Windows maintainer setup pins Cosign and atomically creates the
   user-only
   `%LOCALAPPDATA%\AuraGo\release-signing` profile with an encrypted private key
-  and DPAPI-protected password. Preserve existing keys. `make_release.ps1 -Local`
+  and DPAPI-protected password. Preserve existing keys. `scripts/make_release.ps1 -Local`
   or explicit key configuration retains local builds. Both actual Windows builders
   preflight signing before cleanup/build; explicit environment configuration and
   CI retain precedence. Restore the caller's environment after profile signing.

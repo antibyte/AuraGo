@@ -87,7 +87,7 @@
   "help.ansible.container_name": "(Μόνο σε λειτουργία sidecar) Όνομα container Docker για το αυτόματα διαχειριζόμενο sidecar του Ansible. Προεπιλογή: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Μόνο σε τοπική λειτουργία) Προεπιλεγμένο αρχείο inventory (π.χ. '/etc/ansible/hosts'). Μεταβλητή περιβάλλοντος: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Ενεργοποιεί την ενσωμάτωση Ansible. Υποστηρίζει δύο λειτουργίες: 'sidecar' (Docker API) και 'local' (ansible CLI απευθείας στον κεντρικό υπολογιστή).",
-  "help.ansible.image": "(Μόνο σε λειτουργία sidecar) Εικόνα Docker για το container sidecar του Ansible. Προεπιλογή: 'aurago-ansible:latest'. Κατασκευή με: docker build -f Dockerfile.ansible -t aurago-ansible .",
+  "help.ansible.image": "(Μόνο σε λειτουργία sidecar) Εικόνα Docker για το container sidecar του Ansible. Προεπιλογή: 'aurago-ansible:latest'. Κατασκευή με: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Λειτουργία εκτέλεσης: 'sidecar' = container API του Ansible (Docker), 'local' = κλήση των δυαδικών ansible απευθείας στον κεντρικό υπολογιστή. Προεπιλογή: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Μόνο σε τοπική λειτουργία) Κατάλογος με τα playbooks του Ansible (π.χ. '/opt/ansible/playbooks'). Μεταβλητή περιβάλλοντος: ANSIBLE_PLAYBOOKS_DIR.",
   "help.ansible.read_only": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να ελέγχει κατάσταση και inventory και να απαριθμεί playbooks, αλλά όχι να εκτελεί ad-hoc εντολές ή playbooks.",

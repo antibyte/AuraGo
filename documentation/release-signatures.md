@@ -3,7 +3,7 @@
 The Linux, PowerShell and batch release builders sign the completed `SHA256SUMS`
 and verify that exact manifest before publishing. Stale signature files are
 removed before signing. A failure stops before Git push or release creation.
-Local `make_deploy.sh --no-publish` builds may remain unsigned.
+Local `scripts/make_deploy.sh --no-publish` builds may remain unsigned.
 
 ## Automatic installation and updates
 
@@ -98,9 +98,9 @@ Concurrent repairs/updates and symlinked state or updater paths are rejected.
 The Windows entrypoints dispatch the native GitHub Actions release workflow:
 
 ```powershell
-.\make_release.bat v2026.10.30
+.\scripts\make_release.bat v2026.10.30
 # Or:
-.\make_release.ps1 -Version v2026.10.30
+.\scripts\make_release.ps1 -Version v2026.10.30
 ```
 
 Run from the reviewed `main` branch with Git and an authenticated GitHub CLI.
@@ -121,7 +121,7 @@ CI preserves existing releases and tags. Docker publication is dispatched explic
 for the published tag because events created by `GITHUB_TOKEN` do not trigger tag
 push workflows. Docker publication continues in its own workflow.
 
-`make_release.ps1 -Local` or an explicit `AURAGO_RELEASE_SIGNING_KEY` selects the
+`scripts/make_release.ps1 -Local` or an explicit `AURAGO_RELEASE_SIGNING_KEY` selects the
 existing local build path instead. Local builds need the Go, Node.js, Python, tar and Cosign prerequisites
 and a clean source checkout. The default dispatcher needs none of those build tools.
 
@@ -142,7 +142,7 @@ Private keys, passwords and the maintainer tool never enter the checkout or
 release assets. Repeating setup retains existing keys; incomplete profiles fail
 without replacement or rotation.
 
-Local profile signing (`make_release.ps1 -Local`) automatically discovers
+Local profile signing (`scripts/make_release.ps1 -Local`) automatically discovers
 `cosign.exe`, `release.key`, `release.pub` and `password.dpapi` in that profile.
 Local builds check readiness before
 cleanup and compilation, including in an already-open terminal with no Cosign on

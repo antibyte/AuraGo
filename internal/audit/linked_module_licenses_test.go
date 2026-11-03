@@ -401,7 +401,7 @@ func TestLinkedGoModulesHaveGPL3CompatibleLicenses(t *testing.T) {
 		t.Fatalf("go is not on PATH, so the linked-module licence gate cannot run: %v", err)
 	}
 	manifest := readLinkedModuleManifest(t)
-	notices := readRepoFile(t, "THIRD_PARTY_NOTICES.md")
+	notices := readRepoFile(t, "licences/THIRD_PARTY_NOTICES.md")
 
 	perTarget := make([]map[string]*linkedModule, len(releaseTargets))
 	var wg sync.WaitGroup

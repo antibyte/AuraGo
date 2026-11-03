@@ -64,7 +64,7 @@ rule no longer has a matching device channel, **Remove rule** changes only the
 Config draft; use **Save** to persist that cleanup. An uncertain device edit
 keeps the channel locked until its mapping is reconciled.
 
-On Linux, the one-line installer, `install_service_linux.sh`, and `update.sh`
+On Linux, the one-line installer, `scripts/install_service_linux.sh`, and `update.sh`
 automatically grant the systemd service USB access through existing `dialout`/
 `uucp` groups. Permissions take effect when the service starts, without a new
 login. With `--no-restart`, they take effect on the next service restart.

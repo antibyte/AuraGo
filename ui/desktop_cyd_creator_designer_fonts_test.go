@@ -31,7 +31,7 @@ func TestCYDCreatorDesignerFontsVendored(t *testing.T) {
 	if !strings.Contains(readDesktopAssetText(t, "fonts/fonts.css"), "font-family: 'Inter'") {
 		t.Error("fonts/fonts.css no longer declares Inter")
 	}
-	inventory, err := os.ReadFile(filepath.Join("..", "THIRD_PARTY_LIBRARIES.md"))
+	inventory, err := os.ReadFile(filepath.Join("..", "licences", "THIRD_PARTY_LIBRARIES.md"))
 	if err != nil {
 		t.Fatal(err)
 	}

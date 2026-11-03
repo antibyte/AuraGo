@@ -66,15 +66,15 @@ signature_fixture() { %t; }
 }
 
 func TestReleaseSignerRunsAfterChecksumsBeforePublishing(t *testing.T) {
-	for _, path := range []string{"make_release.ps1", "make_release.bat", "make_deploy.sh"} {
+	for _, path := range []string{"scripts/make_release.ps1", "scripts/make_release.bat", "scripts/make_deploy.sh"} {
 		script := readRepoFile(t, path)
 		sign := strings.LastIndex(script, "sign-release-checksums.")
 		checksum := strings.Index(script, "Generating SHA256SUMS")
-		if path == "make_deploy.sh" {
+		if path == "scripts/make_deploy.sh" {
 			checksum = strings.Index(script, `: > "$DEPLOY_DIR/SHA256SUMS"`)
 		}
 		publish := strings.Index(script, "git add .")
-		if path == "make_release.ps1" {
+		if path == "scripts/make_release.ps1" {
 			publish = strings.Index(script, "git push origin HEAD:refs/heads/main")
 		}
 		if sign < 0 || checksum < 0 || publish < 0 || sign <= checksum || sign >= publish {
@@ -84,7 +84,7 @@ func TestReleaseSignerRunsAfterChecksumsBeforePublishing(t *testing.T) {
 }
 
 func TestWindowsReleaseSigningPreflightRunsBeforeCleanup(t *testing.T) {
-	for _, path := range []string{"make_release.ps1", "make_release.bat"} {
+	for _, path := range []string{"scripts/make_release.ps1", "scripts/make_release.bat"} {
 		script := readRepoFile(t, path)
 		check := strings.Index(script, "-CheckPrerequisites")
 		cleanup := strings.Index(script, "Get-ChildItem -LiteralPath 'deploy'")
@@ -98,8 +98,8 @@ func TestWindowsReleaseUploadsDraftBeforePublishingAndRetention(t *testing.T) {
 	for _, tc := range []struct {
 		path, create, upload string
 	}{
-		{"make_release.bat", `gh release create "!VERSION!" --draft`, "gh release upload"},
-		{"make_release.ps1", `$ghArgs = @("release", "create", $Version) + $assets + @("--draft"`, "gh @ghArgs"},
+		{"scripts/make_release.bat", `gh release create "!VERSION!" --draft`, "gh release upload"},
+		{"scripts/make_release.ps1", `$ghArgs = @("release", "create", $Version) + $assets + @("--draft"`, "gh @ghArgs"},
 	} {
 		script := readRepoFile(t, tc.path)
 		create := strings.Index(script, tc.create)
@@ -115,7 +115,7 @@ func TestWindowsReleaseUploadsDraftBeforePublishingAndRetention(t *testing.T) {
 		if !strings.Contains(script[publish:retention], "AURAGO_KEEP_RELEASES") || !strings.Contains(script[publish:retention], "Keeping all existing releases and tags.") {
 			t.Fatalf("%s must support publication without deleting existing releases or tags", tc.path)
 		}
-		if tc.path == "make_release.bat" {
+		if tc.path == "scripts/make_release.bat" {
 			if !strings.Contains(script[publish:retention], "if errorlevel 1 (") || !strings.Contains(script[publish:retention], "exit /b 1") {
 				t.Fatal("batch publication failures must stop before retention")
 			}

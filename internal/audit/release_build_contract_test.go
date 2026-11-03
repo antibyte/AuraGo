@@ -12,9 +12,9 @@ import (
 func TestMakeDeployUsesExactReleaseArtifactManifests(t *testing.T) {
 	t.Parallel()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "make_deploy.sh"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "scripts/make_deploy.sh"))
 	if err != nil {
-		t.Fatalf("read make_deploy.sh: %v", err)
+		t.Fatalf("read scripts/make_deploy.sh: %v", err)
 	}
 	script := string(data)
 	for _, marker := range []string{
@@ -27,7 +27,7 @@ func TestMakeDeployUsesExactReleaseArtifactManifests(t *testing.T) {
 		"for asset in \"${RELEASE_BIN_ASSETS[@]}\"; do",
 	} {
 		if !strings.Contains(script, marker) {
-			t.Fatalf("make_deploy.sh missing release manifest contract %q", marker)
+			t.Fatalf("scripts/make_deploy.sh missing release manifest contract %q", marker)
 		}
 	}
 }
@@ -35,9 +35,9 @@ func TestMakeDeployUsesExactReleaseArtifactManifests(t *testing.T) {
 func TestMakeDeployNormalizesTargetsAndCanSkipPublishing(t *testing.T) {
 	t.Parallel()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "make_deploy.sh"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "scripts/make_deploy.sh"))
 	if err != nil {
-		t.Fatalf("read make_deploy.sh: %v", err)
+		t.Fatalf("read scripts/make_deploy.sh: %v", err)
 	}
 	script := string(data)
 	for _, marker := range []string{
@@ -61,20 +61,20 @@ func TestMakeDeployNormalizesTargetsAndCanSkipPublishing(t *testing.T) {
 		"cp \"$OUT\" \"bin/aurago-remote_linux_arm64\"",
 	} {
 		if !strings.Contains(script, marker) {
-			t.Fatalf("make_deploy.sh missing build safety contract %q", marker)
+			t.Fatalf("scripts/make_deploy.sh missing build safety contract %q", marker)
 		}
 	}
 	if strings.Contains(script, "duplicate target in") {
-		t.Fatal("make_deploy.sh must deduplicate repeated targets instead of rejecting them")
+		t.Fatal("scripts/make_deploy.sh must deduplicate repeated targets instead of rejecting them")
 	}
 }
 
 func TestMakeReleaseRequiresCleanExplicitBuildIdentity(t *testing.T) {
 	t.Parallel()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "make_release.bat"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "scripts/make_release.bat"))
 	if err != nil {
-		t.Fatalf("read make_release.bat: %v", err)
+		t.Fatalf("read scripts/make_release.bat: %v", err)
 	}
 	script := string(data)
 	for _, marker := range []string{
@@ -86,7 +86,7 @@ func TestMakeReleaseRequiresCleanExplicitBuildIdentity(t *testing.T) {
 		"go build -buildvcs=false -trimpath -ldflags=\"!MAIN_LDFLAGS! !ASSET_LDFLAGS!\"",
 	} {
 		if !strings.Contains(script, marker) {
-			t.Fatalf("make_release.bat missing clean build identity contract %q", marker)
+			t.Fatalf("scripts/make_release.bat missing clean build identity contract %q", marker)
 		}
 	}
 }
@@ -190,7 +190,7 @@ func TestMakeDeployCustomTargetBuildOptOutPreservesSentinel(t *testing.T) {
 func runReleaseSubset(t *testing.T, root, targets, remoteTargets string) {
 	t.Helper()
 	bash := releaseBash(t)
-	command := "AURAGO_TARGETS=" + shellQuote(targets) + " AURAGO_REMOTE_TARGETS=" + shellQuote(remoteTargets) + " ./make_deploy.sh --no-publish"
+	command := "AURAGO_TARGETS=" + shellQuote(targets) + " AURAGO_REMOTE_TARGETS=" + shellQuote(remoteTargets) + " ./scripts/make_deploy.sh --no-publish"
 	if runtime.GOOS == "windows" {
 		command = "PATH='/c/Program Files/Go/bin:/usr/bin:/bin' " + command
 	}
@@ -260,9 +260,9 @@ func shellQuote(value string) string {
 func TestMakeDeployWritesEachChecksumBasenameOnlyOnce(t *testing.T) {
 	t.Parallel()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "make_deploy.sh"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "scripts/make_deploy.sh"))
 	if err != nil {
-		t.Fatalf("read make_deploy.sh: %v", err)
+		t.Fatalf("read scripts/make_deploy.sh: %v", err)
 	}
 	script := string(data)
 	for _, marker := range []string{
@@ -271,7 +271,7 @@ func TestMakeDeployWritesEachChecksumBasenameOnlyOnce(t *testing.T) {
 		"continue",
 	} {
 		if !strings.Contains(script, marker) {
-			t.Fatalf("make_deploy.sh missing checksum basename de-duplication contract %q", marker)
+			t.Fatalf("scripts/make_deploy.sh missing checksum basename de-duplication contract %q", marker)
 		}
 	}
 }
@@ -289,7 +289,7 @@ func TestWindowsReleaseScriptsWriteLFChecksumManifest(t *testing.T) {
 		writers []string
 	}{
 		{
-			path: "make_release.ps1",
+			path: "scripts/make_release.ps1",
 			writers: []string{
 				`[IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS')`,
 				"-join \"`n\"",
@@ -297,7 +297,7 @@ func TestWindowsReleaseScriptsWriteLFChecksumManifest(t *testing.T) {
 			},
 		},
 		{
-			path: "make_release.bat",
+			path: "scripts/make_release.bat",
 			writers: []string{
 				`[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS')`,
 				`-join [char]10`,

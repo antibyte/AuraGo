@@ -93,7 +93,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare verified Phonon resources.' }
       - name: Build all native assets, sign with GitHub identity and publish the verified draft
         shell: pwsh
-        run: ./make_release.ps1 -Version $env:RELEASE_VERSION
+        run: ./scripts/make_release.ps1 -Version $env:RELEASE_VERSION
       - name: Start Docker publication for the completed release tag
         shell: pwsh
         run: |

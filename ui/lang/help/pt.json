@@ -87,7 +87,7 @@
   "help.ansible.container_name": "(Apenas no modo sidecar) Nome do contentor Docker do sidecar Ansible gerido automaticamente. Predefinição: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Apenas no modo local) Arquivo de inventário predefinido (ex. '/etc/ansible/hosts'). Variável de ambiente: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Ativa a integração Ansible. Suporta dois modos: 'sidecar' (API Docker) e 'local' (CLI ansible diretamente no host).",
-  "help.ansible.image": "(Apenas no modo sidecar) Imagem Docker do contentor sidecar Ansible. Predefinição: 'aurago-ansible:latest'. Construa com: docker build -f Dockerfile.ansible -t aurago-ansible .",
+  "help.ansible.image": "(Apenas no modo sidecar) Imagem Docker do contentor sidecar Ansible. Predefinição: 'aurago-ansible:latest'. Construa com: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Modo de execução: 'sidecar' = contentor da API Ansible (Docker), 'local' = chama os binários ansible diretamente no host. Predefinição: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Apenas no modo local) Diretório com os playbooks Ansible (ex. '/opt/ansible/playbooks'). Variável de ambiente: ANSIBLE_PLAYBOOKS_DIR.",
   "help.ansible.read_only": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks.",

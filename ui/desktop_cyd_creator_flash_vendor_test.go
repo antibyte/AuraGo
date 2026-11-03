@@ -57,7 +57,7 @@ func TestCYDCreatorEsptoolVendored(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "esptool-js) 0.7.0") {
 		t.Fatalf("README.md: %v %s", err, readme)
 	}
-	inventory, err := os.ReadFile(filepath.Join("..", "THIRD_PARTY_LIBRARIES.md"))
+	inventory, err := os.ReadFile(filepath.Join("..", "licences", "THIRD_PARTY_LIBRARIES.md"))
 	if err != nil || !strings.Contains(string(inventory), "| esptool-js 0.7.0 | `ui/js/vendor/esptool-js/esptool-js.min.mjs`") {
 		t.Fatal("THIRD_PARTY_LIBRARIES.md misses the esptool-js row")
 	}

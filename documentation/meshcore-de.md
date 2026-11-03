@@ -72,7 +72,7 @@ Wenn zu einer gespeicherten Regel kein Gerätekanal mehr existiert, entfernt
 Bereinigung. Bei unklarem Geräteausgang bleibt der Kanal bis zum erneuten Abgleich
 gesperrt.
 
-Unter Linux richten der One-Liner-Installer, `install_service_linux.sh` und
+Unter Linux richten der One-Liner-Installer, `scripts/install_service_linux.sh` und
 `update.sh` den USB-Zugriff für den systemd-Dienst automatisch über vorhandene
 `dialout`-/`uucp`-Gruppen ein. Die Berechtigung gilt ab dem Dienststart; eine
 erneute Benutzeranmeldung ist nicht nötig. Bei `--no-restart` gilt sie erst

@@ -14,7 +14,7 @@ REM   - tar       (built-in Windows 10 Build 17063+)
 REM   - Python 3.10+ (py launcher, python or python3)
 
 setlocal enabledelayedexpansion
-cd /d "%~dp0"
+cd /d "%~dp0.." || exit /b 1
 if /i "%GITHUB_ACTIONS%"=="true" goto local_release
 if defined AURAGO_RELEASE_SIGNING_KEY goto local_release
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0make_release.ps1" %*
@@ -61,13 +61,13 @@ if errorlevel 1 (
     exit /b 1
 )
 echo     tar: OK
-powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\sign-release-checksums.ps1" -CheckPrerequisites
+powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0sign-release-checksums.ps1" -CheckPrerequisites
 if errorlevel 1 (
     echo [ERROR] Release signing is not ready. Run scripts\setup-release-signing.ps1 first.
     exit /b 1
 )
 set "RELEASE_PYTHON="
-for /f "delims=" %%P in ('powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\find-release-python.ps1"') do set "RELEASE_PYTHON=%%P"
+for /f "delims=" %%P in ('powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0find-release-python.ps1"') do set "RELEASE_PYTHON=%%P"
 if not defined RELEASE_PYTHON (
     echo [ERROR] Python 3.10+ is required to prepare Phonon release resources.
     exit /b 1
@@ -197,7 +197,7 @@ if errorlevel 1 (
 
 REM GPL-3.0 combined work: the licence texts and notices travel with every binary.
 copy /y "LICENSE" "%TMPSTAGE%\LICENSE" >nul || exit /b 1
-copy /y "THIRD_PARTY_NOTICES.md" "%TMPSTAGE%\THIRD_PARTY_NOTICES.md" >nul || exit /b 1
+copy /y "licences\THIRD_PARTY_NOTICES.md" "%TMPSTAGE%\THIRD_PARTY_NOTICES.md" >nul || exit /b 1
 xcopy /e /i /q "licences\texts" "%TMPSTAGE%\licences\texts" >nul || exit /b 1
 copy /y "licences\linked-go-modules.tsv" "%TMPSTAGE%\licences\linked-go-modules.tsv" >nul || exit /b 1
 
@@ -338,7 +338,7 @@ if errorlevel 1 (
     echo [ERROR] Failed to generate SHA256SUMS.
     exit /b 1
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\sign-release-checksums.ps1" -Manifest "%~dp0deploy\SHA256SUMS"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sign-release-checksums.ps1" -Manifest "%~dp0..\deploy\SHA256SUMS"
 if errorlevel 1 (
     echo [ERROR] Release signing or verification failed. Nothing was published.
     exit /b 1
