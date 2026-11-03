@@ -164,9 +164,9 @@ go run ./cmd/assetpack -out deploy -stage assets/web
 go build -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 
 # Oder Release-Artefakte bauen
-./make_deploy.sh  # Linux/macOS
+./scripts/make_deploy.sh  # Linux/macOS
 # oder
-make_deploy.bat   # Windows
+scripts/make_deploy.bat   # Windows
 ```
 
 ## Erstkonfiguration
@@ -234,7 +234,7 @@ Get-Content .env | ForEach-Object {
 
 **Linux (systemd):**
 ```bash
-sudo ./install_service_linux.sh
+sudo ./scripts/install_service_linux.sh
 # oder manuell:
 sudo systemctl enable --now aurago
 ```

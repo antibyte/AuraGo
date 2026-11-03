@@ -10,7 +10,7 @@ import (
 func TestBrowserAutomationDockerfileCopiesSidecarRuntimeScripts(t *testing.T) {
 	t.Parallel()
 
-	dockerfile := readRepoFile(t, "Dockerfile.browser_automation")
+	dockerfile := readRepoFile(t, "deploy/docker/Dockerfile.browser_automation")
 	copied := browserAutomationSidecarJSCopied(dockerfile)
 
 	for _, sidecarFile := range []string{

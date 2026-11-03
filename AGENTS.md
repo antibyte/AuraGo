@@ -21,7 +21,8 @@ Go 1.27.3+; standard `net/http`; pure-Go `modernc.org/sqlite`; embedded `chromem
 - `agent_workspace/`: runtime workspace; `agent_workspace/skills`: bundled Python skills; `agent_workspace/tools`: generated tools/manifest; `agent_workspace/workdir`: sandbox/venv. `prompts/`: `prompts/identity.md`, `rules.md`, `personalities/`, `templates/`, `tools_manuals/` own identity/rules/profiles/templates/RAG-indexed manuals.
 - `ui/`: external HTML/CSS/JS, 16 locales, UI tests and `embed.go` fixtures. `assets/`: bundled/static/sample assets. `knowledge/`: application knowledge. `mcps/`: connector/tool definitions. `licences/`: third-party records/texts.
 - `.github/`: Actions/agents/prompts/automation metadata. `scripts/`, `tools/`: developer/runtime helpers. `ansible_api/`: sidecar API. `browser_automation_sidecar/`: browser sidecar sources/support. `plans/`, `openspec/`: planning/specifications/change management. `docs/`, `documentation/`: user/operator guides.
-- `deploy/`: tracked deployment/release inputs and ignored generated artifacts. `config.yaml`: local config; `config_template.yaml`: full reference. `Dockerfile`, `docker-compose.yml`, `Dockerfile.ansible`: containers. `install.sh`, `update.sh`, `make_deploy.sh`, `make_release.bat`: install/update/release.
+- `deploy/`: tracked deployment/release inputs and ignored generated artifacts; `deploy/docker/` owns sidecar Dockerfiles and the main image's entrypoint. `config.yaml`: local config; `config_template.yaml`: runtime template and full reference. `Dockerfile`, `docker-compose.yml`: conventional container entrypoints. `install.sh`, `install.ps1`, `update.sh`, `repair-update.sh`: public bootstrap/update paths. Start/stop, service installation and release scripts live in `scripts/`.
+- Keep the repository root compact: retain automatically discovered project/tool manifests, README/license/agent guidance, the runtime config template and public installer/updater URLs. Put developer scripts in `scripts/`, auxiliary container inputs in `deploy/docker/`, and third-party inventories/notices in `licences/`. Moving source inputs must preserve installed/archive basenames and existing public bootstrap URLs.
 - External `../agotrain` (`antibyte/agotrain`): training datasets/curated contracts/Python environments/Needle3; workflow: `documentation/training.md`. Ordinary builds need no training checkout.
 - Ignored/runtime `bin/` (binaries), `data/` (state), `reports/` (analysis), `node_modules/`, `.venv/`, `.worktrees/`, `terminals/` are not child DOX owners.
 
@@ -46,9 +47,9 @@ docker-compose up -d
 docker-compose logs -f aurago
 ```
 
-Plain `go build` without resource flags produces recovery only. Packaging assets cannot repair an unpinned binary: rebuild with the flags, verify `--check-assets`, then restart. Local startup: `./start.sh`; Windows: `start.bat` or PowerShell in `documentation/web-assets.md`.
+Plain `go build` without resource flags produces recovery only. Packaging assets cannot repair an unpinned binary: rebuild with the flags, verify `--check-assets`, then restart. Local startup: `./scripts/start.sh`; Windows: `scripts/start.bat` or PowerShell in `documentation/web-assets.md`.
 
-Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.bat` / `make_release.ps1` (Windows), not ad-hoc builds; these scripts do not upload to a test server. Side effects are listed below.
+Production releases must use `./scripts/make_deploy.sh` (Linux/macOS) or `scripts/make_release.bat` / `scripts/make_release.ps1` (Windows), not ad-hoc builds; these scripts do not upload to a test server. Side effects are listed below.
 
 ### Verification and editing
 
@@ -89,12 +90,12 @@ Docker is recommended: `docker-compose up -d`; `docker-compose -f docker-compose
 
 - Verified install: obtain `install.sh` over HTTPS from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `bash install.sh`; signature and payload verification are automatic, without user key/tool setup.
 - Main-branch quick install: `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
-- Manual: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), `chmod +x aurago_linux`, `./aurago_linux`. Systemd: `sudo ./install_service_linux.sh`.
+- Manual: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), `chmod +x aurago_linux`, `./aurago_linux`. Systemd: `sudo ./scripts/install_service_linux.sh`.
 
 Development reset deletes databases/vectors/venv and removes locks after stopping:
 
 ```bash
-./kill_all.sh
+./scripts/kill_all.sh
 rm -rf data/*.db data/vectordb/* agent_workspace/workdir/venv
 rm -f data/aurago.lock data/maintenance.lock
 ```
@@ -158,7 +159,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Treat `config.yaml` carefully; align install/update scripts and Dockerfiles with system/dependency changes. AuraGo manages its Docker containers; do not assume manual user management.
 - Compose socket proxy defaults to `BUILD=0`. Code Studio/most sidecars pull with `IMAGES=1`, `POST=1`; Engine builds (Homepage first-use dev image, CommandCode fallback, local Code Studio runtimes, rate-limit Caddy image) need `BUILD=1` or preexisting host images. `aurago --print-homepage-dockerfile` supports host builds; see `documentation/docker_installation.md` section 4. Changing default to `BUILD=1` requires an explicit decision.
 - `docker-publish.yml` publishes GHCR linux/amd64 + linux/arm64 on `v*` tags/manual dispatch (`image=all` / `image=gods-eye-view` / `image=kaggle-notebook`), never `main` pushes alone. Kaggle notebook publication requires amd64/arm64 bridge smokes and signs the fixed protocol image tag; keep `internal/notebooks` and its Dockerfile aligned. Pin workflow `uses:` to full SHA plus ` # vX.Y.Z`; default `permissions: contents: read`, job-specific writes only (`internal/audit` rejects floating refs). `.github/dependabot.yml` refreshes monthly except manual `dtolnay/rust-toolchain`; `govulncheck@v1.8.0` in `security-gates.yml` is manual too. Training Python/uv/GPU research stays in `antibyte/agotrain`; AuraGo owns Go exporter/importer/pinned checks.
-- `./make_deploy.sh` cross-builds and may commit/push `main` by default (`--no-publish` suppresses); no tag/GitHub Release. Windows `make_release.bat`/`make_release.ps1` default to `scripts/start-release-ci.ps1`: push committed `main`, dispatch `release.yml` with its expected SHA and wait for success. Local drafts stay local. The workflow requires the exact commit's complete Security Gates run, builds all native assets in a clean checkout and uses GitHub OIDC signing. `make_release.ps1 -Local` or explicit signing-key configuration retains local builds. Builders pin `GOTOOLCHAIN=go1.27.3`; verify compiler before publishing even if system Go is newer.
+- `./scripts/make_deploy.sh` cross-builds and may commit/push `main` by default (`--no-publish` suppresses); no tag/GitHub Release. Windows `scripts/make_release.bat`/`scripts/make_release.ps1` default to `scripts/start-release-ci.ps1`: push committed `main`, dispatch `release.yml` with its expected SHA and wait for success. Local drafts stay local. The workflow requires the exact commit's complete Security Gates run, builds all native assets in a clean checkout and uses GitHub OIDC signing. `scripts/make_release.ps1 -Local` or explicit signing-key configuration retains local builds. Builders pin `GOTOOLCHAIN=go1.27.3`; verify compiler before publishing even if system Go is newer.
 - `release.yml` uploads all assets to a draft before publishing, keeps existing releases/tags (`AURAGO_KEEP_RELEASES=1`) and explicitly dispatches `docker-publish.yml` for the completed tag because `GITHUB_TOKEN` tag creation does not trigger push workflows. Local keyed Windows publication retains the latest three stable AuraGo releases and keeps the tags of deleted ones (their GPL-3.0 corresponding source) unless retention is disabled; exclude drafts and integration prereleases before counting.
 - Windows release builders resolve Python 3.10+ through `scripts/find-release-python.ps1` (`py -3`, then `python`/`python3`) before cleanup. Python prepares Phonon resources and checks reproducible release-verifier artifacts; end users need neither Python nor Cosign for signature verification.
 - Official native install/update paths automatically provision a size/SHA-256-pinned verifier and trust its embedded public key. Missing/invalid signatures fail before shutdown or payload execution. `scripts/build-release-verifier.py` owns generated bootstrap blocks in `install.sh`, `update.sh`, `repair-update.sh`; retain its immutable bootstrap prereleases. See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
@@ -179,6 +180,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 | Feature / area | Required AGENTS.md | Scope |
 | --- | --- | --- |
+| Repository scripts | `scripts/AGENTS.md` | Developer entrypoints, project-root resolution and release helper paths; runtime/update policy remains in root and upkeep guides. |
+| Auxiliary Docker inputs | `deploy/docker/AGENTS.md` | Sidecar Dockerfiles, main entrypoint and repository-root build contexts; feature-specific children retain their contracts. |
 | Low-poly Game Maker pack | `assets/game-maker-low-poly/AGENTS.md` | Original 220-model Blender pack, animations, compact exports, playable acceptance scenes. |
 | Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
 | Game Maker worlds | `assets/game-maker-worlds/AGENTS.md` | Maritime/isometric Blender sources, catalog counts, exports, runtime limits. |

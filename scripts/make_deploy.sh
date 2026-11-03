@@ -19,7 +19,7 @@
 #   SHA256SUMS                  (release checksum manifest)
 #
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 # Pin the compiler used by CI and release artifacts.
 export GOTOOLCHAIN=go1.27.3
 
@@ -244,7 +244,7 @@ sed \
 
 # GPL-3.0 combined work: the licence texts and notices travel with every binary.
 mkdir -p "$TMPDIR_RES/licences"
-cp LICENSE THIRD_PARTY_NOTICES.md "$TMPDIR_RES/"
+cp LICENSE licences/THIRD_PARTY_NOTICES.md "$TMPDIR_RES/"
 cp -r licences/texts "$TMPDIR_RES/licences/"
 cp licences/linked-go-modules.tsv "$TMPDIR_RES/licences/"
 

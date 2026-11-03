@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0.." || exit /b 1
 set GOOS=windows
 set GOARCH=amd64
 echo Building AuraGo for Windows...

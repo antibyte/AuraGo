@@ -2,7 +2,7 @@
 REM make_deploy.bat — Push AuraGo source to GitHub (for development)
 REM For full release builds, use make_release.bat instead.
 setlocal enabledelayedexpansion
-cd /d "%~dp0"
+cd /d "%~dp0.." || exit /b 1
 
 echo --- AuraGo Deploy (Dev Push) ---
 echo.

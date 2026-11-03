@@ -87,7 +87,7 @@
   "help.ansible.container_name": "(Pouze režim sidecar) Název kontejneru Docker pro automaticky spravovaný Ansible sidecar. Výchozí: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Pouze režim local) Výchozí soubor inventáře (např. '/etc/ansible/hosts'). Proměnná prostředí: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Povoluje integraci Ansible. Podporuje dva režimy: 'sidecar' (Docker API) a 'local' (ansible CLI přímo na hostiteli).",
-  "help.ansible.image": "(Pouze režim sidecar) Docker image pro kontejner Ansible sidecar. Výchozí: 'aurago-ansible:latest'. Sestavení: docker build -f Dockerfile.ansible -t aurago-ansible .",
+  "help.ansible.image": "(Pouze režim sidecar) Docker image pro kontejner Ansible sidecar. Výchozí: 'aurago-ansible:latest'. Sestavení: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Režim spuštění: 'sidecar' = kontejner Ansible API (Docker), 'local' = přímé volání binárek ansible na hostiteli. Výchozí: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Pouze režim local) Adresář s playbooky Ansible (např. '/opt/ansible/playbooks'). Proměnná prostředí: ANSIBLE_PLAYBOOKS_DIR.",
   "help.ansible.read_only": "Když je povoleno, agent může jen kontrolovat stav, inventář a vypisovat playbooky, ale nemůže spouštět ad-hoc příkazy ani playbooky.",

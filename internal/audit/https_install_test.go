@@ -41,7 +41,7 @@ printf '%s %s %s %s %s\n' "$SERVER_HOST" "$HTTPS_ENABLED" "$HTTPS_CERT_MODE" "$H
 }
 
 func TestDockerFreshHTTPSAndHealthcheck(t *testing.T) {
-	entry := readRepoFile(t, "docker-entrypoint.sh")
+	entry := readRepoFile(t, "deploy/docker/docker-entrypoint.sh")
 	for _, want := range []string{"https_port: 8443", "http_port: 0", "cert_mode: selfsigned", `if [ "$FRESH_CONFIG" = true ]`, "--https-port=8443"} {
 		if !strings.Contains(entry, want) {
 			t.Fatalf("fresh Docker path missing %s", want)

@@ -63,23 +63,23 @@ class PhononPreparationTests(unittest.TestCase):
                 (root / "scripts/prepare-phonon.py").write_text("import sys\nfrom pathlib import Path\nassert sys.argv[1:] == ['--pack']\nPath('packed.txt').touch()\n", encoding="utf-8")
                 sentinel = root / "keep.dat"
                 sentinel.write_bytes(b"existing release artifact")
-                source = (prepare.REPO / script).read_text(encoding="utf-8")
+                source = (prepare.REPO / "scripts" / script).read_text(encoding="utf-8")
                 self.assertLess(source.index("find-release-python.ps1"), source.index("Get-ChildItem -LiteralPath 'deploy'"))
                 if script.endswith(".bat"):
                     block = re.search(r'(set "RELEASE_PYTHON=".*?^echo     Python:[^\n]*\n)', source, re.M | re.S)
                     self.assertIsNotNone(block, "Python preflight block not found")
                     pack = re.search(r'^"!RELEASE_PYTHON!"[^\n]*prepare-phonon\.py[^\n]*--pack[^\n]*', source, re.M)
                     self.assertIsNotNone(pack, "verified Python pack invocation not found")
-                    runner = root / script
-                    runner.write_text('@echo off\nsetlocal enabledelayedexpansion\n' + block[1] + pack[0] + '\nif errorlevel 1 exit /b 1\ndel "%~dp0keep.dat"\n', encoding="utf-8")
+                    runner = root / "scripts" / script
+                    runner.write_text('@echo off\nsetlocal enabledelayedexpansion\n' + block[1] + pack[0] + '\nif errorlevel 1 exit /b 1\ndel "%~dp0..\\keep.dat"\n', encoding="utf-8")
                     command = [os.environ["COMSPEC"], "/d", "/c", str(runner)]
                 else:
                     block = re.search(r'(^\$releasePython = .*?^Write-Host "    Python:[^\n]*\n)', source, re.M | re.S)
                     self.assertIsNotNone(block, "Python preflight block not found")
                     pack = re.search(r'^& \$releasePython[^\n]*prepare-phonon\.py[^\n]*--pack[^\n]*', source, re.M)
                     self.assertIsNotNone(pack, "verified Python pack invocation not found")
-                    runner = root / script
-                    runner.write_text("$ErrorActionPreference = 'Stop'\n$scriptDir = $PSScriptRoot\n" + block[1] + pack[0] + "\nif ($LASTEXITCODE -ne 0) { exit 1 }\nRemove-Item -LiteralPath (Join-Path $PSScriptRoot 'keep.dat')\n", encoding="utf-8")
+                    runner = root / "scripts" / script
+                    runner.write_text("$ErrorActionPreference = 'Stop'\n$scriptDir = Split-Path -Parent $PSScriptRoot\n" + block[1] + pack[0] + "\nif ($LASTEXITCODE -ne 0) { exit 1 }\nRemove-Item -LiteralPath (Join-Path $scriptDir 'keep.dat')\n", encoding="utf-8")
                     command = [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(runner)]
                 result = subprocess.run(command, cwd=root, env=dict(os.environ, PATH=os.pathsep.join((str(root), str(Path(powershell).parent)))),
                                         capture_output=True, text=True)
@@ -104,7 +104,7 @@ class PhononPreparationTests(unittest.TestCase):
                     path = root / name
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b"fixture")
-                source = (prepare.REPO / script).read_text(encoding="utf-8")
+                source = (prepare.REPO / "scripts" / script).read_text(encoding="utf-8")
                 if script.endswith(".bat"):
                     match = re.search(r'^powershell .*?-command "([^"]*Get-ChildItem[^\n]*)"$', source, re.M)
                 else:

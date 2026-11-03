@@ -305,36 +305,36 @@ func TestDockerImageIncludesCodeStudioDockerfile(t *testing.T) {
 func TestReleaseScriptsPreserveCodeStudioDockerfile(t *testing.T) {
 	root := filepath.Join("..", "..")
 
-	makeDeploy, err := os.ReadFile(filepath.Join(root, "make_deploy.sh"))
+	makeDeploy, err := os.ReadFile(filepath.Join(root, "scripts/make_deploy.sh"))
 	if err != nil {
-		t.Fatalf("read make_deploy.sh: %v", err)
+		t.Fatalf("read scripts/make_deploy.sh: %v", err)
 	}
 	makeDeployText := string(makeDeploy)
 	if strings.Contains(makeDeployText, `rm -rf "$DEPLOY_DIR"`) {
-		t.Fatal("make_deploy.sh must not delete the whole deploy directory because deploy/docker is versioned source")
+		t.Fatal("scripts/make_deploy.sh must not delete the whole deploy directory because deploy/docker is versioned source")
 	}
 	for _, marker := range []string{
 		`for asset in "${CLEANUP_DEPLOY_ASSETS[@]}"; do`,
 		`rm -f "$DEPLOY_DIR/$asset"`,
 	} {
 		if !strings.Contains(makeDeployText, marker) {
-			t.Fatalf("make_deploy.sh must clean generated deploy files without deleting deploy/docker; missing %q", marker)
+			t.Fatalf("scripts/make_deploy.sh must clean generated deploy files without deleting deploy/docker; missing %q", marker)
 		}
 	}
 	if strings.Contains(makeDeployText, "CLEANUP_DEPLOY_ASSETS+=(docker)") {
-		t.Fatal("make_deploy.sh must not add deploy/docker to generated cleanup artifacts")
+		t.Fatal("scripts/make_deploy.sh must not add deploy/docker to generated cleanup artifacts")
 	}
 
-	makeRelease, err := os.ReadFile(filepath.Join(root, "make_release.bat"))
+	makeRelease, err := os.ReadFile(filepath.Join(root, "scripts/make_release.bat"))
 	if err != nil {
-		t.Fatalf("read make_release.bat: %v", err)
+		t.Fatalf("read scripts/make_release.bat: %v", err)
 	}
 	makeReleaseText := string(makeRelease)
 	if strings.Contains(makeReleaseText, "rmdir /s /q deploy") {
-		t.Fatal("make_release.bat must not delete the whole deploy directory because deploy/docker is versioned source")
+		t.Fatal("scripts/make_release.bat must not delete the whole deploy directory because deploy/docker is versioned source")
 	}
 	if !strings.Contains(makeReleaseText, "$_.Name -notin @('docker', 'phonon')") {
-		t.Fatal("make_release.bat must preserve deploy/docker and prepared Phonon inputs while cleaning generated deploy artifacts")
+		t.Fatal("scripts/make_release.bat must preserve deploy/docker and prepared Phonon inputs while cleaning generated deploy artifacts")
 	}
 }
 

@@ -710,7 +710,7 @@ curl -X POST http://localhost:8088/api/backup/create \
      -o vault_backup.aurago
 
 # 2. AuraGo stoppen
-./kill_all.sh     # oder systemctl stop aurago
+./scripts/kill_all.sh     # oder systemctl stop aurago
 
 # 3. Neuen Master-Key setzen
 export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
@@ -723,7 +723,7 @@ curl -X POST http://localhost:8088/api/backup/import \
      -F password=starkes-passwort
 
 # 6. AuraGo neu starten – der wartende Restore wird erst beim Start angewendet
-./kill_all.sh     # oder systemctl restart aurago
+./scripts/kill_all.sh     # oder systemctl restart aurago
 ./aurago          # bei systemd: systemctl start aurago
 ```
 

@@ -85,7 +85,7 @@ COPY deploy/docker /app/deploy/docker
 
 # GPL-3.0 combined work: the licence texts and notices travel beside the binary;
 # the release notes link the tagged source.
-COPY LICENSE THIRD_PARTY_NOTICES.md /app/
+COPY LICENSE licences/THIRD_PARTY_NOTICES.md /app/
 COPY licences/texts /app/licences/texts
 COPY licences/linked-go-modules.tsv /app/licences/linked-go-modules.tsv
 
@@ -123,7 +123,7 @@ RUN mkdir -p \
 # without any YAML manipulation in the entrypoint script.
 ENV AURAGO_SERVER_HOST=0.0.0.0
 
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY deploy/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY config_template.yaml /app/config.yaml.default
 # Normalize CRLF -> LF in case the file was committed from a Windows machine.
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh /app/config.yaml.default

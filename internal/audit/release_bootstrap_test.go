@@ -271,7 +271,7 @@ release_verifier_fetch() {
 }
 
 func TestReleaseVerifierBuildersPackageAutomaticVerification(t *testing.T) {
-	for _, path := range []string{"make_deploy.sh", "make_release.ps1", "make_release.bat"} {
+	for _, path := range []string{"scripts/make_deploy.sh", "scripts/make_release.ps1", "scripts/make_release.bat"} {
 		source := readRepoFile(t, path)
 		if !strings.Contains(source, "build-release-verifier.py") || !strings.Contains(source, "--check") ||
 			!strings.Contains(source, "repair-update.sh") || !strings.Contains(source, "release-verifier_") {

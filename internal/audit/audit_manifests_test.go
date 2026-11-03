@@ -310,7 +310,7 @@ func TestSubprocessLaunchesDoNotInheritRawProcessEnvironment(t *testing.T) {
 func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	t.Parallel()
 
-	entrypoint, err := os.ReadFile(repoPath("docker-entrypoint.sh"))
+	entrypoint, err := os.ReadFile(repoPath("deploy/docker/docker-entrypoint.sh"))
 	if err != nil {
 		t.Fatalf("read docker-entrypoint.sh: %v", err)
 	}
@@ -318,12 +318,12 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 		t.Fatal("docker-entrypoint.sh must restrict generated config permissions to 0600")
 	}
 
-	service, err := os.ReadFile(repoPath("install_service_linux.sh"))
+	service, err := os.ReadFile(repoPath("scripts/install_service_linux.sh"))
 	if err != nil {
-		t.Fatalf("read install_service_linux.sh: %v", err)
+		t.Fatalf("read scripts/install_service_linux.sh: %v", err)
 	}
 	if !strings.Contains(string(service), `NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"`) {
-		t.Fatal("install_service_linux.sh must enable NoNewPrivileges=true by default unless saved sudo permissions require escalation")
+		t.Fatal("scripts/install_service_linux.sh must enable NoNewPrivileges=true by default unless saved sudo permissions require escalation")
 	}
 
 	updateScript := readRepoFile(t, "update.sh")
@@ -367,7 +367,7 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 func TestLinuxServiceInstallersGrantDetectedGPUGroups(t *testing.T) {
 	t.Parallel()
 
-	for _, path := range []string{"install_service_linux.sh", "install.sh", "update.sh"} {
+	for _, path := range []string{"scripts/install_service_linux.sh", "install.sh", "update.sh"} {
 		script := readRepoFile(t, path)
 		for _, marker := range []string{
 			"systemd_gpu_groups_line()",
@@ -384,7 +384,7 @@ func TestLinuxServiceInstallersGrantDetectedGPUGroups(t *testing.T) {
 func TestLinuxServiceInstallersEmitVerifiableSystemdPaths(t *testing.T) {
 	t.Parallel()
 
-	for _, path := range []string{"install_service_linux.sh", "install.sh"} {
+	for _, path := range []string{"scripts/install_service_linux.sh", "install.sh"} {
 		script := readRepoFile(t, path)
 		for _, forbidden := range []string{
 			`WorkingDirectory="${INSTALL_DIR}"`,
@@ -411,7 +411,7 @@ func TestLinuxServiceInstallersEmitVerifiableSystemdPaths(t *testing.T) {
 func TestLinuxServiceInstallersForwardNumericGPUGroupIDs(t *testing.T) {
 	t.Parallel()
 
-	for _, path := range []string{"install_service_linux.sh", "install.sh", "update.sh"} {
+	for _, path := range []string{"scripts/install_service_linux.sh", "install.sh", "update.sh"} {
 		script := readRepoFile(t, path)
 		for _, marker := range []string{
 			"system_gpu_group_ids()",
@@ -551,15 +551,15 @@ func TestUpdateScriptsParseWithBash(t *testing.T) {
 func TestInstallerReleaseCopyUsesRootInstaller(t *testing.T) {
 	t.Parallel()
 
-	makeDeploy := readRepoFile(t, "make_deploy.sh")
+	makeDeploy := readRepoFile(t, "scripts/make_deploy.sh")
 	if strings.Contains(makeDeploy, `cp deploy/install.sh "$DEPLOY_DIR/install.sh"`) {
-		t.Fatal("make_deploy.sh must not prefer deploy/install.sh over root install.sh")
+		t.Fatal("scripts/make_deploy.sh must not prefer deploy/install.sh over root install.sh")
 	}
 	if !strings.Contains(makeDeploy, `cp install.sh "$DEPLOY_DIR/install.sh"`) {
-		t.Fatal("make_deploy.sh must copy root install.sh into the release directory")
+		t.Fatal("scripts/make_deploy.sh must copy root install.sh into the release directory")
 	}
 	if strings.Contains(makeDeploy, `|| cp install.sh`) {
-		t.Fatal("make_deploy.sh must not treat root install.sh as a fallback after an ignored deploy script")
+		t.Fatal("scripts/make_deploy.sh must not treat root install.sh as a fallback after an ignored deploy script")
 	}
 }
 
@@ -758,10 +758,10 @@ func TestSetupTrustProfilesEnableDockerAndUnrestrictedMode(t *testing.T) {
 	}
 
 	installScript := readRepoFile(t, "install.sh")
-	serviceInstaller := readRepoFile(t, "install_service_linux.sh")
+	serviceInstaller := readRepoFile(t, "scripts/install_service_linux.sh")
 	for path, script := range map[string]string{
-		"install.sh":               installScript,
-		"install_service_linux.sh": serviceInstaller,
+		"install.sh":                       installScript,
+		"scripts/install_service_linux.sh": serviceInstaller,
 	} {
 		for _, required := range []string{
 			`NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"`,
@@ -1379,7 +1379,7 @@ func TestDockerPublishWorkflowUsesBundledCommandCodeContext(t *testing.T) {
 func TestDockerEntrypointReportsConfigMergeFailures(t *testing.T) {
 	t.Parallel()
 
-	entrypoint := readRepoFile(t, "docker-entrypoint.sh")
+	entrypoint := readRepoFile(t, "deploy/docker/docker-entrypoint.sh")
 	if strings.Contains(entrypoint, `if [ ! -f "$CONFIG_FILE" ]; then`+"\n"+`    echo "[Entrypoint] No config.yaml found, creating initial configuration..."`+"\n    \n"+`    # Create backup of any existing config before overwriting`) {
 		t.Fatal("docker-entrypoint.sh still contains the unreachable initial-config backup block")
 	}
@@ -1394,29 +1394,29 @@ func TestDockerEntrypointReportsConfigMergeFailures(t *testing.T) {
 func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
 	t.Parallel()
 
-	script := readRepoFile(t, "make_release.bat")
+	script := readRepoFile(t, "scripts/make_release.bat")
 	if strings.Contains(script, "Get-FileHash") {
-		t.Fatal("make_release.bat must not require Get-FileHash because older PowerShell hosts may not provide it")
+		t.Fatal("scripts/make_release.bat must not require Get-FileHash because older PowerShell hosts may not provide it")
 	}
 	if !strings.Contains(script, "System.Security.Cryptography.SHA256") {
-		t.Fatal("make_release.bat should generate SHA256SUMS through .NET SHA256 APIs")
+		t.Fatal("scripts/make_release.bat should generate SHA256SUMS through .NET SHA256 APIs")
 	}
 	if !strings.Contains(script, "$ErrorActionPreference = 'Stop'") {
-		t.Fatal("make_release.bat checksum generation must fail hard on hashing errors")
+		t.Fatal("scripts/make_release.bat checksum generation must fail hard on hashing errors")
 	}
 }
 
 func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 	t.Parallel()
 
-	batch := readRepoFile(t, "make_release.bat")
+	batch := readRepoFile(t, "scripts/make_release.bat")
 	for _, forbidden := range []string{
 		"echo     -> deploy\\resources.dat",
 		"echo     -> deploy\\install.sh",
 		"echo     -> deploy\\update.sh",
 	} {
 		if strings.Contains(batch, forbidden) {
-			t.Fatalf("make_release.bat must not redirect status output into an asset: %q", forbidden)
+			t.Fatalf("scripts/make_release.bat must not redirect status output into an asset: %q", forbidden)
 		}
 	}
 	for _, required := range []string{
@@ -1425,7 +1425,7 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 		`Required release asset is unexpectedly small`,
 	} {
 		if !strings.Contains(batch, required) {
-			t.Fatalf("make_release.bat missing portable asset preflight %q", required)
+			t.Fatalf("scripts/make_release.bat missing portable asset preflight %q", required)
 		}
 	}
 
@@ -1434,7 +1434,7 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 		required []string
 	}{
 		{
-			path: "make_release.ps1",
+			path: "scripts/make_release.ps1",
 			required: []string{
 				"tar -tzf $resourcesOut | Out-Null",
 				"$minimumBytes = if ($file -eq 'deploy\\web-assets.json') { 64 } else { 1024 }",
@@ -1442,7 +1442,7 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 			},
 		},
 		{
-			path: "make_deploy.sh",
+			path: "scripts/make_deploy.sh",
 			required: []string{
 				`tar -tzf "$DEPLOY_DIR/$RESOURCES" >/dev/null`,
 				`[ "$(wc -c < "$required_asset")" -lt 1024 ]`,
@@ -1461,9 +1461,9 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 func TestWindowsReleaseConfigSanitizerKeepsPowerShellPipelineInsidePowerShell(t *testing.T) {
 	t.Parallel()
 
-	script := readRepoFile(t, "make_release.bat")
+	script := readRepoFile(t, "scripts/make_release.bat")
 	if strings.Contains(script, `\"sk-[^\"]*\"`) || strings.Contains(script, `| Set-Content '%TMPSTAGE%\config.yaml'`) {
-		t.Fatal("make_release.bat config sanitizer must not use cmd-visible escaped quotes or pipe into Set-Content")
+		t.Fatal("scripts/make_release.bat config sanitizer must not use cmd-visible escaped quotes or pipe into Set-Content")
 	}
 	for _, want := range []string{
 		"$q=[char]34",
@@ -1471,7 +1471,7 @@ func TestWindowsReleaseConfigSanitizerKeepsPowerShellPipelineInsidePowerShell(t 
 		"Failed to sanitize config_template.yaml for resources.dat",
 	} {
 		if !strings.Contains(script, want) {
-			t.Fatalf("make_release.bat config sanitizer missing robust PowerShell marker %q", want)
+			t.Fatalf("scripts/make_release.bat config sanitizer missing robust PowerShell marker %q", want)
 		}
 	}
 }
@@ -1479,15 +1479,15 @@ func TestWindowsReleaseConfigSanitizerKeepsPowerShellPipelineInsidePowerShell(t 
 func TestWindowsReleaseUploadsAssetsIndividually(t *testing.T) {
 	t.Parallel()
 
-	script := readRepoFile(t, "make_release.bat")
+	script := readRepoFile(t, "scripts/make_release.bat")
 	if strings.Contains(script, "set ASSETS=") || strings.Contains(script, "gh release create \"!VERSION!\" !ASSETS!") {
-		t.Fatal("make_release.bat must not pass a long expanded ASSETS variable to gh release create")
+		t.Fatal("scripts/make_release.bat must not pass a long expanded ASSETS variable to gh release create")
 	}
 	if !strings.Contains(script, "gh release upload \"!VERSION!\" \"%%~F\" --clobber") {
-		t.Fatal("make_release.bat should upload release assets one at a time with stable quoting")
+		t.Fatal("scripts/make_release.bat should upload release assets one at a time with stable quoting")
 	}
 	if !strings.Contains(script, "Creating GitHub Release !VERSION!") || !strings.Contains(script, "Uploading release assets") {
-		t.Fatal("make_release.bat should separate release creation from asset upload")
+		t.Fatal("scripts/make_release.bat should separate release creation from asset upload")
 	}
 }
 
@@ -1558,8 +1558,8 @@ func TestWindowsReleaseScriptsPublishVerificationArtifacts(t *testing.T) {
 		name string
 		path string
 	}{
-		{name: "powershell", path: "make_release.ps1"},
-		{name: "batch", path: "make_release.bat"},
+		{name: "powershell", path: "scripts/make_release.ps1"},
+		{name: "batch", path: "scripts/make_release.bat"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script := readRepoFile(t, tc.path)
@@ -1580,14 +1580,14 @@ func TestWindowsReleaseScriptsPublishVerificationArtifacts(t *testing.T) {
 func TestPowerShellReleaseGeneratesChecksumsAndCopiesUpdater(t *testing.T) {
 	t.Parallel()
 
-	script := readRepoFile(t, "make_release.ps1")
+	script := readRepoFile(t, "scripts/make_release.ps1")
 	for _, want := range []string{
 		`Copy-Item "update.sh" "deploy\update.sh"`,
 		`System.Security.Cryptography.SHA256`,
 		`deploy\SHA256SUMS`,
 	} {
 		if !strings.Contains(script, want) {
-			t.Fatalf("make_release.ps1 must generate a verifiable release manifest and updater asset; missing %q", want)
+			t.Fatalf("scripts/make_release.ps1 must generate a verifiable release manifest and updater asset; missing %q", want)
 		}
 	}
 }
@@ -1600,9 +1600,9 @@ func TestReleaseResourcePackagersIncludeMediaSamples(t *testing.T) {
 		path string
 		want string
 	}{
-		{name: "linux", path: "make_deploy.sh", want: "assets/media_samples"},
-		{name: "powershell", path: "make_release.ps1", want: "assets\\media_samples"},
-		{name: "batch", path: "make_release.bat", want: "assets\\media_samples"},
+		{name: "linux", path: "scripts/make_deploy.sh", want: "assets/media_samples"},
+		{name: "powershell", path: "scripts/make_release.ps1", want: "assets\\media_samples"},
+		{name: "batch", path: "scripts/make_release.bat", want: "assets\\media_samples"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script := readRepoFile(t, tc.path)
@@ -2168,7 +2168,7 @@ func shellFunctionBody(t *testing.T, script, name string) string {
 func TestDockerEntrypointMinimalConfigWritesDockerHostAccessFalse(t *testing.T) {
 	t.Parallel()
 
-	entrypoint := strings.ReplaceAll(readRepoFile(t, "docker-entrypoint.sh"), "\r\n", "\n")
+	entrypoint := strings.ReplaceAll(readRepoFile(t, "deploy/docker/docker-entrypoint.sh"), "\r\n", "\n")
 	const opener = "cat > \"$CONFIG_FILE\" << 'EOF'\n"
 	start := strings.Index(entrypoint, opener)
 	if start < 0 {

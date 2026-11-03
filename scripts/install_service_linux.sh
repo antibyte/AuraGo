@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Configuration
 SERVICE_NAME="aurago"
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_PATH="${INSTALL_DIR}/bin/aurago_linux"
 CONFIG_PATH="${INSTALL_DIR}/config.yaml"
@@ -751,7 +751,7 @@ fi
 # 2. Check if AuraGo is already installed
 info "Installation directory: ${INSTALL_DIR}"
 if [[ ! -f "$BINARY_PATH" ]]; then
-    error "AuraGo binary not found at ${BINARY_PATH}. Please run make_deploy.sh first (if building from source) or check your installation."
+    error "AuraGo binary not found at ${BINARY_PATH}. Please run scripts/make_deploy.sh first (if building from source) or check your installation."
 fi
 
 # Ensure the binary is executable (Windows git push often loses the +x bit)

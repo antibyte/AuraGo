@@ -37,7 +37,7 @@ The installers can do all of this for you; see [Installer setup](#installer-setu
 
 ## Installer setup
 
-`install.sh`, `update.sh` and `install_service_linux.sh` ask once: "Use
+`install.sh`, `update.sh` and `scripts/install_service_linux.sh` ask once: "Use
 Bluetooth in AuraGo (manage devices, headphones and speakers)?". The question
 also appears without an adapter, so a dongle plugged in later works right
 away. The answer is stored in `data/bluetooth-setup` (`enabled` or `declined`)

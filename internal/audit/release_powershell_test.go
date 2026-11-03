@@ -37,7 +37,7 @@ func main() {
 	if output, err := exec.Command("go", "build", "-o", stub, stubSource).CombinedOutput(); err != nil {
 		t.Fatalf("build native argv fixture: %v %s", err, output)
 	}
-	source := strings.ReplaceAll(readRepoFile(t, "make_release.ps1"), "\r\n", "\n")
+	source := strings.ReplaceAll(readRepoFile(t, "scripts/make_release.ps1"), "\r\n", "\n")
 	start := strings.Index(source, "function Build-Binary {")
 	if start < 0 {
 		t.Fatal("PowerShell build helper missing")

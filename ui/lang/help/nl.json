@@ -87,7 +87,7 @@
   "help.ansible.container_name": "(Alleen sidecar-modus) Docker-containernaam voor de automatisch beheerde Ansible-sidecar. Standaard: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Alleen lokale modus) Standaard inventorybestand (bijv. '/etc/ansible/hosts'). Env: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Schakelt de Ansible-integratie in. Ondersteunt twee modi: 'sidecar' (Docker API) en 'local' (ansible-CLI rechtstreeks op de host).",
-  "help.ansible.image": "(Alleen sidecar-modus) Docker-image voor de Ansible-sidecarcontainer. Standaard: 'aurago-ansible:latest'. Bouwen met: docker build -f Dockerfile.ansible -t aurago-ansible .",
+  "help.ansible.image": "(Alleen sidecar-modus) Docker-image voor de Ansible-sidecarcontainer. Standaard: 'aurago-ansible:latest'. Bouwen met: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Uitvoeringsmodus: 'sidecar' = Ansible-API-container (Docker), 'local' = ansible-binaries rechtstreeks op de host aanroepen. Standaard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Alleen lokale modus) Map met Ansible-playbooks (bijv. '/opt/ansible/playbooks'). Env: ANSIBLE_PLAYBOOKS_DIR.",
   "help.ansible.read_only": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren.",

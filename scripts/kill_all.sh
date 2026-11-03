@@ -1,7 +1,7 @@
 #!/bin/bash
 # kill_all.sh — reliably stop all AuraGo processes and clean up lock files
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "Stopping AuraGo..."
 

@@ -446,7 +446,7 @@ func TestBluetoothKitIsEmbeddedVerbatim(t *testing.T) {
 	t.Parallel()
 	source := extractBluetoothKit(t, "scripts/aurago-bluetooth.sh", readRepoFile(t, "scripts/aurago-bluetooth.sh"))
 	bash, haveBash := findBash()
-	for _, path := range []string{"install.sh", "update.sh", "install_service_linux.sh"} {
+	for _, path := range []string{"install.sh", "update.sh", "scripts/install_service_linux.sh"} {
 		script := readRepoFile(t, path)
 		if got := extractBluetoothKit(t, path, script); got != source {
 			t.Fatalf("%s embeds a stale Bluetooth kit; run `bash scripts/sync-bluetooth-kit.sh`", path)
@@ -540,7 +540,7 @@ bluetooth_apply_without_update; [ "$log" = " declined" ]
 
 func TestInstallServiceLinuxPreparesBluetooth(t *testing.T) {
 	t.Parallel()
-	requireInOrder(t, "install_service_linux.sh", readRepoFile(t, "install_service_linux.sh"),
+	requireInOrder(t, "scripts/install_service_linux.sh", readRepoFile(t, "scripts/install_service_linux.sh"),
 		"# >>> AURAGO-BLUETOOTH-KIT",
 		`systemctl enable "${SERVICE_NAME}"`,
 		`SUDO=""`,

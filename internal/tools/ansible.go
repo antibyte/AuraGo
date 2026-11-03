@@ -241,7 +241,7 @@ type AnsibleSidecarConfig struct {
 // It checks the container state via the Docker API and, if missing or stopped,
 // creates/starts it. The image must be pre-built locally:
 //
-//	docker build -f Dockerfile.ansible -t aurago-ansible .
+//	docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .
 //
 // Safe to call multiple times.
 func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarConfig, logger interface {
@@ -311,14 +311,14 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 			if err := buildAnsibleImageOnEngine(image, sidecarCfg.DockerfileDir, dockerHost, logger); err != nil {
 				logger.Error("[Ansible] Auto-build failed. Start the sidecar manually after building the image.",
 					"image", image,
-					"hint", "docker build -f Dockerfile.ansible -t "+image+" .",
+					"hint", "docker build -f deploy/docker/Dockerfile.ansible -t "+image+" .",
 					"error", err)
 				return
 			}
 		} else {
 			logger.Warn("[Ansible] Image not found locally. Build it first.",
 				"image", image,
-				"hint", "docker build -f Dockerfile.ansible -t "+image+" .")
+				"hint", "docker build -f deploy/docker/Dockerfile.ansible -t "+image+" .")
 			return
 		}
 	}
@@ -400,7 +400,7 @@ func buildAnsibleImage(image, dockerfileDir string, logger interface {
 	return buildAnsibleImageOnEngine(image, dockerfileDir, "", logger)
 }
 
-// buildAnsibleImageOnEngine runs `docker build -f Dockerfile.ansible -t <image> <dir>`
+// buildAnsibleImageOnEngine runs `docker build -f deploy/docker/Dockerfile.ansible -t <image> <dir>`
 // on docker.host, the engine that creates the sidecar
 // (runDockerCLIBuildOnConfiguredEngine). This is called automatically when
 // auto_build is enabled and the image is not found. The build can take several
@@ -431,7 +431,7 @@ func buildAnsibleImageOnEngine(image, dockerfileDir, dockerHost string, logger i
 
 	if _, err := runDockerCLIBuildOnConfiguredEngine(dockerCLIBuildRequest{
 		Image:      image,
-		Args:       []string{"build", "-f", filepath.Join(dockerfileDir, "Dockerfile.ansible"), "-t", image, dockerfileDir},
+		Args:       []string{"build", "-f", sidecarDockerfilePath(dockerfileDir, "Dockerfile.ansible"), "-t", image, dockerfileDir},
 		ConfigDir:  dockerCfgDir,
 		DockerHost: dockerHost,
 		Timeout:    10 * time.Minute,

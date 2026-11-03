@@ -312,9 +312,9 @@ git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
 
 # Build for all platforms
-./make_deploy.sh        # Linux/macOS
+./scripts/make_deploy.sh        # Linux/macOS
 # or
-make_deploy.bat         # Windows
+scripts/make_deploy.bat         # Windows
 
 # Output: Linux binaries in bin/, everything else in deploy/
 ls bin/ deploy/

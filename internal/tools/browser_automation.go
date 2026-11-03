@@ -1354,7 +1354,7 @@ func browserAutomationBuildCommand(baseEnv []string, image, dockerfileDir, docke
 	}
 	env = append(env, "DOCKER_HOST="+host, "DOCKER_CONFIG="+configDir)
 	legacyEnv = append(legacyEnv, "DOCKER_CONFIG="+configDir)
-	dockerfile := filepath.Join(contextDir, browserAutomationDockerfileName)
+	dockerfile := sidecarDockerfilePath(contextDir, browserAutomationDockerfileName)
 	args := []string{"build", "-f", dockerfile, "-t", image, contextDir}
 	inv := browserAutomationBuildInvocation{
 		Args:       args,
@@ -1503,7 +1503,7 @@ func browserAutomationSelectDockerfile(inv *browserAutomationBuildInvocation, na
 	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
 		return fmt.Errorf("browser automation dockerfile %q must be a file name in the build context", name)
 	}
-	dockerfile := filepath.Join(inv.ContextDir, name)
+	dockerfile := sidecarDockerfilePath(inv.ContextDir, name)
 	inv.Dockerfile = dockerfile
 	browserAutomationRewriteDockerfileArg(inv.Args, dockerfile)
 	if inv.Fallback != nil {
