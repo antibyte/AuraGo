@@ -145,6 +145,9 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		ecalc_table_no_match ecalc_table_no_rows ecalc_table_notes ecalc_table_rows ecalc_table_rows_filtered ecalc_table_sort ecalc_table_unit`) {
 		allowed["desktop."+key] = true
 	}
+	for _, key := range ecalcCodeKeys { // the code pages (desktop_ecalc_codes_browser_test.go)
+		allowed[key] = true
+	}
 	keyPattern := regexp.MustCompile(`['"](desktop\.[A-Za-z0-9_.]+)['"]`)
 	used := 0
 	for name, script := range ecalcScripts(t) {

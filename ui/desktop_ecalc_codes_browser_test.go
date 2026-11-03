@@ -816,3 +816,108 @@ func TestDesktopECalcCodesSkinsBrowser(t *testing.T) {
 	h.Shot("code-compact-capacitor")
 	h.noErrors()
 }
+
+// ---- the source of the page and of the loader wiring -------------------------------------------------------------------------
+
+func TestECalcCodePagesAreWired(t *testing.T) {
+	t.Parallel()
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	start := strings.Index(loader, "        ecalc: {")
+	if start < 0 {
+		t.Fatal("module-loader.js has no ecalc entry in DESKTOP_APP_ASSETS")
+	}
+	entry := loader[start : start+strings.Index(loader[start:], "\n        },")]
+	// The engine follows the table registry; the drawings and the page follow the table page and come before the shell, which
+	// looks up window.ECalcCodePage when it mounts a page.
+	order := []string{"ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-codes.js", "ecalc-typeset.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-code-draw.js", "ecalc-code-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	offset := 0
+	for _, script := range order {
+		index := strings.Index(entry[offset:], script)
+		if index < 0 {
+			t.Fatalf("the ecalc loader entry lists %s out of order or not at all", script)
+		}
+		offset += index + len(script)
+	}
+	scripts := ecalcScripts(t)
+	for _, name := range []string{"ecalc-codes.js", "ecalc-code-draw.js", "ecalc-code-page.js"} {
+		if _, ok := scripts[name]; !ok {
+			t.Errorf("%s/%s is missing", ecalcDir, name)
+		}
+	}
+	shell := scripts["ecalc-shell.js"]
+	for _, marker := range []string{"window.ECalcCodePage || null", "kind === 'code'"} {
+		if !strings.Contains(shell, marker) {
+			t.Errorf("ecalc-shell.js is missing %q", marker)
+		}
+	}
+}
+
+// The page calls the engine for every reading and writing, keeps what the user entered in the store under the item id,
+// and never reaches into the theme: its only inline style is the position of the colour menu.
+func TestECalcCodePageUsesTheEngineAndTheStore(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-code-page.js"]
+	for _, marker := range []string{
+		"window.ECalcCodePage = { create };", "codes.decode(item, ", "codes.encode(item, ", "store.saveCalc(item.id, ", "store.calcState(item.id)", "el.dataset.code = item.id;",
+		"el.dataset.kind = String(item.code);", "Draw.bandsSVG(", "Draw.chipSVG(", `role="listbox"`, `role="option"`, "event.key === 'Escape'", "event.key === 'ArrowDown'",
+		"function describe(error)", "store.flush()", "ERROR_CODES = ['invalid_code', 'invalid_value', 'unsupported']", "const CONTROLLERS = {",
+		"resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: smdController, capacitor: capacitorController, ceramic_temp: ceramicController",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-code-page.js is missing %q", marker)
+		}
+	}
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(page, "")
+	for label, pattern := range map[string]string{
+		"hex colour":      `#[0-9a-fA-F]{3,8}\b`,
+		"colour function": `\b(?:rgba?|hsla?)\(`,
+		"console call":    `\bconsole\.`,
+		"storage access":  `\b(?:localStorage|sessionStorage)\b`,
+		"throw":           `\bthrow\b`,
+		"dynamic key":     `['"]desktop\.ecalc_code_[a-z0-9_]*['"]\s*\+`,
+	} {
+		if match := regexp.MustCompile(pattern).FindString(body); match != "" {
+			t.Errorf("ecalc-code-page.js must not contain a %s (%q)", label, match)
+		}
+	}
+	for _, style := range regexp.MustCompile(`\.style\.[A-Za-z]+`).FindAllString(body, -1) {
+		if style != ".style.setProperty" {
+			t.Errorf("ecalc-code-page.js uses %s; only .style.setProperty for the menu position is allowed", style)
+		}
+	}
+	if got := strings.Count(body, ".style.setProperty('--ec-menu-"); got != 2 {
+		t.Errorf("ecalc-code-page.js sets %d menu position variables, want --ec-menu-x and --ec-menu-y", got)
+	}
+}
+
+// The page names every string of the code pages as a literal and uses no key of this family that ecalcCodeKeys does not list
+// (the list is also what TestECalcUsesOnlyItsOwnTranslationKeys lets the ECalc scripts use).
+func TestECalcCodeKeysAreUsedByThePage(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-code-page.js"]
+	listed := map[string]bool{}
+	for _, key := range ecalcCodeKeys {
+		listed[key] = true
+		if !strings.Contains(page, "'"+key+"'") {
+			t.Errorf("ecalc-code-page.js never uses the key %s", key)
+		}
+	}
+	for _, match := range regexp.MustCompile(`['"](desktop.ecalc_code_[a-z0-9_]+)['"]`).FindAllStringSubmatch(page, -1) {
+		if !listed[match[1]] {
+			t.Errorf("ecalc-code-page.js uses the key %s, which ecalcCodeKeys does not list", match[1])
+		}
+	}
+}
+
+// The colours of the data are what the drawing shows: every colour of the three band and chip kinds is a hex colour (or the
+// empty band), written in the data of the code item.
+func TestECalcCodeColoursAreHexInTheData(t *testing.T) {
+	t.Parallel()
+	for id, colors := range ecalcCodeColors(t, "en") {
+		for color, hex := range colors {
+			if !regexp.MustCompile(`^(#[0-9A-Fa-f]{6}|transparent)$`).MatchString(hex) {
+				t.Errorf("%s: colour %s has the hex %q", id, color, hex)
+			}
+		}
+	}
+}
