@@ -94,12 +94,14 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 - New model `remember` writes to Core Memory, Notes and Journal commit actor `agent`,
   origin `model_remember` and a content digest in the same transaction as the record.
-  `manage_memory` add commits the same Core Memory row (it goes through
-  `AddModelCoreFact` with the dispatch session ID), so `ReadCoreMemory` tags both
-  `[trust:agent-recorded]`; update keeps invalidating the label. Verify
-  `TestManageMemoryAddWritesOriginRow` in `internal/tools`.
+  `manage_memory` add and update use `AddModelCoreFact` and `UpdateModelCoreFact`
+  with the dispatch session ID. Updates replace content and its current model
+  provenance atomically, including a previously unlabelled fact; `ReadCoreMemory`
+  retains `[trust:agent-recorded]`. Verify `TestManageMemoryAddWritesOriginRow`,
+  `TestManageMemoryUpdateRecordsCurrentModelOrigin` and
+  `TestUpdateModelCoreFactRollsBackWhenOriginCannotBeWritten`.
   A hash identifies the private source session. Reusing an existing fact preserves its
-  provenance; edits invalidate old labels. Legacy provenance stays unknown.
+  provenance; explicit non-model edits invalidate old labels. Unchanged legacy provenance stays unknown.
 - Retrieval shows concise trust labels and excludes raw source session IDs from
   provenance presentation. Known analysis envelopes retain the complete fact while
   hiding the private source session; arbitrary factual paragraphs are preserved.
@@ -271,6 +273,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - **Schema Migration Errors**: `migrateFileIndexToCollectionAware` returns schema-inspection and count errors so `applySQLiteMemoryMigrations` does not bump `user_version` over an unknown state. KG `initTables` returns column-add errors and `fts_schema_version` read/write errors; the `updated_at` backfill and performance indexes stay warnings, and a failed `idx_kg_conflicts_pair_open` is logged at error level for review. Verify `TestMigrateFileIndexReportsSchemaInspectionError` and `TestKGInitReportsFTSMarkerWriteFailure`.
 - **Plan Dependencies**: Persist a non-null JSON array of task IDs (`[]` means no dependencies); reject null, other JSON shapes, malformed/empty values, missing IDs and cycles. Promotion visibly blocks invalid legacy tasks and their plan with `planTaskDependencyBlocker` (same shape as `SetPlanTaskBlocker`, resumable with `ClearPlanTaskBlocker`); splitting refuses unreadable dependency data. Validate new plans before publishing any rows. Verify `TestCreatePlanRejectsInvalidDependencyGraphs`, `TestLegacyInvalidDependencyGraphsBecomeVisibleBlockers`, `TestLegacyEmptyDependencyArrayRemainsRunnable`, `TestPromoteNextPlanTaskBlocksUnreadableDependencies` and `TestSplitPlanTaskRejectsUnreadableDependencies`.
 - **Multimodal Embedding Origin**: `NewMultimodalEmbedder` uses `httporigin.NewClient`, so the key and file content never follow a redirect off the configured origin; `shouldRetryEmbeddingError` treats `httporigin.ErrCrossOriginRedirect` as final and never retries it. Verify `TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect` and `TestEmbeddingRetryTreatsRejectedRedirectAsFinal`.
+
+- The OpenAI-compatible multimodal format is image-only; reject audio before reading/uploading its contents instead of labelling it image_url. Provider-specific inline media retains its existing format. Verify `TestEmbedFileRejectsAudioForImageOnlyFormatBeforeSending`.
+- Migration backups run VACUUM INTO inside an owner-restricted temporary directory, protect the completed file and publish its existing backup name through fileutil.Rename. Remove private staging after success/failure and preserve existing parent-directory permissions. Verify `TestDatabaseBackupPublishesPrivateContentAndCleansStaging` and `TestMemoryDatabasePreservesExistingParentPermissions`.
 
 ### Learned rules
 

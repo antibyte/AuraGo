@@ -52,6 +52,30 @@ func TestCoAgentSlotsWaitForActualWorkerEnd(t *testing.T) {
 	r.Shutdown()
 }
 
+func TestCoAgentShutdownPublishesCancellationBeforeCancellingContext(t *testing.T) {
+	r := NewCoAgentRegistry(1, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	contextCancelledBeforeStop := false
+	id, _, err := r.RegisterWorker("coagent", "fixture", "session", func() {
+		contextCancelledBeforeStop = r.Context().Err() != nil
+	}, 2, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		defer r.WorkerDone(id)
+		<-r.Context().Done()
+		r.FailIfActive(id, "fixture context cancelled")
+	}()
+	r.Shutdown()
+	if contextCancelledBeforeStop {
+		t.Fatal("registry context was cancelled before workers were marked cancelled")
+	}
+	status, err := r.GetStatus(id)
+	if err != nil || status["state"] != string(CoAgentCancelled) {
+		t.Fatalf("status=%v err=%v", status, err)
+	}
+}
+
 func TestCoAgentAdmissionAndShutdownAreAtomic(t *testing.T) {
 	r := NewCoAgentRegistry(1, slog.Default())
 	var wg sync.WaitGroup

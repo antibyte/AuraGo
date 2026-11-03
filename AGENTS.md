@@ -188,6 +188,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
 | ACE-Step | `internal/acestep/AGENTS.md` | Private local music lifecycle, pinned runtime/models, hardware qualification. |
 | Agent/tool system | `internal/agent/AGENTS.md` | Runtime prompts/discovery/dispatch/context; Prompt and Runtime Drift Contract. |
+| A2A protocol | `internal/a2a/AGENTS.md`, `internal/agent/AGENTS.md` | Peer cards/HTTP authentication, clients, session-scoped worker admission and shutdown. |
 | Agent self-tests | `internal/selftest/AGENTS.md`, `prompts/self_tests/AGENTS.md` | Prompt catalog, bounded runs, trusted evidence, private reports and admin Dashboard controls. |
 | Bluetooth | `internal/bluetooth/AGENTS.md` | Native discovery/permissions/playback. |
 | Bookshelf | `internal/bookshelf/AGENTS.md` | Library/sources, reader isolation, conversion. |
@@ -215,6 +216,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |
 | Invasion | `internal/invasion/AGENTS.md` | Egg/nest protocol/auth/connection generations/key rotation/private deployment. |
 | LLM transport | `internal/llm/AGENTS.md` | Trust/URL logging/failover state. |
+| Launchpad links/icons | `internal/launchpad/AGENTS.md` | Link/icon reference validation, rooted local artwork ownership, download limits and cleanup. |
 | Managed local models | `internal/localllm/AGENTS.md` | Lifecycle/routing/attestation/qualification. |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` | Offline editions/download/verify/swap/search/tools/content; readers `internal/zim`, `internal/zim/xapian`. |
 | Memory | `internal/memory/AGENTS.md` | Retrieval/hygiene/indexing/maintenance. |

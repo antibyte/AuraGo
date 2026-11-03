@@ -125,6 +125,39 @@ func (s *SQLiteMemory) AddModelCoreFact(fact, sessionID string, maxEntries int, 
 	return id, nil
 }
 
+// UpdateModelCoreFact attributes the replacement content to the model atomically.
+func (s *SQLiteMemory) UpdateModelCoreFact(id int64, fact, sessionID string) error {
+	if err := ValidateCoreMemoryFact(fact); err != nil {
+		return err
+	}
+	if len(fact) > maxCoreMemoryFactLen {
+		fact = truncateUTF8Bytes(fact, maxCoreMemoryFactLen)
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.Exec(`UPDATE core_memory SET fact=?, normalized_fact=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, fact, normalizeCoreMemoryFactForDedupe(fact), id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("no entry with id %d", id)
+	}
+	if _, err := tx.Exec(`DELETE FROM memory_record_origins WHERE store='core' AND record_id=?`, id); err != nil {
+		return err
+	}
+	if err := insertRememberOrigin(tx, "core", id, fact, sessionID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *SQLiteMemory) AddModelNote(category, title, content string, priority int, dueDate, sessionID string) (int64, error) {
 	tx, err := s.db.Begin()
 	if err != nil {

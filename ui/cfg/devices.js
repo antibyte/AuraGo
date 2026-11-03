@@ -10,7 +10,7 @@ function renderDevicesSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += `
-    <div class="devices-toolbar">
+    <div class="devices-toolbar" data-config-fields>
         <div class="devices-toolbar-left">
             <div class="field-group devices-filter-group">
                 <label class="field-label" for="devices-filter">${t('config.devices.filter_label')}</label>

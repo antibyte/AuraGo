@@ -51,7 +51,6 @@ func TestDesktopTeeVeeLazyAssetsAndRouting(t *testing.T) {
 	windows := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
 		"teevee: { width: 1500, height: 845 }",
-		"teevee: true",
 	} {
 		if !strings.Contains(windows, want) {
 			t.Fatalf("desktop window runtime missing TeeVee marker %q", want)

@@ -40,7 +40,7 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		case "and", "but", "then", "while", "yet", "und", "aber", "dann", "sondern",
 			"without", "ohne", "unless", "except", "außer", "ausser",
 			"refuse", "refusing", "refused", "decline", "declining", "fail", "failing", "forget", "stop", "hesitate",
-			"ask", "asking", "worry", "fragen", "nachfragen", "frage",
+			"ask", "asking", "worry", "mind", "sorge", "sorgen", "problem", "fragen", "nachfragen", "frage",
 			"weigern", "weigere", "verweigern", "verweigere", "vergessen", "vergiss", "zögere", "versäume", "aufhören":
 			return true
 		}
@@ -48,9 +48,9 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 	}
 	isNegative := func(w string, before bool) bool {
 		switch w {
-		case "never", "not", "nie", "niemals", "nicht", "kein", "keine", "keinen", "keinem", "keiner", "keines":
+		case "not", "nie", "niemals", "nicht", "kein", "keine", "keinen", "keinem", "keiner", "keines":
 			return true
-		case "don't", "dont", "doesn't", "didn't", "mustn't", "shouldn't", "cannot", "can't", "avoid", "avoiding", "vermeide", "vermeiden":
+		case "never", "don't", "dont", "doesn't", "didn't", "mustn't", "shouldn't", "cannot", "can't", "avoid", "avoiding", "vermeide", "vermeiden":
 			return before
 		}
 		return false
@@ -66,6 +66,14 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 					break
 				}
 				if isNegative(words[j].text, direction < 0) {
+					if direction > 0 {
+						for k := j + 1; k < len(words) && !words[k].boundary; k++ {
+							// A destination contrast still permits disclosure elsewhere.
+							if words[k].text == "but" || words[k].text == "aber" || words[k].text == "sondern" {
+								return false
+							}
+						}
+					}
 					// "not only" and negated refusal clauses are not prohibitions.
 					if j+1 < len(words) && (words[j+1].text == "only" || words[j+1].text == "nur" || isBarrier(words[j+1].text)) {
 						break

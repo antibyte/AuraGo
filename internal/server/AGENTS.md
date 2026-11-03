@@ -81,6 +81,9 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Backup export stages an owner-restricted ZIP file; plain export/import stream through file readers. Multipart import spools above 8 MiB and removes its temporary uploads. Existing current/legacy encrypted formats use one archive-sized authentication buffer; legacy retries reload immutable ciphertext. Verify Backup/EncryptAGO/DecryptAGO tests and `TestBackupEncryptionReadersRoundTripWithoutChangingInput`.
+- Kaggle project write denials end the response immediately; quota errors use kaggle.PublicError. Docker Manager JSON body overflow shares decodeSized and returns 413. Verify `TestKaggleDeniedProjectWriteReturnsOneJSONResponse` and `TestDockerManagerJSONBodyLimitReturns413`.
+
 - `ConfigSnapshot` initializes through the same once barrier as writers, then reads only the atomic immutable pointer. Publication retains `CfgMu`/`CfgSaveMu` order; never fall back to an unsynchronized `Cfg` read. Verify `TestConfigSnapshotConcurrentFirstPublication`.
 - Ordinary JSON handlers use `decodeJSONRequest` (optional empty bodies use `decodeOptionalJSONRequest`): configured `server.max_body_bytes`, otherwise 10 MiB; a smaller route limit still wins. Return 413 for byte overflow and 400 for malformed or additional documents. Uploads/streams retain their own budgets. `trackHTTP` passes the server budget to free handlers.
 - Launchpad icon URLs are strictly public at every hop, including when the development loopback override is set. Bind DNS and downloads to the request, pin validated addresses, allow at most ten checked redirects and retain the 2 MiB payload limit. CYD WebSockets require bearer authentication and accept only same-origin or absent Origin.

@@ -279,6 +279,16 @@ func testSheetsAppChrome(t *testing.T, page *rod.Page) {
   sheet.getRange('T30').activate();
   sheet.getRange('T30').setValue('first');await wait();
   sheet.getRange('T30').setValue('second');await wait();
+  const nativeUndoTargets=[root.querySelector('[data-address]'),root.querySelector('[data-formula]'),document.createElement('div')];
+  nativeUndoTargets[2].contentEditable='true';root.append(nativeUndoTargets[2]);
+  for(const target of nativeUndoTargets){
+    for(const key of ['z','y']){
+      const event=new KeyboardEvent('keydown',{key,ctrlKey:true,bubbles:true,cancelable:true});
+      target.dispatchEvent(event);await wait();
+      check(!event.defaultPrevented&&sheet.getRange('T30').getRawValue()==='second','Text editing must keep its native '+key+' history');
+    }
+  }
+  nativeUndoTargets[2].remove();
   press('z',{ctrl:true});await wait();
   check(sheet.getRange('T30').getRawValue()==='first','Ctrl+Z undoes one step: '+sheet.getRange('T30').getRawValue());
   press('y',{ctrl:true});await wait();

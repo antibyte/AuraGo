@@ -16,6 +16,7 @@ func TestConfigSpacingBrowser(t *testing.T) {
 	defer page.MustClose()
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`() => { configData.github = {enabled:true, owner:'home-lab', token:'••••••••', allowed_repos:['home-lab/aurago','home-lab/automation']}; AuraConfigState.init(configData); resetDirtySnapshot(); }`)
+	page.MustEval(`() => { configData.browser_automation.enabled=true; AuraConfigState.init(configData); resetDirtySnapshot(); }`)
 	for _, example := range []struct{ key, target string }{
 		{"github", "#github-test-btn"},
 		{"telegram", ".cfg-integration-test"},

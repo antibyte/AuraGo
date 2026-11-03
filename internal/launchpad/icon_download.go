@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	maxIconSize     = 2 << 20 // 2 MB
-	iconDir         = "launchpad_icons"
-	allowedIconExts = ".svg.png.webp.jpg.jpeg.gif"
+	maxIconSize = 2 << 20 // 2 MB
+	iconDir     = "launchpad_icons"
 )
 
 // DownloadIconResult holds the outcome of an icon download.
@@ -109,7 +108,7 @@ func downloadIcon(ctx context.Context, dataDir, imageURL, linkID string, clientF
 
 	// Determine extension from URL or Content-Type
 	ext := strings.ToLower(path.Ext(parsed.Path))
-	if ext == "" || !strings.Contains(allowedIconExts, ext) {
+	if !allowedIconExtension(ext) {
 		ext = extFromContentType(ct)
 	}
 	if ext == "" {
@@ -146,15 +145,69 @@ func downloadIcon(ctx context.Context, dataDir, imageURL, linkID string, clientF
 
 // DeleteIcon removes an icon file from disk.
 func DeleteIcon(dataDir, relPath string) error {
-	if relPath == "" {
+	if relPath == "" || strings.HasPrefix(relPath, "https://") || strings.HasPrefix(relPath, "http://") {
 		return nil
 	}
-	fullPath := filepath.Join(dataDir, relPath)
-	// Prevent path traversal
-	if !strings.HasPrefix(filepath.Clean(fullPath), filepath.Clean(dataDir)) {
-		return fmt.Errorf("invalid icon path")
+	name, err := localIconName(relPath)
+	if err != nil {
+		return err
 	}
-	return os.Remove(fullPath)
+	data, err := os.OpenRoot(dataDir)
+	if err != nil {
+		return err
+	}
+	defer data.Close()
+	info, err := data.Lstat(iconDir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("invalid icon directory")
+	}
+	icons, err := data.OpenRoot(iconDir)
+	if err != nil {
+		return err
+	}
+	defer icons.Close()
+	info, err = icons.Lstat(name)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("icon must be a regular file")
+	}
+	return icons.Remove(name)
+}
+
+func allowedIconExtension(ext string) bool {
+	switch ext {
+	case ".svg", ".png", ".webp", ".jpg", ".jpeg", ".gif":
+		return true
+	}
+	return false
+}
+
+func localIconName(relPath string) (string, error) {
+	parts := strings.Split(strings.ReplaceAll(relPath, "\\", "/"), "/")
+	if len(parts) != 2 || parts[0] != iconDir || strings.ContainsAny(parts[1], ":\x00") || !allowedIconExtension(strings.ToLower(path.Ext(parts[1]))) {
+		return "", fmt.Errorf("invalid icon path")
+	}
+	return parts[1], nil
+}
+
+func validateIconPath(iconPath string) error {
+	if iconPath == "" {
+		return nil
+	}
+	if strings.HasPrefix(iconPath, "https://") || strings.HasPrefix(iconPath, "http://") {
+		u, err := url.Parse(iconPath)
+		if err != nil || u.Hostname() == "" || u.User != nil {
+			return fmt.Errorf("invalid icon URL")
+		}
+		return nil
+	}
+	_, err := localIconName(iconPath)
+	return err
 }
 
 func copyCatalogIconToLink(dataDir, name, format, linkID string) (*DownloadIconResult, error) {

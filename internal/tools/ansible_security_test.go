@@ -2,11 +2,23 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestAnsibleErrorListingPlaybooksIsValidJSON(t *testing.T) {
+	result := AnsibleLocalListPlaybooks(AnsibleLocalConfig{PlaybooksDir: filepath.Join(t.TempDir(), `missing-"fixture`)})
+	var response map[string]any
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["status"] != "error" || !strings.Contains(response["message"].(string), "failed to scan playbooks dir") {
+		t.Fatalf("unexpected error: %s", result)
+	}
+}
 
 func TestAnsibleLocalOperationsRequireEffectiveShellGrant(t *testing.T) {
 	cfg := AnsibleLocalConfig{Context: WithRuntimePermissions(context.Background(), RuntimePermissions{}), PlaybooksDir: t.TempDir(), WorkDir: t.TempDir()}

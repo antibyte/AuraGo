@@ -702,7 +702,7 @@
         function cleanup() {
             if(disposed)return;disposed=true;generation++;
             clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
-            lifecycle.abort();documentLife.abort();panels.dispose();queue?.dispose();editor?.destroy();
+            lifecycle.abort();documentLife.abort();rulerResize.disconnect();panels.dispose();queue?.dispose();editor?.destroy();
             ctx.setWindowBeforeClose?.(windowId,null);ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
         setMenus();void load(path,ctx.path?null:'blank');

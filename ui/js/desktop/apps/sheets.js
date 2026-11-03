@@ -344,7 +344,8 @@
             if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
             const key=event.key.toLowerCase();
             // A text field keeps its own undo and its own text shortcuts; the sheet owns the rest.
-            const typing=event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement;
+            const typing=event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement||event.target.isContentEditable;
+            if(typing&&(key==='z'||key==='y'))return;
             if(event.shiftKey&&key==='z'){if(typing)return;event.preventDefault();event.stopPropagation();act('redo');return;}
             const action={s:event.shiftKey?'saveAs':'save',o:'open',n:'new',p:'print',f:'search',z:'undo',y:'redo'}[key];
             if(action){event.preventDefault();event.stopPropagation();act(action);return;}

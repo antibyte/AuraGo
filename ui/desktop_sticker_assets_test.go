@@ -2,10 +2,11 @@ package ui
 
 import (
 	"encoding/json"
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/image/webp"
 )
 
 func TestDesktopStickerAssets(t *testing.T) {
@@ -29,15 +30,15 @@ func TestDesktopStickerAssets(t *testing.T) {
 		}
 		seen[item.ID] = true
 		for _, size := range []int{1024, 192} {
-			name := filepath.Join("img", "stickers", item.ID+".png")
+			name := filepath.Join("img", "stickers", item.ID+".webp")
 			if size == 192 {
-				name = filepath.Join("img", "stickers", "thumbs", item.ID+".png")
+				name = filepath.Join("img", "stickers", "thumbs", item.ID+".webp")
 			}
 			f, err := os.Open(name)
 			if err != nil {
 				t.Fatal(err)
 			}
-			img, err := png.Decode(f)
+			img, err := webp.Decode(f)
 			f.Close()
 			if err != nil {
 				t.Fatal(err)

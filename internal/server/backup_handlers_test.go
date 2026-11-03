@@ -83,6 +83,7 @@ func TestDecryptAGOLegacySHA256FormatStillWorks(t *testing.T) {
 	if _, err := rand.Read(salt); err != nil {
 		t.Fatalf("rand.Read(salt): %v", err)
 	}
+	salt[0] = agoKDFArgon2ID // Exercise the ambiguous legacy salt/current marker fallback.
 	key := deriveLegacyBackupKey("old password", salt)
 	block, err := aes.NewCipher(key)
 	if err != nil {

@@ -37,8 +37,8 @@ func (r *CoAgentRegistry) Shutdown() {
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
-	r.cancel()
 	r.StopAll()
+	r.cancel()
 	r.StopCleanupLoop()
 	r.workers.Wait()
 }

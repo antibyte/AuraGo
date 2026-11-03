@@ -94,6 +94,9 @@ func Create(db *sql.DB, link LaunchpadLink) (string, error) {
 	if err := validateURL(link.URL); err != nil {
 		return "", err
 	}
+	if err := validateIconPath(link.IconPath); err != nil {
+		return "", err
+	}
 
 	link.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -128,6 +131,9 @@ func Update(db *sql.DB, link LaunchpadLink) error {
 		return fmt.Errorf("title is required")
 	}
 	if err := validateURL(link.URL); err != nil {
+		return err
+	}
+	if err := validateIconPath(link.IconPath); err != nil {
 		return err
 	}
 

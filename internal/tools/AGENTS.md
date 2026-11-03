@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Core-memory tool updates use memory.UpdateModelCoreFact with the trusted dispatch session; content and current model provenance commit together. Explicit user-edit and existing-fact reuse semantics remain memory-owned. Verify `TestManageMemoryUpdateRecordsCurrentModelOrigin`.
+
 - Dynamic Ansible error results use JSON encoding. ECalc enforces its effective UTF-8 byte budget on every response, including errors and desktop opens. Preserve error codes; omit optional describe detail before returning `output_budget_exceeded` for a calculation that cannot fit completely. Never present truncated quantities as a successful calculation. Verify `TestECalc*` and `TestAnsibleError*`.
 
 - Kaggle credentials (`kaggle_` Vault prefix) are integration-owned and blocked from Python export. Native platform operations and local notebook execution use the shared `internal/kaggle` and `internal/notebooks` services; see their cross-component contracts.

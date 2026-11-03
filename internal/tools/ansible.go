@@ -581,6 +581,9 @@ func AnsibleLocalListPlaybooks(cfg AnsibleLocalConfig) string {
 	var files []string
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			if path == dir {
+				return err
+			}
 			return nil // skip unreadable entries
 		}
 		if d.IsDir() {
@@ -596,7 +599,7 @@ func AnsibleLocalListPlaybooks(cfg AnsibleLocalConfig) string {
 		return nil
 	})
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"failed to scan playbooks dir: %s"}`, err)
+		return ansibleLocalResult("", "", fmt.Errorf("failed to scan playbooks dir: %w", err))
 	}
 	b, _ := json.Marshal(map[string]interface{}{"status": "ok", "playbooks": files, "directory": dir})
 	return string(b)

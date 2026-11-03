@@ -141,6 +141,31 @@ func TestManageMemoryAddKeepsProvenanceOfAStoredFact(t *testing.T) {
 	}
 }
 
+func TestManageMemoryUpdateRecordsCurrentModelOrigin(t *testing.T) {
+	for _, originalModel := range []bool{false, true} {
+		stm := newCoreMemoryTestStore(t)
+		var id int64
+		var err error
+		if originalModel {
+			id, err = stm.AddModelCoreFact("User prefers blue.", "old-session", 20, true)
+		} else {
+			id, err = stm.AddCoreMemoryFact("User prefers blue.")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		fact := "User prefers red."
+		result, err := ManageCoreMemory("update", fact, id, stm, 20, "hard", "en", "new-session")
+		if err != nil || !strings.Contains(result, `"status":"success"`) {
+			t.Fatalf("update = %s, %v", result, err)
+		}
+		origin, err := stm.MemoryOriginForRecord("core", id, fact)
+		if err != nil || origin.Trust != "agent-recorded" || !strings.Contains(stm.ReadCoreMemory(), fact+" [trust:agent-recorded]") {
+			t.Fatalf("origin=%+v err=%v listing=%q", origin, err, stm.ReadCoreMemory())
+		}
+	}
+}
+
 func TestManageMemoryAddKeepsTheEntryCapAndLabelsTheSoftCapEntry(t *testing.T) {
 	stm := newCoreMemoryTestStore(t)
 	if _, err := stm.AddCoreMemoryFact("User lives in Pforzheim"); err != nil {

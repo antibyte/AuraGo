@@ -207,6 +207,25 @@ func TestEmbedFile_OpenAI(t *testing.T) {
 	}
 }
 
+func TestEmbedFileRejectsAudioForImageOnlyFormatBeforeSending(t *testing.T) {
+	var requests atomic.Int32
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Write([]byte(`{"data":[{"embedding":[0.1]}]}`))
+	}))
+	file := filepath.Join(t.TempDir(), "fixture.wav")
+	if err := os.WriteFile(file, []byte("RIFF fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	embedder := NewMultimodalEmbedder(srv.URL, "", "fixture", "openai", "", nil)
+	if _, err := embedder.EmbedFile(context.Background(), file); err == nil || !strings.Contains(err.Error(), "does not support audio") {
+		t.Fatalf("audio error=%v", err)
+	}
+	if requests.Load() != 0 {
+		t.Fatal("audio was sent as an image")
+	}
+}
+
 func TestEmbedFile_Vertex(t *testing.T) {
 	embedding := []float32{0.5, 0.5}
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

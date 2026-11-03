@@ -19,6 +19,7 @@ const configChoiceListFailureFetch = `(() => {
 		if (url.pathname === '/api/config' && method === 'GET') {
 			return nativeFetch(input, init).then(resp => resp.json()).then(data => {
 				data.llm = Object.assign({}, data.llm, { provider: 'fixture-main' });
+				data.personality = Object.assign({}, data.personality, { core_personality: 'friend' });
 				return json(data, 200);
 			});
 		}

@@ -3762,6 +3762,7 @@ registration lives in `internal/desktop/types.go`.
   `/api/cheatsheets/{id}/attachments`; client validation stays aligned with
   backend limits: `.txt`/`.md`, 1 MiB upload size, and 25,000 text characters
   per sheet.
+- Sheets leaves undo/redo to inputs, textareas and contenteditable controls; sheet history shortcuts apply outside text editing. Writer disconnects its ruler ResizeObserver during window cleanup. Verify the Sheets app browser chrome/keyboard checks and app disposal checks.
 - Sheets exposes `window.SheetsApp = { render, dispose, instances }`. Each
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before

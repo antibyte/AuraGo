@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -73,6 +74,33 @@ func TestKaggleSSEReplayAndCredentialRevocation(t *testing.T) {
 	}
 	if s.kaggleStreamAuthorized(r) {
 		t.Fatal("revoked stream credential remains valid")
+	}
+}
+
+func TestKaggleDeniedProjectWriteReturnsOneJSONResponse(t *testing.T) {
+	s, _, write := testDesktopPermissionServer(t)
+	s.Cfg.Directories.DataDir = t.TempDir()
+	s.Cfg.VirtualDesktop.Enabled = true
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	s.Cfg.Kaggle = config.DefaultKaggleConfig()
+	s.Cfg.Kaggle.Enabled = true
+	t.Cleanup(s.closeKaggleServices)
+	for _, resource := range []string{"notebooks/test.ipynb", "files/test.txt"} {
+		req := httptest.NewRequest(http.MethodPut, "/api/kaggle/projects/fixture/"+resource, strings.NewReader(`{}`))
+		req.Header.Set("Authorization", "Bearer "+write)
+		rec := httptest.NewRecorder()
+		s.handleKaggle(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+		}
+		decoder := json.NewDecoder(rec.Body)
+		var response any
+		if err := decoder.Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		if err := decoder.Decode(&response); err != io.EOF {
+			t.Fatalf("permission denial wrote a second response: %v", err)
+		}
 	}
 }
 

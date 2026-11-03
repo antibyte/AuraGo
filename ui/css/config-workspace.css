@@ -126,6 +126,7 @@
     font-size: var(--pw-help-size);
     line-height: 1.6;
     color: var(--pw-muted);
+    overflow-wrap: anywhere;
 }
 
 .pw-page[data-workspace-page="config"] .cfg-save-scope {

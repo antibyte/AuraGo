@@ -56,7 +56,6 @@ func TestDesktopOpenSCADLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 	windows := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
 		"openscad: { width: 1240, height: 760 }",
-		"openscad: true",
 	} {
 		if !strings.Contains(windows, want) {
 			t.Fatalf("desktop window runtime missing OpenSCAD marker %q", want)

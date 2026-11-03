@@ -120,6 +120,5 @@ func hasColumn(db *sql.DB, table, column string) (bool, error) {
 
 // isDuplicateColumnError checks if the error is a "duplicate column name" error.
 func isDuplicateColumnError(err error) bool {
-	errStr := err.Error()
-	return len(errStr) >= 19 && errStr[len(errStr)-19:] == "duplicate column name"
+	return err != nil && strings.Contains(err.Error(), "duplicate column name:")
 }

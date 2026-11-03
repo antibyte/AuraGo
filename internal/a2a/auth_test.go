@@ -62,7 +62,7 @@ func TestAuthMiddleware_APIKeyInvalid(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware_APIKeyQueryParam(t *testing.T) {
+func TestAuthMiddlewareRejectsAPIKeyQueryParam(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.A2A.Auth.APIKeyEnabled = true
 	cfg.A2A.Auth.APIKey = "test-key-123"
@@ -73,8 +73,8 @@ func TestAuthMiddleware_APIKeyQueryParam(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for a URL credential, got %d", w.Code)
 	}
 }
 
