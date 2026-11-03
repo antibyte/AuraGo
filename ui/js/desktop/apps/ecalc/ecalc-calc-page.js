@@ -7,7 +7,10 @@
    the fields in the `ignore` list of a selected choice option are dimmed and left out of the copied results, a
    `finder: combine` calculator lists the standard-value combinations of its target (five per group) and a calculator
    with a `chart` draws the curve under its formula (ECalcChart). launchState() builds the state a pre-fill opens with.
-   Publishes window.ECalcCalcPage = { create, launchState, unitFor }. */
+   With the `header` option the page is the compact finder header of a table page: no title row of its own, no schematic,
+   formula, chart, combiner, E-series block or explanation, the choices the table fixes are pinned and hidden, and every
+   solve is reported through header.onResult. unitChoices() and copyText() are shared with the table page.
+   Publishes window.ECalcCalcPage = { create, launchState, unitFor, unitChoices, copyText }. */
 (function () {
     'use strict';
 
@@ -81,21 +84,52 @@
         return Object.assign(state, { launched });
     }
 
-    // options: {calc, units, store, t, icon, uid, decimalComma, schematics, onFavorite}
+    // Puts text on the clipboard; without the asynchronous clipboard API (or when it refuses) a hidden textarea does it.
+    function copyText(text) {
+        const fallback = () => {
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            try { document.execCommand('copy'); } catch (error) { /* nothing more to try */ }
+            area.remove();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback);
+        else fallback();
+    }
+
+    // options: {item, units, store, t, icon, uid, decimalComma, schematics, onFavorite, header}. `item` is the calculator
+    // (`calc` is the older name and still read). `header` = {choices: {choice id: option id}, onResult(result)} makes the
+    // page the finder header of a table page (see the file comment); result is the {values, errors, ...} of ECalcCore.solve.
     function create(options) {
-        const { calc, units, store, t, icon, uid } = options;
+        const { units, store, t, icon, uid } = options;
+        const calc = options.item || options.calc;
+        const header = options.header && typeof options.header === 'object' ? options.header : null;
         const varById = new Map(calc.vars.map(v => [v.id, v]));
         const derivedById = new Map(calc.derived.map(item => [item.id, item]));
-        const spec = calc.schematic && options.schematics && options.schematics[calc.schematic] ? options.schematics[calc.schematic] : null;
+        const spec = !header && calc.schematic && options.schematics && options.schematics[calc.schematic] ? options.schematics[calc.schematic] : null;
         const anchors = new Map();
         if (spec) for (const anchor of spec.anchors || []) if (varById.has(anchor.var)) anchors.set(anchor.var, anchor);
-        const formulas = calc.formula.map(line => core.expr.parseFormula(line));
+        const formulas = header ? [] : calc.formula.map(line => core.expr.parseFormula(line));
+        // The choices a header fixes: only an existing choice with an existing option counts. They are applied to every
+        // state of the page (stored, default, reset) and their controls are not drawn.
+        const fixed = {};
+        if (header) {
+            for (const choice of calc.choices || []) {
+                const wanted = header.choices && header.choices[choice.id];
+                if (choice.options.some(option => option.id === wanted)) fixed[choice.id] = wanted;
+            }
+        }
+        const pinned = next => (header ? Object.assign({}, next, { choices: Object.assign({}, next.choices, fixed) }) : next);
 
         const unitOf = unitFor(calc, store, units);
         // A radix field (hex, bin, oct) takes letters, so it must not ask the phone for a decimal pad.
         const isRadix = v => v.dim === 'integer' || !!units.dim(v.dim).integer;
-        const comboVar = calc.finder === 'combine' ? calc.vars.find(v => v.dim === 'resistance' && !v.list) || null : null;
-        const chart = calc.chart && typeof calc.chart === 'object' ? calc.chart : null;
+        const comboVar = !header && calc.finder === 'combine' ? calc.vars.find(v => v.dim === 'resistance' && !v.list) || null : null;
+        const chart = !header && calc.chart && typeof calc.chart === 'object' ? calc.chart : null;
         const sig = () => store.prefs().sig;
         const comma = text => (options.decimalComma ? text.replace(/(\d)\.(\d)/g, '$1,$2') : text);
         // A unit that cannot show a finite value (dBV for a negative voltage) gives way to the automatic prefix.
@@ -106,7 +140,7 @@
             : comma(formatted(entry, value, unitId)));
         const finite = value => (Array.isArray(value) ? value.length > 0 && value.every(Number.isFinite) : Number.isFinite(value));
 
-        let state = S.restoreState(calc, store.calcState(calc.id), units, unitOf);
+        let state = pinned(S.restoreState(calc, store.calcState(calc.id), units, unitOf));
         let result = null, parseErrors = {}, typing = {};
         const timers = new Map(), fields = new Map();
         let copyTimer = 0, comboTimer = 0, comboKey = '', combos = { series: '', list: [] };
@@ -161,29 +195,35 @@
 
         const el = document.createElement('article');
         el.className = 'ec-page';
-        el.dataset.calc = calc.id;
+        // A header is not a page of its own: data-calc stays with the real calculator pages (the shell and the tests find them by it).
+        if (header) el.dataset.finder = calc.id; else el.dataset.calc = calc.id;
         el.dataset.layout = 'stack';
         el.dataset.chips = spec ? 'listed' : 'none';
         el.setAttribute('aria-labelledby', uid + '-title');
-        el.innerHTML = '<header class="ec-page-head"><h2 class="ec-title" id="' + uid + '-title">' + esc(calc.name) + '</h2><div class="ec-actions">'
+        const shownChoices = (calc.choices || []).filter(choice => !has(fixed, choice.id));
+        const resetButton = '<button type="button" class="ec-btn" data-action="reset" title="' + esc(t('desktop.ecalc_reset')) + '" aria-label="' + esc(t('desktop.ecalc_reset')) + '">' + icon('reset') + '<span class="ec-btn-label">' + esc(t('desktop.ecalc_reset')) + '</span></button>';
+        el.innerHTML = (header
+            ? '<header class="ec-page-head"><h3 class="ec-title ec-finder-title" id="' + uid + '-title">' + esc(calc.name) + '</h3><div class="ec-actions">' + resetButton + '</div></header>'
+            : '<header class="ec-page-head"><h2 class="ec-title" id="' + uid + '-title">' + esc(calc.name) + '</h2><div class="ec-actions">'
             + '<button type="button" class="ec-btn" data-action="favorite" aria-pressed="false">' + icon('star') + '<span class="ec-btn-label" data-label="favorite"></span></button>'
             + '<button type="button" class="ec-btn" data-action="copy" title="' + esc(t('desktop.ecalc_copy_results')) + '" aria-label="' + esc(t('desktop.ecalc_copy_results')) + '">' + icon('copy') + '<span class="ec-btn-label" data-label="copy">' + esc(t('desktop.ecalc_copy_results')) + '</span></button>'
-            + '<button type="button" class="ec-btn" data-action="reset" title="' + esc(t('desktop.ecalc_reset')) + '" aria-label="' + esc(t('desktop.ecalc_reset')) + '">' + icon('reset') + '<span class="ec-btn-label">' + esc(t('desktop.ecalc_reset')) + '</span></button></div></header>'
-            + ((calc.choices || []).length ? '<div class="ec-choices">' + calc.choices.map(choiceMarkup).join('') + '</div>' : '')
+            + resetButton + '</div></header>')
+            + (shownChoices.length ? '<div class="ec-choices">' + shownChoices.map(choiceMarkup).join('') + '</div>' : '')
             + '<div class="ec-main"' + (formulas.length || chart ? '' : ' data-solo="true"') + '><section class="ec-stage" aria-label="' + esc(t('desktop.ecalc_inputs')) + '">'
             + (spec ? '<div class="ec-sch-wrap" style="--ec-w:' + spec.w + ';--ec-ar:' + spec.w + '/' + spec.h + '"><div class="ec-sch-art"></div><div class="ec-chips"></div></div>' : '')
             + '<div class="ec-fields"></div></section>'
             + (formulas.length || chart ? '<section class="ec-math-card"><div class="ec-formulas">' + formulas.map((_, index) => '<div class="ec-formula" data-line="' + index + '"><div class="ec-math" data-math="formula"></div><div class="ec-math ec-live" data-math="live"></div></div>').join('') + '</div>'
                 + (chart ? '<div class="ec-chart" data-block="chart" hidden><h3>' + esc(t('desktop.ecalc_chart')) + '</h3><div class="ec-chart-art"></div></div>' : '') + '</section>' : '') + '</div>'
             + (comboVar ? '<section class="ec-block ec-combos" data-block="combos" hidden><h3 data-label="combos"></h3><div class="ec-combo-wrap"></div></section>' : '')
-            + '<div class="ec-below"><section class="ec-block" data-block="eseries"><h3 data-label="eseries"></h3><ul class="ec-rows" data-rows="eseries"></ul></section>'
+            + '<div class="ec-below">' + (header ? '' : '<section class="ec-block" data-block="eseries"><h3 data-label="eseries"></h3><ul class="ec-rows" data-rows="eseries"></ul></section>')
             + '<section class="ec-block" data-block="derived"><h3>' + esc(t('desktop.ecalc_derived')) + '</h3><ul class="ec-rows" data-rows="derived"></ul></section></div>'
             + '<ul class="ec-warnings" aria-label="' + esc(t('desktop.ecalc_warnings')) + '"></ul>'
-            + '<details class="ec-doc"><summary>' + esc(t('desktop.ecalc_explanation')) + '</summary><div class="ec-doc-body">' + docMarkup + '<p class="ec-source"><strong>' + esc(t('desktop.ecalc_source')) + ':</strong> ' + esc(calc.source || '') + '</p></div></details>';
+            + (header ? '' : '<details class="ec-doc"><summary>' + esc(t('desktop.ecalc_explanation')) + '</summary><div class="ec-doc-body">' + docMarkup + '<p class="ec-source"><strong>' + esc(t('desktop.ecalc_source')) + ':</strong> ' + esc(calc.source || '') + '</p></div></details>');
 
         const chipsEl = el.querySelector('.ec-chips'), fieldsEl = el.querySelector('.ec-fields'), artEl = el.querySelector('.ec-sch-art');
         const chartBlock = el.querySelector('[data-block="chart"]'), chartArt = el.querySelector('.ec-chart-art');
         const combosBlock = el.querySelector('[data-block="combos"]'), combosWrap = el.querySelector('.ec-combo-wrap');
+        const eseriesBlock = el.querySelector('[data-block="eseries"]');
         for (const v of calc.vars) {
             const holder = document.createElement('div');
             holder.innerHTML = fieldMarkup(v);
@@ -278,15 +318,18 @@
         function paintResults() {
             const series = store.prefs().eseries;
             const unused = ignoredIds();
-            const eRows = calc.vars.filter(v => v.eseries && !unused.has(v.id)).map(v => {
+            // A header has no E-series block.
+            const eRows = !eseriesBlock ? '' : calc.vars.filter(v => v.eseries && !unused.has(v.id)).map(v => {
                 const value = result.values[v.id], near = Number.isFinite(value) && value > 0 && !Array.isArray(value) ? core.eseries.nearest(series, value) : null;
                 if (!near) return '';
                 const tone = Math.abs(near.dev) < 1 ? 'ok' : Math.abs(near.dev) >= 5 ? 'warn' : 'mid';
                 return '<li><span class="ec-row-name">' + Typeset.labelHTML(v.label || v.id) + '</span><span class="ec-row-val">' + esc(display(v, near.value, unitOf(v.id))) + '</span><span class="ec-row-dev" data-tone="' + tone + '">' + esc(percent(near.dev)) + '</span></li>';
             }).join('');
-            el.querySelector('[data-block="eseries"]').hidden = !eRows;
-            el.querySelector('[data-rows="eseries"]').innerHTML = eRows;
-            el.querySelector('[data-label="eseries"]').textContent = t('desktop.ecalc_eseries_nearest', { series });
+            if (eseriesBlock) {
+                eseriesBlock.hidden = !eRows;
+                el.querySelector('[data-rows="eseries"]').innerHTML = eRows;
+                el.querySelector('[data-label="eseries"]').textContent = t('desktop.ecalc_eseries_nearest', { series });
+            }
             const dRows = calc.derived.map(item => {
                 const value = result.values[item.id];
                 return '<li><span class="ec-row-name" title="' + esc(item.name || '') + '">' + Typeset.labelHTML(item.label || item.id) + '</span><span class="ec-row-val">'
@@ -395,6 +438,7 @@
         }
         function paintActions() {
             const favorite = store.isFavorite(calc.id), button = el.querySelector('[data-action="favorite"]');
+            if (!button) return;
             button.setAttribute('aria-pressed', favorite ? 'true' : 'false');
             button.querySelector('[data-label]').textContent = favoriteLabel();
             button.title = favoriteLabel();
@@ -408,6 +452,7 @@
             paintResults();
             paintCombos();
             paintChart();
+            if (header && typeof header.onResult === 'function') header.onResult(result);
         }
 
         // ---- events --------------------------------------------------------------------------------------------
@@ -492,22 +537,6 @@
             }
             return lines.join('\n');
         }
-        function copyText(text) {
-            const fallback = () => {
-                const area = document.createElement('textarea');
-                area.value = text;
-                area.setAttribute('readonly', '');
-                area.style.position = 'fixed';
-                area.style.opacity = '0';
-                document.body.appendChild(area);
-                area.select();
-                try { document.execCommand('copy'); } catch (error) { /* nothing more to try */ }
-                area.remove();
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback);
-            else fallback();
-        }
-
         el.addEventListener('click', event => {
             const button = event.target.closest('[data-action]');
             if (!button || !el.contains(button)) return;
@@ -521,7 +550,7 @@
                 paintActions();
                 if (options.onFavorite) options.onFavorite(calc.id);
             } else if (action === 'reset') {
-                state = S.defaultState(calc, units, unitOf);
+                state = pinned(S.defaultState(calc, units, unitOf));
                 typing = {};
                 persist();
                 paintChoices();
@@ -584,5 +613,5 @@
         };
     }
 
-    window.ECalcCalcPage = { create, launchState, unitFor };
+    window.ECalcCalcPage = { create, launchState, unitFor, unitChoices, copyText };
 })();

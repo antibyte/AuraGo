@@ -288,6 +288,25 @@ func TestECalcPageExtensionsAreWired(t *testing.T) {
 	}
 }
 
+// The finder header of a table page is the calculator page in a compact mode: it takes the item as `item`, pins and hides
+// the choices the table fixes, keeps its stored inputs apart (the table page hands it a scoped store) and reports every
+// solve; it is not a page of its own, so it carries data-finder instead of data-calc.
+func TestECalcCalcPageHasAFinderHeaderMode(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-calc-page.js"]
+	for _, marker := range []string{
+		"const calc = options.item || options.calc;", "const header = options.header && typeof options.header === 'object' ? options.header : null;",
+		"const pinned = next => (header ? Object.assign({}, next, { choices: Object.assign({}, next.choices, fixed) }) : next);",
+		"let state = pinned(S.restoreState(", "state = pinned(S.defaultState(", "if (header) el.dataset.finder = calc.id; else el.dataset.calc = calc.id;",
+		"const shownChoices = (calc.choices || []).filter(choice => !has(fixed, choice.id));",
+		"if (header && typeof header.onResult === 'function') header.onResult(result);", "if (!button) return;", "function copyText(text)",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-calc-page.js is missing %q", marker)
+		}
+	}
+}
+
 // The launch hook is wired where the contract puts it: ctx.launch at render time and ECalcApp.launch for an open window
 // reach the shell, which stores the pre-filled state (ECalcCalcPage.launchState) and opens the page. The desktop core
 // itself is not touched by this part.
@@ -295,7 +314,7 @@ func TestECalcLaunchHookIsWired(t *testing.T) {
 	t.Parallel()
 	scripts := ecalcScripts(t)
 	for file, markers := range map[string][]string{
-		"ecalc-calc-page.js": {"function launchState(calc, payload, units, unitOf)", "window.ECalcCalcPage = { create, launchState, unitFor };"},
+		"ecalc-calc-page.js": {"function launchState(calc, payload, units, unitOf)", "window.ECalcCalcPage = { create, launchState, unitFor, unitChoices, copyText };"},
 		"ecalc-shell.js":     {"function launch(payload)", "Page.launchState(item, payload, units, Page.unitFor(item, store, units))", "if (wanted) launch(options.launch);"},
 		"ecalc.js":           {"ctx.launch", "function launch(id, payload)", "if (shell) shell.launch(payload); else pending = payload;", "uid, launch: pending"},
 	} {
