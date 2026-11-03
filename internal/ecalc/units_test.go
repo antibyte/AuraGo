@@ -171,7 +171,7 @@ func TestUnitsCatalogDimensions(t *testing.T) {
 		"inductance|H|n µ m ''|true|",
 		"frequency|Hz|'' k M G|true|",
 		"time|s|p n µ m ''|true|min h",
-		"length|m|µ m '' k|true|mil in ft oz AWG",
+		"length|m|µ m '' k|true|mil in ft oz AWG mm",
 		"area|m²|''|true|mm2 mil2 kcmil AWG",
 		"temperature|K|''|true|degC degF",
 		"tempdiff|K|''|false|degC degF",

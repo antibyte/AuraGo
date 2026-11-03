@@ -1,0 +1,30 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "lookups: expr is evaluated with env (name -> SI number) and refs (alias -> table or column id) against the tables of the catalog; want is an SI number or the string \"nan\" and matches at tol (default 1e-9).",
+    "Every cell and lookup names its source in ref. A transcribed table needs at least three cells, a generated table at least five checked against published values."
+  ],
+  "table": "eseries_e24",
+  "cells": [
+    {"key": 1.0, "column": "e3", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 1.0 is in E3"},
+    {"key": 1.0, "column": "e24", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 1.0 is in E24"},
+    {"key": 1.1, "column": "e3", "want": "", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 1.1 is only in E24"},
+    {"key": 1.1, "column": "e12", "want": "", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 1.1 is only in E24"},
+    {"key": 1.1, "column": "e24", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 1.1 is in E24"},
+    {"key": 2.2, "column": "e3", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 2.2 is in E3"},
+    {"key": 2.7, "column": "e6", "want": "", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 2.7 is in E12 but not in E6"},
+    {"key": 2.7, "column": "e12", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 2.7 is in E12"},
+    {"key": 3.3, "column": "e6", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 3.3 is in E6"},
+    {"key": 4.7, "column": "e3", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 4.7 is in E3"},
+    {"key": 6.8, "column": "e6", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 6.8 is in E6"},
+    {"key": 9.1, "column": "e12", "want": "", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 9.1 is only in E24"},
+    {"key": 9.1, "column": "e24", "want": "●", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 9.1 is the last E24 value"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(eseries_e24, value, 2.3, value)", "want": 2.4, "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; the next E24 value at or above 2.3 is 2.4 (2.2 lies below)"},
+    {"expr": "lookup_ge(eseries_e24, value, 9.1, value)", "want": 9.1, "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 9.1 is at least 9.1"},
+    {"expr": "lookup_ge(eseries_e24, value, 9.2, value)", "want": "nan", "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; no E24 value of the decade is above 9.1"},
+    {"expr": "lookup(eseries_e24, value, 3.9)", "want": 3.9, "ref": "IEC 60063: E3 = 1.0 2.2 4.7; E6 adds 1.5 3.3 6.8; E12 adds 1.2 1.8 2.7 3.9 5.6 8.2; E24 adds 1.1 1.3 1.6 2.0 2.4 3.0 3.6 4.3 5.1 6.2 7.5 9.1; 3.9 is an E24 value (and E12)"}
+  ]
+}

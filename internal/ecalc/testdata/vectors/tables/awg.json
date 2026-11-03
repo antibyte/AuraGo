@@ -1,0 +1,35 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "lookups: expr is evaluated with env (name -> SI number) and refs (alias -> table or column id) against the tables of the catalog; want is an SI number or the string \"nan\" and matches at tol (default 1e-9).",
+    "Every cell and lookup names its source in ref. A transcribed table needs at least three cells, a generated table at least five checked against published values."
+  ],
+  "table": "awg",
+  "cells": [
+    {"key": "4/0", "column": "diameter", "want": 0.011684, "ref": "ASTM B258: AWG 4/0 is defined as 0.4600 in = 11.684 mm"},
+    {"key": "36", "column": "diameter", "want": 0.000127, "ref": "ASTM B258: AWG 36 is defined as 0.0050 in = 0.127 mm"},
+    {"key": "4/0", "column": "awg", "want": -3, "ref": "ASTM B258: the formula 0.127 mm x 92^((36 - n)/39) gives the defining 0.4600 in for n = -3, so 4/0 is numbered -3 (3/0, 2/0, 1/0 are -2, -1, 0)"},
+    {"key": "1/0", "column": "awg", "want": 0, "ref": "ASTM B258: AWG 1/0 is AWG 0, n = 0 in the formula 0.127 mm x 92^((36 - n)/39)"},
+    {"key": "1/0", "column": "diameter", "want": 0.008251, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 1/0 is 8.251 mm (0.3249 in)"},
+    {"key": "2/0", "column": "diameter", "want": 0.009266, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 2/0 is 9.266 mm (0.3648 in)"},
+    {"key": "4/0", "column": "area", "want": 107.2, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 4/0 is 107.2 mm2"},
+    {"key": "10", "column": "diameter", "want": 0.002588, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 10 is 2.588 mm (0.1019 in)"},
+    {"key": "10", "column": "area", "want": 5.261, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 10 is 5.261 mm2"},
+    {"key": "10", "column": "r_km", "want": 3.277, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 10 is 3.277 ohm/km"},
+    {"key": "20", "column": "diameter", "want": 0.0008118, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 20 is 0.8118 mm (0.03196 in)"},
+    {"key": "20", "column": "area", "want": 0.5176, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 20 is 0.5176 mm2"},
+    {"key": "24", "column": "r_km", "want": 84.22, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 24 is 84.22 ohm/km"},
+    {"key": "30", "column": "diameter", "want": 0.0002546, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 30 is 0.2546 mm (0.01003 in)"},
+    {"key": "40", "column": "diameter", "want": 7.99e-05, "tol": 0.0005, "ref": "the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): AWG 40 is 0.0799 mm (0.00314 in)"},
+    {"key": "40", "column": "awg", "want": 40, "ref": "ASTM B258: the last row is AWG 40"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(awg, awg, 10, diameter)", "want": 0.002588, "tol": 0.0005, "ref": "rows ascend with the gauge number, so the first row with number >= 10 is AWG 10: 2.588 mm (the AWG table as published (diameters of ASTM B258 sizes, copper at 20 °C and 1/58 Ω·mm²/m): )"},
+    {"expr": "lookup_ge(awg, awg, -1.5, diameter)", "want": 0.009266, "tol": 0.0005, "ref": "the first row with number >= -1.5 is AWG 2/0 (-1): 9.266 mm"},
+    {"expr": "lookup_ge(awg, r_km, 3.3, awg)", "want": 11, "ref": "the resistance rises with the number: AWG 10 has 3.277 ohm/km (below 3.3), AWG 11 has 4.132 ohm/km"},
+    {"expr": "interp(awg, awg, area, 10)", "want": 5.261e-06, "tol": 0.0005, "ref": "interp is exact at the node: the cross-section of AWG 10 is 5.261 mm2"},
+    {"expr": "interp(awg, awg, diameter, 36)", "want": 0.000127, "ref": "interp is exact at the node: AWG 36 is 0.127 mm (ASTM B258: defining size)"},
+    {"expr": "interp(awg, awg, diameter, -4)", "want": "nan", "ref": "-4 lies outside the gauge numbers -3 ... 40"}
+  ]
+}

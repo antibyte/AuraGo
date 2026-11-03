@@ -31,7 +31,8 @@ dims:
   # Wire and copper dimensions. oz is the copper weight (1 oz/ft² is a layer of about 35 µm). AWG is the American Wire
   # Gauge diameter, d(n) = 0.005 in * 92^((36 - n) / 39) with 0.005 in = 0.000127 m (ASTM B258: AWG 0 = 8.251 mm, AWG 10 = 2.588 mm,
   # AWG 36 = 0.127 mm); the area unit AWG is the cross-section of that diameter, AWG 10 = 5.261 mm².
-  length: {symbol: m, prefixes: [µ, m, "", k], positive: true, units: [{id: mil, symbol: mil, factor: 25.4e-6}, {id: in, symbol: in, factor: 0.0254}, {id: ft, symbol: ft, factor: 0.3048}, {id: oz, symbol: oz, factor: 35e-6}, {id: AWG, symbol: AWG, to: "0.000127*92^((36-x)/39)", from: "36-39*ln(x/0.000127)/ln(92)"}]}
+  # mm is explicit although m takes the prefix m: a table column can then be written and shown in plain millimetres.
+  length: {symbol: m, prefixes: [µ, m, "", k], positive: true, units: [{id: mil, symbol: mil, factor: 25.4e-6}, {id: in, symbol: in, factor: 0.0254}, {id: ft, symbol: ft, factor: 0.3048}, {id: oz, symbol: oz, factor: 35e-6}, {id: AWG, symbol: AWG, to: "0.000127*92^((36-x)/39)", from: "36-39*ln(x/0.000127)/ln(92)"}, {id: mm, symbol: mm, factor: 1e-3}]}
   area: {symbol: m², prefixes: [""], positive: true, units: [{id: mm2, symbol: mm², aliases: [mm2], factor: 1e-6}, {id: mil2, symbol: mil², factor: 6.4516e-10}, {id: kcmil, symbol: kcmil, factor: 5.067074790975e-7}, {id: AWG, symbol: AWG, to: "pi/4*(0.000127*92^((36-x)/39))^2", from: "36-39*ln(sqrt(4*x/pi)/0.000127)/ln(92)"}]}
   # Temperature has an offset unit (degC, degF); a temperature difference (tempdiff) only scales.
   temperature: {symbol: K, prefixes: [""], positive: true, units: [{id: degC, symbol: °C, aliases: [C, degC], to: "x+273.15", from: "x-273.15"}, {id: degF, symbol: °F, aliases: [F, degF], to: "(x-32)*5/9+273.15", from: "(x-273.15)*9/5+32"}]}

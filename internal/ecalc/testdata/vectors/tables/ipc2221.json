@@ -1,0 +1,27 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "lookups: expr is evaluated with env (name -> SI number) and refs (alias -> table or column id) against the tables of the catalog; want is an SI number or the string \"nan\" and matches at tol (default 1e-9).",
+    "Every cell and lookup names its source in ref. A transcribed table needs at least three cells, a generated table at least five checked against published values."
+  ],
+  "table": "ipc2221",
+  "cells": [
+    {"key": 0.25, "column": "ext_1oz_10", "want": 0.0443867009, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 0.25 A, outer, 1 oz, rise 10 C = 1.7475 mil"},
+    {"key": 1, "column": "ext_1oz_10", "want": 0.300386521, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, outer, 1 oz, rise 10 C = 11.826 mil"},
+    {"key": 1, "column": "ext_1oz_20", "want": 0.197236085, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, outer, 1 oz, rise 20 C = 7.7652 mil"},
+    {"key": 1, "column": "ext_2oz_10", "want": 0.15019326, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, outer, 2 oz, rise 10 C = 5.9131 mil (half the 1 oz width)"},
+    {"key": 1, "column": "int_1oz_10", "want": 0.781437463, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, inner, 1 oz, rise 10 C = 30.765 mil"},
+    {"key": 1, "column": "int_1oz_20", "want": 0.513097811, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, inner, 1 oz, rise 20 C = 20.201 mil"},
+    {"key": 1.5, "column": "ext_1oz_10", "want": 0.525490581, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1.5 A, outer, 1 oz, rise 10 C = 20.689 mil"},
+    {"key": 5, "column": "int_1oz_20", "want": 4.72385675, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 5 A, inner, 1 oz, rise 20 C = 185.98 mil"},
+    {"key": 10, "column": "ext_1oz_10", "want": 7.19433714, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 10 A, outer, 1 oz, rise 10 C = 283.24 mil"},
+    {"key": 10, "column": "int_2oz_10", "want": 9.35781763, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 10 A, inner, 2 oz, rise 10 C = 368.42 mil"}
+  ],
+  "lookups": [
+    {"expr": "lookup(ipc2221, ext_1oz_10, 1)", "want": 0.000300386521, "tol": 1e-08, "ref": "IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: 1 A, outer, 1 oz, rise 10 C = 0.300386521 mm (SI: metres)"},
+    {"expr": "lookup_ge(ipc2221, ext_1oz_10, 0.0005, current)", "want": 1.5, "ref": "0.5 mm needs 1.5 A: the outer 1 oz widths are 0.300 mm at 1 A and 0.525 mm at 1.5 A (IPC-2221 current-carrying capacity equation I = k*dT^0.44*A^0.725 (A in mil2, k 0.048 outer and 0.024 inner layers), width = A / thickness with 1 oz = 35 um = 1.378 mil, worked out independently with 50-digit decimals: values above)"},
+    {"expr": "interp(ipc2221, current, ext_1oz_10, 1.25)", "want": 0.000412938551, "tol": 1e-08, "ref": "halfway between 1 A (0.300386521 mm) and 1.5 A (0.525490581 mm): 0.412938551 mm"},
+    {"expr": "interp(ipc2221, current, ext_1oz_10, 11)", "want": "nan", "ref": "11 A is above the last row (10 A)"}
+  ]
+}

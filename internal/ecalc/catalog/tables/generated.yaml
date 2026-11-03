@@ -1,0 +1,47 @@
+# Tables whose columns and rows the engine generates from formulas and from its own data (tablegen.go), so they cannot
+# disagree with them. The item carries every other field. The vectors in testdata/vectors/tables/ check the generated
+# cells against published values.
+- id: awg
+  kind: table
+  category: tables
+  group: conductors
+  generate: awg
+  name: {cs: "Drátové rozměry AWG", da: "AWG-trådstørrelser", de: "AWG-Leitergrößen", el: "Μεγέθη αγωγών AWG", en: "AWG wire gauges", es: "Calibres de cable AWG", fr: "Calibres de fil AWG", hi: "AWG तार गेज", it: "Calibri dei fili AWG", ja: "AWG ワイヤゲージ", nl: "AWG-draaddiktes", no: "AWG-trådstørrelser", pl: "Rozmiary przewodów AWG", pt: "Calibres de fio AWG", sv: "AWG-trådstorlekar", zh: "AWG 线规"}
+  doc: {en: "American Wire Gauge from 4/0 to AWG 40: diameter and cross-section of the bare wire and the DC resistance of 1 km of annealed copper at 20 °C.", de: "American Wire Gauge von 4/0 bis AWG 40: Durchmesser und Querschnitt des blanken Drahts und Gleichstromwiderstand von 1 km geglühtem Kupfer bei 20 °C."}
+  notes: {en: "The diameter follows ASTM B258: 0.127 mm × 92^((36 - n)/39), with AWG 4/0 as n = -3 and AWG 1/0 as n = 0. The resistance uses 1/58 Ω·mm²/m for annealed copper at 20 °C and ignores stranding, insulation and temperature.", de: "Der Durchmesser folgt ASTM B258: 0,127 mm × 92^((36 - n)/39), AWG 4/0 ist n = -3 und AWG 1/0 ist n = 0. Der Widerstand rechnet mit 1/58 Ω·mm²/m für geglühtes Kupfer bei 20 °C und lässt Litzenaufbau, Isolation und Temperatur außer Acht."}
+  tags: [awg, american wire gauge, wire, gauge, diameter, cross-section, copper, conductor, draht, drahtstärke, querschnitt, kupfer]
+  source: "ASTM B258 (diameters and cross-sections of AWG sizes); IEC 60028 (resistivity of annealed copper, 1/58 Ω·mm²/m at 20 °C)"
+
+- id: ipc2221
+  kind: table
+  category: tables
+  group: conductors
+  generate: ipc2221
+  guide: true
+  name: {cs: "Šířka vodivé cesty DPS (IPC-2221)", da: "Printbanebredde (IPC-2221)", de: "Leiterbahnbreite (IPC-2221)", el: "Πλάτος αγωγού PCB (IPC-2221)", en: "PCB trace width (IPC-2221)", es: "Ancho de pista de PCB (IPC-2221)", fr: "Largeur de piste de circuit imprimé (IPC-2221)", hi: "पीसीबी ट्रेस की चौड़ाई (IPC-2221)", it: "Larghezza delle piste PCB (IPC-2221)", ja: "プリント基板のパターン幅 (IPC-2221)", nl: "Printbaanbreedte (IPC-2221)", no: "Ledningsbredde på kretskort (IPC-2221)", pl: "Szerokość ścieżki PCB (IPC-2221)", pt: "Largura de pista de PCB (IPC-2221)", sv: "Ledarbredd på kretskort (IPC-2221)", zh: "PCB 走线宽度 (IPC-2221)"}
+  doc: {en: "Trace width that carries a given current at a given temperature rise, from the IPC-2221 equation, for outer and inner layers in 1 oz and 2 oz copper.", de: "Leiterbahnbreite für einen Strom bei vorgegebener Erwärmung nach der IPC-2221-Gleichung, für Außen- und Innenlagen in 1-oz- und 2-oz-Kupfer."}
+  notes: {en: "I = k · ΔT^0.44 · A^0.725 with the cross-section A in mil², k = 0.048 for outer and 0.024 for inner layers, and 35 µm of copper per oz. A first estimate: neighbouring traces, vias, air flow and planes change the real temperature rise, so test high currents.", de: "I = k · ΔT^0,44 · A^0,725 mit dem Querschnitt A in mil², k = 0,048 für Außen- und 0,024 für Innenlagen und 35 µm Kupfer je oz. Eine erste Abschätzung: Nachbarbahnen, Durchkontaktierungen, Luftströmung und Flächen verändern die reale Erwärmung, hohe Ströme deshalb prüfen."}
+  tags: [ipc-2221, pcb, trace, width, current, ampacity, temperature rise, leiterbahn, leiterplatte, strombelastbarkeit, erwärmung]
+  source: "IPC-2221 (Generic Standard on Printed Board Design), current-carrying capacity equation I = k·ΔT^0.44·A^0.725"
+
+- id: eseries_e24
+  kind: table
+  category: tables
+  group: components
+  generate: eseries_e24
+  name: {cs: "Řady preferovaných hodnot E3 až E24", da: "Normtal E3 til E24", de: "Normwerte E3 bis E24", el: "Προτιμώμενες τιμές E3 έως E24", en: "Preferred values E3 to E24", es: "Valores normalizados E3 a E24", fr: "Valeurs normalisées E3 à E24", hi: "पसंदीदा मान E3 से E24", it: "Valori normalizzati da E3 a E24", ja: "標準数列 E3〜E24", nl: "Voorkeurswaarden E3 t/m E24", no: "Normaltall E3 til E24", pl: "Szeregi wartości E3 do E24", pt: "Valores normalizados E3 a E24", sv: "Standardvärden E3 till E24", zh: "优选值系列 E3 至 E24"}
+  doc: {en: "The IEC 60063 preferred values of resistors and capacitors from E3 to E24, one decade, with the series each value belongs to.", de: "Die Normwerte nach IEC 60063 für Widerstände und Kondensatoren von E3 bis E24, eine Dekade, mit der Reihe, zu der jeder Wert gehört."}
+  notes: {en: "Multiply a value by a power of ten for the other decades. Typical tolerances: E6 ±20 %, E12 ±10 %, E24 ±5 %. A dot marks the series a value belongs to.", de: "Für die anderen Dekaden den Wert mit einer Zehnerpotenz multiplizieren. Übliche Toleranzen: E6 ±20 %, E12 ±10 %, E24 ±5 %. Ein Punkt kennzeichnet die Reihen, zu denen ein Wert gehört."}
+  tags: [e-series, e24, e12, e6, e3, preferred values, resistor, capacitor, normreihe, normwerte, iec 60063]
+  source: "IEC 60063 (preferred number series for resistors and capacitors)"
+
+- id: eseries_e192
+  kind: table
+  category: tables
+  group: components
+  generate: eseries_e192
+  name: {cs: "Řady preferovaných hodnot E48 až E192", da: "Normtal E48 til E192", de: "Normwerte E48 bis E192", el: "Προτιμώμενες τιμές E48 έως E192", en: "Preferred values E48 to E192", es: "Valores normalizados E48 a E192", fr: "Valeurs normalisées E48 à E192", hi: "पसंदीदा मान E48 से E192", it: "Valori normalizzati da E48 a E192", ja: "標準数列 E48〜E192", nl: "Voorkeurswaarden E48 t/m E192", no: "Normaltall E48 til E192", pl: "Szeregi wartości E48 do E192", pt: "Valores normalizados E48 a E192", sv: "Standardvärden E48 till E192", zh: "优选值系列 E48 至 E192"}
+  doc: {en: "The IEC 60063 preferred values of precision resistors and capacitors from E48 to E192, one decade, with the series each value belongs to.", de: "Die Normwerte nach IEC 60063 für Präzisionswiderstände und -kondensatoren von E48 bis E192, eine Dekade, mit der Reihe, zu der jeder Wert gehört."}
+  notes: {en: "Multiply a value by a power of ten for the other decades. Typical tolerances: E48 ±2 %, E96 ±1 %, E192 ±0.5 % and tighter. A dot marks the series a value belongs to; every E48 value is also in E96, and every E96 value in E192.", de: "Für die anderen Dekaden den Wert mit einer Zehnerpotenz multiplizieren. Übliche Toleranzen: E48 ±2 %, E96 ±1 %, E192 ±0,5 % und enger. Ein Punkt kennzeichnet die Reihen, zu denen ein Wert gehört; jeder E48-Wert liegt auch in E96 und jeder E96-Wert in E192."}
+  tags: [e-series, e192, e96, e48, preferred values, precision resistor, normreihe, normwerte, iec 60063]
+  source: "IEC 60063 (preferred number series for resistors and capacitors)"

@@ -161,6 +161,46 @@ assert.throws(() => core.tables.findRow('t_fix', 'n', 1), error => error.code ==
 assert.throws(() => core.tables.findRow('t_nowhere', 'x', 1), error => error.code === 'eval', 'findRow refuses an unknown table');
 count += 5;
 
+// ---- tables/*.json: the cells and lookups of every table of the catalog (the Go twin: TestTableVectors) -----------------
+// A cell vector names a row by key (a number in the unit of the key column, or the English text of a text key), a column and
+// the value that cell holds in the unit of that column (a string for a text cell, null for an empty one); a lookup vector
+// evaluates a table function against the registered tables.
+const tableItems = catalog.items.filter(item => item.kind === 'table');
+for (const id of ['awg', 'ipc2221', 'eseries_e24', 'eseries_e192']) assert.ok(core.tables.get(id), `the generated table ${id} is in the catalog`);
+const tableVectorDir = path.join(root, 'internal/ecalc/testdata/vectors/tables');
+const columnUnit = column => (column.unit ? units.dim(column.dim).unitById.get(column.unit) : null);
+for (const file of fs.readdirSync(tableVectorDir)) {
+    assert.ok(file.endsWith('.json') && tableItems.some(item => item.id + '.json' === file), `${file} in testdata/vectors/tables names no table of the catalog`);
+    count += 1;
+}
+for (const item of tableItems) {
+    const set = JSON.parse(fs.readFileSync(path.join(tableVectorDir, item.id + '.json'), 'utf8'));
+    assert.equal(set.table, item.id);
+    assert.ok(set.cells.length >= 3, `${item.id} needs at least three spot-checked cells`);
+    const keyIndex = item.columns.findIndex(column => column.id === item.key), keyColumn = item.columns[keyIndex];
+    set.cells.forEach((cell, index) => {
+        const label = `${item.id} cell ${index} (${cell.ref})`;
+        assert.ok(cell.ref, `${label}: no ref`);
+        const columnIndex = item.columns.findIndex(column => column.id === cell.column);
+        assert.ok(columnIndex >= 0, `${label}: unknown column ${cell.column}`);
+        const column = item.columns[columnIndex];
+        let row;
+        if (keyColumn.dim === 'text') row = item.rows.findIndex(entry => entry[keyIndex] === cell.key);
+        else row = core.tables.findRow(item.id, keyColumn.id, columnUnit(keyColumn) ? columnUnit(keyColumn).toBase(cell.key) : cell.key);
+        assert.ok(row >= 0, `${label}: no row has the key ${cell.key}`);
+        const value = item.rows[row][columnIndex];
+        if (cell.want === null) assert.equal(value, null, label);
+        else if (typeof cell.want === 'string') assert.equal(value, cell.want, label);
+        else same(columnUnit(column) ? columnUnit(column).fromBase(value) : value, cell.want, label, cell.tol || 1e-9);
+        count += 1;
+    });
+    for (const lookup of set.lookups || []) {
+        assert.ok(lookup.ref, `${item.id} lookup ${lookup.expr} has no ref`);
+        same(expr.evaluate(expr.parse(lookup.expr), environment(lookup), lookup.refs), lookup.want, `${item.id} lookup ${lookup.expr}`, lookup.tol || 1e-9);
+        count += 1;
+    }
+}
+
 // ---- calculators/*.json: consistent solutions and single solves -----------------------------------------------------
 const split = values => {
     const env = {};

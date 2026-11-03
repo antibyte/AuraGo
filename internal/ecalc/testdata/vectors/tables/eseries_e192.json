@@ -1,0 +1,30 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "lookups: expr is evaluated with env (name -> SI number) and refs (alias -> table or column id) against the tables of the catalog; want is an SI number or the string \"nan\" and matches at tol (default 1e-9).",
+    "Every cell and lookup names its source in ref. A transcribed table needs at least three cells, a generated table at least five checked against published values."
+  ],
+  "table": "eseries_e192",
+  "cells": [
+    {"key": 1.0, "column": "e48", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 1.00 starts every series"},
+    {"key": 1.01, "column": "e192", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 1.01 is in E192"},
+    {"key": 1.01, "column": "e96", "want": "", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): E96 continues 1.00, 1.02, 1.05"},
+    {"key": 1.02, "column": "e96", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 1.02 is in E96"},
+    {"key": 1.02, "column": "e48", "want": "", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): E48 continues 1.00, 1.05, 1.10"},
+    {"key": 1.05, "column": "e48", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 1.05 is in E48"},
+    {"key": 1.05, "column": "e96", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): every E48 value is in E96"},
+    {"key": 9.09, "column": "e48", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 9.09 is in E48"},
+    {"key": 9.2, "column": "e96", "want": "", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 9.20 is only in E192 (E96 has 9.09, 9.31)"},
+    {"key": 9.2, "column": "e192", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 9.20 is in E192"},
+    {"key": 9.76, "column": "e96", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 9.76 is the last E96 value"},
+    {"key": 9.76, "column": "e48", "want": "", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): E48 ends with 9.09, 9.53"},
+    {"key": 9.88, "column": "e192", "want": "●", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 9.88 is the last E192 value"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(eseries_e192, value, 6.0, value)", "want": 6.04, "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): the E192 values are ..., 5.97, 6.04, ...: the next one at or above 6.0 is 6.04"},
+    {"expr": "lookup_ge(eseries_e192, value, 9.19, value)", "want": 9.2, "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): the value after 9.09 is 9.20, the exception in the rounding"},
+    {"expr": "lookup_ge(eseries_e192, value, 9.89, value)", "want": "nan", "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): no E192 value of the decade is above 9.88"},
+    {"expr": "lookup(eseries_e192, value, 1.01)", "want": 1.01, "ref": "IEC 60063 E192 (E96 is every second and E48 every fourth value; 9.20 is listed although 10^(185/192) rounds to 9.19): 1.01 is an E192 value"}
+  ]
+}
