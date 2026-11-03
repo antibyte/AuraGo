@@ -599,7 +599,7 @@
                 apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             }
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(file.name || '').toLowerCase().endsWith('.zip')) {
+        } else if (fileManagerIsArchive(file.name || file.path)) {
             apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });

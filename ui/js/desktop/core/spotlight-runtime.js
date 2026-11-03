@@ -72,6 +72,10 @@
             openApp('bookshelf', { path: normalized });
             return;
         }
+        if (desktopIsArchiveFile(normalized)) {
+            openApp('zipper', { path: normalized });
+            return;
+        }
         openApp('files', { path: pathDir(normalized) || '' });
         openApp('viewer', { path: normalized });
     }

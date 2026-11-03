@@ -5284,16 +5284,24 @@ registration lives in `internal/desktop/types.go`.
   Active-call texts (party name/URI, status, button and volume labels) must
   wrap inside the screen via `overflow-wrap` and never bleed past the device
   edges. No child DOX file needed.
-- `zipper.js` - Zip archive browser: list/create/extract, desktop and host
-  file drops, breadcrumb navigation inside an archive. Double-click, Enter, or
-  File → Open preview a member without extracting the whole zip. Images, text,
-  audio, and video render in an in-app overlay from
-  `GET /api/desktop/archive/entry`. PDF, Markdown, and Office files open Viewer
-  with `{ path, archiveEntry, forceNew: true }`; STL opens Viewer 3D the same
-  way. Executables and other blocked types stay closed. Visible strings use
-  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. The open-dialog
-  filter uses `desktop.file_dialog_zip`. Exposes
-  `window.ZipperApp`. No child DOX file needed.
+- `zipper.js` - Archive browser for ZIP, tar, tar.gz, tar.bz2, tar.xz,
+  tar.zst and single-file compression, plus 7-Zip-style and Linux filesystem
+  images when the host has a userspace reader. List/create/extract, desktop
+  and host file drops, breadcrumb navigation. Creation stays ZIP unless the
+  name ends in `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.txz`, `.tar.zst` or
+  `.tzst`. Other suffixes, including `.7z` and `.img`, are saved as `.zip`.
+  Double-click, Enter, or File → Open preview a member without
+  extracting the whole archive. Images, text, audio, and video render in an
+  in-app overlay from `GET /api/desktop/archive/entry`. PDF, Markdown, and
+  Office files open Viewer with `{ path, archiveEntry, forceNew: true }`; STL
+  opens Viewer 3D the same way. Executables and other blocked types stay
+  closed. Symlinks in filesystem images stay in the list
+  (`zipper.skipped_links`) and are not extracted. Visible strings use
+  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. The open-dialog filter
+  uses `desktop.file_dialog_zip`. `desktopIsArchiveFile`,
+  `fileManagerIsArchive` and `isOpenableArchive` share one extension pattern;
+  bookshelf formats still win. Exposes `window.ZipperApp`. No child DOX file
+  needed.
 - `viewer.js` / `viewer-3d.js` - Viewer and STL viewer accept optional
   `archiveEntry` with the zip `path` and `forceNew: true`. Archive members
   load from `/api/desktop/viewer/content?path=&entry=` or

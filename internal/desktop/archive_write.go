@@ -2,7 +2,6 @@ package desktop
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -32,7 +31,9 @@ func validArchivePath(name string) bool {
 	return true
 }
 
-// CreateArchive snapshots rooted regular files before publishing the complete ZIP.
+// CreateArchive snapshots rooted regular files before publishing one archive.
+// ZIP is the default. tar, tar.gz, tar.xz and tar.zst follow the destination
+// name. Other archive extensions are refused instead of being written as ZIP.
 func (s *Service) CreateArchive(ctx context.Context, paths []string, dest, source string) error {
 	if err := s.ensureReady(ctx); err != nil {
 		return err
@@ -40,24 +41,45 @@ func (s *Service) CreateArchive(ctx context.Context, paths []string, dest, sourc
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
+	kind := archiveKindForCreate(dest)
+	if !kind.creatable() {
+		return fmt.Errorf("creating %s archives is not supported", kind)
+	}
 	root, err := os.OpenRoot(s.Config().WorkspaceDir)
 	if err != nil {
 		return err
 	}
 	defer root.Close()
-	var buffer bytes.Buffer
-	writer := zip.NewWriter(&buffer)
+	files, err := s.collectArchiveSources(ctx, root, paths)
+	if err != nil {
+		return err
+	}
+	var payload []byte
+	switch kind {
+	case archiveTar, archiveTarGz, archiveTarXz, archiveTarZst:
+		payload, err = encodeTar(files, kind)
+	default:
+		payload, err = encodeZip(files)
+	}
+	if err != nil {
+		return err
+	}
+	return s.WriteFileBytes(ctx, dest, payload, source)
+}
+
+func (s *Service) collectArchiveSources(ctx context.Context, root *os.Root, paths []string) ([]archiveSourceFile, error) {
+	var files []archiveSourceFile
 	count := 0
 	remaining := archiveExpansionLimit
 	seen := map[string]bool{}
 	for _, raw := range paths {
 		resolved, err := s.resolveWorkspacePathNoSymlinks(raw, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		rel, err := filepath.Rel(s.Config().WorkspaceDir, resolved)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		rel = filepath.ToSlash(rel)
 		base := path.Dir(rel)
@@ -78,14 +100,14 @@ func (s *Service) CreateArchive(ctx context.Context, paths []string, dest, sourc
 			if !info.Mode().IsRegular() {
 				return fmt.Errorf("archive source is not a regular file")
 			}
-			zipName := strings.TrimPrefix(name, base+"/")
+			archiveName := strings.TrimPrefix(name, base+"/")
 			if base == "." {
-				zipName = name
+				archiveName = name
 			}
-			if !validArchivePath(zipName) || seen[zipName] {
+			if !validArchivePath(archiveName) || seen[archiveName] {
 				return fmt.Errorf("invalid or duplicate archive path")
 			}
-			seen[zipName] = true
+			seen[archiveName] = true
 			count++
 			if count > ArchiveEntryLimit || info.Size() > remaining {
 				return fmt.Errorf("archive exceeds limits")
@@ -99,34 +121,26 @@ func (s *Service) CreateArchive(ctx context.Context, paths []string, dest, sourc
 				stream.Close()
 				return fmt.Errorf("archive source changed")
 			}
-			output, err := writer.Create(zipName)
-			if err != nil {
-				stream.Close()
-				return err
-			}
-			n, copyErr := io.Copy(output, io.LimitReader(stream, remaining+1))
+			data, readErr := io.ReadAll(io.LimitReader(stream, remaining+1))
 			closeErr := stream.Close()
-			remaining -= n
-			if copyErr != nil {
-				return copyErr
+			if readErr != nil {
+				return readErr
 			}
 			if closeErr != nil {
 				return closeErr
 			}
-			if remaining < 0 {
+			if int64(len(data)) > remaining {
 				return fmt.Errorf("archive exceeds limits")
 			}
+			remaining -= int64(len(data))
+			files = append(files, archiveSourceFile{name: archiveName, data: data})
 			return nil
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	if err := writer.Close(); err != nil {
-		return err
-	}
-	err = s.WriteFileBytes(ctx, dest, buffer.Bytes(), source)
-	return err
+	return files, nil
 }
 
 // ExtractArchive validates the entire expanded package before any destination write.
@@ -163,17 +177,26 @@ func (s *Service) ExtractArchive(ctx context.Context, archive, dest, source stri
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("archive is not a regular file")
 	}
+	kind, err := detectArchiveKind(filepath.Base(src), io.NewSectionReader(input, 0, info.Size()))
+	if err != nil {
+		return err
+	}
+	if kind != archiveZip {
+		if kind == archiveUnknown {
+			return errArchiveUnsupported
+		}
+		if kind.native() {
+			return s.extractNative(ctx, kind, filepath.Base(src), io.NewSectionReader(input, 0, info.Size()), dst, source, root)
+		}
+		input.Close()
+		return s.extractHost(ctx, kind, src, dst, source, root)
+	}
 	reader, err := zip.NewReader(input, info.Size())
 	if err != nil {
 		return err
 	}
 	if len(reader.File) > ArchiveEntryLimit {
 		return fmt.Errorf("archive contains too many entries")
-	}
-	type preparedEntry struct {
-		path      string
-		data      []byte
-		directory bool
 	}
 	prepared := make([]preparedEntry, 0, len(reader.File))
 	remaining := archiveExpansionLimit
@@ -227,13 +250,91 @@ func (s *Service) ExtractArchive(ctx context.Context, archive, dest, source stri
 		}
 		prepared = append(prepared, entry)
 	}
+	return s.publishPreparedArchive(ctx, root, dst, source, prepared, maxBytes)
+}
+
+type preparedEntry struct {
+	path      string
+	data      []byte
+	directory bool
+}
+
+func (s *Service) publishMembers(ctx context.Context, kind archiveKind, members []archiveMember, dst, source string, root *os.Root) error {
+	maxBytes := int64(s.Config().MaxFileSizeMB) << 20
+	if maxBytes <= 0 {
+		maxBytes = 50 << 20
+	}
+	prepared, err := stageArchiveMembers(dst, members, kind.filesystem(), maxBytes)
+	if err != nil {
+		return err
+	}
+	return s.publishPreparedArchive(ctx, root, dst, source, prepared, maxBytes)
+}
+
+func stageArchiveMembers(dst string, members []archiveMember, filesystem bool, maxBytes int64) ([]preparedEntry, error) {
+	prepared := make([]preparedEntry, 0, len(members))
+	remaining := archiveExpansionLimit
+	seen := map[string]bool{}
+	for _, member := range members {
+		if member.Link || member.Special {
+			if filesystem {
+				continue
+			}
+			return nil, fmt.Errorf("invalid archive entry")
+		}
+		name, skip, err := cleanMemberName(member.Name)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			continue
+		}
+		key := name
+		if runtime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if isDir, exists := seen[key]; exists {
+			if isDir && member.IsDir {
+				continue
+			}
+			return nil, fmt.Errorf("duplicate archive entry")
+		}
+		seen[key] = member.IsDir
+		target := filepath.Join(dst, filepath.FromSlash(name))
+		if !isWithinPath(dst, target) {
+			return nil, fmt.Errorf("archive path escapes destination")
+		}
+		entry := preparedEntry{path: target, directory: member.IsDir}
+		if !member.IsDir {
+			budget := min(remaining, maxBytes)
+			if member.Size > budget {
+				return nil, fmt.Errorf("archive expanded size exceeds limit")
+			}
+			if member.Read == nil {
+				return nil, fmt.Errorf("invalid archive entry")
+			}
+			data, err := member.Read(budget)
+			if err != nil {
+				return nil, err
+			}
+			if int64(len(data)) > budget {
+				return nil, fmt.Errorf("archive expanded size exceeds limit")
+			}
+			entry.data = data
+			remaining -= int64(len(data))
+		}
+		prepared = append(prepared, entry)
+	}
+	return prepared, nil
+}
+
+func (s *Service) publishPreparedArchive(ctx context.Context, root *os.Root, dst, source string, prepared []preparedEntry, maxBytes int64) error {
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
 	defer s.invalidateListCache()
 	if s.Config().ReadOnly {
 		return fmt.Errorf("virtual desktop is read-only")
 	}
-	// Preflight every destination and policy before publishing the first file.
 	planned := make(map[string]bool, len(prepared))
 	for _, entry := range prepared {
 		key := filepath.Clean(entry.path)

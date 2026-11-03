@@ -1,3 +1,9 @@
+    function fileManagerIsArchive(name) {
+        const value = String(name || '');
+        if (/\.txt\.gz$/i.test(value)) return false;
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(value);
+    }
+
     function renderListRow(file) {
         const isDir = file.type === 'directory';
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
@@ -495,7 +501,7 @@
         if (selected.length > 0) {
             items.push({ label: t('desktop.fm.compress_zip'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
         }
-        if (type === 'file' && String(file.name).endsWith('.zip')) {
+        if (type === 'file' && fileManagerIsArchive(file.name)) {
             items.push(
                 { label: t('desktop.fm.extract_zip'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
                 { label: t('desktop.fm.extract_zip_to'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }

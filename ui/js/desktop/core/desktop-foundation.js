@@ -189,6 +189,12 @@
         'store-bytestash': '/img/desktop-icons/bytestash.svg',
         'store-code-server': '/img/desktop-icons/code-server.svg'
     };
+    function desktopIsArchiveFile(name) {
+        const value = String(name || '');
+        if (/\.txt\.gz$/i.test(value)) return false;
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(value);
+    }
+
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -224,8 +230,20 @@
         webm: 'video',
         mov: 'video',
         zip: 'archive',
+        '7z': 'archive',
+        rar: 'archive',
         tar: 'archive',
         gz: 'archive',
+        tgz: 'archive',
+        bz2: 'archive',
+        xz: 'archive',
+        zst: 'archive',
+        iso: 'archive',
+        cab: 'archive',
+        wim: 'archive',
+        squashfs: 'archive',
+        ext4: 'archive',
+        img: 'archive',
         db: 'database',
         sqlite: 'database',
         csv: 'spreadsheet',

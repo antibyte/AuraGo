@@ -17,6 +17,11 @@ func TestDesktopZipperFilterI18n(t *testing.T) {
 	if strings.Contains(source, "ZIP Archives") {
 		t.Fatal("zipper open dialog still hardcodes ZIP Archives")
 	}
+	for _, marker := range []string{"'7z'", "'squashfs'", "'tar.gz'"} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("zipper open dialog missing %s", marker)
+		}
+	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		path := filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json"))
