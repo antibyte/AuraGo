@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -174,5 +175,43 @@ func TestECalcDispatchRunsCallsWithNumbersWhereTextIsExpected(t *testing.T) {
 		if !ok || !strings.Contains(out, `"status":"ok"`) || !strings.Contains(out, want) {
 			t.Errorf("%s -> %v %.300s, want %s", arguments, ok, out, want)
 		}
+	}
+}
+
+// The decoder and the policy read the operation with one precedence (toolCallSnapshotOperation): a typed operation,
+// action_type or sub_operation wins over the operation in params, and a call that only has params uses their keys. A call
+// that says search in action_type must not open the app because params say open, prepared or not.
+func TestECalcDecoderReadsTheOperationLikeThePolicy(t *testing.T) {
+	for name, c := range map[string]struct {
+		payload string
+		want    string
+	}{
+		"action_type over params": {`{"action":"ecalc","action_type":"search","params":{"operation":"open","id":"ohms_law"}}`, "search"},
+		"action_type alone":       {`{"action":"ecalc","action_type":"Describe","id":"ohms_law"}`, "describe"},
+		"operation over params":   {`{"action":"ecalc","operation":"Table","params":{"operation":"open"}}`, "table"},
+		"sub_operation":           {`{"action":"ecalc","sub_operation":"decode","params":{"operation":"open"}}`, "decode"},
+		"params only":             {`{"action":"ecalc","params":{"operation":" Open ","id":"ohms_law"}}`, "open"},
+		"params op key":           {`{"action":"ecalc","params":{"op":"calculate"}}`, "calculate"},
+		"native arguments":        {`{"operation":"search","query":"divider"}`, "search"},
+	} {
+		var tc ToolCall
+		if strings.HasPrefix(c.payload, `{"operation"`) {
+			tc = ecalcNativeCall(t, c.payload)
+		} else if err := json.Unmarshal([]byte(c.payload), &tc); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := decodeECalcArgs(tc).Operation; got != c.want || got != toolCallSnapshotOperation(tc) {
+			t.Errorf("%s: decoded operation %q, snapshot operation %q, want %q", name, got, toolCallSnapshotOperation(tc), c.want)
+		}
+	}
+	// The payload of the report: it decodes as search even though it was not prepared, and it does not open the app.
+	var tc ToolCall
+	if err := json.Unmarshal([]byte(`{"action":"ecalc","action_type":"search","params":{"operation":"open","id":"ohms_law"}}`), &tc); err != nil {
+		t.Fatal(err)
+	}
+	broker := &ecalcJSONBroker{}
+	dc := &DispatchContext{Cfg: ecalcAgentConfig(), Logger: testLogger, Broker: broker}
+	if out := dispatchECalc(context.Background(), tc, dc); !strings.Contains(out, `"operation":"search"`) || len(broker.json) != 0 {
+		t.Errorf("the call opened the app or did not search: %.200s (events %v)", out, broker.json)
 	}
 }

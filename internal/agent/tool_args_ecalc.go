@@ -22,7 +22,7 @@ import (
 // tempco, voltage, class) and the whole numbers (bands) are no ToolCall fields and are read from Params, a number as typed.
 func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 	return tools.ECalcRequest{
-		Operation: strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")))),
+		Operation: toolCallSnapshotOperation(tc), // the precedence of the action policy, so that both see the same operation
 		Query:     firstNonEmptyToolString(toolArgString(tc.Params, "query"), tc.Query),
 		ID:        firstNonEmptyToolString(toolArgString(tc.Params, "id"), tc.ID),
 		Inputs:    ecalcPairs(tc.Params["inputs"], "value"),
