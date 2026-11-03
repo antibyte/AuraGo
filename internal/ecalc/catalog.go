@@ -4,7 +4,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"math"
 	"regexp"
@@ -153,13 +152,19 @@ type Calculator struct {
 // Var returns the primary variable with the given id, or nil.
 func (c *Calculator) Var(id string) *Var { return c.varByID[id] }
 
-// Catalog is the validated ECalc catalog.
+// Catalog is the validated ECalc catalog: calculators, tables and codes, each in catalog order (file order, files
+// sorted).
 type Catalog struct {
 	Units       *Units
 	Categories  []Category
 	Calculators []*Calculator
+	Tables      []*Table
+	Codes       []*Code
 
-	byID map[string]*Calculator
+	byID      map[string]*Calculator
+	tableByID map[string]*Table
+	codeByID  map[string]*Code
+	kinds     map[string]string // item id -> "calculator", "table" or "code"
 
 	locMu sync.Mutex
 	loc   map[string]localized // LocalizedJSON cache, by normalized language
@@ -263,8 +268,8 @@ func (l *loader) fail(format string, args ...any) {
 	l.errs = append(l.errs, fmt.Errorf(format, args...))
 }
 
-// Load reads and validates a catalog: units.yaml, categories.yaml and calculators/*.yaml at the root of fsys. All
-// problems found are reported together.
+// Load reads and validates a catalog: units.yaml, categories.yaml, calculators/*.yaml, tables/*.yaml and codes/*.yaml
+// (in that order, each sorted) at the root of fsys. All problems found are reported together.
 func Load(fsys fs.FS) (*Catalog, error) {
 	unitsData, err := fs.ReadFile(fsys, "units.yaml")
 	if err != nil {
@@ -275,7 +280,7 @@ func Load(fsys fs.FS) (*Catalog, error) {
 		return nil, err
 	}
 	l := &loader{units: units, cats: map[string]bool{}, ids: map[string]string{}}
-	cat := &Catalog{Units: units, byID: map[string]*Calculator{}}
+	cat := &Catalog{Units: units, byID: map[string]*Calculator{}, tableByID: map[string]*Table{}, codeByID: map[string]*Code{}, kinds: map[string]string{}}
 
 	catData, err := fs.ReadFile(fsys, "categories.yaml")
 	if err != nil {
@@ -289,25 +294,23 @@ func Load(fsys fs.FS) (*Catalog, error) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		data, err := fs.ReadFile(fsys, file)
-		if err != nil {
-			l.fail("%s: %v", file, err)
-			continue
-		}
-		var raws []rawCalc
-		if err := decodeStrict(data, &raws); err != nil {
-			if errors.Is(err, io.EOF) {
-				err = errors.New("the file is empty")
-			}
-			l.fail("%s: %v", file, err)
+		raws, ok := readItems[rawCalc](l, fsys, file)
+		if !ok {
 			continue
 		}
 		for i := range raws {
 			if c := l.calculator(file, &raws[i]); c != nil {
 				cat.Calculators = append(cat.Calculators, c)
 				cat.byID[c.ID] = c
+				cat.kinds[c.ID] = "calculator"
 			}
 		}
+	}
+	if err := l.tables(fsys, cat); err != nil {
+		return nil, err
+	}
+	if err := l.codes(fsys, cat); err != nil {
+		return nil, err
 	}
 	if len(l.errs) > 0 {
 		return nil, errors.Join(l.errs...)
@@ -441,19 +444,15 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		Source: r.Source, DOF: r.DOF, Formula: r.Formula, Schematic: r.Schematic, Finder: r.Finder,
 		varByID: map[string]*Var{},
 	}
-	switch {
-	case !idRe.MatchString(r.ID):
-		fail("id must match %s", idRe)
-	case l.ids[r.ID] != "":
-		fail("id is already used in %s", l.ids[r.ID])
-	default:
-		l.ids[r.ID] = file
-	}
+	l.claimID(r.ID, file, fail)
 	if r.Kind != "calculator" {
-		fail("kind must be calculator, got %q", r.Kind)
+		fail("kind must be calculator in calculators/, got %q", r.Kind)
 	}
-	if !l.cats[r.Category] {
+	switch {
+	case !l.cats[r.Category]:
 		fail("unknown category %q", r.Category)
+	case r.Category == tablesCategory || r.Category == codesCategory || r.Category == "pinouts":
+		fail("category %q is reserved for other kinds of items, a calculator belongs to a calculator category", r.Category)
 	}
 	text("name", r.Name, Locales)
 	text("doc", r.Doc, docLocales)

@@ -86,9 +86,10 @@ func TestLocalizedJSONLanguagesAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The item count follows the catalog (content files add calculators); the 13 categories are fixed.
-	if en.Version != 1 || en.Lang != "en" || len(en.Items) != len(cat.Calculators) || len(en.Items) < 12 || len(en.Categories) != 13 {
-		t.Fatalf("en: version %d lang %q items %d (catalog %d) categories %d", en.Version, en.Lang, len(en.Items), len(cat.Calculators), len(en.Categories))
+	// The item count follows the catalog (content files add items of the three kinds); the 13 categories are fixed.
+	total := len(cat.Calculators) + len(cat.Tables) + len(cat.Codes)
+	if en.Version != 1 || en.Lang != "en" || len(en.Items) != total || len(cat.Calculators) < 12 || len(en.Categories) != 13 {
+		t.Fatalf("en: version %d lang %q items %d (catalog %d) categories %d", en.Version, en.Lang, len(en.Items), total, len(en.Categories))
 	}
 	find := func(d catalogDoc, id string) int {
 		for i, it := range d.Items {
@@ -223,6 +224,10 @@ func TestLocalizedJSONNeverHasNullCollections(t *testing.T) {
 		}
 	}
 	for _, it := range doc.Items {
+		if it["kind"] != "calculator" {
+			checkOtherItemJSON(t, it)
+			continue
+		}
 		for _, key := range []string{"tags", "vars", "choices", "rules", "derived", "checks", "formula", "sets"} {
 			if _, ok := it[key].([]any); !ok {
 				t.Errorf("item %v: %s = %#v, want an array", it["id"], key, it[key])

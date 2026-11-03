@@ -16,7 +16,7 @@ type catalogJSON struct {
 	Lang       string         `json:"lang"`
 	Units      unitsJSON      `json:"units"`
 	Categories []categoryJSON `json:"categories"`
-	Items      []itemJSON     `json:"items"`
+	Items      []any          `json:"items"` // itemJSON (calculators), then tableJSON, then codeJSON
 }
 
 type unitsJSON struct {
@@ -85,8 +85,8 @@ type chartJSON struct {
 	Samples int    `json:"samples"`
 }
 
-// itemJSON is a calculator. Phase 3 adds the other item kinds next to it. NameEN is the English name in every
-// language (equal to Name for English), so that the app can find "voltage divider" in a German catalog.
+// itemJSON is a calculator; tables (tableJSON) and codes (codeJSON) follow it in the items array. NameEN is the English
+// name in every language (equal to Name for English), so that the app can find "voltage divider" in a German catalog.
 type itemJSON struct {
 	Kind      string        `json:"kind"`
 	ID        string        `json:"id"`
@@ -181,7 +181,7 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 		Lang:       lang,
 		Units:      unitsJSON{Prefixes: orEmpty(c.Units.Prefixes), Dims: orEmpty(c.Units.Dims)},
 		Categories: make([]categoryJSON, 0, len(c.Categories)),
-		Items:      make([]itemJSON, 0, len(c.Calculators)),
+		Items:      make([]any, 0, len(c.Calculators)+len(c.Tables)+len(c.Codes)),
 	}
 	for _, cat := range c.Categories {
 		out.Categories = append(out.Categories, categoryJSON{ID: cat.ID, Name: cat.Name.in(lang)})
@@ -225,6 +225,12 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 			it.Checks = append(it.Checks, checkJSON{When: ch.When.Src, Warn: ch.Warn.in(lang)})
 		}
 		out.Items = append(out.Items, it)
+	}
+	for _, t := range c.Tables {
+		out.Items = append(out.Items, t.json(lang))
+	}
+	for _, code := range c.Codes {
+		out.Items = append(out.Items, code.json(lang))
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
