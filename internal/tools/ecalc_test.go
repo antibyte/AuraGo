@@ -104,7 +104,7 @@ func TestECalcSearchWithoutQueryListsCategories(t *testing.T) {
 
 func TestECalcSearchWithoutMatchSaysSo(t *testing.T) {
 	out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "search", Query: "zzzz no such calculator"}))
-	if out["status"] != "ok" || out["total"] != float64(0) || out["returned"] != float64(0) || out["results"] != nil || !strings.Contains(out["note"].(string), "No calculator matches") {
+	if out["status"] != "ok" || out["total"] != float64(0) || out["returned"] != float64(0) || out["results"] != nil || !strings.Contains(out["note"].(string), "No calculator, table or code matches") {
 		t.Fatalf("output = %v", out)
 	}
 }
@@ -346,10 +346,16 @@ func TestECalcOpenValidatesLikeCalculate(t *testing.T) {
 }
 
 func TestECalcRejectsUnknownOperations(t *testing.T) {
-	for _, op := range []string{"", "table", "decode", "run"} {
+	for _, op := range []string{"", "run", "pinout", "tables", "open_app"} {
 		out := ecalcDecode(t, ExecuteECalc(ecalcDesktopConfig(), ECalcRequest{Operation: op}))
-		if out["status"] != "error" || out["code"] != "invalid_operation" {
+		if out["status"] != "error" || out["code"] != "invalid_operation" || !strings.Contains(out["message"].(string), "search, describe, calculate, table, decode, encode or open") {
 			t.Errorf("operation %q: output = %v", op, out)
+		}
+	}
+	// table, decode and encode are operations now: without their arguments they ask for them instead.
+	for op, code := range map[string]string{"table": "unknown_id", "decode": "unknown_code_kind", "encode": "unknown_code_kind"} {
+		if out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: op})); out["status"] != "error" || out["code"] != code {
+			t.Errorf("operation %q: output = %v, want code %s", op, out, code)
 		}
 	}
 }

@@ -12,8 +12,9 @@ import (
 	"aurago/internal/ecalc"
 )
 
-// The ecalc tool: search, describe and calculate on the embedded ECalc catalog (pure computation, no I/O) and open
-// the ECalc desktop app pre-filled. Only open touches the desktop and is gated like the other desktop-opening tools.
+// The ecalc tool: search, describe, calculate, table (rows and lookups of the reference tables), decode and encode
+// (component codes) on the embedded ECalc catalog (pure computation, no I/O) and open the ECalc desktop app pre-filled.
+// Only open touches the desktop and is gated like the other desktop-opening tools.
 
 const (
 	// ecalcDefaultBudget is the agent's inline floor in bytes, used when the caller passes none.
@@ -30,8 +31,10 @@ const (
 )
 
 // ECalcRequest is a decoded ecalc tool call. Inputs are variable ids with the values as a person would type them
-// ("4k7", "12 V"); Choices pair a choice id with an option id. OutputBudget is the agent's inline limit in bytes
-// (0 = 6,000): search results, descriptions and results are shortened to stay below it.
+// ("4k7", "12 V"); Choices pair a choice id with an option id. Filter, Offset, Limit and Lookup belong to table (Limit
+// also to search); Kind (a code kind), Code, Value, Bands, Tolerance, TempCo, Voltage and Class to decode and encode.
+// OutputBudget is the agent's inline limit in bytes (0 = 6,000): search results, descriptions, rows and results are
+// shortened to stay below it.
 type ECalcRequest struct {
 	Operation    string
 	Query        string
@@ -41,6 +44,19 @@ type ECalcRequest struct {
 	ESeries      string
 	Limit        int
 	OutputBudget int
+
+	Filter string
+	Offset int
+	Lookup *ecalc.TableLookup
+
+	Kind      string
+	Code      string
+	Value     string
+	Bands     int
+	Tolerance string
+	TempCo    string
+	Voltage   string
+	Class     string
 }
 
 // ExecuteECalc runs the ecalc tool. Output is a JSON string with status ok, error or policy_denied; open also
@@ -59,10 +75,16 @@ func ExecuteECalc(cfg *config.Config, req ECalcRequest) (result VirtualDesktopEx
 		return ecalcDescribe(cat, req, budget)
 	case "calculate":
 		return ecalcCalculate(cat, req, budget)
+	case "table":
+		return ecalcTable(cat, req, budget)
+	case "decode":
+		return ecalcDecodeCode(cat, req)
+	case "encode":
+		return ecalcEncodeCode(cat, req)
 	case "open":
 		return ecalcOpen(cfg, cat, req)
 	default:
-		return ecalcFailure("error", "invalid_operation", "operation must be search, describe, calculate or open.")
+		return ecalcFailure("error", "invalid_operation", "operation must be search, describe, calculate, table, decode, encode or open.")
 	}
 }
 
@@ -158,8 +180,8 @@ func ecalcSearch(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDeskto
 	}
 	if query == "" {
 		return ecalcResult(ecalcSearchOut{
-			Status: "ok", Operation: "search", Total: len(cat.Calculators), Categories: cat.Overview(),
-			Note: "Give a query (a topic, part, formula or category name, in English or German) to list calculators; the categories are above.",
+			Status: "ok", Operation: "search", Total: cat.ItemCount(), Categories: cat.Overview(),
+			Note: "Give a query (a topic, part, formula or category name, in English or German) to list calculators, tables and codes; the categories are above.",
 		}, nil)
 	}
 	all := cat.SearchAll(query)
@@ -176,7 +198,7 @@ func ecalcSearch(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDeskto
 		out.Results = all
 	}
 	if len(all) == 0 {
-		out.Note = "No calculator matches. Try other words, an English or German term, or a category name; an empty query lists the categories."
+		out.Note = "No calculator, table or code matches. Try other words, an English or German term, or a category name; an empty query lists the categories."
 	}
 	// One step per result: each drops the last hit until the answer fits.
 	cut := func() {
@@ -203,7 +225,17 @@ type ecalcDescribeOut struct {
 }
 
 func ecalcDescribe(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesktopExecution {
-	d, err := cat.Describe(req.ID)
+	kind, id, err := cat.ResolveItem(req.ID)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	switch kind {
+	case "table":
+		return ecalcDescribeTable(cat, id, budget)
+	case "code":
+		return ecalcDescribeCode(cat, id)
+	}
+	d, err := cat.Describe(id)
 	if err != nil {
 		return ecalcQueryFailure(err)
 	}
@@ -304,6 +336,178 @@ func ecalcTrimCombos(combos []ecalc.ComboInfo, per int) []ecalc.ComboInfo {
 	return out
 }
 
+// ---- tables ---------------------------------------------------------------------------------------------------
+
+type ecalcDescribeTableOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.TableDescription
+	Truncated bool `json:"truncated,omitempty"`
+}
+
+func ecalcDescribeTable(cat *ecalc.Catalog, id string, budget int) VirtualDesktopExecution {
+	d, err := cat.DescribeTable(id)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	out := ecalcDescribeTableOut{Status: "ok", Operation: "describe", TableDescription: d}
+	return ecalcFit(budget, func() any { return out },
+		func() { out.Doc, out.Notes, out.Truncated = ecalcClip(out.Doc, 240), ecalcClip(out.Notes, 240), true },
+		func() {
+			cols := make([]ecalc.TableColumnInfo, len(out.Columns))
+			copy(cols, out.Columns)
+			for i := range cols {
+				cols[i].Units = nil
+			}
+			out.Columns = cols
+		},
+		func() { out.Source = ecalcClip(out.Source, 120) },
+		// Beyond the plan, like the further steps of the calculator description: a table with many columns can still be too
+		// long for the smallest budget, and the outer bound of ExecuteECalc would then refuse it. The optional text goes
+		// first, then the column names and dimensions (the ids and units stay), then the text of the caution (the guide and
+		// mains flags stay).
+		func() { out.Doc, out.Notes, out.Source = "", "", "" },
+		func() {
+			cols := make([]ecalc.TableColumnInfo, len(out.Columns))
+			copy(cols, out.Columns)
+			for i := range cols {
+				cols[i].Name = ""
+			}
+			out.Columns = cols
+		},
+		func() {
+			cols := make([]ecalc.TableColumnInfo, len(out.Columns))
+			copy(cols, out.Columns)
+			for i := range cols {
+				cols[i].Dim = ""
+			}
+			out.Columns = cols
+		},
+		func() { out.Caution = "" },
+	)
+}
+
+type ecalcTableOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.TableResult
+}
+
+// ecalcTable answers the rows and the lookup of a table. When the answer is over the budget it first leaves out the SI
+// matrix (the rows hold every value with its unit), then shortens the notes and the source, then lists fewer rows (the
+// answer says where to continue). A wide table can leave one row that is still too long, and the outer bound of
+// ExecuteECalc would answer output_budget_exceeded for a page that can be shortened; so the descriptive parts go next
+// (column names, notes, source, the row of a lookup that names its output column), and as the very last resorts the
+// listed row and the column list. The row is only given up for a budget that ExecuteECalc can really hand over (from
+// ecalcMinBudget); below it one row always stays.
+func ecalcTable(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesktopExecution {
+	res, err := cat.QueryTable(req.ID, ecalc.TableRequest{Filter: req.Filter, Offset: req.Offset, Limit: req.Limit, Lookup: req.Lookup})
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	out := ecalcTableOut{Status: "ok", Operation: "table", TableResult: res}
+	note, shortened, advice := res.Note, []string{}, ""
+	build := func() any {
+		out.Note = note
+		if len(shortened) > 0 {
+			out.Note = strings.TrimSpace(note + " Shortened to fit the output limit: " + strings.Join(shortened, ", ") + "." + advice)
+		}
+		return out
+	}
+	steps := []func(){
+		func() { out.SI, shortened = nil, append(shortened, "si values left out") },
+		func() {
+			out.Notes, out.Source, shortened = ecalcClip(out.Notes, 160), ecalcClip(out.Source, 120), append(shortened, "notes and source clipped")
+		},
+	}
+	for range len(out.Rows) {
+		steps = append(steps, func() {
+			if n := len(out.Rows); n > 1 {
+				out.Keep(n - 1)
+			}
+		})
+	}
+	steps = append(steps,
+		func() {
+			cols := make([]ecalc.TableColumnInfo, len(out.Columns))
+			copy(cols, out.Columns)
+			for i := range cols {
+				cols[i].Name = ""
+			}
+			out.Columns, shortened = cols, append(shortened, "column names left out")
+		},
+		func() { out.Notes, out.Source, shortened = "", "", append(shortened, "notes and source left out") },
+		func() {
+			if lk := out.Lookup; lk != nil && lk.Output != "" && lk.Row != nil {
+				dropped := *lk
+				dropped.Row = nil
+				out.Lookup, shortened = &dropped, append(shortened, "lookup row left out")
+			}
+		},
+	)
+	if budget >= ecalcMinBudget {
+		steps = append(steps,
+			func() {
+				if len(out.Rows) > 0 {
+					out.Keep(0)
+					shortened = append(shortened, "rows left out")
+					advice = " No row fits the output limit: use a lookup that names its output column to read a single cell."
+				}
+			},
+			func() {
+				if lk := out.Lookup; lk != nil && lk.Row != nil {
+					dropped := *lk
+					dropped.Row = nil
+					dropped.Message = strings.TrimSpace(dropped.Message + " The row does not fit the output limit; name an output column in the lookup.")
+					out.Lookup, shortened = &dropped, append(shortened, "lookup row left out")
+				}
+			},
+			func() { out.Columns, shortened = []ecalc.TableColumnInfo{}, append(shortened, "column list left out") },
+		)
+	}
+	return ecalcFit(budget, build, steps...)
+}
+
+// ---- codes ----------------------------------------------------------------------------------------------------
+
+type ecalcDescribeCodeOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.CodeDescription
+}
+
+func ecalcDescribeCode(cat *ecalc.Catalog, id string) VirtualDesktopExecution {
+	d, err := cat.DescribeCode(id)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	return ecalcResult(ecalcDescribeCodeOut{Status: "ok", Operation: "describe", CodeDescription: d}, nil)
+}
+
+type ecalcCodeOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.CodeAnswer
+}
+
+func ecalcDecodeCode(cat *ecalc.Catalog, req ECalcRequest) VirtualDesktopExecution {
+	res, err := cat.QueryDecode(req.Kind, req.Code)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	return ecalcResult(ecalcCodeOut{Status: "ok", Operation: "decode", CodeAnswer: res}, nil)
+}
+
+func ecalcEncodeCode(cat *ecalc.Catalog, req ECalcRequest) VirtualDesktopExecution {
+	res, err := cat.QueryEncode(req.Kind, ecalc.EncodeRequest{
+		Value: req.Value, Bands: req.Bands, Tolerance: req.Tolerance, TempCo: req.TempCo, Voltage: req.Voltage, Class: req.Class,
+	})
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	return ecalcResult(ecalcCodeOut{Status: "ok", Operation: "encode", CodeAnswer: res}, nil)
+}
+
 // ---- open -----------------------------------------------------------------------------------------------------
 
 // ecalcOrdered is a JSON object whose keys keep their order: the app takes the order of the values as the order in
@@ -347,7 +551,14 @@ func ecalcOpen(cfg *config.Config, cat *ecalc.Catalog, req ECalcRequest) Virtual
 		event := virtualDesktopEvent("open_app", map[string]interface{}{"app_id": "ecalc"})
 		return ecalcResult(ecalcOpenOut{Status: "ok", Operation: "open", Message: "Asked the desktop to open the ECalc app."}, event)
 	}
-	checked, err := cat.Check(req.ID, ecalcRequestOf(req))
+	kind, id, err := cat.ResolveItem(req.ID)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	if kind != "calculator" {
+		return ecalcOpenItem(kind, id, req, cat)
+	}
+	checked, err := cat.Check(id, ecalcRequestOf(req))
 	if err != nil {
 		return ecalcQueryFailure(err)
 	}
@@ -367,5 +578,25 @@ func ecalcOpen(cfg *config.Config, cat *ecalc.Catalog, req ECalcRequest) Virtual
 	message += ". Nothing was computed; use calculate to get the numbers yourself."
 	return ecalcResult(ecalcOpenOut{
 		Status: "ok", Operation: "open", Page: checked.ID, Values: checked.Values, Choices: checked.Choices, Message: message,
+	}, event)
+}
+
+// ecalcOpenItem opens the page of a table or a code. Only calculators take values and choices; the page of anything else
+// opens as it is.
+func ecalcOpenItem(kind, id string, req ECalcRequest, cat *ecalc.Catalog) VirtualDesktopExecution {
+	if len(req.Inputs) > 0 || len(req.Choices) > 0 {
+		return ecalcFailure("error", ecalc.CodeNotACalculator, fmt.Sprintf("inputs and choices are only for calculators; %s is a %s, so open it with its id alone.", id, kind))
+	}
+	name, advice := "", ""
+	switch kind {
+	case "table":
+		name, advice = cat.Table(id).Name["en"], " Use table to read its rows yourself."
+	case "code":
+		name, advice = cat.Code(id).Name["en"], " Use decode and encode to work with the code yourself."
+	}
+	launch := map[string]interface{}{"page": id, "values": ecalcOrdered(nil), "choices": ecalcOrdered(nil)}
+	event := virtualDesktopEvent("open_app", map[string]interface{}{"app_id": "ecalc", "ecalc": launch})
+	return ecalcResult(ecalcOpenOut{
+		Status: "ok", Operation: "open", Page: id, Message: "Asked the desktop to open ECalc at the " + name + " " + kind + "." + advice,
 	}, event)
 }
