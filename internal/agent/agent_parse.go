@@ -606,6 +606,7 @@ var numericStringToolFields = map[string]bool{
 	"limit":        true,
 	"max_results":  true,
 	"tail":         true,
+	"offset":       true, // ecalc table paging; the ToolCall field is an int
 }
 
 var xmlIntegerToolFields = func() map[string]int {

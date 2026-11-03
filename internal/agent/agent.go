@@ -747,6 +747,11 @@ var toolCallStringFields = map[string]struct{}{
 	"event_id":    {}, // go2rtc detection event ids arrive as JSON numbers; the literal stays exact
 	"to":          {},
 	"cc":          {},
+	// code and value are text in ToolCall, but models send a number (ecalc: code 472, value 4700; the keyboard code of
+	// desktop_input) or a list of words (a colour code). The typed field holds the text (a list is joined with ", ");
+	// Params keeps what was sent (restoreOriginalToolArgTypes), so a tool that forwards or reads the raw value sees it.
+	"code":  {},
+	"value": {},
 }
 
 var toolCallStringMapFields = map[string]struct{}{
@@ -1023,6 +1028,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	restoreOriginalArrayToolArgs(raw, originalData, "to", "cc")
+	restoreOriginalToolArgTypes(raw, originalData, "code", "value")
 
 	merged := make(map[string]interface{})
 	// Start with the explicit `params` object if present.
@@ -1058,6 +1064,30 @@ func restoreOriginalArrayToolArgs(raw map[string]interface{}, originalData []byt
 	for _, key := range keys {
 		value, ok := original[key]
 		if !ok || len(bytes.TrimSpace(value)) == 0 || bytes.TrimSpace(value)[0] != '[' {
+			continue
+		}
+		var decoded interface{}
+		if err := json.Unmarshal(value, &decoded); err != nil {
+			continue
+		}
+		raw[key] = decoded
+	}
+}
+
+// restoreOriginalToolArgTypes puts the JSON value that was sent for each key back into the flat Params map when
+// coerceToolCallStringFields turned it into text for the typed ToolCall field: a number stays a number, an array an array,
+// a boolean a boolean. Strings need no restoring.
+func restoreOriginalToolArgTypes(raw map[string]interface{}, originalData []byte, keys ...string) {
+	if len(raw) == 0 || len(keys) == 0 {
+		return
+	}
+	var original map[string]json.RawMessage
+	if err := json.Unmarshal(originalData, &original); err != nil {
+		return
+	}
+	for _, key := range keys {
+		value := bytes.TrimSpace(original[key])
+		if len(value) == 0 || value[0] == '"' || bytes.Equal(value, []byte("null")) {
 			continue
 		}
 		var decoded interface{}

@@ -92,7 +92,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 ## Codes
 
 - `decode` reads a code, `encode` writes one. `kind` is the `code_kind` from `describe` of a code item (the id of the code item works too).
-- Send `code` and `value` as JSON strings even when they look like numbers (`"code":"103"`, `"value":"100n"`): a bare number there makes the whole call malformed. `offset`, `limit` and `bands` are numbers.
+- `offset`, `limit` and `bands` are numbers.
 - Write band colours as English colour names separated by blanks, commas or dashes (`brown black red gold`; case does not matter) and markings as printed: `103`, `4R7`, `01C`, `104K 1H`, `4p7`, `X7R`, `C0G`.
 - `encode` takes the value the way a person types it (`4k7`, `100n`, `6.8u`) and chooses the nearest standard value of the series that the tolerance implies (20 % E6, 10 % E12, 5 % E24, 2 % E48, 1 % E96, 0.5 % and tighter E192); a changed value is named in `warnings`. Without a tolerance 5 % is assumed (a warning says so). `tolerance`, `tempco` (`"50ppm"`), `voltage` (`"50V"`) and `class` (`"1"` or `"2"`) are written as text; a number is read as typed.
 - The kinds, what `decode` reads, what `encode` takes and the ids of the `fields`:

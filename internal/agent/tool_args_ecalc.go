@@ -13,7 +13,13 @@ import (
 // decodeECalcArgs reads an ecalc call from native params first and falls back to the generic ToolCall fields of
 // text-mode calls (code, value, offset and limit are ToolCall fields of the same type). The variable values are called
 // inputs on the wire because ToolCall already owns a "values" field for spreadsheets, which only decodes arrays of
-// arrays. Texts that a model may send as numbers (value, tolerance, tempco, voltage, bands) are read as typed.
+// arrays.
+//
+// A model may send a number where the schema asks for text. Whether that reaches this decoder depends on the decoding of
+// ToolCall, which fails on a type mismatch of the whole call: code and value are in toolCallStringFields (a number
+// becomes its text, a list of words is joined with ", ", which the band parser accepts; Params keeps what was sent), and
+// offset and limit are in numericStringToolFields (a numeric text becomes a number). The other texts (filter, tolerance,
+// tempco, voltage, class) and the whole numbers (bands) are no ToolCall fields and are read from Params, a number as typed.
 func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 	return tools.ECalcRequest{
 		Operation: strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")))),
@@ -24,7 +30,7 @@ func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 		ESeries:   toolArgString(tc.Params, "eseries", "e_series", "series"),
 		Limit:     firstNonEmptyInt(toolArgInt(tc.Params, 0, "limit"), tc.Limit),
 
-		Filter: toolArgString(tc.Params, "filter"),
+		Filter: ecalcParamText(tc.Params, "filter"),
 		Offset: firstNonEmptyInt(toolArgInt(tc.Params, 0, "offset"), tc.Offset),
 		Lookup: ecalcLookup(tc.Params["lookup"]),
 

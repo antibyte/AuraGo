@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/tools"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // The tables and codes of the ecalc tool as the agent sees them: how the arguments of table, decode and encode are read
@@ -59,9 +62,9 @@ func TestECalcNativeCallDecodesCodeArguments(t *testing.T) {
 	if req.Operation != "encode" || req.Kind != "capacitor" || req.Value != "100 nF" || req.Bands != 5 || req.Tolerance != "1%" || req.TempCo != "50 ppm/K" || req.Voltage != "63 V" || req.Class != "X7R" {
 		t.Fatalf("encode request = %+v", req)
 	}
-	// Numbers and numbers as text are read as typed.
-	req = decodeECalcArgs(ecalcNativeCall(t, `{"operation":"encode","kind":"resistor_bands","value":"4k7","bands":"6","tolerance":5,"tempco":50,"voltage":16}`))
-	if req.Bands != 6 || req.Tolerance != "5" || req.TempCo != "50" || req.Voltage != "16" {
+	// Numbers and numbers as text are read as typed (the value too: a number is its own text).
+	req = decodeECalcArgs(ecalcNativeCall(t, `{"operation":"encode","kind":"resistor_bands","value":4700,"bands":"6","tolerance":5,"tempco":50,"voltage":16}`))
+	if req.Value != "4700" || req.Bands != 6 || req.Tolerance != "5" || req.TempCo != "50" || req.Voltage != "16" {
 		t.Fatalf("lenient encode request = %+v", req)
 	}
 	// Text-mode calls carry code and value in the generic fields.
@@ -118,6 +121,58 @@ func TestECalcSearchTermsFindTablesAndCodes(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("%q did not find ecalc in the top five", query)
+		}
+	}
+}
+
+// A model may send a number where the schema asks for text (code, value, filter) and text or an array where it asks for
+// a number or a text: none of it may make the whole call malformed, drop an argument silently or stop a text-mode call
+// from running.
+func TestECalcCallsAcceptNumbersAndArraysWhereTextIsExpected(t *testing.T) {
+	for name, c := range map[string]struct {
+		arguments string
+		check     func(tools.ECalcRequest) bool
+	}{
+		"number as code":       {`{"operation":"decode","kind":"smd_resistor","code":472}`, func(r tools.ECalcRequest) bool { return r.Code == "472" && r.Kind == "smd_resistor" }},
+		"number as value":      {`{"operation":"encode","kind":"resistor_bands","value":4700}`, func(r tools.ECalcRequest) bool { return r.Value == "4700" }},
+		"decimal as value":     {`{"operation":"encode","kind":"resistor_bands","value":4.7}`, func(r tools.ECalcRequest) bool { return r.Value == "4.7" }},
+		"array as code":        {`{"operation":"decode","kind":"resistor_bands","code":["brown","black","red","gold"]}`, func(r tools.ECalcRequest) bool { return r.Code == "brown, black, red, gold" }},
+		"text as offset":       {`{"operation":"table","id":"awg","offset":"3","limit":"4"}`, func(r tools.ECalcRequest) bool { return r.Offset == 3 && r.Limit == 4 }},
+		"number as filter":     {`{"operation":"table","id":"ism_bands","filter":434}`, func(r tools.ECalcRequest) bool { return r.Filter == "434" }},
+		"decimal as filter":    {`{"operation":"table","id":"ism_bands","filter":434.79}`, func(r tools.ECalcRequest) bool { return r.Filter == "434.79" }},
+		"text as code":         {`{"operation":"decode","kind":"smd_resistor","code":"472"}`, func(r tools.ECalcRequest) bool { return r.Code == "472" }},
+		"number in the lookup": {`{"operation":"table","id":"awg","lookup":{"column":"awg","value":12,"output":"diameter"}}`, func(r tools.ECalcRequest) bool { return r.Lookup != nil && r.Lookup.Value == "12" }},
+	} {
+		// Native call.
+		tc := NativeToolCallToToolCall(openai.ToolCall{ID: "call-1", Type: "function", Function: openai.FunctionCall{Name: "ecalc", Arguments: c.arguments}}, nil)
+		if tc.NativeArgsMalformed {
+			t.Errorf("%s: the native call is flagged malformed: %s", name, tc.NativeArgsError)
+		} else if req := decodeECalcArgs(tc); !c.check(req) {
+			t.Errorf("%s: native request = %+v", name, req)
+		}
+		// Text-mode call: the same arguments in a JSON object of the reply.
+		text := ParseToolCall(`{"action":"ecalc",` + strings.TrimPrefix(c.arguments, "{"))
+		if !text.IsTool || text.Action != "ecalc" {
+			t.Errorf("%s: the text-mode call is not recognised: %+v", name, text)
+		} else if req := decodeECalcArgs(text); !c.check(req) {
+			t.Errorf("%s: text-mode request = %+v", name, req)
+		}
+	}
+}
+
+// The calls that these arguments stand for run: the decode of 472 is 4.7 kOhm, the array is a colour code.
+func TestECalcDispatchRunsCallsWithNumbersWhereTextIsExpected(t *testing.T) {
+	dc := &DispatchContext{Cfg: &config.Config{}, Logger: testLogger, Broker: &ecalcJSONBroker{}}
+	for arguments, want := range map[string]string{
+		`{"operation":"decode","kind":"smd_resistor","code":472}`:                              `"formatted":"4.7 kΩ"`,
+		`{"operation":"decode","kind":"resistor_bands","code":["brown","black","red","gold"]}`: `"formatted":"1 kΩ"`,
+		`{"operation":"encode","kind":"resistor_bands","value":4700,"tolerance":5}`:            `"code":"yellow violet red gold"`,
+		`{"operation":"table","id":"ism_bands","filter":434.79}`:                               `"total":2`,
+		`{"operation":"table","id":"awg","offset":"40","limit":"2"}`:                           `"offset":40`,
+	} {
+		out, ok := dispatchPlatform(context.Background(), ecalcNativeCall(t, arguments), dc)
+		if !ok || !strings.Contains(out, `"status":"ok"`) || !strings.Contains(out, want) {
+			t.Errorf("%s -> %v %.300s, want %s", arguments, ok, out, want)
 		}
 	}
 }
