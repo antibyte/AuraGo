@@ -1,0 +1,497 @@
+# Conductor and wiring reference tables of the group "conductors" (cable current ratings, correction factors, standard sizes,
+# NEC ampacities, PCB conductor spacing, copper weight). The AWG and IPC-2221 trace width tables are generated (generated.yaml).
+# Cells that two independent sources did not confirm are empty (null); the notes of each table say which.
+# Names are written in all 16 desktop locales; docs, notes and column names in English and German.
+
+- id: cable_ampacity_cu_pvc
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost kabelů, měď, PVC (70 °C)", da: "Kablers strømbelastning, kobber, PVC (70 °C)", de: "Strombelastbarkeit von Kabeln, Kupfer, PVC (70 °C)", el: "Επιτρεπόμενο ρεύμα καλωδίων, χαλκός, PVC (70 °C)", en: "Cable current ratings, copper, PVC (70 °C)", es: "Intensidad admisible de cables, cobre, PVC (70 °C)", fr: "Courant admissible des câbles, cuivre, PVC (70 °C)", hi: "केबल की धारा वहन क्षमता, तांबा, PVC (70 °C)", it: "Portata dei cavi, rame, PVC (70 °C)", ja: "ケーブルの許容電流、銅、PVC (70 °C)", nl: "Stroombelastbaarheid van kabels, koper, PVC (70 °C)", no: "Strømbelastbarhet for kabler, kobber, PVC (70 °C)", pl: "Obciążalność prądowa kabli, miedź, PVC (70 °C)", pt: "Corrente admissível de cabos, cobre, PVC (70 °C)", sv: "Strömbelastbarhet för kablar, koppar, PVC (70 °C)", zh: "电缆载流量，铜，PVC (70 °C)"}
+  doc: {en: "Current-carrying capacity of copper conductors with PVC insulation (70 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).", de: "Strombelastbarkeit von Kupferleitern mit PVC-Isolierung (70 °C) für die Verlegearten A1 bis F, mit 2 oder 3 belasteten Adern, bei 30 °C Umgebungsluft und einem Stromkreis (IEC 60364-5-52, DIN VDE 0298-4)."}
+  notes: {en: "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². IEC and DIN differ in two cells: DIN VDE 0298-4 (2013) gives 15.5 A for 1.5 mm² in A1 and A2 with two loaded conductors; this table carries the IEC values 14.5 A and 14 A. BS 7671 gives 20 A for 2.5 mm² in method A with two cables, IEC and DIN give 19.5 A (the table follows IEC and DIN).", de: "Bezugsbedingungen: ein Stromkreis, 30 °C Umgebungsluft, Dauerbetrieb, Wechselstrom 50/60 Hz oder Gleichstrom. Verlegearten (IEC 60364-5-52): A1 Aderleitungen oder einadrige Kabel im Elektroinstallationsrohr in wärmegedämmter Wand; A2 mehradriges Kabel oder Mantelleitung im Rohr in wärmegedämmter Wand; B1 Aderleitungen oder einadrige Kabel im Rohr auf oder in der Wand; B2 mehradriges Kabel oder Mantelleitung im Rohr auf oder in der Wand; C Kabel direkt auf oder in der Wand oder auf ungelochter Kabelrinne; E mehradriges Kabel frei in Luft oder auf gelochter Kabelrinne, Wandabstand mindestens 0,3 d; F einadrige Kabel mit Berührung frei in Luft (2 belastet: flach, 3 belastet: Dreieck). Mit dem Umrechnungsfaktor für die Umgebungstemperatur und dem Häufungsfaktor multiplizieren (Tabellen Umrechnungsfaktoren Umgebungstemperatur und Häufungsfaktoren für Kabel). Für die Verlegeart F gibt es keine Werte unter 25 mm². IEC und DIN unterscheiden sich in zwei Zellen: Nach DIN VDE 0298-4 (2013) gelten 15,5 A für 1,5 mm² in A1 und A2 mit 2 belasteten Adern; diese Tabelle enthält die IEC-Werte 14,5 A und 14 A. BS 7671 nennt 20 A für 2,5 mm² in Verlegeart A mit zwei Kabeln, IEC und DIN 19,5 A (die Tabelle folgt IEC und DIN)."}
+  tags: [ampacity, current rating, current carrying capacity, cable, wire, copper, pvc, iec 60364-5-52, strombelastbarkeit, belastbarkeit, kabel, leitung, kupfer, din vde 0298-4, verlegeart]
+  source: "IEC 60364-5-52:2009 annex B (tables B.52.2, B.52.4, B.52.10) = DIN VDE 0298-4:2013-06 table 3, as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8), BS 7671:2018 appendix 4 (tables 4D1A, 4D2A), the Schneider Electrical Installation Guide (figure G20), ABB Stotz-Kontakt 2CDC400027D0104 (table 2) and Engineering ToolBox"
+  guide: true
+  mains: true
+  key: section
+  columns:
+    - {id: section, name: {en: "Cross-section", de: "Querschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: a1_2, name: {en: "A1, 2 loaded", de: "A1, 2 belastet"}, dim: current, units: [""]}
+    - {id: a1_3, name: {en: "A1, 3 loaded", de: "A1, 3 belastet"}, dim: current, units: [""]}
+    - {id: a2_2, name: {en: "A2, 2 loaded", de: "A2, 2 belastet"}, dim: current, units: [""]}
+    - {id: a2_3, name: {en: "A2, 3 loaded", de: "A2, 3 belastet"}, dim: current, units: [""]}
+    - {id: b1_2, name: {en: "B1, 2 loaded", de: "B1, 2 belastet"}, dim: current, units: [""]}
+    - {id: b1_3, name: {en: "B1, 3 loaded", de: "B1, 3 belastet"}, dim: current, units: [""]}
+    - {id: b2_2, name: {en: "B2, 2 loaded", de: "B2, 2 belastet"}, dim: current, units: [""]}
+    - {id: b2_3, name: {en: "B2, 3 loaded", de: "B2, 3 belastet"}, dim: current, units: [""]}
+    - {id: c_2, name: {en: "C, 2 loaded", de: "C, 2 belastet"}, dim: current, units: [""]}
+    - {id: c_3, name: {en: "C, 3 loaded", de: "C, 3 belastet"}, dim: current, units: [""]}
+    - {id: e_2, name: {en: "E, 2 loaded", de: "E, 2 belastet"}, dim: current, units: [""]}
+    - {id: e_3, name: {en: "E, 3 loaded", de: "E, 3 belastet"}, dim: current, units: [""]}
+    - {id: f_2, name: {en: "F, 2 loaded, flat", de: "F, 2 belastet, flach"}, dim: current, units: [""]}
+    - {id: f_3, name: {en: "F, 3 loaded, trefoil", de: "F, 3 belastet, Dreieck"}, dim: current, units: [""]}
+  rows:
+    - [1.5, 14.5, 13.5, 14, 13, 17.5, 15.5, 16.5, 15, 19.5, 17.5, 22, 18.5, null, null]
+    - [2.5, 19.5, 18, 18.5, 17.5, 24, 21, 23, 20, 27, 24, 30, 25, null, null]
+    - [4, 26, 24, 25, 23, 32, 28, 30, 27, 36, 32, 40, 34, null, null]
+    - [6, 34, 31, 32, 29, 41, 36, 38, 34, 46, 41, 51, 43, null, null]
+    - [10, 46, 42, 43, 39, 57, 50, 52, 46, 63, 57, 70, 60, null, null]
+    - [16, 61, 56, 57, 52, 76, 68, 69, 62, 85, 76, 94, 80, null, null]
+    - [25, 80, 73, 75, 68, 101, 89, 90, 80, 112, 96, 119, 101, 131, 110]
+    - [35, 99, 89, 92, 83, 125, 110, 111, 99, 138, 119, 148, 126, 162, 137]
+    - [50, 119, 108, 110, 99, 151, 134, 133, 118, 168, 144, 180, 153, 196, 167]
+    - [70, 151, 136, 139, 125, 192, 171, 168, 149, 213, 184, 232, 196, 251, 216]
+    - [95, 182, 164, 167, 150, 232, 207, 201, 179, 258, 223, 282, 238, 304, 264]
+    - [120, 210, 188, 192, 172, 269, 239, 232, 206, 299, 259, 328, 276, 352, 308]
+    - [150, 240, 216, 219, 196, 300, 262, 258, 225, 344, 299, 379, 319, 406, 356]
+    - [185, 273, 245, 248, 223, 341, 296, 294, 255, 392, 341, 434, 364, 463, 409]
+    - [240, 321, 286, 291, 261, 400, 346, 344, 297, 461, 403, 514, 430, 546, 485]
+
+- id: cable_ampacity_cu_xlpe
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost kabelů, měď, XLPE/EPR (90 °C)", da: "Kablers strømbelastning, kobber, XLPE/EPR (90 °C)", de: "Strombelastbarkeit von Kabeln, Kupfer, VPE/EPR (90 °C)", el: "Επιτρεπόμενο ρεύμα καλωδίων, χαλκός, XLPE/EPR (90 °C)", en: "Cable current ratings, copper, XLPE/EPR (90 °C)", es: "Intensidad admisible de cables, cobre, XLPE/EPR (90 °C)", fr: "Courant admissible des câbles, cuivre, XLPE/EPR (90 °C)", hi: "केबल की धारा वहन क्षमता, तांबा, XLPE/EPR (90 °C)", it: "Portata dei cavi, rame, XLPE/EPR (90 °C)", ja: "ケーブルの許容電流、銅、XLPE/EPR (90 °C)", nl: "Stroombelastbaarheid van kabels, koper, XLPE/EPR (90 °C)", no: "Strømbelastbarhet for kabler, kobber, XLPE/EPR (90 °C)", pl: "Obciążalność prądowa kabli, miedź, XLPE/EPR (90 °C)", pt: "Corrente admissível de cabos, cobre, XLPE/EPR (90 °C)", sv: "Strömbelastbarhet för kablar, koppar, XLPE/EPR (90 °C)", zh: "电缆载流量，铜，XLPE/EPR (90 °C)"}
+  doc: {en: "Current-carrying capacity of copper conductors with XLPE/EPR insulation (90 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).", de: "Strombelastbarkeit von Kupferleitern mit VPE/EPR-Isolierung (90 °C) für die Verlegearten A1 bis F, mit 2 oder 3 belasteten Adern, bei 30 °C Umgebungsluft und einem Stromkreis (IEC 60364-5-52, DIN VDE 0298-4)."}
+  notes: {en: "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². The four cells for 2.5 mm² in A1 and B1 are empty: they were found in the ABB handbook only. 90 °C values may only be used if terminals, devices and accessories are rated for 90 °C; in building installations DIN VDE 0298-4 usually limits the conductor temperature to 70 °C, so use the PVC table there.", de: "Bezugsbedingungen: ein Stromkreis, 30 °C Umgebungsluft, Dauerbetrieb, Wechselstrom 50/60 Hz oder Gleichstrom. Verlegearten (IEC 60364-5-52): A1 Aderleitungen oder einadrige Kabel im Elektroinstallationsrohr in wärmegedämmter Wand; A2 mehradriges Kabel oder Mantelleitung im Rohr in wärmegedämmter Wand; B1 Aderleitungen oder einadrige Kabel im Rohr auf oder in der Wand; B2 mehradriges Kabel oder Mantelleitung im Rohr auf oder in der Wand; C Kabel direkt auf oder in der Wand oder auf ungelochter Kabelrinne; E mehradriges Kabel frei in Luft oder auf gelochter Kabelrinne, Wandabstand mindestens 0,3 d; F einadrige Kabel mit Berührung frei in Luft (2 belastet: flach, 3 belastet: Dreieck). Mit dem Umrechnungsfaktor für die Umgebungstemperatur und dem Häufungsfaktor multiplizieren (Tabellen Umrechnungsfaktoren Umgebungstemperatur und Häufungsfaktoren für Kabel). Für die Verlegeart F gibt es keine Werte unter 25 mm². Die vier Zellen für 2,5 mm² in A1 und B1 sind leer: Sie wurden nur im ABB-Handbuch gefunden. 90-°C-Werte nur verwenden, wenn Klemmen, Geräte und Zubehör für 90 °C geeignet sind; in der Gebäudeinstallation begrenzt DIN VDE 0298-4 die Leitertemperatur meist auf 70 °C, dort also die PVC-Tabelle verwenden."}
+  tags: [ampacity, current rating, current carrying capacity, cable, wire, copper, xlpe epr, iec 60364-5-52, strombelastbarkeit, belastbarkeit, kabel, leitung, kupfer, din vde 0298-4, verlegeart]
+  source: "IEC 60364-5-52:2009 annex B (tables B.52.3, B.52.5, B.52.12) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and BS 7671:2018 appendix 4 (tables 4E1A, 4E2A)"
+  guide: true
+  mains: true
+  key: section
+  columns:
+    - {id: section, name: {en: "Cross-section", de: "Querschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: a1_2, name: {en: "A1, 2 loaded", de: "A1, 2 belastet"}, dim: current, units: [""]}
+    - {id: a1_3, name: {en: "A1, 3 loaded", de: "A1, 3 belastet"}, dim: current, units: [""]}
+    - {id: a2_2, name: {en: "A2, 2 loaded", de: "A2, 2 belastet"}, dim: current, units: [""]}
+    - {id: a2_3, name: {en: "A2, 3 loaded", de: "A2, 3 belastet"}, dim: current, units: [""]}
+    - {id: b1_2, name: {en: "B1, 2 loaded", de: "B1, 2 belastet"}, dim: current, units: [""]}
+    - {id: b1_3, name: {en: "B1, 3 loaded", de: "B1, 3 belastet"}, dim: current, units: [""]}
+    - {id: b2_2, name: {en: "B2, 2 loaded", de: "B2, 2 belastet"}, dim: current, units: [""]}
+    - {id: b2_3, name: {en: "B2, 3 loaded", de: "B2, 3 belastet"}, dim: current, units: [""]}
+    - {id: c_2, name: {en: "C, 2 loaded", de: "C, 2 belastet"}, dim: current, units: [""]}
+    - {id: c_3, name: {en: "C, 3 loaded", de: "C, 3 belastet"}, dim: current, units: [""]}
+    - {id: e_2, name: {en: "E, 2 loaded", de: "E, 2 belastet"}, dim: current, units: [""]}
+    - {id: e_3, name: {en: "E, 3 loaded", de: "E, 3 belastet"}, dim: current, units: [""]}
+    - {id: f_2, name: {en: "F, 2 loaded, flat", de: "F, 2 belastet, flach"}, dim: current, units: [""]}
+    - {id: f_3, name: {en: "F, 3 loaded, trefoil", de: "F, 3 belastet, Dreieck"}, dim: current, units: [""]}
+  rows:
+    - [1.5, 19, 17, 18.5, 16.5, 23, 20, 22, 19.5, 24, 22, 26, 23, null, null]
+    - [2.5, null, null, 25, 22, null, null, 30, 26, 33, 30, 36, 32, null, null]
+    - [4, 35, 31, 33, 30, 42, 37, 40, 35, 45, 40, 49, 42, null, null]
+    - [6, 45, 40, 42, 38, 54, 48, 51, 44, 58, 52, 63, 54, null, null]
+    - [10, 61, 54, 57, 51, 75, 66, 69, 60, 80, 71, 86, 75, null, null]
+    - [16, 81, 73, 76, 68, 100, 88, 91, 80, 107, 96, 115, 100, null, null]
+    - [25, 106, 95, 99, 89, 133, 117, 119, 105, 138, 119, 149, 127, 161, 135]
+    - [35, 131, 117, 121, 109, 164, 144, 146, 128, 171, 147, 185, 158, 200, 169]
+    - [50, 158, 141, 145, 130, 198, 175, 175, 154, 209, 179, 225, 192, 242, 207]
+    - [70, 200, 179, 183, 164, 253, 222, 221, 194, 269, 229, 289, 246, 310, 268]
+    - [95, 241, 216, 220, 197, 306, 269, 265, 233, 328, 278, 352, 298, 377, 328]
+    - [120, 278, 249, 253, 227, 354, 312, 305, 268, 382, 322, 410, 346, 437, 383]
+    - [150, 318, 285, 290, 259, 393, 342, 334, 300, 441, 371, 473, 399, 504, 444]
+    - [185, 362, 324, 329, 295, 449, 384, 384, 340, 506, 424, 542, 456, 575, 510]
+    - [240, 424, 380, 386, 346, 528, 450, 459, 398, 599, 500, 641, 538, 679, 607]
+
+- id: cable_ampacity_al_pvc
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost kabelů, hliník, PVC (70 °C)", da: "Kablers strømbelastning, aluminium, PVC (70 °C)", de: "Strombelastbarkeit von Kabeln, Aluminium, PVC (70 °C)", el: "Επιτρεπόμενο ρεύμα καλωδίων, αλουμίνιο, PVC (70 °C)", en: "Cable current ratings, aluminium, PVC (70 °C)", es: "Intensidad admisible de cables, aluminio, PVC (70 °C)", fr: "Courant admissible des câbles, aluminium, PVC (70 °C)", hi: "केबल की धारा वहन क्षमता, एल्युमिनियम, PVC (70 °C)", it: "Portata dei cavi, alluminio, PVC (70 °C)", ja: "ケーブルの許容電流、アルミニウム、PVC (70 °C)", nl: "Stroombelastbaarheid van kabels, aluminium, PVC (70 °C)", no: "Strømbelastbarhet for kabler, aluminium, PVC (70 °C)", pl: "Obciążalność prądowa kabli, aluminium, PVC (70 °C)", pt: "Corrente admissível de cabos, alumínio, PVC (70 °C)", sv: "Strömbelastbarhet för kablar, aluminium, PVC (70 °C)", zh: "电缆载流量，铝，PVC (70 °C)"}
+  doc: {en: "Current-carrying capacity of aluminium conductors with PVC insulation (70 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).", de: "Strombelastbarkeit von Aluminiumleitern mit PVC-Isolierung (70 °C) für die Verlegearten A1 bis F, mit 2 oder 3 belasteten Adern, bei 30 °C Umgebungsluft und einem Stromkreis (IEC 60364-5-52, DIN VDE 0298-4)."}
+  notes: {en: "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². Aluminium conductors from 16 mm² (IEC also lists 2.5 to 10 mm²). Only the columns with three loaded conductors in A1, A2, B1, B2 and C are confirmed by a second source; the columns with two loaded conductors and the methods E and F are empty (ABB handbook only). All columns are kept so that the four ampacity tables have the same layout. Aluminium conductors need terminals approved for aluminium.", de: "Bezugsbedingungen: ein Stromkreis, 30 °C Umgebungsluft, Dauerbetrieb, Wechselstrom 50/60 Hz oder Gleichstrom. Verlegearten (IEC 60364-5-52): A1 Aderleitungen oder einadrige Kabel im Elektroinstallationsrohr in wärmegedämmter Wand; A2 mehradriges Kabel oder Mantelleitung im Rohr in wärmegedämmter Wand; B1 Aderleitungen oder einadrige Kabel im Rohr auf oder in der Wand; B2 mehradriges Kabel oder Mantelleitung im Rohr auf oder in der Wand; C Kabel direkt auf oder in der Wand oder auf ungelochter Kabelrinne; E mehradriges Kabel frei in Luft oder auf gelochter Kabelrinne, Wandabstand mindestens 0,3 d; F einadrige Kabel mit Berührung frei in Luft (2 belastet: flach, 3 belastet: Dreieck). Mit dem Umrechnungsfaktor für die Umgebungstemperatur und dem Häufungsfaktor multiplizieren (Tabellen Umrechnungsfaktoren Umgebungstemperatur und Häufungsfaktoren für Kabel). Für die Verlegeart F gibt es keine Werte unter 25 mm². Aluminiumleiter ab 16 mm² (IEC nennt auch 2,5 bis 10 mm²). Nur die Spalten mit 3 belasteten Adern in A1, A2, B1, B2 und C sind durch eine zweite Quelle bestätigt; die Spalten mit 2 belasteten Adern und die Verlegearten E und F sind leer (nur das ABB-Handbuch). Alle Spalten bleiben erhalten, damit die vier Belastbarkeitstabellen denselben Aufbau haben. Aluminiumleiter nur an dafür zugelassenen Klemmen anschließen."}
+  tags: [ampacity, current rating, current carrying capacity, cable, wire, aluminium, pvc, iec 60364-5-52, strombelastbarkeit, belastbarkeit, kabel, leitung, aluminium, din vde 0298-4, verlegeart]
+  source: "IEC 60364-5-52:2009 annex B (tables B.52.2, B.52.4, B.52.11) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and the Schneider Electrical Installation Guide (figure G20)"
+  guide: true
+  mains: true
+  key: section
+  columns:
+    - {id: section, name: {en: "Cross-section", de: "Querschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: a1_2, name: {en: "A1, 2 loaded", de: "A1, 2 belastet"}, dim: current, units: [""]}
+    - {id: a1_3, name: {en: "A1, 3 loaded", de: "A1, 3 belastet"}, dim: current, units: [""]}
+    - {id: a2_2, name: {en: "A2, 2 loaded", de: "A2, 2 belastet"}, dim: current, units: [""]}
+    - {id: a2_3, name: {en: "A2, 3 loaded", de: "A2, 3 belastet"}, dim: current, units: [""]}
+    - {id: b1_2, name: {en: "B1, 2 loaded", de: "B1, 2 belastet"}, dim: current, units: [""]}
+    - {id: b1_3, name: {en: "B1, 3 loaded", de: "B1, 3 belastet"}, dim: current, units: [""]}
+    - {id: b2_2, name: {en: "B2, 2 loaded", de: "B2, 2 belastet"}, dim: current, units: [""]}
+    - {id: b2_3, name: {en: "B2, 3 loaded", de: "B2, 3 belastet"}, dim: current, units: [""]}
+    - {id: c_2, name: {en: "C, 2 loaded", de: "C, 2 belastet"}, dim: current, units: [""]}
+    - {id: c_3, name: {en: "C, 3 loaded", de: "C, 3 belastet"}, dim: current, units: [""]}
+    - {id: e_2, name: {en: "E, 2 loaded", de: "E, 2 belastet"}, dim: current, units: [""]}
+    - {id: e_3, name: {en: "E, 3 loaded", de: "E, 3 belastet"}, dim: current, units: [""]}
+    - {id: f_2, name: {en: "F, 2 loaded, flat", de: "F, 2 belastet, flach"}, dim: current, units: [""]}
+    - {id: f_3, name: {en: "F, 3 loaded, trefoil", de: "F, 3 belastet, Dreieck"}, dim: current, units: [""]}
+  rows:
+    - [16, null, 43, null, 41, null, 53, null, 48, null, 59, null, null, null, null]
+    - [25, null, 57, null, 53, null, 70, null, 62, null, 73, null, null, null, null]
+    - [35, null, 70, null, 65, null, 86, null, 77, null, 90, null, null, null, null]
+    - [50, null, 84, null, 78, null, 104, null, 92, null, 110, null, null, null, null]
+    - [70, null, 107, null, 98, null, 133, null, 116, null, 140, null, null, null, null]
+    - [95, null, 129, null, 118, null, 161, null, 139, null, 170, null, null, null, null]
+    - [120, null, 149, null, 135, null, 186, null, 160, null, 197, null, null, null, null]
+    - [150, null, 170, null, 155, null, 204, null, 176, null, 227, null, null, null, null]
+    - [185, null, 194, null, 176, null, 230, null, 199, null, 259, null, null, null, null]
+    - [240, null, 227, null, 207, null, 269, null, 232, null, 305, null, null, null, null]
+
+- id: cable_ampacity_al_xlpe
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost kabelů, hliník, XLPE/EPR (90 °C)", da: "Kablers strømbelastning, aluminium, XLPE/EPR (90 °C)", de: "Strombelastbarkeit von Kabeln, Aluminium, VPE/EPR (90 °C)", el: "Επιτρεπόμενο ρεύμα καλωδίων, αλουμίνιο, XLPE/EPR (90 °C)", en: "Cable current ratings, aluminium, XLPE/EPR (90 °C)", es: "Intensidad admisible de cables, aluminio, XLPE/EPR (90 °C)", fr: "Courant admissible des câbles, aluminium, XLPE/EPR (90 °C)", hi: "केबल की धारा वहन क्षमता, एल्युमिनियम, XLPE/EPR (90 °C)", it: "Portata dei cavi, alluminio, XLPE/EPR (90 °C)", ja: "ケーブルの許容電流、アルミニウム、XLPE/EPR (90 °C)", nl: "Stroombelastbaarheid van kabels, aluminium, XLPE/EPR (90 °C)", no: "Strømbelastbarhet for kabler, aluminium, XLPE/EPR (90 °C)", pl: "Obciążalność prądowa kabli, aluminium, XLPE/EPR (90 °C)", pt: "Corrente admissível de cabos, alumínio, XLPE/EPR (90 °C)", sv: "Strömbelastbarhet för kablar, aluminium, XLPE/EPR (90 °C)", zh: "电缆载流量，铝，XLPE/EPR (90 °C)"}
+  doc: {en: "Current-carrying capacity of aluminium conductors with XLPE/EPR insulation (90 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).", de: "Strombelastbarkeit von Aluminiumleitern mit VPE/EPR-Isolierung (90 °C) für die Verlegearten A1 bis F, mit 2 oder 3 belasteten Adern, bei 30 °C Umgebungsluft und einem Stromkreis (IEC 60364-5-52, DIN VDE 0298-4)."}
+  notes: {en: "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². Aluminium conductors from 16 mm². Only method F (25 to 240 mm²) and 14 cells of method B1 are confirmed by a second source (Prysmian datasheets for AL XZ1 cables); every other cell is empty (ABB handbook only, or a second source that agrees only within 1 A). All columns are kept so that the four ampacity tables have the same layout. 90 °C values may only be used if terminals, devices and accessories are rated for 90 °C. Aluminium conductors need terminals approved for aluminium.", de: "Bezugsbedingungen: ein Stromkreis, 30 °C Umgebungsluft, Dauerbetrieb, Wechselstrom 50/60 Hz oder Gleichstrom. Verlegearten (IEC 60364-5-52): A1 Aderleitungen oder einadrige Kabel im Elektroinstallationsrohr in wärmegedämmter Wand; A2 mehradriges Kabel oder Mantelleitung im Rohr in wärmegedämmter Wand; B1 Aderleitungen oder einadrige Kabel im Rohr auf oder in der Wand; B2 mehradriges Kabel oder Mantelleitung im Rohr auf oder in der Wand; C Kabel direkt auf oder in der Wand oder auf ungelochter Kabelrinne; E mehradriges Kabel frei in Luft oder auf gelochter Kabelrinne, Wandabstand mindestens 0,3 d; F einadrige Kabel mit Berührung frei in Luft (2 belastet: flach, 3 belastet: Dreieck). Mit dem Umrechnungsfaktor für die Umgebungstemperatur und dem Häufungsfaktor multiplizieren (Tabellen Umrechnungsfaktoren Umgebungstemperatur und Häufungsfaktoren für Kabel). Für die Verlegeart F gibt es keine Werte unter 25 mm². Aluminiumleiter ab 16 mm². Nur die Verlegeart F (25 bis 240 mm²) und 14 Zellen der Verlegeart B1 sind durch eine zweite Quelle bestätigt (Prysmian-Datenblätter für AL-XZ1-Kabel); alle anderen Zellen sind leer (nur das ABB-Handbuch, oder eine zweite Quelle, die nur auf 1 A genau übereinstimmt). Alle Spalten bleiben erhalten, damit die vier Belastbarkeitstabellen denselben Aufbau haben. 90-°C-Werte nur verwenden, wenn Klemmen, Geräte und Zubehör für 90 °C geeignet sind. Aluminiumleiter nur an dafür zugelassenen Klemmen anschließen."}
+  tags: [ampacity, current rating, current carrying capacity, cable, wire, aluminium, xlpe epr, iec 60364-5-52, strombelastbarkeit, belastbarkeit, kabel, leitung, aluminium, din vde 0298-4, verlegeart]
+  source: "IEC 60364-5-52:2009 annex B (tables B.52.3, B.52.5, B.52.13) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and the Prysmian Spain datasheets for AL XZ1 cables (method F at 30 °C, method B1 at 40 °C)"
+  guide: true
+  mains: true
+  key: section
+  columns:
+    - {id: section, name: {en: "Cross-section", de: "Querschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: a1_2, name: {en: "A1, 2 loaded", de: "A1, 2 belastet"}, dim: current, units: [""]}
+    - {id: a1_3, name: {en: "A1, 3 loaded", de: "A1, 3 belastet"}, dim: current, units: [""]}
+    - {id: a2_2, name: {en: "A2, 2 loaded", de: "A2, 2 belastet"}, dim: current, units: [""]}
+    - {id: a2_3, name: {en: "A2, 3 loaded", de: "A2, 3 belastet"}, dim: current, units: [""]}
+    - {id: b1_2, name: {en: "B1, 2 loaded", de: "B1, 2 belastet"}, dim: current, units: [""]}
+    - {id: b1_3, name: {en: "B1, 3 loaded", de: "B1, 3 belastet"}, dim: current, units: [""]}
+    - {id: b2_2, name: {en: "B2, 2 loaded", de: "B2, 2 belastet"}, dim: current, units: [""]}
+    - {id: b2_3, name: {en: "B2, 3 loaded", de: "B2, 3 belastet"}, dim: current, units: [""]}
+    - {id: c_2, name: {en: "C, 2 loaded", de: "C, 2 belastet"}, dim: current, units: [""]}
+    - {id: c_3, name: {en: "C, 3 loaded", de: "C, 3 belastet"}, dim: current, units: [""]}
+    - {id: e_2, name: {en: "E, 2 loaded", de: "E, 2 belastet"}, dim: current, units: [""]}
+    - {id: e_3, name: {en: "E, 3 loaded", de: "E, 3 belastet"}, dim: current, units: [""]}
+    - {id: f_2, name: {en: "F, 2 loaded, flat", de: "F, 2 belastet, flach"}, dim: current, units: [""]}
+    - {id: f_3, name: {en: "F, 3 loaded, trefoil", de: "F, 3 belastet, Dreieck"}, dim: current, units: [""]}
+  rows:
+    - [16, null, null, null, null, 79, 71, null, null, null, null, null, null, null, null]
+    - [25, null, null, null, null, null, 93, null, null, null, null, null, null, 121, 103]
+    - [35, null, null, null, null, 130, null, null, null, null, null, null, null, 150, 129]
+    - [50, null, null, null, null, 157, 140, null, null, null, null, null, null, 184, 159]
+    - [70, null, null, null, null, 200, 179, null, null, null, null, null, null, 237, 206]
+    - [95, null, null, null, null, 242, null, null, null, null, null, null, null, 289, 253]
+    - [120, null, null, null, null, 281, null, null, null, null, null, null, null, 337, 296]
+    - [150, null, null, null, null, 307, 267, null, null, null, null, null, null, 389, 343]
+    - [185, null, null, null, null, null, 300, null, null, null, null, null, null, 447, 395]
+    - [240, null, null, null, null, 412, null, null, null, null, null, null, null, 530, 471]
+
+- id: cable_ambient_temp_factors
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Součinitele okolní teploty pro kabely ve vzduchu", da: "Korrektionsfaktorer for omgivelsestemperatur (kabler i luft)", de: "Umrechnungsfaktoren Umgebungstemperatur (Kabel in Luft)", el: "Συντελεστές διόρθωσης θερμοκρασίας περιβάλλοντος (καλώδια στον αέρα)", en: "Ambient temperature factors for cables in air", es: "Factores de corrección por temperatura ambiente (cables en aire)", fr: "Facteurs de correction de la température ambiante (câbles dans l'air)", hi: "परिवेश तापमान सुधार गुणांक (हवा में केबल)", it: "Fattori di correzione per la temperatura ambiente (cavi in aria)", ja: "周囲温度の補正係数（気中ケーブル）", nl: "Correctiefactoren voor omgevingstemperatuur (kabels in lucht)", no: "Korreksjonsfaktorer for omgivelsestemperatur (kabler i luft)", pl: "Współczynniki korekcyjne temperatury otoczenia (kable w powietrzu)", pt: "Fatores de correção da temperatura ambiente (cabos no ar)", sv: "Korrektionsfaktorer för omgivningstemperatur (kablar i luft)", zh: "环境温度校正系数（空气中的电缆）"}
+  doc: {en: "Correction factors for the current-carrying capacity of cables in air at an ambient temperature other than 30 °C, for conductors rated 60 °C (rubber cords), 70 °C (PVC) and 90 °C (XLPE, EPR) (IEC 60364-5-52 table B.52.14, DIN VDE 0298-4 table 17).", de: "Umrechnungsfaktoren für die Strombelastbarkeit von Kabeln in Luft bei einer anderen Umgebungstemperatur als 30 °C, für Leitertemperaturen von 60 °C (Gummileitungen), 70 °C (PVC) und 90 °C (VPE, EPR) (IEC 60364-5-52 Tabelle B.52.14, DIN VDE 0298-4 Tabelle 17)."}
+  notes: {en: "Multiply the current-carrying capacity for 30 °C by k. An empty cell means that the insulation is not permitted at that ambient temperature. The 65 °C value of the 70 °C column (0.35) comes from DIN VDE 0298-4; IEC stops at 60 °C. The 60 °C column (DIN VDE 0298-4 only, for rubber cords) is empty from 10 to 25 °C and the 90 °C value at 85 °C is omitted, because they were found in one source only. For cables in the ground other factors apply (reference 20 °C, IEC table B.52.15). In Germany 25 °C is common practice; the factor for 70 °C is then 1.06.", de: "Mit k multiplizieren. Eine leere Zelle bedeutet, dass die Isolierung bei dieser Umgebungstemperatur nicht zulässig ist. Der Wert bei 65 °C in der 70-°C-Spalte (0,35) stammt aus DIN VDE 0298-4; IEC endet bei 60 °C. Die 60-°C-Spalte (nur DIN VDE 0298-4, für Gummileitungen) ist von 10 bis 25 °C leer und der 90-°C-Wert bei 85 °C fehlt, weil sie nur in einer Quelle gefunden wurden. Für Kabel in Erde gelten andere Faktoren (Bezug 20 °C, IEC Tabelle B.52.15). In Deutschland ist 25 °C üblich; der Faktor für 70 °C ist dann 1,06."}
+  tags: [ambient temperature, correction factor, temperature factor, derating, cable, ampacity, iec 60364-5-52, umgebungstemperatur, umrechnungsfaktor, temperaturfaktor, kabel, belastbarkeit, din vde 0298-4]
+  source: "IEC 60364-5-52:2009 table B.52.14 and DIN VDE 0298-4:2013-06 table 17, as reproduced in the Schneider Electrical Installation Guide (figure G12), the ABB SACE Electrical Installation Handbook vol. 2 (4th ed., table 4), ABB Stotz-Kontakt 2CDC400027D0104 (table 5) and Lapp T12 (table 12-2)"
+  guide: true
+  mains: true
+  key: ambient_c
+  columns:
+    - {id: ambient_c, name: {en: "Ambient air temperature", de: "Umgebungstemperatur (Luft)"}, dim: temperature, unit: degC, units: [degC, degF, ""], label: "θ"}
+    - {id: k_60, name: {en: "k, 60 °C conductor (rubber)", de: "k, Leiter 60 °C (Gummi)"}, dim: number}
+    - {id: k_70, name: {en: "k, 70 °C conductor (PVC)", de: "k, Leiter 70 °C (PVC)"}, dim: number}
+    - {id: k_90, name: {en: "k, 90 °C conductor (XLPE, EPR)", de: "k, Leiter 90 °C (VPE, EPR)"}, dim: number}
+  rows:
+    - [10, null, 1.22, 1.15]
+    - [15, null, 1.17, 1.12]
+    - [20, null, 1.12, 1.08]
+    - [25, null, 1.06, 1.04]
+    - [30, 1.00, 1.00, 1.00]
+    - [35, 0.91, 0.94, 0.96]
+    - [40, 0.82, 0.87, 0.91]
+    - [45, 0.71, 0.79, 0.87]
+    - [50, 0.58, 0.71, 0.82]
+    - [55, 0.41, 0.61, 0.76]
+    - [60, null, 0.50, 0.71]
+    - [65, null, 0.35, 0.65]
+    - [70, null, null, 0.58]
+    - [75, null, null, 0.50]
+    - [80, null, null, 0.41]
+    - [85, null, null, null]
+
+- id: cable_grouping_factors
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Součinitele seskupení kabelů", da: "Reduktionsfaktorer for kabelgrupper", de: "Häufungsfaktoren für Kabel", el: "Συντελεστές ομαδοποίησης καλωδίων", en: "Grouping factors for cables", es: "Factores de agrupamiento de cables", fr: "Facteurs de groupement des câbles", hi: "केबल समूहन गुणांक", it: "Fattori di raggruppamento dei cavi", ja: "ケーブル集合の低減係数", nl: "Groepeerfactoren voor kabels", no: "Reduksjonsfaktorer for kabelgrupper", pl: "Współczynniki grupowania kabli", pt: "Fatores de agrupamento de cabos", sv: "Reduktionsfaktorer för kabelgrupper", zh: "电缆成束敷设降容系数"}
+  doc: {en: "Reduction factors for the current-carrying capacity of cables in groups of several circuits (one multi-core cable, or one group of 2 or 3 single-core cables, counts as one circuit), by the arrangement of the cables (IEC 60364-5-52 table B.52.17, DIN VDE 0298-4 table 21).", de: "Reduktionsfaktoren für die Strombelastbarkeit von Kabeln in Gruppen mehrerer Stromkreise (ein mehradriges Kabel oder eine Gruppe aus 2 oder 3 einadrigen Kabeln zählt als ein Stromkreis), nach der Anordnung der Kabel (IEC 60364-5-52 Tabelle B.52.17, DIN VDE 0298-4 Tabelle 21)."}
+  notes: {en: "The standard lists the arrangements as rows and the numbers of circuits as columns; here they are swapped so that the number of circuits is the key. The factors apply to cables of similar size that are equally loaded and touch each other, unless stated otherwise; the sizes may differ by at most three adjacent standard sizes (IEC) or one size step (DIN). No factor is needed when the horizontal clearance exceeds twice the cable diameter or when a cable carries less than 30 % of its grouped rating. For single-layer arrangements there is no further reduction above nine circuits (IEC), so the factors for 10 to 20 circuits repeat the value for nine. The two spaced arrangements come from DIN VDE 0298-4 only. Empty cells are not listed in the standard or were found in one source only (the bunched factor for 14 circuits and the spaced factors for 5, 8, 12 and 14 circuits). If the number of circuits is not listed, use the next larger listed number.", de: "Die Norm führt die Anordnungen als Zeilen und die Stromkreiszahlen als Spalten; hier sind sie vertauscht, damit die Zahl der Stromkreise der Schlüssel ist. Die Faktoren gelten für gleichartige, gleich belastete Kabel, die sich berühren, soweit nichts anderes steht; die Querschnitte dürfen sich um höchstens drei benachbarte Normgrößen (IEC) bzw. eine Größenstufe (DIN) unterscheiden. Kein Faktor ist nötig, wenn der lichte Abstand größer als der doppelte Kabeldurchmesser ist oder ein Kabel weniger als 30 % seiner Belastbarkeit in der Gruppe führt. Bei einlagigen Anordnungen gibt es oberhalb von neun Stromkreisen keine weitere Verminderung (IEC); die Faktoren für 10 bis 20 Stromkreise wiederholen daher den Wert für neun. Die beiden Anordnungen mit Abstand stammen nur aus DIN VDE 0298-4. Leere Zellen sind in der Norm nicht aufgeführt oder wurden nur in einer Quelle gefunden (der Faktor gebündelt für 14 Stromkreise und die Faktoren mit Abstand für 5, 8, 12 und 14 Stromkreise). Ist die Stromkreiszahl nicht aufgeführt, gilt die nächstgrößere aufgeführte Zahl."}
+  tags: [grouping, grouping factor, bunched, derating, cable, ampacity, iec 60364-5-52, häufung, häufungsfaktor, gebündelt, kabel, belastbarkeit, din vde 0298-4]
+  source: "IEC 60364-5-52:2009 table B.52.17 and DIN VDE 0298-4:2013-06 table 21, as reproduced in the Schneider Electrical Installation Guide (figure G16), the ABB SACE Electrical Installation Handbook vol. 2 (4th ed., table 5), ABB Stotz-Kontakt 2CDC400027D0104 (table 7) and Lapp T12 (table 12-6)"
+  guide: true
+  mains: true
+  key: circuits
+  columns:
+    - {id: circuits, name: {en: "Circuits or multi-core cables", de: "Stromkreise bzw. mehradrige Kabel"}, dim: number, label: "n"}
+    - {id: bunched, name: {en: "Bunched or enclosed (A–F)", de: "Gebündelt oder eingeschlossen (A–F)"}, dim: number}
+    - {id: wall_touching, name: {en: "One layer on a wall or unperforated tray, touching (C)", de: "Einlagig auf Wand oder ungelochter Rinne, berührend (C)"}, dim: number}
+    - {id: ceiling_touching, name: {en: "One layer under a ceiling, touching (C)", de: "Einlagig unter der Decke, berührend (C)"}, dim: number}
+    - {id: perforated_tray, name: {en: "One layer on a perforated tray, touching (E, F)", de: "Einlagig auf gelochter Rinne, berührend (E, F)"}, dim: number}
+    - {id: ladder, name: {en: "One layer on ladder supports or cleats, touching (E, F)", de: "Einlagig auf Kabelleiter oder Schellen, berührend (E, F)"}, dim: number}
+    - {id: wall_spaced, name: {en: "One layer on a wall, spaced by one diameter (C, DIN)", de: "Einlagig auf der Wand, Abstand ein Durchmesser (C, DIN)"}, dim: number}
+    - {id: ceiling_spaced, name: {en: "One layer under a ceiling, spaced by one diameter (C, DIN)", de: "Einlagig unter der Decke, Abstand ein Durchmesser (C, DIN)"}, dim: number}
+  rows:
+    - [1, 1.00, 1.00, 0.95, 1.00, 1.00, 1.00, 0.95]
+    - [2, 0.80, 0.85, 0.81, 0.88, 0.87, 0.94, 0.85]
+    - [3, 0.70, 0.79, 0.72, 0.82, 0.82, 0.90, 0.85]
+    - [4, 0.65, 0.75, 0.68, 0.77, 0.80, 0.90, 0.85]
+    - [5, 0.60, 0.73, 0.66, 0.75, 0.80, null, null]
+    - [6, 0.57, 0.72, 0.64, 0.73, 0.79, 0.90, 0.85]
+    - [7, 0.54, 0.72, 0.63, 0.73, 0.79, null, null]
+    - [8, 0.52, 0.71, 0.62, 0.72, 0.78, null, null]
+    - [9, 0.50, 0.70, 0.61, 0.72, 0.78, null, null]
+    - [10, 0.48, 0.70, 0.61, 0.72, 0.78, 0.90, 0.85]
+    - [12, 0.45, 0.70, 0.61, 0.72, 0.78, null, null]
+    - [14, null, 0.70, 0.61, 0.72, 0.78, null, null]
+    - [16, 0.41, 0.70, 0.61, 0.72, 0.78, null, null]
+    - [20, 0.38, 0.70, 0.61, 0.72, 0.78, null, null]
+
+- id: cable_multicore_factors
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Součinitele pro vícežilové kabely a šňůry", da: "Faktorer for flerlederkabler og -ledninger", de: "Umrechnungsfaktoren für vieladrige Leitungen", el: "Συντελεστές για πολυπολικά καλώδια και εύκαμπτα καλώδια", en: "Factors for multi-core cables and cords", es: "Factores para cables y cordones multiconductores", fr: "Facteurs pour câbles et cordons multiconducteurs", hi: "बहु-कोर केबल और कॉर्ड के गुणांक", it: "Fattori per cavi e cordoni multipolari", ja: "多心ケーブル・コードの補正係数", nl: "Factoren voor meeraderige kabels en snoeren", no: "Faktorer for flerlederkabler og ledninger", pl: "Współczynniki dla kabli i przewodów wielożyłowych", pt: "Fatores para cabos e cordões multicondutores", sv: "Faktorer för flerledarkablar och sladdar", zh: "多芯电缆和软线的校正系数"}
+  doc: {en: "Factors for multi-core cables and cords with conductor cross-sections up to 10 mm² and more than three loaded cores, for installation in air (DIN VDE 0298-4 table 26).", de: "Faktoren für vieladrige Kabel und Leitungen mit Leiternennquerschnitten bis 10 mm² und mehr als drei belasteten Adern, für Verlegung in Luft (DIN VDE 0298-4 Tabelle 26)."}
+  notes: {en: "Apply the factor to the current-carrying capacity for three loaded conductors. Count only the cores that carry load current (not PE; a neutral only if it carries current, for example harmonics), and use the next listed number of loaded cores. The factors for installation in the ground and the rows for 19, 40 and 61 cores were found in one source only and are omitted.", de: "Den Faktor auf die Strombelastbarkeit für 3 belastete Adern anwenden. Nur Adern zählen, die Laststrom führen (nicht PE; ein Neutralleiter nur, wenn er Strom führt, z. B. durch Oberschwingungen), und die nächste aufgeführte Aderzahl verwenden. Die Faktoren für Verlegung in Erde und die Zeilen für 19, 40 und 61 Adern wurden nur in einer Quelle gefunden und fehlen."}
+  tags: [multi-core, multicore, correction factor, derating, cable, cord, ampacity, vieladrig, umrechnungsfaktor, leitung, belastbarkeit, din vde 0298-4]
+  source: "DIN VDE 0298-4:2013-06 table 26, as reproduced in Lapp T12 (table 12-3), the Bayka data sheet TD06DE (07/2022) and ABB Stotz-Kontakt 2CDC400027D0104 (table 9)"
+  guide: true
+  mains: true
+  key: loaded_cores
+  columns:
+    - {id: loaded_cores, name: {en: "Loaded cores", de: "Belastete Adern"}, dim: number, label: "N"}
+    - {id: k_air, name: {en: "Factor for installation in air", de: "Faktor für Verlegung in Luft"}, dim: number}
+  rows:
+    - [5, 0.75]
+    - [7, 0.65]
+    - [10, 0.55]
+    - [14, 0.50]
+    - [24, 0.40]
+
+- id: flex_cord_ampacity
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost ohebných šňůr (DIN VDE 0298-4)", da: "Strømbelastning af fleksible ledninger (DIN VDE 0298-4)", de: "Strombelastbarkeit flexibler Leitungen (DIN VDE 0298-4)", el: "Επιτρεπόμενο ρεύμα εύκαμπτων καλωδίων (DIN VDE 0298-4)", en: "Flexible cord current ratings (DIN VDE 0298-4)", es: "Intensidad admisible de cables flexibles (DIN VDE 0298-4)", fr: "Courant admissible des câbles souples (DIN VDE 0298-4)", hi: "लचीली केबल की धारा क्षमता (DIN VDE 0298-4)", it: "Portata dei cavi flessibili (DIN VDE 0298-4)", ja: "可とう性コードの許容電流 (DIN VDE 0298-4)", nl: "Stroombelastbaarheid van flexibele snoeren (DIN VDE 0298-4)", no: "Strømbelastbarhet for fleksible ledninger (DIN VDE 0298-4)", pl: "Obciążalność prądowa przewodów giętkich (DIN VDE 0298-4)", pt: "Corrente admissível de cabos flexíveis (DIN VDE 0298-4)", sv: "Strömbelastbarhet för flexibla ledningar (DIN VDE 0298-4)", zh: "软线载流量 (DIN VDE 0298-4)"}
+  doc: {en: "Current-carrying capacity of flexible copper cords and cables at 30 °C ambient air by cord type group, for fixed use and continuous operation (DIN VDE 0298-4 table 11).", de: "Strombelastbarkeit flexibler Kupferleitungen bei 30 °C Umgebungsluft nach Leitungsgruppe, für feste Verlegung und Dauerbetrieb (DIN VDE 0298-4 Tabelle 11)."}
+  notes: {en: "The permissible conductor temperature depends on the cord type (for example 60 °C rubber, 70 °C PVC); which cord types belong to which column is listed in DIN VDE 0298-4 (tables 1 and 11). Correct for the ambient temperature, grouping and multi-core cords with the factor tables. For cords on reels the factor is 0.80 for one layer (DIN VDE 0298-4 table 27). Not included: the columns for heavy rubber cables (0.6/1 kV) and single-core special rubber cables, the 500 mm² row, the cells for 6 and 10 mm² household appliance cords with two loaded conductors (one source only), and for 0.5 mm² the single-core and multi-core values of Lapp's extended range (12 A and 9 A), which are not part of table 11.", de: "Die zulässige Leitertemperatur hängt von der Leitungsbauart ab (z. B. 60 °C Gummi, 70 °C PVC); welche Bauarten zu welcher Spalte gehören, steht in DIN VDE 0298-4 (Tabellen 1 und 11). Umgebungstemperatur, Häufung und vieladrige Leitungen mit den Faktortabellen berücksichtigen. Für aufgewickelte Leitungen gilt der Faktor 0,80 bei einer Lage (DIN VDE 0298-4 Tabelle 27). Nicht enthalten: die Spalten für schwere Gummischlauchleitungen (0,6/1 kV) und einadrige Sondergummiaderleitungen, die Zeile 500 mm², die Zellen für Haus- und Handgeräteleitungen mit 6 und 10 mm² und 2 belasteten Adern (nur eine Quelle) sowie für 0,5 mm² die Werte des erweiterten Bereichs von Lapp für einadrige und mehradrige Leitungen (12 A und 9 A), die nicht Teil der Tabelle 11 sind."}
+  tags: [flexible cord, flexible cable, cord, ampacity, current rating, rubber, extension cord, flexible leitung, gummileitung, strombelastbarkeit, leitung, belastbarkeit, din vde 0298-4]
+  source: "DIN VDE 0298-4:2013-06 table 11, as reproduced in Lapp T12 (table 12-1), the Bayka data sheet TD06DE (07/2022) and an older cable catalogue page based on DIN VDE 0298-4 and DIN VDE 0100-430"
+  guide: true
+  mains: true
+  key: size_mm2
+  columns:
+    - {id: size_mm2, name: {en: "Cross-section", de: "Querschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: a_single_1, name: {en: "A: single-core cords in free air, 1 loaded", de: "A: einadrige Leitungen frei in Luft, 1 belastet"}, dim: current, units: [""]}
+    - {id: b_household_2, name: {en: "B: household and hand-held appliance cords, 2 loaded", de: "B: Haus- und Handgeräteleitungen, 2 belastet"}, dim: current, units: [""]}
+    - {id: b_household_3, name: {en: "B: household and hand-held appliance cords, 3 loaded", de: "B: Haus- und Handgeräteleitungen, 3 belastet"}, dim: current, units: [""]}
+    - {id: c_multicore_2or3, name: {en: "C: other multi-core cords, 2 or 3 loaded", de: "C: übrige mehradrige Leitungen, 2 oder 3 belastet"}, dim: current, units: [""]}
+  rows:
+    - [0.5, null, 3, 3, null]
+    - [0.75, 15, 6, 6, 12]
+    - [1, 19, 10, 10, 15]
+    - [1.5, 24, 16, 16, 18]
+    - [2.5, 32, 25, 20, 26]
+    - [4, 42, 32, 25, 34]
+    - [6, 54, null, null, 44]
+    - [10, 73, null, null, 61]
+    - [16, 98, null, null, 82]
+    - [25, 129, null, null, 108]
+    - [35, 158, null, null, 135]
+    - [50, 198, null, null, 168]
+    - [70, 245, null, null, 207]
+    - [95, 292, null, null, 250]
+    - [120, 344, null, null, 292]
+    - [150, 391, null, null, 335]
+    - [185, 448, null, null, 382]
+    - [240, 528, null, null, 453]
+    - [300, 608, null, null, 523]
+    - [400, 726, null, null, null]
+
+- id: nec_ampacity_awg
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Proudová zatížitelnost podle NEC a AWG (tabulka 310.16)", da: "NEC-strømbelastning efter AWG (tabel 310.16)", de: "NEC-Strombelastbarkeit nach AWG (Tabelle 310.16)", el: "Επιτρεπόμενα ρεύματα NEC ανά AWG (πίνακας 310.16)", en: "NEC ampacities by AWG (table 310.16)", es: "Intensidades admisibles NEC por AWG (tabla 310.16)", fr: "Courants admissibles NEC par AWG (tableau 310.16)", hi: "AWG के अनुसार NEC की धारा क्षमता (तालिका 310.16)", it: "Portate NEC per AWG (tabella 310.16)", ja: "AWG別のNEC許容電流（表310.16）", nl: "NEC-stroombelastbaarheid per AWG (tabel 310.16)", no: "NEC-strømbelastbarhet etter AWG (tabell 310.16)", pl: "Obciążalność NEC według AWG (tabela 310.16)", pt: "Correntes admissíveis NEC por AWG (tabela 310.16)", sv: "NEC-strömbelastbarhet per AWG (tabell 310.16)", zh: "按 AWG 的 NEC 载流量（表 310.16）"}
+  doc: {en: "Allowable ampacities of insulated copper and aluminium conductors rated 0 to 2000 V, with not more than three current-carrying conductors in a raceway, cable or the earth, at 30 °C ambient, by AWG or kcmil size (NEC table 310.16).", de: "Zulässige Strombelastbarkeit isolierter Kupfer- und Aluminiumleiter für 0 bis 2000 V, mit höchstens drei stromführenden Leitern im Rohr, Kabel oder Erdreich, bei 30 °C Umgebung, nach AWG- bzw. kcmil-Größe (NEC Tabelle 310.16)."}
+  notes: {en: "US view; for IEC and DIN installations use the cable current-rating tables. The columns are the temperature rating of the insulation (60, 75 and 90 °C); the temperature rating of the terminals (usually 60 °C or 75 °C) limits which column may be used. Aluminium means aluminium or copper-clad aluminium. The overcurrent device for 14, 12 and 10 AWG copper is limited to 15, 20 and 30 A (NEC 240.4(D)) whatever the table says; the last column marks these rows. Correct for the ambient temperature (NEC 310.15(B)) and for more than three current-carrying conductors (NEC 310.15(C)(1)). NEC 2023 values; the first draft of the 2026 NEC adds values that are not included.", de: "US-Sicht (NEC); für IEC- und DIN-Anlagen die Kabel-Belastbarkeitstabellen verwenden. Die Spalten sind die Temperaturfestigkeit der Isolierung (60, 75 und 90 °C); die Temperaturfestigkeit der Klemmen (meist 60 °C oder 75 °C) bestimmt, welche Spalte nutzbar ist. Aluminium steht für Aluminium oder kupferkaschiertes Aluminium. Die Absicherung für 14, 12 und 10 AWG Kupfer ist auf 15, 20 und 30 A begrenzt (NEC 240.4(D)), unabhängig vom Tabellenwert; die letzte Spalte kennzeichnet diese Zeilen. Umgebungstemperatur (NEC 310.15(B)) und mehr als drei stromführende Leiter (NEC 310.15(C)(1)) sind zusätzlich zu berücksichtigen. Werte des NEC 2023; der erste Entwurf des NEC 2026 ergänzt Werte, die nicht enthalten sind."}
+  tags: [nec, ampacity, awg, kcmil, current rating, wire, cable, 310.16, us, strombelastbarkeit, belastbarkeit, leitung, kabel, usa]
+  source: "NFPA 70 National Electrical Code 2023 table 310.16 (the same values as NEC 2017 table 310.15(B)(16)), checked against the NFPA CMP-6 first draft report of the 2026 cycle, the Omni Cable NEC ampacity data and the Cerrowire ampacity charts"
+  guide: true
+  mains: true
+  key: size
+  columns:
+    - {id: size, name: {en: "Size (AWG or kcmil)", de: "Größe (AWG oder kcmil)"}, dim: text}
+    - {id: size_kind, name: {en: "Size unit", de: "Größeneinheit"}, dim: text}
+    - {id: cu_60, name: {en: "Copper 60 °C", de: "Kupfer 60 °C"}, dim: current, units: [""]}
+    - {id: cu_75, name: {en: "Copper 75 °C", de: "Kupfer 75 °C"}, dim: current, units: [""]}
+    - {id: cu_90, name: {en: "Copper 90 °C", de: "Kupfer 90 °C"}, dim: current, units: [""]}
+    - {id: al_60, name: {en: "Aluminium 60 °C", de: "Aluminium 60 °C"}, dim: current, units: [""]}
+    - {id: al_75, name: {en: "Aluminium 75 °C", de: "Aluminium 75 °C"}, dim: current, units: [""]}
+    - {id: al_90, name: {en: "Aluminium 90 °C", de: "Aluminium 90 °C"}, dim: current, units: [""]}
+    - {id: ocpd_note, name: {en: "Overcurrent protection limit", de: "Begrenzung der Absicherung"}, dim: text}
+  rows:
+    - ["18", "AWG", null, null, 14, null, null, null, "240.4(D)"]
+    - ["16", "AWG", null, null, 18, null, null, null, "240.4(D)"]
+    - ["14", "AWG", 15, 20, 25, null, null, null, "240.4(D)"]
+    - ["12", "AWG", 20, 25, 30, 15, 20, 25, "240.4(D)"]
+    - ["10", "AWG", 30, 35, 40, 25, 30, 35, "240.4(D)"]
+    - ["8", "AWG", 40, 50, 55, 35, 40, 45, null]
+    - ["6", "AWG", 55, 65, 75, 40, 50, 55, null]
+    - ["4", "AWG", 70, 85, 95, 55, 65, 75, null]
+    - ["3", "AWG", 85, 100, 115, 65, 75, 85, null]
+    - ["2", "AWG", 95, 115, 130, 75, 90, 100, null]
+    - ["1", "AWG", 110, 130, 145, 85, 100, 115, null]
+    - ["1/0", "AWG", 125, 150, 170, 100, 120, 135, null]
+    - ["2/0", "AWG", 145, 175, 195, 115, 135, 150, null]
+    - ["3/0", "AWG", 165, 200, 225, 130, 155, 175, null]
+    - ["4/0", "AWG", 195, 230, 260, 150, 180, 205, null]
+    - ["250", "kcmil", 215, 255, 290, 170, 205, 230, null]
+    - ["300", "kcmil", 240, 285, 320, 195, 230, 260, null]
+    - ["350", "kcmil", 260, 310, 350, 210, 250, 280, null]
+    - ["400", "kcmil", 280, 335, 380, 225, 270, 305, null]
+    - ["500", "kcmil", 320, 380, 430, 260, 310, 350, null]
+
+- id: iec60228_cross_sections
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Normalizované průřezy vodičů (IEC 60228)", da: "Standardledertværsnit (IEC 60228)", de: "Normquerschnitte von Leitern (IEC 60228)", el: "Τυποποιημένες διατομές αγωγών (IEC 60228)", en: "Standard conductor sizes (IEC 60228)", es: "Secciones normalizadas de conductores (IEC 60228)", fr: "Sections normalisées des conducteurs (IEC 60228)", hi: "मानक चालक अनुप्रस्थ काट (IEC 60228)", it: "Sezioni normalizzate dei conduttori (IEC 60228)", ja: "導体の標準断面積 (IEC 60228)", nl: "Genormaliseerde geleiderdoorsneden (IEC 60228)", no: "Standard lederarealer (IEC 60228)", pl: "Znormalizowane przekroje żył (IEC 60228)", pt: "Secções normalizadas de condutores (IEC 60228)", sv: "Standardiserade ledararea (IEC 60228)", zh: "标准导体截面积 (IEC 60228)"}
+  doc: {en: "Nominal conductor cross-sections of IEC 60228 with the maximum DC resistance of 1 km at 20 °C for stranded copper and aluminium conductors (class 2) and flexible copper conductors (class 5).", de: "Nennquerschnitte nach IEC 60228 mit dem höchstzulässigen Gleichstromwiderstand von 1 km bei 20 °C für mehrdrähtige Kupfer- und Aluminiumleiter (Klasse 2) und feindrähtige Kupferleiter (Klasse 5)."}
+  notes: {en: "Class 1 is solid, class 2 stranded (fixed installation), class 5 flexible and class 6 very flexible. The resistances are maxima per kilometre at 20 °C, shown as the resistance of 1 km. Class 1 copper differs from class 2 from 185 mm² upwards (185 mm²: 0.101 against 0.0991 Ω/km); class 6 has the class 5 values up to 300 mm². The class 2 resistances of 1400 to 2500 mm² were found in one source only and are empty. The sizes 1400 and 1800 mm² are not preferred.", de: "Klasse 1 ist eindrähtig, Klasse 2 mehrdrähtig (feste Verlegung), Klasse 5 feindrähtig und Klasse 6 feinstdrähtig. Die Widerstände sind Höchstwerte je Kilometer bei 20 °C, angegeben als Widerstand von 1 km. Klasse-1-Kupfer weicht ab 185 mm² von Klasse 2 ab (185 mm²: 0,101 gegen 0,0991 Ω/km); Klasse 6 hat bis 300 mm² die Werte von Klasse 5. Die Klasse-2-Widerstände von 1400 bis 2500 mm² wurden nur in einer Quelle gefunden und sind leer. Die Größen 1400 und 1800 mm² sind nicht bevorzugt."}
+  tags: [iec 60228, cross-section, conductor, standard sizes, resistance, class 2, class 5, stranded, flexible, querschnitt, normquerschnitt, leiter, widerstand, leiterklasse]
+  source: "IEC 60228:2004 and IEC 60228:2023 (BS EN IEC 60228:2024) conductor tables of classes 2 and 5, as reproduced in the Cembre General Catalogue and by myCableEngineering; the list of sizes also in Wikipedia"
+  guide: true
+  key: size_mm2
+  columns:
+    - {id: size_mm2, name: {en: "Nominal cross-section", de: "Nennquerschnitt"}, dim: area, unit: mm2, units: [mm2, kcmil, AWG], label: "A"}
+    - {id: preferred, name: {en: "Preferred size", de: "Vorzugsgröße"}, dim: text}
+    - {id: r_cu_class2, name: {en: "Max. resistance per km, class 2 copper (plain)", de: "Max. Widerstand je km, Klasse 2, Kupfer (blank)"}, dim: resistance, units: [""], label: "R"}
+    - {id: r_cu_class5, name: {en: "Max. resistance per km, class 5 copper (plain)", de: "Max. Widerstand je km, Klasse 5, Kupfer (blank)"}, dim: resistance, units: [""], label: "R"}
+    - {id: r_cu_class5_coated, name: {en: "Max. resistance per km, class 5 copper (metal-coated)", de: "Max. Widerstand je km, Klasse 5, Kupfer (metallumhüllt)"}, dim: resistance, units: [""], label: "R"}
+    - {id: r_al_class2, name: {en: "Max. resistance per km, class 2 aluminium", de: "Max. Widerstand je km, Klasse 2, Aluminium"}, dim: resistance, units: [""], label: "R"}
+  rows:
+    - [0.5, {en: "yes", de: "ja"}, 36.0, 39.0, 40.1, null]
+    - [0.75, {en: "yes", de: "ja"}, 24.5, 26.0, 26.7, null]
+    - [1, {en: "yes", de: "ja"}, 18.1, 19.5, 20.0, null]
+    - [1.5, {en: "yes", de: "ja"}, 12.1, 13.3, 13.7, null]
+    - [2.5, {en: "yes", de: "ja"}, 7.41, 7.98, 8.21, null]
+    - [4, {en: "yes", de: "ja"}, 4.61, 4.95, 5.09, null]
+    - [6, {en: "yes", de: "ja"}, 3.08, 3.30, 3.39, null]
+    - [10, {en: "yes", de: "ja"}, 1.83, 1.91, 1.95, 3.08]
+    - [16, {en: "yes", de: "ja"}, 1.15, 1.21, 1.24, 1.91]
+    - [25, {en: "yes", de: "ja"}, 0.727, 0.780, 0.795, 1.20]
+    - [35, {en: "yes", de: "ja"}, 0.524, 0.554, 0.565, 0.868]
+    - [50, {en: "yes", de: "ja"}, 0.387, 0.386, 0.393, 0.641]
+    - [70, {en: "yes", de: "ja"}, 0.268, 0.272, 0.277, 0.443]
+    - [95, {en: "yes", de: "ja"}, 0.193, 0.206, 0.210, 0.320]
+    - [120, {en: "yes", de: "ja"}, 0.153, 0.161, 0.164, 0.253]
+    - [150, {en: "yes", de: "ja"}, 0.124, 0.129, 0.132, 0.206]
+    - [185, {en: "yes", de: "ja"}, 0.0991, 0.106, 0.108, 0.164]
+    - [240, {en: "yes", de: "ja"}, 0.0754, 0.0801, 0.0817, 0.125]
+    - [300, {en: "yes", de: "ja"}, 0.0601, 0.0641, 0.0654, 0.100]
+    - [400, {en: "yes", de: "ja"}, 0.0470, 0.0486, 0.0495, 0.0778]
+    - [500, {en: "yes", de: "ja"}, 0.0366, 0.0384, 0.0391, 0.0605]
+    - [630, {en: "yes", de: "ja"}, 0.0283, 0.0287, 0.0292, 0.0469]
+    - [800, {en: "yes", de: "ja"}, 0.0221, null, null, 0.0367]
+    - [1000, {en: "yes", de: "ja"}, 0.0176, null, null, 0.0291]
+    - [1200, {en: "yes", de: "ja"}, 0.0151, null, null, 0.0247]
+    - [1400, {en: "no", de: "nein"}, null, null, null, null]
+    - [1600, {en: "yes", de: "ja"}, null, null, null, null]
+    - [1800, {en: "no", de: "nein"}, null, null, null, null]
+    - [2000, {en: "yes", de: "ja"}, null, null, null, null]
+    - [2500, {en: "yes", de: "ja"}, null, null, null, null]
+
+- id: ipc2221b_conductor_spacing
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Vzdálenosti vodičů na DPS podle napětí (IPC-2221B)", da: "Lederafstand på print efter spænding (IPC-2221B)", de: "Leiterabstände auf Leiterplatten nach Spannung (IPC-2221B)", el: "Αποστάσεις αγωγών PCB ανά τάση (IPC-2221B)", en: "PCB conductor spacing by voltage (IPC-2221B)", es: "Separación de conductores en PCB según la tensión (IPC-2221B)", fr: "Distances entre conducteurs d'un circuit imprimé selon la tension (IPC-2221B)", hi: "वोल्टेज के अनुसार पीसीबी चालक दूरी (IPC-2221B)", it: "Distanza tra i conduttori del PCB in base alla tensione (IPC-2221B)", ja: "電圧別のプリント基板導体間隔 (IPC-2221B)", nl: "Geleiderafstand op pcb per spanning (IPC-2221B)", no: "Lederavstand på kretskort etter spenning (IPC-2221B)", pl: "Odstępy między ścieżkami PCB według napięcia (IPC-2221B)", pt: "Distância entre condutores em PCB por tensão (IPC-2221B)", sv: "Ledaravstånd på kretskort efter spänning (IPC-2221B)", zh: "按电压的 PCB 导体间距 (IPC-2221B)"}
+  doc: {en: "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221B table 6-1, the same table as in IPC-2221A).", de: "Mindestabstand zwischen Leitern auf einer Leiterplatte nach der Spannung zwischen ihnen (DC oder AC-Scheitelwert), für Innen- und Außenlagen und Bauteilanschlüsse (IPC-2221B Tabelle 6-1, dieselbe Tabelle wie in IPC-2221A)."}
+  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. In der letzten Zeile (Zeile je Volt, mit 1 markiert) stehen Millimeter (oder mil) je Volt: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Lötstopplack gilt für B2 und B3 nicht als Beschichtung. Eine Wiedergabe der Tabelle nannte für B2 bei 251 bis 300 V 2,5 mm statt 1,25 mm; 1,25 mm passt zur Angabe, dass IPC bei 300 V 1,25 mm und bei 301 V 2,5 mm nennt, und zu IPC-2221C. IPC-2221C (2023) hat die Tabelle überarbeitet, siehe die eigene Tabelle."}
+  tags: [ipc-2221, pcb, spacing, clearance, creepage, conductor spacing, voltage, isolation, leiterplatte, abstand, leiterabstand, spannung, kriechstrecke, luftstrecke, ipc-2221b]
+  source: "IPC-2221B table 6-1 (electrical conductor spacing), read from the Altium Resources and P. McGaw reproductions and checked against smps.us and the Siemens EDA article by S. V. Chavez (2025)"
+  guide: true
+  key: v_min
+  columns:
+    - {id: v_min, name: {en: "Voltage from (DC or AC peak)", de: "Spannung ab (DC oder AC-Scheitelwert)"}, dim: voltage, units: [""], label: "U"}
+    - {id: v_max, name: {en: "Voltage to", de: "Spannung bis"}, dim: voltage, units: [""], label: "U"}
+    - {id: b1, name: {en: "B1: internal conductors", de: "B1: Innenlagen"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b2, name: {en: "B2: external, uncoated, up to 3050 m", de: "B2: außen, unbeschichtet, bis 3050 m"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b3, name: {en: "B3: external, uncoated, above 3050 m", de: "B3: außen, unbeschichtet, über 3050 m"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b4, name: {en: "B4: external, permanent polymer coating", de: "B4: außen, dauerhafte Polymerbeschichtung"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a5, name: {en: "A5: external, conformal coating", de: "A5: außen, Schutzlack"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a6, name: {en: "A6: component lead, uncoated, up to 3050 m", de: "A6: Bauteilanschluss, unbeschichtet, bis 3050 m"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a7, name: {en: "A7: component lead, conformal coating", de: "A7: Bauteilanschluss, Schutzlack"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: per_volt, name: {en: "Per-volt row (1: values are mm per volt)", de: "Zeile je Volt (1: Werte in mm je Volt)"}, dim: number}
+  rows:
+    - [0, 15, 0.05, 0.1, 0.1, 0.05, 0.13, 0.13, 0.13, 0]
+    - [16, 30, 0.05, 0.1, 0.1, 0.05, 0.13, 0.25, 0.13, 0]
+    - [31, 50, 0.1, 0.6, 0.6, 0.13, 0.13, 0.4, 0.13, 0]
+    - [51, 100, 0.1, 0.6, 1.5, 0.13, 0.13, 0.5, 0.13, 0]
+    - [101, 150, 0.2, 0.6, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
+    - [151, 170, 0.2, 1.25, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
+    - [171, 250, 0.2, 1.25, 6.4, 0.4, 0.4, 0.8, 0.4, 0]
+    - [251, 300, 0.2, 1.25, 12.5, 0.4, 0.4, 0.8, 0.8, 0]
+    - [301, 500, 0.25, 2.5, 12.5, 0.8, 0.8, 1.5, 0.8, 0]
+    - [500, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 1]
+
+- id: ipc2221c_conductor_spacing
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Vzdálenosti vodičů na DPS podle napětí (IPC-2221C)", da: "Lederafstand på print efter spænding (IPC-2221C)", de: "Leiterabstände auf Leiterplatten nach Spannung (IPC-2221C)", el: "Αποστάσεις αγωγών PCB ανά τάση (IPC-2221C)", en: "PCB conductor spacing by voltage (IPC-2221C)", es: "Separación de conductores en PCB según la tensión (IPC-2221C)", fr: "Distances entre conducteurs d'un circuit imprimé selon la tension (IPC-2221C)", hi: "वोल्टेज के अनुसार पीसीबी चालक दूरी (IPC-2221C)", it: "Distanza tra i conduttori del PCB in base alla tensione (IPC-2221C)", ja: "電圧別のプリント基板導体間隔 (IPC-2221C)", nl: "Geleiderafstand op pcb per spanning (IPC-2221C)", no: "Lederavstand på kretskort etter spenning (IPC-2221C)", pl: "Odstępy między ścieżkami PCB według napięcia (IPC-2221C)", pt: "Distância entre condutores em PCB por tensão (IPC-2221C)", sv: "Ledaravstånd på kretskort efter spänning (IPC-2221C)", zh: "按电压的 PCB 导体间距 (IPC-2221C)"}
+  doc: {en: "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221C table 6-1, December 2023).", de: "Mindestabstand zwischen Leitern auf einer Leiterplatte nach der Spannung zwischen ihnen (DC oder AC-Scheitelwert), für Innen- und Außenlagen und Bauteilanschlüsse (IPC-2221C Tabelle 6-1, Dezember 2023)."}
+  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. In der letzten Zeile (Zeile je Volt, mit 1 markiert) stehen Millimeter (oder mil) je Volt: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Die Spalte B5 hieß früher A5; die alten A6-Werte stehen jetzt in A7 und die alten A7-Werte (außer 251 bis 300 V) in A6; A8 ist neu. Die Werte wurden der veröffentlichten Tabelle entnommen und stimmen in zwei Quellen überein; der Wortlaut der Spalten B4, A6, A7 und A8 stammt nur aus einer Quelle (dem Crate pcb-toolkit) und wurde nicht mit IPC-2221C Abschnitt 6.3 verglichen."}
+  tags: [ipc-2221, pcb, spacing, clearance, creepage, conductor spacing, voltage, isolation, leiterplatte, abstand, leiterabstand, spannung, kriechstrecke, luftstrecke, ipc-2221c]
+  source: "IPC-2221C (December 2023) table 6-1 (electrical conductor spacing), read from the figure in the Siemens EDA article by S. V. Chavez (2025) and checked against the constants of the pcb-toolkit crate"
+  guide: true
+  key: v_min
+  columns:
+    - {id: v_min, name: {en: "Voltage from (DC or AC peak)", de: "Spannung ab (DC oder AC-Scheitelwert)"}, dim: voltage, units: [""], label: "U"}
+    - {id: v_max, name: {en: "Voltage to", de: "Spannung bis"}, dim: voltage, units: [""], label: "U"}
+    - {id: b1, name: {en: "B1: internal conductors", de: "B1: Innenlagen"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b2, name: {en: "B2: external, uncoated, up to 3050 m", de: "B2: außen, unbeschichtet, bis 3050 m"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b3, name: {en: "B3: external, uncoated, above 3050 m or vacuum", de: "B3: außen, unbeschichtet, über 3050 m oder Vakuum"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b4, name: {en: "B4: external, polymer coating (solder-mask type)", de: "B4: außen, Polymerbeschichtung (Lötstopplack-Art)"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: b5, name: {en: "B5 (formerly A5): external, conformal coating", de: "B5 (früher A5): außen, Schutzlack"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a6, name: {en: "A6: component lead, coated, any elevation", de: "A6: Bauteilanschluss, beschichtet, jede Höhe"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a7, name: {en: "A7: component lead, uncoated, up to 3050 m", de: "A7: Bauteilanschluss, unbeschichtet, bis 3050 m"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: a8, name: {en: "A8: component lead, uncoated, above 3050 m or vacuum", de: "A8: Bauteilanschluss, unbeschichtet, über 3050 m oder Vakuum"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
+    - {id: per_volt, name: {en: "Per-volt row (1: values are mm per volt)", de: "Zeile je Volt (1: Werte in mm je Volt)"}, dim: number}
+  rows:
+    - [0, 15, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.13, 0.13, 0]
+    - [16, 30, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.25, 0.25, 0]
+    - [31, 50, 0.1, 0.64, 0.64, 0.3, 0.13, 0.13, 0.4, 0.8, 0]
+    - [51, 100, 0.1, 0.64, 1.5, 0.3, 0.13, 0.13, 0.5, 1.0, 0]
+    - [101, 150, 0.2, 0.64, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - [151, 170, 0.2, 1.25, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - [171, 250, 0.2, 1.25, 6.4, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - [251, 300, 0.2, 1.25, 12.5, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - [301, 500, 0.25, 2.5, 12.5, 1.6, 0.8, 0.8, 1.5, 3.0, 0]
+    - [500, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 0.0061, 1]
+
+- id: pcb_copper_weight
+  kind: table
+  category: tables
+  group: conductors
+  name: {cs: "Hmotnost mědi a tloušťka na DPS", da: "Kobbervægt og tykkelse på print", de: "Kupferauflage und Dicke bei Leiterplatten", el: "Βάρος χαλκού και πάχος PCB", en: "PCB copper weight and thickness", es: "Peso y espesor del cobre en PCB", fr: "Poids et épaisseur du cuivre d'un circuit imprimé", hi: "पीसीबी तांबे का भार और मोटाई", it: "Peso e spessore del rame del PCB", ja: "プリント基板の銅箔重量と厚さ", nl: "Kopergewicht en -dikte van pcb's", no: "Kobbervekt og -tykkelse på kretskort", pl: "Grubość i masa miedzi na PCB", pt: "Peso e espessura do cobre em PCB", sv: "Kopparvikt och koppartjocklek på kretskort", zh: "PCB 铜箔重量与厚度"}
+  doc: {en: "Copper weight of printed-circuit copper layers in ounces per square foot with the area weight and the thickness by several conventions (physical density, IPC-4562A, commercial designation, 1.37 mil rule).", de: "Kupferauflage von Leiterplatten-Kupferlagen in Unzen je Quadratfuß mit dem Flächengewicht und der Dicke nach mehreren Konventionen (physikalische Dichte, IPC-4562A, handelsübliche Bezeichnung, Regel 1,37 mil)."}
+  notes: {en: "A copper weight of 1 oz is an area weight (1 ounce of copper spread over 1 square foot), not an exact thickness: 34.2 µm (density of pure copper), 34.3 µm (IPC-4562A nominal), 34.8 µm (1.37 mil rule) and 35 µm (designation) are all in use. ECalc's unit oz uses 35 µm. The area weight follows from the unit definitions (1 oz/ft² = 305.1517 g/m²); the physical thickness assumes 8.935 g/cm³. Finished copper after processing is thinner (about 30 µm for 1 oz). The designations of 1/4 and 3/8 oz are names and not exact fractions of 1 oz. The rows for 1/4, 3/8 and 4 oz of the 1.37 mil rule are arithmetic extensions. Typical values; empty cells have no published value.", de: "Eine Kupferauflage von 1 oz ist ein Flächengewicht (1 Unze Kupfer auf 1 Quadratfuß verteilt), keine genaue Dicke: 34,2 µm (Dichte von reinem Kupfer), 34,3 µm (IPC-4562A), 34,8 µm (Regel 1,37 mil) und 35 µm (Handelsbezeichnung) sind gebräuchlich. ECalc rechnet mit 35 µm für die Einheit oz. Das Flächengewicht folgt aus den Einheitendefinitionen (1 oz/ft² = 305,1517 g/m²); die physikalische Dicke nimmt 8,935 g/cm³ an. Nach der Fertigung ist das Kupfer dünner (bei 1 oz etwa 30 µm). Die Bezeichnungen 1/4 und 3/8 oz sind Namen und keine genauen Bruchteile von 1 oz. Die Zeilen 1/4, 3/8 und 4 oz der Regel 1,37 mil sind rechnerische Fortsetzungen. Typische Werte; leere Zellen haben keinen veröffentlichten Wert."}
+  tags: [copper weight, oz, ounce, copper thickness, pcb, foil, layer, ipc-4562, kupferauflage, kupferdicke, unze, leiterplatte, kupferfolie, schichtdicke]
+  source: "NIST SP 811 appendix B.9 (oz/ft² to kg/m²); copper density 8.935 g/cm³ (Wikipedia); IPC-4562A nominal thicknesses as quoted by B. Hargin (Siemens EDA, 2025); Denkai TOB-III data sheet (IPC-4562 table 1-1 designations); 1.37 mil rule per JLCPCB and AIVON"
+  key: weight_oz
+  columns:
+    - {id: weight_oz, name: {en: "Copper weight (oz/ft²)", de: "Kupferauflage (oz/ft²)"}, dim: number, label: "W"}
+    - {id: area_weight, name: {en: "Area weight (g/m²)", de: "Flächengewicht (g/m²)"}, dim: number}
+    - {id: t_physical, name: {en: "Thickness from the density of copper", de: "Dicke aus der Dichte von Kupfer"}, dim: length, units: ["", mil], label: "T"}
+    - {id: t_ipc4562, name: {en: "Nominal thickness (IPC-4562A)", de: "Nenndicke (IPC-4562A)"}, dim: length, units: ["", mil], label: "T"}
+    - {id: t_designation, name: {en: "Commercial thickness designation", de: "Handelsübliche Dickenbezeichnung"}, dim: length, units: ["", mil], label: "T"}
+    - {id: t_137mil, name: {en: "Thickness by the 1.37 mil rule", de: "Dicke nach der Regel 1,37 mil"}, dim: length, unit: mil, units: [mil, ""], label: "T"}
+  rows:
+    - [0.25, 76.29, 8.54e-6, null, 9e-6, 0.3425]
+    - [0.375, 114.43, 12.81e-6, null, 12e-6, 0.51375]
+    - [0.5, 152.58, 17.08e-6, 17.1e-6, 18e-6, 0.685]
+    - [1, 305.15, 34.15e-6, 34.3e-6, 35e-6, 1.37]
+    - [2, 610.30, 68.30e-6, 68.6e-6, 70e-6, 2.74]
+    - [3, 915.46, 102.46e-6, null, 103e-6, 4.11]
+    - [4, 1220.61, 136.61e-6, null, null, 5.48]

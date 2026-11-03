@@ -1,0 +1,14 @@
+{
+  "table": "cable_ampacity_al_pvc",
+  "cells": [
+    {"key": 16, "column": "a1_3", "want": 43, "ref": "IEC 60364-5-52 B.52.4: ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) agree (aluminium, A1, three loaded)"},
+    {"key": 50, "column": "b2_3", "want": 92, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) (aluminium, B2, three loaded)"},
+    {"key": 70, "column": "c_3", "want": 140, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) (aluminium, C, three loaded)"},
+    {"key": 240, "column": "c_3", "want": 305, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) (aluminium, C, three loaded, largest size)"},
+    {"key": 50, "column": "a1_2", "want": null, "ref": "two loaded conductors: ABB handbook only (two editions of the same handbook), left empty"},
+    {"key": 120, "column": "e_3", "want": null, "ref": "method E: ABB handbook only, left empty"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_ampacity_al_pvc, c_3, 100, section)", "want": 5e-05, "ref": "C three loaded: 35 mm² carries 90 A (below 100 A), 50 mm² carries 110 A, so 50 mm² = 5e-5 m²"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "table": "cable_multicore_factors",
+  "cells": [
+    {"key": 5, "column": "k_air", "want": 0.75, "ref": "DIN VDE 0298-4 table 26: Lapp T12 table 12-3, Bayka TD06DE and ABB Stotz-Kontakt 2CDC400027D0104 table 9 agree"},
+    {"key": 10, "column": "k_air", "want": 0.55, "ref": "DIN VDE 0298-4 table 26: Lapp T12 table 12-3, Bayka TD06DE and ABB Stotz-Kontakt 2CDC400027D0104 table 9 agree"},
+    {"key": 14, "column": "k_air", "want": 0.5, "ref": "DIN VDE 0298-4 table 26: Lapp T12 table 12-3, Bayka TD06DE and ABB Stotz-Kontakt 2CDC400027D0104 table 9 agree"},
+    {"key": 24, "column": "k_air", "want": 0.4, "ref": "DIN VDE 0298-4 table 26: Lapp T12 table 12-3 and Bayka TD06DE agree"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_multicore_factors, loaded_cores, 8, k_air)", "want": 0.55, "ref": "8 loaded cores are not listed, the next listed count is 10 with 0.55"}
+  ]
+}

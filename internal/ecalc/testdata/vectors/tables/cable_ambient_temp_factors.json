@@ -1,0 +1,20 @@
+{
+  "table": "cable_ambient_temp_factors",
+  "cells": [
+    {"key": 30, "column": "k_70", "want": 1.0, "ref": "reference temperature: factor 1 by definition (IEC B.52.14)"},
+    {"key": 40, "column": "k_70", "want": 0.87, "ref": "Schneider Electrical Installation Guide figure G12 (IEC 60364-5-52 table B.52.14) and ABB SACE Electrical Installation Handbook vol. 2 table 4 agree; DIN VDE 0298-4 table 17 gives the same"},
+    {"key": 40, "column": "k_90", "want": 0.91, "ref": "Schneider Electrical Installation Guide figure G12 (IEC 60364-5-52 table B.52.14) and ABB SACE Electrical Installation Handbook vol. 2 table 4 agree"},
+    {"key": 60, "column": "k_70", "want": 0.5, "ref": "Schneider Electrical Installation Guide figure G12 (IEC 60364-5-52 table B.52.14) and ABB SACE Electrical Installation Handbook vol. 2 table 4 agree"},
+    {"key": 65, "column": "k_70", "want": 0.35, "ref": "DIN VDE 0298-4 table 17 addition (IEC stops at 60 °C): ABB Stotz-Kontakt 2CDC400027D0104 (DIN VDE 0298-4 excerpt) table 5 and an older cable catalogue page"},
+    {"key": 80, "column": "k_90", "want": 0.41, "ref": "Schneider Electrical Installation Guide figure G12 (IEC 60364-5-52 table B.52.14) and ABB Stotz-Kontakt 2CDC400027D0104 (DIN VDE 0298-4 excerpt) table 5"},
+    {"key": 85, "column": "k_90", "want": null, "ref": "0.29 appears in ABB Stotz-Kontakt 2CDC400027D0104 (DIN VDE 0298-4 excerpt) only, so the cell is left empty"},
+    {"key": 50, "column": "k_60", "want": 0.58, "ref": "DIN VDE 0298-4 table 17: ABB Stotz-Kontakt 2CDC400027D0104 (DIN VDE 0298-4 excerpt) table 5 and Lapp T12 table 12-2 agree"},
+    {"key": 10, "column": "k_60", "want": null, "ref": "1.29 appears in ABB Stotz-Kontakt 2CDC400027D0104 (DIN VDE 0298-4 excerpt) only, so the cell is left empty"},
+    {"key": 70, "column": "k_70", "want": null, "ref": "70 °C PVC is not permitted at a 70 °C ambient, the cell is empty in the standard"}
+  ],
+  "lookups": [
+    {"expr": "interp(cable_ambient_temp_factors, ambient_c, k_70, 305.65)", "want": 0.97, "ref": "32.5 °C = 305.65 K is half way between 30 °C (1.00) and 35 °C (0.94): 0.97"},
+    {"expr": "interp(cable_ambient_temp_factors, ambient_c, k_90, 315.15)", "want": 0.894, "ref": "42 °C = 315.15 K lies 2/5 of the way from 40 °C (0.91) to 45 °C (0.87): 0.91 - 0.4 * 0.04 = 0.894"},
+    {"expr": "interp(cable_ambient_temp_factors, ambient_c, k_70, 343.15)", "want": "nan", "ref": "70 °C is above the last filled row of the 70 °C column (65 °C), so there is no factor"}
+  ]
+}

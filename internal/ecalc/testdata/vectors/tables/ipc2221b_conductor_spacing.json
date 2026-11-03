@@ -1,0 +1,19 @@
+{
+  "table": "ipc2221b_conductor_spacing",
+  "cells": [
+    {"key": 251, "column": "b2", "want": 1.25, "ref": "IPC-2221B table 6-1: Altium Resources figure gives 1.25 mm, P. McGaw's HTML table printed 2.5 mm; 1.25 mm agrees with smps.us (1.25 mm at 300 V, 2.5 mm at 301 V) and IPC-2221C"},
+    {"key": 301, "column": "b1", "want": 0.25, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree; the Siemens EDA article uses 0.25 mm in its 600 V worked example"},
+    {"key": 500, "column": "b1", "want": 0.0025, "ref": "IPC-2221B table 6-1 last row (> 500 V), mm per volt; the Siemens EDA article adds 100 V x 0.0025 mm/V to 0.25 mm for 600 V"},
+    {"key": 0, "column": "b2", "want": 0.1, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree"},
+    {"key": 51, "column": "b3", "want": 1.5, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree"},
+    {"key": 101, "column": "b3", "want": 3.2, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree"},
+    {"key": 31, "column": "a6", "want": 0.4, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree"},
+    {"key": 251, "column": "a7", "want": 0.8, "ref": "IPC-2221B table 6-1: Altium Resources figure and P. McGaw reproduction agree"},
+    {"key": 500, "column": "per_volt", "want": 1, "ref": "the last row of IPC-2221B table 6-1 is the per-volt row (marker added by the table)"},
+    {"key": 0, "column": "per_volt", "want": 0, "ref": "the voltage bands are ordinary rows (marker added by the table)"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(ipc2221b_conductor_spacing, v_max, 120, b4)", "want": 0.0004, "ref": "120 V lies in the 101 to 150 V band: B4 = 0.4 mm = 4e-4 m (IPC-2221B table 6-1)"},
+    {"expr": "lookup(ipc2221b_conductor_spacing, b1, 500)", "want": 2.5e-06, "ref": "per-volt row, B1: 0.0025 mm/V = 2.5e-6 m/V (IPC-2221B table 6-1)"}
+  ]
+}

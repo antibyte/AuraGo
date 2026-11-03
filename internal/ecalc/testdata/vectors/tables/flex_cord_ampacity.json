@@ -1,0 +1,16 @@
+{
+  "table": "flex_cord_ampacity",
+  "cells": [
+    {"key": 1.5, "column": "a_single_1", "want": 24, "ref": "DIN VDE 0298-4 table 11: Lapp T12 table 12-1, Bayka TD06DE and an older cable catalogue page agree"},
+    {"key": 2.5, "column": "c_multicore_2or3", "want": 26, "ref": "DIN VDE 0298-4 table 11: Lapp T12 table 12-1, Bayka TD06DE and an older cable catalogue page agree"},
+    {"key": 4, "column": "b_household_3", "want": 25, "ref": "DIN VDE 0298-4 table 11: Lapp T12 table 12-1 and Bayka TD06DE agree"},
+    {"key": 0.5, "column": "b_household_2", "want": 3, "ref": "DIN VDE 0298-4 table 11: Lapp T12 table 12-1 and Bayka TD06DE agree"},
+    {"key": 400, "column": "a_single_1", "want": 726, "ref": "DIN VDE 0298-4 table 11: Bayka TD06DE and the older cable catalogue page agree"},
+    {"key": 300, "column": "c_multicore_2or3", "want": 523, "ref": "DIN VDE 0298-4 table 11: Bayka TD06DE and the older cable catalogue page agree"},
+    {"key": 0.5, "column": "a_single_1", "want": null, "ref": "12 A is an extended-range value (Lapp, not part of table 11; Bayka lists a dash), so the cell is left empty"},
+    {"key": 10, "column": "b_household_2", "want": null, "ref": "63 A appears in Bayka TD06DE only, so the cell is left empty"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(flex_cord_ampacity, c_multicore_2or3, 40, size_mm2)", "want": 6e-06, "ref": "column C: 4 mm² carries 34 A (below 40 A), 6 mm² carries 44 A, so 6 mm² = 6e-6 m²"}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "table": "ipc2221c_conductor_spacing",
+  "cells": [
+    {"key": 31, "column": "b2", "want": 0.64, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree; differs from IPC-2221B (0.6 mm)"},
+    {"key": 31, "column": "b4", "want": 0.3, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree; differs from IPC-2221B (0.13 mm)"},
+    {"key": 0, "column": "b4", "want": 0.075, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree"},
+    {"key": 151, "column": "b2", "want": 1.25, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree"},
+    {"key": 101, "column": "b3", "want": 3.2, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree"},
+    {"key": 251, "column": "a6", "want": 0.4, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree; the old A7 value 0.8 mm became 0.4 mm here"},
+    {"key": 251, "column": "a7", "want": 0.8, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree"},
+    {"key": 301, "column": "a8", "want": 3.0, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree; column A8 is new"},
+    {"key": 301, "column": "b4", "want": 1.6, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree"},
+    {"key": 500, "column": "a8", "want": 0.0061, "ref": "IPC-2221C table 6-1 (December 2023): Siemens EDA figure and the pcb-toolkit constants agree; per-volt row"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(ipc2221c_conductor_spacing, v_max, 120, b2)", "want": 0.00064, "ref": "120 V lies in the 101 to 150 V band: B2 = 0.64 mm = 6.4e-4 m (IPC-2221C table 6-1)"},
+    {"expr": "lookup(ipc2221c_conductor_spacing, a8, 500)", "want": 6.1e-06, "ref": "per-volt row, A8: 0.0061 mm/V = 6.1e-6 m/V (IPC-2221C table 6-1)"}
+  ]
+}

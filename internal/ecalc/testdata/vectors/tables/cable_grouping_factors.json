@@ -1,0 +1,19 @@
+{
+  "table": "cable_grouping_factors",
+  "cells": [
+    {"key": 3, "column": "bunched", "want": 0.7, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree"},
+    {"key": 20, "column": "bunched", "want": 0.38, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree"},
+    {"key": 9, "column": "wall_touching", "want": 0.7, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree"},
+    {"key": 12, "column": "ceiling_touching", "want": 0.61, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree; DIN VDE 0298-4 gives the same"},
+    {"key": 4, "column": "perforated_tray", "want": 0.77, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree"},
+    {"key": 6, "column": "ladder", "want": 0.79, "ref": "IEC 60364-5-52 table B.52.17: Schneider Electrical Installation Guide figure G16 and ABB SACE Electrical Installation Handbook vol. 2 (4th ed.) table 5 agree"},
+    {"key": 10, "column": "bunched", "want": 0.48, "ref": "DIN VDE 0298-4 table 21: ABB Stotz-Kontakt 2CDC400027D0104 table 7 and Lapp T12 table 12-6 agree"},
+    {"key": 2, "column": "wall_spaced", "want": 0.94, "ref": "DIN VDE 0298-4 table 21: ABB Stotz-Kontakt 2CDC400027D0104 table 7 and Lapp T12 table 12-6 agree (spaced by one diameter, DIN only)"},
+    {"key": 14, "column": "bunched", "want": null, "ref": "0.43 appears in ABB Stotz-Kontakt table 7 only, so the cell is left empty"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_grouping_factors, circuits, 13, bunched)", "want": "nan", "ref": "the next listed count above 13 circuits is 14, whose bunched cell is empty (one source), so the function gives no value"},
+    {"expr": "lookup_ge(cable_grouping_factors, circuits, 7, wall_touching)", "want": 0.72, "ref": "7 circuits are listed: 0.72 (Schneider figure G16, ABB handbook vol. 2 table 5)"},
+    {"expr": "lookup_ge(cable_grouping_factors, circuits, 11, bunched)", "want": 0.45, "ref": "11 circuits are not listed, the next listed count is 12 with 0.45 (Schneider figure G16, ABB handbook vol. 2 table 5)"}
+  ]
+}

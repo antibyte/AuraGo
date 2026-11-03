@@ -1,0 +1,18 @@
+{
+  "table": "iec60228_cross_sections",
+  "cells": [
+    {"key": 1.5, "column": "r_cu_class2", "want": 12.1, "ref": "IEC 60228: Cembre General Catalogue (IEC 60228:2004) and myCableEngineering (BS EN IEC 60228:2024) agree"},
+    {"key": 10, "column": "r_al_class2", "want": 3.08, "ref": "IEC 60228: Cembre General Catalogue (IEC 60228:2004) and myCableEngineering (BS EN IEC 60228:2024) agree"},
+    {"key": 25, "column": "r_cu_class5_coated", "want": 0.795, "ref": "IEC 60228: Cembre prints 0.795, myCableEngineering rounds to 0.80 (same value)"},
+    {"key": 630, "column": "r_cu_class5", "want": 0.0287, "ref": "IEC 60228: Cembre General Catalogue (IEC 60228:2004) and myCableEngineering (BS EN IEC 60228:2024) agree"},
+    {"key": 1200, "column": "r_al_class2", "want": 0.0247, "ref": "IEC 60228: Cembre General Catalogue (IEC 60228:2004) and myCableEngineering (BS EN IEC 60228:2024) agree"},
+    {"key": 0.5, "column": "r_al_class2", "want": null, "ref": "the aluminium series starts at 10 mm²"},
+    {"key": 1400, "column": "r_cu_class2", "want": null, "ref": "0.0129 Ω/km appears in the Cembre catalogue only, so the cell is left empty"},
+    {"key": 1400, "column": "preferred", "want": "no", "ref": "IEC 60228: Cembre catalogue and Wikipedia mark 1400 and 1800 mm² as non-preferred"},
+    {"key": 2500, "column": "preferred", "want": "yes", "ref": "IEC 60228: Cembre catalogue and Wikipedia list 2500 mm² as a preferred size"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(iec60228_cross_sections, size_mm2, 7e-06, size_mm2)", "want": 1e-05, "ref": "the next standard size above 7 mm² is 10 mm² = 1e-5 m² (IEC 60228 size list: Cembre and Wikipedia agree)"},
+    {"expr": "lookup(iec60228_cross_sections, r_cu_class2, 1.5e-06)", "want": 12.1, "ref": "1.5 mm² = 1.5e-6 m², class 2 copper: 12.1 Ω/km, shown as 12.1 Ω for 1 km (SI ohm)"}
+  ]
+}

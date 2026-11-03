@@ -1,0 +1,14 @@
+{
+  "table": "nec_ampacity_awg",
+  "cells": [
+    {"key": "12", "column": "cu_75", "want": 25, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "1/0", "column": "cu_90", "want": 170, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "250", "column": "al_75", "want": 205, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "500", "column": "cu_60", "want": 320, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "10", "column": "al_60", "want": 25, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "18", "column": "cu_90", "want": 14, "ref": "NFPA 70 NEC 2023 table 310.16 (NFPA CMP-6 first draft report) and Omni Cable NEC ampacity data (NEC 2017 table 310.15(B)(16)) agree"},
+    {"key": "18", "column": "cu_60", "want": null, "ref": "the table has no 60 °C value for 18 AWG"},
+    {"key": "14", "column": "ocpd_note", "want": "240.4(D)", "ref": "NEC table 310.16 footnote: overcurrent protection of 14, 12 and 10 AWG copper is limited by 240.4(D)"},
+    {"key": "8", "column": "ocpd_note", "want": null, "ref": "no footnote for 8 AWG"}
+  ]
+}

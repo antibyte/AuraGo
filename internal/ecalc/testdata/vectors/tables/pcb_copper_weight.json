@@ -1,0 +1,16 @@
+{
+  "table": "pcb_copper_weight",
+  "cells": [
+    {"key": 1, "column": "area_weight", "want": 305.15, "ref": "NIST SP 811 appendix B.9: 1 oz/ft² = 0.3051517 kg/m²"},
+    {"key": 0.5, "column": "area_weight", "want": 152.58, "ref": "NIST SP 811 appendix B.9: 1 oz/ft² = 0.3051517 kg/m²; Denkai TOB-III lists 152.5 g/m² for 1/2 oz"},
+    {"key": 1, "column": "t_physical", "want": 3.415e-05, "ref": "NIST SP 811 appendix B.9: 1 oz/ft² = 0.3051517 kg/m² divided by the copper density 8.935 g/cm³ (Wikipedia): 305.1517 / 8.935 = 34.15 µm"},
+    {"key": 1, "column": "t_ipc4562", "want": 3.43e-05, "ref": "IPC-4562A nominal thickness 1.35 mil = 34.3 µm, as quoted by B. Hargin (Siemens EDA, 2025)"},
+    {"key": 2, "column": "t_designation", "want": 7e-05, "ref": "IPC-4562 table 1-1 designation as printed in the Denkai TOB-III data sheet: 2 oz = 70 µm"},
+    {"key": 0.5, "column": "t_137mil", "want": 0.685, "ref": "the 1.37 mil rule (JLCPCB, AIVON): 0.5 oz x 1.37 mil = 0.685 mil"},
+    {"key": 4, "column": "t_designation", "want": null, "ref": "no designation for 4 oz in the sources found"},
+    {"key": 0.25, "column": "t_ipc4562", "want": null, "ref": "IPC-4562A as quoted by Siemens lists 1/2, 1 and 2 oz only"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(pcb_copper_weight, t_physical, 5e-05, weight_oz)", "want": 2, "ref": "the first weight whose physical thickness reaches 50 µm: 1 oz = 34.15 µm is too thin, 2 oz = 68.30 µm"}
+  ]
+}

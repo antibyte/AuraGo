@@ -1,0 +1,18 @@
+{
+  "table": "cable_ampacity_cu_pvc",
+  "cells": [
+    {"key": 1.5, "column": "a1_2", "want": 14.5, "ref": "IEC 60364-5-52 B.52.2: ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D1A agree (DIN VDE 0298-4 gives 15.5 A for this cell, see the table notes)"},
+    {"key": 1.5, "column": "b2_3", "want": 15, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8, BS 7671:2018 appendix 4 table 4D2A and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) (B2, three loaded)"},
+    {"key": 2.5, "column": "c_2", "want": 27, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D2A (method C, two loaded)"},
+    {"key": 2.5, "column": "e_3", "want": 25, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D2A (method E, three loaded)"},
+    {"key": 95, "column": "a2_3", "want": 150, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8, BS 7671:2018 appendix 4 table 4D2A and Schneider Electrical Installation Guide figure G20 (IEC 60364-5-52 table B.52.4) (A2, three loaded)"},
+    {"key": 25, "column": "f_2", "want": 131, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D1A (method F, two single-core cables flat, first size with a value)"},
+    {"key": 16, "column": "f_2", "want": null, "ref": "IEC 60364-5-52 B.52.10: method F has no value below 25 mm²"},
+    {"key": 240, "column": "e_2", "want": 514, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D2A (method E, two loaded, largest size)"},
+    {"key": 240, "column": "f_3", "want": 485, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4D1A (method F, trefoil, largest size)"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_ampacity_cu_pvc, b2_2, 20, section)", "want": 2.5e-06, "ref": "B2 two loaded: 1.5 mm² carries 16.5 A (below 20 A), 2.5 mm² carries 23 A, so 2.5 mm² = 2.5e-6 m²"},
+    {"expr": "lookup(cable_ampacity_cu_pvc, e_3, 9.5e-05)", "want": 238, "ref": "95 mm² = 9.5e-5 m², method E three loaded: 238 A (ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8, BS 7671:2018 appendix 4 table 4D2A)"}
+  ]
+}

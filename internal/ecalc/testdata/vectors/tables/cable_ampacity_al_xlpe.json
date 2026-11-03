@@ -1,0 +1,15 @@
+{
+  "table": "cable_ampacity_al_xlpe",
+  "cells": [
+    {"key": 25, "column": "f_2", "want": 121, "ref": "IEC 60364-5-52 B.52.13: ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and the Prysmian Spain AL XZ1 datasheets (method F at 30 °C) agree"},
+    {"key": 240, "column": "f_3", "want": 471, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and the Prysmian Spain AL XZ1 datasheets (method F, trefoil)"},
+    {"key": 16, "column": "b1_2", "want": 79, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and the Prysmian Spain AL XZ1 datasheets (method B1 at 40 °C times 1/0.91; the rounded value maps to one 30 °C value only)"},
+    {"key": 185, "column": "b1_3", "want": 300, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and the Prysmian Spain AL XZ1 datasheets (method B1 at 40 °C, one 30 °C value maps to the printed one)"},
+    {"key": 25, "column": "b1_2", "want": null, "ref": "ABB lists 105 A but the second source fits 105 and 106 A, so the cell is left empty"},
+    {"key": 120, "column": "a1_2", "want": null, "ref": "method A1: ABB handbook only, left empty"},
+    {"key": 16, "column": "f_2", "want": null, "ref": "no value for method F at 16 mm² in the ABB handbook"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_ampacity_al_xlpe, f_3, 200, section)", "want": 7e-05, "ref": "F three loaded: 50 mm² carries 159 A (below 200 A), 70 mm² carries 206 A, so 70 mm² = 7e-5 m²"}
+  ]
+}

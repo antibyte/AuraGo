@@ -1,0 +1,14 @@
+{
+  "table": "cable_ampacity_cu_xlpe",
+  "cells": [
+    {"key": 1.5, "column": "a1_2", "want": 19, "ref": "IEC 60364-5-52 B.52.3: ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4E1A agree"},
+    {"key": 2.5, "column": "a1_2", "want": null, "ref": "ABB lists 26 A but the Eland reproduction of BS 7671:2018 appendix 4 table 4E1A has no 2.5 mm² row, so the cell is left empty (one source)"},
+    {"key": 2.5, "column": "c_3", "want": 30, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4E2A (method C, three loaded)"},
+    {"key": 4, "column": "b2_2", "want": 40, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4E2A (method B2, two loaded)"},
+    {"key": 25, "column": "f_3", "want": 135, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4E1A (method F, trefoil, first size with a value)"},
+    {"key": 240, "column": "f_2", "want": 679, "ref": "ABB SACE Electrical Installation Handbook (6th ed. 2010) table 8 and BS 7671:2018 appendix 4 table 4E1A (method F, flat, largest size)"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(cable_ampacity_cu_xlpe, a1_2, 22, section)", "want": 4e-06, "ref": "A1 two loaded: 1.5 mm² carries 19 A (below 22 A), the 2.5 mm² cell is empty and is skipped, 4 mm² carries 35 A, so 4 mm² = 4e-6 m²"}
+  ]
+}

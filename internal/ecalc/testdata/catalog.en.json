@@ -15094,6 +15094,3675 @@
     },
     {
       "kind": "table",
+      "id": "cable_ampacity_cu_pvc",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Cable current ratings, copper, PVC (70 °C)",
+      "name_en": "Cable current ratings, copper, PVC (70 °C)",
+      "doc": "Current-carrying capacity of copper conductors with PVC insulation (70 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).",
+      "notes": "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². IEC and DIN differ in two cells: DIN VDE 0298-4 (2013) gives 15.5 A for 1.5 mm² in A1 and A2 with two loaded conductors; this table carries the IEC values 14.5 A and 14 A. BS 7671 gives 20 A for 2.5 mm² in method A with two cables, IEC and DIN give 19.5 A (the table follows IEC and DIN).",
+      "tags": [
+        "ampacity",
+        "current rating",
+        "current carrying capacity",
+        "cable",
+        "wire",
+        "copper",
+        "pvc",
+        "iec 60364-5-52",
+        "strombelastbarkeit",
+        "belastbarkeit",
+        "kabel",
+        "leitung",
+        "kupfer",
+        "din vde 0298-4",
+        "verlegeart"
+      ],
+      "source": "IEC 60364-5-52:2009 annex B (tables B.52.2, B.52.4, B.52.10) = DIN VDE 0298-4:2013-06 table 3, as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8), BS 7671:2018 appendix 4 (tables 4D1A, 4D2A), the Schneider Electrical Installation Guide (figure G20), ABB Stotz-Kontakt 2CDC400027D0104 (table 2) and Engineering ToolBox",
+      "guide": true,
+      "mains": true,
+      "key": "section",
+      "columns": [
+        {
+          "id": "section",
+          "name": "Cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "a1_2",
+          "name": "A1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a1_3",
+          "name": "A1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_2",
+          "name": "A2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_3",
+          "name": "A2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_2",
+          "name": "B1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_3",
+          "name": "B1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_2",
+          "name": "B2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_3",
+          "name": "B2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_2",
+          "name": "C, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_3",
+          "name": "C, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_2",
+          "name": "E, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_3",
+          "name": "E, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_2",
+          "name": "F, 2 loaded, flat",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_3",
+          "name": "F, 3 loaded, trefoil",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0.0000015,
+          14.5,
+          13.5,
+          14,
+          13,
+          17.5,
+          15.5,
+          16.5,
+          15,
+          19.5,
+          17.5,
+          22,
+          18.5,
+          null,
+          null
+        ],
+        [
+          0.0000024999999999999998,
+          19.5,
+          18,
+          18.5,
+          17.5,
+          24,
+          21,
+          23,
+          20,
+          27,
+          24,
+          30,
+          25,
+          null,
+          null
+        ],
+        [
+          0.000004,
+          26,
+          24,
+          25,
+          23,
+          32,
+          28,
+          30,
+          27,
+          36,
+          32,
+          40,
+          34,
+          null,
+          null
+        ],
+        [
+          0.000006,
+          34,
+          31,
+          32,
+          29,
+          41,
+          36,
+          38,
+          34,
+          46,
+          41,
+          51,
+          43,
+          null,
+          null
+        ],
+        [
+          0.000009999999999999999,
+          46,
+          42,
+          43,
+          39,
+          57,
+          50,
+          52,
+          46,
+          63,
+          57,
+          70,
+          60,
+          null,
+          null
+        ],
+        [
+          0.000016,
+          61,
+          56,
+          57,
+          52,
+          76,
+          68,
+          69,
+          62,
+          85,
+          76,
+          94,
+          80,
+          null,
+          null
+        ],
+        [
+          0.000024999999999999998,
+          80,
+          73,
+          75,
+          68,
+          101,
+          89,
+          90,
+          80,
+          112,
+          96,
+          119,
+          101,
+          131,
+          110
+        ],
+        [
+          0.000035,
+          99,
+          89,
+          92,
+          83,
+          125,
+          110,
+          111,
+          99,
+          138,
+          119,
+          148,
+          126,
+          162,
+          137
+        ],
+        [
+          0.000049999999999999996,
+          119,
+          108,
+          110,
+          99,
+          151,
+          134,
+          133,
+          118,
+          168,
+          144,
+          180,
+          153,
+          196,
+          167
+        ],
+        [
+          0.00007,
+          151,
+          136,
+          139,
+          125,
+          192,
+          171,
+          168,
+          149,
+          213,
+          184,
+          232,
+          196,
+          251,
+          216
+        ],
+        [
+          0.00009499999999999999,
+          182,
+          164,
+          167,
+          150,
+          232,
+          207,
+          201,
+          179,
+          258,
+          223,
+          282,
+          238,
+          304,
+          264
+        ],
+        [
+          0.00011999999999999999,
+          210,
+          188,
+          192,
+          172,
+          269,
+          239,
+          232,
+          206,
+          299,
+          259,
+          328,
+          276,
+          352,
+          308
+        ],
+        [
+          0.00015,
+          240,
+          216,
+          219,
+          196,
+          300,
+          262,
+          258,
+          225,
+          344,
+          299,
+          379,
+          319,
+          406,
+          356
+        ],
+        [
+          0.000185,
+          273,
+          245,
+          248,
+          223,
+          341,
+          296,
+          294,
+          255,
+          392,
+          341,
+          434,
+          364,
+          463,
+          409
+        ],
+        [
+          0.00023999999999999998,
+          321,
+          286,
+          291,
+          261,
+          400,
+          346,
+          344,
+          297,
+          461,
+          403,
+          514,
+          430,
+          546,
+          485
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_ampacity_cu_xlpe",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Cable current ratings, copper, XLPE/EPR (90 °C)",
+      "name_en": "Cable current ratings, copper, XLPE/EPR (90 °C)",
+      "doc": "Current-carrying capacity of copper conductors with XLPE/EPR insulation (90 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).",
+      "notes": "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². The four cells for 2.5 mm² in A1 and B1 are empty: they were found in the ABB handbook only. 90 °C values may only be used if terminals, devices and accessories are rated for 90 °C; in building installations DIN VDE 0298-4 usually limits the conductor temperature to 70 °C, so use the PVC table there.",
+      "tags": [
+        "ampacity",
+        "current rating",
+        "current carrying capacity",
+        "cable",
+        "wire",
+        "copper",
+        "xlpe epr",
+        "iec 60364-5-52",
+        "strombelastbarkeit",
+        "belastbarkeit",
+        "kabel",
+        "leitung",
+        "kupfer",
+        "din vde 0298-4",
+        "verlegeart"
+      ],
+      "source": "IEC 60364-5-52:2009 annex B (tables B.52.3, B.52.5, B.52.12) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and BS 7671:2018 appendix 4 (tables 4E1A, 4E2A)",
+      "guide": true,
+      "mains": true,
+      "key": "section",
+      "columns": [
+        {
+          "id": "section",
+          "name": "Cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "a1_2",
+          "name": "A1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a1_3",
+          "name": "A1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_2",
+          "name": "A2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_3",
+          "name": "A2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_2",
+          "name": "B1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_3",
+          "name": "B1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_2",
+          "name": "B2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_3",
+          "name": "B2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_2",
+          "name": "C, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_3",
+          "name": "C, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_2",
+          "name": "E, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_3",
+          "name": "E, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_2",
+          "name": "F, 2 loaded, flat",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_3",
+          "name": "F, 3 loaded, trefoil",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0.0000015,
+          19,
+          17,
+          18.5,
+          16.5,
+          23,
+          20,
+          22,
+          19.5,
+          24,
+          22,
+          26,
+          23,
+          null,
+          null
+        ],
+        [
+          0.0000024999999999999998,
+          null,
+          null,
+          25,
+          22,
+          null,
+          null,
+          30,
+          26,
+          33,
+          30,
+          36,
+          32,
+          null,
+          null
+        ],
+        [
+          0.000004,
+          35,
+          31,
+          33,
+          30,
+          42,
+          37,
+          40,
+          35,
+          45,
+          40,
+          49,
+          42,
+          null,
+          null
+        ],
+        [
+          0.000006,
+          45,
+          40,
+          42,
+          38,
+          54,
+          48,
+          51,
+          44,
+          58,
+          52,
+          63,
+          54,
+          null,
+          null
+        ],
+        [
+          0.000009999999999999999,
+          61,
+          54,
+          57,
+          51,
+          75,
+          66,
+          69,
+          60,
+          80,
+          71,
+          86,
+          75,
+          null,
+          null
+        ],
+        [
+          0.000016,
+          81,
+          73,
+          76,
+          68,
+          100,
+          88,
+          91,
+          80,
+          107,
+          96,
+          115,
+          100,
+          null,
+          null
+        ],
+        [
+          0.000024999999999999998,
+          106,
+          95,
+          99,
+          89,
+          133,
+          117,
+          119,
+          105,
+          138,
+          119,
+          149,
+          127,
+          161,
+          135
+        ],
+        [
+          0.000035,
+          131,
+          117,
+          121,
+          109,
+          164,
+          144,
+          146,
+          128,
+          171,
+          147,
+          185,
+          158,
+          200,
+          169
+        ],
+        [
+          0.000049999999999999996,
+          158,
+          141,
+          145,
+          130,
+          198,
+          175,
+          175,
+          154,
+          209,
+          179,
+          225,
+          192,
+          242,
+          207
+        ],
+        [
+          0.00007,
+          200,
+          179,
+          183,
+          164,
+          253,
+          222,
+          221,
+          194,
+          269,
+          229,
+          289,
+          246,
+          310,
+          268
+        ],
+        [
+          0.00009499999999999999,
+          241,
+          216,
+          220,
+          197,
+          306,
+          269,
+          265,
+          233,
+          328,
+          278,
+          352,
+          298,
+          377,
+          328
+        ],
+        [
+          0.00011999999999999999,
+          278,
+          249,
+          253,
+          227,
+          354,
+          312,
+          305,
+          268,
+          382,
+          322,
+          410,
+          346,
+          437,
+          383
+        ],
+        [
+          0.00015,
+          318,
+          285,
+          290,
+          259,
+          393,
+          342,
+          334,
+          300,
+          441,
+          371,
+          473,
+          399,
+          504,
+          444
+        ],
+        [
+          0.000185,
+          362,
+          324,
+          329,
+          295,
+          449,
+          384,
+          384,
+          340,
+          506,
+          424,
+          542,
+          456,
+          575,
+          510
+        ],
+        [
+          0.00023999999999999998,
+          424,
+          380,
+          386,
+          346,
+          528,
+          450,
+          459,
+          398,
+          599,
+          500,
+          641,
+          538,
+          679,
+          607
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_ampacity_al_pvc",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Cable current ratings, aluminium, PVC (70 °C)",
+      "name_en": "Cable current ratings, aluminium, PVC (70 °C)",
+      "doc": "Current-carrying capacity of aluminium conductors with PVC insulation (70 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).",
+      "notes": "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². Aluminium conductors from 16 mm² (IEC also lists 2.5 to 10 mm²). Only the columns with three loaded conductors in A1, A2, B1, B2 and C are confirmed by a second source; the columns with two loaded conductors and the methods E and F are empty (ABB handbook only). All columns are kept so that the four ampacity tables have the same layout. Aluminium conductors need terminals approved for aluminium.",
+      "tags": [
+        "ampacity",
+        "current rating",
+        "current carrying capacity",
+        "cable",
+        "wire",
+        "aluminium",
+        "pvc",
+        "iec 60364-5-52",
+        "strombelastbarkeit",
+        "belastbarkeit",
+        "kabel",
+        "leitung",
+        "aluminium",
+        "din vde 0298-4",
+        "verlegeart"
+      ],
+      "source": "IEC 60364-5-52:2009 annex B (tables B.52.2, B.52.4, B.52.11) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and the Schneider Electrical Installation Guide (figure G20)",
+      "guide": true,
+      "mains": true,
+      "key": "section",
+      "columns": [
+        {
+          "id": "section",
+          "name": "Cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "a1_2",
+          "name": "A1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a1_3",
+          "name": "A1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_2",
+          "name": "A2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_3",
+          "name": "A2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_2",
+          "name": "B1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_3",
+          "name": "B1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_2",
+          "name": "B2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_3",
+          "name": "B2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_2",
+          "name": "C, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_3",
+          "name": "C, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_2",
+          "name": "E, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_3",
+          "name": "E, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_2",
+          "name": "F, 2 loaded, flat",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_3",
+          "name": "F, 3 loaded, trefoil",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0.000016,
+          null,
+          43,
+          null,
+          41,
+          null,
+          53,
+          null,
+          48,
+          null,
+          59,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.000024999999999999998,
+          null,
+          57,
+          null,
+          53,
+          null,
+          70,
+          null,
+          62,
+          null,
+          73,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.000035,
+          null,
+          70,
+          null,
+          65,
+          null,
+          86,
+          null,
+          77,
+          null,
+          90,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.000049999999999999996,
+          null,
+          84,
+          null,
+          78,
+          null,
+          104,
+          null,
+          92,
+          null,
+          110,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.00007,
+          null,
+          107,
+          null,
+          98,
+          null,
+          133,
+          null,
+          116,
+          null,
+          140,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.00009499999999999999,
+          null,
+          129,
+          null,
+          118,
+          null,
+          161,
+          null,
+          139,
+          null,
+          170,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.00011999999999999999,
+          null,
+          149,
+          null,
+          135,
+          null,
+          186,
+          null,
+          160,
+          null,
+          197,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.00015,
+          null,
+          170,
+          null,
+          155,
+          null,
+          204,
+          null,
+          176,
+          null,
+          227,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.000185,
+          null,
+          194,
+          null,
+          176,
+          null,
+          230,
+          null,
+          199,
+          null,
+          259,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.00023999999999999998,
+          null,
+          227,
+          null,
+          207,
+          null,
+          269,
+          null,
+          232,
+          null,
+          305,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_ampacity_al_xlpe",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Cable current ratings, aluminium, XLPE/EPR (90 °C)",
+      "name_en": "Cable current ratings, aluminium, XLPE/EPR (90 °C)",
+      "doc": "Current-carrying capacity of aluminium conductors with XLPE/EPR insulation (90 °C) for the installation methods A1 to F, with two or three loaded conductors, at 30 °C ambient air and one circuit (IEC 60364-5-52, DIN VDE 0298-4).",
+      "notes": "Reference conditions: one circuit, 30 °C ambient air, continuous operation, AC 50/60 Hz or DC. Installation methods (IEC 60364-5-52): A1 insulated conductors or single-core cables in conduit in a thermally insulated wall; A2 multi-core cable in conduit in a thermally insulated wall; B1 insulated conductors or single-core cables in conduit on or in a wall; B2 multi-core cable in conduit on or in a wall; C cable fixed directly on or in a wall or on an unperforated tray; E multi-core cable in free air or on a perforated tray, at least 0.3 d from the wall; F single-core cables touching in free air (2 loaded: flat, 3 loaded: trefoil). Multiply by the ambient temperature factor and the grouping factor (see the tables Ambient temperature factors and Grouping factors for cables). Method F has no values below 25 mm². Aluminium conductors from 16 mm². Only method F (25 to 240 mm²) and 14 cells of method B1 are confirmed by a second source (Prysmian datasheets for AL XZ1 cables); every other cell is empty (ABB handbook only, or a second source that agrees only within 1 A). All columns are kept so that the four ampacity tables have the same layout. 90 °C values may only be used if terminals, devices and accessories are rated for 90 °C. Aluminium conductors need terminals approved for aluminium.",
+      "tags": [
+        "ampacity",
+        "current rating",
+        "current carrying capacity",
+        "cable",
+        "wire",
+        "aluminium",
+        "xlpe epr",
+        "iec 60364-5-52",
+        "strombelastbarkeit",
+        "belastbarkeit",
+        "kabel",
+        "leitung",
+        "aluminium",
+        "din vde 0298-4",
+        "verlegeart"
+      ],
+      "source": "IEC 60364-5-52:2009 annex B (tables B.52.3, B.52.5, B.52.13) as reproduced in the ABB SACE Electrical Installation Handbook (6th ed. 2010, table 8) and the Prysmian Spain datasheets for AL XZ1 cables (method F at 30 °C, method B1 at 40 °C)",
+      "guide": true,
+      "mains": true,
+      "key": "section",
+      "columns": [
+        {
+          "id": "section",
+          "name": "Cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "a1_2",
+          "name": "A1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a1_3",
+          "name": "A1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_2",
+          "name": "A2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "a2_3",
+          "name": "A2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_2",
+          "name": "B1, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b1_3",
+          "name": "B1, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_2",
+          "name": "B2, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b2_3",
+          "name": "B2, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_2",
+          "name": "C, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_3",
+          "name": "C, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_2",
+          "name": "E, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "e_3",
+          "name": "E, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_2",
+          "name": "F, 2 loaded, flat",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "f_3",
+          "name": "F, 3 loaded, trefoil",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0.000016,
+          null,
+          null,
+          null,
+          null,
+          79,
+          71,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.000024999999999999998,
+          null,
+          null,
+          null,
+          null,
+          null,
+          93,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          121,
+          103
+        ],
+        [
+          0.000035,
+          null,
+          null,
+          null,
+          null,
+          130,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          150,
+          129
+        ],
+        [
+          0.000049999999999999996,
+          null,
+          null,
+          null,
+          null,
+          157,
+          140,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          184,
+          159
+        ],
+        [
+          0.00007,
+          null,
+          null,
+          null,
+          null,
+          200,
+          179,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          237,
+          206
+        ],
+        [
+          0.00009499999999999999,
+          null,
+          null,
+          null,
+          null,
+          242,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          289,
+          253
+        ],
+        [
+          0.00011999999999999999,
+          null,
+          null,
+          null,
+          null,
+          281,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          337,
+          296
+        ],
+        [
+          0.00015,
+          null,
+          null,
+          null,
+          null,
+          307,
+          267,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          389,
+          343
+        ],
+        [
+          0.000185,
+          null,
+          null,
+          null,
+          null,
+          null,
+          300,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          447,
+          395
+        ],
+        [
+          0.00023999999999999998,
+          null,
+          null,
+          null,
+          null,
+          412,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          530,
+          471
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_ambient_temp_factors",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Ambient temperature factors for cables in air",
+      "name_en": "Ambient temperature factors for cables in air",
+      "doc": "Correction factors for the current-carrying capacity of cables in air at an ambient temperature other than 30 °C, for conductors rated 60 °C (rubber cords), 70 °C (PVC) and 90 °C (XLPE, EPR) (IEC 60364-5-52 table B.52.14, DIN VDE 0298-4 table 17).",
+      "notes": "Multiply the current-carrying capacity for 30 °C by k. An empty cell means that the insulation is not permitted at that ambient temperature. The 65 °C value of the 70 °C column (0.35) comes from DIN VDE 0298-4; IEC stops at 60 °C. The 60 °C column (DIN VDE 0298-4 only, for rubber cords) is empty from 10 to 25 °C and the 90 °C value at 85 °C is omitted, because they were found in one source only. For cables in the ground other factors apply (reference 20 °C, IEC table B.52.15). In Germany 25 °C is common practice; the factor for 70 °C is then 1.06.",
+      "tags": [
+        "ambient temperature",
+        "correction factor",
+        "temperature factor",
+        "derating",
+        "cable",
+        "ampacity",
+        "iec 60364-5-52",
+        "umgebungstemperatur",
+        "umrechnungsfaktor",
+        "temperaturfaktor",
+        "kabel",
+        "belastbarkeit",
+        "din vde 0298-4"
+      ],
+      "source": "IEC 60364-5-52:2009 table B.52.14 and DIN VDE 0298-4:2013-06 table 17, as reproduced in the Schneider Electrical Installation Guide (figure G12), the ABB SACE Electrical Installation Handbook vol. 2 (4th ed., table 4), ABB Stotz-Kontakt 2CDC400027D0104 (table 5) and Lapp T12 (table 12-2)",
+      "guide": true,
+      "mains": true,
+      "key": "ambient_c",
+      "columns": [
+        {
+          "id": "ambient_c",
+          "name": "Ambient air temperature",
+          "dim": "temperature",
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "label": "θ"
+        },
+        {
+          "id": "k_60",
+          "name": "k, 60 °C conductor (rubber)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "k_70",
+          "name": "k, 70 °C conductor (PVC)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "k_90",
+          "name": "k, 90 °C conductor (XLPE, EPR)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          283.15,
+          null,
+          1.22,
+          1.15
+        ],
+        [
+          288.15,
+          null,
+          1.17,
+          1.12
+        ],
+        [
+          293.15,
+          null,
+          1.12,
+          1.08
+        ],
+        [
+          298.15,
+          null,
+          1.06,
+          1.04
+        ],
+        [
+          303.15,
+          1,
+          1,
+          1
+        ],
+        [
+          308.15,
+          0.91,
+          0.94,
+          0.96
+        ],
+        [
+          313.15,
+          0.82,
+          0.87,
+          0.91
+        ],
+        [
+          318.15,
+          0.71,
+          0.79,
+          0.87
+        ],
+        [
+          323.15,
+          0.58,
+          0.71,
+          0.82
+        ],
+        [
+          328.15,
+          0.41,
+          0.61,
+          0.76
+        ],
+        [
+          333.15,
+          null,
+          0.5,
+          0.71
+        ],
+        [
+          338.15,
+          null,
+          0.35,
+          0.65
+        ],
+        [
+          343.15,
+          null,
+          null,
+          0.58
+        ],
+        [
+          348.15,
+          null,
+          null,
+          0.5
+        ],
+        [
+          353.15,
+          null,
+          null,
+          0.41
+        ],
+        [
+          358.15,
+          null,
+          null,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_grouping_factors",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Grouping factors for cables",
+      "name_en": "Grouping factors for cables",
+      "doc": "Reduction factors for the current-carrying capacity of cables in groups of several circuits (one multi-core cable, or one group of 2 or 3 single-core cables, counts as one circuit), by the arrangement of the cables (IEC 60364-5-52 table B.52.17, DIN VDE 0298-4 table 21).",
+      "notes": "The standard lists the arrangements as rows and the numbers of circuits as columns; here they are swapped so that the number of circuits is the key. The factors apply to cables of similar size that are equally loaded and touch each other, unless stated otherwise; the sizes may differ by at most three adjacent standard sizes (IEC) or one size step (DIN). No factor is needed when the horizontal clearance exceeds twice the cable diameter or when a cable carries less than 30 % of its grouped rating. For single-layer arrangements there is no further reduction above nine circuits (IEC), so the factors for 10 to 20 circuits repeat the value for nine. The two spaced arrangements come from DIN VDE 0298-4 only. Empty cells are not listed in the standard or were found in one source only (the bunched factor for 14 circuits and the spaced factors for 5, 8, 12 and 14 circuits). If the number of circuits is not listed, use the next larger listed number.",
+      "tags": [
+        "grouping",
+        "grouping factor",
+        "bunched",
+        "derating",
+        "cable",
+        "ampacity",
+        "iec 60364-5-52",
+        "häufung",
+        "häufungsfaktor",
+        "gebündelt",
+        "kabel",
+        "belastbarkeit",
+        "din vde 0298-4"
+      ],
+      "source": "IEC 60364-5-52:2009 table B.52.17 and DIN VDE 0298-4:2013-06 table 21, as reproduced in the Schneider Electrical Installation Guide (figure G16), the ABB SACE Electrical Installation Handbook vol. 2 (4th ed., table 5), ABB Stotz-Kontakt 2CDC400027D0104 (table 7) and Lapp T12 (table 12-6)",
+      "guide": true,
+      "mains": true,
+      "key": "circuits",
+      "columns": [
+        {
+          "id": "circuits",
+          "name": "Circuits or multi-core cables",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": "n"
+        },
+        {
+          "id": "bunched",
+          "name": "Bunched or enclosed (A–F)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "wall_touching",
+          "name": "One layer on a wall or unperforated tray, touching (C)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "ceiling_touching",
+          "name": "One layer under a ceiling, touching (C)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "perforated_tray",
+          "name": "One layer on a perforated tray, touching (E, F)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "ladder",
+          "name": "One layer on ladder supports or cleats, touching (E, F)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "wall_spaced",
+          "name": "One layer on a wall, spaced by one diameter (C, DIN)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "ceiling_spaced",
+          "name": "One layer under a ceiling, spaced by one diameter (C, DIN)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          1,
+          1,
+          1,
+          0.95,
+          1,
+          1,
+          1,
+          0.95
+        ],
+        [
+          2,
+          0.8,
+          0.85,
+          0.81,
+          0.88,
+          0.87,
+          0.94,
+          0.85
+        ],
+        [
+          3,
+          0.7,
+          0.79,
+          0.72,
+          0.82,
+          0.82,
+          0.9,
+          0.85
+        ],
+        [
+          4,
+          0.65,
+          0.75,
+          0.68,
+          0.77,
+          0.8,
+          0.9,
+          0.85
+        ],
+        [
+          5,
+          0.6,
+          0.73,
+          0.66,
+          0.75,
+          0.8,
+          null,
+          null
+        ],
+        [
+          6,
+          0.57,
+          0.72,
+          0.64,
+          0.73,
+          0.79,
+          0.9,
+          0.85
+        ],
+        [
+          7,
+          0.54,
+          0.72,
+          0.63,
+          0.73,
+          0.79,
+          null,
+          null
+        ],
+        [
+          8,
+          0.52,
+          0.71,
+          0.62,
+          0.72,
+          0.78,
+          null,
+          null
+        ],
+        [
+          9,
+          0.5,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          null,
+          null
+        ],
+        [
+          10,
+          0.48,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          0.9,
+          0.85
+        ],
+        [
+          12,
+          0.45,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          null,
+          null
+        ],
+        [
+          14,
+          null,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          null,
+          null
+        ],
+        [
+          16,
+          0.41,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          null,
+          null
+        ],
+        [
+          20,
+          0.38,
+          0.7,
+          0.61,
+          0.72,
+          0.78,
+          null,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "cable_multicore_factors",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Factors for multi-core cables and cords",
+      "name_en": "Factors for multi-core cables and cords",
+      "doc": "Factors for multi-core cables and cords with conductor cross-sections up to 10 mm² and more than three loaded cores, for installation in air (DIN VDE 0298-4 table 26).",
+      "notes": "Apply the factor to the current-carrying capacity for three loaded conductors. Count only the cores that carry load current (not PE; a neutral only if it carries current, for example harmonics), and use the next listed number of loaded cores. The factors for installation in the ground and the rows for 19, 40 and 61 cores were found in one source only and are omitted.",
+      "tags": [
+        "multi-core",
+        "multicore",
+        "correction factor",
+        "derating",
+        "cable",
+        "cord",
+        "ampacity",
+        "vieladrig",
+        "umrechnungsfaktor",
+        "leitung",
+        "belastbarkeit",
+        "din vde 0298-4"
+      ],
+      "source": "DIN VDE 0298-4:2013-06 table 26, as reproduced in Lapp T12 (table 12-3), the Bayka data sheet TD06DE (07/2022) and ABB Stotz-Kontakt 2CDC400027D0104 (table 9)",
+      "guide": true,
+      "mains": true,
+      "key": "loaded_cores",
+      "columns": [
+        {
+          "id": "loaded_cores",
+          "name": "Loaded cores",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": "N"
+        },
+        {
+          "id": "k_air",
+          "name": "Factor for installation in air",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          5,
+          0.75
+        ],
+        [
+          7,
+          0.65
+        ],
+        [
+          10,
+          0.55
+        ],
+        [
+          14,
+          0.5
+        ],
+        [
+          24,
+          0.4
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "flex_cord_ampacity",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Flexible cord current ratings (DIN VDE 0298-4)",
+      "name_en": "Flexible cord current ratings (DIN VDE 0298-4)",
+      "doc": "Current-carrying capacity of flexible copper cords and cables at 30 °C ambient air by cord type group, for fixed use and continuous operation (DIN VDE 0298-4 table 11).",
+      "notes": "The permissible conductor temperature depends on the cord type (for example 60 °C rubber, 70 °C PVC); which cord types belong to which column is listed in DIN VDE 0298-4 (tables 1 and 11). Correct for the ambient temperature, grouping and multi-core cords with the factor tables. For cords on reels the factor is 0.80 for one layer (DIN VDE 0298-4 table 27). Not included: the columns for heavy rubber cables (0.6/1 kV) and single-core special rubber cables, the 500 mm² row, the cells for 6 and 10 mm² household appliance cords with two loaded conductors (one source only), and for 0.5 mm² the single-core and multi-core values of Lapp's extended range (12 A and 9 A), which are not part of table 11.",
+      "tags": [
+        "flexible cord",
+        "flexible cable",
+        "cord",
+        "ampacity",
+        "current rating",
+        "rubber",
+        "extension cord",
+        "flexible leitung",
+        "gummileitung",
+        "strombelastbarkeit",
+        "leitung",
+        "belastbarkeit",
+        "din vde 0298-4"
+      ],
+      "source": "DIN VDE 0298-4:2013-06 table 11, as reproduced in Lapp T12 (table 12-1), the Bayka data sheet TD06DE (07/2022) and an older cable catalogue page based on DIN VDE 0298-4 and DIN VDE 0100-430",
+      "guide": true,
+      "mains": true,
+      "key": "size_mm2",
+      "columns": [
+        {
+          "id": "size_mm2",
+          "name": "Cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "a_single_1",
+          "name": "A: single-core cords in free air, 1 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b_household_2",
+          "name": "B: household and hand-held appliance cords, 2 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "b_household_3",
+          "name": "B: household and hand-held appliance cords, 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "c_multicore_2or3",
+          "name": "C: other multi-core cords, 2 or 3 loaded",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          5e-7,
+          null,
+          3,
+          3,
+          null
+        ],
+        [
+          7.5e-7,
+          15,
+          6,
+          6,
+          12
+        ],
+        [
+          0.000001,
+          19,
+          10,
+          10,
+          15
+        ],
+        [
+          0.0000015,
+          24,
+          16,
+          16,
+          18
+        ],
+        [
+          0.0000024999999999999998,
+          32,
+          25,
+          20,
+          26
+        ],
+        [
+          0.000004,
+          42,
+          32,
+          25,
+          34
+        ],
+        [
+          0.000006,
+          54,
+          null,
+          null,
+          44
+        ],
+        [
+          0.000009999999999999999,
+          73,
+          null,
+          null,
+          61
+        ],
+        [
+          0.000016,
+          98,
+          null,
+          null,
+          82
+        ],
+        [
+          0.000024999999999999998,
+          129,
+          null,
+          null,
+          108
+        ],
+        [
+          0.000035,
+          158,
+          null,
+          null,
+          135
+        ],
+        [
+          0.000049999999999999996,
+          198,
+          null,
+          null,
+          168
+        ],
+        [
+          0.00007,
+          245,
+          null,
+          null,
+          207
+        ],
+        [
+          0.00009499999999999999,
+          292,
+          null,
+          null,
+          250
+        ],
+        [
+          0.00011999999999999999,
+          344,
+          null,
+          null,
+          292
+        ],
+        [
+          0.00015,
+          391,
+          null,
+          null,
+          335
+        ],
+        [
+          0.000185,
+          448,
+          null,
+          null,
+          382
+        ],
+        [
+          0.00023999999999999998,
+          528,
+          null,
+          null,
+          453
+        ],
+        [
+          0.0003,
+          608,
+          null,
+          null,
+          523
+        ],
+        [
+          0.00039999999999999996,
+          726,
+          null,
+          null,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "nec_ampacity_awg",
+      "category": "tables",
+      "group": "conductors",
+      "name": "NEC ampacities by AWG (table 310.16)",
+      "name_en": "NEC ampacities by AWG (table 310.16)",
+      "doc": "Allowable ampacities of insulated copper and aluminium conductors rated 0 to 2000 V, with not more than three current-carrying conductors in a raceway, cable or the earth, at 30 °C ambient, by AWG or kcmil size (NEC table 310.16).",
+      "notes": "US view; for IEC and DIN installations use the cable current-rating tables. The columns are the temperature rating of the insulation (60, 75 and 90 °C); the temperature rating of the terminals (usually 60 °C or 75 °C) limits which column may be used. Aluminium means aluminium or copper-clad aluminium. The overcurrent device for 14, 12 and 10 AWG copper is limited to 15, 20 and 30 A (NEC 240.4(D)) whatever the table says; the last column marks these rows. Correct for the ambient temperature (NEC 310.15(B)) and for more than three current-carrying conductors (NEC 310.15(C)(1)). NEC 2023 values; the first draft of the 2026 NEC adds values that are not included.",
+      "tags": [
+        "nec",
+        "ampacity",
+        "awg",
+        "kcmil",
+        "current rating",
+        "wire",
+        "cable",
+        "310.16",
+        "us",
+        "strombelastbarkeit",
+        "belastbarkeit",
+        "leitung",
+        "kabel",
+        "usa"
+      ],
+      "source": "NFPA 70 National Electrical Code 2023 table 310.16 (the same values as NEC 2017 table 310.15(B)(16)), checked against the NFPA CMP-6 first draft report of the 2026 cycle, the Omni Cable NEC ampacity data and the Cerrowire ampacity charts",
+      "guide": true,
+      "mains": true,
+      "key": "size",
+      "columns": [
+        {
+          "id": "size",
+          "name": "Size (AWG or kcmil)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "size_kind",
+          "name": "Size unit",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "cu_60",
+          "name": "Copper 60 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "cu_75",
+          "name": "Copper 75 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "cu_90",
+          "name": "Copper 90 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "al_60",
+          "name": "Aluminium 60 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "al_75",
+          "name": "Aluminium 75 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "al_90",
+          "name": "Aluminium 90 °C",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "ocpd_note",
+          "name": "Overcurrent protection limit",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "18",
+          "AWG",
+          null,
+          null,
+          14,
+          null,
+          null,
+          null,
+          "240.4(D)"
+        ],
+        [
+          "16",
+          "AWG",
+          null,
+          null,
+          18,
+          null,
+          null,
+          null,
+          "240.4(D)"
+        ],
+        [
+          "14",
+          "AWG",
+          15,
+          20,
+          25,
+          null,
+          null,
+          null,
+          "240.4(D)"
+        ],
+        [
+          "12",
+          "AWG",
+          20,
+          25,
+          30,
+          15,
+          20,
+          25,
+          "240.4(D)"
+        ],
+        [
+          "10",
+          "AWG",
+          30,
+          35,
+          40,
+          25,
+          30,
+          35,
+          "240.4(D)"
+        ],
+        [
+          "8",
+          "AWG",
+          40,
+          50,
+          55,
+          35,
+          40,
+          45,
+          null
+        ],
+        [
+          "6",
+          "AWG",
+          55,
+          65,
+          75,
+          40,
+          50,
+          55,
+          null
+        ],
+        [
+          "4",
+          "AWG",
+          70,
+          85,
+          95,
+          55,
+          65,
+          75,
+          null
+        ],
+        [
+          "3",
+          "AWG",
+          85,
+          100,
+          115,
+          65,
+          75,
+          85,
+          null
+        ],
+        [
+          "2",
+          "AWG",
+          95,
+          115,
+          130,
+          75,
+          90,
+          100,
+          null
+        ],
+        [
+          "1",
+          "AWG",
+          110,
+          130,
+          145,
+          85,
+          100,
+          115,
+          null
+        ],
+        [
+          "1/0",
+          "AWG",
+          125,
+          150,
+          170,
+          100,
+          120,
+          135,
+          null
+        ],
+        [
+          "2/0",
+          "AWG",
+          145,
+          175,
+          195,
+          115,
+          135,
+          150,
+          null
+        ],
+        [
+          "3/0",
+          "AWG",
+          165,
+          200,
+          225,
+          130,
+          155,
+          175,
+          null
+        ],
+        [
+          "4/0",
+          "AWG",
+          195,
+          230,
+          260,
+          150,
+          180,
+          205,
+          null
+        ],
+        [
+          "250",
+          "kcmil",
+          215,
+          255,
+          290,
+          170,
+          205,
+          230,
+          null
+        ],
+        [
+          "300",
+          "kcmil",
+          240,
+          285,
+          320,
+          195,
+          230,
+          260,
+          null
+        ],
+        [
+          "350",
+          "kcmil",
+          260,
+          310,
+          350,
+          210,
+          250,
+          280,
+          null
+        ],
+        [
+          "400",
+          "kcmil",
+          280,
+          335,
+          380,
+          225,
+          270,
+          305,
+          null
+        ],
+        [
+          "500",
+          "kcmil",
+          320,
+          380,
+          430,
+          260,
+          310,
+          350,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "iec60228_cross_sections",
+      "category": "tables",
+      "group": "conductors",
+      "name": "Standard conductor sizes (IEC 60228)",
+      "name_en": "Standard conductor sizes (IEC 60228)",
+      "doc": "Nominal conductor cross-sections of IEC 60228 with the maximum DC resistance of 1 km at 20 °C for stranded copper and aluminium conductors (class 2) and flexible copper conductors (class 5).",
+      "notes": "Class 1 is solid, class 2 stranded (fixed installation), class 5 flexible and class 6 very flexible. The resistances are maxima per kilometre at 20 °C, shown as the resistance of 1 km. Class 1 copper differs from class 2 from 185 mm² upwards (185 mm²: 0.101 against 0.0991 Ω/km); class 6 has the class 5 values up to 300 mm². The class 2 resistances of 1400 to 2500 mm² were found in one source only and are empty. The sizes 1400 and 1800 mm² are not preferred.",
+      "tags": [
+        "iec 60228",
+        "cross-section",
+        "conductor",
+        "standard sizes",
+        "resistance",
+        "class 2",
+        "class 5",
+        "stranded",
+        "flexible",
+        "querschnitt",
+        "normquerschnitt",
+        "leiter",
+        "widerstand",
+        "leiterklasse"
+      ],
+      "source": "IEC 60228:2004 and IEC 60228:2023 (BS EN IEC 60228:2024) conductor tables of classes 2 and 5, as reproduced in the Cembre General Catalogue and by myCableEngineering; the list of sizes also in Wikipedia",
+      "guide": true,
+      "mains": false,
+      "key": "size_mm2",
+      "columns": [
+        {
+          "id": "size_mm2",
+          "name": "Nominal cross-section",
+          "dim": "area",
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ],
+          "label": "A"
+        },
+        {
+          "id": "preferred",
+          "name": "Preferred size",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "r_cu_class2",
+          "name": "Max. resistance per km, class 2 copper (plain)",
+          "dim": "resistance",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "R"
+        },
+        {
+          "id": "r_cu_class5",
+          "name": "Max. resistance per km, class 5 copper (plain)",
+          "dim": "resistance",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "R"
+        },
+        {
+          "id": "r_cu_class5_coated",
+          "name": "Max. resistance per km, class 5 copper (metal-coated)",
+          "dim": "resistance",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "R"
+        },
+        {
+          "id": "r_al_class2",
+          "name": "Max. resistance per km, class 2 aluminium",
+          "dim": "resistance",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "R"
+        }
+      ],
+      "rows": [
+        [
+          5e-7,
+          "yes",
+          36,
+          39,
+          40.1,
+          null
+        ],
+        [
+          7.5e-7,
+          "yes",
+          24.5,
+          26,
+          26.7,
+          null
+        ],
+        [
+          0.000001,
+          "yes",
+          18.1,
+          19.5,
+          20,
+          null
+        ],
+        [
+          0.0000015,
+          "yes",
+          12.1,
+          13.3,
+          13.7,
+          null
+        ],
+        [
+          0.0000024999999999999998,
+          "yes",
+          7.41,
+          7.98,
+          8.21,
+          null
+        ],
+        [
+          0.000004,
+          "yes",
+          4.61,
+          4.95,
+          5.09,
+          null
+        ],
+        [
+          0.000006,
+          "yes",
+          3.08,
+          3.3,
+          3.39,
+          null
+        ],
+        [
+          0.000009999999999999999,
+          "yes",
+          1.83,
+          1.91,
+          1.95,
+          3.08
+        ],
+        [
+          0.000016,
+          "yes",
+          1.15,
+          1.21,
+          1.24,
+          1.91
+        ],
+        [
+          0.000024999999999999998,
+          "yes",
+          0.727,
+          0.78,
+          0.795,
+          1.2
+        ],
+        [
+          0.000035,
+          "yes",
+          0.524,
+          0.554,
+          0.565,
+          0.868
+        ],
+        [
+          0.000049999999999999996,
+          "yes",
+          0.387,
+          0.386,
+          0.393,
+          0.641
+        ],
+        [
+          0.00007,
+          "yes",
+          0.268,
+          0.272,
+          0.277,
+          0.443
+        ],
+        [
+          0.00009499999999999999,
+          "yes",
+          0.193,
+          0.206,
+          0.21,
+          0.32
+        ],
+        [
+          0.00011999999999999999,
+          "yes",
+          0.153,
+          0.161,
+          0.164,
+          0.253
+        ],
+        [
+          0.00015,
+          "yes",
+          0.124,
+          0.129,
+          0.132,
+          0.206
+        ],
+        [
+          0.000185,
+          "yes",
+          0.0991,
+          0.106,
+          0.108,
+          0.164
+        ],
+        [
+          0.00023999999999999998,
+          "yes",
+          0.0754,
+          0.0801,
+          0.0817,
+          0.125
+        ],
+        [
+          0.0003,
+          "yes",
+          0.0601,
+          0.0641,
+          0.0654,
+          0.1
+        ],
+        [
+          0.00039999999999999996,
+          "yes",
+          0.047,
+          0.0486,
+          0.0495,
+          0.0778
+        ],
+        [
+          0.0005,
+          "yes",
+          0.0366,
+          0.0384,
+          0.0391,
+          0.0605
+        ],
+        [
+          0.0006299999999999999,
+          "yes",
+          0.0283,
+          0.0287,
+          0.0292,
+          0.0469
+        ],
+        [
+          0.0007999999999999999,
+          "yes",
+          0.0221,
+          null,
+          null,
+          0.0367
+        ],
+        [
+          0.001,
+          "yes",
+          0.0176,
+          null,
+          null,
+          0.0291
+        ],
+        [
+          0.0012,
+          "yes",
+          0.0151,
+          null,
+          null,
+          0.0247
+        ],
+        [
+          0.0014,
+          "no",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.0015999999999999999,
+          "yes",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.0018,
+          "no",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.002,
+          "yes",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          0.0025,
+          "yes",
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "ipc2221b_conductor_spacing",
+      "category": "tables",
+      "group": "conductors",
+      "name": "PCB conductor spacing by voltage (IPC-2221B)",
+      "name_en": "PCB conductor spacing by voltage (IPC-2221B)",
+      "doc": "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221B table 6-1, the same table as in IPC-2221A).",
+      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.",
+      "tags": [
+        "ipc-2221",
+        "pcb",
+        "spacing",
+        "clearance",
+        "creepage",
+        "conductor spacing",
+        "voltage",
+        "isolation",
+        "leiterplatte",
+        "abstand",
+        "leiterabstand",
+        "spannung",
+        "kriechstrecke",
+        "luftstrecke",
+        "ipc-2221b"
+      ],
+      "source": "IPC-2221B table 6-1 (electrical conductor spacing), read from the Altium Resources and P. McGaw reproductions and checked against smps.us and the Siemens EDA article by S. V. Chavez (2025)",
+      "guide": true,
+      "mains": false,
+      "key": "v_min",
+      "columns": [
+        {
+          "id": "v_min",
+          "name": "Voltage from (DC or AC peak)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "U"
+        },
+        {
+          "id": "v_max",
+          "name": "Voltage to",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "U"
+        },
+        {
+          "id": "b1",
+          "name": "B1: internal conductors",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b2",
+          "name": "B2: external, uncoated, up to 3050 m",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b3",
+          "name": "B3: external, uncoated, above 3050 m",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b4",
+          "name": "B4: external, permanent polymer coating",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a5",
+          "name": "A5: external, conformal coating",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a6",
+          "name": "A6: component lead, uncoated, up to 3050 m",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a7",
+          "name": "A7: component lead, conformal coating",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "per_volt",
+          "name": "Per-volt row (1: values are mm per volt)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0,
+          15,
+          0.00005,
+          0.0001,
+          0.0001,
+          0.00005,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0
+        ],
+        [
+          16,
+          30,
+          0.00005,
+          0.0001,
+          0.0001,
+          0.00005,
+          0.00013000000000000002,
+          0.00025,
+          0.00013000000000000002,
+          0
+        ],
+        [
+          31,
+          50,
+          0.0001,
+          0.0006,
+          0.0006,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.0004,
+          0.00013000000000000002,
+          0
+        ],
+        [
+          51,
+          100,
+          0.0001,
+          0.0006,
+          0.0015,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.0005,
+          0.00013000000000000002,
+          0
+        ],
+        [
+          101,
+          150,
+          0.0002,
+          0.0006,
+          0.0032,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0004,
+          0
+        ],
+        [
+          151,
+          170,
+          0.0002,
+          0.00125,
+          0.0032,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0004,
+          0
+        ],
+        [
+          171,
+          250,
+          0.0002,
+          0.00125,
+          0.0064,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0004,
+          0
+        ],
+        [
+          251,
+          300,
+          0.0002,
+          0.00125,
+          0.0125,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0008,
+          0
+        ],
+        [
+          301,
+          500,
+          0.00025,
+          0.0025,
+          0.0125,
+          0.0008,
+          0.0008,
+          0.0015,
+          0.0008,
+          0
+        ],
+        [
+          500,
+          null,
+          0.0000025,
+          0.000005,
+          0.000025,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          1
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "ipc2221c_conductor_spacing",
+      "category": "tables",
+      "group": "conductors",
+      "name": "PCB conductor spacing by voltage (IPC-2221C)",
+      "name_en": "PCB conductor spacing by voltage (IPC-2221C)",
+      "doc": "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221C table 6-1, December 2023).",
+      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.",
+      "tags": [
+        "ipc-2221",
+        "pcb",
+        "spacing",
+        "clearance",
+        "creepage",
+        "conductor spacing",
+        "voltage",
+        "isolation",
+        "leiterplatte",
+        "abstand",
+        "leiterabstand",
+        "spannung",
+        "kriechstrecke",
+        "luftstrecke",
+        "ipc-2221c"
+      ],
+      "source": "IPC-2221C (December 2023) table 6-1 (electrical conductor spacing), read from the figure in the Siemens EDA article by S. V. Chavez (2025) and checked against the constants of the pcb-toolkit crate",
+      "guide": true,
+      "mains": false,
+      "key": "v_min",
+      "columns": [
+        {
+          "id": "v_min",
+          "name": "Voltage from (DC or AC peak)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "U"
+        },
+        {
+          "id": "v_max",
+          "name": "Voltage to",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": "U"
+        },
+        {
+          "id": "b1",
+          "name": "B1: internal conductors",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b2",
+          "name": "B2: external, uncoated, up to 3050 m",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b3",
+          "name": "B3: external, uncoated, above 3050 m or vacuum",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b4",
+          "name": "B4: external, polymer coating (solder-mask type)",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "b5",
+          "name": "B5 (formerly A5): external, conformal coating",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a6",
+          "name": "A6: component lead, coated, any elevation",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a7",
+          "name": "A7: component lead, uncoated, up to 3050 m",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "a8",
+          "name": "A8: component lead, uncoated, above 3050 m or vacuum",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil"
+          ],
+          "label": "s"
+        },
+        {
+          "id": "per_volt",
+          "name": "Per-volt row (1: values are mm per volt)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0,
+          15,
+          0.00005,
+          0.0001,
+          0.0001,
+          0.000075,
+          0.000075,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0
+        ],
+        [
+          16,
+          30,
+          0.00005,
+          0.0001,
+          0.0001,
+          0.000075,
+          0.000075,
+          0.00013000000000000002,
+          0.00025,
+          0.00025,
+          0
+        ],
+        [
+          31,
+          50,
+          0.0001,
+          0.00064,
+          0.00064,
+          0.0003,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.0004,
+          0.0008,
+          0
+        ],
+        [
+          51,
+          100,
+          0.0001,
+          0.00064,
+          0.0015,
+          0.0003,
+          0.00013000000000000002,
+          0.00013000000000000002,
+          0.0005,
+          0.001,
+          0
+        ],
+        [
+          101,
+          150,
+          0.0002,
+          0.00064,
+          0.0032,
+          0.0008,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0016,
+          0
+        ],
+        [
+          151,
+          170,
+          0.0002,
+          0.00125,
+          0.0032,
+          0.0008,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0016,
+          0
+        ],
+        [
+          171,
+          250,
+          0.0002,
+          0.00125,
+          0.0064,
+          0.0008,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0016,
+          0
+        ],
+        [
+          251,
+          300,
+          0.0002,
+          0.00125,
+          0.0125,
+          0.0008,
+          0.0004,
+          0.0004,
+          0.0008,
+          0.0016,
+          0
+        ],
+        [
+          301,
+          500,
+          0.00025,
+          0.0025,
+          0.0125,
+          0.0016,
+          0.0008,
+          0.0008,
+          0.0015,
+          0.003,
+          0
+        ],
+        [
+          500,
+          null,
+          0.0000025,
+          0.000005,
+          0.000025,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          0.0000030500000000000004,
+          0.000006100000000000001,
+          1
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "pcb_copper_weight",
+      "category": "tables",
+      "group": "conductors",
+      "name": "PCB copper weight and thickness",
+      "name_en": "PCB copper weight and thickness",
+      "doc": "Copper weight of printed-circuit copper layers in ounces per square foot with the area weight and the thickness by several conventions (physical density, IPC-4562A, commercial designation, 1.37 mil rule).",
+      "notes": "A copper weight of 1 oz is an area weight (1 ounce of copper spread over 1 square foot), not an exact thickness: 34.2 µm (density of pure copper), 34.3 µm (IPC-4562A nominal), 34.8 µm (1.37 mil rule) and 35 µm (designation) are all in use. ECalc's unit oz uses 35 µm. The area weight follows from the unit definitions (1 oz/ft² = 305.1517 g/m²); the physical thickness assumes 8.935 g/cm³. Finished copper after processing is thinner (about 30 µm for 1 oz). The designations of 1/4 and 3/8 oz are names and not exact fractions of 1 oz. The rows for 1/4, 3/8 and 4 oz of the 1.37 mil rule are arithmetic extensions. Typical values; empty cells have no published value.",
+      "tags": [
+        "copper weight",
+        "oz",
+        "ounce",
+        "copper thickness",
+        "pcb",
+        "foil",
+        "layer",
+        "ipc-4562",
+        "kupferauflage",
+        "kupferdicke",
+        "unze",
+        "leiterplatte",
+        "kupferfolie",
+        "schichtdicke"
+      ],
+      "source": "NIST SP 811 appendix B.9 (oz/ft² to kg/m²); copper density 8.935 g/cm³ (Wikipedia); IPC-4562A nominal thicknesses as quoted by B. Hargin (Siemens EDA, 2025); Denkai TOB-III data sheet (IPC-4562 table 1-1 designations); 1.37 mil rule per JLCPCB and AIVON",
+      "guide": false,
+      "mains": false,
+      "key": "weight_oz",
+      "columns": [
+        {
+          "id": "weight_oz",
+          "name": "Copper weight (oz/ft²)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": "W"
+        },
+        {
+          "id": "area_weight",
+          "name": "Area weight (g/m²)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "t_physical",
+          "name": "Thickness from the density of copper",
+          "dim": "length",
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "label": "T"
+        },
+        {
+          "id": "t_ipc4562",
+          "name": "Nominal thickness (IPC-4562A)",
+          "dim": "length",
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "label": "T"
+        },
+        {
+          "id": "t_designation",
+          "name": "Commercial thickness designation",
+          "dim": "length",
+          "unit": "",
+          "units": [
+            "",
+            "mil"
+          ],
+          "label": "T"
+        },
+        {
+          "id": "t_137mil",
+          "name": "Thickness by the 1.37 mil rule",
+          "dim": "length",
+          "unit": "mil",
+          "units": [
+            "mil",
+            ""
+          ],
+          "label": "T"
+        }
+      ],
+      "rows": [
+        [
+          0.25,
+          76.29,
+          0.00000854,
+          null,
+          0.000009,
+          0.0000086995
+        ],
+        [
+          0.375,
+          114.43,
+          0.00001281,
+          null,
+          0.000012,
+          0.000013049250000000002
+        ],
+        [
+          0.5,
+          152.58,
+          0.00001708,
+          0.0000171,
+          0.000018,
+          0.000017399
+        ],
+        [
+          1,
+          305.15,
+          0.00003415,
+          0.0000343,
+          0.000035,
+          0.000034798
+        ],
+        [
+          2,
+          610.3,
+          0.0000683,
+          0.0000686,
+          0.00007,
+          0.000069596
+        ],
+        [
+          3,
+          915.46,
+          0.00010246,
+          null,
+          0.000103,
+          0.00010439400000000002
+        ],
+        [
+          4,
+          1220.61,
+          0.00013661,
+          null,
+          null,
+          0.000139192
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
       "id": "awg",
       "category": "tables",
       "group": "conductors",
