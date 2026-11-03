@@ -276,6 +276,7 @@ On the table page:
 - **Filter:** type in the filter box, or press `/` to jump to it. The filter keeps the rows in which a shown cell contains the text.
 - **Sort:** click a column header to sort the rows ascending or descending, or back in table order. Empty cells always come last.
 - **Units:** each column has its own unit dropdown, with the units that suit it (a cross-section can be shown as mm², kcmil or AWG). ECalc remembers your choice for that column of that table.
+- **Digits:** the numbers of a table transcribed from a standard are shown with every digit they were written with (434.79 MHz, 2.4835 GHz), whatever the significant-digit setting says; the setting applies to the computed tables (AWG, IPC-2221 widths, E24 and E192) and to a value you convert into another unit.
 - **Empty columns:** a column without any value is hidden. The line under the table says how many columns are hidden: "Columns without verified data are hidden: N".
 - **Copy table:** copies the visible rows, in the units shown, as tab-separated text that you can paste into a spreadsheet.
 - **Banners and notes:** a table marked as guide values shows a banner: the values are guide values from the cited source, and the standard itself is authoritative. A table with mains installation data shows a mains note: the applicable national rules decide, and the installation work is for qualified persons. Each table names its source and shows its notes.

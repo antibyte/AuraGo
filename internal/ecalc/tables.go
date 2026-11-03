@@ -584,13 +584,16 @@ type tableJSON struct {
 	Columns  []columnJSON     `json:"columns"`
 	Rows     [][]any          `json:"rows"`
 	Finder   *tableFinderJSON `json:"finder"`
+	// Generate is the generator of a formula-derived table, "" for a transcribed one: the page shows the cells of a
+	// transcribed table with the digits they were written with.
+	Generate string `json:"generate"`
 }
 
 func (t *Table) json(lang string) tableJSON {
 	out := tableJSON{
 		Kind: t.Kind, ID: t.ID, Category: t.Category, Group: t.Group, Name: t.Name.in(lang), NameEN: t.Name.in("en"),
 		Doc: t.Doc.in(lang), Notes: t.Notes.in(lang), Tags: orEmpty(t.Tags), Source: t.Source, Guide: t.Guide, Mains: t.Mains,
-		Key: t.Key, Columns: make([]columnJSON, 0, len(t.Columns)), Rows: make([][]any, 0, len(t.Rows)),
+		Key: t.Key, Columns: make([]columnJSON, 0, len(t.Columns)), Rows: make([][]any, 0, len(t.Rows)), Generate: t.Generate,
 	}
 	for _, c := range t.Columns {
 		out.Columns = append(out.Columns, columnJSON{ID: c.ID, Name: c.Name.in(lang), Dim: c.Dim, Unit: c.Unit, Units: orEmpty(c.Units), Label: c.Label})

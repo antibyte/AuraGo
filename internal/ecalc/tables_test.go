@@ -148,7 +148,7 @@ func TestTableJSONShape(t *testing.T) {
 		t.Fatalf("decode: %v (%d items)", err, len(doc.Items))
 	}
 	it := doc.Items[0]
-	want := []string{"kind", "id", "category", "group", "name", "name_en", "doc", "notes", "tags", "source", "guide", "mains", "key", "columns", "rows", "finder"}
+	want := []string{"kind", "id", "category", "group", "name", "name_en", "doc", "notes", "tags", "source", "guide", "mains", "key", "columns", "rows", "finder", "generate"}
 	if len(it) != len(want) {
 		t.Errorf("the table item has %d keys, want %d: %v", len(it), len(want), it)
 	}
@@ -177,6 +177,11 @@ func TestTableJSONShape(t *testing.T) {
 	if r1[0].(float64) != 1.5e-6 || r1[3] != "—" || r2[3] != "siehe Anmerkung" || r3[1] != nil || r3[3] != "" {
 		t.Errorf("rows = %v", rows)
 	}
+	// generate names the generator of a formula-derived table; a transcribed table has "" (the page shows its cells with
+	// the digits they were written with, a generated one with the significant-digit setting).
+	if g, ok := it["generate"]; !ok || g != "" {
+		t.Errorf("generate = %#v (present %v), want an empty string for a transcribed table", g, ok)
+	}
 	// No finder is null, not missing (a finder is covered with the table functions); French falls back to English.
 	if f, ok := it["finder"]; !ok || f != nil {
 		t.Errorf("finder = %v (present %v), want null", f, ok)
@@ -204,7 +209,7 @@ func checkOtherItemJSON(t *testing.T, it map[string]any) {
 				t.Errorf("table %v: %s = %#v, want an array", it["id"], key, it[key])
 			}
 		}
-		for _, key := range []string{"id", "category", "group", "name", "name_en", "doc", "notes", "source", "key"} {
+		for _, key := range []string{"id", "category", "group", "name", "name_en", "doc", "notes", "source", "key", "generate"} {
 			if _, ok := it[key].(string); !ok {
 				t.Errorf("table %v: %s = %#v, want a string", it["id"], key, it[key])
 			}

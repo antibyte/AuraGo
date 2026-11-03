@@ -343,3 +343,90 @@ func TestLookupInTheGeneratedTables(t *testing.T) {
 		t.Errorf("4.8 is no E24 value: %+v", l)
 	}
 }
+
+// ---- the digits of a transcribed cell ---------------------------------------------------------------------------
+
+// A transcribed cell is a published number (a band edge, a regulatory limit): the answer never shortens it below the
+// digits it was written with. Rounded to 4 significant digits 434.79 MHz read 434.8 MHz, which lies outside the band.
+func TestQueryTableKeepsTheDigitsOfATranscribedCell(t *testing.T) {
+	cat := queryCatalog(t)
+	for _, c := range []struct {
+		id, key, out, want string
+	}{
+		{"ism_bands", "ISM 433.92 MHz", "f_high", "434.79 MHz"},
+		{"ism_bands", "ISM 433.92 MHz", "f_low", "433.05 MHz"},
+		{"ism_bands", "SRD 2400–2483.5 MHz", "f_high", "2.4835 GHz"},
+		{"ism_bands", "SRD 868.7–869.2 MHz", "f_low", "868.7 MHz"},
+		{"ism_bands", "SRD 868.7–869.2 MHz", "f_high", "869.2 MHz"},
+		{"amateur_bands_de", "17 m", "f_high", "18.168 MHz"},
+	} {
+		l := lookupOf(t, cat, c.id, TableLookup{Value: c.key, Output: c.out, Column: "band"})
+		if !l.Found || l.Result != c.want {
+			t.Errorf("%s %s %s = %+v, want %s", c.id, c.key, c.out, l, c.want)
+		}
+	}
+	// The rows, the whole-row lookup and the filter use the same text: the filter finds the number as it is written.
+	res, err := cat.QueryTable("ism_bands", TableRequest{Filter: "434.79"})
+	if err != nil || res.Total == 0 {
+		t.Fatalf("filter 434.79: %+v (%v)", res, err)
+	}
+	for _, row := range res.Rows {
+		found := false
+		for _, cell := range row {
+			found = found || (cell != nil && strings.Contains(*cell, "434.79"))
+		}
+		if !found {
+			t.Errorf("a row without 434.79: %v", derefAll(row))
+		}
+	}
+	l := lookupOf(t, cat, "ism_bands", TableLookup{Column: "band", Value: "SRD 2400–2483.5 MHz"})
+	if got := strings.Join(derefAll(l.Row), "|"); !strings.Contains(got, "|2.4 GHz|2.4835 GHz|") {
+		t.Errorf("whole row = %s", got)
+	}
+	// The value of a lookup is echoed with the same digits.
+	if l := lookupOf(t, cat, "ism_bands", TableLookup{Mode: "ge", Column: "f_high", Value: "434.79 MHz", Output: "band"}); !l.Found || l.Value != "434.79 MHz" {
+		t.Errorf("ge value = %+v", l)
+	}
+	// A generated table keeps the 4 significant digits of the answer (its numbers are computed, not published).
+	if l := lookupOf(t, cat, "awg", TableLookup{Column: "awg", Value: "12", Output: "diameter"}); l.Result != "2.053 mm" {
+		t.Errorf("awg 12 = %+v, want 2.053 mm", l)
+	}
+}
+
+// The catalog JSON tells the page which tables are generated.
+func TestCatalogJSONNamesTheGeneratorOfAGeneratedTable(t *testing.T) {
+	cat := queryCatalog(t)
+	body, _, err := cat.LocalizedJSON("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Items []struct {
+			ID       string  `json:"id"`
+			Kind     string  `json:"kind"`
+			Generate *string `json:"generate"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatal(err)
+	}
+	generated := map[string]bool{"awg": true, "ipc2221": true, "eseries_e24": true, "eseries_e192": true}
+	seen := 0
+	for _, it := range doc.Items {
+		if it.Kind != "table" {
+			continue
+		}
+		seen++
+		switch {
+		case it.Generate == nil:
+			t.Errorf("table %s has no generate key", it.ID)
+		case generated[it.ID] && *it.Generate != it.ID:
+			t.Errorf("table %s: generate = %q, want its generator %q", it.ID, *it.Generate, it.ID)
+		case !generated[it.ID] && *it.Generate != "":
+			t.Errorf("table %s: generate = %q, want empty", it.ID, *it.Generate)
+		}
+	}
+	if seen < 10 {
+		t.Errorf("only %d tables in the catalog JSON", seen)
+	}
+}

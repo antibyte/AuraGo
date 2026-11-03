@@ -16019,7 +16019,8 @@
           "Maker body sizes differ: 6.35 x 3.10 (Yageo), 6.3 x 3.15 (Vishay), 6.40 x 3.20 (Panasonic); Vishay allows 500 V; Yageo also 2 W type"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -16249,7 +16250,8 @@
           "Low-cost bypass/decoupling where stability does not matter; avoid where temperature varies"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -16361,7 +16363,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -16813,7 +16816,8 @@
           "20 ms – 300 ms"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -16950,7 +16954,8 @@
           "Body Ø 8.5 mm (max.), pins ~0.6 mm; the body height could not be read reliably and is left out"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -17173,7 +17178,8 @@
           "The discharge cut-off is left empty: the Panasonic CR2032 datasheet does not state one"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -17425,7 +17431,8 @@
           "Nominal size (A123 LiFePO4 ANR26650M1-B, 3.3 V); Li-ion versions 3.6–3.7 V"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -17638,7 +17645,8 @@
           "Small devices and chargers (e.g. Canon CA-570, 8.4 V); Lumberg sells the size as 3.4 × 1.4 mm (NES/J 135: 0.5 A, 12 V)"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -18088,7 +18096,8 @@
         "choices": {
           "cable": "cu_pvc"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -18538,7 +18547,8 @@
         "choices": {
           "cable": "cu_xlpe"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -18903,7 +18913,8 @@
         "choices": {
           "cable": "al_pvc"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -19268,7 +19279,8 @@
         "choices": {
           "cable": "al_xlpe"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -19434,7 +19446,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -19672,7 +19685,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -19741,7 +19755,8 @@
           0.4
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -19967,7 +19982,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -20306,7 +20322,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -20641,7 +20658,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -20927,7 +20945,8 @@
         "choices": {
           "revision": "b"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -21234,7 +21253,8 @@
         "choices": {
           "revision": "c"
         }
-      }
+      },
+      "generate": ""
     },
     {
       "kind": "table",
@@ -21385,7 +21405,8 @@
           0.000139192
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -21631,7 +21652,8 @@
           "2022"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -22148,7 +22170,8 @@
           "derived (example)"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -22473,7 +22496,8 @@
           "measured"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -22686,7 +22710,8 @@
           "Ω: ohm (unit of resistance); ω: angular frequency (ω = 2πf)"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -22848,7 +22873,8 @@
           "defined in ISO 20653 (formerly DIN 40050-9), not in IEC 60529"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -22966,7 +22992,8 @@
           "connect only to SELV/PELV sources such as a safety transformer or battery"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -23439,7 +23466,8 @@
           "hybrid A/B/C sockets are most common (Wikipedia)"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -23798,7 +23826,8 @@
           "non-specific SRD"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -23991,7 +24020,8 @@
           "AS923 with offset −5.90 MHz (used in Israel per RP002 country list); RX2 917.3 MHz"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -24529,7 +24559,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -25138,7 +25169,8 @@
           "14,17"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -25372,7 +25404,8 @@
           "TI Logic Guide: VOH 1.35 V (= VCC − 0.45 V), VOL 0.45 V"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -25604,7 +25637,8 @@
           "at the receiver"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -26858,7 +26892,8 @@
           "Delete"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -27046,7 +27081,8 @@
           "marked at terminations and accessible points"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -27434,7 +27470,8 @@
           3441.1448613556595
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": "awg"
     },
     {
       "kind": "table",
@@ -27648,7 +27685,8 @@
           0.009357817627608239
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": "ipc2221"
     },
     {
       "kind": "table",
@@ -27888,7 +27926,8 @@
           "●"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": "eseries_e24"
     },
     {
       "kind": "table",
@@ -29102,7 +29141,8 @@
           "●"
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": "eseries_e192"
     },
     {
       "kind": "table",
@@ -29538,7 +29578,8 @@
           "Lead-free standard solder."
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -29878,7 +29919,8 @@
           null
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -30392,7 +30434,8 @@
           "Output is almost zero near room temperature; use above 600 °C. Class 1 is not defined; the IEC colours are weakly sourced and left empty."
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "table",
@@ -30618,7 +30661,8 @@
           "Melts about 45 °C below Sn63Pb37."
         ]
       ],
-      "finder": null
+      "finder": null,
+      "generate": ""
     },
     {
       "kind": "code",

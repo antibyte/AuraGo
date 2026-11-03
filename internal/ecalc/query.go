@@ -28,6 +28,9 @@ const (
 
 	querySig     = 4   // significant digits of every formatted value
 	summaryRunes = 200 // longest summary of a search hit
+	// transcribedSig is the number of significant digits of a cell of a transcribed table (see formatTableValue); the
+	// Desktop page shows such a cell with at least as many (TRANSCRIBED_SIG in ecalc-table-page.js).
+	transcribedSig = 9
 )
 
 // Error codes of QueryError.
@@ -434,6 +437,17 @@ func (c *Catalog) unitSymbols(v *Var) []string {
 
 func (c *Catalog) formatValue(x float64, dimID, unitID string) string {
 	return c.Units.Format(x, dimID, unitID, querySig)
+}
+
+// formatTableValue writes a number of table t. A transcribed cell is a published number (a band edge, a limit) and is
+// written with up to transcribedSig significant digits, so that it is never shortened below the digits it was written
+// with (434.79 MHz, not 434.8 MHz); the cells of a generated table are computed and keep querySig digits. The shortest
+// decimal prints, so 9 digits only show the digits a cell has.
+func (c *Catalog) formatTableValue(t *Table, x float64, dimID, unitID string) string {
+	if t.Generate != "" {
+		return c.formatValue(x, dimID, unitID)
+	}
+	return c.Units.Format(x, dimID, unitID, transcribedSig)
 }
 
 // formatList writes a list the way it is typed: items separated by a comma and a space, each item without a space

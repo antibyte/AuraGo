@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -324,5 +325,49 @@ func TestECalcSpacingTablesNeverAnswerWithThePerVoltRow(t *testing.T) {
 		if l["found"] != true || len(row) == 0 || !strings.Contains(row[0].(string), "per volt") {
 			t.Errorf("%s per_volt marker = %v", id, l)
 		}
+	}
+}
+
+// A transcribed cell is a published number: the answer keeps its digits (434.79 MHz, not 434.8 MHz, which lies outside
+// the band), also when the answer is shortened and the si numbers are the first thing to go. The filter finds the number
+// as it is written. A generated table keeps its four significant digits.
+func TestECalcTableKeepsTheDigitsOfTranscribedCells(t *testing.T) {
+	cat, err := ecalc.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := ECalcRequest{Operation: "table", ID: "ism_bands", Filter: "434.79"}
+	full := ecalcTable(cat, req, 100000)
+	for name, exec := range map[string]VirtualDesktopExecution{
+		"default":  ExecuteECalc(nil, req),
+		"full":     full,
+		"no si":    ecalcTable(cat, req, len(full.Output)-1),
+		"lookup":   ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "ism_bands", Lookup: &ecalc.TableLookup{Column: "band", Value: "ISM 433.92 MHz", Output: "f_high"}}),
+		"lookupGE": ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "ism_bands", Lookup: &ecalc.TableLookup{Mode: "ge", Column: "f_high", Value: "434.79 MHz", Output: "band"}}),
+	} {
+		out := ecalcDecode(t, exec)
+		if out["status"] != "ok" || !strings.Contains(exec.Output, `"434.79 MHz"`) || strings.Contains(exec.Output, `"434.8 MHz"`) {
+			t.Errorf("%s: the band edge must read 434.79 MHz: %s", name, exec.Output)
+		}
+	}
+	if out := ecalcDecode(t, ecalcTable(cat, req, len(full.Output)-1)); out["si"] != nil || out["total"] == float64(0) {
+		t.Errorf("the shortened answer must have dropped si and still found the rows: %v", out)
+	}
+	// The other edges of the issue: 2.4835 GHz, 868.7 to 869.2 MHz, 18.168 MHz.
+	out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "ism_bands", Filter: "2400", Limit: 50}))
+	if !strings.Contains(fmt.Sprint(out["rows"]), "2.4835 GHz") {
+		t.Errorf("SRD 2400-2483.5 MHz: %v", out["rows"])
+	}
+	out = ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "ism_bands", Filter: "868.7"}))
+	if rows := fmt.Sprint(out["rows"]); !strings.Contains(rows, "868.7 MHz") || !strings.Contains(rows, "869.2 MHz") || strings.Contains(rows, "869 MHz") {
+		t.Errorf("SRD 868.7-869.2 MHz: %v", out["rows"])
+	}
+	// The filter finds the full text, not the rounded one.
+	if out = ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "amateur_bands_de", Filter: "18.168"})); out["total"] != float64(1) || !strings.Contains(fmt.Sprint(out["rows"]), "18.168 MHz") {
+		t.Errorf("amateur band 17 m: %v", out)
+	}
+	// A generated table is computed, not published: four significant digits.
+	if out = ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "awg", Filter: "4/0", Limit: 1})); !strings.Contains(fmt.Sprint(out["rows"]), "11.68 mm") {
+		t.Errorf("awg 4/0: %v", out["rows"])
 	}
 }

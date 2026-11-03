@@ -313,7 +313,8 @@ func TestECalcCalcPageHasAFinderHeaderMode(t *testing.T) {
 	}
 }
 
-// The table page reads the table JSON (SI numbers, null, localized strings), shows numbers through the units formatter,
+// The table page reads the table JSON (SI numbers, null, localized strings), shows numbers through the units formatter
+// (the cells of a transcribed table with at least 9 significant digits, those of a generated table with the setting),
 // highlights the finder row with a relative tolerance of 1e-9 and shares the unit and clipboard helpers of the calculator page.
 func TestECalcTablePageIsWired(t *testing.T) {
 	t.Parallel()
@@ -321,7 +322,7 @@ func TestECalcTablePageIsWired(t *testing.T) {
 	for _, marker := range []string{
 		"window.ECalcTablePage = { create };", "const MATCH_TOLERANCE = 1e-9;", "function sameValue(a, b)", "function findRow(rows, index, value)",
 		"function scopedStore(store, key)", "finderCalc.id + '@' + table.id", "Page.unitChoices(column, units)", "Page.unitFor({ id: table.id, vars: columns }, store, units)",
-		"Page.copyText(plainText())", "units.format(value, column.dim, id, sig())", "const NO_VALUE = '—';", "'aria-sort'", `role="region"`,
+		"Page.copyText(plainText())", "units.format(value, column.dim, id, cellSig(column))", "const TRANSCRIBED_SIG = 9;", "table.generate ||", "Math.max(sig(), TRANSCRIBED_SIG)", "const NO_VALUE = '—';", "'aria-sort'", `role="region"`,
 		"el.dataset.table = table.id;", "header: {", "onResult(result)", "desktop.ecalc_table_copy", "desktop.ecalc_table_filter", "desktop.ecalc_table_rows_filtered",
 		"desktop.ecalc_table_no_match", "desktop.ecalc_table_columns_hidden", "el.dataset.hiddenColumns = String(hiddenCount);", "const shownColumns =", "desktop.ecalc_guide_values", "desktop.ecalc_mains_note", "focusFilter()", "tr[data-match]",
 	} {

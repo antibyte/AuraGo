@@ -105,7 +105,7 @@ func (c *Catalog) cellOut(t *Table, r, col int) (*string, *float64) {
 		s := cell.Text.in("en")
 		return &s, nil
 	}
-	s := c.formatValue(cell.Num, spec.Dim, spec.Unit)
+	s := c.formatTableValue(t, cell.Num, spec.Dim, spec.Unit)
 	return &s, siOut(cell.Num)
 }
 
@@ -282,7 +282,7 @@ func (c *Catalog) lookupInTable(t *Table, lk TableLookup) (*LookupResult, error)
 	if err != nil {
 		return nil, queryErr(CodeParse, "cannot read %q for column %s as a %s: %v", value, spec.ID, spec.Dim, err)
 	}
-	res.Value = c.formatValue(x, spec.Dim, spec.Unit)
+	res.Value = c.formatTableValue(t, x, spec.Dim, spec.Unit)
 	switch mode {
 	case "exact":
 		row := t.FindRow(col, x)
@@ -309,7 +309,7 @@ func (c *Catalog) lookupInTable(t *Table, lk TableLookup) (*LookupResult, error)
 		if row < 0 {
 			res.Message = fmt.Sprintf("no row has %s of at least %s", spec.ID, res.Value)
 			if !math.IsNaN(largest) {
-				res.Message += "; the largest is " + c.formatValue(largest, spec.Dim, spec.Unit)
+				res.Message += "; the largest is " + c.formatTableValue(t, largest, spec.Dim, spec.Unit)
 			}
 		}
 	case "interp":
@@ -329,11 +329,12 @@ func (c *Catalog) lookupInTable(t *Table, lk TableLookup) (*LookupResult, error)
 			if lo > hi {
 				lo, hi = hi, lo
 			}
-			res.Message = fmt.Sprintf("%s is outside the range of %s, %s to %s", res.Value, spec.ID, c.formatValue(lo, spec.Dim, spec.Unit), c.formatValue(hi, spec.Dim, spec.Unit))
+			res.Message = fmt.Sprintf("%s is outside the range of %s, %s to %s", res.Value, spec.ID, c.formatTableValue(t, lo, spec.Dim, spec.Unit), c.formatTableValue(t, hi, spec.Dim, spec.Unit))
 			break
 		}
 		res.Found = true
 		oc := &t.Columns[out]
+		// An interpolated number is computed, not published: it keeps the significant digits of every other result.
 		res.Result, res.SI = c.formatValue(y, oc.Dim, oc.Unit), siOut(y)
 	}
 	return res, nil

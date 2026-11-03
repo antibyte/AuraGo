@@ -3,7 +3,11 @@
    `finder.column` equals the solved `finder.var` is highlighted and scrolled into view), a filter box that matches any
    shown cell text, sortable columns (asc, desc, table order), a unit dropdown per column from its `units` list, the table
    with a sticky header inside a scroll area, and the notes, the explanation and the source under it. Numbers are the SI
-   values of the catalog JSON shown through ECalcCore.units.format with the significant-digit setting; null is a dash.
+   values of the catalog JSON shown through ECalcCore.units.format; null is a dash. The cells of a generated table (its item
+   has `generate`) follow the significant-digit setting; a transcribed cell is a published number and is never shown with
+   fewer than TRANSCRIBED_SIG digits, whatever the setting says (434.79 MHz, not 434.8 MHz): the shortest decimal prints.
+   That holds in the unit the column was transcribed in (its own `unit`); a number converted into another unit (mil, AWG,
+   degF) is a result of the conversion and follows the setting.
    A column whose cells are all empty carries no verified data: it is not shown (and not filtered, sorted or copied) and a line
    under the table says how many columns are hidden. The unit shown in a column is remembered per table and column
    (ECalcStore units under the table id).
@@ -16,6 +20,7 @@
 
     const Typeset = window.ECalcTypeset, esc = Typeset.escape;
     const NO_VALUE = '—';
+    const TRANSCRIBED_SIG = 9; // the digits of a transcribed cell (internal/ecalc transcribedSig); a number with fewer prints shorter
     const MATCH_TOLERANCE = 1e-9; // relative: a cell is the solved value when it equals it within this
     const NARROW_BELOW = 760; // under this width the action buttons show their icon only
     const COPIED_MS = 1600;
@@ -57,6 +62,9 @@
         const keyIndex = columnIndex.has(table.key) ? columnIndex.get(table.key) : 0;
         const comma = text => (options.decimalComma ? text.replace(/(\d)\.(\d)/g, '$1,$2') : text);
         const sig = () => store.prefs().sig;
+        // A transcribed table (no `generate`) keeps the digits it was written with, in the unit of its column; a generated
+        // table, and a number converted into another unit, follow the setting.
+        const cellSig = column => (table.generate || unitOf(column.id) !== (column.unit || '') ? sig() : Math.max(sig(), TRANSCRIBED_SIG));
         // The columns look like the variables of a calculator, so the unit bookkeeping of the calculator pages applies.
         const unitOf = Page.unitFor({ id: table.id, vars: columns }, store, units);
         let collator;
@@ -76,8 +84,8 @@
             if (value === null || value === undefined) return NO_VALUE;
             if (typeof value === 'string') return value;
             const id = unitOf(column.id);
-            let text = units.format(value, column.dim, id, sig());
-            if (!text) return comma(units.format(value, column.dim, '', sig()) || String(value));
+            let text = units.format(value, column.dim, id, cellSig(column));
+            if (!text) return comma(units.format(value, column.dim, '', cellSig(column)) || String(value));
             const label = headLabel(column);
             if (label && text.endsWith(' ' + label)) text = text.slice(0, text.length - label.length - 1);
             return comma(text);

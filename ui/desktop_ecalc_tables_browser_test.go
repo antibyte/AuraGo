@@ -17,7 +17,8 @@ import (
 //     unit lists on two columns, and the finder fx_finder with the material fixed to cu / al. The finder solves
 //     smin = lookup_ge(tbl, col, ieq, out) through the real JavaScript solver: the material option defines the aliases
 //     tbl / col / out (refs), a second choice (method) stays visible and divides the current.
-//   - fx_awg: a text key column and the columns of the generated AWG table (ASTM B258 diameter and area, copper at 20 degC).
+//   - fx_awg: a text key column and the columns of the generated AWG table (ASTM B258 diameter and area, copper at 20 degC);
+//     its item carries `generate`, so its cells follow the significant-digit setting, while the transcribed fixtures keep their digits.
 //   - fx_long: 60 rows and the finder fx_pick (n = round(x)): the highlighted row must be scrolled into view, and a row
 //     number beyond the table shows the no-match hint.
 //   - fx_ampacity_al also has two columns without any value (a numeric and a text one): they are hidden, a line under the
@@ -40,7 +41,7 @@ const ecalcTablesFixturePatch = `j => {
 	if (!window.ecalcWithReal) j.items = j.items.filter(item => !real.includes(item));
 	const col = (id, name, dim, unit, units, label) => ({ id, name, dim, unit: unit || '', units: units || [], label: label || '' });
 	const table = (id, group, name, extra) => Object.assign({ kind: 'table', id, category: 'tables', group, name, name_en: name + ' (en)', doc: '', notes: '', tags: [id.replace(/_/g, ' ')],
-		source: 'Fixture, keine Norm', guide: false, mains: false, key: '', columns: [], rows: [], finder: null }, extra);
+		source: 'Fixture, keine Norm', guide: false, mains: false, key: '', columns: [], rows: [], finder: null, generate: '' }, extra);
 	const section = [1.5e-6, 2.5e-6, 4e-6, 6e-6, 10e-6, 16e-6];
 	const amps = [15.5, 19.5, 26, 34, 46, 61];
 	const diameter = [1.382e-3, 1.784e-3, null, 2.764e-3, 3.568e-3, 4.514e-3];
@@ -67,7 +68,7 @@ const ecalcTablesFixturePatch = `j => {
 		ampacity('fx_ampacity', 'Fixture: Belastbarkeit Cu', 1, 'cu'),
 		ampacity('fx_ampacity_al', 'Fixture: Belastbarkeit Al', 0.78, 'al', true),
 		table('fx_awg', 'conductors', 'Fixture: AWG', {
-			key: 'size', source: 'ASTM B258, IEC 60028 (Formeln)',
+			key: 'size', generate: 'awg', source: 'ASTM B258, IEC 60028 (Formeln)',
 			columns: [col('size', 'Größe', 'text'), col('awg', 'AWG-Zahl', 'number'), col('diameter', 'Durchmesser', 'length', '', ['', 'in', 'mil']), col('area', 'Querschnitt', 'area', 'mm2', ['mm2', 'kcmil']), col('r_km', 'Widerstand je km', 'resistance')],
 			rows: awgRows
 		}),
@@ -79,7 +80,7 @@ const ecalcTablesFixturePatch = `j => {
 			rows: [['A', 65], ['B', 66], ['a', 97], ['0', 48]] }),
 		table('fx_wide', 'general', 'Fixture: Strombelastbarkeitsumrechnungsfaktoren', { key: 'n', columns: [col('n', 'Zeile', 'number')].concat(wideColumns),
 			rows: Array.from({ length: 5 }, (_, r) => [r + 1].concat(wideColumns.map((c, i) => (r + 1) * (i + 1)))) }),
-		table('fx_misc', 'misc', 'Fixture: Sonstiges', { key: 'a', columns: [col('a', 'A', 'number'), col('b', 'B', 'length', 'mil')], rows: [[1, 2.54e-4], [2, 5e-5]] }),
+		table('fx_misc', 'misc', 'Fixture: Sonstiges', { key: 'a', columns: [col('a', 'A', 'number'), col('b', 'B', 'length', 'mil')], rows: [[1, 2.54e-4], [2, 5.08e-5]] }),
 		calc('fx_finder', 'Fixture: Querschnitt finden', {
 			vars: [v('current', 'current', 'I', 'Strom', { default: 15 }), v('smin', 'area', 'A', 'Querschnitt', { unit: 'mm2', units: ['mm2'], input: false })],
 			choices: [chooser('material', 'Werkstoff', [option('cu', 'Kupfer', {}, { tbl: 'fx_ampacity', col: 'iz', out: 'section' }), option('al', 'Aluminium', {}, { tbl: 'fx_ampacity_al', col: 'iz', out: 'section' })]), chooser('method', 'Verlegeart', [option('a', 'A', { m: 1 }), option('b', 'B', { m: 0.8 })]), routing],
@@ -435,15 +436,23 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	openTable("fx_ampacity")
 	f.Wait(`()=>document.querySelector('th[data-col="d"] .ec-th-unit').value==='mil'`)
 
-	// ---- settings: three significant digits ----------------------------------------------------------------------------------
+	// ---- settings: three significant digits apply to a generated table (fx_awg), never to the cells of a transcribed one --------
 	setColumnUnit("d", "")
 	f.Wait(`()=>document.querySelector('tbody tr[data-row="0"] td:nth-child(3)').textContent==='1,382 mm'`)
-	page.MustElement(`[data-action="settings"]`).MustClick()
-	page.MustEval(`()=>{const s=document.querySelector('[data-set="sig"]');s.value='3';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
-	f.Wait(`()=>document.querySelector('tbody tr[data-row="0"] td:nth-child(3)').textContent==='1,38 mm'`)
-	page.MustEval(`()=>{const s=document.querySelector('[data-set="sig"]');s.value='4';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	setDigits := func(digits string) {
+		t.Helper()
+		page.MustElement(`[data-action="settings"]`).MustClick()
+		page.MustEval(`d=>{const s=document.querySelector('[data-set="sig"]');s.value=d;s.dispatchEvent(new Event('change',{bubbles:true}));}`, digits)
+		page.MustElement(`[data-action="settings"]`).MustClick()
+	}
+	setDigits("3")
+	same("a transcribed cell keeps its digits at three significant digits", read().Rows[0][2], "1,382 mm")
+	openTable("fx_awg")
+	f.Wait(`()=>document.querySelector('tbody tr[data-row="0"] td:nth-child(3)').textContent==='11,7 mm'`) // 4/0: 11.684 mm
+	setDigits("4")
+	f.Wait(`()=>document.querySelector('tbody tr[data-row="0"] td:nth-child(3)').textContent==='11,68 mm'`)
+	openTable("fx_ampacity")
 	f.Wait(`()=>document.querySelector('tbody tr[data-row="0"] td:nth-child(3)').textContent==='1,382 mm'`)
-	page.MustElement(`[data-action="settings"]`).MustClick()
 
 	// ---- favorites: the star of the table page, the rail and the list --------------------------------------------------------
 	page.MustElement(`[data-action="favorite"]`).MustClick()
@@ -462,7 +471,7 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	}
 	openTable("fx_misc")
 	state = read()
-	same("a fixed unit without a units list: bare numbers in the cells", state.Rows, [][]string{{"1", "10"}, {"2", "1,969"}})
+	same("a fixed unit without a units list: bare numbers in the cells", state.Rows, [][]string{{"1", "10"}, {"2", "2"}})
 	same("the unit stands once in the header, without a dropdown", page.MustEval(`()=>JSON.stringify([[...document.querySelectorAll('.ec-th-unit-static')].map(e=>e.textContent),document.querySelectorAll('.ec-th-unit').length])`).Str(), `[["mil"],0]`)
 	// A units list without "" offers only its explicit units: the number systems of an integer column, no automatic prefix.
 	openTable("fx_ascii")
