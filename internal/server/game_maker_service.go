@@ -772,6 +772,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	}
 	answerTokens := gameMakerBuildAnswerTokens
 	if run.Stage == "planning" {
+		req.ToolChoice = "required"
 		answerTokens = llm.ConservativeOutputTokens
 	}
 	if tokens := gameMakerOutputTokens(gameMakerRouteLimits(&cfg), answerTokens); tokens > 0 {

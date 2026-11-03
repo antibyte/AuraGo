@@ -9,19 +9,22 @@ import (
 
 func TestPlanningFailureCodeSeparatesProtocolFromRejectedDesigns(t *testing.T) {
 	cases := []struct {
-		name     string
-		submit   bool
-		wantCode string
-		wantText string
+		name       string
+		submit     bool
+		wantCode   string
+		wantText   string
+		wantRounds int32
 	}{
-		{"never_submitted", false, "planning_protocol", "never submitted a design"},
-		{"rejected_submissions", true, "planning", "charged correction budget was spent"},
+		{"never_submitted", false, "planning_protocol", "never submitted a design", 1},
+		{"rejected_submissions", true, "planning", "charged correction budget was spent", 3},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestService(t)
 			project := createTestProject(t, s, "2d")
+			var rounds atomic.Int32
 			s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+				rounds.Add(1)
 				if tc.submit {
 					// A rejected submission is charged; the model did reach the tool.
 					_ = s.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"minimal","objective":"","features":[]}`))
@@ -33,6 +36,9 @@ func TestPlanningFailureCodeSeparatesProtocolFromRejectedDesigns(t *testing.T) {
 				t.Fatal(err)
 			}
 			finished := waitJob(t, s, job.ID)
+			if rounds.Load() != tc.wantRounds {
+				t.Fatalf("planning rounds = %d, want %d", rounds.Load(), tc.wantRounds)
+			}
 			if finished.Status != "failed" || finished.ErrorCode != tc.wantCode || !strings.Contains(finished.Error, tc.wantText) {
 				t.Fatalf("status %s code %q error %q", finished.Status, finished.ErrorCode, finished.Error)
 			}

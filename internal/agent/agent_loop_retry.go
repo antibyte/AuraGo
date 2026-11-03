@@ -27,6 +27,23 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		s.explicitTools = s.explicitTools[:0]
 	}
 
+	if _, building := normalizedAllowedToolSet(s.runCfg.AllowedTools)["game_maker_validate"]; !building &&
+		!tc.IsTool && strings.TrimSpace(content) != "" && s.runCfg.RunComplete != nil && s.gameMakerRun() {
+		// Planning requires a submitted design, regardless of prose or completion markers.
+		if s.announcementCount > 0 {
+			return content, tc, false, false
+		}
+		s.announcementCount++
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID: sessionID, AssistantContent: content,
+			FeedbackMsg:     s.announcementFeedback(),
+			BrokerEventType: "error_recovery",
+			I18nKey:         "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
+
 	// Detect <workflow_plan>["tool1","tool2"]</workflow_plan> in the response
 	if s.workflowPlanCount < 10 {
 		if parsed, stripped := parseWorkflowPlan(content); len(parsed) > 0 {

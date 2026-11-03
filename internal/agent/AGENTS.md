@@ -807,6 +807,13 @@ Tools are defined in `internal/tools/`:
   append observations to the conversation. Required schemas and instructions
   fail closed when they cannot fit; current route budgets, prompt security,
   hard tool scope and live dispatch authorization still apply on every send.
+- Native loop initialization preserves explicit request `ToolChoice`; only an
+  omitted choice defaults to `auto`. Tool-free finalization and missing-schema
+  cleanup retain their existing overrides. Native Studio planning requires tools
+  and permits one text-only correction, independent of prose length, completion
+  markers or the general announcement retry setting. Other phases keep their
+  recovery rules. Verify `TestInitAgentLoopStatePreservesToolChoice`,
+  `TestGameMakerPlanningTextOnlyRecoveryIsBounded` and the provider-wire tests.
 - Prepared runs use bounded request-view compaction without helper LLM calls;
   private checkpoints retain full history and required reasoning. The optional
   `PromptUsageObserver` stores metadata/hashes only, distinguishes local prompt

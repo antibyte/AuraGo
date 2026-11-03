@@ -196,3 +196,23 @@ func TestGameMakerTextOnlyReplyGetsStudioNudgeInTheLoop(t *testing.T) {
 		t.Fatalf("accepted=%v; the model did not see the Studio nudge:\n%s", result.accepted, result.shown)
 	}
 }
+
+func TestGameMakerPlanningTextOnlyRecoveryIsBounded(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		for _, content := range []string{"Done.<done/>", "Which controls should I use?", strings.Repeat("The game will have platforms and collectibles. ", 10), `<workflow_plan>["game_maker_project"]</workflow_plan>`} {
+			s := announcementState(t, native, gameMakerPhaseToolNames("planning"))
+			s.runCfg.RunComplete = func() bool { return false }
+			s.runCfg.Config.Agent.AnnouncementDetector.MaxRetries = 10
+			parsed := ParsedToolResponse{Content: content, SanitizedContent: content, IsFinished: strings.Contains(content, "<done/>")}
+			for attempt := 0; attempt < 2; attempt++ {
+				_, _, retry, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, false, emotionBehaviorPolicy{})
+				if retry != (attempt == 0) {
+					t.Fatalf("native=%v attempt=%d retry=%v: planning must allow exactly one text-only correction", native, attempt, retry)
+				}
+			}
+			if got := s.req.Messages[len(s.req.Messages)-1].Content; got != formatGameMakerAnnouncementFeedback(native, s.runCfg.AllowedTools) {
+				t.Fatalf("planning correction = %q", got)
+			}
+		}
+	}
+}
