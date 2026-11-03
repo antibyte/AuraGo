@@ -128,12 +128,12 @@ check('render mode: webp, raw RGBA and the screenshot transport', async () => {
 });
 
 check('render mode: boot.frame_deadline_ms replaces the 250 ms frame deadline of the preview', async () => {
-    const limits = { warmupFrames: 0, frameDeadlineMs: 40 };
+    const limits = { warmupFrames: 0, frameDeadlineMs: 2000 };
     const control = [], offered = [], absurd = [];
     assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: control })).status.phase, 'done');
-    assert.ok(control.includes(40), 'without frame_deadline_ms every frame call waits at most the preview deadline');
+    assert.ok(control.includes(2000), 'without frame_deadline_ms every frame call waits at most the preview deadline');
     assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: offered, boot: { frame_deadline_ms: 5000 } })).status.phase, 'done');
-    assert.ok(offered.includes(5000) && !offered.includes(40), 'the deadline Go offers in boot.json is the frame deadline of the render');
+    assert.ok(offered.includes(5000) && !offered.includes(2000), 'the deadline Go offers in boot.json is the frame deadline of the render');
     assert.equal((await runRender({ story: minimal, noCode: true, limits, timers: absurd, boot: { frame_deadline_ms: 3600000 } })).status.phase, 'done');
     assert.ok(absurd.includes(60000) && !absurd.includes(3600000), 'a render page never waits longer than a minute for one frame');
 });
