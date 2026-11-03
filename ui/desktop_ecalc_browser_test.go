@@ -134,7 +134,9 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture-apps", func(w http.ResponseWriter, r *http.Request) { json.NewEncoder(w).Encode(desktop.BuiltinApps()) })
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(90 * time.Second)
+	// The test grows with every phase (it needed 87 of its 90 seconds at the end of phase 2): the page budget is 170 seconds, the
+	// browser itself is stopped after 180 (newSmokeBrowserWith).
+	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(170 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	page.MustSetViewport(1366, 900, 1, false)
