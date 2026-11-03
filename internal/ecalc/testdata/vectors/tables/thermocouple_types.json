@@ -1,0 +1,37 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "Temperatures are in degC and tolerances in K as in the table columns, voltages in V (the research lists mV: 4.096 mV = 0.004096 V). Colours are the English text of the cell. null checks the cells that stay empty on purpose (type B IEC colours, class 1 of type B, ANSI thermocouple-grade jacket of R, S and B, 1000 degC of type T)."
+  ],
+  "table": "thermocouple_types",
+  "cells": [
+    {"key": "K", "column": "emf_100", "want": 0.004096, "ref": "NIST ITS-90 Thermocouple Database, type K table: 4.096 mV at 100 °C (reference junction 0 °C); IEC 60584-1 reference function is identical"},
+    {"key": "K", "column": "emf_1000", "want": 0.041276, "ref": "NIST ITS-90 Thermocouple Database, type K table: 41.276 mV at 1000 °C"},
+    {"key": "J", "column": "emf_100", "want": 0.005269, "ref": "NIST ITS-90 Thermocouple Database, type J table: 5.269 mV at 100 °C"},
+    {"key": "R", "column": "emf_1000", "want": 0.010506, "ref": "NIST ITS-90 Thermocouple Database, type R table: 10.506 mV at 1000 °C"},
+    {"key": "S", "column": "emf_100", "want": 0.000646, "ref": "NIST ITS-90 Thermocouple Database, type S table: 0.646 mV at 100 °C"},
+    {"key": "J", "column": "ref_t_max", "want": 1200, "ref": "IEC 60584-1:2013 (type J reference function -210 to 1200 °C); NIST agrees"},
+    {"key": "J", "column": "ref_t_min", "want": -210, "ref": "IEC 60584-1:2013 (type J reference function -210 to 1200 °C); NIST agrees"},
+    {"key": "R", "column": "ref_t_min", "want": -50, "ref": "IEC 60584-1:2013 (types R and S reference functions -50 to 1768.1 °C); NIST agrees"},
+    {"key": "R", "column": "ref_t_max", "want": 1768.1, "ref": "IEC 60584-1:2013 (types R and S reference functions -50 to 1768.1 °C); NIST agrees"},
+    {"key": "B", "column": "ref_t_max", "want": 1820, "ref": "IEC 60584-1:2013 (type B reference function 0 to 1820 °C); NIST agrees"},
+    {"key": "K", "column": "c1_tol", "want": 1.5, "ref": "Tolerance class 1 of type K, -40 to 1000 °C: ±1.5 °C or ±0.004 |t| (SAB Bröckskes, Thermosense, TC Direct agree)"},
+    {"key": "K", "column": "c1_tol_frac", "want": 0.004, "ref": "Tolerance class 1 of type K, -40 to 1000 °C: ±1.5 °C or ±0.004 |t| (SAB Bröckskes, Thermosense, TC Direct agree)"},
+    {"key": "K", "column": "c2_t_max", "want": 1200, "ref": "Tolerance class 2 of type K, -40 to 1200 °C: ±2.5 °C or ±0.0075 |t| (SAB Bröckskes, Thermosense, TC Direct agree)"},
+    {"key": "T", "column": "c1_tol", "want": 0.5, "ref": "Tolerance class 1 of type T, -40 to 350 °C: ±0.5 °C or ±0.004 |t| (SAB Bröckskes, Thermosense, TC Direct agree)"},
+    {"key": "R", "column": "c1_tol_frac", "want": null, "ref": "left empty: above 1100 °C the class 1 limit of R and S is ±[1 + 0.003 (t - 1100)] °C, stated in the notes"},
+    {"key": "B", "column": "c1_tol", "want": null, "ref": "class 1 is not defined for type B (SAB Bröckskes, Thermosense)"},
+    {"key": "B", "column": "c2_tol_frac", "want": 0.0025, "ref": "Tolerance class 2 of type B, 600 to 1700 °C: ±0.0025 |t| (SAB Bröckskes, Thermosense agree)"},
+    {"key": "T", "column": "emf_1000", "want": null, "ref": "left empty: the type T reference function ends at 400 °C (IEC 60584-1:2013, NIST)"},
+    {"key": "K", "column": "iec_pos", "want": "green", "ref": "IEC 60584-3:2007 colour of the positive core of type K (TC Direct, Tempco, EPIC Sensors, Omega agree)"},
+    {"key": "J", "column": "iec_pos", "want": "black", "ref": "IEC 60584-3:2007 colour of the positive core of type J (TC Direct, Tempco, EPIC Sensors, Omega agree)"},
+    {"key": "K", "column": "iec_neg", "want": "white", "ref": "IEC 60584-3:2007: the negative core is white (TC Direct, Tempco, EPIC Sensors agree)"},
+    {"key": "N", "column": "iec_sheath", "want": "pink", "ref": "IEC 60584-3:2007 sheath colour of type N (TC Direct, Tempco, EPIC Sensors agree)"},
+    {"key": "B", "column": "iec_pos", "want": null, "ref": "left empty: the IEC colours of type B are weakly sourced (one maker chart, older tables conflict)"},
+    {"key": "K", "column": "ansi_pos", "want": "yellow", "ref": "ANSI MC96.1 positive core of type K (Thermometrics, Omega, EPIC Sensors agree)"},
+    {"key": "J", "column": "ansi_pos", "want": "white", "ref": "ANSI MC96.1 positive core of type J (Thermometrics, Omega, EPIC Sensors agree)"},
+    {"key": "T", "column": "ansi_neg", "want": "red", "ref": "ANSI MC96.1: the negative core is always red (Thermometrics, Omega agree)"},
+    {"key": "S", "column": "ansi_tc_jacket", "want": null, "ref": "left empty: ANSI MC96.1 has no thermocouple-grade jacket for R, S and B (Thermometrics)"}
+  ]
+}

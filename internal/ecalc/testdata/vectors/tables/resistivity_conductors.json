@@ -1,0 +1,31 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "Typical-value table: the cells below are values that two or more sources agree on, the two standard rows (IEC 60028 copper, IEC 60889 aluminium) and the cells that the research left empty because its sources disagree (null)."
+  ],
+  "table": "resistivity_conductors",
+  "cells": [
+    {"key": "Silver", "column": "rho20", "want": 0.01587, "ref": "CRC Handbook of Chemistry and Physics, 84th ed., section 12 (silver at 293 K: 1.587 µΩ·cm = 0.01587 Ω·mm²/m); Wikipedia, HyperPhysics and Engineering ToolBox give 0.0159"},
+    {"key": "Silver", "column": "alpha", "want": 0.0038, "ref": "Wikipedia 'Electrical resistivity and conductivity' 0.0038, HyperPhysics 0.0038, Engineering ToolBox 0.00382 (per K at 20 °C)"},
+    {"key": "Copper, annealed (standard)", "column": "rho20", "want": 0.017241379310344827, "ref": "IEC 60028 International Annealed Copper Standard: exactly 1/58 Ω·mm²/m at 20 °C (= 58 MS/m, 100 % IACS)"},
+    {"key": "Copper, annealed (standard)", "column": "alpha", "want": 0.00393, "ref": "IEC 60028: α = 0.00393 /K at 20 °C; HyperPhysics, Wikipedia and Engineering ToolBox give 0.00393"},
+    {"key": "Aluminium, hard-drawn wire (standard)", "column": "rho20", "want": 0.028264, "ref": "IEC 60889 (hard-drawn aluminium wire, 61 % IACS): 0.028264 Ω·mm²/m; Wikipedia lists 2.82e-8 Ω·m"},
+    {"key": "Aluminium, hard-drawn wire (standard)", "column": "alpha", "want": 0.00403, "ref": "IEC 60889: α = 0.00403 /K at 20 °C"},
+    {"key": "Gold", "column": "rho20", "want": 0.02214, "ref": "CRC Handbook, 84th ed., section 12 (gold at 293 K: 2.214 µΩ·cm); Engineering ToolBox 0.0224"},
+    {"key": "Gold", "column": "alpha", "want": null, "ref": "left empty: the sources disagree (0.0034 Wikipedia/Serway, 0.0037 derived from CRC), research cell UNVERIFIED"},
+    {"key": "Platinum", "column": "alpha", "want": 0.00392, "ref": "Wikipedia 0.00392, HyperPhysics 0.003927, Engineering ToolBox 0.00393"},
+    {"key": "Zinc", "column": "rho20", "want": 0.059, "ref": "CRC Handbook, 84th ed., section 12 (zinc at 293 K: 5.90 µΩ·cm), Wikipedia 0.0590, Engineering ToolBox 0.0592"},
+    {"key": "Brass", "column": "rho20", "want": 0.066, "ref": "Deutsches Kupferinstitut data sheet CuZn37: 15 MS/m, 0.066 Ω·mm²/m at 20 °C"},
+    {"key": "Constantan", "column": "alpha_min", "want": -0.00008, "ref": "Isabellenhütte data sheet ISOTAN (CuNi44, 2.0842): TCR -80 ... +40 ppm/K, 20-105 °C (DIN 17471)"},
+    {"key": "Constantan", "column": "alpha_max", "want": 0.00004, "ref": "Isabellenhütte data sheet ISOTAN (CuNi44, 2.0842): TCR -80 ... +40 ppm/K, 20-105 °C (DIN 17471)"},
+    {"key": "Constantan", "column": "alpha", "want": null, "ref": "the precision alloys carry a band (alpha_min, alpha_max), not a single value"},
+    {"key": "Manganin", "column": "alpha_max", "want": 0.00001, "ref": "Isabellenhütte data sheet MANGANIN (CuMn12Ni, 2.1362): TCR -10 ... +10 ppm/K, 20-50 °C"},
+    {"key": "Manganin", "column": "rho20", "want": 0.43, "ref": "Isabellenhütte data sheet MANGANIN: 43 µΩ·cm ±5 %"},
+    {"key": "Nichrome 80/20", "column": "alpha", "want": null, "ref": "left empty: makers give about 0.0001 /K, textbooks 0.0004 /K, research cell UNVERIFIED"},
+    {"key": "Stainless steel 1.4301", "column": "alpha", "want": null, "ref": "left empty: a single generic source, research cell UNVERIFIED"},
+    {"key": "Phosphor bronze", "column": "alpha", "want": null, "ref": "left empty: the only value (0.00065 /K, Deutsches Kupferinstitut CuSn6 sheet) was seen only as a search excerpt, not confirmed from a primary document"},
+    {"key": "Phosphor bronze", "column": "rho20", "want": 0.111, "ref": "Bikar CuSn6 (CW452K) page 0.111 Ω·mm²/m at 20 °C; Aurubis CuSn6 data sheet PNA 282: 9 MS/m = 0.111"},
+    {"key": "Solder Sn63Pb37", "column": "rho20", "want": 0.15, "ref": "Kester 'Technical Data on Soft Solders': 11.5 % of copper conductivity; Indium Corporation Solder Alloy Directory: Indalloy 106 11.5 % IACS"}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "Temperatures are in degC as in the table columns. null checks the cells that stay empty on purpose (the SAC405 liquidus and the ISO 9453 numbers that no source confirms)."
+  ],
+  "table": "solder_alloys",
+  "cells": [
+    {"key": "Sn63Pb37", "column": "solidus", "want": 183, "ref": "ISO 9453:2006 Table 2 (alloy 101, 183 °C); Kester, Indium, Stannol and NIST agree"},
+    {"key": "Sn63Pb37", "column": "liquidus", "want": 183, "ref": "ISO 9453:2006 Table 2 (eutectic alloy 101, 183 °C); Kester, Indium, Stannol and NIST agree"},
+    {"key": "Sn63Pb37", "column": "iso9453_no", "want": "101", "ref": "ISO 9453:2006 Table 2: alloy 101 S-Sn63Pb37 (the E grade 102 has tighter impurity limits)"},
+    {"key": "Sn60Pb40", "column": "liquidus", "want": 190, "ref": "ISO 9453:2006 Table 2 (alloy 103, 183/190 °C); Kester and Stannol agree"},
+    {"key": "Sn96.5Ag3.0Cu0.5", "column": "solidus", "want": 217, "ref": "Kester, Indium (directory and Indalloy 256 data sheet), Stannol, Felder and DKL Metals: 217 °C"},
+    {"key": "Sn96.5Ag3.0Cu0.5", "column": "liquidus", "want": 220, "ref": "Kester, Indium (directory and Indalloy 256 data sheet), Stannol, Felder and DKL Metals: 220 °C"},
+    {"key": "Sn96.5Ag3.0Cu0.5", "column": "iso9453_no", "want": "711", "ref": "Stannol catalogue (ISO 9453:2006) and DKL Metals E-Qual data sheet (ISO 9453:2020): alloy 711"},
+    {"key": "Sn99.3Cu0.7", "column": "solidus", "want": 227, "ref": "Kester, Indium, Stannol and NIST agree: 227 °C (eutectic)"},
+    {"key": "Sn42Bi58", "column": "solidus", "want": 138, "ref": "Indium Corporation directory (Indalloy 281, 138 °C eutectic) and NIST Tables 1.18/2.2.19: 138 °C"},
+    {"key": "Sn96.5Ag3.5", "column": "liquidus", "want": 221, "ref": "Kester, Indium (Indalloy 121) and NIST (two tables): 221 °C eutectic"},
+    {"key": "Sn96.5Ag3.5", "column": "iso9453_no", "want": null, "ref": "left empty: the number 703 rests on one search excerpt, research cell UNVERIFIED"},
+    {"key": "Sn95.5Ag4.0Cu0.5", "column": "liquidus", "want": null, "ref": "left empty: Kester 217, Kapp and Caplinq 219 (excerpts), Indium directory 225, research cell UNVERIFIED"},
+    {"key": "Sn95.5Ag4.0Cu0.5", "column": "solidus", "want": 217, "ref": "Kester and Indium directory (Indalloy 246): solidus 217 °C"},
+    {"key": "Sn95.5Ag4.0Cu0.5", "column": "iso9453_no", "want": null, "ref": "left empty: no ISO 9453 number found in any source"}
+  ]
+}

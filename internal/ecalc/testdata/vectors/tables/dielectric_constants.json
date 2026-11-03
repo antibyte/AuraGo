@@ -1,0 +1,28 @@
+{
+  "_doc": [
+    "Vectors of one table (the file name is the table id).",
+    "cells: the cell of the row whose key column holds key and of the column column must equal want. key is a number in the unit of the key column (or the English text of a text key), want a number in the unit of the column, the English text of a text cell, or null for an empty cell. A number matches at the relative error tol (default 1e-9).",
+    "Typical-value table: the cells below are maker data sheet values (Rogers, Isola, DuPont, SCHOTT, CoorsTek), values that several sources agree on, and one cell that no source gives (null)."
+  ],
+  "table": "dielectric_constants",
+  "cells": [
+    {"key": "Hydrocarbon/ceramic laminate RO4003C", "column": "eps_r", "want": 3.38, "ref": "Rogers RO4000 Series data sheet (PUB# 92-004): process Dk 3.38 ± 0.05 at 10 GHz; Atlas PCB agrees"},
+    {"key": "Hydrocarbon/ceramic laminate RO4003C", "column": "eps_r_design", "want": 3.55, "ref": "Rogers RO4000 Series data sheet: design Dk 3.55 (8-40 GHz)"},
+    {"key": "Hydrocarbon/ceramic laminate RO4003C", "column": "tan_d", "want": 0.0027, "ref": "Rogers RO4000 Series data sheet: Df 0.0027 at 10 GHz; Atlas PCB agrees"},
+    {"key": "PTFE/glass microfibre laminate", "column": "eps_r", "want": 2.2, "ref": "Rogers RT/duroid 5870/5880 data sheet (#92-101): Dk 2.20 ± 0.02 at 10 GHz; Atlas PCB agrees"},
+    {"key": "PTFE/glass microfibre laminate", "column": "tan_d", "want": 0.0009, "ref": "Rogers RT/duroid 5870/5880 data sheet: Df 0.0009 at 10 GHz (0.0004 at 1 MHz)"},
+    {"key": "FR-4 high-Tg (example), 1 GHz", "column": "eps_r", "want": 4.17, "ref": "Isola 370HR data sheet, revision B: Dk 4.17 at 1 GHz"},
+    {"key": "FR-4 high-Tg (example), 1 GHz", "column": "tan_d", "want": 0.0161, "ref": "Isola 370HR data sheet, revision B: Df 0.0161 at 1 GHz"},
+    {"key": "FR-4 high-Tg (example), 10 GHz", "column": "tan_d", "want": 0.025, "ref": "Isola 370HR data sheet, revision B: Df 0.0250 at 10 GHz"},
+    {"key": "PTFE (pure)", "column": "eps_r", "want": 2.1, "ref": "DuPont Teflon PTFE properties handbook 2.1; Lapp OELFLEX appendix T15 2.1; myElectrical 2.1; Wikipedia 2.1; Engineering ToolBox 2.1"},
+    {"key": "Polyethylene (LDPE/HDPE)", "column": "eps_r", "want": 2.3, "ref": "Lapp OELFLEX appendix T15 2.3 (LDPE, HDPE); myElectrical 2.3; Wikipedia 2.25; Engineering ToolBox 2.2-2.4"},
+    {"key": "Polyimide film", "column": "eps_r", "want": 3.4, "ref": "DuPont Kapton HN data sheet K-15345-2: 3.4 (25 and 50 µm) at 1 kHz; Wikipedia 3.4; Engineering ToolBox 3.4"},
+    {"key": "Borosilicate glass", "column": "eps_r", "want": 4.6, "ref": "SCHOTT BOROFLOAT 33 technical data: εr 4.6 at 1 MHz and 25 °C"},
+    {"key": "Alumina ceramic 96 %", "column": "tan_d", "want": 0.0002, "ref": "CoorsTek ceramic properties chart F0801 Rev. J: AD-96 tan δ 0.0002 at 1 MHz"},
+    {"key": "Alumina ceramic 96 %", "column": "eps_r", "want": 9.0, "ref": "CoorsTek ceramic properties chart F0801 Rev. J: AD-96 dielectric constant 9.0 at 1 MHz"},
+    {"key": "Alumina ceramic 96 %", "column": "eps_r_max", "want": null, "ref": "left empty: 9.4 is a Kyocera A476 value seen only in a search excerpt, not confirmed from a primary document"},
+    {"key": "Alumina ceramic 96 %", "column": "tan_d_max", "want": null, "ref": "left empty: 0.0004 is a Kyocera A476 value seen only in a search excerpt, not confirmed from a primary document"},
+    {"key": "Air (dry)", "column": "eps_r", "want": 1.00059, "ref": "Wikipedia 'Relative permittivity': air 1.00058986 at STP; Engineering ToolBox 1.000536 at 20 °C (the min column)"},
+    {"key": "Air (dry)", "column": "tan_d", "want": null, "ref": "left empty: no source gives a loss tangent for air"}
+  ]
+}
