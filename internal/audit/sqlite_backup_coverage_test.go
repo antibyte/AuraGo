@@ -20,6 +20,7 @@ var sqliteBackupExclusions = map[string]string{
 	"short_term.sqlite":      "memory snapshot file name inside snapshot directories, not a live store",
 	"knowledge_graph.sqlite": "memory snapshot file name inside snapshot directories, not a live store",
 	"memory.sqlite":          "memory-repair tool scratch file",
+	"backup.sqlite":          "private migration-backup staging file, published as a .bak file and cleaned after use",
 	// Fallback defaults of sqlite.*_path settings: the configured path is what
 	// SQLiteDatabasePaths backs up (config always fills these in).
 	"image_gallery.db":   "default of sqlite.image_gallery_path",

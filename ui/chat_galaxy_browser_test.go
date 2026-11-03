@@ -358,7 +358,9 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	p.MustEval(`() => {const c=document.getElementById('chat-content');window.__messages=c.innerHTML;c.insertAdjacentHTML('beforeend','<div class="msg-row bot"><div class="message-stack"><div class="bubble bot">Scroll fixture message.</div></div></div>'.repeat(30))}`)
 	p.MustWait(`() => !document.getElementById('chat-content').classList.contains('galaxy-welcome-only')`)
 	p.MustEval(`() => {document.getElementById('chat-box').scrollTop=100}`)
-	check(`() => document.getElementById('chat-box').scrollTop>0`, "chat could not scroll")
+	if err := p.Timeout(5 * time.Second).Wait(rod.Eval(`() => document.getElementById('chat-box').scrollTop>0`)); err != nil {
+		t.Fatalf("chat could not scroll: %v", err)
+	}
 	p.MustEval(`() => document.getElementById('chat-content').innerHTML=__messages`)
 	for _, drawer := range []string{"session", "integrations"} {
 		p.MustElement("#" + drawer + "-toggle-btn").MustClick()
