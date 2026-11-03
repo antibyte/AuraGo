@@ -11,8 +11,9 @@ import (
 )
 
 // decodeECalcArgs reads an ecalc call from native params first and falls back to the generic ToolCall fields of
-// text-mode calls. The variable values are called inputs on the wire because ToolCall already owns a "values" field
-// for spreadsheets, which only decodes arrays of arrays.
+// text-mode calls (code, value, offset and limit are ToolCall fields of the same type). The variable values are called
+// inputs on the wire because ToolCall already owns a "values" field for spreadsheets, which only decodes arrays of
+// arrays. Texts that a model may send as numbers (value, tolerance, tempco, voltage, bands) are read as typed.
 func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 	return tools.ECalcRequest{
 		Operation: strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")))),
@@ -22,6 +23,64 @@ func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 		Choices:   ecalcPairs(tc.Params["choices"], "option"),
 		ESeries:   toolArgString(tc.Params, "eseries", "e_series", "series"),
 		Limit:     firstNonEmptyInt(toolArgInt(tc.Params, 0, "limit"), tc.Limit),
+
+		Filter: toolArgString(tc.Params, "filter"),
+		Offset: firstNonEmptyInt(toolArgInt(tc.Params, 0, "offset"), tc.Offset),
+		Lookup: ecalcLookup(tc.Params["lookup"]),
+
+		Kind:      strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "kind", "code_kind"))),
+		Code:      firstNonEmptyToolString(ecalcParamText(tc.Params, "code"), tc.Code),
+		Value:     firstNonEmptyToolString(ecalcParamText(tc.Params, "value"), tc.Value),
+		Bands:     ecalcParamInt(tc.Params, "bands"),
+		Tolerance: ecalcParamText(tc.Params, "tolerance"),
+		TempCo:    ecalcParamText(tc.Params, "tempco", "temp_co"),
+		Voltage:   ecalcParamText(tc.Params, "voltage"),
+		Class:     ecalcParamText(tc.Params, "class"),
+	}
+}
+
+// ecalcParamText is the text of the first of the keys that holds a string or a number.
+func ecalcParamText(params map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if text, ok := ecalcScalarText(params[key]); ok && text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+// ecalcParamInt reads a whole number that may arrive as a number or as text ("5"); anything else is 0.
+func ecalcParamInt(params map[string]interface{}, key string) int {
+	if n := toolArgInt(params, 0, key); n != 0 {
+		return n
+	}
+	if text, ok := ecalcScalarText(params[key]); ok {
+		if n, err := strconv.Atoi(text); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+// ecalcLookup reads the lookup object of a table call: an object, or the JSON text of one. A lookup that is present but
+// has no usable shape becomes an empty lookup, so that the tool answers that it needs a value instead of ignoring it.
+func ecalcLookup(raw interface{}) *ecalc.TableLookup {
+	if raw == nil {
+		return nil
+	}
+	if text, ok := raw.(string); ok {
+		var decoded interface{}
+		if json.Unmarshal([]byte(text), &decoded) == nil {
+			raw = decoded
+		}
+	}
+	m, _ := raw.(map[string]interface{})
+	value, _ := ecalcScalarText(m["value"])
+	return &ecalc.TableLookup{
+		Column: strings.TrimSpace(toolArgString(m, "column")),
+		Value:  value,
+		Mode:   strings.ToLower(strings.TrimSpace(toolArgString(m, "mode"))),
+		Output: strings.TrimSpace(toolArgString(m, "output")),
 	}
 }
 

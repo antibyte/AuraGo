@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/ecalc"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -52,8 +53,26 @@ func TestECalcSchemaIsStrictCompactAndNamedSafely(t *testing.T) {
 	}
 	params := s.Function.Parameters.(map[string]interface{})
 	props := params["properties"].(map[string]interface{})
-	if got := props["operation"].(map[string]interface{})["enum"]; !slices.Equal(got.([]string), []string{"search", "describe", "calculate", "open"}) {
+	if got := props["operation"].(map[string]interface{})["enum"]; !slices.Equal(got.([]string), []string{"search", "describe", "calculate", "open", "table", "decode", "encode"}) {
 		t.Fatalf("operations = %v", got)
+	}
+	// The code kinds of the engine are the enum of kind, so the schema cannot drift from them.
+	if got := props["kind"].(map[string]interface{})["enum"]; len(ecalc.CodeKindIDs()) < 5 || !slices.Equal(got.([]string), ecalc.CodeKindIDs()) {
+		t.Fatalf("kinds = %v, want %v", got, ecalc.CodeKindIDs())
+	}
+	// The lookup of a table call is a strict object: concrete properties, nothing else allowed.
+	lookup := props["lookup"].(map[string]interface{})
+	lookupProps := lookup["properties"].(map[string]interface{})
+	if lookup["type"] != "object" || lookup["additionalProperties"] != false || !slices.Equal(lookup["required"].([]string), []string{"value"}) || len(lookupProps) != 4 ||
+		!slices.Equal(lookupProps["mode"].(map[string]interface{})["enum"].([]string), []string{"exact", "ge", "interp"}) {
+		t.Fatalf("lookup = %v", lookup)
+	}
+	// The parameters that share a name with a field of ToolCall have its type (a string or an integer), so a call with
+	// them is never flagged malformed.
+	for name, typ := range map[string]string{"code": "string", "value": "string", "offset": "integer", "limit": "integer", "filter": "string", "bands": "integer"} {
+		if got := props[name].(map[string]interface{})["type"]; got != typ {
+			t.Errorf("%s has type %v, want %v", name, got, typ)
+		}
 	}
 	if got := props["eseries"].(map[string]interface{})["enum"]; !slices.Equal(got.([]string), []string{"E3", "E6", "E12", "E24", "E48", "E96", "E192"}) {
 		t.Fatalf("series = %v", got)
@@ -80,8 +99,10 @@ func TestECalcSchemaIsStrictCompactAndNamedSafely(t *testing.T) {
 			}
 		}
 	}
-	if got := estimateSingleToolSchemaTokens(s); got > 450 {
-		t.Fatalf("the ecalc schema is %d tokens, keep it at most 450", got)
+	// 450 tokens held the four calculator operations; table, decode and encode add three operations and eleven
+	// parameters. The manual carries the details, so the schema keeps to names, types and one short hint each.
+	if got := estimateSingleToolSchemaTokens(s); got > 800 {
+		t.Fatalf("the ecalc schema is %d tokens, keep it at most 800", got)
 	}
 }
 
@@ -250,7 +271,7 @@ func TestECalcManualExamplesAreValidCalls(t *testing.T) {
 			t.Errorf("the example does not run: %s\n%s", example[1], out)
 		}
 	}
-	for _, op := range []string{"search", "describe", "calculate", "open"} {
+	for _, op := range []string{"search", "describe", "calculate", "open", "table", "decode", "encode"} {
 		if !seen[op] {
 			t.Errorf("the manual has no example for %s", op)
 		}

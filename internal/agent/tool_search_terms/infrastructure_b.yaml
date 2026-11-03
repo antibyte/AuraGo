@@ -1,7 +1,7 @@
 # infrastructure_b search terms
 ecalc:
-  en: ["electronics calculator", "resistor calculator", "Ohm's law", "voltage divider calculation", "LED series resistor", "RC time constant", "filter cutoff frequency", "E-series standard value", "op-amp gain", "555 timer calculation", "open ECalc"]
-  de: ["Elektronik Rechner", "Widerstand berechnen", "Ohmsches Gesetz", "Spannungsteiler berechnen", "LED Vorwiderstand", "RC Zeitkonstante", "Filter Grenzfrequenz", "E-Reihe Normwert", "OpAmp Verstärkung", "555 Timer berechnen", "ECalc öffnen"]
+  en: ["electronics calculator", "Ohm's law", "voltage divider calculation", "LED series resistor", "RC time constant", "filter cutoff frequency", "E-series standard value", "AWG wire gauge table", "cable cross-section table", "resistor color code", "SMD resistor marking", "open ECalc"]
+  de: ["Elektronik Rechner", "Ohmsches Gesetz", "Spannungsteiler berechnen", "LED Vorwiderstand", "RC Zeitkonstante", "Filter Grenzfrequenz", "E-Reihe Normwert", "AWG Leiterquerschnitt Tabelle", "Kabelquerschnitt Tabelle", "Widerstand Farbcode", "SMD Widerstand Code", "ECalc öffnen"]
 openscad_render:
   en: ["OpenSCAD", "render OpenSCAD code", "parametric CAD model", "export STL", "OpenSCAD PNG preview", "SCAD file to STL", "script based 3D model", "compile SCAD"]
   de: ["OpenSCAD rendern", "parametrisches CAD-Modell", "STL exportieren", "SCAD-Code berechnen", "3D-Modell aus Code", "Vorschaubild vom Modell", "SCAD in STL umwandeln"]
