@@ -211,6 +211,8 @@ chromem-go_data/
 /assets/media_samples/*.mp4
 /assets/media_samples/*.wav
 /assets/media_samples/*.webm
+# AI-generated intro videos: local binaries, not indexed and not published to GitHub.
+/assets/video/
 
 # Secrets and local-only configuration
 /config.yaml

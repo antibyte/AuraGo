@@ -266,35 +266,88 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Shared ONNX/person detection/Pixel AI | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md`, `internal/pixelmatte/AGENTS.md` | All three own shared binding/cache/detection/background-matting changes. |
 
 <!-- gitnexus:start -->
-## GitNexus — Code Intelligence
+# GitNexus — Code Intelligence
 
-Indexed repository: **AuraGo**. On query/context/impact/cypher object results check `staleness.status`, branch/lastCommit; `current` means clone HEAD, not main. Re-analyze only for behind/diverged: `node .gitnexus/run.cjs analyze --index-only`. Missing runner: bootstrap via `npx`, `bunx` or `pnpm dlx`, e.g. `bunx gitnexus@latest analyze` (#1939).
+This project is indexed by GitNexus as **AuraGo** (228760 symbols, 1440505 relationships, 1834 execution flows).
 
-- **Before edits run impact**, never edit functions/classes/methods without it: `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`. Report callers/processes/risk. Warn on HIGH/CRITICAL `risk`; `riskSharedAxes` never waives it. File/symbol risks differ (MCP File omits axes; Graph-RAG expands File).
-- `risk: UNKNOWN` is unresolved, never safe/low. Empty callers may reflect plain-object property access/dynamic/cross-language calls; heed `riskNote` and confirm by text search before change/deletion. Never substitute grep for graph impact.
-- Read-only graph-first analysis: `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for symbols, impact for blast radius; text search only for empty/UNKNOWN/literals. Security: `explain({target: "fileOrSymbol"})` for source→sink taint (needs `analyze --pdg`).
-- Rename only with graph `rename`: preview `dry_run: true`, review semantic spans/coverage, apply `dry_run: false`; never find-and-replace.
-- **Before commit run change analysis**: `detect_changes({scope: "all"})` or `node .gitnexus/run.cjs detect-changes --scope all --repo .`. `partial: true`/`truncated: true` is incomplete; rerun, never interpret unseen zeros as unaffected. Regression review: fetch remote `main`, compute merge base with reviewed HEAD, pass SHA to `detect_changes({scope: "compare", base_ref: "<merge-base SHA>"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "<merge-base SHA>" --repo .`.
+> Index stale? Run `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
-Resources: `gitnexus://repo/AuraGo/context` (overview/freshness), `gitnexus://repo/AuraGo/clusters` (areas), `gitnexus://repo/AuraGo/processes` (flows), `gitnexus://repo/AuraGo/process/{name}` (trace). Read the matching skill:
+## Always Do
 
-| Task | Skill |
+- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
+- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
+- MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
+- **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
+- **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
+- For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
+
+## Never Do
+
+- NEVER edit a function, class, or method before MCP/CLI impact analysis.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis, and never read `UNKNOWN` as an all-clear — it means the walk could not answer, which is the one verdict that requires confirming by other means.
+- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER commit before MCP/CLI graph change analysis.
+
+## Resources
+
+| Resource | Use for |
 | --- | --- |
-| Architecture/flows | `.claude/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Bugs | `.claude/skills/gitnexus-debugging/SKILL.md` |
-| Rename/extract/split/refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
-| Tools/resources/schema | `.claude/skills/gitnexus-guide/SKILL.md` |
-| Index/status/clean/wiki CLI | `.claude/skills/gitnexus-cli/SKILL.md` |
+| `gitnexus://repo/AuraGo/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/AuraGo/clusters` | All functional areas |
+| `gitnexus://repo/AuraGo/processes` | All execution flows |
+| `gitnexus://repo/AuraGo/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+| --- | --- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
+
 <!-- gitnexus:end -->
 
 <!-- graft:start -->
 ## Graft — repo context graph
 
-`graft/` contains linked system/context Markdown nodes with exact file:line spans (`graft/INDEX.md` is the entry). Consult the graph before source reads/search for understanding/location/scoping; reuse known symbols/errors/filenames. New repository: `graft map` gives directory clusters/hubs/hotspots (token-budgeted, deterministic, no key/LLM).
+This repo is indexed in `graft/`: small linked markdown nodes that explain each
+system and carry exact file:line spans, kept in sync with the code through git.
 
-- `graft ask "<task>" --source`: ranked nodes/≤8-line excerpts; `--full` for whole definitions. Use top result, cite `covers:` file:line, edit there. Top-N is not exhaustive: `graft grep "<literal>"` finds all occurrences grouped by enclosing symbol; raw `grep -rn` only for unindexed files.
-- `graft skeleton <file>`: every signature/span, ~10× cheaper than reading a file. `graft callers <symbol>`: exact callers; `--direction out` for callees, `--depth N` for transitive blast radius. Structural questions use callers directly.
-- Monorepo hits carry `[scope/]`; scope with `graft ask "<task>" --in <scope>/`. Open truncated `+N more lines` at the exact range before finalizing; read source only for missing detail at returned file:line, never whole-file re-reads.
-- After big code changes run `graft build` (deterministic, no key, $0).
+For ANY task here — understanding how something works, finding where code lives,
+or scoping a change — get context from the graph before grepping or opening
+source files. Re-ask freely (it's cheap) and reuse literal identifiers you
+already have (symbol, error string, file name) as the query. New to this repo?
+Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
+hotspots), no LLM, no key.
+
+- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
+  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
+  definitions when the crux isn't enough). Match the tool to the task shape:
+  for understanding or editing, the top node IS the answer — cite its
+  `covers:` file:line spans and edit straight from `--source`. For
+  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
+  results are top-N, not complete — run `graft grep "<literal>"` instead
+  (exhaustive over indexed files, grouped by enclosing symbol), falling back
+  to raw `grep -rn` only for unindexed files.
+- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
+  than reading the file; use it to skim an API surface.
+- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
+  Add `--direction out` for what it calls, or `--depth N` to walk
+  transitively for the full blast radius. For structural questions, skip
+  ranking and use this directly.
+- Or browse: `graft/INDEX.md` lists every node; follow the links.
+- Monorepos and folders of multiple repos rank fairly across sub-projects —
+  hits carry `[scope/]` labels naming which one they're from. Narrow with
+  `graft ask "<task>" --in <scope>/` once you know where you're working.
+
+If a returned span is truncated ("+N more lines"), open the file at that exact
+range before finalizing. Only open source files when a node genuinely lacks a
+needed detail, and then at the exact file:line the node points to — never
+re-read whole files.
+
+After big code changes, refresh the graph with `graft build` (deterministic,
+no API key, $0).
 <!-- graft:end -->
