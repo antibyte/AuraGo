@@ -1,0 +1,18 @@
+{
+  "table": "ascii",
+  "cells": [
+    {"key": 65, "column": "char", "want": "A", "ref": "RFC 20 (USAS X3.4-1968): code 4/1 is capital letter A"},
+    {"key": 65, "column": "hex", "want": "41", "ref": "RFC 20 (USAS X3.4-1968): column 4, row 1 is 0x41"},
+    {"key": 97, "column": "char", "want": "a", "ref": "RFC 20 (USAS X3.4-1968): code 6/1 is small letter a"},
+    {"key": 10, "column": "char", "want": "LF", "ref": "RFC 20 (USAS X3.4-1968): code 0/10 is LF (Line Feed)"},
+    {"key": 10, "column": "ctrl", "want": "^J", "ref": "Ctrl notation = code XOR 0x40: 0x0A gives J"},
+    {"key": 10, "column": "rfc20_class", "want": "FE", "ref": "RFC 20 (USAS X3.4-1968), legend: LF is a format effector"},
+    {"key": 27, "column": "char", "want": "ESC", "ref": "RFC 20 (USAS X3.4-1968): code 1/11 is ESC (Escape)"},
+    {"key": 32, "column": "name", "want": "Space", "ref": "RFC 20 (USAS X3.4-1968): code 2/0 is Space (SP)"},
+    {"key": 48, "column": "name", "want": "Digit 0", "ref": "RFC 20 (USAS X3.4-1968): code 3/0 is digit 0"},
+    {"key": 92, "column": "name", "want": "Reverse Slant (backslash)", "ref": "RFC 20 (USAS X3.4-1968): code 5/12 is Reverse Slant (backslash)"},
+    {"key": 127, "column": "char", "want": "DEL", "ref": "RFC 20 (USAS X3.4-1968): code 7/15 is DEL (Delete)"},
+    {"key": 127, "column": "ctrl", "want": "^?", "ref": "Ctrl notation of DEL is ^?"},
+    {"key": 32, "column": "kind", "want": "graphic", "ref": "RFC 20 (USAS X3.4-1968): SP belongs to the graphic characters"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "table": "lora_regional_plans",
+  "cells": [
+    {"key": "EU868 default uplink channels", "column": "frequency", "want": "868.1; 868.3; 868.5 MHz", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters Tables 2/6/7 = LoRaMac-node EU868_LC1-3 = TTN docs"},
+    {"key": "EU868 default uplink channels", "column": "bandwidth", "want": 125000, "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters Table 2: 125 kHz default channels"},
+    {"key": "EU868 RX2 (second receive window)", "column": "frequency", "want": "869.525 MHz", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters = LoRaMac-node = TTN: EU868 RX2 869.525 MHz"},
+    {"key": "EU868 RX2 (second receive window)", "column": "data_rates", "want": "DR0 (SF12)", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters = LoRaMac-node: default RX2 data rate DR0"},
+    {"key": "US915 125 kHz uplink", "column": "frequency", "want": "902.3 + 0.2·n MHz", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters section 2.5.2 = LoRaMac-node RegionUS915.c (902300000 + i x 200000)"},
+    {"key": "US915 125 kHz uplink", "column": "step", "want": 200000, "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters section 2.5.2: 200 kHz channel step"},
+    {"key": "US915 500 kHz uplink", "column": "step", "want": 1600000, "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters section 2.5.2 = LoRaMac-node: 1.6 MHz step"},
+    {"key": "US915 500 kHz downlink", "column": "bandwidth", "want": 500000, "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters = LoRaMac-node: downlink channels are 500 kHz"},
+    {"key": "AS923-1 default uplink channels", "column": "frequency", "want": "923.2; 923.4 MHz", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters section 2.10.2 and Table 2 = LoRaMac-node AS923_LC1/LC2 = TTN docs"},
+    {"key": "AS923-3 default uplink channels", "column": "frequency", "want": "916.6; 916.8 MHz", "ref": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters Table 2 = LoRaMac-node CHANNEL_PLAN_GROUP_AS923_3 (offset -6.6 MHz)"}
+  ]
+}

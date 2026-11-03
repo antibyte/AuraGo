@@ -1,0 +1,14 @@
+{
+  "table": "greek_alphabet",
+  "cells": [
+    {"key": "Ω", "column": "name", "want": "omega", "ref": "de.wikipedia \"Griechisches Alphabet\": Omega is the last letter"},
+    {"key": "Ω", "column": "use", "want": "Ω: ohm (unit of resistance); ω: angular frequency (ω = 2πf)", "ref": "BIPM SI Brochure (Ω is the ohm); en.wikipedia \"Greek letters used in mathematics, science, and engineering\" (ω angular frequency)"},
+    {"key": "Σ", "column": "lower", "want": "σ ς", "ref": "de.wikipedia \"Griechisches Alphabet\": small sigma σ and the final form ς"},
+    {"key": "Π", "column": "lower", "want": "π ϖ", "ref": "de.wikipedia \"Griechisches Alphabet\": small pi π and the variant ϖ"},
+    {"key": "Ρ", "column": "lower", "want": "ρ ϱ", "ref": "de.wikipedia \"Griechisches Alphabet\": small rho ρ and the variant ϱ"},
+    {"key": "Ρ", "column": "use", "want": "ρ: resistivity", "ref": "en.wikipedia \"Greek letters used in mathematics, science, and engineering\" and de.wikipedia \"Liste physikalischer Größen\": ρ/ϱ is the specific electrical resistance"},
+    {"key": "Τ", "column": "use", "want": "τ: time constant (RC, L/R)", "ref": "en.wikipedia \"Greek letters used in mathematics, science, and engineering\": tau is the time constant"},
+    {"key": "Α", "column": "use", "want": "α: temperature coefficient of resistance", "ref": "en.wikipedia \"Temperature coefficient\": α as temperature coefficient (the unsourced common-base gain is left out)"},
+    {"key": "Ι", "column": "use", "want": null, "ref": "iota has no common use in electronics (nothing is claimed)"}
+  ]
+}

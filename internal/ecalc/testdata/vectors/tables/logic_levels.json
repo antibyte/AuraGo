@@ -1,0 +1,16 @@
+{
+  "table": "logic_levels",
+  "cells": [
+    {"key": "TTL (74xx, e.g. SN7400)", "column": "vih_min", "want": 2.0, "ref": "TI SN7400 data sheet (SDLS025D) = TI Logic Guide SDYU001AC = en.wikipedia \"Logic level\": TTL VIH 2.0 V"},
+    {"key": "TTL (74xx, e.g. SN7400)", "column": "vil_max", "want": 0.8, "ref": "TI SN7400 data sheet (SDLS025D) = TI Logic Guide SDYU001AC = en.wikipedia \"Logic level\": TTL VIL 0.8 V"},
+    {"key": "TTL (74xx, e.g. SN7400)", "column": "voh_min", "want": "2.4 V", "ref": "TI SN7400 data sheet (SDLS025D) = TI Logic Guide SDYU001AC: TTL VOH 2.4 V at -0.4 mA"},
+    {"key": "74HC (CMOS) at VCC = 4.5 V", "column": "vih_min", "want": 3.15, "ref": "TI SN74HC00 (SCLS181H) and Diodes 74HC00 (DS35319) data sheets: VIH 3.15 V at VCC 4.5 V"},
+    {"key": "74HC (CMOS) at VCC = 4.5 V", "column": "voh_min", "want": "4.4 / 3.84 V", "ref": "TI SN74HC00 (SCLS181H) and Diodes 74HC00 (DS35319) data sheets: VOH 4.4 V at -20 uA and 3.84 V at -4 mA (-40 to 85 °C)"},
+    {"key": "74HC (CMOS) at VCC = 4.5 V", "column": "vol_max", "want": "0.1 / 0.33 V", "ref": "TI SN74HC00 (SCLS181H) and Diodes 74HC00 (DS35319) data sheets: VOL 0.1 V at 20 uA and 0.33 V at 4 mA (-40 to 85 °C)"},
+    {"key": "74HCT (CMOS, TTL-compatible inputs)", "column": "vih_min", "want": 2.0, "ref": "TI SN74HCT00 (SCLS062F) and Diodes 74HCT00 (DS35329): VIH 2.0 V"},
+    {"key": "LVCMOS / LVTTL 3.3 V (e.g. 74LVC at 3.0–3.6 V)", "column": "vil_max", "want": 0.8, "ref": "TI SN74LVC1G00 (SCES212AC) and Diodes 74LVC1G00 (DS32196) data sheets: VIL 0.8 V at 3.0 to 3.6 V"},
+    {"key": "CMOS 5 V generic (0.7/0.3 VCC rule), e.g. 74LVC at 4.5–5.5 V", "column": "vih_min", "want": 3.5, "ref": "TI Logic Guide SDYU001AC = en.wikipedia \"Logic level\" (0.7 VDD): 3.5 V at 5 V"},
+    {"key": "LVCMOS 1.8 V (e.g. 74LVC at 1.65–1.95 V)", "column": "vil_max", "want": 0.63, "ref": "TI Logic Guide SDYU001AC (0.35 VCC): 0.63 V at 1.8 V"},
+    {"key": "74LS (Low-power Schottky TTL, e.g. SN74LS00)", "column": "vt_typ", "want": null, "ref": "the 74LS threshold is not given in the sources (empty)"}
+  ]
+}

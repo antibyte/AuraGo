@@ -1,0 +1,17 @@
+{
+  "table": "physical_constants",
+  "cells": [
+    {"key": "speed of light in vacuum", "column": "value", "want": "299792458", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: c = 299 792 458 m s^-1 (exact; BIPM SI Brochure Table 1)"},
+    {"key": "speed of light in vacuum", "column": "exact", "want": "exact", "ref": "BIPM SI Brochure, 9th edition, Table 1: c is one of the seven defining constants"},
+    {"key": "Planck constant", "column": "value", "want": "6.62607015×10⁻³⁴", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: h = 6.62607015e-34 J Hz^-1 (exact; BIPM SI Brochure Table 1)"},
+    {"key": "Planck constant", "column": "unit", "want": "J Hz⁻¹", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: unit of h as NIST writes it, J Hz^-1"},
+    {"key": "elementary charge", "column": "value", "want": "1.602176634×10⁻¹⁹", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: e = 1.602176634e-19 C (exact; BIPM SI Brochure Table 1)"},
+    {"key": "Boltzmann constant", "column": "value", "want": "1.380649×10⁻²³", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: k = 1.380649e-23 J K^-1 (exact; BIPM SI Brochure Table 1)"},
+    {"key": "vacuum magnetic permeability", "column": "value", "want": "1.25663706127×10⁻⁶", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: mu0 = 1.25663706127e-6 N A^-2 (2022 value, not 4π×10⁻⁷)"},
+    {"key": "vacuum magnetic permeability", "column": "uncertainty", "want": "2.0×10⁻¹⁶", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: standard uncertainty of mu0, 0.00000000020e-6 N A^-2"},
+    {"key": "vacuum magnetic permeability", "column": "exact", "want": "measured", "ref": "BIPM SI Brochure, 9th edition: mu0 is no longer exactly 4π×10⁻⁷ N/A²"},
+    {"key": "elementary charge", "column": "uncertainty", "want": null, "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: the standard uncertainty of an exact constant is empty"},
+    {"key": "standard atmosphere", "column": "value", "want": "101325", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: atm = 101325 Pa (exact)"},
+    {"key": "fine-structure constant", "column": "unit", "want": "1", "ref": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment: alpha is dimensionless (unit 1)"}
+  ]
+}

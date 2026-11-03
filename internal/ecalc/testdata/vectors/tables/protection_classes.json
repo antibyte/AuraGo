@@ -1,0 +1,12 @@
+{
+  "table": "protection_classes",
+  "cells": [
+    {"key": "II", "column": "iec60417", "want": "5172", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": class II symbol is IEC 60417-5172"},
+    {"key": "III", "column": "iec60417", "want": "5180", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": class III symbol is IEC 60417-5180"},
+    {"key": "I", "column": "iec60417", "want": null, "ref": "IEC 60417-5019 is left out: single source (de.wikipedia \"Schutzklasse (Elektrotechnik)\")"},
+    {"key": "I", "column": "pe", "want": "yes", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": class I connects the accessible conductive parts to the protective conductor"},
+    {"key": "II", "column": "pe", "want": "no", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": class II has no protective-earth connection"},
+    {"key": "II", "column": "symbol", "want": "two concentric squares", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": the class II symbol is a square within a square"},
+    {"key": "0", "column": "pe", "want": "no", "ref": "en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\": class 0 has no protective-conductor connection"}
+  ]
+}

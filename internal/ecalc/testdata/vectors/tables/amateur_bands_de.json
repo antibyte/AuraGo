@@ -1,0 +1,20 @@
+{
+  "table": "amateur_bands_de",
+  "cells": [
+    {"key": 14, "column": "f_low", "want": 28000000, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 14 starts at 28 MHz (equal in buzer.de and the DARC summary)"},
+    {"key": 14, "column": "f_high", "want": 29700000, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 14 ends at 29.7 MHz"},
+    {"key": 14, "column": "class_n", "want": "10 W ERP", "ref": "DARC summary and AFuV Anlage 1 (BGBl. 2024 I Nr. 175): class N on 28 to 29.7 MHz may use 10 W ERP"},
+    {"key": 14, "column": "class_a", "want": "750 W PEP", "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): class A on 28 to 29.7 MHz may use 750 W PEP"},
+    {"key": 17, "column": "class_n", "want": "6.1 W ERP", "ref": "DARC summary and AFuV Anlage 1 (BGBl. 2024 I Nr. 175): class N on 144 to 146 MHz may use 6.1 W ERP"},
+    {"key": 18, "column": "f_low", "want": 430000000, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 18 (70 cm) starts at 430 MHz"},
+    {"key": 7, "column": "f_low", "want": 5351500, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 7 (60 m) starts at 5351.5 kHz"},
+    {"key": 7, "column": "class_a", "want": "9.14 W ERP", "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 7 (60 m) allows class A 9.14 W ERP"},
+    {"key": 15, "column": "class_a", "want": "750 W PEP", "ref": "DARC summary and AFuV Anlage 1 (BGBl. 2024 I Nr. 175): 50 to 50.4 MHz class A 750 W PEP"},
+    {"key": 16, "column": "class_a", "want": "25 W PEP", "ref": "DARC summary and AFuV Anlage 1 (BGBl. 2024 I Nr. 175): 50.4 to 52 MHz class A 25 W PEP"},
+    {"key": 45, "column": "f_high", "want": null, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 45 is open-ended above 275 GHz"}
+  ],
+  "lookups": [
+    {"expr": "lookup(amateur_bands_de, f_low, 17)", "want": 144000000, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 17 (2 m) starts at 144 MHz"},
+    {"expr": "lookup(amateur_bands_de, f_high, 33)", "want": 24050000000, "ref": "AFuV Anlage 1 (BGBl. 2024 I Nr. 175): row 33 (1.2 cm) ends at 24.05 GHz"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "table": "ip_codes",
+  "cells": [
+    {"key": "1st numeral: 5", "column": "short", "want": "dust-protected", "ref": "Häwa \"Schutzarten nach DIN EN 60529\" and en.wikipedia \"IP code\": first numeral 5 is dust-protected"},
+    {"key": "1st numeral: 2", "column": "short", "want": "protected against solid foreign objects of 12.5 mm Ø and greater", "ref": "Häwa \"Schutzarten nach DIN EN 60529\", en.wikipedia \"IP code\" and FRIWO: first numeral 2 is 12.5 mm"},
+    {"key": "2nd numeral: 4", "column": "short", "want": "protected against splashing water", "ref": "Häwa \"Schutzarten nach DIN EN 60529\" and en.wikipedia \"IP code\": second numeral 4 is splashing water"},
+    {"key": "2nd numeral: 7", "column": "short", "want": "protected against the effects of temporary immersion in water", "ref": "Häwa \"Schutzarten nach DIN EN 60529\" and en.wikipedia \"IP code\": second numeral 7 is temporary immersion"},
+    {"key": "2nd numeral: 9K", "column": "short", "want": "high-pressure / steam-jet cleaning (ISO 20653, road vehicles; not IEC 60529)", "ref": "en.wikipedia \"IP code\" and BGN ASI 3.10: 9K is defined in ISO 20653, not in IEC 60529"},
+    {"key": "1st numeral: 6", "column": "definition", "want": "no ingress of dust", "ref": "IEC ip-ratings page and en.wikipedia \"IP code\": first numeral 6 is no ingress of dust"}
+  ]
+}

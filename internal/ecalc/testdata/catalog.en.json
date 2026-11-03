@@ -21353,6 +21353,5667 @@
     },
     {
       "kind": "table",
+      "id": "si_prefixes",
+      "category": "tables",
+      "group": "general",
+      "name": "SI prefixes",
+      "name_en": "SI prefixes",
+      "doc": "The 24 SI prefixes from quetta (10^30) to quecto (10^-30): name, symbol and factor.",
+      "notes": "Prefix symbols are case-sensitive (M = mega, m = milli). Prefixes are never combined (write nm, not mµm). The kilogram is the only base unit with a prefix in its name, so prefixes are applied to the gram (mg, not µkg). The symbol µ is the micro sign (U+00B5); ECalc input also accepts u for µ and K for k. Ronna, ronto, quetta and quecto were added by the CGPM in 2022.",
+      "tags": [
+        "si",
+        "prefix",
+        "prefixes",
+        "kilo",
+        "mega",
+        "milli",
+        "micro",
+        "nano",
+        "pico",
+        "quetta",
+        "ronna",
+        "power of ten",
+        "bipm",
+        "vorsatz",
+        "vorsätze",
+        "zehnerpotenz",
+        "einheitenvorsatz"
+      ],
+      "source": "BIPM, The International System of Units (SI), 9th edition (2019, V4.01), Table 7 \"SI prefixes\"; BIPM, 27th CGPM (2022), Resolution 3 (ronna, ronto, quetta, quecto)",
+      "guide": false,
+      "mains": false,
+      "key": "exponent",
+      "columns": [
+        {
+          "id": "exponent",
+          "name": "Exponent n",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": "n"
+        },
+        {
+          "id": "name",
+          "name": "Prefix",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "symbol",
+          "name": "Symbol",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "factor",
+          "name": "Factor 10^n",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "adopted",
+          "name": "Adopted by the CGPM",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          30,
+          "quetta",
+          "Q",
+          1e+30,
+          "2022"
+        ],
+        [
+          27,
+          "ronna",
+          "R",
+          1e+27,
+          "2022"
+        ],
+        [
+          24,
+          "yotta",
+          "Y",
+          1e+24,
+          null
+        ],
+        [
+          21,
+          "zetta",
+          "Z",
+          1e+21,
+          null
+        ],
+        [
+          18,
+          "exa",
+          "E",
+          1000000000000000000,
+          null
+        ],
+        [
+          15,
+          "peta",
+          "P",
+          1000000000000000,
+          null
+        ],
+        [
+          12,
+          "tera",
+          "T",
+          1000000000000,
+          null
+        ],
+        [
+          9,
+          "giga",
+          "G",
+          1000000000,
+          null
+        ],
+        [
+          6,
+          "mega",
+          "M",
+          1000000,
+          null
+        ],
+        [
+          3,
+          "kilo",
+          "k",
+          1000,
+          null
+        ],
+        [
+          2,
+          "hecto",
+          "h",
+          100,
+          null
+        ],
+        [
+          1,
+          "deca",
+          "da",
+          10,
+          null
+        ],
+        [
+          -1,
+          "deci",
+          "d",
+          0.1,
+          null
+        ],
+        [
+          -2,
+          "centi",
+          "c",
+          0.01,
+          null
+        ],
+        [
+          -3,
+          "milli",
+          "m",
+          0.001,
+          null
+        ],
+        [
+          -6,
+          "micro",
+          "µ",
+          0.000001,
+          null
+        ],
+        [
+          -9,
+          "nano",
+          "n",
+          1e-9,
+          null
+        ],
+        [
+          -12,
+          "pico",
+          "p",
+          1e-12,
+          null
+        ],
+        [
+          -15,
+          "femto",
+          "f",
+          1e-15,
+          null
+        ],
+        [
+          -18,
+          "atto",
+          "a",
+          1e-18,
+          null
+        ],
+        [
+          -21,
+          "zepto",
+          "z",
+          1e-21,
+          null
+        ],
+        [
+          -24,
+          "yocto",
+          "y",
+          1e-24,
+          null
+        ],
+        [
+          -27,
+          "ronto",
+          "r",
+          1e-27,
+          "2022"
+        ],
+        [
+          -30,
+          "quecto",
+          "q",
+          1e-30,
+          "2022"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "si_units",
+      "category": "tables",
+      "group": "general",
+      "name": "SI units",
+      "name_en": "SI units",
+      "doc": "The seven SI base units, the 22 units with special names and common coherent derived units, with their expression in SI base units.",
+      "notes": "The radian and steradian are the coherent units of plane and solid angle; they are dimensionless (1) but keep their names for clarity. The hertz is only for periodic phenomena, the becquerel only for stochastic processes (radioactive decay). The electric potential difference is also called voltage. A temperature difference has the same numerical value in K and °C. The order of the base-unit symbols follows the 9th edition of the SI Brochure (newton = kg·m·s⁻²).",
+      "tags": [
+        "si",
+        "units",
+        "base units",
+        "derived units",
+        "coherent",
+        "newton",
+        "joule",
+        "watt",
+        "volt",
+        "ohm",
+        "farad",
+        "henry",
+        "bipm",
+        "einheiten",
+        "basiseinheiten",
+        "abgeleitete einheiten",
+        "einheitenverordnung"
+      ],
+      "source": "BIPM SI Brochure, 9th edition (V4.01), Tables 2, 4, 5 and 6; German names: Einheitenverordnung (EinhV) Anlage 1 and de.wikipedia \"Liste physikalischer Größen\"",
+      "guide": false,
+      "mains": false,
+      "key": "quantity",
+      "columns": [
+        {
+          "id": "quantity",
+          "name": "Quantity",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "qty_symbol",
+          "name": "Quantity symbol",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "unit",
+          "name": "Unit",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "symbol",
+          "name": "Unit symbol",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "base_expr",
+          "name": "In SI base units",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "other_expr",
+          "name": "In other SI units",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "kind",
+          "name": "Kind",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "time",
+          "t",
+          "second",
+          "s",
+          "s",
+          null,
+          "base unit"
+        ],
+        [
+          "length",
+          "l, x, r",
+          "metre",
+          "m",
+          "m",
+          null,
+          "base unit"
+        ],
+        [
+          "mass",
+          "m",
+          "kilogram",
+          "kg",
+          "kg",
+          null,
+          "base unit"
+        ],
+        [
+          "electric current",
+          "I, i",
+          "ampere",
+          "A",
+          "A",
+          null,
+          "base unit"
+        ],
+        [
+          "thermodynamic temperature",
+          "T",
+          "kelvin",
+          "K",
+          "K",
+          null,
+          "base unit"
+        ],
+        [
+          "amount of substance",
+          "n",
+          "mole",
+          "mol",
+          "mol",
+          null,
+          "base unit"
+        ],
+        [
+          "luminous intensity",
+          "Iv",
+          "candela",
+          "cd",
+          "cd",
+          null,
+          "base unit"
+        ],
+        [
+          "plane angle",
+          null,
+          "radian",
+          "rad",
+          "m/m (see note)",
+          "1",
+          "special name"
+        ],
+        [
+          "solid angle",
+          null,
+          "steradian",
+          "sr",
+          "m²/m² (see note)",
+          "1",
+          "special name"
+        ],
+        [
+          "frequency",
+          null,
+          "hertz",
+          "Hz",
+          "s⁻¹",
+          null,
+          "special name"
+        ],
+        [
+          "force",
+          null,
+          "newton",
+          "N",
+          "kg·m·s⁻²",
+          null,
+          "special name"
+        ],
+        [
+          "pressure, stress",
+          null,
+          "pascal",
+          "Pa",
+          "kg·m⁻¹·s⁻²",
+          "N/m²",
+          "special name"
+        ],
+        [
+          "energy, work, amount of heat",
+          null,
+          "joule",
+          "J",
+          "kg·m²·s⁻²",
+          "N·m",
+          "special name"
+        ],
+        [
+          "power, radiant flux",
+          null,
+          "watt",
+          "W",
+          "kg·m²·s⁻³",
+          "J/s",
+          "special name"
+        ],
+        [
+          "electric charge",
+          null,
+          "coulomb",
+          "C",
+          "A·s",
+          null,
+          "special name"
+        ],
+        [
+          "electric potential difference (voltage)",
+          null,
+          "volt",
+          "V",
+          "kg·m²·s⁻³·A⁻¹",
+          "W/A",
+          "special name"
+        ],
+        [
+          "capacitance",
+          null,
+          "farad",
+          "F",
+          "kg⁻¹·m⁻²·s⁴·A²",
+          "C/V",
+          "special name"
+        ],
+        [
+          "electric resistance",
+          null,
+          "ohm",
+          "Ω",
+          "kg·m²·s⁻³·A⁻²",
+          "V/A",
+          "special name"
+        ],
+        [
+          "electric conductance",
+          null,
+          "siemens",
+          "S",
+          "kg⁻¹·m⁻²·s³·A²",
+          "A/V",
+          "special name"
+        ],
+        [
+          "magnetic flux",
+          null,
+          "weber",
+          "Wb",
+          "kg·m²·s⁻²·A⁻¹",
+          "V·s",
+          "special name"
+        ],
+        [
+          "magnetic flux density",
+          null,
+          "tesla",
+          "T",
+          "kg·s⁻²·A⁻¹",
+          "Wb/m²",
+          "special name"
+        ],
+        [
+          "inductance",
+          null,
+          "henry",
+          "H",
+          "kg·m²·s⁻²·A⁻²",
+          "Wb/A",
+          "special name"
+        ],
+        [
+          "Celsius temperature",
+          null,
+          "degree Celsius",
+          "°C",
+          "K",
+          null,
+          "special name"
+        ],
+        [
+          "luminous flux",
+          null,
+          "lumen",
+          "lm",
+          "cd·sr",
+          "cd·sr",
+          "special name"
+        ],
+        [
+          "illuminance",
+          null,
+          "lux",
+          "lx",
+          "cd·sr·m⁻²",
+          "lm/m²",
+          "special name"
+        ],
+        [
+          "activity referred to a radionuclide",
+          null,
+          "becquerel",
+          "Bq",
+          "s⁻¹",
+          null,
+          "special name"
+        ],
+        [
+          "absorbed dose, kerma",
+          null,
+          "gray",
+          "Gy",
+          "m²·s⁻²",
+          "J/kg",
+          "special name"
+        ],
+        [
+          "dose equivalent",
+          null,
+          "sievert",
+          "Sv",
+          "m²·s⁻²",
+          "J/kg",
+          "special name"
+        ],
+        [
+          "catalytic activity",
+          null,
+          "katal",
+          "kat",
+          "mol·s⁻¹",
+          null,
+          "special name"
+        ],
+        [
+          "area",
+          "A",
+          "square metre",
+          "m²",
+          "m²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "volume",
+          "V",
+          "cubic metre",
+          "m³",
+          "m³",
+          null,
+          "derived (example)"
+        ],
+        [
+          "speed, velocity",
+          "v",
+          "metre per second",
+          "m/s",
+          "m·s⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "acceleration",
+          "a",
+          "metre per second squared",
+          "m/s²",
+          "m·s⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "current density",
+          "j",
+          "ampere per square metre",
+          "A/m²",
+          "A·m⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "magnetic field strength",
+          "H",
+          "ampere per metre",
+          "A/m",
+          "A·m⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "moment of force, torque",
+          null,
+          "newton metre",
+          "N·m",
+          "kg·m²·s⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "angular velocity, angular frequency",
+          null,
+          "radian per second",
+          "rad/s",
+          "s⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "heat flux density, irradiance",
+          null,
+          "watt per square metre",
+          "W/m²",
+          "kg·s⁻³",
+          null,
+          "derived (example)"
+        ],
+        [
+          "heat capacity, entropy",
+          null,
+          "joule per kelvin",
+          "J/K",
+          "kg·m²·s⁻²·K⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "thermal conductivity",
+          null,
+          "watt per metre kelvin",
+          "W/(m·K)",
+          "kg·m·s⁻³·K⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "energy density",
+          null,
+          "joule per cubic metre",
+          "J/m³",
+          "kg·m⁻¹·s⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "electric field strength",
+          null,
+          "volt per metre",
+          "V/m",
+          "kg·m·s⁻³·A⁻¹",
+          null,
+          "derived (example)"
+        ],
+        [
+          "electric charge density",
+          null,
+          "coulomb per cubic metre",
+          "C/m³",
+          "A·s·m⁻³",
+          null,
+          "derived (example)"
+        ],
+        [
+          "surface charge density",
+          null,
+          "coulomb per square metre",
+          "C/m²",
+          "A·s·m⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "electric flux density, electric displacement",
+          null,
+          "coulomb per square metre",
+          "C/m²",
+          "A·s·m⁻²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "permittivity",
+          null,
+          "farad per metre",
+          "F/m",
+          "kg⁻¹·m⁻³·s⁴·A²",
+          null,
+          "derived (example)"
+        ],
+        [
+          "permeability",
+          null,
+          "henry per metre",
+          "H/m",
+          "kg·m·s⁻²·A⁻²",
+          null,
+          "derived (example)"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "physical_constants",
+      "category": "tables",
+      "group": "general",
+      "name": "Physical constants",
+      "name_en": "Physical constants",
+      "doc": "30 physical constants for electronics: the seven SI defining constants, electromagnetic constants, particle masses and derived constants, with the CODATA 2022 values and uncertainties.",
+      "notes": "CODATA 2022 values as printed by NIST, shown as text with every printed digit. Since the 2019 SI revision h, e, k and N_A are exact; µ0 and ε0 are measured (µ0 is about 4π × 10⁻⁷ N/A², to about 1 part in 10¹⁰). Constants marked exact (derived) are computed from the exact ones; NIST prints their digits truncated, so compute them from h, e, k and N_A when you need more digits. Uncertainties are standard uncertainties (1σ) in the unit of the value; exact constants have none. The thermal voltage kT/e is 25.852 mV at 300 K and 25.693 mV at 25 °C (computed from exact constants).",
+      "tags": [
+        "constants",
+        "physical constants",
+        "codata",
+        "nist",
+        "speed of light",
+        "planck",
+        "boltzmann",
+        "elementary charge",
+        "permeability",
+        "permittivity",
+        "electron mass",
+        "naturkonstanten",
+        "konstanten",
+        "lichtgeschwindigkeit",
+        "elementarladung",
+        "feldkonstante"
+      ],
+      "source": "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment; exact values per the BIPM SI Brochure, 9th edition, Table 1",
+      "guide": false,
+      "mains": false,
+      "key": "name",
+      "columns": [
+        {
+          "id": "name",
+          "name": "Constant",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "symbol",
+          "name": "Symbol",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "value",
+          "name": "Value (CODATA 2022)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "uncertainty",
+          "name": "Standard uncertainty",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "unit",
+          "name": "Unit",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "exact",
+          "name": "Kind",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "speed of light in vacuum",
+          "c",
+          "299792458",
+          null,
+          "m s⁻¹",
+          "exact"
+        ],
+        [
+          "Planck constant",
+          "h",
+          "6.62607015×10⁻³⁴",
+          null,
+          "J Hz⁻¹",
+          "exact"
+        ],
+        [
+          "reduced Planck constant",
+          "ħ",
+          "1.054571817×10⁻³⁴",
+          null,
+          "J s",
+          "exact (derived)"
+        ],
+        [
+          "elementary charge",
+          "e",
+          "1.602176634×10⁻¹⁹",
+          null,
+          "C",
+          "exact"
+        ],
+        [
+          "Boltzmann constant",
+          "k",
+          "1.380649×10⁻²³",
+          null,
+          "J K⁻¹",
+          "exact"
+        ],
+        [
+          "Boltzmann constant in eV/K",
+          "k/e",
+          "8.617333262×10⁻⁵",
+          null,
+          "eV K⁻¹",
+          "exact (derived)"
+        ],
+        [
+          "Avogadro constant",
+          "NA",
+          "6.02214076×10²³",
+          null,
+          "mol⁻¹",
+          "exact"
+        ],
+        [
+          "hyperfine transition frequency of Cs-133",
+          "ΔνCs",
+          "9192631770",
+          null,
+          "Hz",
+          "exact"
+        ],
+        [
+          "luminous efficacy (540 THz)",
+          "Kcd",
+          "683",
+          null,
+          "lm W⁻¹",
+          "exact"
+        ],
+        [
+          "vacuum magnetic permeability",
+          "µ0",
+          "1.25663706127×10⁻⁶",
+          "2.0×10⁻¹⁶",
+          "N A⁻²",
+          "measured"
+        ],
+        [
+          "vacuum electric permittivity",
+          "ε0",
+          "8.8541878188×10⁻¹²",
+          "1.4×10⁻²¹",
+          "F m⁻¹",
+          "measured"
+        ],
+        [
+          "characteristic impedance of vacuum",
+          "Z0",
+          "376.730313412",
+          "5.9×10⁻⁸",
+          "Ω",
+          "measured"
+        ],
+        [
+          "electron mass",
+          "me",
+          "9.1093837139×10⁻³¹",
+          "2.8×10⁻⁴⁰",
+          "kg",
+          "measured"
+        ],
+        [
+          "electron mass energy equivalent in MeV",
+          "me c²",
+          "0.51099895069",
+          "1.6×10⁻¹⁰",
+          "MeV",
+          "measured"
+        ],
+        [
+          "proton mass",
+          "mp",
+          "1.67262192595×10⁻²⁷",
+          "5.2×10⁻³⁷",
+          "kg",
+          "measured"
+        ],
+        [
+          "neutron mass",
+          "mn",
+          "1.67492750056×10⁻²⁷",
+          "8.5×10⁻³⁷",
+          "kg",
+          "measured"
+        ],
+        [
+          "electron charge to mass quotient",
+          "-e/me",
+          "-1.75882000838×10¹¹",
+          "5.5×10¹",
+          "C kg⁻¹",
+          "measured"
+        ],
+        [
+          "electron volt",
+          "eV",
+          "1.602176634×10⁻¹⁹",
+          null,
+          "J",
+          "exact"
+        ],
+        [
+          "Faraday constant",
+          "F",
+          "96485.33212",
+          null,
+          "C mol⁻¹",
+          "exact (derived)"
+        ],
+        [
+          "molar gas constant",
+          "R",
+          "8.314462618",
+          null,
+          "J mol⁻¹ K⁻¹",
+          "exact (derived)"
+        ],
+        [
+          "Stefan-Boltzmann constant",
+          "σ",
+          "5.670374419×10⁻⁸",
+          null,
+          "W m⁻² K⁻⁴",
+          "exact (derived)"
+        ],
+        [
+          "magnetic flux quantum",
+          "Φ0",
+          "2.067833848×10⁻¹⁵",
+          null,
+          "Wb",
+          "exact (derived)"
+        ],
+        [
+          "Josephson constant",
+          "KJ",
+          "4.835978484×10¹⁴",
+          null,
+          "Hz V⁻¹",
+          "exact (derived)"
+        ],
+        [
+          "von Klitzing constant",
+          "RK",
+          "25812.80745",
+          null,
+          "Ω",
+          "exact (derived)"
+        ],
+        [
+          "conductance quantum",
+          "G0",
+          "7.748091729×10⁻⁵",
+          null,
+          "S",
+          "exact (derived)"
+        ],
+        [
+          "fine-structure constant",
+          "α",
+          "7.2973525643×10⁻³",
+          "1.1×10⁻¹²",
+          "1",
+          "measured"
+        ],
+        [
+          "Bohr magneton",
+          "µB",
+          "9.2740100657×10⁻²⁴",
+          "2.9×10⁻³³",
+          "J T⁻¹",
+          "measured"
+        ],
+        [
+          "standard acceleration of gravity",
+          "gn",
+          "9.80665",
+          null,
+          "m s⁻²",
+          "exact"
+        ],
+        [
+          "standard atmosphere",
+          "atm",
+          "101325",
+          null,
+          "Pa",
+          "exact"
+        ],
+        [
+          "Newtonian constant of gravitation",
+          "G",
+          "6.67430×10⁻¹¹",
+          "1.5×10⁻¹⁵",
+          "m³ kg⁻¹ s⁻²",
+          "measured"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "greek_alphabet",
+      "category": "tables",
+      "group": "general",
+      "name": "Greek alphabet",
+      "name_en": "Greek alphabet",
+      "doc": "The 24 letters of the Greek alphabet with their variant forms, English and German names and typical uses of the letters as symbols in electrical engineering.",
+      "notes": "Uses are typical, not normative, and vary between fields and countries (conductivity is σ internationally, often γ or κ in German electrical engineering): check the symbol definitions of the document you are reading. Letters without an entry have no common use in electronics. The micro sign µ (U+00B5) and the Greek small mu μ (U+03BC) look alike; the ohm sign (U+2126) is canonically equivalent to the Greek capital omega Ω (U+03A9).",
+      "tags": [
+        "greek",
+        "alphabet",
+        "letters",
+        "symbols",
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "omega",
+        "lambda",
+        "mu",
+        "pi",
+        "griechisch",
+        "buchstaben",
+        "formelzeichen",
+        "griechisches alphabet"
+      ],
+      "source": "de.wikipedia \"Griechisches Alphabet\" (letters, names); uses: en.wikipedia \"Greek letters used in mathematics, science, and engineering\", de.wikipedia \"Liste physikalischer Größen\" (DIN 1304 symbols), de.wikipedia \"Elektrische Leitfähigkeit\", en.wikipedia \"Dissipation factor\", \"Skin effect\" and \"Temperature coefficient\"; BIPM SI Brochure (Ω, µ)",
+      "guide": false,
+      "mains": false,
+      "key": "upper",
+      "columns": [
+        {
+          "id": "upper",
+          "name": "Capital",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "lower",
+          "name": "Small letter and variants",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "name",
+          "name": "Name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "use",
+          "name": "Typical use in electronics",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "Α",
+          "α",
+          "alpha",
+          "α: temperature coefficient of resistance"
+        ],
+        [
+          "Β",
+          "β ϐ",
+          "beta",
+          "β: current gain of a bipolar transistor (IC/IB)"
+        ],
+        [
+          "Γ",
+          "γ",
+          "gamma",
+          "Γ: reflection coefficient; γ: electrical conductivity (German usage)"
+        ],
+        [
+          "Δ",
+          "δ",
+          "delta",
+          "Δ: difference/change (ΔU, ΔT); δ: loss angle (tan δ); skin depth"
+        ],
+        [
+          "Ε",
+          "ε ϵ",
+          "epsilon",
+          "ε: permittivity (ε0, εr)"
+        ],
+        [
+          "Ζ",
+          "ζ",
+          "zeta",
+          "ζ: damping ratio"
+        ],
+        [
+          "Η",
+          "η",
+          "eta",
+          "η: efficiency; intrinsic wave impedance of a medium"
+        ],
+        [
+          "Θ",
+          "θ ϑ",
+          "theta",
+          "Θ: magnetomotive force (current linkage)"
+        ],
+        [
+          "Ι",
+          "ι",
+          "iota",
+          null
+        ],
+        [
+          "Κ",
+          "κ ϰ",
+          "kappa",
+          "κ: electrical conductivity (German usage); dielectric constant"
+        ],
+        [
+          "Λ",
+          "λ",
+          "lambda",
+          "λ: wavelength; linear charge density; thermal conductivity"
+        ],
+        [
+          "Μ",
+          "μ µ",
+          "mu",
+          "µ: prefix micro (10⁻⁶); permeability (µ0, µr); amplification factor"
+        ],
+        [
+          "Ν",
+          "ν",
+          "nu",
+          "ν: frequency (physics)"
+        ],
+        [
+          "Ξ",
+          "ξ",
+          "xi",
+          null
+        ],
+        [
+          "Ο",
+          "ο",
+          "omicron",
+          null
+        ],
+        [
+          "Π",
+          "π ϖ",
+          "pi",
+          "π: 3.14159…; hybrid-π transistor model"
+        ],
+        [
+          "Ρ",
+          "ρ ϱ",
+          "rho",
+          "ρ: resistivity"
+        ],
+        [
+          "Σ",
+          "σ ς",
+          "sigma",
+          "Σ: sum; σ: electrical conductivity; surface charge density"
+        ],
+        [
+          "Τ",
+          "τ",
+          "tau",
+          "τ: time constant (RC, L/R)"
+        ],
+        [
+          "Υ",
+          "υ",
+          "upsilon",
+          null
+        ],
+        [
+          "Φ",
+          "φ ϕ",
+          "phi",
+          "Φ: magnetic flux; φ: phase angle; electric potential"
+        ],
+        [
+          "Χ",
+          "χ",
+          "chi",
+          "χ: (magnetic/electric) susceptibility"
+        ],
+        [
+          "Ψ",
+          "ψ",
+          "psi",
+          "Ψ: flux linkage; electric flux"
+        ],
+        [
+          "Ω",
+          "ω",
+          "omega",
+          "Ω: ohm (unit of resistance); ω: angular frequency (ω = 2πf)"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "ip_codes",
+      "category": "tables",
+      "group": "general",
+      "name": "IP codes (IEC 60529)",
+      "name_en": "IP codes (IEC 60529)",
+      "doc": "The first characteristic numeral (solid foreign objects, access) and the second (water) of the IP code, with the short description and the meaning of every degree of protection.",
+      "notes": "The two numerals are independent: IPX7 does not imply IPX5 or IPX6 (immersion is not a jet test); a product tested for both is marked e.g. IPX6/IPX7. Numeral 9 exists in IEC 60529 since Amendment 2 (2013); 9K comes from ISO 20653 (road vehicles), not from IEC 60529. The first numeral 2 is 12.5 mm (older texts round to 12 mm). The IP code says nothing about protection against electric shock (see protection classes, IEC 61140) or mechanical impact (IK code, IEC 62262). The test conditions, the additional letters A to D and the supplementary letters H, M, S and W are not listed. The English wording is a translation of the German table of Häwa, checked against Wikipedia; it is not copied from the standard.",
+      "tags": [
+        "ip",
+        "ip code",
+        "ingress protection",
+        "iec 60529",
+        "din en 60529",
+        "dust",
+        "water",
+        "enclosure",
+        "protection degree",
+        "schutzart",
+        "schutzarten",
+        "kennziffer",
+        "staub",
+        "wasser",
+        "gehäuse",
+        "ip65",
+        "ip67"
+      ],
+      "source": "IEC 60529 (IP code) as tabulated by Häwa \"Schutzarten nach DIN EN 60529\" (German), en.wikipedia \"IP code\", BGN ASI 3.10 and FRIWO \"IP-Schutzarten nach DIN 60529\"; the standard itself was not read",
+      "guide": true,
+      "mains": false,
+      "key": "numeral",
+      "columns": [
+        {
+          "id": "numeral",
+          "name": "Characteristic numeral",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "short",
+          "name": "Protection",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "definition",
+          "name": "Meaning",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "1st numeral: 0",
+          "not protected",
+          "no special protection"
+        ],
+        [
+          "1st numeral: 1",
+          "protected against solid foreign objects of 50 mm Ø and greater",
+          "the object probe, sphere of 50 mm Ø, shall not fully penetrate (protection against access with the back of a hand)"
+        ],
+        [
+          "1st numeral: 2",
+          "protected against solid foreign objects of 12.5 mm Ø and greater",
+          "the object probe, sphere of 12.5 mm Ø, shall not fully penetrate (protection against access with a finger)"
+        ],
+        [
+          "1st numeral: 3",
+          "protected against solid foreign objects of 2.5 mm Ø and greater",
+          "the object probe, sphere of 2.5 mm Ø, shall not penetrate at all (tools, thick wires)"
+        ],
+        [
+          "1st numeral: 4",
+          "protected against solid foreign objects of 1.0 mm Ø and greater",
+          "the object probe, sphere of 1.0 mm Ø, shall not penetrate at all (wires)"
+        ],
+        [
+          "1st numeral: 5",
+          "dust-protected",
+          "ingress of dust is not totally prevented, but dust shall not penetrate in a quantity that interferes with satisfactory operation or safety"
+        ],
+        [
+          "1st numeral: 6",
+          "dust-tight",
+          "no ingress of dust"
+        ],
+        [
+          "1st numeral: X",
+          "not specified",
+          "numeral not specified (not tested or not required)"
+        ],
+        [
+          "2nd numeral: 0",
+          "not protected",
+          "no special protection"
+        ],
+        [
+          "2nd numeral: 1",
+          "protected against vertically falling water drops",
+          "vertically falling drops shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: 2",
+          "protected against vertically falling water drops when the enclosure is tilted up to 15°",
+          "vertically falling drops shall have no harmful effects when the enclosure is tilted at any angle up to 15° on either side of the vertical"
+        ],
+        [
+          "2nd numeral: 3",
+          "protected against spraying water",
+          "water sprayed at an angle up to 60° on either side of the vertical shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: 4",
+          "protected against splashing water",
+          "water splashed against the enclosure from any direction shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: 5",
+          "protected against water jets",
+          "water projected in jets against the enclosure from any direction shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: 6",
+          "protected against powerful water jets",
+          "water projected in powerful jets against the enclosure from any direction shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: 7",
+          "protected against the effects of temporary immersion in water",
+          "ingress of water in harmful quantity shall not be possible when the enclosure is temporarily immersed under standardised conditions of pressure and time"
+        ],
+        [
+          "2nd numeral: 8",
+          "protected against the effects of continuous immersion in water",
+          "ingress of water in harmful quantity shall not be possible when continuously immersed under conditions agreed between manufacturer and user, more severe than for numeral 7"
+        ],
+        [
+          "2nd numeral: 9",
+          "protected against high-pressure and high-temperature water jets",
+          "water directed at high pressure and high temperature against the enclosure from any direction shall have no harmful effects"
+        ],
+        [
+          "2nd numeral: X",
+          "not specified",
+          "numeral not specified (not tested or not required)"
+        ],
+        [
+          "2nd numeral: 9K",
+          "high-pressure / steam-jet cleaning (ISO 20653, road vehicles; not IEC 60529)",
+          "defined in ISO 20653 (formerly DIN 40050-9), not in IEC 60529"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "protection_classes",
+      "category": "tables",
+      "group": "general",
+      "name": "Protection classes (IEC 61140)",
+      "name_en": "Protection classes (IEC 61140)",
+      "doc": "The protection classes 0, I, II and III of electrical equipment against electric shock: protection principle, protective-earth connection and marking symbol.",
+      "notes": "Protection classes describe protection against electric shock; IP codes describe protection against foreign objects and water; the two are independent. Class 0I (class 0 with an earth terminal) and the class II variant with functional earth are not listed. The number of the protective-earth symbol of class I (IEC 60417-5019) and the symbol of the functional-earth variant of class II (IEC 60417-6092) are left out because only one source gives each.",
+      "tags": [
+        "protection class",
+        "safety class",
+        "class i",
+        "class ii",
+        "class iii",
+        "iec 61140",
+        "vde 0140",
+        "double insulation",
+        "selv",
+        "pelv",
+        "earth",
+        "schutzklasse",
+        "schutzklassen",
+        "schutzisolierung",
+        "schutzkleinspannung",
+        "schutzleiter",
+        "sicherheit"
+      ],
+      "source": "IEC 61140 (DIN EN 61140, VDE 0140-1) as summarised by en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\"; the standard itself was not read",
+      "guide": true,
+      "mains": true,
+      "key": "class",
+      "columns": [
+        {
+          "id": "class",
+          "name": "Class",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "principle",
+          "name": "Protection principle",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "pe",
+          "name": "Protective earth connection",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "symbol",
+          "name": "Marking symbol",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iec60417",
+          "name": "IEC 60417 symbol no.",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "remark",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "0",
+          "basic insulation only, no connection to the protective conductor; protection relies on the environment",
+          "no",
+          "no symbol (marking not provided for)",
+          null,
+          "not permitted in Germany; sale prohibited in many countries (e.g. UK, New Zealand)"
+        ],
+        [
+          "I",
+          "basic insulation plus connection of all accessible conductive parts to the protective earth conductor; a fault trips the fuse, circuit breaker or RCD",
+          "yes",
+          "protective earth symbol (circle with earth sign) on the PE terminal",
+          null,
+          "the symbol marks the protective-conductor terminal; there is no separate class-I device symbol"
+        ],
+        [
+          "II",
+          "double or reinforced insulation between live and accessible parts; no protective-earth connection",
+          "no",
+          "two concentric squares",
+          "5172",
+          null
+        ],
+        [
+          "III",
+          "supply only from safety extra-low voltage (SELV) or protective extra-low voltage (PELV) sources",
+          "no",
+          "roman numeral III in a diamond",
+          "5180",
+          "connect only to SELV/PELV sources such as a safety transformer or battery"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "mains_by_country",
+      "category": "tables",
+      "group": "general",
+      "name": "Mains voltage, frequency and plugs by country",
+      "name_en": "Mains voltage, frequency and plugs by country",
+      "doc": "Nominal single-phase household voltage, mains frequency and plug and socket types of 48 countries (EU, Europe and the main travel and trade countries).",
+      "notes": "Nominal voltages have tolerances; the permitted band is set by the local grid code. Many countries listed as 220 V are converging on 230 V. Where the sources disagree the value backed by two of the three sources is shown: China, South Korea and Argentina 220 V (WorldStandards 230 V), Cyprus 230 V (Wikipedia 240 V), Russia 230 V (Interpower 220 V), Mexico 127 V. Brazil (127 V or 220 V by region) has no single voltage and Japan (50 Hz in the east, 60 Hz in the west) no single frequency, so these cells are empty; see the note column. Plug types are listed only where WorldStandards and Wikipedia agree; other types they mention are in the note column. The IEC World Plugs guide has been retired and was not used. Frequencies agree in all three sources. Plug types (legend from WorldStandards.eu \"Plug & socket types\"; one source, typical values): A 2 pins, unearthed, 15 A (US/CA/MX/JP); B 3 pins, earthed, 15 A (US/CA/MX); C 2 pins, unearthed, 2.5 A / 10 A / 16 A (Europe and many others); D 3 pins, earthed, 6 A (India region); E 2 pins + earth, 16 A (FR/BE/PL/SK/CZ); F 2 pins + earth, 16 A (most of Europe, RU); G 3 pins, earthed, 13 A (UK/IE/MT/SG/Arabian Peninsula); H 3 pins, earthed, 16 A (Israel); I 2 or 3 pins, 10 A (AU/NZ/CN/AR); J 3 pins, earthed, 10 A (CH/LI); K 3 pins, earthed, 16 A (DK); L 3 pins, earthed, 10 A / 16 A (IT/CL); M 3 pins, earthed, 16 A (ZA); N 3 pins, earthed, 10 A / 16 A / 20 A (BR/ZA); O 3 pins, earthed, 16 A (TH).",
+      "tags": [
+        "mains",
+        "voltage",
+        "frequency",
+        "plug",
+        "socket",
+        "outlet",
+        "country",
+        "travel",
+        "nema",
+        "schuko",
+        "type c",
+        "type f",
+        "type g",
+        "netzspannung",
+        "netzfrequenz",
+        "steckdose",
+        "stecker",
+        "steckertyp",
+        "reise",
+        "land"
+      ],
+      "source": "WorldStandards.eu \"Plug, socket & voltage by country\" (7 September 2025); en.wikipedia \"Mains electricity by country\"; Interpower \"International Configurations guide\" (voltage and frequency); every value is backed by at least two of the three; IEC World Plugs is retired",
+      "guide": true,
+      "mains": true,
+      "key": "country",
+      "columns": [
+        {
+          "id": "country",
+          "name": "Country",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iso2",
+          "name": "ISO code",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "voltage",
+          "name": "Voltage",
+          "dim": "voltage",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "frequency",
+          "name": "Frequency",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "plugs",
+          "name": "Plug types",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Note",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "Austria",
+          "AT",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Belgium",
+          "BE",
+          230,
+          50,
+          "C, E",
+          "some areas use a 3 × 230 V delta network without neutral (Wikipedia)"
+        ],
+        [
+          "Bulgaria",
+          "BG",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Croatia",
+          "HR",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Cyprus",
+          "CY",
+          230,
+          50,
+          "G",
+          null
+        ],
+        [
+          "Czechia",
+          "CZ",
+          230,
+          50,
+          "C, E",
+          null
+        ],
+        [
+          "Denmark",
+          "DK",
+          230,
+          50,
+          "C, F, K",
+          "type E sockets are also legal but rare (Wikipedia)"
+        ],
+        [
+          "Estonia",
+          "EE",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Finland",
+          "FI",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "France",
+          "FR",
+          230,
+          50,
+          "C, E",
+          null
+        ],
+        [
+          "Germany",
+          "DE",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Greece",
+          "GR",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Hungary",
+          "HU",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Ireland",
+          "IE",
+          230,
+          50,
+          "G",
+          null
+        ],
+        [
+          "Italy",
+          "IT",
+          230,
+          50,
+          "C, F, L",
+          "type L in 10 A and 16 A versions; hybrid sockets are common (Wikipedia)"
+        ],
+        [
+          "Latvia",
+          "LV",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Lithuania",
+          "LT",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Luxembourg",
+          "LU",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Malta",
+          "MT",
+          230,
+          50,
+          "G",
+          null
+        ],
+        [
+          "Netherlands",
+          "NL",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Poland",
+          "PL",
+          230,
+          50,
+          "C, E",
+          null
+        ],
+        [
+          "Portugal",
+          "PT",
+          230,
+          50,
+          "C, F",
+          "type E only in very old installations (Wikipedia)"
+        ],
+        [
+          "Romania",
+          "RO",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Slovakia",
+          "SK",
+          230,
+          50,
+          "C, E",
+          "Wikipedia also lists type F"
+        ],
+        [
+          "Slovenia",
+          "SI",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Spain",
+          "ES",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Sweden",
+          "SE",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "United Kingdom",
+          "GB",
+          230,
+          50,
+          "G",
+          "types D and M only for special uses (lighting circuits, stage) (Wikipedia)"
+        ],
+        [
+          "Switzerland",
+          "CH",
+          230,
+          50,
+          "C, J",
+          null
+        ],
+        [
+          "Norway",
+          "NO",
+          230,
+          50,
+          "C, F",
+          "many homes use a 230 V IT network (no neutral to earth) (Wikipedia)"
+        ],
+        [
+          "United States",
+          "US",
+          120,
+          60,
+          "A, B",
+          "homes get 120/240 V split-phase; 240 V outlets (NEMA 14-30/14-50) for dryers and stoves (Wikipedia)"
+        ],
+        [
+          "Canada",
+          "CA",
+          120,
+          60,
+          "A, B",
+          "homes get 120/240 V split-phase (Wikipedia)"
+        ],
+        [
+          "Mexico",
+          "MX",
+          127,
+          60,
+          "A, B",
+          "both 127/220 V three-phase and 120/240 V split-phase are used (Wikipedia)"
+        ],
+        [
+          "Brazil",
+          "BR",
+          null,
+          60,
+          "C, N",
+          "127 V or 220 V depending on the region (WorldStandards, Wikipedia)"
+        ],
+        [
+          "Argentina",
+          "AR",
+          220,
+          50,
+          "I",
+          "Wikipedia also lists type C; Argentine type I has live and neutral reversed vs. AU/CN (Wikipedia)"
+        ],
+        [
+          "China",
+          "CN",
+          220,
+          50,
+          "A, I",
+          "Hong Kong and Macau use type G (WorldStandards)"
+        ],
+        [
+          "Japan",
+          "JP",
+          100,
+          null,
+          "A, B",
+          "east Japan 50 Hz (e.g. Tokyo), west Japan 60 Hz (e.g. Osaka) (Wikipedia)"
+        ],
+        [
+          "South Korea",
+          "KR",
+          220,
+          60,
+          "C, F",
+          null
+        ],
+        [
+          "India",
+          "IN",
+          230,
+          50,
+          "D, M",
+          "Wikipedia also lists type C (Europlug fits D sockets, not recommended)"
+        ],
+        [
+          "Australia",
+          "AU",
+          230,
+          50,
+          "I",
+          "officially 230 V, in practice often 240 V; Western Australia 240/415 V (WorldStandards, Wikipedia)"
+        ],
+        [
+          "New Zealand",
+          "NZ",
+          230,
+          50,
+          "I",
+          null
+        ],
+        [
+          "South Africa",
+          "ZA",
+          230,
+          50,
+          "C, M, N",
+          null
+        ],
+        [
+          "Russia",
+          "RU",
+          230,
+          50,
+          "C, F",
+          "older networks 220 V (Wikipedia: 230/400 and 220/380 V)"
+        ],
+        [
+          "Türkiye",
+          "TR",
+          230,
+          50,
+          "C, F",
+          null
+        ],
+        [
+          "Israel",
+          "IL",
+          230,
+          50,
+          "C, H",
+          null
+        ],
+        [
+          "United Arab Emirates",
+          "AE",
+          230,
+          50,
+          "G",
+          null
+        ],
+        [
+          "Singapore",
+          "SG",
+          230,
+          50,
+          "G",
+          "Wikipedia also lists C and M (M for air conditioners)"
+        ],
+        [
+          "Thailand",
+          "TH",
+          230,
+          50,
+          "A, B, C, O",
+          "hybrid A/B/C sockets are most common (Wikipedia)"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "ism_bands",
+      "category": "tables",
+      "group": "general",
+      "name": "ISM and SRD bands",
+      "name_en": "ISM and SRD bands",
+      "doc": "The ITU ISM bands (6.78 MHz to 245 GHz) and the EU short-range-device (SRD) bands around 433, 868 MHz, 2.4 and 5.8 GHz, with band edges, legal basis and the allowed transmit power and duty cycle.",
+      "notes": "ISM bands are designated for industrial, scientific and medical RF energy (e.g. microwave ovens); radio services there must accept interference from ISM equipment. Short-range devices (SRD) are licence-exempt only under the EU and national conditions (power, duty cycle or listen-before-talk with adaptive frequency agility, LBT/AFA). Radio use always needs the national frequency assignment (in Germany the general assignments of the Bundesnetzagentur). Duty cycle is the share of transmit time: 1 % is 36 s per hour. SRD limits per Implementing Decision (EU) 2022/180; check EUR-Lex for later amendments. The further rows of that decision (for example wideband data and voice) are not listed. The ITU footnote numbers (RR 5.138 and 5.150) are taken from Wikipedia, the Radio Regulations themselves were not read. The EU-only band at 169 MHz is not listed. Frequencies are rounded to the significant digits set in the ECalc settings.",
+      "tags": [
+        "ism",
+        "srd",
+        "short range device",
+        "license free",
+        "lpd433",
+        "433 mhz",
+        "868 mhz",
+        "915 mhz",
+        "2.4 ghz",
+        "5.8 ghz",
+        "13.56 mhz",
+        "rfid",
+        "duty cycle",
+        "frequency band",
+        "funk",
+        "frequenzband",
+        "tastgrad",
+        "sendeleistung"
+      ],
+      "source": "ITU Radio Regulations footnotes 5.138 and 5.150 as listed by 47 CFR 18.301 (FCC) and en.wikipedia \"ISM radio band\"; EU SRD: Commission Implementing Decision (EU) 2022/180 (amending 2006/771/EC) and en.wikipedia \"Short-range device\"",
+      "guide": true,
+      "mains": false,
+      "key": "band",
+      "columns": [
+        {
+          "id": "band",
+          "name": "Band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_low",
+          "name": "Lower edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_high",
+          "name": "Upper edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_centre",
+          "name": "ISM centre frequency",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "basis",
+          "name": "Legal basis",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "region",
+          "name": "Applies in",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "power",
+          "name": "Max. power",
+          "dim": "power",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "power_ref",
+          "name": "Power reference",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "duty_cycle",
+          "name": "Max. duty cycle",
+          "dim": "ratio",
+          "unit": "pct",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Typical use / remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "ISM 6.78 MHz",
+          6765000,
+          6795000,
+          6780000,
+          "ITU RR 5.138",
+          "worldwide, subject to local acceptance",
+          null,
+          null,
+          null,
+          "ISM use needs special authorization by the administration"
+        ],
+        [
+          "ISM 13.56 MHz",
+          13553000,
+          13567000,
+          13560000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          "NFC/RFID (13.56 MHz)"
+        ],
+        [
+          "ISM 27.12 MHz",
+          26957000,
+          27283000,
+          27120000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          "overlaps the CB radio band"
+        ],
+        [
+          "ISM 40.68 MHz",
+          40660000,
+          40700000,
+          40680000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "ISM 433.92 MHz",
+          433050000,
+          434790000,
+          433920000,
+          "ITU RR 5.138",
+          "ITU Region 1 only (countries of RR 5.280)",
+          null,
+          null,
+          null,
+          "LPD433; also amateur 70 cm band"
+        ],
+        [
+          "ISM 915 MHz",
+          902000000,
+          928000000,
+          915000000,
+          "ITU RR 5.150",
+          "ITU Region 2 only (Americas)",
+          null,
+          null,
+          null,
+          "US 915 MHz band (LoRaWAN US902-928)"
+        ],
+        [
+          "ISM 2.45 GHz",
+          2400000000,
+          2500000000,
+          2450000000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          "Wi-Fi, Bluetooth, microwave ovens; RLAN/SRD use in Europe limited to 2400–2483.5 MHz"
+        ],
+        [
+          "ISM 5.8 GHz",
+          5725000000,
+          5875000000,
+          5800000000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          "Wi-Fi channels 149–165 (US); SRD in Europe"
+        ],
+        [
+          "ISM 24.125 GHz",
+          24000000000,
+          24250000000,
+          24125000000,
+          "ITU RR 5.150",
+          "worldwide",
+          null,
+          null,
+          null,
+          "radar sensors, motion detectors"
+        ],
+        [
+          "ISM 61.25 GHz",
+          61000000000,
+          61500000000,
+          61250000000,
+          "ITU RR 5.138",
+          "worldwide, subject to local acceptance",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "ISM 122.5 GHz",
+          122000000000,
+          123000000000,
+          122500000000,
+          "ITU RR 5.138",
+          "worldwide, subject to local acceptance",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "ISM 245 GHz",
+          244000000000,
+          246000000000,
+          245000000000,
+          "ITU RR 5.138",
+          "worldwide, subject to local acceptance",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "SRD 433.05–434.79 MHz",
+          433050000,
+          434790000,
+          null,
+          "EU 2006/771/EC as amended by (EU) 2022/180, row 44b",
+          "EU",
+          0.01,
+          "e.r.p.",
+          0.1,
+          "non-specific SRD (remote controls, sensors)"
+        ],
+        [
+          "SRD 865–868 MHz",
+          865000000,
+          868000000,
+          null,
+          "EU (EU) 2022/180, row 47",
+          "EU",
+          0.025,
+          "e.r.p.",
+          0.01,
+          "non-specific SRD"
+        ],
+        [
+          "SRD 868.0–868.6 MHz",
+          868000000,
+          868600000,
+          null,
+          "EU (EU) 2022/180, row 48",
+          "EU",
+          0.025,
+          "e.r.p.",
+          0.01,
+          "LoRaWAN EU868 default channels 868.1 / 868.3 / 868.5 MHz lie here"
+        ],
+        [
+          "SRD 868.7–869.2 MHz",
+          868700000,
+          869200000,
+          null,
+          "EU (EU) 2022/180, row 50",
+          "EU",
+          0.025,
+          "e.r.p.",
+          0.001,
+          "non-specific SRD"
+        ],
+        [
+          "SRD 869.4–869.65 MHz",
+          869400000,
+          869650000,
+          null,
+          "EU (EU) 2022/180, row 54",
+          "EU",
+          0.5,
+          "e.r.p.",
+          0.1,
+          "LoRaWAN EU868 RX2 / beacon 869.525 MHz lies here"
+        ],
+        [
+          "SRD 869.7–870.0 MHz",
+          869700000,
+          870000000,
+          null,
+          "EU (EU) 2022/180, row 56b",
+          "EU",
+          0.025,
+          "e.r.p.",
+          0.01,
+          null
+        ],
+        [
+          "SRD 2400–2483.5 MHz",
+          2400000000,
+          2483500000,
+          null,
+          "EU (EU) 2022/180, row 57a",
+          "EU",
+          0.01,
+          "e.i.r.p.",
+          null,
+          "non-specific SRD"
+        ],
+        [
+          "SRD 5725–5875 MHz",
+          5725000000,
+          5875000000,
+          null,
+          "EU (EU) 2022/180, row 61",
+          "EU",
+          0.025,
+          "e.i.r.p.",
+          null,
+          "non-specific SRD"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "lora_regional_plans",
+      "category": "tables",
+      "group": "general",
+      "name": "LoRaWAN regional channel plans (EU868, US915, AS923)",
+      "name_en": "LoRaWAN regional channel plans (EU868, US915, AS923)",
+      "doc": "The default channels, receive-window and beacon settings of the LoRaWAN regional plans EU868, US915 and AS923-1 to AS923-4: channel numbers, frequencies, bandwidth and data rates.",
+      "notes": "The national radio regulations (power, duty cycle, dwell time) always take precedence over the LoRaWAN plan. Network servers can add up to 16 channels in EU868 and AS923 (CFList); only the default channels are guaranteed. Only the default channels are listed, and the values are from RP002-1.0.3 (2021); newer versions (1.0.4, 1.0.5) exist and were not read. The EU868 RX2 data rate is DR0 (SF12) as in the specification; The Things Network uses SF9 (DR3). Frequencies given as a formula use the channel number n. Duty cycle and dwell time of AS923 are country-specific and not stated.",
+      "tags": [
+        "lora",
+        "lorawan",
+        "eu868",
+        "us915",
+        "as923",
+        "channel plan",
+        "frequency plan",
+        "regional parameters",
+        "rp002",
+        "rx2",
+        "class b",
+        "beacon",
+        "iot",
+        "sf12",
+        "kanalplan",
+        "frequenzplan",
+        "funk"
+      ],
+      "source": "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters (Tables 2, 3, 6, 7, section 2.5.2, 2.10.2); Semtech LoRaMac-node (RegionEU868, RegionUS915, RegionAS923); The Things Network frequency plans",
+      "guide": true,
+      "mains": false,
+      "key": "entry",
+      "columns": [
+        {
+          "id": "entry",
+          "name": "Plan and channels",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "channels",
+          "name": "Channel numbers",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "frequency",
+          "name": "Frequency",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "step",
+          "name": "Channel step",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "bandwidth",
+          "name": "Bandwidth",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "data_rates",
+          "name": "Data rates",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "EU868 default uplink channels",
+          "0–2",
+          "868.1; 868.3; 868.5 MHz",
+          null,
+          125000,
+          "DR0–DR5",
+          "mandatory in every device, also the join-request channels; duty cycle < 1 %; default max EIRP +16 dBm"
+        ],
+        [
+          "EU868 RX2 (second receive window)",
+          null,
+          "869.525 MHz",
+          null,
+          125000,
+          "DR0 (SF12)",
+          "default RX2; The Things Network uses SF9 (DR3) instead (network-specific)"
+        ],
+        [
+          "EU868 Class B beacon",
+          null,
+          "869.525 MHz",
+          null,
+          125000,
+          null,
+          "Class B beacon and default ping slot"
+        ],
+        [
+          "US915 125 kHz uplink",
+          "0–63",
+          "902.3 + 0.2·n MHz",
+          200000,
+          125000,
+          "DR0–DR3",
+          "64 channels 902.3–914.9 MHz; networks usually use one sub-band of 8 (e.g. TTN FSB2 = channels 8–15, 903.9–905.3 MHz)"
+        ],
+        [
+          "US915 500 kHz uplink",
+          "64–71",
+          "903.0 + 1.6·(n − 64) MHz",
+          1600000,
+          500000,
+          "DR4",
+          "8 channels 903.0–914.2 MHz (TTN FSB2 uses channel 65 = 904.6 MHz)"
+        ],
+        [
+          "US915 500 kHz downlink",
+          "0–7",
+          "923.3 + 0.6·n MHz",
+          600000,
+          500000,
+          "DR8–DR13",
+          "8 downlink channels 923.3–927.5 MHz; no duty-cycle limit, 400 ms dwell time on 125 kHz uplinks, default max EIRP +30 dBm"
+        ],
+        [
+          "US915 RX2 (second receive window)",
+          null,
+          "923.3 MHz",
+          null,
+          500000,
+          "DR8",
+          "default RX2"
+        ],
+        [
+          "AS923-1 default uplink channels",
+          "0–1",
+          "923.2; 923.4 MHz",
+          null,
+          125000,
+          "DR0–DR5",
+          "frequency offset 0; uplink dwell time 400 ms; default max EIRP +16 dBm; RX2 923.2 MHz DR2 (SF10)"
+        ],
+        [
+          "AS923-2 default uplink channels",
+          "0–1",
+          "921.4; 921.6 MHz",
+          null,
+          125000,
+          "DR0–DR5",
+          "AS923 with offset −1.80 MHz; RX2 921.4 MHz"
+        ],
+        [
+          "AS923-3 default uplink channels",
+          "0–1",
+          "916.6; 916.8 MHz",
+          null,
+          125000,
+          "DR0–DR5",
+          "AS923 with offset −6.60 MHz; RX2 916.6 MHz"
+        ],
+        [
+          "AS923-4 default uplink channels",
+          "0–1",
+          "917.3; 917.5 MHz",
+          null,
+          125000,
+          "DR0–DR5",
+          "AS923 with offset −5.90 MHz (used in Israel per RP002 country list); RX2 917.3 MHz"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "wifi_channels",
+      "category": "tables",
+      "group": "general",
+      "name": "Wi-Fi channels 2.4 and 5 GHz",
+      "name_en": "Wi-Fi channels 2.4 and 5 GHz",
+      "doc": "The 20 MHz Wi-Fi (IEEE 802.11) channels at 2.4 GHz (1 to 14) and 5 GHz (36 to 165): centre frequency, channel edges and availability in Germany/EU and in the USA.",
+      "notes": "Centre frequencies: 2407 MHz + 5 MHz × channel at 2.4 GHz (channel 14 is 2484 MHz) and 5000 MHz + 5 MHz × channel at 5 GHz. Availability is derived from the Linux regulatory database (wireless-regdb) and checks whether the 20 MHz channel lies inside an allowed range; DFS means dynamic frequency selection is required. Regulatory details (power limits, indoor rules, DFS) change: check the current national rules (in Germany the Bundesnetzagentur). At 2.4 GHz neighbouring channels are only 5 MHz apart, so 20 MHz channels overlap (two OFDM channels overlap when their numbers differ by less than 4). US channels 12 and 13: wireless-regdb does not allow them, Wikipedia says only at low power. Not listed: U-NII-4 (channels 169 to 177), the 6 GHz band and bonded 40, 80 and 160 MHz channels.",
+      "tags": [
+        "wifi",
+        "wi-fi",
+        "wlan",
+        "wireless",
+        "channel",
+        "kanal",
+        "802.11",
+        "ieee 802.11",
+        "2.4 ghz",
+        "5 ghz",
+        "dfs",
+        "u-nii",
+        "frequency",
+        "frequenz",
+        "router",
+        "funk"
+      ],
+      "source": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) for the centre frequencies; en.wikipedia \"List of WLAN channels\"; wireless-regdb db.txt (rules for DE and US) for the availability",
+      "guide": true,
+      "mains": false,
+      "key": "channel",
+      "columns": [
+        {
+          "id": "channel",
+          "name": "Channel",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "band",
+          "name": "Band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "centre",
+          "name": "Centre frequency",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_low",
+          "name": "Lower edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_high",
+          "name": "Upper edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "us_band",
+          "name": "US U-NII band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "de",
+          "name": "Germany / EU",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "us",
+          "name": "USA",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "2.4 GHz",
+          2412000000,
+          2402000000,
+          2422000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          2,
+          "2.4 GHz",
+          2417000000,
+          2407000000,
+          2427000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          3,
+          "2.4 GHz",
+          2422000000,
+          2412000000,
+          2432000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          4,
+          "2.4 GHz",
+          2427000000,
+          2417000000,
+          2437000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          5,
+          "2.4 GHz",
+          2432000000,
+          2422000000,
+          2442000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          6,
+          "2.4 GHz",
+          2437000000,
+          2427000000,
+          2447000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          7,
+          "2.4 GHz",
+          2442000000,
+          2432000000,
+          2452000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          8,
+          "2.4 GHz",
+          2447000000,
+          2437000000,
+          2457000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          9,
+          "2.4 GHz",
+          2452000000,
+          2442000000,
+          2462000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          10,
+          "2.4 GHz",
+          2457000000,
+          2447000000,
+          2467000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          11,
+          "2.4 GHz",
+          2462000000,
+          2452000000,
+          2472000000,
+          null,
+          "yes",
+          "yes",
+          null
+        ],
+        [
+          12,
+          "2.4 GHz",
+          2467000000,
+          2457000000,
+          2477000000,
+          null,
+          "yes",
+          "no",
+          "US: wireless-regdb does not allow it; Wikipedia: allowed only at low power and normally avoided"
+        ],
+        [
+          13,
+          "2.4 GHz",
+          2472000000,
+          2462000000,
+          2482000000,
+          null,
+          "yes",
+          "no",
+          "US: wireless-regdb does not allow it; Wikipedia: allowed only at low power and normally avoided"
+        ],
+        [
+          14,
+          "2.4 GHz",
+          2484000000,
+          2474000000,
+          2494000000,
+          null,
+          "no",
+          "no",
+          "Japan only, 802.11b (DSSS/CCK) only"
+        ],
+        [
+          36,
+          "5 GHz",
+          5180000000,
+          5170000000,
+          5190000000,
+          "U-NII-1",
+          "indoor",
+          "yes",
+          null
+        ],
+        [
+          40,
+          "5 GHz",
+          5200000000,
+          5190000000,
+          5210000000,
+          "U-NII-1",
+          "indoor",
+          "yes",
+          null
+        ],
+        [
+          44,
+          "5 GHz",
+          5220000000,
+          5210000000,
+          5230000000,
+          "U-NII-1",
+          "indoor",
+          "yes",
+          null
+        ],
+        [
+          48,
+          "5 GHz",
+          5240000000,
+          5230000000,
+          5250000000,
+          "U-NII-1",
+          "indoor",
+          "yes",
+          null
+        ],
+        [
+          52,
+          "5 GHz",
+          5260000000,
+          5250000000,
+          5270000000,
+          "U-NII-2A",
+          "indoor, DFS",
+          "DFS",
+          null
+        ],
+        [
+          56,
+          "5 GHz",
+          5280000000,
+          5270000000,
+          5290000000,
+          "U-NII-2A",
+          "indoor, DFS",
+          "DFS",
+          null
+        ],
+        [
+          60,
+          "5 GHz",
+          5300000000,
+          5290000000,
+          5310000000,
+          "U-NII-2A",
+          "indoor, DFS",
+          "DFS",
+          null
+        ],
+        [
+          64,
+          "5 GHz",
+          5320000000,
+          5310000000,
+          5330000000,
+          "U-NII-2A",
+          "indoor, DFS",
+          "DFS",
+          null
+        ],
+        [
+          100,
+          "5 GHz",
+          5500000000,
+          5490000000,
+          5510000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          104,
+          "5 GHz",
+          5520000000,
+          5510000000,
+          5530000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          108,
+          "5 GHz",
+          5540000000,
+          5530000000,
+          5550000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          112,
+          "5 GHz",
+          5560000000,
+          5550000000,
+          5570000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          116,
+          "5 GHz",
+          5580000000,
+          5570000000,
+          5590000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          120,
+          "5 GHz",
+          5600000000,
+          5590000000,
+          5610000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          124,
+          "5 GHz",
+          5620000000,
+          5610000000,
+          5630000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          128,
+          "5 GHz",
+          5640000000,
+          5630000000,
+          5650000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          132,
+          "5 GHz",
+          5660000000,
+          5650000000,
+          5670000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          136,
+          "5 GHz",
+          5680000000,
+          5670000000,
+          5690000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          140,
+          "5 GHz",
+          5700000000,
+          5690000000,
+          5710000000,
+          "U-NII-2C",
+          "DFS",
+          "DFS",
+          null
+        ],
+        [
+          144,
+          "5 GHz",
+          5720000000,
+          5710000000,
+          5730000000,
+          "U-NII-2C/3",
+          "no",
+          "DFS",
+          "5710–5730 MHz exceeds the EU WLAN band end 5725 MHz"
+        ],
+        [
+          149,
+          "5 GHz",
+          5745000000,
+          5735000000,
+          5755000000,
+          "U-NII-3",
+          "SRD only, 25 mW",
+          "yes",
+          null
+        ],
+        [
+          153,
+          "5 GHz",
+          5765000000,
+          5755000000,
+          5775000000,
+          "U-NII-3",
+          "SRD only, 25 mW",
+          "yes",
+          null
+        ],
+        [
+          157,
+          "5 GHz",
+          5785000000,
+          5775000000,
+          5795000000,
+          "U-NII-3",
+          "SRD only, 25 mW",
+          "yes",
+          null
+        ],
+        [
+          161,
+          "5 GHz",
+          5805000000,
+          5795000000,
+          5815000000,
+          "U-NII-3",
+          "SRD only, 25 mW",
+          "yes",
+          null
+        ],
+        [
+          165,
+          "5 GHz",
+          5825000000,
+          5815000000,
+          5835000000,
+          "U-NII-3",
+          "SRD only, 25 mW",
+          "yes",
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "amateur_bands_de",
+      "category": "tables",
+      "group": "general",
+      "name": "Amateur radio bands in Germany (AFuV)",
+      "name_en": "Amateur radio bands in Germany (AFuV)",
+      "doc": "The 45 frequency ranges of Annex 1 of the German Amateur Radio Ordinance (AFuV): band edges, primary or secondary status, maximum power per licence class A, E and N and the additional conditions.",
+      "notes": "Only the current AFuV and the decisions of the Bundesnetzagentur are binding; temporary toleration rules (e.g. for the 70 MHz band) are not part of Annex 1 and are not listed. P = the amateur service is primary, S = secondary. PEP = peak envelope power, ERP = effective radiated power. An empty class cell means the band is not available to that class. The band names are conventional and not part of the regulation. Row 45 covers every frequency above 275 GHz (the lower edge is not included). General rule (Annex 1 (1)): remote-controlled and automatic terrestrial stations above 30 MHz may use at most 50 W ERP (except remote operation). Additional conditions (part B): 1 max. occupied bandwidth 800 Hz; 2 sites must be notified to the BNetzA; 3 max. bandwidth 2.7 kHz; 4 max. bandwidth 7 kHz below 29 MHz, 40 kHz above; 5 no interference to broadcasting and wind-profiler radars, horizontal polarisation only, fixed stations only (50 to 52 MHz); 6 max. bandwidth 40 kHz; 7 max. 2 MHz (AM TV 7 MHz); 8 max. 2 MHz (AM and digital TV 7 MHz, FM TV 18 MHz); 9 max. 10 MHz (TV 20 MHz); 10 no remote-controlled stations except remote operation, no contests; 11 1247 to 1263 MHz max. 3.05 W ERP, no remote-controlled or automatic stations; 12 automatic stations max. 50 W ERP; 13 also usable for the amateur-satellite service (see the regulation for primary and secondary details); 14 bands above 275 GHz usable without protection; 15 weekends on 1850 to 2000 kHz: class A 750 W PEP, class E 100 W PEP, contests allowed; 16 max. bandwidth 12 kHz; 17 links of remote-controlled and automatic stations up to 1000 W ERP in justified cases. Frequencies are rounded to the significant digits set in the ECalc settings.",
+      "tags": [
+        "amateur radio",
+        "ham radio",
+        "afuv",
+        "amateurfunk",
+        "amateurfunkverordnung",
+        "band",
+        "frequency",
+        "power",
+        "pep",
+        "erp",
+        "class a",
+        "class e",
+        "class n",
+        "klasse a",
+        "klasse e",
+        "klasse n",
+        "bundesnetzagentur",
+        "kurzwelle",
+        "2 m",
+        "70 cm",
+        "leistung"
+      ],
+      "source": "Amateurfunkverordnung (AFuV) Anlage 1, BGBl. 2024 I Nr. 175, gesetze-im-internet.de; checked row by row against buzer.de and against the DARC summary \"Amateurfunkverordnung – Änderungen zum 24.06.2024\"",
+      "guide": true,
+      "mains": false,
+      "key": "nr",
+      "columns": [
+        {
+          "id": "nr",
+          "name": "No.",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "band",
+          "name": "Band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_low",
+          "name": "Lower edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "f_high",
+          "name": "Upper edge",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "status",
+          "name": "Status (P primary, S secondary)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "class_a",
+          "name": "Class A max. power",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "class_e",
+          "name": "Class E max. power",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "class_n",
+          "name": "Class N max. power",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "b_notes",
+          "name": "Conditions (part B)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          1,
+          "2200 m",
+          135700,
+          137800,
+          "S",
+          "1 W ERP",
+          null,
+          null,
+          "1,2,10"
+        ],
+        [
+          2,
+          "630 m",
+          472000,
+          479000,
+          "S",
+          "1 W ERP",
+          null,
+          null,
+          "1"
+        ],
+        [
+          3,
+          "160 m",
+          1810000,
+          1850000,
+          "P",
+          "750 W PEP",
+          "100 W PEP",
+          null,
+          "3"
+        ],
+        [
+          4,
+          "160 m",
+          1850000,
+          1890000,
+          "S",
+          "75 W PEP",
+          "75 W PEP",
+          null,
+          "3,10,12,15"
+        ],
+        [
+          5,
+          "160 m",
+          1890000,
+          2000000,
+          "S",
+          "10 W PEP",
+          "10 W PEP",
+          null,
+          "3,10,15"
+        ],
+        [
+          6,
+          "80 m",
+          3500000,
+          3800000,
+          "P",
+          "750 W PEP",
+          "100 W PEP",
+          null,
+          "3"
+        ],
+        [
+          7,
+          "60 m",
+          5351500,
+          5366500,
+          "S",
+          "9.14 W ERP",
+          null,
+          null,
+          "3"
+        ],
+        [
+          8,
+          "40 m",
+          7000000,
+          7200000,
+          "P",
+          "750 W PEP",
+          null,
+          null,
+          "3,13"
+        ],
+        [
+          9,
+          "30 m",
+          10100000,
+          10150000,
+          "S",
+          "150 W PEP",
+          null,
+          null,
+          "1,10,12"
+        ],
+        [
+          10,
+          "20 m",
+          14000000,
+          14350000,
+          "P",
+          "750 W PEP",
+          null,
+          null,
+          "3,13"
+        ],
+        [
+          11,
+          "17 m",
+          18068000,
+          18168000,
+          "P",
+          "750 W PEP",
+          null,
+          null,
+          "3,13"
+        ],
+        [
+          12,
+          "15 m",
+          21000000,
+          21450000,
+          "P",
+          "750 W PEP",
+          "100 W PEP",
+          null,
+          "3,13"
+        ],
+        [
+          13,
+          "12 m",
+          24890000,
+          24990000,
+          "P",
+          "750 W PEP",
+          null,
+          null,
+          "3,13"
+        ],
+        [
+          14,
+          "10 m",
+          28000000,
+          29700000,
+          "P",
+          "750 W PEP",
+          "100 W PEP",
+          "10 W ERP",
+          "4,13"
+        ],
+        [
+          15,
+          "6 m",
+          50000000,
+          50400000,
+          "S",
+          "750 W PEP",
+          null,
+          null,
+          "5,16"
+        ],
+        [
+          16,
+          "6 m",
+          50400000,
+          52000000,
+          "S",
+          "25 W PEP",
+          null,
+          null,
+          "5,16"
+        ],
+        [
+          17,
+          "2 m",
+          144000000,
+          146000000,
+          "P",
+          "750 W PEP",
+          "75 W PEP",
+          "6.1 W ERP",
+          "6,13"
+        ],
+        [
+          18,
+          "70 cm",
+          430000000,
+          440000000,
+          "P",
+          "750 W PEP",
+          "75 W PEP",
+          "6.1 W ERP",
+          "7,13"
+        ],
+        [
+          19,
+          "23 cm",
+          1240000000,
+          1250000000,
+          "S",
+          "750 W PEP",
+          "75 W PEP",
+          null,
+          "8,11,17"
+        ],
+        [
+          20,
+          "23 cm",
+          1250000000,
+          1260000000,
+          "S",
+          "750 W PEP",
+          "75 W PEP",
+          null,
+          "8,11,17"
+        ],
+        [
+          21,
+          "23 cm",
+          1260000000,
+          1300000000,
+          "S",
+          "750 W PEP",
+          "75 W PEP",
+          null,
+          "8,11,13,17"
+        ],
+        [
+          22,
+          "13 cm",
+          2320000000,
+          2400000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          23,
+          "13 cm",
+          2400000000,
+          2450000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          24,
+          "9 cm",
+          3400000000,
+          3475000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          25,
+          "6 cm",
+          5650000000,
+          5670000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          26,
+          "6 cm",
+          5670000000,
+          5725000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          27,
+          "6 cm",
+          5725000000,
+          5755000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          28,
+          "6 cm",
+          5755000000,
+          5830000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          29,
+          "6 cm",
+          5830000000,
+          5850000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          30,
+          "3 cm",
+          10000000000,
+          10400000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          31,
+          "3 cm",
+          10400000000,
+          10450000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          32,
+          "3 cm",
+          10450000000,
+          10500000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          33,
+          "1.2 cm",
+          24000000000,
+          24050000000,
+          "P",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "13,17"
+        ],
+        [
+          34,
+          "1.2 cm",
+          24050000000,
+          24250000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          35,
+          "6 mm",
+          47000000000,
+          47200000000,
+          "P",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "13,17"
+        ],
+        [
+          36,
+          "4 mm",
+          76000000000,
+          77500000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          37,
+          "4 mm",
+          77500000000,
+          78000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          38,
+          "4 mm",
+          78000000000,
+          79000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          39,
+          "4 mm",
+          79000000000,
+          81000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          40,
+          "2.5 mm",
+          122250000000,
+          123000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,17"
+        ],
+        [
+          41,
+          "2 mm",
+          134000000000,
+          136000000000,
+          "P",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          42,
+          "2 mm",
+          136000000000,
+          141000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "9,13,17"
+        ],
+        [
+          43,
+          "1.2 mm",
+          241000000000,
+          248000000000,
+          "S",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "13,17"
+        ],
+        [
+          44,
+          "1.2 mm",
+          248000000000,
+          250000000000,
+          "P",
+          "75 W PEP",
+          "5 W PEP",
+          null,
+          "13,17"
+        ],
+        [
+          45,
+          "above 275 GHz",
+          275000000000,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "14,17"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "logic_levels",
+      "category": "tables",
+      "group": "general",
+      "name": "Logic levels",
+      "name_en": "Logic levels",
+      "doc": "Input and output voltage limits of TTL, 74LS, 74HC, 74HCT, 5 V CMOS and 3.3, 2.5 and 1.8 V LVCMOS logic: VIH, VIL, VOH, VOL, load currents and switching threshold.",
+      "notes": "Interfacing rule: a driver fits a receiver when VOH(min) of the driver is at least VIH(min) of the receiver and VOL(max) of the driver is at most VIL(max) of the receiver. Example: a 3.3 V LVCMOS output (VOH at least 2.4 V) drives 74HCT (VIH 2.0 V) but not 74HC at 5 V (VIH 3.15 V at 4.5 V). Noise margin high = VOH(min) − VIH(min); noise margin low = VIL(max) − VOL(max). The VIH and VIL columns are the limits at the nominal supply; for the CMOS rules 0.7 and 0.3 × VCC (5 V) and 0.65 and 0.35 × VCC (1.8 V) the numbers are the values at that supply. The VOH and VOL columns show a / b for the two load currents of the next column; \"VCC − 0.1\" is the light-load value. Values are the limits of real parts (−40 to 85 °C) from the data sheets named in the source, not the JEDEC standards (not read); output levels depend strongly on load current and temperature, so check the data sheet of the actual part. The switching threshold Vt is read from the TI Logic Guide figures and is approximate.",
+      "tags": [
+        "logic",
+        "logic levels",
+        "ttl",
+        "cmos",
+        "lvcmos",
+        "lvttl",
+        "74hc",
+        "74hct",
+        "74ls",
+        "74lvc",
+        "vih",
+        "vil",
+        "voh",
+        "vol",
+        "noise margin",
+        "level shifting",
+        "pegel",
+        "logikpegel",
+        "störabstand",
+        "3.3 v",
+        "5 v"
+      ],
+      "source": "Texas Instruments data sheets SN7400/SN74LS00 (SDLS025D), SN74HC00 (SCLS181H), SN74HCT00 (SCLS062F), SN74LVC1G00 (SCES212AC) and Logic Guide SDYU001AC; Diodes 74HC00 (DS35319), 74HCT00 (DS35329), 74LVC1G00 (DS32196); en.wikipedia \"Logic level\"",
+      "guide": false,
+      "mains": false,
+      "key": "family",
+      "columns": [
+        {
+          "id": "family",
+          "name": "Logic family",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vcc",
+          "name": "Supply range",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vcc_nom",
+          "name": "Nominal supply",
+          "dim": "voltage",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vih_min",
+          "name": "VIH min (HIGH input, at nominal supply)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vil_max",
+          "name": "VIL max (LOW input, at nominal supply)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "voh_min",
+          "name": "VOH min (HIGH output)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "voh_cond",
+          "name": "VOH load current",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vol_max",
+          "name": "VOL max (LOW output)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vol_cond",
+          "name": "VOL load current",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "vt_typ",
+          "name": "Threshold Vt (approx.)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "TTL (74xx, e.g. SN7400)",
+          "4.75–5.25 V",
+          5,
+          2,
+          0.8,
+          "2.4 V",
+          "IOH = −0.4 mA",
+          "0.4 V",
+          "IOL = 16 mA",
+          1.5,
+          "standard bipolar TTL"
+        ],
+        [
+          "74LS (Low-power Schottky TTL, e.g. SN74LS00)",
+          "4.75–5.25 V",
+          5,
+          2,
+          0.8,
+          "2.5 V",
+          "IOH = −0.4 mA",
+          "0.4 / 0.5 V",
+          "IOL = 4 mA / 8 mA",
+          null,
+          "VOH and VOL per the TI SN74LS00 data sheet (SDLS025D) only; older data books give VOH 2.7 V for 74LS"
+        ],
+        [
+          "74HC (CMOS) at VCC = 4.5 V",
+          "2–6 V (table at 4.5 V)",
+          4.5,
+          3.15,
+          1.35,
+          "4.4 / 3.84 V",
+          "IOH = −20 µA / −4 mA",
+          "0.1 / 0.33 V",
+          "IOL = 20 µA / 4 mA",
+          null,
+          "VOH/VOL limits for −40…85 °C; HC inputs are not TTL-compatible"
+        ],
+        [
+          "74HCT (CMOS, TTL-compatible inputs)",
+          "4.5–5.5 V",
+          5,
+          2,
+          0.8,
+          "4.4 / 3.84 V",
+          "IOH = −20 µA / −4 mA (VCC 4.5 V)",
+          "0.1 / 0.33 V",
+          "IOL = 20 µA / 4 mA (VCC 4.5 V)",
+          1.5,
+          "drives CMOS inputs from TTL outputs; −40…85 °C limits"
+        ],
+        [
+          "CMOS 5 V generic (0.7/0.3 VCC rule), e.g. 74LVC at 4.5–5.5 V",
+          "4.5–5.5 V",
+          5,
+          3.5,
+          1.5,
+          "VCC − 0.1 / 3.8 V",
+          "IOH = −100 µA / −32 mA (VCC 4.5 V)",
+          "0.1 / 0.55 V",
+          "IOL = 100 µA / 32 mA (VCC 4.5 V)",
+          2.5,
+          "outputs depend on the family; values shown for 74LVC1G00"
+        ],
+        [
+          "LVCMOS / LVTTL 3.3 V (e.g. 74LVC at 3.0–3.6 V)",
+          "3.0–3.6 V",
+          3.3,
+          2,
+          0.8,
+          "VCC − 0.1 / 2.4 V",
+          "IOH = −100 µA / −16 mA (VCC 3.0 V)",
+          "0.1 / 0.4 V",
+          "IOL = 100 µA / 16 mA (VCC 3.0 V)",
+          1.5,
+          "LVTTL output levels per TI Logic Guide: VOH 2.4 V, VOL 0.4 V"
+        ],
+        [
+          "LVCMOS 2.5 V (e.g. 74LVC at 2.3–2.7 V)",
+          "2.3–2.7 V",
+          2.5,
+          1.7,
+          0.7,
+          "VCC − 0.1 / 1.9 V",
+          "IOH = −100 µA / −8 mA (VCC 2.3 V)",
+          "0.1 / 0.3 V",
+          "IOL = 100 µA / 8 mA (VCC 2.3 V)",
+          1.2,
+          "TI Logic Guide shows VOH 2.0 V / VOL 0.4 V for 2.5 V CMOS (load not stated)"
+        ],
+        [
+          "LVCMOS 1.8 V (e.g. 74LVC at 1.65–1.95 V)",
+          "1.65–1.95 V",
+          1.8,
+          1.17,
+          0.63,
+          "VCC − 0.1 / 1.2 V",
+          "IOH = −100 µA / −4 mA (VCC 1.65 V)",
+          "0.1 / 0.45 V",
+          "IOL = 100 µA / 4 mA (VCC 1.65 V)",
+          0.9,
+          "TI Logic Guide: VOH 1.35 V (= VCC − 0.45 V), VOL 0.45 V"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "line_interface_levels",
+      "category": "tables",
+      "group": "general",
+      "name": "RS-232, RS-485 and LVDS signal levels",
+      "name_en": "RS-232, RS-485 and LVDS signal levels",
+      "doc": "Voltage levels, thresholds and loads of the serial interfaces RS-232 (TIA-232-F), RS-485 (TIA/EIA-485-A) and LVDS (TIA/EIA-644-A): minimum, typical and maximum values with the test condition.",
+      "notes": "The unit of the Min, Typ and Max values is in the Unit column (the rows use different units). RS-232 uses negative logic on the data lines: logic 1 (mark, idle) is negative, logic 0 (space) is positive; control lines are active when positive. RS-485 and LVDS are differential: the receiver evaluates VA − VB, and the line is terminated with its characteristic impedance (RS-485 typically 120 Ω at both ends, LVDS 100 Ω at the receiver). Noise margin RS-485 = 1.5 V − 0.2 V = 1.3 V; RS-232 = 5 V − 3 V = 2 V. The TIA standards themselves were not read; the values come from maker documents that cite them and from Wikipedia. Typical per the named maker document, one source each: the RS-232 load of 3 to 7 kΩ, input impedance and slew rate of 30 V/µs (TI SLLA037A), the RS-485 unit load of about 12 kΩ (TI SLLA272D), and the LVDS output voltage limits of 247 and 454 mV and the offset voltage limits of 1.125 and 1.375 V (TI SN65LVDS31 data sheet, a part that meets TIA/EIA-644; its typical output voltage is 340 mV, the 350 mV shown is the nominal value of the TI LVDS Owner's Manual).",
+      "tags": [
+        "rs-232",
+        "rs485",
+        "rs-485",
+        "lvds",
+        "serial",
+        "uart",
+        "differential",
+        "tia-232",
+        "tia-485",
+        "tia-644",
+        "signal level",
+        "voltage level",
+        "mark",
+        "space",
+        "pegel",
+        "schnittstelle",
+        "signalpegel",
+        "bus",
+        "terminierung"
+      ],
+      "source": "TI SLLA037A (RS-232), TI SLLA272D and SN65HVD72 data sheet (RS-485), TI SN65LVDS31 data sheet and LVDS Owner's Manual SNLA187, Frontgrade AN-LVDS-010-01 (LVDS), en.wikipedia RS-232, RS-485 and Low-voltage differential signaling; the TIA standards were not read",
+      "guide": false,
+      "mains": false,
+      "key": "parameter",
+      "columns": [
+        {
+          "id": "parameter",
+          "name": "Interface and parameter",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "min",
+          "name": "Min",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "typ",
+          "name": "Typ",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "max",
+          "name": "Max",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "unit",
+          "name": "Unit",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "condition",
+          "name": "Condition",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "RS-232: driver output, logic 0 / space / ON",
+          5,
+          null,
+          15,
+          "V",
+          "load 3–7 kΩ (per TI SLLA037A)"
+        ],
+        [
+          "RS-232: driver output, logic 1 / mark / OFF",
+          -15,
+          null,
+          -5,
+          "V",
+          "load 3–7 kΩ (per TI SLLA037A)"
+        ],
+        [
+          "RS-232: receiver input recognised as logic 0 (space)",
+          3,
+          null,
+          15,
+          "V",
+          null
+        ],
+        [
+          "RS-232: receiver input recognised as logic 1 (mark)",
+          -15,
+          null,
+          -3,
+          "V",
+          null
+        ],
+        [
+          "RS-232: transition region (undefined)",
+          -3,
+          null,
+          3,
+          "V",
+          null
+        ],
+        [
+          "RS-232: maximum voltage at connector pins",
+          -25,
+          null,
+          25,
+          "V",
+          null
+        ],
+        [
+          "RS-232: receiver input impedance",
+          3,
+          null,
+          7,
+          "kΩ",
+          "per TI SLLA037A"
+        ],
+        [
+          "RS-232: driver slew rate",
+          null,
+          null,
+          30,
+          "V/µs",
+          "per TI SLLA037A"
+        ],
+        [
+          "RS-485: driver differential output voltage, magnitude of VOD",
+          1.5,
+          null,
+          null,
+          "V",
+          "RL = 54 Ω"
+        ],
+        [
+          "RS-485: receiver differential threshold",
+          -200,
+          null,
+          200,
+          "mV",
+          "a standard receiver detects a differential input of 200 mV or more"
+        ],
+        [
+          "RS-485: common-mode voltage range",
+          -7,
+          null,
+          12,
+          "V",
+          null
+        ],
+        [
+          "RS-485: unit loads per bus (standard drivers)",
+          null,
+          null,
+          32,
+          "UL",
+          "1 UL ≈ 12 kΩ (per TI SLLA272D)"
+        ],
+        [
+          "LVDS: driver differential output voltage, magnitude of VOD",
+          247,
+          350,
+          454,
+          "mV",
+          "RL = 100 Ω; min and max per TI SN65LVDS31 data sheet"
+        ],
+        [
+          "LVDS: driver offset (common-mode) voltage VOS",
+          1.125,
+          1.2,
+          1.375,
+          "V",
+          "min and max per TI SN65LVDS31 data sheet"
+        ],
+        [
+          "LVDS: receiver differential threshold",
+          -100,
+          null,
+          100,
+          "mV",
+          null
+        ],
+        [
+          "LVDS: receiver input voltage range",
+          0,
+          null,
+          2.4,
+          "V",
+          null
+        ],
+        [
+          "LVDS: driver current (into the termination)",
+          null,
+          3.5,
+          null,
+          "mA",
+          "nominal"
+        ],
+        [
+          "LVDS: termination resistor",
+          null,
+          100,
+          null,
+          "Ω",
+          "at the receiver"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "ascii",
+      "category": "tables",
+      "group": "general",
+      "name": "ASCII table",
+      "name_en": "ASCII table",
+      "doc": "The 128 ASCII codes (0 to 127) in decimal and hexadecimal with the character or control-character abbreviation, RFC 20 class, Ctrl notation and name.",
+      "notes": "ASCII is a 7-bit code (0 to 127). Codes 128 to 255 are not ASCII; their meaning depends on the code page (e.g. ISO 8859-1, Windows-1252) or on UTF-8 multi-byte sequences. The code column can be shown in decimal, hexadecimal, binary or octal with its unit selector. SP is the space (code 32). Line ends: Unix and Linux LF (0x0A), Windows CR LF (0x0D 0x0A), classic Mac OS CR (0x0D). Upper and lower case letters differ only in bit 5 (0x20): A = 0x41, a = 0x61. The Ctrl notation of a control character is the code XOR 0x40 (Ctrl+key); DEL is ^?. RFC 20 classes: CC communication control, FE format effector, IS information separator. English names are those of RFC 20 (modern names in brackets where the 1969 name is archaic); RFC 20 notes that several characters should not be used in international interchange without agreement between sender and recipient.",
+      "tags": [
+        "ascii",
+        "character",
+        "character code",
+        "code",
+        "hex",
+        "decimal",
+        "binary",
+        "control character",
+        "escape",
+        "newline",
+        "carriage return",
+        "rfc 20",
+        "steuerzeichen",
+        "zeichen",
+        "zeichensatz",
+        "zeichencode",
+        "lf",
+        "cr",
+        "esc",
+        "del"
+      ],
+      "source": "RFC 20 (USAS X3.4-1968), rfc-editor.org/rfc/rfc20.txt; German control-character names: de.wikipedia \"Steuerzeichen\"",
+      "guide": false,
+      "mains": false,
+      "key": "dec",
+      "columns": [
+        {
+          "id": "dec",
+          "name": "Code",
+          "dim": "integer",
+          "unit": "",
+          "units": [
+            "dec",
+            "hex",
+            "bin",
+            "oct"
+          ],
+          "label": ""
+        },
+        {
+          "id": "hex",
+          "name": "Hex",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "char",
+          "name": "Character",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "kind",
+          "name": "Kind",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rfc20_class",
+          "name": "RFC 20 class",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "ctrl",
+          "name": "Ctrl notation",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "name",
+          "name": "Name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          0,
+          "00",
+          "NUL",
+          "control",
+          null,
+          "^@",
+          "Null"
+        ],
+        [
+          1,
+          "01",
+          "SOH",
+          "control",
+          "CC",
+          "^A",
+          "Start of Heading"
+        ],
+        [
+          2,
+          "02",
+          "STX",
+          "control",
+          "CC",
+          "^B",
+          "Start of Text"
+        ],
+        [
+          3,
+          "03",
+          "ETX",
+          "control",
+          "CC",
+          "^C",
+          "End of Text"
+        ],
+        [
+          4,
+          "04",
+          "EOT",
+          "control",
+          "CC",
+          "^D",
+          "End of Transmission"
+        ],
+        [
+          5,
+          "05",
+          "ENQ",
+          "control",
+          "CC",
+          "^E",
+          "Enquiry"
+        ],
+        [
+          6,
+          "06",
+          "ACK",
+          "control",
+          "CC",
+          "^F",
+          "Acknowledge"
+        ],
+        [
+          7,
+          "07",
+          "BEL",
+          "control",
+          null,
+          "^G",
+          "Bell (audible or attention signal)"
+        ],
+        [
+          8,
+          "08",
+          "BS",
+          "control",
+          "FE",
+          "^H",
+          "Backspace"
+        ],
+        [
+          9,
+          "09",
+          "HT",
+          "control",
+          "FE",
+          "^I",
+          "Horizontal Tabulation"
+        ],
+        [
+          10,
+          "0A",
+          "LF",
+          "control",
+          "FE",
+          "^J",
+          "Line Feed"
+        ],
+        [
+          11,
+          "0B",
+          "VT",
+          "control",
+          "FE",
+          "^K",
+          "Vertical Tabulation"
+        ],
+        [
+          12,
+          "0C",
+          "FF",
+          "control",
+          "FE",
+          "^L",
+          "Form Feed"
+        ],
+        [
+          13,
+          "0D",
+          "CR",
+          "control",
+          "FE",
+          "^M",
+          "Carriage Return"
+        ],
+        [
+          14,
+          "0E",
+          "SO",
+          "control",
+          null,
+          "^N",
+          "Shift Out"
+        ],
+        [
+          15,
+          "0F",
+          "SI",
+          "control",
+          null,
+          "^O",
+          "Shift In"
+        ],
+        [
+          16,
+          "10",
+          "DLE",
+          "control",
+          "CC",
+          "^P",
+          "Data Link Escape"
+        ],
+        [
+          17,
+          "11",
+          "DC1",
+          "control",
+          null,
+          "^Q",
+          "Device Control 1"
+        ],
+        [
+          18,
+          "12",
+          "DC2",
+          "control",
+          null,
+          "^R",
+          "Device Control 2"
+        ],
+        [
+          19,
+          "13",
+          "DC3",
+          "control",
+          null,
+          "^S",
+          "Device Control 3"
+        ],
+        [
+          20,
+          "14",
+          "DC4",
+          "control",
+          null,
+          "^T",
+          "Device Control 4 (Stop)"
+        ],
+        [
+          21,
+          "15",
+          "NAK",
+          "control",
+          "CC",
+          "^U",
+          "Negative Acknowledge"
+        ],
+        [
+          22,
+          "16",
+          "SYN",
+          "control",
+          "CC",
+          "^V",
+          "Synchronous Idle"
+        ],
+        [
+          23,
+          "17",
+          "ETB",
+          "control",
+          "CC",
+          "^W",
+          "End of Transmission Block"
+        ],
+        [
+          24,
+          "18",
+          "CAN",
+          "control",
+          null,
+          "^X",
+          "Cancel"
+        ],
+        [
+          25,
+          "19",
+          "EM",
+          "control",
+          null,
+          "^Y",
+          "End of Medium"
+        ],
+        [
+          26,
+          "1A",
+          "SUB",
+          "control",
+          null,
+          "^Z",
+          "Substitute"
+        ],
+        [
+          27,
+          "1B",
+          "ESC",
+          "control",
+          null,
+          "^[",
+          "Escape"
+        ],
+        [
+          28,
+          "1C",
+          "FS",
+          "control",
+          "IS",
+          "^\\",
+          "File Separator"
+        ],
+        [
+          29,
+          "1D",
+          "GS",
+          "control",
+          "IS",
+          "^]",
+          "Group Separator"
+        ],
+        [
+          30,
+          "1E",
+          "RS",
+          "control",
+          "IS",
+          "^^",
+          "Record Separator"
+        ],
+        [
+          31,
+          "1F",
+          "US",
+          "control",
+          "IS",
+          "^_",
+          "Unit Separator"
+        ],
+        [
+          32,
+          "20",
+          "SP",
+          "graphic",
+          null,
+          null,
+          "Space"
+        ],
+        [
+          33,
+          "21",
+          "!",
+          "graphic",
+          null,
+          null,
+          "Exclamation Point"
+        ],
+        [
+          34,
+          "22",
+          "\"",
+          "graphic",
+          null,
+          null,
+          "Quotation Marks"
+        ],
+        [
+          35,
+          "23",
+          "#",
+          "graphic",
+          null,
+          null,
+          "Number Sign"
+        ],
+        [
+          36,
+          "24",
+          "$",
+          "graphic",
+          null,
+          null,
+          "Dollar Sign"
+        ],
+        [
+          37,
+          "25",
+          "%",
+          "graphic",
+          null,
+          null,
+          "Percent"
+        ],
+        [
+          38,
+          "26",
+          "&",
+          "graphic",
+          null,
+          null,
+          "Ampersand"
+        ],
+        [
+          39,
+          "27",
+          "'",
+          "graphic",
+          null,
+          null,
+          "Apostrophe"
+        ],
+        [
+          40,
+          "28",
+          "(",
+          "graphic",
+          null,
+          null,
+          "Opening Parenthesis"
+        ],
+        [
+          41,
+          "29",
+          ")",
+          "graphic",
+          null,
+          null,
+          "Closing Parenthesis"
+        ],
+        [
+          42,
+          "2A",
+          "*",
+          "graphic",
+          null,
+          null,
+          "Asterisk"
+        ],
+        [
+          43,
+          "2B",
+          "+",
+          "graphic",
+          null,
+          null,
+          "Plus"
+        ],
+        [
+          44,
+          "2C",
+          ",",
+          "graphic",
+          null,
+          null,
+          "Comma"
+        ],
+        [
+          45,
+          "2D",
+          "-",
+          "graphic",
+          null,
+          null,
+          "Hyphen (Minus)"
+        ],
+        [
+          46,
+          "2E",
+          ".",
+          "graphic",
+          null,
+          null,
+          "Period (Decimal Point)"
+        ],
+        [
+          47,
+          "2F",
+          "/",
+          "graphic",
+          null,
+          null,
+          "Slant (slash)"
+        ],
+        [
+          48,
+          "30",
+          "0",
+          "graphic",
+          null,
+          null,
+          "Digit 0"
+        ],
+        [
+          49,
+          "31",
+          "1",
+          "graphic",
+          null,
+          null,
+          "Digit 1"
+        ],
+        [
+          50,
+          "32",
+          "2",
+          "graphic",
+          null,
+          null,
+          "Digit 2"
+        ],
+        [
+          51,
+          "33",
+          "3",
+          "graphic",
+          null,
+          null,
+          "Digit 3"
+        ],
+        [
+          52,
+          "34",
+          "4",
+          "graphic",
+          null,
+          null,
+          "Digit 4"
+        ],
+        [
+          53,
+          "35",
+          "5",
+          "graphic",
+          null,
+          null,
+          "Digit 5"
+        ],
+        [
+          54,
+          "36",
+          "6",
+          "graphic",
+          null,
+          null,
+          "Digit 6"
+        ],
+        [
+          55,
+          "37",
+          "7",
+          "graphic",
+          null,
+          null,
+          "Digit 7"
+        ],
+        [
+          56,
+          "38",
+          "8",
+          "graphic",
+          null,
+          null,
+          "Digit 8"
+        ],
+        [
+          57,
+          "39",
+          "9",
+          "graphic",
+          null,
+          null,
+          "Digit 9"
+        ],
+        [
+          58,
+          "3A",
+          ":",
+          "graphic",
+          null,
+          null,
+          "Colon"
+        ],
+        [
+          59,
+          "3B",
+          ";",
+          "graphic",
+          null,
+          null,
+          "Semicolon"
+        ],
+        [
+          60,
+          "3C",
+          "<",
+          "graphic",
+          null,
+          null,
+          "Less Than"
+        ],
+        [
+          61,
+          "3D",
+          "=",
+          "graphic",
+          null,
+          null,
+          "Equals"
+        ],
+        [
+          62,
+          "3E",
+          ">",
+          "graphic",
+          null,
+          null,
+          "Greater Than"
+        ],
+        [
+          63,
+          "3F",
+          "?",
+          "graphic",
+          null,
+          null,
+          "Question Mark"
+        ],
+        [
+          64,
+          "40",
+          "@",
+          "graphic",
+          null,
+          null,
+          "Commercial At"
+        ],
+        [
+          65,
+          "41",
+          "A",
+          "graphic",
+          null,
+          null,
+          "Capital letter A"
+        ],
+        [
+          66,
+          "42",
+          "B",
+          "graphic",
+          null,
+          null,
+          "Capital letter B"
+        ],
+        [
+          67,
+          "43",
+          "C",
+          "graphic",
+          null,
+          null,
+          "Capital letter C"
+        ],
+        [
+          68,
+          "44",
+          "D",
+          "graphic",
+          null,
+          null,
+          "Capital letter D"
+        ],
+        [
+          69,
+          "45",
+          "E",
+          "graphic",
+          null,
+          null,
+          "Capital letter E"
+        ],
+        [
+          70,
+          "46",
+          "F",
+          "graphic",
+          null,
+          null,
+          "Capital letter F"
+        ],
+        [
+          71,
+          "47",
+          "G",
+          "graphic",
+          null,
+          null,
+          "Capital letter G"
+        ],
+        [
+          72,
+          "48",
+          "H",
+          "graphic",
+          null,
+          null,
+          "Capital letter H"
+        ],
+        [
+          73,
+          "49",
+          "I",
+          "graphic",
+          null,
+          null,
+          "Capital letter I"
+        ],
+        [
+          74,
+          "4A",
+          "J",
+          "graphic",
+          null,
+          null,
+          "Capital letter J"
+        ],
+        [
+          75,
+          "4B",
+          "K",
+          "graphic",
+          null,
+          null,
+          "Capital letter K"
+        ],
+        [
+          76,
+          "4C",
+          "L",
+          "graphic",
+          null,
+          null,
+          "Capital letter L"
+        ],
+        [
+          77,
+          "4D",
+          "M",
+          "graphic",
+          null,
+          null,
+          "Capital letter M"
+        ],
+        [
+          78,
+          "4E",
+          "N",
+          "graphic",
+          null,
+          null,
+          "Capital letter N"
+        ],
+        [
+          79,
+          "4F",
+          "O",
+          "graphic",
+          null,
+          null,
+          "Capital letter O"
+        ],
+        [
+          80,
+          "50",
+          "P",
+          "graphic",
+          null,
+          null,
+          "Capital letter P"
+        ],
+        [
+          81,
+          "51",
+          "Q",
+          "graphic",
+          null,
+          null,
+          "Capital letter Q"
+        ],
+        [
+          82,
+          "52",
+          "R",
+          "graphic",
+          null,
+          null,
+          "Capital letter R"
+        ],
+        [
+          83,
+          "53",
+          "S",
+          "graphic",
+          null,
+          null,
+          "Capital letter S"
+        ],
+        [
+          84,
+          "54",
+          "T",
+          "graphic",
+          null,
+          null,
+          "Capital letter T"
+        ],
+        [
+          85,
+          "55",
+          "U",
+          "graphic",
+          null,
+          null,
+          "Capital letter U"
+        ],
+        [
+          86,
+          "56",
+          "V",
+          "graphic",
+          null,
+          null,
+          "Capital letter V"
+        ],
+        [
+          87,
+          "57",
+          "W",
+          "graphic",
+          null,
+          null,
+          "Capital letter W"
+        ],
+        [
+          88,
+          "58",
+          "X",
+          "graphic",
+          null,
+          null,
+          "Capital letter X"
+        ],
+        [
+          89,
+          "59",
+          "Y",
+          "graphic",
+          null,
+          null,
+          "Capital letter Y"
+        ],
+        [
+          90,
+          "5A",
+          "Z",
+          "graphic",
+          null,
+          null,
+          "Capital letter Z"
+        ],
+        [
+          91,
+          "5B",
+          "[",
+          "graphic",
+          null,
+          null,
+          "Opening Bracket"
+        ],
+        [
+          92,
+          "5C",
+          "\\",
+          "graphic",
+          null,
+          null,
+          "Reverse Slant (backslash)"
+        ],
+        [
+          93,
+          "5D",
+          "]",
+          "graphic",
+          null,
+          null,
+          "Closing Bracket"
+        ],
+        [
+          94,
+          "5E",
+          "^",
+          "graphic",
+          null,
+          null,
+          "Circumflex"
+        ],
+        [
+          95,
+          "5F",
+          "_",
+          "graphic",
+          null,
+          null,
+          "Underline (underscore)"
+        ],
+        [
+          96,
+          "60",
+          "`",
+          "graphic",
+          null,
+          null,
+          "Grave Accent"
+        ],
+        [
+          97,
+          "61",
+          "a",
+          "graphic",
+          null,
+          null,
+          "Small letter a"
+        ],
+        [
+          98,
+          "62",
+          "b",
+          "graphic",
+          null,
+          null,
+          "Small letter b"
+        ],
+        [
+          99,
+          "63",
+          "c",
+          "graphic",
+          null,
+          null,
+          "Small letter c"
+        ],
+        [
+          100,
+          "64",
+          "d",
+          "graphic",
+          null,
+          null,
+          "Small letter d"
+        ],
+        [
+          101,
+          "65",
+          "e",
+          "graphic",
+          null,
+          null,
+          "Small letter e"
+        ],
+        [
+          102,
+          "66",
+          "f",
+          "graphic",
+          null,
+          null,
+          "Small letter f"
+        ],
+        [
+          103,
+          "67",
+          "g",
+          "graphic",
+          null,
+          null,
+          "Small letter g"
+        ],
+        [
+          104,
+          "68",
+          "h",
+          "graphic",
+          null,
+          null,
+          "Small letter h"
+        ],
+        [
+          105,
+          "69",
+          "i",
+          "graphic",
+          null,
+          null,
+          "Small letter i"
+        ],
+        [
+          106,
+          "6A",
+          "j",
+          "graphic",
+          null,
+          null,
+          "Small letter j"
+        ],
+        [
+          107,
+          "6B",
+          "k",
+          "graphic",
+          null,
+          null,
+          "Small letter k"
+        ],
+        [
+          108,
+          "6C",
+          "l",
+          "graphic",
+          null,
+          null,
+          "Small letter l"
+        ],
+        [
+          109,
+          "6D",
+          "m",
+          "graphic",
+          null,
+          null,
+          "Small letter m"
+        ],
+        [
+          110,
+          "6E",
+          "n",
+          "graphic",
+          null,
+          null,
+          "Small letter n"
+        ],
+        [
+          111,
+          "6F",
+          "o",
+          "graphic",
+          null,
+          null,
+          "Small letter o"
+        ],
+        [
+          112,
+          "70",
+          "p",
+          "graphic",
+          null,
+          null,
+          "Small letter p"
+        ],
+        [
+          113,
+          "71",
+          "q",
+          "graphic",
+          null,
+          null,
+          "Small letter q"
+        ],
+        [
+          114,
+          "72",
+          "r",
+          "graphic",
+          null,
+          null,
+          "Small letter r"
+        ],
+        [
+          115,
+          "73",
+          "s",
+          "graphic",
+          null,
+          null,
+          "Small letter s"
+        ],
+        [
+          116,
+          "74",
+          "t",
+          "graphic",
+          null,
+          null,
+          "Small letter t"
+        ],
+        [
+          117,
+          "75",
+          "u",
+          "graphic",
+          null,
+          null,
+          "Small letter u"
+        ],
+        [
+          118,
+          "76",
+          "v",
+          "graphic",
+          null,
+          null,
+          "Small letter v"
+        ],
+        [
+          119,
+          "77",
+          "w",
+          "graphic",
+          null,
+          null,
+          "Small letter w"
+        ],
+        [
+          120,
+          "78",
+          "x",
+          "graphic",
+          null,
+          null,
+          "Small letter x"
+        ],
+        [
+          121,
+          "79",
+          "y",
+          "graphic",
+          null,
+          null,
+          "Small letter y"
+        ],
+        [
+          122,
+          "7A",
+          "z",
+          "graphic",
+          null,
+          null,
+          "Small letter z"
+        ],
+        [
+          123,
+          "7B",
+          "{",
+          "graphic",
+          null,
+          null,
+          "Opening Brace"
+        ],
+        [
+          124,
+          "7C",
+          "|",
+          "graphic",
+          null,
+          null,
+          "Vertical Line"
+        ],
+        [
+          125,
+          "7D",
+          "}",
+          "graphic",
+          null,
+          null,
+          "Closing Brace"
+        ],
+        [
+          126,
+          "7E",
+          "~",
+          "graphic",
+          null,
+          null,
+          "Overline (tilde)"
+        ],
+        [
+          127,
+          "7F",
+          "DEL",
+          "control",
+          null,
+          "^?",
+          "Delete"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "wire_colours",
+      "category": "tables",
+      "group": "general",
+      "name": "Wire colours (IEC/DE and US NEC)",
+      "name_en": "Wire colours (IEC/DE and US NEC)",
+      "doc": "Insulation colours of the conductors in Germany and the EU (IEC 60445, DIN VDE 0100-510, DIN VDE 0293-308) and in the USA (NEC): phase conductors, neutral and protective earth.",
+      "notes": "Never rely on colours alone in an existing installation: measure before you touch, old installations may use other colours. Do not confuse the systems: in the USA the neutral is white or gray and plain green marks the grounding conductor; in IEC countries the neutral is blue and PE is always green-yellow. Germany has no normative assignment of brown, black and grey to L1, L2 and L3; the ZVEH recommends brown, black, grey. Not listed because only one source gives them: the PEN marking (green-yellow with blue end markings), a bare US grounding conductor and older German colour schemes. IEC 60445 and NFPA 70 (NEC) themselves were not read; the rules are quoted from the sources named above.",
+      "tags": [
+        "wire colour",
+        "wire color",
+        "conductor",
+        "core colour",
+        "cable colour",
+        "iec 60445",
+        "vde 0100",
+        "nec",
+        "pe",
+        "neutral",
+        "protective earth",
+        "green-yellow",
+        "l1",
+        "l2",
+        "l3",
+        "aderfarbe",
+        "aderfarben",
+        "leiterfarben",
+        "farbcode",
+        "schutzleiter",
+        "neutralleiter",
+        "außenleiter",
+        "grün-gelb"
+      ],
+      "source": "DIN VDE 0100-510, DIN VDE 0293-308 and IEC 60445 as quoted by elektro.net (de 5/2015), Kiefer \"VDE 0100 und die Praxis\" and Prysmian UK \"Understanding core colours\"; NEC 110.15, 200.6, 200.7, 210.5(C) and 250.119 as quoted by EC&M (2023) and ExpertCE (2025); the standards themselves were not read",
+      "guide": true,
+      "mains": true,
+      "key": "conductor",
+      "columns": [
+        {
+          "id": "system",
+          "name": "System",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "conductor",
+          "name": "Conductor",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "colour",
+          "name": "Colour",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "status",
+          "name": "Status",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "reference",
+          "name": "Reference",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "IEC/DE",
+          "L1",
+          "brown",
+          "recommended assignment",
+          "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)",
+          "outer conductors may be brown, black or grey; Germany has no normative assignment to L1/L2/L3 (ZVEH recommends brown–black–grey)"
+        ],
+        [
+          "IEC/DE",
+          "L2",
+          "black",
+          "recommended assignment",
+          "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)",
+          null
+        ],
+        [
+          "IEC/DE",
+          "L3",
+          "grey",
+          "recommended assignment",
+          "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)",
+          null
+        ],
+        [
+          "IEC/DE",
+          "L (single-phase)",
+          "brown",
+          "cable core colour",
+          "DIN VDE 0293-308 (HD 308 S2) Table 1",
+          "3-core cable with PE: green-yellow, blue, brown"
+        ],
+        [
+          "IEC/DE",
+          "N",
+          "blue",
+          "mandatory",
+          "DIN VDE 0100-510 514.3.1; IEC 60445 (DIN EN 60445 VDE 0197)",
+          "named \"light blue\" (hellblau) until 2003; colour may be used for other conductors only if no neutral exists in the circuit"
+        ],
+        [
+          "IEC/DE",
+          "PE",
+          "green-yellow",
+          "mandatory",
+          "DIN VDE 0100-510 514.3.1; IEC 60445",
+          "green-yellow must not be used for any other conductor"
+        ],
+        [
+          "US/NEC",
+          "grounded conductor (neutral)",
+          "white or gray",
+          "mandatory (NEC 200.6)",
+          "NFPA 70 (NEC) 200.6",
+          null
+        ],
+        [
+          "US/NEC",
+          "equipment grounding conductor (PE)",
+          "green or green with yellow stripe(s)",
+          "mandatory (NEC 250.119)",
+          "NFPA 70 (NEC) 250.119",
+          null
+        ],
+        [
+          "US/NEC",
+          "ungrounded conductors (hot)",
+          "any colour except white, gray or green",
+          "mandatory (NEC 200.7, 250.119)",
+          "NFPA 70 (NEC) 200.7, 250.119, 210.5(C)",
+          "branch circuits: the identification method must be documented/posted (210.5(C))"
+        ],
+        [
+          "US/NEC",
+          "L1 / L2 / L3 at 120/208 V or 120/240 V",
+          "black / red / blue",
+          "customary, not required by NEC",
+          "trade practice",
+          "neutral white"
+        ],
+        [
+          "US/NEC",
+          "L1 / L2 / L3 at 277/480 V",
+          "brown / orange / yellow",
+          "customary, not required by NEC",
+          "trade practice",
+          "neutral gray; EC&M also lists brown / purple / yellow"
+        ],
+        [
+          "US/NEC",
+          "high leg of a 4-wire delta (120/240 V)",
+          "orange",
+          "required marking (NEC 110.15)",
+          "NFPA 70 (NEC) 110.15",
+          "marked at terminations and accessible points"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
       "id": "awg",
       "category": "tables",
       "group": "conductors",

@@ -1,0 +1,19 @@
+{
+  "table": "line_interface_levels",
+  "cells": [
+    {"key": "RS-232: receiver input recognised as logic 0 (space)", "column": "min", "want": 3, "ref": "TI SLLA037A = en.wikipedia \"RS-232\": receiver recognises +3 to +15 V as space"},
+    {"key": "RS-232: receiver input recognised as logic 0 (space)", "column": "max", "want": 15, "ref": "TI SLLA037A = en.wikipedia \"RS-232\": receiver recognises +3 to +15 V as space"},
+    {"key": "RS-232: maximum voltage at connector pins", "column": "min", "want": -25, "ref": "TI SLLA037A = en.wikipedia \"RS-232\": 25 V maximum"},
+    {"key": "RS-232: driver output, logic 1 / mark / OFF", "column": "min", "want": -15, "ref": "TI SLLA037A = en.wikipedia \"RS-232\": driver mark -5 to -15 V"},
+    {"key": "RS-485: receiver differential threshold", "column": "max", "want": 200, "ref": "TI SLLA272D = en.wikipedia \"RS-485\": 200 mV"},
+    {"key": "RS-485: receiver differential threshold", "column": "unit", "want": "mV", "ref": "TI SLLA272D: the threshold is given in mV"},
+    {"key": "RS-485: common-mode voltage range", "column": "min", "want": -7, "ref": "TI SLLA272D = en.wikipedia \"RS-485\" = TI SN65HVD72: -7 V to +12 V"},
+    {"key": "RS-485: common-mode voltage range", "column": "max", "want": 12, "ref": "TI SLLA272D = en.wikipedia \"RS-485\" = TI SN65HVD72: -7 V to +12 V"},
+    {"key": "RS-485: unit loads per bus (standard drivers)", "column": "max", "want": 32, "ref": "TI SLLA272D = en.wikipedia \"RS-485\": 32 unit loads"},
+    {"key": "LVDS: receiver differential threshold", "column": "min", "want": -100, "ref": "TI LVDS Owner's Manual SNLA187 = Frontgrade AN-LVDS-010-01: +-100 mV"},
+    {"key": "LVDS: receiver input voltage range", "column": "max", "want": 2.4, "ref": "TI LVDS Owner's Manual SNLA187 = Frontgrade AN-LVDS-010-01: 0 to 2.4 V"},
+    {"key": "LVDS: driver current (into the termination)", "column": "typ", "want": 3.5, "ref": "TI LVDS Owner's Manual SNLA187 = en.wikipedia: 3.5 mA nominal"},
+    {"key": "LVDS: driver differential output voltage, magnitude of VOD", "column": "min", "want": 247, "ref": "TI SN65LVDS31 data sheet (SLLS261N): |VOD| 247 mV minimum at RL = 100 Ω (typical per this data sheet)"},
+    {"key": "LVDS: termination resistor", "column": "typ", "want": 100, "ref": "TI LVDS Owner's Manual SNLA187 = TI SN65LVDS31 data sheet (SLLS261N): 100 Ω"}
+  ]
+}

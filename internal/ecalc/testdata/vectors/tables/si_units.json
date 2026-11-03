@@ -1,0 +1,13 @@
+{
+  "table": "si_units",
+  "cells": [
+    {"key": "capacitance", "column": "symbol", "want": "F", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: farad F"},
+    {"key": "capacitance", "column": "base_expr", "want": "kg⁻¹·m⁻²·s⁴·A²", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: F = kg⁻¹ m⁻² s⁴ A²"},
+    {"key": "electric resistance", "column": "symbol", "want": "Ω", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: ohm Ω"},
+    {"key": "electric resistance", "column": "other_expr", "want": "V/A", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: Ω = V/A"},
+    {"key": "force", "column": "base_expr", "want": "kg·m·s⁻²", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: N = kg m s⁻²"},
+    {"key": "magnetic flux density", "column": "other_expr", "want": "Wb/m²", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: T = Wb/m²"},
+    {"key": "electric current", "column": "symbol", "want": "A", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 2: the base unit ampere A"},
+    {"key": "inductance", "column": "unit", "want": "henry", "ref": "BIPM SI Brochure, 9th edition (V4.01), Table 4: henry H"}
+  ]
+}

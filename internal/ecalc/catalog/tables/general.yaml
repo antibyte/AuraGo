@@ -1,0 +1,786 @@
+# General reference tables (group general): SI prefixes and units, physical constants, the Greek alphabet, IP codes,
+# protection classes, mains by country, ISM/SRD bands, LoRaWAN plans, Wi-Fi channels, German amateur radio bands, logic
+# and line interface levels, ASCII and wire colours. Transcribed from the sources named in each item; cells that only one
+# source gives are left empty (null), except the electrical levels that name their maker document. Vectors in
+# testdata/vectors/tables/ check spot cells against the sources.
+
+- id: si_prefixes
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Předpony SI", da: "SI-præfikser", de: "SI-Vorsätze", el: "Προθέματα SI", en: "SI prefixes", es: "Prefijos del SI", fr: "Préfixes SI", hi: "SI उपसर्ग", it: "Prefissi SI", ja: "SI接頭辞", nl: "SI-voorvoegsels", no: "SI-prefikser", pl: "Przedrostki SI", pt: "Prefixos do SI", sv: "SI-prefix", zh: "SI 词头"}
+  doc: {en: "The 24 SI prefixes from quetta (10^30) to quecto (10^-30): name, symbol and factor.", de: "Die 24 SI-Vorsätze von Quetta (10^30) bis Quekto (10^-30): Name, Zeichen und Faktor."}
+  notes: {en: "Prefix symbols are case-sensitive (M = mega, m = milli). Prefixes are never combined (write nm, not mµm). The kilogram is the only base unit with a prefix in its name, so prefixes are applied to the gram (mg, not µkg). The symbol µ is the micro sign (U+00B5); ECalc input also accepts u for µ and K for k. Ronna, ronto, quetta and quecto were added by the CGPM in 2022.", de: "Vorsatzzeichen unterscheiden Groß- und Kleinschreibung (M = Mega, m = Milli). Vorsätze werden nicht kombiniert (nm statt mµm). Beim Kilogramm, der einzigen Basiseinheit mit Vorsatz im Namen, wird der Vorsatz auf das Gramm angewendet (mg, nicht µkg). Das Zeichen µ ist das Mikrozeichen (U+00B5); ECalc akzeptiert bei der Eingabe auch u für µ und K für k. Ronna, Ronto, Quetta und Quekto hat die CGPM 2022 ergänzt."}
+  tags: ["si", "prefix", "prefixes", "kilo", "mega", "milli", "micro", "nano", "pico", "quetta", "ronna", "power of ten", "bipm", "vorsatz", "vorsätze", "zehnerpotenz", "einheitenvorsatz"]
+  source: "BIPM, The International System of Units (SI), 9th edition (2019, V4.01), Table 7 \"SI prefixes\"; BIPM, 27th CGPM (2022), Resolution 3 (ronna, ronto, quetta, quecto)"
+  key: exponent
+  columns:
+    - {id: exponent, name: {en: "Exponent n", de: "Exponent n"}, dim: number, label: "n"}
+    - {id: name, name: {en: "Prefix", de: "Vorsatz"}, dim: text}
+    - {id: symbol, name: {en: "Symbol", de: "Zeichen"}, dim: text}
+    - {id: factor, name: {en: "Factor 10^n", de: "Faktor 10^n"}, dim: number}
+    - {id: adopted, name: {en: "Adopted by the CGPM", de: "Aufnahme durch die CGPM"}, dim: text}
+  rows:
+    - [30, {en: "quetta", de: "Quetta"}, "Q", 1e+30, "2022"]
+    - [27, {en: "ronna", de: "Ronna"}, "R", 1e+27, "2022"]
+    - [24, {en: "yotta", de: "Yotta"}, "Y", 1e+24, null]
+    - [21, {en: "zetta", de: "Zetta"}, "Z", 1e+21, null]
+    - [18, {en: "exa", de: "Exa"}, "E", 1e+18, null]
+    - [15, {en: "peta", de: "Peta"}, "P", 1000000000000000.0, null]
+    - [12, {en: "tera", de: "Tera"}, "T", 1000000000000.0, null]
+    - [9, {en: "giga", de: "Giga"}, "G", 1000000000.0, null]
+    - [6, {en: "mega", de: "Mega"}, "M", 1000000.0, null]
+    - [3, {en: "kilo", de: "Kilo"}, "k", 1000.0, null]
+    - [2, {en: "hecto", de: "Hekto"}, "h", 100.0, null]
+    - [1, {en: "deca", de: "Deka"}, "da", 10.0, null]
+    - [-1, {en: "deci", de: "Dezi"}, "d", 0.1, null]
+    - [-2, {en: "centi", de: "Zenti"}, "c", 0.01, null]
+    - [-3, {en: "milli", de: "Milli"}, "m", 0.001, null]
+    - [-6, {en: "micro", de: "Mikro"}, "µ", 1e-06, null]
+    - [-9, {en: "nano", de: "Nano"}, "n", 1e-09, null]
+    - [-12, {en: "pico", de: "Piko"}, "p", 1e-12, null]
+    - [-15, {en: "femto", de: "Femto"}, "f", 1e-15, null]
+    - [-18, {en: "atto", de: "Atto"}, "a", 1e-18, null]
+    - [-21, {en: "zepto", de: "Zepto"}, "z", 1e-21, null]
+    - [-24, {en: "yocto", de: "Yokto"}, "y", 1e-24, null]
+    - [-27, {en: "ronto", de: "Ronto"}, "r", 1e-27, "2022"]
+    - [-30, {en: "quecto", de: "Quekto"}, "q", 1e-30, "2022"]
+
+- id: si_units
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Jednotky SI", da: "SI-enheder", de: "SI-Einheiten", el: "Μονάδες SI", en: "SI units", es: "Unidades del SI", fr: "Unités SI", hi: "SI इकाइयाँ", it: "Unità SI", ja: "SI単位", nl: "SI-eenheden", no: "SI-enheter", pl: "Jednostki SI", pt: "Unidades do SI", sv: "SI-enheter", zh: "SI 单位"}
+  doc: {en: "The seven SI base units, the 22 units with special names and common coherent derived units, with their expression in SI base units.", de: "Die sieben SI-Basiseinheiten, die 22 Einheiten mit besonderem Namen und gebräuchliche kohärente abgeleitete Einheiten, mit ihrer Darstellung in SI-Basiseinheiten."}
+  notes: {en: "The radian and steradian are the coherent units of plane and solid angle; they are dimensionless (1) but keep their names for clarity. The hertz is only for periodic phenomena, the becquerel only for stochastic processes (radioactive decay). The electric potential difference is also called voltage. A temperature difference has the same numerical value in K and °C. The order of the base-unit symbols follows the 9th edition of the SI Brochure (newton = kg·m·s⁻²).", de: "Radiant und Steradiant sind die kohärenten Einheiten für ebenen und räumlichen Winkel; sie sind dimensionslos (1), werden aber zur Klarheit benannt. Hertz nur für periodische Vorgänge, Becquerel nur für radioaktiven Zerfall. Die elektrische Potentialdifferenz heißt auch Spannung. Eine Temperaturdifferenz hat in K und °C denselben Zahlenwert. Die Reihenfolge der Basiseinheiten folgt der 9. Auflage der SI-Broschüre (Newton = kg·m·s⁻²)."}
+  tags: ["si", "units", "base units", "derived units", "coherent", "newton", "joule", "watt", "volt", "ohm", "farad", "henry", "bipm", "einheiten", "basiseinheiten", "abgeleitete einheiten", "einheitenverordnung"]
+  source: "BIPM SI Brochure, 9th edition (V4.01), Tables 2, 4, 5 and 6; German names: Einheitenverordnung (EinhV) Anlage 1 and de.wikipedia \"Liste physikalischer Größen\""
+  key: quantity
+  columns:
+    - {id: quantity, name: {en: "Quantity", de: "Größe"}, dim: text}
+    - {id: qty_symbol, name: {en: "Quantity symbol", de: "Formelzeichen"}, dim: text}
+    - {id: unit, name: {en: "Unit", de: "Einheit"}, dim: text}
+    - {id: symbol, name: {en: "Unit symbol", de: "Einheitenzeichen"}, dim: text}
+    - {id: base_expr, name: {en: "In SI base units", de: "In SI-Basiseinheiten"}, dim: text}
+    - {id: other_expr, name: {en: "In other SI units", de: "In anderen SI-Einheiten"}, dim: text}
+    - {id: kind, name: {en: "Kind", de: "Art"}, dim: text}
+  rows:
+    - [{en: "time", de: "Zeit"}, "t", {en: "second", de: "Sekunde"}, "s", "s", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "length", de: "Länge"}, "l, x, r", {en: "metre", de: "Meter"}, "m", "m", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "mass", de: "Masse"}, "m", {en: "kilogram", de: "Kilogramm"}, "kg", "kg", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "electric current", de: "elektrische Stromstärke"}, "I, i", {en: "ampere", de: "Ampere"}, "A", "A", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "thermodynamic temperature", de: "thermodynamische Temperatur"}, "T", {en: "kelvin", de: "Kelvin"}, "K", "K", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "amount of substance", de: "Stoffmenge"}, "n", {en: "mole", de: "Mol"}, "mol", "mol", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "luminous intensity", de: "Lichtstärke"}, "Iv", {en: "candela", de: "Candela"}, "cd", "cd", null, {en: "base unit", de: "Basiseinheit"}]
+    - [{en: "plane angle", de: "ebener Winkel"}, null, {en: "radian", de: "Radiant"}, "rad", {en: "m/m (see note)", de: "m/m (siehe Hinweis)"}, "1", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "solid angle", de: "Raumwinkel"}, null, {en: "steradian", de: "Steradiant"}, "sr", {en: "m²/m² (see note)", de: "m²/m² (siehe Hinweis)"}, "1", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "frequency", de: "Frequenz"}, null, {en: "hertz", de: "Hertz"}, "Hz", "s⁻¹", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "force", de: "Kraft"}, null, {en: "newton", de: "Newton"}, "N", "kg·m·s⁻²", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "pressure, stress", de: "Druck, mechanische Spannung"}, null, {en: "pascal", de: "Pascal"}, "Pa", "kg·m⁻¹·s⁻²", "N/m²", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "energy, work, amount of heat", de: "Energie, Arbeit, Wärmemenge"}, null, {en: "joule", de: "Joule"}, "J", "kg·m²·s⁻²", "N·m", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "power, radiant flux", de: "Leistung, Strahlungsleistung"}, null, {en: "watt", de: "Watt"}, "W", "kg·m²·s⁻³", "J/s", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "electric charge", de: "elektrische Ladung"}, null, {en: "coulomb", de: "Coulomb"}, "C", "A·s", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "electric potential difference (voltage)", de: "elektrische Spannung, Potentialdifferenz"}, null, {en: "volt", de: "Volt"}, "V", "kg·m²·s⁻³·A⁻¹", "W/A", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "capacitance", de: "elektrische Kapazität"}, null, {en: "farad", de: "Farad"}, "F", "kg⁻¹·m⁻²·s⁴·A²", "C/V", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "electric resistance", de: "elektrischer Widerstand"}, null, {en: "ohm", de: "Ohm"}, "Ω", "kg·m²·s⁻³·A⁻²", "V/A", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "electric conductance", de: "elektrischer Leitwert"}, null, {en: "siemens", de: "Siemens"}, "S", "kg⁻¹·m⁻²·s³·A²", "A/V", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "magnetic flux", de: "magnetischer Fluss"}, null, {en: "weber", de: "Weber"}, "Wb", "kg·m²·s⁻²·A⁻¹", "V·s", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "magnetic flux density", de: "magnetische Flussdichte"}, null, {en: "tesla", de: "Tesla"}, "T", "kg·s⁻²·A⁻¹", "Wb/m²", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "inductance", de: "Induktivität"}, null, {en: "henry", de: "Henry"}, "H", "kg·m²·s⁻²·A⁻²", "Wb/A", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "Celsius temperature", de: "Celsius-Temperatur"}, null, {en: "degree Celsius", de: "Grad Celsius"}, "°C", "K", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "luminous flux", de: "Lichtstrom"}, null, {en: "lumen", de: "Lumen"}, "lm", "cd·sr", "cd·sr", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "illuminance", de: "Beleuchtungsstärke"}, null, {en: "lux", de: "Lux"}, "lx", "cd·sr·m⁻²", "lm/m²", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "activity referred to a radionuclide", de: "Aktivität einer radioaktiven Substanz"}, null, {en: "becquerel", de: "Becquerel"}, "Bq", "s⁻¹", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "absorbed dose, kerma", de: "Energiedosis, Kerma"}, null, {en: "gray", de: "Gray"}, "Gy", "m²·s⁻²", "J/kg", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "dose equivalent", de: "Äquivalentdosis"}, null, {en: "sievert", de: "Sievert"}, "Sv", "m²·s⁻²", "J/kg", {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "catalytic activity", de: "katalytische Aktivität"}, null, {en: "katal", de: "Katal"}, "kat", "mol·s⁻¹", null, {en: "special name", de: "mit besonderem Namen"}]
+    - [{en: "area", de: "Fläche"}, "A", {en: "square metre", de: "Quadratmeter"}, "m²", "m²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "volume", de: "Volumen"}, "V", {en: "cubic metre", de: "Kubikmeter"}, "m³", "m³", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "speed, velocity", de: "Geschwindigkeit"}, "v", {en: "metre per second", de: "Meter durch Sekunde"}, "m/s", "m·s⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "acceleration", de: "Beschleunigung"}, "a", {en: "metre per second squared", de: "Meter durch Sekunde zum Quadrat"}, "m/s²", "m·s⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "current density", de: "elektrische Stromdichte"}, "j", {en: "ampere per square metre", de: "Ampere durch Quadratmeter"}, "A/m²", "A·m⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "magnetic field strength", de: "magnetische Feldstärke"}, "H", {en: "ampere per metre", de: "Ampere durch Meter"}, "A/m", "A·m⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "moment of force, torque", de: "Drehmoment"}, null, {en: "newton metre", de: "Newtonmeter"}, "N·m", "kg·m²·s⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "angular velocity, angular frequency", de: "Winkelgeschwindigkeit, Kreisfrequenz"}, null, {en: "radian per second", de: "Radiant durch Sekunde"}, "rad/s", "s⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "heat flux density, irradiance", de: "Wärmestromdichte, Bestrahlungsstärke"}, null, {en: "watt per square metre", de: "Watt durch Quadratmeter"}, "W/m²", "kg·s⁻³", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "heat capacity, entropy", de: "Wärmekapazität, Entropie"}, null, {en: "joule per kelvin", de: "Joule durch Kelvin"}, "J/K", "kg·m²·s⁻²·K⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "thermal conductivity", de: "Wärmeleitfähigkeit"}, null, {en: "watt per metre kelvin", de: "Watt durch Meter und Kelvin"}, "W/(m·K)", "kg·m·s⁻³·K⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "energy density", de: "Energiedichte"}, null, {en: "joule per cubic metre", de: "Joule durch Kubikmeter"}, "J/m³", "kg·m⁻¹·s⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "electric field strength", de: "elektrische Feldstärke"}, null, {en: "volt per metre", de: "Volt durch Meter"}, "V/m", "kg·m·s⁻³·A⁻¹", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "electric charge density", de: "Raumladungsdichte"}, null, {en: "coulomb per cubic metre", de: "Coulomb durch Kubikmeter"}, "C/m³", "A·s·m⁻³", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "surface charge density", de: "Flächenladungsdichte"}, null, {en: "coulomb per square metre", de: "Coulomb durch Quadratmeter"}, "C/m²", "A·s·m⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "electric flux density, electric displacement", de: "elektrische Flussdichte, Verschiebungsdichte"}, null, {en: "coulomb per square metre", de: "Coulomb durch Quadratmeter"}, "C/m²", "A·s·m⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "permittivity", de: "Permittivität"}, null, {en: "farad per metre", de: "Farad durch Meter"}, "F/m", "kg⁻¹·m⁻³·s⁴·A²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+    - [{en: "permeability", de: "Permeabilität"}, null, {en: "henry per metre", de: "Henry durch Meter"}, "H/m", "kg·m·s⁻²·A⁻²", null, {en: "derived (example)", de: "abgeleitet (Beispiel)"}]
+
+- id: physical_constants
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Fyzikální konstanty", da: "Fysiske konstanter", de: "Physikalische Konstanten", el: "Φυσικές σταθερές", en: "Physical constants", es: "Constantes físicas", fr: "Constantes physiques", hi: "भौतिक नियतांक", it: "Costanti fisiche", ja: "物理定数", nl: "Natuurconstanten", no: "Fysiske konstanter", pl: "Stałe fizyczne", pt: "Constantes físicas", sv: "Fysikaliska konstanter", zh: "物理常数"}
+  doc: {en: "30 physical constants for electronics: the seven SI defining constants, electromagnetic constants, particle masses and derived constants, with the CODATA 2022 values and uncertainties.", de: "30 physikalische Konstanten für die Elektronik: die sieben definierenden SI-Konstanten, elektromagnetische Konstanten, Teilchenmassen und abgeleitete Konstanten, mit den CODATA-2022-Werten und Unsicherheiten."}
+  notes: {en: "CODATA 2022 values as printed by NIST, shown as text with every printed digit. Since the 2019 SI revision h, e, k and N_A are exact; µ0 and ε0 are measured (µ0 is about 4π × 10⁻⁷ N/A², to about 1 part in 10¹⁰). Constants marked exact (derived) are computed from the exact ones; NIST prints their digits truncated, so compute them from h, e, k and N_A when you need more digits. Uncertainties are standard uncertainties (1σ) in the unit of the value; exact constants have none. The thermal voltage kT/e is 25.852 mV at 300 K and 25.693 mV at 25 °C (computed from exact constants).", de: "CODATA-2022-Werte wie bei NIST gedruckt, als Text mit allen gedruckten Stellen. Seit der SI-Reform 2019 sind h, e, k und N_A exakt; µ0 und ε0 sind Messgrößen (µ0 ist etwa 4π × 10⁻⁷ N/A², auf etwa 1 Teil in 10¹⁰). Als exakt (abgeleitet) gekennzeichnete Konstanten sind aus den exakten berechnet; NIST druckt ihre Stellen gekürzt, wer mehr Stellen braucht, berechnet sie aus h, e, k und N_A. Unsicherheiten sind Standardunsicherheiten (1σ) in der Einheit des Wertes; exakte Konstanten haben keine. Die Temperaturspannung kT/e beträgt 25,852 mV bei 300 K und 25,693 mV bei 25 °C (aus exakten Konstanten berechnet)."}
+  tags: ["constants", "physical constants", "codata", "nist", "speed of light", "planck", "boltzmann", "elementary charge", "permeability", "permittivity", "electron mass", "naturkonstanten", "konstanten", "lichtgeschwindigkeit", "elementarladung", "feldkonstante"]
+  source: "NIST, Fundamental Physical Constants, complete listing, 2022 CODATA adjustment; exact values per the BIPM SI Brochure, 9th edition, Table 1"
+  key: name
+  columns:
+    - {id: name, name: {en: "Constant", de: "Konstante"}, dim: text}
+    - {id: symbol, name: {en: "Symbol", de: "Formelzeichen"}, dim: text}
+    - {id: value, name: {en: "Value (CODATA 2022)", de: "Wert (CODATA 2022)"}, dim: text}
+    - {id: uncertainty, name: {en: "Standard uncertainty", de: "Standardunsicherheit"}, dim: text}
+    - {id: unit, name: {en: "Unit", de: "Einheit"}, dim: text}
+    - {id: exact, name: {en: "Kind", de: "Art"}, dim: text}
+  rows:
+    - [{en: "speed of light in vacuum", de: "Lichtgeschwindigkeit im Vakuum"}, "c", "299792458", null, "m s⁻¹", {en: "exact", de: "exakt"}]
+    - [{en: "Planck constant", de: "Planck-Konstante (Plancksches Wirkungsquantum)"}, "h", {en: "6.62607015×10⁻³⁴", de: "6,62607015×10⁻³⁴"}, null, "J Hz⁻¹", {en: "exact", de: "exakt"}]
+    - [{en: "reduced Planck constant", de: "reduzierte Planck-Konstante"}, "ħ", {en: "1.054571817×10⁻³⁴", de: "1,054571817×10⁻³⁴"}, null, "J s", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "elementary charge", de: "Elementarladung"}, "e", {en: "1.602176634×10⁻¹⁹", de: "1,602176634×10⁻¹⁹"}, null, "C", {en: "exact", de: "exakt"}]
+    - [{en: "Boltzmann constant", de: "Boltzmann-Konstante"}, "k", {en: "1.380649×10⁻²³", de: "1,380649×10⁻²³"}, null, "J K⁻¹", {en: "exact", de: "exakt"}]
+    - [{en: "Boltzmann constant in eV/K", de: "Boltzmann-Konstante in eV/K"}, "k/e", {en: "8.617333262×10⁻⁵", de: "8,617333262×10⁻⁵"}, null, "eV K⁻¹", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "Avogadro constant", de: "Avogadro-Konstante"}, "NA", {en: "6.02214076×10²³", de: "6,02214076×10²³"}, null, "mol⁻¹", {en: "exact", de: "exakt"}]
+    - [{en: "hyperfine transition frequency of Cs-133", de: "Hyperfeinstruktur-Übergangsfrequenz von Cs-133"}, "ΔνCs", "9192631770", null, "Hz", {en: "exact", de: "exakt"}]
+    - [{en: "luminous efficacy (540 THz)", de: "Photometrisches Strahlungsäquivalent (540 THz)"}, "Kcd", "683", null, "lm W⁻¹", {en: "exact", de: "exakt"}]
+    - [{en: "vacuum magnetic permeability", de: "magnetische Feldkonstante (Vakuumpermeabilität)"}, "µ0", {en: "1.25663706127×10⁻⁶", de: "1,25663706127×10⁻⁶"}, {en: "2.0×10⁻¹⁶", de: "2,0×10⁻¹⁶"}, "N A⁻²", {en: "measured", de: "gemessen"}]
+    - [{en: "vacuum electric permittivity", de: "elektrische Feldkonstante (Vakuumpermittivität)"}, "ε0", {en: "8.8541878188×10⁻¹²", de: "8,8541878188×10⁻¹²"}, {en: "1.4×10⁻²¹", de: "1,4×10⁻²¹"}, "F m⁻¹", {en: "measured", de: "gemessen"}]
+    - [{en: "characteristic impedance of vacuum", de: "Wellenwiderstand des Vakuums (Feldwellenwiderstand)"}, "Z0", {en: "376.730313412", de: "376,730313412"}, {en: "5.9×10⁻⁸", de: "5,9×10⁻⁸"}, "Ω", {en: "measured", de: "gemessen"}]
+    - [{en: "electron mass", de: "Elektronenmasse (Ruhemasse)"}, "me", {en: "9.1093837139×10⁻³¹", de: "9,1093837139×10⁻³¹"}, {en: "2.8×10⁻⁴⁰", de: "2,8×10⁻⁴⁰"}, "kg", {en: "measured", de: "gemessen"}]
+    - [{en: "electron mass energy equivalent in MeV", de: "Ruheenergie des Elektrons in MeV"}, "me c²", {en: "0.51099895069", de: "0,51099895069"}, {en: "1.6×10⁻¹⁰", de: "1,6×10⁻¹⁰"}, "MeV", {en: "measured", de: "gemessen"}]
+    - [{en: "proton mass", de: "Protonenmasse"}, "mp", {en: "1.67262192595×10⁻²⁷", de: "1,67262192595×10⁻²⁷"}, {en: "5.2×10⁻³⁷", de: "5,2×10⁻³⁷"}, "kg", {en: "measured", de: "gemessen"}]
+    - [{en: "neutron mass", de: "Neutronenmasse"}, "mn", {en: "1.67492750056×10⁻²⁷", de: "1,67492750056×10⁻²⁷"}, {en: "8.5×10⁻³⁷", de: "8,5×10⁻³⁷"}, "kg", {en: "measured", de: "gemessen"}]
+    - [{en: "electron charge to mass quotient", de: "spezifische Ladung des Elektrons"}, "-e/me", {en: "-1.75882000838×10¹¹", de: "-1,75882000838×10¹¹"}, {en: "5.5×10¹", de: "5,5×10¹"}, "C kg⁻¹", {en: "measured", de: "gemessen"}]
+    - [{en: "electron volt", de: "Elektronvolt"}, "eV", {en: "1.602176634×10⁻¹⁹", de: "1,602176634×10⁻¹⁹"}, null, "J", {en: "exact", de: "exakt"}]
+    - [{en: "Faraday constant", de: "Faraday-Konstante"}, "F", {en: "96485.33212", de: "96485,33212"}, null, "C mol⁻¹", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "molar gas constant", de: "universelle (molare) Gaskonstante"}, "R", {en: "8.314462618", de: "8,314462618"}, null, "J mol⁻¹ K⁻¹", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "Stefan-Boltzmann constant", de: "Stefan-Boltzmann-Konstante"}, "σ", {en: "5.670374419×10⁻⁸", de: "5,670374419×10⁻⁸"}, null, "W m⁻² K⁻⁴", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "magnetic flux quantum", de: "magnetisches Flussquantum"}, "Φ0", {en: "2.067833848×10⁻¹⁵", de: "2,067833848×10⁻¹⁵"}, null, "Wb", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "Josephson constant", de: "Josephson-Konstante"}, "KJ", {en: "4.835978484×10¹⁴", de: "4,835978484×10¹⁴"}, null, "Hz V⁻¹", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "von Klitzing constant", de: "von-Klitzing-Konstante"}, "RK", {en: "25812.80745", de: "25812,80745"}, null, "Ω", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "conductance quantum", de: "Leitwertquantum"}, "G0", {en: "7.748091729×10⁻⁵", de: "7,748091729×10⁻⁵"}, null, "S", {en: "exact (derived)", de: "exakt (abgeleitet)"}]
+    - [{en: "fine-structure constant", de: "Feinstrukturkonstante"}, "α", {en: "7.2973525643×10⁻³", de: "7,2973525643×10⁻³"}, {en: "1.1×10⁻¹²", de: "1,1×10⁻¹²"}, "1", {en: "measured", de: "gemessen"}]
+    - [{en: "Bohr magneton", de: "Bohrsches Magneton"}, "µB", {en: "9.2740100657×10⁻²⁴", de: "9,2740100657×10⁻²⁴"}, {en: "2.9×10⁻³³", de: "2,9×10⁻³³"}, "J T⁻¹", {en: "measured", de: "gemessen"}]
+    - [{en: "standard acceleration of gravity", de: "Normfallbeschleunigung"}, "gn", {en: "9.80665", de: "9,80665"}, null, "m s⁻²", {en: "exact", de: "exakt"}]
+    - [{en: "standard atmosphere", de: "Normatmosphäre (Normdruck)"}, "atm", "101325", null, "Pa", {en: "exact", de: "exakt"}]
+    - [{en: "Newtonian constant of gravitation", de: "Gravitationskonstante"}, "G", {en: "6.67430×10⁻¹¹", de: "6,67430×10⁻¹¹"}, {en: "1.5×10⁻¹⁵", de: "1,5×10⁻¹⁵"}, "m³ kg⁻¹ s⁻²", {en: "measured", de: "gemessen"}]
+
+- id: greek_alphabet
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Řecká abeceda", da: "Det græske alfabet", de: "Griechisches Alphabet", el: "Ελληνικό αλφάβητο", en: "Greek alphabet", es: "Alfabeto griego", fr: "Alphabet grec", hi: "यूनानी वर्णमाला", it: "Alfabeto greco", ja: "ギリシャ文字", nl: "Grieks alfabet", no: "Det greske alfabetet", pl: "Alfabet grecki", pt: "Alfabeto grego", sv: "Grekiska alfabetet", zh: "希腊字母"}
+  doc: {en: "The 24 letters of the Greek alphabet with their variant forms, English and German names and typical uses of the letters as symbols in electrical engineering.", de: "Die 24 Buchstaben des griechischen Alphabets mit Varianten, englischen und deutschen Namen und typischer Verwendung als Formelzeichen in der Elektrotechnik."}
+  notes: {en: "Uses are typical, not normative, and vary between fields and countries (conductivity is σ internationally, often γ or κ in German electrical engineering): check the symbol definitions of the document you are reading. Letters without an entry have no common use in electronics. The micro sign µ (U+00B5) and the Greek small mu μ (U+03BC) look alike; the ohm sign (U+2126) is canonically equivalent to the Greek capital omega Ω (U+03A9).", de: "Die Verwendung ist typisch, nicht normativ, und schwankt je nach Fachgebiet und Land (Leitfähigkeit international σ, in der deutschen Elektrotechnik oft γ oder κ): maßgeblich sind die Formelzeichen-Definitionen des jeweiligen Dokuments. Buchstaben ohne Eintrag haben keine gebräuchliche Verwendung in der Elektronik. Mikrozeichen µ (U+00B5) und griechisches μ (U+03BC) sehen gleich aus; das Ohm-Zeichen (U+2126) ist kanonisch gleich dem griechischen Omega Ω (U+03A9)."}
+  tags: ["greek", "alphabet", "letters", "symbols", "alpha", "beta", "gamma", "delta", "omega", "lambda", "mu", "pi", "griechisch", "buchstaben", "formelzeichen", "griechisches alphabet"]
+  source: "de.wikipedia \"Griechisches Alphabet\" (letters, names); uses: en.wikipedia \"Greek letters used in mathematics, science, and engineering\", de.wikipedia \"Liste physikalischer Größen\" (DIN 1304 symbols), de.wikipedia \"Elektrische Leitfähigkeit\", en.wikipedia \"Dissipation factor\", \"Skin effect\" and \"Temperature coefficient\"; BIPM SI Brochure (Ω, µ)"
+  key: upper
+  columns:
+    - {id: upper, name: {en: "Capital", de: "Großbuchstabe"}, dim: text}
+    - {id: lower, name: {en: "Small letter and variants", de: "Kleinbuchstabe und Varianten"}, dim: text}
+    - {id: name, name: {en: "Name", de: "Name"}, dim: text}
+    - {id: use, name: {en: "Typical use in electronics", de: "Typische Verwendung in der Elektronik"}, dim: text}
+  rows:
+    - ["Α", "α", {en: "alpha", de: "Alpha"}, {en: "α: temperature coefficient of resistance", de: "α: Temperaturkoeffizient des Widerstands"}]
+    - ["Β", "β ϐ", {en: "beta", de: "Beta"}, {en: "β: current gain of a bipolar transistor (IC/IB)", de: "β: Stromverstärkung des Bipolartransistors (IC/IB)"}]
+    - ["Γ", "γ", {en: "gamma", de: "Gamma"}, {en: "Γ: reflection coefficient; γ: electrical conductivity (German usage)", de: "Γ: Reflexionsfaktor; γ: elektrische Leitfähigkeit (deutscher Gebrauch)"}]
+    - ["Δ", "δ", {en: "delta", de: "Delta"}, {en: "Δ: difference/change (ΔU, ΔT); δ: loss angle (tan δ); skin depth", de: "Δ: Differenz/Änderung (ΔU, ΔT); δ: Verlustwinkel (tan δ); Eindringtiefe (Skineffekt)"}]
+    - ["Ε", "ε ϵ", {en: "epsilon", de: "Epsilon"}, {en: "ε: permittivity (ε0, εr)", de: "ε: Permittivität (ε0, εr)"}]
+    - ["Ζ", "ζ", {en: "zeta", de: "Zeta"}, {en: "ζ: damping ratio", de: "ζ: Dämpfungsgrad"}]
+    - ["Η", "η", {en: "eta", de: "Eta"}, {en: "η: efficiency; intrinsic wave impedance of a medium", de: "η: Wirkungsgrad; Feldwellenwiderstand eines Mediums"}]
+    - ["Θ", "θ ϑ", {en: "theta", de: "Theta"}, {en: "Θ: magnetomotive force (current linkage)", de: "Θ: magnetische Durchflutung"}]
+    - ["Ι", "ι", {en: "iota", de: "Iota (auch Jota)"}, null]
+    - ["Κ", "κ ϰ", {en: "kappa", de: "Kappa"}, {en: "κ: electrical conductivity (German usage); dielectric constant", de: "κ: elektrische Leitfähigkeit (deutscher Gebrauch); Dielektrizitätszahl"}]
+    - ["Λ", "λ", {en: "lambda", de: "Lambda"}, {en: "λ: wavelength; linear charge density; thermal conductivity", de: "λ: Wellenlänge; Linienladungsdichte; Wärmeleitfähigkeit"}]
+    - ["Μ", "μ µ", {en: "mu", de: "My"}, {en: "µ: prefix micro (10⁻⁶); permeability (µ0, µr); amplification factor", de: "µ: Vorsatz Mikro (10⁻⁶); Permeabilität (µ0, µr); Verstärkungsfaktor"}]
+    - ["Ν", "ν", {en: "nu", de: "Ny"}, {en: "ν: frequency (physics)", de: "ν: Frequenz (Physik)"}]
+    - ["Ξ", "ξ", {en: "xi", de: "Xi"}, null]
+    - ["Ο", "ο", {en: "omicron", de: "Omikron"}, null]
+    - ["Π", "π ϖ", {en: "pi", de: "Pi"}, {en: "π: 3.14159…; hybrid-π transistor model", de: "π: 3,14159…; Hybrid-π-Ersatzschaltbild"}]
+    - ["Ρ", "ρ ϱ", {en: "rho", de: "Rho"}, {en: "ρ: resistivity", de: "ρ: spezifischer elektrischer Widerstand"}]
+    - ["Σ", "σ ς", {en: "sigma", de: "Sigma"}, {en: "Σ: sum; σ: electrical conductivity; surface charge density", de: "Σ: Summe; σ: elektrische Leitfähigkeit; Flächenladungsdichte"}]
+    - ["Τ", "τ", {en: "tau", de: "Tau"}, {en: "τ: time constant (RC, L/R)", de: "τ: Zeitkonstante (RC, L/R)"}]
+    - ["Υ", "υ", {en: "upsilon", de: "Ypsilon"}, null]
+    - ["Φ", "φ ϕ", {en: "phi", de: "Phi"}, {en: "Φ: magnetic flux; φ: phase angle; electric potential", de: "Φ: magnetischer Fluss; φ: Phasenwinkel; elektrisches Potential"}]
+    - ["Χ", "χ", {en: "chi", de: "Chi"}, {en: "χ: (magnetic/electric) susceptibility", de: "χ: (magnetische/elektrische) Suszeptibilität"}]
+    - ["Ψ", "ψ", {en: "psi", de: "Psi"}, {en: "Ψ: flux linkage; electric flux", de: "Ψ: verketteter magnetischer Fluss; elektrischer Fluss"}]
+    - ["Ω", "ω", {en: "omega", de: "Omega"}, {en: "Ω: ohm (unit of resistance); ω: angular frequency (ω = 2πf)", de: "Ω: Ohm (Einheit des Widerstands); ω: Kreisfrequenz (ω = 2πf)"}]
+
+- id: ip_codes
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  name: {cs: "Krytí IP (IEC 60529)", da: "IP-kapslingsklasser (IEC 60529)", de: "IP-Schutzarten (IEC 60529)", el: "Βαθμοί προστασίας IP (IEC 60529)", en: "IP codes (IEC 60529)", es: "Códigos IP (IEC 60529)", fr: "Indices de protection IP (CEI 60529)", hi: "IP कोड (IEC 60529)", it: "Gradi di protezione IP (IEC 60529)", ja: "IPコード (IEC 60529)", nl: "IP-codes (IEC 60529)", no: "IP-koder (IEC 60529)", pl: "Stopnie ochrony IP (IEC 60529)", pt: "Códigos IP (IEC 60529)", sv: "IP-klasser (IEC 60529)", zh: "IP 防护等级 (IEC 60529)"}
+  doc: {en: "The first characteristic numeral (solid foreign objects, access) and the second (water) of the IP code, with the short description and the meaning of every degree of protection.", de: "Die erste Kennziffer (Fremdkörper, Berührung) und die zweite (Wasser) des IP-Codes mit Kurzbeschreibung und Bedeutung jedes Schutzgrads."}
+  notes: {en: "The two numerals are independent: IPX7 does not imply IPX5 or IPX6 (immersion is not a jet test); a product tested for both is marked e.g. IPX6/IPX7. Numeral 9 exists in IEC 60529 since Amendment 2 (2013); 9K comes from ISO 20653 (road vehicles), not from IEC 60529. The first numeral 2 is 12.5 mm (older texts round to 12 mm). The IP code says nothing about protection against electric shock (see protection classes, IEC 61140) or mechanical impact (IK code, IEC 62262). The test conditions, the additional letters A to D and the supplementary letters H, M, S and W are not listed. The English wording is a translation of the German table of Häwa, checked against Wikipedia; it is not copied from the standard.", de: "Die beiden Kennziffern sind unabhängig: IPX7 schließt IPX5/IPX6 nicht ein (Untertauchen ist keine Strahlwasserprüfung); Geräte mit beiden Prüfungen werden z. B. mit IPX6/IPX7 gekennzeichnet. Die Kennziffer 9 gibt es in IEC 60529 seit Änderung 2 (2013); 9K stammt aus ISO 20653 (Straßenfahrzeuge), nicht aus IEC 60529. Die erste Kennziffer 2 steht für 12,5 mm (ältere Texte runden auf 12 mm). Der IP-Code sagt nichts über den Schutz gegen elektrischen Schlag (siehe Schutzklassen, IEC 61140) oder die Stoßfestigkeit (IK-Code, IEC 62262). Die Prüfbedingungen, die Zusatzbuchstaben A bis D und die ergänzenden Buchstaben H, M, S und W sind nicht aufgeführt. Der deutsche Wortlaut folgt der Tabelle der Häwa GmbH, abgeglichen mit Wikipedia; er ist nicht aus der Norm kopiert."}
+  tags: ["ip", "ip code", "ingress protection", "iec 60529", "din en 60529", "dust", "water", "enclosure", "protection degree", "schutzart", "schutzarten", "kennziffer", "staub", "wasser", "gehäuse", "ip65", "ip67"]
+  source: "IEC 60529 (IP code) as tabulated by Häwa \"Schutzarten nach DIN EN 60529\" (German), en.wikipedia \"IP code\", BGN ASI 3.10 and FRIWO \"IP-Schutzarten nach DIN 60529\"; the standard itself was not read"
+  columns:
+    - {id: numeral, name: {en: "Characteristic numeral", de: "Kennziffer"}, dim: text}
+    - {id: short, name: {en: "Protection", de: "Schutz"}, dim: text}
+    - {id: definition, name: {en: "Meaning", de: "Bedeutung"}, dim: text}
+  rows:
+    - [{en: "1st numeral: 0", de: "1. Kennziffer: 0"}, {en: "not protected", de: "nicht geschützt"}, {en: "no special protection", de: "kein besonderer Schutz"}]
+    - [{en: "1st numeral: 1", de: "1. Kennziffer: 1"}, {en: "protected against solid foreign objects of 50 mm Ø and greater", de: "geschützt gegen feste Fremdkörper 50 mm Durchmesser und größer"}, {en: "the object probe, sphere of 50 mm Ø, shall not fully penetrate (protection against access with the back of a hand)", de: "die Objektsonde, Kugel 50 mm Durchmesser, darf nicht voll eindringen (Schutz gegen Zugang mit dem Handrücken)"}]
+    - [{en: "1st numeral: 2", de: "1. Kennziffer: 2"}, {en: "protected against solid foreign objects of 12.5 mm Ø and greater", de: "geschützt gegen feste Fremdkörper 12,5 mm Durchmesser und größer"}, {en: "the object probe, sphere of 12.5 mm Ø, shall not fully penetrate (protection against access with a finger)", de: "die Objektsonde, Kugel 12,5 mm Durchmesser, darf nicht voll eindringen (Schutz gegen Zugang mit dem Finger)"}]
+    - [{en: "1st numeral: 3", de: "1. Kennziffer: 3"}, {en: "protected against solid foreign objects of 2.5 mm Ø and greater", de: "geschützt gegen feste Fremdkörper 2,5 mm Durchmesser und größer"}, {en: "the object probe, sphere of 2.5 mm Ø, shall not penetrate at all (tools, thick wires)", de: "die Objektsonde, Kugel 2,5 mm Durchmesser, darf überhaupt nicht eindringen (Werkzeuge, dicke Drähte)"}]
+    - [{en: "1st numeral: 4", de: "1. Kennziffer: 4"}, {en: "protected against solid foreign objects of 1.0 mm Ø and greater", de: "geschützt gegen feste Fremdkörper 1,0 mm Durchmesser und größer"}, {en: "the object probe, sphere of 1.0 mm Ø, shall not penetrate at all (wires)", de: "die Objektsonde, Kugel 1,0 mm Durchmesser, darf überhaupt nicht eindringen (Drähte)"}]
+    - [{en: "1st numeral: 5", de: "1. Kennziffer: 5"}, {en: "dust-protected", de: "staubgeschützt"}, {en: "ingress of dust is not totally prevented, but dust shall not penetrate in a quantity that interferes with satisfactory operation or safety", de: "Eindringen von Staub ist nicht vollständig verhindert, aber Staub darf nicht in einer Menge eindringen, die das zufriedenstellende Arbeiten oder die Sicherheit beeinträchtigt"}]
+    - [{en: "1st numeral: 6", de: "1. Kennziffer: 6"}, {en: "dust-tight", de: "staubdicht"}, {en: "no ingress of dust", de: "kein Eindringen von Staub"}]
+    - [{en: "1st numeral: X", de: "1. Kennziffer: X"}, {en: "not specified", de: "nicht angegeben"}, {en: "numeral not specified (not tested or not required)", de: "Kennziffer nicht angegeben (nicht geprüft oder nicht gefordert)"}]
+    - [{en: "2nd numeral: 0", de: "2. Kennziffer: 0"}, {en: "not protected", de: "nicht geschützt"}, {en: "no special protection", de: "kein besonderer Schutz"}]
+    - [{en: "2nd numeral: 1", de: "2. Kennziffer: 1"}, {en: "protected against vertically falling water drops", de: "geschützt gegen Tropfwasser"}, {en: "vertically falling drops shall have no harmful effects", de: "senkrecht fallende Tropfen dürfen keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: 2", de: "2. Kennziffer: 2"}, {en: "protected against vertically falling water drops when the enclosure is tilted up to 15°", de: "geschützt gegen Tropfwasser, wenn das Gehäuse bis zu 15° geneigt ist"}, {en: "vertically falling drops shall have no harmful effects when the enclosure is tilted at any angle up to 15° on either side of the vertical", de: "senkrecht fallende Tropfen dürfen keine schädlichen Wirkungen haben, wenn das Gehäuse um einen Winkel bis zu 15° beiderseits der Senkrechten geneigt ist"}]
+    - [{en: "2nd numeral: 3", de: "2. Kennziffer: 3"}, {en: "protected against spraying water", de: "geschützt gegen Sprühwasser"}, {en: "water sprayed at an angle up to 60° on either side of the vertical shall have no harmful effects", de: "Wasser, das in einem Winkel bis zu 60° beiderseits der Senkrechten gesprüht wird, darf keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: 4", de: "2. Kennziffer: 4"}, {en: "protected against splashing water", de: "geschützt gegen Spritzwasser"}, {en: "water splashed against the enclosure from any direction shall have no harmful effects", de: "Wasser, das aus jeder Richtung gegen das Gehäuse spritzt, darf keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: 5", de: "2. Kennziffer: 5"}, {en: "protected against water jets", de: "geschützt gegen Strahlwasser"}, {en: "water projected in jets against the enclosure from any direction shall have no harmful effects", de: "Wasser, das aus jeder Richtung als Strahl gegen das Gehäuse gerichtet ist, darf keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: 6", de: "2. Kennziffer: 6"}, {en: "protected against powerful water jets", de: "geschützt gegen starkes Strahlwasser"}, {en: "water projected in powerful jets against the enclosure from any direction shall have no harmful effects", de: "Wasser, das aus jeder Richtung als starker Strahl gegen das Gehäuse gerichtet ist, darf keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: 7", de: "2. Kennziffer: 7"}, {en: "protected against the effects of temporary immersion in water", de: "geschützt gegen die Wirkungen beim zeitweiligen Untertauchen in Wasser"}, {en: "ingress of water in harmful quantity shall not be possible when the enclosure is temporarily immersed under standardised conditions of pressure and time", de: "Wasser darf nicht in schädlicher Menge eintreten, wenn das Gehäuse unter genormten Druck- und Zeitbedingungen zeitweilig untergetaucht ist"}]
+    - [{en: "2nd numeral: 8", de: "2. Kennziffer: 8"}, {en: "protected against the effects of continuous immersion in water", de: "geschützt gegen die Wirkungen beim dauernden Untertauchen in Wasser"}, {en: "ingress of water in harmful quantity shall not be possible when continuously immersed under conditions agreed between manufacturer and user, more severe than for numeral 7", de: "Wasser darf nicht in schädlicher Menge eintreten, wenn das Gehäuse dauernd untergetaucht ist, unter zwischen Hersteller und Anwender vereinbarten Bedingungen, die schwieriger sein müssen als für Kennziffer 7"}]
+    - [{en: "2nd numeral: 9", de: "2. Kennziffer: 9"}, {en: "protected against high-pressure and high-temperature water jets", de: "geschützt gegen Hochdruck und hohe Strahlwassertemperaturen"}, {en: "water directed at high pressure and high temperature against the enclosure from any direction shall have no harmful effects", de: "Wasser, das bei hohem Druck und hohen Temperaturen aus allen Richtungen gegen das Gehäuse gerichtet ist, darf keine schädlichen Wirkungen haben"}]
+    - [{en: "2nd numeral: X", de: "2. Kennziffer: X"}, {en: "not specified", de: "nicht angegeben"}, {en: "numeral not specified (not tested or not required)", de: "Kennziffer nicht angegeben (nicht geprüft oder nicht gefordert)"}]
+    - [{en: "2nd numeral: 9K", de: "2. Kennziffer: 9K"}, {en: "high-pressure / steam-jet cleaning (ISO 20653, road vehicles; not IEC 60529)", de: "Hochdruck-/Dampfstrahlreinigung (ISO 20653, Straßenfahrzeuge; nicht IEC 60529)"}, {en: "defined in ISO 20653 (formerly DIN 40050-9), not in IEC 60529", de: "definiert in ISO 20653 (früher DIN 40050-9), nicht in IEC 60529"}]
+
+- id: protection_classes
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  mains: true
+  name: {cs: "Třídy ochrany (IEC 61140)", da: "Beskyttelsesklasser (IEC 61140)", de: "Schutzklassen (IEC 61140)", el: "Κατηγορίες προστασίας (IEC 61140)", en: "Protection classes (IEC 61140)", es: "Clases de protección (IEC 61140)", fr: "Classes de protection (CEI 61140)", hi: "सुरक्षा श्रेणियाँ (IEC 61140)", it: "Classi di protezione (IEC 61140)", ja: "保護クラス (IEC 61140)", nl: "Beveiligingsklassen (IEC 61140)", no: "Beskyttelsesklasser (IEC 61140)", pl: "Klasy ochronności (IEC 61140)", pt: "Classes de proteção (IEC 61140)", sv: "Skyddsklasser (IEC 61140)", zh: "电气设备防护类别 (IEC 61140)"}
+  doc: {en: "The protection classes 0, I, II and III of electrical equipment against electric shock: protection principle, protective-earth connection and marking symbol.", de: "Die Schutzklassen 0, I, II und III elektrischer Betriebsmittel gegen elektrischen Schlag: Schutzprinzip, Schutzleiteranschluss und Kennzeichnungssymbol."}
+  notes: {en: "Protection classes describe protection against electric shock; IP codes describe protection against foreign objects and water; the two are independent. Class 0I (class 0 with an earth terminal) and the class II variant with functional earth are not listed. The number of the protective-earth symbol of class I (IEC 60417-5019) and the symbol of the functional-earth variant of class II (IEC 60417-6092) are left out because only one source gives each.", de: "Schutzklassen beschreiben den Schutz gegen elektrischen Schlag, IP-Schutzarten den Schutz gegen Fremdkörper und Wasser; beides ist unabhängig voneinander. Die Klasse 0I (Klasse 0 mit Schutzleiteranschluss) und die Klasse-II-Variante mit Funktionserde sind nicht aufgeführt. Die Nummer des Schutzleiter-Symbols der Klasse I (IEC 60417-5019) und das Symbol der Funktionserde-Variante der Klasse II (IEC 60417-6092) fehlen, weil jeweils nur eine Quelle sie nennt."}
+  tags: ["protection class", "safety class", "class i", "class ii", "class iii", "iec 61140", "vde 0140", "double insulation", "selv", "pelv", "earth", "schutzklasse", "schutzklassen", "schutzisolierung", "schutzkleinspannung", "schutzleiter", "sicherheit"]
+  source: "IEC 61140 (DIN EN 61140, VDE 0140-1) as summarised by en.wikipedia \"Appliance classes\" and de.wikipedia \"Schutzklasse (Elektrotechnik)\"; the standard itself was not read"
+  columns:
+    - {id: class, name: {en: "Class", de: "Schutzklasse"}, dim: text}
+    - {id: principle, name: {en: "Protection principle", de: "Schutzprinzip"}, dim: text}
+    - {id: pe, name: {en: "Protective earth connection", de: "Schutzleiteranschluss"}, dim: text}
+    - {id: symbol, name: {en: "Marking symbol", de: "Kennzeichnungssymbol"}, dim: text}
+    - {id: iec60417, name: {en: "IEC 60417 symbol no.", de: "Bildzeichen IEC 60417 Nr."}, dim: text}
+    - {id: remark, name: {en: "Remark", de: "Hinweis"}, dim: text}
+  rows:
+    - ["0", {en: "basic insulation only, no connection to the protective conductor; protection relies on the environment", de: "nur Basisisolierung, kein Anschluss an den Schutzleiter; Schutz muss durch die Umgebung sichergestellt werden"}, {en: "no", de: "nein"}, {en: "no symbol (marking not provided for)", de: "kein Symbol (Kennzeichnung nicht vorgesehen)"}, null, {en: "not permitted in Germany; sale prohibited in many countries (e.g. UK, New Zealand)", de: "in Deutschland nicht mehr zulässig; in vielen Ländern verboten (z. B. Vereinigtes Königreich, Neuseeland)"}]
+    - ["I", {en: "basic insulation plus connection of all accessible conductive parts to the protective earth conductor; a fault trips the fuse, circuit breaker or RCD", de: "Basisisolierung und Anschluss aller berührbaren leitfähigen Teile an den Schutzleiter; ein Fehler löst Sicherung, Leitungsschutzschalter oder FI-Schutzschalter (RCD) aus"}, {en: "yes", de: "ja"}, {en: "protective earth symbol (circle with earth sign) on the PE terminal", de: "Schutzleiter-Symbol (Erdungszeichen im Kreis) an der PE-Klemme"}, null, {en: "the symbol marks the protective-conductor terminal; there is no separate class-I device symbol", de: "das Symbol kennzeichnet die Schutzleiterklemme; ein eigenes Gerätesymbol für Klasse I gibt es nicht"}]
+    - ["II", {en: "double or reinforced insulation between live and accessible parts; no protective-earth connection", de: "doppelte oder verstärkte Isolierung zwischen aktiven und berührbaren Teilen; kein Schutzleiteranschluss"}, {en: "no", de: "nein"}, {en: "two concentric squares", de: "zwei ineinanderliegende Quadrate"}, "5172", null]
+    - ["III", {en: "supply only from safety extra-low voltage (SELV) or protective extra-low voltage (PELV) sources", de: "Betrieb nur mit Sicherheitskleinspannung (SELV) oder Schutzkleinspannung (PELV)"}, {en: "no", de: "nein"}, {en: "roman numeral III in a diamond", de: "römische III in einer Raute"}, "5180", {en: "connect only to SELV/PELV sources such as a safety transformer or battery", de: "Anschluss nur an SELV-/PELV-Quellen, z. B. Sicherheitstransformator oder Batterie"}]
+
+- id: mains_by_country
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  mains: true
+  name: {cs: "Síťové napětí, frekvence a zástrčky podle zemí", da: "Netspænding, frekvens og stik efter land", de: "Netzspannung, Frequenz und Steckertypen nach Land", el: "Τάση δικτύου, συχνότητα και φις ανά χώρα", en: "Mains voltage, frequency and plugs by country", es: "Tensión de red, frecuencia y enchufes por país", fr: "Tension secteur, fréquence et prises par pays", hi: "देशवार मेन्स वोल्टेज, आवृत्ति और प्लग", it: "Tensione di rete, frequenza e spine per paese", ja: "国別の電源電圧・周波数・プラグ", nl: "Netspanning, frequentie en stekkers per land", no: "Nettspenning, frekvens og støpsler per land", pl: "Napięcie sieci, częstotliwość i wtyczki według krajów", pt: "Tensão da rede, frequência e fichas por país", sv: "Nätspänning, frekvens och kontakter per land", zh: "各国市电电压、频率和插头"}
+  doc: {en: "Nominal single-phase household voltage, mains frequency and plug and socket types of 48 countries (EU, Europe and the main travel and trade countries).", de: "Nennspannung (einphasig, Haushalt), Netzfrequenz sowie Stecker- und Steckdosentypen von 48 Ländern (EU, Europa und die wichtigsten Reise- und Handelsländer)."}
+  notes: {en: "Nominal voltages have tolerances; the permitted band is set by the local grid code. Many countries listed as 220 V are converging on 230 V. Where the sources disagree the value backed by two of the three sources is shown: China, South Korea and Argentina 220 V (WorldStandards 230 V), Cyprus 230 V (Wikipedia 240 V), Russia 230 V (Interpower 220 V), Mexico 127 V. Brazil (127 V or 220 V by region) has no single voltage and Japan (50 Hz in the east, 60 Hz in the west) no single frequency, so these cells are empty; see the note column. Plug types are listed only where WorldStandards and Wikipedia agree; other types they mention are in the note column. The IEC World Plugs guide has been retired and was not used. Frequencies agree in all three sources. Plug types (legend from WorldStandards.eu \"Plug & socket types\"; one source, typical values): A 2 pins, unearthed, 15 A (US/CA/MX/JP); B 3 pins, earthed, 15 A (US/CA/MX); C 2 pins, unearthed, 2.5 A / 10 A / 16 A (Europe and many others); D 3 pins, earthed, 6 A (India region); E 2 pins + earth, 16 A (FR/BE/PL/SK/CZ); F 2 pins + earth, 16 A (most of Europe, RU); G 3 pins, earthed, 13 A (UK/IE/MT/SG/Arabian Peninsula); H 3 pins, earthed, 16 A (Israel); I 2 or 3 pins, 10 A (AU/NZ/CN/AR); J 3 pins, earthed, 10 A (CH/LI); K 3 pins, earthed, 16 A (DK); L 3 pins, earthed, 10 A / 16 A (IT/CL); M 3 pins, earthed, 16 A (ZA); N 3 pins, earthed, 10 A / 16 A / 20 A (BR/ZA); O 3 pins, earthed, 16 A (TH).", de: "Nennspannungen haben Toleranzen; das zulässige Band legt der örtliche Netzbetreiber bzw. die Norm fest. Viele 220-V-Länder nähern sich 230 V an. Wo die Quellen abweichen, steht der Wert, den zwei von drei Quellen stützen: China, Südkorea und Argentinien 220 V (WorldStandards 230 V), Zypern 230 V (Wikipedia 240 V), Russland 230 V (Interpower 220 V), Mexiko 127 V. Brasilien (je nach Region 127 V oder 220 V) hat keine einheitliche Spannung und Japan (Osten 50 Hz, Westen 60 Hz) keine einheitliche Frequenz, diese Zellen sind daher leer; siehe Spalte Hinweis. Steckertypen stehen nur dort, wo WorldStandards und Wikipedia übereinstimmen; weitere von ihnen genannte Typen stehen im Hinweis. Die IEC-World-Plugs-Seite ist abgeschaltet und wurde nicht verwendet. Die Frequenzen stimmen in allen drei Quellen überein. Steckertypen (Legende von WorldStandards.eu „Plug & socket types“; eine Quelle, typische Werte): A 2 Stifte, ohne Schutzleiter, 15 A (US/CA/MX/JP); B 3 Stifte, mit Schutzleiter, 15 A (US/CA/MX); C 2 Stifte, ohne Schutzleiter, 2,5 A / 10 A / 16 A (Europa und viele andere); D 3 Stifte, mit Schutzleiter, 6 A (Indien und Nachbarländer); E 2 Stifte + Schutzkontakt, 16 A (FR/BE/PL/SK/CZ); F 2 Stifte + Schutzkontakt, 16 A (fast ganz Europa, RU); G 3 Stifte, mit Schutzleiter, 13 A (UK/IE/MT/SG/Arabische Halbinsel); H 3 Stifte, mit Schutzleiter, 16 A (Israel); I 2 oder 3 Stifte, 10 A (AU/NZ/CN/AR); J 3 Stifte, mit Schutzleiter, 10 A (CH/LI); K 3 Stifte, mit Schutzleiter, 16 A (DK); L 3 Stifte, mit Schutzleiter, 10 A / 16 A (IT/CL); M 3 Stifte, mit Schutzleiter, 16 A (ZA); N 3 Stifte, mit Schutzleiter, 10 A / 16 A / 20 A (BR/ZA); O 3 Stifte, mit Schutzleiter, 16 A (TH)."}
+  tags: ["mains", "voltage", "frequency", "plug", "socket", "outlet", "country", "travel", "nema", "schuko", "type c", "type f", "type g", "netzspannung", "netzfrequenz", "steckdose", "stecker", "steckertyp", "reise", "land"]
+  source: "WorldStandards.eu \"Plug, socket & voltage by country\" (7 September 2025); en.wikipedia \"Mains electricity by country\"; Interpower \"International Configurations guide\" (voltage and frequency); every value is backed by at least two of the three; IEC World Plugs is retired"
+  columns:
+    - {id: country, name: {en: "Country", de: "Land"}, dim: text}
+    - {id: iso2, name: {en: "ISO code", de: "Ländercode"}, dim: text}
+    - {id: voltage, name: {en: "Voltage", de: "Spannung"}, dim: voltage}
+    - {id: frequency, name: {en: "Frequency", de: "Frequenz"}, dim: frequency}
+    - {id: plugs, name: {en: "Plug types", de: "Steckertypen"}, dim: text}
+    - {id: note, name: {en: "Note", de: "Hinweis"}, dim: text}
+  rows:
+    - [{en: "Austria", de: "Österreich"}, "AT", 230, 50, "C, F", null]
+    - [{en: "Belgium", de: "Belgien"}, "BE", 230, 50, "C, E", {en: "some areas use a 3 × 230 V delta network without neutral (Wikipedia)", de: "in einigen Gebieten 3 × 230 V Dreieck-Netz ohne Neutralleiter (Wikipedia)"}]
+    - [{en: "Bulgaria", de: "Bulgarien"}, "BG", 230, 50, "C, F", null]
+    - [{en: "Croatia", de: "Kroatien"}, "HR", 230, 50, "C, F", null]
+    - [{en: "Cyprus", de: "Zypern"}, "CY", 230, 50, "G", null]
+    - [{en: "Czechia", de: "Tschechien"}, "CZ", 230, 50, "C, E", null]
+    - [{en: "Denmark", de: "Dänemark"}, "DK", 230, 50, "C, F, K", {en: "type E sockets are also legal but rare (Wikipedia)", de: "Steckdosen Typ E sind ebenfalls zulässig, aber selten (Wikipedia)"}]
+    - [{en: "Estonia", de: "Estland"}, "EE", 230, 50, "C, F", null]
+    - [{en: "Finland", de: "Finnland"}, "FI", 230, 50, "C, F", null]
+    - [{en: "France", de: "Frankreich"}, "FR", 230, 50, "C, E", null]
+    - [{en: "Germany", de: "Deutschland"}, "DE", 230, 50, "C, F", null]
+    - [{en: "Greece", de: "Griechenland"}, "GR", 230, 50, "C, F", null]
+    - [{en: "Hungary", de: "Ungarn"}, "HU", 230, 50, "C, F", null]
+    - [{en: "Ireland", de: "Irland"}, "IE", 230, 50, "G", null]
+    - [{en: "Italy", de: "Italien"}, "IT", 230, 50, "C, F, L", {en: "type L in 10 A and 16 A versions; hybrid sockets are common (Wikipedia)", de: "Typ L in 10-A- und 16-A-Ausführung; Kombisteckdosen verbreitet (Wikipedia)"}]
+    - [{en: "Latvia", de: "Lettland"}, "LV", 230, 50, "C, F", null]
+    - [{en: "Lithuania", de: "Litauen"}, "LT", 230, 50, "C, F", null]
+    - [{en: "Luxembourg", de: "Luxemburg"}, "LU", 230, 50, "C, F", null]
+    - ["Malta", "MT", 230, 50, "G", null]
+    - [{en: "Netherlands", de: "Niederlande"}, "NL", 230, 50, "C, F", null]
+    - [{en: "Poland", de: "Polen"}, "PL", 230, 50, "C, E", null]
+    - ["Portugal", "PT", 230, 50, "C, F", {en: "type E only in very old installations (Wikipedia)", de: "Typ E nur in sehr alten Installationen (Wikipedia)"}]
+    - [{en: "Romania", de: "Rumänien"}, "RO", 230, 50, "C, F", null]
+    - [{en: "Slovakia", de: "Slowakei"}, "SK", 230, 50, "C, E", {en: "Wikipedia also lists type F", de: "Wikipedia nennt zusätzlich Typ F"}]
+    - [{en: "Slovenia", de: "Slowenien"}, "SI", 230, 50, "C, F", null]
+    - [{en: "Spain", de: "Spanien"}, "ES", 230, 50, "C, F", null]
+    - [{en: "Sweden", de: "Schweden"}, "SE", 230, 50, "C, F", null]
+    - [{en: "United Kingdom", de: "Vereinigtes Königreich"}, "GB", 230, 50, "G", {en: "types D and M only for special uses (lighting circuits, stage) (Wikipedia)", de: "Typen D und M nur für Sonderzwecke (Lichtkreise, Bühne) (Wikipedia)"}]
+    - [{en: "Switzerland", de: "Schweiz"}, "CH", 230, 50, "C, J", null]
+    - [{en: "Norway", de: "Norwegen"}, "NO", 230, 50, "C, F", {en: "many homes use a 230 V IT network (no neutral to earth) (Wikipedia)", de: "viele Haushalte haben ein 230-V-IT-Netz (Wikipedia)"}]
+    - [{en: "United States", de: "Vereinigte Staaten"}, "US", 120, 60, "A, B", {en: "homes get 120/240 V split-phase; 240 V outlets (NEMA 14-30/14-50) for dryers and stoves (Wikipedia)", de: "Haushalte haben 120/240 V (Split-Phase); 240-V-Steckdosen (NEMA 14-30/14-50) für Trockner und Herde (Wikipedia)"}]
+    - [{en: "Canada", de: "Kanada"}, "CA", 120, 60, "A, B", {en: "homes get 120/240 V split-phase (Wikipedia)", de: "Haushalte haben 120/240 V (Split-Phase) (Wikipedia)"}]
+    - [{en: "Mexico", de: "Mexiko"}, "MX", 127, 60, "A, B", {en: "both 127/220 V three-phase and 120/240 V split-phase are used (Wikipedia)", de: "sowohl 127/220 V Drehstrom als auch 120/240 V Split-Phase (Wikipedia)"}]
+    - [{en: "Brazil", de: "Brasilien"}, "BR", null, 60, "C, N", {en: "127 V or 220 V depending on the region (WorldStandards, Wikipedia)", de: "je nach Region 127 V oder 220 V (WorldStandards, Wikipedia)"}]
+    - [{en: "Argentina", de: "Argentinien"}, "AR", 220, 50, "I", {en: "Wikipedia also lists type C; Argentine type I has live and neutral reversed vs. AU/CN (Wikipedia)", de: "Wikipedia nennt zusätzlich Typ C; argentinischer Typ I hat L und N gegenüber AU/CN vertauscht (Wikipedia)"}]
+    - ["China", "CN", 220, 50, "A, I", {en: "Hong Kong and Macau use type G (WorldStandards)", de: "Hongkong und Macau verwenden Typ G (WorldStandards)"}]
+    - ["Japan", "JP", 100, null, "A, B", {en: "east Japan 50 Hz (e.g. Tokyo), west Japan 60 Hz (e.g. Osaka) (Wikipedia)", de: "Ostjapan 50 Hz (z. B. Tokio), Westjapan 60 Hz (z. B. Osaka) (Wikipedia)"}]
+    - [{en: "South Korea", de: "Südkorea"}, "KR", 220, 60, "C, F", null]
+    - [{en: "India", de: "Indien"}, "IN", 230, 50, "D, M", {en: "Wikipedia also lists type C (Europlug fits D sockets, not recommended)", de: "Wikipedia nennt zusätzlich Typ C (Eurostecker passt in D-Steckdosen, nicht empfohlen)"}]
+    - [{en: "Australia", de: "Australien"}, "AU", 230, 50, "I", {en: "officially 230 V, in practice often 240 V; Western Australia 240/415 V (WorldStandards, Wikipedia)", de: "offiziell 230 V, in der Praxis oft 240 V; Westaustralien 240/415 V (WorldStandards, Wikipedia)"}]
+    - [{en: "New Zealand", de: "Neuseeland"}, "NZ", 230, 50, "I", null]
+    - [{en: "South Africa", de: "Südafrika"}, "ZA", 230, 50, "C, M, N", null]
+    - [{en: "Russia", de: "Russland"}, "RU", 230, 50, "C, F", {en: "older networks 220 V (Wikipedia: 230/400 and 220/380 V)", de: "ältere Netze 220 V (Wikipedia: 230/400 und 220/380 V)"}]
+    - [{en: "Türkiye", de: "Türkei"}, "TR", 230, 50, "C, F", null]
+    - ["Israel", "IL", 230, 50, "C, H", null]
+    - [{en: "United Arab Emirates", de: "Vereinigte Arabische Emirate"}, "AE", 230, 50, "G", null]
+    - [{en: "Singapore", de: "Singapur"}, "SG", 230, 50, "G", {en: "Wikipedia also lists C and M (M for air conditioners)", de: "Wikipedia nennt zusätzlich C und M (M für Klimageräte)"}]
+    - ["Thailand", "TH", 230, 50, "A, B, C, O", {en: "hybrid A/B/C sockets are most common (Wikipedia)", de: "Kombisteckdosen A/B/C am häufigsten (Wikipedia)"}]
+
+- id: ism_bands
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  name: {cs: "Pásma ISM a SRD", da: "ISM- og SRD-bånd", de: "ISM- und SRD-Bänder", el: "Ζώνες ISM και SRD", en: "ISM and SRD bands", es: "Bandas ISM y SRD", fr: "Bandes ISM et SRD", hi: "ISM और SRD बैंड", it: "Bande ISM e SRD", ja: "ISM帯とSRD帯", nl: "ISM- en SRD-banden", no: "ISM- og SRD-bånd", pl: "Pasma ISM i SRD", pt: "Bandas ISM e SRD", sv: "ISM- och SRD-band", zh: "ISM 与 SRD 频段"}
+  doc: {en: "The ITU ISM bands (6.78 MHz to 245 GHz) and the EU short-range-device (SRD) bands around 433, 868 MHz, 2.4 and 5.8 GHz, with band edges, legal basis and the allowed transmit power and duty cycle.", de: "Die ITU-ISM-Bänder (6,78 MHz bis 245 GHz) und die EU-SRD-Bänder um 433 MHz, 868 MHz, 2,4 und 5,8 GHz mit Bandgrenzen, Rechtsgrundlage sowie zulässiger Sendeleistung und zulässigem Tastgrad."}
+  notes: {en: "ISM bands are designated for industrial, scientific and medical RF energy (e.g. microwave ovens); radio services there must accept interference from ISM equipment. Short-range devices (SRD) are licence-exempt only under the EU and national conditions (power, duty cycle or listen-before-talk with adaptive frequency agility, LBT/AFA). Radio use always needs the national frequency assignment (in Germany the general assignments of the Bundesnetzagentur). Duty cycle is the share of transmit time: 1 % is 36 s per hour. SRD limits per Implementing Decision (EU) 2022/180; check EUR-Lex for later amendments. The further rows of that decision (for example wideband data and voice) are not listed. The ITU footnote numbers (RR 5.138 and 5.150) are taken from Wikipedia, the Radio Regulations themselves were not read. The EU-only band at 169 MHz is not listed. Frequencies are rounded to the significant digits set in the ECalc settings.", de: "ISM-Bänder sind für industrielle, wissenschaftliche und medizinische HF-Anwendungen (z. B. Mikrowellenherde) vorgesehen; Funkdienste dort müssen Störungen durch ISM-Geräte hinnehmen. SRD sind nur unter den EU- und nationalen Bedingungen (Leistung, Tastgrad oder Listen-before-talk mit adaptivem Frequenzwechsel, LBT/AFA) anmeldefrei. Funkbetrieb braucht immer die nationale Frequenzzuteilung (in Deutschland die Allgemeinzuteilungen der Bundesnetzagentur). Der Tastgrad ist der Anteil der Sendezeit: 1 % sind 36 s pro Stunde. SRD-Grenzwerte nach dem Durchführungsbeschluss (EU) 2022/180; spätere Änderungen in EUR-Lex prüfen. Die weiteren Zeilen dieses Beschlusses (zum Beispiel Breitbanddaten und Sprache) sind nicht aufgeführt. Die ITU-Fußnotennummern (RR 5.138 und 5.150) stammen aus Wikipedia, die Radio Regulations selbst wurden nicht gelesen. Das nur in der EU geltende Band bei 169 MHz fehlt. Frequenzen werden auf die in den ECalc-Einstellungen gewählten signifikanten Stellen gerundet."}
+  tags: ["ism", "srd", "short range device", "license free", "lpd433", "433 mhz", "868 mhz", "915 mhz", "2.4 ghz", "5.8 ghz", "13.56 mhz", "rfid", "duty cycle", "frequency band", "funk", "frequenzband", "tastgrad", "sendeleistung"]
+  source: "ITU Radio Regulations footnotes 5.138 and 5.150 as listed by 47 CFR 18.301 (FCC) and en.wikipedia \"ISM radio band\"; EU SRD: Commission Implementing Decision (EU) 2022/180 (amending 2006/771/EC) and en.wikipedia \"Short-range device\""
+  columns:
+    - {id: band, name: {en: "Band", de: "Band"}, dim: text}
+    - {id: f_low, name: {en: "Lower edge", de: "Untere Grenze"}, dim: frequency}
+    - {id: f_high, name: {en: "Upper edge", de: "Obere Grenze"}, dim: frequency}
+    - {id: f_centre, name: {en: "ISM centre frequency", de: "ISM-Mittenfrequenz"}, dim: frequency}
+    - {id: basis, name: {en: "Legal basis", de: "Rechtsgrundlage"}, dim: text}
+    - {id: region, name: {en: "Applies in", de: "Geltungsbereich"}, dim: text}
+    - {id: power, name: {en: "Max. power", de: "Max. Leistung"}, dim: power}
+    - {id: power_ref, name: {en: "Power reference", de: "Leistungsbezug"}, dim: text}
+    - {id: duty_cycle, name: {en: "Max. duty cycle", de: "Max. Tastgrad"}, dim: ratio, unit: pct}
+    - {id: note, name: {en: "Typical use / remark", de: "Typische Nutzung / Hinweis"}, dim: text}
+  rows:
+    - [{en: "ISM 6.78 MHz", de: "ISM 6,78 MHz"}, 6765000, 6795000, 6780000, "ITU RR 5.138", {en: "worldwide, subject to local acceptance", de: "weltweit, vorbehaltlich nationaler Zulassung"}, null, null, null, {en: "ISM use needs special authorization by the administration", de: "ISM-Nutzung nur mit besonderer Genehmigung der Verwaltung"}]
+    - [{en: "ISM 13.56 MHz", de: "ISM 13,56 MHz"}, 13553000, 13567000, 13560000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, {en: "NFC/RFID (13.56 MHz)", de: "NFC/RFID (13,56 MHz)"}]
+    - [{en: "ISM 27.12 MHz", de: "ISM 27,12 MHz"}, 26957000, 27283000, 27120000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, {en: "overlaps the CB radio band", de: "überlappt den CB-Funk-Bereich"}]
+    - [{en: "ISM 40.68 MHz", de: "ISM 40,68 MHz"}, 40660000, 40700000, 40680000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, null]
+    - [{en: "ISM 433.92 MHz", de: "ISM 433,92 MHz"}, 433050000, 434790000, 433920000, "ITU RR 5.138", {en: "ITU Region 1 only (countries of RR 5.280)", de: "nur ITU-Region 1 (Länder nach RR 5.280)"}, null, null, null, {en: "LPD433; also amateur 70 cm band", de: "LPD433; zugleich 70-cm-Amateurfunkband"}]
+    - ["ISM 915 MHz", 902000000, 928000000, 915000000, "ITU RR 5.150", {en: "ITU Region 2 only (Americas)", de: "nur ITU-Region 2 (Amerika)"}, null, null, null, {en: "US 915 MHz band (LoRaWAN US902-928)", de: "US-915-MHz-Band (LoRaWAN US902-928)"}]
+    - [{en: "ISM 2.45 GHz", de: "ISM 2,45 GHz"}, 2400000000, 2500000000, 2450000000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, {en: "Wi-Fi, Bluetooth, microwave ovens; RLAN/SRD use in Europe limited to 2400–2483.5 MHz", de: "WLAN, Bluetooth, Mikrowellenherde; in Europa SRD/WLAN nur 2400–2483,5 MHz"}]
+    - [{en: "ISM 5.8 GHz", de: "ISM 5,8 GHz"}, 5725000000, 5875000000, 5800000000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, {en: "Wi-Fi channels 149–165 (US); SRD in Europe", de: "WLAN-Kanäle 149–165 (USA); SRD in Europa"}]
+    - [{en: "ISM 24.125 GHz", de: "ISM 24,125 GHz"}, 24000000000, 24250000000, 24125000000, "ITU RR 5.150", {en: "worldwide", de: "weltweit"}, null, null, null, {en: "radar sensors, motion detectors", de: "Radarsensoren, Bewegungsmelder"}]
+    - [{en: "ISM 61.25 GHz", de: "ISM 61,25 GHz"}, 61000000000, 61500000000, 61250000000, "ITU RR 5.138", {en: "worldwide, subject to local acceptance", de: "weltweit, vorbehaltlich nationaler Zulassung"}, null, null, null, null]
+    - [{en: "ISM 122.5 GHz", de: "ISM 122,5 GHz"}, 122000000000, 123000000000, 122500000000, "ITU RR 5.138", {en: "worldwide, subject to local acceptance", de: "weltweit, vorbehaltlich nationaler Zulassung"}, null, null, null, null]
+    - ["ISM 245 GHz", 244000000000, 246000000000, 245000000000, "ITU RR 5.138", {en: "worldwide, subject to local acceptance", de: "weltweit, vorbehaltlich nationaler Zulassung"}, null, null, null, null]
+    - [{en: "SRD 433.05–434.79 MHz", de: "SRD 433,05–434,79 MHz"}, 433050000, 434790000, null, "EU 2006/771/EC as amended by (EU) 2022/180, row 44b", "EU", 0.01, "e.r.p.", 10, {en: "non-specific SRD (remote controls, sensors)", de: "nicht-spezifische SRD (Fernbedienungen, Sensoren)"}]
+    - ["SRD 865–868 MHz", 865000000, 868000000, null, "EU (EU) 2022/180, row 47", "EU", 0.025, "e.r.p.", 1, {en: "non-specific SRD", de: "nicht-spezifische SRD"}]
+    - [{en: "SRD 868.0–868.6 MHz", de: "SRD 868,0–868,6 MHz"}, 868000000, 868600000, null, "EU (EU) 2022/180, row 48", "EU", 0.025, "e.r.p.", 1, {en: "LoRaWAN EU868 default channels 868.1 / 868.3 / 868.5 MHz lie here", de: "hier liegen die LoRaWAN-EU868-Standardkanäle 868,1 / 868,3 / 868,5 MHz"}]
+    - [{en: "SRD 868.7–869.2 MHz", de: "SRD 868,7–869,2 MHz"}, 868700000, 869200000, null, "EU (EU) 2022/180, row 50", "EU", 0.025, "e.r.p.", 0.1, {en: "non-specific SRD", de: "nicht-spezifische SRD"}]
+    - [{en: "SRD 869.4–869.65 MHz", de: "SRD 869,4–869,65 MHz"}, 869400000, 869650000, null, "EU (EU) 2022/180, row 54", "EU", 0.5, "e.r.p.", 10, {en: "LoRaWAN EU868 RX2 / beacon 869.525 MHz lies here", de: "hier liegt LoRaWAN-EU868-RX2/Beacon 869,525 MHz"}]
+    - [{en: "SRD 869.7–870.0 MHz", de: "SRD 869,7–870,0 MHz"}, 869700000, 870000000, null, "EU (EU) 2022/180, row 56b", "EU", 0.025, "e.r.p.", 1, null]
+    - [{en: "SRD 2400–2483.5 MHz", de: "SRD 2400–2483,5 MHz"}, 2400000000, 2483500000, null, "EU (EU) 2022/180, row 57a", "EU", 0.01, "e.i.r.p.", null, {en: "non-specific SRD", de: "nicht-spezifische SRD"}]
+    - ["SRD 5725–5875 MHz", 5725000000, 5875000000, null, "EU (EU) 2022/180, row 61", "EU", 0.025, "e.i.r.p.", null, {en: "non-specific SRD", de: "nicht-spezifische SRD"}]
+
+- id: lora_regional_plans
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  name: {cs: "Regionální plány LoRaWAN (EU868, US915, AS923)", da: "LoRaWAN-regionsplaner (EU868, US915, AS923)", de: "LoRaWAN-Kanalpläne (EU868, US915, AS923)", el: "Περιφερειακά σχέδια καναλιών LoRaWAN (EU868, US915, AS923)", en: "LoRaWAN regional channel plans (EU868, US915, AS923)", es: "Planes regionales de canales LoRaWAN (EU868, US915, AS923)", fr: "Plans de canaux régionaux LoRaWAN (EU868, US915, AS923)", hi: "LoRaWAN क्षेत्रीय चैनल योजनाएँ (EU868, US915, AS923)", it: "Piani di canali regionali LoRaWAN (EU868, US915, AS923)", ja: "LoRaWAN地域チャネルプラン (EU868, US915, AS923)", nl: "LoRaWAN-regionale kanaalplannen (EU868, US915, AS923)", no: "LoRaWAN regionale kanalplaner (EU868, US915, AS923)", pl: "Regionalne plany kanałów LoRaWAN (EU868, US915, AS923)", pt: "Planos regionais de canais LoRaWAN (EU868, US915, AS923)", sv: "LoRaWAN regionala kanalplaner (EU868, US915, AS923)", zh: "LoRaWAN 区域信道方案 (EU868, US915, AS923)"}
+  doc: {en: "The default channels, receive-window and beacon settings of the LoRaWAN regional plans EU868, US915 and AS923-1 to AS923-4: channel numbers, frequencies, bandwidth and data rates.", de: "Die Standardkanäle sowie Empfangsfenster- und Beacon-Einstellungen der LoRaWAN-Regionalpläne EU868, US915 und AS923-1 bis AS923-4: Kanalnummern, Frequenzen, Bandbreite und Datenraten."}
+  notes: {en: "The national radio regulations (power, duty cycle, dwell time) always take precedence over the LoRaWAN plan. Network servers can add up to 16 channels in EU868 and AS923 (CFList); only the default channels are guaranteed. Only the default channels are listed, and the values are from RP002-1.0.3 (2021); newer versions (1.0.4, 1.0.5) exist and were not read. The EU868 RX2 data rate is DR0 (SF12) as in the specification; The Things Network uses SF9 (DR3). Frequencies given as a formula use the channel number n. Duty cycle and dwell time of AS923 are country-specific and not stated.", de: "Die nationalen Funkvorschriften (Leistung, Tastgrad, Verweilzeit) haben immer Vorrang vor dem LoRaWAN-Plan. Netzwerkserver können in EU868 und AS923 bis zu 16 Kanäle hinzufügen (CFList); garantiert sind nur die Standardkanäle. Aufgeführt sind nur die Standardkanäle, die Werte stammen aus RP002-1.0.3 (2021); neuere Fassungen (1.0.4, 1.0.5) gibt es, sie wurden nicht gelesen. Die EU868-RX2-Datenrate ist wie in der Spezifikation DR0 (SF12); The Things Network verwendet SF9 (DR3). Als Formel angegebene Frequenzen verwenden die Kanalnummer n. Tastgrad und Verweilzeit von AS923 sind länderspezifisch und nicht angegeben."}
+  tags: ["lora", "lorawan", "eu868", "us915", "as923", "channel plan", "frequency plan", "regional parameters", "rp002", "rx2", "class b", "beacon", "iot", "sf12", "kanalplan", "frequenzplan", "funk"]
+  source: "LoRa Alliance RP002-1.0.3 LoRaWAN Regional Parameters (Tables 2, 3, 6, 7, section 2.5.2, 2.10.2); Semtech LoRaMac-node (RegionEU868, RegionUS915, RegionAS923); The Things Network frequency plans"
+  columns:
+    - {id: entry, name: {en: "Plan and channels", de: "Plan und Kanäle"}, dim: text}
+    - {id: channels, name: {en: "Channel numbers", de: "Kanalnummern"}, dim: text}
+    - {id: frequency, name: {en: "Frequency", de: "Frequenz"}, dim: text}
+    - {id: step, name: {en: "Channel step", de: "Kanalabstand"}, dim: frequency}
+    - {id: bandwidth, name: {en: "Bandwidth", de: "Bandbreite"}, dim: frequency}
+    - {id: data_rates, name: {en: "Data rates", de: "Datenraten"}, dim: text}
+    - {id: note, name: {en: "Remark", de: "Hinweis"}, dim: text}
+  rows:
+    - [{en: "EU868 default uplink channels", de: "EU868 Standard-Uplink-Kanäle"}, "0–2", {en: "868.1; 868.3; 868.5 MHz", de: "868,1; 868,3; 868,5 MHz"}, null, 125000, "DR0–DR5", {en: "mandatory in every device, also the join-request channels; duty cycle < 1 %; default max EIRP +16 dBm", de: "in jedem Gerät Pflicht, zugleich Join-Request-Kanäle; Tastgrad < 1 %; Standard-Max-EIRP +16 dBm"}]
+    - [{en: "EU868 RX2 (second receive window)", de: "EU868 RX2 (zweites Empfangsfenster)"}, null, {en: "869.525 MHz", de: "869,525 MHz"}, null, 125000, "DR0 (SF12)", {en: "default RX2; The Things Network uses SF9 (DR3) instead (network-specific)", de: "Standard-RX2; The Things Network verwendet stattdessen SF9 (DR3) (netzspezifisch)"}]
+    - [{en: "EU868 Class B beacon", de: "EU868 Class-B-Beacon"}, null, {en: "869.525 MHz", de: "869,525 MHz"}, null, 125000, null, {en: "Class B beacon and default ping slot", de: "Class-B-Beacon und Standard-Ping-Slot"}]
+    - [{en: "US915 125 kHz uplink", de: "US915 125-kHz-Uplink"}, "0–63", {en: "902.3 + 0.2·n MHz", de: "902,3 + 0,2·n MHz"}, 200000, 125000, "DR0–DR3", {en: "64 channels 902.3–914.9 MHz; networks usually use one sub-band of 8 (e.g. TTN FSB2 = channels 8–15, 903.9–905.3 MHz)", de: "64 Kanäle 902,3–914,9 MHz; Netze nutzen meist ein Teilband aus 8 Kanälen (z. B. TTN FSB2 = Kanäle 8–15, 903,9–905,3 MHz)"}]
+    - [{en: "US915 500 kHz uplink", de: "US915 500-kHz-Uplink"}, "64–71", {en: "903.0 + 1.6·(n − 64) MHz", de: "903,0 + 1,6·(n − 64) MHz"}, 1600000, 500000, "DR4", {en: "8 channels 903.0–914.2 MHz (TTN FSB2 uses channel 65 = 904.6 MHz)", de: "8 Kanäle 903,0–914,2 MHz (TTN FSB2 nutzt Kanal 65 = 904,6 MHz)"}]
+    - [{en: "US915 500 kHz downlink", de: "US915 500-kHz-Downlink"}, "0–7", {en: "923.3 + 0.6·n MHz", de: "923,3 + 0,6·n MHz"}, 600000, 500000, "DR8–DR13", {en: "8 downlink channels 923.3–927.5 MHz; no duty-cycle limit, 400 ms dwell time on 125 kHz uplinks, default max EIRP +30 dBm", de: "8 Downlink-Kanäle 923,3–927,5 MHz; keine Tastgrad-Grenze, 400 ms Verweilzeit auf 125-kHz-Uplinks, Standard-Max-EIRP +30 dBm"}]
+    - [{en: "US915 RX2 (second receive window)", de: "US915 RX2 (zweites Empfangsfenster)"}, null, {en: "923.3 MHz", de: "923,3 MHz"}, null, 500000, "DR8", {en: "default RX2", de: "Standard-RX2"}]
+    - [{en: "AS923-1 default uplink channels", de: "AS923-1 Standard-Uplink-Kanäle"}, "0–1", {en: "923.2; 923.4 MHz", de: "923,2; 923,4 MHz"}, null, 125000, "DR0–DR5", {en: "frequency offset 0; uplink dwell time 400 ms; default max EIRP +16 dBm; RX2 923.2 MHz DR2 (SF10)", de: "Frequenzversatz 0; Uplink-Verweilzeit 400 ms; Standard-Max-EIRP +16 dBm; RX2 923,2 MHz DR2 (SF10)"}]
+    - [{en: "AS923-2 default uplink channels", de: "AS923-2 Standard-Uplink-Kanäle"}, "0–1", {en: "921.4; 921.6 MHz", de: "921,4; 921,6 MHz"}, null, 125000, "DR0–DR5", {en: "AS923 with offset −1.80 MHz; RX2 921.4 MHz", de: "AS923 mit Versatz −1,80 MHz; RX2 921,4 MHz"}]
+    - [{en: "AS923-3 default uplink channels", de: "AS923-3 Standard-Uplink-Kanäle"}, "0–1", {en: "916.6; 916.8 MHz", de: "916,6; 916,8 MHz"}, null, 125000, "DR0–DR5", {en: "AS923 with offset −6.60 MHz; RX2 916.6 MHz", de: "AS923 mit Versatz −6,60 MHz; RX2 916,6 MHz"}]
+    - [{en: "AS923-4 default uplink channels", de: "AS923-4 Standard-Uplink-Kanäle"}, "0–1", {en: "917.3; 917.5 MHz", de: "917,3; 917,5 MHz"}, null, 125000, "DR0–DR5", {en: "AS923 with offset −5.90 MHz (used in Israel per RP002 country list); RX2 917.3 MHz", de: "AS923 mit Versatz −5,90 MHz (laut RP002-Länderliste in Israel); RX2 917,3 MHz"}]
+
+- id: wifi_channels
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  name: {cs: "Kanály Wi-Fi 2,4 a 5 GHz", da: "Wi-Fi-kanaler 2,4 og 5 GHz", de: "WLAN-Kanäle 2,4 und 5 GHz", el: "Κανάλια Wi-Fi 2,4 και 5 GHz", en: "Wi-Fi channels 2.4 and 5 GHz", es: "Canales Wi-Fi de 2,4 y 5 GHz", fr: "Canaux Wi-Fi 2,4 et 5 GHz", hi: "Wi-Fi चैनल 2.4 और 5 GHz", it: "Canali Wi-Fi a 2,4 e 5 GHz", ja: "Wi-Fiチャネル (2.4 GHz / 5 GHz)", nl: "Wifi-kanalen 2,4 en 5 GHz", no: "Wi-Fi-kanaler 2,4 og 5 GHz", pl: "Kanały Wi-Fi 2,4 i 5 GHz", pt: "Canais Wi-Fi de 2,4 e 5 GHz", sv: "Wi-Fi-kanaler 2,4 och 5 GHz", zh: "Wi-Fi 信道 (2.4 GHz 和 5 GHz)"}
+  doc: {en: "The 20 MHz Wi-Fi (IEEE 802.11) channels at 2.4 GHz (1 to 14) and 5 GHz (36 to 165): centre frequency, channel edges and availability in Germany/EU and in the USA.", de: "Die 20-MHz-WLAN-Kanäle (IEEE 802.11) bei 2,4 GHz (1 bis 14) und 5 GHz (36 bis 165): Mittenfrequenz, Kanalgrenzen und Verfügbarkeit in Deutschland/EU und in den USA."}
+  notes: {en: "Centre frequencies: 2407 MHz + 5 MHz × channel at 2.4 GHz (channel 14 is 2484 MHz) and 5000 MHz + 5 MHz × channel at 5 GHz. Availability is derived from the Linux regulatory database (wireless-regdb) and checks whether the 20 MHz channel lies inside an allowed range; DFS means dynamic frequency selection is required. Regulatory details (power limits, indoor rules, DFS) change: check the current national rules (in Germany the Bundesnetzagentur). At 2.4 GHz neighbouring channels are only 5 MHz apart, so 20 MHz channels overlap (two OFDM channels overlap when their numbers differ by less than 4). US channels 12 and 13: wireless-regdb does not allow them, Wikipedia says only at low power. Not listed: U-NII-4 (channels 169 to 177), the 6 GHz band and bonded 40, 80 and 160 MHz channels.", de: "Mittenfrequenzen: 2407 MHz + 5 MHz × Kanal bei 2,4 GHz (Kanal 14 liegt bei 2484 MHz) und 5000 MHz + 5 MHz × Kanal bei 5 GHz. Die Verfügbarkeit ist aus der Linux-Regulierungsdatenbank (wireless-regdb) abgeleitet und prüft, ob der 20-MHz-Kanal in einem erlaubten Bereich liegt; DFS bedeutet, dass dynamische Frequenzwahl erforderlich ist. Regulatorische Details (Leistung, Innenraum, DFS) ändern sich: maßgeblich sind die aktuellen nationalen Vorgaben (in Deutschland die Bundesnetzagentur). Bei 2,4 GHz liegen benachbarte Kanäle nur 5 MHz auseinander, 20-MHz-Kanäle überlappen sich deshalb (zwei OFDM-Kanäle überlappen, wenn ihre Nummern weniger als 4 auseinanderliegen). US-Kanäle 12 und 13: wireless-regdb erlaubt sie nicht, Wikipedia nennt sie nur mit geringer Leistung. Nicht aufgeführt: U-NII-4 (Kanäle 169 bis 177), das 6-GHz-Band und gebündelte 40-, 80- und 160-MHz-Kanäle."}
+  tags: ["wifi", "wi-fi", "wlan", "wireless", "channel", "kanal", "802.11", "ieee 802.11", "2.4 ghz", "5 ghz", "dfs", "u-nii", "frequency", "frequenz", "router", "funk"]
+  source: "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) for the centre frequencies; en.wikipedia \"List of WLAN channels\"; wireless-regdb db.txt (rules for DE and US) for the availability"
+  key: channel
+  columns:
+    - {id: channel, name: {en: "Channel", de: "Kanal"}, dim: number}
+    - {id: band, name: {en: "Band", de: "Band"}, dim: text}
+    - {id: centre, name: {en: "Centre frequency", de: "Mittenfrequenz"}, dim: frequency}
+    - {id: f_low, name: {en: "Lower edge", de: "Untere Grenze"}, dim: frequency}
+    - {id: f_high, name: {en: "Upper edge", de: "Obere Grenze"}, dim: frequency}
+    - {id: us_band, name: {en: "US U-NII band", de: "US-U-NII-Band"}, dim: text}
+    - {id: de, name: {en: "Germany / EU", de: "Deutschland / EU"}, dim: text}
+    - {id: us, name: {en: "USA", de: "USA"}, dim: text}
+    - {id: note, name: {en: "Remark", de: "Hinweis"}, dim: text}
+  rows:
+    - [1, {en: "2.4 GHz", de: "2,4 GHz"}, 2412000000, 2402000000, 2422000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [2, {en: "2.4 GHz", de: "2,4 GHz"}, 2417000000, 2407000000, 2427000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [3, {en: "2.4 GHz", de: "2,4 GHz"}, 2422000000, 2412000000, 2432000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [4, {en: "2.4 GHz", de: "2,4 GHz"}, 2427000000, 2417000000, 2437000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [5, {en: "2.4 GHz", de: "2,4 GHz"}, 2432000000, 2422000000, 2442000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [6, {en: "2.4 GHz", de: "2,4 GHz"}, 2437000000, 2427000000, 2447000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [7, {en: "2.4 GHz", de: "2,4 GHz"}, 2442000000, 2432000000, 2452000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [8, {en: "2.4 GHz", de: "2,4 GHz"}, 2447000000, 2437000000, 2457000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [9, {en: "2.4 GHz", de: "2,4 GHz"}, 2452000000, 2442000000, 2462000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [10, {en: "2.4 GHz", de: "2,4 GHz"}, 2457000000, 2447000000, 2467000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [11, {en: "2.4 GHz", de: "2,4 GHz"}, 2462000000, 2452000000, 2472000000, null, {en: "yes", de: "ja"}, {en: "yes", de: "ja"}, null]
+    - [12, {en: "2.4 GHz", de: "2,4 GHz"}, 2467000000, 2457000000, 2477000000, null, {en: "yes", de: "ja"}, {en: "no", de: "nein"}, {en: "US: wireless-regdb does not allow it; Wikipedia: allowed only at low power and normally avoided", de: "USA: laut wireless-regdb nicht erlaubt; laut Wikipedia nur mit geringer Leistung erlaubt und meist gemieden"}]
+    - [13, {en: "2.4 GHz", de: "2,4 GHz"}, 2472000000, 2462000000, 2482000000, null, {en: "yes", de: "ja"}, {en: "no", de: "nein"}, {en: "US: wireless-regdb does not allow it; Wikipedia: allowed only at low power and normally avoided", de: "USA: laut wireless-regdb nicht erlaubt; laut Wikipedia nur mit geringer Leistung erlaubt und meist gemieden"}]
+    - [14, {en: "2.4 GHz", de: "2,4 GHz"}, 2484000000, 2474000000, 2494000000, null, {en: "no", de: "nein"}, {en: "no", de: "nein"}, {en: "Japan only, 802.11b (DSSS/CCK) only", de: "nur Japan, nur 802.11b (DSSS/CCK)"}]
+    - [36, "5 GHz", 5180000000, 5170000000, 5190000000, "U-NII-1", {en: "indoor", de: "nur innen"}, {en: "yes", de: "ja"}, null]
+    - [40, "5 GHz", 5200000000, 5190000000, 5210000000, "U-NII-1", {en: "indoor", de: "nur innen"}, {en: "yes", de: "ja"}, null]
+    - [44, "5 GHz", 5220000000, 5210000000, 5230000000, "U-NII-1", {en: "indoor", de: "nur innen"}, {en: "yes", de: "ja"}, null]
+    - [48, "5 GHz", 5240000000, 5230000000, 5250000000, "U-NII-1", {en: "indoor", de: "nur innen"}, {en: "yes", de: "ja"}, null]
+    - [52, "5 GHz", 5260000000, 5250000000, 5270000000, "U-NII-2A", {en: "indoor, DFS", de: "nur innen, DFS"}, "DFS", null]
+    - [56, "5 GHz", 5280000000, 5270000000, 5290000000, "U-NII-2A", {en: "indoor, DFS", de: "nur innen, DFS"}, "DFS", null]
+    - [60, "5 GHz", 5300000000, 5290000000, 5310000000, "U-NII-2A", {en: "indoor, DFS", de: "nur innen, DFS"}, "DFS", null]
+    - [64, "5 GHz", 5320000000, 5310000000, 5330000000, "U-NII-2A", {en: "indoor, DFS", de: "nur innen, DFS"}, "DFS", null]
+    - [100, "5 GHz", 5500000000, 5490000000, 5510000000, "U-NII-2C", "DFS", "DFS", null]
+    - [104, "5 GHz", 5520000000, 5510000000, 5530000000, "U-NII-2C", "DFS", "DFS", null]
+    - [108, "5 GHz", 5540000000, 5530000000, 5550000000, "U-NII-2C", "DFS", "DFS", null]
+    - [112, "5 GHz", 5560000000, 5550000000, 5570000000, "U-NII-2C", "DFS", "DFS", null]
+    - [116, "5 GHz", 5580000000, 5570000000, 5590000000, "U-NII-2C", "DFS", "DFS", null]
+    - [120, "5 GHz", 5600000000, 5590000000, 5610000000, "U-NII-2C", "DFS", "DFS", null]
+    - [124, "5 GHz", 5620000000, 5610000000, 5630000000, "U-NII-2C", "DFS", "DFS", null]
+    - [128, "5 GHz", 5640000000, 5630000000, 5650000000, "U-NII-2C", "DFS", "DFS", null]
+    - [132, "5 GHz", 5660000000, 5650000000, 5670000000, "U-NII-2C", "DFS", "DFS", null]
+    - [136, "5 GHz", 5680000000, 5670000000, 5690000000, "U-NII-2C", "DFS", "DFS", null]
+    - [140, "5 GHz", 5700000000, 5690000000, 5710000000, "U-NII-2C", "DFS", "DFS", null]
+    - [144, "5 GHz", 5720000000, 5710000000, 5730000000, "U-NII-2C/3", {en: "no", de: "nein"}, "DFS", {en: "5710–5730 MHz exceeds the EU WLAN band end 5725 MHz", de: "5710–5730 MHz überschreitet das EU-WLAN-Bandende 5725 MHz"}]
+    - [149, "5 GHz", 5745000000, 5735000000, 5755000000, "U-NII-3", {en: "SRD only, 25 mW", de: "nur SRD, 25 mW"}, {en: "yes", de: "ja"}, null]
+    - [153, "5 GHz", 5765000000, 5755000000, 5775000000, "U-NII-3", {en: "SRD only, 25 mW", de: "nur SRD, 25 mW"}, {en: "yes", de: "ja"}, null]
+    - [157, "5 GHz", 5785000000, 5775000000, 5795000000, "U-NII-3", {en: "SRD only, 25 mW", de: "nur SRD, 25 mW"}, {en: "yes", de: "ja"}, null]
+    - [161, "5 GHz", 5805000000, 5795000000, 5815000000, "U-NII-3", {en: "SRD only, 25 mW", de: "nur SRD, 25 mW"}, {en: "yes", de: "ja"}, null]
+    - [165, "5 GHz", 5825000000, 5815000000, 5835000000, "U-NII-3", {en: "SRD only, 25 mW", de: "nur SRD, 25 mW"}, {en: "yes", de: "ja"}, null]
+
+- id: amateur_bands_de
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  name: {cs: "Amatérská rádiová pásma v Německu (AFuV)", da: "Amatørradiobånd i Tyskland (AFuV)", de: "Amateurfunkbänder in Deutschland (AFuV)", el: "Ζώνες ραδιοερασιτεχνών στη Γερμανία (AFuV)", en: "Amateur radio bands in Germany (AFuV)", es: "Bandas de radioaficionado en Alemania (AFuV)", fr: "Bandes radioamateurs en Allemagne (AFuV)", hi: "जर्मनी में शौकिया रेडियो बैंड (AFuV)", it: "Bande radioamatoriali in Germania (AFuV)", ja: "ドイツのアマチュア無線バンド (AFuV)", nl: "Amateurradiobanden in Duitsland (AFuV)", no: "Amatørradiobånd i Tyskland (AFuV)", pl: "Pasma radioamatorskie w Niemczech (AFuV)", pt: "Bandas de radioamador na Alemanha (AFuV)", sv: "Amatörradiobanden i Tyskland (AFuV)", zh: "德国业余无线电频段 (AFuV)"}
+  doc: {en: "The 45 frequency ranges of Annex 1 of the German Amateur Radio Ordinance (AFuV): band edges, primary or secondary status, maximum power per licence class A, E and N and the additional conditions.", de: "Die 45 Frequenzbereiche der Anlage 1 der Amateurfunkverordnung (AFuV): Bandgrenzen, primärer oder sekundärer Status, Höchstleistung je Klasse A, E und N sowie die zusätzlichen Nutzungsbestimmungen."}
+  notes: {en: "Only the current AFuV and the decisions of the Bundesnetzagentur are binding; temporary toleration rules (e.g. for the 70 MHz band) are not part of Annex 1 and are not listed. P = the amateur service is primary, S = secondary. PEP = peak envelope power, ERP = effective radiated power. An empty class cell means the band is not available to that class. The band names are conventional and not part of the regulation. Row 45 covers every frequency above 275 GHz (the lower edge is not included). General rule (Annex 1 (1)): remote-controlled and automatic terrestrial stations above 30 MHz may use at most 50 W ERP (except remote operation). Additional conditions (part B): 1 max. occupied bandwidth 800 Hz; 2 sites must be notified to the BNetzA; 3 max. bandwidth 2.7 kHz; 4 max. bandwidth 7 kHz below 29 MHz, 40 kHz above; 5 no interference to broadcasting and wind-profiler radars, horizontal polarisation only, fixed stations only (50 to 52 MHz); 6 max. bandwidth 40 kHz; 7 max. 2 MHz (AM TV 7 MHz); 8 max. 2 MHz (AM and digital TV 7 MHz, FM TV 18 MHz); 9 max. 10 MHz (TV 20 MHz); 10 no remote-controlled stations except remote operation, no contests; 11 1247 to 1263 MHz max. 3.05 W ERP, no remote-controlled or automatic stations; 12 automatic stations max. 50 W ERP; 13 also usable for the amateur-satellite service (see the regulation for primary and secondary details); 14 bands above 275 GHz usable without protection; 15 weekends on 1850 to 2000 kHz: class A 750 W PEP, class E 100 W PEP, contests allowed; 16 max. bandwidth 12 kHz; 17 links of remote-controlled and automatic stations up to 1000 W ERP in justified cases. Frequencies are rounded to the significant digits set in the ECalc settings.", de: "Verbindlich sind nur die aktuelle AFuV und die Verfügungen der Bundesnetzagentur; befristete Duldungsregeln (z. B. für das 70-MHz-Band) gehören nicht zu Anlage 1 und sind nicht aufgeführt. P = der Amateurfunkdienst ist primär, S = sekundär. PEP = Spitzenleistung, ERP = effektive Strahlungsleistung. Eine leere Klassenzelle bedeutet: Band für diese Klasse nicht freigegeben. Die Bandbezeichnungen sind üblich und nicht Teil der Verordnung. Zeile 45 umfasst alle Frequenzen oberhalb 275 GHz (die untere Grenze gehört nicht dazu). Allgemein (Anlage 1 Absatz 1): fernbediente und automatisch arbeitende terrestrische Stationen oberhalb 30 MHz dürfen höchstens 50 W ERP verwenden (ausgenommen Remote-Betrieb). Zusätzliche Nutzungsbestimmungen (Buchstabe B): 1 max. belegte Bandbreite 800 Hz; 2 Betriebsorte der BNetzA anzeigen; 3 max. Bandbreite 2,7 kHz; 4 max. Bandbreite unter 29 MHz 7 kHz, darüber 40 kHz; 5 keine Störung von Rundfunk und Windprofilradaren, nur horizontale Polarisation, nur ortsfeste Stationen (50 bis 52 MHz); 6 max. Bandbreite 40 kHz; 7 max. 2 MHz (AM-Fernsehen 7 MHz); 8 max. 2 MHz (AM- und digitales Fernsehen 7 MHz, FM-Fernsehen 18 MHz); 9 max. 10 MHz (Fernsehen 20 MHz); 10 keine fernbedienten Stationen außer Remote-Betrieb, kein Contestbetrieb; 11 1247 bis 1263 MHz max. 3,05 W ERP, keine fernbedienten oder automatischen Stationen; 12 automatische Stationen max. 50 W ERP; 13 auch für den Amateurfunkdienst über Satelliten nutzbar (Details zu primär und sekundär in der Verordnung); 14 Bereiche über 275 GHz ohne Schutzanspruch nutzbar; 15 an Wochenenden auf 1850 bis 2000 kHz: Klasse A 750 W PEP, Klasse E 100 W PEP, Contests erlaubt; 16 max. Bandbreite 12 kHz; 17 Linkstrecken fernbedienter und automatischer Stationen bis 1000 W ERP in begründeten Fällen. Frequenzen werden auf die in den ECalc-Einstellungen gewählten signifikanten Stellen gerundet."}
+  tags: ["amateur radio", "ham radio", "afuv", "amateurfunk", "amateurfunkverordnung", "band", "frequency", "power", "pep", "erp", "class a", "class e", "class n", "klasse a", "klasse e", "klasse n", "bundesnetzagentur", "kurzwelle", "2 m", "70 cm", "leistung"]
+  source: "Amateurfunkverordnung (AFuV) Anlage 1, BGBl. 2024 I Nr. 175, gesetze-im-internet.de; checked row by row against buzer.de and against the DARC summary \"Amateurfunkverordnung – Änderungen zum 24.06.2024\""
+  key: nr
+  columns:
+    - {id: nr, name: {en: "No.", de: "Lfd. Nr."}, dim: number}
+    - {id: band, name: {en: "Band", de: "Band"}, dim: text}
+    - {id: f_low, name: {en: "Lower edge", de: "Untere Grenze"}, dim: frequency}
+    - {id: f_high, name: {en: "Upper edge", de: "Obere Grenze"}, dim: frequency}
+    - {id: status, name: {en: "Status (P primary, S secondary)", de: "Status (P primär, S sekundär)"}, dim: text}
+    - {id: class_a, name: {en: "Class A max. power", de: "Klasse A Höchstleistung"}, dim: text}
+    - {id: class_e, name: {en: "Class E max. power", de: "Klasse E Höchstleistung"}, dim: text}
+    - {id: class_n, name: {en: "Class N max. power", de: "Klasse N Höchstleistung"}, dim: text}
+    - {id: b_notes, name: {en: "Conditions (part B)", de: "Bedingungen (Buchstabe B)"}, dim: text}
+  rows:
+    - [1, "2200 m", 135700, 137800, "S", "1 W ERP", null, null, "1,2,10"]
+    - [2, "630 m", 472000, 479000, "S", "1 W ERP", null, null, "1"]
+    - [3, "160 m", 1810000, 1850000, "P", "750 W PEP", "100 W PEP", null, "3"]
+    - [4, "160 m", 1850000, 1890000, "S", "75 W PEP", "75 W PEP", null, "3,10,12,15"]
+    - [5, "160 m", 1890000, 2000000, "S", "10 W PEP", "10 W PEP", null, "3,10,15"]
+    - [6, "80 m", 3500000, 3800000, "P", "750 W PEP", "100 W PEP", null, "3"]
+    - [7, "60 m", 5351500, 5366500, "S", {en: "9.14 W ERP", de: "9,14 W ERP"}, null, null, "3"]
+    - [8, "40 m", 7000000, 7200000, "P", "750 W PEP", null, null, "3,13"]
+    - [9, "30 m", 10100000, 10150000, "S", "150 W PEP", null, null, "1,10,12"]
+    - [10, "20 m", 14000000, 14350000, "P", "750 W PEP", null, null, "3,13"]
+    - [11, "17 m", 18068000, 18168000, "P", "750 W PEP", null, null, "3,13"]
+    - [12, "15 m", 21000000, 21450000, "P", "750 W PEP", "100 W PEP", null, "3,13"]
+    - [13, "12 m", 24890000, 24990000, "P", "750 W PEP", null, null, "3,13"]
+    - [14, "10 m", 28000000, 29700000, "P", "750 W PEP", "100 W PEP", "10 W ERP", "4,13"]
+    - [15, "6 m", 50000000, 50400000, "S", "750 W PEP", null, null, "5,16"]
+    - [16, "6 m", 50400000, 52000000, "S", "25 W PEP", null, null, "5,16"]
+    - [17, "2 m", 144000000, 146000000, "P", "750 W PEP", "75 W PEP", {en: "6.1 W ERP", de: "6,1 W ERP"}, "6,13"]
+    - [18, "70 cm", 430000000, 440000000, "P", "750 W PEP", "75 W PEP", {en: "6.1 W ERP", de: "6,1 W ERP"}, "7,13"]
+    - [19, "23 cm", 1240000000, 1250000000, "S", "750 W PEP", "75 W PEP", null, "8,11,17"]
+    - [20, "23 cm", 1250000000, 1260000000, "S", "750 W PEP", "75 W PEP", null, "8,11,17"]
+    - [21, "23 cm", 1260000000, 1300000000, "S", "750 W PEP", "75 W PEP", null, "8,11,13,17"]
+    - [22, "13 cm", 2320000000, 2400000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [23, "13 cm", 2400000000, 2450000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [24, "9 cm", 3400000000, 3475000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [25, "6 cm", 5650000000, 5670000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [26, "6 cm", 5670000000, 5725000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [27, "6 cm", 5725000000, 5755000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [28, "6 cm", 5755000000, 5830000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [29, "6 cm", 5830000000, 5850000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [30, "3 cm", 10000000000, 10400000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [31, "3 cm", 10400000000, 10450000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [32, "3 cm", 10450000000, 10500000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [33, {en: "1.2 cm", de: "1,2 cm"}, 24000000000, 24050000000, "P", "75 W PEP", "5 W PEP", null, "13,17"]
+    - [34, {en: "1.2 cm", de: "1,2 cm"}, 24050000000, 24250000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [35, "6 mm", 47000000000, 47200000000, "P", "75 W PEP", "5 W PEP", null, "13,17"]
+    - [36, "4 mm", 76000000000, 77500000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [37, "4 mm", 77500000000, 78000000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [38, "4 mm", 78000000000, 79000000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [39, "4 mm", 79000000000, 81000000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [40, {en: "2.5 mm", de: "2,5 mm"}, 122250000000, 123000000000, "S", "75 W PEP", "5 W PEP", null, "9,17"]
+    - [41, "2 mm", 134000000000, 136000000000, "P", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [42, "2 mm", 136000000000, 141000000000, "S", "75 W PEP", "5 W PEP", null, "9,13,17"]
+    - [43, {en: "1.2 mm", de: "1,2 mm"}, 241000000000, 248000000000, "S", "75 W PEP", "5 W PEP", null, "13,17"]
+    - [44, {en: "1.2 mm", de: "1,2 mm"}, 248000000000, 250000000000, "P", "75 W PEP", "5 W PEP", null, "13,17"]
+    - [45, {en: "above 275 GHz", de: "über 275 GHz"}, 275000000000, null, null, null, null, null, "14,17"]
+
+- id: logic_levels
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Logické úrovně", da: "Logikniveauer", de: "Logikpegel", el: "Λογικά επίπεδα", en: "Logic levels", es: "Niveles lógicos", fr: "Niveaux logiques", hi: "लॉजिक स्तर", it: "Livelli logici", ja: "ロジックレベル", nl: "Logische niveaus", no: "Logikknivåer", pl: "Poziomy logiczne", pt: "Níveis lógicos", sv: "Logiknivåer", zh: "逻辑电平"}
+  doc: {en: "Input and output voltage limits of TTL, 74LS, 74HC, 74HCT, 5 V CMOS and 3.3, 2.5 and 1.8 V LVCMOS logic: VIH, VIL, VOH, VOL, load currents and switching threshold.", de: "Eingangs- und Ausgangsspannungsgrenzen von TTL, 74LS, 74HC, 74HCT, 5-V-CMOS und 3,3-, 2,5- und 1,8-V-LVCMOS-Logik: VIH, VIL, VOH, VOL, Lastströme und Schaltschwelle."}
+  notes: {en: "Interfacing rule: a driver fits a receiver when VOH(min) of the driver is at least VIH(min) of the receiver and VOL(max) of the driver is at most VIL(max) of the receiver. Example: a 3.3 V LVCMOS output (VOH at least 2.4 V) drives 74HCT (VIH 2.0 V) but not 74HC at 5 V (VIH 3.15 V at 4.5 V). Noise margin high = VOH(min) − VIH(min); noise margin low = VIL(max) − VOL(max). The VIH and VIL columns are the limits at the nominal supply; for the CMOS rules 0.7 and 0.3 × VCC (5 V) and 0.65 and 0.35 × VCC (1.8 V) the numbers are the values at that supply. The VOH and VOL columns show a / b for the two load currents of the next column; \"VCC − 0.1\" is the light-load value. Values are the limits of real parts (−40 to 85 °C) from the data sheets named in the source, not the JEDEC standards (not read); output levels depend strongly on load current and temperature, so check the data sheet of the actual part. The switching threshold Vt is read from the TI Logic Guide figures and is approximate.", de: "Verbindungsregel: Ein Treiber passt zu einem Empfänger, wenn VOH(min) des Treibers mindestens VIH(min) des Empfängers beträgt und VOL(max) des Treibers höchstens VIL(max) des Empfängers. Beispiel: Ein 3,3-V-LVCMOS-Ausgang (VOH mindestens 2,4 V) treibt 74HCT (VIH 2,0 V), aber nicht 74HC an 5 V (VIH 3,15 V bei 4,5 V). Störabstand HIGH = VOH(min) − VIH(min); Störabstand LOW = VIL(max) − VOL(max). Die Spalten VIH und VIL sind die Grenzen bei der Nennversorgung; bei den CMOS-Regeln 0,7 und 0,3 × VCC (5 V) sowie 0,65 und 0,35 × VCC (1,8 V) stehen die Werte bei dieser Versorgung. Die Spalten VOH und VOL zeigen a / b für die zwei Lastströme der folgenden Spalte; „VCC − 0,1“ ist der Wert bei kleiner Last. Die Werte sind die Grenzen realer Bausteine (−40 bis 85 °C) aus den in der Quelle genannten Datenblättern, nicht die JEDEC-Normen (nicht gelesen); Ausgangspegel hängen stark von Laststrom und Temperatur ab, maßgeblich ist das Datenblatt des konkreten Bausteins. Die Schaltschwelle Vt ist aus den Bildern des TI Logic Guide abgelesen und ungefähr."}
+  tags: ["logic", "logic levels", "ttl", "cmos", "lvcmos", "lvttl", "74hc", "74hct", "74ls", "74lvc", "vih", "vil", "voh", "vol", "noise margin", "level shifting", "pegel", "logikpegel", "störabstand", "3.3 v", "5 v"]
+  source: "Texas Instruments data sheets SN7400/SN74LS00 (SDLS025D), SN74HC00 (SCLS181H), SN74HCT00 (SCLS062F), SN74LVC1G00 (SCES212AC) and Logic Guide SDYU001AC; Diodes 74HC00 (DS35319), 74HCT00 (DS35329), 74LVC1G00 (DS32196); en.wikipedia \"Logic level\""
+  key: family
+  columns:
+    - {id: family, name: {en: "Logic family", de: "Logikfamilie"}, dim: text}
+    - {id: vcc, name: {en: "Supply range", de: "Versorgungsbereich"}, dim: text}
+    - {id: vcc_nom, name: {en: "Nominal supply", de: "Nennversorgung"}, dim: voltage}
+    - {id: vih_min, name: {en: "VIH min (HIGH input, at nominal supply)", de: "VIH min (HIGH-Eingang, bei Nennversorgung)"}, dim: voltage}
+    - {id: vil_max, name: {en: "VIL max (LOW input, at nominal supply)", de: "VIL max (LOW-Eingang, bei Nennversorgung)"}, dim: voltage}
+    - {id: voh_min, name: {en: "VOH min (HIGH output)", de: "VOH min (HIGH-Ausgang)"}, dim: text}
+    - {id: voh_cond, name: {en: "VOH load current", de: "VOH-Laststrom"}, dim: text}
+    - {id: vol_max, name: {en: "VOL max (LOW output)", de: "VOL max (LOW-Ausgang)"}, dim: text}
+    - {id: vol_cond, name: {en: "VOL load current", de: "VOL-Laststrom"}, dim: text}
+    - {id: vt_typ, name: {en: "Threshold Vt (approx.)", de: "Schaltschwelle Vt (ca.)"}, dim: voltage}
+    - {id: note, name: {en: "Remark", de: "Hinweis"}, dim: text}
+  rows:
+    - [{en: "TTL (74xx, e.g. SN7400)", de: "TTL (74xx, z. B. SN7400)"}, {en: "4.75–5.25 V", de: "4,75–5,25 V"}, 5.0, 2.0, 0.8, {en: "2.4 V", de: "2,4 V"}, {en: "IOH = −0.4 mA", de: "IOH = −0,4 mA"}, {en: "0.4 V", de: "0,4 V"}, "IOL = 16 mA", 1.5, {en: "standard bipolar TTL", de: "Standard-TTL (bipolar)"}]
+    - [{en: "74LS (Low-power Schottky TTL, e.g. SN74LS00)", de: "74LS (Low-Power-Schottky-TTL, z. B. SN74LS00)"}, {en: "4.75–5.25 V", de: "4,75–5,25 V"}, 5.0, 2.0, 0.8, {en: "2.5 V", de: "2,5 V"}, {en: "IOH = −0.4 mA", de: "IOH = −0,4 mA"}, {en: "0.4 / 0.5 V", de: "0,4 / 0,5 V"}, "IOL = 4 mA / 8 mA", null, {en: "VOH and VOL per the TI SN74LS00 data sheet (SDLS025D) only; older data books give VOH 2.7 V for 74LS", de: "VOH und VOL nur nach dem TI-Datenblatt SN74LS00 (SDLS025D); ältere Datenbücher nennen VOH 2,7 V für 74LS"}]
+    - [{en: "74HC (CMOS) at VCC = 4.5 V", de: "74HC (CMOS) bei VCC = 4,5 V"}, {en: "2–6 V (table at 4.5 V)", de: "2–6 V (Tabelle bei 4,5 V)"}, 4.5, 3.15, 1.35, {en: "4.4 / 3.84 V", de: "4,4 / 3,84 V"}, "IOH = −20 µA / −4 mA", {en: "0.1 / 0.33 V", de: "0,1 / 0,33 V"}, "IOL = 20 µA / 4 mA", null, {en: "VOH/VOL limits for −40…85 °C; HC inputs are not TTL-compatible", de: "VOH/VOL-Grenzen für −40…85 °C; HC-Eingänge sind nicht TTL-kompatibel"}]
+    - [{en: "74HCT (CMOS, TTL-compatible inputs)", de: "74HCT (CMOS, TTL-kompatible Eingänge)"}, {en: "4.5–5.5 V", de: "4,5–5,5 V"}, 5.0, 2.0, 0.8, {en: "4.4 / 3.84 V", de: "4,4 / 3,84 V"}, {en: "IOH = −20 µA / −4 mA (VCC 4.5 V)", de: "IOH = −20 µA / −4 mA (VCC 4,5 V)"}, {en: "0.1 / 0.33 V", de: "0,1 / 0,33 V"}, {en: "IOL = 20 µA / 4 mA (VCC 4.5 V)", de: "IOL = 20 µA / 4 mA (VCC 4,5 V)"}, 1.5, {en: "drives CMOS inputs from TTL outputs; −40…85 °C limits", de: "zum Ansteuern von CMOS-Logik durch TTL-Ausgänge; Grenzen für −40…85 °C"}]
+    - [{en: "CMOS 5 V generic (0.7/0.3 VCC rule), e.g. 74LVC at 4.5–5.5 V", de: "CMOS 5 V allgemein (0,7/0,3-VCC-Regel), z. B. 74LVC bei 4,5–5,5 V"}, {en: "4.5–5.5 V", de: "4,5–5,5 V"}, 5.0, 3.5, 1.5, {en: "VCC − 0.1 / 3.8 V", de: "VCC − 0,1 / 3,8 V"}, {en: "IOH = −100 µA / −32 mA (VCC 4.5 V)", de: "IOH = −100 µA / −32 mA (VCC 4,5 V)"}, {en: "0.1 / 0.55 V", de: "0,1 / 0,55 V"}, {en: "IOL = 100 µA / 32 mA (VCC 4.5 V)", de: "IOL = 100 µA / 32 mA (VCC 4,5 V)"}, 2.5, {en: "outputs depend on the family; values shown for 74LVC1G00", de: "Ausgangswerte sind familienabhängig; Werte für 74LVC1G00"}]
+    - [{en: "LVCMOS / LVTTL 3.3 V (e.g. 74LVC at 3.0–3.6 V)", de: "LVCMOS / LVTTL 3,3 V (z. B. 74LVC bei 3,0–3,6 V)"}, {en: "3.0–3.6 V", de: "3,0–3,6 V"}, 3.3, 2.0, 0.8, {en: "VCC − 0.1 / 2.4 V", de: "VCC − 0,1 / 2,4 V"}, {en: "IOH = −100 µA / −16 mA (VCC 3.0 V)", de: "IOH = −100 µA / −16 mA (VCC 3,0 V)"}, {en: "0.1 / 0.4 V", de: "0,1 / 0,4 V"}, {en: "IOL = 100 µA / 16 mA (VCC 3.0 V)", de: "IOL = 100 µA / 16 mA (VCC 3,0 V)"}, 1.5, {en: "LVTTL output levels per TI Logic Guide: VOH 2.4 V, VOL 0.4 V", de: "LVTTL-Ausgangspegel laut TI Logic Guide: VOH 2,4 V, VOL 0,4 V"}]
+    - [{en: "LVCMOS 2.5 V (e.g. 74LVC at 2.3–2.7 V)", de: "LVCMOS 2,5 V (z. B. 74LVC bei 2,3–2,7 V)"}, {en: "2.3–2.7 V", de: "2,3–2,7 V"}, 2.5, 1.7, 0.7, {en: "VCC − 0.1 / 1.9 V", de: "VCC − 0,1 / 1,9 V"}, {en: "IOH = −100 µA / −8 mA (VCC 2.3 V)", de: "IOH = −100 µA / −8 mA (VCC 2,3 V)"}, {en: "0.1 / 0.3 V", de: "0,1 / 0,3 V"}, {en: "IOL = 100 µA / 8 mA (VCC 2.3 V)", de: "IOL = 100 µA / 8 mA (VCC 2,3 V)"}, 1.2, {en: "TI Logic Guide shows VOH 2.0 V / VOL 0.4 V for 2.5 V CMOS (load not stated)", de: "TI Logic Guide nennt VOH 2,0 V / VOL 0,4 V für 2,5-V-CMOS (Last nicht angegeben)"}]
+    - [{en: "LVCMOS 1.8 V (e.g. 74LVC at 1.65–1.95 V)", de: "LVCMOS 1,8 V (z. B. 74LVC bei 1,65–1,95 V)"}, {en: "1.65–1.95 V", de: "1,65–1,95 V"}, 1.8, 1.17, 0.63, {en: "VCC − 0.1 / 1.2 V", de: "VCC − 0,1 / 1,2 V"}, {en: "IOH = −100 µA / −4 mA (VCC 1.65 V)", de: "IOH = −100 µA / −4 mA (VCC 1,65 V)"}, {en: "0.1 / 0.45 V", de: "0,1 / 0,45 V"}, {en: "IOL = 100 µA / 4 mA (VCC 1.65 V)", de: "IOL = 100 µA / 4 mA (VCC 1,65 V)"}, 0.9, {en: "TI Logic Guide: VOH 1.35 V (= VCC − 0.45 V), VOL 0.45 V", de: "TI Logic Guide: VOH 1,35 V (= VCC − 0,45 V), VOL 0,45 V"}]
+
+- id: line_interface_levels
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Signálové úrovně RS-232, RS-485 a LVDS", da: "Signalniveauer for RS-232, RS-485 og LVDS", de: "Signalpegel von RS-232, RS-485 und LVDS", el: "Επίπεδα σήματος RS-232, RS-485 και LVDS", en: "RS-232, RS-485 and LVDS signal levels", es: "Niveles de señal RS-232, RS-485 y LVDS", fr: "Niveaux de signal RS-232, RS-485 et LVDS", hi: "RS-232, RS-485 और LVDS सिग्नल स्तर", it: "Livelli di segnale RS-232, RS-485 e LVDS", ja: "RS-232・RS-485・LVDSの信号レベル", nl: "Signaalniveaus RS-232, RS-485 en LVDS", no: "Signalnivåer for RS-232, RS-485 og LVDS", pl: "Poziomy sygnałów RS-232, RS-485 i LVDS", pt: "Níveis de sinal RS-232, RS-485 e LVDS", sv: "Signalnivåer för RS-232, RS-485 och LVDS", zh: "RS-232、RS-485 和 LVDS 信号电平"}
+  doc: {en: "Voltage levels, thresholds and loads of the serial interfaces RS-232 (TIA-232-F), RS-485 (TIA/EIA-485-A) and LVDS (TIA/EIA-644-A): minimum, typical and maximum values with the test condition.", de: "Spannungspegel, Schwellen und Lasten der seriellen Schnittstellen RS-232 (TIA-232-F), RS-485 (TIA/EIA-485-A) und LVDS (TIA/EIA-644-A): Minimal-, typische und Maximalwerte mit Prüfbedingung."}
+  notes: {en: "The unit of the Min, Typ and Max values is in the Unit column (the rows use different units). RS-232 uses negative logic on the data lines: logic 1 (mark, idle) is negative, logic 0 (space) is positive; control lines are active when positive. RS-485 and LVDS are differential: the receiver evaluates VA − VB, and the line is terminated with its characteristic impedance (RS-485 typically 120 Ω at both ends, LVDS 100 Ω at the receiver). Noise margin RS-485 = 1.5 V − 0.2 V = 1.3 V; RS-232 = 5 V − 3 V = 2 V. The TIA standards themselves were not read; the values come from maker documents that cite them and from Wikipedia. Typical per the named maker document, one source each: the RS-232 load of 3 to 7 kΩ, input impedance and slew rate of 30 V/µs (TI SLLA037A), the RS-485 unit load of about 12 kΩ (TI SLLA272D), and the LVDS output voltage limits of 247 and 454 mV and the offset voltage limits of 1.125 and 1.375 V (TI SN65LVDS31 data sheet, a part that meets TIA/EIA-644; its typical output voltage is 340 mV, the 350 mV shown is the nominal value of the TI LVDS Owner's Manual).", de: "Die Einheit der Werte Min, Typ und Max steht in der Spalte Einheit (die Zeilen verwenden verschiedene Einheiten). RS-232 nutzt auf den Datenleitungen negative Logik: logisch 1 (Mark, Ruhezustand) ist negativ, logisch 0 (Space) positiv; Steuerleitungen sind bei positiver Spannung aktiv. RS-485 und LVDS sind differenziell: Der Empfänger wertet VA − VB aus, und die Leitung wird mit ihrem Wellenwiderstand abgeschlossen (RS-485 typisch 120 Ω an beiden Enden, LVDS 100 Ω am Empfänger). Störabstand RS-485 = 1,5 V − 0,2 V = 1,3 V; RS-232 = 5 V − 3 V = 2 V. Die TIA-Normen selbst wurden nicht gelesen; die Werte stammen aus Herstellerdokumenten, die sie zitieren, und aus Wikipedia. Typisch laut dem genannten Herstellerdokument, je nur eine Quelle: die RS-232-Last von 3 bis 7 kΩ, Eingangswiderstand und Flankensteilheit von 30 V/µs (TI SLLA037A), die RS-485-Lasteinheit von etwa 12 kΩ (TI SLLA272D) sowie die LVDS-Ausgangsspannungsgrenzen von 247 und 454 mV und die Offsetspannungsgrenzen von 1,125 und 1,375 V (TI-Datenblatt SN65LVDS31, ein Baustein nach TIA/EIA-644; seine typische Ausgangsspannung ist 340 mV, die angezeigten 350 mV sind der Nennwert des TI LVDS Owner's Manual)."}
+  tags: ["rs-232", "rs485", "rs-485", "lvds", "serial", "uart", "differential", "tia-232", "tia-485", "tia-644", "signal level", "voltage level", "mark", "space", "pegel", "schnittstelle", "signalpegel", "bus", "terminierung"]
+  source: "TI SLLA037A (RS-232), TI SLLA272D and SN65HVD72 data sheet (RS-485), TI SN65LVDS31 data sheet and LVDS Owner's Manual SNLA187, Frontgrade AN-LVDS-010-01 (LVDS), en.wikipedia RS-232, RS-485 and Low-voltage differential signaling; the TIA standards were not read"
+  key: parameter
+  columns:
+    - {id: parameter, name: {en: "Interface and parameter", de: "Schnittstelle und Parameter"}, dim: text}
+    - {id: min, name: {en: "Min", de: "Min"}, dim: number}
+    - {id: typ, name: {en: "Typ", de: "Typ"}, dim: number}
+    - {id: max, name: {en: "Max", de: "Max"}, dim: number}
+    - {id: unit, name: {en: "Unit", de: "Einheit"}, dim: text}
+    - {id: condition, name: {en: "Condition", de: "Bedingung"}, dim: text}
+  rows:
+    - [{en: "RS-232: driver output, logic 0 / space / ON", de: "RS-232: Treiberausgang, logisch 0 / Space / EIN"}, 5, null, 15, "V", {en: "load 3–7 kΩ (per TI SLLA037A)", de: "Last 3–7 kΩ (laut TI SLLA037A)"}]
+    - [{en: "RS-232: driver output, logic 1 / mark / OFF", de: "RS-232: Treiberausgang, logisch 1 / Mark / AUS"}, -15, null, -5, "V", {en: "load 3–7 kΩ (per TI SLLA037A)", de: "Last 3–7 kΩ (laut TI SLLA037A)"}]
+    - [{en: "RS-232: receiver input recognised as logic 0 (space)", de: "RS-232: Empfängereingang als logisch 0 (Space) erkannt"}, 3, null, 15, "V", null]
+    - [{en: "RS-232: receiver input recognised as logic 1 (mark)", de: "RS-232: Empfängereingang als logisch 1 (Mark) erkannt"}, -15, null, -3, "V", null]
+    - [{en: "RS-232: transition region (undefined)", de: "RS-232: Übergangsbereich (undefiniert)"}, -3, null, 3, "V", null]
+    - [{en: "RS-232: maximum voltage at connector pins", de: "RS-232: maximale Spannung an den Steckerkontakten"}, -25, null, 25, "V", null]
+    - [{en: "RS-232: receiver input impedance", de: "RS-232: Eingangswiderstand des Empfängers"}, 3, null, 7, "kΩ", {en: "per TI SLLA037A", de: "laut TI SLLA037A"}]
+    - [{en: "RS-232: driver slew rate", de: "RS-232: Flankensteilheit des Treibers"}, null, null, 30, "V/µs", {en: "per TI SLLA037A", de: "laut TI SLLA037A"}]
+    - [{en: "RS-485: driver differential output voltage, magnitude of VOD", de: "RS-485: Betrag der differenziellen Treiberausgangsspannung VOD"}, 1.5, null, null, "V", "RL = 54 Ω"]
+    - [{en: "RS-485: receiver differential threshold", de: "RS-485: Differenzielle Empfängerschwelle"}, -200, null, 200, "mV", {en: "a standard receiver detects a differential input of 200 mV or more", de: "ein Standardempfänger erkennt Differenzspannungen ab 200 mV"}]
+    - [{en: "RS-485: common-mode voltage range", de: "RS-485: Gleichtaktspannungsbereich"}, -7, null, 12, "V", null]
+    - [{en: "RS-485: unit loads per bus (standard drivers)", de: "RS-485: Lasteinheiten je Bus (Standardtreiber)"}, null, null, 32, "UL", {en: "1 UL ≈ 12 kΩ (per TI SLLA272D)", de: "1 UL ≈ 12 kΩ (laut TI SLLA272D)"}]
+    - [{en: "LVDS: driver differential output voltage, magnitude of VOD", de: "LVDS: Betrag der differenziellen Treiberausgangsspannung VOD"}, 247, 350, 454, "mV", {en: "RL = 100 Ω; min and max per TI SN65LVDS31 data sheet", de: "RL = 100 Ω; Min und Max laut TI-Datenblatt SN65LVDS31"}]
+    - [{en: "LVDS: driver offset (common-mode) voltage VOS", de: "LVDS: Offset- (Gleichtakt-)spannung VOS des Treibers"}, 1.125, 1.2, 1.375, "V", {en: "min and max per TI SN65LVDS31 data sheet", de: "Min und Max laut TI-Datenblatt SN65LVDS31"}]
+    - [{en: "LVDS: receiver differential threshold", de: "LVDS: Differenzielle Empfängerschwelle"}, -100, null, 100, "mV", null]
+    - [{en: "LVDS: receiver input voltage range", de: "LVDS: Eingangsspannungsbereich des Empfängers"}, 0, null, 2.4, "V", null]
+    - [{en: "LVDS: driver current (into the termination)", de: "LVDS: Treiberstrom (in den Abschluss)"}, null, 3.5, null, "mA", "nominal"]
+    - [{en: "LVDS: termination resistor", de: "LVDS: Abschlusswiderstand"}, null, 100, null, "Ω", {en: "at the receiver", de: "am Empfänger"}]
+
+- id: ascii
+  kind: table
+  category: tables
+  group: general
+  name: {cs: "Tabulka ASCII", da: "ASCII-tabel", de: "ASCII-Tabelle", el: "Πίνακας ASCII", en: "ASCII table", es: "Tabla ASCII", fr: "Table ASCII", hi: "ASCII तालिका", it: "Tabella ASCII", ja: "ASCIIコード表", nl: "ASCII-tabel", no: "ASCII-tabell", pl: "Tablica ASCII", pt: "Tabela ASCII", sv: "ASCII-tabell", zh: "ASCII 码表"}
+  doc: {en: "The 128 ASCII codes (0 to 127) in decimal and hexadecimal with the character or control-character abbreviation, RFC 20 class, Ctrl notation and name.", de: "Die 128 ASCII-Codes (0 bis 127) dezimal und hexadezimal mit Zeichen bzw. Kürzel des Steuerzeichens, RFC-20-Klasse, Strg-Schreibweise und Name."}
+  notes: {en: "ASCII is a 7-bit code (0 to 127). Codes 128 to 255 are not ASCII; their meaning depends on the code page (e.g. ISO 8859-1, Windows-1252) or on UTF-8 multi-byte sequences. The code column can be shown in decimal, hexadecimal, binary or octal with its unit selector. SP is the space (code 32). Line ends: Unix and Linux LF (0x0A), Windows CR LF (0x0D 0x0A), classic Mac OS CR (0x0D). Upper and lower case letters differ only in bit 5 (0x20): A = 0x41, a = 0x61. The Ctrl notation of a control character is the code XOR 0x40 (Ctrl+key); DEL is ^?. RFC 20 classes: CC communication control, FE format effector, IS information separator. English names are those of RFC 20 (modern names in brackets where the 1969 name is archaic); RFC 20 notes that several characters should not be used in international interchange without agreement between sender and recipient.", de: "ASCII ist ein 7-Bit-Code (0 bis 127). Die Codes 128 bis 255 sind kein ASCII; ihre Bedeutung hängt von der Codepage (z. B. ISO 8859-1, Windows-1252) bzw. von UTF-8-Mehrbytefolgen ab. Die Code-Spalte lässt sich mit der Einheitenauswahl dezimal, hexadezimal, binär oder oktal anzeigen. SP ist das Leerzeichen (Code 32). Zeilenenden: Unix und Linux LF (0x0A), Windows CR LF (0x0D 0x0A), klassisches Mac OS CR (0x0D). Groß- und Kleinbuchstaben unterscheiden sich nur in Bit 5 (0x20): A = 0x41, a = 0x61. Die Strg-Schreibweise eines Steuerzeichens ist der Code XOR 0x40 (Strg+Taste); DEL ist ^?. RFC-20-Klassen: CC Übertragungssteuerung, FE Formatsteuerung, IS Informationstrenner. Die englischen Namen stammen aus RFC 20 (moderne Namen in Klammern, wo der Name von 1969 veraltet ist); RFC 20 weist darauf hin, dass einige Zeichen im internationalen Austausch nicht ohne Absprache zwischen Sender und Empfänger verwendet werden sollten."}
+  tags: ["ascii", "character", "character code", "code", "hex", "decimal", "binary", "control character", "escape", "newline", "carriage return", "rfc 20", "steuerzeichen", "zeichen", "zeichensatz", "zeichencode", "lf", "cr", "esc", "del"]
+  source: "RFC 20 (USAS X3.4-1968), rfc-editor.org/rfc/rfc20.txt; German control-character names: de.wikipedia \"Steuerzeichen\""
+  key: dec
+  columns:
+    - {id: dec, name: {en: "Code", de: "Code"}, dim: integer, units: ["dec", "hex", "bin", "oct"]}
+    - {id: hex, name: {en: "Hex", de: "Hex"}, dim: text}
+    - {id: char, name: {en: "Character", de: "Zeichen"}, dim: text}
+    - {id: kind, name: {en: "Kind", de: "Art"}, dim: text}
+    - {id: rfc20_class, name: {en: "RFC 20 class", de: "RFC-20-Klasse"}, dim: text}
+    - {id: ctrl, name: {en: "Ctrl notation", de: "Strg-Schreibweise"}, dim: text}
+    - {id: name, name: {en: "Name", de: "Name"}, dim: text}
+  rows:
+    - [0, "00", "NUL", {en: "control", de: "Steuerzeichen"}, null, "^@", {en: "Null", de: "Nullzeichen"}]
+    - [1, "01", "SOH", {en: "control", de: "Steuerzeichen"}, "CC", "^A", {en: "Start of Heading", de: "Anfang des Kopfes"}]
+    - [2, "02", "STX", {en: "control", de: "Steuerzeichen"}, "CC", "^B", {en: "Start of Text", de: "Anfang des Textes"}]
+    - [3, "03", "ETX", {en: "control", de: "Steuerzeichen"}, "CC", "^C", {en: "End of Text", de: "Ende des Textes"}]
+    - [4, "04", "EOT", {en: "control", de: "Steuerzeichen"}, "CC", "^D", {en: "End of Transmission", de: "Ende der Übertragung"}]
+    - [5, "05", "ENQ", {en: "control", de: "Steuerzeichen"}, "CC", "^E", {en: "Enquiry", de: "Stationsaufforderung"}]
+    - [6, "06", "ACK", {en: "control", de: "Steuerzeichen"}, "CC", "^F", {en: "Acknowledge", de: "Positive Rückmeldung"}]
+    - [7, "07", "BEL", {en: "control", de: "Steuerzeichen"}, null, "^G", {en: "Bell (audible or attention signal)", de: "Klingel"}]
+    - [8, "08", "BS", {en: "control", de: "Steuerzeichen"}, "FE", "^H", {en: "Backspace", de: "Rückwärtsschritt"}]
+    - [9, "09", "HT", {en: "control", de: "Steuerzeichen"}, "FE", "^I", {en: "Horizontal Tabulation", de: "Zeichen-Tabulator"}]
+    - [10, "0A", "LF", {en: "control", de: "Steuerzeichen"}, "FE", "^J", {en: "Line Feed", de: "Zeilenschritt (Zeilenvorschub)"}]
+    - [11, "0B", "VT", {en: "control", de: "Steuerzeichen"}, "FE", "^K", {en: "Vertical Tabulation", de: "Zeilentabulatorzeichen"}]
+    - [12, "0C", "FF", {en: "control", de: "Steuerzeichen"}, "FE", "^L", {en: "Form Feed", de: "Formularvorschub"}]
+    - [13, "0D", "CR", {en: "control", de: "Steuerzeichen"}, "FE", "^M", {en: "Carriage Return", de: "Rückführen (Wagenrücklauf)"}]
+    - [14, "0E", "SO", {en: "control", de: "Steuerzeichen"}, null, "^N", {en: "Shift Out", de: "Dauerumschaltung"}]
+    - [15, "0F", "SI", {en: "control", de: "Steuerzeichen"}, null, "^O", {en: "Shift In", de: "Rückschaltung"}]
+    - [16, "10", "DLE", {en: "control", de: "Steuerzeichen"}, "CC", "^P", {en: "Data Link Escape", de: "Datenübertragungsumschaltung"}]
+    - [17, "11", "DC1", {en: "control", de: "Steuerzeichen"}, null, "^Q", {en: "Device Control 1", de: "Gerätesteuerzeichen 1"}]
+    - [18, "12", "DC2", {en: "control", de: "Steuerzeichen"}, null, "^R", {en: "Device Control 2", de: "Gerätesteuerzeichen 2"}]
+    - [19, "13", "DC3", {en: "control", de: "Steuerzeichen"}, null, "^S", {en: "Device Control 3", de: "Gerätesteuerzeichen 3"}]
+    - [20, "14", "DC4", {en: "control", de: "Steuerzeichen"}, null, "^T", {en: "Device Control 4 (Stop)", de: "Gerätesteuerzeichen 4"}]
+    - [21, "15", "NAK", {en: "control", de: "Steuerzeichen"}, "CC", "^U", {en: "Negative Acknowledge", de: "Negative Rückmeldung"}]
+    - [22, "16", "SYN", {en: "control", de: "Steuerzeichen"}, "CC", "^V", {en: "Synchronous Idle", de: "Synchronisierung"}]
+    - [23, "17", "ETB", {en: "control", de: "Steuerzeichen"}, "CC", "^W", {en: "End of Transmission Block", de: "Ende des Datenübertragungsblockes"}]
+    - [24, "18", "CAN", {en: "control", de: "Steuerzeichen"}, null, "^X", {en: "Cancel", de: "Ungültig"}]
+    - [25, "19", "EM", {en: "control", de: "Steuerzeichen"}, null, "^Y", {en: "End of Medium", de: "Ende der Aufzeichnung"}]
+    - [26, "1A", "SUB", {en: "control", de: "Steuerzeichen"}, null, "^Z", {en: "Substitute", de: "Substitution"}]
+    - [27, "1B", "ESC", {en: "control", de: "Steuerzeichen"}, null, "^[", "Escape"]
+    - [28, "1C", "FS", {en: "control", de: "Steuerzeichen"}, "IS", "^\\", {en: "File Separator", de: "Hauptgruppen-Trennzeichen (Informations-Trennzeichen Vier)"}]
+    - [29, "1D", "GS", {en: "control", de: "Steuerzeichen"}, "IS", "^]", {en: "Group Separator", de: "Gruppen-Trennzeichen (Informations-Trennzeichen Drei)"}]
+    - [30, "1E", "RS", {en: "control", de: "Steuerzeichen"}, "IS", "^^", {en: "Record Separator", de: "Untergruppen-Trennzeichen (Informations-Trennzeichen Zwei)"}]
+    - [31, "1F", "US", {en: "control", de: "Steuerzeichen"}, "IS", "^_", {en: "Unit Separator", de: "Teilgruppen-Trennzeichen (Informations-Trennzeichen Eins)"}]
+    - [32, "20", "SP", {en: "graphic", de: "druckbar"}, null, null, {en: "Space", de: "Leerzeichen"}]
+    - [33, "21", "!", {en: "graphic", de: "druckbar"}, null, null, {en: "Exclamation Point", de: "Ausrufezeichen"}]
+    - [34, "22", "\"", {en: "graphic", de: "druckbar"}, null, null, {en: "Quotation Marks", de: "Anführungszeichen"}]
+    - [35, "23", "#", {en: "graphic", de: "druckbar"}, null, null, {en: "Number Sign", de: "Nummernzeichen (Raute)"}]
+    - [36, "24", "$", {en: "graphic", de: "druckbar"}, null, null, {en: "Dollar Sign", de: "Dollarzeichen"}]
+    - [37, "25", "%", {en: "graphic", de: "druckbar"}, null, null, {en: "Percent", de: "Prozentzeichen"}]
+    - [38, "26", "&", {en: "graphic", de: "druckbar"}, null, null, {en: "Ampersand", de: "Und-Zeichen (Et-Zeichen)"}]
+    - [39, "27", "'", {en: "graphic", de: "druckbar"}, null, null, {en: "Apostrophe", de: "Apostroph"}]
+    - [40, "28", "(", {en: "graphic", de: "druckbar"}, null, null, {en: "Opening Parenthesis", de: "runde Klammer auf"}]
+    - [41, "29", ")", {en: "graphic", de: "druckbar"}, null, null, {en: "Closing Parenthesis", de: "runde Klammer zu"}]
+    - [42, "2A", "*", {en: "graphic", de: "druckbar"}, null, null, {en: "Asterisk", de: "Sternchen"}]
+    - [43, "2B", "+", {en: "graphic", de: "druckbar"}, null, null, {en: "Plus", de: "Pluszeichen"}]
+    - [44, "2C", ",", {en: "graphic", de: "druckbar"}, null, null, {en: "Comma", de: "Komma"}]
+    - [45, "2D", "-", {en: "graphic", de: "druckbar"}, null, null, {en: "Hyphen (Minus)", de: "Bindestrich (Minus)"}]
+    - [46, "2E", ".", {en: "graphic", de: "druckbar"}, null, null, {en: "Period (Decimal Point)", de: "Punkt (Dezimalpunkt)"}]
+    - [47, "2F", "/", {en: "graphic", de: "druckbar"}, null, null, {en: "Slant (slash)", de: "Schrägstrich"}]
+    - [48, "30", "0", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 0", de: "Ziffer 0"}]
+    - [49, "31", "1", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 1", de: "Ziffer 1"}]
+    - [50, "32", "2", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 2", de: "Ziffer 2"}]
+    - [51, "33", "3", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 3", de: "Ziffer 3"}]
+    - [52, "34", "4", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 4", de: "Ziffer 4"}]
+    - [53, "35", "5", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 5", de: "Ziffer 5"}]
+    - [54, "36", "6", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 6", de: "Ziffer 6"}]
+    - [55, "37", "7", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 7", de: "Ziffer 7"}]
+    - [56, "38", "8", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 8", de: "Ziffer 8"}]
+    - [57, "39", "9", {en: "graphic", de: "druckbar"}, null, null, {en: "Digit 9", de: "Ziffer 9"}]
+    - [58, "3A", ":", {en: "graphic", de: "druckbar"}, null, null, {en: "Colon", de: "Doppelpunkt"}]
+    - [59, "3B", ";", {en: "graphic", de: "druckbar"}, null, null, {en: "Semicolon", de: "Semikolon"}]
+    - [60, "3C", "<", {en: "graphic", de: "druckbar"}, null, null, {en: "Less Than", de: "Kleiner-als-Zeichen"}]
+    - [61, "3D", "=", {en: "graphic", de: "druckbar"}, null, null, {en: "Equals", de: "Gleichheitszeichen"}]
+    - [62, "3E", ">", {en: "graphic", de: "druckbar"}, null, null, {en: "Greater Than", de: "Größer-als-Zeichen"}]
+    - [63, "3F", "?", {en: "graphic", de: "druckbar"}, null, null, {en: "Question Mark", de: "Fragezeichen"}]
+    - [64, "40", "@", {en: "graphic", de: "druckbar"}, null, null, {en: "Commercial At", de: "At-Zeichen"}]
+    - [65, "41", "A", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter A", de: "Großbuchstabe A"}]
+    - [66, "42", "B", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter B", de: "Großbuchstabe B"}]
+    - [67, "43", "C", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter C", de: "Großbuchstabe C"}]
+    - [68, "44", "D", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter D", de: "Großbuchstabe D"}]
+    - [69, "45", "E", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter E", de: "Großbuchstabe E"}]
+    - [70, "46", "F", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter F", de: "Großbuchstabe F"}]
+    - [71, "47", "G", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter G", de: "Großbuchstabe G"}]
+    - [72, "48", "H", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter H", de: "Großbuchstabe H"}]
+    - [73, "49", "I", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter I", de: "Großbuchstabe I"}]
+    - [74, "4A", "J", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter J", de: "Großbuchstabe J"}]
+    - [75, "4B", "K", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter K", de: "Großbuchstabe K"}]
+    - [76, "4C", "L", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter L", de: "Großbuchstabe L"}]
+    - [77, "4D", "M", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter M", de: "Großbuchstabe M"}]
+    - [78, "4E", "N", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter N", de: "Großbuchstabe N"}]
+    - [79, "4F", "O", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter O", de: "Großbuchstabe O"}]
+    - [80, "50", "P", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter P", de: "Großbuchstabe P"}]
+    - [81, "51", "Q", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter Q", de: "Großbuchstabe Q"}]
+    - [82, "52", "R", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter R", de: "Großbuchstabe R"}]
+    - [83, "53", "S", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter S", de: "Großbuchstabe S"}]
+    - [84, "54", "T", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter T", de: "Großbuchstabe T"}]
+    - [85, "55", "U", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter U", de: "Großbuchstabe U"}]
+    - [86, "56", "V", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter V", de: "Großbuchstabe V"}]
+    - [87, "57", "W", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter W", de: "Großbuchstabe W"}]
+    - [88, "58", "X", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter X", de: "Großbuchstabe X"}]
+    - [89, "59", "Y", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter Y", de: "Großbuchstabe Y"}]
+    - [90, "5A", "Z", {en: "graphic", de: "druckbar"}, null, null, {en: "Capital letter Z", de: "Großbuchstabe Z"}]
+    - [91, "5B", "[", {en: "graphic", de: "druckbar"}, null, null, {en: "Opening Bracket", de: "eckige Klammer auf"}]
+    - [92, "5C", "\\", {en: "graphic", de: "druckbar"}, null, null, {en: "Reverse Slant (backslash)", de: "umgekehrter Schrägstrich (Backslash)"}]
+    - [93, "5D", "]", {en: "graphic", de: "druckbar"}, null, null, {en: "Closing Bracket", de: "eckige Klammer zu"}]
+    - [94, "5E", "^", {en: "graphic", de: "druckbar"}, null, null, {en: "Circumflex", de: "Zirkumflex"}]
+    - [95, "5F", "_", {en: "graphic", de: "druckbar"}, null, null, {en: "Underline (underscore)", de: "Unterstrich"}]
+    - [96, "60", "`", {en: "graphic", de: "druckbar"}, null, null, {en: "Grave Accent", de: "Gravis (Accent grave)"}]
+    - [97, "61", "a", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter a", de: "Kleinbuchstabe a"}]
+    - [98, "62", "b", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter b", de: "Kleinbuchstabe b"}]
+    - [99, "63", "c", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter c", de: "Kleinbuchstabe c"}]
+    - [100, "64", "d", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter d", de: "Kleinbuchstabe d"}]
+    - [101, "65", "e", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter e", de: "Kleinbuchstabe e"}]
+    - [102, "66", "f", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter f", de: "Kleinbuchstabe f"}]
+    - [103, "67", "g", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter g", de: "Kleinbuchstabe g"}]
+    - [104, "68", "h", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter h", de: "Kleinbuchstabe h"}]
+    - [105, "69", "i", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter i", de: "Kleinbuchstabe i"}]
+    - [106, "6A", "j", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter j", de: "Kleinbuchstabe j"}]
+    - [107, "6B", "k", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter k", de: "Kleinbuchstabe k"}]
+    - [108, "6C", "l", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter l", de: "Kleinbuchstabe l"}]
+    - [109, "6D", "m", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter m", de: "Kleinbuchstabe m"}]
+    - [110, "6E", "n", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter n", de: "Kleinbuchstabe n"}]
+    - [111, "6F", "o", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter o", de: "Kleinbuchstabe o"}]
+    - [112, "70", "p", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter p", de: "Kleinbuchstabe p"}]
+    - [113, "71", "q", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter q", de: "Kleinbuchstabe q"}]
+    - [114, "72", "r", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter r", de: "Kleinbuchstabe r"}]
+    - [115, "73", "s", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter s", de: "Kleinbuchstabe s"}]
+    - [116, "74", "t", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter t", de: "Kleinbuchstabe t"}]
+    - [117, "75", "u", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter u", de: "Kleinbuchstabe u"}]
+    - [118, "76", "v", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter v", de: "Kleinbuchstabe v"}]
+    - [119, "77", "w", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter w", de: "Kleinbuchstabe w"}]
+    - [120, "78", "x", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter x", de: "Kleinbuchstabe x"}]
+    - [121, "79", "y", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter y", de: "Kleinbuchstabe y"}]
+    - [122, "7A", "z", {en: "graphic", de: "druckbar"}, null, null, {en: "Small letter z", de: "Kleinbuchstabe z"}]
+    - [123, "7B", "{", {en: "graphic", de: "druckbar"}, null, null, {en: "Opening Brace", de: "geschweifte Klammer auf"}]
+    - [124, "7C", "|", {en: "graphic", de: "druckbar"}, null, null, {en: "Vertical Line", de: "senkrechter Strich"}]
+    - [125, "7D", "}", {en: "graphic", de: "druckbar"}, null, null, {en: "Closing Brace", de: "geschweifte Klammer zu"}]
+    - [126, "7E", "~", {en: "graphic", de: "druckbar"}, null, null, {en: "Overline (tilde)", de: "Tilde"}]
+    - [127, "7F", "DEL", {en: "control", de: "Steuerzeichen"}, null, "^?", {en: "Delete", de: "Zeichen löschen"}]
+
+- id: wire_colours
+  kind: table
+  category: tables
+  group: general
+  guide: true
+  mains: true
+  name: {cs: "Barvy vodičů (IEC/DE a US NEC)", da: "Lederfarver (IEC/DE og US NEC)", de: "Aderfarben (IEC/DE und US-NEC)", el: "Χρώματα αγωγών (IEC/DE και US NEC)", en: "Wire colours (IEC/DE and US NEC)", es: "Colores de los conductores (IEC/DE y NEC de EE. UU.)", fr: "Couleurs des conducteurs (CEI/DE et NEC américain)", hi: "तार के रंग (IEC/DE और US NEC)", it: "Colori dei conduttori (IEC/DE e NEC USA)", ja: "電線の色 (IEC/DE と米国NEC)", nl: "Draadkleuren (IEC/DE en US NEC)", no: "Lederfarger (IEC/DE og US NEC)", pl: "Kolory przewodów (IEC/DE i US NEC)", pt: "Cores dos condutores (IEC/DE e NEC dos EUA)", sv: "Ledarfärger (IEC/DE och US NEC)", zh: "导线颜色 (IEC/DE 与美国 NEC)"}
+  doc: {en: "Insulation colours of the conductors in Germany and the EU (IEC 60445, DIN VDE 0100-510, DIN VDE 0293-308) and in the USA (NEC): phase conductors, neutral and protective earth.", de: "Isolierfarben der Leiter in Deutschland und der EU (IEC 60445, DIN VDE 0100-510, DIN VDE 0293-308) und in den USA (NEC): Außenleiter, Neutralleiter und Schutzleiter."}
+  notes: {en: "Never rely on colours alone in an existing installation: measure before you touch, old installations may use other colours. Do not confuse the systems: in the USA the neutral is white or gray and plain green marks the grounding conductor; in IEC countries the neutral is blue and PE is always green-yellow. Germany has no normative assignment of brown, black and grey to L1, L2 and L3; the ZVEH recommends brown, black, grey. Not listed because only one source gives them: the PEN marking (green-yellow with blue end markings), a bare US grounding conductor and older German colour schemes. IEC 60445 and NFPA 70 (NEC) themselves were not read; the rules are quoted from the sources named above.", de: "In bestehenden Anlagen nie allein auf Farben verlassen: vor dem Berühren messen, Altanlagen können andere Farben haben. Systeme nicht verwechseln: In den USA ist der Neutralleiter weiß oder grau und reines Grün kennzeichnet den Schutzleiter; in IEC-Ländern ist der Neutralleiter blau und der Schutzleiter immer grün-gelb. In Deutschland gibt es keine normative Zuordnung von braun, schwarz und grau zu L1, L2 und L3; der ZVEH empfiehlt braun, schwarz, grau. Nicht aufgeführt, weil nur eine Quelle sie nennt: die PEN-Kennzeichnung (grün-gelb mit blauer Markierung an den Enden), ein blanker US-Schutzleiter und ältere deutsche Farbschemata. IEC 60445 und NFPA 70 (NEC) selbst wurden nicht gelesen; die Regeln sind aus den oben genannten Quellen zitiert."}
+  tags: ["wire colour", "wire color", "conductor", "core colour", "cable colour", "iec 60445", "vde 0100", "nec", "pe", "neutral", "protective earth", "green-yellow", "l1", "l2", "l3", "aderfarbe", "aderfarben", "leiterfarben", "farbcode", "schutzleiter", "neutralleiter", "außenleiter", "grün-gelb"]
+  source: "DIN VDE 0100-510, DIN VDE 0293-308 and IEC 60445 as quoted by elektro.net (de 5/2015), Kiefer \"VDE 0100 und die Praxis\" and Prysmian UK \"Understanding core colours\"; NEC 110.15, 200.6, 200.7, 210.5(C) and 250.119 as quoted by EC&M (2023) and ExpertCE (2025); the standards themselves were not read"
+  key: conductor
+  columns:
+    - {id: system, name: {en: "System", de: "System"}, dim: text}
+    - {id: conductor, name: {en: "Conductor", de: "Leiter"}, dim: text}
+    - {id: colour, name: {en: "Colour", de: "Farbe"}, dim: text}
+    - {id: status, name: {en: "Status", de: "Verbindlichkeit"}, dim: text}
+    - {id: reference, name: {en: "Reference", de: "Fundstelle"}, dim: text}
+    - {id: note, name: {en: "Remark", de: "Hinweis"}, dim: text}
+  rows:
+    - ["IEC/DE", "L1", {en: "brown", de: "braun"}, {en: "recommended assignment", de: "empfohlene Zuordnung"}, "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)", {en: "outer conductors may be brown, black or grey; Germany has no normative assignment to L1/L2/L3 (ZVEH recommends brown–black–grey)", de: "Außenleiter dürfen braun, schwarz oder grau sein; in Deutschland gibt es keine normative Zuordnung zu L1/L2/L3 (ZVEH empfiehlt braun–schwarz–grau)"}]
+    - ["IEC/DE", "L2", {en: "black", de: "schwarz"}, {en: "recommended assignment", de: "empfohlene Zuordnung"}, "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)", null]
+    - ["IEC/DE", "L3", {en: "grey", de: "grau"}, {en: "recommended assignment", de: "empfohlene Zuordnung"}, "DIN VDE 0100-510; ZVEH recommendation; BS 7671 (UK)", null]
+    - ["IEC/DE", {en: "L (single-phase)", de: "L (einphasig)"}, {en: "brown", de: "braun"}, {en: "cable core colour", de: "Aderfarbe im Kabel"}, "DIN VDE 0293-308 (HD 308 S2) Table 1", {en: "3-core cable with PE: green-yellow, blue, brown", de: "3-adrige Leitung mit Schutzleiter: grün-gelb, blau, braun"}]
+    - ["IEC/DE", "N", {en: "blue", de: "blau"}, {en: "mandatory", de: "verbindlich"}, "DIN VDE 0100-510 514.3.1; IEC 60445 (DIN EN 60445 VDE 0197)", {en: "named \"light blue\" (hellblau) until 2003; colour may be used for other conductors only if no neutral exists in the circuit", de: "bis 2003 als \"hellblau\" bezeichnet; Blau darf nur dann für andere Leiter verwendet werden, wenn der Stromkreis keinen Neutralleiter hat"}]
+    - ["IEC/DE", "PE", {en: "green-yellow", de: "grün-gelb"}, {en: "mandatory", de: "verbindlich"}, "DIN VDE 0100-510 514.3.1; IEC 60445", {en: "green-yellow must not be used for any other conductor", de: "Grün-Gelb darf für keinen anderen Leiter verwendet werden"}]
+    - ["US/NEC", {en: "grounded conductor (neutral)", de: "geerdeter Leiter (Neutralleiter)"}, {en: "white or gray", de: "weiß oder grau"}, {en: "mandatory (NEC 200.6)", de: "verbindlich (NEC 200.6)"}, "NFPA 70 (NEC) 200.6", null]
+    - ["US/NEC", {en: "equipment grounding conductor (PE)", de: "Schutzleiter (PE)"}, {en: "green or green with yellow stripe(s)", de: "grün oder grün mit gelbem Streifen"}, {en: "mandatory (NEC 250.119)", de: "verbindlich (NEC 250.119)"}, "NFPA 70 (NEC) 250.119", null]
+    - ["US/NEC", {en: "ungrounded conductors (hot)", de: "Außenleiter (nicht geerdet)"}, {en: "any colour except white, gray or green", de: "jede Farbe außer weiß, grau oder grün"}, {en: "mandatory (NEC 200.7, 250.119)", de: "verbindlich (NEC 200.7, 250.119)"}, "NFPA 70 (NEC) 200.7, 250.119, 210.5(C)", {en: "branch circuits: the identification method must be documented/posted (210.5(C))", de: "Endstromkreise: Kennzeichnungsmethode muss dokumentiert/ausgehängt sein (210.5(C))"}]
+    - ["US/NEC", {en: "L1 / L2 / L3 at 120/208 V or 120/240 V", de: "L1 / L2 / L3 bei 120/208 V oder 120/240 V"}, {en: "black / red / blue", de: "schwarz / rot / blau"}, {en: "customary, not required by NEC", de: "üblich, vom NEC nicht vorgeschrieben"}, {en: "trade practice", de: "Praxis"}, {en: "neutral white", de: "Neutralleiter weiß"}]
+    - ["US/NEC", {en: "L1 / L2 / L3 at 277/480 V", de: "L1 / L2 / L3 bei 277/480 V"}, {en: "brown / orange / yellow", de: "braun / orange / gelb"}, {en: "customary, not required by NEC", de: "üblich, vom NEC nicht vorgeschrieben"}, {en: "trade practice", de: "Praxis"}, {en: "neutral gray; EC&M also lists brown / purple / yellow", de: "Neutralleiter grau; EC&M nennt auch braun / violett / gelb"}]
+    - ["US/NEC", {en: "high leg of a 4-wire delta (120/240 V)", de: "hochgelegter Außenleiter im 4-Leiter-Dreiecknetz (120/240 V)"}, "orange", {en: "required marking (NEC 110.15)", de: "vorgeschriebene Kennzeichnung (NEC 110.15)"}, "NFPA 70 (NEC) 110.15", {en: "marked at terminations and accessible points", de: "an Anschlüssen und zugänglichen Stellen gekennzeichnet"}]

@@ -1,0 +1,17 @@
+{
+  "table": "si_prefixes",
+  "cells": [
+    {"key": -9, "column": "symbol", "want": "n", "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": nano is n, 10^-9 (checked against the BIPM web page SI prefixes)"},
+    {"key": 3, "column": "name", "want": "kilo", "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": kilo is k, 10^3"},
+    {"key": 30, "column": "symbol", "want": "Q", "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": quetta is Q, 10^30"},
+    {"key": -6, "column": "symbol", "want": "µ", "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": micro is the micro sign, 10^-6"},
+    {"key": -30, "column": "factor", "want": 1e-30, "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": quecto is q, 10^-30"},
+    {"key": 6, "column": "factor", "want": 1000000.0, "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": mega is M, 10^6"},
+    {"key": 27, "column": "adopted", "want": "2022", "ref": "BIPM, 27th CGPM (2022), Resolution 3: ronna (R, 10^27) was added in 2022"},
+    {"key": 3, "column": "adopted", "want": null, "ref": "the year is given only for the four prefixes of 2022 (BIPM Resolution 3 of the 27th CGPM)"}
+  ],
+  "lookups": [
+    {"expr": "lookup(si_prefixes, factor, 9)", "want": 1000000000.0, "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": giga is G, 10^9"},
+    {"expr": "lookup(si_prefixes, factor, -3)", "want": 0.001, "ref": "BIPM SI Brochure, 9th edition, Table 7 \"SI prefixes\": milli is m, 10^-3"}
+  ]
+}

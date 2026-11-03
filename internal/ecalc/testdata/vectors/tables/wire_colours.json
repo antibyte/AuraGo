@@ -1,0 +1,15 @@
+{
+  "table": "wire_colours",
+  "cells": [
+    {"key": "N", "column": "colour", "want": "blue", "ref": "Kiefer = elektro.net = Prysmian UK: neutral conductor blue (DIN VDE 0100-510 514.3.1)"},
+    {"key": "N", "column": "status", "want": "mandatory", "ref": "Kiefer: blue for the neutral is mandatory (DIN VDE 0100-510 514.3.1, IEC 60445)"},
+    {"key": "PE", "column": "colour", "want": "green-yellow", "ref": "Kiefer = elektro.net = Prysmian UK: protective conductor green-yellow"},
+    {"key": "L1", "column": "colour", "want": "brown", "ref": "elektro.net (ZVEH recommendation) = Prysmian UK: L1 brown"},
+    {"key": "L2", "column": "colour", "want": "black", "ref": "elektro.net (ZVEH recommendation) = Prysmian UK: L2 black"},
+    {"key": "L3", "column": "colour", "want": "grey", "ref": "elektro.net (ZVEH recommendation) = Prysmian UK: L3 grey"},
+    {"key": "L1", "column": "status", "want": "recommended assignment", "ref": "elektro.net: DIN VDE 0100-510 has no normative L1/L2/L3 assignment, the ZVEH recommends brown, black, grey"},
+    {"key": "grounded conductor (neutral)", "column": "colour", "want": "white or gray", "ref": "EC&M (2023) = ExpertCE (2025): the grounded conductor is white or gray (NEC 200.6)"},
+    {"key": "equipment grounding conductor (PE)", "column": "colour", "want": "green or green with yellow stripe(s)", "ref": "EC&M (2023) = ExpertCE (2025): equipment grounding conductor green or green with yellow stripes (NEC 250.119); bare conductors are left out (one source)"},
+    {"key": "high leg of a 4-wire delta (120/240 V)", "column": "colour", "want": "orange", "ref": "ExpertCE (2025) = EC&M (2023): the high leg is marked orange (NEC 110.15)"}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "table": "wifi_channels",
+  "cells": [
+    {"key": 1, "column": "centre", "want": 2412000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 1 is 2412 MHz"},
+    {"key": 6, "column": "centre", "want": 2437000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 6 is 2437 MHz"},
+    {"key": 14, "column": "centre", "want": 2484000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 14 is 2484 MHz (Japan only, 802.11b only)"},
+    {"key": 36, "column": "centre", "want": 5180000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 36 is 5180 MHz"},
+    {"key": 36, "column": "us_band", "want": "U-NII-1", "ref": "en.wikipedia \"List of WLAN channels\": channel 36 belongs to U-NII-1"},
+    {"key": 100, "column": "centre", "want": 5500000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 100 is 5500 MHz"},
+    {"key": 165, "column": "centre", "want": 5825000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J) and en.wikipedia \"List of WLAN channels\": channel 165 is 5825 MHz"},
+    {"key": 6, "column": "f_low", "want": 2427000000, "ref": "channel 6 is 2437 MHz, a 20 MHz channel starts 10 MHz below the centre"},
+    {"key": 13, "column": "us", "want": "no", "ref": "wireless-regdb db.txt (US rules end at 2472 MHz) and en.wikipedia \"List of WLAN channels\": channels 12 and 13 are not normally used in the USA"},
+    {"key": 1, "column": "de", "want": "yes", "ref": "wireless-regdb db.txt (DE rule 2400 to 2483.5 MHz) and en.wikipedia \"List of WLAN channels\": channels 1 to 13 are allowed in Europe"}
+  ],
+  "lookups": [
+    {"expr": "lookup(wifi_channels, centre, 11)", "want": 2462000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J): 2407 MHz + 5 MHz x 11 = 2462 MHz"},
+    {"expr": "lookup(wifi_channels, centre, 149)", "want": 5745000000, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J): 5000 MHz + 5 MHz x 149 = 5745 MHz"},
+    {"expr": "lookup_ge(wifi_channels, centre, 2450000000, channel)", "want": 9, "ref": "Linux kernel net/wireless/util.c (IEEE 802.11 17.3.8.3.2 and Annex J): channel 8 is 2447 MHz, channel 9 (2452 MHz) is the first channel at or above 2450 MHz"}
+  ]
+}

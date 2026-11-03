@@ -1,0 +1,23 @@
+{
+  "table": "ism_bands",
+  "cells": [
+    {"key": "ISM 13.56 MHz", "column": "f_low", "want": 13553000, "ref": "47 CFR 18.301 (FCC): 13.56 MHz ±7 kHz = 13.553 to 13.567 MHz (equal to en.wikipedia \"ISM radio band\")"},
+    {"key": "ISM 13.56 MHz", "column": "f_high", "want": 13567000, "ref": "47 CFR 18.301 (FCC): 13.56 MHz ±7 kHz = 13.553 to 13.567 MHz"},
+    {"key": "ISM 13.56 MHz", "column": "f_centre", "want": 13560000, "ref": "47 CFR 18.301 (FCC): ISM centre frequency 13.56 MHz"},
+    {"key": "ISM 2.45 GHz", "column": "f_low", "want": 2400000000, "ref": "47 CFR 18.301 (FCC): 2450 MHz ±50 MHz = 2400 to 2500 MHz"},
+    {"key": "ISM 2.45 GHz", "column": "basis", "want": "ITU RR 5.150", "ref": "en.wikipedia \"ISM radio band\": 2.4 GHz band is a type B band, footnote 5.150"},
+    {"key": "ISM 433.92 MHz", "column": "f_high", "want": 434790000, "ref": "en.wikipedia \"ISM radio band\": 433.05 to 434.79 MHz, ITU Region 1"},
+    {"key": "SRD 868.7–869.2 MHz", "column": "power", "want": 0.025, "ref": "Commission Implementing Decision (EU) 2022/180, row 50 (equal to en.wikipedia \"Short-range device\"): 25 mW e.r.p."},
+    {"key": "SRD 868.7–869.2 MHz", "column": "duty_cycle", "want": 0.1, "ref": "Commission Implementing Decision (EU) 2022/180, row 50 (equal to en.wikipedia \"Short-range device\"): duty cycle 0.1 %"},
+    {"key": "SRD 869.4–869.65 MHz", "column": "power", "want": 0.5, "ref": "Commission Implementing Decision (EU) 2022/180, row 54 (equal to en.wikipedia \"Short-range device\"): 500 mW e.r.p."},
+    {"key": "SRD 869.4–869.65 MHz", "column": "duty_cycle", "want": 10, "ref": "Commission Implementing Decision (EU) 2022/180, row 54 (equal to en.wikipedia \"Short-range device\"): duty cycle 10 %"},
+    {"key": "SRD 433.05–434.79 MHz", "column": "power", "want": 0.01, "ref": "Commission Implementing Decision (EU) 2022/180, row 44b (the binding legal text): 10 mW e.r.p."},
+    {"key": "SRD 433.05–434.79 MHz", "column": "power_ref", "want": "e.r.p.", "ref": "Commission Implementing Decision (EU) 2022/180, row 44b: the limit is an e.r.p. limit"},
+    {"key": "SRD 433.05–434.79 MHz", "column": "duty_cycle", "want": 10, "ref": "Commission Implementing Decision (EU) 2022/180, row 44b: duty cycle 10 %"},
+    {"key": "SRD 2400–2483.5 MHz", "column": "power", "want": 0.01, "ref": "Commission Implementing Decision (EU) 2022/180, row 57a (the binding legal text): 10 mW e.i.r.p."},
+    {"key": "SRD 2400–2483.5 MHz", "column": "power_ref", "want": "e.i.r.p.", "ref": "Commission Implementing Decision (EU) 2022/180, row 57a: the limit is an e.i.r.p. limit"},
+    {"key": "SRD 2400–2483.5 MHz", "column": "duty_cycle", "want": null, "ref": "Commission Implementing Decision (EU) 2022/180, row 57a: no duty-cycle limit is given for this row"},
+    {"key": "SRD 5725–5875 MHz", "column": "power", "want": 0.025, "ref": "Commission Implementing Decision (EU) 2022/180, row 61 (the binding legal text): 25 mW e.i.r.p."},
+    {"key": "SRD 5725–5875 MHz", "column": "power_ref", "want": "e.i.r.p.", "ref": "Commission Implementing Decision (EU) 2022/180, row 61: the limit is an e.i.r.p. limit"}
+  ]
+}

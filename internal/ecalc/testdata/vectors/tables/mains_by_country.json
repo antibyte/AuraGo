@@ -1,0 +1,16 @@
+{
+  "table": "mains_by_country",
+  "cells": [
+    {"key": "Germany", "column": "voltage", "want": 230, "ref": "WorldStandards.eu, en.wikipedia and Interpower agree: Germany 230 V"},
+    {"key": "Germany", "column": "frequency", "want": 50, "ref": "WorldStandards.eu, en.wikipedia and Interpower agree: Germany 50 Hz"},
+    {"key": "Germany", "column": "plugs", "want": "C, F", "ref": "WorldStandards.eu and en.wikipedia agree: Germany uses types C and F"},
+    {"key": "United States", "column": "voltage", "want": 120, "ref": "WorldStandards.eu, en.wikipedia and Interpower agree: United States 120 V"},
+    {"key": "United States", "column": "plugs", "want": "A, B", "ref": "WorldStandards.eu and en.wikipedia agree: United States uses types A and B"},
+    {"key": "United Kingdom", "column": "plugs", "want": "G", "ref": "WorldStandards.eu (type G; Wikipedia also lists D and M for special uses, shown in the note)"},
+    {"key": "China", "column": "voltage", "want": 220, "ref": "en.wikipedia and Interpower: 220 V (WorldStandards 230 V); two of three sources"},
+    {"key": "Japan", "column": "voltage", "want": 100, "ref": "WorldStandards.eu, en.wikipedia and Interpower agree: Japan 100 V"},
+    {"key": "Japan", "column": "frequency", "want": null, "ref": "Japan uses 50 Hz in the east and 60 Hz in the west (all three sources), so no single value is shown"},
+    {"key": "Brazil", "column": "voltage", "want": null, "ref": "Brazil uses 127 V or 220 V by region (WorldStandards, Wikipedia), so no single value is shown"},
+    {"key": "Brazil", "column": "frequency", "want": 60, "ref": "WorldStandards.eu, en.wikipedia and Interpower agree: Brazil 60 Hz"}
+  ]
+}
