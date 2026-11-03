@@ -116,9 +116,23 @@ func TestSearchOrdersEqualRanksByCatalogPosition(t *testing.T) {
 			t.Errorf("%s ranks after %s although it comes first in the catalog (positions %v)", order[i-1], id, position)
 		}
 	}
+	// An empty query lists every item in catalog order: the calculators, then the tables, then the codes.
 	all := cat.SearchAll("")
-	if len(all) != len(cat.Calculators) || all[0].ID != cat.Calculators[0].ID || all[1].ID != cat.Calculators[1].ID {
+	if len(all) != cat.ItemCount() || all[0].ID != cat.Calculators[0].ID || all[1].ID != cat.Calculators[1].ID {
 		t.Fatalf("an empty query must list the catalog in order, got %v", hitIDs(all))
+	}
+	var want []string
+	for _, calc := range cat.Calculators {
+		want = append(want, calc.ID)
+	}
+	for _, tbl := range cat.Tables {
+		want = append(want, tbl.ID)
+	}
+	for _, code := range cat.Codes {
+		want = append(want, code.ID)
+	}
+	if got := hitIDs(all); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("an empty query lists %v, want the calculators, the tables and the codes in order: %v", got, want)
 	}
 }
 
@@ -143,10 +157,10 @@ func TestSearchLimitsAndEmptyResults(t *testing.T) {
 	if hits := cat.Search("", 3); len(hits) != 3 {
 		t.Fatalf("limit 3 gave %d hits", len(hits))
 	}
-	if hits := cat.Search("", 0); len(hits) != min(DefaultSearchLimit, len(cat.Calculators)) {
+	if hits := cat.Search("", 0); len(hits) != min(DefaultSearchLimit, cat.ItemCount()) {
 		t.Fatalf("limit 0 gave %d hits, want the default %d", len(hits), DefaultSearchLimit)
 	}
-	if hits := cat.Search("", 500); len(hits) != min(MaxSearchLimit, len(cat.Calculators)) {
+	if hits := cat.Search("", 500); len(hits) != min(MaxSearchLimit, cat.ItemCount()) {
 		t.Fatalf("limit 500 gave %d hits, want at most %d", len(hits), MaxSearchLimit)
 	}
 	none := cat.Search("zzzz no such thing", 5)
@@ -199,8 +213,25 @@ func TestSearchMatchesTheCategory(t *testing.T) {
 		}
 	}
 	overview := cat.Overview()
-	if len(overview) != len(cat.Categories) || overview[0].ID != "basics" || overview[0].Name != "Basics" || overview[0].Count != n {
+	if overview[0].ID != "basics" || overview[0].Name != "Basics" || overview[0].Count != n {
 		t.Fatalf("overview = %+v", overview)
+	}
+	// Every category that holds an item is listed once with the number of its items of all kinds; a category without
+	// items (the pinouts) is not.
+	total := 0
+	for _, c := range overview {
+		total += c.Count
+		if c.Count < 1 {
+			t.Errorf("the overview lists the empty category %s", c.ID)
+		}
+	}
+	if total != cat.ItemCount() {
+		t.Errorf("the overview counts %d items, the catalog has %d", total, cat.ItemCount())
+	}
+	for _, c := range overview {
+		if c.ID == "pinouts" {
+			t.Error("the pinouts have no items yet and must not be listed")
+		}
 	}
 }
 
@@ -634,10 +665,13 @@ func TestCatalogIDsFitTheDesktopBridge(t *testing.T) {
 	cat := queryCatalog(t)
 	page := regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 	name := regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
-	for _, calc := range cat.Calculators {
-		if !page.MatchString(calc.ID) {
-			t.Errorf("calculator id %q does not fit the bridge", calc.ID)
+	// The tables and codes are opened by their id too (open with an id of any kind).
+	for _, it := range cat.searchItems() {
+		if !page.MatchString(it.id) {
+			t.Errorf("%s id %q does not fit the bridge", it.kind, it.id)
 		}
+	}
+	for _, calc := range cat.Calculators {
 		for _, v := range calc.Vars {
 			if !name.MatchString(v.ID) {
 				t.Errorf("%s: variable id %q does not fit the bridge", calc.ID, v.ID)

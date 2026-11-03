@@ -42,6 +42,15 @@ const (
 	CodeUnderdetermined = "underdetermined"
 	CodeDuplicate       = "duplicate_name"
 	CodeTooMany         = "too_many_values"
+	// The codes of the table and code operations (query_items.go, query_table.go, query_codes.go). The errors of the
+	// code kinds keep their own codes (CodeInvalidCode, CodeInvalidValue, CodeUnsupported of codes.go).
+	CodeNotACalculator  = "not_a_calculator"
+	CodeNotATable       = "not_a_table"
+	CodeNotACode        = "not_a_code"
+	CodeUnknownColumn   = "unknown_column"
+	CodeInvalidFilter   = "invalid_filter"
+	CodeInvalidLookup   = "invalid_lookup"
+	CodeUnknownCodeKind = "unknown_code_kind"
 )
 
 // QueryError is a problem with a request. Message names the valid alternatives; Sets is filled for
@@ -78,24 +87,25 @@ type SearchHit struct {
 	Summary  string `json:"summary"`
 }
 
-// CategorySummary is one category with the number of its calculators.
+// CategorySummary is one category with the number of its items (calculators, tables and codes).
 type CategorySummary struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
-// Overview lists the categories of the catalog (English names) with their calculator counts.
+// Overview lists the categories of the catalog that hold items (English names) with their item counts; a category
+// without items (the pinouts before they exist) is left out.
 func (c *Catalog) Overview() []CategorySummary {
+	count := map[string]int{}
+	for _, it := range c.searchItems() {
+		count[it.category]++
+	}
 	out := make([]CategorySummary, 0, len(c.Categories))
 	for _, cat := range c.Categories {
-		n := 0
-		for _, calc := range c.Calculators {
-			if calc.Category == cat.ID {
-				n++
-			}
+		if n := count[cat.ID]; n > 0 {
+			out = append(out, CategorySummary{ID: cat.ID, Name: cat.Name.in("en"), Count: n})
 		}
-		out = append(out, CategorySummary{ID: cat.ID, Name: cat.Name.in("en"), Count: n})
 	}
 	return out
 }
@@ -126,22 +136,22 @@ func wordsOf(s string) []string {
 	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !isWordRune(r) })
 }
 
-func (c *Catalog) searchFieldsOf(calc *Calculator) searchFields {
-	f := searchFields{id: strings.ToLower(calc.ID), idWords: wordsOf(calc.ID)}
+func (c *Catalog) searchFieldsOf(it searchItem) searchFields {
+	f := searchFields{id: strings.ToLower(it.id), idWords: wordsOf(it.id)}
 	for _, lang := range Locales {
-		if n := strings.ToLower(strings.TrimSpace(calc.Name[lang])); n != "" {
+		if n := strings.ToLower(strings.TrimSpace(it.name[lang])); n != "" {
 			f.names = append(f.names, n)
 			f.nameWords = append(f.nameWords, wordsOf(n))
 		}
 	}
-	for _, tag := range calc.Tags {
+	for _, tag := range it.tags {
 		t := strings.ToLower(strings.TrimSpace(tag))
 		f.tags = append(f.tags, t)
 		f.tagWords = append(f.tagWords, wordsOf(t))
 	}
-	f.cats = append(f.cats, strings.ToLower(calc.Category))
+	f.cats = append(f.cats, strings.ToLower(it.category))
 	for _, cat := range c.Categories {
-		if cat.ID == calc.Category {
+		if cat.ID == it.category {
 			for _, lang := range Locales {
 				if n := strings.ToLower(strings.TrimSpace(cat.Name[lang])); n != "" {
 					f.cats = append(f.cats, n)
@@ -216,25 +226,26 @@ func (f *searchFields) tokenTier(tok string) int {
 	return best
 }
 
-// SearchAll returns every calculator that matches the query, best match first. The query is split into words that
-// must all match (case-insensitively) the id, one of the names in the 16 locales, a tag or the category. A hit ranks by
-// its weakest word: exact id, then name prefix, name word, tag or category, substring; equal ranks keep the order of
-// the catalog. An empty query matches everything in catalog order.
+// SearchAll returns every item (calculator, table or code) that matches the query, best match first. The query is
+// split into words that must all match (case-insensitively) the id, one of the names in the 16 locales, a tag or the
+// category. A hit ranks by its weakest word: exact id, then name prefix, name word, tag or category, substring; equal
+// ranks keep the order of the catalog (calculators, then tables, then codes). An empty query matches everything in
+// catalog order.
 func (c *Catalog) SearchAll(query string) []SearchHit {
 	tokens := wordsOf(query)
 	whole := strings.Join(tokens, " ")
 	type ranked struct {
-		calc     *Calculator
+		item     searchItem
 		pri, sum int
 		position int
 	}
 	var hits []ranked
-	for i, calc := range c.Calculators {
+	for i, it := range c.searchItems() {
 		if len(tokens) == 0 {
-			hits = append(hits, ranked{calc: calc, position: i})
+			hits = append(hits, ranked{item: it, position: i})
 			continue
 		}
-		f := c.searchFieldsOf(calc)
+		f := c.searchFieldsOf(it)
 		pri, sum, ok := 0, 0, true
 		for _, tok := range tokens {
 			t := f.tokenTier(tok)
@@ -252,7 +263,7 @@ func (c *Catalog) SearchAll(query string) []SearchHit {
 		case !ok:
 			continue
 		}
-		hits = append(hits, ranked{calc: calc, pri: pri, sum: sum, position: i})
+		hits = append(hits, ranked{item: it, pri: pri, sum: sum, position: i})
 	}
 	sort.SliceStable(hits, func(a, b int) bool {
 		if hits[a].pri != hits[b].pri {
@@ -266,8 +277,7 @@ func (c *Catalog) SearchAll(query string) []SearchHit {
 	out := make([]SearchHit, 0, len(hits))
 	for _, h := range hits {
 		out = append(out, SearchHit{
-			ID: h.calc.ID, Kind: h.calc.Kind, Category: h.calc.Category,
-			Name: h.calc.Name.in("en"), Summary: firstSentence(h.calc.Doc.in("en")),
+			ID: h.item.id, Kind: h.item.kind, Category: h.item.category, Name: h.item.name.in("en"), Summary: h.item.summary(),
 		})
 	}
 	return out
@@ -487,7 +497,8 @@ func (c *Catalog) Describe(id string) (Description, error) {
 	return d, nil
 }
 
-// lookup finds a calculator by id (case-insensitive). The error of an unknown id suggests the best search hits.
+// lookup finds a calculator by id (case-insensitive). The error of an unknown id suggests the best search hits; the
+// id of a table or a code names the operations that read it.
 func (c *Catalog) lookup(id string) (*Calculator, error) {
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
@@ -496,15 +507,55 @@ func (c *Catalog) lookup(id string) (*Calculator, error) {
 	if calc := c.Calculator(key); calc != nil {
 		return calc, nil
 	}
-	msg := fmt.Sprintf("unknown calculator %q; use search to find a calculator id", id)
-	if hits := c.Search(strings.NewReplacer("_", " ", "-", " ").Replace(key), 3); len(hits) > 0 {
-		ids := make([]string, len(hits))
-		for i, h := range hits {
-			ids[i] = h.ID
+	return nil, c.notFound(id, key, "calculator")
+}
+
+// notFound is the error of an id that is no item of the wanted kind ("calculator", "table", "code" or "" for any). The
+// id of an item of another kind says what it is; an unknown id suggests the best search hits of the wanted kind.
+func (c *Catalog) notFound(id, key, want string) *QueryError {
+	if kind, ok := c.Item(key); ok {
+		hint := map[string]string{
+			"calculator": "describe and calculate work on it",
+			"table":      "describe lists its columns and table reads its rows",
+			"code":       "describe lists its code kind, and decode and encode work on that kind",
+		}[kind]
+		code := map[string]string{"calculator": CodeNotACalculator, "table": CodeNotATable, "code": CodeNotACode}[want]
+		return queryErr(code, "%s is a %s, not a %s; %s", key, kind, want, hint)
+	}
+	label := want
+	if label == "" {
+		label = "calculator, table or code"
+	}
+	msg := fmt.Sprintf("unknown %s %q; use search to find a %s id", want, id, label)
+	if want == "" {
+		msg = fmt.Sprintf("unknown id %q; use search to find a %s id", id, label)
+	}
+	var ids []string
+	for _, h := range c.SearchAll(strings.NewReplacer("_", " ", "-", " ").Replace(key)) {
+		if want == "" || h.Kind == want {
+			ids = append(ids, h.ID)
 		}
+		if len(ids) == 3 {
+			break
+		}
+	}
+	if len(ids) > 0 {
 		msg += "; did you mean " + strings.Join(ids, ", ") + "?"
 	}
-	return nil, &QueryError{Code: CodeUnknownID, Message: msg}
+	return &QueryError{Code: CodeUnknownID, Message: msg}
+}
+
+// ResolveItem finds an item of any kind by id (case-insensitive) and returns its kind ("calculator", "table" or
+// "code") and its canonical id. The error of an unknown id suggests the best search hits.
+func (c *Catalog) ResolveItem(id string) (kind, canonical string, err error) {
+	key := strings.ToLower(strings.TrimSpace(id))
+	if key == "" {
+		return "", "", queryErr(CodeUnknownID, "id is required; use search to find a calculator, table or code id")
+	}
+	if kind, ok := c.Item(key); ok {
+		return kind, key, nil
+	}
+	return "", "", c.notFound(id, key, "")
 }
 
 // ---- calculate ------------------------------------------------------------------------------------------------
