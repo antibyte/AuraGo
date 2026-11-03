@@ -9,6 +9,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a2aproject/a2a-go/v2 v2.6.0
+	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/beevik/etree v1.8.1
 	github.com/blevesearch/snowballstem v0.9.0
 	github.com/bwmarrin/discordgo v0.29.0
@@ -55,6 +56,7 @@ require (
 	github.com/pion/ice/v4 v4.3.0
 	github.com/pion/interceptor v0.1.49
 	github.com/pion/logging v0.2.4
+	github.com/pion/sdp/v3 v3.0.20
 	github.com/pion/webrtc/v4 v4.2.17
 	github.com/pkg/sftp v1.13.11
 	github.com/pkoukk/tiktoken-go v0.1.8
@@ -96,7 +98,6 @@ require (
 	github.com/antchfx/htmlquery v1.3.7 // indirect
 	github.com/antchfx/xmlquery v1.5.2 // indirect
 	github.com/antchfx/xpath v1.3.9 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.47.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.33.9 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.3 // indirect
@@ -180,7 +181,6 @@ require (
 	github.com/pion/rtcp v1.2.19 // indirect
 	github.com/pion/rtp v1.10.5 // indirect
 	github.com/pion/sctp v1.12.0 // indirect
-	github.com/pion/sdp/v3 v3.0.20 // indirect
 	github.com/pion/srtp/v3 v3.0.15 // indirect
 	github.com/pion/stun/v3 v3.1.7 // indirect
 	github.com/pion/transport/v4 v4.1.1 // indirect
