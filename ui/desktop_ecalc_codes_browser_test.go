@@ -81,3 +81,28 @@ func TestECalcCodeDrawIsADomFreeStringBuilder(t *testing.T) {
 		}
 	}
 }
+
+func TestECalcCodeStylesheetSection(t *testing.T) {
+	t.Parallel()
+	css := readDesktopAssetText(t, "css/desktop-app-ecalc.css")
+	start, end := strings.Index(css, "/* code pages */"), strings.LastIndex(css, "/* end of code pages */")
+	if start < 0 || end < start {
+		t.Fatal("css/desktop-app-ecalc.css has no /* code pages */ ... /* end of code pages */ section")
+	}
+	if strings.TrimSpace(css[end+len("/* end of code pages */"):]) != "" {
+		t.Error("the code pages section is the last section of css/desktop-app-ecalc.css")
+	}
+	section := css[start:end]
+	for _, marker := range []string{
+		".ec-code-menu {", ".ec-code-opt[aria-selected=\"true\"]", ".ec-band:focus-visible .ec-band-ring", `.ec-band[aria-expanded="true"] .ec-band-ring`, ".ec-code-error {",
+		".ec-chip-text { fill: var(--vd-theme-panel-bg-strong", ".ec-chip-body { fill: var(--vd-text)", ".ec-draw-body {", ".ec-code-row dt", "@media (prefers-reduced-motion: no-preference)",
+	} {
+		if !strings.Contains(section, marker) {
+			t.Errorf("the code pages section is missing %q", marker)
+		}
+	}
+	// The colour of a band is the fill attribute of the drawing, never a rule of the stylesheet.
+	if regexp.MustCompile(`\.ec-band-fill\s*\{[^}]*\bfill\s*:`).MatchString(section) {
+		t.Error("the stylesheet must not set the fill of a band: the colour comes from the data")
+	}
+}
