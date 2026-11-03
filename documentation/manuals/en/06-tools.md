@@ -91,7 +91,7 @@ The current version includes several powerful extensions:
 | **treg catalog** | `treg_catalog`, `treg_call`, `treg_status` — dynamic API catalog with explicit endpoint grants and a cost ceiling |
 | **Local Wikipedia** | `local_wikipedia` — search and read one offline Wikipedia edition (Kiwix ZIM); read-only |
 | **Retro Games** | `retro_games` — search the archive.org retro games index and open a game in the Retro Games desktop app; read-only (see [Retro Games](../../retro-games.md)) |
-| **ECalc** | `ecalc` — electronics calculators: search, describe and calculate with units; `open` shows one pre-filled in the ECalc desktop app (see [Chapter 32](32-ecalc.md)); always available |
+| **ECalc** | `ecalc` — electronics calculators, reference tables and component codes: search, describe, calculate with units, read tables, decode and encode codes; `open` shows an item in the ECalc desktop app (see [Chapter 32](32-ecalc.md)); always available |
 | **desktop_notes** | List, search, and create desktop notes; existing notes cannot be changed by the agent (see [Desktop Notes](../../desktop-notes.md)) |
 
 ---
