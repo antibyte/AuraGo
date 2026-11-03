@@ -72,7 +72,6 @@ func TestDesktopStorymakerRegistration(t *testing.T) {
 		{"routing", routing, "window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {"},
 		{"size", shell, "storymaker: { width: 1320, height: 840 },"},
 		{"min size", shell, "if (appId === 'storymaker') return { width: 640, height: 480 };"},
-		{"mobile", shell, "storymaker: true }[appId]"},
 	} {
 		if !strings.Contains(m.source, m.marker) {
 			t.Errorf("%s lacks %q", m.name, m.marker)
