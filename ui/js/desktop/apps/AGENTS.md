@@ -598,6 +598,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - MIDI is input-only, explicitly permission-gated with SysEx disabled. The Desktop
   document alone receives `midi=(self)`; untrusted sandboxed app frames deny MIDI.
   Read-only policy changes stop recording and block all project mutations.
+- `css/desktop-app-synth-studio.css` owns the app's visual identity. The
+  `--ss-color-0` … `--ss-color-7` spectrum is mixed with the current text colour,
+  so one token set stays legible in both desktop schemes. Track colours, clip
+  headers, library category and tag chips, scene and chord pads, workbench tabs,
+  effect-insert markers, master strip group headings and the pitch-hued
+  piano-roll notes all take their colour from that spectrum. `--ss-accent` stays
+  the app signal colour and `--ss-meter` feeds the analyser and output meter.
+  Keep the Desktop accent for the shell and hard-code no colour outside the
+  token layer.
 - Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
   `TestDesktopSynthStudioAudioBrowser` and
   `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both

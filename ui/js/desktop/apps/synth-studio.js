@@ -104,7 +104,7 @@
             find('[data-library-tags]').innerHTML=vocabulary.map(t=>'<button data-tag="'+esc(t)+'" aria-pressed="'+String(activeTag===t)+'">'+esc(tr('tag_'+t))+'</button>').join('');
             find('[data-library-list]').innerHTML=items.map(x=>{
                 const favourite=libraryPrefs.favourites.includes(x.id);
-                const chips=x.tags.slice(0,2).map(t=>'<em class="ss-tag">'+esc(tr('tag_'+t))+'</em>').join('');
+                const chips=x.tags.slice(0,2).map(t=>'<em class="ss-tag" data-tag="'+esc(t)+'">'+esc(tr('tag_'+t))+'</em>').join('');
                 return '<div class="ss-library-item '+(x.id===selectedInstrument?'is-selected':'')+'" draggable="'+!readonly()+'" data-library-id="'+esc(x.id)+'" data-library-type="'+(libraryMode==='patterns'?'pattern':'instrument')+'"><button data-preview="'+esc(x.id)+'" aria-label="'+esc(tr('preview')+' '+x.name)+'">'+(libraryMode==='patterns'?'▥':'♪')+'</button><button class="ss-library-name" data-choose="'+esc(x.id)+'"><span>'+esc(x.name)+'</span><small>'+(libraryMode==='patterns'?esc(tr('pattern')):chips)+'</small></button>'+(libraryMode==='patterns'?'':'<button class="ss-favourite" data-favourite="'+esc(x.id)+'" aria-pressed="'+String(favourite)+'" aria-label="'+esc(tr('lib_favourites'))+'">'+(favourite?'★':'☆')+'</button>')+'<button class="ss-insert" data-insert="'+esc(x.id)+'" aria-label="'+esc(tr('add'))+'">＋</button></div>';
             }).join('')||'<p class="ss-muted">'+esc(tr('no_results'))+'</p>';
             root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
@@ -120,7 +120,7 @@
             const rack=inserts.map((insert,index)=>{
                 const def=M.FX_TYPES.find(x=>x.id===insert.type);if(!def)return '';
                 const rows=def.params.map(p=>{const label=FX_PARAM_LABELS[p.key]||p.key;return '<label class="ss-parameter"><span>'+esc(tr(label))+'</span><input data-fx-param="'+index+':'+p.key+'" type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+insert[p.key]+'" aria-label="'+esc(tr(label))+'"><output>'+Number(insert[p.key]).toFixed(2)+'</output></label>';}).join('');
-                return '<section class="ss-fx-slot" data-fx-slot="'+index+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
+                return '<section class="ss-fx-slot" data-fx-slot="'+index+'" data-fx="'+esc(insert.type)+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
             }).join('');
             pane.innerHTML='<h3>'+esc(tr('track'))+'</h3><input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="'+esc(t.name)+'" aria-label="'+esc(tr('name'))+'"><label>'+esc(tr('instrument'))+'<select data-instrument>'+items.map(i=>'<option value="'+esc(i.id)+'"'+(i.id===t.instrument?' selected':'')+'>'+esc(i.name)+'</option>').join('')+'</select></label>'+
                 '<h4>'+esc(tr('your_sound'))+'</h4><div class="ss-param-grid">'+sound.map(p=>slider(...p)).join('')+'</div>'+
@@ -305,13 +305,13 @@
         }
 
         // The master analyser is feedback only: it never influences the audio.
-        function drawAnalyser(){
+        let meterColor='',meterFrames=0;const meterRgb=canvas=>{if(!meterColor||++meterFrames>=30){meterColor=getComputedStyle(canvas).getPropertyValue('--ss-meter').trim()||'#3fe0b0';meterFrames=0;}const hex=meterColor.replace('#',''),full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex,n=parseInt(full,16);return Number.isFinite(n)?[(n>>16)&255,(n>>8)&255,n&255]:[63,224,176];};function drawAnalyser(){
             if(disposed)return;
             const canvas=find('[data-analyser]');
             if(canvas&&canvas.isConnected){
                 const ctx2d=canvas.getContext?.('2d');
                 if(ctx2d){
-                    const bins=audio.spectrum(48);
+                    const bins=audio.spectrum(48);const tint=meterRgb(canvas);
                     const width=canvas.width,height=canvas.height;
                     ctx2d.clearRect(0,0,width,height);
                     if(bins){
@@ -319,11 +319,11 @@
                         for(let i=0;i<bins;i++){
                             const value=bins[i]/255;
                             const bar=Math.max(1,value*height);
-                            ctx2d.fillStyle='rgba(23,104,81,'+(0.25+value*0.75).toFixed(3)+')';
+                            ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
                             ctx2d.fillRect(i*step,height-bar,Math.max(1,step-1),bar);
                         }
                     }else{
-                        ctx2d.fillStyle='rgba(120,132,146,.35)';
+                        ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.4)';
                         ctx2d.fillRect(0,height-1,width,1);
                     }
                 }

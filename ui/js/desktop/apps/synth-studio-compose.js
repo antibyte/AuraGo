@@ -66,7 +66,7 @@
         }
         function pads(){
             const {p}=selection(),s=settings(),box=host.querySelector('.ss-chord-pads');
-            box.innerHTML=Array.from({length:8},(_,i)=>'<button type="button" data-chord="'+i+'" aria-pressed="'+(i===degree)+'"><strong>'+['I','II','III','IV','V','VI','VII','I↑'][i]+'</strong><span>'+G.chord(p.harmony,i,!!s.seventh).map(n=>['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][n%12]).join(' · ')+'</span></button>').join('');
+            box.innerHTML=Array.from({length:8},(_,i)=>'<button type="button" data-chord="'+i+'" style="--ss-chord-color:var(--ss-color-'+(i%6)+')" aria-pressed="'+(i===degree)+'"><strong>'+['I','II','III','IV','V','VI','VII','I↑'][i]+'</strong><span>'+G.chord(p.harmony,i,!!s.seventh).map(n=>['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][n%12]).join(' · ')+'</span></button>').join('');
         }
         async function padStart(button){
             stopLive();degree=Number(button.dataset.chord);host.querySelectorAll('[data-chord]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));

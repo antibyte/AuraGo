@@ -73,6 +73,27 @@ Keyboard arrows move loop handles by one bar. Control values are displayed and c
 be reset. Dragging a sound or volume control previews it immediately and commits
 one undo step; Escape or pointer cancellation restores the previous sound.
 
+## Colour and visual identity
+
+The app owns a spectrum of eight hues (`--ss-color-0` … `--ss-color-7`). Each hue
+is mixed with the current text colour, so one token set stays legible on the dark
+and on the light desktop scheme. The spectrum is applied consistently rather than
+decoratively: track colours and the matching clip headers, the arrangement track
+names, the piano-roll spine, library category and tag chips, the eight scene and
+chord pads, the workbench tab underline, the effect-insert markers and the master
+strip group headings each take one hue from it.
+
+Piano-roll notes carry their own pitch hue, so a chord reads as a colour block and
+a percussion lane as a row of distinct colours. Notes darken on the light scheme to
+keep their contrast against the lighter grid. The arrangement itself keeps a neutral
+grid, so the clip colours stay the only saturated element on the timeline.
+
+The app accent (`--ss-accent`) is the mint signal colour of the playhead, focus
+rings and analyser; the Desktop accent stays reserved for the surrounding shell.
+The output meter and the analyser read the `--ss-meter` token and therefore follow
+the active scheme. On windows of at most 540 pixels the email-export button
+collapses to an envelope glyph so no toolbar action is pushed out of reach.
+
 Mix changes preserve the audio clock. Structural edits are queued at the next
 bar, including requests inside the audio scheduler's look-ahead window. Reserved
 notes from an obsolete request are cancelled before that boundary. A queued

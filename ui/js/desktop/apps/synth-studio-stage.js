@@ -154,7 +154,7 @@
             const p=options.project(),t=track();
             refreshAutomation();
             if(gesture&&gesture.id!==t?.id)end(true);
-            const markup=Array.from({length:8},(_,i)=>{const s=p.scenes[i],state=s?.id===queued?'queued':s?.id===active?'active':'stopped';return '<button type="button" '+(s?'data-scene="'+s.id+'"'+(!options.canPlay()?' disabled':''):'disabled')+' class="'+(selected===s?.id?'is-selected ':'')+state+'" aria-pressed="'+(state==='active')+'"><strong>'+esc(s?.name||'—')+'</strong><span>'+esc(tr(state))+'</span></button>';}).join('');
+            const markup=Array.from({length:8},(_,i)=>{const s=p.scenes[i],state=s?.id===queued?'queued':s?.id===active?'active':'stopped';return '<button type="button" '+(s?'data-scene="'+s.id+'"'+(!options.canPlay()?' disabled':''):'disabled')+' class="'+(selected===s?.id?'is-selected ':'')+state+'" style="--ss-scene-color:var(--ss-color-'+(i%6)+')" aria-pressed="'+(state==='active')+'"><strong>'+esc(s?.name||'—')+'</strong><span>'+esc(tr(state))+'</span></button>';}).join('');
             if(markup!==lastSceneMarkup){const focus=document.activeElement?.dataset.scene;lastSceneMarkup=markup;q('.ss-scene-pads').innerHTML=markup;if(focus)q('[data-scene="'+focus+'"]')?.focus({preventScroll:true});}
             for(const name of ['sceneCreate','sceneRename','sceneDelete','clearAutomation'])q('[data-stage="'+name+'"]').disabled=!editable()||!!take||(name==='sceneCreate'&&p.scenes.length>=8);
             q('[data-stage=takeRecord]').disabled=!editable()||!!take;q('[data-stage=takeStop]').disabled=!take;
