@@ -25,8 +25,9 @@ func ecalcScripts(t *testing.T) map[string]string {
 			scripts[entry.Name()] = readDesktopAssetText(t, ecalcDir+"/"+entry.Name())
 		}
 	}
-	if len(scripts) != 21 {
-		t.Fatalf("%s holds %d scripts, want the 21 of the plan", ecalcDir, len(scripts))
+	// Several phases add scripts (phase 3: tables, table page, codes, code pages): the loader test pins the exact list.
+	if len(scripts) < 21 {
+		t.Fatalf("%s holds %d scripts, want at least the 21 of phase 2", ecalcDir, len(scripts))
 	}
 	return scripts
 }
@@ -140,7 +141,8 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		ecalc_dim_capacitance ecalc_dim_inductance ecalc_dim_frequency ecalc_dim_time ecalc_dim_length ecalc_dim_area ecalc_dim_temperature
 		ecalc_dim_tempdiff ecalc_dim_thermal_resistance ecalc_dim_resistivity ecalc_dim_tempco ecalc_dim_ratio ecalc_dim_angle ecalc_dim_baudrate
 		ecalc_dim_integer ecalc_unused_field ecalc_combos ecalc_combo_single ecalc_combo_series ecalc_combo_parallel ecalc_combo_value
-		ecalc_combo_deviation ecalc_chart`) {
+		ecalc_combo_deviation ecalc_chart ecalc_guide_values ecalc_mains_note ecalc_page_unavailable ecalc_table_columns_hidden ecalc_table_copy ecalc_table_filter
+		ecalc_table_no_match ecalc_table_no_rows ecalc_table_notes ecalc_table_rows ecalc_table_rows_filtered ecalc_table_sort ecalc_table_unit`) {
 		allowed["desktop."+key] = true
 	}
 	keyPattern := regexp.MustCompile(`['"](desktop\.[A-Za-z0-9_.]+)['"]`)
@@ -149,8 +151,8 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		for _, match := range keyPattern.FindAllStringSubmatch(script, -1) {
 			used++
 			key := match[1]
-			if key == "desktop.ecalc_dim_" {
-				continue // the prefix of the dimension names
+			if key == "desktop.ecalc_dim_" || key == "desktop.ecalc_group_" {
+				continue // the prefixes of the dimension names and of the group names of the Tables list
 			}
 			if !allowed[key] {
 				t.Errorf("%s uses the translation key %s, which is not one of the ECalc keys", name, key)
