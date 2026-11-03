@@ -112,8 +112,8 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				Path               string `json:"path"`
 				AllowMediaAnalysis *bool  `json:"allow_media_analysis"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			if strings.TrimSpace(req.Path) == "" {
@@ -160,8 +160,8 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				Path       string `json:"path"`
 				Collection string `json:"collection"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			if strings.TrimSpace(req.Path) == "" {
@@ -211,8 +211,8 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			var req struct {
 				Path string `json:"path"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			if strings.TrimSpace(req.Path) == "" {

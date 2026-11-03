@@ -343,7 +343,12 @@ func TestExecutorShellExecTimeoutReturnsPromptly(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "command timed out after") {
 		t.Fatalf("shellExec timeout error = %v, want timeout error", err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
+	maxElapsed := 2 * time.Second
+	if runtime.GOOS == "windows" {
+		// Windows allows three seconds to reap the process tree before closing pipes.
+		maxElapsed = 4 * time.Second
+	}
+	if elapsed := time.Since(start); elapsed > maxElapsed {
 		t.Fatalf("shellExec timeout returned after %v, want prompt return", elapsed)
 	}
 }

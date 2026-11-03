@@ -436,7 +436,7 @@ func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg str
 		return false
 	}
 	switch strings.ToLower(strings.TrimSpace(runCfg.MessageSource)) {
-	case "", "web_chat", "telegram", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
+	case "", "web_chat", "telegram", "whatsapp", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
 		return true
 	case "mission", "maintenance", "a2a", "planner_notification", "cron", "daemon", "heartbeat", "follow_up", "uptime_kuma", "webhook", "mqtt", "frigate":
 		return false

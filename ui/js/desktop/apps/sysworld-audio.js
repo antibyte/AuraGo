@@ -46,7 +46,7 @@ export function createCityAmbience(onState=()=>{}) {
   let pad=[],padFilter=null,padLevel=null,airFilter=null,airGain=null,verb=null,noise=null;
   let waterGain=null,murmurGain=null,bedWater='0.000',bedMurmur='0.000';
   let eventTimer=0,chordTimer=0,chord=0,events=0;
-  const listener={x:0,y:2.4,z:0,fx:0,fz:-1};
+  const listener={x:0,y:2.4,z:0,fx:0,fz:-1,origin:{x:0,z:0}};
   const mood={busy:false,day:0,evening:0,weather:'clear'};
   const levels={ambience:1,effects:1,voice:1};
   try {enabled=localStorage.getItem('aurago.desktop.sysworld.sound')==='true';}catch(_){}
@@ -62,7 +62,7 @@ export function createCityAmbience(onState=()=>{}) {
     verb=node(context.createConvolver());verb.buffer=impulse(context,3.4,2.6);
     const verbReturn=node(context.createGain());verbReturn.gain.value=.55;verb.connect(verbReturn).connect(ambientBus);
     voice=createTowerVoice(context,voiceBus);effects=createCityEffects(context,effectsBus,ambientBus);effects.environment(inside,weather);
-    foley=createCityFoley(context,effectsBus,ambientBus);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz);
+    foley=createCityFoley(context,effectsBus,ambientBus);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
     for(const [frequency,gain] of [[55,.07],[82.4069,.022],[110,.01]]) {
       const oscillator=source(context.createOscillator()), level=node(context.createGain());
       oscillator.frequency.value=frequency;level.gain.value=gain;
@@ -119,18 +119,23 @@ export function createCityAmbience(onState=()=>{}) {
     const panner=context.createStereoPanner(),reverb=context.createGain();panner.pan.value=pan;reverb.gain.value=send;
     level.connect(panner).connect(ambientBus);panner.connect(reverb).connect(verb);return [panner,reverb];
   }
-  // Distance and direction of a world position against the listener frame.
+  // Distance and direction of a world position against the listener frame. The
+  // distance runs from the acoustic origin (where the view rests), the pan from
+  // the camera, so a sound keeps the direction it has in the picture.
   function reach(position){
-    const dx=position.x-listener.x,dz=position.z-listener.z,distance=Math.hypot(dx,dz);
-    return {distance,pan:Math.max(-1,Math.min(1,(dx*-listener.fz+dz*listener.fx)/Math.max(distance,1))),fade:1/(1+distance*.02)};
+    const cx=position.x-listener.x,cz=position.z-listener.z;
+    const ox=position.x-listener.origin.x,oz=position.z-listener.origin.z;
+    const distance=Math.hypot(ox,oz),view=Math.max(1,Math.hypot(cx,cz));
+    return {distance,pan:Math.max(-1,Math.min(1,(cx*-listener.fz+cz*listener.fx)/view)),fade:1/(1+distance*.02)};
   }
   function positionFor(kind){
     if(kind==='horn'||kind==='gull')return ANCHORS.harbour;
     if(kind==='windchime')return ANCHORS.quay;
     if(kind==='bell')return ANCHORS.tower;
     if(kind==='pigeon')return ANCHORS.square;
+    // The ring surrounds the place the view rests on, so the city stays around you.
     const angle=Math.random()*Math.PI*2,distance=24+Math.random()*44;
-    return {x:listener.x+Math.sin(angle)*distance,z:listener.z+Math.cos(angle)*distance};
+    return {x:listener.origin.x+Math.sin(angle)*distance,z:listener.origin.z+Math.cos(angle)*distance};
   }
   function chime(position){
     const t=context.currentTime,f=CHIMES[Math.floor(Math.random()*CHIMES.length)];
@@ -300,9 +305,11 @@ export function createCityAmbience(onState=()=>{}) {
   // queue a new ramp every frame.
   function updateBeds(){
     if(!context||!waterGain||!murmurGain)return;
-    const quayX=Math.max(-76,Math.min(76,listener.x)),distance=Math.hypot(listener.x-quayX,listener.z-77);
+    // The harbour is a bed right at the quay and a faint wash across the city.
+    const quayX=Math.max(-76,Math.min(76,listener.origin.x)),distance=Math.hypot(listener.origin.x-quayX,listener.origin.z-77);
     const near=Math.max(0,1-(distance-6)/42);
-    const water=(inside?0:near*.05*(weather==='rain'?1.2:1)).toFixed(3);
+    const wash=Math.max(0,1-(distance-25)/110)*.18;
+    const water=(inside?0:Math.min(1,near+wash)*.05*(weather==='rain'?1.2:1)).toFixed(3);
     const crowd=((mood.busy?.03:.012)*(.35+mood.day*.65)*(inside?.25:1)).toFixed(3);
     if(water===bedWater&&crowd===bedMurmur)return;
     bedWater=water;bedMurmur=crowd;
@@ -336,7 +343,8 @@ export function createCityAmbience(onState=()=>{}) {
     unlock() {sync(true);},
     setActive(value) {if(active===value)return;active=value;sync();},
     setVolume(value) {if(Number.isFinite(value)){volume=Math.max(0,Math.min(.35,value));sync();}},
-    setListener(x,y,z,fx,fz) {Object.assign(listener,{x,y,z,fx,fz});voice?.setListener(x,y,z,fx,fz);effects?.listener(x,y,z,fx,fz);foley?.listener(x,y,z,fx,fz);updateBeds();},
+    setListener(x,y,z,fx,fz,ox,oz) {Object.assign(listener,{x,y,z,fx,fz});listener.origin.x=ox??x;listener.origin.z=oz??z;
+      voice?.setListener(x,y,z,fx,fz);effects?.listener(x,y,z,fx,fz);foley?.listener(x,y,z,fx,fz,listener.origin.x,listener.origin.z);updateBeds();},
     setChannel(key,value){if(!(key in levels)||!Number.isFinite(value))return;levels[key]=Math.max(0,Math.min(1,value));const bus={ambience:ambientBus,effects:effectsBus,voice:voiceBus}[key];if(bus)bus.gain.setTargetAtTime(levels[key],context.currentTime,.05);sync();},
     // World interactions keep their own channel; robot actions are routed to the foley.
     effect(kind,x,y,z,id){if(String(kind).startsWith('robot_')){foley?.action(kind,x,y,z,id);return;}effects?.play(kind,x,y,z);},

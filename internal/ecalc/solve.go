@@ -9,7 +9,7 @@ import (
 const (
 	ErrUndetermined = "undetermined" // not enough values to compute the variable
 	ErrNonFinite    = "nonfinite"    // NaN or infinite
-	ErrRange        = "range"        // zero or negative for a dimension that must be positive
+	ErrRange        = "range"        // zero or negative for a positive dimension; not a whole number in 0 .. 2^53-1 for an integer one
 )
 
 // Inputs are the known values for Solve, all in SI base units.
@@ -91,6 +91,8 @@ func valueError(d *Dim, x float64) string {
 	case math.IsNaN(x) || math.IsInf(x, 0):
 		return ErrNonFinite
 	case d.Positive && x <= 0:
+		return ErrRange
+	case d.Integer && (x != math.Trunc(x) || x < 0 || x > maxSafeInt):
 		return ErrRange
 	}
 	return ""

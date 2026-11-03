@@ -83,6 +83,33 @@ func TestSolvePropagatesAndFlagsProblems(t *testing.T) {
 	}
 }
 
+// TestSolveRangeVectors runs the solve_range section of core.json: a single input variable of a given dimension, no
+// rules. The ECMAScript twin (scripts/test-ecalc-core.mjs) runs the same cases through its own solver.
+func TestSolveRangeVectors(t *testing.T) {
+	var f struct {
+		Cases []struct {
+			Dim  string `json:"dim"`
+			V    any    `json:"v"`
+			Want string `json:"want"`
+		} `json:"solve_range"`
+	}
+	readJSON(t, "testdata/vectors/core.json", &f)
+	if len(f.Cases) == 0 {
+		t.Fatal("core.json lacks the solve_range section")
+	}
+	u := testUnits(t)
+	for _, v := range f.Cases {
+		if u.Dim(v.Dim) == nil {
+			t.Fatalf("solve_range: unknown dimension %q", v.Dim)
+		}
+		c := &Calculator{Vars: []Var{{ID: "n", Dim: v.Dim, dim: u.Dim(v.Dim), Input: true}}}
+		res := c.Solve(Inputs{Values: map[string]float64{"n": vecNum(t, v.V)}})
+		if got := res.Errors["n"]; got != v.Want {
+			t.Errorf("Solve(%s = %v) error = %q, want %q", v.Dim, v.V, got, v.Want)
+		}
+	}
+}
+
 func TestSolveChoicesAndLists(t *testing.T) {
 	c := loadOne(t, mixCalc)
 	in := Inputs{

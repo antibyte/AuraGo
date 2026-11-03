@@ -14,7 +14,7 @@
         if (!response.ok) throw new Error('sticker_load_failed');
         const blob = await response.blob();
         if (signal) signal.throwIfAborted();
-        return new File([blob], 'sticker-' + id + '.png', { type: 'image/png' });
+        return new File([blob], 'sticker-' + id + '.webp', { type: 'image/webp' });
     }
     async function image(id, signal) {
         const objectURL = URL.createObjectURL(await file(id, signal));

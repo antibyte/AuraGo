@@ -1,3 +1,4 @@
+import { loadConfigRuntime } from './config-test-runtime.mjs';
 // Behaviour checks for ui/cfg/local_wikipedia.js against a small fake DOM:
 // status error wording, loading, poll errors, focus, the live region and the
 // install questions. Run with `npm run test:local-wikipedia-config`.
@@ -96,6 +97,7 @@ function makeContext() {
     },
   };
   vm.createContext(sandbox);
+  loadConfigRuntime(sandbox);
   vm.runInContext(source, sandbox);
   return {
     sandbox, runtime, announce, calls, confirms, state, document,

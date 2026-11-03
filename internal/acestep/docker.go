@@ -255,7 +255,16 @@ func (m *Manager) detect(ctx context.Context, w desired) (Device, error) {
 	}
 	backends := []string{w.Local.Backend}
 	if w.Local.Backend == "auto" {
-		backends = []string{"cuda", "rocm", "xpu", "vulkan"}
+		// Vulkan probes the Docker host across GPU vendors without downloading
+		// the large ROCm/XPU runtimes just to discover unsupported hardware.
+		backends = []string{"cuda", "vulkan"}
+		if selected, _, ok := strings.Cut(w.Local.Device, ":"); ok {
+			switch selected {
+			case "cuda", "rocm", "xpu", "vulkan":
+				// A concrete device is an explicit opt-in to its runtime.
+				backends = []string{selected}
+			}
+		}
 	}
 	var devices []Device
 	for _, backend := range backends {

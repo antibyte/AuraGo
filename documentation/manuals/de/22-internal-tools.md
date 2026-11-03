@@ -550,6 +550,14 @@ Sendet eine Nachricht oder eine Datei als Dokument über den konfigurierten Tele
 | `priority` | string | Optional: Priorität (normal, high, low) |
 | `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, die als Telegram-Dokument gesendet wird. `title` und `message` werden ihre Bildunterschrift (ein längerer Text wird zuerst als eigene Nachricht gesendet). Bis 50 MB. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein nicht konfiguriertes Telegram lässt den Aufruf fehlschlagen |
 
+### `send_whatsapp`
+Sendet eine Nachricht, oder eine Datei mit dem Text als Bildunterschrift, über das verknüpfte WhatsApp-Gerät an den Besitzer-Chat. Es gibt keinen Empfänger-Parameter; die Nachricht geht immer nur an den konfigurierten Besitzer. Wenn du eine Datei mitschickst, wird der Text ihre Bildunterschrift.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `message` | string | Nachrichtentext. Markdown wird in WhatsApp-Formatierung umgewandelt. Mit einer Datei wird der Text zur Bildunterschrift (höchstens 1024 Zeichen; ein längerer Text geht vorher als eigene Nachricht) |
+| `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, bis 50 MB. JPEG/PNG gehen als Bild, MP4 als Video, MP3, M4A und OGG (auch Opus und AAC) als Audio, alles andere als Dokument. Audio hat keine Bildunterschrift, daher geht sein Text immer vorher. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein deaktiviertes, nicht verknüpftes oder schreibgeschütztes WhatsApp lässt den Aufruf fehlschlagen |
+
 ### `send_youtube_video`
 Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
 
@@ -1615,6 +1623,19 @@ Diese nativen Tools bedienen die Desktop-Apps und lokalen Laufzeiten aus Kapitel
 ### `desktop_notes`
 Bedient die sichtbare Desktop-Notizbibliothek mit `list`, `search`, `read` und `create`. Bestehende Notizen sind für den Agenten unveränderlich (Create-only); der Schutz gilt auch gegenüber Umwegen über andere Datei-Tools, sofern Isolation aktiv ist.
 
+### `ecalc`
+Elektronik-Rechner aus demselben Katalog und mit denselben Formeln wie die Desktop-App ECalc ([Kapitel 32](32-ecalc.md)): Ohmsches Gesetz, Teiler, Filter, Timer, OpAmps, Stromversorgung, HF und Normwerte für Widerstände. Immer verfügbar, ohne Config-Schalter: Das Tool rechnet auf einem eingebetteten Katalog und liest weder Netzwerk noch Dateien. Der Agent findet es über `discover_tools` (Suchbegriffe wie *Elektronik Rechner*, *Widerstand berechnen*, *Spannungsteiler berechnen*). `search` listet Rechner (`id`, Name, Kategorie und ein Satz Zusammenfassung; eine leere `query` listet die Kategorien); `describe` liefert Variablen mit Einheiten und Vorgaben, die Auswahlfelder, `dof`, die lösbaren Eingabekombinationen, die berechneten Ausgaben, die Prüfungen und die Formeln; `calculate` löst aus den angegebenen `inputs` (eine nackte Zahl gilt in der Standardeinheit der Variablen) und antwortet mit SI- und formatierten Werten, E-Reihen-Vorschlägen für berechnete Widerstände (die Normwert-Kombination listet `combos`: den nächsten Einzelwert und die besten Reihen- und Parallelpaare), den Warnungen des Rechners und `contradictions`, wenn ein überzähliger Wert um mehr als 1 % vom berechneten abweicht; eine nicht lösbare Anfrage antwortet mit `underdetermined` und nennt die nächstliegenden Eingabekombinationen zuerst. `open` zeigt einen Rechner in der ECalc-App, mit den Werten vorausgefüllt, und braucht den Virtual Desktop, die Option `allow_agent_control` und das Desktop-Agent-Tool (sonst `policy_denied` mit `desktop_unavailable` oder `desktop_agent_control_disabled`). A2A-Anfragen dürfen suchen, beschreiben und rechnen, aber nichts öffnen. Antworten werden auf das Inline-Ausgabelimit gekürzt.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | string | `search`, `describe`, `calculate` oder `open` |
+| `query` | string | Thema, Bauteil oder Formel auf Deutsch oder Englisch (`search`; leer listet die Kategorien) |
+| `id` | string | Rechner-ID aus `search` (`describe`, `calculate`, `open`) |
+| `inputs` | array | `{name, value}`-Paare: Variablen-ID und der Wert, wie man ihn tippt, zum Beispiel `4k7`, `12 V`, `25 °C` (`calculate`, `open`) |
+| `choices` | array | `{name, option}`-Paare für Auswahlfelder wie die Kurvenform (`calculate`, `open`) |
+| `eseries` | string | `E3`, `E6`, `E12`, `E24` (Standard), `E48`, `E96` oder `E192` (`calculate`) |
+| `limit` | integer | Anzahl der Treffer, 1–25 (Standard 10; `search`) |
+
 ### `layerling`
 Interaktives 3D-CAD im offenen Browser-Editor des Nutzers. Braucht einen authentifizierten Desktop-Chat-Kontext, die aktivierte Layerling-Integration, Desktop-Agent-Zugriff und `agent_access: read` oder `write` (Standard `off`). Workflow: `list_editors` mit exakter `editor_id` aus dem Fenster-Chat, dann `describe` für das Parameter-Schema von Layerling 1.57.0, dann die Operation. Kein Headless-CAD; nach Browser-Trennung laufen Befehle nicht automatisch nach. Details: Kapitel 8 und [layerling.md](../../layerling.md).
 
@@ -1676,6 +1697,7 @@ Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von 
 - `send_image`, `send_audio`, `send_video`, `send_document`
 - `list_skills`, `execute_skill`, `discover_tools`
 - `dns_lookup`, `whois_lookup`
+- `ecalc` (`open` braucht den Virtual Desktop und die Agent-Steuerung)
 - `detect_file_type`, `archive`
 - `pdf_operations`, `image_processing`
 - `tts`

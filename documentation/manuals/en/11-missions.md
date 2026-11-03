@@ -249,7 +249,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 
 #### Failures and Notifications
 
-- A failed run notifies as the flow's setting `notify_on_error` says: desktop notification (the default), push, Telegram, or off. A flow notifies once when it starts failing and then at most once an hour while it keeps failing. A successful run ends the failing state, so a flow that alternates between success and failure notifies at every new failure. Cancelled runs neither notify nor end the failing state. The state lives in memory: after a restart the first failure notifies again.
+- A failed run notifies as the flow's setting `notify_on_error` says: desktop notification (the default), push, Telegram, WhatsApp, or off. A flow notifies once when it starts failing and then at most once an hour while it keeps failing. A successful run ends the failing state, so a flow that alternates between success and failure notifies at every new failure. Cancelled runs neither notify nor end the failing state. The state lives in memory: after a restart the first failure notifies again.
 - Every failed run also records the flow's planner issue (one per flow; the next successful run resolves it) and fires `planner_operational_issue` triggers, as agent missions do. A mission that reacts to such issues should set `min_interval_seconds` or filter with `planner_issue_source`.
 
 #### AI and Tool Steps
@@ -263,7 +263,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Documents that a flow renders from HTML or Markdown never load remote content (scripts, remote images and fonts); embed images as `data:` URLs. Turning a URL into a PDF or screenshot, and converting office documents, is refused in flows.
 - When a step reads a file that another step created in the documents folder (a new PDF, for example), AuraGo copies it to `.easydrag/<run>/` in the workspace for that one call and removes the copy afterwards.
 - Email steps: a retry starts only after the previous attempt has ended, so two attempts never overlap. If the mail server accepted a mail but its answer got lost, the retry sends the mail a second time. A run that is cancelled during a send may still deliver the mail in the background.
-- Telegram steps with a file: when the text went out but the file failed, the step is not tried again, so the text is not sent twice.
+- Telegram and WhatsApp steps with a file: when the text (for WhatsApp, the caption) went out but the file failed, the step is not tried again, so the text is not sent twice.
 - A foreground shell step ends with the run. Cancelling the run ends its process tree. The shell also ends when the step's own timeout cancels the same context. Both limits apply; the shorter one wins. A shell step with `background: true` stays registered until the command ends on its own, in a flow and in chat.
 
 #### Flow Secrets

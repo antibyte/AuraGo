@@ -43,6 +43,10 @@ func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
 	}
+	if s.CoAgentRegistry != nil {
+		s.CoAgentRegistry.Shutdown()
+	}
+	s.revokeDockerTerminals()
 	s.closeProjectKnowledge()
 	s.closeVideoStudioManager()
 	s.closeStorymaker()

@@ -76,12 +76,14 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	switch tc.Action {
 	case "qr_code":
 		a.Mutating = a.Operation != "presets" && a.Operation != "scan"
+	case "ecalc":
+		a.Mutating = a.Operation == "open" // The other operations are pure computation.
 	case "discover_tools", "read_tool_manual", "query_inventory", "query_memory", "context_memory", "context_manager", "web_capture", "brave_search", "web_search", "web_scraper":
 		a.Mutating = false
 	case "execute_shell", "execute_python", "run_tool", "execute_skill", "run_agent_skill_script":
 		a.Operation = "execute" // These tools have no caller-selectable operation.
 		a.Mutating = true
-		a.HighRisk = dc != nil && dc.Cfg != nil && (dc.Cfg.Agent.AllowUnsafeHostExecution || tc.Action == "execute_shell" && (dc.Cfg.Agent.AllowUnsandboxedShell || dc.Cfg.Agent.LegacyUnsandboxedShell))
+		a.HighRisk = dc != nil && dc.Cfg != nil && (dc.Cfg.Agent.AllowUnsafeHostExecution || tc.Action == "execute_shell" && dc.Cfg.Agent.AllowUnsandboxedShell)
 		switch tc.TransportAction {
 		case "git_push", "git_pull", "git_commit", "git_rollback":
 			a.HighRisk = true
@@ -91,7 +93,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 		if tc.Action == "execute_sudo" || tc.Action == "execute_remote_shell" {
 			a.Operation, a.Mutating = "execute", true
 		}
-	case "send_email", "send_telegram", "send_discord", "send_rocketchat", "send_push", "send_push_notification", "send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video":
+	case "send_email", "send_telegram", "send_whatsapp", "send_discord", "send_rocketchat", "send_push", "send_push_notification", "send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video":
 		a.Operation, a.Mutating, a.HighRisk = "execute", true, true
 	case "agentmail", "agentmail_messages", "agentmail_drafts":
 		switch a.Operation {

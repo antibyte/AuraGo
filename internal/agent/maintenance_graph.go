@@ -31,7 +31,8 @@ func runKnowledgeGraphMaintenance(graphCtx context.Context, cfg *config.Config, 
 	if graphCtx.Err() != nil {
 		return
 	}
-	if cfg.Tools.Notes.Enabled && stm != nil {
+	blocked := maintenanceDestructiveBlocked(graphCtx)
+	if !blocked && cfg.Tools.Notes.Enabled && stm != nil {
 		deleted, err := stm.DeleteOldDoneNotes(retention.DoneNotesDays)
 		if err != nil {
 			logger.Error("[Maintenance] Failed to clean old done notes", "error", err)
@@ -43,7 +44,7 @@ func runKnowledgeGraphMaintenance(graphCtx context.Context, cfg *config.Config, 
 	if graphCtx.Err() != nil {
 		return
 	}
-	if stm != nil {
+	if !blocked && stm != nil {
 		hygieneStats := runAutomaticMemoryHygieneWithContext(graphCtx, cfg, logger, stm, ltm)
 		for _, err := range hygieneStats.Errors {
 			ledger.recordError("memory_hygiene", err)
@@ -59,7 +60,9 @@ func runKnowledgeGraphMaintenance(graphCtx context.Context, cfg *config.Config, 
 		return
 	}
 	if kg != nil {
-		if _, _, err := kg.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
+		if blocked {
+			// Stale-graph cleanup deletes nodes and edges; keep them until a snapshot exists.
+		} else if _, _, err := kg.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
 			PendingCoMentionDays: cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays,
 			StaleNodeDays:        30,
 		}); err != nil {

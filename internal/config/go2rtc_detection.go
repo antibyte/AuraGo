@@ -32,7 +32,7 @@ const (
 )
 
 // go2RTCDetectionChannels are the tools.SendNotification channels a camera may alert on.
-var go2RTCDetectionChannels = []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "cyd", "all"}
+var go2RTCDetectionChannels = []string{"ntfy", "pushover", "telegram", "whatsapp", "discord", "push", "telnyx", "cyd", "all"}
 
 // Go2RTCDetectionChannels returns a copy of the tools.SendNotification channels a
 // camera may alert on, so callers cannot widen what validation accepts.

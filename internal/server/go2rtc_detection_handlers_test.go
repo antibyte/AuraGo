@@ -325,7 +325,7 @@ func TestGo2RTCDetectionAPIWhenDetectionIsDisabled(t *testing.T) {
 	next := *h.s.Cfg
 	next.Go2RTC.Detection.Enabled = false
 	h.s.CfgMu.Lock()
-	h.s.Cfg = &next
+	h.s.replaceConfigSnapshot(&next)
 	h.s.CfgMu.Unlock()
 	h.s.syncPersonDetectionSettings()
 	if w, body := h.do(http.MethodPost, "arm", h.adminToken, "", `{"mode":"on"}`); w.Code != http.StatusConflict || body["code"] != "detection_disabled" {

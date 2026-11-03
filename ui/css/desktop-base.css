@@ -1432,6 +1432,14 @@
     display: none;
 }
 
+@media (hover: none), (pointer: coarse) {
+    .desktop-body[data-shell="dock"] .vd-dock-scroll {
+        /* Hover headroom must not intercept touches in the app above the dock. */
+        margin-top: 0;
+        padding-top: 0;
+    }
+}
+
 .desktop-body[data-shell="dock"] .vd-dock-track {
     width: max-content;
     min-width: 100%;
@@ -1994,7 +2002,7 @@
     }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
     .desktop-body[data-shell="dock"] {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
@@ -2018,6 +2026,17 @@
 
     .desktop-body[data-shell="dock"] .vd-start-button {
         display: none;
+    }
+
+    .desktop-body[data-shell="dock"] .vd-dock-orb {
+        position: static;
+        display: grid;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
     }
 
     .desktop-body[data-shell="dock"] .vd-taskbar-apps {
@@ -2210,7 +2229,7 @@
     padding: 18px;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
 .vd-shell {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;

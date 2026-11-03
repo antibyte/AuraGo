@@ -23,6 +23,7 @@ func TestAuthDisabledBrowserWriteOrigins(t *testing.T) {
 		} {
 			t.Run(method+"/"+tc.name, func(t *testing.T) {
 				s := &Server{Cfg: &config.Config{}}
+				s.Cfg.Server.HTTPS.Domain = "aurago.test"
 				called := false
 				handler := authMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					called = true
@@ -41,7 +42,9 @@ func TestAuthDisabledBrowserWriteOrigins(t *testing.T) {
 	}
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
 		t.Run(method+"/preview_asset", func(t *testing.T) {
-			handler := authMiddleware(&Server{Cfg: &config.Config{}}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			cfg := &config.Config{}
+			cfg.Server.HTTPS.Domain = "aurago.test"
+			handler := authMiddleware(&Server{Cfg: cfg}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
 			}))
 			req := httptest.NewRequest(method, "https://aurago.test/api/game-maker/preview/token/assets/sheet.png", nil)

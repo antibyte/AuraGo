@@ -54,9 +54,10 @@ const nativeMatchMedia=window.matchMedia.bind(window);window.matchMedia=q=>q==='
 	defer server.Close()
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	// Include shader compilation and scene recreation on software WebGL runners.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	launch := launcher.New().Context(ctx).Bin(bin).Headless(true).NoSandbox(true).
 		Set("enable-unsafe-swiftshader")

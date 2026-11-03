@@ -1,0 +1,19 @@
+{
+  "calc": "ipc2221_trace_width",
+  "sets": [
+    {"choices": {"layer": "external"}, "values": {"i": 3.72598615981772, "dt": 10, "t": 2.54e-05, "w": 0.00254, "a": 6.4516e-08}, "ref": "hand: 1 mil x 100 mil = 100 mil2 = 6.4516e-8 m2; I = 0.048 * 10^0.44 * 100^0.725 = 0.048 * 10^(0.44 + 1.45) = 0.048 * 10^1.89 = 0.048 * 77.62471 = 3.72599 A"},
+    {"choices": {"layer": "external"}, "values": {"i": 3.244403629128886, "dt": 20, "t": 3.5e-05, "w": 0.001, "a": 3.5e-08}, "ref": "hand (independent script): 35 um x 1 mm = 3.5e-8 m2 = 54.2501 mil2; I = 0.048 * 20^0.44 * 54.2501^0.725 = 0.048 * 3.7364 * 18.0901 = 3.2444 A"},
+    {"choices": {"layer": "internal"}, "values": {"i": 0.709727352679343, "dt": 30, "t": 1.75e-05, "w": 0.0005, "a": 8.75e-09}, "ref": "hand (independent script): 17.5 um x 0.5 mm = 8.75e-9 m2 = 13.5625 mil2; I = 0.024 * 30^0.44 * 13.5625^0.725 = 0.024 * 4.46615 * 6.62136 = 0.709727 A"},
+    {"choices": {"layer": "internal"}, "values": {"i": 4.383402402167021, "dt": 10, "t": 7e-05, "w": 0.003, "a": 2.1e-07}, "ref": "hand (independent script): 70 um x 3 mm = 2.1e-7 m2 = 325.501 mil2; I = 0.024 * 10^0.44 * 325.501^0.725 = 0.024 * 2.75423 * 66.3132 = 4.3834 A"}
+  ],
+  "solve": [
+    {"inputs": {"i": 2, "dt": 10, "t": 3.5e-05}, "expect": {"w": 0.0007814374629086278, "a": 2.7350311201801977e-08}, "ref": "hand (independent script): external, A = (I / (k * dT^0.44))^(1/0.725) = (2 / (0.048 * 2.754229))^1.37931 = 15.1286^1.37931 = 42.3931 mil2; W = A / T = 2.73503e-08 m2 / 35 um = 0.000781437 m (0.7814 mm, 30.8 mil)"},
+    {"inputs": {"i": 2, "dt": 10, "t": 3.5e-05}, "choices": {"layer": "internal"}, "expect": {"w": 0.002032862549035419, "a": 7.115018921623967e-08}, "ref": "hand (independent script): internal, A = (2 / (0.024 * 2.754229))^1.37931 = 30.2572^1.37931 = 110.283 mil2 (2^1.37931 = 2.60 times the external value); W = 0.00203286 m (2.0329 mm)"},
+    {"inputs": {"dt": 10, "t": 2.54e-05, "w": 0.00254}, "expect": {"i": 3.72598615981772, "a": 6.4516e-08}, "ref": "hand: A = 100 mil2; I = 0.048 * 10^1.89 = 0.048 * 77.62471 = 3.72599 A"},
+    {"inputs": {"i": 2, "t": 2.54e-05, "w": 0.00254}, "expect": {"dt": 2.4315518877339755}, "ref": "hand (independent script): dT = (I / (k * A^0.725))^(1/0.44) = (2 / (0.048 * 28.18383))^2.272727 = 1.478349^2.272727 = 2.43155 K for A = 100 mil2"},
+    {"inputs": {"i": 2, "dt": 10, "w": 0.001}, "expect": {"t": 2.7350311201801976e-05}, "ref": "hand (independent script): T = A / W = 42.39307 mil2 = 2.73503e-08 m2 over 1 mm = 2.73503e-05 m (27.35 um, 0.781 oz)"},
+    {"inputs": {"i": 40, "dt": 10, "t": 3.5e-05}, "expect": {"w": 0.04868759919715444}, "warnings": [0], "ref": "hand (independent script): A = (40 / (0.048 * 2.754229))^1.37931 = 2641.31 mil2, W = 0.0486876 m; 40 A is above the 35 A range of the curves, the first check fires"},
+    {"inputs": {"i": 2, "dt": 120, "t": 3.5e-05}, "expect": {"w": 0.00017295887468889374}, "warnings": [1], "ref": "hand (independent script): A = (2 / (0.048 * 120^0.44))^1.37931 = 9.38304 mil2, W = 0.000172959 m; 120 K is above the 100 K range of the curves, the second check fires"},
+    {"inputs": {"i": 2, "dt": 10}, "errors": {"t": "undetermined", "w": "undetermined"}, "ref": "neither the copper thickness nor the trace width is known"}
+  ]
+}

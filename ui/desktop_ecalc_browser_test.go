@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +22,11 @@ import (
 // on the voltage divider (the oldest input yields, a lock pins a field), the star-delta set switch, the field chips on
 // every schematic, the compact stack and the Ctrl+K shortcut that must not open the Spotlight. The shell runs in
 // German: numbers appear with a decimal comma and the app must show the German catalog (names and categories), while
-// the search still finds items by their English name. Set AURAGO_BROWSER_ARTIFACT_DIR to keep screenshots.
+// the search still finds items by their English name. Phase 2 adds: the units list of a variable, a chart (patched into
+// the voltage divider), the dimmed fields of an `ignore` list (patched into the decibel calculator), the standard-value
+// combiner (the real eseries_combiner), radix fields (a fixture calculator), the new symbols, the split schematic files and
+// the launch hook (ECalcApp.launch on an open window, ctx.launch at render time, a payload that arrives while loading).
+// Set AURAGO_BROWSER_ARTIFACT_DIR to keep screenshots.
 func TestDesktopECalcBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	catalog, err := ecalc.Default()
@@ -57,6 +62,46 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	if deItems["voltage_divider"] == "" || deItems["voltage_divider"] == enItems["voltage_divider"] || deCategories["basics"] == enCategories["basics"] {
 		t.Fatalf("the German and the English catalog must differ: %q / %q and %q / %q", deItems["voltage_divider"], enItems["voltage_divider"], deCategories["basics"], enCategories["basics"])
 	}
+	// Counts and drawings come from the catalog the route serves, so the test follows the content that later parts add.
+	var served struct {
+		Items []struct{ ID, Kind, Category, Schematic string } `json:"items"`
+		Units struct {
+			Dims []struct {
+				ID       string
+				Prefixes []string
+				Units    []struct{ ID string }
+			} `json:"dims"`
+		} `json:"units"`
+	}
+	enBody, _, err := catalog.LocalizedJSON("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(enBody, &served); err != nil {
+		t.Fatal(err)
+	}
+	type drawing struct{ ID, Category string }
+	var drawings []drawing
+	schematicIDs := map[string]bool{}
+	basicsCount, voltageChoices := 0, 0
+	for _, dim := range served.Units.Dims {
+		if dim.ID == "voltage" {
+			voltageChoices = 1 + len(dim.Prefixes) + len(dim.Units) // automatic, the fixed prefixes, the explicit units
+		}
+	}
+	for _, item := range served.Items {
+		if item.Category == "basics" {
+			basicsCount++
+		}
+		if item.Kind == "calculator" && item.Schematic != "" {
+			drawings = append(drawings, drawing{item.ID, item.Category})
+			schematicIDs[item.Schematic] = true
+		}
+	}
+	if !schematicIDs["voltage_divider"] || deItems["eseries_combiner"] == "" {
+		t.Fatalf("the catalog lacks the voltage divider schematic or the eseries_combiner (Part A of phase 2)")
+	}
+	germanWords := readMergedLangMap(t, "de")
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/ecalc-shell.js"></script><script src="/testdata/aurora-fixture.js"></script></body>`, 1)
@@ -101,6 +146,20 @@ func TestDesktopECalcBrowser(t *testing.T) {
 		await fixtureReady;
 		window.ecalcCatalogRequests=[];
 		window.ecalcCatalogCaches=[];
+		// The patches that stand in for content the later parts write: a units list, a chart, an ignore list and a
+		// calculator with radix fields (category passive, which holds no calculator yet).
+		window.ecalcPatchCatalog=j=>{
+			const item=id=>j.items.find(i=>i.id===id);
+			item('voltage_divider').vars.find(v=>v.id==='vout').units=['','dBV'];
+			item('voltage_divider').chart={x:'r2',y:'vout',to:'10*r2',samples:101};
+			item('decibel_ratio').choices[0].options.find(o=>o.id==='power').ignore=['a2'];
+			j.items.push({kind:'calculator',id:'fx_radix',category:'passive',name:'Radix fixture',name_en:'Radix fixture',doc:'',tags:[],source:'fixture',
+				vars:[
+					{id:'n',dim:'integer',label:'N',name:'N',default:255,default_list:null,unit:'hex',units:['dec','hex','bin','oct'],eseries:false,list:false,input:true},
+					{id:'m',dim:'integer',label:'M',name:'M',default:null,default_list:null,unit:'dec',units:['dec','hex','bin','oct'],eseries:false,list:false,input:true}],
+				choices:[],dof:1,rules:[{target:'m',alts:['n']},{target:'n',alts:['m']}],derived:[],checks:[],formula:['m = n'],schematic:'',sets:[['n'],['m']],finder:'',chart:null});
+			return j;
+		};
 		const base=window.fetch;
 		window.fetch=(url,options)=>{
 			const text=String(url);
@@ -109,7 +168,8 @@ func TestDesktopECalcBrowser(t *testing.T) {
 			window.ecalcCatalogCaches.push(String(options&&options.cache));
 			if(window.ecalcCatalogDown)return Promise.resolve(new Response('{"error":"down"}',{status:500,headers:{'Content-Type':'application/json'}}));
 			return base('/ecalc-catalog.json'+text.slice('/api/ecalc/catalog'.length)).then(r=>r.json()).then(j=>{
-				j.items.find(i=>i.id==='voltage_divider').name_en='Zzyzx divider';
+					j.items.find(i=>i.id==='voltage_divider').name_en='Zzyzx divider';
+				window.ecalcPatchCatalog(j);
 				return new Response(JSON.stringify(j),{headers:{'Content-Type':'application/json'}});
 			});
 		};
@@ -161,6 +221,21 @@ func TestDesktopECalcBrowser(t *testing.T) {
 		page.MustElement(`.ec-item[data-id="` + id + `"]`).MustClick()
 		wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='` + id + `'`)
 	}
+	// openIn picks the category on the rail first (the list shows one category), then the calculator.
+	openIn := func(category, id string) {
+		t.Helper()
+		page.MustElement(`.ec-rail-btn[data-rail="` + category + `"]`).MustClick()
+		openCalc(id)
+	}
+	// The chart of the open page as JSON: tick and title texts, the number of curve points, the dot, the heading, the name.
+	chartInfo := `()=>{
+		const block=document.querySelector('.ec-chart');
+		if(!block||block.hidden)return 'hidden';
+		const svg=block.querySelector('svg.ec-chart-svg');
+		if(!svg)return 'no svg';
+		const dot=svg.querySelector('.ec-chart-dot');
+		return JSON.stringify({texts:[...svg.querySelectorAll('text')].map(e=>e.textContent),curve:(svg.querySelector('.ec-chart-curve').getAttribute('d').match(/[ML]/g)||[]).length,dot:dot?[dot.getAttribute('cx'),dot.getAttribute('cy')]:null,heading:block.querySelector('h3').textContent,label:svg.getAttribute('aria-label')});
+	}`
 	// The field chips of a schematic must stay inside the drawing and apart from each other.
 	chipIssues := `()=>{
 		const wrap=document.querySelector('.ec-sch-wrap');
@@ -183,8 +258,8 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	page.MustElement(`.ec-fail [data-action="retry"]`).MustClick()
 	wait(`()=>!!document.querySelector('.ec-page[data-calc]')`)
 	wait(`()=>!!document.querySelector('.ec-rail-btn[data-rail="favorites"]') && !!document.querySelector('.ec-rail-btn[data-rail="basics"]')`)
-	if got := page.MustEval(`()=>document.querySelectorAll('.ec-items .ec-item').length`).Int(); got != 11 {
-		t.Fatalf("the basics category lists %d calculators, want 11", got)
+	if got := page.MustEval(`()=>document.querySelectorAll('.ec-items .ec-item').length`).Int(); got != basicsCount {
+		t.Fatalf("the basics category lists %d calculators, want the %d of the catalog", got, basicsCount)
 	}
 	openCalc("voltage_divider")
 	wait(`()=>document.querySelector('.ec-field[data-var="vout"] .ec-input').value!==''`)
@@ -242,6 +317,26 @@ func TestDesktopECalcBrowser(t *testing.T) {
 		t.Fatal("the divider page must show the typeset fraction, the live line and the schematic")
 	}
 	shot("voltage-divider-standard")
+	// The chart under the formula (patched into the divider): V_out over R_2 from 0 to ten times R_2, five ticks per axis
+	// formatted by the units formatter, the curve of 101 points, the dot at the current point.
+	wait(`()=>{const b=document.querySelector('.ec-chart');return !!b&&!b.hidden}`)
+	wantChart := `{"texts":["0 Ω","0 V","5,5 kΩ","2,5 V","11 kΩ","5 V","16,5 kΩ","7,5 V","22 kΩ","10 V","R2","Vout"],"curve":101,"dot":["83","101.97"],"heading":"` + germanWords["desktop.ecalc_chart"] + `","label":"` + germanWords["desktop.ecalc_chart"] + `: Vout(R2)"}`
+	if got := page.MustEval(chartInfo).Str(); got != wantChart {
+		t.Fatalf("divider chart %s, want %s", got, wantChart)
+	}
+	if !page.MustEval(`()=>{const m=document.querySelector('.ec-math-card'),c=document.querySelector('.ec-chart'),f=document.querySelector('.ec-formulas');return m.contains(c)&&c.getBoundingClientRect().top>=f.getBoundingClientRect().bottom-1}`).Bool() {
+		t.Fatal("the chart must sit under the formula, inside the formula card")
+	}
+	page.MustEval(`()=>document.querySelector('.ec-chart').scrollIntoView({block:'center'})`)
+	shot("voltage-divider-chart")
+	page.MustEval(`()=>{document.querySelector('.ec-page-host').scrollTop=0}`)
+	typeInto("r2", "10k")
+	wait(`()=>{const b=document.querySelector('.ec-chart svg');return !!b&&[...b.querySelectorAll('text')][8].textContent==='100 kΩ'}`)
+	// The end of the range 10 x R_2 must be above zero: with R_2 = 0 there is nothing to draw, and the chart returns with a value.
+	typeInto("r2", "0")
+	wait(`()=>document.querySelector('.ec-chart').hidden`)
+	page.MustElement(`[data-action="reset"]`).MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="r2"] .ec-input').value==='2,2 kΩ' && !document.querySelector('.ec-chart').hidden && [...document.querySelectorAll('.ec-chart svg text')][8].textContent==='22 kΩ'`)
 
 	// ---- every desktop skin keeps the chips apart; three are kept as screenshots ---------------------------------------
 	for _, theme := range parseDesktopThemeRegistry(t) {
@@ -309,6 +404,14 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	wait(`()=>document.querySelector('.ec-field[data-var="vout"] .ec-input').value==='3826 mV'`)
 	setUnit("vout", "")
 	wait(`()=>document.querySelector('.ec-field[data-var="vout"] .ec-input').value==='3,826 V'`)
+	// The units list of V_out (patched: automatic and dBV) drops dBu and keeps the fixed prefixes; V_in has no list and offers both.
+	options := `n=>{const o=[...document.querySelectorAll('.ec-field[data-var="'+n+'"] .ec-unit option')].map(e=>e.value);return o.length+':'+o.includes('')+o.includes('prefix:m')+o.includes('dBV')+o.includes('dBu');}`
+	if got := page.MustEval(options, "vout").Str(); got != "8:truetruetruefalse" {
+		t.Fatalf("the V_out dropdown is %s, want 8 choices with dBV and without dBu", got)
+	}
+	if got, want := page.MustEval(options, "vin").Str(), fmt.Sprintf("%d:truetruetruetrue", voltageChoices); got != want {
+		t.Fatalf("the V_in dropdown is %s, want every choice of the voltage dimension (%s: with dBV and dBu)", got, want)
+	}
 	page.MustElement(`[data-action="favorite"]`).MustClick()
 	wait(`()=>document.querySelector('.ec-rail-btn[data-rail="favorites"] .ec-count').textContent==='1'`)
 
@@ -327,8 +430,18 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	wait(`()=>document.querySelector('.ec-field[data-var="rab"] .ec-input').value==='26 Ω'`)
 
 	// ---- every schematic keeps its field chips apart and inside the drawing ---------------------------------------------
-	for _, id := range []string{"ohms_law", "voltage_divider", "loaded_divider", "current_divider", "series_parallel", "wheatstone", "star_delta"} {
-		openCalc(id)
+	// The ten schematics files merged into one object, one entry per drawing the catalog names.
+	wantDrawings := make([]string, 0, len(schematicIDs))
+	for id := range schematicIDs {
+		wantDrawings = append(wantDrawings, id)
+	}
+	sort.Strings(wantDrawings)
+	if got := page.MustEval(`()=>JSON.stringify(Object.keys(window.ECalcSchematics).sort())`).Str(); got != `["`+strings.Join(wantDrawings, `","`)+`"]` {
+		t.Fatalf("window.ECalcSchematics holds %s, want the drawings %v of the catalog", got, wantDrawings)
+	}
+	for _, d := range drawings {
+		id := d.ID
+		openIn(d.Category, id)
 		shot("schematic-" + id)
 		if got := page.MustEval(`()=>document.querySelector('.ec-page').dataset.chips`).Str(); got != "anchored" {
 			t.Fatalf("%s: the fields are %q at the default window size, want anchored on the schematic", id, got)
@@ -344,13 +457,220 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	}
 	// A unit that cannot show a value does not blank the field: the bridge voltage of the defaults is negative, dBV
 	// cannot show it, so the automatic text stays (and the field reads back under the dBV selection).
-	openCalc("wheatstone")
+	openIn("basics", "wheatstone")
 	setUnit("vd", "dBV")
 	wait(`()=>document.querySelector('.ec-field[data-var="vd"] .ec-input').value==='-119 mV'`)
 	setUnit("vd", "")
 	openCalc("decibel_ratio")
 	page.MustElement(`.ec-choice input[value="power"]`).MustClick()
 	wait(`()=>document.querySelector('.ec-field[data-var="g"] .ec-input').value==='10 dB'`)
+
+	// ---- ignore: the option "power" (patched) does not use A_2 ---------------------------------------------------------------------
+	// The field is dimmed with the hint as its title, never takes the computed tint although A_2 is the computed value of
+	// this set, and stays out of the copied results.
+	wait(`()=>document.querySelector('.ec-field[data-var="a2"]').dataset.unused==='true'`)
+	if got := page.MustEval(`()=>document.querySelector('.ec-field[data-var="a2"]').title`).Str(); got != germanWords["desktop.ecalc_unused_field"] {
+		t.Fatalf("the unused field has the title %q, want %q", got, germanWords["desktop.ecalc_unused_field"])
+	}
+	if !page.MustEval(`()=>Number(getComputedStyle(document.querySelector('.ec-field[data-var="a2"]')).opacity)<0.9&&Number(getComputedStyle(document.querySelector('.ec-field[data-var="a1"]')).opacity)===1`).Bool() {
+		t.Fatal("the unused field must be dimmed and the used ones not")
+	}
+	typeInto("a1", "2")
+	wait(`()=>document.querySelector('.ec-field[data-var="a1"] .ec-input').value==='2'`)
+	typeInto("g", "20")
+	wait(`()=>document.querySelector('.ec-field[data-var="a2"] .ec-input').value==='200'`)
+	if state("a2") != "input" || state("a1") != "input" || state("g") != "input" {
+		t.Fatalf("with A_2 unused the states are a1=%s a2=%s g=%s, want inputs only (A_2 is computed but never tinted)", state("a1"), state("a2"), state("g"))
+	}
+	shot("decibel-unused-field")
+	page.MustEval(`()=>{window.copiedText='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:text=>{window.copiedText=text;return Promise.resolve();}}});}`)
+	page.MustElement(`[data-action="copy"]`).MustClick()
+	wait(`()=>window.copiedText.length>0`)
+	if got := page.MustEval(`()=>window.copiedText`).Str(); !strings.Contains(got, "A_1 = ") || !strings.Contains(got, "G = ") || strings.Contains(got, "A_2") {
+		t.Fatalf("the copied results are %q, want A_1 and G but not the unused A_2", got)
+	}
+	page.MustElement(`.ec-choice input[value="voltage"]`).MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="a2"]').dataset.unused==='false' && document.querySelector('.ec-field[data-var="a2"]').dataset.state==='computed' && !document.querySelector('.ec-field[data-var="a2"]').hasAttribute('title')`)
+
+	// ---- the standard-value combiner (finder: combine) -----------------------------------------------------------------------------
+	openIn("basics", "eseries_combiner")
+	wait(`()=>!!document.querySelector('.ec-combos:not([hidden]) .ec-combo-table')`)
+	combos := `()=>{
+		const b=document.querySelector('.ec-combos');
+		const rows=k=>[...b.querySelectorAll('tbody[data-kind="'+k+'"] tr:not(.ec-combo-group)')].map(r=>[...r.children].map(c=>c.textContent));
+		return JSON.stringify({title:b.querySelector('h3').textContent,heads:[...b.querySelectorAll('thead th')].map(c=>c.textContent),groups:[...b.querySelectorAll('tbody')].map(x=>x.querySelector('.ec-combo-group th').textContent),single:rows('single'),series:rows('series'),parallel:rows('parallel')});
+	}`
+	var shown struct {
+		Title    string
+		Heads    []string
+		Groups   []string
+		Single   [][]string
+		Series   [][]string
+		Parallel [][]string
+	}
+	readCombos := func() {
+		t.Helper()
+		if err := json.Unmarshal([]byte(page.MustEval(combos).Str()), &shown); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readCombos()
+	wantTitle := strings.ReplaceAll(germanWords["desktop.ecalc_combos"], "{series}", "E24")
+	if shown.Title != wantTitle || len(shown.Heads) != 3 || shown.Heads[0] != wantTitle || shown.Heads[1] != germanWords["desktop.ecalc_combo_value"] || shown.Heads[2] != germanWords["desktop.ecalc_combo_deviation"] {
+		t.Fatalf("combiner heading and columns are %q %q, want %q, %q, %q", shown.Title, shown.Heads, wantTitle, germanWords["desktop.ecalc_combo_value"], germanWords["desktop.ecalc_combo_deviation"])
+	}
+	if strings.Join(shown.Groups, "|") != germanWords["desktop.ecalc_combo_single"]+"|"+germanWords["desktop.ecalc_combo_series"]+"|"+germanWords["desktop.ecalc_combo_parallel"] {
+		t.Fatalf("combiner groups are %q", shown.Groups)
+	}
+	// The default target is 5 kΩ; the nearest E24 value is 5.1 kΩ (+2.0 %). Five series and five parallel combinations follow,
+	// each group ordered by the size of its deviation.
+	if len(shown.Single) != 1 || shown.Single[0][1] != "5,1 kΩ" || !strings.HasPrefix(shown.Single[0][2], "+2,0") || len(shown.Series) != 5 || len(shown.Parallel) != 5 {
+		t.Fatalf("combiner rows: single %q, %d series, %d parallel; want 5,1 kΩ +2,0 %% and five of each", shown.Single, len(shown.Series), len(shown.Parallel))
+	}
+	size := func(text string) float64 {
+		var number float64
+		if _, err := fmt.Sscanf(strings.NewReplacer(",", ".", "−", "-", "+", "").Replace(text), "%f", &number); err != nil {
+			t.Fatalf("cannot read the deviation %q", text)
+		}
+		return max(number, -number)
+	}
+	for _, rows := range [][][]string{shown.Series, shown.Parallel} {
+		for i := 1; i < len(rows); i++ {
+			if size(rows[i][2]) < size(rows[i-1][2]) {
+				t.Fatalf("combinations %q must be ordered by the size of the deviation", rows)
+			}
+		}
+	}
+	if !page.MustEval(`()=>document.querySelector('.ec-combos').getBoundingClientRect().top>=document.querySelector('.ec-stage').getBoundingClientRect().bottom-1`).Bool() {
+		t.Fatal("the combinations belong below the fields")
+	}
+	shot("combiner")
+	// The E series of the settings decides: E12 has no 5.1 kΩ, so 4.7 kΩ (-6.0 %) is the single value.
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustEval(`()=>{const s=document.querySelector('.ec-pop [data-set="eseries"]');s.value='E12';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>document.querySelector('.ec-combos h3').textContent.includes('E12')`)
+	readCombos()
+	if len(shown.Single) != 1 || shown.Single[0][1] != "4,7 kΩ" {
+		t.Fatalf("with E12 the single value is %q, want 4,7 kΩ", shown.Single)
+	}
+	// The finest series costs the longest search (a few hundred ms): the block follows the series after a pause.
+	page.MustEval(`()=>{const s=document.querySelector('.ec-pop [data-set="eseries"]');s.value='E192';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>document.querySelector('.ec-combos h3').textContent.includes('E192')`)
+	readCombos()
+	if len(shown.Single) != 1 || len(shown.Series) != 5 || len(shown.Parallel) != 5 {
+		t.Fatalf("with E192 the combiner lists %d single, %d series and %d parallel rows, want 1, 5 and 5", len(shown.Single), len(shown.Series), len(shown.Parallel))
+	}
+	page.MustEval(`()=>{const s=document.querySelector('.ec-pop [data-set="eseries"]');s.value='E24';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>document.querySelector('.ec-combos h3').textContent.includes('E24')`)
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	// A target that is a standard value: single and best series pair are exact (2.7 kΩ + 2 kΩ).
+	typeInto("target", "4k7")
+	wait(`()=>document.querySelector('.ec-combos tbody[data-kind="single"] .ec-row-val').textContent==='4,7 kΩ'`)
+	readCombos()
+	if !strings.HasPrefix(shown.Single[0][2], "0,0") || !strings.HasPrefix(shown.Series[0][2], "0,0") {
+		t.Fatalf("for 4k7 the single value %q and the best series pair %q should be exact", shown.Single[0], shown.Series[0])
+	}
+	// A search that is still pending for another series must not draw over the table of the series that is back: E24 -> E192 -> E24
+	// within one task leaves the E24 table (the stale timer used to draw the E192 table 120 ms later).
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	page.MustEval(`()=>{const s=document.querySelector('.ec-pop [data-set="eseries"]');for(const v of ['E192','E24']){s.value=v;s.dispatchEvent(new Event('change',{bubbles:true}));}}`)
+	page.MustElement(`[data-action="settings"]`).MustClick()
+	time.Sleep(1200 * time.Millisecond)
+	readCombos()
+	if shown.Title != wantTitle || len(shown.Single) != 1 || shown.Single[0][1] != "4,7 kΩ" {
+		t.Fatalf("after E24 -> E192 -> E24 the combiner shows %q with single %q, want the E24 table %q", shown.Title, shown.Single, wantTitle)
+	}
+
+	// ---- radix fields: the fixture calculator with integer fields ---------------------------------------------------------------------
+	openIn("passive", "fx_radix")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='0xFF'`)
+	if value("m") != "255" || state("m") != "computed" || state("n") != "input" {
+		t.Fatalf("radix defaults: n %q (%s), m %q (%s); want 0xFF as input and 255 computed", value("n"), state("n"), value("m"), state("m"))
+	}
+	if got := page.MustEval(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').getAttribute('inputmode')`).Str(); got != "text" {
+		t.Fatalf("a radix field has inputmode %q, want text (hex digits need the letter keyboard)", got)
+	}
+	typeInto("n", "0x10")
+	wait(`()=>document.querySelector('.ec-field[data-var="m"] .ec-input').value==='16'`)
+	typeInto("m", "300")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='0x12C' && document.querySelector('.ec-field[data-var="n"]').dataset.state==='computed'`)
+	setUnit("n", "bin")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='0b1_00101100'`)
+	setUnit("n", "oct")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='0o454'`)
+	setUnit("n", "hex")
+	typeInto("n", "dead_beef")
+	wait(`()=>document.querySelector('.ec-field[data-var="m"] .ec-input').value==='3735928559'`)
+	page.MustElement(field("m") + " .ec-input").MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='0xDEAD_BEEF'`)
+	// Switching the unit of an input rewrites its text, so the new unit reads it the same way.
+	setUnit("n", "dec")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"] .ec-input').value==='3735928559'`)
+	typeInto("n", "0xZZ")
+	wait(`()=>document.querySelector('.ec-field[data-var="n"]').dataset.state==='error'`)
+	page.MustElement(field("m") + " .ec-input").MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="n"]').dataset.state!=='error'`)
+
+	// ---- the new symbols: pins, both symbol standards, and a drawing for the eye ---------------------------------------------------------
+	wantSymbols := `[{"a":[0,0],"b":[3,0]},{"a":[0,0],"b":[4,0],"w":[2,-2]},[4,3],[1,4],true,true,true,true]`
+	if got := page.MustEval(`()=>{const S=window.ECalcSymbols;
+		const iec=S.svg({w:12,h:8,parts:[{sym:'pot',x:2,y:5},{sym:'switch',x:7,y:5}]},{standard:'iec'});
+		const ansi=S.svg({w:12,h:8,parts:[{sym:'pot',x:2,y:5}]},{standard:'ansi'});
+		return JSON.stringify([S.pins('switch'),S.pins('pot'),S.pinPoint({sym:'pot',x:2,y:5},'w'),S.pinPoint({sym:'switch',x:1,y:1,rot:90},'b'),S.names().includes('switch'),S.names().includes('pot'),iec.includes('<rect x="10" y="-7" width="60"')&&iec.includes('<circle cx="15"'),ansi.includes('L16 -8L28 8L40 -8')]);}`).Str(); got != wantSymbols {
+		t.Fatalf("symbols: %s, want %s", got, wantSymbols)
+	}
+	page.MustEval(`()=>{const h=document.createElement('div');h.id='fx-symbols';h.style.cssText='position:fixed;right:8px;bottom:8px;width:360px;z-index:99999;color:CanvasText;background:Canvas';
+		h.innerHTML=window.ECalcSymbols.svg({w:12,h:8,parts:[{sym:'pot',x:2,y:5},{sym:'switch',x:7,y:5}],wires:[[[0,5],[2,5]],[[6,5],[7,5]],[[10,5],[12,5]],[[4,3],[4,1]]]},{standard:'iec'})+window.ECalcSymbols.svg({w:12,h:8,parts:[{sym:'pot',x:2,y:5}],wires:[[[0,5],[2,5]]]},{standard:'ansi'});
+		document.body.appendChild(h);}`)
+	shot("symbols-pot-switch")
+	page.MustEval(`()=>document.getElementById('fx-symbols').remove()`)
+	page.MustElement(`.ec-rail-btn[data-rail="basics"]`).MustClick()
+
+	// ---- the launch hook: ECalcApp.launch applies a payload to the open window ------------------------------------------------------------
+	winID := page.MustEval(`()=>[...aurora.state.windows.keys()][0]`).Str()
+	launch := func(payload string) bool {
+		t.Helper()
+		return page.MustEval(`(id,payload)=>window.ECalcApp.launch(id,JSON.parse(payload))`, winID, payload).Bool()
+	}
+	// Values are entered as if typed, in the given order: V_out after V_in leaves R_2 at its default and makes R_1 the computed value.
+	if !launch(`{"page":"voltage_divider","values":{"vin":"9V","vout":"3V"}}`) {
+		t.Fatal("launch refused a payload for the open window")
+	}
+	wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='voltage_divider' && document.querySelector('.ec-field[data-var="r1"]').dataset.state==='computed'`)
+	if got := []string{value("vin"), value("vout"), value("r2"), value("r1")}; got[0] != "9 V" || got[1] != "3 V" || got[2] != "2,2 kΩ" || got[3] != "4,4 kΩ" {
+		t.Fatalf("launched divider %v, want 9 V, 3 V, 2,2 kΩ and a computed 4,4 kΩ", got)
+	}
+	stored := page.MustEval(`()=>{const e=JSON.parse(localStorage.getItem('aurago.ecalc.v1')).values.voltage_divider;return JSON.stringify({vin:e.inputs.vin,vout:e.inputs.vout,keys:Object.keys(e.inputs).sort(),tail:e.recency.slice(-2),locked:e.locked});}`).Str()
+	if stored != `{"vin":"9V","vout":"3V","keys":["r2","vin","vout"],"tail":["vin","vout"],"locked":[]}` {
+		t.Fatalf("the launched inputs are stored as %s, want the raw texts, the given order and no locks", stored)
+	}
+	// Unknown variables, choices and unreadable texts are skipped; the inputs that are not given start from their defaults.
+	if !launch(`{"page":"voltage_divider","values":{"vin":"5V","bogus":"1","r1":"abc"},"choices":{"zz":"x"}}`) {
+		t.Fatal("launch refused a payload with unknown names")
+	}
+	wait(`()=>document.querySelector('.ec-field[data-var="vin"] .ec-input').value==='5 V'`)
+	if got := []string{value("r1"), value("r2"), value("vout")}; got[0] != "4,7 kΩ" || got[1] != "2,2 kΩ" || got[2] != "1,594 V" {
+		t.Fatalf("launch with unknown names: %v, want the defaults 4,7 kΩ and 2,2 kΩ with 1,594 V", got)
+	}
+	// An unknown page changes nothing; a choice option that does not exist keeps the default option.
+	launch(`{"page":"no_such_page","values":{"vin":"1V"}}`)
+	if got := page.MustEval(`()=>document.querySelector('.ec-page').dataset.calc`).Str(); got != "voltage_divider" {
+		t.Fatalf("an unknown page id opened %q", got)
+	}
+	launch(`{"page":"decibel_ratio","choices":{"qty":"bogus"},"values":{"a1":"1","a2":"100"}}`)
+	wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='decibel_ratio' && document.querySelector('.ec-field[data-var="g"] .ec-input').value==='40 dB'`)
+	launch(`{"page":"decibel_ratio","choices":{"qty":"power"},"values":{"a1":"1","a2":"100"}}`)
+	wait(`()=>document.querySelector('.ec-field[data-var="g"] .ec-input').value==='20 dB' && document.querySelector('.ec-choice input[value="power"]').checked`)
+	// A page id alone just opens the page and keeps what it holds (star-delta still has the R_a typed earlier).
+	launch(`{"page":"star_delta"}`)
+	wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='star_delta' && document.querySelector('.ec-field[data-var="ra"] .ec-input').value==='12 Ω'`)
+	if page.MustEval(`()=>window.ECalcApp.launch('no-such-window',{page:'ohms_law'})`).Bool() || page.MustEval(`(id)=>window.ECalcApp.launch(id,null)`, winID).Bool() {
+		t.Fatal("launch must refuse an unknown window and an empty payload")
+	}
+	page.MustElement(`.ec-rail-btn[data-rail="basics"]`).MustClick()
+	openCalc("voltage_divider")
+	page.MustElement(`[data-action="reset"]`).MustClick()
+	wait(`()=>document.querySelector('.ec-field[data-var="vin"] .ec-input').value==='12 V'`)
 
 	// ---- Ctrl+K belongs to the app: the search gets the focus, the Spotlight stays closed ----------------------------
 	// The desktop ignores keys typed into fields, so the focus sits on a button when the shortcut is pressed.
@@ -377,7 +697,8 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	search.MustSelectAllText().MustInput("zzzz")
 	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===0 && !document.querySelector('.ec-empty').hidden`)
 	search.MustSelectAllText().MustInput(" ")
-	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===11`)
+	page.MustElement(`.ec-rail-btn[data-rail="basics"]`).MustClick()
+	wait(fmt.Sprintf(`()=>document.querySelectorAll('.ec-items .ec-item').length===%d`, basicsCount))
 	openCalc("voltage_divider")
 
 	// ---- compact: one stack with a back button -------------------------------------------------------------------
@@ -429,12 +750,46 @@ func TestDesktopECalcBrowser(t *testing.T) {
 	}
 	typeInto("r2", "10k")
 	wait(`()=>document.querySelector('.ec-field[data-var="vout"] .ec-input').value==='8,163 V'`)
+	if !visible(".ec-chart svg") {
+		t.Fatal("the chart must show on the phone-sized page")
+	}
+	page.MustEval(`()=>document.querySelector('.ec-chart').scrollIntoView({block:'center'})`)
+	shot("compact-chart")
+	// The combiner on the phone: the table stays inside the page.
+	page.MustElement(".ec-back").MustClick()
+	page.MustElement(`.ec-item[data-id="eseries_combiner"]`).MustClick()
+	wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='eseries_combiner' && !!document.querySelector('.ec-combos:not([hidden]) .ec-combo-table')`)
+	if got := page.MustEval(`()=>{const p=document.querySelector('.ec-page-host'),t=document.querySelector('.ec-combo-wrap');return (p.scrollWidth>p.clientWidth+1?'the page scrolls sideways; ':'')+(t.scrollWidth>t.clientWidth+1?'the table scrolls sideways':'');}`).Str(); got != "" {
+		t.Fatal(got)
+	}
+	shot("compact-combiner")
 
 	// Three opens (the failing one, its retry and the compact window) made exactly three German catalog requests.
 	const german = `"/api/ecalc/catalog?lang=de"`
 	if got := page.MustEval(`()=>JSON.stringify(window.ecalcCatalogRequests)`).Str(); got != "["+german+","+german+","+german+"]" {
 		t.Fatalf("the catalog requests were %s, want one German request per open", got)
 	}
+
+	// ---- ctx.launch at render time, and a payload that arrives while the catalog is still loading ---------------------------------------------------
+	page.MustSetViewport(1366, 900, 1, false)
+	page.MustEval(`()=>[...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id))`)
+	page.MustEval(`async()=>{
+		const api=(url,options)=>fetch(url,options).then(r=>r.json());
+		const mount=id=>{const h=document.createElement('div');h.id=id;h.style.cssText='position:fixed;left:0;top:0;width:1000px;height:640px;z-index:99999;color:CanvasText;background:Canvas';document.body.appendChild(h);return h;};
+		window.ECalcApp.render(mount('fx-launch'),'fx-launch',{lang:'de',t:window.t,api,launch:{page:'decibel_ratio',values:{a1:'2',a2:'200'},choices:{qty:'power'}}});
+		let release;
+		const gate=new Promise(resolve=>{release=resolve;});
+		window.ECalcApp.render(mount('fx-queued'),'fx-queued',{lang:'de',t:window.t,api:(url,options)=>gate.then(()=>api(url,options))});
+		window.fixtureQueued=window.ECalcApp.launch('fx-queued',{page:'voltage_divider',values:{vin:'5V'}});
+		setTimeout(release,250);
+	}`)
+	wait(`()=>{const p=document.querySelector('#fx-launch .ec-page');return !!p&&p.dataset.calc==='decibel_ratio'&&p.querySelector('.ec-field[data-var="g"] .ec-input').value==='20 dB'&&p.querySelector('.ec-choice input[value="power"]').checked}`)
+	wait(`()=>{const p=document.querySelector('#fx-queued .ec-page');return !!p&&p.dataset.calc==='voltage_divider'&&p.querySelector('.ec-field[data-var="vin"] .ec-input').value==='5 V'}`)
+	if !page.MustEval(`()=>window.fixtureQueued`).Bool() {
+		t.Fatal("launch must accept a payload for a window whose catalog is still loading")
+	}
+	page.MustEval(`()=>{for(const id of ['fx-launch','fx-queued']){window.ECalcApp.dispose(id);document.getElementById(id).remove();}}`)
+
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}

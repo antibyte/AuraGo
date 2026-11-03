@@ -9,7 +9,7 @@ import (
 func fullEnv() StaticEnv {
 	env := StaticEnv{}
 	for _, tool := range []string{"ddg_search", BraveSearchTool, "web_scraper", "api_request", "document_creator", GotenbergTool,
-		PDFExtractorTool, "filesystem", "send_telegram", "send_email", "send_notification", "send_discord",
+		PDFExtractorTool, "filesystem", "send_telegram", "send_whatsapp", "send_email", "send_notification", "send_discord",
 		"home_assistant", "mqtt_publish", "manage_appointments", "manage_todos"} {
 		env[tool] = Availability{}
 	}
@@ -27,8 +27,8 @@ func catalogRegistry(t *testing.T, env CatalogEnv) *Registry {
 
 func TestRegisterCatalogCounts(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
-	if n := len(reg.All()); n != 37 {
-		t.Fatalf("phase 1 catalog has %d node types, want 37 (14 triggers + 23 others)", n)
+	if n := len(reg.All()); n != 38 {
+		t.Fatalf("phase 1 catalog has %d node types, want 38 (14 triggers + 24 others)", n)
 	}
 	triggers := 0
 	for _, def := range reg.All() {

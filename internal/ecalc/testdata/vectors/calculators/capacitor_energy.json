@@ -1,0 +1,21 @@
+{
+  "calc": "capacitor_energy",
+  "sets": [
+    {"values": {"c": 0.001, "u": 12, "e": 0.072, "q": 0.012}, "ref": "hand: 1000 uF at 12 V: Q = 1e-3 * 12 = 12 mC; E = 1/2 * 1e-3 * 12^2 = 1/2 * 1e-3 * 144 = 72 mJ"},
+    {"values": {"c": 0.0001, "u": 5, "e": 0.00125, "q": 0.0005}, "ref": "hand: 100 uF at 5 V: Q = 1e-4 * 5 = 0.5 mC; E = 1/2 * 1e-4 * 25 = 1.25 mJ"},
+    {"values": {"c": 4.7e-06, "u": 400, "e": 0.376, "q": 0.00188}, "ref": "hand (independent script): 4.7 uF at 400 V: Q = 4.7e-6 * 400 = 1.88 mC; E = 1/2 * 4.7e-6 * 160000 = 0.376 J"},
+    {"values": {"c": 1.0, "u": 2, "e": 2.0, "q": 2.0}, "ref": "hand: 1 F at 2 V: Q = 1 * 2 = 2 C; E = 1/2 * 1 * 4 = 2 J"}
+  ],
+  "solve": [
+    {"inputs": {"c": 0.001, "u": 12}, "expect": {"q": 0.012, "e": 0.072}, "ref": "hand: Q = 1e-3 * 12 = 12 mC; E = 72 mJ"},
+    {"inputs": {"c": 0.001, "e": 0.072}, "expect": {"u": 12, "q": 0.012}, "ref": "hand: U = sqrt(2 * E / C) = sqrt(0.144 / 1e-3) = sqrt(144) = 12 V; Q = C * U = 12 mC"},
+    {"inputs": {"c": 0.001, "q": 0.012}, "expect": {"u": 12, "e": 0.072}, "ref": "hand: U = Q / C = 0.012 / 1e-3 = 12 V; E = 1/2 * Q * U = 1/2 * 0.012 * 12 = 72 mJ"},
+    {"inputs": {"u": 12, "e": 0.072}, "expect": {"c": 0.001, "q": 0.012}, "ref": "hand: C = 2 * E / U^2 = 0.144 / 144 = 1 mF; Q = 2 * E / U = 0.144 / 12 = 12 mC"},
+    {"inputs": {"u": 12, "q": 0.012}, "expect": {"c": 0.001, "e": 0.072}, "ref": "hand: C = Q / U = 0.012 / 12 = 1 mF; E = 1/2 * Q * U = 72 mJ"},
+    {"inputs": {"e": 0.072, "q": 0.012}, "expect": {"u": 12, "c": 0.001}, "ref": "hand: U = 2 * E / Q = 0.144 / 0.012 = 12 V; C = Q / U = 1 mF"},
+    {"inputs": {"c": 4.7e-06, "e": 0.376}, "expect": {"u": 400, "q": 0.00188}, "ref": "hand (independent script): U = sqrt(2 * 0.376 / 4.7e-6) = sqrt(160000) = 400 V; Q = 4.7e-6 * 400 = 1.88 mC"},
+    {"inputs": {"c": 0, "u": 12}, "expect": {"q": 0, "e": 0}, "errors": {"c": "range"}, "ref": "hand: C = 0 is out of range; Q = 0 and E = 0"},
+    {"inputs": {"c": 0.001, "e": -1}, "errors": {"u": "nonfinite", "q": "nonfinite"}, "ref": "hand: a negative energy gives U = sqrt(2 * (-1) / 1e-3), not a number, and so a not-a-number charge"},
+    {"inputs": {"c": 0.001}, "errors": {"u": "undetermined", "e": "undetermined", "q": "undetermined"}, "ref": "one input is missing"}
+  ]
+}

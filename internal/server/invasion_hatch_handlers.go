@@ -496,8 +496,8 @@ func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 			Key   string `json:"key"`
 			Value string `json:"value"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Key == "" {
-			jsonError(w, "Invalid request: key and value required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil || req.Key == "" {
+			jsonError(w, "Invalid request: key and value required", jsonDecodeStatus(err))
 			return
 		}
 		// The egg's shared key changes only through a rekey; a secret with that
@@ -700,8 +700,8 @@ func handleInvasionNestSendTask(s *Server) http.HandlerFunc {
 			Description string `json:"description"`
 			Timeout     int    `json:"timeout"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Description == "" {
-			jsonError(w, "Invalid request: description is required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil || req.Description == "" {
+			jsonError(w, "Invalid request: description is required", jsonDecodeStatus(err))
 			return
 		}
 
@@ -1011,8 +1011,8 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 
 		// Parse patch
 		var patch invasion.SafeConfigPatch
-		if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
-			jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &patch, s); err != nil {
+			jsonError(w, "Invalid JSON: "+err.Error(), jsonDecodeStatus(err))
 			return
 		}
 
@@ -1180,8 +1180,8 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 		var req struct {
 			RevisionID string `json:"revision_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON: "+err.Error(), jsonDecodeStatus(err))
 			return
 		}
 		if req.RevisionID == "" {

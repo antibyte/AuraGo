@@ -57,6 +57,7 @@ Manage local system packages with a structured cross-platform wrapper. The tool 
 
 ### Safety Notes
 
+- Mutating commands inherit the originating run's permissions and cancellation, including sudo authentication. A later server grant never widens an older run.
 - Prefer `detect`, `search`, `list_installed`, and `info` before changing packages.
 - Confirm with the user before `install` or `remove` unless the user explicitly requested that change.
 - `package_manager.readonly: true` blocks `install`, `remove`, `update`, and `upgrade`.

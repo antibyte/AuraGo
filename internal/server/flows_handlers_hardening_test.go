@@ -430,6 +430,9 @@ func c17AgentVault(t *testing.T, s *Server, operation, key, value string) string
 	t.Helper()
 	cfg := *s.Cfg
 	cfg.Tools.SecretsVault.Enabled = true
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(&cfg)
+	s.CfgMu.Unlock()
 	dc := &agent.DispatchContext{Cfg: &cfg, Logger: s.Logger, Vault: s.Vault, SessionID: "c17-agent"}
 	tc := &agent.ToolCall{Action: "secrets_vault", Operation: operation, Key: key, Value: value}
 	// The dispatch isolates the answer even without a Guardian; the checks read the tool's text.

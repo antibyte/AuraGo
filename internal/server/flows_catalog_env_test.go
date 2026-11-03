@@ -28,6 +28,7 @@ func TestFlowToolAvailability(t *testing.T) {
 	}
 	check("filesystem", flows.AvailableState, "")
 	check("send_telegram", flows.NeedsSetupState, "telegram")
+	check("send_whatsapp", flows.NeedsSetupState, "whatsapp")
 	check(flows.BraveSearchTool, flows.NeedsSetupState, "brave_search")
 	cfg.BraveSearch.Enabled, cfg.BraveSearch.APIKey = true, "key"
 	check(flows.BraveSearchTool, flows.AvailableState, "")

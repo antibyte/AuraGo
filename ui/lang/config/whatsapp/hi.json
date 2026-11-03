@@ -22,7 +22,7 @@
   "config.whatsapp.relink_confirm": "एक डिवाइस पहले से लिंक है। लिंक हटाकर फिर से लिंक करें?",
   "config.whatsapp.unlink_confirm": "क्या AuraGo को इस WhatsApp खाते से हटाएँ?",
   "config.whatsapp.unlinked_local": "यहाँ से हटा दिया गया। फ़ोन पर लिंक किए गए डिवाइस में से भी AuraGo हटाएँ।",
-  "config.whatsapp.test_sent": "टेस्ट संदेश भेज दिया गया। फ़ोन पर WhatsApp देखें।",
+  "config.whatsapp.test_sent": "परीक्षण संदेश भेज दिया गया। फ़ोन पर WhatsApp देखें।",
   "config.whatsapp.link_success": "लिंक हो गया। AuraGo कनेक्ट हो रहा है…",
   "config.whatsapp.link_timeout": "कोड की अवधि समाप्त हो गई। फिर से शुरू करें।",
   "config.whatsapp.save_first": "पहले अपने बदलाव सहेजें।",
@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "WhatsApp चालू करें, अलग नंबर के लिए मालिक का नंबर जोड़ें और सहेजें।",
   "config.whatsapp.err_invalid_phone": "नंबर अंतरराष्ट्रीय प्रारूप में डालें, जैसे +491701234567।",
   "config.whatsapp.err_not_connected": "WhatsApp कनेक्ट नहीं है।",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "यह मालिक का नंबर WhatsApp पर पंजीकृत नहीं है। सेटिंग्स में नंबर जाँचें।",
   "config.whatsapp.err_rate_limited": "अगले परीक्षण संदेश से पहले एक मिनट रुकें।",
   "config.whatsapp.err_failed": "WhatsApp ने जवाब नहीं दिया। फिर से कोशिश करें।",
   "config.whatsapp.err_passkey_unsupported": "फ़ोन ने पासकी से लिंक माँगा, जिसे AuraGo अभी समर्थित नहीं करता। QR कोड का उपयोग करें।",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "अलग नंबर: AuraGo का अपना नंबर होता है (अनुशंसित)। मेरा नंबर: केवल आपकी खुद से चैट AuraGo तक पहुँचती है।",
   "help.whatsapp.owner_numbers": "अंतरराष्ट्रीय प्रारूप, कॉमा से अलग। केवल ये नंबर AuraGo तक पहुँच सकते हैं।",
   "help.whatsapp.readonly": "आपको जवाब मिलते रहते हैं; एजेंट अपने आप संदेश नहीं भेज सकता।",
-  "help.whatsapp.send_read_receipts": "केवल AuraGo के अलग नंबर के साथ।"
+  "help.whatsapp.send_read_receipts": "केवल AuraGo के अलग नंबर के साथ।",
+  "help.whatsapp.self_chat_prefix": "केवल खुद से चैट वाले मोड में। AuraGo अपने संदेश इस उपसर्ग से शुरू करता है (अधिकतम 16 अक्षर)। खुद को लिखे जो नोट इस उपसर्ग से शुरू होते हैं, उन्हें अनदेखा किया जाता है, ताकि AuraGo कभी अपनी ही प्रतिध्वनि को जवाब न दे।"
 }

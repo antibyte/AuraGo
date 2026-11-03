@@ -450,6 +450,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.TelegramEnabled {
 		tools = append(tools, "telegram")
 	}
+	if flags.WhatsAppEnabled {
+		tools = append(tools, "whatsapp")
+	}
 	if flags.ObsidianEnabled {
 		tools = append(tools, "obsidian")
 	}

@@ -28,7 +28,7 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		"composio_call", "execute_shell", "execute_sudo", "file_editor", "filesystem",
 		"home_assistant", "homepage", "here_now_sites", "here_now_site", "invasion_control", "json_editor", "manage_outgoing_webhooks",
 		"manus", "meshcentral", "netlify", "remote_execution", "secrets_vault",
-		"send_discord", "send_telegram", "fetch_discord", "list_discord_channels",
+		"send_discord", "send_telegram", "send_whatsapp", "fetch_discord", "list_discord_channels",
 		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}
 	matrix := ToolPermissionMatrix()
@@ -1670,6 +1670,7 @@ func TestMessagingIngressManifestDeclaresEachIngressPolicy(t *testing.T) {
 	}
 	required := map[string]expectedIngress{
 		"telegram":            {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/telegram/bot.go"},
+		"whatsapp":            {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/whatsapp/pipeline.go"},
 		"discord":             {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/discord/bot.go"},
 		"rocketchat":          {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/rocketchat/bot.go"},
 		"telnyx_sms":          {IngressHighThreatBlock, IngressQuarantineAuthorizedAgent, true, "internal/telnyx/broker.go"},

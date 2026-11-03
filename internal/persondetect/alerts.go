@@ -81,8 +81,8 @@ type AlertTexts func(lang, key string) string
 // different events run concurrently.
 type AlertSinks struct {
 	// Message sends title and body to channel (a tools.SendNotification channel). photoJPEG
-	// is the annotated cover frame for telegram, discord and all, nil otherwise (and when
-	// the event has no readable cover frame).
+	// is the annotated cover frame for telegram, discord, whatsapp and all, nil otherwise
+	// (and when the event has no readable cover frame).
 	Message func(ctx context.Context, channel, title, body string, photoJPEG []byte) error
 	// Agent enqueues the wake-up prompt; ErrAgentQueueFull when the queue is full.
 	Agent func(prompt string) error
@@ -217,7 +217,7 @@ func (d *Dispatcher) sendMessage(ev AlertEvent, title, body string) AlertResult 
 		channel = "all"
 	}
 	var photo []byte
-	if channel == "telegram" || channel == "discord" || channel == "all" {
+	if channel == "telegram" || channel == "discord" || channel == "whatsapp" || channel == "all" {
 		photo = d.coverPhoto(ev)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), d.messageTimeout)

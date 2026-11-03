@@ -154,7 +154,7 @@ Acceptance:
 
 ## Stage 2 — Text channel
 
-The detailed plan `plans/2026-10-31-whatsapp-2-text.md` is written after stage 1 lands. It depends on whatsmeow behaviour that stage-1 acceptance verifies: the event order around `Connected`/`OfflineSyncCompleted`, whether `SenderAlt` is populated, and the own LID.
+Implemented on branch `claude/whatsapp-stage2`. Detailed plan: `plans/2026-10-31-whatsapp-2-text.md`. It depends on whatsmeow behaviour that stage-1 acceptance verifies: the event order around `Connected`/`OfflineSyncCompleted`, whether `SenderAlt` is populated, and the own LID.
 
 1. **Client extension** — Files: `client.go`, `fake_test.go`. Test focus: the fake still satisfies the interface. Acceptance: `MarkRead`, `SendChatPresence`, `OwnLID` and `PNForLID` are available.
 2. **ID caches** — Files: `cache.go`. Test focus: TTL expiry and capacity eviction. Acceptance: the sent-ID cache (20 min / 5000 entries) and the dedupe LRU are ready.
@@ -213,7 +213,7 @@ The detailed plan `plans/2026-10-31-whatsapp-2-text.md` is written after stage 1
 
 ## Stage 3 — Media and tools
 
-The detailed plan `plans/2026-10-31-whatsapp-3-media-tools.md` is written after stage 2 lands. It depends on the verified download, upload and voice behaviour.
+Implemented on branch `claude/whatsapp-stage2`. Detailed plan: `plans/2026-10-31-whatsapp-3-media-tools.md`. It depends on the verified download, upload and voice behaviour.
 
 1. **Media primitives** — Files: `media.go`.
    - Test focus:
@@ -293,12 +293,14 @@ The detailed plan `plans/2026-10-31-whatsapp-3-media-tools.md` is written after 
 
 Tasks 7–9 need `SendOwnerMessage` (Task 4) and `ChannelWhatsApp` (Task 6). If stage 3 grows too large, they may become their own detailed plan `plans/2026-10-31-whatsapp-3b-targets.md` after tasks 1–6 land.
 
+Stage 3b is implemented on branch `claude/whatsapp-stage2`. Detailed plan: `plans/2026-10-31-whatsapp-3b-targets.md`.
+
 11. **Training catalog** — Files: agotrain JSON. Test focus: the catalog `--check`. Acceptance: German and English coverage is kept.
 12. **Real-phone check** — the voice note plays, images and documents arrive, a file goes out, a notification arrives, and a camera alert, a flow notification and a newspaper edition arrive.
 
 ## Stage 4 — Finish
 
-The detailed plan `plans/2026-10-31-whatsapp-4-finish.md` is written after stage 3 lands.
+Implemented on branch `claude/whatsapp-stage2`. Detailed plan: `plans/2026-10-31-whatsapp-4-finish.md`. Real-device acceptance is open (the user; checklist 7d of that plan).
 
 1. **Operator docs** — Files: `documentation/whatsapp_setup.md`, `documentation/manuals/{en,de}/08-integrations.md`, `README.md`. Test focus: the existing README and docs audit tests. Acceptance: the 14-day rule, the 4-device limit, the dedicated-number advice and the no-bulk rule are documented.
 2. **Security check** — Files: `internal/server/security_check.go` (+test). Test focus: both warnings. Acceptance: shown on the security page. Also name the WhatsApp device keys next to the vault in the Danger Zone unsafe-host-execution warning (16 locales), since shell/Python can read both there (stage-1 deviation 16).
@@ -329,12 +331,31 @@ Targets that the design did not list were added to stage 2 Tasks 7 and 9 and sta
 ### Deliberately not mirrored
 
 - `telegram_read` in `internal/security/untrusted_source.go:25` and `internal/security/tool_output_trust.go:122`: WhatsApp is an owner channel (design, Security).
-- Vault secret mapping (`internal/config/config_migrate.go:819`, `internal/config/config_secret_migration.go:18`, `internal/server/config_handlers_main.go:2517`, `internal/tools/python_secrets.go:89`): WhatsApp has no token; its keys live in the device store.
-- The Python skill template `internal/tools/skilltemplates/notification_sender.py` and the `python-telegram-bot` mapping in `internal/tools/skills.go:788`: there is no WhatsApp HTTP API a skill could call, and owner-only sending stays in Go.
-- The Telegram connection test (`/api/telegram/test-connection`, `ui/js/config/integration_actions.js`, `ui/js/config/catalog.js:47,189`): the WhatsApp link panel has its own status and test message.
+- Vault secret mapping and other bot-token handling (WhatsApp has no token; its keys live in the device store): `internal/config/config_migrate.go:819`, `internal/config/config_secret_migration.go:18`, `internal/config/config_test.go:3259-3288`, `internal/server/config_handlers_main.go:2517`, `internal/tools/python_secrets*.go`, `internal/logger/redaction_test.go`, `internal/server/config_write_protection_test.go`, `internal/server/sip_config_lifecycle_test.go`, `internal/server/flows_tool_invoker_args.go:58` (the secret redaction list), and the bot-token ignore rules `.gitignore:43` and `.gitnexusignore:165` (`telegram_token.txt`).
+- The Python skill template `internal/tools/skilltemplates/notification_sender.py`, `internal/tools/skill_templates.go`, and the `python-telegram-bot` mapping in `internal/tools/skills.go:788`: there is no WhatsApp HTTP API a skill could call, and owner-only sending stays in Go.
+- The Telegram connection test: `/api/telegram/test-connection` (`internal/server/integration_test_handlers.go` and its test, `internal/server/server_routes_config.go:126-128`), `ui/js/config/integration_actions.js`, `ui/js/config/catalog.js:47,189`, and `ui/config_test_buttons_test.go`, `ui/config_spacing_browser_test.go`, `ui/config_precision_workspace_test.go`. The WhatsApp link panel has its own status and test message.
 - The egg config (`internal/invasion/eggconfig.go:157`): the WhatsApp runtime refuses to start in egg mode, and `whatsapp.enabled` defaults to false.
-- Reuse of Telegram helpers in Discord and the voice upload (`internal/discord/bot.go`, `internal/server/handlers_voice.go`), and the example texts in `ui/lang/knowledge` and `ui/lang/help`: no target.
-- Comments only: `internal/rocketchat/bot.go:143`, `internal/agent/question_user_answer.go:32`, `internal/security/scrubber.go:315`, `internal/tools/outgoing_attachments.go`, `internal/tools/vision.go`.
+- Reuse of Telegram helpers in Discord and the voice upload (`internal/discord/bot.go`, `internal/discord/reference.go` (`telegram.OriginLabel`), `internal/server/handlers_voice.go`), and the example texts in `ui/lang/knowledge`: no target. (`ui/lang/help` is Telegram's field help, mirrored by `help.whatsapp.*`, so it is not listed.)
+- Comments only: `internal/rocketchat/bot.go:143`, `internal/agent/question_user_answer.go:32`, `internal/security/scrubber.go:315`, `internal/tools/outgoing_attachments.go:26,51`, `internal/tools/vision.go:43`, `internal/newspaper/render.go:136`, `internal/newspaper/pdf_fonts_test.go:122` (a 20 MB bound named after Telegram, stricter than WhatsApp's).
+- Telegram's own implementation: `internal/telegram/**`, `internal/tools/telegram_document*.go`, `internal/server/telegram_{runtime,handlers}*.go`, the `go.mod`/`go.sum` entries of the bot module, and the `github.com/go-telegram-bot-api/telegram-bot-api/v5` row of `licences/linked-go-modules.tsv` (the module's own licence row, not a channel list). Counterparts: `internal/whatsapp/**`, `internal/tools/whatsapp_*`, `internal/server/whatsapp_*`.
+- Telegram's `title` parameter and file-only precheck tests (`internal/agent` `flow_tool_extensions_*`, `send_telegram_path_hardening_test.go`, `tool_precheck_test.go`): `send_whatsapp` has no title; its cases live in `send_whatsapp_test.go` and `TestFlowCopyRefusalDoesNotRecommendAnAllowRule`.
+- `internal/agent/dispatch_email.go:22` (`logTextRunes` comment): `send_whatsapp` logs no model text.
+- `internal/persondetect/annotate.go:22,25`: Telegram's photo limits are the strictest, so WhatsApp gets the same frame; `internal/persondetect/alert_rules.go:8` is a comment.
+- Telegram-specific send paths and limits: `internal/server/newspaper_delivery.go` Telegram path (tgbotapi, chunks), `internal/tools/notification.go` Telegram HTTP sender (retry budget, MarkdownV2, UTF-16) and its retry test, `internal/flows/catalog_notify_args.go` (`telegramTextLimit`, `telegramUnits`, UTF-16), and `internal/server/flows_tool_invoker_status.go:354` (`send_whatsapp` answers with a top-level error, see `:286-288`).
+- Built-in EasyDrag templates stay unchanged (stage 3b): `internal/flows/templates_builtin*`, the related flows tests, `ui/testdata/easydrag-fixture.js`, `scripts/test-easydrag*.mjs`, and the `ui/lang/easydrag` keys `ai_news_pdf_telegram.*` and `appointment_reminder`.
+- `ui/js/desktop/apps/easydrag-runs.js:21` and `easydrag-publish.js:7` (`sends_message: 'brand-telegram'`): a generic effect icon, not a channel.
+- Tests that use Telegram as the sample channel, with no channel list iterated: many `internal/memory`, `internal/persondetect`, `internal/server`, `internal/config`, `internal/heartbeat`, `internal/security`, `internal/rocketchat` and `internal/agent` tests; `ui/desktop_*_browser_test.go`; `scripts/test-ui-regressions.mjs`; the Telegram slot tests in `flows_bridge_notify_hardening_test.go` (WhatsApp: `TestC15WhatsAppFailureNotificationHasItsOwnSlots`); the cancel and deadline samples at `flows_tool_invoker_hardening_test.go:253-274`; and `internal/server/config_handlers_test.go:1599` (an illustrative partial section list, not a registry).
+- `agent-tools/` is tracked, not untracked output: `dc6856f8-8593-4daf-b7d9-db94be45b8e5.txt` and `bfa49e0f-...txt` are old i18n key dumps from release v2026.06.21, not a source. Deleting them is a user decision.
+
+### Re-run (2026-11-02)
+
+`git grep` re-run on `claude/whatsapp-stage2`, classified against the sweep:
+
+- Numbers after commit 118f3863c, with the commands above: 387 files name Telegram, 365 name WhatsApp, 186 name Telegram but not WhatsApp, and 201 name both. Every Telegram-only file and every Telegram-only line in the shared files was classified below (the classification pass ran just before 118f3863c, when the split was 192 and 152 under its own exclusions).
+- Fixed in commit `118f3863c`:
+  - the race job in `.github/workflows/security-gates.yml` and the package list in `internal/audit/security_gates_test.go` now include `./internal/whatsapp`;
+  - WhatsApp rows added beside the Telegram rows in the notify-node hardening tests (`internal/flows/catalog_actions_notify_hooks_test.go`), flow tool availability (`internal/server/flows_catalog_env_test.go`), documents-folder attachments (`internal/server/flows_tool_invoker_documents_hardening_test.go`, and the comment in `flows_tool_invoker_documents.go`), `TestAttachmentsAreBoundedAndNeverDropped`, `TestNotifyOutputsAreJSON`, the untrusted-lint table (`effects_independent_test.go`) and `TestBuildEnabledToolsOverviewCoversAuditTogglesAndExactSkips`.
+- Corrections applied to the list above: `ui/lang/help` is Telegram's field help, mirrored by `help.whatsapp.*`; `agent-tools/` is tracked.
 
 ## Risks and mitigations
 
@@ -342,4 +363,4 @@ Targets that the design did not list were added to stage 2 Tasks 7 and 9 and sta
 - **Link hand-off at `PairSuccess`:** the link client is cancelled and disconnected before the Bot connects. Stage 1 Task 15 verifies this on a real device. Fallback: adopt the link client into the Bot.
 - **Passkey pairing:** this whatsmeow version can emit passkey-request events, which AuraGo does not support. The session reports the fixed code `passkey_unsupported` and the UI advises the QR method.
 - **"Client outdated" outages:** each one needs an AuraGo release with a newer pseudo-version. The `outdated` state stops retrying and tells the user.
-- **GPL-3.0 obligations:** every release carries them. The stage 1 Task 4 guard test keeps the notices aligned; stage 4 adds the release checks.
+- **GPL-3.0 obligations:** every release carries them. The stage 1 Task 4 guard test keeps the notices aligned; stage 4 added the release licence gate (`TestLinkedGoModulesHaveGPL3CompatibleLicenses`), which blocks a release on a GPL-3.0-incompatible linked module.

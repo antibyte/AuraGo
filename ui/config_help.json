@@ -284,6 +284,10 @@
     "send_read_receipts": {
       "title": "Send read receipts",
       "description": "Marks accepted owner messages as read. Dedicated mode only."
+    },
+    "self_chat_prefix": {
+      "title": "Self-chat prefix",
+      "description": "Self-chat mode only. AuraGo starts its messages with this text (at most 16 characters). Notes to yourself that start with it are ignored, so AuraGo never answers its own echo."
     }
   },
   "discord": {

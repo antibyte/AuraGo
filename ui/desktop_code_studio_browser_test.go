@@ -237,7 +237,7 @@ func newCodeStudioBrowser(t *testing.T) (*rod.Page, *codeStudioFixtureBackend) {
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
 	html := readDesktopAssetText(t, "desktop.html")
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")

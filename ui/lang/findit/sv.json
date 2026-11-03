@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Försök igen med exakt begäran",
   "findit.pending_command_queue_full": "För många lagerändringar eller reservationer är olösta i den här fliken. Lös en väntande begäran innan en ny ändring.",
   "findit.pending_command_storage_unavailable": "Den här fliken kunde inte spara den väntande begäran, så ändringen skickades inte. Aktivera sessionslagring och försök igen.",
-  "findit.pending_command": "Lös väntande ändring"
+  "findit.pending_command": "Lös väntande ändring",
+  "findit.invalid_number": "Ange ett giltigt tal.",
+  "findit.invalid_url": "Ange en giltig webbadress.",
+  "findit.required_field": "Det här fältet är obligatoriskt."
 }

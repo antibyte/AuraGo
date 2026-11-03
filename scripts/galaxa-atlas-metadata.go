@@ -1,16 +1,17 @@
 //go:build ignore
 
-// Reads source PNGs without changing pixels; prints atlas crop metadata.
+// Reads Galaxa WebP sheets and prints atlas crop metadata. It does not re-encode them.
 package main
 
 import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/image/webp"
 )
 
 type metadata struct {
@@ -62,7 +63,7 @@ func read(path string) (metadata, error) {
 		return metadata{}, err
 	}
 	defer f.Close()
-	im, err := png.Decode(f)
+	im, err := webp.Decode(f)
 	if err != nil {
 		return metadata{}, err
 	}
@@ -118,7 +119,7 @@ func read(path string) (metadata, error) {
 	return m, nil
 }
 func main() {
-	files, err := filepath.Glob("ui/img/galaxa/exp-*.png")
+	files, err := filepath.Glob("ui/img/galaxa/exp-*.webp")
 	if err != nil {
 		panic(err)
 	}

@@ -14,6 +14,8 @@ AuraGo commit of the release plus the module versions pinned in `go.mod` and
 `go.sum`. The modules are used unmodified. License texts:
 `licences/texts/GPL-3.0-only.txt` and `licences/texts/MPL-2.0.txt`.
 
+Release archives (`resources.dat`) and the Docker image (`/app`) carry `LICENSE`, this file and `licences/texts/`; each release's notes link the tagged source. `licences/linked-go-modules.tsv` records every module linked into `cmd/aurago` with the licence AuraGo relies on; `TestLinkedGoModulesHaveGPL3CompatibleLicenses` blocks a release on any other licence.
+
 ## Kaggle wire contracts and optional Jupyter runtime
 
 The generated Go request types and JSON contracts are adapted from Kaggle SDK
@@ -72,9 +74,35 @@ in that exact module records these MIT works:
   Copyright (c) 2016 Max Brunsfeld.
 
 The complete MIT terms are retained in `licences/texts/MIT.txt`.
+Those grammar packages import the `grammars/runtime` package of
+`github.com/odvcencio/gotreesitter`. By default it also compiles hand-written Go
+ports of tree-sitter external scanners whose upstream ships them under copyleft
+licenses: `caddy_scanner.go` (GPL-3.0, Copyright Vladimir Levin),
+`disassembly_scanner.go` (GPL-3.0, Copyright (C) 2023 Colin Kennedy), and
+`nim_scanner.go` with `support_nim.go` (MPL-2.0, Copyright (c) 2022-2023 Leorize).
+The module's `gotreesitter_no_copyleft` build tag removes all
+of them; the release builders do not set it. The Go linker drops the scanner
+functions that no code path reaches and keeps their generated data tables, but the
+files are compiled from the unmodified module. AuraGo therefore treats its binaries
+as GPL-3.0 combined works for this reason as well as through the WhatsApp stack.
+`licences/linked-go-modules.tsv` records the module as
+`MIT AND GPL-3.0-only AND MPL-2.0`. The texts are retained in
+`licences/texts/GPL-3.0-only.txt` and `licences/texts/MPL-2.0.txt`.
 Source and pinned grammar provenance:
 [gotreesitter v0.56.0](https://github.com/odvcencio/gotreesitter/tree/v0.56.0),
 [`licenses/grammars.json`](https://github.com/odvcencio/gotreesitter/blob/v0.56.0/licenses/grammars.json).
+
+## Eclipse Paho MQTT client
+
+`github.com/eclipse/paho.mqtt.golang` v1.5.1 (Eclipse Paho MQTT Go client) is
+dual-licensed under the Eclipse Public License 2.0 and the Eclipse Distribution
+License 1.0. EPL-2.0 alone cannot be combined with GPL-3.0, so AuraGo's GPL-3.0
+binaries use the module under the Eclipse Distribution License 1.0 (EDL-1.0, the
+BSD-3-Clause terms): Copyright (c) 2007, Eclipse Foundation, Inc. and its
+licensors. All rights reserved. The unmodified EDL-1.0 text is retained in
+`licences/texts/EDL-1.0.txt`. Eclipse, Eclipse Paho and the Eclipse logo are
+trademarks of the Eclipse Foundation. Source:
+[paho.mqtt.golang v1.5.1](https://github.com/eclipse/paho.mqtt.golang/tree/v1.5.1).
 
 
 AuraGo links the listed Go modules or retrieves the listed optional model/runtime artifacts. When `embeddings.provider` is `local-granite`, native runtimes and model weights are downloaded on demand and verified by exact size and SHA-256 rather than embedded in the primary binary. The person-detection mode of the Network Cameras app downloads its detector model and ONNX Runtime the same way (see "Person detection models and runtime" below).

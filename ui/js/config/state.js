@@ -178,8 +178,11 @@
         }
         // A stored secret is shown as an empty field. Leaving it empty keeps the
         // stored mask: not a change, and no '' in the patch that would clear it.
-        if (element.value === '' && isMaskedSecret(read(savedConfig, element.dataset.path))) {
-            return read(savedConfig, element.dataset.path);
+        // Atomic list entries may have moved since the saved snapshot. Their
+        // current draft owns the credential; an old array index cannot restore it.
+        const secretSource = trackedPath(element.dataset.path) !== element.dataset.path ? draftConfig : savedConfig;
+        if (element.value === '' && isMaskedSecret(read(secretSource, element.dataset.path))) {
+            return read(secretSource, element.dataset.path);
         }
         return element.value;
     }

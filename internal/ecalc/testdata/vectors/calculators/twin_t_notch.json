@@ -1,0 +1,19 @@
+{
+  "calc": "twin_t_notch",
+  "sets": [
+    {"values": {"r": 31600, "c": 1e-07, "f0": 50.365488320220045, "rh": 15800, "c2x": 2e-07}, "ref": "hand (independent script), the defaults (the nodal analysis of the network has its zero at this frequency): f_0 = 1/(2π·R·C) = 1/(2π·31.6 kΩ·100 nF) = 50.3655 Hz; R/2 = 15.8 kΩ; 2C = 200 nF"},
+    {"values": {"r": 10000, "c": 1e-06, "f0": 15.915494309189533, "rh": 5000, "c2x": 2e-06}, "ref": "hand (independent script): f_0 = 1/(2π·R·C) = 1/(2π·10 kΩ·1 µF) = 15.9155 Hz; R/2 = 5 kΩ; 2C = 2 µF"},
+    {"values": {"r": 15915.494309189537, "c": 1e-08, "f0": 999.9999999999998, "rh": 7957.747154594768, "c2x": 2e-08}, "ref": "definition (R = 1/(2π·1 kHz·10 nF) = 15915.49 Ω puts the notch at 1 kHz): f_0 = 1/(2π·R·C) = 1/(2π·15.9155 kΩ·10 nF) = 1 kHz; R/2 = 7.95775 kΩ; 2C = 20 nF"},
+    {"values": {"r": 4700, "c": 2.2e-09, "f0": 15392.160840608836, "rh": 2350, "c2x": 4.4e-09}, "ref": "hand (independent script): f_0 = 1/(2π·R·C) = 1/(2π·4.7 kΩ·2.2 nF) = 15.3922 kHz; R/2 = 2.35 kΩ; 2C = 4.4 nF"}
+  ],
+  "solve": [
+    {"inputs": {"r": 31600, "c": 1e-07}, "expect": {"f0": 50.365488320220045, "rh": 15800, "c2x": 2e-07}, "ref": "hand (independent script), the defaults: f_0 = 1/(2π·R·C) = 1/(2π·31.6 kΩ·100 nF) = 50.3655 Hz; R/2 = 15.8 kΩ; 2C = 200 nF"},
+    {"inputs": {"r": 10000, "c": 1e-06}, "expect": {"f0": 15.915494309189533, "rh": 5000, "c2x": 2e-06}, "ref": "hand (independent script): f_0 = 1/(2π·R·C) = 1/(2π·10 kΩ·1 µF) = 15.9155 Hz; R/2 = 5 kΩ; 2C = 2 µF"},
+    {"inputs": {"c": 1e-07, "f0": 50}, "expect": {"r": 31830.988618379073, "rh": 15915.494309189537, "c2x": 2e-07}, "ref": "hand (independent script): R = 1/(2π·50 Hz·100 nF) = 31830.99 Ω; f_0 = 1/(2π·R·C) = 1/(2π·31.831 kΩ·100 nF) = 50 Hz; R/2 = 15.9155 kΩ; 2C = 200 nF"},
+    {"inputs": {"c": 2.2e-07, "f0": 60}, "expect": {"r": 12057.19265847692, "rh": 6028.59632923846, "c2x": 4.4e-07}, "ref": "hand (independent script): R = 1/(2π·60 Hz·220 nF) = 12057.2 Ω; f_0 = 1/(2π·R·C) = 1/(2π·12.0572 kΩ·220 nF) = 60 Hz; R/2 = 6.0286 kΩ; 2C = 440 nF"},
+    {"inputs": {"r": 10000, "f0": 1000}, "expect": {"c": 1.5915494309189534e-08, "rh": 5000, "c2x": 3.183098861837907e-08}, "ref": "hand (independent script): C = 1/(2π·1 kHz·10 kΩ) = 15.9155 nF; f_0 = 1/(2π·R·C) = 1/(2π·10 kΩ·15.9155 nF) = 1 kHz; R/2 = 5 kΩ; 2C = 31.831 nF"},
+    {"inputs": {"r": 2200, "f0": 8000}, "expect": {"c": 9.04289449385769e-09, "rh": 1100, "c2x": 1.808578898771538e-08}, "ref": "hand (independent script): C = 1/(2π·8 kHz·2.2 kΩ) = 9.0429 nF; f_0 = 1/(2π·R·C) = 1/(2π·2.2 kΩ·9.04289 nF) = 8 kHz; R/2 = 1.1 kΩ; 2C = 18.0858 nF"},
+    {"inputs": {"r": 10000, "c": -1e-07}, "expect": {}, "errors": {"c": "range", "f0": "range"}, "warnings": [], "ref": "hand: a negative capacitance is out of range and f_0 = 1/(2π·R·C) is negative too"},
+    {"inputs": {"r": 10000}, "expect": {}, "errors": {"c": "undetermined", "f0": "undetermined"}, "warnings": [], "ref": "one of the two values is missing"}
+  ]
+}

@@ -45,6 +45,7 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 				type observed struct {
 					route, model string
 					tools        int
+					toolChoice   any
 				}
 				requests := make(chan observed, 8)
 				var answer atomic.Value
@@ -60,7 +61,7 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 						w.WriteHeader(http.StatusBadRequest)
 						return
 					}
-					requests <- observed{strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")[0], request.Model, len(request.Tools)}
+					requests <- observed{strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")[0], request.Model, len(request.Tools), request.ToolChoice}
 					chunk, _ := json.Marshal(openai.ChatCompletionStreamResponse{Choices: []openai.ChatCompletionStreamChoice{{Index: 0, Delta: openai.ChatCompletionStreamChoiceDelta{Content: answer.Load().(string)}, FinishReason: openai.FinishReasonStop}}})
 					w.Header().Set("Content-Type", "text/event-stream")
 					fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", chunk)
@@ -135,6 +136,15 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 					}
 					if (got.tools == 0) != (phase == "source") {
 						t.Errorf("wrong phase request: tools=%d", got.tools)
+					}
+					var wantChoice any = "auto"
+					if phase == "planning" {
+						wantChoice = "required"
+					} else if phase == "source" {
+						wantChoice = nil
+					}
+					if got.toolChoice != wantChoice {
+						t.Errorf("wire tool_choice = %v, want %v", got.toolChoice, wantChoice)
 					}
 				default:
 					t.Fatal("no provider request")

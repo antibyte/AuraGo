@@ -457,7 +457,6 @@ func TestHomepageStudioWindowPreset(t *testing.T) {
 	shell := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
 		"'homepage-studio': { width: 1240, height: 760 }",
-		"'homepage-studio': true",
 	} {
 		if !strings.Contains(shell, want) {
 			t.Fatalf("window-shell-runtime missing homepage studio preset marker %q", want)

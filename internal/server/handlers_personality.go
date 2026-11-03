@@ -153,8 +153,8 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		var req struct {
 			ID string `json:"id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), jsonDecodeStatus(err))
 			return
 		}
 
@@ -226,8 +226,8 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			EventID    string     `json:"event_id,omitempty"`
 			OccurredAt *time.Time `json:"occurred_at,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), jsonDecodeStatus(err))
 			return
 		}
 		if len(req.EventID) > 128 {
@@ -502,8 +502,8 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			Name    string `json:"name"`
 			Content string `json:"content"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), jsonDecodeStatus(err))
 			return
 		}
 		if !isValidPersonalityName(req.Name) {

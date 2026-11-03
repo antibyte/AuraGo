@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Ponów dokładnie to żądanie",
   "findit.pending_command_queue_full": "W tej karcie jest zbyt wiele nierozstrzygniętych zmian stanu lub rezerwacji. Rozstrzygnij oczekujące żądanie przed kolejną zmianą.",
   "findit.pending_command_storage_unavailable": "Ta karta nie mogła zapisać oczekującego żądania, więc zmiana nie została wysłana. Włącz pamięć sesji i spróbuj ponownie.",
-  "findit.pending_command": "Rozwiąż oczekującą zmianę"
+  "findit.pending_command": "Rozwiąż oczekującą zmianę",
+  "findit.invalid_number": "Wpisz prawidłową liczbę.",
+  "findit.invalid_url": "Wpisz prawidłowy adres internetowy.",
+  "findit.required_field": "To pole jest wymagane."
 }

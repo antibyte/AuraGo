@@ -997,6 +997,7 @@ Notes for the implementer:
 
 Common locale keys (`ui/lang/common/<locale>.json`, append at the end, all 16 locales, real translations; English shown):
 
+{% raw %}
 ```json
 "common.go2rtc_source.type": "Camera type",
 "common.go2rtc_source.choose_type": "Choose a camera type",
@@ -1041,6 +1042,7 @@ Common locale keys (`ui/lang/common/<locale>.json`, append at the end, all 16 lo
 "common.go2rtc_source.hint_webrtc": "WebRTC sources such as WHEP, AWS Kinesis, OpenIPC or SwitchBot. See the documentation for the format option."
 ```
 
+{% endraw %}
 Every locale must get the same key set; translate naturally (German uses "Kameratyp", etc.).
 
 - [ ] **Step 4: Run tests**
@@ -1239,11 +1241,13 @@ Run `node scripts/test-ui-regressions.mjs 2>&1 | grep FAIL` → FAIL.
 
 `ui/config.html` after line 34:
 
+{% raw %}
 ```html
     <script src="/js/go2rtc-source-form.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/go2rtc-source-form.css?v={{.BuildVersion}}">
 ```
 
+{% endraw %}
 `ui/cfg/go2rtc.js`:
 
 ```js

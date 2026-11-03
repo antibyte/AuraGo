@@ -84,15 +84,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if err := validateMemorySchema(ctx, db); err != nil {
 		return nil, err
 	}
-	// Startup recovery is intentionally not a migration. Bound the batch; normal
-	// maintenance reclaims any remaining orphaned claims without spending retries.
-	if _, err := db.ExecContext(ctx, `UPDATE archived_messages
-		SET consolidation_status='pending',consolidation_claimed_at=NULL
-		WHERE id IN (SELECT id FROM archived_messages WHERE consolidated=0
-			AND consolidation_status='in_progress' ORDER BY id LIMIT 1000)`); err != nil {
-		return nil, fmt.Errorf("recover memory consolidation claims: %w", err)
-	}
-	if err := sweepAbandonedMemoryPublications(db, logger); err != nil {
+	if err := stm.recoverStartup(ctx); err != nil {
 		return nil, err
 	}
 	if err := stm.EnsureDefaultSession(); err != nil {
@@ -174,4 +166,33 @@ func splitLegacyMemorySchema(schema string) (tables, indexes string) {
 		}
 	}
 	return tables, indexes
+}
+
+// recoverStartup serializes successful recovery per database and process. Later
+// handles must not erase claims or publication markers owned by live writers.
+func (stm *SQLiteMemory) recoverStartup(ctx context.Context) error {
+	coordinator, err := stm.snapshotCoordinator(ctx)
+	if err != nil {
+		return err
+	}
+	coordinator.startupMu.Lock()
+	defer coordinator.startupMu.Unlock()
+	if coordinator.startupRecovered {
+		return nil
+	}
+	db, logger := stm.db, stm.logger
+	// Startup recovery is intentionally not a migration. Bound the batch; normal
+	// maintenance reclaims any remaining orphaned claims without spending retries.
+	if _, err := db.ExecContext(ctx, `UPDATE archived_messages
+		SET consolidation_status='pending',consolidation_claimed_at=NULL
+		WHERE id IN (SELECT id FROM archived_messages WHERE consolidated=0
+			AND consolidation_status='in_progress' ORDER BY id LIMIT 1000)`); err != nil {
+		return fmt.Errorf("recover memory consolidation claims: %w", err)
+	}
+	if err := sweepAbandonedMemoryPublications(db, logger); err != nil {
+		return err
+	}
+
+	coordinator.startupRecovered = true
+	return nil
 }

@@ -28,6 +28,12 @@ func toolRuntimeUnavailable(dc *DispatchContext, name string) string {
 		if !tools.FindItAvailableFor(dc.Cfg) {
 			return "FindIt storage is not enabled or available for agent access."
 		}
+	case "send_whatsapp":
+		// Enabled in the configuration but without a linked, running device: the call is
+		// refused as needing setup, not as disabled by an administrator.
+		if !tools.WhatsAppAvailable() {
+			return "WhatsApp is not linked or not running."
+		}
 	case "manage_todos", "manage_appointments":
 		if dc.PlannerDB == nil {
 			return "Planner database not available."

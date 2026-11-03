@@ -66,7 +66,11 @@ func handleDashboardMemoryCurationList(s *Server, w http.ResponseWriter, r *http
 }
 
 func handleDashboardMemoryCurationDryRun(s *Server, w http.ResponseWriter, r *http.Request) {
-	req := decodeDashboardMemoryCurationRequest(r)
+	req, err := decodeDashboardMemoryCurationRequest(w, r)
+	if err != nil {
+		jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+		return
+	}
 	plan, err := buildDashboardMemoryCurationPlan(s, req.Limit)
 	if err != nil {
 		s.Logger.Error("Failed to build memory curation dry-run", "error", err)
@@ -87,7 +91,11 @@ func handleDashboardMemoryCurationDryRun(s *Server, w http.ResponseWriter, r *ht
 }
 
 func handleDashboardMemoryCurationApply(s *Server, w http.ResponseWriter, r *http.Request) {
-	req := decodeDashboardMemoryCurationRequest(r)
+	req, err := decodeDashboardMemoryCurationRequest(w, r)
+	if err != nil {
+		jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+		return
+	}
 	if strings.TrimSpace(req.Confirm) != memoryCurationConfirmToken {
 		jsonError(w, "confirmation token is required", http.StatusBadRequest)
 		return
@@ -122,7 +130,11 @@ func handleDashboardMemoryCurationApply(s *Server, w http.ResponseWriter, r *htt
 }
 
 func handleDashboardMemoryCurationDocAction(s *Server, w http.ResponseWriter, r *http.Request, docID string) {
-	req := decodeDashboardMemoryCurationRequest(r)
+	req, err := decodeDashboardMemoryCurationRequest(w, r)
+	if err != nil {
+		jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
+		return
+	}
 	action := strings.ToLower(strings.TrimSpace(req.Action))
 	if action == "" {
 		jsonError(w, "action is required", http.StatusBadRequest)
@@ -164,13 +176,15 @@ func buildDashboardMemoryCurationPlan(s *Server, limit int) (memory.MemoryCurati
 	}), nil
 }
 
-func decodeDashboardMemoryCurationRequest(r *http.Request) dashboardMemoryCurationRequest {
+func decodeDashboardMemoryCurationRequest(w http.ResponseWriter, r *http.Request) (dashboardMemoryCurationRequest, error) {
 	var req dashboardMemoryCurationRequest
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := decodeOptionalJSONRequest(w, r, &req); err != nil {
+		return req, err
+	}
 	if req.Limit <= 0 {
 		req.Limit = parseMemoryCurationLimit(r, 100)
 	}
-	return req
+	return req, nil
 }
 
 func parseMemoryCurationLimit(r *http.Request, fallback int) int {

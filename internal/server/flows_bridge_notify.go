@@ -20,13 +20,13 @@ const (
 	// notifications.
 	flowNotifyNameRunes = 80
 	// flowNotifyMessageRunes bounds the run error a failure notification carries. The engine
-	// caps error messages at 1000 runes, too long for a push or Telegram message.
+	// caps error messages at 1000 runes, too long for a push, Telegram or WhatsApp message.
 	flowNotifyMessageRunes = 300
 	// flowFailureNotifyInterval is how often a flow that keeps failing notifies again (see
 	// flowFailureNotifier).
 	flowFailureNotifyInterval = time.Hour
-	// flowNotifyMaxInFlight bounds the sends that have not returned, per channel (push and
-	// Telegram each; see sendFlowNotification).
+	// flowNotifyMaxInFlight bounds the sends that have not returned, per channel (push,
+	// Telegram and WhatsApp each; see sendFlowNotification).
 	flowNotifyMaxInFlight = 4
 )
 
@@ -74,7 +74,7 @@ func (s *Server) flowIssue(info flows.RunFinishedInfo, failed bool, message stri
 }
 
 // flowFailureNotification builds the desktop notification for a failed live run; push and
-// Telegram send its title and message. The message names the flow (flowDisplayName, at
+// Telegram or WhatsApp send its title and message. The message names the flow (flowDisplayName, at
 // most 80 runes, the flow id when the name is unknown) and the run error, cut to
 // flowNotifyMessageRunes runes. Both are filled into the translation in one pass, so a
 // name that contains "{error}" (or an error that contains "{name}") is not filled in a
@@ -93,10 +93,10 @@ func flowFailureNotification(lang string, info flows.RunFinishedInfo, message st
 }
 
 // notifyFlowFailure sends the failure notification chosen by settings.notify_on_error:
-// desktop (default), push, telegram or off. The flood rule of flowFailureNotifier decides
-// whether this failure notifies at all.
+// desktop (default), push, telegram, whatsapp or off. The flood rule of flowFailureNotifier
+// decides whether this failure notifies at all.
 //
-// A push or Telegram notification takes its channel's send slot before the flood rule is
+// A push, Telegram or WhatsApp notification takes its channel's send slot before the flood rule is
 // consulted: a notification dropped because every slot is busy leaves the flow's failing
 // state as it was, so the flow's next failure can notify. When the flood rule then
 // suppresses the notification, the slot is given back. A send that was accepted counts as
@@ -108,7 +108,7 @@ func (s *Server) notifyFlowFailure(info flows.RunFinishedInfo, message string) {
 		return
 	}
 	channel := info.NotifyOnError
-	remote := channel == "push" || channel == "telegram"
+	remote := channel == "push" || channel == "telegram" || channel == "whatsapp"
 	if remote && !s.flowNotify.acquire(channel) {
 		s.Logger.Warn("Flow failure notification dropped; earlier notifications are still being sent",
 			"channel", channel, "in_flight", flowNotifyMaxInFlight, "flow", info.Record.FlowID)
@@ -135,7 +135,7 @@ func (s *Server) notifyFlowFailure(info flows.RunFinishedInfo, message string) {
 // flowSendNotification is tools.SendNotification; tests replace it.
 var flowSendNotification = tools.SendNotification
 
-// sendFlowNotification hands a push or Telegram failure notification to
+// sendFlowNotification hands a push, Telegram or WhatsApp failure notification to
 // tools.SendNotification on a goroutine of its own, which gives back the channel's send
 // slot when it returns; the caller has taken that slot (flowFailureNotifier.acquire).
 //
@@ -145,6 +145,11 @@ var flowSendNotification = tools.SendNotification
 // one stalled push endpoint can hold a send for good. Each channel therefore has its own
 // flowNotifyMaxInFlight slots: stalled push sends cannot silence Telegram, and a channel
 // whose slots are all busy drops further notifications instead of adding goroutines.
+//
+// WhatsApp goes through SendNotification too: it refuses a read-only or disabled section and
+// bounds the send to 30 s (tools whatsAppNotifyBudget); the flow's message (name 80 runes plus
+// error 300) is far below one WhatsApp message. When WhatsApp is not linked the Warn of
+// SendNotification is all there is: a failure is not rerouted to the desktop, as for Telegram.
 func (s *Server) sendFlowNotification(cfg *config.Config, channel, title, body string) {
 	send, logger := flowSendNotification, s.Logger
 	go func() {
@@ -156,14 +161,14 @@ func (s *Server) sendFlowNotification(cfg *config.Config, channel, title, body s
 // flowFailureNotifier holds the state of the flow failure notifications. The zero value
 // is ready to use.
 //
-// Flood rule: a failed live run notifies (desktop, push or Telegram, as the flow's
+// Flood rule: a failed live run notifies (desktop, push, Telegram or WhatsApp, as the flow's
 // notify_on_error says) only when its flow was not failing before, or when the flow's last
 // failure notification is flowFailureNotifyInterval (one hour) or more ago. A successful
 // run ends the failing state, so the next failure notifies at once. A flow on a one-minute
 // schedule that keeps failing thus notifies once and then at most once an hour, instead of
 // 1440 times a day. Cancelled runs neither notify nor end the failing state, and a failure
-// of a flow set to "off" records nothing, nor does a push or Telegram notification dropped
-// for want of a send slot. The state lives in memory, so after a restart the first failure
+// of a flow set to "off" records nothing, nor does a push, Telegram or WhatsApp notification
+// dropped for want of a send slot. The state lives in memory, so after a restart the first failure
 // notifies again. The planner issue is recorded for every failure; it is deduplicated per
 // flow (fingerprint "flow|<flow id>").
 type flowFailureNotifier struct {

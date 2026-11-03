@@ -16,7 +16,7 @@ func TestMemoryAuditBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("headless browser smoke test requires Chrome or Edge")
+		browserSmokeUnavailable(t, "headless browser smoke test requires Chrome or Edge")
 	}
 	const chatFixture = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-utilities.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/chat.bundle.css"></head><body>
 <button id="session-toggle-btn" class="session-edge-tab"></button><div id="session-backdrop" class="session-backdrop"></div>
@@ -44,7 +44,7 @@ func TestMemoryAuditBrowser(t *testing.T) {
 	launch := launcher.New().Context(ctx).Bin(bin).Headless(true).NoSandbox(true).Leakless(false).Set("disable-gpu").Set("disable-dev-shm-usage")
 	controlURL, err := launch.Launch()
 	if err != nil {
-		t.Skipf("headless browser smoke test skipped; browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
 	}
 	browser := rod.New().Context(ctx).ControlURL(controlURL)
 	if err := browser.Connect(); err != nil {

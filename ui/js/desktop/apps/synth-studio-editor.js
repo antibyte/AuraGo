@@ -10,6 +10,7 @@
         host.tabIndex = 0;
         let trackId = '', clipId = '', selected = new Set(), beatWidth = 40, snap = 120, playingTick = 0, gesture = null;
         let previousClip = '', rollScroll = null, tool='draw', clipboard=null, heldKey=null;
+        let trackMenu = null;
         host.innerHTML = '<div class="ss-arrangement" data-arrangement><div class="ss-arrange-inner"></div></div><section class="ss-note-editor" data-note-editor></section>';
         const arrangement = host.querySelector('[data-arrangement]'), inner = arrangement.firstElementChild, editor = host.querySelector('[data-note-editor]');
         const get = () => { const project = options.getProject(); const track = project.tracks.find(t => t.id === trackId); return {project, track, clip:track?.clips.find(c => c.id === clipId)}; };
@@ -19,13 +20,17 @@
         function select(tid, cid = '') { trackId = tid; clipId = cid; selected.clear(); emit(); render(); }
         function change(fn) { if (options.readonly()) return; options.mutate(fn); }
         function render() {
+            closeTrackMenu();
             const {project,track,clip} = get();
+            // The piano roll carries the track colour of the arrangement so the two views read as one.
+            const colorIndex=Math.max(0,project.tracks.findIndex(t=>t.id===track?.id))%6;
+            editor.style.setProperty('--ss-track-color','var(--ss-color-'+colorIndex+')');
             const end = Math.max(BAR * 8, ...project.tracks.flatMap(t => t.clips.map(c => c.start + c.length + BAR)));
             const bars = Math.ceil(end / BAR), width = px(bars * BAR), oldX = arrangement.scrollLeft, oldY = arrangement.scrollTop;
             const ruler = Array.from({length:bars},(_,i) => '<span style="left:'+px(i*BAR)+'px">'+(i+1)+'</span>').join('');
             inner.style.setProperty('--ss-beat', beatWidth+'px');
             inner.innerHTML = '<div class="ss-ruler"><div class="ss-track-label">'+esc(tr('tracks'))+'</div><div class="ss-ruler-grid" data-seek style="width:'+width+'px">'+ruler+['start','end'].map(edge=>'<button class="ss-loop-handle" data-loop-handle="'+edge+'" style="left:'+px(project.loop[edge])+'px" aria-label="'+esc(tr('loop_'+edge))+'">'+(edge==='start'?'[':']')+'</button>').join('')+'</div></div>' +
-                project.tracks.map((t,i) => '<div class="ss-track '+(t.id===trackId?'is-selected':'')+'" data-track="'+t.id+'" style="--ss-track-color:var(--ss-color-'+(i%6)+')"><div class="ss-track-head"><button class="ss-track-name" data-select-track="'+t.id+'">'+esc(t.name)+'</button><div class="ss-track-buttons">'+['mute','solo'].map(a => '<button data-track-action="'+a+'" data-id="'+t.id+'" aria-label="'+esc(tr(a))+'" aria-pressed="'+!!t[a]+'">'+(a==='mute'?'M':'S')+'</button>').join('')+'<button data-track-action="arm" data-id="'+t.id+'" aria-label="'+esc(tr('arm'))+'" aria-pressed="'+(t.id===trackId)+'">●</button></div><input type="range" min="0" max="1" step=".01" value="'+t.volume+'" data-track-volume="'+t.id+'" aria-label="'+esc(tr('volume'))+'"'+(options.readonly()?' disabled':'')+'></div><div class="ss-lane" data-lane="'+t.id+'" style="width:'+width+'px">'+t.clips.map(c => '<div role="button" tabindex="0" class="ss-clip '+(c.id===clipId?'is-selected':'')+'" data-clip="'+c.id+'" data-track-id="'+t.id+'" aria-label="'+esc(c.name)+'" style="left:'+px(c.start)+'px;width:'+Math.max(16,px(c.length)-2)+'px"><span>'+esc(c.name)+'</span><div class="ss-clip-notes" aria-hidden="true">'+c.notes.slice(0,128).map(n => '<i style="left:'+(n.start/c.length*100)+'%;width:'+Math.max(.7,n.duration/c.length*100)+'%;top:'+((84-n.pitch)%24/24*20)+'px"></i>').join('')+'</div><b class="ss-clip-resize" data-resize aria-label="'+esc(tr('resize'))+'"></b></div>').join('')+'</div></div>').join('') +
+                project.tracks.map((t,i) => '<div class="ss-track '+(t.id===trackId?'is-selected':'')+'" data-track="'+t.id+'" style="--ss-track-color:var(--ss-color-'+(i%6)+')"><div class="ss-track-head"><button class="ss-track-name" data-select-track="'+t.id+'">'+esc(t.name)+'</button><div class="ss-track-buttons">'+['mute','solo'].map(a => '<button data-track-action="'+a+'" data-id="'+t.id+'" aria-label="'+esc(tr(a))+'" aria-pressed="'+!!t[a]+'">'+(a==='mute'?'M':'S')+'</button>').join('')+'<button data-track-action="arm" data-id="'+t.id+'" aria-label="'+esc(tr('arm'))+'" aria-pressed="'+(t.id===trackId)+'">●</button><button class="ss-track-menu-button" data-track-menu="'+t.id+'" aria-label="'+esc(tr('track_menu'))+'" aria-haspopup="menu" aria-expanded="false">⋯</button></div><input type="range" min="0" max="1" step=".01" value="'+t.volume+'" data-track-volume="'+t.id+'" aria-label="'+esc(tr('volume'))+'"'+(options.readonly()?' disabled':'')+'></div><div class="ss-lane" data-lane="'+t.id+'" style="width:'+width+'px">'+t.clips.map(c => '<div role="button" tabindex="0" class="ss-clip '+(c.id===clipId?'is-selected':'')+'" data-clip="'+c.id+'" data-track-id="'+t.id+'" aria-label="'+esc(c.name)+'" style="left:'+px(c.start)+'px;width:'+Math.max(16,px(c.length)-2)+'px"><span>'+esc(c.name)+'</span><div class="ss-clip-notes" aria-hidden="true">'+c.notes.slice(0,128).map(n => '<i style="left:'+(n.start/c.length*100)+'%;width:'+Math.max(.7,n.duration/c.length*100)+'%;top:'+((84-n.pitch)%24/24*20)+'px"></i>').join('')+'</div><b class="ss-clip-resize" data-resize aria-label="'+esc(tr('resize'))+'"></b></div>').join('')+'</div></div>').join('') +
                 '<div class="ss-add-lane" style="min-width:'+(width+180)+'px" data-empty-drop><button data-add-track>＋ '+esc(tr('add_track'))+'</button><span>'+esc(tr('drop_hint'))+'</span></div><div class="ss-playhead" aria-hidden="true"></div>';
             arrangement.scrollLeft = oldX; arrangement.scrollTop = oldY;
             setPlayhead(playingTick);
@@ -38,7 +43,7 @@
             if(drum) clip.notes.forEach(n=>{if(!pitches.includes(n.pitch))pitches.push(n.pitch);});
             const harmony=get().project.harmony;
             const noteWidth = Math.max(px(clip.length), 400), noteHeight = pitches.length*rowH;
-            editor.innerHTML = '<header class="ss-editor-header"><button data-tool="select" aria-pressed="'+(tool==='select')+'">'+esc(tr('select_tool'))+'</button><button data-tool="draw" aria-pressed="'+(tool==='draw')+'">'+esc(tr('draw_tool'))+'</button><button data-copy-notes>'+esc(tr('copy'))+'</button><button data-paste-notes'+(!clipboard||options.readonly()?' disabled':'')+'>'+esc(tr('paste'))+'</button><strong>'+esc(clip.name)+'</strong><span>'+esc(tr(drum?'drum_editor':'piano_roll'))+'</span><button data-delete-notes'+(!selected.size||options.readonly()?' disabled':'')+'>'+esc(tr('delete'))+'</button><label>'+esc(tr('velocity'))+' <input type="range" data-velocity min=".05" max="1" step=".05" value="'+(clip.notes.find(n=>selected.has(n.id))?.velocity ?? .8)+'"'+(!selected.size||options.readonly()?' disabled':'')+'></label></header><div class="ss-roll-scroll"><div class="ss-roll" style="width:'+(noteWidth+92)+'px;height:'+noteHeight+'px;--ss-beat:'+beatWidth+'px;--ss-row:'+rowH+'px"><div class="ss-keys">'+pitches.map(p => { const d=drums().find(d=>d.drumNote===p); return '<button class="'+(!drum&&harmony&&window.SynthStudioMusic?.inScale(p,harmony)?'is-scale ':'')+(!drum&&[1,3,6,8,10].includes(p%12)?'is-black':'')+'" data-key="'+p+'" style="height:'+rowH+'px">'+esc(drum?(d?.name||'GM '+p):noteName(p))+'</button>'; }).join('')+'</div><div class="ss-note-grid" data-grid style="width:'+noteWidth+'px;height:'+noteHeight+'px">'+(!drum&&harmony?pitches.map((p,i)=>window.SynthStudioMusic?.inScale(p,harmony)?'<i class="ss-scale-row" style="top:'+(i*rowH)+'px;height:'+rowH+'px"></i>':'').join(''):'')+clip.notes.map(n => {const y=pitches.indexOf(n.pitch); if(y<0)return ''; return '<div role="button" tabindex="0" data-note="'+n.id+'" class="ss-note '+(selected.has(n.id)?'is-selected':'')+'" style="left:'+px(n.start)+'px;top:'+(y*rowH+1)+'px;width:'+Math.max(6,px(n.duration)-1)+'px;height:'+(rowH-2)+'px;opacity:'+(.45+n.velocity*.55)+'" aria-label="'+esc(noteName(n.pitch))+'"><b data-note-resize></b></div>';}).join('')+'</div></div></div>';
+            editor.innerHTML = '<header class="ss-editor-header"><button data-tool="select" aria-pressed="'+(tool==='select')+'">'+esc(tr('select_tool'))+'</button><button data-tool="draw" aria-pressed="'+(tool==='draw')+'">'+esc(tr('draw_tool'))+'</button><button data-copy-notes>'+esc(tr('copy'))+'</button><button data-paste-notes'+(!clipboard||options.readonly()?' disabled':'')+'>'+esc(tr('paste'))+'</button><strong>'+esc(clip.name)+'</strong><span>'+esc(tr(drum?'drum_editor':'piano_roll'))+'</span><button data-delete-notes'+(!selected.size||options.readonly()?' disabled':'')+'>'+esc(tr('delete'))+'</button><label>'+esc(tr('velocity'))+' <input type="range" data-velocity min=".05" max="1" step=".05" value="'+(clip.notes.find(n=>selected.has(n.id))?.velocity ?? .8)+'"'+(!selected.size||options.readonly()?' disabled':'')+'></label></header><div class="ss-roll-scroll"><div class="ss-roll" style="width:'+(noteWidth+92)+'px;height:'+noteHeight+'px;--ss-beat:'+beatWidth+'px;--ss-row:'+rowH+'px"><div class="ss-keys">'+pitches.map(p => { const d=drums().find(d=>d.drumNote===p); return '<button class="'+(!drum&&harmony&&window.SynthStudioMusic?.inScale(p,harmony)?'is-scale ':'')+(!drum&&[1,3,6,8,10].includes(p%12)?'is-black':'')+'" data-key="'+p+'" style="height:'+rowH+'px">'+esc(drum?(d?.name||'GM '+p):noteName(p))+'</button>'; }).join('')+'</div><div class="ss-note-grid" data-grid style="width:'+noteWidth+'px;height:'+noteHeight+'px">'+(!drum&&harmony?pitches.map((p,i)=>window.SynthStudioMusic?.inScale(p,harmony)?'<i class="ss-scale-row" style="top:'+(i*rowH)+'px;height:'+rowH+'px"></i>':'').join(''):'')+clip.notes.map(n => {const y=pitches.indexOf(n.pitch); if(y<0)return ''; return '<div role="button" tabindex="0" data-note="'+n.id+'" class="ss-note '+(selected.has(n.id)?'is-selected':'')+'" style="left:'+px(n.start)+'px;top:'+(y*rowH+1)+'px;width:'+Math.max(6,px(n.duration)-1)+'px;height:'+(rowH-2)+'px;opacity:'+(.45+n.velocity*.55)+';--ss-note-hue:'+(175+(n.pitch%12)*30)+'" aria-label="'+esc(noteName(n.pitch))+'"><b data-note-resize></b></div>';}).join('')+'</div></div></div>';
 
             const velocities=document.createElement('div');velocities.className='ss-note-velocities';
             clip.notes.filter(n=>selected.has(n.id)).forEach(n=>{
@@ -53,6 +58,39 @@
             editor.dataset.pitches=JSON.stringify(pitches);editor.dataset.rowHeight=rowH;
         }
         function noteName(p) {return ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][p%12]+(Math.floor(p/12)-1);}
+        // Track actions live in a small popover next to the track head. The menu
+        // floats above the arrangement so the scrolling lanes cannot clip it.
+        function closeTrackMenu(){
+            if(!trackMenu)return;
+            trackMenu.element.remove();trackMenu.button?.setAttribute('aria-expanded','false');trackMenu=null;
+        }
+        function openTrackMenu(button,tid){
+            const wasOpen=trackMenu&&trackMenu.id===tid;closeTrackMenu();if(wasOpen)return;
+            const menu=document.createElement('div');menu.className='ss-track-menu';menu.setAttribute('role','menu');
+            // A project holds one drum rack only, so the drum track gets no
+            // duplicate entry instead of an error after the click.
+            const source=get().project.tracks.find(x=>x.id===tid);
+            menu.innerHTML=(source&&!isDrum(source)?'<button type="button" role="menuitem" data-track-menu-action="duplicate" data-id="'+tid+'">'+esc(tr('duplicate_track'))+'</button>':'')+
+                '<button type="button" role="menuitem" class="is-danger" data-track-menu-action="delete" data-id="'+tid+'">'+esc(tr('delete_track'))+'</button>';
+            // The menu belongs to the app root: outside of it the theme
+            // variables of the studio are not inherited and the popover would
+            // lose its background. No ancestor transforms the page, so the
+            // fixed positioning still refers to the viewport.
+            const appRoot=host.closest('.ss-app');
+            (appRoot||document.body).append(menu);
+            const rect=button.getBoundingClientRect();
+            menu.style.left=Math.round(Math.min(rect.left,window.innerWidth-menu.offsetWidth-8))+'px';
+            menu.style.top=Math.round(Math.min(rect.bottom+4,window.innerHeight-menu.offsetHeight-8))+'px';
+            trackMenu={id:tid,element:menu,button};
+            button.setAttribute('aria-expanded','true');
+            menu.addEventListener('click',e=>{
+                const item=e.target.closest('[data-track-menu-action]');if(!item)return;
+                const action=item.dataset.trackMenuAction,id=item.dataset.id;
+                closeTrackMenu();
+                options.onTrackMenu?.(action,id);
+            });
+            menu.querySelector('button')?.focus();
+        }
         function setPlayhead(tick) {playingTick=tick;const el=inner.querySelector('.ss-playhead');if(el)el.style.transform='translateX('+(180+px(tick))+'px)';}
         function deleteNotes() { if(!selected.size)return;change(p=>{const c=p.tracks.find(t=>t.id===trackId)?.clips.find(c=>c.id===clipId);if(c)c.notes=c.notes.filter(n=>!selected.has(n.id));});selected.clear();render(); }
 
@@ -72,6 +110,7 @@
             if(target?.hasAttribute('data-copy-notes')){copyNotes();return;}
             if(target?.hasAttribute('data-paste-notes')){pasteNotes();return;}
             if(target?.dataset.selectTrack){select(target.dataset.selectTrack);return;}
+            if(target?.hasAttribute('data-track-menu')){openTrackMenu(target,target.dataset.trackMenu);return;}
             if(target?.hasAttribute('data-add-track')){options.onAdd?.();return;}
             if(target?.dataset.trackAction){const a=target.dataset.trackAction,id=target.dataset.id;if(a==='arm')select(id);else options.mutate(p=>{const t=p.tracks.find(t=>t.id===id);t[a]=!t[a];},'mix');return;}
             if(target?.hasAttribute('data-delete-notes'))deleteNotes();
@@ -160,6 +199,12 @@
             render();
         },{signal});
         document.addEventListener('pointercancel',()=>{if(heldKey!==null)options.onNoteOff?.(heldKey);heldKey=null;gesture=null;render();},{signal});
+        // The track menu floats outside the arrangement, so it needs its own
+        // dismissal rules: a click elsewhere, Escape, or any scroll closes it.
+        document.addEventListener('pointerdown',e=>{if(trackMenu&&!trackMenu.element.contains(e.target)&&!e.target.closest('[data-track-menu]'))closeTrackMenu();},{signal});
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&trackMenu){closeTrackMenu();e.stopPropagation();}},{signal});
+        window.addEventListener('resize',closeTrackMenu,{signal});
+        window.addEventListener('scroll',closeTrackMenu,{signal,capture:true});
         host.addEventListener('keydown',e=>{
             const piano=e.target.closest('[data-key]');if(piano&&['Enter',' '].includes(e.key)){e.preventDefault();if(!e.repeat){heldKey=Number(piano.dataset.key);options.onNoteOn?.(heldKey);}return;}
             if(e.target.matches('input,select,textarea')||options.readonly())return;
@@ -175,7 +220,7 @@
             }
         },{signal});
         host.addEventListener('keyup',e=>{if(e.target.closest('[data-key]')&&['Enter',' '].includes(e.key)){e.preventDefault();if(heldKey!==null)options.onNoteOff?.(heldKey);heldKey=null;}},{signal});
-        return {render,select,selection:()=>({trackId,clipId,notes:[...selected]}),setPlayhead,setZoom(value){beatWidth=Math.max(20,Math.min(100,value));render();},setSnap(value){snap=Math.max(30,value);},dispose(){life.abort();gesture=null;host.replaceChildren();}};
+        return {render,select,selection:()=>({trackId,clipId,notes:[...selected]}),setPlayhead,setZoom(value){beatWidth=Math.max(20,Math.min(100,value));render();},setSnap(value){snap=Math.max(30,value);},dispose(){life.abort();gesture=null;closeTrackMenu();host.replaceChildren();}};
     }
     window.SynthStudioEditor={create};
 })();

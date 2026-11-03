@@ -222,11 +222,14 @@ func TestC13AttachmentsFromTheDocumentsFolder(t *testing.T) {
 	if filepath.Base(resolved) != "report.pdf" {
 		t.Fatalf("resolved = %s", resolved)
 	}
-	inv, _, calls := c13Invoker(cfg, map[string]bool{"send_email": true, "send_telegram": true}, nil)
+	inv, _, calls := c13Invoker(cfg, map[string]bool{"send_email": true, "send_telegram": true, "send_whatsapp": true}, nil)
 	if _, err := inv.InvokeTool(context.Background(), c13Request("send_email", map[string]any{"to": "a@b.c", "body": "x", "attachments": []any{pdf}})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := inv.InvokeTool(context.Background(), c13Request("send_telegram", map[string]any{"message": "x", "file_path": pdf})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := inv.InvokeTool(context.Background(), c13Request("send_whatsapp", map[string]any{"message": "x", "file_path": pdf})); err != nil {
 		t.Fatal(err)
 	}
 	if got := (*calls)[0].tc.Params["attachments"].([]any)[0]; got != pdf {
@@ -234,6 +237,9 @@ func TestC13AttachmentsFromTheDocumentsFolder(t *testing.T) {
 	}
 	if got := (*calls)[1].tc.Params["file_path"]; got != pdf {
 		t.Errorf("telegram file = %v", got)
+	}
+	if got := (*calls)[2].tc.Params["file_path"]; got != pdf {
+		t.Errorf("whatsapp file = %v", got)
 	}
 }
 

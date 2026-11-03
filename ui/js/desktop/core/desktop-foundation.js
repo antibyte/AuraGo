@@ -189,6 +189,12 @@
         'store-bytestash': '/img/desktop-icons/bytestash.svg',
         'store-code-server': '/img/desktop-icons/code-server.svg'
     };
+    function desktopIsArchiveFile(name) {
+        const value = String(name || '');
+        if (/\.txt\.gz$/i.test(value)) return false;
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(value);
+    }
+
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -224,8 +230,20 @@
         webm: 'video',
         mov: 'video',
         zip: 'archive',
+        '7z': 'archive',
+        rar: 'archive',
         tar: 'archive',
         gz: 'archive',
+        tgz: 'archive',
+        bz2: 'archive',
+        xz: 'archive',
+        zst: 'archive',
+        iso: 'archive',
+        cab: 'archive',
+        wim: 'archive',
+        squashfs: 'archive',
+        ext4: 'archive',
+        img: 'archive',
         db: 'database',
         sqlite: 'database',
         csv: 'spreadsheet',
@@ -341,6 +359,7 @@
         'pet.position_x': '-1',
         'pet.position_y': '-1',
         'pet.always_on_top': 'false',
+        'pet.gravity': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',
         'phone_gadget.position_x': '',
@@ -722,12 +741,10 @@
 
     function isCompactViewport() {
         if (!window.matchMedia) return false;
-        // Width catches narrow layouts. Height alone is common on laptops/browser panes,
-        // so only use it for coarse-pointer landscape mobile/tablet layouts.
+        // Keep narrow desktop layouts compact, and include coarse-pointer tablets.
         const widthMatch = window.matchMedia('(max-width: 820px)').matches;
-        const heightMatch = window.matchMedia('(max-height: 720px)').matches;
-        const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        return widthMatch || (heightMatch && coarsePointerMatch);
+        const tabletMatch = window.matchMedia('(max-width: 1024px) and (hover: none) and (pointer: coarse)').matches;
+        return widthMatch || tabletMatch;
     }
 
     function isTouchLikePointer(event) {
@@ -754,20 +771,13 @@
     // Expose for other modules
     window.useMobileDesktopMode = useMobileDesktopMode;
 
-    /**
-     * Returns true if we should force a maximized + single-window
-     * experience for this app on mobile devices.
-     */
+    function shouldUseMobileWideWindow(appId) {
+        return ['code-studio', 'nasscad'].includes(appId);
+    }
+
+    /** Returns whether this app should open maximized in the mobile desktop. */
     function shouldForceMobileMaximizedWindow(appId) {
-        if (!useMobileDesktopMode()) return false;
-
-        // These apps are intentionally wide and should keep horizontal scrolling
-        const wideAppsOnMobile = [
-            'files', 'writer', 'sheets', 'code-studio',
-            'viewer', 'viewer-3d', 'nasscad', 'mission-control', 'launchpad'
-        ];
-
-        return !wideAppsOnMobile.includes(appId);
+        return useMobileDesktopMode() && !shouldUseMobileWideWindow(appId);
     }
 
     window.shouldForceMobileMaximizedWindow = shouldForceMobileMaximizedWindow;
@@ -779,8 +789,8 @@
      * Decision (confirmed):
      * - On mobile (useMobileDesktopMode() === true):
      *     → Normal apps open as a single maximized window.
-     *     → Complex/wide apps (Code Studio, Sheets, etc.) keep
-     *       horizontal scrolling via vd-mobile-wide-window.
+     *     → Apps in shouldUseMobileWideWindow keep horizontal content
+     *       scrolling inside their viewport-width window.
      *
      * This gives a clean phone experience while preserving
      * necessary functionality for content-heavy apps.

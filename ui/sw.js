@@ -12,7 +12,7 @@ const CORE_ASSETS = [
     '/favicon.svg',
     '/favicon-96x96.png',
     '/apple-touch-icon.png',
-    '/aurago_logo_dark.png'
+    '/aurago_logo_dark.webp'
 ].map(asset => `${asset}?v=${encodeURIComponent(SERVICE_WORKER_BUILD)}`);
 
 const NETWORK_ONLY_PATH_PREFIXES = ['/api/', '/v1/', '/auth/', '/events'];

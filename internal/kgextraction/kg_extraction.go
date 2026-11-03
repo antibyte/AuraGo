@@ -95,10 +95,7 @@ Inputs:
 		route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
 	}
 	limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
-	structured := false
-	if caps, ok := llm.CapabilitiesFromRegistry(providerType, kgModel); ok {
-		structured = caps.StructuredOutputs
-	}
+	responseFormat := llm.JSONResponseFormatForModel(providerType, kgModel)
 
 	var rawJSON string
 	var lastErr error
@@ -125,7 +122,7 @@ Inputs:
 				Model:          kgModel,
 				Messages:       messages,
 				MaxTokens:      maxTokens,
-				ResponseFormat: llm.JSONResponseFormat(structured),
+				ResponseFormat: responseFormat,
 			},
 			logger,
 			nil,

@@ -527,7 +527,7 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 		var body struct {
 			URL string `json:"url"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+		if err := decodeJSONRequest(w, r, &body, s); err != nil || body.URL == "" {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Missing 'url' in request body"})
 			return

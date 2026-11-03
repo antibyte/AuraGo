@@ -1,0 +1,19 @@
+{
+  "calc": "reactance_c",
+  "sets": [
+    {"values": {"f": 1000, "c": 1e-07, "xc": 1591.549430919}, "ref": "hand (independent script): 100 nF at 1 kHz: X_C = 1 / (2 * pi * 1000 Hz * 1e-07 F) = 1 / 0.00062831853 = 1591.5494 ohm"},
+    {"values": {"f": 50, "c": 1e-06, "xc": 3183.098861838}, "ref": "hand (independent script): 1 uF at 50 Hz: X_C = 1 / (2 * pi * 50 Hz * 1e-06 F) = 1 / 0.00031415927 = 3183.0989 ohm"},
+    {"values": {"f": 1000000.0, "c": 1e-09, "xc": 159.1549430919}, "ref": "hand (independent script): 1 nF at 1 MHz: X_C = 1 / (2 * pi * 1000000 Hz * 1e-09 F) = 1 / 0.0062831853 = 159.15494 ohm"},
+    {"values": {"f": 100000.0, "c": 4.7e-09, "xc": 338.6275384934}, "ref": "hand (independent script): 4.7 nF at 100 kHz: X_C = 1 / (2 * pi * 100000 Hz * 4.7e-09 F) = 1 / 0.0029530971 = 338.62754 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"f": 1000, "c": 1e-07}, "expect": {"xc": 1591.549430919}, "ref": "hand (independent script): X_C = 1 / (2 * pi * 1000 * 1e-7) = 1 / 6.283185307e-4 = 1591.549431 ohm"},
+    {"inputs": {"c": 1e-06, "xc": 100}, "expect": {"f": 1591.549430919}, "ref": "hand (independent script): f = 1 / (2 * pi * C * X_C) = 1 / (2 * pi * 1e-6 * 100) = 1 / 6.283185307e-4 = 1591.549431 Hz"},
+    {"inputs": {"c": 1e-07, "xc": 1000}, "expect": {"f": 1591.549430919}, "ref": "hand (independent script): f = 1 / (2 * pi * 1e-7 * 1000) = 1 / 6.283185307e-4 = 1591.549431 Hz"},
+    {"inputs": {"f": 1000, "xc": 1000}, "expect": {"c": 1.591549430919e-07}, "ref": "hand (independent script): C = 1 / (2 * pi * f * X_C) = 1 / (2 * pi * 1000 * 1000) = 1 / 6.283185307e6 = 159.1549431 nF"},
+    {"inputs": {"f": 50, "xc": 3183.098861838}, "expect": {"c": 1e-06}, "ref": "hand (independent script): C = 1 / (2 * pi * 50 * 3183.098862) = 1 / 1e6 = 1 uF (the reactance of 1 uF at 50 Hz)"},
+    {"inputs": {"f": 0, "c": 1e-07}, "errors": {"f": "range", "xc": "nonfinite"}, "ref": "hand: f = 0 is out of range and X_C = 1 / (2 * pi * 0 * C) is infinite"},
+    {"inputs": {"f": 1000, "c": -1e-07}, "errors": {"c": "range", "xc": "range"}, "ref": "hand: a negative capacitance is out of range and gives a negative reactance, also out of range"},
+    {"inputs": {"f": 1000}, "errors": {"c": "undetermined", "xc": "undetermined"}, "ref": "two of the three variables are missing"}
+  ]
+}

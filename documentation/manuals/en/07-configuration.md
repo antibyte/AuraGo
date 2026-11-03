@@ -57,6 +57,7 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `tools` | Built-in tool permissions and timeouts |
 | `rules` | Task-specific Markdown guardrails for the agent |
 | `telegram` | Telegram bot integration |
+| `whatsapp` | WhatsApp channel (linked device, owner numbers) |
 | `discord` | Discord bot integration |
 | `email` | IMAP/SMTP email settings |
 | `home_assistant` | Smart home integration |
@@ -123,6 +124,7 @@ rules:            # Task-related agent guardrails
 
 # Integrations (selection)
 telegram:         # Telegram bot
+whatsapp:         # WhatsApp channel (linked device)
 discord:          # Discord bot
 email:            # Email (IMAP/SMTP)
 home_assistant:   # Home Assistant
@@ -1040,6 +1042,7 @@ The following blocks can also be configured through the Web UI or additionally i
 | Block | Purpose | YAML quick example |
 |-------|---------|--------------------|
 | `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `whatsapp` | WhatsApp channel | `whatsapp:`<br>`  enabled: false`<br>`  mode: dedicated`<br>`  owner_numbers: []`<br>`  readonly: false` |
 | `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | Email IMAP/SMTP (array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(legacy)* Email IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
@@ -1077,7 +1080,7 @@ The following blocks can also be configured through the Web UI or additionally i
 | `firewall` | Firewall integration | `firewall:`<br>`  enabled: false`<br>`  mode: readonly` |
 | `journal` | Journal entries | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
 | `llm_router` | Optional task-based model router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
-| `newspaper` | Personal daily newspaper (desktop app) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `newspaper` | Personal daily newspaper (desktop app) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false`<br>`  allow_whatsapp: false` |
 | `treg` | treg catalog gateway (three agent tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 | `model_catalog` | Bundled provider/model catalog for UI and capability detection | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Bound desktop research (intensity profiles) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
@@ -1251,6 +1254,7 @@ newspaper:
   max_editions: 365          # retained edition revisions, minimum 30
   allow_email: false         # permit confirmed email delivery
   allow_telegram: false      # permit configured authorized Telegram users
+  allow_whatsapp: false      # permit delivery to the WhatsApp owners
 ```
 
 Failed deliveries report bounces back. A failed or interrupted daily run without a published edition may be retried manually for the same local date (next numbered revision); the scheduler makes only one attempt per date. Curated RSS sources and a correction flow complement the automatic research.
@@ -1344,7 +1348,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |
 | `journal` | Auto journal entries. | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
 | `llm_router` | Optional task-based model router. | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
-| `newspaper` | Personal daily edition (desktop app). | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `newspaper` | Personal daily edition (desktop app). | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false`<br>`  allow_whatsapp: false` |
 | `treg` | treg catalog gateway (three agent tools). | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 | `model_catalog` | Bundled provider/model catalog for UI and capability detection. | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Bounded desktop research cases (effort profiles). | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |

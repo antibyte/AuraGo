@@ -286,8 +286,8 @@ func (h codeStudioHandlers) handleMoveFile(w http.ResponseWriter, r *http.Reques
 		OldPath string `json:"old_path"`
 		NewPath string `json:"new_path"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	oldPath, err := sanitizeCodeStudioPath(body.OldPath)
@@ -361,8 +361,8 @@ func (h codeStudioHandlers) handleDirectory(w http.ResponseWriter, r *http.Reque
 	var body struct {
 		Path string `json:"path"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	path, err := sanitizeCodeStudioPath(body.Path)
@@ -517,8 +517,8 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 		CWD        string   `json:"cwd"`
 		TimeoutSec int      `json:"timeout_seconds"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	cmd, err := normalizeCodeStudioExecCommand(body.Command, body.Args, body.CWD)
@@ -591,6 +591,11 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 	if h.rejectReadOnly(w) {
 		return
 	}
+	done, admitted := h.server.admitDockerTerminal(w, r)
+	if !admitted {
+		return
+	}
+	defer done()
 	if !h.isAuthenticated(r) {
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -713,8 +718,8 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		AddAll  bool     `json:"add_all"`
 		Paths   []string `json:"paths"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	message := strings.TrimSpace(body.Message)
@@ -834,8 +839,8 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		Action string `json:"action"`
 		Name   string `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	action := strings.TrimSpace(body.Action)
@@ -885,8 +890,8 @@ func (h codeStudioHandlers) handleGitIdentity(w http.ResponseWriter, r *http.Req
 		Name  string `json:"name"`
 		Email string `json:"email"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	name, err := sanitizeGitIdentity(body.Name)

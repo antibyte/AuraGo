@@ -99,8 +99,8 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 		}
 
 		var req credentialRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 
@@ -209,8 +209,8 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 		}
 
 		var req credentialRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 

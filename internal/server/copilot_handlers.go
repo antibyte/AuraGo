@@ -51,8 +51,8 @@ func handleCopilotPollToken(s *Server) http.HandlerFunc {
 		var body struct {
 			DeviceCode string `json:"device_code"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			jsonError(w, "Invalid JSON body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &body, s); err != nil {
+			jsonError(w, "Invalid JSON body", jsonDecodeStatus(err))
 			return
 		}
 		if body.DeviceCode == "" {

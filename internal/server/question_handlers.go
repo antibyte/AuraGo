@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -44,8 +43,8 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 			return
 		}
 		var req questionResponseRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if strings.TrimSpace(req.SessionID) == "" {

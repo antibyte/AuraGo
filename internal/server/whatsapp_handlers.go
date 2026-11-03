@@ -66,6 +66,10 @@ func whatsAppErrorStatus(err error) (int, string) {
 		return http.StatusConflict, "link_in_progress"
 	case errors.Is(err, whatsapp.ErrNotConnected), errors.Is(err, whatsapp.ErrNoRecipient):
 		return http.StatusConflict, "not_connected"
+	case errors.Is(err, whatsapp.ErrRecipientNotOnWhatsApp):
+		// The wrapped text embeds the raw owner JID. Only the fixed code leaves
+		// here; writeWhatsAppFailure logs nothing below status 500.
+		return http.StatusConflict, "recipient_not_on_whatsapp"
 	}
 	return http.StatusInternalServerError, "whatsapp_failed"
 }
@@ -107,6 +111,24 @@ func handleWhatsAppStatus(s *Server) http.HandlerFunc {
 		}
 		// Always 200: the Config UI shows every state itself.
 		writeWhatsAppJSON(w, http.StatusOK, map[string]any{"status": label, "whatsapp": status})
+	}
+}
+
+// handleWhatsAppSelfTestStatus is the read-only probe for integration:whatsapp. It reads
+// the passive status only; it never connects, links or sends, so a self-test cannot
+// message the owner.
+func handleWhatsAppSelfTestStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		state := integrationstatus.WhatsAppStatus().State
+		switch state {
+		case integrationstatus.WhatsAppStateHealthy:
+			writeWhatsAppJSON(w, http.StatusOK, map[string]string{"state": state})
+		case integrationstatus.WhatsAppStateDisabled, integrationstatus.WhatsAppStateNotConfigured, integrationstatus.WhatsAppStateNotLinked:
+			// "not configured" reads as a setup problem in selfTestDiagnosis.
+			writeWhatsAppJSON(w, http.StatusServiceUnavailable, map[string]string{"state": state, "error": "whatsapp not configured"})
+		default:
+			writeWhatsAppJSON(w, http.StatusServiceUnavailable, map[string]string{"state": state, "error": "whatsapp not connected"})
+		}
 	}
 }
 
@@ -203,6 +225,18 @@ func handleWhatsAppLogout(s *Server) http.HandlerFunc {
 	}
 }
 
+// takeWhatsAppTestMinute claims the one WhatsApp test send a minute, shared by /api/whatsapp/test
+// and the newspaper's WhatsApp test. It reports false while the minute is taken.
+func takeWhatsAppTestMinute(now time.Time) bool {
+	whatsAppTestMu.Lock()
+	defer whatsAppTestMu.Unlock()
+	if !whatsAppTestLast.IsZero() && now.Sub(whatsAppTestLast) < time.Minute {
+		return false
+	}
+	whatsAppTestLast = now
+	return true
+}
+
 // handleWhatsAppTest sends the owner-only test message, at most once per
 // minute (like /api/telegram/test).
 func handleWhatsAppTest(s *Server) http.HandlerFunc {
@@ -216,14 +250,10 @@ func handleWhatsAppTest(s *Server) http.HandlerFunc {
 			return
 		}
 		now := whatsAppTestNow()
-		whatsAppTestMu.Lock()
-		if !whatsAppTestLast.IsZero() && now.Sub(whatsAppTestLast) < time.Minute {
-			whatsAppTestMu.Unlock()
+		if !takeWhatsAppTestMinute(now) {
 			writeWhatsAppJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limited"})
 			return
 		}
-		whatsAppTestLast = now
-		whatsAppTestMu.Unlock()
 		ctx, cancel := context.WithTimeout(r.Context(), whatsAppActionTimeout)
 		defer cancel()
 		if err := s.whatsApp().SendTest(ctx, now); err != nil {

@@ -341,8 +341,8 @@ func StartInstall(opts StartInstallOptions) (InstallStartResult, error) {
 }
 
 func DefaultStartScript(launch ScriptLaunch) error {
-	wrapper := fmt.Sprintf(`nohup %q %q --yes < /dev/null >> %q 2>&1 &`,
-		launch.BashPath, launch.ScriptPath, launch.LogPath)
+	wrapper := fmt.Sprintf(`nohup %s %s --yes < /dev/null >> %s 2>&1 &`,
+		quoteShellPath(launch.BashPath), quoteShellPath(launch.ScriptPath), quoteShellPath(launch.LogPath))
 	cmd := exec.Command(launch.BashPath, "-c", wrapper)
 	cmd.Dir = launch.Dir
 	cmd.Env = launch.Env
@@ -351,6 +351,10 @@ func DefaultStartScript(launch ScriptLaunch) error {
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil
+}
+
+func quoteShellPath(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func updateEnv(extra []string) []string {

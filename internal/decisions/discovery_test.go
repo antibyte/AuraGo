@@ -72,23 +72,40 @@ func TestNativeDiscoveryBoundsOutputAndReapsProbe(t *testing.T) {
 			marker := filepath.Join(t.TempDir(), "started")
 			t.Setenv(nativeDiscoveryHelperEnv, mode)
 			t.Setenv(nativeDiscoveryMarkerEnv, marker)
-			timeout := 5 * time.Second
-			if mode == "1" {
-				timeout = 500 * time.Millisecond
-			}
-			if mode == "tree" {
-				timeout = 2 * time.Second
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
-			start := time.Now()
-			_, err := runNativeDiscovery(ctx, executable, filepath.Dir(executable), nil)
+			result := make(chan error, 1)
+			go func() {
+				_, err := runNativeDiscovery(ctx, executable, filepath.Dir(executable), nil)
+				result <- err
+			}()
 			want := CodeRuntimeDiscoveryOutputLimit
+			started := marker
+			if mode == "tree" {
+				started += ".child"
+			}
+			// Check cleanup after startup, including the descendant, regardless of host load.
+			for {
+				if _, err := os.Stat(started); err == nil {
+					break
+				}
+				select {
+				case <-ctx.Done():
+					t.Fatal("helper never started")
+				case <-time.After(10 * time.Millisecond):
+				}
+			}
 			if mode == "1" || mode == "tree" {
 				want = CodeCancelled
+				cancel()
 			}
-			if ErrorCode(err) != want || time.Since(start) > 6*time.Second {
-				t.Fatalf("probe did not terminate: %v, %v", err, time.Since(start))
+			select {
+			case err := <-result:
+				if ErrorCode(err) != want {
+					t.Fatalf("probe error = %v, want %s", err, want)
+				}
+			case <-time.After(6 * time.Second):
+				t.Fatal("probe did not terminate")
 			}
 			if _, err := os.Stat(marker); err != nil {
 				t.Fatal("helper never started")

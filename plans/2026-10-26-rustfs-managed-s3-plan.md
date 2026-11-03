@@ -1,6 +1,6 @@
 # Managed RustFS S3 integration plan
 
-Status: implemented in the isolated `codex/rustfs-managed-s3` worktree, 2026-10-26; no merge, push or deployment. Three GPT-6.1 Sol agents at Max handled runtime, S3 authorization and administration/UI, with the parent integrating and reviewing their work. This document retains the planning baseline and acceptance requirements; the closeout below records verified coverage and remaining platform checks. Operation instructions are in [Managed RustFS](../documentation/rustfs.md).
+Status: planned, 2026-10-26. This document defines implementation and acceptance; it does not claim a deployed or tested RustFS integration. Planning used three GPT-6.1 Sol agents at Max. The parent agent owns architecture, integration and final review. This task-specific model choice also applies to implementation and review agents.
 
 ## Objective and scope
 
@@ -251,21 +251,6 @@ Add an English RustFS operator guide covering setup, permissions, provider switc
 
 Review the `agotrain` tier/operation contracts and DE/EN coverage under `documentation/training.md`. No new S3 tool/operation is planned, but source-aware availability and permission outcomes still need matching curated semantics; do not blindly regenerate unchanged manifests.
 
-## Implementation closeout
+For this planning-only change, the root `AGENTS.md` already owns `plans/`; no new durable runtime boundary exists yet. Existing guides intentionally remain unchanged. The implementation work above owns their future updates. Commit only the plan after diff, encoding, link and secret review; do not include unrelated working-tree changes.
 
-- Added the private RustFS manager, scoped native IAM, existing-tool provider resolution, generation fencing, Docker/Compose resource protection, administrative receipts, S3 settings and all sixteen translations. Runtime is optional and disabled by default; removal retains both volumes.
-- Reviewed and updated root, runtime, agent, tools, Docker utilities, server, self-test and UI contracts. Security primitives, licensing workflow and Garage ownership remain unchanged, so their guides need no new rules. Operator, Docker installation, dependency, tool-manual and license documentation are aligned.
-- Compatible training pack: local agotrain commit `8eb5c9ab6c1344e4ee4bd70b03adfc5a50c02ba1`, pinned by `.github/agotrain-revision`. Curated contracts/tiers and scenario identities are unchanged. Both exporter checks, independent dataset validation, Go contract checks and Python offline/lock checks passed. Publish that commit before publishing the dependent AuraGo branch; no automatic cross-repository push occurred.
-- Source review closed prepared-save admission races, durable-versus-aborted save authority, uncertain rollback, inactive-provider Docker-target drift, mutation retries and missing initialized-volume recovery. GitNexus remained partial; direct source review and executable checks supply the missing evidence.
-
-| Verification | Result |
-| --- | --- |
-| Focused RustFS/S3, Docker/Compose and agent authorization regressions | Passed. |
-| Full server, config, Docker utility, security, Vault prompt and audit packages | Passed; final save-boundary changes also passed focused regressions. |
-| UI contracts, locale checks and actual Chrome configuration/dashboard fixtures | Passed; desktop and narrow-screen screenshots reviewed. |
-| Native Windows AuraGo client with Docker Desktop Linux amd64 RustFS | Passed isolated live IAM, S3/multipart/copy/delete, revocation, restart, retention and recovery gates. |
-| Containerized Linux amd64 through the existing pinned socket proxy | Passed the live gate with `BUILD=0`, `EXEC=0`, private control/application networks and no public S3 binding. |
-| Windows and Linux arm64 backend compilation | Passed; compilation is not hardware qualification. |
-| Version-bound web resources | Full asset package passed; the final Windows binary verified the matching installed resource set with `--check-assets`. |
-| Full tools/agent packages | Two unrelated isolation test families fail on both this branch and clean starting commit `d4657d30ddb032013cb096888efac9e5cba0f922`: `TestCrawlerResultWithRawTitleIsIsolatedByGuardian` and `TestExecutionOutputIsolationSurvivesVaultAndCompression`. |
-| Remaining acceptance | Physical ARM64, native Linux/rootless placement, Linux race/symlink execution, backup restoration, upgrades to another image, sustained load and production deployment remain unverified. Native TCP Engine placement is deliberately refused without local proof. |
+Planning validation covers source/contract review and public release/registry metadata. Container deployment, Go provisioning, IAM behavior, browser flows, performance and backup restoration remain implementation acceptance work.

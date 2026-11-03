@@ -55,6 +55,7 @@ type Var struct {
 	Default     *float64  // SI value, nil when the variable has no default
 	DefaultList []float64 // SI values of a list variable's default
 	Unit        string    // default display unit id, "" = automatic
+	Units       []string  // display units the page offers ("" = base symbol with automatic prefixes); empty = all
 	ESeries     bool
 	List        bool
 	Input       bool // can be an input (false: only ever computed)
@@ -62,11 +63,13 @@ type Var struct {
 	dim *Dim
 }
 
-// ChoiceOption is one option of a choice; its consts become known names while it is selected.
+// ChoiceOption is one option of a choice; its consts become known names while it is selected. Ignore lists the
+// primary variables this option does not use (the page dims them); the solver does not change.
 type ChoiceOption struct {
 	ID     string
 	Name   Text
 	Consts map[string]float64
+	Ignore []string
 }
 
 // Choice is a selector (for example the waveform) whose selected option supplies constants to the rules.
@@ -90,10 +93,29 @@ type Derived struct {
 	Label string
 	Name  Text
 	Alts  []Expr
-	Unit  string // fixed display unit id, "" = automatic
+	Unit  string   // fixed display unit id, "" = automatic
+	Units []string // display units the page offers ("" = base symbol with automatic prefixes); empty = all
 
 	dim *Dim
 }
+
+// Chart is the line chart of a calculator: the quantity Y (a rule target or a derived quantity) over the variable X
+// from 0 to To, drawn with Samples points. To is an expression that does not depend on X.
+type Chart struct {
+	X, Y    string
+	To      Expr
+	Samples int
+}
+
+// Chart limits: a chart has between ChartMinSamples and ChartMaxSamples points, ChartDefaultSamples when unset.
+const (
+	ChartMinSamples     = 11
+	ChartMaxSamples     = 401
+	ChartDefaultSamples = 101
+)
+
+// finderCombine is the finder of the standard-value combiner (see Combine).
+const finderCombine = "combine"
 
 // Check shows Warn when When evaluates to a non-zero number.
 type Check struct {
@@ -119,6 +141,8 @@ type Calculator struct {
 	Formula    []string
 	FormulaAST []*Node
 	Schematic  string
+	Finder     string // "" or "combine": the page shows the standard-value combinations of the single resistance
+	Chart      *Chart // nil when the calculator has no chart
 	// Sets lists every combination of dof input variables from which all variables can be computed, in declaration
 	// order (see SolvableSets). Load fills it in.
 	Sets [][]string
@@ -184,6 +208,15 @@ type rawCalc struct {
 	Checks    []rawCheck `yaml:"checks"`
 	Formula   []string   `yaml:"formula"`
 	Schematic string     `yaml:"schematic"`
+	Finder    string     `yaml:"finder"`
+	Chart     *rawChart  `yaml:"chart"`
+}
+
+type rawChart struct {
+	X       string `yaml:"x"`
+	Y       string `yaml:"y"`
+	To      string `yaml:"to"`
+	Samples int    `yaml:"samples"`
 }
 
 type rawVar struct {
@@ -192,6 +225,7 @@ type rawVar struct {
 	Name    Text      `yaml:"name"`
 	Default yaml.Node `yaml:"default"`
 	Unit    string    `yaml:"unit"`
+	Units   []string  `yaml:"units"`
 	ESeries bool      `yaml:"eseries"`
 	List    bool      `yaml:"list"`
 	Input   *bool     `yaml:"input"`
@@ -206,6 +240,7 @@ type rawChoice struct {
 type rawOption struct {
 	Name   Text               `yaml:"name"`
 	Consts map[string]float64 `yaml:"consts"`
+	Ignore []string           `yaml:"ignore"`
 }
 
 type rawDerived struct {
@@ -214,6 +249,7 @@ type rawDerived struct {
 	Name  Text      `yaml:"name"`
 	Expr  yaml.Node `yaml:"expr"`
 	Unit  string    `yaml:"unit"`
+	Units []string  `yaml:"units"`
 }
 
 type loader struct {
@@ -402,7 +438,7 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 
 	c := &Calculator{
 		ID: r.ID, Kind: r.Kind, Category: r.Category, Name: r.Name, Doc: r.Doc, Tags: r.Tags,
-		Source: r.Source, DOF: r.DOF, Formula: r.Formula, Schematic: r.Schematic,
+		Source: r.Source, DOF: r.DOF, Formula: r.Formula, Schematic: r.Schematic, Finder: r.Finder,
 		varByID: map[string]*Var{},
 	}
 	switch {
@@ -469,7 +505,7 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 			fail("var %s: %v", e.Key, err)
 			continue
 		}
-		v := Var{ID: e.Key, Dim: rv.Dim, Label: rv.Label, Name: rv.Name, Unit: rv.Unit, ESeries: rv.ESeries,
+		v := Var{ID: e.Key, Dim: rv.Dim, Label: rv.Label, Name: rv.Name, Unit: rv.Unit, Units: rv.Units, ESeries: rv.ESeries,
 			List: rv.List, Input: rv.Input == nil || *rv.Input}
 		claim(v.ID, "var")
 		v.dim = l.units.Dim(v.Dim)
@@ -479,6 +515,7 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 			if v.Unit != "" && v.dim.Unit(v.Unit) == nil {
 				fail("var %s: unit %q is not an explicit unit of %s", v.ID, v.Unit, v.Dim)
 			}
+			checkDisplayUnits(fail, "var "+v.ID, v.dim, v.Units, v.Unit)
 			l.defaults(fail, &v, &rv.Default)
 		}
 		if strings.TrimSpace(v.Label) == "" {
@@ -524,8 +561,18 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 				fail("choice %s option %s: %v", ch.ID, oe.Key, err)
 				continue
 			}
-			opt := ChoiceOption{ID: oe.Key, Name: ro.Name, Consts: ro.Consts}
+			opt := ChoiceOption{ID: oe.Key, Name: ro.Name, Consts: ro.Consts, Ignore: ro.Ignore}
 			text("choice "+ch.ID+" option "+opt.ID+": name", opt.Name, Locales)
+			ignored := map[string]bool{}
+			for _, id := range opt.Ignore {
+				switch {
+				case c.Var(id) == nil:
+					fail("choice %s option %s: ignore %q is not a variable", ch.ID, opt.ID, id)
+				case ignored[id]:
+					fail("choice %s option %s: ignore %q is listed twice", ch.ID, opt.ID, id)
+				}
+				ignored[id] = true
+			}
 			keys := make([]string, 0, len(opt.Consts))
 			for k := range opt.Consts {
 				keys = append(keys, k)
@@ -558,12 +605,15 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 			fail("derived %s: %v", e.Key, err)
 			continue
 		}
-		d := Derived{ID: e.Key, Dim: rd.Dim, Label: rd.Label, Name: rd.Name, Unit: rd.Unit}
+		d := Derived{ID: e.Key, Dim: rd.Dim, Label: rd.Label, Name: rd.Name, Unit: rd.Unit, Units: rd.Units}
 		claim(d.ID, "derived")
 		if d.dim = l.units.Dim(d.Dim); d.dim == nil {
 			fail("derived %s: unknown dimension %q", d.ID, d.Dim)
-		} else if d.Unit != "" && d.dim.Unit(d.Unit) == nil {
-			fail("derived %s: unit %q is not an explicit unit of %s", d.ID, d.Unit, d.Dim)
+		} else {
+			if d.Unit != "" && d.dim.Unit(d.Unit) == nil {
+				fail("derived %s: unit %q is not an explicit unit of %s", d.ID, d.Unit, d.Dim)
+			}
+			checkDisplayUnits(fail, "derived "+d.ID, d.dim, d.Units, d.Unit)
 		}
 		if strings.TrimSpace(d.Label) == "" {
 			fail("derived %s: label is required", d.ID)
@@ -629,8 +679,8 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		c.Checks = append(c.Checks, Check{When: ex, Warn: rc.Warn})
 	}
 
-	// Display formula.
-	if len(r.Formula) == 0 {
+	// Display formula. The combiner shows its combinations instead and may have none.
+	if len(r.Formula) == 0 && r.Finder != finderCombine {
 		fail("formula is required")
 	}
 	for _, line := range r.Formula {
@@ -669,6 +719,29 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		fail("dof is %d, so exactly %d input variables need a default, found %d", c.DOF, c.DOF, withDefault)
 	}
 
+	// Finder and chart.
+	switch r.Finder {
+	case "":
+	case finderCombine:
+		scalar := 0
+		for _, v := range c.Vars {
+			if v.Dim == "resistance" && !v.List {
+				scalar++
+			}
+		}
+		if scalar != 1 {
+			fail("finder combine needs exactly one scalar resistance variable, found %d", scalar)
+		}
+		if c.DOF != 1 {
+			fail("finder combine needs dof 1, got %d", c.DOF)
+		}
+	default:
+		fail("finder %q must be empty or %s", r.Finder, finderCombine)
+	}
+	if r.Chart != nil {
+		c.Chart = buildChart(fail, c, r.Chart, known)
+	}
+
 	if len(l.errs) == before {
 		l.solvableSets(fail, c)
 	}
@@ -685,6 +758,79 @@ func hasOption(ch Choice, id string) bool {
 		}
 	}
 	return false
+}
+
+// checkDisplayUnits validates the optional units whitelist of a variable or derived quantity: every entry is "" (the
+// base symbol with automatic prefixes) or an explicit unit of the dimension, none twice, and the default display unit
+// (when set) is one of them. An empty list offers every unit.
+func checkDisplayUnits(fail func(string, ...any), what string, dim *Dim, units []string, unit string) {
+	if len(units) == 0 {
+		return
+	}
+	listed := map[string]bool{}
+	for _, id := range units {
+		switch {
+		case listed[id]:
+			fail("%s: units entry %q is listed twice", what, id)
+		case id != "" && dim.Unit(id) == nil:
+			fail("%s: units entry %q is not an explicit unit of %s", what, id, dim.ID)
+		}
+		listed[id] = true
+	}
+	if unit != "" && !listed[unit] {
+		fail("%s: unit %q is not in its units list", what, unit)
+	}
+}
+
+// buildChart validates the chart of a calculator: x is a scalar variable, y a rule target or derived quantity that uses
+// x, to an expression over known names that does not use x, samples within the chart limits (0 = the default).
+func buildChart(fail func(string, ...any), c *Calculator, rc *rawChart, known func(string, Expr)) *Chart {
+	ch := &Chart{X: rc.X, Y: rc.Y, Samples: rc.Samples}
+	if ch.Samples == 0 {
+		ch.Samples = ChartDefaultSamples
+	}
+	if ch.Samples < ChartMinSamples || ch.Samples > ChartMaxSamples {
+		fail("chart: samples must be between %d and %d, got %d", ChartMinSamples, ChartMaxSamples, ch.Samples)
+	}
+	x := c.Var(ch.X)
+	switch {
+	case x == nil:
+		fail("chart: x %q is not a variable", ch.X)
+	case x.List:
+		fail("chart: x %q is a list variable", ch.X)
+	}
+	var alts []Expr
+	for _, r := range c.Rules {
+		if r.Target == ch.Y {
+			alts = r.Alts
+		}
+	}
+	for _, d := range c.Derived {
+		if d.ID == ch.Y {
+			alts = d.Alts
+		}
+	}
+	usesX := false
+	for _, alt := range alts {
+		usesX = usesX || contains(alt.Deps, ch.X)
+	}
+	switch {
+	case len(alts) == 0:
+		fail("chart: y %q needs a rule or a derived expression", ch.Y)
+	case x != nil && !usesX:
+		fail("chart: y %q does not depend on x %q", ch.Y, ch.X)
+	}
+	to, err := newExpr(rc.To)
+	if err != nil {
+		fail("chart: to: %v", err)
+		return ch
+	}
+	known("chart to", to)
+	if contains(to.Deps, ch.X) {
+		fail("chart: to %q must not depend on x %q", rc.To, ch.X)
+	}
+	ch.To = to
+	return ch
 }
 
 // alternatives parses the expression or list of alternatives of a rule or derived quantity.

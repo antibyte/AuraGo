@@ -142,6 +142,11 @@ func ResolveProviderCapabilities(provider config.ProviderEntry, fallback Capabil
 }
 
 func finishProviderCapabilities(provider config.ProviderEntry, result ProviderCapabilityResult) ProviderCapabilityResult {
+	providerType := strings.ToLower(strings.TrimSpace(provider.Type))
+	if providerType == "anthropic" || providerType == "opencode-go" && strings.HasPrefix(strings.ToLower(provider.Model), "minimax-") {
+		// Model support cannot grant a format the Messages bridge does not translate.
+		result.StructuredOutputs = false
+	}
 	if !managedLocalProvider(provider) {
 		return result
 	}

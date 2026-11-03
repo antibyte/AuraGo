@@ -107,19 +107,96 @@
         }
     }
 
+    // A modal is a real dialog: it names itself, keeps the keyboard inside,
+    // closes on Escape and hands the focus back to whatever opened it.
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    function focusableIn(root) {
+        return [...root.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null || el === document.activeElement);
+    }
+
+    let modalCounter = 0;
+
+    function labelModal(modal, state) {
+        if (!modal) return;
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        const heading = modal.querySelector('h2');
+        if (heading) {
+            // Every dialog gets its own title id, so two open dialogs never
+            // share one.
+            if (!heading.id || document.getElementById(heading.id) !== heading) {
+                modalCounter += 1;
+                heading.id = `gm-modal-title-${state.windowId || 'window'}-${modalCounter}`;
+            }
+            modal.setAttribute('aria-labelledby', heading.id);
+            modal.removeAttribute('aria-label');
+        } else {
+            modal.setAttribute('aria-label', state.context.t('game_maker.title'));
+        }
+    }
+
+    function setBackgroundInert(state, inert) {
+        const studio = state.container?.querySelector('.gm-studio');
+        if (!studio) return;
+        [...studio.children].forEach(child => {
+            if (child.matches('[data-gm-modal]')) return;
+            if (inert) child.setAttribute('inert', '');
+            else child.removeAttribute('inert');
+        });
+    }
+
     function showModal(state, html, mount) {
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        if (state.modalLifecycleCleanup) state.modalLifecycleCleanup();
         if (state.modalCleanup) state.modalCleanup();
         state.modalCleanup = null;
+        state.modalLifecycleCleanup = null;
         const layer = state.container.querySelector('[data-gm-modal]');
+        const previousFocus = document.activeElement;
         layer.hidden = false;
         layer.innerHTML = html;
+        const modal = layer.querySelector('.gm-modal');
+        labelModal(modal, state);
         layer.querySelectorAll('[data-modal-close]').forEach(button =>
             button.addEventListener('click', () => closeModal(state)));
-        layer.addEventListener('click', state.modalBackdrop = event => {
-            if (event.target === layer) closeModal(state);
-        }, { once: true });
+        // The backdrop stays armed for the whole life of the dialog: a click
+        // inside the dialog must not consume it.
+        const onBackdrop = event => { if (event.target === layer) closeModal(state); };
+        layer.addEventListener('click', onBackdrop);
+        const onKeydown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeModal(state);
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = focusableIn(layer);
+            if (!focusable.length) { event.preventDefault(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+            if (!layer.contains(active)) { event.preventDefault(); first.focus(); return; }
+            if (event.shiftKey && (active === first || !focusable.includes(active))) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        layer.addEventListener('keydown', onKeydown);
+        state.modalLifecycleCleanup = () => {
+            layer.removeEventListener('click', onBackdrop);
+            layer.removeEventListener('keydown', onKeydown);
+            setBackgroundInert(state, false);
+        };
+        setBackgroundInert(state, true);
         if (mount) mount(layer);
+        const focusable = focusableIn(layer);
+        const initial = layer.querySelector('[autofocus]') || focusable[0];
+        if (initial) initial.focus();
+        state.modalReturnFocus = previousFocus;
     }
 
     function closeModal(state) {
@@ -128,11 +205,17 @@
             window.GameMakerStudioAssets.releaseSelectionHold(state, Boolean(layer?.querySelector('[data-gm-create]')));
         }
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        if (state.modalLifecycleCleanup) state.modalLifecycleCleanup();
+        state.modalLifecycleCleanup = null;
         if (state.modalCleanup) state.modalCleanup();
         state.modalCleanup = null;
+        setBackgroundInert(state, false);
         if (!layer) return;
         layer.hidden = true;
         layer.replaceChildren();
+        const back = state.modalReturnFocus;
+        state.modalReturnFocus = null;
+        if (back && back.isConnected && typeof back.focus === 'function') back.focus();
     }
 
     function setModalBusy(layer, busy) {

@@ -367,6 +367,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		SIPPhoneHangupEnabled:      cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.AgentHangup,
 		DiscordEnabled:             cfg.Discord.Enabled,
 		TelegramEnabled:            cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
+		WhatsAppEnabled:            cfg.WhatsApp.Enabled && !cfg.WhatsApp.ReadOnly,
 		TrueNASEnabled:             cfg.TrueNAS.Enabled,
 		KoofrEnabled:               cfg.Koofr.Enabled,
 		ProxmoxEnabled:             cfg.Proxmox.Enabled,
@@ -389,7 +390,8 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		MQTTEnabled:                cfg.MQTT.Enabled,
 		CydEnabled:                 cfg.Cyd.Enabled,
 		NotificationEnabled: cfg.Cyd.Enabled || cfg.Notifications.Ntfy.Enabled || cfg.Notifications.Pushover.Enabled ||
-			(cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0) || cfg.Discord.Enabled || cfg.Telnyx.Enabled,
+			(cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0) || cfg.Discord.Enabled || cfg.Telnyx.Enabled ||
+			(cfg.WhatsApp.Enabled && !cfg.WhatsApp.ReadOnly),
 		AdGuardEnabled:               cfg.AdGuard.Enabled,
 		UptimeKumaEnabled:            cfg.UptimeKuma.Enabled,
 		GrafanaEnabled:               cfg.Grafana.Enabled,
@@ -520,6 +522,10 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	// The tool exists only while the server publishes an enabled service.
 	toolFlags.RetroGamesEnabled = toolFlags.RetroGamesEnabled && tools.RetroGamesAvailable()
 	toolFlags.FindItEnabled = toolFlags.FindItEnabled && tools.FindItAvailable()
+	// The tool exists only while a linked device runs and the owner can be reached; it is also
+	// a notification channel, so a WhatsApp-only setup still offers send_notification.
+	toolFlags.WhatsAppEnabled = toolFlags.WhatsAppEnabled && tools.WhatsAppAvailable()
+	toolFlags.NotificationEnabled = toolFlags.NotificationEnabled || toolFlags.WhatsAppEnabled
 
 	return resolvedToolFeatureState{
 		ToolFlags:           toolFlags,
@@ -567,6 +573,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,
 		TelegramEnabled:          flags.TelegramEnabled,
+		WhatsAppEnabled:          flags.WhatsAppEnabled,
 		JellyfinEnabled:          flags.JellyfinEnabled,
 		ObsidianEnabled:          flags.ObsidianEnabled,
 		TrueNASEnabled:           flags.TrueNASEnabled,

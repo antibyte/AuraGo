@@ -127,6 +127,11 @@ var containerTerminalUpgrader = websocket.Upgrader{
 }
 
 func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID string, w http.ResponseWriter, r *http.Request) {
+	done, admitted := s.admitDockerTerminal(w, r, cfg.Host)
+	if !admitted {
+		return
+	}
+	defer done()
 	if !sameOriginOrNoOrigin(r) {
 		containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
 		return
@@ -177,9 +182,7 @@ func rejectNonWebSocketTerminalRequest(w http.ResponseWriter, r *http.Request) b
 	return true
 }
 
-// containerTerminalServeOptions are extras of one terminal route. The zero
-// value is the behaviour of /api/containers/{id}/terminal and of the Store and
-// Code Studio terminals: no read limit, no pings.
+// containerTerminalServeOptions are the frame and liveness bounds of a route.
 type containerTerminalServeOptions struct {
 	// ReadLimit is the largest WebSocket message the browser may send; a larger
 	// one ends the session. 0 = no limit.
@@ -196,7 +199,7 @@ type containerTerminalServeOptions struct {
 const containerTerminalPingWriteWait = 10 * time.Second
 
 func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, session containerTerminalSession) {
-	serveContainerTerminalSessionWith(ctx, conn, session, containerTerminalServeOptions{})
+	serveContainerTerminalSessionWith(ctx, conn, session, dockerManagerTerminalServeOptions)
 }
 
 func serveContainerTerminalSessionWith(ctx context.Context, conn *websocket.Conn, session containerTerminalSession, opts containerTerminalServeOptions) {

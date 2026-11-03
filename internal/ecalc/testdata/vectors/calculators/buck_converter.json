@@ -1,0 +1,18 @@
+{
+  "calc": "buck_converter",
+  "sets": [
+    {"values": {"vin": 12, "vout": 5, "iout": 1, "f": 100000, "l": 0.0001, "dil": 0.2916666666666667, "duty": 0.4166666666666667, "ipk": 1.1458333333333333, "ival": 0.8541666666666666}, "ref": "hand: dI_L = 5 * (12 - 5) / (12 * 100e3 * 100e-6) = 35 / 120 = 0.29167 A; D = 5 / 12 = 0.41667; I_pk = 1 + 0.14583 = 1.14583 A; I_valley = 0.85417 A"},
+    {"values": {"vin": 24, "vout": 12, "iout": 2, "f": 200000, "l": 6e-05, "dil": 0.5, "duty": 0.5, "ipk": 2.25, "ival": 1.75}, "ref": "hand: dI_L = 12 * (24 - 12) / (24 * 200e3 * 60e-6) = 144 / 288 = 0.5 A; D = 12 / 24 = 0.5; I_pk = 2 + 0.25 = 2.25 A; I_valley = 1.75 A"},
+    {"values": {"vin": 5, "vout": 3.3, "iout": 0.5, "f": 1000000, "l": 4.7e-06, "dil": 0.23872340425531915, "duty": 0.66, "ipk": 0.6193617021276596, "ival": 0.38063829787234044}, "ref": "hand: dI_L = 3.3 * (5 - 3.3) / (5 * 1e6 * 4.7e-6) = 5.61 / 23.5 = 0.238723 A; D = 3.3 / 5 = 0.66; I_pk = 0.5 + 0.119362 = 0.619362 A; I_valley = 0.380638 A"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 12, "vout": 5, "iout": 1, "f": 100000, "l": 0.0001}, "expect": {"dil": 0.2916666666666667, "duty": 0.4166666666666667, "ipk": 1.1458333333333333, "ival": 0.8541666666666666}, "ref": "hand: the defaults, dI_L = 35 / 120 = 0.291667 A, D = 5/12, I_pk = 1 + 0.291667 / 2 = 1.145833 A, I_valley = 0.854167 A"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 1, "f": 100000, "dil": 0.35}, "expect": {"l": 8.333333333333333e-05}, "ref": "hand (independent script): L = V_out * (V_in - V_out) / (V_in * f * dI_L) = 35 / (12 * 100e3 * 0.35) = 35 / 420000 = 8.333333333e-05 H (83.33 uH)"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 1, "l": 0.0001, "dil": 0.35}, "expect": {"f": 83333.33333333333}, "ref": "hand (independent script): f = 35 / (12 * 100e-6 * 0.35) = 35 / 0.00042 = 83333.33333 Hz"},
+    {"inputs": {"vout": 5, "iout": 1, "f": 100000, "l": 0.0001, "dil": 0.25}, "expect": {"vin": 10, "duty": 0.5}, "ref": "hand: V_in = V_out^2 / (V_out - dI_L * f * L) = 25 / (5 - 0.25 * 100e3 * 100e-6) = 25 / 2.5 = 10 V; D = 5 / 10 = 0.5"},
+    {"inputs": {"vin": 12, "vout": 12, "iout": 1, "f": 100000, "l": 0.0001}, "expect": {"dil": 0, "duty": 1, "ipk": 1}, "warnings": [0], "ref": "hand: V_out = V_in gives dI_L = 12 * 0 / ... = 0 and D = 1; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 12, "vout": 15, "iout": 1, "f": 100000, "l": 0.0001}, "expect": {"dil": -0.375, "duty": 1.25, "ipk": 0.8125}, "warnings": [0], "ref": "hand: dI_L = 15 * (12 - 15) / (12 * 100e3 * 100e-6) = -45 / 120 = -0.375 A; D = 15 / 12 = 1.25; I_pk = 1 - 0.1875 = 0.8125 A; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 0.1, "f": 100000, "l": 0.0001}, "expect": {"dil": 0.2916666666666667, "ival": -0.04583333333333333}, "warnings": [1], "ref": "hand: dI_L = 35 / 120 = 0.291667 A is above 2 * 0.1 A = 0.2 A, the valley current 0.1 - 0.145833 = -0.045833 A is negative: discontinuous conduction, the second check fires"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 1, "f": 100000}, "errors": {"l": "undetermined", "dil": "undetermined"}, "ref": "neither the inductance nor the ripple current is known"}
+  ]
+}

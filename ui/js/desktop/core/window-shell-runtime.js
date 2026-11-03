@@ -1303,7 +1303,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
-            radio: { width: 1320, height: 920 },
+            radio: { width: 960, height: 660 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
             bluetooth: { width: 720, height: 620 },
@@ -1354,8 +1354,6 @@
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
-
-    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true, storymaker: true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'kaggle') return { width: 360, height: 420 };
@@ -1601,6 +1599,7 @@
             }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
+            if (appId === 'ecalc' && context && context.launch && window.ECalcApp && typeof window.ECalcApp.launch === 'function') window.ECalcApp.launch(existing.id, context.launch);
             if (appId === 'detective' && context && context.case_id && window.DetectiveApp && typeof window.DetectiveApp.open === 'function') {
                 updateWindowContext(existing.id, context);
                 window.DetectiveApp.open(existing.id, context);
@@ -1663,13 +1662,12 @@
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
             : nextWindowPosition(size);
 
+        // Mobile fullscreen is temporary; retain ordinary pixel bounds for desktop/restore.
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
         if (isMobileMode && forceMaximized) {
-            // Mobile forced maximized windows take full available space
-            win.style.left = '0px';
-            win.style.top = '0px';
-            win.style.width = '100%';
-            win.style.height = '100%';
-
             // Enforce Single Window behavior on mobile:
             // Minimize all other open windows when opening a new normal app
             state.windows.forEach((existingWin, existingId) => {
@@ -1677,11 +1675,6 @@
                     minimizeWindow(existingId);
                 }
             });
-        } else {
-            win.style.left = position.left + 'px';
-            win.style.top = position.top + 'px';
-            win.style.width = size.width + 'px';
-            win.style.height = size.height + 'px';
         }
         const isResizable = appId !== 'calculator';
 

@@ -3,6 +3,7 @@ package agent
 import (
 	"io"
 	"log/slog"
+	"reflect"
 	"testing"
 
 	"aurago/internal/config"
@@ -10,6 +11,29 @@ import (
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+func TestInitAgentLoopStatePreservesToolChoice(t *testing.T) {
+	for _, choice := range []any{nil, "auto", "required", "none", map[string]any{"type": "function", "function": map[string]any{"name": "game_maker_project"}}} {
+		cfg := &config.Config{}
+		cfg.LLM.ProviderType, cfg.LLM.Model, cfg.LLM.UseNativeFunctions = "openai", "gpt-4o-mini", true
+		cfg.GameMaker.Enabled = true
+		state := initAgentLoopState(openai.ChatCompletionRequest{
+			Model: cfg.LLM.Model, ToolChoice: choice,
+			Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Plan a game."}},
+		}, RunConfig{
+			Config: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionID: t.Name(),
+			NativeToolSchemas: GameMakerPhaseToolSchemas("planning", "2d"),
+			AllowedTools:      []string{"game_maker_project", "game_maker_file", "game_maker_asset"},
+		}, nil, false)
+		want := choice
+		if want == nil {
+			want = "auto"
+		}
+		if len(state.req.Tools) == 0 || !reflect.DeepEqual(state.req.ToolChoice, want) {
+			t.Fatalf("tool choice = %#v with %d tools, want %#v", state.req.ToolChoice, len(state.req.Tools), want)
+		}
+	}
+}
 
 func TestInitAgentLoopStateSetsEnabledToolsForTextMode(t *testing.T) {
 	t.Cleanup(func() {

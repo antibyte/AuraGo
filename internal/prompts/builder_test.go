@@ -1254,6 +1254,21 @@ func TestBuildSystemPromptLabelsAgoDeskChatSource(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptLabelsWhatsAppSource(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage: "en",
+		MessageSource:  "whatsapp",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "> **Channel:** WhatsApp") {
+		t.Fatalf("prompt should label whatsapp as WhatsApp, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "> **Channel:** whatsapp") {
+		t.Fatalf("prompt exposed raw whatsapp source instead of a user-facing channel label:\n%s", prompt)
+	}
+}
+
 func TestBuildSystemPromptLabelsCameraDetectionSource(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en", MessageSource: "camera_detection"}
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
@@ -2514,6 +2529,7 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"virustotal_enabled":         func() *ContextFlags { return &ContextFlags{VirusTotalEnabled: true} },
 		"web_scraper_enabled":        func() *ContextFlags { return &ContextFlags{WebScraperEnabled: true} },
 		"webdav_enabled":             func() *ContextFlags { return &ContextFlags{WebDAVEnabled: true} },
+		"whatsapp_enabled":           func() *ContextFlags { return &ContextFlags{WhatsAppEnabled: true} },
 		"wol_enabled":                func() *ContextFlags { return &ContextFlags{WOLEnabled: true} },
 	}
 
@@ -2561,6 +2577,7 @@ func TestMatchPromptConditionCoversAuditToolToggles(t *testing.T) {
 		{"network_scan_enabled", &ContextFlags{NetworkScanEnabled: true}},
 		{"upnp_scan_enabled", &ContextFlags{UPnPScanEnabled: true}},
 		{"telegram_enabled", &ContextFlags{TelegramEnabled: true}},
+		{"whatsapp_enabled", &ContextFlags{WhatsAppEnabled: true}},
 		{"space_agent_enabled", &ContextFlags{SpaceAgentEnabled: true}},
 	}
 
@@ -2845,11 +2862,12 @@ func TestBuildEnabledToolsOverviewCoversAuditTogglesAndExactSkips(t *testing.T) 
 		NetworkScanEnabled:       true,
 		UPnPScanEnabled:          true,
 		TelegramEnabled:          true,
+		WhatsAppEnabled:          true,
 		SpaceAgentEnabled:        true,
 		SkipIntegrationTools:     []string{"network_ping"},
 	}
 	overview := buildEnabledToolsOverview(flags)
-	for _, want := range []string{"music_generation", "browser_automation", "network_scan", "upnp_scan", "telegram", "space_agent"} {
+	for _, want := range []string{"music_generation", "browser_automation", "network_scan", "upnp_scan", "telegram", "whatsapp", "space_agent"} {
 		if !strings.Contains(overview, want) {
 			t.Fatalf("overview missing %q: %s", want, overview)
 		}

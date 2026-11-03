@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Schakel WhatsApp in, voeg voor het eigen AuraGo-nummer een eigenaarsnummer toe en sla op.",
   "config.whatsapp.err_invalid_phone": "Voer het nummer in internationaal formaat in, bijv. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp is niet verbonden.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Dit eigenaarsnummer is niet geregistreerd bij WhatsApp. Controleer het nummer in de instellingen.",
   "config.whatsapp.err_rate_limited": "Wacht een minuut tot het volgende testbericht.",
   "config.whatsapp.err_failed": "WhatsApp reageerde niet. Probeer het opnieuw.",
   "config.whatsapp.err_passkey_unsupported": "De telefoon vroeg om koppelen met een toegangssleutel, wat AuraGo nog niet ondersteunt. Gebruik de QR-code.",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "Eigen AuraGo-nummer: AuraGo heeft een eigen nummer (aanbevolen). Mijn nummer: alleen je chat met jezelf bereikt AuraGo.",
   "help.whatsapp.owner_numbers": "Internationaal formaat, gescheiden door komma's. Alleen deze nummers bereiken AuraGo.",
   "help.whatsapp.readonly": "Antwoorden aan jou blijven werken; de agent kan niet uit zichzelf versturen.",
-  "help.whatsapp.send_read_receipts": "Alleen met een eigen AuraGo-nummer."
+  "help.whatsapp.send_read_receipts": "Alleen met een eigen AuraGo-nummer.",
+  "help.whatsapp.self_chat_prefix": "Alleen in de modus chat met jezelf. AuraGo begint zijn berichten met dit voorvoegsel (maximaal 16 tekens). Notities aan jezelf die met dit voorvoegsel beginnen, worden genegeerd, zodat AuraGo nooit antwoordt op zijn eigen echo."
 }

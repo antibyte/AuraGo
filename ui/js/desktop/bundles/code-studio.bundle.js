@@ -210,7 +210,19 @@
             .replaceAll("'", '&#39;');
     }
 
+    // The shared mini sprite scales 64px artwork down to 15px; thin strokes such as the copy
+    // glyph collapse into an unreadable block. These actions get crisp line glyphs instead,
+    // painted in the button's own text colour so they follow every theme.
+    const CS_LINE_GLYPHS = {
+        copy: '<rect x="2.75" y="6" width="8.5" height="7.5" rx="1.75"/><path d="M5.5 4.5v-.25A1.75 1.75 0 0 1 7.25 2.5h5A1.75 1.75 0 0 1 14 4.25v5A1.75 1.75 0 0 1 12.25 11v-.25"/>'
+    };
+
     function iconMarkup(key, fallback, className, size) {
+        const glyph = CS_LINE_GLYPHS[key];
+        if (glyph) {
+            const pixels = Number(size || 15) || 15;
+            return `<svg class="${esc(className || 'cs-papirus-icon')} cs-line-glyph" viewBox="0 0 16 16" width="${pixels}" height="${pixels}" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${glyph}</svg>`;
+        }
         if (state && typeof state.iconMarkup === 'function') {
             return state.iconMarkup(key, fallback, className || 'cs-papirus-icon', size || 15);
         }
@@ -787,7 +799,7 @@
                 <button type="button" class="cs-icon-button" data-action="upload" title="${esc(tr('codeStudio.upload', 'Upload'))}">${iconMarkup('upload', 'U', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-icon-button" data-action="refresh" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 16)}</button>
             </span>
-            <span class="cs-toolbar-filename">${fileName ? '<strong>' + esc(fileName) + '</strong>' + (tab && tab.modified ? ' <span style="color:var(--cs-accent)">*</span>' : '') : esc(tr('codeStudio.title', 'Code Studio'))}</span>
+            <span class="cs-toolbar-filename">${fileName ? '<strong>' + esc(fileName) + '</strong>' + (tab && tab.modified ? ' <span class="cs-toolbar-modified"></span>' : '') : esc(tr('codeStudio.title', 'Code Studio'))}</span>
             <span class="cs-toolbar-group">
                 <button type="button" class="cs-icon-button" data-action="command-palette" title="${esc(tr('codeStudio.commandPalette', 'Command Palette'))} (Ctrl+Shift+P)">${iconMarkup('search', 'P', 'cs-icon-button-icon', 16)}</button>
                 <button type="button" class="cs-button primary" data-action="run" title="${esc(tr('codeStudio.run', 'Run'))} (F5)">${iconMarkup('run', 'R', 'cs-button-icon', 15)}<span>${esc(tr('codeStudio.run', 'Run'))}</span></button>
@@ -885,7 +897,7 @@
         const fileName = tab ? baseName(tab.path) : '';
         label.title = tab ? tab.path : '';
         label.innerHTML = fileName
-            ? '<strong>' + esc(fileName) + '</strong>' + (tab.modified ? ' <span class="cs-toolbar-modified">●</span>' : '')
+            ? '<strong>' + esc(fileName) + '</strong>' + (tab.modified ? ' <span class="cs-toolbar-modified"></span>' : '')
             : esc(tr('codeStudio.title', 'Code Studio'));
     }
 
@@ -991,12 +1003,12 @@
         }
         const relPath = tab.path.replace(WORKSPACE_ROOT + '/', '').replace(WORKSPACE_ROOT, '');
         if (!relPath) {
-            bar.innerHTML = `<span class="cs-breadcrumb-item current">${esc(tr('codeStudio.title', 'Code Studio'))}</span>`;
+            bar.innerHTML = `<span class="cs-breadcrumb-item current">${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</span>`;
             return;
         }
         const parts = relPath.split('/').filter(Boolean);
         const items = [];
-        items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(WORKSPACE_ROOT)}">${esc(tr('codeStudio.title', 'Code Studio'))}</button>`);
+        items.push(`<button type="button" class="cs-breadcrumb-item" data-bc-path="${esc(WORKSPACE_ROOT)}">${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</button>`);
         let buildPath = WORKSPACE_ROOT;
         parts.forEach((part, i) => {
             buildPath += '/' + part;
@@ -2793,7 +2805,7 @@
                     ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
-                <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <span class="cs-terminal-state" data-terminal-state data-state="stopped">${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
                 <button type="button" class="cs-terminal-stop" data-terminal-stop title="${esc(tr('codeStudio.stop', 'Stop'))}">${esc(tr('codeStudio.stop', 'Stop'))}</button>
                 <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
             `;
@@ -2848,10 +2860,20 @@
         state.fitAddon = session?.fitAddon || null;
     }
 
+    function terminalStateName(key) {
+        if (key === 'codeStudio.running') return 'running';
+        if (key === 'codeStudio.terminalLineMode') return 'line';
+        if (key === 'codeStudio.terminalUnavailable') return 'error';
+        return 'stopped';
+    }
+
     function terminalSessionStatus(session, key) {
         if (session !== activeTerminalSession()) return;
         const label = shellPart('[data-terminal-state]');
-        if (label) label.textContent = tr(key);
+        if (label) {
+            label.textContent = tr(key);
+            label.dataset.state = terminalStateName(key);
+        }
     }
 
     function endTerminalSocket(ws) {
@@ -3065,6 +3087,7 @@
             const key = session.lineMode ? 'codeStudio.terminalLineMode' : (open ? 'codeStudio.running' : 'codeStudio.stopped');
             const fallback = session.lineMode ? 'Line mode' : (open ? 'Running...' : 'Stopped');
             label.textContent = tr(key, fallback);
+            label.dataset.state = terminalStateName(key);
         }
         sendTerminalResize(session);
     }
@@ -3121,7 +3144,7 @@
                 (state.searchTruncated ? `<div class="cs-search-summary">${esc(tr('codeStudio.resultsTruncated', 'Showing the first 200 results.'))}</div>` : '') +
                 state.searchResults.map(result => `
                 <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}" title="${esc(result.path)}">
-                    <span><strong>${esc(searchResultLabel(result.path))}</strong>:${esc(result.line)}</span>
+                    <span><strong>${esc(searchResultLabel(result.path))}</strong><em class="cs-search-line">${esc(result.line)}</em></span>
                     <code>${esc(result.preview)}</code>
                 </button>`).join('');
         }
@@ -3733,13 +3756,9 @@
         }).join('');
         editor.innerHTML = `<div class="cs-diff-view">
             <div class="cs-diff-view-head">
-                <strong>${esc(baseName(tab.path))}</strong>
-                <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>
+                <span class="cs-diff-view-title"><strong>${esc(baseName(tab.path))}</strong><span class="cs-diff-badge">${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span></span>
                 <span class="cs-diff-view-spacer"></span>
-                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}">
-                    <option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option>
-                    <option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option>
-                </select>
+                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}"><option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option><option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option></select>
                 <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
             </div>
             <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffHtml : esc(tr('codeStudio.noChanges', 'No changes'))}</div>

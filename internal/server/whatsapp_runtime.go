@@ -8,6 +8,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
+	"aurago/internal/tools"
 	"aurago/internal/whatsapp"
 )
 
@@ -59,10 +60,15 @@ func (s *Server) whatsApp() whatsAppController {
 	return serverWhatsApp{s: s}
 }
 
-// configureWhatsAppBot publishes the Bot generation for the current config.
+// configureWhatsAppBot publishes the Bot generation for the current config. It also publishes
+// the owner-send hook to internal/tools once; the hook reads the running Bot on every call, so a
+// later generation needs no republication. After shutdown nothing is published.
 func (s *Server) configureWhatsAppBot() {
 	s.whatsAppLifecycleMu.Lock()
 	defer s.whatsAppLifecycleMu.Unlock()
+	if !s.whatsAppClosed {
+		tools.SetWhatsAppOwnerSender(whatsAppOwnerSender{s})
+	}
 	s.configureWhatsAppBotLocked(false)
 }
 
@@ -91,7 +97,32 @@ func (s *Server) configureWhatsAppBotLocked(force bool) {
 	if parent == nil {
 		parent = context.Background()
 	}
-	s.whatsAppBot.Store(whatsapp.Start(parent, s.ConfigSnapshot(), s.Logger))
+	s.whatsAppBot.Store(whatsapp.Start(parent, s.ConfigSnapshot(), s.Logger, s.whatsAppAgentDeps()))
+}
+
+// whatsAppAgentDeps hands the Bot the collaborators configureTelegramBot passes to the
+// Telegram bot, as one struct. The knowledge graph is left out: Telegram runs the agent
+// without it. Budget tracker and config/client are read per message, so a config reload
+// reaches a running generation. The caller holds CfgMu.RLock; this reads fields only and
+// takes no lock itself.
+func (s *Server) whatsAppAgentDeps() whatsapp.AgentDeps {
+	return whatsapp.AgentDeps{
+		LLMClient:        s.LLMClient,
+		ShortTermMem:     s.ShortTermMem,
+		LongTermMem:      s.LongTermMem,
+		Vault:            s.Vault,
+		Registry:         s.Registry,
+		CronManager:      s.CronManager,
+		HistoryManager:   s.HistoryManager,
+		InventoryDB:      s.InventoryDB,
+		MissionManagerV2: s.MissionManagerV2,
+		RemoteHub:        s.RemoteHub,
+		Guardian:         s.Guardian,
+		BudgetTracker:    s.budgetTrackerSnapshot,
+		WebhookManager:   s.WebhookManager,
+		Snapshot:         s.chatRuntimeSnapshot,
+		RoutingDecisions: taskDecisionService{s},
+	}
 }
 
 // stopWhatsApp ends the link session and the Bot at shutdown. Nothing
@@ -104,6 +135,8 @@ func (s *Server) stopWhatsApp() {
 	if previous := s.whatsAppBot.Swap(nil); previous != nil {
 		previous.Stop()
 	}
+	// The Bot is drained; only now does the owner-send hook go, and only while it is ours.
+	tools.WithdrawWhatsAppOwnerSender(whatsAppOwnerSender{s})
 }
 
 // cancelWhatsAppLinkLocked cancels a running link session and waits for its

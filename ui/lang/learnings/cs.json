@@ -53,7 +53,7 @@
   "learnings.graph_enable": "Zapnout nativní graf kódu",
   "learnings.graph_help": "Ve výchozím stavu vypnuto. Schválené projekty indexuje při prvním použití a automaticky obnovuje. Zdrojový kód i index zůstávají v paměti.",
   "codeStudio.knowledge": "Poznatky",
-  "game_maker.knowledge": "Poznatky",
+  "game_maker.knowledge": "Znalosti",
   "config.memory_analysis.learnings_enable": "Zapnout poznatky",
   "config.memory_analysis.learnings_help": "Ve výchozím stavu vypnuto. Stávající analýza konverzace se učí z ověřených lidských důkazů. Vyžaduje zapisovatelnou paměť; nejisté závěry zůstávají návrhy.",
   "config.memory_analysis.graph_enable": "Zapnout nativní graf kódu",

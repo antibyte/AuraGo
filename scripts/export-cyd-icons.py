@@ -104,7 +104,10 @@ def export(frames, size, tone):
     result = []
     for frame, mask in zip(frames, masks):
         frame.putalpha(mask)
-        small = frame.crop(box).resize((width, height), Image.Resampling.LANCZOS)
+        # Fix pass order and premultiply once to preserve the original PNG bytes.
+        small = frame.crop(box).convert("RGBa")
+        small = small.resize((width, small.height), Image.Resampling.LANCZOS)
+        small = small.resize((width, height), Image.Resampling.LANCZOS).convert("RGBA")
         if tone == "mono":
             alpha = small.getchannel("A")
             small = Image.new("RGBA", small.size, (255, 255, 255, 0))

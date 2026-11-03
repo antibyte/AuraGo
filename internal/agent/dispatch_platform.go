@@ -162,7 +162,7 @@ func userExplicitlyRequestedCoAgentStop(userContext string) bool {
 	return false
 }
 
-func blockedCoAgentStopOutput(registry *CoAgentRegistry, coID string) string {
+func blockedCoAgentStopOutput(registry *CoAgentRegistry, session, coID string) string {
 	payload := map[string]interface{}{
 		"status":             "blocked",
 		"message":            "Co-Agent cancellation requires an explicit user request. Do not stop a running co-agent just because it is still working; wait and use get_result again.",
@@ -170,7 +170,7 @@ func blockedCoAgentStopOutput(registry *CoAgentRegistry, coID string) string {
 		"poll_after_seconds": coAgentPollAfterSeconds,
 	}
 	if registry != nil && coID != "" {
-		if status, err := registry.GetStatus(coID); err == nil {
+		if status, err := registry.GetStatusForSession(session, coID); err == nil {
 			payload["co_agent_status"] = status
 		}
 	}
@@ -306,6 +306,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchLocalWikipedia(ctx, tc, dc)
 		case "retro_games":
 			return dispatchRetroGames(ctx, tc, dc)
+		case "ecalc":
+			return dispatchECalc(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if !cfg.CoAgents.Enabled {
@@ -328,7 +330,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				id, state, err := SpawnCoAgent(newCoAgentSpawnContext(dc), coReq, nil)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return platformJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
 				slots := coAgentRegistry.AvailableSlots()
 				message := "Co-Agent started. Use operation 'list' to check status and 'get_result' when completed."
@@ -336,7 +338,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					message = "Co-Agent queued because all slots are busy. Use operation 'list' to monitor queue position."
 				}
 
-				return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, state, slots, message)
+				return platformJSON(map[string]interface{}{"status": "ok", "co_agent_id": id, "state": state, "available_slots": slots, "message": message})
 
 			case "spawn_specialist":
 				task := req.Task
@@ -356,7 +358,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				id, state, err := SpawnCoAgent(newCoAgentSpawnContext(dc), coReq, nil)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return platformJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
 				slots := coAgentRegistry.AvailableSlots()
 				message := fmt.Sprintf("Specialist '%s' started. Use 'list' to check status and 'get_result' when completed.", specialist)
@@ -364,10 +366,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					message = fmt.Sprintf("Specialist '%s' queued because all slots are busy. Use 'list' to monitor queue position.", specialist)
 				}
 
-				return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, specialist, state, slots, message)
+				return platformJSON(map[string]interface{}{"status": "ok", "co_agent_id": id, "specialist": specialist, "state": state, "available_slots": slots, "message": message})
 
 			case "list", "status":
-				list := coAgentRegistry.List()
+				list := coAgentRegistry.ListForSession(dc.SessionID)
 				data, _ := json.Marshal(map[string]interface{}{
 					"status":          "ok",
 					"available_slots": coAgentRegistry.AvailableSlots(),
@@ -381,14 +383,14 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if coID == "" {
 					return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 				}
-				status, err := coAgentRegistry.GetStatus(coID)
+				status, err := coAgentRegistry.GetStatusForSession(dc.SessionID, coID)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return platformJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
 				state, _ := status["state"].(string)
 				if state == string(CoAgentQueued) || state == string(CoAgentRunning) {
 					waitCtx, cancel := context.WithTimeout(ctx, time.Duration(coAgentGetResultWaitSeconds)*time.Second)
-					waitedStatus, waitErr := coAgentRegistry.WaitForResult(waitCtx, coID)
+					waitedStatus, waitErr := coAgentRegistry.WaitForResultForSession(waitCtx, dc.SessionID, coID)
 					cancel()
 					if waitedStatus != nil {
 						status = waitedStatus
@@ -424,21 +426,21 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status": "error", "message": "'co_agent_id' is required."}`
 				}
 				if !userExplicitlyRequestedCoAgentStop(dc.UserContext) {
-					return blockedCoAgentStopOutput(coAgentRegistry, coID)
+					return blockedCoAgentStopOutput(coAgentRegistry, dc.SessionID, coID)
 				}
-				if err := coAgentRegistry.Stop(coID); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				if err := coAgentRegistry.StopForSession(dc.SessionID, coID); err != nil {
+					return platformJSON(map[string]interface{}{"status": "error", "message": err.Error()})
 				}
 
-				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Co-Agent '%s' stopped."}`, coID)
+				return platformJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Co-Agent %q stopped.", coID)})
 
 			case "stop_all", "cancel_all":
 				if !userExplicitlyRequestedCoAgentStop(dc.UserContext) {
-					return blockedCoAgentStopOutput(coAgentRegistry, "")
+					return blockedCoAgentStopOutput(coAgentRegistry, dc.SessionID, "")
 				}
-				n := coAgentRegistry.StopAll()
+				n := coAgentRegistry.StopAllForSession(dc.SessionID)
 
-				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Stopped %d co-agent(s)."}`, n)
+				return platformJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Stopped %d co-agent(s).", n)})
 
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown co_agent operation. Use: spawn, spawn_specialist, list, get_result, stop, stop_all"}`
@@ -452,6 +454,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}
 			req := decodeTTSArgs(tc)
+			// The text becomes audio that leaves AuraGo (a cloud provider, a voice note in a chat),
+			// so a registered secret must not be spoken.
+			req.Text = security.Scrub(req.Text)
 			ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
 			var meta tools.TTSSynthesisMeta
 			ttsCfg.Result = &meta
@@ -1033,7 +1038,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "list_servers":
 				servers, err := tools.MCPListServers(logger)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MCP list servers failed: %v"}`, err)
+					return platformJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("MCP list servers failed: %v", err)})
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "success", "servers": servers})
 				return "Tool Output: " + string(data)
@@ -1070,7 +1075,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + string(data)
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "unknown mcp_call operation '%s'. Use list_servers, list_tools, or call_tool."}`, op)
+				return platformJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("unknown mcp_call operation %q. Use list_servers, list_tools, or call_tool.", op)})
 			}
 
 		case "composio_call":
@@ -1170,4 +1175,13 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 		}
 	}()
 	return result, handled
+}
+
+// platformJSON preserves the tool envelope while escaping every dynamic field.
+func platformJSON(payload map[string]interface{}) string {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return `Tool Output: {"status":"error","message":"Cannot encode tool response"}`
+	}
+	return "Tool Output: " + string(data)
 }

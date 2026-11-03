@@ -198,7 +198,7 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
 		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,
-		AllowUnsandboxedShell:      cfg.Agent.AllowUnsandboxedShell || cfg.Agent.LegacyUnsandboxedShell,
+		AllowUnsandboxedShell:      cfg.Agent.AllowUnsandboxedShell,
 		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,
 		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:              cfg.Docker.Enabled,
@@ -452,11 +452,11 @@ func requirePackageManagerPermission() error {
 	return requireRuntimePermission("package manager", perms.PackageManagerEnabled)
 }
 
-func requirePackageManagerMutationPermission(operation string) error {
-	if err := requirePackageManagerPermission(); err != nil {
-		return err
+func requirePackageManagerMutationPermission(ctx context.Context, operation string) error {
+	perms, configured := EffectiveRuntimePermissions(ctx)
+	if !configured || !perms.PackageManagerEnabled {
+		return requireRuntimePermission("package manager", false)
 	}
-	perms, _ := currentRuntimePermissions()
 	if perms.PackageManagerReadOnly {
 		return fmt.Errorf("package manager mutation is disabled by runtime permissions")
 	}

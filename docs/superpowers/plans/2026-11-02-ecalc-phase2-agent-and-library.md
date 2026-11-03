@@ -1311,6 +1311,7 @@ In `internal/ecalc/solve_test.go`, replace:
 
 with:
 
+{% raw %}
 ```go
 		t.Errorf("values = %v, want p=1 computed and no zz", res.Values)
 	}
@@ -1345,6 +1346,7 @@ func TestSolveRangeVectors(t *testing.T) {
 
 ```
 
+{% endraw %}
 In `internal/ecalc/testdata/vectors/core.json` (edit 1 of 4), replace:
 
 ```json
@@ -3584,6 +3586,7 @@ with:
 
 In `internal/ecalc/basics_test.go` (edit 5 of 6), replace:
 
+{% raw %}
 ```go
 		c := cat.Calculators[i]
 		if c.ID != w.id || c.Category != "basics" || c.Schematic != w.schematic || c.DOF != w.dof {
@@ -3591,8 +3594,10 @@ In `internal/ecalc/basics_test.go` (edit 5 of 6), replace:
 				i, c.ID, c.Category, c.Schematic, c.DOF, w.id, w.schematic, w.dof)
 ```
 
+{% endraw %}
 with:
 
+{% raw %}
 ```go
 		c := basics[i]
 		if c.ID != w.id || c.Schematic != w.schematic || c.DOF != w.dof {
@@ -3600,6 +3605,7 @@ with:
 				i, c.ID, c.Schematic, c.DOF, w.id, w.schematic, w.dof)
 ```
 
+{% endraw %}
 In `internal/ecalc/basics_test.go` (edit 6 of 6), replace:
 
 ```go
@@ -3644,18 +3650,22 @@ func TestESeriesCombinerItem(t *testing.T) {
 
 In `internal/ecalc/basics_sets_test.go`, replace:
 
+{% raw %}
 ```go
 		{"charge_energy", [][]string{{"q", "v"}, {"q", "e"}, {"v", "e"}}},
 ```
 
+{% endraw %}
 with:
 
+{% raw %}
 ```go
 		{"charge_energy", [][]string{{"q", "v"}, {"q", "e"}, {"v", "e"}}},
 		// The combiner has one input and no rules: the target alone determines everything.
 		{"eseries_combiner", [][]string{{"target"}}},
 ```
 
+{% endraw %}
 In `internal/ecalc/localize_test.go`, replace:
 
 ```go
@@ -3865,6 +3875,7 @@ In `internal/ecalc/eseries.go`, replace:
 
 with:
 
+{% raw %}
 ```go
 	return best, (best - v) / v * 100, nil
 }
@@ -3986,6 +3997,7 @@ func Combine(series string, target float64, limit int) ([]Combo, error) {
 
 ```
 
+{% endraw %}
 In `ui/js/desktop/apps/ecalc/ecalc-eseries.js` (edit 1 of 2), replace:
 
 ```js

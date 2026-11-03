@@ -505,6 +505,14 @@ func pinSSRFURL(ctx context.Context, target *url.URL) (map[string]net.IP, error)
 // redirects. Callers that intentionally support redirects must validate every
 // hop and create a fresh client for that URL.
 func NewStrictPublicHTTPClientForURL(rawURL string, timeout time.Duration) (*http.Client, error) {
+	return NewStrictPublicHTTPClientForURLContext(context.Background(), rawURL, timeout)
+}
+
+// NewStrictPublicHTTPClientForURLContext also binds DNS resolution to the caller.
+func NewStrictPublicHTTPClientForURLContext(ctx context.Context, rawURL string, timeout time.Duration) (*http.Client, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL: %w", err)
@@ -527,7 +535,7 @@ func NewStrictPublicHTTPClientForURL(rawURL string, timeout time.Duration) (*htt
 		}
 		pinnedIP = literal
 	} else {
-		lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		addrs, lookupErr := net.DefaultResolver.LookupIPAddr(lookupCtx, host)
 		if lookupErr != nil {

@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Εξαγωγή ιστοσελίδων",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "Δεν υπάρχουν ακόμη εγγραφές.",
   "dashboard.journal_key_topics": "Θέματα",
   "dashboard.journal_sentiment_trend": "Τάση Διάθεσης",

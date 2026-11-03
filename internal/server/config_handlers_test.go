@@ -431,6 +431,7 @@ func TestHandleUpdateConfigEnablesGo2RTCWithBlankDefaultURL(t *testing.T) {
 	configYAML := `docker:
   enabled: true
   read_only: false
+  host: "tcp://docker.example.invalid:2375"
 go2rtc:
   enabled: false
   url: ""
@@ -1328,18 +1329,19 @@ func TestInjectVaultIndicatorsAddsVirtualComputerSecrets(t *testing.T) {
 	}
 }
 
-// The config UI must show the effective mqtt.allow_unauthenticated_relay: a
-// config the merger has not touched yet lacks the key while Load grandfathers
-// it, and a UI save of the MQTT section would otherwise write false.
+// The config UI must preserve the effective explicit relay permission. Reading
+// or saving a missing/null permission must not grant anonymous agent runs.
 func TestInjectMQTTRelayDefaultsExposesEffectiveRelayPermission(t *testing.T) {
 	cases := []struct {
 		name string
 		yaml string
 		want bool
 	}{
-		{"absent key, enabled anonymous broker", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n", true},
+		{"absent key, enabled anonymous broker", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n", false},
+		{"null key, enabled anonymous broker", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n  allow_unauthenticated_relay: null\n", false},
 		{"absent key, mqtt disabled", "mqtt:\n  enabled: false\n  relay_to_agent: true\n", false},
 		{"explicit false", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n  allow_unauthenticated_relay: false\n", false},
+		{"explicit true", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n  allow_unauthenticated_relay: true\n", true},
 		{"missing mqtt section", "server:\n  port: 8088\n", false},
 		{"null mqtt section", "mqtt:\n", false},
 	}
@@ -1408,37 +1410,49 @@ func TestInjectMQTTRelayDefaultsExposesUntrustedTransport(t *testing.T) {
 	}
 }
 
-func TestHandleGetConfigShowsGrandfatheredMQTTRelayPermission(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte("mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.ConfigPath = path
-	vault, err := security.NewVault(strings.Repeat("31", 32), filepath.Join(dir, "vault.bin"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
-	s.initConfigSnapshot()
+func TestHandleGetConfigShowsExplicitMQTTRelayPermission(t *testing.T) {
+	for _, tc := range []struct {
+		name, setting string
+		want          bool
+	}{
+		{name: "omitted"},
+		{name: "null", setting: "  allow_unauthenticated_relay: null\n"},
+		{name: "explicit false", setting: "  allow_unauthenticated_relay: false\n"},
+		{name: "explicit true", setting: "  allow_unauthenticated_relay: true\n", want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			if err := os.WriteFile(path, []byte("mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n"+tc.setting), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.ConfigPath = path
+			vault, err := security.NewVault(strings.Repeat("31", 32), filepath.Join(dir, "vault.bin"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
+			s.initConfigSnapshot()
 
-	rec := httptest.NewRecorder()
-	handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
-	}
-	var body struct {
-		MQTT map[string]interface{} `json:"mqtt"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body.MQTT["allow_unauthenticated_relay"] != true {
-		t.Fatalf("GET /api/config mqtt.allow_unauthenticated_relay = %#v, want true (grandfathered)", body.MQTT["allow_unauthenticated_relay"])
+			rec := httptest.NewRecorder()
+			handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+			}
+			var body struct {
+				MQTT map[string]interface{} `json:"mqtt"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.MQTT["allow_unauthenticated_relay"] != tc.want {
+				t.Fatalf("GET /api/config mqtt.allow_unauthenticated_relay = %#v, want %v", body.MQTT["allow_unauthenticated_relay"], tc.want)
+			}
+		})
 	}
 }
 

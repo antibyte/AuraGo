@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
@@ -36,6 +37,22 @@ import vm from 'node:vm';
 const route=streetCurve(tramWaypoints),p=new THREE.Vector3(),tangent=new THREE.Vector3();
 const pack=JSON.parse(await fs.readFile('ui/3d/system-world/v2/manifest.json','utf8'));
 const tramBounds=pack.assets.find(a=>a.id==='tram').lods[0].bounds;
+// Passenger sight lines must stay clear through both side bays and closed doors at every LOD.
+for(const lod of pack.assets.find(a=>a.id==='tram').lods){
+  const data=await fs.readFile('ui/3d/system-world/v2/'+lod.file);
+  const model=await new GLTFLoader().parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
+  model.scene.updateMatrixWorld(true);
+  const sight=new THREE.Raycaster();
+  for(const z of[-2.5,0,2.5])for(const y of[2.1,2.4,2.7])for(const side of[-1,1]){
+    for(const outside of[false,true]){
+      sight.set(new THREE.Vector3(outside?side*2:0,y,z),new THREE.Vector3(outside?-side:side,0,0));
+      assert.ok(!sight.intersectObject(model.scene,true).some(h=>h.distance<2),`Tram LOD${lod.level} side window blocked at ${[side,y,z]}, outside=${outside}`);
+    }
+  }
+  sight.set(new THREE.Vector3(0,1.6,2.5),new THREE.Vector3(1,0,0));
+  assert.ok(sight.intersectObject(model.scene,true).length,'Retain the solid panel below the window');
+  model.scene.traverse(n=>{if(n.isMesh){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material])m.dispose();}});
+}
 for(let n=0;n<4096;n++){
   route.getPointAt(n/4096,p);route.getTangentAt(n/4096,tangent);
   for(const forward of[tramBounds.min[2],-2,0,2,tramBounds.max[2]])for(const side of[tramBounds.min[0],0,tramBounds.max[0]]){

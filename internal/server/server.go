@@ -167,6 +167,7 @@ type Server struct {
 	knowledge            projectKnowledge
 	Cfg                  *config.Config
 	cfgSnapshot          atomic.Pointer[config.Config]
+	cfgSnapshotOnce      sync.Once
 	providerRevision     atomic.Pointer[string]
 	providerTests        sync.Map
 	providerProbeHistory sync.Map
@@ -354,6 +355,7 @@ type Server struct {
 	DesktopMu                 sync.Mutex
 	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
+	dockerTerminalRuns        desktopRunRegistry
 	storageRuns               desktopRunRegistry
 	retroNetOnce              sync.Once              // guards the lazy Retro-Net engine below
 	retroNetManager           *retronet.Manager      // lazy (see retroNet); tests pre-seed it
@@ -506,13 +508,19 @@ func missionRunBaseContext(s *Server, missionID string) (context.Context, func()
 }
 
 func (s *Server) initConfigSnapshot() {
-	if s == nil || s.Cfg == nil {
+	if s == nil {
 		return
 	}
-	s.bindConfigAuthorization(s.Cfg)
-	s.syncPersonalityConfig(s.Cfg)
-	s.cfgSnapshot.Store(s.Cfg)
-	s.infraConfigAdmission.Store(s.Cfg)
+	// Writers also pass this barrier before changing Cfg. Do not acquire CfgMu:
+	// publication callers already hold its write lock.
+	s.cfgSnapshotOnce.Do(func() {
+		if s.Cfg != nil {
+			s.bindConfigAuthorization(s.Cfg)
+			s.syncPersonalityConfig(s.Cfg)
+			s.cfgSnapshot.Store(s.Cfg)
+			s.infraConfigAdmission.Store(s.Cfg)
+		}
+	})
 }
 
 // ConfigSnapshot returns the current immutable runtime config pointer.
@@ -523,7 +531,8 @@ func (s *Server) ConfigSnapshot() *config.Config {
 	if cfg := s.cfgSnapshot.Load(); cfg != nil {
 		return cfg
 	}
-	return s.Cfg
+	s.initConfigSnapshot()
+	return s.cfgSnapshot.Load()
 }
 
 // newRemoteHub builds the Remote Control hub with its config-driven defaults.
@@ -557,6 +566,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	s.initConfigSnapshot()
 	if s.InjectionGuard != nil {
 		s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
 	}
@@ -582,6 +592,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	// runtime after cancellation will fail its admission check.
 	s.infraConfigAdmission.Store(cfg)
 	previous := s.ConfigSnapshot()
+	if cfg.Docker.ReadOnly || !cfg.Docker.Enabled || (previous != nil && previous.Docker.Host != cfg.Docker.Host) {
+		s.revokeDockerTerminals()
+	}
 	if previous != nil && (previous.FindIt != cfg.FindIt || previous.Directories.DataDir != cfg.Directories.DataDir) {
 		s.revokeDesktopRuns()
 	}
@@ -2145,6 +2158,10 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+		if s.CoAgentRegistry != nil {
+			s.CoAgentRegistry.Shutdown()
+		}
+		s.revokeDockerTerminals()
 		s.closeSelfTests()
 		if s.BackgroundTasks != nil {
 			if err := s.BackgroundTasks.Close(); err != nil {

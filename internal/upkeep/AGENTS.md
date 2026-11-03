@@ -12,6 +12,10 @@ The updater owns transaction manifests; this package verifies them before collec
 
 ## Local Contracts
 
+- `internal/updater` passes Bash, script and log paths as literal POSIX shell
+  arguments. Preserve detached `nohup`, `--yes`, null stdin, appended stdout/stderr
+  logging and the configured working directory. Verify special-character paths
+  with harmless fixture scripts, never a real update.
 - Do not execute archived binaries to identify their web-asset pins. Read Go build
   metadata when available. For `-trimpath` binaries, match linked 64-character
   IDs only against installed resource-set directory names; reject ambiguous
@@ -97,9 +101,11 @@ target and passes a flat asset list plus a BOM-free notes file.
 
 ## Verification
 
-Run `go test ./internal/upkeep ./internal/releaseverify`,
+Run `go test ./internal/updater ./internal/upkeep ./internal/releaseverify`,
 `go test ./internal/audit -run 'Update|ReleaseSignature|ReleaseBootstrap|ReleaseVerifier'`
 and `bash -n update.sh install.sh repair-update.sh` after relevant changes.
+Run the updater's shell quotation and launch tests on Linux with Bash; Windows
+does not exercise those platform-specific tests.
 
 ## Child DOX Index
 

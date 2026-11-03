@@ -143,18 +143,18 @@ components:
 
 ## Brand & Style
 
-This design system centers on a high-fidelity Glassmorphism aesthetic designed to evoke a sense of clarity, depth, and modern sophistication. The brand personality is ethereal yet functional, transforming any homepage content — product, portfolio, service, or informational — into a serene visual experience.
+Atmospheric Glass is the fallback material system for homepages without a supplied brand or project `DESIGN.md`. Derive the page's character, imagery, composition, and signature detail from its actual product and audience using the rule's Product-led Design Review. Glass provides depth; it does not replace a product identity.
 
-The UI relies on a "vibrant-minimalist" approach: the background provides the energy through multi-colored abstract gradients (pinks, purples, and blues), while the interface elements act as frosted crystalline lenses that focus the user's attention. The emotional response is intended to be calm and premium, utilizing transparency and blur to simulate physical layers of glass floating in a fluid, digital space.
+Keep navigation and controls restrained. Put richer color and detail into one or two meaningful content areas, such as a real product preview or relevant image. Translucent surfaces, soft borders, and layered gradients support those areas without competing for attention. The review concepts and their unslop attribution are recorded in `rule.md`.
 
 ## Colors
 
-The color strategy prioritizes luminosity and contrast. Because the background is a vibrant, multi-colored abstract composition, the UI components utilize a monochromatic white palette with varying alpha channels to maintain legibility.
+Build from the supplied blue-neutral surface ramp, white/silver text roles, and a restrained accent. Gradients remain visible but subordinate to the content; choose their placement and intensity from the product direction.
 
-- **Primary Canvas:** A multi-stop linear or radial gradient background featuring Deep Blue (#1E3A8A), Vivid Purple (#7E22CE), and Soft Pink (#DB2777).
-- **Surface Alpha:** Component backgrounds are never solid. They range from `rgba(255, 255, 255, 0.1)` for secondary depth to `0.2` for primary interaction areas.
-- **Accents:** Semantic colors for states (e.g., success, warning, error, informational highlights) should be applied with high saturation but low opacity fills to maintain the glass effect.
-- **Text:** Strictly white (#FFFFFF) or high-tint silver (#E2E8F0) to ensure WCAG compliance against the vibrant background.
+- **Primary Canvas:** Use layered tonal gradients over the dark blue-neutral base. Additional hues need a content or brand reason; do not apply a pink/purple/blue wash to every project.
+- **Surface Alpha:** Standard glass surfaces range from `rgba(255, 255, 255, 0.1)` to `0.2`. Provide an opaque fallback when blur is unavailable or reduced transparency is requested.
+- **Accents:** One main accent guides actions and selection. Semantic colors communicate states; additional colors in charts must distinguish meaningful series.
+- **Text:** Use white or high-tint silver on dark surfaces, and dark text on light primary buttons. Verify WCAG AA contrast against the actual composited background; color tokens alone do not guarantee it.
 
 ## Typography
 
@@ -162,13 +162,13 @@ The design system utilizes **Inter** for its neutral, geometric clarity which ba
 
 - **Hierarchy:** Large display sizes are used for hero statements, key numbers, or primary calls to action to create a clear focal point.
 - **Legibility:** On frosted glass, font weight is increased by one tier (e.g., using Medium instead of Regular) to counteract the visual noise of the background blur.
-- **Treatment:** Subtle text-shadows (`0px 2px 4px rgba(0,0,0,0.15)`) may be applied to small labels to ensure they "pop" against lighter areas of the background gradient.
+- **Treatment:** Keep small text readable without decorative effects or tight tracking. Calm the background or strengthen the surface before adding a subtle neutral text shadow.
 
 ## Layout & Spacing
 
 The layout follows a fluid, contextual model. Elements are grouped into "Glass Containers" that float within the safe areas of the viewport.
 
-- **Rhythm:** An 8px base grid governs all dimensions.
+- **Rhythm:** Use an 8px base grid with 4px subdivisions for compact spacing, including the 20px glass padding. Keep equal controls and repeated rows aligned and consistent.
 - **Grouping:** Related metrics, features, or content cards are housed in a CSS grid or flex layout with 16px gaps.
 - **Negative Space:** Generous outer margins (24px+) are maintained to ensure the vibrant background is visible, reinforcing the "floating" nature of the interface.
 
@@ -177,7 +177,7 @@ The layout follows a fluid, contextual model. Elements are grouped into "Glass C
 Depth in this design system is not achieved through darkness, but through the physics of light and refraction.
 
 - **The Glass Stack:**
-  - **Level 1 (Base):** Dynamic background gradient with a slight grain texture.
+  - **Level 1 (Base):** A restrained layered background gradient; continuous animation and grain are not required.
   - **Level 2 (Standard Card):** `backdrop-filter: blur(20px)`, `background: rgba(255, 255, 255, 0.1)`.
   - **Level 3 (Elevated/Modals):** `backdrop-filter: blur(40px)`, `background: rgba(255, 255, 255, 0.2)`.
 - **Edge Definition:** Every glass surface must have a 1px solid border at `rgba(255, 255, 255, 0.2)`. A secondary inner "shine" border (top and left only) can be used to simulate a light source.
@@ -215,6 +215,7 @@ Large stat or hero displays utilize subtle text shadows to maintain legibility a
 - The final homepage must visibly read as Atmospheric Glass: translucent glass cards or panels, layered luminous gradients, blur/backdrop-filter depth, 1px light borders, soft shadows, white/silver/blue accents, and Inter-based hierarchy.
 - Avoid generic opaque dark cards, flat purple hero gradients, and solid pill filters as the primary visual language unless a project `DESIGN.md` explicitly asks for them.
 - Adapt the generic component examples (stat displays, metric labels, list items) to the current homepage's actual content and domain while preserving glass container physics, translucent surfaces, luminous gradients, and Inter-based hierarchy.
+- Compose around the product's focal content and one primary action; avoid wrapping every section in an identical glass card. Preserve a working existing design when the task needs only local polish.
 - Keep accessibility and readability above decoration: glass blur, alpha surfaces, and gradient backgrounds must still produce clear text contrast on desktop and mobile.
 - Do not describe a page as compliant with this system from code alone. Confirm it with the homepage rule's Definition of Done screenshot step before reporting the design as applied.
 - Do not let this design system override AuraGo homepage workflow rules, security policy, deployment requirements, or tool permissions.

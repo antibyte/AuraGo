@@ -211,6 +211,28 @@ func TestC15NotificationSendsAreBounded(t *testing.T) {
 	c15Started(t, started, "push", 1)
 }
 
+// WhatsApp failure notifications have send slots of their own: four stalled Telegram sends do
+// not hold one back, and the flood rule applies to it as to every channel (a second failure of
+// the same flow does not send, and the slot it took is given back).
+func TestC15WhatsAppFailureNotificationHasItsOwnSlots(t *testing.T) {
+	e := c15NewEnv(t)
+	started, unblock := c15BlockingSender(t)
+	for i := range flowNotifyMaxInFlight {
+		e.bridge.FlowRunFinished(c15Failure(fmt.Sprintf("flow_c15watg%03d", i), fmt.Sprintf("run_c15watg%03d", i), "telegram"))
+	}
+	c15Started(t, started, "telegram", flowNotifyMaxInFlight)
+	e.bridge.FlowRunFinished(c15Failure("flow_c15whatsapp", "run_c15whatsap1", "whatsapp"))
+	c15Started(t, started, "whatsapp", 1)
+	close(unblock)
+	c15WaitIdle(t, e, "telegram")
+	c15WaitIdle(t, e, "whatsapp")
+	e.bridge.FlowRunFinished(c15Failure("flow_c15whatsapp", "run_c15whatsap2", "whatsapp"))
+	c15NoSend(t, started)
+	if n := c15Busy(e, "whatsapp"); n != 0 {
+		t.Fatalf("a suppressed WhatsApp notification holds %d slots", n)
+	}
+}
+
 // A notification dropped for want of a send slot does not count for the flood rule: the
 // flow's next failure notifies once a slot is free. A notification the flood rule
 // suppresses gives its slot back.

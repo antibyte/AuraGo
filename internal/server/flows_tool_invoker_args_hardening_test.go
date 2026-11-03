@@ -233,6 +233,51 @@ func TestC13TelegramTextIsNotSentTwice(t *testing.T) {
 	}
 }
 
+// c13WhatsAppTextSentAnswer is what tools.SendWhatsAppMessage answers when the text went out as
+// a message and the file then failed.
+const c13WhatsAppTextSentAnswer = `Tool Output: {"message":"the file could not be sent","results":[{"channel":"whatsapp","detail":"the file could not be sent","status":"error"}],"status":"error","text_sent":true}`
+
+// A WhatsApp text that went out while the file failed is never sent twice (as for Telegram).
+func TestC13WhatsAppTextIsNotSentTwice(t *testing.T) {
+	env := flows.StaticEnv{"send_whatsapp": {}}
+	inv, _, calls := c13Invoker(&config.Config{}, map[string]bool{"send_whatsapp": true},
+		c13Answer(agent.ToolDispatchResult{Output: c13WhatsAppTextSentAnswer, Status: agent.ToolResultFailed, IsError: true}))
+	params := map[string]any{"message": strings.Repeat("long text ", 200), "file": "report.pdf"}
+	_, err := c13Exec(t, flows.TypeWhatsApp, env, inv, params, "run_one")
+	var ne *flows.NodeError
+	if !errors.As(err, &ne) || ne.Code != "FLOW_TOOL_DENIED" || !strings.Contains(ne.Message, "the file could not be sent") {
+		t.Fatalf("first attempt: %v", err)
+	}
+	// A retry of the same node in the same run is refused with the WhatsApp text and no dispatch.
+	_, err = c13Exec(t, flows.TypeWhatsApp, env, inv, params, "run_one")
+	if !errors.As(err, &ne) || ne.Code != "FLOW_TOOL_DENIED" || !strings.Contains(ne.Message, "WhatsApp message") ||
+		!strings.Contains(ne.Message, "not sent twice") || strings.Contains(ne.Message, "Telegram") || len(*calls) != 1 {
+		t.Fatalf("retry: %v, dispatched %d", err, len(*calls))
+	}
+	// Another run sends again.
+	if _, err := c13Exec(t, flows.TypeWhatsApp, env, inv, params, "run_two"); err == nil || len(*calls) != 2 {
+		t.Fatalf("another run: %v, dispatched %d", err, len(*calls))
+	}
+	// A failure without text_sent is retried normally.
+	inv, _, calls = c13Invoker(&config.Config{}, map[string]bool{"send_whatsapp": true},
+		c13Answer(agent.ToolDispatchResult{Output: `Tool Output: {"message":"the file could not be sent","results":[{"channel":"whatsapp","status":"error","detail":"the file could not be sent"}],"status":"error"}`, Status: agent.ToolResultFailed, IsError: true}))
+	req := c13Request("send_whatsapp", map[string]any{"message": "x", "file_path": "report.pdf"})
+	for range 2 {
+		if resp, err := inv.InvokeTool(context.Background(), req); err != nil || resp.Status != "failed" {
+			t.Fatalf("plain failure: %+v, %v", resp, err)
+		}
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("a plain failure was not retried: %d calls", len(*calls))
+	}
+	// The Telegram refusal is byte-identical to what it was before WhatsApp shared the guard.
+	const telegramRefusal = "the text of this Telegram message went out in an earlier attempt of the node " +
+		"and its document failed; the node is not tried again, so the text is not sent twice"
+	if flowTextSentRefusals["send_telegram"] != telegramRefusal {
+		t.Fatalf("telegram refusal = %q", flowTextSentRefusals["send_telegram"])
+	}
+}
+
 func TestC13TextSentMemoryForgetsOldRuns(t *testing.T) {
 	inv := &flowToolInvoker{}
 	now := time.Now()

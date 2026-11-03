@@ -1,0 +1,23 @@
+{
+  "calc": "instrumentation_amp",
+  "sets": [
+    {"values": {"r": 25000, "rg": 500, "g": 101, "vdiff": 0.01, "vout": 1.01, "adb": 40.086427475652854, "rsum": 50000}, "ref": "hand: G = 1 + 2 * 25k / 500 = 1 + 100 = 101; V_out = 101 * 10 mV = 1.01 V; 20 * log10(101) = 40.086 dB (hand, independent script: log10 101 = 2.0043214); 2R = 50k"},
+    {"values": {"r": 25000, "rg": 5000, "g": 11, "vdiff": 0.05, "vout": 0.55, "adb": 20.827853703164504, "rsum": 50000}, "ref": "hand: G = 1 + 50k / 5k = 11; V_out = 11 * 50 mV = 0.55 V; 20 * log10(11) = 20.828 dB (hand, independent script: log10 11 = 1.0413927); 2R = 50k"},
+    {"values": {"r": 24700, "rg": 494, "g": 101, "vdiff": -0.002, "vout": -0.202, "adb": 40.086427475652854, "rsum": 49400}, "ref": "hand: G = 1 + 49.4k / 494 = 1 + 100 = 101; V_out = 101 * (-2 mV) = -0.202 V; 20 * log10(101) = 40.086 dB; 2R = 49.4k"},
+    {"values": {"r": 10000, "rg": 1000, "g": 21, "vdiff": -0.03, "vout": -0.63, "adb": 26.444385894678387, "rsum": 20000}, "ref": "hand: G = 1 + 20k / 1k = 21; V_out = 21 * (-30 mV) = -0.63 V; 20 * log10(21) = 26.444 dB (hand, independent script: log10 21 = 1.3222193); 2R = 20k"}
+  ],
+  "solve": [
+    {"inputs": {"r": 25000, "rg": 500, "vdiff": 0.01}, "expect": {"g": 101, "vout": 1.01, "rsum": 50000}, "warnings": [], "ref": "hand: G = 1 + 50k / 500 = 101, V_out = 101 * 10 mV = 1.01 V"},
+    {"inputs": {"r": 10000, "rg": 1000, "vdiff": -0.03}, "expect": {"g": 21, "vout": -0.63}, "warnings": [], "ref": "hand: G = 1 + 20k / 1k = 21, V_out = 21 * (-30 mV) = -0.63 V"},
+    {"inputs": {"r": 25000, "g": 101, "vdiff": 0.01}, "expect": {"rg": 500, "vout": 1.01}, "ref": "hand: R_G = 2R / (G - 1) = 50k / 100 = 500 ohm; V_out = 1.01 V"},
+    {"inputs": {"r": 25000, "g": 11, "vout": 0.55}, "expect": {"rg": 5000, "vdiff": 0.05}, "ref": "hand: R_G = 50k / 10 = 5k; V_diff = 0.55 V / 11 = 50 mV"},
+    {"inputs": {"rg": 500, "g": 101, "vdiff": 0.01}, "expect": {"r": 25000, "vout": 1.01}, "ref": "hand: R = (G - 1) * R_G / 2 = 100 * 500 / 2 = 25k"},
+    {"inputs": {"rg": 1000, "g": 21, "vout": -0.63}, "expect": {"r": 10000, "vdiff": -0.03}, "ref": "hand: R = 20 * 1k / 2 = 10k; V_diff = -0.63 V / 21 = -30 mV"},
+    {"inputs": {"r": 25000, "rg": 500, "vout": 1.01}, "expect": {"g": 101, "vdiff": 0.01}, "ref": "hand: G = 101; V_diff = 1.01 V / 101 = 10 mV"},
+    {"inputs": {"r": 10000, "rg": 1000, "vout": -0.63}, "expect": {"g": 21, "vdiff": -0.03}, "ref": "hand: G = 21; V_diff = -0.63 V / 21 = -30 mV"},
+    {"inputs": {"r": 25000, "vdiff": 0.01, "vout": 1.01}, "expect": {"g": 101, "rg": 500}, "ref": "hand: G = V_out / V_diff = 1.01 V / 10 mV = 101; R_G = 50k / 100 = 500 ohm"},
+    {"inputs": {"r": 25000, "g": 1, "vdiff": 0.01}, "expect": {"vout": 0.01}, "errors": {"rg": "nonfinite"}, "warnings": [0], "ref": "hand: G = 1 means R_G is open: R_G = 50k / (1 - 1) = infinity; the gain check fires"},
+    {"inputs": {"r": 25000, "g": 0.5, "vdiff": 0.01}, "expect": {"vout": 0.005}, "errors": {"rg": "range"}, "warnings": [0], "ref": "hand: G = 0.5 would need R_G = 50k / (0.5 - 1) = -100k, out of range; the gain check fires"},
+    {"inputs": {"r": 25000, "rg": 500}, "expect": {"g": 101}, "errors": {"vdiff": "undetermined", "vout": "undetermined"}, "warnings": [], "ref": "hand: G = 101 follows from the two resistors, the differential input and the output are undetermined"}
+  ]
+}

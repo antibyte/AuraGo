@@ -2173,7 +2173,7 @@ ensure_ffmpeg() {
             warn "ffmpeg installation failed. Install it manually for your distro and rerun the installer if you need voice conversion."
         fi
     else
-        warn "Skipping ffmpeg. Telegram voice messages will not work."
+        warn "Skipping ffmpeg. Telegram and WhatsApp voice messages will not work."
     fi
 }
 
@@ -2445,11 +2445,20 @@ else
     tar -xzf "$RELEASE_RESOURCES_FILE" -C "$TMPEXT" || die "Failed to extract verified resources.dat."
     rm -f "$RELEASE_RESOURCES_FILE"
     RELEASE_RESOURCES_FILE=""
+    # The archive is signature-verified; still, a link inside it must never steer a copy out of the extracted tree.
+    EXTRACTED_LINKS="$(find "$TMPEXT" -type l 2>/dev/null || true)"
+    [ -z "$EXTRACTED_LINKS" ] || die "resources.dat contains symbolic links; refusing to install from it."
 
     # Copy prompts, skills, and other resource dirs (always overwrite — they are code)
     [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
     [ -d "$TMPEXT/agent_workspace" ]   && cp -a "$TMPEXT/agent_workspace"   "$INSTALL_DIR/"
     [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
+
+    # Licence texts and notices of the GPL-3.0 combined binaries (always overwrite).
+    if [ -d "$TMPEXT/licences" ] && [ ! -L "$TMPEXT/licences" ]; then cp -a "$TMPEXT/licences" "$INSTALL_DIR/"; fi
+    for notice in LICENSE THIRD_PARTY_NOTICES.md; do
+        if [ -f "$TMPEXT/$notice" ] && [ ! -L "$TMPEXT/$notice" ]; then cp "$TMPEXT/$notice" "$INSTALL_DIR/$notice"; fi
+    done
     mkdir -p "$INSTALL_DIR/assets"
     for asset_dir in "$TMPEXT/assets/"*; do
         [ -d "$asset_dir" ] || continue

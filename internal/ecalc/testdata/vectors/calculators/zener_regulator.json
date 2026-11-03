@@ -1,0 +1,25 @@
+{
+  "calc": "zener_regulator",
+  "sets": [
+    {"values": {"vin": 12, "vz": 5.1, "il": 0.02, "izmin": 0.005, "r": 276, "ir": 0.025, "pz": 0.1275, "pr": 0.1725, "pl": 0.102, "eta": 0.34}, "ref": "hand: I_R = 20 mA + 5 mA = 25 mA; R = (12 V - 5.1 V) / 25 mA = 6.9 V / 25 mA = 276 ohm; P_Z = 5.1 V * 25 mA = 127.5 mW; P_R = 6.9 V * 25 mA = 172.5 mW (= (25 mA)^2 * 276 ohm); P_L = 5.1 V * 20 mA = 102 mW; efficiency = 102 mW / (12 V * 25 mA = 300 mW) = 34 %"},
+    {"values": {"vin": 24, "vz": 12, "il": 0.05, "izmin": 0.01, "r": 200, "ir": 0.06, "pz": 0.72, "pr": 0.72, "pl": 0.6, "eta": 0.4166666666666667}, "ref": "hand: I_R = 50 mA + 10 mA = 60 mA; R = 12 V / 60 mA = 200 ohm; P_Z = 12 V * 60 mA = 0.72 W; P_R = 12 V * 60 mA = 0.72 W; P_L = 12 V * 50 mA = 0.6 W; efficiency = 0.6 W / (24 V * 60 mA = 1.44 W) = 5/12"},
+    {"values": {"vin": 9, "vz": 3.3, "il": 0.012, "izmin": 0.003, "r": 380, "ir": 0.015, "pz": 0.0495, "pr": 0.0855, "pl": 0.0396, "eta": 0.29333333333333333}, "ref": "hand: I_R = 12 mA + 3 mA = 15 mA; R = (9 V - 3.3 V) / 15 mA = 5.7 V / 15 mA = 380 ohm; P_Z = 3.3 V * 15 mA = 49.5 mW; P_R = 5.7 V * 15 mA = 85.5 mW; P_L = 3.3 V * 12 mA = 39.6 mW; efficiency = 39.6 mW / (9 V * 15 mA = 135 mW) = 22/75"},
+    {"values": {"vin": 15, "vz": 10, "il": 0.08, "izmin": 0.02, "r": 50, "ir": 0.1, "pz": 1, "pr": 0.5, "pl": 0.8, "eta": 0.5333333333333333}, "ref": "hand: I_R = 80 mA + 20 mA = 100 mA; R = (15 V - 10 V) / 100 mA = 50 ohm; P_Z = 10 V * 0.1 A = 1 W; P_R = 5 V * 0.1 A = 0.5 W; P_L = 10 V * 80 mA = 0.8 W; efficiency = 0.8 W / (15 V * 0.1 A = 1.5 W) = 8/15"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 12, "vz": 5.1, "il": 0.02, "izmin": 0.005}, "expect": {"r": 276, "ir": 0.025, "pz": 0.1275}, "warnings": [], "ref": "hand: R = 6.9 V / 25 mA = 276 ohm; the other values are those of the first set"},
+    {"inputs": {"vin": 5, "vz": 3.3, "il": 0.01, "izmin": 0.002}, "expect": {"r": 141.66666666666666, "ir": 0.012, "pz": 0.0396, "pr": 0.0204, "pl": 0.033}, "warnings": [], "ref": "hand: R = (5 V - 3.3 V) / (10 mA + 2 mA) = 1.7 V / 12 mA = 141.67 ohm; P_Z = 3.3 V * 12 mA = 39.6 mW; P_R = 1.7 V * 12 mA = 20.4 mW; P_L = 3.3 V * 10 mA = 33 mW"},
+    {"inputs": {"vin": 12, "vz": 5.1, "izmin": 0.005, "r": 270}, "expect": {"il": 0.020555555555555556, "ir": 0.025555555555555557}, "ref": "hand: I_R = 6.9 V / 270 ohm = 23/900 A = 25.556 mA; I_L = 23/900 A - 5 mA = 37/1800 A = 20.556 mA"},
+    {"inputs": {"vin": 9, "vz": 3.3, "izmin": 0.003, "r": 380}, "expect": {"il": 0.012, "ir": 0.015}, "ref": "hand: I_R = (9 V - 3.3 V) / 380 ohm = 5.7 V / 380 ohm = 15 mA; I_L = 15 mA - 3 mA = 12 mA"},
+    {"inputs": {"vin": 12, "vz": 5.1, "il": 0.02, "r": 300}, "expect": {"izmin": 0.003, "ir": 0.023}, "ref": "hand: I_R = 6.9 V / 300 ohm = 23 mA; I_Z(min) = 23 mA - 20 mA = 3 mA"},
+    {"inputs": {"vin": 9, "vz": 3.3, "il": 0.012, "r": 300}, "expect": {"izmin": 0.007, "ir": 0.019}, "ref": "hand: I_R = 5.7 V / 300 ohm = 19 mA; I_Z(min) = 19 mA - 12 mA = 7 mA"},
+    {"inputs": {"vz": 5.1, "il": 0.02, "izmin": 0.005, "r": 270}, "expect": {"vin": 11.85, "ir": 0.025}, "ref": "hand: V_in = 270 ohm * (20 mA + 5 mA) + 5.1 V = 6.75 V + 5.1 V = 11.85 V"},
+    {"inputs": {"vz": 5, "il": 0.02, "izmin": 0.01, "r": 150}, "expect": {"vin": 9.5, "ir": 0.03}, "ref": "hand: V_in = 150 ohm * (20 mA + 10 mA) + 5 V = 4.5 V + 5 V = 9.5 V"},
+    {"inputs": {"vin": 12, "il": 0.02, "izmin": 0.005, "r": 270}, "expect": {"vz": 5.25, "ir": 0.025}, "ref": "hand: V_Z = 12 V - 270 ohm * 25 mA = 12 V - 6.75 V = 5.25 V"},
+    {"inputs": {"vin": 15, "il": 0.02, "izmin": 0.01, "r": 200}, "expect": {"vz": 9, "ir": 0.03}, "ref": "hand: V_Z = 15 V - 200 ohm * 30 mA = 15 V - 6 V = 9 V"},
+    {"inputs": {"vin": 24, "vz": 12, "il": 0.05, "r": 100}, "expect": {"izmin": 0.07, "ir": 0.12, "pz": 1.44, "pr": 1.44}, "warnings": [2, 3], "ref": "hand: I_R = 12 V / 100 ohm = 120 mA; I_Z(min) = 120 mA - 50 mA = 70 mA; P_Z = 12 V * 0.12 A = 1.44 W above 0.5 W and P_R = 12 V * 0.12 A = 1.44 W above 0.25 W, so checks 3 and 4 fire"},
+    {"inputs": {"vin": 12, "vz": 5.1, "izmin": 0.03, "r": 270}, "expect": {"il": -0.0044444444444444444, "ir": 0.025555555555555557}, "warnings": [1], "ref": "hand: I_R = 23/900 A = 25.556 mA, I_L = 23/900 A - 30 mA = -4/900 A = -4.444 mA; the negative current fires the second check"},
+    {"inputs": {"vin": 5, "vz": 6, "il": 0.02, "izmin": 0.005}, "expect": {"ir": 0.025}, "errors": {"r": "range"}, "warnings": [0], "ref": "hand: V_in below V_Z gives R = (5 V - 6 V) / 25 mA = -40 ohm, out of range; the first check fires"},
+    {"inputs": {"vin": 12, "vz": 5.1, "il": 0.02}, "errors": {"izmin": "undetermined", "r": "undetermined"}, "warnings": [], "ref": "three of the four inputs are given: neither the minimum Zener current nor the resistor is determined"}
+  ]
+}

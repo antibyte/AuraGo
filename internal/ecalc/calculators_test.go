@@ -2,7 +2,10 @@ package ecalc
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -17,9 +20,13 @@ const solveTol = 1e-9
 //
 // A solve vector is a single Solve call: inputs (SI), the expected values (a subset), the exact error map and the
 // exact list of warning (check) indexes.
+//
+// combos (only for a calculator with finder: combine, and required there) are Combine cases in the shape of the combine
+// section of core.json: the entries Combine returns for the series, target and limit, in this order, with a ref.
 type calcVectors struct {
-	Calc string `json:"calc"`
-	Sets []struct {
+	Calc   string          `json:"calc"`
+	Combos []combineVector `json:"combos"`
+	Sets   []struct {
 		Choices map[string]string `json:"choices"`
 		Values  map[string]any    `json:"values"`
 		Ref     string            `json:"ref"`
@@ -183,7 +190,49 @@ func TestCalculatorVectors(t *testing.T) {
 					t.Errorf("solve %d (%s): warnings %v, want %v", i, sv.Ref, res.Warnings, wantWarnings)
 				}
 			}
+
+			// Combos belong to the combiner finder and are required there.
+			if (c.Finder == "combine") != (len(v.Combos) > 0) {
+				t.Errorf("finder %q with %d combos: a calculator with finder combine needs combos, any other has none", c.Finder, len(v.Combos))
+			}
+			for _, combo := range v.Combos {
+				checkCombine(t, combo)
+			}
 		})
+	}
+}
+
+// TestCalculatorVectorFilesNameACalculator makes the vector directory strict: every file in it is called <calc>.json and
+// names a calculator of the catalog. TestCalculatorVectors only reads the files of calculators that exist, so without
+// this check a vector file for a missing or misspelled calculator would be ignored and writing the vectors first could
+// never go red. (The other direction, a calculator without a file, already fails TestCalculatorVectors.)
+func TestCalculatorVectorFilesNameACalculator(t *testing.T) {
+	cat, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := filepath.Glob(filepath.FromSlash("testdata/vectors/calculators/*"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no calculator vector files found (%v)", err)
+	}
+	for _, file := range files {
+		name := filepath.Base(file)
+		if !strings.HasSuffix(name, ".json") {
+			t.Errorf("%s: only <calc>.json files belong in testdata/vectors/calculators", name)
+			continue
+		}
+		var v struct {
+			Calc string `json:"calc"`
+		}
+		readJSON(t, "testdata/vectors/calculators/"+name, &v)
+		switch {
+		case v.Calc == "":
+			t.Errorf("%s declares no calc", name)
+		case name != v.Calc+".json":
+			t.Errorf("%s declares calc %q, so the file must be called %s.json", name, v.Calc, v.Calc)
+		case cat.Calculator(v.Calc) == nil:
+			t.Errorf("%s names the calculator %q, which the catalog does not have", name, v.Calc)
+		}
 	}
 }
 
@@ -246,5 +295,33 @@ func TestRoundTripAllCalculators(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestWireResistanceSourceStatesTheSilverConstant keeps the written source of the wire resistance honest about the
+// resistivity that the silver option really uses: 1.59e-8 Ohm*m is 15.9 nOhm*m (the text once said 1.59).
+func TestWireResistanceSourceStatesTheSilverConstant(t *testing.T) {
+	cat, err := Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := cat.Calculator("wire_resistance")
+	if c == nil {
+		t.Fatal("the catalog has no wire_resistance")
+	}
+	var rho float64
+	for _, ch := range c.Choices {
+		for _, o := range ch.Options {
+			if o.ID == "silver" {
+				rho = o.Consts["rho"]
+			}
+		}
+	}
+	if rho == 0 {
+		t.Fatal("wire_resistance has no silver option with a rho constant")
+	}
+	want := "silver " + strconv.FormatFloat(rho*1e9, 'g', 3, 64) + " nΩ·m"
+	if !strings.Contains(c.Source, want) {
+		t.Errorf("the source of wire_resistance does not say %q (rho = %v Ω·m): %s", want, rho, c.Source)
 	}
 }

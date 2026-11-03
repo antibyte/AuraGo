@@ -1,0 +1,220 @@
+# RF calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in English and German
+# (other languages fall back to English). Rules are written out for every direction, in the order the solver tries them:
+# the first alternative whose variables are all known wins. The speed of light is the exact SI value 299792458 m/s.
+
+- id: wavelength
+  kind: calculator
+  category: rf
+  name: {cs: "Vlnová délka", da: "Bølgelængde", de: "Wellenlänge", el: "Μήκος κύματος", en: "Wavelength", es: "Longitud de onda", fr: "Longueur d'onde", hi: "तरंगदैर्घ्य", it: "Lunghezza d'onda", ja: "波長", nl: "Golflengte", no: "Bølgelengde", pl: "Długość fali", pt: "Comprimento de onda", sv: "Våglängd", zh: "波长"}
+  doc:
+    en: "The wavelength of an electromagnetic wave is λ = c × VF / f, with the speed of light c = 299 792 458 m/s (exact) and the velocity factor VF of the medium (1 in free space, about 0.66 in coax with a solid polyethylene dielectric). Any two of f, VF and λ determine the third; the half and the quarter wavelength are shown too. Example: 145 MHz in free space gives λ = 2.068 m."
+    de: "Die Wellenlänge einer elektromagnetischen Welle ist λ = c · VF / f mit der Lichtgeschwindigkeit c = 299 792 458 m/s (exakt) und dem Verkürzungsfaktor VF des Mediums (1 im freien Raum, etwa 0,66 im Koaxkabel mit Vollpolyethylen). Je zwei der Größen f, VF und λ bestimmen die dritte; die halbe und die viertel Wellenlänge werden mitgeliefert. Beispiel: 145 MHz im freien Raum ergeben λ = 2,068 m."
+  tags: [wavelength, lambda, frequency, velocity factor, speed of light, half wave, quarter wave, antenna, radio, rf, wellenlänge, frequenz, verkürzungsfaktor, lichtgeschwindigkeit, halbwelle, viertelwelle, antenne, funk, hf]
+  source: "Wave relation λ = c/f with the exact speed of light c = 299 792 458 m/s (SI Brochure, BIPM); the velocity factor VF = v/c is the ratio of the propagation speed in the medium to c"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "145 MHz"}
+    vf: {dim: number, label: VF, name: {en: "Velocity factor", de: "Verkürzungsfaktor"}, default: 1}
+    wl: {dim: length, label: λ, name: {en: "Wavelength", de: "Wellenlänge"}, units: ["", "ft", "in"]}
+  dof: 2
+  rules:
+    wl: ["299792458*vf/f"]
+    f: ["299792458*vf/wl"]
+    vf: ["wl*f/299792458"]
+  derived:
+    lhalf: {dim: length, label: λ/2, name: {en: "Half wavelength", de: "Halbe Wellenlänge"}, expr: "wl/2", units: ["", "ft", "in"]}
+    lquarter: {dim: length, label: λ/4, name: {en: "Quarter wavelength", de: "Viertelwellenlänge"}, expr: "wl/4", units: ["", "ft", "in"]}
+  checks:
+    - {when: "vf > 1", warn: {en: "A velocity factor above 1 is not physical: the wave would be faster than light in vacuum.", de: "Ein Verkürzungsfaktor über 1 ist nicht physikalisch: die Welle wäre schneller als das Licht im Vakuum."}}
+  formula: ["wl = 299792458 * vf / f"]
+
+- id: dipole_length
+  kind: calculator
+  category: rf
+  name: {cs: "Délka půlvlnného dipólu", da: "Halvbølgedipolens længde", de: "Länge des Halbwellendipols", el: "Μήκος διπόλου μισού κύματος", en: "Half-wave dipole length", es: "Longitud del dipolo de media onda", fr: "Longueur du dipôle demi-onde", hi: "अर्धतरंग द्विध्रुव की लंबाई", it: "Lunghezza del dipolo a mezz'onda", ja: "半波長ダイポールの長さ", nl: "Lengte van een halvegolfdipool", no: "Halvbølgedipolens lengde", pl: "Długość dipola półfalowego", pt: "Comprimento do dipolo de meia onda", sv: "Halvvågsdipolens längd", zh: "半波偶极子长度"}
+  doc:
+    en: "A resonant half-wave dipole is slightly shorter than half a free-space wavelength because of the end effect: L = K × c / (2 f), with a shortening factor K of about 0.95 for a wire dipole (the familiar 468 / f(MHz) feet corresponds to K ≈ 0.952). The quarter-wave length is half of L: one leg of the dipole, or a quarter-wave vertical over a ground plane. Example: 7.1 MHz (40 m band) gives L = 20.06 m. Trim for the lowest SWR; height, wire diameter and surroundings shift the resonance."
+    de: "Ein resonanter Halbwellendipol ist wegen des Endeffekts etwas kürzer als die halbe Freiraumwellenlänge: L = K · c / (2 f), mit einem Verkürzungsfaktor K von etwa 0,95 für einen Drahtdipol (die bekannte Faustformel 468 / f(MHz) Fuß entspricht K ≈ 0,952). Die Viertelwellenlänge ist die Hälfte von L: ein Schenkel des Dipols oder ein Viertelwellenstrahler über einer Groundplane. Beispiel: 7,1 MHz (40-m-Band) ergeben L = 20,06 m. Auf das SWR-Minimum abgleichen; Höhe, Drahtdurchmesser und Umgebung verschieben die Resonanz."
+  tags: [dipole, antenna, half wave, quarter wave, 468, wire antenna, length, ham radio, amateur radio, dipol, antenne, halbwellendipol, viertelwelle, drahtantenne, länge, funkamateur, amateurfunk]
+  source: "Half-wave dipole L = K·c/(2f) with the end-effect shortening factor K (about 0.95); the rule of thumb 468/f(MHz) feet is widely published, e.g. The ARRL Antenna Book (dipole antennas) and J. D. Kraus: Antennas"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "7.1 MHz"}
+    k: {dim: number, label: K, name: {en: "Shortening factor", de: "Verkürzungsfaktor"}, default: 0.95}
+    lhalf: {dim: length, label: L, name: {en: "Half-wave length", de: "Länge des Halbwellendipols"}, units: ["", "ft", "in"]}
+  dof: 2
+  rules:
+    lhalf: ["k*299792458/(2*f)"]
+    f: ["k*299792458/(2*lhalf)"]
+    k: ["2*f*lhalf/299792458"]
+  derived:
+    lquarter: {dim: length, label: L/2, name: {en: "Quarter-wave length", de: "Viertelwellenlänge"}, expr: "lhalf/2", units: ["", "ft", "in"]}
+  checks:
+    - {when: "k > 1", warn: {en: "A shortening factor above 1 is unusual: the end effect makes a resonant dipole shorter than half the free-space wavelength.", de: "Ein Verkürzungsfaktor über 1 ist ungewöhnlich: Der Endeffekt macht einen resonanten Dipol kürzer als die halbe Freiraumwellenlänge."}}
+  formula: ["lhalf = k * 299792458 / (2 * f)", "lquarter = lhalf / 2"]
+
+- id: microstrip_impedance
+  kind: calculator
+  category: rf
+  name: {cs: "Impedance mikropáskového vedení", da: "Mikrostrip-impedans", de: "Mikrostrip-Impedanz", el: "Αντίσταση γραμμής microstrip", en: "Microstrip impedance", es: "Impedancia de microstrip", fr: "Impédance d'une ligne microruban", hi: "माइक्रोस्ट्रिप प्रतिबाधा", it: "Impedenza della microstriscia", ja: "マイクロストリップ線路の特性インピーダンス", nl: "Microstrip-impedantie", no: "Mikrostrip-impedans", pl: "Impedancja linii mikropaskowej", pt: "Impedância de microstrip", sv: "Mikrostrip-impedans", zh: "微带线特性阻抗"}
+  doc:
+    en: "Characteristic impedance of a surface microstrip line on a PCB by the IPC-2141 approximation: Z_0 = 87 / √(ε_r + 1.41) × ln(5.98 h / (0.8 w + t)), with the dielectric thickness h, the trace width w and the copper thickness t. The formula is usually quoted for 0.1 < w/h < 2.0 and 1 < ε_r < 15; outside that range the result is only a rough guide and a warning appears. Use it for a first design and have critical lines checked with a field solver or the impedance data of the board maker. Example: a 3 mm trace on 1.6 mm FR-4 (ε_r ≈ 4.3, 1 oz copper) gives about 49.8 Ω. ε_r depends on the laminate and the frequency: use the datasheet value."
+    de: "Wellenwiderstand einer Mikrostrip-Leitung an der Oberfläche einer Leiterplatte nach der Näherung der IPC-2141: Z_0 = 87 / √(ε_r + 1,41) · ln(5,98 h / (0,8 w + t)) mit der Dielektrikumsdicke h, der Leiterbahnbreite w und der Kupferdicke t. Die Formel wird üblicherweise für 0,1 < w/h < 2,0 und 1 < ε_r < 15 angegeben; außerhalb ist das Ergebnis nur ein grober Anhalt und eine Warnung erscheint. Für einen ersten Entwurf geeignet; kritische Leitungen mit einem Feldlöser oder den Impedanzdaten des Leiterplattenherstellers prüfen. Beispiel: 3 mm Leiterbahn auf 1,6 mm FR-4 (ε_r ≈ 4,3, 1 oz Kupfer) ergibt etwa 49,8 Ω. ε_r hängt vom Laminat und von der Frequenz ab: den Datenblattwert verwenden."
+  tags: [microstrip, pcb, impedance, transmission line, trace width, 50 ohm, ipc-2141, controlled impedance, rf, mikrostrip, leiterplatte, impedanz, wellenwiderstand, leiterbahnbreite, leitung, impedanzkontrolliert, hf]
+  source: "IPC-2141 (design guide for high-speed controlled impedance circuit boards), surface microstrip approximation Z0 = 87/√(εr+1.41)·ln(5.98h/(0.8w+t)), as commonly quoted for 0.1 < w/h < 2.0 and 1 < εr < 15"
+  vars:
+    er: {dim: number, label: ε_r, name: {en: "Relative permittivity", de: "Relative Permittivität"}, default: 4.3}
+    h: {dim: length, label: h, name: {en: "Dielectric thickness", de: "Dicke des Dielektrikums"}, default: "1.6 mm", units: ["", "mil", "in"]}
+    w: {dim: length, label: w, name: {en: "Trace width", de: "Leiterbahnbreite"}, default: "3 mm", units: ["", "mil", "in"]}
+    t: {dim: length, label: t, name: {en: "Copper thickness", de: "Kupferdicke"}, default: "1 oz", unit: oz, units: ["", "oz", "mil"]}
+    z0: {dim: resistance, label: Z_0, name: {en: "Characteristic impedance", de: "Wellenwiderstand"}}
+  dof: 4
+  rules:
+    z0: ["87/sqrt(er+1.41)*ln(5.98*h/(0.8*w+t))"]
+    er: ["(87*ln(5.98*h/(0.8*w+t))/z0)^2-1.41"]
+    h: ["(0.8*w+t)*exp(z0*sqrt(er+1.41)/87)/5.98"]
+    w: ["(5.98*h*exp(-z0*sqrt(er+1.41)/87)-t)/0.8"]
+    t: ["5.98*h*exp(-z0*sqrt(er+1.41)/87)-0.8*w"]
+  derived:
+    wh: {dim: number, label: w/h, name: {en: "Width-to-height ratio", de: "Verhältnis Breite zu Höhe"}, expr: "w/h"}
+  checks:
+    - {when: "wh < 0.1", warn: {en: "w/h is below 0.1: outside the range the IPC-2141 approximation is quoted for (0.1 to 2.0), expect a larger error.", de: "w/h liegt unter 0,1: außerhalb des Bereichs, für den die IPC-2141-Näherung angegeben wird (0,1 bis 2,0), ist mit einem größeren Fehler zu rechnen."}}
+    - {when: "wh > 2", warn: {en: "w/h is above 2.0: outside the range the IPC-2141 approximation is quoted for (0.1 to 2.0), expect a larger error.", de: "w/h liegt über 2,0: außerhalb des Bereichs, für den die IPC-2141-Näherung angegeben wird (0,1 bis 2,0), ist mit einem größeren Fehler zu rechnen."}}
+    - {when: "if(er < 1, 1, er > 15)", warn: {en: "ε_r is outside the range 1 to 15 the approximation is quoted for.", de: "ε_r liegt außerhalb des Bereichs 1 bis 15, für den die Näherung angegeben wird."}}
+  formula: ["z0 = 87 / sqrt(er + 1.41) * ln(5.98 * h / (0.8 * w + t))"]
+
+- id: coax_impedance
+  kind: calculator
+  category: rf
+  name: {cs: "Impedance koaxiálního kabelu", da: "Koaksialkablets impedans", de: "Wellenwiderstand eines Koaxialkabels", el: "Χαρακτηριστική αντίσταση ομοαξονικού καλωδίου", en: "Coaxial cable impedance", es: "Impedancia de un cable coaxial", fr: "Impédance d'un câble coaxial", hi: "समाक्षीय केबल की प्रतिबाधा", it: "Impedenza del cavo coassiale", ja: "同軸ケーブルの特性インピーダンス", nl: "Impedantie van een coaxkabel", no: "Koaksialkabelens impedans", pl: "Impedancja kabla koncentrycznego", pt: "Impedância de um cabo coaxial", sv: "Koaxialkabelns impedans", zh: "同轴电缆特性阻抗"}
+  doc:
+    en: "Characteristic impedance of a lossless coaxial line: Z_0 = (η_0 / 2π) / √ε_r × ln(D / d), with η_0 / 2π = 59.958 Ω (η_0 = μ_0·c ≈ 376.73 Ω), the inner diameter D of the shield, the diameter d of the inner conductor and the relative permittivity ε_r of the dielectric. This is the same as the familiar 138 / √ε_r × log10(D / d). The velocity factor is 1 / √ε_r. Example: solid polyethylene (ε_r = 2.25) with D / d = 3.5 gives about 50 Ω (VF 0.667). PTFE has ε_r ≈ 2.1."
+    de: "Wellenwiderstand einer verlustfreien Koaxialleitung: Z_0 = (η_0 / 2π) / √ε_r · ln(D / d), mit η_0 / 2π = 59,958 Ω (η_0 = μ_0·c ≈ 376,73 Ω), dem Innendurchmesser D des Außenleiters, dem Durchmesser d des Innenleiters und der relativen Permittivität ε_r des Dielektrikums. Das entspricht der bekannten Form 138 / √ε_r · log10(D / d). Der Verkürzungsfaktor ist 1 / √ε_r. Beispiel: Vollpolyethylen (ε_r = 2,25) mit D / d = 3,5 ergibt etwa 50 Ω (VF 0,667). PTFE hat ε_r ≈ 2,1."
+  tags: [coax, coaxial cable, impedance, characteristic impedance, dielectric, velocity factor, 50 ohm, 75 ohm, rg58, transmission line, rf, koaxkabel, koaxialkabel, wellenwiderstand, impedanz, dielektrikum, verkürzungsfaktor, leitung, hf]
+  source: "Lossless coaxial line Z0 = (η0/2π)·ln(D/d)/√εr with η0 = μ0·c ≈ 376.73 Ω; D. M. Pozar: Microwave Engineering, ch. 2 (transmission line theory)"
+  vars:
+    er: {dim: number, label: ε_r, name: {en: "Relative permittivity of the dielectric", de: "Relative Permittivität des Dielektrikums"}, default: 2.25}
+    dout: {dim: length, label: D, name: {en: "Inner diameter of the shield", de: "Innendurchmesser des Außenleiters"}, default: "3.5 mm", units: ["", "mil", "in"]}
+    din: {dim: length, label: d, name: {en: "Diameter of the inner conductor", de: "Durchmesser des Innenleiters"}, default: "1 mm", units: ["", "mil", "in", "AWG"]}
+    z0: {dim: resistance, label: Z_0, name: {en: "Characteristic impedance", de: "Wellenwiderstand"}}
+  dof: 3
+  rules:
+    z0: ["59.95849163/sqrt(er)*ln(dout/din)"]
+    er: ["(59.95849163*ln(dout/din)/z0)^2"]
+    dout: ["din*exp(z0*sqrt(er)/59.95849163)"]
+    din: ["dout/exp(z0*sqrt(er)/59.95849163)"]
+  derived:
+    vfac: {dim: number, label: VF, name: {en: "Velocity factor", de: "Verkürzungsfaktor"}, expr: "1/sqrt(er)"}
+  checks:
+    - {when: "din >= dout", warn: {en: "The inner conductor diameter d must be smaller than the inner diameter D of the shield.", de: "Der Durchmesser d des Innenleiters muss kleiner sein als der Innendurchmesser D des Außenleiters."}}
+  formula: ["z0 = 59.95849163 / sqrt(er) * ln(dout / din)", "vfac = 1 / sqrt(er)"]
+
+- id: swr_return_loss
+  kind: calculator
+  category: rf
+  name: {cs: "PSV a útlum odrazu", da: "SWR og returtab", de: "SWR und Rückflussdämpfung", el: "SWR και απώλεια επιστροφής", en: "SWR and return loss", es: "ROE y pérdida de retorno", fr: "ROS et perte de retour", hi: "एसडब्ल्यूआर और रिटर्न लॉस", it: "ROS e perdita di ritorno", ja: "VSWRとリターンロス", nl: "SWR en retourverlies", no: "SWR og returtap", pl: "WFS i tłumienie odbicia", pt: "ROE e perda de retorno", sv: "SWR och returförlust", zh: "驻波比与回波损耗"}
+  doc:
+    en: "A mismatch reflects part of the wave. With the magnitude of the reflection coefficient |Γ|: SWR = (1 + |Γ|) / (1 − |Γ|), return loss RL = −20 log10 |Γ| (larger means a better match) and mismatch loss = −10 log10 (1 − |Γ|²), the power lost to reflection. |Γ|² is the reflected fraction of the power. Enter any one of SWR, |Γ| or RL. Example: SWR 2:1 gives |Γ| = 0.333, RL = 9.54 dB, a mismatch loss of 0.51 dB and 11.1 % reflected power."
+    de: "Eine Fehlanpassung reflektiert einen Teil der Welle. Mit dem Betrag des Reflexionsfaktors |Γ| gilt: SWR = (1 + |Γ|) / (1 − |Γ|), Rückflussdämpfung RL = −20 log10 |Γ| (größer heißt besser angepasst) und Fehlanpassungsdämpfung = −10 log10 (1 − |Γ|²), die durch Reflexion verlorene Leistung. |Γ|² ist der reflektierte Anteil der Leistung. Eine der Größen SWR, |Γ| oder RL eingeben. Beispiel: SWR 2:1 ergibt |Γ| = 0,333, RL = 9,54 dB, eine Fehlanpassungsdämpfung von 0,51 dB und 11,1 % reflektierte Leistung."
+  tags: [swr, vswr, return loss, reflection coefficient, mismatch, mismatch loss, antenna, transmission line, reflected power, rf, stehwellenverhältnis, rückflussdämpfung, reflexionsfaktor, fehlanpassung, fehlanpassungsdämpfung, antenne, reflektierte leistung, hf]
+  source: "Reflection coefficient Γ, standing wave ratio, return loss and mismatch loss (definitions); D. M. Pozar: Microwave Engineering, ch. 2 (transmission line theory)"
+  vars:
+    swr: {dim: number, label: SWR, name: {en: "Standing wave ratio", de: "Stehwellenverhältnis"}, default: 2}
+    gamma: {dim: ratio, label: "|Γ|", name: {en: "Reflection coefficient |Γ|", de: "Reflexionsfaktor |Γ|"}}
+    rl: {dim: gain, label: RL, name: {en: "Return loss", de: "Rückflussdämpfung"}}
+  dof: 1
+  rules:
+    swr: ["(1+gamma)/(1-gamma)"]
+    gamma: ["(swr-1)/(swr+1)", "10^(-rl/20)"]
+    rl: ["-20*log10(gamma)"]
+  derived:
+    prefl: {dim: ratio, label: "|Γ|²", name: {en: "Reflected power", de: "Reflektierte Leistung"}, expr: "gamma^2", unit: pct}
+    ml: {dim: gain, label: ML, name: {en: "Mismatch loss", de: "Fehlanpassungsdämpfung"}, expr: "-10*log10(1-gamma^2)"}
+  checks:
+    - {when: "swr < 1", warn: {en: "An SWR below 1 is not possible: the SWR is at least 1 (a perfect match).", de: "Ein SWR unter 1 ist nicht möglich: Das SWR beträgt mindestens 1 (perfekte Anpassung)."}}
+    - {when: "gamma > 1", warn: {en: "|Γ| above 1 is not possible for a passive load: it cannot reflect more than it receives.", de: "|Γ| über 1 ist bei einer passiven Last nicht möglich: Sie kann nicht mehr reflektieren, als sie erhält."}}
+  formula: ["swr = (1 + gamma) / (1 - gamma)", "rl = -20 * log10(gamma)", "ml = -10 * log10(1 - gamma^2)"]
+
+- id: rf_power_levels
+  kind: calculator
+  category: rf
+  name: {cs: "Výkon a napětí v RF (dBm, dBµV)", da: "RF-effekt og -spænding (dBm, dBµV)", de: "HF-Leistung und -Spannung (dBm, dBµV)", el: "Ισχύς και τάση RF (dBm, dBµV)", en: "RF power and voltage (dBm, dBµV)", es: "Potencia y tensión de RF (dBm, dBµV)", fr: "Puissance et tension RF (dBm, dBµV)", hi: "आरएफ शक्ति और वोल्टेज (dBm, dBµV)", it: "Potenza e tensione RF (dBm, dBµV)", ja: "RF電力と電圧（dBm、dBµV）", nl: "RF-vermogen en -spanning (dBm, dBµV)", no: "RF-effekt og -spenning (dBm, dBµV)", pl: "Moc i napięcie RF (dBm, dBµV)", pt: "Potência e tensão de RF (dBm, dBµV)", sv: "RF-effekt och -spänning (dBm, dBµV)", zh: "射频功率与电压（dBm、dBµV）"}
+  doc:
+    en: "Converts between power, voltage and the logarithmic RF levels of a sine wave across a resistance R (usually 50 Ω): P = V_rms² / R and V_pp = 2√2 × V_rms. dBm is relative to 1 mW (10 log10 (P / 1 mW)), dBµV to 1 µV (20 log10 (V / 1 µV)); across 50 Ω dBµV = dBm + 107. Enter two of P, R, V_rms and V_pp (V_rms and V_pp alone are not enough). To enter a level in dBm choose dBm in the unit menu of the power field. Example: 0 dBm (1 mW) into 50 Ω is 223.6 mV rms, 632.5 mV peak to peak and 107 dBµV."
+    de: "Rechnet für eine Sinusspannung an einem Widerstand R (meist 50 Ω) zwischen Leistung, Spannung und den logarithmischen HF-Pegeln um: P = V_eff² / R und V_ss = 2√2 · V_eff. dBm bezieht sich auf 1 mW (10 log10 (P / 1 mW)), dBµV auf 1 µV (20 log10 (V / 1 µV)); an 50 Ω gilt dBµV = dBm + 107. Zwei der Größen P, R, V_eff und V_ss eingeben (V_eff und V_ss allein reichen nicht). Einen Pegel in dBm gibt man über das Einheitenmenü des Leistungsfelds ein. Beispiel: 0 dBm (1 mW) an 50 Ω sind 223,6 mV effektiv, 632,5 mV Spitze-Spitze und 107 dBµV."
+  tags: [dbm, dbuv, dbµv, rf power, level, 50 ohm, milliwatt, microvolt, peak to peak, rms, signal level, rf, hf-leistung, pegel, effektivwert, spitze-spitze, signalpegel, hf]
+  source: "Definitions: dBm = 10·log10(P / 1 mW), dBµV = 20·log10(V / 1 µV), P = V_rms²/R and V_pp = 2√2·V_rms for a sine wave; decibel per IEC 60027-3"
+  vars:
+    p: {dim: power, label: P, name: {en: "Power", de: "Leistung"}, default: "1 mW", units: ["", "dBm"]}
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "50"}
+    vrms: {dim: voltage, label: V_rms, name: {en: "RMS voltage", de: "Effektivspannung"}, units: ["", "dBuV"]}
+    vpp: {dim: voltage, label: V_pp, name: {en: "Peak-to-peak voltage", de: "Spitze-Spitze-Spannung"}, units: [""]}
+  dof: 2
+  rules:
+    p: ["vrms^2/r"]
+    r: ["vrms^2/p"]
+    vrms: ["sqrt(p*r)", "vpp/(2*sqrt(2))"]
+    vpp: ["2*sqrt(2)*vrms"]
+  derived:
+    p_dbm: {dim: power, label: P_dBm, name: {en: "Power level", de: "Leistungspegel"}, expr: "p", unit: dBm}
+    v_dbuv: {dim: voltage, label: V_dBµV, name: {en: "Voltage level re 1 µV", de: "Spannungspegel bezogen auf 1 µV"}, expr: "vrms", unit: dBuV}
+  formula: ["p = vrms^2 / r", "vpp = 2 * sqrt(2) * vrms"]
+
+- id: fspl
+  kind: calculator
+  category: rf
+  name: {cs: "Útlum volným prostorem", da: "Dæmpning i frit rum", de: "Freiraumdämpfung", el: "Απώλεια διαδρομής ελεύθερου χώρου", en: "Free-space path loss", es: "Pérdida en el espacio libre", fr: "Affaiblissement en espace libre", hi: "मुक्त-स्थान पथ हानि", it: "Attenuazione nello spazio libero", ja: "自由空間伝搬損失", nl: "Vrije-ruimteverlies", no: "Demping i fritt rom", pl: "Tłumienie w wolnej przestrzeni", pt: "Perda no espaço livre", sv: "Frirymdsdämpning", zh: "自由空间路径损耗"}
+  doc:
+    en: "Free-space path loss between two isotropic antennas in the far field: FSPL = 20 log10 (4π d f / c) in dB, with the distance d, the frequency f and c = 299 792 458 m/s. Each doubling of the distance or the frequency adds 6.02 dB. It is the loss of the path alone, without antenna gains, cable loss or obstacles. Example: 1 km at 2.4 GHz gives 100.05 dB. The formula holds in the far field only (d much larger than λ); for d < λ / (4π) it would turn negative."
+    de: "Freiraumdämpfung zwischen zwei isotropen Antennen im Fernfeld: FSPL = 20 log10 (4π d f / c) in dB mit dem Abstand d, der Frequenz f und c = 299 792 458 m/s. Jede Verdopplung von Abstand oder Frequenz fügt 6,02 dB hinzu. Es ist nur die Dämpfung der Strecke, ohne Antennengewinne, Kabeldämpfung oder Hindernisse. Beispiel: 1 km bei 2,4 GHz ergeben 100,05 dB. Die Formel gilt nur im Fernfeld (d deutlich größer als λ); für d < λ / (4π) würde die Dämpfung negativ."
+  tags: [fspl, free space path loss, path loss, friis, link budget, attenuation, distance, wireless, radio, rf, freiraumdämpfung, streckendämpfung, funkfeld, dämpfung, entfernung, funk, hf]
+  source: "Friis free-space transmission formula (H. T. Friis, 1946), FSPL = (4πdf/c)²; ITU-R Recommendation P.525 (calculation of free-space attenuation)"
+  vars:
+    d: {dim: length, label: d, name: {en: "Distance", de: "Abstand"}, default: "1 km", units: ["", "ft"]}
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "2.4 GHz"}
+    loss: {dim: gain, label: FSPL, name: {en: "Free-space path loss", de: "Freiraumdämpfung"}}
+  dof: 2
+  rules:
+    loss: ["20*log10(4*pi*d*f/299792458)"]
+    d: ["299792458/(4*pi*f)*10^(loss/20)"]
+    f: ["299792458/(4*pi*d)*10^(loss/20)"]
+  derived:
+    wl: {dim: length, label: λ, name: {en: "Wavelength", de: "Wellenlänge"}, expr: "299792458/f", units: ["", "ft", "in"]}
+  checks:
+    - {when: "loss < 0", warn: {en: "A negative loss: the distance is shorter than λ / (4π), far outside the far-field range of the formula.", de: "Negative Dämpfung: Der Abstand ist kürzer als λ / (4π), weit außerhalb des Fernfeldbereichs der Formel."}}
+  formula: ["loss = 20 * log10(4 * pi * d * f / 299792458)"]
+
+- id: skin_depth
+  kind: calculator
+  category: rf
+  name: {cs: "Hloubka vniku (skinefekt)", da: "Skindybde", de: "Skin-Tiefe (Eindringtiefe)", el: "Βάθος διείσδυσης (επιδερμικό φαινόμενο)", en: "Skin depth", es: "Profundidad de penetración (efecto pelicular)", fr: "Épaisseur de peau", hi: "त्वचा गहराई (स्किन डेप्थ)", it: "Profondità di penetrazione (effetto pelle)", ja: "表皮深さ", nl: "Skindiepte", no: "Skinndybde", pl: "Głębokość wnikania (efekt naskórkowy)", pt: "Profundidade pelicular", sv: "Skinndjup", zh: "趋肤深度"}
+  doc:
+    en: "The skin depth δ = √(ρ / (π f μ_0 μ_r)) is the depth at which the current density of an alternating current in a good conductor has fallen to 1/e (about 37 %) of its surface value. Most of the current flows within a few δ of the surface, which raises the AC resistance of thick wires; R_s = ρ / δ is the surface resistance per square. Copper, silver, gold and aluminium are non-magnetic (μ_r = 1). The resistivities are values for 20 °C and change by about 0.4 % per kelvin; real wire and plating differ from the pure metal. Example: copper at 1 MHz has δ = 66.1 µm."
+    de: "Die Skin-Tiefe δ = √(ρ / (π f μ_0 μ_r)) ist die Tiefe, in der die Stromdichte eines Wechselstroms in einem guten Leiter auf 1/e (etwa 37 %) ihres Wertes an der Oberfläche gefallen ist. Der meiste Strom fließt innerhalb weniger δ unter der Oberfläche, was den Wechselstromwiderstand dicker Drähte erhöht; R_s = ρ / δ ist der Oberflächenwiderstand pro Quadrat. Kupfer, Silber, Gold und Aluminium sind nicht magnetisch (μ_r = 1). Die spezifischen Widerstände gelten für 20 °C und ändern sich um etwa 0,4 % pro Kelvin; echter Draht und Beschichtungen weichen vom reinen Metall ab. Beispiel: Kupfer bei 1 MHz hat δ = 66,1 µm."
+  tags: [skin depth, skin effect, penetration depth, conductor, copper, ac resistance, surface resistance, rf, skin-tiefe, skineffekt, eindringtiefe, leiter, kupfer, wechselstromwiderstand, oberflächenwiderstand, hf]
+  source: "Skin depth δ = √(ρ/(π f μ0 μr)) in a good conductor (D. M. Pozar: Microwave Engineering, ch. 1) with μ0 = 4π·10^-7 H/m; resistivity at 20 °C: copper 1.7241e-8 Ω·m (annealed copper standard, 58 MS/m, IEC 60028), silver 1.587e-8, gold 2.214e-8 and aluminium 2.65e-8 Ω·m (pure-metal handbook values, e.g. CRC Handbook of Chemistry and Physics)"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1 MHz"}
+    delta: {dim: length, label: δ, name: {en: "Skin depth", de: "Skin-Tiefe"}, units: ["", "mil", "in"]}
+  choices:
+    material:
+      name: {cs: "Materiál", da: "Materiale", de: "Material", el: "Υλικό", en: "Material", es: "Material", fr: "Matériau", hi: "सामग्री", it: "Materiale", ja: "材料", nl: "Materiaal", no: "Materiale", pl: "Materiał", pt: "Material", sv: "Material", zh: "材料"}
+      default: copper
+      options:
+        copper:
+          name: {cs: "Měď", da: "Kobber", de: "Kupfer", el: "Χαλκός", en: "Copper", es: "Cobre", fr: "Cuivre", hi: "तांबा", it: "Rame", ja: "銅", nl: "Koper", no: "Kobber", pl: "Miedź", pt: "Cobre", sv: "Koppar", zh: "铜"}
+          consts: {rho: 1.7241e-8}
+        silver:
+          name: {cs: "Stříbro", da: "Sølv", de: "Silber", el: "Άργυρος", en: "Silver", es: "Plata", fr: "Argent", hi: "चांदी", it: "Argento", ja: "銀", nl: "Zilver", no: "Sølv", pl: "Srebro", pt: "Prata", sv: "Silver", zh: "银"}
+          consts: {rho: 1.587e-8}
+        gold:
+          name: {cs: "Zlato", da: "Guld", de: "Gold", el: "Χρυσός", en: "Gold", es: "Oro", fr: "Or", hi: "सोना", it: "Oro", ja: "金", nl: "Goud", no: "Gull", pl: "Złoto", pt: "Ouro", sv: "Guld", zh: "金"}
+          consts: {rho: 2.214e-8}
+        aluminium:
+          name: {cs: "Hliník", da: "Aluminium", de: "Aluminium", el: "Αλουμίνιο", en: "Aluminium", es: "Aluminio", fr: "Aluminium", hi: "एल्युमिनियम", it: "Alluminio", ja: "アルミニウム", nl: "Aluminium", no: "Aluminium", pl: "Aluminium", pt: "Alumínio", sv: "Aluminium", zh: "铝"}
+          consts: {rho: 2.65e-8}
+  dof: 1
+  rules:
+    delta: ["sqrt(rho/(pi*f*4*pi*1e-7))"]
+    f: ["rho/(pi*delta^2*4*pi*1e-7)"]
+  derived:
+    rs: {dim: resistance, label: R_s, name: {en: "Surface resistance per square", de: "Oberflächenwiderstand pro Quadrat"}, expr: "rho/delta"}
+  formula: ["delta = sqrt(rho / (pi * f * 4 * pi * 1e-7))", "rs = rho / delta"]

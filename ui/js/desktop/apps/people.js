@@ -78,6 +78,7 @@
                 </div>
             </div>
             <div class="vd-people-body">
+                <div class="vd-people-browse">
                 <aside class="vd-people-sidebar">
                     <div class="vd-people-sidebar-section">
                         <button class="vd-people-sidebar-item active" data-filter="all" type="button">${esc(t(context, 'desktop.people_all'))}</button>
@@ -95,6 +96,7 @@
                 <main class="vd-people-content">
                     <div class="vd-people-loading">${esc(t(context, 'desktop.loading'))}</div>
                 </main>
+                </div>
                 <aside class="vd-people-detail" hidden></aside>
             </div>
             <div class="vd-people-modal-backdrop">

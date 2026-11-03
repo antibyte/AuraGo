@@ -23,6 +23,7 @@ var independentParams = []string{
 	"notify.email.body", "notify.email.subject",
 	"notify.push.message", "notify.push.title",
 	"notify.telegram.message", "notify.telegram.title",
+	"notify.whatsapp.message",
 	"planner.appointment_add.description", "planner.todo_add.description",
 }
 
@@ -71,7 +72,7 @@ func TestOutputIndependentParamsAreNotInTheOutput(t *testing.T) {
 	const marker = "MARKER-7f3a91"
 	bases := map[string]map[string]any{
 		TypePDFCreate: {"content": "c"}, TypeFileWrite: {"path": "out.txt"},
-		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
+		TypeTelegram: {"message": "m"}, TypeWhatsApp: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
 		TypeMQTTPublish: homeBases[TypeMQTTPublish], TypeAppointmentAdd: homeBases[TypeAppointmentAdd], TypeTodoAdd: homeBases[TypeTodoAdd],
 	}
 	answers := func(req ToolRequest) (ToolResponse, error) {
@@ -194,6 +195,7 @@ func TestLintOutputIndependentParams(t *testing.T) {
 		out    string
 	}{
 		{TypeTelegram, map[string]any{"message": untrusted, "title": untrusted}, "{{n.sent}}"},
+		{TypeWhatsApp, map[string]any{"message": untrusted}, "{{n.sent}}"},
 		{TypePush, map[string]any{"message": untrusted, "title": untrusted}, "{{n.results}}"},
 		{TypeDiscord, map[string]any{"message": untrusted}, "{{n.sent}}"},
 		{TypeEmail, map[string]any{"to": "a@b.de", "subject": untrusted, "body": untrusted}, "{{n.to}}"},

@@ -416,6 +416,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	manifest := s.runCfg.Manifest
 	budgetTracker := s.runCfg.BudgetTracker
 	sessionID := s.runCfg.SessionID
+	budgetCategory := "chat"
+	if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+		budgetCategory = "coagent"
+	}
 	isAutonomousRun := isAutonomousAgentRun(runCfg, sessionID)
 	sideEffects := sideEffectsFromRunConfig(runCfg)
 
@@ -447,11 +451,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if model == "" {
 				model = request.Model
 			}
-			category := "chat"
-			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-				category = "coagent"
-			}
-			budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, prompt, completion, shouldAccount)
+			budgetTracker.RecordResponseUsage(budgetCategory, telemetryScope.ProviderType, model, responseCapture, prompt, completion, shouldAccount)
 		}
 		if !shouldAccount {
 			return response, nil
@@ -1944,10 +1944,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Debug("[Temperature] Modulation applied", "base", baseTemp, "personality_delta", tempDelta, "creative_delta", creativeDelta, "effective", effectiveTemp)
 		}
 
-		// Budget check: block if daily budget exceeded and enforcement = full
-		if budgetTracker != nil && budgetTracker.IsBlocked("chat") {
+		if budgetTracker != nil && budgetTracker.IsBlocked(budgetCategory) {
 			broker.Send("budget_blocked", i18n.T(cfg.Server.UILanguage, "backend.stream_budget_blocked"))
-			return openai.ChatCompletionResponse{}, fmt.Errorf("budget exceeded (enforcement=full)")
+			return openai.ChatCompletionResponse{}, fmt.Errorf("budget exceeded (category=%s, enforcement=%s)", budgetCategory, cfg.Budget.Enforcement)
 		}
 
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
@@ -2005,15 +2004,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count, runCfg.RequireCompleteStream)
 			observeUsage(result.resp, result.err)
 			if (result.err != nil || result.recoveryContinue) && budgetTracker != nil {
-				category := "chat"
-				if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-					category = "coagent"
-				}
 				model := result.resp.Model
 				if model == "" {
 					model = req.Model
 				}
-				budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, result.promptTokens, result.completionTokens, result.totalTokens > 0)
+				budgetTracker.RecordResponseUsage(budgetCategory, telemetryScope.ProviderType, model, responseCapture, result.promptTokens, result.completionTokens, result.totalTokens > 0)
 			}
 			if result.recoveryContinue {
 				currentUserIndex = genuineUserIndexByOccurrence(result.recoveredMessages, genuineUserOccurrence(req.Messages, currentUserIndex))
@@ -2141,11 +2136,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if model == "" {
 				model = req.Model
 			}
-			category := "chat"
-			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-				category = "coagent"
-			}
-			budgetWarning = budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, promptTokens, completionTokens, shouldAccount)
+			budgetWarning = budgetTracker.RecordResponseUsage(budgetCategory, telemetryScope.ProviderType, model, responseCapture, promptTokens, completionTokens, shouldAccount)
 		}
 		if shouldAccount && runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 			measured := resp.Usage

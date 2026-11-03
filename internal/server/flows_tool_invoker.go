@@ -43,11 +43,12 @@ import (
 //     own log lines go through flowLogHandler (bounded values, no URL query, no headers or
 //     bodies). The secrets a call reads (bot tokens, the ntfy topic, passwords, keys) are
 //     registered with the output scrubber before it runs and redacted from its output.
-//   - send_telegram with a file: when the text went out as a message of its own and the
-//     document then failed ("text_sent": true), the call is denied, which the engine does
-//     not retry, and a later attempt of the same node in the same run is refused without a
-//     dispatch. The engine retries a node whose attempt timed out whatever the code says,
-//     so the memory is what keeps the text from being sent twice.
+//   - send_telegram and send_whatsapp with a file: when the text went out as a message of its
+//     own and the document or the rest then failed ("text_sent": true), the call is denied,
+//     which the engine does not retry, and a later attempt of the same node in the same run
+//     is refused without a dispatch (flowTextSentRefusals). The engine retries a node whose
+//     attempt timed out whatever the code says, so the memory is what keeps the text from
+//     being sent twice.
 //   - Documents: a file.read or doc.pdf_read of a documents-folder path (what doc.pdf_create
 //     returns) reads a scratch copy in the workspace, made through the attachment jail
 //     (bridgeDocument, flows_tool_invoker_documents.go).
@@ -68,8 +69,8 @@ type flowToolInvoker struct {
 	names    func(cfg *config.Config) map[string]bool
 	dispatch func(ctx context.Context, tc *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult
 
-	// sentMu guards textSent: the run and node of each send_telegram whose text went out
-	// while its document failed (see InvokeTool).
+	// sentMu guards textSent: the run and node of each send_telegram or send_whatsapp whose
+	// text went out while its document or the rest failed (see InvokeTool).
 	sentMu   sync.Mutex
 	textSent map[string]time.Time
 }
@@ -177,6 +178,16 @@ func flowHAServiceRefusal(cfg *config.Config, tc agent.ToolCall) string {
 		domain + " domain run only when home_assistant.allowed_services lists them"
 }
 
+// flowTextSentRefusals are the tools whose failed answer can say the text already went out
+// ("text_sent": true; tools.SendTelegramFile and tools.SendWhatsAppMessage), with the refusal a
+// later attempt of the same run and node gets.
+var flowTextSentRefusals = map[string]string{
+	"send_telegram": "the text of this Telegram message went out in an earlier attempt of the node " +
+		"and its document failed; the node is not tried again, so the text is not sent twice",
+	"send_whatsapp": "the text of this WhatsApp message went out in an earlier attempt of the node " +
+		"and the rest failed; the node is not tried again, so the text is not sent twice",
+}
+
 // InvokeTool implements flows.ToolInvoker. Every call is checked against the node's allow
 // list and the configured agent tools before it reaches the dispatcher.
 func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest) (flows.ToolResponse, error) {
@@ -198,11 +209,10 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 		return flows.ToolResponse{}, err
 	}
 	sentKey := ""
-	if req.Tool == "send_telegram" {
+	if refusal, guarded := flowTextSentRefusals[req.Tool]; guarded {
 		sentKey = flowTextSentKey(req)
 		if i.textAlreadySent(sentKey) {
-			return flowToolRefusal(agent.ToolResultDenied, "the text of this Telegram message went out in an earlier attempt of the node "+
-				"and its document failed; the node is not tried again, so the text is not sent twice"), nil
+			return flowToolRefusal(agent.ToolResultDenied, refusal), nil
 		}
 	}
 	action, skill := flowToolRoute(req.Tool)

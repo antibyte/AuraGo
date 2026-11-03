@@ -17,6 +17,7 @@ Run a shell command with root privileges via `sudo`. The sudo password is stored
 
 ### Behavior
 
+- The current run and live server must both grant shell and host-execution rights. Cancellation reaches sudo authentication and the foreground process tree; the configured timeout still applies.
 - Reads `sudo_password` from the vault automatically — you do **not** need to fetch it yourself.
 - The password only ever reaches `sudo -v`, which checks it and runs no command. The command itself then runs with `sudo -n` and a closed stdin, so it can never read the password.
 - Prerequisite: sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user. Without either, `sudo -n` refuses the command before it runs and the tool returns an error saying timestamp caching is disabled.
@@ -58,6 +59,7 @@ Never attempt to run sudo via `execute_python` (e.g. `subprocess.run(['sudo', ..
 
 ### Prerequisites
 
+- The effective shell grant (agent.allow_shell) and the existing host-execution acknowledgement must allow this run.
 - `agent.sudo_enabled: true` in config
 - `sudo_password` stored in the vault (store via `secrets_vault` → `store` operation)
 - The `aurago` user must have sudo rights on the host system

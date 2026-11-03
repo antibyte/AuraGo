@@ -21,7 +21,7 @@ func TestDashboardKnowledgeGraphVisualBrowserSmoke(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
 
 	widgets := normalizeAssetText(mustReadUIFile(t, "js/dashboard/widgets-knowledge.js"))
@@ -88,7 +88,7 @@ window.KnowledgeGraphState = {
 	l := launcher.New().Context(ctx).Bin(bin).Headless(true).NoSandbox(true).Set("enable-unsafe-swiftshader")
 	url, err := l.Launch()
 	if err != nil {
-		t.Skipf("headless browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
 	}
 	defer func() { l.Kill(); l.Cleanup() }()
 	b := rod.New().Context(ctx).ControlURL(url).MustConnect()

@@ -22,7 +22,7 @@
   "config.whatsapp.relink_confirm": "Zařízení už je propojené. Zrušit propojení a propojit znovu?",
   "config.whatsapp.unlink_confirm": "Odpojit AuraGo od tohoto účtu WhatsApp?",
   "config.whatsapp.unlinked_local": "Odstraněno zde. Odstraňte AuraGo také v telefonu v části Propojená zařízení.",
-  "config.whatsapp.test_sent": "Zkušební zpráva odeslána. Podívejte se do WhatsAppu v telefonu.",
+  "config.whatsapp.test_sent": "Testovací zpráva odeslána. Podívejte se do WhatsAppu v telefonu.",
   "config.whatsapp.link_success": "Propojeno. AuraGo se připojuje…",
   "config.whatsapp.link_timeout": "Platnost kódu vypršela. Začněte znovu.",
   "config.whatsapp.save_first": "Nejprve uložte změny.",
@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Zapněte WhatsApp, pro vlastní číslo AuraGo zadejte číslo vlastníka a uložte.",
   "config.whatsapp.err_invalid_phone": "Zadejte číslo v mezinárodním formátu, např. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp není připojen.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Toto číslo vlastníka není registrováno na WhatsAppu. Zkontrolujte číslo v nastavení.",
   "config.whatsapp.err_rate_limited": "Před další testovací zprávou počkejte minutu.",
   "config.whatsapp.err_failed": "WhatsApp neodpověděl. Zkuste to znovu.",
   "config.whatsapp.err_passkey_unsupported": "Telefon požaduje propojení přes passkey, které AuraGo zatím nepodporuje. Použijte QR kód.",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "Vlastní číslo pro AuraGo: AuraGo má vlastní číslo (doporučeno). Moje číslo: AuraGo dostává jen váš chat sám se sebou.",
   "help.whatsapp.owner_numbers": "V mezinárodním formátu, oddělená čárkami. AuraGo odpovídá jen těmto číslům.",
   "help.whatsapp.readonly": "Odpovědi vám fungují dál; agent nemůže posílat zprávy sám od sebe.",
-  "help.whatsapp.send_read_receipts": "Jen s vlastním číslem pro AuraGo."
+  "help.whatsapp.send_read_receipts": "Jen s vlastním číslem pro AuraGo.",
+  "help.whatsapp.self_chat_prefix": "Jen v režimu chatu sám se sebou. AuraGo začíná své zprávy touto předponou (nejvýše 16 znaků). Poznámky pro sebe, které touto předponou začínají, se ignorují, takže AuraGo nikdy neodpoví na vlastní ozvěnu."
 }

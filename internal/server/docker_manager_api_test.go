@@ -46,6 +46,15 @@ func TestDockerManagerEngineFailureMapping(t *testing.T) {
 	}
 }
 
+func TestDockerManagerJSONBodyLimitReturns413(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/docker-manager/hosts", strings.NewReader(`{"payload":"`+strings.Repeat("x", dmMaxBody)+`"}`))
+	var body map[string]any
+	if (&dmRequest{w: rec, r: req}).decode(&body) || rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestDockerManagerWithoutRegistryAnswers503(t *testing.T) {
 	s := testContainerServer(true, false) // no initDockerHosts: the store could not be opened
 	rec := httptest.NewRecorder()

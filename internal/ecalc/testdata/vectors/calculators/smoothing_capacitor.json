@@ -1,0 +1,18 @@
+{
+  "calc": "smoothing_capacitor",
+  "sets": [
+    {"choices": {"rect": "full"}, "values": {"i": 1, "f": 50, "dv": 1, "c": 0.01, "fr": 100}, "ref": "hand: C = I / (m * f * dV) = 1 / (2 * 50 * 1) = 0.01 F (10 mF); f_r = 2 * 50 = 100 Hz"},
+    {"choices": {"rect": "full"}, "values": {"i": 0.5, "f": 60, "dv": 0.5, "c": 0.008333333333333333, "fr": 120}, "ref": "hand: C = 0.5 / (2 * 60 * 0.5) = 0.5 / 60 = 8.3333 mF; f_r = 120 Hz"},
+    {"choices": {"rect": "half"}, "values": {"i": 1, "f": 50, "dv": 1, "c": 0.02, "fr": 50}, "ref": "hand: C = 1 / (1 * 50 * 1) = 0.02 F (20 mF); f_r = 50 Hz"},
+    {"choices": {"rect": "half"}, "values": {"i": 0.2, "f": 60, "dv": 2, "c": 0.0016666666666666668, "fr": 60}, "ref": "hand: C = 0.2 / (1 * 60 * 2) = 0.2 / 120 = 1.6667 mF; f_r = 60 Hz"}
+  ],
+  "solve": [
+    {"inputs": {"i": 1, "f": 50, "dv": 1}, "expect": {"c": 0.01, "fr": 100}, "ref": "hand: the default option is full-wave, C = 1 / (2 * 50 * 1) = 10 mF"},
+    {"inputs": {"i": 1, "f": 50, "dv": 1}, "choices": {"rect": "half"}, "expect": {"c": 0.02, "fr": 50}, "ref": "hand: half-wave, C = 1 / (1 * 50 * 1) = 20 mF"},
+    {"inputs": {"c": 0.01, "f": 50, "dv": 1}, "expect": {"i": 1}, "ref": "hand: full-wave, I = C * m * f * dV = 0.01 * 2 * 50 * 1 = 1 A"},
+    {"inputs": {"i": 1, "c": 0.01, "dv": 2}, "expect": {"f": 25}, "ref": "hand: full-wave, f = I / (m * C * dV) = 1 / (2 * 0.01 * 2) = 25 Hz"},
+    {"inputs": {"i": 1, "f": 50, "c": 0.0047}, "expect": {"dv": 2.127659574468085}, "ref": "hand (independent script): full-wave, dV = I / (m * f * C) = 1 / (2 * 50 * 0.0047) = 2.127659574 V"},
+    {"inputs": {"c": 0.02, "i": 1, "dv": 1}, "choices": {"rect": "half"}, "expect": {"f": 50}, "ref": "hand: half-wave, f = 1 / (1 * 0.02 * 1) = 50 Hz"},
+    {"inputs": {"i": 1, "f": 50, "dv": 0}, "expect": {"fr": 100}, "errors": {"c": "nonfinite"}, "ref": "hand: a ripple of 0 V needs an infinite capacitance, C = 1 / (2 * 50 * 0) = infinity"}
+  ]
+}

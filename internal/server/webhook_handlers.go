@@ -54,8 +54,8 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 			Scopes    []string `json:"scopes"`
 			ExpiresAt *string  `json:"expires_at,omitempty"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if req.Name == "" {
@@ -122,8 +122,8 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 			Name    string `json:"name"`
 			Enabled bool   `json:"enabled"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if err := tm.Update(id, req.Name, req.Enabled); err != nil {

@@ -12,7 +12,7 @@ func appendMeshCoreNotice(cfg *RunConfig) func() {
 		return noop
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.MessageSource)) {
-	case "web_chat", "telegram", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
+	case "web_chat", "telegram", "whatsapp", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
 	default:
 		return noop
 	}

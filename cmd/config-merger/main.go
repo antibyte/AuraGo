@@ -413,9 +413,7 @@ func applyUpgradeGrandfathers(merged, user map[string]interface{}) bool {
 	for _, rule := range []func(merged, user map[string]interface{}) bool{
 		keepAuthDisabledWithoutValue,
 		grandfatherDockerHostAccess,
-		grandfatherUnsandboxedShell,
 		grandfatherWebScraperAndWebhookLimit,
-		grandfatherUnauthenticatedMQTTRelay,
 		grandfatherUntrustedMQTTTransport,
 	} {
 		if rule(merged, user) {
@@ -440,28 +438,6 @@ func keepAuthDisabledWithoutValue(merged, user map[string]interface{}) bool {
 	authMap = maps.Clone(authMap)
 	authMap["enabled"] = false
 	merged["auth"] = authMap
-	return true
-}
-
-// grandfatherUnsandboxedShell: the non-Windows host shell without a sandbox
-// now needs agent.allow_unsandboxed_shell (or allow_unsafe_host_execution).
-// Materialise the key on every upgrade so a merged config never relies on the
-// load-time grandfather: true where the shell was already enabled (in any
-// yaml.v3 bool spelling, as Load reads allow_shell), false otherwise. A
-// written key, even null, is the owner's choice, as config.Load reads it.
-func grandfatherUnsandboxedShell(merged, user map[string]interface{}) bool {
-	userAgent, _ := asStringMap(user["agent"])
-	if _, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]; userSetUnsandboxed {
-		return false
-	}
-	agentMap, ok := asStringMap(merged["agent"])
-	if !ok {
-		return false
-	}
-	shellOn, _ := yamlBoolValue(userAgent["allow_shell"])
-	agentMap = maps.Clone(agentMap)
-	agentMap["allow_unsandboxed_shell"] = shellOn
-	merged["agent"] = agentMap
 	return true
 }
 
@@ -507,29 +483,6 @@ func grandfatherWebScraperAndWebhookLimit(merged, user map[string]interface{}) b
 		}
 	}
 	return changed
-}
-
-// grandfatherUnauthenticatedMQTTRelay: MQTT relays and MQTT-triggered missions
-// now need broker authentication or mqtt.allow_unauthenticated_relay; the
-// template ships false. A config without a value there (absent, null, or under
-// a null mqtt section) ran them on any broker, so materialise what config.Load
-// grandfathers: true for an enabled broker without username or client
-// certificate over TLS (mission triggers live in the mission store, so no
-// relay flag is needed), false otherwise. The mqtt_relay_no_auth security hint
-// reports true as critical.
-func grandfatherUnauthenticatedMQTTRelay(merged, user map[string]interface{}) bool {
-	userMQTT, _ := asStringMap(user["mqtt"])
-	if userMQTT["allow_unauthenticated_relay"] != nil {
-		return false
-	}
-	mqttMap, ok := asStringMap(merged["mqtt"])
-	if !ok {
-		return false
-	}
-	mqttMap = maps.Clone(mqttMap)
-	mqttMap["allow_unauthenticated_relay"] = mqttRanAnonymously(userMQTT)
-	merged["mqtt"] = mqttMap
-	return true
 }
 
 // grandfatherUntrustedMQTTTransport mirrors the config.Load grandfather for
@@ -588,30 +541,6 @@ func mqttTransportProbe(userMQTT map[string]interface{}) config.Config {
 		}
 	}
 	return probe
-}
-
-// mqttRanAnonymously mirrors the config.Load grandfather for
-// mqtt.allow_unauthenticated_relay: MQTT enabled (in any yaml.v3 bool
-// spelling) with neither a username nor a client certificate over TLS
-// (config.MQTTBrokerAuthenticated). Whether the certificate is presented
-// depends on mqtt.broker and mqtt.tls.enabled, so it asks
-// config.MQTTEffectiveTLS with exactly those values.
-func mqttRanAnonymously(userMQTT map[string]interface{}) bool {
-	if enabled, _ := yamlBoolValue(userMQTT["enabled"]); !enabled {
-		return false
-	}
-	if yamlStringSet(userMQTT["username"]) {
-		return false
-	}
-	userTLS, _ := asStringMap(userMQTT["tls"])
-	if !yamlStringSet(userTLS["cert_file"]) {
-		return true
-	}
-	var probe config.Config
-	probe.MQTT.Broker, _ = userMQTT["broker"].(string)
-	probe.MQTT.TLS.Enabled, _ = yamlBoolValue(userTLS["enabled"])
-	tlsOn, err := config.MQTTEffectiveTLS(&probe)
-	return err != nil || !tlsOn
 }
 
 // yamlStringSet reports whether a parsed user-config value reaches a string

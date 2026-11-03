@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "网页抓取",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "暂无条目。",
   "dashboard.journal_key_topics": "主题",
   "dashboard.journal_sentiment_trend": "情感趋势",

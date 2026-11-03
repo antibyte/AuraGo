@@ -117,7 +117,7 @@ func newTerminalBrowser(t *testing.T, scale string) *rod.Browser {
 	t.Helper()
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("headless browser smoke test requires Chrome or Edge")
+		browserSmokeUnavailable(t, "headless browser smoke test requires Chrome or Edge")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
@@ -131,7 +131,7 @@ func newTerminalBrowser(t *testing.T, scale string) *rod.Browser {
 		Set("force-device-scale-factor", scale).
 		Launch()
 	if err != nil {
-		t.Skipf("headless browser smoke test skipped; browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
 	}
 	browser := rod.New().ControlURL(u)
 	if err := browser.Connect(); err != nil {

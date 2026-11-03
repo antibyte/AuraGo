@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -102,12 +101,7 @@ func (dm *dmRequest) allow(methods ...string) bool {
 
 // decode reads a JSON body of at most dmMaxBody bytes.
 func (dm *dmRequest) decode(dst any) bool {
-	body := http.MaxBytesReader(dm.w, dm.r.Body, dmMaxBody)
-	if err := json.NewDecoder(body).Decode(dst); err != nil {
-		dmWriteError(dm.w, http.StatusBadRequest, dmCodeBadRequest, "the request body is not valid JSON", nil)
-		return false
-	}
-	return true
+	return dm.decodeSized(dst, dmMaxBody)
 }
 
 func (dm *dmRequest) notFound() {

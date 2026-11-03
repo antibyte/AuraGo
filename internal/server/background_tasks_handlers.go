@@ -51,8 +51,8 @@ func handleBackgroundTaskByID(s *Server) http.HandlerFunc {
 			var body struct {
 				Action string `json:"action"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				jsonError(w, "invalid JSON body", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &body, s); err != nil {
+				jsonError(w, "invalid JSON body", jsonDecodeStatus(err))
 				return
 			}
 			switch strings.ToLower(strings.TrimSpace(body.Action)) {

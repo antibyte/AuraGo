@@ -33,6 +33,8 @@ const truncate = (s, max) => (String(s || '').length > max ? String(s).slice(0, 
 const sandbox = { window: {}, document, console, t, esc, escAttr, truncate, LANG: 'en', setTimeout, clearTimeout, URLSearchParams, AbortController, DashSections: { register() {} } };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(path.join(dashboard, "../precision/icons.js"), "utf8"), sandbox);
+Object.assign(sandbox, sandbox.window);
 // main.js boots the page at load time (DOM, Chart.js), so only its two shared helpers are taken: function declarations
 // are hoisted, and a wrapper that returns them before the body never runs the body.
 const mainFile = path.join(dashboard, 'main.js');

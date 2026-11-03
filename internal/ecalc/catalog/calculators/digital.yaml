@@ -1,0 +1,182 @@
+# Digital calculators. Every name is written in all 16 desktop locales; docs, variable names and warnings in English and
+# German (other languages fall back to English). Rules are written out for every direction, in the order the solver
+# tries them: the first alternative whose variables are all known wins. Calculators without rules (ADC, UART) are
+# forward-only: all inputs, only derived outputs.
+
+- id: adc
+  kind: calculator
+  category: digital
+  name: {cs: "AD převodník (napětí → kód)", da: "AD-konverter (spænding → kode)", de: "ADC (Spannung → Code)", el: "ADC (τάση → κωδικός)", en: "ADC (voltage to code)", es: "ADC (tensión a código)", fr: "CAN (tension vers code)", hi: "ADC (वोल्टेज से कोड)", it: "ADC (tensione → codice)", ja: "ADC（電圧→コード）", nl: "ADC (spanning naar code)", no: "ADC (spenning til kode)", pl: "Przetwornik ADC (napięcie → kod)", pt: "ADC (tensão para código)", sv: "ADC (spänning till kod)", zh: "ADC（电压转数字码）"}
+  doc:
+    en: "An ideal N-bit analog-to-digital converter divides the reference range V_ref into 2^N steps of one LSB = V_ref / 2^N and outputs the code floor(V_in / LSB), limited to 0 … 2^N − 1 (straight binary, unipolar). The code is shown in decimal, hexadecimal and binary. Real converters add offset, gain and linearity errors, and some round to the nearest code instead of truncating; check the datasheet. Example: 12 bit with V_ref = 3.3 V has an LSB of 0.806 mV, and 1 V reads as code 1241 (0x4D9)."
+    de: "Ein idealer N-Bit-Analog-Digital-Wandler teilt den Referenzbereich V_ref in 2^N Stufen zu je einem LSB = V_ref / 2^N und liefert den Code floor(V_in / LSB), begrenzt auf 0 … 2^N − 1 (Straight-Binary, unipolar). Der Code wird dezimal, hexadezimal und binär angezeigt. Reale Wandler haben zusätzlich Offset-, Verstärkungs- und Linearitätsfehler, und manche runden auf den nächsten Code, statt abzuschneiden; das Datenblatt prüfen. Beispiel: 12 Bit mit V_ref = 3,3 V haben ein LSB von 0,806 mV, und 1 V ergibt den Code 1241 (0x4D9)."
+  tags: [adc, analog to digital, converter, resolution, lsb, bits, quantization, code, microcontroller, ad-wandler, analog-digital-wandler, auflösung, quantisierung, mikrocontroller]
+  source: "Ideal N-bit converter transfer function with LSB = V_ref/2^N (terminology of IEEE Std 1241 for analog-to-digital converters); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (A/D and D/A conversion)"
+  vars:
+    vref: {dim: voltage, label: V_ref, name: {en: "Reference voltage", de: "Referenzspannung"}, default: "3.3 V"}
+    bits: {dim: integer, label: N, name: {en: "Resolution in bits", de: "Auflösung in Bit"}, default: 12, unit: dec, units: ["dec"]}
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "1 V"}
+  dof: 3
+  derived:
+    lsb: {dim: voltage, label: LSB, name: {en: "LSB (step size)", de: "LSB (Schrittweite)"}, expr: "vref/2^bits"}
+    code: {dim: integer, label: Code, name: {en: "Code (decimal)", de: "Code (dezimal)"}, expr: "min(max(floor(vin/lsb),0),2^bits-1)", unit: dec}
+    code_hex: {dim: integer, label: Code_hex, name: {en: "Code (hexadecimal)", de: "Code (hexadezimal)"}, expr: "code", unit: hex}
+    code_bin: {dim: integer, label: Code_bin, name: {en: "Code (binary)", de: "Code (binär)"}, expr: "code", unit: bin}
+  checks:
+    - {when: "vin >= vref", warn: {en: "V_in is at or above V_ref: the code is clamped to full scale (2^N − 1).", de: "V_in liegt bei oder über V_ref: Der Code wird auf Vollausschlag (2^N − 1) begrenzt."}}
+    - {when: "vin < 0", warn: {en: "V_in is negative: a unipolar ADC reads code 0.", de: "V_in ist negativ: Ein unipolarer ADC liest den Code 0."}}
+    - {when: "bits < 1", warn: {en: "A resolution below 1 bit leaves a single code.", de: "Eine Auflösung unter 1 Bit lässt nur einen einzigen Code übrig."}}
+  formula: ["lsb = vref / 2^bits", "code = floor(vin / lsb)"]
+
+- id: dac
+  kind: calculator
+  category: digital
+  name: {cs: "DA převodník (kód → napětí)", da: "DA-konverter (kode → spænding)", de: "DAC (Code → Spannung)", el: "DAC (κωδικός → τάση)", en: "DAC (code to voltage)", es: "DAC (código a tensión)", fr: "CNA (code vers tension)", hi: "DAC (कोड से वोल्टेज)", it: "DAC (codice → tensione)", ja: "DAC（コード→電圧）", nl: "DAC (code naar spanning)", no: "DAC (kode til spenning)", pl: "Przetwornik DAC (kod → napięcie)", pt: "DAC (código para tensão)", sv: "DAC (kod till spänning)", zh: "DAC（数字码转电压）"}
+  doc:
+    en: "An ideal N-bit digital-to-analog converter outputs V_out = code × V_ref / 2^N for a code of 0 … 2^N − 1 (straight binary, unipolar). One LSB is V_ref / 2^N; the full-scale code gives V_ref − 1 LSB. From V_ref, N and a code the output voltage follows; from V_ref, N and a wanted V_out the nearest code is found (rounded, so the real output of that code differs slightly). The number of bits N must be entered, it cannot be computed. Real converters have offset, gain and linearity errors. Example: 12 bit, V_ref = 3.3 V and code 2048 give 1.65 V."
+    de: "Ein idealer N-Bit-Digital-Analog-Wandler liefert V_out = Code × V_ref / 2^N für einen Code von 0 … 2^N − 1 (Straight-Binary, unipolar). Ein LSB ist V_ref / 2^N; der Vollausschlag-Code ergibt V_ref − 1 LSB. Aus V_ref, N und einem Code folgt die Ausgangsspannung; aus V_ref, N und einer gewünschten V_out wird der nächstliegende Code gefunden (gerundet, die echte Ausgangsspannung dieses Codes weicht also etwas ab). Die Bitzahl N muss eingegeben werden, sie lässt sich nicht berechnen. Reale Wandler haben Offset-, Verstärkungs- und Linearitätsfehler. Beispiel: 12 Bit, V_ref = 3,3 V und Code 2048 ergeben 1,65 V."
+  tags: [dac, digital to analog, converter, resolution, lsb, bits, code, microcontroller, da-wandler, digital-analog-wandler, auflösung, mikrocontroller]
+  source: "Ideal N-bit converter transfer function V_out = code·V_ref/2^N; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (A/D and D/A conversion)"
+  vars:
+    vref: {dim: voltage, label: V_ref, name: {en: "Reference voltage", de: "Referenzspannung"}, default: "3.3 V"}
+    bits: {dim: integer, label: N, name: {en: "Resolution in bits", de: "Auflösung in Bit"}, default: 12, unit: dec, units: ["dec"]}
+    code: {dim: integer, label: Code, name: {en: "Code", de: "Code"}, default: 2048, unit: dec}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+  dof: 3
+  rules:
+    vout: ["code*vref/2^bits"]
+    code: ["round(vout*2^bits/vref)"]
+    vref: ["vout*2^bits/code"]
+  derived:
+    lsb: {dim: voltage, label: LSB, name: {en: "LSB (step size)", de: "LSB (Schrittweite)"}, expr: "vref/2^bits"}
+  checks:
+    - {when: "code >= 2^bits", warn: {en: "The code does not fit the resolution: the largest code is 2^N − 1.", de: "Der Code passt nicht zur Auflösung: Der größte Code ist 2^N − 1."}}
+  formula: ["vout = code * vref / 2^bits", "lsb = vref / 2^bits"]
+
+- id: i2c_pullup
+  kind: calculator
+  category: digital
+  name: {cs: "Pull-up rezistory sběrnice I²C", da: "I²C pull-up-modstande", de: "I²C-Pull-up-Widerstände", el: "Αντιστάσεις pull-up I²C", en: "I²C pull-up resistors", es: "Resistencias pull-up de I²C", fr: "Résistances de rappel (pull-up) I²C", hi: "I²C पुल-अप प्रतिरोधक", it: "Resistori di pull-up I²C", ja: "I²Cプルアップ抵抗", nl: "I²C-pull-upweerstanden", no: "I²C pull-up-motstander", pl: "Rezystory podciągające I²C", pt: "Resistências de pull-up I²C", sv: "I²C pull-up-motstånd", zh: "I²C上拉电阻"}
+  doc:
+    en: "The pull-up resistor of an I²C line must be small enough to pull the line up within the allowed rise time and large enough for the driver to sink the current: R_max = t_r / (0.8473 × C_b) from the 30 % to 70 % rise of an RC network, and R_min = (V_DD − V_OL) / I_OL. t_r is the maximum rise time of the mode: 1000 ns (standard-mode), 300 ns (fast-mode) and 120 ns (fast-mode plus). Pick a standard value between R_min and R_max (the nearest E-series values are shown). The drivers of standard and fast-mode sink 3 mA at V_OL = 0.4 V, fast-mode plus drivers 20 mA: enter the value of your driver. Example: 3.3 V, 100 pF, standard-mode and 3 mA give 967 Ω ≤ R ≤ 11.8 kΩ (4.7 kΩ is a common choice)."
+    de: "Der Pull-up-Widerstand einer I²C-Leitung muss klein genug sein, um die Leitung innerhalb der erlaubten Anstiegszeit hochzuziehen, und groß genug, dass der Treiber den Strom aufnehmen kann: R_max = t_r / (0,8473 · C_b) aus dem Anstieg eines RC-Glieds von 30 % auf 70 %, und R_min = (V_DD − V_OL) / I_OL. t_r ist die höchste zulässige Anstiegszeit des Modus: 1000 ns (Standard-Mode), 300 ns (Fast-Mode) und 120 ns (Fast-Mode Plus). Einen Normwert zwischen R_min und R_max wählen (die nächsten E-Reihen-Werte werden angezeigt). Die Treiber von Standard- und Fast-Mode nehmen bei V_OL = 0,4 V 3 mA auf, die von Fast-Mode Plus 20 mA: den Wert des eigenen Treibers eingeben. Beispiel: 3,3 V, 100 pF, Standard-Mode und 3 mA ergeben 967 Ω ≤ R ≤ 11,8 kΩ (4,7 kΩ ist eine übliche Wahl)."
+  tags: [i2c, iic, twi, pull-up, pullup, resistor, sda, scl, rise time, bus capacitance, open drain, pull-up-widerstand, anstiegszeit, buskapazität, busleitung, open-drain]
+  source: "NXP UM10204: I²C-bus specification and user manual (pull-up resistor sizing R_p(max) = t_r/(0.8473·C_b) and R_p(min) = (V_DD − V_OL(max))/I_OL; maximum rise times and bus capacitance of standard-mode, fast-mode and fast-mode plus)"
+  vars:
+    vdd: {dim: voltage, label: V_DD, name: {en: "Supply voltage", de: "Versorgungsspannung"}, default: "3.3 V"}
+    vol: {dim: voltage, label: V_OL, name: {en: "Low-level output voltage", de: "Low-Pegel der Ausgangsspannung"}, default: "0.4 V"}
+    iol: {dim: current, label: I_OL, name: {en: "Sink current at V_OL", de: "Senkstrom bei V_OL"}, default: "3 mA"}
+    cb: {dim: capacitance, label: C_b, name: {en: "Bus capacitance", de: "Buskapazität"}, default: "100 pF"}
+    rmin: {dim: resistance, label: R_min, name: {en: "Smallest pull-up", de: "Kleinster Pull-up"}, eseries: true}
+    rmax: {dim: resistance, label: R_max, name: {en: "Largest pull-up", de: "Größter Pull-up"}, eseries: true}
+  choices:
+    mode:
+      name: {cs: "Režim", da: "Tilstand", de: "Modus", el: "Λειτουργία", en: "Mode", es: "Modo", fr: "Mode", hi: "मोड", it: "Modalità", ja: "モード", nl: "Modus", no: "Modus", pl: "Tryb", pt: "Modo", sv: "Läge", zh: "模式"}
+      default: standard
+      options:
+        standard:
+          name: {cs: "Standardní režim (100 kHz)", da: "Standardtilstand (100 kHz)", de: "Standard-Mode (100 kHz)", el: "Τυπική λειτουργία (100 kHz)", en: "Standard-mode (100 kHz)", es: "Modo estándar (100 kHz)", fr: "Mode standard (100 kHz)", hi: "मानक मोड (100 kHz)", it: "Modalità standard (100 kHz)", ja: "スタンダードモード（100 kHz）", nl: "Standaardmodus (100 kHz)", no: "Standardmodus (100 kHz)", pl: "Tryb standardowy (100 kHz)", pt: "Modo padrão (100 kHz)", sv: "Standardläge (100 kHz)", zh: "标准模式（100 kHz）"}
+          consts: {tr: 1.0e-6, cbmax: 4.0e-10}
+        fast:
+          name: {cs: "Rychlý režim (400 kHz)", da: "Hurtig tilstand (400 kHz)", de: "Fast-Mode (400 kHz)", el: "Γρήγορη λειτουργία (400 kHz)", en: "Fast-mode (400 kHz)", es: "Modo rápido (400 kHz)", fr: "Mode rapide (400 kHz)", hi: "फ़ास्ट मोड (400 kHz)", it: "Modalità veloce (400 kHz)", ja: "ファストモード（400 kHz）", nl: "Snelle modus (400 kHz)", no: "Rask modus (400 kHz)", pl: "Tryb szybki (400 kHz)", pt: "Modo rápido (400 kHz)", sv: "Snabbläge (400 kHz)", zh: "快速模式（400 kHz）"}
+          consts: {tr: 3.0e-7, cbmax: 4.0e-10}
+        fastplus:
+          name: {cs: "Rychlý režim Plus (1 MHz)", da: "Hurtig tilstand Plus (1 MHz)", de: "Fast-Mode Plus (1 MHz)", el: "Γρήγορη λειτουργία Plus (1 MHz)", en: "Fast-mode Plus (1 MHz)", es: "Modo rápido Plus (1 MHz)", fr: "Mode rapide Plus (1 MHz)", hi: "फ़ास्ट मोड प्लस (1 MHz)", it: "Modalità veloce Plus (1 MHz)", ja: "ファストモードプラス（1 MHz）", nl: "Snelle modus Plus (1 MHz)", no: "Rask modus Plus (1 MHz)", pl: "Tryb szybki Plus (1 MHz)", pt: "Modo rápido Plus (1 MHz)", sv: "Snabbläge Plus (1 MHz)", zh: "快速模式增强版（1 MHz）"}
+          consts: {tr: 1.2e-7, cbmax: 5.5e-10}
+  dof: 4
+  rules:
+    rmin: ["(vdd-vol)/iol"]
+    iol: ["(vdd-vol)/rmin"]
+    vdd: ["vol+rmin*iol"]
+    vol: ["vdd-rmin*iol"]
+    rmax: ["tr/(0.8473*cb)"]
+    cb: ["tr/(0.8473*rmax)"]
+  checks:
+    - {when: "rmin >= rmax", warn: {en: "R_min is not below R_max: no pull-up resistor meets both limits. Lower the bus capacitance, use a driver with a higher sink current, or choose a slower mode.", de: "R_min liegt nicht unter R_max: Kein Pull-up-Widerstand erfüllt beide Grenzen. Die Buskapazität verringern, einen Treiber mit höherem Senkstrom verwenden oder einen langsameren Modus wählen."}}
+    - {when: "cb > cbmax", warn: {en: "C_b exceeds the maximum bus capacitance of the selected mode (400 pF; 550 pF in fast-mode plus).", de: "C_b überschreitet die größte Buskapazität des gewählten Modus (400 pF; 550 pF bei Fast-Mode Plus)."}}
+  formula: ["rmin = (vdd - vol) / iol", "rmax = tr / (0.8473 * cb)"]
+  schematic: i2c_pullup
+
+- id: level_shift_divider
+  kind: calculator
+  category: digital
+  name: {cs: "Převodník úrovní (odporový dělič)", da: "Niveauomsætter (modstandsdeler)", de: "Pegelwandler (Spannungsteiler)", el: "Μετατροπέας στάθμης (διαιρέτης τάσης)", en: "Level shifter (resistor divider)", es: "Adaptador de nivel (divisor resistivo)", fr: "Adaptateur de niveau (diviseur résistif)", hi: "लेवल शिफ्टर (प्रतिरोधक विभाजक)", it: "Adattatore di livello (partitore resistivo)", ja: "レベルシフタ（抵抗分圧）", nl: "Niveauconverter (weerstandsdeler)", no: "Nivåomformer (motstandsdeler)", pl: "Konwerter poziomów (dzielnik rezystancyjny)", pt: "Conversor de nível (divisor resistivo)", sv: "Nivåomvandlare (motståndsdelare)", zh: "电平转换（电阻分压）"}
+  doc:
+    en: "A resistor divider shifts a 5 V logic signal down to 3.3 V in one direction: V_out = V_in × R2 / (R1 + R2). The receiver sees a logic high only while V_out stays above its input-high threshold V_IH (take it from the datasheet: 2.0 V for 3.3 V LVTTL inputs, 0.7 × V_DD = 2.31 V is typical for CMOS inputs), and V_out must stay below the absolute maximum input voltage of the pin (often V_DD + 0.3 V). Enter the guaranteed high level of the driver as V_in. A divider loads the driver and slows the edges (R1 ∥ R2 with the pin capacitance); for fast or bidirectional signals such as I²C use a level-shifter IC or a MOSFET shifter. Example: 5 V into 1 kΩ / 2 kΩ gives 3.33 V, which is 1.33 V above V_IH = 2 V, at 1.67 mA."
+    de: "Ein Widerstandsteiler setzt ein 5-V-Logiksignal in einer Richtung auf 3,3 V herunter: V_out = V_in · R2 / (R1 + R2). Der Empfänger erkennt nur dann High, wenn V_out über seiner Eingangsschwelle V_IH bleibt (aus dem Datenblatt: 2,0 V bei 3,3-V-LVTTL-Eingängen, 0,7 · V_DD = 2,31 V ist für CMOS-Eingänge typisch), und V_out muss unter der absoluten Höchstspannung des Eingangs bleiben (oft V_DD + 0,3 V). Als V_in den garantierten High-Pegel des Treibers eingeben. Ein Teiler belastet den Treiber und verlangsamt die Flanken (R1 ∥ R2 mit der Pinkapazität); für schnelle oder bidirektionale Signale wie I²C einen Pegelwandler-IC oder einen MOSFET-Pegelwandler verwenden. Beispiel: 5 V an 1 kΩ / 2 kΩ ergeben 3,33 V, also 1,33 V über V_IH = 2 V, bei 1,67 mA."
+  tags: [level shifter, level shift, voltage divider, 5v to 3.3v, logic level, vih, gpio, microcontroller, pegelwandler, pegelanpassung, spannungsteiler, logikpegel, mikrocontroller]
+  source: "Voltage divider rule; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed. (logic interfacing); the input threshold V_IH comes from the datasheet of the receiving device"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "High level of the driver", de: "High-Pegel des Treibers"}, default: "5 V"}
+    r1: {dim: resistance, label: R_1, name: {en: "Upper resistor", de: "Oberer Widerstand"}, default: "1k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Lower resistor", de: "Unterer Widerstand"}, default: "2k", eseries: true}
+    vih: {dim: voltage, label: V_IH, name: {en: "Input-high threshold of the receiver", de: "High-Schwelle des Empfängers"}, default: "2 V"}
+    vout: {dim: voltage, label: V_out, name: {en: "Voltage at the receiver", de: "Spannung am Empfänger"}}
+  dof: 4
+  rules:
+    vout: ["vin*r2/(r1+r2)"]
+    r2: ["vout*r1/(vin-vout)"]
+    r1: ["r2*(vin-vout)/vout"]
+    vin: ["vout*(r1+r2)/r2"]
+  derived:
+    margin: {dim: voltage, label: ΔV, name: {en: "Margin above V_IH", de: "Reserve über V_IH"}, expr: "vout-vih"}
+    i: {dim: current, label: I, name: {en: "Divider current", de: "Querstrom"}, expr: "vin/(r1+r2)"}
+  checks:
+    - {when: "vout < vih", warn: {en: "V_out is below V_IH: the receiver may not see a logic high.", de: "V_out liegt unter V_IH: Der Empfänger erkennt möglicherweise kein High."}}
+    - {when: "vout >= vin", warn: {en: "V_out is not below V_in: a passive divider can only attenuate.", de: "V_out liegt nicht unter V_in: Ein passiver Teiler kann nur abschwächen."}}
+  formula: ["vout = vin * r2 / (r1 + r2)", "margin = vout - vih"]
+  schematic: level_shift_divider
+
+- id: uart_baud_error
+  kind: calculator
+  category: digital
+  name: {cs: "Chyba přenosové rychlosti UART", da: "UART-baudrate-fejl", de: "UART-Baudratenfehler", el: "Σφάλμα baud rate UART", en: "UART baud rate error", es: "Error de velocidad en baudios de UART", fr: "Erreur de débit en bauds UART", hi: "UART बॉड दर त्रुटि", it: "Errore di baud rate UART", ja: "UARTボーレート誤差", nl: "UART-baudrate-fout", no: "UART-baudratefeil", pl: "Błąd prędkości transmisji UART", pt: "Erro de baud rate da UART", sv: "UART-baudrate-fel", zh: "UART波特率误差"}
+  doc:
+    en: "A UART derives its bit clock by dividing the peripheral clock: baud = f_clk / (N × divisor), with N = 16 samples per bit (normal) or 8 (double-speed mode) and a whole-number divisor, so the real baud rate differs from the wanted one. The divisor is rounded to the nearest integer and the error is (actual − wanted) / wanted. As a rule of thumb keep it below ±2 %: the errors of sender and receiver add up, and an 8N1 frame tolerates only a few percent in total. Some UARTs have a fractional divider and do better. On some chips the register holds the divisor minus one. Example: 16 MHz and 115 200 Bd with 16× sampling gives divisor 9, 111 111 Bd and −3.55 %; double speed (8×) gives divisor 17 and +2.12 %; an 11.0592 MHz crystal hits 115 200 Bd exactly."
+    de: "Ein UART erzeugt seinen Bittakt durch Teilen des Peripherietakts: Baud = f_clk / (N · Teiler) mit N = 16 Abtastungen pro Bit (normal) oder 8 (Double-Speed-Modus) und einem ganzzahligen Teiler, sodass die echte Baudrate von der gewünschten abweicht. Der Teiler wird auf die nächste ganze Zahl gerundet, der Fehler ist (tatsächlich − gewünscht) / gewünscht. Als Faustregel unter ±2 % bleiben: Die Fehler von Sender und Empfänger addieren sich, und ein 8N1-Rahmen verträgt insgesamt nur wenige Prozent. Manche UARTs haben einen gebrochenen Teiler und sind besser. Bei manchen Chips enthält das Register den Teiler minus eins. Beispiel: 16 MHz und 115 200 Bd mit 16-facher Abtastung ergeben Teiler 9, 111 111 Bd und −3,55 %; Double Speed (8×) ergibt Teiler 17 und +2,12 %; ein 11,0592-MHz-Quarz trifft 115 200 Bd genau."
+  tags: [uart, usart, baud rate, baud, serial, divisor, error, oversampling, clock, rs232, avr, baudrate, serielle schnittstelle, teiler, fehler, abweichung, taktfrequenz]
+  source: "UART baud-rate generator: baud = f_clk/(N·divisor) with N = 16 or 8 samples per bit; e.g. the USART chapter of the ATmega328P datasheet (Microchip), where the register holds the divisor minus one"
+  vars:
+    fclk: {dim: frequency, label: f_clk, name: {en: "Clock frequency", de: "Taktfrequenz"}, default: "16 MHz"}
+    baud: {dim: baudrate, label: Baud, name: {en: "Wanted baud rate", de: "Gewünschte Baudrate"}, default: 115200}
+  choices:
+    os:
+      name: {cs: "Převzorkování", da: "Oversampling", de: "Oversampling (Abtastung pro Bit)", el: "Υπερδειγματοληψία", en: "Oversampling", es: "Sobremuestreo", fr: "Suréchantillonnage", hi: "ओवरसैंपलिंग", it: "Sovracampionamento", ja: "オーバーサンプリング", nl: "Oversampling", no: "Oversampling", pl: "Nadpróbkowanie", pt: "Sobreamostragem", sv: "Översampling", zh: "过采样"}
+      default: x16
+      options:
+        x16:
+          name: {cs: "16× (normální)", da: "16× (normal)", de: "16× (normal)", el: "16× (κανονική)", en: "16× (normal)", es: "16× (normal)", fr: "16× (normal)", hi: "16× (सामान्य)", it: "16× (normale)", ja: "16×（通常）", nl: "16× (normaal)", no: "16× (normal)", pl: "16× (normalne)", pt: "16× (normal)", sv: "16× (normal)", zh: "16×（常规）"}
+          consts: {os: 16}
+        x8:
+          name: {cs: "8× (dvojnásobná rychlost)", da: "8× (dobbelt hastighed)", de: "8× (doppelte Geschwindigkeit)", el: "8× (διπλή ταχύτητα)", en: "8× (double speed)", es: "8× (doble velocidad)", fr: "8× (double vitesse)", hi: "8× (दोगुनी गति)", it: "8× (doppia velocità)", ja: "8×（倍速）", nl: "8× (dubbele snelheid)", no: "8× (dobbel hastighet)", pl: "8× (podwójna prędkość)", pt: "8× (velocidade dupla)", sv: "8× (dubbel hastighet)", zh: "8×（双速）"}
+          consts: {os: 8}
+  dof: 2
+  derived:
+    div: {dim: integer, label: Divisor, name: {en: "Divisor", de: "Teiler"}, expr: "max(round(fclk/(os*baud)),1)", unit: dec}
+    actual: {dim: baudrate, label: Baud_act, name: {en: "Actual baud rate", de: "Tatsächliche Baudrate"}, expr: "fclk/(os*div)"}
+    err: {dim: ratio, label: Error, name: {en: "Baud rate error", de: "Baudratenfehler"}, expr: "(actual-baud)/baud", unit: pct}
+  checks:
+    - {when: "abs(err) > 0.02", warn: {en: "The baud rate error is above ±2 %: the receiver may mis-sample bits (rule of thumb; the errors of both ends add up).", de: "Der Baudratenfehler liegt über ±2 %: Der Empfänger kann Bits falsch abtasten (Faustregel; die Fehler beider Seiten addieren sich)."}}
+  formula: ["div = round(fclk / (os * baud))", "actual = fclk / (os * div)", "err = (actual - baud) / baud"]
+
+- id: number_systems
+  kind: calculator
+  category: digital
+  name: {cs: "Číselné soustavy (dec, hex, bin, oct)", da: "Talsystemer (dec, hex, bin, oct)", de: "Zahlensysteme (dec, hex, bin, oct)", el: "Συστήματα αρίθμησης (dec, hex, bin, oct)", en: "Number systems (dec, hex, bin, oct)", es: "Sistemas de numeración (dec, hex, bin, oct)", fr: "Systèmes de numération (dec, hex, bin, oct)", hi: "संख्या पद्धतियाँ (dec, hex, bin, oct)", it: "Sistemi di numerazione (dec, hex, bin, oct)", ja: "数の表記（10進・16進・2進・8進）", nl: "Talstelsels (dec, hex, bin, oct)", no: "Tallsystemer (dec, hex, bin, oct)", pl: "Systemy liczbowe (dec, hex, bin, oct)", pt: "Sistemas de numeração (dec, hex, bin, oct)", sv: "Talsystem (dec, hex, bin, oct)", zh: "数制转换（dec、hex、bin、oct）"}
+  doc:
+    en: "Shows one whole number in decimal, hexadecimal, binary and octal. Type it into any field: hex takes an optional 0x, bin an optional 0b and oct an optional 0o prefix, and digits may be separated by _ or blanks. The value is limited to 0 … 2^53 − 1 (9 007 199 254 740 991), the range in which whole numbers stay exact in the calculator. Long hex and binary results are grouped for readability. Example: 255 = 0xFF = 0o377 (eight one bits in binary)."
+    de: "Zeigt eine ganze Zahl dezimal, hexadezimal, binär und oktal. In ein beliebiges Feld eingeben: Hex nimmt ein optionales 0x, Bin ein optionales 0b und Oct ein optionales 0o als Präfix, die Ziffern dürfen durch _ oder Leerzeichen getrennt sein. Der Wert ist auf 0 … 2^53 − 1 (9 007 199 254 740 991) begrenzt, den Bereich, in dem ganze Zahlen im Rechner exakt bleiben. Lange Hex- und Binärergebnisse werden zur besseren Lesbarkeit gruppiert. Beispiel: 255 = 0xFF = 0o377 (binär acht Einsen)."
+  tags: [number systems, hex, hexadecimal, binary, octal, decimal, radix, base conversion, bits, bytes, zahlensystem, hexadezimal, binär, oktal, dezimal, umrechnung, basis]
+  source: "Positional number systems with radix 2, 8, 10 and 16; D. E. Knuth: The Art of Computer Programming, vol. 2 (Seminumerical Algorithms), ch. 4.1 (positional number systems)"
+  vars:
+    dec: {dim: integer, label: DEC, name: {en: "Decimal", de: "Dezimal"}, default: 255, unit: dec, units: ["dec"]}
+    hex: {dim: integer, label: HEX, name: {en: "Hexadecimal", de: "Hexadezimal"}, unit: hex, units: ["hex"]}
+    bin: {dim: integer, label: BIN, name: {en: "Binary", de: "Binär"}, unit: bin, units: ["bin"]}
+    oct: {dim: integer, label: OCT, name: {en: "Octal", de: "Oktal"}, unit: oct, units: ["oct"]}
+  dof: 1
+  rules:
+    dec: ["hex", "bin", "oct"]
+    hex: ["dec", "bin", "oct"]
+    bin: ["dec", "hex", "oct"]
+    oct: ["dec", "hex", "bin"]
+  formula: ["dec = hex = bin = oct"]

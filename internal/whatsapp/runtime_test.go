@@ -1,18 +1,26 @@
 package whatsapp
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"reflect"
 	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
+	"aurago/internal/memory"
 
+	"github.com/sashabaranov/go-openai"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
@@ -99,6 +107,8 @@ func TestStartSkipsDisabledAndUnconfiguredSections(t *testing.T) {
 		{disabled, integrationstatus.WhatsAppStateDisabled},
 		{egg, integrationstatus.WhatsAppStateDisabled},
 		{testBotConfig(config.WhatsAppModeDedicated), integrationstatus.WhatsAppStateNotConfigured},
+		// No owner survives NormalizeE164: a Bot would drop every message as a stranger's.
+		{testBotConfig(config.WhatsAppModeDedicated, "not a number", "   ", "0049170"), integrationstatus.WhatsAppStateNotConfigured},
 		{noDataDir, integrationstatus.WhatsAppStateNotConfigured},
 	} {
 		if b := start(context.Background(), c.cfg, quietLogger(), deps); b != nil {
@@ -230,6 +240,9 @@ func TestBotBackoffReconnectAndTerminalStates(t *testing.T) {
 func TestBotMatchesConfigAndCancelsOnChange(t *testing.T) {
 	cfg := testBotConfig(config.WhatsAppModeDedicated, "+491701234567")
 	b := startTestBot(t, cfg, &fakeStore{client: &fakeClient{}}, &recordedSleeps{})
+	if b.deps.agentLoop == nil || b.filter == nil || b.pipeline == nil || cap(b.slots) != pipelineWorkers {
+		t.Fatal("start left the inbound path unset")
+	}
 	if !b.MatchesConfig(cfg.Clone()) {
 		t.Fatal("the starting config does not match")
 	}
@@ -355,7 +368,7 @@ func TestStoppedBotNeverWritesStatus(t *testing.T) {
 	client.emit(&events.LoggedOut{})
 	client.emit(&events.Disconnected{})
 	client.emit(&events.Message{})
-	if after := integrationstatus.WhatsAppStatus(); after != before {
+	if after := integrationstatus.WhatsAppStatus(); !reflect.DeepEqual(after, before) { // the status holds a map now
 		t.Fatalf("a stopped Bot changed the status: %+v -> %+v", before, after)
 	}
 }
@@ -383,5 +396,320 @@ func TestSleepContextStopsWhenCancelled(t *testing.T) {
 	}
 	if !sleepContext(context.Background(), time.Millisecond) {
 		t.Fatal("an uncancelled sleep reported cancellation")
+	}
+}
+
+// agentBotFixture is a running Bot over the fake client, an in-memory memory store and a
+// recording agent loop.
+type agentBotFixture struct {
+	bot    *Bot
+	client *fakeClient
+	store  *fakeStore
+	logs   *bytes.Buffer
+	mu     sync.Mutex
+	calls  []agent.RunConfig
+}
+
+const fixtureAnswer = "answer from the stub"
+
+func (f *agentBotFixture) recordLoop(_ context.Context, _ openai.ChatCompletionRequest, runCfg agent.RunConfig, _ bool, _ agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+	f.mu.Lock()
+	f.calls = append(f.calls, runCfg)
+	f.mu.Unlock()
+	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{
+		{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: fixtureAnswer}},
+	}}, nil
+}
+
+func (f *agentBotFixture) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+// startAgentBot starts a linked Bot; a nil loop records the calls and answers fixtureAnswer.
+func startAgentBot(t *testing.T, cfg *config.Config, client *fakeClient, loop agentLoopFunc) *agentBotFixture {
+	t.Helper()
+	f := &agentBotFixture{client: client, logs: &bytes.Buffer{}}
+	f.store = &fakeStore{linked: true, own: testOwn, client: client}
+	logger := slog.New(slog.NewTextHandler(f.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() }) // runs after the Bot's Stop below
+	hm := memory.NewEphemeralHistoryManager()
+	t.Cleanup(hm.Close)
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.PromptsDir = t.TempDir()
+	if loop == nil {
+		loop = f.recordLoop
+	}
+	deps := runtimeDeps{backend: &fakeBackend{store: f.store}, sleep: (&recordedSleeps{}).sleep, now: fixedNow,
+		agent: AgentDeps{ShortTermMem: stm, HistoryManager: hm}, agentLoop: loop}
+	f.bot = start(context.Background(), cfg, logger, deps)
+	if f.bot == nil {
+		t.Fatal("start returned no Bot")
+	}
+	t.Cleanup(f.bot.Stop)
+	waitFor(t, "connect", func() bool { return connectsOf(client) == 1 })
+	return f
+}
+
+// inboundEvent is a text message from `from` in their own chat, stamped `at`.
+func inboundEvent(id string, from types.JID, text string, at time.Time) *events.Message {
+	info := dmInfo(id, from)
+	info.Timestamp = at
+	return msgEvent(info, textMsg(text))
+}
+
+func filteredDrops(reason string) int {
+	return integrationstatus.WhatsAppStatus().DroppedFiltered[reason]
+}
+
+func TestBotRoutesOwnerMessagesToThePipeline(t *testing.T) {
+	const ownerText, strangerText = "owner-secret-text", "stranger-secret-text"
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, nil)
+
+	// The echo guard is the sender's own cache, not a copy.
+	if f.bot.filter.sent != f.bot.sent || f.bot.sender.sent != f.bot.sent {
+		t.Fatal("the inbound filter does not share the sender's sent cache")
+	}
+
+	client.emit(inboundEvent("OWNER1", ownerJID, ownerText, fixedNow()))
+	waitFor(t, "the agent call", func() bool { return f.callCount() == 1 })
+	f.mu.Lock()
+	source := f.calls[0].MessageSource
+	f.mu.Unlock()
+	if source != "whatsapp" {
+		t.Fatalf("message source = %q, want whatsapp", source)
+	}
+	waitFor(t, "the reply", func() bool { return len(sentTexts(client)) == 1 })
+	if sent := sentTexts(client)[0]; sent.to != ownerJID || sent.text != fixtureAnswer {
+		t.Fatalf("reply = %+v", sent)
+	}
+
+	// A stranger is dropped by the filter on the emitting goroutine: the counters are final
+	// when emit returns, and the message counts as received before it is dropped.
+	s1 := integrationstatus.WhatsAppStatus()
+	client.emit(inboundEvent("STRANGER1", strangerJID, strangerText, fixedNow()))
+	s2 := integrationstatus.WhatsAppStatus()
+	if s2.DroppedNonOwner != s1.DroppedNonOwner+1 || s2.MessagesReceived != s1.MessagesReceived+1 {
+		t.Fatalf("stranger: dropped %d -> %d, received %d -> %d", s1.DroppedNonOwner, s2.DroppedNonOwner, s1.MessagesReceived, s2.MessagesReceived)
+	}
+
+	// A repeated ID is counted once as received and once as dropped.
+	client.emit(inboundEvent("OWNER1", ownerJID, ownerText, fixedNow()))
+	s3 := integrationstatus.WhatsAppStatus()
+	if s3.DroppedFiltered[dropDuplicate] != s2.DroppedFiltered[dropDuplicate]+1 ||
+		s3.MessagesReceived != s2.MessagesReceived+1 || s3.DroppedNonOwner != s2.DroppedNonOwner {
+		t.Fatalf("duplicate: dropped %v -> %v, received %d -> %d", s2.DroppedFiltered, s3.DroppedFiltered, s2.MessagesReceived, s3.MessagesReceived)
+	}
+
+	// The reply the Bot sent comes back as an inbound event with the ID the fake gave it
+	// ("fake-1"); only the shared sent cache can recognise it.
+	client.emit(inboundEvent("fake-1", ownerJID, fixtureAnswer, fixedNow()))
+	if got := filteredDrops(dropEcho); got != s3.DroppedFiltered[dropEcho]+1 {
+		t.Fatalf("echo drops = %d, want %d", got, s3.DroppedFiltered[dropEcho]+1)
+	}
+	if n := f.callCount(); n != 1 {
+		t.Fatalf("agent calls = %d, want 1: only the first owner message may start a turn", n)
+	}
+
+	// Logs carry masked JIDs and no message text.
+	f.bot.Stop()
+	out := f.logs.String()
+	if !strings.Contains(out, "***5678") {
+		t.Fatalf("no masked owner in the logs: %q", out)
+	}
+	for _, leak := range []string{ownerText, strangerText, "4917012345678", "4917099998888"} {
+		if strings.Contains(out, leak) {
+			t.Fatalf("log leaks %q: %s", leak, out)
+		}
+	}
+}
+
+func TestBotOfflineCutoffAppliesOnlyDuringOfflineSync(t *testing.T) {
+	client := &fakeClient{own: testOwn, loggedIn: true, lastConnect: fixedNow()}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, nil)
+	at := func(age time.Duration) time.Time { return fixedNow().Add(-age) }
+
+	// During the offline sync a message stamped before the cutoff is stale, one inside the
+	// window is not.
+	before := filteredDrops(dropStale)
+	client.emit(inboundEvent("OLD1", ownerJID, "x", at(11*time.Minute)))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 0 {
+		t.Fatalf("stale drops = %d (want %d), agent calls = %d (want 0)", got, before+1, f.callCount())
+	}
+	client.emit(inboundEvent("NEW1", ownerJID, "x", at(9*time.Minute)))
+	waitFor(t, "a message inside the window", func() bool { return f.callCount() == 1 })
+
+	// After the sync the cutoff is gone: the same old stamp reaches the pipeline.
+	client.emit(&events.OfflineSyncCompleted{})
+	client.emit(inboundEvent("OLD2", ownerJID, "x", at(11*time.Minute)))
+	waitFor(t, "an old stamp after the sync", func() bool { return f.callCount() == 2 })
+
+	// A keepalive timeout keeps the connection and its finished sync.
+	client.emit(&events.KeepAliveTimeout{})
+	client.emit(inboundEvent("OLD3", ownerJID, "x", at(11*time.Minute)))
+	waitFor(t, "an old stamp after a keepalive timeout", func() bool { return f.callCount() == 3 })
+
+	// A dropped connection forgets the sync: its successor has an offline sync of its own.
+	client.emit(&events.Disconnected{})
+	before = filteredDrops(dropStale)
+	client.emit(inboundEvent("OLD4", ownerJID, "x", at(11*time.Minute)))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 3 {
+		t.Fatalf("after a disconnect: stale drops = %d (want %d), agent calls = %d (want 3)", got, before+1, f.callCount())
+	}
+}
+
+// whatsmeow forces a reconnect after a failed keepalive without a Disconnected event, so the
+// Bot's resetConnection does not run; the new login's offline messages can come before its
+// Connected. The cutoff has to follow the login, not the events the Bot happened to see.
+func TestBotForcedKeepAliveReconnectKeepsTheOfflineCutoff(t *testing.T) {
+	login := func(c *fakeClient, at time.Time) { c.with(func(f *fakeClient) { f.lastConnect = at }) }
+	client := &fakeClient{own: testOwn, loggedIn: true, lastConnect: fixedNow().Add(-2 * time.Hour)}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, nil)
+	old := fixedNow().Add(-30 * time.Minute) // queued while the connection was down
+
+	// Control: a keepalive timeout on the same login keeps its finished sync.
+	client.emit(&events.OfflineSyncCompleted{})
+	client.emit(&events.KeepAliveTimeout{})
+	client.emit(inboundEvent("SAME1", ownerJID, "x", old))
+	waitFor(t, "same-login message after a keepalive timeout", func() bool { return f.callCount() == 1 })
+
+	// The forced reconnect accepts a new login. Its first offline message is stale.
+	login(client, fixedNow())
+	before := filteredDrops(dropStale)
+	client.emit(inboundEvent("FORCED1", ownerJID, "x", old))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 1 {
+		t.Fatalf("forced reconnect: stale drops = %d (want %d), agent calls = %d (want 1)", got, before+1, f.callCount())
+	}
+
+	// The new login's own sync ends the cutoff.
+	client.emit(&events.OfflineSyncCompleted{})
+	client.emit(inboundEvent("FORCED2", ownerJID, "x", old))
+	waitFor(t, "message after the new login's sync", func() bool { return f.callCount() == 2 })
+
+	// Another forced reconnect, announced by its offline preview before any message.
+	client.emit(&events.KeepAliveTimeout{})
+	login(client, fixedNow().Add(time.Minute))
+	client.emit(&events.OfflineSyncPreview{Total: 1, Messages: 1})
+	before = filteredDrops(dropStale)
+	client.emit(inboundEvent("FORCED3", ownerJID, "x", old))
+	if got := filteredDrops(dropStale); got != before+1 || f.callCount() != 2 {
+		t.Fatalf("second forced reconnect: stale drops = %d (want %d), agent calls = %d (want 2)", got, before+1, f.callCount())
+	}
+}
+
+func TestBotStopWaitsForPipelineWorkers(t *testing.T) {
+	var f *agentBotFixture
+	started := make(chan struct{})
+	var once sync.Once
+	var finished atomic.Bool
+	var closedAtEnd atomic.Int32
+	loop := func(ctx context.Context, _ openai.ChatCompletionRequest, _ agent.RunConfig, _ bool, _ agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+		once.Do(func() { close(started) })
+		<-ctx.Done()
+		time.Sleep(50 * time.Millisecond) // the teardown has to wait for this
+		f.store.mu.Lock()
+		closedAtEnd.Store(int32(f.store.closed))
+		f.store.mu.Unlock()
+		finished.Store(true)
+		return openai.ChatCompletionResponse{}, ctx.Err()
+	}
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	f = startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, loop)
+	client.emit(inboundEvent("BLOCK1", ownerJID, "x", fixedNow()))
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the agent turn never started")
+	}
+	f.bot.Stop()
+	if !finished.Load() {
+		t.Fatal("Stop returned while an agent turn was still running")
+	}
+	f.store.mu.Lock()
+	closed := f.store.closed
+	f.store.mu.Unlock()
+	if closedAtEnd.Load() != 0 || closed != 1 {
+		t.Fatalf("device store closed %d times before the worker ended, %d after Stop; want 0 and 1", closedAtEnd.Load(), closed)
+	}
+	if got := sentTexts(client); len(got) != 0 {
+		t.Fatalf("a cancelled turn still replied: %+v", got)
+	}
+}
+
+func TestBotStaleGenerationRoutesNothing(t *testing.T) {
+	cfg := testBotConfig(config.WhatsAppModeDedicated, "+4917012345678")
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	f := startAgentBot(t, cfg, client, nil)
+	changed := cfg.Clone()
+	changed.WhatsApp.OwnerNumbers = []string{"+4917099998888"}
+	f.bot.CancelIfConfigChanged(changed)
+
+	before := integrationstatus.WhatsAppStatus()
+	client.emit(inboundEvent("STALE1", ownerJID, "x", fixedNow()))
+	after := integrationstatus.WhatsAppStatus()
+	if f.callCount() != 0 || after.MessagesReceived != before.MessagesReceived || !reflect.DeepEqual(after.DroppedFiltered, before.DroppedFiltered) {
+		t.Fatalf("a revoked generation took a message: calls=%d status %+v -> %+v", f.callCount(), before, after)
+	}
+	f.bot.Stop()
+	if got := sentTexts(client); len(got) != 0 {
+		t.Fatalf("a revoked generation replied: %+v", got)
+	}
+}
+
+// A panic in a pipeline worker (a media path, a malformed proto) must not end the process:
+// the worker logs one fixed line without the panic value or the message, gives its slot
+// back, and later messages are still handled.
+func TestBotSurvivesAPipelinePanicAndReleasesTheSlot(t *testing.T) {
+	const secret = "panic-secret-text"
+	const panics = pipelineWorkers + 1 // more than the slots: a leaked slot would block the last one
+	var started, panicked atomic.Int32
+	var ok atomic.Int32
+	loop := func(context.Context, openai.ChatCompletionRequest, agent.RunConfig, bool, agent.FeedbackBroker) (openai.ChatCompletionResponse, error) {
+		if started.Add(1) <= panics {
+			panicked.Add(1)
+			panic("media path failed on " + secret)
+		}
+		ok.Add(1)
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{
+			{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: fixtureAnswer}},
+		}}, nil
+	}
+	client := &fakeClient{own: testOwn, loggedIn: true}
+	f := startAgentBot(t, testBotConfig(config.WhatsAppModeDedicated, "+4917012345678"), client, loop)
+
+	for i := 0; i < panics; i++ {
+		client.emit(inboundEvent(fmt.Sprintf("PANIC%d", i), ownerJID, secret, fixedNow()))
+	}
+	waitFor(t, "every panicking turn", func() bool { return panicked.Load() == panics })
+
+	client.emit(inboundEvent("AFTER1", ownerJID, secret, fixedNow()))
+	waitFor(t, "a message after the panics", func() bool { return ok.Load() == 1 })
+	waitFor(t, "the reply", func() bool { return len(sentTexts(client)) == 1 })
+
+	stopped := make(chan struct{})
+	go func() { f.bot.Stop(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop did not return after worker panics")
+	}
+
+	out := f.logs.String()
+	if n := strings.Count(out, "WhatsApp pipeline worker recovered from a panic"); n != panics {
+		t.Fatalf("recovered-panic log lines = %d, want %d: %s", n, panics, out)
+	}
+	if !strings.Contains(out, "panic_type=string") || !strings.Contains(out, "sender=***5678") {
+		t.Fatalf("log lacks the panic type or the masked sender: %s", out)
+	}
+	for _, leak := range []string{secret, "media path failed", "4917012345678"} {
+		if strings.Contains(out, leak) {
+			t.Fatalf("log leaks %q: %s", leak, out)
+		}
 	}
 }

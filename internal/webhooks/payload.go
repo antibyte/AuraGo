@@ -67,9 +67,8 @@ func PreparePayload(body []byte, contentType string, mappings []FieldMapping, ma
 		if err := json.Compact(&compact, body); err != nil {
 			return PreparedPayload{}, &PayloadError{StatusCode: http.StatusBadRequest, Message: "invalid JSON payload"}
 		}
-		safeJSON := strings.NewReplacer("&", `\u0026`, "<", `\u003c`, ">", `\u003e`).Replace(compact.String())
-		safeJSON = truncateJSONEnvelope(safeJSON, maxPromptRunes)
-		prepared.PromptPayload = "<external_data>\n" + safeJSON + "\n</external_data>"
+		promptJSON := truncateJSONEnvelope(compact.String(), maxPromptRunes)
+		prepared.PromptPayload = security.IsolateExternalData(promptJSON)
 		return prepared, nil
 	}
 

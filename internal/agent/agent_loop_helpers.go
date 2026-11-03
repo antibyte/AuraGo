@@ -2294,7 +2294,7 @@ func shouldInjectReachableChatChannelsContext(userText, messageSource string, re
 	text := normalizeAdaptiveIntentText(userText)
 	cues := []string{
 		"send", "sende", "sent", "message", "nachricht", "benachrichtig", "notify",
-		"notification", "telegram", "discord", "ntfy", "pushover", "sms", "rocketchat",
+		"notification", "telegram", "whatsapp", "discord", "ntfy", "pushover", "sms", "rocketchat",
 		"rocket chat", "agodesk", "kontakt", "contact", "chat channel", "kanal",
 	}
 	if containsAnyRuntimeCue(text, cues) {
@@ -2374,7 +2374,7 @@ func isChatChannelTool(name string) bool {
 		return false
 	}
 	cues := []string{
-		"telegram", "discord", "ntfy", "pushover", "sms", "rocketchat", "rocket_chat",
+		"telegram", "whatsapp", "discord", "ntfy", "pushover", "sms", "rocketchat", "rocket_chat",
 		"send_notification", "send_message", "send_sms", "send_image", "send_video",
 	}
 	return containsAnyRuntimeCue(name, cues)

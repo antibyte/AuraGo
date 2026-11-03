@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -102,12 +103,45 @@ func (s *Service) ReadArchiveEntry(ctx context.Context, rawPath, entryName strin
 	if err != nil {
 		return ArchiveEntry{}, err
 	}
-	reader, err := zip.OpenReader(srcPath)
+	file, err := openFileNoFollow(srcPath, os.O_RDONLY, 0)
+	if err != nil {
+		return ArchiveEntry{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return ArchiveEntry{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return ArchiveEntry{}, fmt.Errorf("archive is not a regular file")
+	}
+	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
+	if maxBytes <= 0 {
+		maxBytes = 50 * 1024 * 1024
+	}
+	section := io.NewSectionReader(file, 0, info.Size())
+	kind, err := detectArchiveKind(filepath.Base(srcPath), section)
+	if err != nil {
+		return ArchiveEntry{}, err
+	}
+	switch {
+	case kind == archiveZip:
+		return readZipEntry(file, info.Size(), normalized, maxBytes)
+	case kind.native():
+		return readNativePreview(ctx, section, kind, filepath.Base(srcPath), normalized, maxBytes)
+	case kind != archiveUnknown:
+		file.Close()
+		return s.readHostPreview(ctx, kind, srcPath, normalized, maxBytes)
+	default:
+		return ArchiveEntry{}, errArchiveUnsupported
+	}
+}
+
+func readZipEntry(readerAt io.ReaderAt, size int64, normalized string, maxBytes int64) (ArchiveEntry, error) {
+	reader, err := zip.NewReader(readerAt, size)
 	if err != nil {
 		return ArchiveEntry{}, fmt.Errorf("open zip archive: %w", err)
 	}
-	defer reader.Close()
-
 	file, err := findZipFile(reader.File, normalized)
 	if err != nil {
 		return ArchiveEntry{}, err
@@ -115,21 +149,14 @@ func (s *Service) ReadArchiveEntry(ctx context.Context, rawPath, entryName strin
 	if file.FileInfo().IsDir() || strings.HasSuffix(strings.ReplaceAll(file.Name, "\\", "/"), "/") {
 		return ArchiveEntry{}, ErrArchiveEntryIsDirectory
 	}
-
-	maxBytes := int64(s.Config().MaxFileSizeMB) * 1024 * 1024
-	if maxBytes <= 0 {
-		maxBytes = 50 * 1024 * 1024
-	}
 	if int64(file.UncompressedSize64) > maxBytes {
 		return ArchiveEntry{}, ErrArchiveEntryTooLarge
 	}
-
 	rc, err := file.Open()
 	if err != nil {
 		return ArchiveEntry{}, fmt.Errorf("open zip entry: %w", err)
 	}
 	defer rc.Close()
-
 	data, err := io.ReadAll(io.LimitReader(rc, maxBytes+1))
 	if err != nil {
 		return ArchiveEntry{}, fmt.Errorf("read zip entry: %w", err)
@@ -137,7 +164,6 @@ func (s *Service) ReadArchiveEntry(ctx context.Context, rawPath, entryName strin
 	if int64(len(data)) > maxBytes {
 		return ArchiveEntry{}, ErrArchiveEntryTooLarge
 	}
-
 	modTime := file.Modified
 	if modTime.IsZero() {
 		modTime = file.FileInfo().ModTime()

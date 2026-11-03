@@ -4,9 +4,17 @@ Foreground shell, Python, saved Python tools and supported skill scripts use
 the existing llm-sandbox supervisor when unsafe host execution has not been
 explicitly granted. Missing Docker/Podman, missing pinned Python dependencies,
 or an unsupported language image is an execution error. There is no automatic
-host fallback. The legacy Linux/macOS `allow_unsandboxed_shell` setting still
-opts shell calls into host execution; Python requires
+host fallback. Only explicit Linux/macOS `allow_unsandboxed_shell: true`
+opts shell calls into host execution; a missing or null value is false on load
+and upgrade, even when an older configuration enabled `allow_shell`. Existing
+explicit true values are preserved. Python requires
 `agent.allow_unsafe_host_execution`.
+
+Literal `command` and BusyBox wrappers receive the shared high-risk command
+checks. `command -v`/`-V` and read-only `find` remain usable; `find -exec`,
+`-execdir`, `-ok` and `-okdir` forms are conservatively refused. This detection
+heuristic is not a sandbox. Explicit host execution retains the process user's
+permissions and must not be described as safe because its command passed it.
 
 The supervisor requires `llm-sandbox[mcp-docker]==0.3.45` (or `mcp-podman`),
 including its MCP dependencies. An operator must provision this package when

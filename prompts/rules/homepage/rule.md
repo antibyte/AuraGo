@@ -46,6 +46,32 @@ For Netlify static exports, pass the directory that actually contains the deploy
 
 Before editing, read homepage_registry get_site. Supply a meaningful reason for every mutation; automatic events and revisions record its effects. If a problem blocks completion, record it with `homepage_registry` `log_problem`.
 
+## Product-led Design Review
+
+Design review concepts are adapted from [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). This adaptation keeps AuraGo's tools, verification requirements, and Atmospheric Glass default; the user's brand or project `DESIGN.md` takes precedence over that default.
+
+Before redesigning, inspect the source and capture the existing page with `homepage_quality` `screenshot` when a preview is available. List concrete issues with their locations: uneven spacing, competing accents, decorative emoji, vague copy, repeated card layouts, filler visuals, or distracting motion. Match the change to the evidence: polish isolated issues while retaining a working palette, type, and layout; use a broader redesign only when the task and findings justify it. Leave a well-designed screen intact unless changes were requested. Preserve the product name, real logo, features, content, and section order unless the task calls for changes.
+
+Before visual edits, write a short direction from the actual product and audience:
+
+- **Product:** What it does and for whom, in one concrete sentence.
+- **Character:** Two or three specific qualities beyond generic labels such as modern or premium.
+- **World:** Relevant places, materials, or activities that inform the palette and imagery.
+- **Focal points:** One or two content areas that deserve rich color and detail.
+- **Signature:** One recognizable, product-specific detail used where it belongs.
+
+State the direction briefly and continue within the authorized task. Reuse an established brand or project direction; do not replace it with a fashionable theme.
+
+Review in this order across the changed screen: **spacing → color → icons → copy → typography → layout → details → visuals → motion**. Fix only applicable issues and reuse existing components and assets.
+
+- **Rhythm:** Use the active spacing scale (Atmospheric Glass uses an 8px base with 4px subdivisions). Equal controls share dimensions and padding; align icons, labels, and number columns. Space within groups is smaller than space between groups.
+- **Restraint:** Keep navigation and controls quiet, with primary, secondary, and muted text roles and one main accent. Reserve richer color for the focal content; semantic colors still communicate status. In Atmospheric Glass, gradients and translucent depth support that hierarchy. Avoid unrelated color washes, glowing borders, and gradient text as filler.
+- **Icons and type:** Reuse one icon family with consistent size, stroke, and alignment. Remove redundant icons and decorative emoji labels; preserve meaningful content and brand assets. Follow the active type scale, keep small text readable, and avoid adding font families or effects without a product reason.
+- **Composition:** Give the first viewport one clear message, one primary action, and at most one secondary action. Choose proportions from the content rather than repeating identical feature cards. On mobile, preserve reading order and simplify dense previews instead of shrinking their text.
+- **Product evidence:** Prefer a real product view, relevant object, or meaningful chart over blobs, floating cubes, and stock AI imagery. Mock data must be visibly illustrative, never fabricated proof of customers, results, or capabilities. Use available assets or a faithful code preview when image generation is unavailable; do not add a service or dependency for decoration.
+
+Finish with the **template check**: would changing only the product name make this page fit an unrelated product? If yes, make the copy, visual evidence, or signature more specific to the actual product. Recheck the audit findings in the desktop and mobile screenshots required below.
+
 ## Web Interface Quality Bar
 
 Before saying a homepage is done, review changed UI code against every rule in this section and fix material issues directly when they are in scope for the task. A silent read-only pass is not enough: follow the mandatory Definition of Done below and report only what the tools actually confirmed. Keep the final report concise and grouped by file only when issues remain.
@@ -89,6 +115,7 @@ Before saying a homepage is done, review changed UI code against every rule in t
 - Set the correct `transform-origin`.
 - For SVG motion, transform a wrapper with `transform-box: fill-box` and `transform-origin: center`.
 - Animations must be interruptible and respond to user input mid-animation.
+- Motion must explain feedback or a state change. Remove idle pulsing, breathing glows, and floating decorations; use a consistent easing and a small duration scale.
 
 ### Typography & Copy
 
@@ -101,8 +128,10 @@ Before saying a homepage is done, review changed UI code against every rule in t
 - Write active, specific, second-person copy. Prefer labels like `Save API Key` over vague labels like `Continue`.
 - Avoid generic AI marketing jargon (`Elevate`, `Seamless`, `Unleash`, `Next-Gen`). Use concrete, descriptive language.
 - Do not use generic placeholder names like `Acme` or `John Doe`; invent realistic context-appropriate names.
+- Headlines explain the actual offer and audience. Remove unverifiable claims, invented testimonials, and unsupported metrics; label fictional demo content clearly.
+- Keep labels concise and badges meaningful. Avoid decorative exclamation marks and shouty all-caps labels.
 - Avoid using the em-dash (`—`) as a stylistic crutch.
-- Use Title Case for headings and buttons when it matches the site's language and style.
+- Prefer sentence case for labels; follow the site's language and established brand conventions for headings and buttons.
 - Use numerals for counts, for example `8 deployments`.
 
 ### Content Handling
@@ -195,7 +224,7 @@ A homepage task is not complete until every applicable step below has actually r
 
 1. **Build succeeds.** Run `homepage_deploy` `build` (or `homepage_project` `build`) and confirm no errors. Do not report success from an edit alone.
 2. **Static checks pass.** Run `homepage_quality` `lint` and `check_js` on the changed project and fix reported errors before continuing. Warnings that cannot be fixed in scope must be logged with `homepage_registry` `log_problem`, not silently ignored.
-3. **Visual proof, not assumption.** Run `homepage_quality` `screenshot` against the built or preview URL at a desktop viewport (e.g. `1440x900`) and a mobile viewport (e.g. `390x844`). Inspect both images before claiming the page is finished. If the result does not visibly match Atmospheric Glass or the active project `DESIGN.md` — no blur, no translucent surfaces, generic flat cards, broken layout, overlapping text — fix it and re-screenshot instead of describing an unseen result as compliant.
+3. **Visual proof, not assumption.** Run `homepage_quality` `screenshot` against the built or preview URL at a desktop viewport (e.g. `1440x900`) and a mobile viewport (e.g. `390x844`). Inspect both images against the design direction, audit findings, and template check before claiming the page is finished. Follow the user's brand or active project `DESIGN.md`, otherwise Atmospheric Glass. Fix missing required visual treatments, broken layout, overlapping text, or generic filler and re-screenshot instead of describing an unseen result as compliant.
 4. **Lighthouse before publishing.** Before deploying or publishing a project for real users, run `homepage_quality` `lighthouse` and address material accessibility or performance regressions it surfaces, or record them with `log_problem` when out of scope for the task.
 5. **Registry stays current.** Supply a meaningful reason for every mutation and verify its automatic ledger event. Use log_problem with a reason when something blocks completion. A task is not done while known problems remain unlogged.
 6. **Deploy verification.** For `deploy`, `deploy_netlify`, `deploy_vercel`, or `deploy_here_now`, report success only after the tool's own live-URL verification confirms the public page responds; the upload step alone is not proof of a working deploy.

@@ -46,7 +46,7 @@
                             mount_id: storage.mount_id || ''
                         });
                     }
-                    if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (desktopIsArchiveFile(entry.name || entry.path)) return openApp('zipper', { path: entry.path });
                     if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
@@ -242,7 +242,7 @@
             : '';
         if (savedDefault) return openApp(savedDefault, { path: entry.path });
         if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entry.name || entry.path)) return openApp('bookshelf', { path: entry.path });
-        if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (desktopIsArchiveFile(entry.name || entry.path)) return openApp('zipper', { path: entry.path });
         if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });

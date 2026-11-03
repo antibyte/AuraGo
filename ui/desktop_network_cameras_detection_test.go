@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 var networkCamerasDetectionFiles = []string{
@@ -178,5 +180,31 @@ func TestDesktopNetworkCamerasDetectionRegistration(t *testing.T) {
 		if lines := strings.Count(rawDesktopAssetText(t, file), "\n"); lines >= 1100 {
 			t.Errorf("%s has %d lines; desktop JS files stay below 1100", file, lines)
 		}
+	}
+}
+
+// The channel menu of the camera settings offers exactly the channels config accepts, so a camera
+// can never be saved with a channel the server rejects, nor lack one it supports. WhatsApp is a
+// brand name and has no locale key.
+func TestDesktopNetworkCamerasDetectionChannelsMatchTheConfig(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/desktop/apps/network-cameras-detection-views.js")
+	match := regexp.MustCompile(`const CHANNELS = \[([^\]]*)\];`).FindStringSubmatch(source)
+	if match == nil {
+		t.Fatal("network-cameras-detection-views.js has no `const CHANNELS = [...]` line")
+	}
+	var got []string
+	for _, item := range strings.Split(match[1], ",") {
+		got = append(got, strings.Trim(strings.TrimSpace(item), "'"))
+	}
+	want := config.Go2RTCDetectionChannels()
+	sort.Strings(got)
+	sort.Strings(want)
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("CHANNELS = %v, config.Go2RTCDetectionChannels() = %v", got, want)
+	}
+	if !strings.Contains(source, "whatsapp: 'WhatsApp'") {
+		t.Error("CHANNEL_NAMES lacks whatsapp: 'WhatsApp'")
 	}
 }

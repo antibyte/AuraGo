@@ -27,7 +27,7 @@
         { slot: 24, key: 'text_diff', label: 'Diff', row: 2, col: 4, aliases: Object.freeze([]) },
         { slot: 25, key: 'code_analysis', label: 'Code analysis', row: 2, col: 5, aliases: Object.freeze([]) },
         { slot: 26, key: 'golangci_lint', label: 'Go lint', row: 2, col: 6, aliases: Object.freeze(['golangci']) },
-        { slot: 27, key: 'system_metrics', label: 'System metrics', row: 2, col: 7, aliases: Object.freeze(['metrics']) },
+        { slot: 27, key: 'system_metrics', label: 'System metrics', row: 2, col: 7, aliases: Object.freeze(['metrics', 'ecalc']) },
         { slot: 28, key: 'process_management', label: 'Processes', row: 2, col: 8, aliases: Object.freeze([]) },
         { slot: 29, key: 'service_manager', label: 'Services', row: 2, col: 9, aliases: Object.freeze([]) },
         { slot: 30, key: 'network_ping', label: 'Ping', row: 3, col: 0, aliases: Object.freeze(['ping']) },

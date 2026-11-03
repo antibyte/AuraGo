@@ -4,11 +4,14 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/httpstream"
 
 	"github.com/gorilla/websocket"
 )
@@ -98,5 +101,59 @@ func TestHTTPDrainEndsTheServerLifetime(t *testing.T) {
 	case <-requestsDone:
 	case <-time.After(2 * time.Second):
 		t.Fatal("a handler bound to the server lifetime kept HTTP shutdown waiting")
+	}
+}
+
+func TestHTTPDrainInterruptsBlockedIO(t *testing.T) {
+	for _, mode := range []string{"upload", "stream"} {
+		t.Run(mode, func(t *testing.T) {
+			s := &Server{}
+			started := make(chan struct{})
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				close(started)
+				if mode == "upload" {
+					_, _ = io.Copy(io.Discard, r.Body)
+					return
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				payload := make([]byte, 64<<10)
+				for {
+					if _, err := w.Write(payload); err != nil {
+						return
+					}
+				}
+			})
+			srv := httptest.NewServer(s.trackHTTP(httpstream.WithWriteTimeout(handler, time.Minute)))
+			defer srv.Close()
+			client, err := net.DialTimeout("tcp", srv.Listener.Addr().String(), time.Second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer client.Close()
+			if err := client.(*net.TCPConn).SetReadBuffer(1024); err != nil {
+				t.Fatal(err)
+			}
+			request := "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
+			if mode == "upload" {
+				request = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 1024\r\n\r\nx"
+			}
+			if _, err := io.WriteString(client, request); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-started:
+			case <-time.After(2 * time.Second):
+				t.Fatal("handler did not start")
+			}
+
+			// The client leaves its upload unfinished or never reads the stream.
+			s.beginHTTPDrain()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if err := srv.Config.Shutdown(ctx); err != nil {
+				t.Fatalf("blocked %s held HTTP shutdown: %v", mode, err)
+			}
+			s.httpRequests.Wait()
+		})
 	}
 }

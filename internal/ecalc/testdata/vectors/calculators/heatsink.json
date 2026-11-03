@@ -1,0 +1,24 @@
+{
+  "calc": "heatsink",
+  "sets": [
+    {"values": {"ta": 298.15, "p": 10, "rjc": 1.5, "rcs": 0.5, "rsa": 3, "tj": 348.15, "rtot": 5, "dtj": 50, "dtjc": 15, "dtcs": 5, "dtsa": 30, "tc": 333.15, "ts": 328.15}, "ref": "hand (K = degC + 273.15): R_thJA = 1.5 + 0.5 + 3 = 5 degC/W; rise = 10 W * 5 = 50 K so T_J = 25 degC + 50 K = 75 degC = 348.15 K; drops 15 K, 5 K and 30 K; T_C = 25 + 10 * 3.5 = 60 degC = 333.15 K (= 75 - 15); T_S = 25 + 30 = 55 degC = 328.15 K (= 60 - 5)"},
+    {"values": {"ta": 313.15, "p": 25, "rjc": 0.8, "rcs": 0.2, "rsa": 1, "tj": 363.15, "rtot": 2, "dtj": 50, "dtjc": 20, "dtcs": 5, "dtsa": 25, "tc": 343.15, "ts": 338.15}, "ref": "hand (K = degC + 273.15): R_thJA = 0.8 + 0.2 + 1 = 2 degC/W; rise = 25 W * 2 = 50 K so T_J = 40 degC + 50 K = 90 degC = 363.15 K; drops 20 K, 5 K and 25 K; T_C = 40 + 25 * 1.2 = 70 degC = 343.15 K (= 90 - 20); T_S = 40 + 25 = 65 degC = 338.15 K (= 70 - 5)"},
+    {"values": {"ta": 293.15, "p": 4, "rjc": 5, "rcs": 1, "rsa": 12, "tj": 365.15, "rtot": 18, "dtj": 72, "dtjc": 20, "dtcs": 4, "dtsa": 48, "tc": 345.15, "ts": 341.15}, "ref": "hand (K = degC + 273.15): R_thJA = 5 + 1 + 12 = 18 degC/W; rise = 4 W * 18 = 72 K so T_J = 20 degC + 72 K = 92 degC = 365.15 K; drops 20 K, 4 K and 48 K; T_C = 20 + 4 * 13 = 72 degC = 345.15 K (= 92 - 20); T_S = 20 + 48 = 68 degC = 341.15 K (= 72 - 4)"}
+  ],
+  "solve": [
+    {"inputs": {"ta": 298.15, "p": 10, "rjc": 1.5, "rcs": 0.5, "rsa": 3}, "expect": {"tj": 348.15, "rtot": 5, "dtj": 50}, "warnings": [], "ref": "hand: T_J = 25 degC + 10 W * 5 degC/W = 75 degC = 348.15 K"},
+    {"inputs": {"ta": 308.15, "p": 30, "rjc": 1, "rcs": 0.5, "rsa": 4}, "expect": {"tj": 473.15, "dtj": 165}, "warnings": [0], "ref": "hand: R_thJA = 5.5 degC/W; rise = 30 W * 5.5 = 165 K so T_J = 35 degC + 165 K = 200 degC = 473.15 K, above 150 degC (423.15 K), so the check fires"},
+    {"inputs": {"p": 20, "rjc": 1, "rcs": 0.5, "rsa": 1.5, "tj": 398.15}, "expect": {"ta": 338.15, "rtot": 3, "dtj": 60}, "ref": "hand: rise = 20 W * (1 + 0.5 + 1.5) = 60 K; T_A = 125 degC - 60 K = 65 degC = 338.15 K"},
+    {"inputs": {"p": 50, "rjc": 0.5, "rcs": 0.3, "rsa": 1.2, "tj": 423.15}, "expect": {"ta": 323.15, "rtot": 2, "dtj": 100}, "ref": "hand: rise = 50 W * (0.5 + 0.3 + 1.2) degC/W = 100 K; T_A = 150 degC - 100 K = 50 degC = 323.15 K"},
+    {"inputs": {"ta": 298.15, "rjc": 1, "rcs": 0.5, "rsa": 1.5, "tj": 373.15}, "expect": {"p": 25, "rtot": 3, "dtj": 75}, "ref": "hand: T_J - T_A = 100 degC - 25 degC = 75 K; P = 75 K / 3 degC/W = 25 W"},
+    {"inputs": {"ta": 313.15, "rjc": 2, "rcs": 0.5, "rsa": 2.5, "tj": 398.15}, "expect": {"p": 17, "rtot": 5, "dtj": 85}, "ref": "hand: T_J - T_A = 125 degC - 40 degC = 85 K; P = 85 K / 5 degC/W = 17 W"},
+    {"inputs": {"ta": 298.15, "p": 20, "rjc": 1.5, "rcs": 0.5, "tj": 398.15}, "expect": {"rsa": 3, "rtot": 5, "dtj": 100}, "ref": "hand: (T_J - T_A) / P = 100 K / 20 W = 5 degC/W in total; R_thSA = 5 - 1.5 - 0.5 = 3 degC/W"},
+    {"inputs": {"ta": 308.15, "p": 25, "rjc": 1.2, "rcs": 0.4, "tj": 423.15}, "expect": {"rsa": 3, "rtot": 4.6, "dtj": 115}, "ref": "hand: (150 degC - 35 degC) / 25 W = 115 K / 25 W = 4.6 degC/W in total; R_thSA = 4.6 - 1.2 - 0.4 = 3 degC/W"},
+    {"inputs": {"ta": 298.15, "p": 10, "rjc": 1.5, "rcs": 0.5, "tj": 303.15}, "expect": {"rtot": 0.5, "dtj": 5}, "errors": {"rsa": "range"}, "ref": "hand: (30 degC - 25 degC) / 10 W = 0.5 degC/W in total, less than R_thJC + R_thCS = 2 degC/W, so R_thSA = 0.5 - 2 = -1.5 degC/W is out of range (no heatsink is good enough)"},
+    {"inputs": {"ta": 298.15, "p": 25, "rjc": 1, "rsa": 1.7, "tj": 373.15}, "expect": {"rcs": 0.3, "rtot": 3, "dtj": 75}, "ref": "hand: 75 K / 25 W = 3 degC/W in total; R_thCS = 3 - 1 - 1.7 = 0.3 degC/W"},
+    {"inputs": {"ta": 293.15, "p": 40, "rjc": 0.75, "rsa": 1.5, "tj": 393.15}, "expect": {"rcs": 0.25, "rtot": 2.5, "dtj": 100}, "ref": "hand: (120 degC - 20 degC) / 40 W = 2.5 degC/W in total; R_thCS = 2.5 - 0.75 - 1.5 = 0.25 degC/W"},
+    {"inputs": {"ta": 298.15, "p": 50, "rcs": 0.3, "rsa": 1.2, "tj": 398.15}, "expect": {"rjc": 0.5, "rtot": 2, "dtj": 100}, "ref": "hand: 100 K / 50 W = 2 degC/W in total; R_thJC = 2 - 0.3 - 1.2 = 0.5 degC/W"},
+    {"inputs": {"ta": 293.15, "p": 28, "rcs": 0.5, "rsa": 3.5, "tj": 433.15}, "expect": {"rjc": 1, "rtot": 5, "dtj": 140}, "warnings": [0], "ref": "hand: (160 degC - 20 degC) / 28 W = 5 degC/W in total; R_thJC = 5 - 0.5 - 3.5 = 1 degC/W"},
+    {"inputs": {"ta": 298.15, "p": 10, "rjc": 1.5, "rcs": 0.5}, "errors": {"rsa": "undetermined", "tj": "undetermined"}, "warnings": [], "ref": "two inputs are missing: neither the heatsink resistance nor the junction temperature is determined"}
+  ]
+}

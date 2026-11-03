@@ -1,3 +1,4 @@
+import { loadConfigRuntime } from './config-test-runtime.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -8,6 +9,7 @@ const context = vm.createContext({
     document: { getElementById: () => content },
     t: key => key, escapeAttr: value => String(value), attachChangeListeners() {}
 });
+loadConfigRuntime(context);
 vm.runInContext(fs.readFileSync(new URL('../ui/cfg/virtual_desktop.js', import.meta.url), 'utf8'), context);
 context.renderVirtualDesktopSection({ label: 'Desktop', desc: '' });
 assert.equal(context.configData.tools.qr_code.enabled, false);

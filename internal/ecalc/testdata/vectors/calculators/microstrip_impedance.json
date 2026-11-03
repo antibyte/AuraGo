@@ -1,0 +1,27 @@
+{
+  "calc": "microstrip_impedance",
+  "sets": [
+    {"values": {"er": 2.59, "h": 0.001, "w": 0.001825, "t": 3.5e-05, "z0": 60.30380470871524, "wh": 1.825}, "ref": "hand: er + 1.41 = 4, sqrt = 2; 5.98 mm / (0.8 * 1.825 mm + 0.035 mm) = 5.98 / 1.495 = 4 exactly; Z0 = 87 / 2 * ln 4 = 43.5 * 1.3862943611 = 60.30380471 ohm; w/h = 1.825"},
+    {"values": {"er": 4.3, "h": 0.0016, "w": 0.003, "t": 3.5e-05, "z0": 49.824028689728195, "wh": 1.875}, "ref": "hand (independent script): sqrt(4.3 + 1.41) = 2.389560; 5.98 * 1.6 / (0.8 * 3 + 0.035) = 9.568 / 2.435 = 3.929; Z0 = 87 / 2.389560 * ln 3.929 = 49.82402869 ohm; w/h = 1.875"},
+    {"values": {"er": 3.59, "h": 0.0005, "w": 0.0005, "t": 1.75e-05, "z0": 76.5990749591058, "wh": 1}, "ref": "hand (independent script): sqrt(3.59 + 1.41) = sqrt(5); 5.98 * 0.5 / (0.8 * 0.5 + 0.0175) = 2.99 / 0.4175 = 7.1617; Z0 = 87 / 2.236068 * ln 7.1617 = 76.59907496 ohm; w/h = 1"},
+    {"values": {"er": 9.6, "h": 0.000635, "w": 0.000635, "t": 5e-06, "z0": 52.48554474165757, "wh": 1}, "ref": "hand (independent script): alumina 25 mil, w = h; sqrt(9.6 + 1.41) = 3.318; 5.98 * 0.635 / (0.8 * 0.635 + 0.005) = 3.7973 / 0.513 = 7.4021; Z0 = 87 / 3.318 * ln 7.4021 = 52.48554474 ohm; w/h = 1"}
+  ],
+  "solve": [
+    {"inputs": {"er": 2.59, "h": 0.001, "w": 0.001825, "t": 3.5e-05}, "expect": {"z0": 60.30380470871524, "wh": 1.825}, "errors": {}, "warnings": [], "ref": "hand: 5.98 / 1.495 = 4; Z0 = 87 / sqrt(4) * ln 4 = 43.5 * 1.3862943611 = 60.30380471 ohm; w/h = 1.825"},
+    {"inputs": {"er": 4.3, "h": 0.0016, "w": 0.003, "t": 3.5e-05}, "expect": {"z0": 49.824028689728195, "wh": 1.875}, "errors": {}, "warnings": [], "ref": "hand (independent script): Z0 = 87 / 2.389560 * ln(9.568 / 2.435) = 49.82402869 ohm (the default example)"},
+    {"inputs": {"er": 2.59, "h": 0.001, "w": 0.00369375, "t": 3.5e-05}, "expect": {"z0": 30.15190235435762, "wh": 3.69375}, "errors": {}, "warnings": [1], "ref": "hand: 0.8 * 3.69375 mm + 0.035 mm = 2.99 mm, 5.98 / 2.99 = 2; Z0 = 43.5 * ln 2 = 30.15190235 ohm; w/h = 3.69375 > 2, the second check fires"},
+    {"inputs": {"er": 4.3, "h": 0.001, "w": 5e-05, "t": 1.75e-05}, "expect": {"z0": 169.09468766340007, "wh": 0.05}, "errors": {}, "warnings": [0], "ref": "hand (independent script): 5.98 / (0.8 * 0.05 + 0.0175) = 5.98 / 0.0575 = 104.0; Z0 = 87 / 2.389560 * ln 104.0 = 169.0946877 ohm; w/h = 0.05 < 0.1, the first check fires"},
+    {"inputs": {"er": 20, "h": 0.0016, "w": 0.003, "t": 3.5e-05}, "expect": {"z0": 25.730519898232192}, "errors": {}, "warnings": [2], "ref": "hand (independent script): sqrt(20 + 1.41) = 4.6271; Z0 = 87 / 4.6271 * ln 3.929 = 25.7305199 ohm; er = 20 is above 15, the third check fires"},
+    {"inputs": {"h": 0.001, "w": 0.001825, "t": 3.5e-05, "z0": 60.30380470871524}, "expect": {"er": 2.59}, "errors": {}, "warnings": [], "ref": "hand: er = (87 * ln 4 / Z0)^2 - 1.41 = (87 * ln 4 / (43.5 * ln 4))^2 - 1.41 = 2^2 - 1.41 = 2.59"},
+    {"inputs": {"h": 0.0016, "w": 0.003, "t": 3.5e-05, "z0": 49.824028689728195}, "expect": {"er": 4.3}, "errors": {}, "warnings": [], "ref": "hand (independent script): er = (87 * ln(3.929) / 49.82402869)^2 - 1.41 = 4.3 (the inverse of the default example)"},
+    {"inputs": {"er": 2.59, "w": 0.001825, "t": 3.5e-05, "z0": 60.30380470871524}, "expect": {"h": 0.001}, "errors": {}, "warnings": [], "ref": "hand: h = (0.8 * 1.825 mm + 0.035 mm) * exp(Z0 * 2 / 87) / 5.98 = 1.495 mm * exp(ln 4) / 5.98 = 1.495 * 4 / 5.98 = 1 mm"},
+    {"inputs": {"er": 4.3, "w": 0.003, "t": 3.5e-05, "z0": 49.824028689728195}, "expect": {"h": 0.0016}, "errors": {}, "warnings": [], "ref": "hand (independent script): h = 2.435 mm * exp(Z0 * 2.389560 / 87) / 5.98 = 1.6 mm"},
+    {"inputs": {"er": 2.59, "h": 0.001, "t": 3.5e-05, "z0": 60.30380470871524}, "expect": {"w": 0.001825}, "errors": {}, "warnings": [], "ref": "hand: w = (5.98 mm * exp(-ln 4) - 0.035 mm) / 0.8 = (5.98 / 4 - 0.035) / 0.8 = (1.495 - 0.035) / 0.8 = 1.825 mm"},
+    {"inputs": {"er": 4.3, "h": 0.0016, "t": 3.5e-05, "z0": 49.824028689728195}, "expect": {"w": 0.003}, "errors": {}, "warnings": [], "ref": "hand (independent script): w = (5.98 * 1.6 mm * exp(-Z0 * 2.389560 / 87) - 0.035 mm) / 0.8 = 3 mm"},
+    {"inputs": {"er": 2.59, "h": 0.001, "w": 0.001825, "z0": 60.30380470871524}, "expect": {"t": 3.5e-05}, "errors": {}, "warnings": [], "ref": "hand: t = 5.98 mm * exp(-ln 4) - 0.8 * 1.825 mm = 1.495 mm - 1.46 mm = 0.035 mm"},
+    {"inputs": {"er": 4.3, "h": 0.0016, "w": 0.003, "z0": 49.824028689728195}, "expect": {"t": 3.5e-05}, "errors": {}, "warnings": [], "ref": "hand (independent script): t = 9.568 mm * exp(-Z0 * 2.389560 / 87) - 2.4 mm = 0.035 mm"},
+    {"inputs": {"h": 0.0016, "w": 0.003, "t": 3.5e-05, "z0": 1000}, "errors": {"er": "range"}, "warnings": [2], "ref": "hand (independent script): er = (87 * ln(3.929) / 1000)^2 - 1.41 = (0.11908)^2 - 1.41 = -1.3958, out of range; er < 1 fires the third check"},
+    {"inputs": {"er": 4.3, "h": 0.001, "t": 3.5e-05, "z0": 200}, "errors": {"w": "range"}, "warnings": [0], "ref": "hand (independent script): 5.98 mm * exp(-200 * 2.389560 / 87) = 0.0247 mm is smaller than t = 0.035 mm, so w = (0.0247 - 0.035) / 0.8 < 0 is out of range; w/h < 0.1 fires the first check"},
+    {"inputs": {"er": 4.3, "h": 0.0016}, "errors": {"w": "undetermined", "t": "undetermined", "z0": "undetermined"}, "ref": "hand: w, t and Z0 are missing"}
+  ]
+}

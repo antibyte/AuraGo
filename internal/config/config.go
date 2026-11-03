@@ -147,10 +147,6 @@ var defaultWorkspaceSearchExcludes = []string{
 }
 var configSaveMu sync.Mutex
 
-// mqttRelayGrandfatherWarning limits the Load warning about a grandfathered
-// anonymous MQTT broker to once per process.
-var mqttRelayGrandfatherWarning sync.Once
-
 // mqttUntrustedTransportGrandfatherWarning limits the Load warning about a
 // grandfathered plaintext or unverified MQTT transport to once per process.
 var mqttUntrustedTransportGrandfatherWarning sync.Once
@@ -1796,33 +1792,6 @@ func Load(path string) (*Config, error) {
 		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
 	}
 
-	// Legacy unsandboxed shell: configurations written before the Linux host
-	// shell gate keep working until agent.allow_unsandboxed_shell is written
-	// (true or false); security_check reports it. allow_unsafe_host_execution
-	// does not count: config-merger has copied the template's false into every
-	// merged config since 2026-09-24.
-	// allow_unsandboxed_shell: null counts as written (yamlHasPath), as
-	// config-merger treats a present key, even null, as the user's choice.
-	if cfg.Agent.AllowShell && !yamlHasPath(data, "agent", "allow_unsandboxed_shell") {
-		cfg.Agent.LegacyUnsandboxedShell = true
-	}
-
-	// MQTT relays (relay_to_agent, the Frigate relays) and MQTT-triggered
-	// missions now need a broker login (username or client certificate over
-	// TLS) or mqtt.allow_unauthenticated_relay. Existing setups on anonymous
-	// brokers keep working until the key is written; mission triggers live in
-	// the mission store, so every enabled anonymous broker counts. The
-	// security check reports the result as critical; the warning appears once
-	// per process, as every config save and health check reloads the config.
-	// mqtt.allow_unauthenticated_relay: null counts as unwritten (yamlHasValue),
-	// as config-merger fills a null key like a missing one.
-	if cfg.MQTT.Enabled && !MQTTBrokerAuthenticated(&cfg) && !yamlHasValue(data, "mqtt", "allow_unauthenticated_relay") {
-		cfg.MQTT.AllowUnauthenticatedRelay = true
-		mqttRelayGrandfatherWarning.Do(func() {
-			slog.Warn("[Config] anonymous MQTT broker grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_unauthenticated_relay is written")
-		})
-	}
-
 	// A broker login over plaintext or skipped certificate verification used to
 	// start relay runs. Existing configs keep that until
 	// mqtt.allow_untrusted_transport is written. Null counts as unwritten
@@ -1869,31 +1838,6 @@ func Load(path string) (*Config, error) {
 	cfg.ResolveProviders()
 	if err := ValidateDecisionsProvider(&cfg); err != nil {
 		return nil, err
-	}
-
-	// Environment overrides for API keys (applied AFTER provider resolution so
-	// they override any key from the providers list):
-	if val := os.Getenv("LLM_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	} else if val := os.Getenv("OPENAI_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	} else if val := os.Getenv("ANTHROPIC_API_KEY"); val != "" {
-		cfg.LLM.APIKey = val
-	}
-	if val := os.Getenv("CO_AGENTS_LLM_API_KEY"); val != "" {
-		cfg.CoAgents.LLM.APIKey = val
-	}
-	if val := os.Getenv("EMBEDDINGS_API_KEY"); val != "" {
-		cfg.Embeddings.APIKey = val
-	}
-	if val := os.Getenv("VISION_API_KEY"); val != "" {
-		cfg.Vision.APIKey = val
-	}
-	if val := os.Getenv("WHISPER_API_KEY"); val != "" {
-		cfg.Whisper.APIKey = val
-	}
-	if val := os.Getenv("FALLBACK_LLM_API_KEY"); val != "" {
-		cfg.FallbackLLM.APIKey = val
 	}
 
 	if cfg.CircuitBreaker.MaxToolCalls <= 0 {

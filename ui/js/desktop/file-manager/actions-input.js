@@ -1,16 +1,24 @@
+    function fileManagerIsArchive(name) {
+        const value = String(name || '');
+        if (/\.txt\.gz$/i.test(value)) return false;
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(value);
+    }
+
     function renderListRow(file) {
         const isDir = file.type === 'directory';
         const iconKey = isDir ? iconForDirectory(file.name) : iconForFile(file);
         const selected = fm.selectedPaths.has(file.path) ? ' selected' : '';
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
-        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
+        const rawName = String(file.name || '');
+        const extension = rawName.includes('.') && !rawName.startsWith('.') ? rawName.split('.').pop().toUpperCase() : '';
+        const typeLabel = isDir ? t('desktop.fm.prop_folder') : (extension || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
             ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
                 <span class="fm-list-icon">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'list')}</span>
-                <span class="fm-list-name">${nameContent}</span>
+                <span class="fm-list-name" title="${esc(file.name)}">${nameContent}</span>
             </div>
             <div class="fm-list-cell fm-col-size">${isDir ? '\u2014' : esc(fmtBytes(file.size))}</div>
             <div class="fm-list-cell fm-col-date">${esc(formatDate(file.modified))}</div>
@@ -27,6 +35,7 @@
         const clipboardIndicator = clipboard && clipboard.paths && clipboard.paths.length
             ? `<span class="fm-status-sep">|</span><span class="fm-status-clipboard" title="${esc(clipboard.paths.join('\n'))}">📋 ${esc(clipboard.mode === 'cut' ? t('desktop.fm.clipboard_cut', { count: clipboard.paths.length }) : t('desktop.fm.clipboard_copied', { count: clipboard.paths.length }))}</span>`
             : '';
+        const sortField = ['name', 'size', 'date', 'type'].includes(fm.sortBy) ? fm.sortBy : 'name';
         return `<div class="fm-statusbar">
             <div class="fm-status-left">
                 <span>${esc(t('desktop.fm.items', { count: totalItems }))}</span>
@@ -34,9 +43,9 @@
                 ${clipboardIndicator}
             </div>
             <div class="fm-status-right">
-                <span>${esc(fm.viewMode === 'grid' ? t('desktop.fm.view_grid') : t('desktop.fm.view_list'))}</span>
+                <span>${esc(t('desktop.fm.sort_' + sortField))}</span>
                 <span class="fm-status-sep">|</span>
-                <span>${esc(t('desktop.fm.sort_name'))}: ${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
+                <span>${esc(fm.sortAsc ? t('desktop.fm.sort_asc') : t('desktop.fm.sort_desc'))}</span>
             </div>
         </div>`;
     }
@@ -492,7 +501,7 @@
         if (selected.length > 0) {
             items.push({ label: t('desktop.fm.compress_zip'), action: 'compress-zip', icon: 'archive', handler: () => { if (typeof compressSelectionToZip === 'function') compressSelectionToZip(); } });
         }
-        if (type === 'file' && String(file.name).endsWith('.zip')) {
+        if (type === 'file' && fileManagerIsArchive(file.name)) {
             items.push(
                 { label: t('desktop.fm.extract_zip'), action: 'extract-zip-here', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, true); } },
                 { label: t('desktop.fm.extract_zip_to'), action: 'extract-zip-to', icon: 'archive', handler: () => { if (typeof extractZip === 'function') extractZip(file, false); } }

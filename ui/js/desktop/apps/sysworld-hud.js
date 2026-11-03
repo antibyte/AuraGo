@@ -207,6 +207,10 @@
         function measure() {
             const r=root.getBoundingClientRect();bounds={width:r.width,height:r.height};panels=[];
             for(const n of root.querySelectorAll(PANELS)){const b=n.getBoundingClientRect();if(b.width&&b.height)panels.push({l:b.left-r.left,t:b.top-r.top,r:b.right-r.left,b:b.bottom-r.top});}
+            // The control bar wraps its rows on a phone, so the panels above it follow its
+            // measured height instead of a fixed guess that a third row would break.
+            const bar=root.querySelector('.sw-bottom'),h=bar?Math.round(bar.getBoundingClientRect().height):0;
+            if(h&&root.style.getPropertyValue('--sw-bar-h')!==h+'px')root.style.setProperty('--sw-bar-h',h+'px');
         }
         function observe() {
             observer=new ResizeObserver(entries=>{

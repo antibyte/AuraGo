@@ -152,7 +152,7 @@ func TestVideoStudioGenerationImagesUseNormalizedProviderFormats(t *testing.T) {
 
 func TestVideoStudioAdmissionBindsOnlyRelevantConfigChanges(t *testing.T) {
 	initial := &config.Config{}
-	server := &Server{Cfg: initial}
+	server := &Server{Cfg: initial, Logger: slog.Default()}
 	dataDir := t.TempDir()
 	manager := &videoStudioManager{
 		server: server, path: filepath.Join(dataDir, "jobs.json"),
@@ -162,14 +162,18 @@ func TestVideoStudioAdmissionBindsOnlyRelevantConfigChanges(t *testing.T) {
 	}
 	updated := *initial
 	updated.LLM.Provider = "unrelated-setting"
-	server.Cfg = &updated
+	server.CfgMu.Lock()
+	server.replaceConfigSnapshot(&updated)
+	server.CfgMu.Unlock()
 	work := &videoStudioWork{admittedConfig: initial, admittedEpoch: 0}
 	if _, duplicate, err := manager.enqueue(lifecycleProjectID, "probe", "unrelated", "unrelated-key", work); err != nil || duplicate {
 		t.Fatalf("unrelated config edit rejected existing admission: duplicate=%v err=%v", duplicate, err)
 	}
 	providerChanged := updated
 	providerChanged.VideoGeneration.ProviderType = "minimax"
-	server.Cfg = &providerChanged
+	server.CfgMu.Lock()
+	server.replaceConfigSnapshot(&providerChanged)
+	server.CfgMu.Unlock()
 	work = &videoStudioWork{admittedConfig: initial, admittedEpoch: 0}
 	if _, duplicate, err := manager.enqueue(lifecycleProjectID, "generate", "provider-change", "provider-key", work); err == nil || duplicate || !strings.Contains(err.Error(), "configuration_changed") {
 		t.Fatalf("provider change admission = duplicate=%v err=%v, want configuration_changed", duplicate, err)

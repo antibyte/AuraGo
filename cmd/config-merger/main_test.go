@@ -373,7 +373,7 @@ func TestApplyUpgradeSafetyDefaults_PreservesExplicitAuthEnabled(t *testing.T) {
 	}
 }
 
-func TestApplyUpgradeGrandfathers_PreservesUnsandboxedShellForEnabledShell(t *testing.T) {
+func TestApplyUpgradeGrandfathersRequiresExplicitUnsandboxedShellPermission(t *testing.T) {
 	template := map[string]interface{}{
 		"agent": map[string]interface{}{
 			"allow_shell":                 false,
@@ -387,11 +387,12 @@ func TestApplyUpgradeGrandfathers_PreservesUnsandboxedShellForEnabledShell(t *te
 		want        bool
 		wantChanged bool
 	}{
-		{"shell on, key absent", map[string]interface{}{"allow_shell": true}, true, true},
+		{"shell on, key absent", map[string]interface{}{"allow_shell": true}, false, false},
 		{"shell on, key written false", map[string]interface{}{"allow_shell": true, "allow_unsandboxed_shell": false}, false, false},
-		{"shell absent", map[string]interface{}{"debug_mode": true}, false, true},
-		{"shell off", map[string]interface{}{"allow_shell": false}, false, true},
-		{"no agent section", nil, false, true},
+		{"shell on, key written true", map[string]interface{}{"allow_shell": true, "allow_unsandboxed_shell": true}, true, false},
+		{"shell absent", map[string]interface{}{"debug_mode": true}, false, false},
+		{"shell off", map[string]interface{}{"allow_shell": false}, false, false},
+		{"no agent section", nil, false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -466,9 +467,6 @@ func assertMergeMatchesLoad(t *testing.T, userYAML string, merged map[string]int
 		t.Logf("source config does not load on its own (%v); merged values checked only", err)
 		return
 	}
-	unsandboxed := func(c *config.Config) bool {
-		return c.Agent.AllowUnsandboxedShell || c.Agent.LegacyUnsandboxedShell
-	}
 	for _, field := range []struct {
 		name          string
 		before, after interface{}
@@ -479,7 +477,7 @@ func assertMergeMatchesLoad(t *testing.T, userYAML string, merged map[string]int
 		{"auth.totp_enabled", before.Auth.TOTPEnabled, after.Auth.TOTPEnabled},
 		{"auth.require_origin_header", before.Auth.RequireOriginHeader, after.Auth.RequireOriginHeader},
 		{"agent.allow_shell", before.Agent.AllowShell, after.Agent.AllowShell},
-		{"effective unsandboxed shell", unsandboxed(before), unsandboxed(after)},
+		{"agent.allow_unsandboxed_shell", before.Agent.AllowUnsandboxedShell, after.Agent.AllowUnsandboxedShell},
 		{"mqtt.allow_unauthenticated_relay", before.MQTT.AllowUnauthenticatedRelay, after.MQTT.AllowUnauthenticatedRelay},
 		{"mqtt.allow_untrusted_transport", before.MQTT.AllowUntrustedTransport, after.MQTT.AllowUntrustedTransport},
 		{"docker.allow_host_access", before.Docker.AllowHostAccess, after.Docker.AllowHostAccess},
@@ -539,7 +537,9 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 		{"null agent section", "agent:\n", want(false, 0, "agent.allow_unsandboxed_shell", false), true},
 		{"totp_enabled yes", "auth:\n    totp_enabled: yes\n", want(false, 0, "auth.totp_enabled", true, "auth.enabled", false), true},
 		{"require_origin_header on", "auth:\n    enabled: true\n    require_origin_header: on\n", want(false, 0, "auth.require_origin_header", true, "auth.enabled", true), true},
-		{"allow_shell yes", "agent:\n    allow_shell: yes\n", want(false, 0, "agent.allow_shell", true, "agent.allow_unsandboxed_shell", true), true},
+		{"allow_shell yes", "agent:\n    allow_shell: yes\n", want(false, 0, "agent.allow_shell", true, "agent.allow_unsandboxed_shell", false), true},
+		{"null unsandboxed shell", "agent:\n    allow_shell: true\n    allow_unsandboxed_shell:\n", want(false, 0, "agent.allow_unsandboxed_shell", false), true},
+		{"explicit unsandboxed shell", "agent:\n    allow_shell: true\n    allow_unsandboxed_shell: true\n", want(false, 0, "agent.allow_unsandboxed_shell", true), true},
 		{"allow_shell off", "agent:\n    allow_shell: off\n", want(false, 0, "agent.allow_shell", false, "agent.allow_unsandboxed_shell", false), true},
 		{"null auth enabled", "auth:\n    enabled:\n", want(false, 0, "auth.enabled", false), true},
 		{"null auth section", "auth:\n", want(false, 0, "auth.enabled", false, "auth.session_timeout_hours", 24), true},
@@ -556,8 +556,8 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 			}
 			res := mergeUserConfig(tmplMap, srcMap)
 
-			// Every case except the template copy lacks allow_unsandboxed_shell,
-			// which the shell rule materialises; the template writes it.
+			// Missing legacy auth, scraper and webhook values still retain their
+			// existing compatibility rules; dangerous execution grants default off.
 			if res.safetyAdjusted != tc.wantChanged {
 				t.Fatalf("safetyAdjusted = %v, want %v", res.safetyAdjusted, tc.wantChanged)
 			}
@@ -576,7 +576,7 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 	}
 }
 
-func TestApplyUpgradeGrandfathers_MaterialisesUnauthenticatedMQTTRelay(t *testing.T) {
+func TestApplyUpgradeGrandfathersRequiresExplicitUnauthenticatedMQTTRelayPermission(t *testing.T) {
 	template := map[string]interface{}{
 		"mqtt": map[string]interface{}{
 			"enabled":                     false,
@@ -592,15 +592,14 @@ func TestApplyUpgradeGrandfathers_MaterialisesUnauthenticatedMQTTRelay(t *testin
 		want        bool
 		wantChanged bool
 	}{
-		{"anonymous relay, key absent", map[string]interface{}{"enabled": true, "relay_to_agent": true}, true, true},
-		{"anonymous broker without relay flag, key absent", map[string]interface{}{"enabled": true}, true, true},
-		{"enabled spelled on, key absent", map[string]interface{}{"enabled": "on"}, true, true},
-		{"key null", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": nil}, true, true},
+		{"anonymous relay, key absent", map[string]interface{}{"enabled": true, "relay_to_agent": true}, false, true},
+		{"anonymous broker without relay flag, key absent", map[string]interface{}{"enabled": true}, false, true},
+		{"enabled spelled on, key absent", map[string]interface{}{"enabled": "on"}, false, true},
 		{"username, key absent", map[string]interface{}{"enabled": true, "username": "iot"}, false, true},
 		{"numeric username, key absent", map[string]interface{}{"enabled": true, "username": 1234}, false, true},
-		{"blank username, key absent", map[string]interface{}{"enabled": true, "username": "  "}, true, true},
-		{"client certificate without broker URL, key absent", map[string]interface{}{"enabled": true, "tls": map[string]interface{}{"cert_file": "client.crt"}}, true, true},
-		{"client certificate over tcp, key absent", map[string]interface{}{"enabled": true, "broker": "tcp://broker.lan:1883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, true, true},
+		{"blank username, key absent", map[string]interface{}{"enabled": true, "username": "  "}, false, true},
+		{"client certificate without broker URL, key absent", map[string]interface{}{"enabled": true, "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
+		{"client certificate over tcp, key absent", map[string]interface{}{"enabled": true, "broker": "tcp://broker.lan:1883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
 		{"client certificate over ssl, key absent", map[string]interface{}{"enabled": true, "broker": "ssl://broker.lan:8883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
 		{"client certificate over mqtts with tls.enabled yes, key absent", map[string]interface{}{"enabled": true, "broker": "mqtts://broker.lan:8883", "tls": map[string]interface{}{"enabled": "yes", "cert_file": "client.crt"}}, false, true},
 		{"mqtt disabled, key absent", map[string]interface{}{"enabled": false, "relay_to_agent": true}, false, true},
@@ -628,12 +627,8 @@ func TestApplyUpgradeGrandfathers_MaterialisesUnauthenticatedMQTTRelay(t *testin
 	}
 }
 
-// An existing config that relayed MQTT traffic (generic relay, Frigate relay or
-// mission triggers) from an anonymous broker keeps doing so after a merge with
-// the repository template: the merger writes the value config.Load
-// grandfathered. Explicit values stay, and a fresh install keeps the
-// template's false.
-func TestRepositoryTemplateMergeKeepsAnonymousMQTTRelay(t *testing.T) {
+// Both loading and upgrading require an explicit anonymous relay opt-in.
+func TestRepositoryTemplateMergeRequiresExplicitAnonymousMQTTRelay(t *testing.T) {
 	tmplData, _ := repositoryTemplate(t)
 	const on = "mqtt:\n    enabled: true\n    broker: tcp://broker.lan:1883\n"
 	cases := []struct {
@@ -641,15 +636,15 @@ func TestRepositoryTemplateMergeKeepsAnonymousMQTTRelay(t *testing.T) {
 		user string
 		want bool
 	}{
-		{"anonymous relay, key absent", on + "    relay_to_agent: true\n", true},
-		{"anonymous Frigate relay, key absent", on + "frigate:\n    enabled: true\n    event_relay: true\n", true},
-		{"anonymous mission triggers, key absent", on, true},
-		{"enabled yes, key absent", "mqtt:\n    enabled: yes\n    broker: tcp://broker.lan:1883\n", true},
-		{"key null", on + "    relay_to_agent: true\n    allow_unauthenticated_relay:\n", true},
-		{"null tls section", on + "    relay_to_agent: true\n    tls:\n", true},
+		{"anonymous relay, key absent", on + "    relay_to_agent: true\n", false},
+		{"anonymous Frigate relay, key absent", on + "frigate:\n    enabled: true\n    event_relay: true\n", false},
+		{"anonymous mission triggers, key absent", on, false},
+		{"enabled yes, key absent", "mqtt:\n    enabled: yes\n    broker: tcp://broker.lan:1883\n", false},
+		{"key null", on + "    relay_to_agent: true\n    allow_unauthenticated_relay:\n", false},
+		{"null tls section", on + "    relay_to_agent: true\n    tls:\n", false},
 		{"username, key absent", on + "    relay_to_agent: true\n    username: iot\n", false},
-		{"client certificate over tcp, key absent", on + "    relay_to_agent: true\n    tls:\n        cert_file: client.crt\n        key_file: client.key\n", true},
-		{"client certificate, tls.enabled on tcp, key absent", on + "    relay_to_agent: true\n    tls:\n        enabled: true\n        cert_file: client.crt\n        key_file: client.key\n", true},
+		{"client certificate over tcp, key absent", on + "    relay_to_agent: true\n    tls:\n        cert_file: client.crt\n        key_file: client.key\n", false},
+		{"client certificate, tls.enabled on tcp, key absent", on + "    relay_to_agent: true\n    tls:\n        enabled: true\n        cert_file: client.crt\n        key_file: client.key\n", false},
 		{"client certificate over ssl, key absent", "mqtt:\n    enabled: true\n    broker: ssl://broker.lan:8883\n    relay_to_agent: true\n    tls:\n        cert_file: client.crt\n        key_file: client.key\n", false},
 		{"client certificate over mqtts, key absent", "mqtt:\n    enabled: true\n    broker: mqtts://broker.lan:8883\n    relay_to_agent: true\n    tls:\n        enabled: on\n        cert_file: client.crt\n        key_file: client.key\n", false},
 		{"mqtt disabled, key absent", "mqtt:\n    enabled: false\n    relay_to_agent: true\n", false},

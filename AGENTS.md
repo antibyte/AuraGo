@@ -52,6 +52,7 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 
 ### Verification and editing
 
+- `.gitnexusignore` owns code-index scope: exclude runtime/scratch data, generated resource copies, binary assets and vendored payloads; retain maintained source/tests, including both versioned training utilities under `disposable/`. Validate exclusions and retained paths with the installed GitNexus ignore filter and path walker before rebuilding; avoid broad negations that re-admit dependencies or binaries.
 - With ignored scratch Go files use `./scripts/go-test-with-cache.ps1` (also accepts `./...`): production roots and both versioned training utilities, excluding scratch directories. Literal `go test ./...` is for clean checkouts. Temporary Go files belong in `disposable/_<task>/` (Go skips underscore directories); never add a module boundary above tracked `disposable/export_tools` or `disposable/import_training_traces`.
 - Focused tests: `go test ./internal/config/...`, `go test ./internal/agent/...`, `go test ./internal/memory/...`, `go test -v ./internal/tools/...`. Coverage: `go test -cover ./internal/...`; race: `go test -race ./...`; benchmarks: `go test -bench=. ./internal/...`.
 - Put `*_test.go` beside source; name tests `TestFunctionName`; prefer table-driven cases (e.g. `internal/config/config_test.go`, `internal/tools/shell_test.go`, `internal/memory/history_test.go`, `internal/agent/agent_test.go`). Cover critical/complex paths and new features with focused unit and tool/workflow integration tests.
@@ -59,7 +60,8 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 - Windows/PowerShell: never undo a broken edit with `git checkout <file>` (discards others' work); inspect the diff and revert only the failed edit. `[System.Text.Encoding]::UTF8` adds a BOM; use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when relevant (BOM breaks Go `encoding/json`). Normalize mixed CRLF/LF to LF per `.gitattributes`.
 - Before tests check encoding and `git diff --check`; JS: `node --check <file.js>`; JSON: `python -m json.tool <file.json>` or another parser. Windows isolated build/release checks use `scripts/invoke-clean-worktree.ps1` (`finally` removes worktree/prunes metadata), not ad-hoc `%TEMP%` worktrees.
 - GitHub Pages renders `docs/` with Jekyll 3.10. Wrap literal Liquid-like code in `{% raw %}` / `{% endraw %}`; Security Gates build the same documentation without deployment.
-- Linux Security Gates Go tests serialize packages (`-p 1`) to keep compilers, tests and race instrumentation within runner resources. The race run retains all six packages and a 30-minute per-package timeout.
+- Linux Security Gates Go tests serialize packages (`-p 1`) to keep compilers, tests and race instrumentation within runner resources. The race run covers `llm`, `server`, `memory`, `tools`, `telegram`, `whatsapp`, and `agent` with a 30-minute per-package timeout.
+- Security Gates installs and verifies FFmpeg/FFprobe before Go tests. Its Linux UI matrix requires Chrome and `AURAGO_RUN_BROWSER_SMOKE=1`; missing browsers or launch failures fail the job. Run the populated-config matrix, config-layout matrix and remaining UI tests in independent 30-minute shards with fail-fast disabled. `TestUIBrowserCIShardsCoverEveryTest` verifies complete, non-overlapping coverage.
 - Commit completed changes locally with a descriptive message, only intended files. Before each commit inspect `git diff --cached`, run `git diff --cached --check` and scan contextually for secrets without exposing values. Temporary scripts/files go in `disposable/`; clean up temporary files/logs and never push them.
 
 ### Configuration
@@ -78,6 +80,8 @@ llm:
 Set provider keys through Setup Wizard/Config UI into the encrypted Vault (`provider_main_api_key` here), never `config.yaml` or agent-visible data. Environment: `AURAGO_MASTER_KEY` = startup Vault key (64 hex characters/32 bytes); `AURAGO_SERVER_HOST` = bind override (Docker `0.0.0.0`); `LLM_API_KEY` / alternative `OPENAI_API_KEY` = LLM key override; `TAILSCALE_API_KEY` = Tailscale; `ANSIBLE_API_TOKEN` = sidecar auth.
 
 Debug: `./aurago -debug` or `agent.debug_mode: true` in `config.yaml`.
+
+The six existing API-key environment overrides apply only after a valid static provider binding: main LLM (`LLM_API_KEY`, then `OPENAI_API_KEY`, then `ANTHROPIC_API_KEY`), co-agent LLM, embeddings, vision, Whisper and fallback LLM. Empty variables preserve the provider key; overrides affect only that resolved slot, never provider entries or persisted config. OAuth, managed, masked and invalid bindings retain their own rules on startup and reload.
 
 ### Install and development reset
 
@@ -115,7 +119,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Vault replacement preserves the original until a synced temporary file is renamed through `internal/fileutil`; verify `TestVaultAtomicReplaceHandlesWindowsReaders`.
 - Call `security.RegisterSensitive(value)` before any network call, including SDK constructors; shared logging scrubs messages, bound attributes and nested errors to prevent log/LLM disclosure. Add new tool/integration Vault secrets to the Python-tool export denylist; keep them out of the agent environment.
 - Config gates: `sudo_enabled` (sudo), `sudo_unrestricted` (writes beyond install dir; requires removing systemd `ProtectSystem=strict`), `allow_shell`, `allow_python`, `allow_filesystem_write`, `allow_network_requests` (HTTP), `allow_remote_shell` (SSH), `allow_self_update`, `allow_mcp`, `allow_web_scraper`. Nonessential tools/integrations need activation toggles; harmful capabilities default off and stay UI-disableable. Assess exposure/security; mutating/critical tools need read-only toggles and, where needed, separate `read`, `write`/create, `change`/update, `delete`/remove grants.
-- Operator commands (`/sudopwd`, `/addssh`, `/restart`, `/personality`, `/debug`, `/voice`) require `commands.Context.AllowOperator`: Telegram private chats, Discord DMs, `rocketchat.allow_operator_commands`, web console, desktop chat, mission runs; never model-written follow-up loopback turns. Classify each new command in `operatorCommands` or its test.
+- Operator commands (`/sudopwd`, `/addssh`, `/restart`, `/personality`, `/debug`, `/voice`) require `commands.Context.AllowOperator`: Telegram private chats, WhatsApp owner chats, Discord DMs, `rocketchat.allow_operator_commands`, web console, desktop chat, mission runs; never model-written follow-up loopback turns. Classify each new command in `operatorCommands` or its test.
 - External content is untrusted: wrap in `<external_data>`; never let it steer behavior/tool calls. `IsolateExternalData` entity-escapes the whole body. Only Game Maker source tools and CYD Creator read tools (`cyd_creator_read_project`, `cyd_creator_read_file`, `cyd_creator_build`, `cyd_creator_api_reference`) use `IsolateSourceData` for copyable code; fully escape any closing-tag shape/boundary name in common encodings or Guardian-critical content. `toolResultPayloadForm`/`isolateToolPayload` preserve the form.
 - All channels obey shell sandbox policy. Desktop Notes never override disabled isolation/unsafe fallback. Preserve tool gates/native Notes/file mutation protection; unisolated code can bypass the latter (state in shell hint/manual). Active Landlock rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
 - Telegram splits at its UTF-16 limit without splitting code points. AgentMail auto-retries GET/HEAD only; never replay uncertain mutations. Relay seeding finishes before forwarding; accepted notifications deduplicate independently of label updates; drain on shutdown. Web Push retains subscriptions on transient errors, counts 2xx delivery only and removes on 404/410 only.
@@ -155,11 +159,11 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Compose socket proxy defaults to `BUILD=0`. Code Studio/most sidecars pull with `IMAGES=1`, `POST=1`; Engine builds (Homepage first-use dev image, CommandCode fallback, local Code Studio runtimes, rate-limit Caddy image) need `BUILD=1` or preexisting host images. `aurago --print-homepage-dockerfile` supports host builds; see `documentation/docker_installation.md` section 4. Changing default to `BUILD=1` requires an explicit decision.
 - `docker-publish.yml` publishes GHCR linux/amd64 + linux/arm64 on `v*` tags/manual dispatch (`image=all` / `image=gods-eye-view` / `image=kaggle-notebook`), never `main` pushes alone. Kaggle notebook publication requires amd64/arm64 bridge smokes and signs the fixed protocol image tag; keep `internal/notebooks` and its Dockerfile aligned. Pin workflow `uses:` to full SHA plus ` # vX.Y.Z`; default `permissions: contents: read`, job-specific writes only (`internal/audit` rejects floating refs). `.github/dependabot.yml` refreshes monthly except manual `dtolnay/rust-toolchain`; `govulncheck@v1.8.0` in `security-gates.yml` is manual too. Training Python/uv/GPU research stays in `antibyte/agotrain`; AuraGo owns Go exporter/importer/pinned checks.
 - `./make_deploy.sh` cross-builds and may commit/push `main` by default (`--no-publish` suppresses); no tag/GitHub Release. Windows `make_release.bat`/`make_release.ps1` default to `scripts/start-release-ci.ps1`: push committed `main`, dispatch `release.yml` with its expected SHA and wait for success. Local drafts stay local. The workflow requires the exact commit's complete Security Gates run, builds all native assets in a clean checkout and uses GitHub OIDC signing. `make_release.ps1 -Local` or explicit signing-key configuration retains local builds. Builders pin `GOTOOLCHAIN=go1.27.3`; verify compiler before publishing even if system Go is newer.
-- `release.yml` uploads all assets to a draft before publishing, keeps existing releases/tags (`AURAGO_KEEP_RELEASES=1`) and explicitly dispatches `docker-publish.yml` for the completed tag because `GITHUB_TOKEN` tag creation does not trigger push workflows. Local keyed Windows publication retains the latest three stable AuraGo releases unless retention is disabled; exclude drafts and integration prereleases before counting.
+- `release.yml` uploads all assets to a draft before publishing, keeps existing releases/tags (`AURAGO_KEEP_RELEASES=1`) and explicitly dispatches `docker-publish.yml` for the completed tag because `GITHUB_TOKEN` tag creation does not trigger push workflows. Local keyed Windows publication retains the latest three stable AuraGo releases and keeps the tags of deleted ones (their GPL-3.0 corresponding source) unless retention is disabled; exclude drafts and integration prereleases before counting.
 - Windows release builders resolve Python 3.10+ through `scripts/find-release-python.ps1` (`py -3`, then `python`/`python3`) before cleanup. Python prepares Phonon resources and checks reproducible release-verifier artifacts; end users need neither Python nor Cosign for signature verification.
 - Official native install/update paths automatically provision a size/SHA-256-pinned verifier and trust its embedded public key. Missing/invalid signatures fail before shutdown or payload execution. `scripts/build-release-verifier.py` owns generated bootstrap blocks in `install.sh`, `update.sh`, `repair-update.sh`; retain its immutable bootstrap prereleases. See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
 - Default Windows release dispatch needs Git, GitHub CLI authentication and PowerShell, not a local signing profile. Optional local maintainer signing uses explicit key configuration and `scripts/setup-release-signing.ps1`; keys stay in the user-only LocalAppData profile with a DPAPI-protected password. Actual builders preflight signing before cleanup/build. See `documentation/release-signatures.md` and `internal/upkeep/AGENTS.md`.
-- Set `AURAGO_KEEP_RELEASES=1` when publishing without authorization to delete older releases/tags; both Windows builders then skip retention entirely.
+- Set `AURAGO_KEEP_RELEASES=1` when publishing without authorization to delete older releases; both Windows builders then skip retention entirely.
 - Release cleanup preserves `deploy/docker` sources and verified `deploy/phonon` inputs. A clean worktree needs the ignored Phonon inputs copied from the prepared checkout before packaging; never bypass the dirty-worktree guard to include unrelated changes.
 
 ## Shared runtime contracts
@@ -184,6 +188,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
 | ACE-Step | `internal/acestep/AGENTS.md` | Private local music lifecycle, pinned runtime/models, hardware qualification. |
 | Agent/tool system | `internal/agent/AGENTS.md` | Runtime prompts/discovery/dispatch/context; Prompt and Runtime Drift Contract. |
+| A2A protocol | `internal/a2a/AGENTS.md`, `internal/agent/AGENTS.md` | Peer cards/HTTP authentication, clients, session-scoped worker admission and shutdown. |
 | Agent self-tests | `internal/selftest/AGENTS.md`, `prompts/self_tests/AGENTS.md` | Prompt catalog, bounded runs, trusted evidence, private reports and admin Dashboard controls. |
 | Bluetooth | `internal/bluetooth/AGENTS.md` | Native discovery/permissions/playback. |
 | Bookshelf | `internal/bookshelf/AGENTS.md` | Library/sources, reader isolation, conversion. |
@@ -212,6 +217,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |
 | Invasion | `internal/invasion/AGENTS.md` | Egg/nest protocol/auth/connection generations/key rotation/private deployment. |
 | LLM transport | `internal/llm/AGENTS.md` | Trust/URL logging/failover state. |
+| Launchpad links/icons | `internal/launchpad/AGENTS.md` | Link/icon reference validation, rooted local artwork ownership, download limits and cleanup. |
 | Managed local models | `internal/localllm/AGENTS.md` | Lifecycle/routing/attestation/qualification. |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` | Offline editions/download/verify/swap/search/tools/content; readers `internal/zim`, `internal/zim/xapian`. |
 | Memory | `internal/memory/AGENTS.md` | Retrieval/hygiene/indexing/maintenance. |
@@ -244,14 +250,15 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Telnyx | `internal/telnyx/AGENTS.md` | Call/SMS transport/bounded provider-confirmed reconciliation. |
 | Desktop Tresor | `internal/tresor/AGENTS.md` | Browser-encrypted storage/revisions/backups/agent file protection. |
 | Agent tools | `internal/tools/AGENTS.md` | Filesystem Jail/Docker Inspect/Managed Space Agent/treg catalog gateway safety. |
+| Rust TUI | `tools/aurago-tui/AGENTS.md` | Terminal client HTTP/SSE timeouts, private session files and locked Rust verification. |
 | Updates | `internal/upkeep/AGENTS.md` | Transactions/artifact retention/maintenance CLI/cleanup safeguards. |
 | Release verification | `internal/releaseverify/AGENTS.md`, `internal/upkeep/AGENTS.md` | Offline signature checks, pinned automatic bootstrap and old-updater repair. |
 | Virtual Computers | `internal/virtualcomputers/AGENTS.md` | Workspace leases/managed Garage storage lifecycle. |
 | Video Studio | `internal/videostudio/AGENTS.md` | Desktop project/timeline model/local FFmpeg/render limits. |
-| WhatsApp channel | `internal/whatsapp/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `licences/AGENTS.md` | Linked-device store/runtime/link sessions, admin endpoints, Config link panel, GPL-3.0 binary licensing. |
+| WhatsApp channel | `internal/whatsapp/AGENTS.md`, `internal/server/AGENTS.md`, `internal/planner/AGENTS.md`, `ui/AGENTS.md`, `licences/AGENTS.md` | Linked-device store/runtime/link sessions, admin endpoints, Config link panel, GPL-3.0 binary licensing; text channel (inbound filter, agent pipeline, broker, send queue), dashboard tile, media in both directions, `send_whatsapp`, notification channel `whatsapp`, camera alert photos, EasyDrag `notify.whatsapp` and the failure channel, newspaper delivery; operator guide (`documentation/whatsapp_setup.md`), security hints, passive briefing check, release licence gate (`internal/audit` `TestLinkedGoModulesHaveGPL3CompatibleLicenses`, `TestReleasePackagingCarriesTheGPLNotices`). |
 | External Web UI assets | `internal/webassets/AGENTS.md` | Integrity/install/resolution/verification/external browser resources. |
 | ZIM reader | `internal/zim/AGENTS.md` | Read-only archives/cluster cache/decompression bounds/fixtures; owns xapian full-text/title-index child. |
-| Licenses | `licences/AGENTS.md` | External-project inventory/license conditions/redistributed texts. |
+| Licenses | `licences/AGENTS.md` | External-project inventory/license conditions/redistributed texts; linked-module licence gate (`licences/linked-go-modules.tsv`, `internal/audit/linked_module_licenses_test.go`) and release notice packaging (`internal/audit/whatsapp_release_packaging_test.go`). |
 | Desktop icon artwork | `assets/desktop-icon-themes/AGENTS.md` | Pinned imports, supplements, source licenses and generated theme manifests. |
 | Web UI | `ui/AGENTS.md` | External UI/Precision Workspace opt-in/protected Chat-Desktop surfaces/translations/verification; owns deeper contracts. |
 | Quick Connect/shared MeshCore ports | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` | Shared serial ownership across features. |
@@ -260,35 +267,88 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Shared ONNX/person detection/Pixel AI | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md`, `internal/pixelmatte/AGENTS.md` | All three own shared binding/cache/detection/background-matting changes. |
 
 <!-- gitnexus:start -->
-## GitNexus — Code Intelligence
+# GitNexus — Code Intelligence
 
-Indexed repository: **AuraGo**. On query/context/impact/cypher object results check `staleness.status`, branch/lastCommit; `current` means clone HEAD, not main. Re-analyze only for behind/diverged: `node .gitnexus/run.cjs analyze --index-only`. Missing runner: bootstrap via `npx`, `bunx` or `pnpm dlx`, e.g. `bunx gitnexus@latest analyze` (#1939).
+This project is indexed by GitNexus as **AuraGo** (228760 symbols, 1440505 relationships, 1834 execution flows).
 
-- **Before edits run impact**, never edit functions/classes/methods without it: `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`. Report callers/processes/risk. Warn on HIGH/CRITICAL `risk`; `riskSharedAxes` never waives it. File/symbol risks differ (MCP File omits axes; Graph-RAG expands File).
-- `risk: UNKNOWN` is unresolved, never safe/low. Empty callers may reflect plain-object property access/dynamic/cross-language calls; heed `riskNote` and confirm by text search before change/deletion. Never substitute grep for graph impact.
-- Read-only graph-first analysis: `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for symbols, impact for blast radius; text search only for empty/UNKNOWN/literals. Security: `explain({target: "fileOrSymbol"})` for source→sink taint (needs `analyze --pdg`).
-- Rename only with graph `rename`: preview `dry_run: true`, review semantic spans/coverage, apply `dry_run: false`; never find-and-replace.
-- **Before commit run change analysis**: `detect_changes({scope: "all"})` or `node .gitnexus/run.cjs detect-changes --scope all --repo .`. `partial: true`/`truncated: true` is incomplete; rerun, never interpret unseen zeros as unaffected. Regression review: fetch remote `main`, compute merge base with reviewed HEAD, pass SHA to `detect_changes({scope: "compare", base_ref: "<merge-base SHA>"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "<merge-base SHA>" --repo .`.
+> Index stale? Run `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
-Resources: `gitnexus://repo/AuraGo/context` (overview/freshness), `gitnexus://repo/AuraGo/clusters` (areas), `gitnexus://repo/AuraGo/processes` (flows), `gitnexus://repo/AuraGo/process/{name}` (trace). Read the matching skill:
+## Always Do
 
-| Task | Skill |
+- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
+- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node ../../../.gitnexus/stores/AuraGo-08496d38b623/checkouts/AuraGo-08496d38b623/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
+- MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
+- **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
+- **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
+- For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
+
+## Never Do
+
+- NEVER edit a function, class, or method before MCP/CLI impact analysis.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis, and never read `UNKNOWN` as an all-clear — it means the walk could not answer, which is the one verdict that requires confirming by other means.
+- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER commit before MCP/CLI graph change analysis.
+
+## Resources
+
+| Resource | Use for |
 | --- | --- |
-| Architecture/flows | `.claude/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Bugs | `.claude/skills/gitnexus-debugging/SKILL.md` |
-| Rename/extract/split/refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
-| Tools/resources/schema | `.claude/skills/gitnexus-guide/SKILL.md` |
-| Index/status/clean/wiki CLI | `.claude/skills/gitnexus-cli/SKILL.md` |
+| `gitnexus://repo/AuraGo/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/AuraGo/clusters` | All functional areas |
+| `gitnexus://repo/AuraGo/processes` | All execution flows |
+| `gitnexus://repo/AuraGo/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+| --- | --- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
+
 <!-- gitnexus:end -->
 
 <!-- graft:start -->
 ## Graft — repo context graph
 
-`graft/` contains linked system/context Markdown nodes with exact file:line spans (`graft/INDEX.md` is the entry). Consult the graph before source reads/search for understanding/location/scoping; reuse known symbols/errors/filenames. New repository: `graft map` gives directory clusters/hubs/hotspots (token-budgeted, deterministic, no key/LLM).
+This repo is indexed in `graft/`: small linked markdown nodes that explain each
+system and carry exact file:line spans, kept in sync with the code through git.
 
-- `graft ask "<task>" --source`: ranked nodes/≤8-line excerpts; `--full` for whole definitions. Use top result, cite `covers:` file:line, edit there. Top-N is not exhaustive: `graft grep "<literal>"` finds all occurrences grouped by enclosing symbol; raw `grep -rn` only for unindexed files.
-- `graft skeleton <file>`: every signature/span, ~10× cheaper than reading a file. `graft callers <symbol>`: exact callers; `--direction out` for callees, `--depth N` for transitive blast radius. Structural questions use callers directly.
-- Monorepo hits carry `[scope/]`; scope with `graft ask "<task>" --in <scope>/`. Open truncated `+N more lines` at the exact range before finalizing; read source only for missing detail at returned file:line, never whole-file re-reads.
-- After big code changes run `graft build` (deterministic, no key, $0).
+For ANY task here — understanding how something works, finding where code lives,
+or scoping a change — get context from the graph before grepping or opening
+source files. Re-ask freely (it's cheap) and reuse literal identifiers you
+already have (symbol, error string, file name) as the query. New to this repo?
+Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
+hotspots), no LLM, no key.
+
+- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
+  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
+  definitions when the crux isn't enough). Match the tool to the task shape:
+  for understanding or editing, the top node IS the answer — cite its
+  `covers:` file:line spans and edit straight from `--source`. For
+  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
+  results are top-N, not complete — run `graft grep "<literal>"` instead
+  (exhaustive over indexed files, grouped by enclosing symbol), falling back
+  to raw `grep -rn` only for unindexed files.
+- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
+  than reading the file; use it to skim an API surface.
+- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
+  Add `--direction out` for what it calls, or `--depth N` to walk
+  transitively for the full blast radius. For structural questions, skip
+  ranking and use this directly.
+- Or browse: `graft/INDEX.md` lists every node; follow the links.
+- Monorepos and folders of multiple repos rank fairly across sub-projects —
+  hits carry `[scope/]` labels naming which one they're from. Narrow with
+  `graft ask "<task>" --in <scope>/` once you know where you're working.
+
+If a returned span is truncated ("+N more lines"), open the file at that exact
+range before finalizing. Only open source files when a node genuinely lacks a
+needed detail, and then at the exact file:line the node points to — never
+re-read whole files.
+
+After big code changes, refresh the graph with `graft build` (deterministic,
+no API key, $0).
 <!-- graft:end -->

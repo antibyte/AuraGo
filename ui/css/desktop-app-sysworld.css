@@ -266,7 +266,7 @@
     .sw-stat strong { font-size: 12px; }
     .sw-stat:last-child { display: none; }
     /* Icon rail with a drawer, inspector as a bottom sheet above the controls. */
-    .sw-rail { top: 60px; left: 8px; width: 58px; padding: 6px; max-height: calc(100% - 190px); z-index: 6; }
+    .sw-rail { top: 60px; left: 8px; width: 58px; padding: 6px; max-height: calc(100% - var(--sw-bar-h, 108px) - 84px); z-index: 6; }
     .sw-rail .sw-rail-toggle { display: inline-flex; flex: 0 0 auto; align-self: flex-start; width: 46px; padding: 6px 0; margin-bottom: 6px; border-color: var(--sw-border); }
     .sw-rail.sw-open .sw-rail-toggle { background: var(--vd-theme-accent-soft,#83dad91a); }
     .sw-rail:not(.sw-open) :is(.sw-search,.sw-rail-caption,.sw-results,.sw-districts .sw-btn-label,.sw-rail-toggle .sw-btn-label) { display: none; }
@@ -275,25 +275,30 @@
     .sw-rail:not(.sw-open) .sw-districts .sw-btn[data-state]::after { left: calc(50% + 4px); }
     .sw-rail.sw-open { width: min(280px,calc(100% - 16px)); box-shadow: 0 16px 60px #000a; }
     .sw-rail.sw-open .sw-rail-toggle .sw-btn-label { display: none; }
-    .sw-info { top: auto; left: 74px; right: 8px; bottom: 116px; width: auto; max-height: min(56%,460px); z-index: 5; box-shadow: 0 -10px 50px #0008; }
+    .sw-info { top: auto; left: 74px; right: 8px; bottom: calc(var(--sw-bar-h, 108px) + 16px); width: auto; max-height: min(56%,460px,max(0px,calc(100% - var(--sw-bar-h, 108px) - 76px))); z-index: 5; box-shadow: 0 -10px 50px #0008; }
     .sysworld:is([data-mode="street"],[data-mode="tour"]) .sw-info, .sysworld:has(.sw-world[open],.sw-rail.sw-open) .sw-info { display: none; }
     .sysworld[data-mode="map"] .sw-info { max-height: 38%; }
     .sw-info-head { padding: 12px 14px 10px; }
     .sw-info-head h2 { font-size: 17px; margin: 4px 30px 4px 0; }
     .sw-bottom { flex-wrap: wrap; gap: 6px; bottom: 8px; left: 8px; right: 8px; min-height: 90px; }
+    /* The email export rides along in the bar; on a phone it keeps only its glyph so the
+       controls stay on two rows and the bar does not eat the view. */
+    .sw-bottom .vd-email-export-button { font-size: 0 !important; overflow: hidden; }
+    .sw-bottom .vd-email-export-button::before { content: '✉'; font-size: 15px; line-height: 1; }
     .sw-modes { width: 100%; justify-content: space-around; }
     .sw-modes .sw-btn { flex: 1; min-height: 40px; font-size: 11px; padding: 5px; gap: 4px; }
     .sw-live { margin-left: 6px; margin-right: auto; }
-    .sw-map { top: 60px; left: 74px; right: 8px; bottom: 116px; z-index: 3; }
+    .sw-map { top: 60px; left: 74px; right: 8px; bottom: calc(var(--sw-bar-h, 108px) + 16px); z-index: 3; }
     .sw-map-stage { inset: 44px 10px 40px; place-items: start center; }
     .sw-map-board>.sw-btn { padding: 4px 5px; font-size: 9px; }
     .sw-map-board>.sw-btn .sw-icon { display: none; }
-    .sw-street-help { left: 8px; right: 8px; bottom: 110px; z-index: 4; }
-    .sw-message { bottom: 116px; z-index: 6; }
+    .sw-street-help { left: 8px; right: 8px; bottom: calc(var(--sw-bar-h, 108px) + 10px); z-index: 4; }
+    .sw-message { bottom: calc(var(--sw-bar-h, 108px) + 16px); z-index: 6; }
     .sw-pin { font-size: 9px !important; }
     .sw-spark { display: none; }
     .sw-compass { --sw-half: 72px; }
-    .sw-tour { left: 8px; right: 8px; bottom: 106px; min-width: 0; max-width: none; }
+    .sw-tour { left: 8px; right: 8px; bottom: calc(var(--sw-bar-h, 108px) + 10px); min-width: 0; max-width: none; }
+    .sw-interaction { bottom: calc(var(--sw-bar-h, 108px) + 16px); }
     .sw-photo-bar { bottom: 10px; }
     .sw-scope-tag { left: 50%; top: calc(50% + 84px); transform: translateX(-50%); max-width: calc(100% - 32px); border-left: 0; border-top: 2px solid var(--sw-accent); border-radius: 0 0 8px 8px; }
     .sw-scope-tag::before { display: none; }

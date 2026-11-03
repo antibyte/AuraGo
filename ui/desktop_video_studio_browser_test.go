@@ -877,7 +877,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		const request=P.request, fetchBefore=window.fetch, initial=structuredClone(s.project);let imports=0;
 		P.request=async(url,options)=>{if(url.endsWith('/media')&&options?.method==='POST'){
 			const file=options.body.get('file'), bitmap=await createImageBitmap(file);
-			check(file.name==='sticker-emotion-joy.png'&&bitmap.width===1024&&bitmap.height===1024,'original upload');bitmap.close();
+			check(file.name==='sticker-emotion-joy.webp'&&bitmap.width===1024&&bitmap.height===1024,'original upload');bitmap.close();
 			check(!!options.headers['Idempotency-Key'],'idempotency key');imports++;
 			const asset={id:'sticker-'+imports,name:file.name,path:'media/sticker-'+imports+'.png',kind:'image',width:1024,height:1024,duration_frames:18000};
 			s.project.assets.push(asset);return{body:{asset}};
@@ -896,7 +896,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			}
 			s.project=structuredClone(initial);const before=s.projectEpoch;let release;
 			const waiting=new Promise(resolve=>{release=resolve});
-			window.fetch=async(url,options)=>{if(String(url).includes('/img/stickers/emotion-joy.png'))await waiting;return fetchBefore(url,options)};
+			window.fetch=async(url,options)=>{if(String(url).includes('/img/stickers/emotion-joy.webp'))await waiting;return fetchBefore(url,options)};
 			const pending=P.addSticker(s,'emotion-joy');s.projectEpoch++;s.project=structuredClone(initial);release();await pending;
 			check(imports===1,'project switch during image fetch');s.projectEpoch=before;
 		}finally{P.request=request;window.fetch=fetchBefore;s.project=initial;clearTimeout(s.autosaveTimer)}

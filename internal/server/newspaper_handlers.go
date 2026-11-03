@@ -151,7 +151,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "effective_budget": newspaperBudget(cfg, p), "budget_mode": newspaperBudget(cfg, p).Mode, "overview_sources": cfg.Newspaper.OverviewSources, "monetary_budget_enabled": cfg.Budget.Enabled, "max_searches": newspaperBudget(cfg, p).Searches, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": newspaperBudget(cfg, p).Minutes, "max_pages": newspaperBudget(cfg, p).Pages, "max_editions": cfg.Newspaper.MaxEditions})
+		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "effective_budget": newspaperBudget(cfg, p), "budget_mode": newspaperBudget(cfg, p).Mode, "overview_sources": cfg.Newspaper.OverviewSources, "monetary_budget_enabled": cfg.Budget.Enabled, "max_searches": newspaperBudget(cfg, p).Searches, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "whatsapp_allowed": cfg.Newspaper.AllowWhatsApp, "whatsapp_ready": s.newspaperWhatsAppReady(cfg), "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": newspaperBudget(cfg, p).Minutes, "max_pages": newspaperBudget(cfg, p).Pages, "max_editions": cfg.Newspaper.MaxEditions})
 		return
 	}
 	if path == "profile" {
@@ -273,6 +273,20 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := telegram.SendTestMessage(cfg, time.Now()); err != nil {
+			newspaperError(w, err)
+			return
+		}
+		newspaperJSON(w, 200, map[string]string{"status": "sent"})
+		return
+	}
+	if path == "whatsapp/test" && r.Method == http.MethodPost {
+		ctx, cancel := context.WithTimeout(r.Context(), whatsAppActionTimeout)
+		defer cancel()
+		if err := s.sendNewspaperWhatsAppTest(ctx, cfg, whatsAppTestNow()); err != nil {
+			if errors.Is(err, errNewspaperWhatsAppTestRateLimited) {
+				newspaperJSON(w, http.StatusTooManyRequests, map[string]string{"error": err.Error()})
+				return
+			}
 			newspaperError(w, err)
 			return
 		}

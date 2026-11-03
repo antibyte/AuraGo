@@ -345,19 +345,6 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 7c2. shell_unsafe_host_legacy — host shell permitted by the pre-flag default.
-	// A blocked sandbox refuses the shell anyway, so the hint would be wrong there.
-	if cfg.Agent.AllowShell && cfg.Agent.LegacyUnsandboxedShell && !cfg.Agent.AllowUnsafeHostExecution && !cfg.Agent.AllowUnsandboxedShell && !shellSandboxReady(cfg) && !sandbox.IsBlocked() && runtimeGOOS != "windows" {
-		hints = append(hints, SecurityHint{
-			ID: "shell_unsafe_host_legacy", Severity: SevWarning,
-			Title: "Host shell runs under a legacy default",
-			Description: "agent.allow_shell is enabled, no shell sandbox is active and agent.allow_unsandboxed_shell is not written in config.yaml. " +
-				"AuraGo keeps the Linux/macOS host shell working for this existing configuration. Write agent.allow_unsandboxed_shell: true to make the decision explicit, " +
-				"or enable shell_sandbox on a supported Linux host. Writing the key as false stops the host shell unless agent.allow_unsafe_host_execution is true.",
-			AutoFixable: false,
-		})
-	}
-
 	// 7d. mcp_public — MCP exposed on an internet-facing instance
 	if facing && cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		hints = append(hints, SecurityHint{
@@ -514,6 +501,30 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			Description: "The Telegram bot token is set but telegram.user_id is 0. " +
 				"The bot will respond to messages from any Telegram user. " +
 				"Set your Telegram user ID to restrict access.",
+			AutoFixable: false,
+		})
+	}
+
+	// 18b. whatsapp_self_chat_personal_account — the channel runs on the owner's own account.
+	if cfg.WhatsApp.Enabled && !cfg.EggMode.Enabled && cfg.WhatsApp.Mode == config.WhatsAppModeSelfChat {
+		hints = append(hints, SecurityHint{
+			ID: "whatsapp_self_chat_personal_account", Severity: SevWarning,
+			Title: "WhatsApp: self-chat mode uses your personal account",
+			Description: "whatsapp.mode is self_chat, so AuraGo is a linked device of your own WhatsApp account. " +
+				"It reads only the Message yourself chat, but the linked-device keys in <data_dir>/whatsapp/device.db give access to every chat of the account, " +
+				"and a ban for automated messaging hits your personal number. Prefer whatsapp.mode: dedicated with a separate number.",
+			AutoFixable: false,
+		})
+	}
+
+	// 18c. whatsapp_dedicated_no_owner — dedicated mode that would answer nobody.
+	if cfg.WhatsApp.Enabled && !cfg.EggMode.Enabled && cfg.WhatsApp.Mode != config.WhatsAppModeSelfChat &&
+		!whatsAppHasValidOwnerNumber(cfg.WhatsApp.OwnerNumbers) {
+		hints = append(hints, SecurityHint{
+			ID: "whatsapp_dedicated_no_owner", Severity: SevWarning,
+			Title: "WhatsApp: dedicated mode has no owner number",
+			Description: "whatsapp.mode is dedicated, but whatsapp.owner_numbers holds no valid international number. " +
+				"AuraGo keeps the WhatsApp channel off and answers nobody until an owner number is saved.",
 			AutoFixable: false,
 		})
 	}
@@ -980,6 +991,17 @@ func fritzBoxAnyGroupWritable(cfg *config.Config) bool {
 		(fb.Telephony.Enabled && !fb.Telephony.ReadOnly) ||
 		(fb.SmartHome.Enabled && !fb.SmartHome.ReadOnly) ||
 		(fb.Storage.Enabled && !fb.Storage.ReadOnly)
+}
+
+// whatsAppHasValidOwnerNumber reports whether one owner number survives config.NormalizeE164,
+// the rule the WhatsApp runtime applies before it starts in dedicated mode (ConfigState).
+func whatsAppHasValidOwnerNumber(numbers []string) bool {
+	for _, raw := range numbers {
+		if _, err := config.NormalizeE164(raw); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func frigateMQTTPrefixHint(prefix string) string {

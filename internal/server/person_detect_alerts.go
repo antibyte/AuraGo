@@ -22,19 +22,20 @@ import (
 	"aurago/internal/telegram"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
+	"aurago/internal/whatsapp"
 )
 
 const (
 	// personAlertMaxInFlight bounds the person detection messages that have not returned,
 	// per channel, like flowNotifyMaxInFlight for flow failure notifications.
 	personAlertMaxInFlight = 4
-	// personAlertPhotoName is the file name of the alert photo in Telegram and Discord.
+	// personAlertPhotoName is the file name of the alert photo in Telegram, Discord and WhatsApp.
 	personAlertPhotoName = "person-detection.jpg"
 )
 
 // personAlertChannels are the channels a camera's message action may name (C5).
 var personAlertChannels = map[string]bool{
-	"ntfy": true, "pushover": true, "telegram": true, "discord": true,
+	"ntfy": true, "pushover": true, "telegram": true, "whatsapp": true, "discord": true,
 	"push": true, "telnyx": true, "cyd": true, "all": true,
 }
 
@@ -138,12 +139,14 @@ func (s *Server) sendPersonAlertMessage(ctx context.Context, channel, title, bod
 	}
 }
 
-// deliverPersonAlert sends one message. telegram and discord send the photo with title and
-// body as caption and fall back to text when the photo fails (refused for its size or
-// format, for example); all sends the text to every enabled channel and the photo,
-// captioned with the title, to Telegram and Discord where they are configured; the other
-// channels are text only. Once ctx has ended no further send starts: the dispatcher has
-// reported the action as a timeout, and a late message would contradict that.
+// deliverPersonAlert sends one message. telegram, discord and whatsapp send the photo with
+// title and body as caption and fall back to text when the photo fails (refused for its size
+// or format, for example); all sends the text to every enabled channel and the photo,
+// captioned with the title, to Telegram, Discord and WhatsApp where they are configured; the
+// other channels are text only. The WhatsApp photo reaches the owners only through the owner
+// API, which refuses it in read-only mode and on an unlinked device. Once ctx has ended no
+// further send starts: the dispatcher has reported the action as a timeout, and a late
+// message would contradict that.
 func (s *Server) deliverPersonAlert(ctx context.Context, cfg *config.Config, logger *slog.Logger, channel, title, body string, photo []byte) error {
 	caption := title + "\n" + body
 	switch channel {
@@ -162,6 +165,26 @@ func (s *Server) deliverPersonAlert(ctx context.Context, cfg *config.Config, log
 			logger.Warn("Person detection photo could not be sent to Telegram; sending text", "error", err)
 		}
 		return personAlertOutcome(personAlertSendNotification(cfg, logger, "telegram", title, body, "high", nil))
+	case "whatsapp":
+		if !s.whatsAppOwnerReady(cfg) {
+			return persondetect.Skipped("channel unavailable")
+		}
+		if len(photo) > 0 {
+			textSent, err := s.personAlertWhatsAppPhoto(ctx, photo, caption)
+			switch {
+			case err == nil:
+				return nil
+			case textSent:
+				logger.Warn("Person detection photo could not be sent to WhatsApp; its text was sent", "error", err)
+				return nil
+			case ctx.Err() != nil:
+				return ctx.Err()
+			case errors.Is(err, whatsapp.ErrReadOnly), errors.Is(err, whatsapp.ErrNotConnected):
+				return persondetect.Skipped("channel unavailable") // the text would be refused the same way
+			}
+			logger.Warn("Person detection photo could not be sent to WhatsApp; sending text", "error", err)
+		}
+		return personAlertOutcome(personAlertSendNotification(cfg, logger, "whatsapp", title, body, "high", nil))
 	case "discord":
 		if !personAlertDiscordReady(cfg) {
 			return persondetect.Skipped("channel unavailable")
@@ -189,6 +212,11 @@ func (s *Server) deliverPersonAlert(ctx context.Context, cfg *config.Config, log
 			if personAlertDiscordReady(cfg) && ctx.Err() == nil {
 				if perr := sendPersonAlertDiscordPhoto(cfg, logger, photo, title); perr != nil {
 					logger.Warn("Person detection photo could not be sent to Discord", "error", perr)
+				}
+			}
+			if s.whatsAppOwnerReady(cfg) && ctx.Err() == nil {
+				if _, perr := s.personAlertWhatsAppPhoto(ctx, photo, title); perr != nil {
+					logger.Warn("Person detection photo could not be sent to WhatsApp", "error", perr)
 				}
 			}
 		}
@@ -234,6 +262,20 @@ func personAlertOutcome(raw string) error {
 		return nil
 	}
 	return errors.New(strings.Join(failures, "; "))
+}
+
+// personAlertWhatsAppPhoto sends the alert photo to the WhatsApp owners; textSent says the caption
+// reached at least one owner (as a message of its own first when it is over 1024 runes, or as the
+// caption of a photo that went out), so a text fallback would repeat it for that owner. With two
+// owners this means a failure for the second one is not retried as text: the alert is never sent
+// twice, and the second owner misses it. Tests replace serverWhatsAppOwner, not this function.
+func (s *Server) personAlertWhatsAppPhoto(ctx context.Context, photo []byte, caption string) (textSent bool, err error) {
+	api := serverWhatsAppOwner(s)
+	if api == nil {
+		return false, whatsapp.ErrNotConnected
+	}
+	res, err := api.SendOwnerAttachment(ctx, caption, whatsapp.OwnerAttachment{Name: personAlertPhotoName, Data: photo})
+	return res.TextSent, err
 }
 
 // personAlertDetail cleans a channel's error for the event's alert detail, which the

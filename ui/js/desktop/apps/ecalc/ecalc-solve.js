@@ -13,6 +13,14 @@
 
     const isFiniteValue = value => (Array.isArray(value) ? value.every(Number.isFinite) : Number.isFinite(value));
 
+    // A finite value (or list) that its dimension does not allow: zero or less for a positive dimension, anything that
+    // is not a whole number in 0 .. 2^53 - 1 for an integer one (internal/ecalc/solve.go valueError).
+    function outOfRange(dimension, value) {
+        if (!dimension) return false;
+        const bad = x => (dimension.positive && x <= 0) || (dimension.integer && !(Number.isInteger(x) && x >= 0 && x <= Number.MAX_SAFE_INTEGER));
+        return Array.isArray(value) ? value.some(bad) : bad(value);
+    }
+
     // The consts of the selected option of every choice (an unknown or missing selection falls back to the default).
     function choiceConsts(calc, choices) {
         const consts = {};
@@ -64,10 +72,9 @@
                 continue;
             }
             const value = env[v.id];
-            const positive = !!(units && units.dim(v.dim).positive);
             values[v.id] = Array.isArray(value) ? value.slice() : value;
             if (!isFiniteValue(value)) errors[v.id] = 'nonfinite';
-            else if (positive && (Array.isArray(value) ? value.some(x => x <= 0) : value <= 0)) errors[v.id] = 'range';
+            else if (outOfRange(units ? units.dim(v.dim) : null, value)) errors[v.id] = 'range';
         }
         for (const item of calc.derived) {
             values[item.id] = known.has(item.id) && Number.isFinite(env[item.id]) ? env[item.id] : NaN;
@@ -134,15 +141,25 @@
 
     // A stored state is only used when its inputs are one of the solvable sets; anything else falls back to the defaults.
     // A stored text longer than its field accepts (units.maxLength) counts as unusable, so such a state is not used
-    // either. Only inputs can be locked: a stored lock on any other variable is dropped.
+    // either, and neither is a stored text that no longer parses under the unit stored for its field (a value from before
+    // the magnitude limit of the parser, or text that never read): an old poisoned value cannot keep a page closed.
+    // Only inputs can be locked: a stored lock on any other variable is dropped.
     function restoreState(calc, stored, units, unitOf) {
         const base = defaultState(calc, units, unitOf);
         if (!stored || typeof stored !== 'object' || !stored.inputs || typeof stored.inputs !== 'object') return base;
         const names = Object.keys(stored.inputs);
         const sameSet = calc.sets.some(set => set.length === names.length && set.every(name => names.includes(name)));
+        const reads = (v, text) => {
+            try {
+                if (v.list) units.parseList(text, v.dim, unitOf(v.id)); else units.parse(text, v.dim, unitOf(v.id));
+                return true;
+            } catch (error) {
+                return false;
+            }
+        };
         const fits = name => {
-            const v = calc.vars.find(entry => entry.id === name);
-            return typeof stored.inputs[name] === 'string' && stored.inputs[name].length <= units.maxLength(!!(v && v.list));
+            const v = calc.vars.find(entry => entry.id === name), text = stored.inputs[name];
+            return typeof text === 'string' && text.length <= units.maxLength(!!(v && v.list)) && !!v && reads(v, text);
         };
         if (!sameSet || !names.every(fits)) return base;
         const recency = (Array.isArray(stored.recency) ? stored.recency : []).filter(name => names.includes(name));

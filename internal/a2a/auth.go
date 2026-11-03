@@ -24,15 +24,9 @@ func AuthMiddleware(cfg *config.Config, next http.Handler) http.Handler {
 			return
 		}
 
-		// Try API Key auth (via X-API-Key header or query parameter)
+		// API keys use the header advertised by the agent card, never URL parameters.
 		if auth.APIKeyEnabled && auth.APIKey != "" {
 			if key := r.Header.Get("X-API-Key"); key != "" {
-				if subtle.ConstantTimeCompare([]byte(key), []byte(auth.APIKey)) == 1 {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-			if key := r.URL.Query().Get("api_key"); key != "" {
 				if subtle.ConstantTimeCompare([]byte(key), []byte(auth.APIKey)) == 1 {
 					next.ServeHTTP(w, r)
 					return

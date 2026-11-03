@@ -350,6 +350,35 @@
         }
     }
 
+    // The launch payload of the agent tool ecalc: a calculator id, variable values as raw text and choice options. It
+    // comes from a model, so it is rebuilt here from checked parts and ECalc still ignores ids it does not know. Ids start
+    // with a letter like the catalog's (which also keeps "__proto__" out), at most 32 values and 32 choices of at most
+    // 256 and 32 characters.
+    const ECALC_LAUNCH_PAGE = /^[a-z][a-z0-9_]{0,63}$/;
+    const ECALC_LAUNCH_NAME = /^[a-z][a-z0-9_]{0,31}$/;
+    function sanitizeECalcLaunchPairs(raw, valueLimit, valuePattern) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        let count = 0;
+        for (const name of Object.keys(raw)) {
+            if (count >= 32) break;
+            const value = raw[name];
+            if (!ECALC_LAUNCH_NAME.test(name) || typeof value !== 'string' || value.length > valueLimit) continue;
+            if (valuePattern && !valuePattern.test(value)) continue;
+            out[name] = value;
+            count++;
+        }
+        return out;
+    }
+    function sanitizeECalcLaunch(raw) {
+        if (!raw || typeof raw !== 'object' || typeof raw.page !== 'string' || !ECALC_LAUNCH_PAGE.test(raw.page)) return null;
+        return {
+            page: raw.page,
+            values: sanitizeECalcLaunchPairs(raw.values, 256, null),
+            choices: sanitizeECalcLaunchPairs(raw.choices, 32, ECALC_LAUNCH_NAME)
+        };
+    }
+
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
         if (desktopEventAlreadyHandled(event.id)) return;
@@ -426,6 +455,10 @@
             const launch = {};
             if (event.payload.path) launch.path = event.payload.path;
             if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            if (event.payload.app_id === 'ecalc') {
+                const ecalcLaunch = sanitizeECalcLaunch(event.payload.ecalc);
+                if (ecalcLaunch) launch.launch = ecalcLaunch;
+            }
             openApp(event.payload.app_id, Object.keys(launch).length ? launch : undefined);
             return;
         }

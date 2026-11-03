@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Slå WhatsApp til, tilføj et ejernummer til eget AuraGo-nummer, og gem.",
   "config.whatsapp.err_invalid_phone": "Indtast nummeret i internationalt format, f.eks. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp er ikke forbundet.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Dette ejernummer er ikke registreret på WhatsApp. Tjek nummeret i indstillingerne.",
   "config.whatsapp.err_rate_limited": "Vent et minut før næste testbesked.",
   "config.whatsapp.err_failed": "WhatsApp svarede ikke. Prøv igen.",
   "config.whatsapp.err_passkey_unsupported": "Telefonen bad om tilknytning med adgangsnøgle, som AuraGo endnu ikke understøtter. Brug QR-koden.",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "Eget AuraGo-nummer: AuraGo har sit eget nummer (anbefalet). Mit nummer: Kun din chat med dig selv når AuraGo.",
   "help.whatsapp.owner_numbers": "Internationalt format, adskilt med kommaer. Kun disse numre kan nå AuraGo.",
   "help.whatsapp.readonly": "Svar til dig virker stadig; agenten kan ikke sende af sig selv.",
-  "help.whatsapp.send_read_receipts": "Kun med eget AuraGo-nummer."
+  "help.whatsapp.send_read_receipts": "Kun med eget AuraGo-nummer.",
+  "help.whatsapp.self_chat_prefix": "Kun i selvchat-tilstand. AuraGo starter sine beskeder med dette præfiks (højst 16 tegn). Noter til dig selv, der begynder med præfikset, ignoreres, så AuraGo aldrig svarer på sit eget ekko."
 }

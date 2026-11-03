@@ -19,6 +19,10 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+    /* The keypad adapts to the phone itself, not to the browser window:
+       the phone lives in a desktop window that can be any size. */
+    container-type: size;
+    container-name: sip-phone;
     color: var(--sip-text);
     background:
         radial-gradient(120% 90% at 50% 52%, rgba(22, 30, 46, 0.97) 0%, rgba(6, 8, 13, 0.99) 55%, #03040a 100%);
@@ -124,7 +128,9 @@
     position: relative;
     z-index: 1;
     width: min(400px, 92%);
-    height: min(94%, 830px);
+    /* The device fills the stage height so the screen keeps every key visible.
+       The visual downscale below then leaves only a thin frame around it. */
+    height: min(100%, 830px);
     padding: 12px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 64px;
@@ -403,7 +409,7 @@
     flex: 1;
     flex-direction: column;
     min-height: 0;
-    padding: 8px 20px 4px;
+    padding: 6px 20px 2px;
     overflow-x: hidden;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -679,7 +685,7 @@
     justify-content: center;
     align-items: center;
     gap: 13px 16px;
-    margin-top: 15px;
+    margin-top: 12px;
 }
 
 .sip-phone-call-button {
@@ -772,7 +778,7 @@
 }
 
 .sip-phone-ready {
-    margin: 12px 0 6px;
+    margin: 8px 0 2px;
     color: var(--sip-text-faint);
     font-size: 0.68rem;
     letter-spacing: 0.03em;
@@ -1578,7 +1584,10 @@
 /* Compact heights                                                     */
 /* ------------------------------------------------------------------ */
 
-@media (max-height: 760px) {
+/* The phone measures itself instead of the browser viewport: the full
+   keypad needs ~715px of phone height, the compact one ~660px. Below that
+   the compact keys keep the call button reachable without scrolling. */
+@container sip-phone (max-height: 715px) {
     .sip-phone-keypad {
         grid-template-columns: repeat(3, 64px);
         gap: 10px 14px;
@@ -1614,7 +1623,7 @@
     }
 }
 
-@media (max-height: 620px) {
+@container sip-phone (max-height: 659px) {
     .sip-phone-keypad {
         grid-template-columns: repeat(3, 56px);
         gap: 8px 12px;
@@ -1735,7 +1744,9 @@
 }
 
 /* In the desktop app window the device is scaled down so the full phone fits
-   like it does in the gadget. */
+   like it does in the gadget. The scale only shapes the frame around the
+   device — the screen itself is laid out at full stage height, so nothing
+   has to be scrolled to reach the call button. */
 .vd-window[data-app-id="sip-phone"] .sip-phone {
     display: flex;
     align-items: center;
@@ -1743,7 +1754,7 @@
 }
 
 .vd-window[data-app-id="sip-phone"] .sip-phone-device {
-    transform: scale(0.78);
+    transform: scale(0.9);
     transform-origin: center center;
 }
 

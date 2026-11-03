@@ -2,7 +2,9 @@ package httpstream
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -147,5 +149,43 @@ func TestWriteTimeoutPreservesWebSocketHijack(t *testing.T) {
 	_, message, err := conn.ReadMessage()
 	if err != nil || string(message) != "ping" {
 		t.Fatalf("WebSocket echo failed: %q, %v", message, err)
+	}
+}
+
+type cancelOnDeadlineWriter struct {
+	*httptest.ResponseRecorder
+	cancel        context.CancelFunc
+	deadlineCalls int
+}
+
+func (w *cancelOnDeadlineWriter) SetWriteDeadline(time.Time) error {
+	w.deadlineCalls++
+	w.cancel()
+	return nil
+}
+
+func TestWriteTimeoutDoesNotReviveCanceledStream(t *testing.T) {
+	for _, cancelBeforeWrite := range []bool{true, false} {
+		t.Run(fmt.Sprintf("cancelBeforeWrite=%v", cancelBeforeWrite), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			writer := &cancelOnDeadlineWriter{ResponseRecorder: httptest.NewRecorder(), cancel: cancel}
+			if cancelBeforeWrite {
+				cancel()
+			}
+			handler := WithWriteTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				if _, err := io.WriteString(w, "late frame\n"); !errors.Is(err, context.Canceled) {
+					t.Errorf("canceled stream write = %v, want context.Canceled", err)
+				}
+			}), time.Minute)
+			handler.ServeHTTP(writer, httptest.NewRequest(http.MethodGet, "/events", nil).WithContext(ctx))
+			if writer.Body.Len() != 0 {
+				t.Fatal("canceled stream still wrote a response")
+			}
+			if cancelBeforeWrite && writer.deadlineCalls != 0 {
+				t.Fatal("canceled stream renewed its deadline")
+			}
+		})
 	}
 }

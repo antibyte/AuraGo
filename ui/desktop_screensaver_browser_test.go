@@ -42,7 +42,7 @@ func newScreensaverBrowser(t *testing.T) (*rod.Browser, func()) {
 	t.Helper()
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("screensaver browser test requires Chrome or Edge")
+		browserSmokeUnavailable(t, "screensaver browser test requires Chrome or Edge")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	l := launcher.New().Context(ctx).Bin(bin).Headless(true).NoSandbox(true)
@@ -54,7 +54,7 @@ func newScreensaverBrowser(t *testing.T) (*rod.Browser, func()) {
 	url, err := l.Launch()
 	if err != nil {
 		cancel()
-		t.Skipf("screensaver browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "screensaver browser launch failed: %v", err)
 	}
 	b := rod.New().Context(ctx).ControlURL(url).MustConnect()
 	return b, func() {

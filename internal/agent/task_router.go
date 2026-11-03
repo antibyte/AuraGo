@@ -92,7 +92,7 @@ func taskRouterEligible(run RunConfig) bool {
 		return true
 	}
 	switch run.MessageSource {
-	case "web_chat", "telegram", "discord", "rocketchat", "sms", "desktop", "desktop_chat", "virtual_desktop_chat", "agodesk", "agodesk_chat", "meshcore":
+	case "web_chat", "telegram", "whatsapp", "discord", "rocketchat", "sms", "desktop", "desktop_chat", "virtual_desktop_chat", "agodesk", "agodesk_chat", "meshcore":
 		return true
 	}
 	return false

@@ -807,8 +807,8 @@ var authBypassSubtrees = []string{
 
 var publicUIAssetPaths = map[string]bool{
 	"/apple-touch-icon.png":         true,
-	"/aurago_logo_dark.png":         true,
-	"/aurago_logo.png":              true,
+	"/aurago_logo_dark.webp":        true,
+	"/aurago_logo.webp":             true,
 	"/favicon-96x96.png":            true,
 	"/favicon.ico":                  true,
 	"/favicon.svg":                  true,
@@ -955,8 +955,15 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
+		if !enabled && !s.rebindingSafeHost(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"login_required_for_host","message":"Enable login or open AuraGo using an IP address, localhost, or a configured host name."}`))
+			return
+		}
+
 		// Disabling login must not let opaque previews or foreign browser pages write
-		// to the host. Headerless native clients retain the auth-disabled workflow.
+		// to the host. Headerless native clients retain that workflow on trusted hosts.
 		if !enabled && !isSafeMethod(r.Method) && (r.Header.Get("Origin") != "" || r.Header.Get("Referer") != "") && !checkCSRFOrigin(r) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)

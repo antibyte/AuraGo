@@ -4425,6 +4425,17 @@ window.IntegrationsDrawer = (function () {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    // Speech Lab is only reachable through the authenticated same-origin ingress.
+    // The webhost entry reports its availability: while the entry needs attention
+    // (auth required, backend not ready) the drawer offers the settings hint
+    // instead of opening the lab.
+    function speechLabBrowserURL() {
+        const entry = (webhosts || []).find(item => item && item.id === 'speech_lab');
+        if (!entry || entry.message_key) return '';
+        if ((entry.status || 'starting') !== 'running') return '';
+        return '/speech-lab/';
+    }
+
     function hasFreshWebhosts() {
         return webhostsLoadedAt > 0 && Date.now() - webhostsLoadedAt < WEBHOSTS_CACHE_TTL_MS;
     }
@@ -4486,7 +4497,8 @@ window.IntegrationsDrawer = (function () {
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
             const isSpeechLab = item.id === 'speech_lab';
-            const url = isSpeechLab ? (item.url === '/speech-lab/' ? item.url : '') : (item.url || '');
+            const requestedURL = item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '');
+            const url = isSpeechLab ? (requestedURL === '/speech-lab/' ? requestedURL : '') : requestedURL;
             const needsSettings = isSpeechLab && (status !== 'running' || !url || !!item.message_key);
             const meta = item.message_key ? t(item.message_key) : (needsSettings ? t('chat.speech_lab_not_ready_settings') : (url || item.description || ''));
             let action = '';
@@ -6548,7 +6560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { slot: 24, key: 'text_diff', label: 'Diff', row: 2, col: 4, aliases: Object.freeze([]) },
         { slot: 25, key: 'code_analysis', label: 'Code analysis', row: 2, col: 5, aliases: Object.freeze([]) },
         { slot: 26, key: 'golangci_lint', label: 'Go lint', row: 2, col: 6, aliases: Object.freeze(['golangci']) },
-        { slot: 27, key: 'system_metrics', label: 'System metrics', row: 2, col: 7, aliases: Object.freeze(['metrics']) },
+        { slot: 27, key: 'system_metrics', label: 'System metrics', row: 2, col: 7, aliases: Object.freeze(['metrics', 'ecalc']) },
         { slot: 28, key: 'process_management', label: 'Processes', row: 2, col: 8, aliases: Object.freeze([]) },
         { slot: 29, key: 'service_manager', label: 'Services', row: 2, col: 9, aliases: Object.freeze([]) },
         { slot: 30, key: 'network_ping', label: 'Ping', row: 3, col: 0, aliases: Object.freeze(['ping']) },

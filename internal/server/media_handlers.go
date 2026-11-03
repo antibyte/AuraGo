@@ -240,8 +240,8 @@ func handleMediaBulkDelete(s *Server) http.HandlerFunc {
 		}
 
 		var req mediaBulkDeleteRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			w.WriteHeader(jsonDecodeStatus(err))
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid request body"})
 			return
 		}

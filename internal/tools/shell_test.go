@@ -224,7 +224,7 @@ func TestExecuteShellBackgroundRejectsPrivilegeWrapper(t *testing.T) {
 
 	registry := NewProcessRegistry(slog.Default())
 	workspaceDir := t.TempDir()
-	if _, err := ExecuteShellBackground("sudo ls", workspaceDir, registry); err == nil || !strings.Contains(err.Error(), "command blocked") {
+	if _, err := ExecuteShellBackground(context.Background(), "sudo ls", workspaceDir, registry); err == nil || !strings.Contains(err.Error(), "command blocked") {
 		t.Fatalf("ExecuteShellBackground() error = %v, want blocked", err)
 	}
 }
@@ -233,7 +233,7 @@ func TestExecuteSudoBlockedWhenShellSandboxActive(t *testing.T) {
 	restore := sandbox.SetForTest(&sandbox.BlockingSandbox{})
 	t.Cleanup(restore)
 
-	_, _, err := ExecuteSudo("id", t.TempDir(), "password")
+	_, _, err := ExecuteSudo(context.Background(), "id", t.TempDir(), "password")
 	if err == nil || !strings.Contains(err.Error(), "execute_sudo is disabled while shell sandbox is active") {
 		t.Fatalf("ExecuteSudo() error = %v, want sandbox block", err)
 	}
@@ -261,7 +261,7 @@ func TestExecuteShellBackgroundDoesNotInheritSensitiveEnv(t *testing.T) {
 	setSensitiveEnvForSubprocessTest(t)
 	registry := NewProcessRegistry(slog.Default())
 
-	pid, err := ExecuteShellBackground(shellPrintSensitiveEnvAndSleepCommand(), t.TempDir(), registry)
+	pid, err := ExecuteShellBackground(context.Background(), shellPrintSensitiveEnvAndSleepCommand(), t.TempDir(), registry)
 	if err != nil {
 		t.Fatalf("ExecuteShellBackground() error = %v", err)
 	}
@@ -355,10 +355,10 @@ func TestHostShellEntryPointsRefuseWithoutFlagOrSandbox(t *testing.T) {
 	if _, _, err := ExecuteShell(context.Background(), "echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "sandbox") {
 		t.Fatalf("ExecuteShell() error = %v, want host shell gate", err)
 	}
-	if _, err := ExecuteShellBackground("echo must-not-run", t.TempDir(), NewProcessRegistry(slog.Default())); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+	if _, err := ExecuteShellBackground(context.Background(), "echo must-not-run", t.TempDir(), NewProcessRegistry(slog.Default())); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
 		t.Fatalf("ExecuteShellBackground() error = %v, want host shell gate", err)
 	}
-	if _, _, err := ExecuteSudo("id", t.TempDir(), "password"); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+	if _, _, err := ExecuteSudo(context.Background(), "id", t.TempDir(), "password"); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
 		t.Fatalf("ExecuteSudo() error = %v, want host shell gate", err)
 	}
 }

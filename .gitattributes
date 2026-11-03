@@ -38,6 +38,9 @@ ui/img/buuf-nestort/** text=auto eol=lf
 licences/texts/CC-BY-NC-SA-2.5.txt text eol=lf -whitespace
 ui/img/buuf-nestort/LICENSE.txt -whitespace
 
+# The linked-module manifest ships in resources.dat and the Linux image, so it stays LF on Windows checkouts.
+licences/linked-go-modules.tsv text eol=lf
+
 # Preserve generated template literals and upstream license text byte-for-byte.
 ui/fonts/qr/OFL-*.txt text eol=lf -whitespace
 ui/fonts/qr/Go-fonts-LICENSE.txt text eol=lf -whitespace

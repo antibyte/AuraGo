@@ -174,6 +174,13 @@ func deriveLegacyBackupKey(password string, salt []byte) []byte {
 // ── Encrypt / Decrypt ────────────────────────────────────────────────────────
 
 func encryptAGO(zipData []byte, password string) ([]byte, error) {
+	return encryptAGOReader(bytes.NewReader(zipData), int64(len(zipData)), password)
+}
+
+func encryptAGOReader(reader io.Reader, size int64, password string) ([]byte, error) {
+	if size < 0 || size > agoMaxUploadSize {
+		return nil, fmt.Errorf("invalid backup archive size")
+	}
 	salt := make([]byte, agoSaltSize)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
@@ -191,53 +198,68 @@ func encryptAGO(zipData []byte, password string) ([]byte, error) {
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	ciphertext := gcm.Seal(nil, nonce, zipData, nil)
-
-	var buf bytes.Buffer
-	buf.WriteString(agoMagic)
-	buf.WriteByte(agoKDFArgon2ID)
-	buf.Write(salt)
-	buf.Write(nonce)
-	buf.Write(ciphertext)
-	return buf.Bytes(), nil
+	headerSize := len(agoMagic) + 1 + len(salt) + len(nonce)
+	out := make([]byte, headerSize+int(size)+gcm.Overhead())
+	copy(out, agoMagic)
+	out[len(agoMagic)] = agoKDFArgon2ID
+	copy(out[len(agoMagic)+1:], salt)
+	copy(out[len(agoMagic)+1+len(salt):], nonce)
+	plaintext := out[headerSize : headerSize+int(size)]
+	if _, err := io.ReadFull(reader, plaintext); err != nil {
+		return nil, fmt.Errorf("read backup archive: %w", err)
+	}
+	return gcm.Seal(out[:headerSize], nonce, plaintext, nil), nil
 }
 
 func decryptAGO(data []byte, password string) ([]byte, error) {
-	if len(data) < 4 || string(data[:4]) != agoMagic {
+	return decryptAGOReader(bytes.NewReader(data), int64(len(data)), password)
+}
+
+func decryptAGOReader(reader io.ReaderAt, size int64, password string) ([]byte, error) {
+	if size < 4 || size > agoMaxUploadSize {
+		return nil, fmt.Errorf("invalid encrypted .ago file size")
+	}
+	var header [4 + 1 + agoSaltSize + 12]byte
+	n, err := reader.ReadAt(header[:], 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("read backup header: %w", err)
+	}
+	if n < 4 || string(header[:4]) != agoMagic {
 		return nil, fmt.Errorf("not an encrypted .ago file")
 	}
-	data = data[4:]
-	if len(data) < agoSaltSize+12 { // salt + nonce min
+	if n < 4+agoSaltSize+12 {
 		return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
 	}
-	if data[0] == agoKDFArgon2ID {
-		if len(data) < 1+agoSaltSize+12 {
-			return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
+	buffer := make([]byte, int(size)-4-agoSaltSize-12)
+	open := func(offset int, salt, nonce []byte, derive func(string, []byte) []byte) ([]byte, error) {
+		payload := buffer[:int(size)-offset]
+		if _, err := reader.ReadAt(payload, int64(offset)); err != nil {
+			return nil, fmt.Errorf("read encrypted backup: %w", err)
 		}
-		salt := data[1 : 1+agoSaltSize]
-		payload := data[1+agoSaltSize:]
-		plaintext, err := decryptBackupGCM(payload, deriveBackupKey(password, salt))
+		block, err := aes.NewCipher(derive(password, salt))
+		if err != nil {
+			return nil, err
+		}
+		gcm, err := cipher.NewGCM(block)
+		if err != nil {
+			return nil, err
+		}
+		return gcm.Open(payload[:0], nonce, payload, nil)
+	}
+	var currentErr error
+	if header[4] == agoKDFArgon2ID && n == len(header) {
+		plaintext, err := open(len(header), header[5:5+agoSaltSize], header[5+agoSaltSize:], deriveBackupKey)
 		if err == nil {
 			return plaintext, nil
 		}
-		// Very old backups store random salt immediately after the magic. If the first
-		// salt byte happens to match the current KDF marker, try the legacy path too.
-		if legacy, legacyErr := decryptLegacyAGOBody(data, password); legacyErr == nil {
-			return legacy, nil
-		}
-		return nil, fmt.Errorf("decryption failed (wrong password?): %w", err)
+		currentErr = err
 	}
-	return decryptLegacyAGOBody(data, password)
-}
-
-func decryptLegacyAGOBody(data []byte, password string) ([]byte, error) {
-	if len(data) < agoSaltSize+12 {
-		return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
-	}
-	salt := data[:agoSaltSize]
-	payload := data[agoSaltSize:]
-	plaintext, err := decryptBackupGCM(payload, deriveLegacyBackupKey(password, salt))
+	// Reload ciphertext before the legacy fallback: a failed in-place Open may overwrite it.
+	plaintext, err := open(4+agoSaltSize+12, header[4:4+agoSaltSize], header[4+agoSaltSize:4+agoSaltSize+12], deriveLegacyBackupKey)
 	if err != nil {
+		if currentErr != nil {
+			err = currentErr
+		}
 		return nil, fmt.Errorf("decryption failed (wrong password?): %w", err)
 	}
 	return plaintext, nil
@@ -483,9 +505,17 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		absConfig, _ := filepath.Abs(s.Cfg.ConfigPath)
 		configRoot := filepath.Dir(absConfig)
 
-		// Build ZIP in memory
-		var zipBuf bytes.Buffer
-		zw := zip.NewWriter(&zipBuf)
+		zipFile, err := os.CreateTemp("", "aurago-backup-*.ago")
+		if err != nil {
+			jsonError(w, "Failed to stage backup archive", http.StatusInternalServerError)
+			return
+		}
+		defer func() { zipFile.Close(); os.Remove(zipFile.Name()) }()
+		if err := fileutil.RestrictToOwner(zipFile.Name()); err != nil {
+			jsonError(w, "Failed to protect backup archive", http.StatusInternalServerError)
+			return
+		}
+		zw := zip.NewWriter(zipFile)
 		contents := []string{}
 		seenZipPaths := map[string]struct{}{}
 		totalSelectedBytes := int64(0)
@@ -982,36 +1012,44 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			return
 		}
 
-		zipData := zipBuf.Bytes()
+		info, err := zipFile.Stat()
+		if err != nil {
+			jsonError(w, "Failed to read backup archive size", http.StatusInternalServerError)
+			return
+		}
+		if _, err := zipFile.Seek(0, io.SeekStart); err != nil {
+			jsonError(w, "Failed to read backup archive", http.StatusInternalServerError)
+			return
+		}
 		filename := fmt.Sprintf("aurago_backup_%s.ago", time.Now().Format("20060102_150405"))
 
-		var outData []byte
+		var output io.Reader = zipFile
+		outputSize := info.Size()
 		if req.Password != "" {
-			var err error
-			outData, err = encryptAGO(zipData, req.Password)
+			outData, err := encryptAGOReader(zipFile, outputSize, req.Password)
 			if err != nil {
 				s.Logger.Error("[Backup] Encryption failed", "error", err)
 				jsonError(w, "Encryption failed", http.StatusInternalServerError)
 				return
 			}
-		} else {
-			outData = zipData
+			output = bytes.NewReader(outData)
+			outputSize = int64(len(outData))
 		}
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(outData)))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", outputSize))
 		if len(sqliteSkipped) > 0 {
 			w.Header().Set("X-AuraGo-Backup-Skipped", fmt.Sprintf("%d", len(sqliteSkipped)))
 		}
-		if _, err := w.Write(outData); err != nil {
+		if _, err := io.Copy(w, output); err != nil {
 			s.Logger.Warn("[Backup] Failed to write response", "error", err)
 			return
 		}
 
 		s.Logger.Info("[Backup] Backup created",
 			"filename", filename,
-			"size_bytes", len(outData),
+			"size_bytes", outputSize,
 			"encrypted", req.Password != "", "vault_included", vaultIncluded, "token_store_included", tokenStoreIncluded, "vectordb", req.IncludeVectorDB,
 			"workdir", req.IncludeWorkdir)
 	}
@@ -1029,7 +1067,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		// Multipart form — allow up to the archive extraction limit plus encryption/header overhead.
 		r.Body = http.MaxBytesReader(w, r.Body, agoMaxUploadSize)
-		if err := r.ParseMultipartForm(agoMaxUploadSize); err != nil {
+		if err := r.ParseMultipartForm(8 << 20); err != nil {
 			s.Logger.Warn("[Backup] Invalid import form", "error", err)
 			var tooLarge *http.MaxBytesError
 			if errors.As(err, &tooLarge) {
@@ -1039,6 +1077,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid backup upload", http.StatusBadRequest)
 			return
 		}
+		defer r.MultipartForm.RemoveAll()
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
@@ -1054,16 +1093,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 
 		password := r.FormValue("password")
 
-		rawData, err := io.ReadAll(file)
-		if err != nil {
+		var magic [4]byte
+		if _, err := file.ReadAt(magic[:], 0); err != nil && !errors.Is(err, io.EOF) {
 			s.Logger.Warn("[Backup] Failed to read import upload", "filename", header.Filename, "error", err)
 			jsonError(w, "Failed to read uploaded backup", http.StatusBadRequest)
 			return
 		}
 
 		// Detect and handle encryption
-		var zipData []byte
-		if len(rawData) >= 4 && string(rawData[:4]) == agoMagic {
+		var archive io.ReaderAt = file
+		archiveSize := header.Size
+		if string(magic[:]) == agoMagic {
 			if password == "" {
 				// Special case: tell UI that a password is required
 				w.Header().Set("Content-Type", "application/json")
@@ -1074,7 +1114,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				})
 				return
 			}
-			zipData, err = decryptAGO(rawData, password)
+			zipData, err := decryptAGOReader(file, header.Size, password)
 			if err != nil {
 				s.Logger.Warn("[Backup] Backup decryption failed", "filename", header.Filename, "error", err)
 				w.Header().Set("Content-Type", "application/json")
@@ -1085,12 +1125,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				})
 				return
 			}
-		} else {
-			zipData = rawData
+			archive = bytes.NewReader(zipData)
+			archiveSize = int64(len(zipData))
 		}
 
 		// Open as ZIP
-		zr, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
+		zr, err := zip.NewReader(archive, archiveSize)
 		if err != nil {
 			s.Logger.Warn("[Backup] Invalid backup archive", "filename", header.Filename, "error", err)
 			jsonError(w, "Invalid backup archive", http.StatusBadRequest)

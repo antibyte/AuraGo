@@ -175,8 +175,8 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 		}
 
 		var mission tools.MissionV2
-		if err := json.NewDecoder(r.Body).Decode(&mission); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &mission, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		mission.Prompt = tools.StripMissionExecutionPlanAdvisory(mission.Prompt)
@@ -317,8 +317,8 @@ func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 
 func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	var updated tools.MissionV2
-	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &updated, s); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 	updated.Prompt = tools.StripMissionExecutionPlanAdvisory(updated.Prompt)
@@ -387,8 +387,8 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	var payload struct {
 		TriggerData string `json:"trigger_data,omitempty"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err.Error() != "EOF" {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &payload, s); err != nil && err.Error() != "EOF" {
+		jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 		return
 	}
 

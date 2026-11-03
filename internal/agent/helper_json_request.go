@@ -105,10 +105,7 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		route.Model, route.ProviderType = m.model, m.providerType
 	}
 	limits := llm.ResolveModelLimitsCached(route, m.contextWindow)
-	structured := false
-	if caps, ok := llm.CapabilitiesFromRegistry(m.providerType, m.model); ok {
-		structured = caps.StructuredOutputs
-	}
+	responseFormat := llm.JSONResponseFormatForModel(m.providerType, m.model)
 	var lastErr error
 	attempts := 0
 	for attempt := 0; attempt <= helperMaxRetries; attempt++ {
@@ -137,7 +134,7 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		request := openai.ChatCompletionRequest{
 			Model: m.model, Temperature: 0.1, MaxTokens: outputTokens,
 			Messages:       []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: systemPrompt}, {Role: openai.ChatMessageRoleUser, Content: userPrompt}},
-			ResponseFormat: llm.JSONResponseFormat(structured),
+			ResponseFormat: responseFormat,
 		}
 		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
 			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, outputTokens, 0

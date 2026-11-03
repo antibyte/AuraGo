@@ -1669,12 +1669,10 @@
         display: none;
     }
 
-    .oscad-header-actions .oscad-btn span {
-        display: none;
-    }
-
-    .oscad-header-actions .oscad-btn {
-        min-width: 36px;
+    .oscad-header-actions .oscad-btn,
+    .oscad-header-actions .oscad-icon-btn {
+        min-width: 44px;
+        min-height: 44px;
         padding: 7px;
     }
 }

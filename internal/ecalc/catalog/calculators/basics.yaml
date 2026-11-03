@@ -298,3 +298,17 @@
     q: ["e/v"]
     v: ["e/q"]
   formula: ["e = q * v"]
+
+- id: eseries_combiner
+  kind: calculator
+  category: basics
+  name: {cs: "Kombinace hodnot z řady E", da: "Kombination af standardværdier", de: "Kombination von Normwerten", el: "Συνδυασμός τυποποιημένων τιμών", en: "Standard-value combiner", es: "Combinación de valores normalizados", fr: "Combinaison de valeurs normalisées", hi: "मानक मानों का संयोजन", it: "Combinazione di valori normalizzati", ja: "標準値の組み合わせ（E系列）", nl: "Combinatie van standaardwaarden", no: "Kombinasjon av standardverdier", pl: "Kombinacje wartości z szeregu E", pt: "Combinação de valores padronizados", sv: "Kombination av standardvärden", zh: "标准值组合（E系列）"}
+  doc:
+    en: "Finds resistor values from a standard E series (IEC 60063) that reach a target: the nearest single value, and pairs in series or in parallel whose combined value comes closest. Enter the target resistance and choose the series in the settings (E6 to E192); every combination shows its value and its deviation from the target. In series R = R_1 + R_2, in parallel R = R_1 × R_2 / (R_1 + R_2). Example: 5 kΩ from E12 gives 4.7 kΩ + 270 Ω (−0.6 %) or 10 kΩ parallel to 10 kΩ (exactly 5 kΩ)."
+    de: "Findet Widerstandswerte aus einer Normreihe (IEC 60063), die einen Zielwert erreichen: den nächstliegenden Einzelwert sowie Paare in Reihe oder parallel, deren Gesamtwert dem Ziel am nächsten kommt. Den Zielwiderstand eingeben und die Reihe in den Einstellungen wählen (E6 bis E192); jede Kombination zeigt ihren Wert und die Abweichung vom Ziel. In Reihe gilt R = R_1 + R_2, parallel R = R_1 · R_2 / (R_1 + R_2). Beispiel: 5 kΩ aus E12 ergibt 4,7 kΩ + 270 Ω (−0,6 %) oder 10 kΩ parallel zu 10 kΩ (genau 5 kΩ)."
+  tags: [standard values, e series, e12, e24, e96, preferred numbers, resistor, combination, series, parallel, normwerte, e-reihe, normreihe, vorzugsreihe, widerstand, kombination, reihenschaltung, parallelschaltung]
+  source: "IEC 60063 (preferred number series E3 to E192); series and parallel resistor combination: P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1"
+  vars:
+    target: {dim: resistance, label: R, name: {en: "Target resistance", de: "Zielwiderstand"}, default: "5k"}
+  dof: 1
+  finder: combine

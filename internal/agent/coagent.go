@@ -151,9 +151,6 @@ func SpawnCoAgent(parent CoAgentSpawnContext, req CoAgentRequest, progressSink c
 	if coRegistry == nil || logger == nil {
 		return "", "", fmt.Errorf("co-agent runtime is not initialized")
 	}
-	if !cfg.CoAgents.QueueWhenBusy && coRegistry.AvailableSlots() <= 0 {
-		return "", "", fmt.Errorf("all %d co-agent slots are occupied", cfg.CoAgents.MaxConcurrent)
-	}
 	req = normalizeCoAgentRequest(cfg, req)
 	if strings.TrimSpace(req.Task) == "" {
 		return "", "", fmt.Errorf("'task' is required to spawn a co-agent")
@@ -177,7 +174,7 @@ func SpawnCoAgent(parent CoAgentSpawnContext, req CoAgentRequest, progressSink c
 		}
 	}
 
-	// 1. Create the lifecycle context for this co-agent — use Background() so
+	// 1. Create the lifecycle context for this co-agent — use the registry lifetime so
 	// the co-agent survives after the parent HTTP request/main-agent turn ends.
 	// Stop cancels it while queued and while running. The execution timeout
 	// starts only after queue promotion (coAgentRunContext).
@@ -188,14 +185,14 @@ func SpawnCoAgent(parent CoAgentSpawnContext, req CoAgentRequest, progressSink c
 		}
 	}
 	timeout := time.Duration(timeoutSec) * time.Second
-	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	lifecycleCtx, cancel := context.WithCancel(coRegistry.Context())
 
 	// 2. Register — checks slot availability. Specialist IDs use "specialist-<role>-N" prefix.
 	idPrefix := "coagent"
 	if req.Specialist != "" {
 		idPrefix = "specialist-" + req.Specialist
 	}
-	coID, state, err := coRegistry.RegisterWithPriority(idPrefix, req.Task, cancel, reqPriority(req))
+	coID, state, err := coRegistry.RegisterWorker(idPrefix, req.Task, parent.run.ParentSessionID, cancel, reqPriority(req), cfg.CoAgents.QueueWhenBusy)
 	if err != nil {
 		cancel()
 		return "", "", err
@@ -212,6 +209,7 @@ func SpawnCoAgent(parent CoAgentSpawnContext, req CoAgentRequest, progressSink c
 	// 5. Launch goroutine — expensive work (LLM client, config clone, prompt build)
 	// is deferred until after queue promotion so queued agents consume minimal resources.
 	go func() {
+		defer coRegistry.WorkerDone(coID)
 		component := "co-agent"
 		if req.Specialist != "" {
 			component = "specialist-" + req.Specialist

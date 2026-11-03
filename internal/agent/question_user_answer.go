@@ -29,12 +29,12 @@ func questionAnswerFromAdminSurface(source tools.QuestionSource) bool {
 // screenQuestionFreeText formats a completed question_user answer as tool
 // output and reports whether the answer was withheld.
 //
-// The free text is chat from the web or desktop chat, Telegram, Discord or SMS,
-// or text relayed by an internal loopback turn, and none of those paths ran it
-// through the per-channel guardian, so it is scanned and isolated here. A
-// high-threat answer is withheld unless an admin surface sent it, where the
-// scan only logs as ScanUserInput does. For SMS (ordinary chat is only
-// isolated) and internal relays (follow-up turns are only logged) this is
+// The free text is chat from the web or desktop chat, Telegram, WhatsApp,
+// Discord or SMS, or text relayed by an internal loopback turn, and none of
+// those paths ran it through the per-channel guardian, so it is scanned and
+// isolated here. A high-threat answer is withheld unless an admin surface sent
+// it, where the scan only logs as ScanUserInput does. For SMS (ordinary chat is
+// only isolated) and internal relays (follow-up turns are only logged) this is
 // deliberately stricter than their ordinary chat path. Selected options are
 // model-authored values and pass through unchanged.
 func screenQuestionFreeText(dc *DispatchContext, sessionID string, response tools.QuestionResponse) (string, bool) {

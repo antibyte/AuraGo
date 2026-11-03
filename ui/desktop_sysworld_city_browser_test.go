@@ -25,7 +25,7 @@ const cityPanelsApart = `()=>{
     const q=s=>{const n=document.querySelector(s);return n&&!n.closest('[hidden]')&&getComputedStyle(n).display!=='none'?n.getBoundingClientRect():null;};
     const hit=(a,b)=>a&&b&&a.width&&b.width&&a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
     for(const [a,b] of [['.sw-world>summary','.sw-rail'],['.sw-world>summary','.sw-info'],['.sw-world>summary','.sw-top'],['.sw-world>summary','.sw-bottom'],['.sw-rail','.sw-info'],['.sw-info','.sw-bottom'],['.sw-rail','.sw-bottom']])
-        if(hit(q(a),q(b)))throw Error(a+' overlaps '+b);
+        if(hit(q(a),q(b)))throw Error(a+' overlaps '+b+' '+JSON.stringify({a:q(a),b:q(b)}));
 }`
 
 // assertRenderedCity fails when the central canvas area of a screenshot is a flat colour. A
@@ -147,6 +147,75 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
         if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==6)throw Error('Hologram, atmosphere or drones inactive: '+dump);
         if(s.life.navigation.states.some(state=>state!=='cruise'&&state!=='turn'))throw Error('Unknown robot state');}`)
+	if os.Getenv("AURAGO_SYSTEM_WORLD_JITTER") == "1" {
+		// The headless browser reports "prefers-reduced-motion: reduce" and would
+		// freeze the city. The measurement phase switches motion on over the real
+		// control, so the sampled residents are the ones the user sees.
+		page.MustEval(`()=>{const motion=document.querySelector('select[data-world-motion]');if(!motion)throw Error('Motion control missing');motion.value='on';motion.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.motion?.reduced===false`)
+		t.Logf("motion: %s", page.MustEval(`()=>JSON.stringify({reduced:SysWorldApp.inspect(cityId).motion,media:matchMedia('(prefers-reduced-motion: reduce)').matches,animations:document.body.dataset.animations})`).Str())
+		metrics := page.Timeout(120 * time.Second).MustEval(`async()=>{
+            const samples=[];
+            const end=Date.now()+30000;
+            while(Date.now()<end){
+                await new Promise(r=>setTimeout(r,100));
+                const s=SysWorldApp.inspect(cityId);
+                samples.push({t:Date.now(),visible:s.visible,reduced:s.motion?.reduced,frames:s.frames,
+                    traffic:(s.traffic?.poses||[]).map(p=>[p.id,+p.x.toFixed(2),+p.z.toFixed(2),+p.heading.toFixed(3),+p.blocked.toFixed(2),p.obstruction||'']),
+                    patrol:(s.life?.positions||[]).map(p=>[p[0],p[2]]),
+                    residents:(s.experience?.society?.residents||[]).map(r=>[r.id,r.state,r.x,r.z,r.heading])});
+            }
+            return JSON.stringify(samples);
+        }`).Str()
+		if err := os.WriteFile(filepath.Join(dir, "jitter-samples.json"), []byte(metrics), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("jitter samples: %d bytes", len(metrics))
+		return
+	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_AUDIO") == "1" {
+		// The mix is measured on the master bus, so the numbers are the ones the
+		// speakers would receive. Each channel is muted in turn to see what the
+		// robot foley really contributes to the mix.
+		page.MustElement(`[data-sw-action="sound"]`).MustClick()
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.sound?.state==='running'`)
+		// The headless browser reports "prefers-reduced-motion: reduce" and would
+		// freeze the city. A frozen city has no footfalls, so the robot foley would
+		// have nothing to play.
+		page.MustEval(`()=>{const motion=document.querySelector('select[data-world-motion]');if(!motion)throw Error('Motion control missing');motion.value='on';motion.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
+		page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.motion?.reduced===false`)
+		page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+		measure := func(label string) string {
+			return page.Timeout(30 * time.Second).MustEval(`async()=>{
+                const samples=[];
+                const end=Date.now()+4000;
+                while(Date.now()<end){await new Promise(requestAnimationFrame);samples.push(SysWorldApp.inspect(cityId).sound.rms);}
+                const sorted=[...samples].sort((a,b)=>a-b);
+                const f=SysWorldApp.inspect(cityId).sound.foley;
+                return JSON.stringify({frames:samples.length,max:+sorted.at(-1).toFixed(5),p95:+sorted[Math.floor(sorted.length*.95)].toFixed(5),
+                    median:+sorted[Math.floor(sorted.length*.5)].toFixed(5),above1:samples.filter(v=>v>.001).length,
+                    foley:{played:f.played,steps:f.steps,voices:f.voices,rejected:f.rejected}});
+            }`).Str()
+		}
+		setChannel := func(index int, value float64) {
+			page.MustEval(`()=>{const section=[...document.querySelectorAll('details.sw-world-section')].find(d=>d.querySelectorAll('input[type=range]').length===3);if(!section)throw Error('Audio section missing');window.cityAudioRanges=[...section.querySelectorAll('input[type=range]')];}`)
+			page.MustEval(`()=>{const input=window.cityAudioRanges[` + fmt.Sprint(index) + `];input.value=String(` + fmt.Sprint(int(value*100)) + `);input.dispatchEvent(new Event('input'));}`)
+		}
+		t.Logf("overview all: %s", measure("overview-all"))
+		setChannel(0, 0)
+		t.Logf("overview no ambience: %s", measure("overview-no-ambience"))
+		setChannel(1, 0)
+		t.Logf("overview no ambience, no effects: %s", measure("overview-effects-off"))
+		setChannel(0, 1)
+		setChannel(1, 1)
+		page.MustEval(`()=>{document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
+		page.Timeout(12 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+		t.Logf("street all: %s", measure("street-all"))
+		setChannel(0, 0)
+		t.Logf("street no ambience: %s", measure("street-no-ambience"))
+		setChannel(0, 1)
+		return
+	}
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
@@ -300,6 +369,11 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.effects.weather!=='rain')throw Error('Audio lost the environment selected before unmute');const weather=document.querySelectorAll('.sw-world select')[1];weather.value='clear';weather.dispatchEvent(new Event('change'));}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
+	// The residents answer for themselves: the foley has to build voices, not only
+	// count strides. A silent foley is invisible in the mix, so it is asserted here.
+	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.foley.played>0`)
+	page.MustEval(`()=>{const f=SysWorldApp.inspect(cityId).sound.foley;if(f.played<1||f.steps<1)throw Error('Residents stay silent: '+JSON.stringify(f));if(f.peak<.025)throw Error('Robot sounds stay under the city bed: '+JSON.stringify(f));}`)
+	t.Logf("city foley: %s", page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId).sound.foley)`).Str())
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
 	page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.voice.state==='speaking'`)
 	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;

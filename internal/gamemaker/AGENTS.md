@@ -357,6 +357,14 @@ revision publication and standalone export for Phaser and Three.js games.
 - Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.
 - Plan submission rejects unknown JSON fields within the same correction budget and reports independent asset errors together. Each asset role uses singular pack/asset/assembly IDs; variants need distinct roles. Legacy plan perspective errors target root `plan.perspective`, never a writable asset `view`. Compact-design errors instead target `design.assets`, keep the requested base and return bounded compatible catalog alternatives; corrections retain the complete asset array. Asset search ranks content above pack names and excludes pack-name matches when already scoped to that pack.
 - Planning ends on server-owned acceptance or exhausted corrections through `RunConfig.RunComplete`, without another LLM request. Remaining declared native calls receive one skipped result each and are never dispatched; cancellation still fails the round. The orchestrator alone advances an accepted plan to building.
+  Native planning requests use `tool_choice: required`. A text-only answer gets
+  one Studio-specific correction, even if it claims completion or asks a question.
+  If the runner returns without any plan submission, stop with `planning_protocol`
+  instead of restarting its recovery counters in another planning round. Rejected
+  designs retain the shared correction budget and continuation behavior. Verify
+  `TestPlanningFailureCodeSeparatesProtocolFromRejectedDesigns`, agent
+  `TestGameMakerPlanningTextOnlyRecoveryIsBounded` and server
+  `TestGameMakerSelectedModelReachesProvider`.
   Explicit user-selected artwork/model/presentation IDs and sound bindings are
   checked at the shared compact/legacy plan acceptance boundary, within the same
   correction budget. Never report acceptance and revoke it later for selections.

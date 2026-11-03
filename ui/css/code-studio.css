@@ -1,5 +1,12 @@
-.code-studio {
-    container: code-studio / inline-size;
+/* Token scope: the palette, the shortcut overlay, modals and context menus are mounted on document.body, outside
+   .code-studio, so they need their own copy of the app palette. Without it their --cs-* references stay unresolved -
+   the danger button loses its background and falls back to transparent, the palette loses its match highlight and the
+   shortcut sheet loses its type colors. */
+.code-studio,
+.cs-command-palette-backdrop,
+.cs-shortcut-overlay,
+.cs-modal-backdrop,
+.cs-context-menu {
     --cs-bg: var(--vd-theme-app-bg);
     --cs-panel: var(--vd-theme-panel-bg);
     --cs-panel-soft: var(--vd-theme-chrome-bg);
@@ -44,6 +51,10 @@
        the fallback. These role aliases are new names, so the shared !important --cs-* bridge does not touch them. */
     --cs-line: var(--vd-mat-divider, var(--cs-border));
     --cs-hover: var(--vd-mat-hover, var(--cs-accent-soft));
+}
+
+.code-studio {
+    container: code-studio / inline-size;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -153,7 +164,7 @@
 
 .cs-search-form {
     display: grid;
-    grid-template-columns: minmax(160px, 1fr) 90px 90px auto auto auto auto auto;
+    grid-template-columns: minmax(160px, 1fr) 110px 110px auto auto auto auto auto;
     align-items: center;
     gap: 8px;
     width: 100%;
@@ -182,13 +193,37 @@
     margin: 0;
 }
 
+/* The Aa / Ab / .* switches read as toggle buttons so their active state is visible at a glance. */
 .cs-search-form label {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    height: 26px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
     color: var(--cs-muted);
     font-size: 12px;
     white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--cs-transition-fast), border-color var(--cs-transition-fast), color var(--cs-transition-fast);
+}
+
+.cs-search-form label:hover {
+    background: var(--vd-mat-hover, var(--cs-hover));
+    color: var(--cs-text);
+}
+
+.cs-search-form label:has(input:checked) {
+    border-color: var(--cs-accent-border);
+    background: var(--cs-accent-soft);
+    color: var(--cs-accent);
+}
+
+.cs-search-form label:focus-within {
+    outline: 2px solid var(--cs-accent-border);
+    outline-offset: 1px;
 }
 
 .cs-search-results {
@@ -212,8 +247,8 @@
 
 .cs-search-result {
     display: grid;
-    grid-template-columns: minmax(140px, 35%) minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
+    gap: 14px;
     width: 100%;
     min-height: 28px;
     padding: 4px 6px;
@@ -238,13 +273,32 @@
 }
 
 .cs-search-result span {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    max-width: 340px;
     color: var(--cs-muted);
     font-size: 12px;
 }
 
+.cs-search-result span strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--cs-text);
+}
+
+.cs-search-line {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+}
+
 .cs-search-result code {
     font: 12px/1.4 var(--cs-mono-font);
-    color: var(--cs-text);
+    color: var(--cs-muted);
 }
 
 .code-studio-body {
@@ -354,6 +408,11 @@
     padding: 0;
 }
 
+.cs-line-glyph {
+    display: block;
+    flex-shrink: 0;
+}
+
 .cs-button-icon,
 .cs-icon-button-icon,
 .cs-file-papirus-icon,
@@ -404,13 +463,23 @@
 
 .cs-button.danger {
     color: #21070b;
-    background: var(--cs-danger);
-    border-color: var(--cs-danger);
+    background: var(--cs-danger, #ff6b7a);
+    border-color: var(--cs-danger, #ff6b7a);
+}
+
+.cs-button.danger:hover {
+    background: color-mix(in srgb, var(--cs-danger, #ff6b7a) 86%, #000);
+    border-color: color-mix(in srgb, var(--cs-danger, #ff6b7a) 86%, #000);
 }
 
 .cs-toolbar-modified {
-    color: var(--cs-accent);
-    font-size: 10px;
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-left: 5px;
+    vertical-align: middle;
+    border-radius: 50%;
+    background: var(--cs-accent);
 }
 
 /* ── Activity Bar ── */
@@ -1027,6 +1096,16 @@ button.cs-sidebar-crumb:focus-visible {
     overflow: auto;
     background: var(--vd-mat-well, transparent);
     box-shadow: var(--vd-mat-well-shadow, none);
+    scrollbar-width: thin;
+}
+
+.cs-agent-log::-webkit-scrollbar {
+    width: 5px;
+}
+
+.cs-agent-log::-webkit-scrollbar-thumb {
+    background: var(--cs-border);
+    border-radius: var(--ds-radius-xs);
 }
 
 .cs-agent-message {
@@ -1112,6 +1191,16 @@ button.cs-sidebar-crumb:focus-visible {
     color: var(--cs-text);
     font: 12px/1.45 var(--cs-mono-font);
     white-space: pre;
+    scrollbar-width: thin;
+}
+
+.code-studio-diff pre::-webkit-scrollbar {
+    width: 5px;
+}
+
+.code-studio-diff pre::-webkit-scrollbar-thumb {
+    background: var(--cs-border);
+    border-radius: var(--ds-radius-xs);
 }
 
 .cs-context-menu {
@@ -2116,8 +2205,8 @@ button.cs-sidebar-crumb:focus-visible {
 
 /* ── Quick Actions Chips ── */
 .cs-quick-actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 6px 0;
 }
@@ -2125,7 +2214,9 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-quick-action {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
+    min-width: 0;
     height: 26px;
     padding: 0 10px;
     border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
@@ -2135,6 +2226,9 @@ button.cs-sidebar-crumb:focus-visible {
     color: var(--vd-mat-btn-text, var(--cs-muted));
     font: 11px var(--cs-ui-font);
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     transition: border-color var(--cs-transition-fast), background var(--cs-transition-fast), color var(--cs-transition-fast);
 }
 
@@ -2422,6 +2516,7 @@ button.cs-sidebar-crumb:focus-visible {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
     padding: 8px 12px;
     border-bottom: 1px solid var(--cs-line);
     font-size: 12px;
@@ -2433,8 +2528,48 @@ button.cs-sidebar-crumb:focus-visible {
     font-weight: 400;
 }
 
+.cs-diff-view-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.cs-diff-view-title strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-diff-badge {
+    flex-shrink: 0;
+    padding: 1px 7px;
+    border: 1px solid var(--cs-border);
+    border-radius: 999px;
+    color: var(--cs-muted);
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 .cs-diff-view-head .cs-diff-view-spacer {
     flex: 1;
+}
+
+/* The source picker is a two-option control: it must not stretch to the width of the pane. */
+.cs-diff-view-head select[data-diff-source] {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 190px;
+    height: 26px;
+    padding: 0 6px;
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    color: var(--cs-text);
+    font: 11px var(--cs-ui-font);
+    white-space: normal;
 }
 
 .cs-diff-content {
@@ -2647,9 +2782,38 @@ button.cs-sidebar-crumb:focus-visible {
 
 /* ── Terminal header controls ── */
 .cs-terminal-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: var(--cs-muted);
     font-size: 11px;
     white-space: nowrap;
+}
+
+/* The state dot keeps the trailing ellipsis of "Running..." readable as a live indicator. */
+.cs-terminal-state::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cs-muted);
+    opacity: 0.7;
+}
+
+.cs-terminal-state[data-state="running"]::before {
+    background: var(--cs-success);
+    opacity: 1;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cs-success) 20%, transparent);
+}
+
+.cs-terminal-state[data-state="line"]::before {
+    background: var(--cs-warning);
+    opacity: 1;
+}
+
+.cs-terminal-state[data-state="error"]::before {
+    background: var(--cs-danger);
+    opacity: 1;
 }
 
 .cs-terminal-hide {

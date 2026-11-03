@@ -108,7 +108,7 @@ func ExecuteShell(ctx context.Context, command, workspaceDir string) (string, st
 		if err := requireIsolatedPermission(ctx, true); err != nil {
 			return "", "", err
 		}
-		if err := ValidateShellCommandPolicy(command); err != nil {
+		if err := validateIsolatedShellCommandPolicy(command); err != nil {
 			return "", "", err
 		}
 		return runIsolatedWorker(ctx, isolatedShellCode(command), "python", GetForegroundTimeout())
@@ -156,9 +156,16 @@ func ExecuteShell(ctx context.Context, command, workspaceDir string) (string, st
 	return runner.Run(ctx)
 }
 
-// ExecuteShellBackground starts a command in the shell in the background and registers it.
-func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegistry) (int, error) {
-	if err := requireHostShellExecutionContext(context.Background()); err != nil {
+// ExecuteShellBackground checks the caller's permissions and starts a registered
+// process whose lifetime is independent of the dispatch context after startup.
+func ExecuteShellBackground(ctx context.Context, command, workspaceDir string, registry *ProcessRegistry) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if err := requireHostShellExecutionContext(ctx); err != nil {
 		return 0, err
 	}
 	// Security: Check for dangerous commands before execution
@@ -195,6 +202,9 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 		Registry: registry,
 	})
 
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	pid, err := runner.Run()
 	if err != nil {
 		return 0, fmt.Errorf("failed to start background shell process: %w", err)
@@ -206,8 +216,18 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 // password is only ever given to `sudo -v`, never to the command's stdin.
 // It returns stdout, stderr, and any execution or timeout error.
 // On Windows this is a no-op and returns an unsupported error.
-func ExecuteSudo(command, workspaceDir, password string) (string, string, error) {
-	if err := requireHostShellExecutionContext(context.Background()); err != nil {
+func ExecuteSudo(ctx context.Context, command, workspaceDir, password string) (string, string, error) {
+	return executeSudo(ctx, command, workspaceDir, password, nil)
+}
+
+func executeSudo(ctx context.Context, command, workspaceDir, password string, recheck func() error) (string, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
+	if err := requireHostShellExecutionContext(ctx); err != nil {
 		return "", "", err
 	}
 	if sandbox.IsActive() {
@@ -224,13 +244,26 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	}
 
 	absWorkDir := getAbsWorkspace(workspaceDir)
-	lease, authOut, err := withSudoTicket(password, absWorkDir)
+	lease, authOut, err := withSudoTicketContext(ctx, password, absWorkDir)
 	if err != nil {
 		return "", normalizeSudoStderr(authOut), err
 	}
 	defer lease.Release()
 
-	cmd := newSudoRunCommand(command, absWorkDir)
+	// Authentication can wait while the administrator revokes a grant.
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
+	if err := requireHostShellExecutionContext(ctx); err != nil {
+		return "", "", err
+	}
+	if recheck != nil {
+		if err := recheck(); err != nil {
+			return "", "", err
+		}
+	}
+
+	cmd := sudoRunCommand(command, absWorkDir)
 	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
@@ -243,7 +276,7 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 		ErrMsg:   "TIMEOUT: sudo command exceeded %s limit",
 	})
 
-	stdout, stderr, err := runner.Run(context.Background())
+	stdout, stderr, err := runner.Run(ctx)
 	stdout = security.Scrub(stdout)
 	stderr = security.Scrub(stderr)
 	if err != nil {

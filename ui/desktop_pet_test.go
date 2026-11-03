@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -495,6 +496,94 @@ func TestDesktopPetDragHangsAndSwaysBelowPointer(t *testing.T) {
 		}
 		if !strings.Contains(source, ".vd-pet-layer.dragging") {
 			t.Fatalf("%s must disable transform easing while the pet is dragged", path)
+		}
+	}
+}
+
+func TestDesktopPetGravityDropsOntoDockBar(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"js/desktop/core/pet-runtime.js",
+		"js/desktop/bundles/main.bundle.js",
+	} {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range []string{
+			"const GRAVITY_ACCEL_PX_S2 = 2400;",
+			"const GRAVITY_MAX_FALL_PX_S = 2400;",
+			"function petGravity()",
+			"return String(settingValue('pet.gravity')).toLowerCase() === 'true';",
+			"function petFloorTop()",
+			"function petRestingY(scale)",
+			"function stopGravityFall()",
+			"function startGravityFall()",
+			"function persistRestingY(y)",
+			"function watchDockFloor()",
+			"new window.ResizeObserver(",
+			"const petGravityOn = petGravity();",
+			"fallback: petGravityOn ? '\\u2713' : '\\u2610'",
+			"action: toggleGravity",
+			"function toggleGravity()",
+			"saveSetting('pet.gravity', String(next))",
+			"if (petGravity()) target.y = startY;",
+			"layer.classList.add('is-falling');",
+			"layer.classList.remove('is-falling');",
+			"startGravityFall();",
+			"stopGravityFall();",
+		} {
+			if !containsAssetStructure(source, marker) {
+				t.Fatalf("%s is missing pet gravity marker %q", path, marker)
+			}
+		}
+	}
+
+	// The floor has to follow the dock bar, not the raw viewport height.
+	runtime := readDesktopAssetText(t, "js/desktop/core/pet-runtime.js")
+	for _, marker := range []string{
+		"document.getElementById('vd-taskbar-apps')",
+		"document.querySelector('.vd-taskbar')",
+		"if (shellLayout() === 'dock')",
+	} {
+		if !containsAssetStructure(runtime, marker) {
+			t.Fatalf("desktop pet runtime is missing gravity floor marker %q", marker)
+		}
+	}
+
+	foundation := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	if !strings.Contains(foundation, "'pet.gravity': 'false',") {
+		t.Fatal("desktop foundation is missing the pet.gravity default")
+	}
+
+	picker := readDesktopAssetText(t, "js/desktop/apps/pet-picker.js")
+	for _, marker := range []string{
+		"vd-pet-picker-gravity",
+		"desktop.pet_gravity_desc",
+		"saveSetting('pet.gravity', String(gravityInput.checked));",
+	} {
+		if !containsAssetStructure(picker, marker) {
+			t.Fatalf("desktop pet picker is missing gravity marker %q", marker)
+		}
+	}
+
+	for _, path := range []string{
+		"css/desktop-pet.css",
+		"css/desktop-shell.bundle.css",
+	} {
+		source := readDesktopAssetText(t, path)
+		if !strings.Contains(source, ".vd-pet-layer.is-falling") {
+			t.Fatalf("%s must disable the slide transition while the pet falls", path)
+		}
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		var words map[string]string
+		if err := json.Unmarshal([]byte(rawDesktopAssetText(t, "lang/desktop/"+lang+".json")), &words); err != nil {
+			t.Fatal(err)
+		}
+		for _, key := range []string{"desktop.pet_gravity", "desktop.pet_gravity_desc"} {
+			if strings.TrimSpace(words[key]) == "" {
+				t.Errorf("%s missing %s", lang, key)
+			}
 		}
 	}
 }

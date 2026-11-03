@@ -3274,6 +3274,9 @@ if $BINARY_ONLY; then
     TMPEXT=$(mktemp -d "$UPDATE_WORK/resources.XXXXXX")
     tar -xzf "$TMPRES" -C "$TMPEXT"
     rm -f "$TMPRES"
+    # The archive is signature-verified; still, a link inside it must never steer a copy out of the extracted tree.
+    EXTRACTED_LINKS="$(find "$TMPEXT" -type l 2>/dev/null || true)"
+    [ -z "$EXTRACTED_LINKS" ] || abort_update "resources.dat contains symbolic links; refusing to install from it."
 
     # Always overwrite code assets (prompts, ui, agent_workspace).
     # Use -r (no -p) so we don't try to preserve timestamps/ownership from the
@@ -3287,6 +3290,12 @@ if $BINARY_ONLY; then
         [ "$(basename "$asset_dir")" = web ] || cp -r "$asset_dir" "$DIR/assets/"
     done
     [ -d "$TMPEXT/ui" ]                && cp -r "$TMPEXT/ui"                "$DIR/" 2>/dev/null || true
+
+    # Licence texts and notices of the GPL-3.0 combined binaries (always overwrite).
+    if [ -d "$TMPEXT/licences" ] && [ ! -L "$TMPEXT/licences" ]; then cp -r "$TMPEXT/licences" "$DIR/"; fi
+    for notice in LICENSE THIRD_PARTY_NOTICES.md; do
+        if [ -f "$TMPEXT/$notice" ] && [ ! -L "$TMPEXT/$notice" ]; then cp "$TMPEXT/$notice" "$DIR/$notice"; fi
+    done
 
     # Treat the extracted config.yaml as the new template for the merger below
     if [ -f "$TMPEXT/config.yaml" ]; then

@@ -277,6 +277,7 @@
   "dashboard.integration_web_scraper": "Webskraper",
   "dashboard.integration_webdav": "WebDAV",
   "dashboard.integration_webhooks": "Webhook-kall",
+  "dashboard.integration_whatsapp": "WhatsApp",
   "dashboard.journal_empty": "Ingen oppføringer ennå.",
   "dashboard.journal_key_topics": "Emner",
   "dashboard.journal_sentiment_trend": "Sentimenttrend",

@@ -75,7 +75,7 @@
 .ha-panel::before { left: 7px; }.ha-panel::after { right: 7px; }
 .ha-bay { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 17px 8px 20px; }
 .ha-bay:nth-child(2n) { background-position: center, 210px 110px; }.ha-bay:nth-child(3n) { background-position: center, 350px 270px; }
-.ha-plaque { position: relative; color: #24170c; background: linear-gradient(125deg,#f3d5a04d,#59401d33), #b8996e url('/img/radio/metal.png') center / 600px; border: 2px ridge #d7bd90; box-shadow: 0 3px 3px #080401, inset 0 0 8px #402b0f99; text-shadow: 0 1px #ebd1a388; text-align: center; }
+.ha-plaque { position: relative; color: #24170c; background: linear-gradient(125deg,#f3d5a04d,#59401d33), #b8996e url('/img/radio/metal.webp') center / 600px; border: 2px ridge #d7bd90; box-shadow: 0 3px 3px #080401, inset 0 0 8px #402b0f99; text-shadow: 0 1px #ebd1a388; text-align: center; }
 .ha-name { width: 100%; min-height: 47px; display: flex; justify-content: center; align-items: center; padding: 4px 8px; font-size: 13px; line-height: 1.2; font-weight: bold; text-transform: uppercase; border-radius: 3px; }
 .ha-name-label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .ha-name::before, .ha-name::after { content: '•'; position: absolute; top: 50%; transform: translateY(-50%); font-size: 15px; color: #25180b; text-shadow: 0 1px #fff1c0; }.ha-name::before { left: 3px; }.ha-name::after { right: 3px; }
@@ -125,7 +125,7 @@
 .ha-status-glass { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 20px 26px; min-width: 0; border: 5px ridge #715334; border-radius: 15px; background: linear-gradient(135deg,#ffffff0b,transparent 48%),#0d100d; box-shadow: inset 0 0 20px #000,0 2px 2px #0007; text-shadow: 0 1px #000; }
 .ha-status-glass strong { font-size: 19px; font-weight: normal; color: #e8d8b6; }.ha-status-glass span { font-size: 14px; color: #b8bd9e; }.ha-status-glass small { font-size: 11px; color: #afaa8f; }
 .ha-actions { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 17px 13px; }
-.ha-metal-button { min-height: 44px; padding: 9px 16px; border: 3px ridge #dfc799; border-radius: 4px; background: linear-gradient(#e5c69855,#69502d33),#b79b73 url('/img/radio/metal.png') center / 400px; color: #21180d; text-shadow: 0 1px #e8d5ac; box-shadow: 0 3px 3px #000b; font-weight: bold !important; }
+.ha-metal-button { min-height: 44px; padding: 9px 16px; border: 3px ridge #dfc799; border-radius: 4px; background: linear-gradient(#e5c69855,#69502d33),#b79b73 url('/img/radio/metal.webp') center / 400px; color: #21180d; text-shadow: 0 1px #e8d5ac; box-shadow: 0 3px 3px #000b; font-weight: bold !important; }
 .ha-metal-button:hover:not(:disabled) { filter: brightness(1.12); }.ha-metal-button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 1px #000; }.ha-metal-button:disabled { opacity: .5; }
 .ha-refresh { min-height: 32px; border: 0; padding: 4px 12px; background: transparent; color: #e1c79f; text-decoration: underline; text-underline-offset: 3px; font-size: 13px !important; }
 .ha-actions a { color: #f1d39f; font-size: 12px; }

@@ -106,8 +106,8 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				ExportNestSecret *bool `json:"export_nest_secret"`
 				nestDockerTLSRequest
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			if req.Name == "" {
@@ -307,8 +307,8 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				ExportNestSecret *bool `json:"export_nest_secret"`
 				nestDockerTLSRequest
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 
@@ -504,8 +504,8 @@ func handleInvasionNestToggle(s *Server) http.HandlerFunc {
 		var req struct {
 			Active bool `json:"active"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if err := invasion.ToggleNestActive(s.InvasionDB, id, req.Active); err != nil {
@@ -650,8 +650,8 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 				EggPort      int    `json:"egg_port"`
 				AllowedTools string `json:"allowed_tools"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 			if req.Name == "" {
@@ -758,8 +758,8 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 				EggPort      int    `json:"egg_port"`
 				AllowedTools string `json:"allowed_tools"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 				return
 			}
 
@@ -835,8 +835,8 @@ func handleInvasionEggToggle(s *Server) http.HandlerFunc {
 		var req struct {
 			Active bool `json:"active"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		if err := invasion.ToggleEggActive(s.InvasionDB, id, req.Active); err != nil {

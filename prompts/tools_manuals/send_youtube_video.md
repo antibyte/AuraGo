@@ -6,7 +6,7 @@ Use `send_youtube_video` when the user asks to send or play a YouTube video in c
 
 - Requires `tools.send_youtube_video.enabled: true`.
 - Web Chat: emits a YouTube embed event so the UI renders an inline player.
-- Telegram, Discord, and other text channels: delivers the canonical YouTube link.
+- Telegram, WhatsApp, Discord, and other text channels: delivers the canonical YouTube link.
 - Does not download, mirror, or store the YouTube video file.
 - Uses `youtube-nocookie.com` for the Web Chat embed.
 

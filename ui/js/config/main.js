@@ -1960,7 +1960,7 @@ async function renderSection(key) {
         'allow_mcp',               // → Danger Zone
         'allow_unsafe_host_execution', // → Danger Zone
         'action_policy',           // → Danger Zone
-        'allow_unsandboxed_shell', // → not rendered, so the main save never writes it and the loader's legacy shell grandfather stays in effect; a Danger Zone toggle is a backlog item
+        'allow_unsandboxed_shell', // → not rendered; preserve the explicit config-file host-shell grant
         'allow_web_scraper',        // → deprecated, migrated to tools.web_scraper.enabled
         'sudo_enabled',            // → Danger Zone
         'core_personality',         // → Prompts & Personas

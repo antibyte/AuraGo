@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type thinkingCallbackContextKey struct{}
@@ -76,20 +80,7 @@ func (c anthropicThinkingConfig) enabledForModel(model string) bool {
 		return false
 	}
 
-	if anthropicAdaptiveModel(lower) {
-		return true
-	}
-	// Auto-detect: enable only for newer Claude model families (avoid older Claude 3).
-	switch {
-	case strings.Contains(lower, "claude-3-7"),
-		strings.Contains(lower, "claude-3.7"),
-		strings.Contains(lower, "claude-4"),
-		strings.Contains(lower, "claude-opus-4"),
-		strings.Contains(lower, "claude-sonnet-4"):
-		return true
-	default:
-		return false
-	}
+	return anthropicFeaturesForModel(lower).thinking
 }
 
 // ---------------------------------------------------------------------------
@@ -292,18 +283,20 @@ type anthropicStreamError struct {
 // ---------------------------------------------------------------------------
 
 type openaiRequest struct {
-	Model            string            `json:"model"`
-	Messages         []json.RawMessage `json:"messages"`
-	Stream           bool              `json:"stream"`
-	Temperature      *float32          `json:"temperature,omitempty"`
-	TopP             *float32          `json:"top_p,omitempty"`
-	MaxTokens        int               `json:"max_tokens,omitempty"`
-	Stop             any               `json:"stop,omitempty"`
-	Tools            []json.RawMessage `json:"tools,omitempty"`
-	ToolChoice       any               `json:"tool_choice,omitempty"`
-	User             string            `json:"user,omitempty"`
-	FrequencyPenalty float32           `json:"frequency_penalty,omitempty"`
-	PresencePenalty  float32           `json:"presence_penalty,omitempty"`
+	Model               string            `json:"model"`
+	Messages            []json.RawMessage `json:"messages"`
+	Stream              bool              `json:"stream"`
+	Temperature         *float32          `json:"temperature,omitempty"`
+	TopP                *float32          `json:"top_p,omitempty"`
+	MaxTokens           int               `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
+	ResponseFormat      json.RawMessage   `json:"response_format,omitempty"`
+	Stop                any               `json:"stop,omitempty"`
+	Tools               []json.RawMessage `json:"tools,omitempty"`
+	ToolChoice          any               `json:"tool_choice,omitempty"`
+	User                string            `json:"user,omitempty"`
+	FrequencyPenalty    float32           `json:"frequency_penalty,omitempty"`
+	PresencePenalty     float32           `json:"presence_penalty,omitempty"`
 }
 
 type openaiMessage struct {
@@ -453,7 +446,7 @@ func (t *anthropicTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 	antReq, err := translateOpenAIToAnthropic(oaiReq, t.thinkingCfg)
 	if err != nil {
-		return nil, fmt.Errorf("anthropic transport: translate request: %w", err)
+		return nil, fmt.Errorf("anthropic transport: translate request: %w", &LLMError{Category: ErrCategoryNonRetryableConfig, Message: err.Error()})
 	}
 
 	antBody, err := json.Marshal(antReq)
@@ -525,30 +518,27 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 		Temperature: oai.Temperature,
 		TopP:        oai.TopP,
 	}
-	// max_tokens is required by Anthropic. Default to 8192 if unset.
-	if oai.MaxTokens > 0 {
+	if oai.MaxTokens < 0 || oai.MaxCompletionTokens < 0 {
+		return ant, fmt.Errorf("output token limits must not be negative")
+	}
+	if oai.MaxTokens > 0 && oai.MaxCompletionTokens > 0 && oai.MaxTokens != oai.MaxCompletionTokens {
+		return ant, fmt.Errorf("conflicting max_tokens and max_completion_tokens")
+	}
+	// max_tokens is required by Anthropic; never replace an explicit positive cap.
+	if oai.MaxCompletionTokens > 0 {
+		ant.MaxTokens = oai.MaxCompletionTokens
+	} else if oai.MaxTokens > 0 {
 		ant.MaxTokens = oai.MaxTokens
 	} else {
 		ant.MaxTokens = anthropicDefaultMaxTokens
 	}
-
-	if thinkingCfg.enabledForModel(oai.Model) {
-		if anthropicAdaptiveModel(oai.Model) {
-			ant.Thinking = &anthropicThinking{Type: "adaptive"}
-		} else if ant.MaxTokens > 1024 {
-			budget := thinkingCfg.BudgetTokens
-			if budget <= 0 {
-				budget = 10000
-			}
-			budget = max(1024, min(budget, maxThinkingBudget, ant.MaxTokens-1))
-			ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
+	if raw := bytes.TrimSpace(oai.ResponseFormat); len(raw) > 0 && !bytes.Equal(raw, []byte("null")) {
+		var format struct {
+			Type string `json:"type"`
 		}
-	}
-	if ant.Thinking != nil || anthropicFixedSamplingModel(oai.Model) {
-		ant.Temperature, ant.TopP = nil, nil
-	} else if ant.Temperature != nil {
-		// Claude accepts either sampling control, never both.
-		ant.TopP = nil
+		if err := json.Unmarshal(raw, &format); err != nil || format.Type != "text" {
+			return ant, fmt.Errorf("unsupported response_format: the Anthropic bridge supports text output only")
+		}
 	}
 
 	// stop → stop_sequences (Anthropic only accepts an array)
@@ -570,10 +560,34 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 			return ant, fmt.Errorf("translate tool_choice: %w", err)
 		}
 		ant.ToolChoice = tc
-		if tc != nil && ant.Thinking != nil && ant.Thinking.Type == "enabled" && (tc.Type == "any" || tc.Type == "tool") {
-			// Honor an explicit forced tool choice by disabling incompatible manual thinking.
-			ant.Thinking = nil
+	}
+	features := anthropicFeaturesForModel(oai.Model)
+	enabled := thinkingCfg.enabledForModel(oai.Model)
+	forcedTool := ant.ToolChoice != nil && (ant.ToolChoice.Type == "any" || ant.ToolChoice.Type == "tool")
+	if forcedTool && features.forbidForcedTools {
+		return ant, fmt.Errorf("selected Anthropic model does not support forced tool_choice; use auto or none")
+	}
+	switch {
+	case enabled && features.adaptive:
+		ant.Thinking = &anthropicThinking{Type: "adaptive"}
+	case enabled && !forcedTool && ant.MaxTokens > 1024:
+		budget := thinkingCfg.BudgetTokens
+		if budget <= 0 {
+			budget = 10000
 		}
+		budget = max(1024, min(budget, maxThinkingBudget, ant.MaxTokens-1))
+		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
+	case !enabled && features.defaultThinking:
+		if !features.disableThinking {
+			return ant, fmt.Errorf("selected Anthropic model cannot disable thinking; enable llm.anthropic_thinking and include the model in its allowlist, or select a model that supports thinking off")
+		}
+		ant.Thinking = &anthropicThinking{Type: "disabled"}
+	}
+	if ant.Thinking != nil && ant.Thinking.Type != "disabled" || features.fixedSampling {
+		ant.Temperature, ant.TopP = nil, nil
+	} else if ant.Temperature != nil {
+		// Claude accepts either sampling control, never both.
+		ant.TopP = nil
 	}
 
 	// user → metadata.user_id
@@ -622,10 +636,23 @@ func translateTools(rawTools []json.RawMessage) ([]anthropicToolDef, error) {
 		if err := json.Unmarshal(raw, &oaiTool); err != nil {
 			return nil, err
 		}
+		if oaiTool.Type != "function" || strings.TrimSpace(oaiTool.Function.Name) == "" {
+			return nil, fmt.Errorf("Anthropic tools require a named function definition")
+		}
+		schema := bytes.TrimSpace(oaiTool.Function.Parameters)
+		if len(schema) == 0 || bytes.Equal(schema, []byte("null")) {
+			schema = json.RawMessage(`{"type":"object","properties":{}}`)
+		}
+		var shape struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(schema, &shape); err != nil || shape.Type != "object" {
+			return nil, fmt.Errorf("function parameters must be an object schema")
+		}
 		result = append(result, anthropicToolDef{
 			Name:        oaiTool.Function.Name,
 			Description: oaiTool.Function.Description,
-			InputSchema: oaiTool.Function.Parameters,
+			InputSchema: schema,
 		})
 	}
 	if len(result) > 0 {
@@ -658,30 +685,30 @@ func translateToolChoice(tc any) (*anthropicToolChoice, error) {
 		case "auto":
 			return &anthropicToolChoice{Type: "auto"}, nil
 		case "none":
-			// Anthropic doesn't have "none" directly — omit tools from request.
-			// But as a tool_choice value, we can't actually send it. Return nil
-			// and let the caller strip tools if needed.
-			return nil, nil
+			return &anthropicToolChoice{Type: "none"}, nil
 		case "required":
 			return &anthropicToolChoice{Type: "any"}, nil
 		}
-		return &anthropicToolChoice{Type: "auto"}, nil
+		return nil, fmt.Errorf("unsupported tool_choice value")
 	case map[string]interface{}:
-		// OpenAI specific tool choice: {"type":"function","function":{"name":"X"}}
-		if fnIface, ok := v["function"]; ok {
-			if fnMap, ok := fnIface.(map[string]interface{}); ok {
-				if name, ok := fnMap["name"].(string); ok {
+		typ, _ := v["type"].(string)
+		switch typ {
+		case "auto", "none", "any":
+			return &anthropicToolChoice{Type: typ}, nil
+		case "function":
+			if function, ok := v["function"].(map[string]interface{}); ok {
+				if name, ok := function["name"].(string); ok && strings.TrimSpace(name) != "" {
 					return &anthropicToolChoice{Type: "tool", Name: name}, nil
 				}
 			}
+		case "tool":
+			if name, ok := v["name"].(string); ok && strings.TrimSpace(name) != "" {
+				return &anthropicToolChoice{Type: "tool", Name: name}, nil
+			}
 		}
-		// Fallback: try type field directly
-		if typ, ok := v["type"].(string); ok {
-			return &anthropicToolChoice{Type: typ}, nil
-		}
-		return &anthropicToolChoice{Type: "auto"}, nil
+		return nil, fmt.Errorf("invalid tool_choice object")
 	}
-	return &anthropicToolChoice{Type: "auto"}, nil
+	return nil, fmt.Errorf("unsupported tool_choice shape")
 }
 
 func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, error) {
@@ -693,9 +720,14 @@ func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, e
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			return "", nil, fmt.Errorf("unmarshal message: %w", err)
 		}
+		if msg.Role != "user" {
+			if err := validateAnthropicTextContent(msg.Content); err != nil {
+				return "", nil, err
+			}
+		}
 
 		switch msg.Role {
-		case "system":
+		case "system", "developer":
 			text := extractTextContent(msg.Content)
 			if text != "" {
 				systemParts = append(systemParts, text)
@@ -730,6 +762,8 @@ func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, e
 				return "", nil, err
 			}
 			antMsgs = appendMergedMessage("user", content, antMsgs)
+		default:
+			return "", nil, fmt.Errorf("unsupported message role for the Anthropic bridge")
 		}
 	}
 
@@ -739,6 +773,26 @@ func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, e
 	}
 
 	return strings.Join(systemParts, "\n\n"), antMsgs, nil
+}
+
+func validateAnthropicTextContent(content any) error {
+	switch value := content.(type) {
+	case nil, string:
+		return nil
+	case []interface{}:
+		for _, part := range value {
+			block, ok := part.(map[string]interface{})
+			if !ok || block["type"] != "text" {
+				return fmt.Errorf("only text content is supported for this Anthropic message role")
+			}
+			if _, ok := block["text"].(string); !ok {
+				return fmt.Errorf("text content must be a string")
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported Anthropic message content shape")
+	}
 }
 
 // extractTextContent gets plain text from either a string or an array of content parts.
@@ -863,12 +917,15 @@ func translateUserContent(content any) (any, error) {
 		for _, part := range v {
 			m, ok := part.(map[string]interface{})
 			if !ok {
-				continue
+				return nil, fmt.Errorf("Anthropic content parts must be objects")
 			}
 			partType, _ := m["type"].(string)
 			switch partType {
 			case "text":
-				text, _ := m["text"].(string)
+				text, ok := m["text"].(string)
+				if !ok {
+					return nil, fmt.Errorf("text content must be a string")
+				}
 				if text != "" {
 					blocks = append(blocks, anthropicContentBlock{Type: "text", Text: text})
 				}
@@ -880,6 +937,8 @@ func translateUserContent(content any) (any, error) {
 				if imgBlock != nil {
 					blocks = append(blocks, *imgBlock)
 				}
+			default:
+				return nil, fmt.Errorf("unsupported content part: the Anthropic bridge accepts text and image_url only")
 			}
 		}
 		if len(blocks) == 0 {
@@ -888,7 +947,7 @@ func translateUserContent(content any) (any, error) {
 		return blocks, nil
 	}
 
-	return fmt.Sprintf("%v", content), nil
+	return nil, fmt.Errorf("unsupported Anthropic user content shape")
 }
 
 func translateImageURL(part map[string]interface{}) (*anthropicContentBlock, error) {
@@ -1071,12 +1130,18 @@ func mapStopReason(reason string) string {
 		return "stop"
 	case "tool_use":
 		return "tool_calls"
-	case "max_tokens":
+	case "max_tokens", "model_context_window_exceeded":
 		return "length"
 	case "stop_sequence":
 		return "stop"
+	case "refusal":
+		return "content_filter"
+	case "stop", "tool_calls":
+		// These are OpenAI successes, not native Anthropic completion reasons.
+		return "anthropic_" + reason
 	default:
-		return "stop"
+		// Preserve unsupported, paused and missing reasons for the completion boundary.
+		return reason
 	}
 }
 
@@ -1127,20 +1192,34 @@ func translateAnthropicError(resp *http.Response) (*http.Response, error) {
 
 func translateAnthropicStream(resp *http.Response, model string, thinkingCB func(content, state string)) (*http.Response, error) {
 	pr, pw := io.Pipe()
-	originalBody := resp.Body // capture before replacing
+	body := &anthropicStreamBody{PipeReader: pr, original: resp.Body}
 
 	go func() {
-		defer pw.Close()
-		err := translateStreamEvents(originalBody, pw, model, thinkingCB)
-		originalBody.Close()
-		if err != nil {
-			pw.CloseWithError(err)
-		}
+		defer body.closeOriginal()
+		_ = pw.CloseWithError(translateStreamEvents(body.original, pw, model, thinkingCB))
 	}()
 
-	resp.Body = pr
+	resp.Body = body
+	resp.ContentLength = -1
+	resp.Header.Del("Content-Length")
 	// Keep Content-Type as text/event-stream
 	return resp, nil
+}
+
+type anthropicStreamBody struct {
+	*io.PipeReader
+	original io.ReadCloser
+	once     sync.Once
+	closeErr error
+}
+
+func (b *anthropicStreamBody) closeOriginal() error {
+	b.once.Do(func() { b.closeErr = b.original.Close() })
+	return b.closeErr
+}
+
+func (b *anthropicStreamBody) Close() error {
+	return errors.Join(b.PipeReader.Close(), b.closeOriginal())
 }
 
 func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thinkingCB func(content, state string)) error {
@@ -1151,6 +1230,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 	var currentEvent string
 	var msgID string
 	var msgModel string
+	var finishReason string
 
 	// Anthropic sends input_tokens in message_start and output_tokens in message_delta.
 	// We need to cache the start usage so the final delta can report complete usage.
@@ -1158,37 +1238,53 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 	// Track tool call indices: block index → tool_calls array index
 	toolCallIndex := 0
-	// Track block index → tool name mapping for streaming
-	blockToolNames := map[int]string{}
-	blockToolIDs := map[int]string{}
+	blockToolIndices := map[int]int{}
 
 	// Track active thinking block state
 	thinkingBlockActive := false
+	defer func() {
+		if thinkingBlockActive && thinkingCB != nil {
+			thinkingCB("", "stop")
+		}
+	}()
 	var thinkingBlocks []json.RawMessage
 	thinkingIndices := map[int]int{}
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if strings.HasPrefix(line, "event: ") {
-			currentEvent = strings.TrimPrefix(line, "event: ")
+		if value, ok := strings.CutPrefix(line, "event:"); ok {
+			currentEvent = strings.TrimSpace(value)
 			continue
 		}
 
-		if !strings.HasPrefix(line, "data: ") {
+		data, ok := strings.CutPrefix(line, "data:")
+		if !ok {
 			continue
 		}
 
-		data := strings.TrimPrefix(line, "data: ")
+		data = strings.TrimSpace(data)
 		if data == "" {
 			continue
+		}
+		switch currentEvent {
+		case "message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop", "error":
+			if !strings.HasPrefix(data, "{") {
+				return fmt.Errorf("anthropic stream: expected an object for %s", currentEvent)
+			}
+		}
+		if finishReason != "" && (currentEvent == "message_start" || currentEvent == "content_block_start" || currentEvent == "content_block_delta") {
+			return fmt.Errorf("anthropic stream: content after stop reason")
 		}
 
 		switch currentEvent {
 		case "message_start":
 			var evt anthropicStreamMessageStart
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode message_start: %w", err)
+			}
+			if evt.Message.ID == "" {
+				return fmt.Errorf("anthropic stream: message_start has no message ID")
 			}
 			msgID = "chatcmpl-" + strings.TrimPrefix(evt.Message.ID, "msg_")
 			msgModel = evt.Message.Model
@@ -1207,17 +1303,24 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			}
 			initialUsage := msgStartUsage.openAI()
 			chunk.Usage = &initialUsage
-			writeSSEChunk(writer, chunk)
+			if err := writeSSEChunk(writer, chunk); err != nil {
+				return err
+			}
 
 		case "content_block_start":
 			var evt anthropicStreamContentBlockStart
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode content_block_start: %w", err)
+			}
+			if evt.Index < 0 || evt.ContentBlock.Type == "" {
+				return fmt.Errorf("anthropic stream: invalid content_block_start")
 			}
 			if evt.ContentBlock.Type == "tool_use" {
-				blockToolNames[evt.Index] = evt.ContentBlock.Name
-				blockToolIDs[evt.Index] = evt.ContentBlock.ID
+				if _, duplicate := blockToolIndices[evt.Index]; duplicate || evt.ContentBlock.ID == "" || evt.ContentBlock.Name == "" {
+					return fmt.Errorf("anthropic stream: invalid or duplicate tool block")
+				}
 				idx := toolCallIndex
+				blockToolIndices[evt.Index] = idx
 				chunk := openaiStreamChunk{
 					ID:     msgID,
 					Object: "chat.completion.chunk",
@@ -1238,7 +1341,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 				toolCallIndex++
 			} else if evt.ContentBlock.Type == "thinking" || evt.ContentBlock.Type == "redacted_thinking" {
 				thinkingIndices[evt.Index] = len(thinkingBlocks)
@@ -1252,8 +1357,11 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 		case "content_block_delta":
 			var evt anthropicStreamContentBlockDelta
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode content_block_delta: %w", err)
+			}
+			if evt.Index < 0 || evt.Delta.Type == "" {
+				return fmt.Errorf("anthropic stream: invalid content_block_delta")
 			}
 
 			switch evt.Delta.Type {
@@ -1266,11 +1374,15 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						{Index: 0, Delta: &openaiRespDelta{Content: evt.Delta.Text}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 
 			case "input_json_delta":
-				// Find the correct tool_calls index for this block
-				idx := findToolIndex(evt.Index, blockToolIDs, toolCallIndex)
+				idx, known := blockToolIndices[evt.Index]
+				if !known {
+					return fmt.Errorf("anthropic stream: tool delta has no matching tool block")
+				}
 				chunk := openaiStreamChunk{
 					ID:     msgID,
 					Object: "chat.completion.chunk",
@@ -1288,7 +1400,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 						}},
 					},
 				}
-				writeSSEChunk(writer, chunk)
+				if err := writeSSEChunk(writer, chunk); err != nil {
+					return err
+				}
 
 			case "signature_delta":
 				if i, ok := thinkingIndices[evt.Index]; ok {
@@ -1304,6 +1418,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			}
 
 		case "content_block_stop":
+			if !json.Valid([]byte(data)) {
+				return fmt.Errorf("anthropic stream: invalid content_block_stop")
+			}
 			if thinkingBlockActive {
 				thinkingBlockActive = false
 				if thinkingCB != nil {
@@ -1313,22 +1430,28 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 		case "message_delta":
 			var evt anthropicStreamMessageDelta
-			if json.Unmarshal([]byte(data), &evt) != nil {
-				continue
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode message_delta: %w", err)
 			}
-			if len(thinkingBlocks) > 0 {
-				writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
-					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}})
+			if evt.Delta.StopReason != "" && finishReason != "" && mapStopReason(evt.Delta.StopReason) != finishReason {
+				return fmt.Errorf("anthropic stream: conflicting stop reasons")
+			}
+			if evt.Delta.StopReason != "" && len(thinkingBlocks) > 0 {
+				if err := writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
+					Choices: []openaiChoice{{Index: 0, Delta: &openaiRespDelta{Reasoning: encodeAnthropicReasoning(thinkingBlocks)}}}}); err != nil {
+					return err
+				}
 				thinkingBlocks = nil
 			}
-			finishReason := mapStopReason(evt.Delta.StopReason)
 			chunk := openaiStreamChunk{
-				ID:     msgID,
-				Object: "chat.completion.chunk",
-				Model:  msgModel,
-				Choices: []openaiChoice{
-					{Index: 0, FinishReason: &finishReason},
-				},
+				ID:      msgID,
+				Object:  "chat.completion.chunk",
+				Model:   msgModel,
+				Choices: []openaiChoice{},
+			}
+			if evt.Delta.StopReason != "" {
+				// The native terminal event must arrive before success reaches the SDK.
+				finishReason = mapStopReason(evt.Delta.StopReason)
 			}
 			if evt.Usage != nil {
 				combined := *evt.Usage
@@ -1347,51 +1470,30 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				usage := combined.openAI()
 				chunk.Usage = &usage
 			}
-			writeSSEChunk(writer, chunk)
+			if err := writeSSEChunk(writer, chunk); err != nil {
+				return err
+			}
 
 		case "message_stop":
-			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return nil
+			if !json.Valid([]byte(data)) || finishReason == "" {
+				return io.ErrUnexpectedEOF
+			}
+			if err := writeSSEChunk(writer, openaiStreamChunk{ID: msgID, Object: "chat.completion.chunk", Model: msgModel,
+				Choices: []openaiChoice{{Index: 0, FinishReason: &finishReason}}}); err != nil {
+				return err
+			}
+			_, err := io.WriteString(writer, "data: [DONE]\n\n")
+			return err
 
 		case "error":
 			var evt anthropicStreamError
-			if json.Unmarshal([]byte(data), &evt) == nil {
-				// Complete any in-progress tool calls with empty arguments to avoid partial JSON
-				for idx, name := range blockToolNames {
-					completeChunk := openaiStreamChunk{
-						ID:     msgID,
-						Object: "chat.completion.chunk",
-						Model:  msgModel,
-						Choices: []openaiChoice{
-							{Index: 0, Delta: &openaiRespDelta{
-								ToolCalls: []openaiToolCall{
-									{
-										Index: &idx,
-										Function: openaiToolCallFn{
-											Name:      name,
-											Arguments: "{}",
-										},
-									},
-								},
-							}},
-						},
-					}
-					writeSSEChunk(writer, completeChunk)
-				}
-				errChunk := openaiStreamChunk{
-					ID:     msgID,
-					Object: "chat.completion.chunk",
-					Model:  msgModel,
-					Choices: []openaiChoice{
-						{Index: 0, Delta: &openaiRespDelta{
-							Content: "[Anthropic Error: " + evt.Error.Message + "]",
-						}},
-					},
-				}
-				writeSSEChunk(writer, errChunk)
+			if err := json.Unmarshal([]byte(data), &evt); err != nil {
+				return fmt.Errorf("anthropic stream: decode error event: %w", err)
 			}
-			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return nil
+			if evt.Error.Type == "" || evt.Error.Message == "" {
+				return fmt.Errorf("anthropic stream: incomplete error event")
+			}
+			return &openai.APIError{HTTPStatusCode: anthropicStreamErrorStatus(evt.Error.Type), Type: evt.Error.Type, Message: evt.Error.Message}
 
 		case "ping":
 			// Ignore Anthropic ping events
@@ -1400,30 +1502,38 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 		currentEvent = ""
 	}
 
-	// If we exit the scanner without message_stop, send [DONE] anyway
-	fmt.Fprint(writer, "data: [DONE]\n\n")
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	return nil
+	return io.ErrUnexpectedEOF
 }
 
-// findToolIndex maps Anthropic's block index to the OpenAI tool_calls array index.
-func findToolIndex(blockIndex int, blockToolIDs map[int]string, totalTools int) int {
-	// Count how many tool blocks appeared before blockIndex
-	idx := 0
-	for i := 0; i < blockIndex; i++ {
-		if _, isToolBlock := blockToolIDs[i]; isToolBlock {
-			idx++
-		}
+func anthropicStreamErrorStatus(kind string) int {
+	switch kind {
+	case "invalid_request_error":
+		return http.StatusBadRequest
+	case "authentication_error":
+		return http.StatusUnauthorized
+	case "permission_error":
+		return http.StatusForbidden
+	case "not_found_error":
+		return http.StatusNotFound
+	case "request_too_large":
+		return http.StatusRequestEntityTooLarge
+	case "rate_limit_error":
+		return http.StatusTooManyRequests
+	case "overloaded_error":
+		return 529
+	default:
+		return http.StatusInternalServerError
 	}
-	return idx
 }
 
-func writeSSEChunk(w io.Writer, chunk openaiStreamChunk) {
+func writeSSEChunk(w io.Writer, chunk openaiStreamChunk) error {
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		return
+		return err
 	}
-	fmt.Fprintf(w, "data: %s\n\n", data)
+	_, err = fmt.Fprintf(w, "data: %s\n\n", data)
+	return err
 }

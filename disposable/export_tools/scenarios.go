@@ -747,6 +747,9 @@ func naturalTaskClause(choice fixtureChoice, language string) string {
 		}
 	}
 	details := argumentSummaryExcluding(choice.Arguments, choice.Selector, "operation", "action", "mode")
+	if choice.Tool.Name == "ecalc" || choice.Tool.Name == "co_agent" {
+		return auditTrainingTask(choice.Tool.Name, operation, language, choice.Arguments)
+	}
 	if choice.Tool.Name == "findit" {
 		return findItTrainingTask(operation, language, choice.Arguments)
 	}

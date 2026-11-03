@@ -8,13 +8,14 @@ import (
 // Notification node types.
 const (
 	TypeTelegram = "notify.telegram"
+	TypeWhatsApp = "notify.whatsapp"
 	TypeEmail    = "notify.email"
 	TypePush     = "notify.push"
 	TypeDiscord  = "notify.discord"
 )
 
 func registerNotifyNodes(reg *Registry, env CatalogEnv) error {
-	for _, def := range []*NodeDef{telegramDef(env), emailDef(env), pushDef(env), discordDef(env)} {
+	for _, def := range []*NodeDef{telegramDef(env), whatsAppDef(env), emailDef(env), pushDef(env), discordDef(env)} {
 		if err := reg.Register(def); err != nil {
 			return err
 		}
@@ -135,6 +136,53 @@ func telegramDef(env CatalogEnv) *NodeDef {
 			return ExecResult{}, err
 		}
 		if err := requireSuccess(out, "Telegram tool"); err != nil {
+			return ExecResult{}, err
+		}
+		if _, err := notificationResults(out); err != nil {
+			return ExecResult{}, err
+		}
+		return ExecResult{Output: map[string]any{"sent": true}}, nil
+	}
+	return def
+}
+
+// whatsAppDef defines notify.whatsapp. send_whatsapp sends to the configured owners only: there
+// is no recipient parameter and no title (the tool takes message and file_path). The file is a
+// sensitive sink; the tool opens it only through tools.OpenOutgoingAttachment (workspace or
+// documents folder, at most 50 MB). A text that does not fit a caption, and the text of an audio
+// file, goes out first as a message of its own; when the file then fails, the answer carries
+// "text_sent": true, which the flow tool invoker reports as denied and remembers for the run and
+// node, so a retry never sends the text twice (as for notify.telegram).
+func whatsAppDef(env CatalogEnv) *NodeDef {
+	def := notifyDef(TypeWhatsApp, "brand-whatsapp", "send_whatsapp", env)
+	def.PrimaryInput = "message"
+	def.Params = []ParamSpec{
+		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true, OutputIndependent: true},
+		{Name: "file", Kind: ParamFile, LabelKey: "easydrag.param.attachment", Templatable: true, SensitiveSink: true},
+	}
+	def.Validate = func(n *Node, _ ValidateContext) []Issue {
+		if n == nil {
+			return nil
+		}
+		issues := literalIssueIfSet(n, "message", whatsAppMessage)
+		return append(issues, literalIssueIfSet(n, "file", attachmentParam)...)
+	}
+	def.Execute = func(ctx context.Context, in ExecInput) (ExecResult, error) {
+		msg, err := whatsAppMessage(in.Params["message"])
+		if err != nil {
+			return ExecResult{}, err
+		}
+		file, err := attachmentParam(in.Params["file"])
+		if err != nil {
+			return ExecResult{}, err
+		}
+		args := map[string]any{"message": msg}
+		setArg(args, "file_path", file)
+		out, err := callTool(ctx, in, "send_whatsapp", args)
+		if err != nil {
+			return ExecResult{}, err
+		}
+		if err := requireSuccess(out, "WhatsApp tool"); err != nil {
 			return ExecResult{}, err
 		}
 		if _, err := notificationResults(out); err != nil {

@@ -74,14 +74,19 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   `TestMQTTRelayHandlerQuarantinesInjectedBrokerMessages` and
   `TestMissionMQTTAdapterDropsInjectedBrokerMessages`.
 - Generic and Frigate relays and MQTT mission triggers start agent runs only
-  through the server's `mqttRelayAuthorized` gate: trusted TLS with a broker
-  login (`config.MQTTBrokerAuthenticated` and `config.MQTTRelayTransportTrusted`),
-  `mqtt.allow_unauthenticated_relay`, or `mqtt.allow_untrusted_transport`.
+  through the server's `mqttRelayAuthorized` gate. Normally both broker login
+  (`config.MQTTBrokerAuthenticated`) and trusted TLS
+  (`config.MQTTRelayTransportTrusted`) are required. `mqtt.allow_untrusted_transport`
+  relaxes transport trust only for an authenticated broker;
+  `mqtt.allow_unauthenticated_relay` explicitly permits anonymous agent triggers.
   The gate reads the live snapshot per delivery; refusals log once. The Frigate prefix must be a literal MQTT topic; otherwise
   there is no subscription and no agent run, while config load still accepts the
-  file and `frigate_mqtt_prefix` warns. Mission triggers are invisible to config, so `config.Load`
-  and config-merger grandfather every enabled anonymous broker without the key
-  to `true`; `mqtt_relay_no_auth` reports it as critical. `config.Load` and
+  file and `frigate_mqtt_prefix` warns. Missing or null
+  `mqtt.allow_unauthenticated_relay` stays false in both `config.Load` and
+  config-merger, including mission-only configurations. Explicit true/false
+  values survive upgrades; a previously materialized true cannot be distinguished
+  from an operator opt-in. `mqtt_relay_no_auth` reports an open anonymous gate as
+  critical. `config.Load` and
   config-merger also grandfather a missing `mqtt.allow_untrusted_transport`.
   `mqtt_relay_untrusted_transport` is critical whenever the gate is open over
   plaintext or skipped certificate verification, including when

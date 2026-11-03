@@ -11,5 +11,9 @@
   "config.security.severity.critical": "KRITICKÉ",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "VAROVÁNÍ",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nesty s Docker (Vzdálený) nasazují přes nešifrované HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nesty s Docker (Vzdálený) nasazují přes nešifrované HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Je zvolené vlastní číslo pro AuraGo, ale není zadané žádné platné číslo vlastníka. Kanál WhatsApp zůstane vypnutý a nikomu neodpoví, dokud nezadáte své číslo v mezinárodním formátu.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: chybí číslo vlastníka",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo je propojené zařízení vašeho vlastního účtu WhatsApp. Čte jen váš chat sám se sebou, ale klíče zařízení otevírají všechny vaše chaty a zablokování kvůli automatizovanému používání zasáhne vaše osobní číslo. Bezpečnější je vlastní číslo pro AuraGo.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: režim chatu se sebou používá váš osobní účet"
 }

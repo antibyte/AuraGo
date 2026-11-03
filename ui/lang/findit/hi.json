@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "ठीक वही अनुरोध फिर चलाएँ",
   "findit.pending_command_queue_full": "इस टैब में बहुत से स्टॉक बदलाव या आरक्षण अनसुलझे हैं। नया बदलाव करने से पहले लंबित अनुरोध सुलझाएँ।",
   "findit.pending_command_storage_unavailable": "यह टैब लंबित अनुरोध सहेज नहीं सका, इसलिए बदलाव भेजा नहीं गया। सेशन स्टोरेज चालू करके फिर कोशिश करें।",
-  "findit.pending_command": "लंबित बदलाव सुलझाएँ"
+  "findit.pending_command": "लंबित बदलाव सुलझाएँ",
+  "findit.invalid_number": "एक मान्य संख्या दर्ज करें।",
+  "findit.invalid_url": "एक मान्य वेब पता दर्ज करें।",
+  "findit.required_field": "यह फ़ील्ड आवश्यक है।"
 }

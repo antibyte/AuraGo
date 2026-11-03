@@ -65,6 +65,7 @@ mqtt:
   topics: []  # topics to subscribe to on connect
   qos: 0  # Quality of Service: 0, 1, or 2
   relay_to_agent: false  # forward incoming messages to agent
+  allow_unauthenticated_relay: false  # anonymous agent triggers require explicit opt-in, including after upgrades
   connect_timeout: 15  # connection timeout in seconds
   tls:
     enabled: false  # secure broker schemes always use TLS; true rejects plaintext URLs
@@ -89,3 +90,4 @@ mqtt:
 - **Persistent sessions**: With `clean_session: false`, confirmed manual subscriptions survive server restarts through the broker/client subscription ledger.
 - **Read-only**: `mqtt.readonly` blocks publishing and manual subscription changes while keeping configured reception active.
 - **Live settings**: Saved MQTT settings and Vault credentials apply without restarting the server. Connection tests always use the saved snapshot.
+- **Agent triggers**: Generic/Frigate relays and MQTT missions require the live broker authentication/transport gate. Missing or null `allow_unauthenticated_relay` stays false; explicit true permits anonymous triggers and remains effective after upgrades. Refused or quarantined mission messages do not consume the trigger interval.

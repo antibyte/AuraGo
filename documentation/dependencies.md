@@ -26,10 +26,27 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+FindIt and CYD icon authoring pin Pillow 13.0.0 in their respective
+`assets/*/requirements.txt` files. Keep both pins aligned and run
+`scripts/export-findit-assets.py --check`, `scripts/export-cyd-icons.py --check`
+and `scripts/test_export_cyd_icons.py` in that environment before changing them.
+Pillow is an authoring dependency, not part of the Go runtime.
+
+The root npm lock retains `deepmerge` 4.3.1 through
+`@rollup/plugin-node-resolve` 16.0.3. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
+has no patched release as of 2026-11-02. The installed plugin calls `deepMerge`
+only to clone its built-in `defaults` when initializing `DEFAULTS`; it does not
+pass build options or application input into that call. AuraGo uses the plugin
+in the CodeMirror, chess and Writer vendor builders, not in the browser runtime.
+Retain the alert and recheck this call path when upgrading the plugin; do not
+downgrade or suppress the advisory merely to clear the audit count.
+
 `golang.org/x/net` must be at least v0.62.0: its HTML parser and renderer fix
 GO-2026-6860 and GO-2026-6866, reachable through Office and mail sanitization.
 
 Shared QR codes pin `github.com/makiuchi-d/gozxing` v0.1.1 (MIT plus upstream ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 (Unlicense OR BSD-3-Clause; HarfBuzz translation MIT). Both run with CGO disabled. Keep payload/geometry, exact final-byte decoding and independent Chromium/jsQR acceptance when updating either dependency. `jsqr` 1.4.0 (Apache-2.0) is a test-only npm pin, not a production decoder. Caption fallback fonts are pinned by URL, revision, byte length and SHA-256 in `ui/fonts/qr/manifest.json`, retain their OFL texts, and ship through verified web assets. See [qr-code.md](qr-code.md).
+
+A new or upgraded Go module linked into `cmd/aurago` needs a reviewed row in `licences/linked-go-modules.tsv`; the release builders run `TestLinkedGoModulesHaveGPL3CompatibleLicenses` first and stop on a GPL-3.0-incompatible licence.
 
 Owner WebAuthn verification pins `github.com/go-webauthn/webauthn` v0.18.2
 (BSD-3-Clause). It supports the pinned Go compiler and CGO-free builds; protocol

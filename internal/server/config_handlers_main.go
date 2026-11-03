@@ -441,8 +441,8 @@ func handleUILanguage(s *Server) http.HandlerFunc {
 		var body struct {
 			Language string `json:"language"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &body, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 

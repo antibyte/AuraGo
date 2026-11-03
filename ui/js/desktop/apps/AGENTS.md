@@ -14,6 +14,8 @@
 
 ## FindIt
 
+- Arrow/Enter/Space item navigation belongs only to the active list/grid. Ignore already-handled events, dialogs, editable elements and unrelated controls; never move background focus while a dialog is open. Verify `TestDesktopFindItBrowser`.
+
 - `findit.js` composes the lazy-loaded `findit-model.js`, dialogs, item, project, template, CSV and workflow modules. Each window owns its AbortController, drafts and observers; narrow mode follows the app host width, and close/disposal ignores late responses. Keep the list server-paginated and load complete location/template catalogs through bounded pages.
 - API calls use `/api/desktop/findit`. Keep quantity values as decimal strings, send a stable
   `request_id` for every command, and retain it for an exact uncertain retry. Project/location,
@@ -32,14 +34,19 @@
 - Item package names refer to the physical electronic package (DIP-16, TQFP-100), not carton size. Typed template fields drive property filters and editor controls. Locations form the storage tree. Project edits require the backend lifecycle; only released BOMs can reserve stock, cancellation releases remaining holds, and completion does not consume them. The pick list groups active reservations by storage path; release and consume remain explicit.
 - QR labels cover both items and locations. Accept only validated same-origin FindIt deep links or printed I-/L- identifiers; opening a record never mutates stock. Label visibility uses `status.can_print`, independently of FindIt read-only status. Camera/upload scanning uses the shared QR dialog. Keep print layouts at 50×30 mm and A4.
 - Import/export flows preview and validate mapped CSV before all-or-nothing import. Keep row skip/resolution decisions explicit, paginate the full preview, and preserve request IDs for uncertain retries. Admin activation uses the status `config_revision`; settings drafts do not alter other desktop configuration.
-- Keep visible copy in `ui/lang/findit/*.json` across all sixteen locales. Verify `go test ./ui -run TestDesktopFindIt -count=1`, JavaScript syntax checks for every `findit*.js`, and the real-handler browser flow `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`. The backend contract is `internal/findit/AGENTS.md`.
+- The workbench list addresses its columns by key, never by position: header and body cells carry `data-column`, and narrow layouts hide columns by that key so a user-selected column set keeps its meaning. The table marks the selected record with `aria-current` on the row; a plain table row does not carry `aria-selected`. Numeric columns are right-aligned with tabular figures, the location column truncates instead of wrapping, and a missing package renders a bare em dash rather than an empty badge frame.
+- Every workbench filter stays reachable at narrow widths. The location filter belongs to the filter panel alongside category, package and template, because the sidebar tree is hidden on small screens; clearing filters resets it together with the others. The status bar reports the time the data was actually loaded, not the time the view was rendered.
+- Keep visible copy in `ui/lang/findit/*.json` across all sixteen locales. The FindIt modules translate through a local helper, so they are registered in `desktopLocalI18nHelpers` in `ui/i18n_lint_test.go` under the `findit.` prefix; a new FindIt module needs that entry, otherwise the static i18n check reads its bare keys as global ones. Verify `go test ./ui -run TestDesktopFindIt -count=1`, JavaScript syntax checks for every `findit*.js`, and the real-handler browser flow `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`. The backend contract is `internal/findit/AGENTS.md`.
 
 ## ECalc
 
-- `ecalc/` holds eleven classic scripts in this load order (module-loader entry `ecalc`, pinned by `TestECalcIsWiredIntoTheDesktopCore`): the DOM-free core `ecalc-expr.js`, `ecalc-units.js`, `ecalc-eseries.js`, `ecalc-solve.js` (`window.ECalcCore`, a mirror of `internal/ecalc`; no `eval`, no `Function`), `ecalc-typeset.js`, `ecalc-symbols.js`, `ecalc-schematics.js` (exactly `window.ECalcSchematics = {JSON};`), `ecalc-store.js`, `ecalc-calc-page.js`, `ecalc-shell.js`, then the composition root `ecalc.js` (`window.ECalcApp`). Style: `css/desktop-app-ecalc.css`, tokens only, motion gated. The catalog comes from `GET /api/ecalc/catalog?lang=` once per window; every string is a `desktop.ecalc_*` key.
-- The core must give the results of Go. `scripts/test-ecalc-core.mjs` (`npm run test:ecalc`) runs `internal/ecalc/testdata/vectors/**` and `testdata/catalog.en.json` against it: change an expression rule, a unit or the solver in Go, in JavaScript and in the vectors together. Inputs persist as raw texts under `aurago.ecalc.v1`; a computed value that becomes an input keeps its value with 12 significant digits. Lists keep the decimal point in every language because the comma separates their items.
+- `ecalc/` holds 21 classic scripts in this load order (module-loader entry `ecalc`, pinned by `TestECalcIsWiredIntoTheDesktopCore`): the DOM-free core `ecalc-expr.js`, `ecalc-units.js`, `ecalc-eseries.js`, `ecalc-solve.js` (`window.ECalcCore`, a mirror of `internal/ecalc`; no `eval`, no `Function`), `ecalc-typeset.js`, `ecalc-symbols.js`, `ecalc-chart.js` (`window.ECalcChart.svg(spec, sample)`, a DOM-free SVG string builder), the ten schematics files `ecalc-schematics-<category>.js` (basics first, then digital, filters, opamps, passive, power, rf, semiconductors, timers, wiring; each exactly `window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {JSON});`, one file per calculator category, ids unique across the files), `ecalc-store.js`, `ecalc-calc-page.js`, `ecalc-shell.js`, then the composition root `ecalc.js` (`window.ECalcApp = { render, dispose, launch }`). Style: `css/desktop-app-ecalc.css`, tokens only, motion gated. The catalog comes from `GET /api/ecalc/catalog?lang=` once per window; every string is a `desktop.ecalc_*` key.
+- The core must give the results of Go. `scripts/test-ecalc-core.mjs` (`npm run test:ecalc`) runs `internal/ecalc/testdata/vectors/**` and `testdata/catalog.en.json` against it: change an expression rule, a unit or the solver in Go, in JavaScript and in the vectors together. Inputs persist as raw texts under `aurago.ecalc.v1`; a stored state with a text that no longer parses (under the unit stored for its field) is not used, the page opens with its defaults; a computed value that becomes an input keeps its value with 12 significant digits. Lists keep the decimal point in every language because the comma separates their items.
 - The page never observes itself (its layout changes its own height and would loop the ResizeObserver); the shell observes the page host and the root. Field chips sit at the anchors of the schematic only when the page is as wide as the drawing plus the stage padding, otherwise they are listed under it; below 720 px the shell is one stack with a back button. Ctrl/Cmd+K focuses the search and stops propagation so the desktop Spotlight stays closed.
-- A schematic is a grid spec (20 px units) keyed by the calculator id. `TestECalcSchematicsMatchTheCatalog` checks ids, anchors and symbols against the catalog; `TestDesktopECalcBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`) checks that the chips of every schematic stay apart (and those of the divider in every desktop skin), plus live solving, locks, the star-delta set switch, the compact stack and Ctrl+K.
+- Page extensions, all driven by the catalog JSON: the `units` list of a variable narrows its unit dropdown (`""` admits the automatic prefix and the fixed prefixes, every other entry is an explicit unit); the `ignore` list of the selected choice option dims those fields (title `desktop.ecalc_unused_field`) and keeps them out of the copied results, the E-series suggestions and the computed/error tints; `finder: combine` adds the standard-value combiner under the fields (`ECalcCore.eseries.combine`, five series and five parallel pairs); `chart {x, y, to, samples}` adds the chart under the formula (y over x from 0 to `to`, every other value held at the page's value; it is hidden while y needs a value that is unknown or `to` is not above zero); radix fields (`integer` dimension, `hex`/`bin`/`oct`/`dec`) use the text keyboard.
+- Pre-fill bridge: `ECalcApp.render(host, id, ctx)` reads `ctx.launch` and `ECalcApp.launch(windowId, payload)` applies `{page, values: {var: raw text}, choices: {choice: option}}` to an open window (a payload that arrives while the catalog loads waits for it). `ECalcCalcPage.launchState` builds the state: the defaults, then each given value entered as if typed (recency in the given order, no locks); unknown ids, vars, choices, options and unreadable texts are skipped; a bare launched number is read in the catalog unit of its variable (like `Catalog.Check` in Go), never in the display unit the user picked last, and the shell resets the stored display unit of every launched variable (`state.launched`) to the catalog default so the field shows what the agent meant; a page id alone just opens the page and keeps what it holds. The desktop core (not this app) fills `ctx.launch` and calls `launch`.
+- The agent tool `ecalc` opens ECalc pre-filled through an `open_app` desktop event whose payload carries `ecalc: {page, values, choices}` (values in the order typed). `sdk-events-bootstrap.js` rebuilds it with `sanitizeECalcLaunch` (page `^[a-z][a-z0-9_]{0,63}$`; at most 32 values of at most 256 characters and 32 choices with ids of at most 32; names start with a letter) and passes it as `launch.launch` to `openApp`; a new window gets it as `ctx.launch` in `render`, a window that is already open as `ECalcApp.launch(windowId, payload)` (`window-shell-runtime.js`, ECalc is single-instance). The launch is one-shot and not part of `SESSION_CONTEXT_KEYS`. Verify `TestECalcLaunchBridgeSourceMarkers`, `TestECalcLaunchSanitizerRejectsWhatItDoesNotKnow` and `TestDesktopECalcLaunchBrowser`.
+- A schematic is a grid spec (20 px units) keyed by the calculator id and kept in the file of its calculator's category. Symbols: `switch` (pins a, b) and `pot` (four units wide: a (0,0), b (4,0), wiper w (2,-2)); content parts may not add symbols. Keep a drawing at most 32 units wide: at the default 1100 px window the field chips stay anchored on the drawing up to 32 units (at 33 they no longer fit and are listed under it), and keep every chip clear of the wires. `TestECalcSchematicsMatchTheCatalog` reads all ten files and checks ids (duplicates fail), the category of the file, anchors and symbols against the catalog; `TestDesktopECalcBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`) checks that the chips of every schematic stay apart (and those of the divider in every desktop skin), plus live solving, locks, the star-delta set switch, the compact stack and Ctrl+K.
 
 ## Storymaker
 
@@ -602,6 +609,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - MIDI is input-only, explicitly permission-gated with SysEx disabled. The Desktop
   document alone receives `midi=(self)`; untrusted sandboxed app frames deny MIDI.
   Read-only policy changes stop recording and block all project mutations.
+- `css/desktop-app-synth-studio.css` owns the app's visual identity. The
+  `--ss-color-0` … `--ss-color-7` spectrum is mixed with the current text colour,
+  so one token set stays legible in both desktop schemes. Track colours, clip
+  headers, library category and tag chips, scene and chord pads, workbench tabs,
+  effect-insert markers, master strip group headings and the pitch-hued
+  piano-roll notes all take their colour from that spectrum. `--ss-accent` stays
+  the app signal colour and `--ss-meter` feeds the analyser and output meter.
+  Keep the Desktop accent for the shell and hard-code no colour outside the
+  token layer.
 - Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
   `TestDesktopSynthStudioAudioBrowser` and
   `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
@@ -2841,7 +2857,7 @@ buttons and menu popovers remain excluded from those gestures.
 - `video-studio-media.js` extracts up to eight thumbnails per video with one
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
   only the editor's own artwork names (`title-<Date.now()>.png`,
-  `sticker-<built-in name>.png`) are hidden from the media bin. Key names and
+  `sticker-<canvas name>.png`) and built-in stickers (`sticker-<id>.webp`, plus older `.png` names) are hidden from the media bin. Key names and
   decimal seconds follow the UI language. Strings with `{{count}}` go through
   `P.trCount(s, key, count, one, other)`: the `<key>_one` string for exactly one (the Desktop convention of
   `GalleryLibrary.countLabel`), the key itself for every other count. Each such key has `_one` in all sixteen
@@ -3115,8 +3131,9 @@ buttons and menu popovers remain excluded from those gestures.
   CRT bezel/tube proportions follow the reference at every window size; fit the
   initial receiver bounds proportionally to the desktop, then enforce the
   1140x540 minimum so the left sidebar stays visible, including session restores.
-  Only desktops smaller than that minimum may use the compact layout; the tube
-  remains proportional independently of window bounds.
+  On smaller desktops, phones and tablets, use the native container-responsive
+  layout without forcing a wide workspace; the tube remains proportional
+  independently of window bounds.
   Free header space, including the decorative model logo, stays draggable.
   Hide the on-tube fullscreen button two seconds after the first `playing` event
   per stream; tube hover or keyboard focus reveals it. Reset the timer on source
@@ -3139,6 +3156,10 @@ buttons and menu popovers remain excluded from those gestures.
   and vignette stay a dark work surface (`#020208`). Brand cyan
   (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put
   `.sw-btn.active` in a bridge group of `desktop-app-common.css`.
+- The narrow Sysworld layout measures the control bar and publishes its height
+  as `--sw-bar-h`; the inspector, plan, tour, message, street help and the rail
+  height derive from it. Do not hard-code a bottom offset for those panels, and
+  keep the email export glyph-only inside the bar there.
 - Galaxa and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
@@ -3236,6 +3257,20 @@ buttons and menu popovers remain excluded from those gestures.
   never replaced (conflict notice with Save As and reopen instead). Markdown/HTML/TXT open as a new
   import copy, so their windows never match a re-open. Verify
   `TestDesktopWriterReloadsChangedFileOnReopen` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+- Autor's toolbar names the shared icon key per slot (`slotIcons`) and per action
+  (`actionIcons`); an action id is never an icon name. The shared atlases have no
+  key for text alignment, underline, indent or the colour controls, so the app
+  draws those few glyphs itself in `writer.js` (`.writer-glyph`) instead of
+  adding a new shared asset. `text.color` takes a bare six-digit hex and
+  `text.highlight` an `ST_HighlightColor` name, so the toolbar and the format
+  panel both convert the picked colour through `markCommand`; the format panel
+  colour pickers were broken before that. The ruler mirrors the engine's
+  rendered page box, so its zero mark stays on the text edge when the window,
+  the side panels or the zoom change. The document menu closes on an outside
+  click and on Escape, the focus mode shows its own exit button, and the
+  outline marks the section that owns the caret. Paragraph styles show
+  localized names (`desktop.writer_style_*`) while the engine style ids stay
+  the values.
 - The Calendar is three continuations inside the shared Desktop IIFE, bundled
   in this order after `core/media-keys-runtime.js`: `calendar-views.js` (date
   math, `Intl` formatting, pure HTML renderers for month grid, week/day time
@@ -3747,6 +3782,7 @@ registration lives in `internal/desktop/types.go`.
   `/api/cheatsheets/{id}/attachments`; client validation stays aligned with
   backend limits: `.txt`/`.md`, 1 MiB upload size, and 25,000 text characters
   per sheet.
+- Sheets leaves undo/redo to inputs, textareas and contenteditable controls; sheet history shortcuts apply outside text editing. Writer disconnects its ruler ResizeObserver during window cleanup. Verify the Sheets app browser chrome/keyboard checks and app disposal checks.
 - Sheets exposes `window.SheetsApp = { render, dispose, instances }`. Each
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
@@ -3776,6 +3812,15 @@ registration lives in `internal/desktop/types.go`.
   Retry actions with an error status. A confirmed 404 clears the shell's stored
   path; temporary failures retain it for retry. New uses a fresh create-only
   path and never recreates the missing file. Verify `TestDesktopSheetsLoadRecoveryBrowser`.
+- The table chrome owns its feedback: every view button mirrors the panel it
+  opened with `aria-pressed`, the three alignment buttons carry their own
+  artwork (one shared glyph cannot tell them apart), the toolbar overflow menu
+  holds print, XLSX, CSV and sheet options, and one popover stays open at a
+  time. The sheet owns Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z and Ctrl+B/I/U; a text
+  field keeps its own undo. Chrome labels live in the 16 desktop locales, and
+  the selection size names rows and columns instead of guessing a plural.
+  Verify `TestDesktopSheetsAppBrowser` (chrome block) and
+  `TestDesktopSheetsChromeI18n`.
 - Use the engine's formula, selection, clipboard, structural-reference and undo
   APIs. Do not restore the removed HTML grid or browser formula evaluator.
   Expand shared formulas before persistence, preserve forced strings, and parse
@@ -3938,6 +3983,13 @@ registration lives in `internal/desktop/types.go`.
   panels.js, shortcuts.js, command-palette.js.
 - Code Studio visible UI strings use `codeStudio.*` keys in all
   `ui/lang/desktop/*.json` files.
+- Code Studio overlays mounted on `document.body` (command palette, shortcut sheet,
+  modals, context menu) get their `--cs-*` scope from the shared token rule in
+  `css/code-studio.css`; keep those roots in that selector list, otherwise the danger
+  button falls back to a transparent background and the palette loses its match
+  highlight. Action glyphs the shared 64 px mini sprite cannot render legibly come
+  from `CS_LINE_GLYPHS` in `core.js` as inline `currentColor` SVG; keep that map in
+  `core.js` with the other `const` declarations.
 - Code Studio New File uses the file API's `create_only` mode; a conflict leaves
   the existing disk file and open editor unchanged and uses the shared localized
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.
@@ -4202,9 +4254,9 @@ registration lives in `internal/desktop/types.go`.
   (16 s) into a generated convolution reverb, air with wind gusts and at most 12
   transient events (swooshes, chimes, day birds, harbour gulls and horn, night
   crickets, rain drips, a civic bell, construction hammering, evening sirens,
-  thunder). Two continuous beds follow the listener: harbour water grows near the
-  quay and a low population murmur follows the mood. Events come from fixed city
-  anchors (harbour, quay, tower, square) or from a ring around the listener, so the
+  thunder). Two continuous beds follow the acoustic origin: harbour water grows near
+  the quay and a low population murmur follows the mood. Events come from fixed city
+  anchors (harbour, quay, tower, square) or from a ring around that origin, so the
   stereo pan always matches the direction the sound arrives from; nothing invents
   telemetry. Event/chord timers run only while audible and `quiet()` releases every
   voice on inactivity. `setMood` (busy/day/evening/weather from the scene) opens the
@@ -4216,10 +4268,24 @@ registration lives in `internal/desktop/types.go`.
   from oscillators and filtered noise without assets. A changed animation clip is the
   only trigger for an action sound; walking stays with the footstep cadence, which
   follows the travelled distance of the reported stride. The pool is bounded at ten
-  voices, a sound dies beyond 45 m, one resident cannot retrigger itself within
-  0.25 s, and nothing sounds while the city is muted, hidden, unfocused, in map mode
-  or under reduced motion. Robot kinds travel over the existing `onSound` channel
-  and never reach the world-effect engine.
+  voices and the nearest residents win a voice, a sound dies beyond 48 m of the
+  acoustic origin, one resident cannot retrigger itself within 0.25 s, and nothing
+  sounds while the city is muted, hidden, unfocused, in map mode or under reduced
+  motion. Robot kinds travel over the existing `onSound` channel and never reach the
+  world-effect engine. `stats().foley.rejected` counts why a sound was dropped.
+  The whole robot layer shares one gain above the city bed, which mixes at about
+  0.01: a footfall that stays below that is swallowed by the drones and the murmur.
+  Distance and height fall gently, so a footfall next to the listener peaks clearly
+  above the bed and a resident at the far edge of the district only murmurs.
+  `stats().foley.peak` reports the loudest level, so a layer that only counts
+  events cannot pass as a working one.
+- The sound layer listens from the **acoustic origin**, not from the camera: on the
+  street you stand on, or — from the overview, where the camera floats 100 m above
+  the city — the district the view rests on. `onListener` carries that origin as its
+  last two arguments. Distance runs on the ground (horizontal), the pan follows the
+  picture (camera-relative), and distance dulls the sound through a low pass, so a
+  far resident is a murmur instead of a click. Measuring from the camera in 3D would
+  put every resident hundreds of metres away and silence the whole set.
   `sysworld-voice.js` adds transient tower speech to that same opt-in mixer: one
   cancellable POST `/api/desktop/system-world/voice`, 20–40 seconds of quiet after
   each short phrase, with 60-second failure backoff. Camera pose updates through
@@ -4257,11 +4323,17 @@ registration lives in `internal/desktop/types.go`.
   retain their destination while blocked and resume when a route becomes free.
   Camera flights validate each segment, use nearby clear exits before climbing
   above roofs, and wait or stop when blocked. Manual orbit input cancels a flight.
+  A blocked street robot waits 2.5 s before it turns around, so a short blockage
+  is driven through instead of turned back from.
 - `sysworld-places/society/signals/machinery.js` own a bounded waypoint graph,
   reserved work slots, courier pickup/delivery, maintenance, archive exchanges,
   visitor greetings/guides and six local installation demonstrations. Guides
   wait for the visitor; the camera remains user-controlled. Residents clear
   approaching rails; conflicting drones use distinct vertical escape decisions.
+  A blocked resident steps aside only, never backwards, commits to that side for
+  1.2 s and keeps facing the goal; the step has to open the street, otherwise the
+  resident waits instead of circling its obstacle. The walk bob follows the
+  distance covered, so a standing robot hovers quietly.
   Cancel, hide, replay and close release reservations and packets. Local exchanges
   are labelled City life, never successful system actions. Eight reusable local
   wave packets show direction, receipt and reply; genuine building waves retain
@@ -4475,6 +4547,9 @@ registration lives in `internal/desktop/types.go`.
   agent panel is an absolute slide-over (never squeezes the preview) hosting
   the streaming chat transcript, a composer, and an apply-changes bar that
   stages agent-proposed source instead of silently overwriting.
+- OpenSCAD keeps its vertical, scrolling panel layout below 860px rather than
+  using a forced-wide mobile window. Phone header actions wrap with their
+  icons and labels intact and keep 44px touch targets.
 - OpenSCAD viewport controls include zoom in/out, perspective/orthographic
   projection, shaded/wireframe shading, auto-rotate (disabled under
   `prefers-reduced-motion`), dark/light background, grid/axes, fit view,
@@ -4808,6 +4883,9 @@ registration lives in `internal/desktop/types.go`.
 - `writer.js`, `writer-session.js`, `writer-panels.js` - Native DOCX Autor,
   revision-aware persistence, document panels and isolated AI suggestions.
   `desktop-app-writer.css` owns chrome only; the engine owns document geometry.
+  The toolbar maps slots to shared icon keys and draws the few missing glyphs
+  itself; the ruler follows the engine's page box, the document menu closes on
+  Escape and an outside click, and the outline marks the active section.
   Public table merge/split operations live in `scripts/writer-table-ops.js`.
   Exposes `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
@@ -4831,7 +4909,13 @@ registration lives in `internal/desktop/types.go`.
   use `desktop.people_kg`. Content empty-state load failures use
   `desktop.load_failed` via `t(inst.context, key)`. Save and delete
   notifies use `desktop.request_failed`. Exposes
-  `window.PeopleApp`. No child DOX file needed.
+  `window.PeopleApp`. Below 600px of app width, groups, KG and birthdays
+  remain reachable in a compact navigation strip; `.vd-people-browse` scrolls
+  filters and results together vertically when the keyboard reduces the viewport.
+  List fields stack into readable rows; the separate detail overlay preserves
+  the browse scroll position on close. Never hide the only filter controls on
+  phones. Verify touch access with `TestDesktopMobileRegressionsBrowser`.
+  No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
   into `createChessFx`. Opponent-move errors use
@@ -5220,16 +5304,24 @@ registration lives in `internal/desktop/types.go`.
   Active-call texts (party name/URI, status, button and volume labels) must
   wrap inside the screen via `overflow-wrap` and never bleed past the device
   edges. No child DOX file needed.
-- `zipper.js` - Zip archive browser: list/create/extract, desktop and host
-  file drops, breadcrumb navigation inside an archive. Double-click, Enter, or
-  File → Open preview a member without extracting the whole zip. Images, text,
-  audio, and video render in an in-app overlay from
-  `GET /api/desktop/archive/entry`. PDF, Markdown, and Office files open Viewer
-  with `{ path, archiveEntry, forceNew: true }`; STL opens Viewer 3D the same
-  way. Executables and other blocked types stay closed. Visible strings use
-  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. The open-dialog
-  filter uses `desktop.file_dialog_zip`. Exposes
-  `window.ZipperApp`. No child DOX file needed.
+- `zipper.js` - Archive browser for ZIP, tar, tar.gz, tar.bz2, tar.xz,
+  tar.zst and single-file compression, plus 7-Zip-style and Linux filesystem
+  images when the host has a userspace reader. List/create/extract, desktop
+  and host file drops, breadcrumb navigation. Creation stays ZIP unless the
+  name ends in `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.txz`, `.tar.zst` or
+  `.tzst`. Other suffixes, including `.7z` and `.img`, are saved as `.zip`.
+  Double-click, Enter, or File → Open preview a member without
+  extracting the whole archive. Images, text, audio, and video render in an
+  in-app overlay from `GET /api/desktop/archive/entry`. PDF, Markdown, and
+  Office files open Viewer with `{ path, archiveEntry, forceNew: true }`; STL
+  opens Viewer 3D the same way. Executables and other blocked types stay
+  closed. Symlinks in filesystem images stay in the list
+  (`zipper.skipped_links`) and are not extracted. Visible strings use
+  `zipper.*` in all 16 `ui/lang/desktop/*.json` files. The open-dialog filter
+  uses `desktop.file_dialog_zip`. `desktopIsArchiveFile`,
+  `fileManagerIsArchive` and `isOpenableArchive` share one extension pattern;
+  bookshelf formats still win. Exposes `window.ZipperApp`. No child DOX file
+  needed.
 - `viewer.js` / `viewer-3d.js` - Viewer and STL viewer accept optional
   `archiveEntry` with the zip `path` and `forceNew: true`. Archive members
   load from `/api/desktop/viewer/content?path=&entry=` or

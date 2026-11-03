@@ -24,8 +24,8 @@ func handleDesktopSymlink(s *Server) http.HandlerFunc {
 			TargetPath string `json:"target_path"`
 			LinkPath   string `json:"link_path"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 			return
 		}
 

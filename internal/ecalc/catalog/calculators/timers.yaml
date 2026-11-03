@@ -1,0 +1,134 @@
+# Timer, oscillator and pulse calculators. Every name is written in all 16 desktop locales; docs, variable names and
+# warnings in English and German (other languages fall back to English). Rules are written out for every direction, in
+# the order the solver tries them: the first alternative whose variables are all known wins.
+
+- id: ne555_astable
+  kind: calculator
+  category: timers
+  name: {cs: "NE555 astabilní (oscilátor)", da: "NE555 astabil (oscillator)", de: "NE555 astabil (Oszillator)", el: "NE555 ασταθής (ταλαντωτής)", en: "NE555 astable (oscillator)", es: "NE555 astable (oscilador)", fr: "NE555 astable (oscillateur)", hi: "NE555 अस्थायी (ऑसिलेटर)", it: "NE555 astabile (oscillatore)", ja: "NE555 無安定（発振器）", nl: "NE555 astabiel (oscillator)", no: "NE555 astabil (oscillator)", pl: "NE555 astabilny (generator)", pt: "NE555 astável (oscilador)", sv: "NE555 astabil (oscillator)", zh: "NE555 无稳态（振荡器）"}
+  doc:
+    en: "Astable multivibrator with an NE555 timer: the capacitor charges through R_1 + R_2 up to 2/3 of the supply and discharges through R_2 down to 1/3. The high time is t_H = ln 2 × (R_1 + R_2) × C (ln 2 ≈ 0.693), the low time t_L = ln 2 × R_2 × C, the frequency f = 1 / (t_H + t_L) = 1.44 / ((R_1 + 2 R_2) × C) and the duty cycle D = t_H / (t_H + t_L) = (R_1 + R_2) / (R_1 + 2 R_2), which is always above 50 %. Enter any three independent values (for example f, D and C to design the resistors). Example with the defaults: R_1 = 1 kΩ, R_2 = 68 kΩ and C = 10 nF give about 1.05 kHz at 50.4 % duty cycle (t_H ≈ 478 µs, t_L ≈ 471 µs). With the control pin not driven the result does not depend on the supply voltage; real parts add the tolerances of R and C, leakage and switching delays, so very high frequencies and very small resistors deviate."
+    de: "Astabiler Multivibrator mit dem Timer NE555: Der Kondensator lädt sich über R_1 + R_2 bis auf 2/3 der Versorgung auf und entlädt sich über R_2 bis auf 1/3. Die Highzeit ist t_H = ln 2 · (R_1 + R_2) · C (ln 2 ≈ 0,693), die Lowzeit t_L = ln 2 · R_2 · C, die Frequenz f = 1 / (t_H + t_L) = 1,44 / ((R_1 + 2 R_2) · C) und das Tastverhältnis D = t_H / (t_H + t_L) = (R_1 + R_2) / (R_1 + 2 R_2), das stets über 50 % liegt. Drei unabhängige Werte eingeben (zum Beispiel f, D und C, um die Widerstände zu bestimmen). Beispiel mit den Standardwerten: R_1 = 1 kΩ, R_2 = 68 kΩ und C = 10 nF ergeben etwa 1,05 kHz bei 50,4 % Tastverhältnis (t_H ≈ 478 µs, t_L ≈ 471 µs). Bei unbeschaltetem Steuereingang hängt das Ergebnis nicht von der Versorgungsspannung ab; reale Bauteile bringen die Toleranzen von R und C, Leckströme und Schaltverzögerungen mit, sodass sehr hohe Frequenzen und sehr kleine Widerstände abweichen."
+  tags: [555, ne555, timer, astable, oscillator, multivibrator, blinker, flasher, frequency, duty cycle, astabil, oszillator, blinkschaltung, rechteckgenerator, tastverhältnis, frequenz]
+  source: "NE555 datasheet (Texas Instruments NE555 / SE555 precision timer), astable operation: f = 1.44/((R_A + 2R_B)·C), t_H = ln 2·(R_A + R_B)·C, t_L = ln 2·R_B·C; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (timers)"
+  vars:
+    r1: {dim: resistance, label: R_1, name: {en: "Resistor R_1 (supply to discharge pin)", de: "Widerstand R_1 (Versorgung zu Entladepin)"}, default: "1k", eseries: true}
+    r2: {dim: resistance, label: R_2, name: {en: "Resistor R_2 (discharge pin to capacitor)", de: "Widerstand R_2 (Entladepin zu Kondensator)"}, default: "68k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Timing capacitor", de: "Zeitkondensator"}, default: "10n", eseries: true}
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}}
+    th: {dim: time, label: t_H, name: {en: "High time", de: "Highzeit"}, units: [""]}
+    tl: {dim: time, label: t_L, name: {en: "Low time", de: "Lowzeit"}, units: [""]}
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, unit: pct, units: [pct, ""]}
+  dof: 3
+  rules:
+    f: ["1/(th+tl)", "duty/th", "(1-duty)/tl"]
+    th: ["ln(2)*(r1+r2)*c", "duty/f", "1/f-tl"]
+    tl: ["ln(2)*r2*c", "(1-duty)/f", "1/f-th"]
+    duty: ["th/(th+tl)", "th*f"]
+    r1: ["th/(ln(2)*c)-r2", "(th-tl)/(ln(2)*c)"]
+    r2: ["tl/(ln(2)*c)", "(1/(f*ln(2)*c)-r1)/2"]
+    c: ["tl/(ln(2)*r2)", "th/(ln(2)*(r1+r2))", "(th-tl)/(ln(2)*r1)", "1/(f*ln(2)*(r1+2*r2))"]
+  derived:
+    period: {dim: time, label: T, name: {en: "Period", de: "Periodendauer"}, expr: "1/f", units: [""]}
+  checks:
+    - {when: "duty <= 0.5", warn: {en: "The duty cycle is not above 50 %: a standard NE555 astable cannot do that (R_1 would be zero or negative). A diode across R_2 allows lower duty cycles.", de: "Das Tastverhältnis liegt nicht über 50 %: Das kann ein normaler NE555-Astabilbetrieb nicht (R_1 wäre null oder negativ). Eine Diode parallel zu R_2 ermöglicht kleinere Tastverhältnisse."}}
+  formula: ["th = ln(2) * (r1 + r2) * c", "tl = ln(2) * r2 * c", "f = 1 / (th + tl)", "duty = th / (th + tl)"]
+  schematic: ne555_astable
+
+- id: ne555_monostable
+  kind: calculator
+  category: timers
+  name: {cs: "NE555 monostabilní (monostabilní klopný obvod)", da: "NE555 monostabil (monoflop)", de: "NE555 monostabil (Monoflop)", el: "NE555 μονοσταθής (μονοπαλμός)", en: "NE555 monostable (one-shot)", es: "NE555 monoestable", fr: "NE555 monostable", hi: "NE555 मोनोस्टेबल (वन-शॉट)", it: "NE555 monostabile", ja: "NE555 単安定（ワンショット）", nl: "NE555 monostabiel (monoflop)", no: "NE555 monostabil (monoflopp)", pl: "NE555 monostabilny (przerzutnik)", pt: "NE555 monoestável", sv: "NE555 monostabil (monoflop)", zh: "NE555 单稳态（单触发）"}
+  doc:
+    en: "Monostable (one-shot) with an NE555 timer: a trigger pulse at pin 2 starts the output pulse, during which the capacitor charges through R from 0 up to 2/3 of the supply. The pulse width is t = R × C × ln 3 ≈ 1.0986 × R × C (the datasheet rounds this to 1.1 × R × C). Enter any two of R, C and t. Example with the defaults: 100 kΩ and 10 µF give a pulse of about 1.1 s. The trigger pulse must be shorter than the output pulse; the real width varies with the capacitor tolerance and leakage (use film or low-leakage capacitors for long times)."
+    de: "Monostabile Kippstufe (Monoflop) mit dem Timer NE555: Ein Triggerimpuls an Pin 2 startet den Ausgangsimpuls, während dem sich der Kondensator über R von 0 bis auf 2/3 der Versorgung auflädt. Die Impulsbreite ist t = R · C · ln 3 ≈ 1,0986 · R · C (das Datenblatt rundet auf 1,1 · R · C). Zwei der Größen R, C und t eingeben. Beispiel mit den Standardwerten: 100 kΩ und 10 µF ergeben einen Impuls von etwa 1,1 s. Der Triggerimpuls muss kürzer als der Ausgangsimpuls sein; die reale Breite schwankt mit der Kondensatortoleranz und dem Leckstrom (für lange Zeiten Folien- oder verlustarme Kondensatoren verwenden)."
+  tags: [555, ne555, timer, monostable, one-shot, one shot, pulse, delay, monoflop, monostabil, impuls, verzögerung, zeitglied, pulsbreite]
+  source: "NE555 datasheet (Texas Instruments NE555 / SE555 precision timer), monostable operation: t_w = 1.1·R_A·C, exactly ln 3·R_A·C (charging from 0 to 2/3 V_CC); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (timers)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Timing resistor", de: "Zeitwiderstand"}, default: "100k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Timing capacitor", de: "Zeitkondensator"}, default: "10µ", eseries: true}
+    t: {dim: time, label: t, name: {en: "Pulse width", de: "Impulsbreite"}}
+  dof: 2
+  rules:
+    t: ["ln(3)*r*c"]
+    r: ["t/(ln(3)*c)"]
+    c: ["t/(ln(3)*r)"]
+  formula: ["t = ln(3) * r * c"]
+  schematic: ne555_monostable
+
+- id: crystal_load_caps
+  kind: calculator
+  category: timers
+  name: {cs: "Zatěžovací kondenzátory krystalu", da: "Krystallastkondensatorer", de: "Quarz-Lastkondensatoren", el: "Πυκνωτές φορτίου κρυστάλλου", en: "Crystal load capacitors", es: "Condensadores de carga del cristal", fr: "Condensateurs de charge du quartz", hi: "क्रिस्टल लोड संधारित्र", it: "Condensatori di carico del quarzo", ja: "水晶振動子の負荷容量", nl: "Belastingcondensatoren voor kristal", no: "Lastkondensatorer for krystall", pl: "Kondensatory obciążające rezonator kwarcowy", pt: "Condensadores de carga do cristal", sv: "Lastkondensatorer för kristall", zh: "晶振负载电容"}
+  doc:
+    en: "Load capacitors for a parallel-resonant quartz crystal in a Pierce oscillator: two capacitors C_1 = C_2 from the crystal pins to ground. The crystal sees the load capacitance C_L = C_1 × C_2 / (C_1 + C_2) + C_stray, where C_stray is the pin, trace and board capacitance (a few pF as a rough estimate, 2 to 5 pF). With C_1 = C_2 = C this gives C = 2 × (C_L − C_stray). Take C_L from the crystal datasheet. Example with the defaults: C_L = 18 pF and C_stray = 4 pF give C_1 = C_2 = 28 pF (use the nearest standard value, 27 pF)."
+    de: "Lastkondensatoren für einen parallelresonanten Schwingquarz in einer Pierce-Oszillatorschaltung: zwei Kondensatoren C_1 = C_2 von den Quarzanschlüssen nach Masse. Der Quarz sieht die Lastkapazität C_L = C_1 · C_2 / (C_1 + C_2) + C_stray; C_stray ist die Kapazität von Pin, Leiterbahn und Platine (als grobe Schätzung einige pF, 2 bis 5 pF). Mit C_1 = C_2 = C folgt C = 2 · (C_L − C_stray). C_L dem Datenblatt des Quarzes entnehmen. Beispiel mit den Standardwerten: C_L = 18 pF und C_stray = 4 pF ergeben C_1 = C_2 = 28 pF (den nächsten Normwert verwenden, 27 pF)."
+  tags: [crystal, quartz, xtal, load capacitance, load capacitor, pierce oscillator, oscillator, microcontroller, quarz, schwingquarz, lastkapazität, lastkondensator, pierce, oszillator, mikrocontroller]
+  source: "Load capacitance of a parallel-resonant crystal in a Pierce oscillator: C_L = C_1·C_2/(C_1 + C_2) + C_stray (series connection of the two capacitors plus stray capacitance); the crystal datasheet states C_L; P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 7 (crystal oscillators)"
+  vars:
+    cl: {dim: capacitance, label: C_L, name: {en: "Crystal load capacitance (datasheet)", de: "Lastkapazität des Quarzes (Datenblatt)"}, default: "18p"}
+    cs: {dim: capacitance, label: C_stray, name: {en: "Stray capacitance (pins, traces)", de: "Streukapazität (Pins, Leiterbahnen)"}, default: "4p"}
+    c: {dim: capacitance, label: "C_1,2", name: {en: "Load capacitor C_1 = C_2 (each)", de: "Lastkondensator C_1 = C_2 (je)"}, eseries: true}
+  dof: 2
+  rules:
+    c: ["2*(cl-cs)"]
+    cl: ["c/2+cs"]
+    cs: ["cl-c/2"]
+  derived:
+    cser: {dim: capacitance, label: C_ser, name: {en: "Series combination C_1·C_2/(C_1 + C_2)", de: "Reihenschaltung C_1·C_2/(C_1 + C_2)"}, expr: "c/2"}
+  checks:
+    - {when: "cs >= cl", warn: {en: "C_stray is not below C_L: the board already provides the load capacitance, no load capacitors are needed (or the crystal needs a lower load capacitance).", de: "C_stray liegt nicht unter C_L: Die Platine liefert die Lastkapazität bereits, Lastkondensatoren entfallen (oder der Quarz braucht eine kleinere Lastkapazität)."}}
+  formula: ["cl = c / 2 + cs", "c = 2 * (cl - cs)"]
+  schematic: crystal_load_caps
+
+- id: frequency_period
+  kind: calculator
+  category: timers
+  name: {cs: "Frekvence, perioda a střída", da: "Frekvens, periode og dutycycle", de: "Frequenz, Periodendauer und Tastverhältnis", el: "Συχνότητα, περίοδος και κύκλος λειτουργίας", en: "Frequency, period and duty cycle", es: "Frecuencia, periodo y ciclo de trabajo", fr: "Fréquence, période et rapport cyclique", hi: "आवृत्ति, आवर्तकाल और ड्यूटी साइकिल", it: "Frequenza, periodo e duty cycle", ja: "周波数・周期・デューティ比", nl: "Frequentie, periode en duty cycle", no: "Frekvens, periode og driftssyklus", pl: "Częstotliwość, okres i wypełnienie", pt: "Frequência, período e ciclo de trabalho", sv: "Frekvens, period och pulskvot", zh: "频率、周期与占空比"}
+  doc:
+    en: "Converts between the frequency f, the period T = 1 / f and the duty cycle D of a rectangular signal: t_high = D × T and t_low = T − t_high. Enter any two independent values (the frequency and the period alone do not fix the duty cycle). Example with the defaults: 1 kHz at a duty cycle of 30 % is a period of 1 ms with 300 µs high and 700 µs low."
+    de: "Rechnet zwischen der Frequenz f, der Periodendauer T = 1 / f und dem Tastverhältnis D eines Rechtecksignals um: t_high = D · T und t_low = T − t_high. Zwei unabhängige Werte eingeben (Frequenz und Periodendauer allein legen das Tastverhältnis nicht fest). Beispiel mit den Standardwerten: 1 kHz bei 30 % Tastverhältnis sind 1 ms Periodendauer mit 300 µs High und 700 µs Low."
+  tags: [frequency, period, duty cycle, duty, pulse width, square wave, rectangular, pwm, hertz, frequenz, periodendauer, tastverhältnis, tastgrad, pulsbreite, rechteck]
+  source: "Definitions: frequency f = 1/T (hertz = 1/s, SI Brochure, BIPM) and duty cycle D = t_high/T of a periodic rectangular signal"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "1k"}
+    t: {dim: time, label: T, name: {en: "Period", de: "Periodendauer"}, units: [""]}
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, default: 0.3, unit: pct, units: [pct, ""]}
+    th: {dim: time, label: t_high, name: {en: "High time", de: "Highzeit"}, units: [""]}
+    tl: {dim: time, label: t_low, name: {en: "Low time", de: "Lowzeit"}, units: [""]}
+  dof: 2
+  rules:
+    f: ["1/t", "duty/th", "(1-duty)/tl"]
+    t: ["1/f", "th+tl", "th/duty", "tl/(1-duty)"]
+    duty: ["th/t", "1-tl/t", "th/(th+tl)"]
+    th: ["duty*t", "t-tl", "tl*duty/(1-duty)"]
+    tl: ["(1-duty)*t", "t-th", "th*(1-duty)/duty"]
+  checks:
+    - {when: "if(duty <= 0, 1, duty >= 1)", warn: {en: "The duty cycle must be between 0 % and 100 %.", de: "Das Tastverhältnis muss zwischen 0 % und 100 % liegen."}}
+  formula: ["t = 1 / f", "th = duty * t", "tl = t - th"]
+
+- id: pwm_average
+  kind: calculator
+  category: timers
+  name: {cs: "Střední hodnota PWM", da: "PWM-middelspænding", de: "PWM-Mittelwert", el: "Μέση τάση PWM", en: "PWM average voltage", es: "Tensión media de PWM", fr: "Tension moyenne d'un signal PWM", hi: "PWM औसत वोल्टेज", it: "Tensione media PWM", ja: "PWMの平均電圧", nl: "Gemiddelde PWM-spanning", no: "PWM-middelspenning", pl: "Napięcie średnie PWM", pt: "Tensão média PWM", sv: "PWM-medelspänning", zh: "PWM平均电压"}
+  doc:
+    en: "Average and RMS value of a rectangular PWM signal that switches between V_low and V_high with the duty cycle D: V_avg = V_low + D × (V_high − V_low) (a low-pass filter, or the inertia of a motor, LED or heater, turns the PWM into this DC voltage) and V_rms = √(D × V_high² + (1 − D) × V_low²) (the heating effect in a resistive load). Enter any three of D, V_high, V_low and V_avg. Example with the defaults: 25 % duty cycle between 0 V and 5 V gives V_avg = 1.25 V and V_rms = 2.5 V."
+    de: "Mittelwert und Effektivwert eines Rechteck-PWM-Signals, das mit dem Tastverhältnis D zwischen V_low und V_high wechselt: V_avg = V_low + D · (V_high − V_low) (ein Tiefpass oder die Trägheit von Motor, LED oder Heizung macht daraus diese Gleichspannung) und V_rms = √(D · V_high² + (1 − D) · V_low²) (die Heizwirkung an einer ohmschen Last). Drei der Größen D, V_high, V_low und V_avg eingeben. Beispiel mit den Standardwerten: 25 % Tastverhältnis zwischen 0 V und 5 V ergeben V_avg = 1,25 V und V_rms = 2,5 V."
+  tags: [pwm, pulse width modulation, average, mean, rms, duty cycle, dimming, motor speed, pulsweitenmodulation, mittelwert, effektivwert, tastverhältnis, dimmen, drehzahl]
+  source: "Average and RMS value of a rectangular two-level waveform over one period (integration of the waveform); P. Horowitz, W. Hill: The Art of Electronics, 3rd ed., ch. 1 (signals)"
+  vars:
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, default: 0.25, unit: pct, units: [pct, ""]}
+    vh: {dim: voltage, label: V_high, name: {en: "High level", de: "High-Pegel"}, default: "5 V"}
+    vl: {dim: voltage, label: V_low, name: {en: "Low level", de: "Low-Pegel"}, default: 0}
+    vavg: {dim: voltage, label: V_avg, name: {en: "Average voltage", de: "Mittelwert"}}
+  dof: 3
+  rules:
+    vavg: ["vl+duty*(vh-vl)"]
+    duty: ["(vavg-vl)/(vh-vl)"]
+    vh: ["vl+(vavg-vl)/duty"]
+    vl: ["(vavg-duty*vh)/(1-duty)"]
+  derived:
+    vrms: {dim: voltage, label: V_rms, name: {en: "RMS voltage", de: "Effektivwert"}, expr: "sqrt(duty*vh^2+(1-duty)*vl^2)"}
+  checks:
+    - {when: "if(duty < 0, 1, duty > 1)", warn: {en: "The duty cycle must be between 0 % and 100 %.", de: "Das Tastverhältnis muss zwischen 0 % und 100 % liegen."}}
+  formula: ["vavg = vl + duty * (vh - vl)", "vrms = sqrt(duty * vh^2 + (1 - duty) * vl^2)"]

@@ -120,7 +120,7 @@ func TestGenericEffects(t *testing.T) {
 			t.Errorf("genericEffects(%s, %s, %s) = %v, want %v", tc.tool, tc.category, tc.op, got, tc.want)
 		}
 	}
-	for _, name := range []string{"discover_tools", "skill__x", "tool__y", "game_maker_file", "send_email"} {
+	for _, name := range []string{"discover_tools", "skill__x", "tool__y", "game_maker_file", "send_email", "send_whatsapp"} {
 		if !IsGenericToolExcluded(name) {
 			t.Errorf("%s must be excluded", name)
 		}

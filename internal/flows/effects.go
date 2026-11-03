@@ -467,9 +467,9 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 }
 
 // secretTargetRefusals returns, by node id, the failure a run gives each node that
-// LintUntrustedData reports as IssueUntrustedSecretTarget: unchecked data decides where
-// the node's vault secret is sent. The rule is a publish error, but a live revision
-// published under older rules is never validated again and a test run validates with
+// LintUntrustedData reports as an untrusted secret or URL target: unchecked data decides
+// where the node connects or sends its vault secret. The rule is a publish error, but
+// a live revision published under older rules is never validated again and a test run validates with
 // draft rules, so the engine enforces it itself, once per run (checkFlow), before the
 // node's Execute runs. The error is FLOW_PARAM_INVALID, which no retry repeats, and
 // carries the lint's message, which names the data and asks for a fixed address. A node
@@ -483,7 +483,7 @@ func secretTargetRefusals(f *Flow, reg *Registry) map[string]*NodeError {
 func refusalsOf(issues []Issue) map[string]*NodeError {
 	var refusals map[string]*NodeError
 	for _, is := range issues {
-		if is.Code != IssueUntrustedSecretTarget || is.NodeID == "" || refusals[is.NodeID] != nil {
+		if (is.Code != IssueUntrustedSecretTarget && is.Code != IssueUntrustedURLTarget) || is.NodeID == "" || refusals[is.NodeID] != nil {
 			continue
 		}
 		if refusals == nil {

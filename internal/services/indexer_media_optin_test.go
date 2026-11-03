@@ -56,7 +56,7 @@ func newMediaOptInFixture(t *testing.T, allow, indexImages, multimodal bool, ext
 	embedSrv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		embedCalls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[{"embedding":[0.1,0.2,0.3]}]}`))
+		_, _ = w.Write([]byte(`{"predictions":[{"embeddings":{"values":[0.1,0.2,0.3]}}]}`))
 	}))
 	t.Cleanup(embedSrv.Close)
 
@@ -72,8 +72,9 @@ func newMediaOptInFixture(t *testing.T, allow, indexImages, multimodal bool, ext
 	cfg.Embeddings.Multimodal = multimodal
 	cfg.Embeddings.BaseURL = embedSrv.URL
 	cfg.Embeddings.Model = "embed-model"
-	cfg.Embeddings.ProviderType = "openai"
-	cfg.Embeddings.MultimodalFormat = "openai"
+	// The inline-media format supports both image and audio fixtures.
+	cfg.Embeddings.ProviderType = "google"
+	cfg.Embeddings.MultimodalFormat = "vertex"
 	cfg.Vision.BaseURL = visionSrv.URL
 	cfg.Vision.APIKey = "vision-key"
 	cfg.Vision.Model = "vision-model"

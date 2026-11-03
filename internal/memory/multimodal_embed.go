@@ -73,13 +73,16 @@ func (me *MultimodalEmbedder) EmbedFile(ctx context.Context, filePath string) ([
 	if info.Size() > maxFileBytes {
 		return nil, fmt.Errorf("file %s too large (%d bytes, max %d)", filepath.Base(filePath), info.Size(), maxFileBytes)
 	}
+	mimeType := detectMIME(filePath)
+	if me.format != "vertex" && strings.HasPrefix(mimeType, "audio/") {
+		return nil, fmt.Errorf("the OpenAI-compatible image embedding format does not support audio")
+	}
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s: %w", filepath.Base(filePath), err)
 	}
 
-	mimeType := detectMIME(filePath)
 	b64 := base64.StdEncoding.EncodeToString(data)
 
 	switch me.format {

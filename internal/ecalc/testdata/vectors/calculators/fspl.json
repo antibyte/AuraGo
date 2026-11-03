@@ -1,0 +1,21 @@
+{
+  "calc": "fspl",
+  "sets": [
+    {"values": {"d": 1000, "f": 1000000000, "loss": 92.44778322188337, "wl": 0.299792458}, "ref": "hand (independent script): 4 * pi * 1000 * 1e9 / 299792458 = 41916.9; FSPL = 20 * log10(41916.9) = 92.44778322 dB; textbook form 32.45 + 20 * log10(1 km) + 20 * log10(1000 MHz) = 92.45 dB; lambda = 0.299792458 m"},
+    {"values": {"d": 1000, "f": 2400000000, "loss": 100.0520080561155, "wl": 0.12491352416666666}, "ref": "hand (independent script): FSPL = 20 * log10(4 * pi * 1000 * 2.4e9 / 299792458) = 100.0520081 dB (92.4478 + 20 * log10(2.4) = 92.4478 + 7.6042); lambda = 0.124913524 m"},
+    {"values": {"d": 10000, "f": 100000000, "loss": 92.44778322188337, "wl": 2.99792458}, "ref": "hand (independent script): d * f = 1e12 as in the first set, so the loss is the same 92.44778322 dB (10 km at 100 MHz); lambda = 2.99792458 m"},
+    {"values": {"d": 35786000, "f": 12000000000, "loss": 205.10567129475945, "wl": 0.024982704833333334}, "ref": "hand (independent script): geostationary distance 35786 km at 12 GHz: 4 * pi * 3.5786e7 * 1.2e10 / 299792458 = 1.8001e10; FSPL = 20 * log10(1.8001e10) = 205.1056713 dB (about 205 dB); lambda = 0.0249827048 m"}
+  ],
+  "solve": [
+    {"inputs": {"d": 1000, "f": 1000000000}, "expect": {"loss": 92.44778322188337, "wl": 0.299792458}, "errors": {}, "warnings": [], "ref": "hand (independent script): FSPL = 20 * log10(4 * pi * 1000 * 1e9 / 299792458) = 92.44778322 dB"},
+    {"inputs": {"d": 1000, "f": 2400000000}, "expect": {"loss": 100.0520080561155, "wl": 0.12491352416666666}, "errors": {}, "warnings": [], "ref": "hand (independent script): FSPL = 100.0520081 dB at 1 km and 2.4 GHz (the default example)"},
+    {"inputs": {"f": 1000000000, "loss": 92.44778322188337}, "expect": {"d": 1000}, "errors": {}, "warnings": [], "ref": "hand: d = 299792458 / (4 * pi * 1e9) * 10^(92.4478 / 20) = 0.0238567 m * 41916.9 = 1000 m"},
+    {"inputs": {"f": 2400000000, "loss": 100.0520080561155}, "expect": {"d": 1000}, "errors": {}, "warnings": [], "ref": "hand (independent script): d = 299792458 / (4 * pi * 2.4e9) * 10^(100.052 / 20) = 1000 m"},
+    {"inputs": {"d": 1000, "loss": 92.44778322188337}, "expect": {"f": 1000000000}, "errors": {}, "warnings": [], "ref": "hand: f = 299792458 / (4 * pi * 1000) * 10^(92.4478 / 20) = 23856.7 Hz * 41916.9 = 1 GHz"},
+    {"inputs": {"d": 10000, "loss": 92.44778322188337}, "expect": {"f": 100000000}, "errors": {}, "warnings": [], "ref": "hand (independent script): f = 299792458 / (4 * pi * 10000) * 10^(92.4478 / 20) = 100 MHz"},
+    {"inputs": {"d": 1, "loss": 0}, "expect": {"f": 23856725.79618471}, "errors": {}, "warnings": [], "ref": "hand: 0 dB means 4 * pi * d * f = c: f = 299792458 / (4 * pi * 1 m) = 23.8567 MHz"},
+    {"inputs": {"f": 1000000000, "loss": 20}, "expect": {"d": 0.2385672579618471}, "errors": {}, "warnings": [], "ref": "hand: d = 299792458 / (4 * pi * 1e9) * 10^(20 / 20) = 0.02385673 m * 10 = 0.2385673 m"},
+    {"inputs": {"d": 0.01, "f": 100000000}, "expect": {"loss": -27.552216778116627}, "errors": {}, "warnings": [0], "ref": "hand: 4 * pi * 0.01 * 1e8 / 299792458 = 0.041917; FSPL = 20 * log10(0.041917) = -27.55 dB is negative (d < lambda / (4 * pi)), the check fires"},
+    {"inputs": {"d": 0, "f": 1000000000}, "errors": {"d": "range", "loss": "nonfinite"}, "ref": "hand: d = 0 is out of range and log10(0) is minus infinity"}
+  ]
+}

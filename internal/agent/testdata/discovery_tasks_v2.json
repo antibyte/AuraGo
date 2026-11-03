@@ -907,5 +907,23 @@
    "remember",
    "manage_memory"
   ]
+ },
+ {
+  "id": "Q101",
+  "lang": "en",
+  "style": "sent",
+  "query": "send this report to my WhatsApp",
+  "expected_any_of": [
+   "send_whatsapp"
+  ]
+ },
+ {
+  "id": "Q102",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schick mir die Datei auf WhatsApp",
+  "expected_any_of": [
+   "send_whatsapp"
+  ]
  }
 ]

@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "WhatsApp を有効にし、専用番号の場合は所有者の番号を追加して保存してください。",
   "config.whatsapp.err_invalid_phone": "番号は国際形式で入力してください（例：+491701234567）。",
   "config.whatsapp.err_not_connected": "WhatsApp に接続されていません。",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "この所有者の番号は WhatsApp に登録されていません。設定で番号を確認してください。",
   "config.whatsapp.err_rate_limited": "次のテストメッセージまで 1 分お待ちください。",
   "config.whatsapp.err_failed": "WhatsApp から応答がありません。もう一度お試しください。",
   "config.whatsapp.err_passkey_unsupported": "スマートフォンがパスキーによるリンクを求めましたが、AuraGo はまだ対応していません。QR コードを使ってください。",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "専用の番号：AuraGo が自分の番号を持ちます（推奨）。自分の番号：自分とのチャットだけが AuraGo に届きます。",
   "help.whatsapp.owner_numbers": "国際形式でカンマ区切り。これらの番号だけが AuraGo に届きます。",
   "help.whatsapp.readonly": "あなたへの返信は引き続き動作します。エージェントが自発的に送信することはできません。",
-  "help.whatsapp.send_read_receipts": "AuraGo 専用の番号の場合のみ。"
+  "help.whatsapp.send_read_receipts": "AuraGo 専用の番号の場合のみ。",
+  "help.whatsapp.self_chat_prefix": "自分とのチャットモードの場合のみ。AuraGo は送信するメッセージの先頭にこの接頭辞を付けます（16 文字以内）。この接頭辞で始まる自分へのメモは無視されるため、AuraGo が自分のエコーに返信することはありません。"
 }

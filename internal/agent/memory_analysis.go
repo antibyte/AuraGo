@@ -583,7 +583,7 @@ var capabilityExactPhrases = splitIntentPhrases([]string{
 var capabilitySubjectPhrases = []string{
 	"tool", "tools", "integration", "integrations", "capability", "capabilities", "function", "feature",
 	"werkzeug", "werkzeuge", "integrationen", "fähigkeit", "fähigkeiten", "funktion",
-	"chromecast", "docker", "proxmox", "telegram", "discord", "mqtt", "home assistant", "homeassistant",
+	"chromecast", "docker", "proxmox", "telegram", "whatsapp", "discord", "mqtt", "home assistant", "homeassistant",
 	"tailscale", "truenas", "frigate", "google cast", "cast", "tts", "stt", "speech",
 	"herramienta", "herramientas", "integración", "integraciones", "outil", "outils", "intégration",
 	"strumento", "strumenti", "integrazione", "integrazioni", "ferramenta", "ferramentas",

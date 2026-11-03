@@ -3,10 +3,15 @@ package tools
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/sudoticket"
 )
@@ -16,6 +21,130 @@ func TestNormalizeSudoStderrRemovesLocalizedPrompt(t *testing.T) {
 	got := normalizeSudoStderr(stderr)
 	if got != "permission denied" {
 		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, "permission denied")
+	}
+}
+
+func TestWithSudoTicketContextHonorsCancellation(t *testing.T) {
+	started := make(chan struct{})
+	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		Passwordless: func(context.Context, string) error { return errors.New("password required") },
+		Validate: func(ctx context.Context, _, _ string) ([]byte, error) {
+			close(started)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(2 * time.Second):
+				return nil, errors.New("caller cancellation was lost")
+			}
+		},
+		Probe: func(context.Context, string) error { return nil },
+		Drop:  func() {},
+	}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		lease, _, err := withSudoTicketContext(ctx, "test-only-context-password", ".")
+		lease.Release()
+		done <- err
+	}()
+	<-started
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("ticket error=%v, want cancelled authentication", err)
+	}
+	if security.Scrub("test-only-context-password") != "test-only-context-password" {
+		t.Fatal("cancelled authentication retained its password registration")
+	}
+}
+
+func TestExecuteSudoHonorsForegroundCancellation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sudo execution is Unix-only; ticket cancellation is tested on every platform")
+	}
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
+	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	installFakeTicketSudo(t, &fakeTicketSudo{})
+	previous := sudoRunCommand
+	t.Cleanup(func() { sudoRunCommand = previous })
+	sudoRunCommand = func(_, dir string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0], "-test.run=TestBackgroundProcessSupervisorHelper", "--", "sleep")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GO_WANT_BACKGROUND_HELPER=1")
+		return cmd
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, _, err := ExecuteSudo(ctx, "echo test-only", t.TempDir(), "test-only"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("sudo error=%v, want caller deadline", err)
+	}
+}
+
+func TestSudoRechecksPermissionsAfterAuthentication(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sudo commands are Unix-only")
+	}
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	previous := sudoRunCommand
+	t.Cleanup(func() { sudoRunCommand = previous })
+	for _, test := range []struct {
+		name      string
+		operation string
+		revoke    func(*RuntimePermissions)
+	}{
+		{"shell allowed", "", nil},
+		{"package allowed", "install", nil},
+		{"shell", "", func(p *RuntimePermissions) { p.AllowShell = false }},
+		{"host", "", func(p *RuntimePermissions) { p.AllowUnsafeHostExecution, p.AllowUnsandboxedShell = false, false }},
+		{"package manager", "install", func(p *RuntimePermissions) { p.PackageManagerEnabled = false }},
+		{"package readonly", "install", func(p *RuntimePermissions) { p.PackageManagerReadOnly = true }},
+		{"package install", "install", func(p *RuntimePermissions) { p.PackageManagerAllowInstall = false }},
+		{"package remove", "remove", func(p *RuntimePermissions) { p.PackageManagerAllowRemove = false }},
+		{"package update", "update", func(p *RuntimePermissions) { p.PackageManagerAllowUpgrade = false }},
+		{"package upgrade", "upgrade", func(p *RuntimePermissions) { p.PackageManagerAllowUpgrade = false }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			perms := defaultRuntimePermissionsForTests()
+			perms.PackageManagerEnabled, perms.PackageManagerAllowInstall = true, true
+			perms.PackageManagerAllowRemove, perms.PackageManagerAllowUpgrade = true, true
+			ConfigureRuntimePermissions(perms)
+			started := false
+			sudoRunCommand = func(_, dir string) *exec.Cmd {
+				started = true
+				cmd := exec.Command(os.Args[0], "-test.run=^$")
+				cmd.Dir = dir
+				return cmd
+			}
+			// Authentication revokes the grant; sudo and package managers are never executed.
+			t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+				Passwordless: func(context.Context, string) error { return errors.New("password required") },
+				Validate: func(context.Context, string, string) ([]byte, error) {
+					if test.revoke != nil {
+						test.revoke(&perms)
+						ConfigureRuntimePermissions(perms)
+					}
+					return nil, nil
+				},
+				Probe: func(context.Context, string) error { return nil },
+				Drop:  func() {},
+			}))
+			ctx := WithRuntimePermissions(context.Background(), perms)
+			var err error
+			if test.operation != "" {
+				_, _, err = runPackageManagerMutation(ctx, "apt", test.operation, "test-only", true, "test-only")
+			} else {
+				_, _, err = ExecuteSudo(ctx, "echo test-only", t.TempDir(), "test-only")
+			}
+			if test.revoke == nil {
+				if !started || err != nil {
+					t.Fatalf("allowed command: started=%v, error=%v", started, err)
+				}
+			} else if started || err == nil {
+				t.Fatalf("revoked permission reached command construction: started=%v, error=%v", started, err)
+			}
+		})
 	}
 }
 

@@ -65,8 +65,8 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		}
 
 		var req emailAccountJSON
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
 		settings := resolveEmailConnectionTest(s, req)

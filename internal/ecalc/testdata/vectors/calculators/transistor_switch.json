@@ -1,0 +1,26 @@
+{
+  "calc": "transistor_switch",
+  "sets": [
+    {"values": {"vin": 5, "vbe": 0.7, "ic": 0.1, "hfe": 100, "od": 5, "rb": 860, "ib": 0.005, "vrb": 4.3, "betaf": 20, "prb": 0.0215}, "ref": "hand: I_B = 5 * 100 mA / 100 = 5 mA; R_B = (5 V - 0.7 V) / 5 mA = 860 ohm; V_RB = 4.3 V; forced gain = 100 / 5 = 20 = 100 mA / 5 mA; P_RB = (5 mA)^2 * 860 ohm = 21.5 mW = 4.3 V * 5 mA"},
+    {"values": {"vin": 12, "vbe": 0.8, "ic": 0.5, "hfe": 50, "od": 2, "rb": 560, "ib": 0.02, "vrb": 11.2, "betaf": 25, "prb": 0.224}, "ref": "hand: I_B = 2 * 500 mA / 50 = 20 mA; R_B = (12 V - 0.8 V) / 20 mA = 560 ohm; V_RB = 11.2 V; forced gain = 50 / 2 = 25 = 500 mA / 20 mA; P_RB = (20 mA)^2 * 560 ohm = 0.224 W = 11.2 V * 20 mA"},
+    {"values": {"vin": 3.3, "vbe": 0.65, "ic": 0.02, "hfe": 200, "od": 10, "rb": 2650, "ib": 0.001, "vrb": 2.65, "betaf": 20, "prb": 0.00265}, "ref": "hand: I_B = 10 * 20 mA / 200 = 1 mA; R_B = (3.3 V - 0.65 V) / 1 mA = 2650 ohm; V_RB = 2.65 V; forced gain = 200 / 10 = 20 = 20 mA / 1 mA; P_RB = (1 mA)^2 * 2650 ohm = 2.65 mW = 2.65 V * 1 mA"},
+    {"values": {"vin": 5, "vbe": 0.7, "ic": 0.01, "hfe": 100, "od": 3, "rb": 14333.333333333334, "ib": 0.0003, "vrb": 4.3, "betaf": 33.333333333333336, "prb": 0.00129}, "ref": "hand: I_B = 3 * 10 mA / 100 = 0.3 mA; R_B = 4.3 V / 0.3 mA = 14333.3 ohm; V_RB = 4.3 V; forced gain = 100 / 3 = 33.33 = 10 mA / 0.3 mA; P_RB = 4.3 V * 0.3 mA = 1.29 mW"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 5, "vbe": 0.7, "ic": 0.1, "hfe": 100, "od": 5}, "expect": {"rb": 860, "ib": 0.005, "betaf": 20}, "warnings": [], "ref": "hand: R_B = (5 V - 0.7 V) * 100 / (5 * 100 mA) = 430 / 0.5 = 860 ohm; the other values are those of the first set"},
+    {"inputs": {"vin": 12, "vbe": 0.8, "ic": 0.5, "hfe": 50, "od": 2}, "expect": {"rb": 560, "ib": 0.02}, "warnings": [], "ref": "hand: R_B = 11.2 V * 50 / (2 * 500 mA) = 560 / 1 = 560 ohm"},
+    {"inputs": {"vin": 5, "vbe": 0.7, "hfe": 100, "od": 5, "rb": 1000}, "expect": {"ic": 0.086, "ib": 0.0043}, "ref": "hand: I_B = 4.3 V / 1000 ohm = 4.3 mA; I_C = I_B * h_FE / overdrive = 4.3 mA * 100 / 5 = 86 mA"},
+    {"inputs": {"vin": 3.3, "vbe": 0.7, "hfe": 100, "od": 2, "rb": 1300}, "expect": {"ic": 0.1, "ib": 0.002}, "ref": "hand: I_B = 2.6 V / 1300 ohm = 2 mA; I_C = 2 mA * 100 / 2 = 100 mA"},
+    {"inputs": {"vin": 5, "vbe": 0.7, "ic": 0.1, "od": 5, "rb": 860}, "expect": {"hfe": 100, "ib": 0.005}, "ref": "hand: I_B = 4.3 V / 860 ohm = 5 mA; h_FE = overdrive * I_C / I_B = 5 * 100 mA / 5 mA = 100"},
+    {"inputs": {"vin": 3.3, "vbe": 0.7, "ic": 0.2, "od": 4, "rb": 1300}, "expect": {"hfe": 400, "ib": 0.002}, "ref": "hand: I_B = 2.6 V / 1300 ohm = 2 mA; h_FE = 4 * 200 mA / 2 mA = 400"},
+    {"inputs": {"vin": 5, "vbe": 0.7, "ic": 0.1, "hfe": 100, "rb": 1075}, "expect": {"od": 4, "ib": 0.004}, "ref": "hand: I_B = 4.3 V / 1075 ohm = 4 mA; overdrive = I_B * h_FE / I_C = 4 mA * 100 / 100 mA = 4"},
+    {"inputs": {"vin": 12, "vbe": 0.8, "ic": 0.5, "hfe": 50, "rb": 560}, "expect": {"od": 2, "ib": 0.02}, "ref": "hand: I_B = 11.2 V / 560 ohm = 20 mA; overdrive = 20 mA * 50 / 500 mA = 2"},
+    {"inputs": {"vbe": 0.7, "ic": 0.1, "hfe": 100, "od": 5, "rb": 860}, "expect": {"vin": 5, "ib": 0.005, "vrb": 4.3}, "ref": "hand: I_B = 5 * 100 mA / 100 = 5 mA; V_in = 5 mA * 860 ohm + 0.7 V = 4.3 V + 0.7 V = 5 V"},
+    {"inputs": {"vbe": 0.65, "ic": 0.02, "hfe": 200, "od": 10, "rb": 2650}, "expect": {"vin": 3.3, "ib": 0.001, "vrb": 2.65}, "ref": "hand: I_B = 10 * 20 mA / 200 = 1 mA; V_in = 1 mA * 2650 ohm + 0.65 V = 2.65 V + 0.65 V = 3.3 V"},
+    {"inputs": {"vin": 5, "ic": 0.1, "hfe": 100, "od": 5, "rb": 860}, "expect": {"vbe": 0.7, "ib": 0.005}, "ref": "hand: V_BE = 5 V - 5 mA * 860 ohm = 5 V - 4.3 V = 0.7 V"},
+    {"inputs": {"vin": 3.3, "ic": 0.02, "hfe": 200, "od": 10, "rb": 2650}, "expect": {"vbe": 0.65, "ib": 0.001}, "ref": "hand: V_BE = 3.3 V - 1 mA * 2650 ohm = 3.3 V - 2.65 V = 0.65 V"},
+    {"inputs": {"vin": 0.5, "vbe": 0.7, "ic": 0.1, "hfe": 100, "od": 5}, "expect": {"ib": 0.005, "vrb": -0.2}, "errors": {"rb": "range"}, "warnings": [0], "ref": "hand: V_in below V_BE gives R_B = (0.5 V - 0.7 V) / 5 mA = -40 ohm, out of range; the first check fires"},
+    {"inputs": {"vin": 5, "vbe": 0.7, "ic": 0.1, "hfe": 100, "od": 0.5}, "expect": {"rb": 8600, "ib": 0.0005, "betaf": 200}, "warnings": [1], "ref": "hand: I_B = 0.5 * 100 mA / 100 = 0.5 mA; R_B = 4.3 V / 0.5 mA = 8600 ohm; overdrive 0.5 is below 1, so the second check fires"},
+    {"inputs": {"vin": 5, "vbe": 0.7, "ic": 0.1, "hfe": 100}, "errors": {"od": "undetermined", "rb": "undetermined"}, "warnings": [], "ref": "one of the five inputs is missing: neither the overdrive nor the base resistor is determined"}
+  ]
+}

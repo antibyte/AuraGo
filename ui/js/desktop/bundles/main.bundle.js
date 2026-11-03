@@ -458,6 +458,12 @@
         'store-bytestash': '/img/desktop-icons/bytestash.svg',
         'store-code-server': '/img/desktop-icons/code-server.svg'
     };
+    function desktopIsArchiveFile(name) {
+        const value = String(name || '');
+        if (/\.txt\.gz$/i.test(value)) return false;
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(value);
+    }
+
     const extensionIconKeys = {
         txt: 'text',
         log: 'text',
@@ -493,8 +499,20 @@
         webm: 'video',
         mov: 'video',
         zip: 'archive',
+        '7z': 'archive',
+        rar: 'archive',
         tar: 'archive',
         gz: 'archive',
+        tgz: 'archive',
+        bz2: 'archive',
+        xz: 'archive',
+        zst: 'archive',
+        iso: 'archive',
+        cab: 'archive',
+        wim: 'archive',
+        squashfs: 'archive',
+        ext4: 'archive',
+        img: 'archive',
         db: 'database',
         sqlite: 'database',
         csv: 'spreadsheet',
@@ -610,6 +628,7 @@
         'pet.position_x': '-1',
         'pet.position_y': '-1',
         'pet.always_on_top': 'false',
+        'pet.gravity': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',
         'phone_gadget.position_x': '',
@@ -991,12 +1010,10 @@
 
     function isCompactViewport() {
         if (!window.matchMedia) return false;
-        // Width catches narrow layouts. Height alone is common on laptops/browser panes,
-        // so only use it for coarse-pointer landscape mobile/tablet layouts.
+        // Keep narrow desktop layouts compact, and include coarse-pointer tablets.
         const widthMatch = window.matchMedia('(max-width: 820px)').matches;
-        const heightMatch = window.matchMedia('(max-height: 720px)').matches;
-        const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        return widthMatch || (heightMatch && coarsePointerMatch);
+        const tabletMatch = window.matchMedia('(max-width: 1024px) and (hover: none) and (pointer: coarse)').matches;
+        return widthMatch || tabletMatch;
     }
 
     function isTouchLikePointer(event) {
@@ -1023,20 +1040,13 @@
     // Expose for other modules
     window.useMobileDesktopMode = useMobileDesktopMode;
 
-    /**
-     * Returns true if we should force a maximized + single-window
-     * experience for this app on mobile devices.
-     */
+    function shouldUseMobileWideWindow(appId) {
+        return ['code-studio', 'nasscad'].includes(appId);
+    }
+
+    /** Returns whether this app should open maximized in the mobile desktop. */
     function shouldForceMobileMaximizedWindow(appId) {
-        if (!useMobileDesktopMode()) return false;
-
-        // These apps are intentionally wide and should keep horizontal scrolling
-        const wideAppsOnMobile = [
-            'files', 'writer', 'sheets', 'code-studio',
-            'viewer', 'viewer-3d', 'nasscad', 'mission-control', 'launchpad'
-        ];
-
-        return !wideAppsOnMobile.includes(appId);
+        return useMobileDesktopMode() && !shouldUseMobileWideWindow(appId);
     }
 
     window.shouldForceMobileMaximizedWindow = shouldForceMobileMaximizedWindow;
@@ -1048,8 +1058,8 @@
      * Decision (confirmed):
      * - On mobile (useMobileDesktopMode() === true):
      *     → Normal apps open as a single maximized window.
-     *     → Complex/wide apps (Code Studio, Sheets, etc.) keep
-     *       horizontal scrolling via vd-mobile-wide-window.
+     *     → Apps in shouldUseMobileWideWindow keep horizontal content
+     *       scrolling inside their viewport-width window.
      *
      * This gives a clean phone experience while preserving
      * necessary functionality for content-heavy apps.
@@ -3441,6 +3451,8 @@
     const DRAG_TILT_SPRING = 220;
     const DRAG_TILT_DAMPING = 16;
     const DRAG_SETTLE_EPS = 0.08;
+    const GRAVITY_ACCEL_PX_S2 = 2400;
+    const GRAVITY_MAX_FALL_PX_S = 2400;
     const PET_REACTION_DURATION_MS = 2200;
     const PET_REACTION_DURATIONS_MS = {
         thinking: 1800,
@@ -3498,6 +3510,10 @@
     let ambientReturnTimer = null;
     let ambientMoveFrame = null;
     let reactionTimer = null;
+    let gravityFallFrame = null;
+    let gravityVelocity = 0;
+    let dockFloorObserver = null;
+    let dockFloorTarget = null;
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -3523,6 +3539,11 @@
 
     function petAlwaysOnTop() {
         return String(settingValue('pet.always_on_top')).toLowerCase() === 'true';
+    }
+
+    // Gravity keeps the pet on the dock bar: it drops down instead of staying where it was placed.
+    function petGravity() {
+        return String(settingValue('pet.gravity')).toLowerCase() === 'true';
     }
 
     function activePet() {
@@ -3610,12 +3631,14 @@
         bubbleEl = layer.querySelector('.vd-pet-bubble');
         spriteEl.setAttribute('aria-label', t('desktop.pet_aria_label'));
         wireDrag();
+        watchDockFloor();
     }
 
     function removeLayer() {
         if (!layer) return;
         clearAmbientTimers();
         clearReactionTimer();
+        stopGravityFall();
         layer.remove();
         layer = null;
         spriteEl = null;
@@ -3631,6 +3654,86 @@
         layer.dataset.alwaysOnTop = petAlwaysOnTop() ? 'true' : 'false';
     }
 
+    // The dock bar (dock shell) or the taskbar strip (taskbar shell) is the floor the pet stands on.
+    function petFloorTop() {
+        if (shellLayout() === 'dock') {
+            const host = document.getElementById('vd-taskbar-apps');
+            if (host) {
+                const rect = host.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) return rect.top;
+            }
+        }
+        const taskbar = document.querySelector('.vd-taskbar');
+        if (taskbar) {
+            const rect = taskbar.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) return rect.top;
+        }
+        return window.innerHeight;
+    }
+
+    function petRestingY(scale) {
+        const height = Math.round(PET_FRAME_H * scale);
+        return Math.max(0, Math.round(petFloorTop() - height));
+    }
+
+    function stopGravityFall() {
+        if (gravityFallFrame) {
+            window.cancelAnimationFrame(gravityFallFrame);
+            gravityFallFrame = null;
+        }
+        if (layer) layer.classList.remove('is-falling');
+    }
+
+    // Remember where the pet landed so switching gravity off keeps it in place.
+    function persistRestingY(y) {
+        if (String(settingValue('pet.position_y')) === String(y)) return;
+        saveSetting('pet.position_y', String(y));
+    }
+
+    // Gravity owns the vertical axis: the pet drops onto the dock bar and stays there.
+    function startGravityFall() {
+        if (!layer) return;
+        stopGravityFall();
+        if (!petGravity()) return;
+        layer.classList.add('is-falling');
+        let last = performance.now();
+        const tick = now => {
+            const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+            last = now;
+            const targetY = petRestingY(petScale());
+            const currentY = layer.offsetTop;
+            if (currentY >= targetY - 0.5) {
+                layer.style.top = targetY + 'px';
+                layer.classList.remove('is-falling');
+                gravityFallFrame = null;
+                gravityVelocity = 0;
+                persistRestingY(targetY);
+                positionBubbleInViewport();
+                return;
+            }
+            gravityVelocity = Math.min(GRAVITY_MAX_FALL_PX_S, gravityVelocity + GRAVITY_ACCEL_PX_S2 * dt);
+            layer.style.top = Math.round(currentY + gravityVelocity * dt) + 'px';
+            positionBubbleInViewport();
+            gravityFallFrame = window.requestAnimationFrame(tick);
+        };
+        gravityFallFrame = window.requestAnimationFrame(tick);
+    }
+
+    // The dock bar can collapse or grow; re-seat the pet whenever its footprint changes.
+    function watchDockFloor() {
+        if (typeof window.ResizeObserver !== 'function') return;
+        const target = document.getElementById('vd-taskbar-apps') || document.querySelector('.vd-taskbar');
+        if (!target) return;
+        if (dockFloorObserver && dockFloorTarget === target) return;
+        if (dockFloorObserver) dockFloorObserver.disconnect();
+        dockFloorTarget = target;
+        dockFloorObserver = new window.ResizeObserver(() => {
+            if (!layer || drag || !petGravity()) return;
+            applyPosition();
+        });
+        dockFloorObserver.observe(target);
+    }
+
     function applyPosition() {
         if (!layer) return;
         const scale = petScale();
@@ -3639,10 +3742,15 @@
         const h = Math.round(PET_FRAME_H * scale);
         const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });
         layer.style.left = clamped.x + 'px';
-        layer.style.top = clamped.y + 'px';
         layer.style.width = w + 'px';
         layer.style.height = h + 'px';
         if (spriteEl) spriteEl.style.transform = 'scale(' + scale + ')';
+        if (petGravity()) {
+            // Gravity owns the vertical axis: drop onto the dock bar instead of pinning a spot.
+            startGravityFall();
+            return;
+        }
+        layer.style.top = clamped.y + 'px';
         positionBubbleInViewport();
     }
 
@@ -3719,6 +3827,8 @@
             direction *= -1;
             target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
         }
+        // With gravity the pet runs along the dock bar, never away from it.
+        if (petGravity()) target.y = startY;
         return {
             startX,
             startY,
@@ -3800,6 +3910,7 @@
             return;
         }
         ensureLayer();
+        watchDockFloor();
         const url = spritesheetURL(pet);
         if (!url) {
             removeLayer();
@@ -4081,6 +4192,7 @@
             clearAmbientTimers();
             cancelDragSettle();
             stopDragMotionLoop();
+            stopGravityFall();
             const now = performance.now();
             drag = {
                 pointerId: event.pointerId,
@@ -4114,6 +4226,12 @@
                 cancelDragSettle();
                 drag = null;
                 saveSetting('pet.position_x', String(x));
+                if (petGravity()) {
+                    // Gravity pulls the dropped pet back down onto the dock bar.
+                    gravityVelocity = 0;
+                    startGravityFall();
+                    return;
+                }
                 saveSetting('pet.position_y', String(y));
             });
         });
@@ -4136,11 +4254,13 @@
     function showPetContextMenu(event) {
         const petVisible = petEnabled();
         const petOnTop = petAlwaysOnTop();
+        const petGravityOn = petGravity();
         const items = [
             { label: t('desktop.pet_open_picker'), icon: 'heart', action: () => openApp('pet-picker') },
             { separator: true },
             { label: t('desktop.pet_enabled'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
             { label: t('desktop.pet_always_on_top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
+            { label: t('desktop.pet_gravity'), icon: petGravityOn ? 'check-square' : 'square', fallback: petGravityOn ? '\u2713' : '\u2610', action: toggleGravity },
             { separator: true },
             { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
         ];
@@ -4158,6 +4278,21 @@
     function toggleAlwaysOnTop() {
         const next = !petAlwaysOnTop();
         saveSetting('pet.always_on_top', String(next)).then(updateLayerZIndex);
+    }
+
+    function toggleGravity() {
+        const next = !petGravity();
+        saveSetting('pet.gravity', String(next)).then(() => {
+            gravityVelocity = 0;
+            if (next) {
+                // Switched on: the pet drops onto the dock bar and stays there.
+                startGravityFall();
+                return;
+            }
+            // Switched off: the pet keeps the spot it last rested on.
+            stopGravityFall();
+            applyPosition();
+        });
     }
 
     function handlePetEvent(event) {
@@ -4192,6 +4327,7 @@
         window.addEventListener('resize', () => {
             if (layer) applyPosition();
         });
+        watchDockFloor();
         // Re-render after bootstrap is ready.
         const check = () => {
             if (state.bootstrap) {
@@ -7112,7 +7248,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
-            radio: { width: 1320, height: 920 },
+            radio: { width: 960, height: 660 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
             bluetooth: { width: 720, height: 620 },
@@ -7163,8 +7299,6 @@
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
-
-    function shouldUseMobileWideWindow(appId) { if (appId === 'kaggle' || appId === 'infra' || appId === 'ha-switchboard' || appId === 'docker-manager') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, bookshelf: true, findit: true, chess: true, 'retro-games': true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true, storymaker: true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'kaggle') return { width: 360, height: 420 };
@@ -7410,6 +7544,7 @@
             }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
+            if (appId === 'ecalc' && context && context.launch && window.ECalcApp && typeof window.ECalcApp.launch === 'function') window.ECalcApp.launch(existing.id, context.launch);
             if (appId === 'detective' && context && context.case_id && window.DetectiveApp && typeof window.DetectiveApp.open === 'function') {
                 updateWindowContext(existing.id, context);
                 window.DetectiveApp.open(existing.id, context);
@@ -7472,13 +7607,12 @@
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }
             : nextWindowPosition(size);
 
+        // Mobile fullscreen is temporary; retain ordinary pixel bounds for desktop/restore.
+        win.style.left = position.left + 'px';
+        win.style.top = position.top + 'px';
+        win.style.width = size.width + 'px';
+        win.style.height = size.height + 'px';
         if (isMobileMode && forceMaximized) {
-            // Mobile forced maximized windows take full available space
-            win.style.left = '0px';
-            win.style.top = '0px';
-            win.style.width = '100%';
-            win.style.height = '100%';
-
             // Enforce Single Window behavior on mobile:
             // Minimize all other open windows when opening a new normal app
             state.windows.forEach((existingWin, existingId) => {
@@ -7486,11 +7620,6 @@
                     minimizeWindow(existingId);
                 }
             });
-        } else {
-            win.style.left = position.left + 'px';
-            win.style.top = position.top + 'px';
-            win.style.width = size.width + 'px';
-            win.style.height = size.height + 'px';
         }
         const isResizable = appId !== 'calculator';
 
@@ -7914,13 +8043,8 @@ function updateFruityDockOcclusion() {
     }
 
     const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
-    const hasMaximizedMobileWindow = isMobileMode && [...state.windows.values()].some(win =>
-        win.element.classList.contains('maximized') ||
-        win.element.classList.contains('vd-mobile-forced-maximized')
-    );
-
-    if (isMobileMode && hasMaximizedMobileWindow) {
-        body.classList.add('fruity-dock-collapsed');
+    if (isMobileMode) {
+        body.classList.remove('fruity-dock-collapsed');
         state.fruityDockFootprint = null;
         return;
     }
@@ -8353,7 +8477,11 @@ function wireWindow(win, id) {
         const layer = $('vd-window-layer');
         const taskbar = document.querySelector('.vd-taskbar');
         const width = (layer && layer.clientWidth) || window.innerWidth;
-        let height = (layer && layer.clientHeight) || window.innerHeight;
+        const layerTop = layer ? layer.getBoundingClientRect().top : 0;
+        let height = Math.min(
+            (layer && layer.clientHeight) || window.innerHeight,
+            Math.max(1, window.innerHeight - layerTop)
+        );
         if (shellLayout() === 'taskbar' && taskbar) {
             height = Math.max(1, height - taskbar.offsetHeight);
         } else if (isCompactViewport() && window.visualViewport) {
@@ -8479,6 +8607,32 @@ function wireWindow(win, id) {
         win.style.width = width + 'px';
         win.style.height = height + 'px';
         scheduleFruityDockOcclusionCheck();
+    }
+
+    function clampWindowsAfterViewportResize() {
+        if (useMobileDesktopMode()) return;
+        let changed = false;
+        state.windows.forEach(item => {
+            const win = item && item.element;
+            if (!win || !win.isConnected || item.isGadget) return;
+            if (win.classList.contains('vd-mobile-forced-maximized')) {
+                win.classList.remove('vd-mobile-forced-maximized');
+                if (!item.maximized) win.classList.remove('maximized');
+            }
+            if (item.maximized) return;
+            const bounds = windowBounds(win);
+            if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
+            if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;
+            const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+            applyResize(win, 'se', bounds, 0, 0);
+            changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+        });
+        if (changed) scheduleSessionPersist();
+    }
+
+    if (!state._windowViewportClampWired) {
+        state._windowViewportClampWired = true;
+        window.addEventListener('resize', () => window.requestAnimationFrame(clampWindowsAfterViewportResize));
     }
 
     function nearestWindowScroller(control) {
@@ -11111,6 +11265,10 @@ function wireWindow(win, id) {
         }
         if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(normalized)) {
             openApp('bookshelf', { path: normalized });
+            return;
+        }
+        if (desktopIsArchiveFile(normalized)) {
+            openApp('zipper', { path: normalized });
             return;
         }
         openApp('files', { path: pathDir(normalized) || '' });
@@ -17134,7 +17292,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function contextMenuUsableBottom() {
         const taskbar = document.querySelector('.vd-taskbar');
-        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches && taskbar) {
+        if (isCompactViewport() && taskbar) {
             const rect = taskbar.getBoundingClientRect();
             if (rect.top > 0) return Math.max(8, Math.floor(rect.top - 8));
         }
@@ -17224,7 +17382,7 @@ function updateTaskbarSystemButtonsForMobile() {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.zip')) {
+        } else if (desktopIsArchiveFile(name)) {
             apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
@@ -17633,7 +17791,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (batchPaths.length === 1 || (batchPaths.length === 0 && path)) {
                 const zipPaths = batchPaths.length ? batchPaths : [path];
                 items.push({ id: 'compress', label: t('desktop.fm.compress_zip'), icon: 'archive', fallback: 'Z', action: () => compressDesktopPathsToZip(zipPaths) });
-                if (kind === 'file' && String(fileEntry.name || path).toLowerCase().endsWith('.zip')) {
+                if (kind === 'file' && desktopIsArchiveFile(fileEntry.name || path)) {
                     items.push(
                         { id: 'extract', label: t('desktop.fm.extract_zip'), icon: 'archive', action: () => extractDesktopZip(fileEntry, true) },
                         { label: t('desktop.fm.extract_zip_to'), icon: 'archive', action: () => extractDesktopZip(fileEntry, false) }
@@ -19182,7 +19340,7 @@ if (appId === 'pixel') {
                             mount_id: storage.mount_id || ''
                         });
                     }
-                    if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (desktopIsArchiveFile(entry.name || entry.path)) return openApp('zipper', { path: entry.path });
                     if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
@@ -19378,7 +19536,7 @@ if (appId === 'pixel') {
             : '';
         if (savedDefault) return openApp(savedDefault, { path: entry.path });
         if (/\.(epub|mobi|azw|azw3|fb2(?:\.zip)?|cbz|cbr|lit|pdb|lrf)$/i.test(entry.name || entry.path)) return openApp('bookshelf', { path: entry.path });
-        if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (desktopIsArchiveFile(entry.name || entry.path)) return openApp('zipper', { path: entry.path });
         if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
@@ -22980,6 +23138,35 @@ if (appId === 'pixel') {
         }
     }
 
+    // The launch payload of the agent tool ecalc: a calculator id, variable values as raw text and choice options. It
+    // comes from a model, so it is rebuilt here from checked parts and ECalc still ignores ids it does not know. Ids start
+    // with a letter like the catalog's (which also keeps "__proto__" out), at most 32 values and 32 choices of at most
+    // 256 and 32 characters.
+    const ECALC_LAUNCH_PAGE = /^[a-z][a-z0-9_]{0,63}$/;
+    const ECALC_LAUNCH_NAME = /^[a-z][a-z0-9_]{0,31}$/;
+    function sanitizeECalcLaunchPairs(raw, valueLimit, valuePattern) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        let count = 0;
+        for (const name of Object.keys(raw)) {
+            if (count >= 32) break;
+            const value = raw[name];
+            if (!ECALC_LAUNCH_NAME.test(name) || typeof value !== 'string' || value.length > valueLimit) continue;
+            if (valuePattern && !valuePattern.test(value)) continue;
+            out[name] = value;
+            count++;
+        }
+        return out;
+    }
+    function sanitizeECalcLaunch(raw) {
+        if (!raw || typeof raw !== 'object' || typeof raw.page !== 'string' || !ECALC_LAUNCH_PAGE.test(raw.page)) return null;
+        return {
+            page: raw.page,
+            values: sanitizeECalcLaunchPairs(raw.values, 256, null),
+            choices: sanitizeECalcLaunchPairs(raw.choices, 32, ECALC_LAUNCH_NAME)
+        };
+    }
+
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
         if (desktopEventAlreadyHandled(event.id)) return;
@@ -23056,6 +23243,10 @@ if (appId === 'pixel') {
             const launch = {};
             if (event.payload.path) launch.path = event.payload.path;
             if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            if (event.payload.app_id === 'ecalc') {
+                const ecalcLaunch = sanitizeECalcLaunch(event.payload.ecalc);
+                if (ecalcLaunch) launch.launch = ecalcLaunch;
+            }
             openApp(event.payload.app_id, Object.keys(launch).length ? launch : undefined);
             return;
         }

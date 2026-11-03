@@ -15,7 +15,7 @@ func TestRenderBundledSticker1080p(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	source, err := filepath.Abs(filepath.Join("..", "..", "ui", "img", "stickers", "emotion-joy.png"))
+	source, err := filepath.Abs(filepath.Join("..", "..", "ui", "img", "stickers", "emotion-joy.webp"))
 	if err != nil {
 		t.Fatal(err)
 	}

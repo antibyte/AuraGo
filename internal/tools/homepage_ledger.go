@@ -180,6 +180,12 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 		return proj, nil
 	}
 
+	if info, err := os.Stat(homepageLocalRoot(cfg, canonical)); err == nil && !info.IsDir() {
+		return nil, fmt.Errorf("project_dir must name a directory, not a file")
+	} else if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("inspect homepage project directory: %w", err)
+	}
+
 	if strings.TrimSpace(name) == "" {
 		name = homepageProjectNameFromDir(canonical)
 	}
@@ -686,7 +692,20 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 	if err != nil {
 		return HomepageProjectState{}, err
 	}
-	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, proj.ProjectDir), logger)
+	localRoot := homepageLocalRoot(cfg, proj.ProjectDir)
+	info, err := os.Stat(localRoot)
+	if os.IsNotExist(err) {
+		return recordHomepageReconciledState(cfg, db, proj, "", "local_changed", "Project location is missing")
+	}
+	if err != nil {
+		return HomepageProjectState{}, fmt.Errorf("inspect homepage project directory: %w", err)
+	}
+	if !info.IsDir() {
+		// Legacy registry entries may name individual files. Retain their
+		// history without treating an unavailable directory as deleted content.
+		return recordHomepageReconciledState(cfg, db, proj, "", "local_changed", "Project location is not a directory")
+	}
+	current, _, err := enumerateProjectFiles(localRoot, logger)
 	if err != nil {
 		return HomepageProjectState{}, err
 	}
@@ -758,15 +777,21 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 			message = remoteMessage
 		}
 	}
-	previous, _ := GetHomepageProjectState(db, proj.ID)
+	return recordHomepageReconciledState(cfg, db, proj, HomepageProjectGitSHA(cfg, proj.ProjectDir), drift, message)
+}
+
+func recordHomepageReconciledState(cfg HomepageConfig, db *sql.DB, proj *HomepageProject, gitSHA, drift, message string) (HomepageProjectState, error) {
+	if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+		return HomepageProjectState{}, err
+	}
+	previous, err := GetHomepageProjectState(db, proj.ID)
+	if err != nil {
+		return HomepageProjectState{}, err
+	}
 	if previous.DriftStatus != drift || previous.DriftMessage != message {
 		if _, err := RecordHomepageEvent(db, proj.ID, "reconciled", "homepage_reconciler", message, map[string]interface{}{"actor": "system", "reason": "Verify current website state", "drift_status": drift}); err != nil {
 			return HomepageProjectState{}, err
 		}
-	}
-	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
-	if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
-		return HomepageProjectState{}, err
 	}
 	if err := ensureHomepageProjectState(db, cfg, proj.ID, proj.ProjectDir, 0, gitSHA, drift, message); err != nil {
 		return HomepageProjectState{}, err
@@ -804,8 +829,11 @@ func listHomepageManagedSites(db *sql.DB, id int64) ([]HomepageManagedSite, erro
 		}
 		site.LocalStatus = "unknown"
 		if site.LocalRoot != "" {
-			if info, err := os.Stat(site.LocalRoot); err == nil && info.IsDir() {
-				site.LocalStatus = "available"
+			if info, err := os.Stat(site.LocalRoot); err == nil {
+				site.LocalStatus = "missing"
+				if info.IsDir() {
+					site.LocalStatus = "available"
+				}
 			} else if os.IsNotExist(err) {
 				site.LocalStatus = "missing"
 			}

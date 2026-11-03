@@ -160,7 +160,7 @@ func (s *Server) handleKaggle(w http.ResponseWriter, r *http.Request) {
 		for _, entry := range [][2]string{{"notebooks", "get_accelerator_quota_statistics"}, {"benchmarks", "get_benchmark_task_quota"}} {
 			v, e := b.Platform.Execute(r.Context(), kaggle.Request{Domain: entry[0], Operation: entry[1], Parameters: json.RawMessage(`{}`)}, s.kaggleSnapshot().Access)
 			if e != nil {
-				results[entry[0]] = map[string]string{"error": e.Error()}
+				results[entry[0]] = map[string]string{"error": kaggle.PublicError(e)}
 			} else {
 				results[entry[0]] = v.Data
 			}
@@ -318,7 +318,10 @@ func (s *Server) kaggleProject(w http.ResponseWriter, r *http.Request, b *kaggle
 			kaggleJSON(w, 200, doc)
 			return
 		}
-		if r.Method == "PUT" && checkDesktopOperation(s, w, r, desktopWrite) {
+		if r.Method == "PUT" {
+			if !checkDesktopOperation(s, w, r, desktopWrite) {
+				return
+			}
 			var raw json.RawMessage
 			if !decodeKaggle(w, r, &raw) {
 				return
@@ -358,7 +361,10 @@ func (s *Server) kaggleProject(w http.ResponseWriter, r *http.Request, b *kaggle
 			http.ServeContent(w, r, name, i.ModTime(), f)
 			return
 		}
-		if r.Method == "PUT" && checkDesktopOperation(s, w, r, desktopWrite) {
+		if r.Method == "PUT" {
+			if !checkDesktopOperation(s, w, r, desktopWrite) {
+				return
+			}
 			limit := int64(s.kaggleSnapshot().Config.MaxTransferMB) << 20
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			n, err := b.Platform.WriteFileVersion(r.Context(), project, name, "*", r.Body, nil)

@@ -24,6 +24,7 @@ Own the original raster artwork, production prompts and reproducible display exp
 - Use the existing style references and built-in ImageGen. Keep exact prompts, review all cells, replace defective drafts and retain only the selected final masters.
 - New atlas columns are split in each row's transparent gutters; original atlas handling and reviewed rain-gutter exceptions remain intact.
 - Use the pinned Pillow environment. Update Go catalog, exporter lists, all 16 locale sets and operator/user guides together; category labels must cover the catalog dynamically.
+- Pillow 13.0.0 exports premultiplied pixels in explicit horizontal-then-vertical Lanczos passes to preserve the original PNG bytes. Keep the narrow monochrome thermometer regression and full byte comparison when updating Pillow.
 - Keep QA sheets, animation previews and hardware/compile evidence in ignored `reports/`. Do not claim hardware acceptance from browser fixtures or compiler success.
 
 ## Verification

@@ -90,6 +90,14 @@ turn clips are included in the model catalog. Decorative life is independent of
 telemetry. Cargo movements require fresh, observed mission state changes; initial
 snapshots, replay and hidden/reduced-motion windows do not synthesize activity.
 
+Residents and white robots share one collision world and one movement rule: nobody
+jitters, paces or walks on the spot. A blocked resident steps aside only, never
+backwards, stays on that side for 1.2 seconds and keeps its face on the goal; the
+step has to open the street, otherwise the resident waits instead of circling its
+obstacle. A blocked street robot waits 2.5 seconds before it turns around, so a
+short blockage is driven through instead of turned back from. A standing robot
+hovers quietly, because the walk bob follows the distance it actually covers.
+
 Lighting follows browser-local time unless day, evening or night is selected.
 Clear weather is the default; rain and fog are user choices and never signal a
 system fault. Rain adjusts particles, fog, surface wetness, puddles and ambience.
@@ -122,6 +130,12 @@ blocks in their state colours) with the last camera position; it works without
 WebGL. On narrow windows the district rail becomes an icon column with a search
 drawer, and details open as a bottom sheet beside it.
 
+On narrow windows the control bar wraps its rows, so the HUD measures that bar and
+publishes its height as `--sw-bar-h`. Every panel above it (inspector, plan, tour,
+message, street help) and the rail take their offset from that height instead of a
+fixed guess; the email export keeps only its glyph there so the bar stays two rows
+high and never slides under the inspector.
+
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain
 sources and bounded footsteps, door, lift and tram effects; interiors attenuate and
@@ -135,12 +149,21 @@ and air bed and adds harbour water near the quay, a low population murmur and a
 weighted event table that changes with time of day and weather: gulls and pigeons by
 day, crickets and the harbour horn at night, rain drips in rain, a civic bell, distant
 construction and evening sirens. Every event comes from a fixed city anchor or from a
-ring around the listener, so the stereo pan matches the direction it arrives from.
-The residents answer for themselves: a changed animation clip starts a quiet action
-sound (servo settle, parcel rustle, tool tap, greeting chirp) and the footstep cadence
-follows the distance a resident actually walks. Both layers are bounded, synthesized
-without assets, and silent while the city is muted, hidden, unfocused, in map mode or
-under reduced motion.
+ring around the place the view rests on, so the stereo pan matches the direction it
+arrives from. The residents answer for themselves: a changed animation clip starts a
+quiet action sound (servo settle, parcel rustle, tool tap, greeting chirp) and the
+footstep cadence follows the distance a resident actually walks. The sound layer
+listens from the street you stand on, or from the district the overview is centred
+on, so the residents are audible from above as a distant murmur instead of falling
+silent. Both layers are bounded, synthesized without assets, and silent while the
+city is muted, hidden, unfocused, in map mode or under reduced motion.
+
+The robot layer has to be heard over the city bed: the bed mixes at a level of about
+0.01, so a footfall that stays below that is swallowed by the drones and the murmur.
+The whole robot layer therefore shares one gain above the bed, the distance and
+height fall gently, and the level of the loudest sound is reported in the foley
+statistics. A footfall next to the listener peaks clearly above the bed, a resident
+at the far edge of the district only murmurs.
 
 ## Shared system view
 
@@ -237,6 +260,7 @@ node scripts/test-system-world-surfaces.mjs
 node scripts/test-system-world-expansion.mjs
 node scripts/test-system-world-traffic.mjs
 node scripts/test-system-world-living.mjs
+node scripts/test-system-world-jitter.mjs
 node scripts/test-system-world-layout.mjs
 node scripts/test-system-world-hover.mjs
 node scripts/test-system-world-voice.mjs

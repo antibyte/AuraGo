@@ -281,10 +281,10 @@ var serviceCloseWait = 30 * time.Second
 // owned and closed by the caller.
 func (s *Service) Close() error {
 	s.closeOnce.Do(func() {
+		s.cancel() // Cancel pending publication before waiting for its jobs.mu gate.
 		s.jobs.mu.Lock()
 		s.jobs.closing = true // no new job goroutine joins s.wg after this point
 		s.jobs.mu.Unlock()
-		s.cancel()
 		done := make(chan struct{})
 		go func() { s.wg.Wait(); close(done) }()
 		select {

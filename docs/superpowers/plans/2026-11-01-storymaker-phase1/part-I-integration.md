@@ -509,6 +509,7 @@ Package `ui` cannot build a configured `Server` (that takes the unexported test 
 
 `internal/server/storymaker_app_browser_test.go`:
 
+{% raw %}
 ```go
 package server
 
@@ -919,6 +920,7 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 2: Run the test**
 
 ```bash

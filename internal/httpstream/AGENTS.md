@@ -10,7 +10,7 @@ This package wraps HTTP writers; server owns acceptance, cancellation and drain.
 
 ## Local Contracts
 
-- Renew the existing write budget after successful stream writes/flushes for SSE, MJPEG and audio/video. Ordinary/error responses keep absolute deadlines. Failure cancels the request and cannot revive a stream.
+- Renew the existing write budget after successful stream writes/flushes for SSE, MJPEG and audio/video. Ordinary/error responses keep absolute deadlines. Failure cancels the request and cannot revive a stream. Reject stream writes after cancellation, including cancellation during deadline renewal.
 - Preserve ResponseController access, Unwrap and WebSocket hijacking.
 
 ## Work Guidance

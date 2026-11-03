@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Repetir solicitud exacta",
   "findit.pending_command_queue_full": "Hay demasiados cambios de stock o reservas sin resolver en esta pestaña. Resuelve una solicitud pendiente antes de otro cambio.",
   "findit.pending_command_storage_unavailable": "Esta pestaña no pudo guardar la solicitud pendiente, así que no se envió el cambio. Activa el almacenamiento de sesión e inténtalo de nuevo.",
-  "findit.pending_command": "Resolver cambio pendiente"
+  "findit.pending_command": "Resolver cambio pendiente",
+  "findit.invalid_number": "Introduce un número válido.",
+  "findit.invalid_url": "Introduce una dirección web válida.",
+  "findit.required_field": "Este campo es obligatorio."
 }

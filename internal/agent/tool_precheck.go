@@ -24,6 +24,13 @@ func precheckMessagingToolArgs(tc ToolCall, runCfg RunConfig, sessionID string) 
 			return "", false
 		}
 		message = req.Message
+	case "send_whatsapp":
+		req := decodeSendWhatsAppArgs(tc)
+		// As send_telegram: a file needs no text, the dispatch sends it without a caption.
+		if strings.TrimSpace(req.FilePath) != "" {
+			return "", false
+		}
+		message = req.Message
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		message = decodeNotificationArgs(tc).Message
 	case "cyd_display":

@@ -21,6 +21,7 @@ func (s *Server) selfTestProbes() map[string]http.HandlerFunc {
 		"integration:rocketchat": handleRocketChatTest(s), "integration:home-assistant": handleHomeAssistantTest(s),
 		"integration:proxmox": handleProxmoxTest(s), "integration:s3": handleS3Test(s),
 		"integration:ansible": handleAnsibleTest(s), "integration:frigate": handleFrigateTest(s),
+		"integration:whatsapp": handleWhatsAppSelfTestStatus(),
 	}
 }
 

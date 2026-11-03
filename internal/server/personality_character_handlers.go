@@ -26,8 +26,8 @@ func handlePersonalityCharacterNotes(s *Server) http.HandlerFunc {
 				Label     string `json:"label"`
 				Protected *bool  `json:"protected"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), jsonDecodeStatus(err))
 				return
 			}
 			switch strings.ToLower(strings.TrimSpace(req.Action)) {

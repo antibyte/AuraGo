@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Zopakovat přesný požadavek",
   "findit.pending_command_queue_full": "V této kartě čeká na vyřešení příliš mnoho změn skladu nebo rezervací. Před další změnou vyřeš čekající požadavek.",
   "findit.pending_command_storage_unavailable": "Karta prohlížeče nemohla uložit čekající požadavek, proto změna nebyla odeslána. Povol úložiště relace a zkus to znovu.",
-  "findit.pending_command": "Vyřešit čekající změnu"
+  "findit.pending_command": "Vyřešit čekající změnu",
+  "findit.invalid_number": "Zadejte platné číslo.",
+  "findit.invalid_url": "Zadejte platnou webovou adresu.",
+  "findit.required_field": "Toto pole je povinné."
 }

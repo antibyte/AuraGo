@@ -29,6 +29,7 @@ func WithWriteTimeout(next http.Handler, timeout time.Duration) http.Handler {
 		next.ServeHTTP(&responseWriter{
 			ResponseWriter: w,
 			controller:     http.NewResponseController(w),
+			ctx:            ctx,
 			timeout:        timeout,
 			cancel:         cancel,
 		}, r.WithContext(ctx))
@@ -38,6 +39,7 @@ func WithWriteTimeout(next http.Handler, timeout time.Duration) http.Handler {
 type responseWriter struct {
 	http.ResponseWriter
 	controller  *http.ResponseController
+	ctx         context.Context
 	timeout     time.Duration
 	cancel      context.CancelFunc
 	wroteHeader bool
@@ -97,7 +99,13 @@ func (w *responseWriter) renewDeadline() error {
 	if !w.streaming {
 		return nil
 	}
+	if err := w.ctx.Err(); err != nil {
+		return w.recordError(err)
+	}
 	err := w.controller.SetWriteDeadline(time.Now().Add(w.timeout))
+	if ctxErr := w.ctx.Err(); ctxErr != nil {
+		return w.recordError(ctxErr)
+	}
 	if errors.Is(err, http.ErrNotSupported) {
 		// Custom writers (e.g. httptest.ResponseRecorder) own their transport.
 		return nil

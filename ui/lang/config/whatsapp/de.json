@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "Schalte WhatsApp ein, trage für die eigene AuraGo-Nummer eine Besitzernummer ein und speichere.",
   "config.whatsapp.err_invalid_phone": "Gib die Nummer im internationalen Format ein, z. B. +491701234567.",
   "config.whatsapp.err_not_connected": "WhatsApp ist nicht verbunden.",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "Diese Besitzernummer ist nicht bei WhatsApp registriert. Prüfe die Nummer in den Einstellungen.",
   "config.whatsapp.err_rate_limited": "Warte eine Minute bis zur nächsten Testnachricht.",
   "config.whatsapp.err_failed": "WhatsApp hat nicht geantwortet. Versuche es erneut.",
   "config.whatsapp.err_passkey_unsupported": "Das Handy verlangt eine Verknüpfung per Passkey, die AuraGo noch nicht unterstützt. Nutze den QR-Code.",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "Eigene AuraGo-Nummer: AuraGo hat eine eigene Nummer (empfohlen). Meine Nummer: Nur dein Chat mit dir selbst erreicht AuraGo.",
   "help.whatsapp.owner_numbers": "Im internationalen Format, durch Kommas getrennt. Nur diese Nummern erreichen AuraGo.",
   "help.whatsapp.readonly": "Antworten an dich funktionieren weiter; der Agent kann nicht von sich aus senden.",
-  "help.whatsapp.send_read_receipts": "Nur mit eigener AuraGo-Nummer."
+  "help.whatsapp.send_read_receipts": "Nur mit eigener AuraGo-Nummer.",
+  "help.whatsapp.self_chat_prefix": "Nur im Selbst-Chat-Modus. AuraGo beginnt seine Nachrichten mit diesem Präfix (höchstens 16 Zeichen). Notizen an dich selbst, die damit beginnen, werden ignoriert, sodass AuraGo nie auf sein eigenes Echo antwortet."
 }

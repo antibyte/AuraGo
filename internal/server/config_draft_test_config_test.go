@@ -559,8 +559,9 @@ func newDraftTestServerAt(t *testing.T, haURL string) *Server {
 		t.Fatal(err)
 	}
 	cfg.ApplyVaultSecrets(s.Vault)
-	s.Cfg = cfg
-	s.initConfigSnapshot()
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(cfg)
+	s.CfgMu.Unlock()
 	return s
 }
 
@@ -643,8 +644,9 @@ func TestDraftProviderChangeResetsResolvedSlots(t *testing.T) {
 	cfg.ConfigPath = s.Cfg.ConfigPath
 	cfg.ApplyVaultSecrets(s.Vault)
 	cfg.ResolveProviders()
-	s.Cfg = cfg
-	s.initConfigSnapshot()
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(cfg)
+	s.CfgMu.Unlock()
 	if s.ConfigSnapshot().ImageGeneration.APIKey != "saved-image-key" {
 		t.Fatal("fixture: provider key not resolved")
 	}

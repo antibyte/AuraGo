@@ -53,7 +53,7 @@
   "learnings.graph_enable": "Enable native code graph",
   "learnings.graph_help": "Off by default. Indexes approved projects on first use and refreshes them automatically. Source and index stay in memory.",
   "codeStudio.knowledge": "Insights",
-  "game_maker.knowledge": "Insights",
+  "game_maker.knowledge": "Knowledge",
   "config.memory_analysis.learnings_enable": "Enable insights",
   "config.memory_analysis.learnings_help": "Off by default. Learns from verified human evidence through the existing conversation analysis. Requires writable memory; ambiguous findings remain proposals.",
   "config.memory_analysis.graph_enable": "Enable native code graph",

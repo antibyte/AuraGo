@@ -46,7 +46,7 @@ function renderWhatsAppSection(section) {
             { titleKey: 'config.refresh.settings', content:
                 toggle('readonly', t('config.whatsapp.readonly'), t('help.whatsapp.readonly')) +
                 toggle('send_read_receipts', t('config.whatsapp.send_read_receipts'), t('help.whatsapp.send_read_receipts')) +
-                field('self_chat_prefix', t('config.whatsapp.self_chat_prefix'))
+                field('self_chat_prefix', t('config.whatsapp.self_chat_prefix'), { help: t('help.whatsapp.self_chat_prefix') })
             }
         ]
     });
@@ -71,6 +71,7 @@ function renderWhatsAppSection(section) {
         not_configured: () => t('config.whatsapp.err_not_configured'),
         invalid_phone: () => t('config.whatsapp.err_invalid_phone'),
         not_connected: () => t('config.whatsapp.err_not_connected'),
+        recipient_not_on_whatsapp: () => t('config.whatsapp.err_recipient_not_on_whatsapp'),
         rate_limited: () => t('config.whatsapp.err_rate_limited'),
         csrf_check_failed: () => t('config.whatsapp.err_csrf'),
         admin_required: () => t('config.whatsapp.err_forbidden'),

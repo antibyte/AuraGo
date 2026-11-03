@@ -431,7 +431,7 @@ func TestDispatchCoAgentStopRequiresExplicitUserCancelRequest(t *testing.T) {
 	cfg.CoAgents.MaxConcurrent = 1
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewCoAgentRegistry(1, logger)
-	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	id, _, err := registry.register("specialist-writer", "Write a story", "test-session", func() {}, 2, true, false)
 	if err != nil {
 		t.Fatalf("RegisterWithPriority: %v", err)
 	}
@@ -444,6 +444,7 @@ func TestDispatchCoAgentStopRequiresExplicitUserCancelRequest(t *testing.T) {
 		Cfg:             cfg,
 		Logger:          logger,
 		CoAgentRegistry: registry,
+		SessionID:       "test-session",
 		UserContext:     "lasse den autor co agent eine scifi kurzgeschichte erstellen",
 	})
 	if !ok {
@@ -468,7 +469,7 @@ func TestDispatchToolCallPropagatesUserContextToCoAgentStopGuard(t *testing.T) {
 	cfg.CoAgents.MaxConcurrent = 1
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewCoAgentRegistry(1, logger)
-	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	id, _, err := registry.register("specialist-writer", "Write a story", "test-session", func() {}, 2, true, false)
 	if err != nil {
 		t.Fatalf("RegisterWithPriority: %v", err)
 	}
@@ -482,6 +483,7 @@ func TestDispatchToolCallPropagatesUserContextToCoAgentStopGuard(t *testing.T) {
 		Cfg:             cfg,
 		Logger:          logger,
 		CoAgentRegistry: registry,
+		SessionID:       "test-session",
 	}, "lasse den autor co agent eine scifi kurzgeschichte erstellen")
 	// Without a Guardian the dispatcher still isolates the result.
 	out, _ = toolResultPayload(out)
@@ -503,7 +505,7 @@ func TestDispatchCoAgentGetResultWaitsForCompletion(t *testing.T) {
 	cfg.CoAgents.MaxConcurrent = 1
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewCoAgentRegistry(1, logger)
-	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	id, _, err := registry.register("specialist-writer", "Write a story", "test-session", func() {}, 2, true, false)
 	if err != nil {
 		t.Fatalf("RegisterWithPriority: %v", err)
 	}
@@ -521,6 +523,7 @@ func TestDispatchCoAgentGetResultWaitsForCompletion(t *testing.T) {
 		Cfg:             cfg,
 		Logger:          logger,
 		CoAgentRegistry: registry,
+		SessionID:       "test-session",
 	})
 	if !ok {
 		t.Fatal("expected dispatchPlatform to handle co_agent get_result")
@@ -539,7 +542,7 @@ func TestDispatchCoAgentStopAllowsExplicitUserCancelRequest(t *testing.T) {
 	cfg.CoAgents.MaxConcurrent = 1
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewCoAgentRegistry(1, logger)
-	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	id, _, err := registry.register("specialist-writer", "Write a story", "test-session", func() {}, 2, true, false)
 	if err != nil {
 		t.Fatalf("RegisterWithPriority: %v", err)
 	}
@@ -552,12 +555,13 @@ func TestDispatchCoAgentStopAllowsExplicitUserCancelRequest(t *testing.T) {
 		Cfg:             cfg,
 		Logger:          logger,
 		CoAgentRegistry: registry,
+		SessionID:       "test-session",
 		UserContext:     "Bitte stoppe den Writer-Co-Agent jetzt.",
 	})
 	if !ok {
 		t.Fatal("expected dispatchPlatform to handle co_agent stop")
 	}
-	if !strings.Contains(out, `"status": "ok"`) {
+	if !strings.Contains(out, `"status":"ok"`) {
 		t.Fatalf("expected explicit user stop to succeed, got: %s", out)
 	}
 
@@ -576,7 +580,7 @@ func TestDispatchCoAgentStopAllRequiresExplicitUserCancelRequest(t *testing.T) {
 	cfg.CoAgents.MaxConcurrent = 2
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewCoAgentRegistry(2, logger)
-	id, _, err := registry.RegisterWithPriority("specialist-writer", "Write a story", func() {}, 2)
+	id, _, err := registry.register("specialist-writer", "Write a story", "test-session", func() {}, 2, true, false)
 	if err != nil {
 		t.Fatalf("RegisterWithPriority: %v", err)
 	}
@@ -588,6 +592,7 @@ func TestDispatchCoAgentStopAllRequiresExplicitUserCancelRequest(t *testing.T) {
 		Cfg:             cfg,
 		Logger:          logger,
 		CoAgentRegistry: registry,
+		SessionID:       "test-session",
 		UserContext:     "schreib die Geschichte mit dem Writer-Co-Agent",
 	})
 	if !ok {

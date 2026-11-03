@@ -98,6 +98,12 @@ Stopping development does not imply stopping a separate Caddy deployment.
 The reconciler starts with the server even if Homepage is initially disabled.
 Each pass checks current configuration under its lock. It runs at startup and
 every 15 minutes; local state is additionally observed before mutations.
+Missing project directories and legacy entries that name individual files remain
+in inventory as unavailable, with `local_changed` and a location explanation.
+Reconciliation preserves their revisions and last known file state, records each
+state transition once, and resumes when the directory returns. Managed project
+creation rejects existing files. Remote-only sites are excluded from local
+directory reconciliation.
 Remote availability describes the last observation, not permanent liveness.
 Public observations use strict DNS-pinned SSRF protection. Explicitly configured
 local/Caddy/SFTP origins permit bounded same-origin redirects.

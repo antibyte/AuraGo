@@ -1,0 +1,19 @@
+{
+  "calc": "reactance_l",
+  "sets": [
+    {"values": {"f": 1000, "l": 0.01, "xl": 62.8318530718}, "ref": "hand (independent script): 10 mH at 1 kHz: X_L = 2 * pi * 1000 Hz * 0.01 H = 62.831853 ohm"},
+    {"values": {"f": 50, "l": 1.0, "xl": 314.159265359}, "ref": "hand (independent script): 1 H at 50 Hz: X_L = 2 * pi * 50 Hz * 1 H = 314.15927 ohm"},
+    {"values": {"f": 1000000.0, "l": 1e-06, "xl": 6.28318530718}, "ref": "hand (independent script): 1 uH at 1 MHz: X_L = 2 * pi * 1000000 Hz * 1e-06 H = 6.2831853 ohm"},
+    {"values": {"f": 100000.0, "l": 4.7e-05, "xl": 29.53097094374}, "ref": "hand (independent script): 47 uH at 100 kHz: X_L = 2 * pi * 100000 Hz * 4.7e-05 H = 29.530971 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"f": 1000, "l": 0.01}, "expect": {"xl": 62.8318530718}, "ref": "hand (independent script): X_L = 2 * pi * 1000 * 0.01 = 20 * pi = 62.83185307 ohm"},
+    {"inputs": {"l": 0.01, "xl": 100}, "expect": {"f": 1591.549430919}, "ref": "hand (independent script): f = X_L / (2 * pi * L) = 100 / (2 * pi * 0.01) = 100 / 0.06283185307 = 1591.549431 Hz"},
+    {"inputs": {"l": 1e-06, "xl": 6.28318530718}, "expect": {"f": 1000000.0}, "ref": "hand (independent script): f = 6.283185307 / (2 * pi * 1e-6) = 1e6 Hz (the reactance of 1 uH at 1 MHz)"},
+    {"inputs": {"f": 1000, "xl": 1000}, "expect": {"l": 0.1591549430919}, "ref": "hand (independent script): L = X_L / (2 * pi * f) = 1000 / 6283.185307 = 0.1591549431 H"},
+    {"inputs": {"f": 1000000.0, "xl": 62.8318530718}, "expect": {"l": 1e-05}, "ref": "hand (independent script): L = 62.83185307 / (2 * pi * 1e6) = 10 uH"},
+    {"inputs": {"f": 0, "l": 0.01}, "errors": {"f": "range", "xl": "range"}, "ref": "hand: f = 0 is out of range and X_L = 2 * pi * 0 * L = 0 is out of range for a resistance"},
+    {"inputs": {"f": 1000, "l": -0.01}, "errors": {"l": "range", "xl": "range"}, "ref": "hand: a negative inductance is out of range and gives a negative reactance, also out of range"},
+    {"inputs": {"l": 0.01}, "errors": {"f": "undetermined", "xl": "undetermined"}, "ref": "two of the three variables are missing"}
+  ]
+}

@@ -22,11 +22,23 @@ func backupMainDatabase(db *sql.DB, label string) (string, error) {
 		return "", nil
 	}
 	backup := path + "." + label + "-" + rand.Text() + ".bak"
-	if _, err := db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+	staging, err := os.MkdirTemp(filepath.Dir(path), ".memory-backup-*")
+	if err != nil {
+		return "", fmt.Errorf("create database backup directory: %w", err)
+	}
+	defer os.RemoveAll(staging)
+	if err := fileutil.RestrictToOwner(staging); err != nil {
+		return "", fmt.Errorf("protect database backup directory: %w", err)
+	}
+	temporary := filepath.Join(staging, "backup.sqlite")
+	if _, err := db.Exec(`VACUUM main INTO ?`, temporary); err != nil {
 		return "", fmt.Errorf("back up database: %w", err)
 	}
-	if err := fileutil.RestrictToOwner(backup); err != nil {
+	if err := fileutil.RestrictToOwner(temporary); err != nil {
 		return "", fmt.Errorf("protect database backup: %w", err)
+	}
+	if err := fileutil.Rename(temporary, backup); err != nil {
+		return "", fmt.Errorf("publish database backup: %w", err)
 	}
 	return backup, nil
 }
@@ -66,9 +78,6 @@ func protectMemoryDatabase(db *sql.DB) error {
 	}
 	if err := rejectSnapshotSymlinks(path); err != nil {
 		return err
-	}
-	if err := fileutil.RestrictToOwner(filepath.Dir(path)); err != nil {
-		return fmt.Errorf("protect memory directory: %w", err)
 	}
 	for _, file := range []string{path, path + "-wal", path + "-shm"} {
 		if _, err := os.Lstat(file); os.IsNotExist(err) {

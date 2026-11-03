@@ -217,7 +217,7 @@ func TestDispatchFillsPlaceholdersInOnePass(t *testing.T) {
 func TestDispatchSendsAnnotatedPhotoOnlyToPhotoChannels(t *testing.T) {
 	cover := writeAlertCover(t)
 	raw, _ := os.ReadFile(cover)
-	for _, channel := range []string{"telegram", "discord", "all", "ntfy", "push"} {
+	for _, channel := range []string{"telegram", "discord", "whatsapp", "all", "ntfy", "push"} {
 		rec := newAlertRecorder()
 		d := NewAlertDispatcher(rec.sinks(), germanAlertTexts, nil)
 		ev := alertTestEvent()
@@ -228,7 +228,7 @@ func TestDispatchSendsAnnotatedPhotoOnlyToPhotoChannels(t *testing.T) {
 		d.Dispatch(ev, rec.report)
 		d.Wait()
 		photo := rec.messages[0].photo
-		wantPhoto := channel == "telegram" || channel == "discord" || channel == "all"
+		wantPhoto := channel == "telegram" || channel == "discord" || channel == "whatsapp" || channel == "all"
 		if (photo != nil) != wantPhoto {
 			t.Fatalf("%s: photo present = %v, want %v", channel, photo != nil, wantPhoto)
 		}

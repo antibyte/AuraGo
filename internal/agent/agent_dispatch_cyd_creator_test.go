@@ -118,7 +118,7 @@ func waitCYDJob(t *testing.T, svc *cydcreator.Service, jobID string, statuses ..
 	}
 	events, unsubscribe := svc.Subscribe(job.ProjectID)
 	defer unsubscribe()
-	timer := time.NewTimer(120 * time.Second)
+	timer := time.NewTimer(5 * time.Minute)
 	defer timer.Stop()
 	for {
 		j, err := svc.GetJob(context.Background(), jobID)

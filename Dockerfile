@@ -51,7 +51,7 @@ RUN mkdir -p /deploy && \
 # Stage 2: Runtime
 # ============================================================
 # python:3.12-slim already ships Python 3 + pip.
-# We add ffmpeg (needed for Telegram voice conversion).
+# We add ffmpeg (needed for Telegram and WhatsApp voice conversion).
 FROM python:3.12-slim-bookworm AS runtime
 
 # ----- system dependencies -----
@@ -82,6 +82,12 @@ COPY --from=builder /config-merger /app/config-merger
 COPY --from=builder /aurago-remote /app/aurago-remote
 COPY --from=builder /deploy /app/deploy
 COPY deploy/docker /app/deploy/docker
+
+# GPL-3.0 combined work: the licence texts and notices travel beside the binary;
+# the release notes link the tagged source.
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/
+COPY licences/texts /app/licences/texts
+COPY licences/linked-go-modules.tsv /app/licences/linked-go-modules.tsv
 
 # Static resources that the agent needs at runtime.
 # config.yaml is intentionally NOT baked in – users must supply it via volume.

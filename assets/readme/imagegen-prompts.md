@@ -1,6 +1,6 @@
 # README illustration sources
 
-Playful, geeky illustrations generated with the built-in ImageGen tool. The original [AuraGo mascot](../../ui/aurago_logo.png) is the character identity reference. These are illustrations, not UI screenshots. Screenshots and the original logo files remain unchanged.
+Playful, geeky illustrations generated with the built-in ImageGen tool. The [AuraGo mascot](../../ui/aurago_logo.webp) is the character identity reference. These are illustrations, not UI screenshots. Screenshots stay as captured. The mascot reference is the WebP logo.
 
 - [Masthead](gopher-masthead.webp): the original mascot's face and body translated into the feature map's inked style, with a wider home-lab workbench composition; displayed at 600px maximum width.
 - [Persona party](persona-party.webp): all ten characters from the [desktop group wallpaper](../../ui/img/wallpapers/groupshoot.jpg), redrawn in the feature map's inked style. The original wallpaper remains unchanged; heading and tagline stay in Markdown.
@@ -61,7 +61,7 @@ Landscape group portrait approximately 2200x1230, with a quiet dark navy and war
 
 ## Masthead — generation prompt
 
-References: `ui/aurago_logo_dark.png` for identity and `gopher-feature-map.webp` for illustration style. Generated with built-in ImageGen; final export retains the complete 1677 × 938 composition.
+References: `ui/aurago_logo_dark.webp` for identity and `gopher-feature-map.webp` for illustration style. Generated with built-in ImageGen; final export retains the complete 1677 × 938 composition.
 
 ```text
 Use case: identity-preserve / style-transfer.

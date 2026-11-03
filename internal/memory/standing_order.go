@@ -6,6 +6,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"aurago/internal/security"
+
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -220,9 +222,6 @@ var standingReadVerbs = phraseList{
 	"lies", "lese", "kopiere", "kopieren", "wiederhole", "erwähne",
 }
 
-// standingNegation marks a prohibition ("never show the token").
-var standingNegation = regexp.MustCompile(`(?:^|[^a-z])(?:never|not|no|without|avoid\w*|nie|niemals|nicht|kein\w*|ohne|vermeide\w*)(?:$|[^a-z])|n['’]t\b`)
-
 // standingSessionTerms are what a standing order would forward to an address:
 // the conversation itself.
 var standingSessionTerms = phraseList{
@@ -310,6 +309,9 @@ func standingViews(text string) []string {
 	dropped.Grow(len(text))
 	spaced.Grow(len(text))
 	for _, r := range text {
+		if unicode.Is(unicode.Pd, r) {
+			r = '-'
+		}
 		if isStandingInvisible(r) {
 			spaced.WriteByte(' ')
 			continue
@@ -420,81 +422,14 @@ func standingSegmentHit(segment string) bool {
 	// A secret that a verb puts into the answer text is an order whether or not
 	// a recurrence word spells it out ("Replies must include the admin token");
 	// a negation keeps "Never show my API keys in replies" storable.
-	return hit || (secret && out && standingReplyNouns.has(rest) && !standingNegation.MatchString(rest))
+	return hit || (secret && out && standingReplyNouns.has(rest))
 }
 
-// standingVerbNegations are the words that negate a nearby disclosure verb.
-var standingVerbNegations = phraseList{
-	"never", "not", "no", "without", "avoid*", "dont", "don't", "don’t", "doesn't", "doesn’t",
-	"nie", "niemals", "nicht", "kein*", "ohne", "vermeide*",
-}
-
-// standingClauseBreaks end the reach of a negation ("never refuse, then show").
-var standingClauseBreaks = phraseList{"and", "but", "then", "und", "aber", "dann", "sondern", "while", "yet"}
-
-// standingMaskNegatedVerbs blanks every send, output or read verb that a
-// negation governs: one to four words before it or up to four after it, in
-// the same clause (no comma, colon or conjunction between).
+// standingMaskNegatedVerbs uses the shared clause-aware negation policy.
 func standingMaskNegatedVerbs(s string) string {
-	type word struct {
-		start, end int
-		text       string
-		breakAfter bool
-		barrier    bool
-	}
-	var words []word
-	start := -1
-	flush := func(end int) {
-		if start < 0 {
-			return
-		}
-		raw := s[start:end]
-		w := word{start: start, end: end, text: strings.Trim(raw, ",.;:!?\"()[]")}
-		w.breakAfter = strings.HasSuffix(raw, ",") || strings.HasSuffix(raw, ":")
-		w.barrier = standingClauseBreaks.has(w.text) && w.text != ""
-		words = append(words, w)
-		start = -1
-	}
-	for i, r := range s {
-		if unicode.IsSpace(r) {
-			flush(i)
-		} else if start < 0 {
-			start = i
-		}
-	}
-	flush(len(s))
-
-	negated := func(i int) bool {
-		for j := i - 1; j >= 0 && j >= i-4; j-- {
-			if words[j].barrier || words[j].breakAfter {
-				break
-			}
-			if standingVerbNegations.has(words[j].text) {
-				return true
-			}
-		}
-		for j := i + 1; j < len(words) && j <= i+4; j++ {
-			if words[j-1].breakAfter || words[j].barrier {
-				break
-			}
-			if standingVerbNegations.has(words[j].text) {
-				return true
-			}
-		}
-		return false
-	}
-	out := []byte(s)
-	for i, w := range words {
-		if w.text == "" || !(standingSendVerbs.has(w.text) || standingOutVerbs.has(w.text) || standingReadVerbs.has(w.text)) {
-			continue
-		}
-		if negated(i) {
-			for k := w.start; k < w.end; k++ {
-				out[k] = ' '
-			}
-		}
-	}
-	return string(out)
+	return security.MaskNegatedVerbs(s, func(w string) bool {
+		return standingSendVerbs.has(w) || standingOutVerbs.has(w) || standingReadVerbs.has(w)
+	})
 }
 
 // standingOverrideHit reports an order to ignore the rules, or to answer,

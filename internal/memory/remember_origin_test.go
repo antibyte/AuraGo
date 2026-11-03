@@ -65,6 +65,32 @@ func TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact(t *testing.T
 	}
 }
 
+func TestUpdateModelCoreFactRollsBackWhenOriginCannotBeWritten(t *testing.T) {
+	s, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	id, err := s.AddModelCoreFact("User prefers blue.", "original-session", 20, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`CREATE TRIGGER reject_model_update_origin BEFORE INSERT ON memory_record_origins BEGIN SELECT RAISE(ABORT,'fixture failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateModelCoreFact(id, "User prefers red.", "new-session"); err == nil {
+		t.Fatal("update ignored provenance failure")
+	}
+	var fact string
+	if err := s.db.QueryRow(`SELECT fact FROM core_memory WHERE id=?`, id).Scan(&fact); err != nil || fact != "User prefers blue." {
+		t.Fatalf("fact=%q err=%v", fact, err)
+	}
+	origin, err := s.MemoryOriginForRecord("core", id, fact)
+	if err != nil || origin.Trust != "agent-recorded" {
+		t.Fatalf("original provenance lost: %+v %v", origin, err)
+	}
+}
+
 func TestAddModelCoreFactRefusesStandingDirective(t *testing.T) {
 	s, err := NewSQLiteMemory(filepath.Join(t.TempDir(), "memory.db"), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {

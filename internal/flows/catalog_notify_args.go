@@ -54,6 +54,10 @@ const (
 	// splits a longer text into messages of 1990, so there is no hard limit. The
 	// bound keeps a flow from flooding a channel with more than about four messages.
 	maxDiscordMessageRunes = 8000
+	// whatsAppTextLimit is one message of the Bot's sender (tools.WhatsAppMaxMessageRunes /
+	// internal/whatsapp maxChunkRunes): a longer text would go out as several paced messages,
+	// so it is refused here, as Telegram's limit is.
+	whatsAppTextLimit = 4000
 	// maxDiscordIDDigits: a Discord id (a snowflake) is a number of up to 20 digits.
 	maxDiscordIDDigits = 20
 
@@ -233,6 +237,19 @@ func discordMessage(v any) (string, error) {
 	}
 	if n := utf8.RuneCountInString(s); n > maxDiscordMessageRunes {
 		return "", tooLong("message", n, maxDiscordMessageRunes, "characters")
+	}
+	return s, nil
+}
+
+// whatsAppMessage reads the message of notify.whatsapp: at most whatsAppTextLimit characters
+// (runes), the size of one message of the Bot's sender.
+func whatsAppMessage(v any) (string, error) {
+	s, err := notifyMessage(v)
+	if err != nil {
+		return "", err
+	}
+	if n := utf8.RuneCountInString(s); n > whatsAppTextLimit {
+		return "", tooLong("message", n, whatsAppTextLimit, "characters for WhatsApp")
 	}
 	return s, nil
 }

@@ -41,7 +41,7 @@
 
     function contextMenuUsableBottom() {
         const taskbar = document.querySelector('.vd-taskbar');
-        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches && taskbar) {
+        if (isCompactViewport() && taskbar) {
             const rect = taskbar.getBoundingClientRect();
             if (rect.top > 0) return Math.max(8, Math.floor(rect.top - 8));
         }
@@ -131,7 +131,7 @@
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.zip')) {
+        } else if (desktopIsArchiveFile(name)) {
             apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
@@ -540,7 +540,7 @@
             if (batchPaths.length === 1 || (batchPaths.length === 0 && path)) {
                 const zipPaths = batchPaths.length ? batchPaths : [path];
                 items.push({ id: 'compress', label: t('desktop.fm.compress_zip'), icon: 'archive', fallback: 'Z', action: () => compressDesktopPathsToZip(zipPaths) });
-                if (kind === 'file' && String(fileEntry.name || path).toLowerCase().endsWith('.zip')) {
+                if (kind === 'file' && desktopIsArchiveFile(fileEntry.name || path)) {
                     items.push(
                         { id: 'extract', label: t('desktop.fm.extract_zip'), icon: 'archive', action: () => extractDesktopZip(fileEntry, true) },
                         { label: t('desktop.fm.extract_zip_to'), icon: 'archive', action: () => extractDesktopZip(fileEntry, false) }

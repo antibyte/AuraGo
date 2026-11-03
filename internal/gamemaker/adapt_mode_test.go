@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 // planBoundStarterContent returns the real plan-bound src/main.ts of one base,
@@ -283,6 +284,8 @@ func TestAdaptModeKeepsMinimalBaseWritable(t *testing.T) {
 func TestSmallModelDecisionIsStoredOnTheJob(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
+	jobEvents, unsubscribe := s.Subscribe(project.ID)
+	defer unsubscribe()
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
 		return errors.New("decision recorded")
 	}))
@@ -304,6 +307,17 @@ func TestSmallModelDecisionIsStoredOnTheJob(t *testing.T) {
 	}
 	if finished := waitJob(t, s, job.ID); finished.Error != "decision recorded" {
 		t.Fatalf("job = %+v", finished)
+	}
+	// The writer is released before the terminal event is persisted and broadcast.
+	eventCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for received := false; !received; {
+		select {
+		case event := <-jobEvents:
+			received = event.JobID == job.ID && event.Type == "job_status" && event.Payload["status"] == "failed"
+		case <-eventCtx.Done():
+			t.Fatal("terminal job_status was not emitted")
+		}
 	}
 	events, err := s.EventsAfter(context.Background(), project.ID, 0, 50)
 	if err != nil {

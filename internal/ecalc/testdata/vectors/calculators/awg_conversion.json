@@ -1,0 +1,17 @@
+{
+  "calc": "awg_conversion",
+  "sets": [
+    {"values": {"d": 0.000127, "a": 1.2667686977437444e-08, "rkm": 1361.0518906137827}, "ref": "hand (independent script): AWG 36: d = 0.000127 m * 92^0 (ASTM B258 lists 0.0050 in = 0.127 mm) = 0.127 mm; A = pi / 4 * d^2 = 0.0126677 mm2; copper resistance of 1 km = (1/58e6) * 1000 / A = 1361.05 ohm"},
+    {"values": {"d": 0.011684, "a": 0.00010721930257703052, "rkm": 0.1608048074921766}, "ref": "hand (independent script): AWG 0000 (n = -3): d = 0.000127 m * 92^(39/39) = 0.000127 * 92 (ASTM B258 lists 0.4600 in) = 11.684 mm; A = pi / 4 * d^2 = 107.219 mm2; copper resistance of 1 km = (1/58e6) * 1000 / A = 0.160805 ohm"},
+    {"values": {"d": 0.002588186728012864, "a": 5.261154954510375e-06, "rkm": 3.2771092011961813}, "ref": "hand (independent script): AWG 10: d = 0.000127 m * 92^(26/39) (ASTM B258 lists 2.588 mm and 5.261 mm2) = 2.58819 mm; A = pi / 4 * d^2 = 5.26115 mm2; copper resistance of 1 km = (1/58e6) * 1000 / A = 3.27711 ohm"},
+    {"values": {"d": 0.008251462802171462, "a": 5.347512073211764e-05, "rkm": 0.3224187075091445}, "ref": "hand (independent script): AWG 0: d = 0.000127 m * 92^(36/39) (ASTM B258: 8.251 mm) = 8.25146 mm; A = pi / 4 * d^2 = 53.4751 mm2; copper resistance of 1 km = (1/58e6) * 1000 / A = 0.322419 ohm"},
+    {"values": {"d": 0.0008118209703737737, "a": 5.176192419280385e-07, "rkm": 33.308999963223535}, "ref": "hand (independent script): AWG 20: d = 0.000127 m * 92^(16/39) (published as 0.0320 in, rounded to four decimals) = 0.811821 mm; A = pi / 4 * d^2 = 0.517619 mm2; copper resistance of 1 km = (1/58e6) * 1000 / A = 33.309 ohm"}
+  ],
+  "solve": [
+    {"inputs": {"d": 0.002588186728012864}, "expect": {"a": 5.261154954510375e-06, "rkm": 3.2771092011961813}, "ref": "hand (independent script): the default AWG 10, d = 2.58819 mm, A = pi / 4 * d^2 = 5.261155e-06 m2 (5.2612 mm2), 1 km of copper = 3.27711 ohm"},
+    {"inputs": {"a": 5.261154954510375e-06}, "expect": {"d": 0.002588186728012864}, "ref": "hand (independent script): d = sqrt(4 * A / pi) = sqrt(4 * 5.26115e-6 / pi) = 2.58819 mm, the AWG 10 diameter"},
+    {"inputs": {"a": 1e-06}, "expect": {"d": 0.0011283791670955127, "rkm": 17.24137931034483}, "ref": "hand: 1 mm2 -> d = sqrt(4e-6 / pi) = 2 / sqrt(pi) mm = 1.128379 mm; 1 km of copper = 1.7241379e-8 * 1000 / 1e-6 = 17.241379 ohm"},
+    {"inputs": {"d": 0.011684}, "expect": {"a": 0.00010721930257703052}, "ref": "hand (independent script): 4/0 AWG, d = 0.011684 m, A = pi / 4 * 0.011684^2 = 0.0001072193 m2 (107.219 mm2)"},
+    {"inputs": {}, "errors": {"d": "undetermined", "a": "undetermined"}, "ref": "the diameter or the cross-section is needed"}
+  ]
+}

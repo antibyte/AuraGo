@@ -239,8 +239,8 @@ func handleDaemonSkillSettings(s *Server) http.HandlerFunc {
 				CheatsheetID       string `json:"cheatsheet_id"`
 				CheatsheetName     string `json:"cheatsheet_name"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid JSON"})
+			if err := decodeJSONRequest(w, r, &req, s); err != nil {
+				daemonJSON(w, jsonDecodeStatus(err), map[string]string{"status": "error", "message": "Invalid JSON"})
 				return
 			}
 

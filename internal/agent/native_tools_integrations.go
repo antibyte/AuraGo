@@ -676,7 +676,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.CoAgentEnabled {
 		tools = append(tools, tool("co_agent",
-			"Spawn and monitor parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done. Use 'spawn_specialist' to dispatch tasks to specialized experts (researcher, coder, designer, security, writer). Use 'list' for quick status. Use 'get_result' to wait briefly for completion and retrieve the result; a running co-agent is not failed just because no partial tokens are visible. Do not use 'stop' or 'stop_all' unless the user explicitly asked to cancel a co-agent.",
+			"Spawn and monitor parallel co-agents that work on sub-tasks independently. Co-agents run in background goroutines with their own LLM context and return results when done. Use 'spawn_specialist' to dispatch tasks to specialized experts (researcher, coder, designer, security, writer). All management operations are limited to co-agents owned by this session; foreign IDs are unavailable. Use 'list' for quick status. Use 'get_result' to wait briefly for completion and retrieve the result; a running co-agent is not failed just because no partial tokens are visible. Do not use 'stop' or 'stop_all' unless the user explicitly asked to cancel a co-agent.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -685,7 +685,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"task":          prop("string", "Task description for the co-agent to work on (required for 'spawn' and 'spawn_specialist')"),
 				"specialist":    prop("string", "Specialist role (required for 'spawn_specialist'). One of: researcher, coder, designer, security, writer"),
-				"co_agent_id":   prop("string", "Co-agent ID (required for 'get_result' and 'stop'; stop requires an explicit user cancellation request)"),
+				"co_agent_id":   prop("string", "Co-agent ID owned by this session (required for 'get_result' and 'stop'; stop requires an explicit user cancellation request)"),
 				"context_hints": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional keywords or topics for RAG context injection (for 'spawn' and 'spawn_specialist'). Keep them short and specific."},
 				"output_schema": map[string]interface{}{
 					"type":                 "object",
@@ -1264,12 +1264,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 
 	if ff.NotificationEnabled {
-		channels := []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "all"}
+		channels := []string{"ntfy", "pushover", "telegram", "whatsapp", "discord", "push", "telnyx", "all"}
 		if ff.CydEnabled {
-			channels = []string{"ntfy", "pushover", "telegram", "discord", "push", "telnyx", "cyd", "all"}
+			channels = []string{"ntfy", "pushover", "telegram", "whatsapp", "discord", "push", "telnyx", "cyd", "all"}
 		}
 		tools = append(tools, tool("send_notification",
-			"Send a push notification to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or a Cheap Yellow Display. Use channel cyd for the desk display overlay.",
+			"Send a push notification to ntfy, Pushover, Telegram, WhatsApp, Discord, Web Push, SMS, or a Cheap Yellow Display. Use channel cyd for the desk display overlay.",
 			schema(map[string]interface{}{
 				"channel":  map[string]interface{}{"type": "string", "description": "Target channel", "enum": channels},
 				"title":    prop("string", "Optional title (default AuraGo)"),
@@ -1308,6 +1308,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"title":     prop("string", "Optional title prefix"),
 				"priority":  prop("string", "Priority label (normal/high)"),
 				"file_path": prop("string", "Optional file in the workspace or the documents folder to send as a document; message and title become its caption"),
+			}, "message"),
+		))
+	}
+
+	if ff.WhatsAppEnabled {
+		tools = append(tools, tool("send_whatsapp",
+			"Send a WhatsApp message, and optionally one file, to the owner's WhatsApp chat. It reaches only the configured owner; there is no recipient parameter.",
+			schema(map[string]interface{}{
+				"message":   prop("string", "Message text; Markdown is converted to WhatsApp formatting"),
+				"file_path": prop("string", "Optional file in the workspace or the documents folder, up to 50 MB. A JPEG/PNG goes out as an image, an MP4/M4V as video, an MP3/M4A/AAC/OGG/OPUS as audio, each only when its content matches its type; anything else is sent as a document. The message becomes the caption; a longer text, and the text of an audio file, goes out first"),
 			}, "message"),
 		))
 	}

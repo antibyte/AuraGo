@@ -293,6 +293,7 @@ Add tests that prove:
 
 Core assertion shape:
 
+{% raw %}
 ```go
 func TestNormalizeExtractedKGFiltersGenericTokens(t *testing.T) {
 	nodes, edges := normalizeExtractedKG(
@@ -341,6 +342,7 @@ func TestNormalizeExtractedKGPathLikeNodeUsesFileHash(t *testing.T) {
 }
 ```
 
+{% endraw %}
 - [ ] **Step 3: Run tests and confirm failure**
 
 Run: `rtk go test ./internal/kgextraction`

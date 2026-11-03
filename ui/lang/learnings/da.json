@@ -53,7 +53,7 @@
   "learnings.graph_enable": "Aktivér indbygget kodegraf",
   "learnings.graph_help": "Som standard slået fra. Indekserer godkendte projekter ved første brug og opdaterer dem automatisk. Kildekode og indeks forbliver i hukommelsen.",
   "codeStudio.knowledge": "Indsigter",
-  "game_maker.knowledge": "Indsigter",
+  "game_maker.knowledge": "Viden",
   "config.memory_analysis.learnings_enable": "Aktivér indsigter",
   "config.memory_analysis.learnings_help": "Som standard slået fra. Den eksisterende samtaleanalyse lærer af bekræftede menneskelige kilder. Kræver skrivbar hukommelse; usikre fund forbliver forslag.",
   "config.memory_analysis.graph_enable": "Aktivér indbygget kodegraf",

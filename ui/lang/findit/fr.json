@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Réessayer la requête exacte",
   "findit.pending_command_queue_full": "Trop de modifications de stock ou réservations sont en attente dans cet onglet. Résous une requête en attente avant toute nouvelle modification.",
   "findit.pending_command_storage_unavailable": "Cet onglet n’a pas pu enregistrer la requête en attente ; la modification n’a donc pas été envoyée. Active le stockage de session et réessaie.",
-  "findit.pending_command": "Résoudre la modification en attente"
+  "findit.pending_command": "Résoudre la modification en attente",
+  "findit.invalid_number": "Saisissez un nombre valide.",
+  "findit.invalid_url": "Saisissez une adresse web valide.",
+  "findit.required_field": "Ce champ est obligatoire."
 }

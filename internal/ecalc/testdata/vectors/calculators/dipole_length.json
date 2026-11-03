@@ -1,0 +1,20 @@
+{
+  "calc": "dipole_length",
+  "sets": [
+    {"values": {"f": 7100000, "k": 0.95, "lhalf": 20.056537683098593, "lquarter": 10.028268841549297}, "ref": "hand (independent script): L = 0.95 * 299792458 / (2 * 7.1e6) = 284802835.1 / 14.2e6 = 20.05653768 m (40 m band); quarter 10.02826884 m"},
+    {"values": {"f": 14200000, "k": 0.95, "lhalf": 10.028268841549297, "lquarter": 5.014134420774648}, "ref": "hand (independent script): L = 0.95 * 299792458 / (2 * 14.2e6) = 284802835.1 / 28.4e6 = 10.02826884 m (20 m band); quarter 5.014134421 m"},
+    {"values": {"f": 150000000, "k": 1, "lhalf": 0.9993081933333333, "lquarter": 0.49965409666666666}, "ref": "hand: L = 1 * 299792458 / (2 * 150e6) = 299792458 / 300e6 = 0.9993081933 m; quarter 0.4996540967 m"},
+    {"values": {"f": 149896229, "k": 1, "lhalf": 1, "lquarter": 0.5}, "ref": "hand: f = 299792458 / 2 Hz makes the half wavelength exactly 1 m: L = 299792458 / (2 * 149896229) = 1 m; quarter 0.5 m"}
+  ],
+  "solve": [
+    {"inputs": {"f": 7100000, "k": 0.95}, "expect": {"lhalf": 20.056537683098593, "lquarter": 10.028268841549297}, "errors": {}, "warnings": [], "ref": "hand (independent script): L = 0.95 * 299792458 / 14.2e6 = 20.05653768 m; quarter 10.02826884 m"},
+    {"inputs": {"f": 149896229, "k": 1}, "expect": {"lhalf": 1, "lquarter": 0.5}, "errors": {}, "warnings": [], "ref": "hand: L = 1 * 299792458 / (2 * 149896229) = 1 m exactly; quarter 0.5 m"},
+    {"inputs": {"f": 150000000, "k": 0.97}, "expect": {"lhalf": 0.9693289475333333}, "errors": {}, "warnings": [], "ref": "hand: L = 0.97 * 299792458 / 300e6 = 290798684.26 / 300e6 = 0.9693289475 m"},
+    {"inputs": {"lhalf": 10, "k": 0.95}, "expect": {"f": 14240141.755}, "errors": {}, "warnings": [], "ref": "hand: f = 0.95 * 299792458 / (2 * 10 m) = 284802835.1 / 20 = 14240141.755 Hz"},
+    {"inputs": {"lhalf": 1, "k": 1}, "expect": {"f": 149896229}, "errors": {}, "warnings": [], "ref": "hand: f = 299792458 / (2 * 1 m) = 149896229 Hz"},
+    {"inputs": {"f": 100000000, "lhalf": 1.4}, "expect": {"k": 0.9339794665548258}, "errors": {}, "warnings": [], "ref": "hand: K = 2 * 100e6 * 1.4 m / 299792458 = 280e6 / 299792458 = 0.9339..."},
+    {"inputs": {"f": 149896229, "lhalf": 0.95}, "expect": {"k": 0.95}, "errors": {}, "warnings": [], "ref": "hand: K = 2 * 149896229 * 0.95 / 299792458 = 0.95 (299792458 = 2 * 149896229)"},
+    {"inputs": {"f": 100000000, "lhalf": 2}, "expect": {"k": 1.3342563807926082}, "errors": {}, "warnings": [0], "ref": "hand: K = 2 * 100e6 * 2 m / 299792458 = 1.3342563807; the K > 1 check fires"},
+    {"inputs": {"f": 7100000}, "errors": {"k": "undetermined", "lhalf": "undetermined"}, "ref": "hand: K and L are both missing"}
+  ]
+}

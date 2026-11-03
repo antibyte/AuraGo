@@ -15,10 +15,10 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 |-----------|-------------|
 | `spawn` | Start a new generic co-agent with a task |
 | `spawn_specialist` | Start a specialized expert co-agent |
-| `list` | Show all co-agents and their status |
+| `list` | Show co-agents owned by this session and their status |
 | `get_result` | Wait briefly for a running co-agent, then retrieve its result or current terminal status |
 | `stop` | Cancel a running co-agent only when the user explicitly requested cancellation |
-| `stop_all` | Cancel all running co-agents only when the user explicitly requested cancellation |
+| `stop_all` | Cancel running and queued co-agents owned by this session only when the user explicitly requested cancellation |
 
 ## Parameters
 
@@ -68,6 +68,10 @@ Spawn and manage parallel co-agents that work on sub-tasks independently. Each c
 | **security** | Vulnerability audits, code review, system hardening | Shell/Python for analysis; native filesystem tools are read-only |
 | **writer** | Articles, docs, creative writing, communication | No runtime tools; writes from supplied material |
 
+### Session ownership and shutdown
+
+The server binds each worker to the initiating session. Lists, results, waits, stop and stop_all address only that session; a foreign ID is indistinguishable from a missing ID. No tool argument can select another owner. The administrative Dashboard remains global. Cancellation marks a result terminal immediately, but its capacity is released only when the worker actually exits. Process shutdown refuses new work and waits for local and A2A workers before closing their dependencies.
+
 ### Delegated permissions and execution
 
 Children inherit the parent's tool and Agent Skill scopes; an explicitly empty scope grants nothing. Role restrictions and current runtime permissions can narrow these scopes, never widen them. Approved read tools receive the parent's initialized storage/service handles. Model-written tasks do not replace the initiating human request, and external/private-content provenance survives delegation.
@@ -78,7 +82,7 @@ The resolved `max_tool_calls` is a hard bound, including Homepage workflows. Tok
 
 `max_context_hint_chars` counts Unicode code points. Prompt byte/token budgets remain additional bounds. The selected provider's identity and capabilities apply to both the model client and the child loop.
 
-### list — Show all co-agents and their status
+### list — Show co-agents owned by this session and their status
 ```json
 {"action": "co_agent", "operation": "list"}
 ```

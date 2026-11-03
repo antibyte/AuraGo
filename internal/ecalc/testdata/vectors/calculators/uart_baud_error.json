@@ -1,0 +1,23 @@
+{
+  "calc": "uart_baud_error",
+  "sets": [
+    {"choices": {"os": "x16"}, "values": {"fclk": 16000000, "baud": 115200, "div": 9, "actual": 111111.11111111111, "err": -0.035493827160493825}, "ref": "hand (independent script): 16e6 / (16 * 115200) = 8.6806, divisor 9; actual = 16e6 / (16 * 9) = 111111.1 Bd; error = (111111.1 - 115200) / 115200 = -3.5494 %"},
+    {"choices": {"os": "x16"}, "values": {"fclk": 8000000, "baud": 9600, "div": 52, "actual": 9615.384615384615, "err": 0.0016025641025641025}, "ref": "hand (independent script): 8e6 / (16 * 9600) = 52.083, divisor 52; actual = 8e6 / (16 * 52) = 9615.385 Bd; error = 0.16026 %"},
+    {"choices": {"os": "x16"}, "values": {"fclk": 11059200, "baud": 115200, "div": 6, "actual": 115200, "err": 0}, "ref": "hand: 11.0592 MHz / (16 * 115200) = 11059200 / 1843200 = 6 exactly; actual = 11059200 / (16 * 6) = 115200 Bd; error 0 (the classic baud-rate crystal)"},
+    {"choices": {"os": "x8"}, "values": {"fclk": 16000000, "baud": 115200, "div": 17, "actual": 117647.05882352941, "err": 0.021241830065359478}, "ref": "hand (independent script): 16e6 / (8 * 115200) = 17.361, divisor 17; actual = 16e6 / (8 * 17) = 117647.1 Bd; error = 2.1242 %"},
+    {"choices": {"os": "x8"}, "values": {"fclk": 8000000, "baud": 57600, "div": 17, "actual": 58823.529411764706, "err": 0.021241830065359478}, "ref": "hand (independent script): 8e6 / (8 * 57600) = 17.361, divisor 17; actual = 8e6 / (8 * 17) = 58823.5 Bd; error = 2.1242 %"},
+    {"choices": {"os": "x8"}, "values": {"fclk": 11059200, "baud": 230400, "div": 6, "actual": 230400, "err": 0}, "ref": "hand: 11059200 / (8 * 230400) = 11059200 / 1843200 = 6 exactly; actual = 11059200 / (8 * 6) = 230400 Bd; error 0"}
+  ],
+  "solve": [
+    {"inputs": {"fclk": 16000000, "baud": 115200}, "choices": {"os": "x16"}, "expect": {"div": 9, "actual": 111111.11111111111, "err": -0.035493827160493825}, "errors": {}, "warnings": [0], "ref": "hand (independent script): 16e6 / (16 * 115200) = 8.6806, divisor 9; actual = 16e6 / (16 * 9) = 111111.1 Bd; error = (111111.1 - 115200) / 115200 = -3.5494 %"},
+    {"inputs": {"fclk": 8000000, "baud": 9600}, "choices": {"os": "x16"}, "expect": {"div": 52, "actual": 9615.384615384615, "err": 0.0016025641025641025}, "errors": {}, "warnings": [], "ref": "hand (independent script): 8e6 / (16 * 9600) = 52.083, divisor 52; actual = 8e6 / (16 * 52) = 9615.385 Bd; error = 0.16026 %"},
+    {"inputs": {"fclk": 11059200, "baud": 115200}, "choices": {"os": "x16"}, "expect": {"div": 6, "actual": 115200, "err": 0}, "errors": {}, "warnings": [], "ref": "hand: 11.0592 MHz / (16 * 115200) = 11059200 / 1843200 = 6 exactly; actual = 11059200 / (16 * 6) = 115200 Bd; error 0 (the classic baud-rate crystal)"},
+    {"inputs": {"fclk": 16000000, "baud": 115200}, "choices": {"os": "x8"}, "expect": {"div": 17, "actual": 117647.05882352941, "err": 0.021241830065359478}, "errors": {}, "warnings": [0], "ref": "hand (independent script): 16e6 / (8 * 115200) = 17.361, divisor 17; actual = 16e6 / (8 * 17) = 117647.1 Bd; error = 2.1242 %"},
+    {"inputs": {"fclk": 8000000, "baud": 57600}, "choices": {"os": "x8"}, "expect": {"div": 17, "actual": 58823.529411764706, "err": 0.021241830065359478}, "errors": {}, "warnings": [0], "ref": "hand (independent script): 8e6 / (8 * 57600) = 17.361, divisor 17; actual = 8e6 / (8 * 17) = 58823.5 Bd; error = 2.1242 %"},
+    {"inputs": {"fclk": 11059200, "baud": 230400}, "choices": {"os": "x8"}, "expect": {"div": 6, "actual": 230400, "err": 0}, "errors": {}, "warnings": [], "ref": "hand: 11059200 / (8 * 230400) = 11059200 / 1843200 = 6 exactly; actual = 11059200 / (8 * 6) = 230400 Bd; error 0"},
+    {"inputs": {"fclk": 4000000, "baud": 100000}, "choices": {"os": "x16"}, "expect": {"div": 3, "actual": 83333.33333333333, "err": -0.16666666666666666}, "errors": {}, "warnings": [0], "ref": "hand: 4e6 / (16 * 100000) = 2.5 exactly; round takes ties away from zero: divisor 3; actual = 4e6 / (16 * 3) = 83333.33 Bd; error = -16.67 %; the error check fires"},
+    {"inputs": {"fclk": 1000000, "baud": 1000000}, "choices": {"os": "x16"}, "expect": {"div": 1, "actual": 62500, "err": -0.9375}, "errors": {}, "warnings": [0], "ref": "hand: 1e6 / (16 * 1e6) = 0.0625 rounds to 0, the divisor is kept at 1: actual = 1e6 / 16 = 62500 Bd; error = -93.75 %; the error check fires"},
+    {"inputs": {"fclk": 16000000, "baud": 115200}, "choices": {"os": "bogus"}, "expect": {"div": 9}, "errors": {}, "warnings": [0], "ref": "hand: an unknown option falls back to the default option (16x): divisor 9, error -3.549 %"},
+    {"inputs": {"fclk": 16000000}, "errors": {"baud": "undetermined"}, "ref": "hand: the wanted baud rate is missing, so nothing can be computed"}
+  ]
+}

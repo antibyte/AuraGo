@@ -8,11 +8,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/cydcreator"
 	"aurago/internal/restorepending"
 	"aurago/internal/security"
@@ -377,7 +379,7 @@ func (s *Server) rebindingSafeHost(r *http.Request) bool {
 	if host == "" {
 		return false
 	}
-	if net.ParseIP(host) != nil || host == "localhost" || strings.HasSuffix(host, ".localhost") {
+	if _, err := netip.ParseAddr(host); err == nil || host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return true
 	}
 	if name, err := os.Hostname(); err == nil && name != "" && !strings.Contains(name, ".") {
@@ -390,7 +392,7 @@ func (s *Server) rebindingSafeHost(r *http.Request) bool {
 	defer s.CfgMu.RUnlock()
 	c := s.Cfg
 	for _, configured := range []string{
-		c.Server.HTTPS.Domain, c.SecurityProxy.Domain, c.Server.OAuthRedirectBaseURL, c.Server.PreviewDomain,
+		config.EffectiveServerHost(c.Server.Host), c.Server.HTTPS.Domain, c.SecurityProxy.Domain, c.Server.OAuthRedirectBaseURL, c.Server.PreviewDomain,
 	} {
 		if configuredHostMatches(host, configured) {
 			return true

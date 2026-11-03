@@ -1,6 +1,7 @@
 package integrationstatus
 
 import (
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,12 @@ const (
 	WhatsAppStateOutdated      = "outdated"
 )
 
+// Drop reasons with their own status field; every other reason is counted in DroppedFiltered.
+const (
+	WhatsAppDropNonOwner      = "non_owner"
+	WhatsAppDropUnresolvedLID = "unresolved_lid"
+)
+
 // WhatsAppRuntimeStatus is a sanitized passive snapshot. Numbers keep only
 // their last four digits. It never holds message content, keys or QR codes.
 type WhatsAppRuntimeStatus struct {
@@ -37,10 +44,13 @@ type WhatsAppRuntimeStatus struct {
 	MessagesReceived     int    `json:"messages_received"`
 	DroppedNonOwner      int    `json:"dropped_non_owner"`
 	DroppedUnresolvedLID int    `json:"dropped_unresolved_lid"`
-	DeliveryFailures     int    `json:"delivery_failures"`
-	LastError            string `json:"last_error,omitempty"`
-	TempBanExpiresAt     string `json:"temp_ban_expires_at,omitempty"`
-	LastTestAt           string `json:"last_test_at,omitempty"`
+	// DroppedFiltered counts every other dropped inbound message by its fixed
+	// reason code. It holds counts only, never message content.
+	DroppedFiltered  map[string]int `json:"dropped_filtered,omitempty"`
+	DeliveryFailures int            `json:"delivery_failures"`
+	LastError        string         `json:"last_error,omitempty"`
+	TempBanExpiresAt string         `json:"temp_ban_expires_at,omitempty"`
+	LastTestAt       string         `json:"last_test_at,omitempty"`
 }
 
 var whatsAppRuntime = struct {
@@ -170,6 +180,28 @@ func CountWhatsAppMessage(now time.Time) {
 	whatsAppRuntime.status.LastInboundAt = whatsAppStamp(now)
 }
 
+// CountWhatsAppDrop counts one dropped inbound message by its fixed reason code.
+// Counters survive generations.
+func CountWhatsAppDrop(reason string) {
+	if reason == "" {
+		return
+	}
+	whatsAppRuntime.Lock()
+	defer whatsAppRuntime.Unlock()
+	s := &whatsAppRuntime.status
+	switch reason {
+	case WhatsAppDropNonOwner:
+		s.DroppedNonOwner++
+	case WhatsAppDropUnresolvedLID:
+		s.DroppedUnresolvedLID++
+	default:
+		if s.DroppedFiltered == nil {
+			s.DroppedFiltered = make(map[string]int)
+		}
+		s.DroppedFiltered[reason]++
+	}
+}
+
 // MarkWhatsAppOutbound records a delivered message.
 func MarkWhatsAppOutbound(now time.Time) {
 	whatsAppRuntime.Lock()
@@ -191,9 +223,12 @@ func MarkWhatsAppTest(now time.Time) {
 	whatsAppRuntime.status.LastTestAt = whatsAppStamp(now)
 }
 
-// WhatsAppStatus returns a copy of the current snapshot.
+// WhatsAppStatus returns a copy of the current snapshot. The drop map is cloned,
+// so the snapshot stays passive.
 func WhatsAppStatus() WhatsAppRuntimeStatus {
 	whatsAppRuntime.RLock()
 	defer whatsAppRuntime.RUnlock()
-	return whatsAppRuntime.status
+	status := whatsAppRuntime.status
+	status.DroppedFiltered = maps.Clone(status.DroppedFiltered)
+	return status
 }

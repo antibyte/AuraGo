@@ -1,0 +1,23 @@
+{
+  "calc": "opamp_inverting",
+  "sets": [
+    {"values": {"rin": 10000, "rf": 100000, "av": -10, "vin": 0.1, "vout": -1, "iin": 1e-05, "adb": 20, "ngain": 11}, "ref": "hand: A_v = -100k / 10k = -10; V_out = -10 * 0.1 V = -1 V; I_in = 0.1 V / 10k = 10 uA (= -(-1 V) / 100k); gain magnitude 20 * log10(10) = 20 dB; noise gain 1 + 100k / 10k = 11 = 1 - (-10)"},
+    {"values": {"rin": 1000, "rf": 4700, "av": -4.7, "vin": 0.5, "vout": -2.35, "iin": 0.0005, "adb": 13.44195715871435, "ngain": 5.7}, "ref": "hand: A_v = -4.7k / 1k = -4.7; V_out = -4.7 * 0.5 V = -2.35 V; I_in = 0.5 V / 1k = 0.5 mA (= 2.35 V / 4.7k); 20 * log10(4.7) = 13.442 dB (hand, independent script: log10 4.7 = 0.6720979); noise gain 1 + 4.7 = 5.7"},
+    {"values": {"rin": 22000, "rf": 22000, "av": -1, "vin": 2, "vout": -2, "iin": 9.09090909090909e-05, "adb": 0, "ngain": 2}, "ref": "hand: A_v = -22k / 22k = -1; V_out = -1 * 2 V = -2 V; I_in = 2 V / 22k = 90.909 uA; gain magnitude 20 * log10(1) = 0 dB; noise gain 1 + 1 = 2"},
+    {"values": {"rin": 2200, "rf": 33000, "av": -15, "vin": -0.2, "vout": 3, "iin": -9.09090909090909e-05, "adb": 23.521825181113627, "ngain": 16}, "ref": "hand: A_v = -33k / 2.2k = -15; V_out = -15 * (-0.2 V) = +3 V; I_in = -0.2 V / 2.2k = -90.909 uA (= -3 V / 33k); 20 * log10(15) = 23.522 dB (hand, independent script: log10 15 = 1.1760913); noise gain 1 + 15 = 16"}
+  ],
+  "solve": [
+    {"inputs": {"rin": 10000, "rf": 100000, "vin": 0.1}, "expect": {"av": -10, "vout": -1, "iin": 1e-05, "adb": 20, "ngain": 11}, "warnings": [], "ref": "hand: A_v = -100k / 10k = -10 (20 dB), V_out = -10 * 0.1 V = -1 V"},
+    {"inputs": {"rin": 1000, "rf": 4700, "vin": 0.5}, "expect": {"av": -4.7, "vout": -2.35}, "warnings": [], "ref": "hand: A_v = -4.7k / 1k = -4.7, V_out = -4.7 * 0.5 V = -2.35 V"},
+    {"inputs": {"rin": 1000, "av": -4.7, "vin": 0.5}, "expect": {"rf": 4700, "vout": -2.35}, "ref": "hand: R_f = -A_v * R_in = 4.7 * 1k = 4.7k; V_out = -4.7 * 0.5 V = -2.35 V"},
+    {"inputs": {"rin": 10000, "av": -10, "vout": -1}, "expect": {"rf": 100000, "vin": 0.1}, "ref": "hand: R_f = 10 * 10k = 100k; V_in = V_out / A_v = -1 V / -10 = 0.1 V"},
+    {"inputs": {"rf": 100000, "av": -10, "vin": 0.1}, "expect": {"rin": 10000, "vout": -1}, "ref": "hand: R_in = -R_f / A_v = 100k / 10 = 10k; V_out = -10 * 0.1 V = -1 V"},
+    {"inputs": {"rf": 33000, "av": -15, "vout": 3}, "expect": {"rin": 2200, "vin": -0.2}, "ref": "hand: R_in = 33k / 15 = 2.2k; V_in = 3 V / -15 = -0.2 V"},
+    {"inputs": {"rin": 10000, "rf": 100000, "vout": -1}, "expect": {"av": -10, "vin": 0.1}, "ref": "hand: A_v = -100k / 10k = -10; V_in = -1 V / -10 = 0.1 V"},
+    {"inputs": {"rin": 2200, "rf": 33000, "vout": 3}, "expect": {"av": -15, "vin": -0.2}, "ref": "hand: A_v = -33k / 2.2k = -15; V_in = 3 V / -15 = -0.2 V"},
+    {"inputs": {"rin": 10000, "vin": 0.1, "vout": -1}, "expect": {"av": -10, "rf": 100000}, "ref": "hand: A_v = V_out / V_in = -1 V / 0.1 V = -10; R_f = 10 * 10k = 100k"},
+    {"inputs": {"rf": 4700, "vin": 0.5, "vout": -2.35}, "expect": {"av": -4.7, "rin": 1000}, "ref": "hand: A_v = -2.35 V / 0.5 V = -4.7; R_in = 4.7k / 4.7 = 1k"},
+    {"inputs": {"rin": 10000, "av": 10, "vin": 0.1}, "expect": {"vout": 1}, "errors": {"rf": "range"}, "warnings": [0], "ref": "hand: a positive gain 10 would need R_f = -10 * 10k = -100k, out of range; the positive-gain check fires"},
+    {"inputs": {"rin": 10000, "rf": 100000}, "expect": {"av": -10}, "errors": {"vin": "undetermined", "vout": "undetermined"}, "warnings": [], "ref": "hand: the gain -10 follows from the two resistors, the input and output voltages are undetermined"}
+  ]
+}

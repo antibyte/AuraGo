@@ -30,6 +30,7 @@
   "config.whatsapp.err_not_configured": "请启用 WhatsApp，在专用号码模式下添加所有者号码并保存。",
   "config.whatsapp.err_invalid_phone": "请使用国际格式输入号码，例如 +491701234567。",
   "config.whatsapp.err_not_connected": "WhatsApp 未连接。",
+  "config.whatsapp.err_recipient_not_on_whatsapp": "此所有者号码未在 WhatsApp 上注册，请在设置中检查该号码。",
   "config.whatsapp.err_rate_limited": "请等待一分钟再发送下一条测试消息。",
   "config.whatsapp.err_failed": "WhatsApp 没有响应，请重试。",
   "config.whatsapp.err_passkey_unsupported": "手机要求使用通行密钥关联，AuraGo 暂不支持。请使用二维码。",
@@ -48,5 +49,6 @@
   "help.whatsapp.mode": "专用号码：AuraGo 拥有自己的号码（推荐）。我的号码：只有你与自己的聊天会发送到 AuraGo。",
   "help.whatsapp.owner_numbers": "国际格式，以逗号分隔。只有这些号码能联系 AuraGo。",
   "help.whatsapp.readonly": "回复你的消息仍可正常发送；代理不能主动发送。",
-  "help.whatsapp.send_read_receipts": "仅适用于 AuraGo 专用号码。"
+  "help.whatsapp.send_read_receipts": "仅适用于 AuraGo 专用号码。",
+  "help.whatsapp.self_chat_prefix": "仅适用于自聊模式。AuraGo 发出的消息都以此前缀开头（最多 16 个字符）。发给自己、以此前缀开头的备忘会被忽略，因此 AuraGo 永远不会回复自己的回声。"
 }

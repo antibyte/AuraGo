@@ -1099,8 +1099,8 @@
         {
           "level": 0,
           "file": "tram.lod0.glb",
-          "bytes": 70364,
-          "sha256": "8b9dbaeeca3250f789e18cf9531eae18314cca14849562c0bc15b4238cb68972",
+          "bytes": 105136,
+          "sha256": "00ca82a3a7291f623248ec580f8640f5a0d57c4ffcc59b4686a5d2551da0982e",
           "bounds": {
             "min": [
               -1.5,
@@ -1113,13 +1113,13 @@
               4.125
             ]
           },
-          "triangles": 1100
+          "triangles": 1716
         },
         {
           "level": 1,
           "file": "tram.lod1.glb",
-          "bytes": 23492,
-          "sha256": "9678892a80168b2654d05c587f934e77ed889f685c414b676f28f56b91279c5e",
+          "bytes": 31768,
+          "sha256": "34d9fb5edda555e52426c14185e3e47e8f5aa1a497ec895a59578623b9465856",
           "bounds": {
             "min": [
               -1.5,
@@ -1132,13 +1132,13 @@
               4.125
             ]
           },
-          "triangles": 300
+          "triangles": 468
         },
         {
           "level": 2,
           "file": "tram.lod2.glb",
-          "bytes": 23492,
-          "sha256": "f5c77b5f500b7d427c1129755c0ec3931d620689026b7674bfddcc351420a62f",
+          "bytes": 31768,
+          "sha256": "f67361187ad4ce9caf84634f820a6fd847ad3f2a1275b11b7403df6376739f43",
           "bounds": {
             "min": [
               -1.5,
@@ -1151,7 +1151,7 @@
               4.125
             ]
           },
-          "triangles": 300
+          "triangles": 468
         }
       ],
       "navigation": {
@@ -3964,7 +3964,7 @@
   "model_budget_bytes": 12582912,
   "sources": {
     "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
-    "build_expansion.py": "8db115b7306ece41eb0c84ae9eac913ae3670b6a85d7a3b8d7a8d2c4fd2441c1",
+    "build_expansion.py": "5f5e7c4d786801b1f0d84df70f5e68a5d9ea682460b260485f3c02183d086f8f",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b",
     "landmark_assets.py": "4cf53ff1a292e5316751f39f8c73688c2efc8929911a4765651072eb922b0159",
     "robot_assets.py": "fbefc791b9211e78920307c0d4f3ff4cdfbb58a5dc1e88f612d865af3f96d117",

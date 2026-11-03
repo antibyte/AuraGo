@@ -37,6 +37,7 @@ type varJSON struct {
 	Default     *float64  `json:"default"`
 	DefaultList []float64 `json:"default_list"`
 	Unit        string    `json:"unit"`
+	Units       []string  `json:"units"`
 	ESeries     bool      `json:"eseries"`
 	List        bool      `json:"list"`
 	Input       bool      `json:"input"`
@@ -46,6 +47,7 @@ type optionJSON struct {
 	ID     string             `json:"id"`
 	Name   string             `json:"name"`
 	Consts map[string]float64 `json:"consts"`
+	Ignore []string           `json:"ignore"`
 }
 
 type choiceJSON struct {
@@ -67,11 +69,20 @@ type derivedJSON struct {
 	Name  string   `json:"name"`
 	Alts  []string `json:"alts"`
 	Unit  string   `json:"unit"`
+	Units []string `json:"units"`
 }
 
 type checkJSON struct {
 	When string `json:"when"`
 	Warn string `json:"warn"`
+}
+
+// chartJSON is a calculator's chart: Y over X from 0 to the expression To, with Samples points.
+type chartJSON struct {
+	X       string `json:"x"`
+	Y       string `json:"y"`
+	To      string `json:"to"`
+	Samples int    `json:"samples"`
 }
 
 // itemJSON is a calculator. Phase 3 adds the other item kinds next to it. NameEN is the English name in every
@@ -93,6 +104,8 @@ type itemJSON struct {
 	Checks    []checkJSON   `json:"checks"`
 	Formula   []string      `json:"formula"`
 	Schematic string        `json:"schematic"`
+	Finder    string        `json:"finder"`
+	Chart     *chartJSON    `json:"chart"`
 	Sets      [][]string    `json:"sets"`
 }
 
@@ -177,13 +190,16 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 		it := itemJSON{
 			Kind: calc.Kind, ID: calc.ID, Category: calc.Category, Name: calc.Name.in(lang), NameEN: calc.Name.in("en"), Doc: calc.Doc.in(lang),
 			Tags: orEmpty(calc.Tags), Source: calc.Source, DOF: calc.DOF, Formula: orEmpty(calc.Formula),
-			Schematic: calc.Schematic, Sets: orEmpty(calc.Sets),
+			Schematic: calc.Schematic, Finder: calc.Finder, Sets: orEmpty(calc.Sets),
 			Vars: []varJSON{}, Choices: []choiceJSON{}, Rules: []ruleJSON{}, Derived: []derivedJSON{}, Checks: []checkJSON{},
+		}
+		if ch := calc.Chart; ch != nil {
+			it.Chart = &chartJSON{X: ch.X, Y: ch.Y, To: ch.To.Src, Samples: ch.Samples}
 		}
 		for _, v := range calc.Vars {
 			it.Vars = append(it.Vars, varJSON{
 				ID: v.ID, Dim: v.Dim, Label: v.Label, Name: v.Name.in(lang), Default: v.Default,
-				DefaultList: v.DefaultList, Unit: v.Unit, ESeries: v.ESeries, List: v.List, Input: v.Input,
+				DefaultList: v.DefaultList, Unit: v.Unit, Units: orEmpty(v.Units), ESeries: v.ESeries, List: v.List, Input: v.Input,
 			})
 		}
 		for _, ch := range calc.Choices {
@@ -193,7 +209,7 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 				if consts == nil {
 					consts = map[string]float64{}
 				}
-				cj.Options = append(cj.Options, optionJSON{ID: o.ID, Name: o.Name.in(lang), Consts: consts})
+				cj.Options = append(cj.Options, optionJSON{ID: o.ID, Name: o.Name.in(lang), Consts: consts, Ignore: orEmpty(o.Ignore)})
 			}
 			it.Choices = append(it.Choices, cj)
 		}
@@ -202,7 +218,7 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 		}
 		for _, d := range calc.Derived {
 			it.Derived = append(it.Derived, derivedJSON{
-				ID: d.ID, Dim: d.Dim, Label: d.Label, Name: d.Name.in(lang), Alts: sources(d.Alts), Unit: d.Unit,
+				ID: d.ID, Dim: d.Dim, Label: d.Label, Name: d.Name.in(lang), Alts: sources(d.Alts), Unit: d.Unit, Units: orEmpty(d.Units),
 			})
 		}
 		for _, ch := range calc.Checks {

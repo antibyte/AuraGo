@@ -112,6 +112,7 @@ rules:            # Aufgabenbezogene Agent-Leitplanken
 
 # Integrationen (Auswahl)
 telegram:         # Telegram Bot
+whatsapp:         # WhatsApp-Kanal (verknüpftes Gerät)
 discord:          # Discord Bot
 email:            # E-Mail (IMAP/SMTP)
 home_assistant:   # Home Assistant
@@ -524,6 +525,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | Block | Zweck | YAML-Kurzbeispiel |
 |-------|-------|-------------------|
 | `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `whatsapp` | WhatsApp-Kanal | `whatsapp:`<br>`  enabled: false`<br>`  mode: dedicated`<br>`  owner_numbers: []`<br>`  readonly: false` |
 | `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
@@ -562,7 +564,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `firewall` | Firewall-Integration | `firewall:`<br>`  enabled: false`<br>`  mode: readonly` |
 | `journal` | Journaleinträge | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
 | `llm_router` | Optionaler task-basierter Modell-Router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
-| `newspaper` | Persönliche Tageszeitung (Desktop-App) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `newspaper` | Persönliche Tageszeitung (Desktop-App) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false`<br>`  allow_whatsapp: false` |
 | `treg` | treg-Katalog-Gateway (drei Agent-Tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 | `model_catalog` | Gebündelter Provider-/Modellkatalog für UI und Fähigkeitserkennung | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Gebundene Desktop-Recherchen (Intensitätsprofile) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
@@ -736,6 +738,7 @@ newspaper:
   max_editions: 365          # aufbewahrte Ausgaben-Revisionen, mindestens 30
   allow_email: false         # bestätigte E-Mail-Zustellung erlauben
   allow_telegram: false      # Zustellung an autorisierte Telegram-Nutzer erlauben
+  allow_whatsapp: false      # Zustellung an die WhatsApp-Besitzer erlauben
 ```
 
 Fehlgeschlagene Zustellungen melden Bounces zurück. Eine fehlgeschlagene oder unterbrochene Tagesrecherche ohne veröffentlichte Ausgabe darf manuell für dasselbe lokale Datum wiederholt werden (nächste nummerierte Revision); der Zeitplaner versucht pro Datum nur einmal. Kuratierte RSS-Quellen und ein Korrektur-Flow ergänzen die automatische Recherche.

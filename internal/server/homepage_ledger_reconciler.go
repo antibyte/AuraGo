@@ -47,7 +47,7 @@ func runHomepageLedgerReconcileOnce(s *Server) {
 	}
 	cfg := homepageConfigFromServer(s)
 	for _, site := range sites {
-		if site.Status == "archived" {
+		if site.Status == "archived" || site.ProjectDir == "" {
 			continue
 		}
 		if _, err := tools.ReconcileHomepageProject(cfg, s.HomepageRegistryDB, site.ProjectDir, s.Logger); err != nil && s.Logger != nil {

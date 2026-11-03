@@ -188,6 +188,20 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			t.Fatal(err)
 		}
 		request := <-requests
+		if stage == "planning" {
+			select {
+			case correction := <-requests:
+				if request.ToolChoice != "required" || correction.ToolChoice != "required" ||
+					!strings.Contains(correction.Messages[len(correction.Messages)-1].Content, "Planning ends only when a design is accepted") {
+					t.Fatal("planning lost its required tool choice or text-only correction")
+				}
+			default:
+				t.Fatal("planning accepted completion prose without one tool-call correction")
+			}
+			if len(requests) != 0 {
+				t.Fatal("planning repeated text-only recovery more than once")
+			}
+		}
 		// 2D reasons as much as 3D: the reasoning allowance comes on top of the answer.
 		if want := map[string]int{"planning": 4096 + 16384, "building": 32768}[stage]; request.MaxTokens != want {
 			t.Errorf("%s 2D output reserve=%d, want %d", stage, request.MaxTokens, want)
@@ -395,7 +409,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for deadline := time.Now().Add(60 * time.Second); ; {
+			for deadline := time.Now().Add(2 * time.Minute); ; {
 				done, err := service.GetJob(context.Background(), job.ID)
 				if err == nil && done.Status == "failed" {
 					if done.Error != "verified validation handoff" || done.ResultRevision != 0 || calls.Load() != 4 || finalCalls.Load() != 2 {

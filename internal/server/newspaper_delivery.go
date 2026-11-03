@@ -16,12 +16,15 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/textproto"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agentmail"
 	"aurago/internal/config"
 	"aurago/internal/newspaper"
+	"aurago/internal/whatsapp"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -74,6 +77,11 @@ func (s *Server) newspaperDelivery(ctx context.Context, e newspaper.Edition, p n
 			return "", newspaper.SafeDelivery(newspaper.ErrDisabled)
 		}
 		return sendNewspaperTelegram(ctx, cfg.Telegram.BotToken, cfg.Telegram.UserID, e)
+	case "whatsapp":
+		if !s.newspaperWhatsAppReady(cfg) {
+			return "", newspaper.SafeDelivery(newspaper.ErrDisabled)
+		}
+		return s.sendNewspaperWhatsApp(ctx, e)
 	default:
 		return "", newspaper.SafeDelivery(errors.New("unsupported newspaper delivery channel"))
 	}
@@ -239,6 +247,27 @@ func sendNewspaperSMTP(ctx context.Context, a config.EmailAccount, to, subject, 
 	return nil
 }
 
+// newspaperDigestRunes bounds the digest and each text chunk the chat deliveries send (one
+// message each).
+const newspaperDigestRunes = 3000
+
+// newspaperDigest is the digest text of an edition: the introduction of the Telegram delivery and
+// the caption of the WhatsApp one.
+func newspaperDigest(e newspaper.Edition) string {
+	leadHeadline := ""
+	leadDeck := ""
+	if len(e.Stories) > 0 {
+		leadHeadline = e.Stories[0].Headline
+		leadDeck = e.Stories[0].Deck
+	}
+	return fmt.Sprintf("%s · %s\n%s\n\n%s\n\n%d stories · %d sources", e.Title, e.LocalDate, leadHeadline, leadDeck, len(e.Stories), len(e.Sources))
+}
+
+// newspaperPDFName is the file name of an edition's PDF in the chat deliveries.
+func newspaperPDFName(e newspaper.Edition) string {
+	return "newspaper-" + e.LocalDate + "-r" + fmt.Sprint(e.Revision) + ".pdf"
+}
+
 func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e newspaper.Edition) (string, error) {
 	if token == "" || chatID == 0 {
 		return "", newspaper.SafeDelivery(errors.New("Telegram destination unavailable"))
@@ -250,7 +279,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	}
 	if pdfErr != nil {
 		var err error
-		chunks, err = newspaperTelegramChunks(newspaper.Text(e), 3000)
+		chunks, err = newspaperTelegramChunks(newspaper.Text(e), newspaperDigestRunes)
 		if err != nil {
 			return "", newspaper.SafeDelivery(err)
 		}
@@ -260,14 +289,8 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	if err != nil {
 		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %w", err))
 	}
-	leadHeadline := ""
-	leadDeck := ""
-	if len(e.Stories) > 0 {
-		leadHeadline = e.Stories[0].Headline
-		leadDeck = e.Stories[0].Deck
-	}
-	intro := fmt.Sprintf("%s · %s\n%s\n\n%s\n\n%d stories · %d sources", e.Title, e.LocalDate, leadHeadline, leadDeck, len(e.Stories), len(e.Sources))
-	if len([]rune(intro)) > 3000 {
+	intro := newspaperDigest(e)
+	if utf8.RuneCountInString(intro) > newspaperDigestRunes {
 		return "", newspaper.SafeDelivery(errors.New("Telegram digest exceeds message limit"))
 	}
 	digestMessage, err := bot.Send(newspaperTelegramText(chatID, intro))
@@ -276,7 +299,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	}
 	lastID := fmt.Sprint(digestMessage.MessageID)
 	if pdfErr == nil {
-		doc := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: "newspaper-" + e.LocalDate + "-r" + fmt.Sprint(e.Revision) + ".pdf", Bytes: data})
+		doc := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: newspaperPDFName(e), Bytes: data})
 		message, sendErr := bot.Send(doc)
 		err = sendErr
 		if err != nil {
@@ -321,4 +344,119 @@ func newspaperTelegramChunks(text string, maxRunes int) ([]string, error) {
 		out = append(out, b.String())
 	}
 	return out, nil
+}
+
+// newspaperWhatsAppReady reports that an edition can go to WhatsApp now: the newspaper's allow
+// switch is on, WhatsApp is enabled and writable, and a linked generation runs.
+func (s *Server) newspaperWhatsAppReady(cfg *config.Config) bool {
+	return cfg != nil && cfg.Newspaper.AllowWhatsApp && s.whatsAppOwnerReady(cfg)
+}
+
+// sendNewspaperWhatsApp delivers an edition to the WhatsApp owners through the owner API: the PDF
+// as a document with the digest as its caption (a digest over the caption limit goes first as its
+// own message), or, when the edition has no safe PDF, the digest and then the full text in
+// messages of at most newspaperDigestRunes runes. The owner API sends plain text without a link
+// preview, so no URL a third-party page put into the edition is fetched. The provider ID stays
+// empty: the owner API returns no message IDs.
+func (s *Server) sendNewspaperWhatsApp(ctx context.Context, e newspaper.Edition) (string, error) {
+	api := serverWhatsAppOwner(s)
+	if api == nil || !api.OwnerSendReady() {
+		return "", newspaper.SafeDelivery(errors.New("WhatsApp is not linked or not running"))
+	}
+	digest := newspaperDigest(e)
+	if utf8.RuneCountInString(digest) > newspaperDigestRunes {
+		return "", newspaper.SafeDelivery(errors.New("WhatsApp digest exceeds message limit"))
+	}
+	if data, pdfErr := newspaper.PDF(e); pdfErr == nil {
+		if err := ctx.Err(); err != nil {
+			return "", newspaper.SafeDelivery(err)
+		}
+		_, err := api.SendOwnerAttachment(ctx, digest, whatsapp.OwnerAttachment{Name: newspaperPDFName(e), Data: data})
+		return "", newspaperWhatsAppError(err, false)
+	}
+	// Fonts without safe glyph coverage use full bounded text messages.
+	chunks, err := newspaperTelegramChunks(newspaper.Text(e), newspaperDigestRunes)
+	if err != nil {
+		return "", newspaper.SafeDelivery(err)
+	}
+	sent := false
+	for _, text := range append([]string{digest}, chunks...) {
+		if err := ctx.Err(); err != nil {
+			// This check runs before the call, so only before the first message is it known
+			// that nothing of this delivery went out.
+			if !sent {
+				return "", newspaper.SafeDelivery(err)
+			}
+			return "", newspaperWhatsAppError(err, true)
+		}
+		if _, err := api.SendOwnerMessage(ctx, text, ""); err != nil {
+			return "", newspaperWhatsAppError(err, sent)
+		}
+		sent = true
+	}
+	return "", nil
+}
+
+// newspaperWhatsAppError classifies a failure of the owner API for the ledger. Before anything of
+// this delivery went out, only its pre-send refusals (read-only, a file over 50 MB) are safe to
+// retry. Every other error leaves the outcome unknown, a cancellation reported by the API
+// included: with several owners or a send that timed out, or when the Bot's generation ended
+// mid-send, a message may have arrived, and the ledger never replays an uncertain send.
+func newspaperWhatsAppError(err error, sentBefore bool) error {
+	switch {
+	case err == nil:
+		return nil
+	case !sentBefore && (errors.Is(err, whatsapp.ErrReadOnly) || errors.Is(err, whatsapp.ErrMediaTooLarge)):
+		return newspaper.SafeDelivery(err)
+	}
+	return fmt.Errorf("WhatsApp delivery outcome unknown: %w", err)
+}
+
+// newspaperWhatsAppDestination keys the ledger to the owners without a full phone number: the
+// ledger keeps SHA-256(channel, destination), and a hash of a whole number can be reversed by
+// trying every number. Dedicated mode: the sorted, de-duplicated last four digits of each valid
+// owner number; self-chat mode: the linked account itself. The send does not use this value; it
+// goes to the Bot's own owner resolver.
+func newspaperWhatsAppDestination(cfg *config.Config) (string, error) {
+	if cfg == nil {
+		return "", errors.New("WhatsApp destination unavailable")
+	}
+	if cfg.WhatsApp.Mode == config.WhatsAppModeSelfChat {
+		return "self_chat", nil
+	}
+	var tails []string
+	for _, raw := range cfg.WhatsApp.OwnerNumbers {
+		number, err := config.NormalizeE164(raw)
+		if err != nil {
+			continue
+		}
+		tails = append(tails, number[len(number)-4:])
+	}
+	if len(tails) == 0 {
+		return "", errors.New("WhatsApp destination unavailable")
+	}
+	slices.Sort(tails)
+	return "dedicated\x00" + strings.Join(slices.Compact(tails), ","), nil
+}
+
+// newspaperWhatsAppTestText is the fixed text of the Newspaper's WhatsApp test send.
+const newspaperWhatsAppTestText = "AuraGo Newspaper: WhatsApp delivery test."
+
+var errNewspaperWhatsAppTestRateLimited = errors.New("wait a minute before sending another WhatsApp test")
+
+// sendNewspaperWhatsAppTest checks the gates before it claims the minute, so a refused request
+// does not use it up; the send passes the owner API's own read-only gate.
+func (s *Server) sendNewspaperWhatsAppTest(ctx context.Context, cfg *config.Config, now time.Time) error {
+	if cfg == nil || !cfg.Newspaper.Enabled || cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly || !s.newspaperWhatsAppReady(cfg) {
+		return newspaper.ErrDisabled
+	}
+	if !takeWhatsAppTestMinute(now) {
+		return errNewspaperWhatsAppTestRateLimited
+	}
+	api := serverWhatsAppOwner(s)
+	if api == nil {
+		return newspaper.ErrDisabled
+	}
+	_, err := api.SendOwnerMessage(ctx, newspaperWhatsAppTestText, "")
+	return err
 }

@@ -11,5 +11,9 @@
   "config.security.severity.critical": "CRITICAL",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "WARNING",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (Remote) nests deploy over unencrypted HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (Remote) nests deploy over unencrypted HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Dedicated mode is on, but no valid owner number is set. The WhatsApp channel stays off and answers nobody until you add your number in international format.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: no owner number",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo is a linked device of your own WhatsApp account. It reads only your Message yourself chat, but the device keys give access to all your chats, and a ban for automated use hits your personal number. A dedicated number is safer.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: self-chat mode uses your personal account"
 }

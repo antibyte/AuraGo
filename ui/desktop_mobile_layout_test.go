@@ -54,16 +54,15 @@ func TestVirtualDesktopShortDesktopHeightDoesNotDisableWindowDragging(t *testing
 			body := jsFunctionBodyInWindowMenuTest(t, source, "function isCompactViewport()")
 			for _, want := range []string{
 				"const widthMatch = window.matchMedia('(max-width: 820px)').matches;",
-				"const heightMatch = window.matchMedia('(max-height: 720px)').matches;",
-				"const coarsePointerMatch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;",
-				"return widthMatch || (heightMatch && coarsePointerMatch);",
+				"const tabletMatch = window.matchMedia('(max-width: 1024px) and (hover: none) and (pointer: coarse)').matches;",
+				"return widthMatch || tabletMatch;",
 			} {
 				if !strings.Contains(body, want) {
 					t.Fatalf("compact viewport detection must keep short desktop windows draggable, missing %q", want)
 				}
 			}
-			if strings.Contains(body, "return widthMatch || heightMatch;") {
-				t.Fatal("compact viewport detection must not treat short viewport height alone as mobile")
+			if strings.Contains(body, "max-height") {
+				t.Fatal("short landscape laptops must not enter mobile mode solely due to viewport height")
 			}
 		})
 	}
@@ -116,9 +115,12 @@ func TestVirtualDesktopNarrowFinePointerDoesNotDisableWindowChrome(t *testing.T)
 	}
 	for name, css := range cssSources {
 		t.Run(name+" css", func(t *testing.T) {
-			want := "@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse)"
+			want := "(max-width: 1024px) and (hover: none) and (pointer: coarse)"
 			if !strings.Contains(css, want) {
 				t.Fatalf("mobile fullscreen window CSS must be scoped to touch-like devices, missing %q", want)
+			}
+			if strings.Contains(css, "(max-height: 720px) and (hover: none) and (pointer: coarse)") {
+				t.Fatal("short desktop viewports must not trigger mobile window styling")
 			}
 		})
 	}
@@ -151,15 +153,22 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 		"--vd-mobile-workspace-width",
 		"--vd-mobile-taskbar-reserve",
 		"overflow-x: auto;",
+		"overflow-y: auto;",
 		"-webkit-overflow-scrolling: touch;",
 		"touch-action: pan-x pan-y;",
+		".vd-window.vd-mobile-wide-window > .vd-window-content > *",
 		"min-width: var(--vd-mobile-workspace-width);",
 		".vd-window.maximized",
 		"width: 100vw !important;",
 		".vd-mobile-wide-window",
-		"width: var(--vd-mobile-workspace-width) !important;",
+		".vd-window.vd-mobile-wide-window.maximized",
 		".vd-window.vd-mobile-wide-window .vd-window-titlebar",
-		"position: sticky;",
+		"position: relative;",
+		"width: 100vw;",
+		"padding-left: max(14px, env(safe-area-inset-left, 0px));",
+		"padding-right: max(14px, env(safe-area-inset-right, 0px));",
+		".vd-window [data-window-content]",
+		"padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop mobile stylesheet missing horizontal scroll marker %q", want)
@@ -168,15 +177,25 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 
 	js := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, want := range []string{
-		"function shouldUseMobileWideWindow(appId)",
-		"win.classList.toggle('vd-mobile-wide-window'",
+		"shouldUseMobileWideWindow(appId)",
+		"win.classList.toggle('vd-mobile-wide-window', shouldUseMobileWideWindow(appId))",
 	} {
 		if !strings.Contains(js, want) {
 			t.Fatalf("desktop mobile window runtime missing opt-in marker %q", want)
 		}
 	}
-	if strings.Contains(js, "'agent-chat',") {
-		t.Fatal("desktop agent chat should not opt into the wide mobile window layout")
+	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	for _, want := range []string{
+		"function shouldUseMobileWideWindow(appId)",
+		"['code-studio', 'nasscad'].includes(appId)",
+		"return useMobileDesktopMode() && !shouldUseMobileWideWindow(appId);",
+	} {
+		if !strings.Contains(foundation, want) {
+			t.Fatalf("mobile wide workspace policy missing single-source marker %q", want)
+		}
+	}
+	if strings.Contains(foundation, "window.shouldUseMobileWideWindow") {
+		t.Fatal("the shared wide-window policy should remain private to the desktop shell IIFE")
 	}
 }
 
@@ -197,7 +216,7 @@ func TestVirtualDesktopMobileOverlaysAvoidTaskbar(t *testing.T) {
 	js := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	for _, want := range []string{
 		"function contextMenuUsableBottom()",
-		"window.matchMedia('(max-width: 820px)')",
+		"if (isCompactViewport() && taskbar)",
 		"const usableBottom = contextMenuUsableBottom();",
 		"menu.style.maxHeight = maxMenuHeight + 'px';",
 		"menu.style.top = Math.max(8, Math.min(y, usableBottom - rect.height)) + 'px';",

@@ -1,0 +1,17 @@
+{
+  "calc": "battery_pack",
+  "sets": [
+    {"values": {"ns": 3, "np": 2, "vcell": 3.7, "qcell": 9000, "vpack": 11.1, "qpack": 18000, "e": 199800, "cells": 6}, "ref": "hand: 3S2P: U_pack = 3 * 3.7 = 11.1 V; Q_pack = 2 * 9000 C (2.5 Ah) = 18000 C (5 Ah); E = 11.1 * 18000 = 199800 J = 55.5 Wh; 6 cells"},
+    {"values": {"ns": 4, "np": 1, "vcell": 3.2, "qcell": 72000, "vpack": 12.8, "qpack": 72000, "e": 921600, "cells": 4}, "ref": "hand: 4S1P LiFePO4: U_pack = 4 * 3.2 = 12.8 V; Q_pack = 72000 C (20 Ah); E = 12.8 * 72000 = 921600 J = 256 Wh; 4 cells"},
+    {"values": {"ns": 10, "np": 4, "vcell": 3.6, "qcell": 10800, "vpack": 36, "qpack": 43200, "e": 1555200, "cells": 40}, "ref": "hand: 10S4P: U_pack = 10 * 3.6 = 36 V; Q_pack = 4 * 10800 C (3 Ah) = 43200 C (12 Ah); E = 36 * 43200 = 1555200 J = 432 Wh; 40 cells"}
+  ],
+  "solve": [
+    {"inputs": {"ns": 3, "np": 2, "vcell": 3.7, "qcell": 9000}, "expect": {"vpack": 11.1, "qpack": 18000, "e": 199800, "cells": 6}, "ref": "hand: the defaults, 3S2P of 3.7 V and 2.5 Ah cells: 11.1 V, 5 Ah = 18000 C, 11.1 * 18000 = 199800 J = 55.5 Wh"},
+    {"inputs": {"vpack": 36, "np": 4, "vcell": 3.6, "qcell": 10800}, "expect": {"ns": 10, "qpack": 43200, "e": 1555200}, "ref": "hand: N_s = U_pack / U_cell = 36 / 3.6 = 10; Q_pack = 4 * 10800 = 43200 C; E = 36 * 43200 = 1555200 J"},
+    {"inputs": {"ns": 10, "qpack": 43200, "vcell": 3.6, "qcell": 10800}, "expect": {"np": 4, "vpack": 36, "e": 1555200}, "ref": "hand: N_p = Q_pack / Q_cell = 43200 / 10800 = 4; U_pack = 10 * 3.6 = 36 V"},
+    {"inputs": {"ns": 4, "vpack": 12.8, "np": 1, "qcell": 72000}, "expect": {"vcell": 3.2, "qpack": 72000, "e": 921600}, "ref": "hand: U_cell = U_pack / N_s = 12.8 / 4 = 3.2 V; Q_pack = 72000 C; E = 12.8 * 72000 = 921600 J"},
+    {"inputs": {"ns": 4, "vcell": 3.2, "np": 1, "e": 921600}, "expect": {"vpack": 12.8, "qpack": 72000, "qcell": 72000}, "ref": "hand: U_pack = 4 * 3.2 = 12.8 V; Q_pack = E / U_pack = 921600 / 12.8 = 72000 C; Q_cell = 72000 / 1 = 72000 C"},
+    {"inputs": {"ns": 3.5, "np": 2, "vcell": 3.7, "qcell": 9000}, "expect": {"vpack": 12.95}, "warnings": [0], "ref": "hand: 3.5 cells in series is no real pack, U_pack = 3.5 * 3.7 = 12.95 V; the first check fires"},
+    {"inputs": {"ns": 3, "np": 2.5, "vcell": 3.7, "qcell": 9000}, "expect": {"qpack": 22500}, "warnings": [1], "ref": "hand: 2.5 strings in parallel is no real pack, Q_pack = 2.5 * 9000 = 22500 C; the second check fires"}
+  ]
+}

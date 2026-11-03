@@ -1,0 +1,32 @@
+{
+  "calc": "frequency_period",
+  "sets": [
+    {"values": {"f": 1000, "t": 0.001, "duty": 0.3, "th": 0.0003, "tl": 0.0007000000000000001}, "ref": "definition, the defaults (1 kHz is 1 ms): T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"values": {"f": 50, "t": 0.02, "duty": 0.5, "th": 0.01, "tl": 0.01}, "ref": "definition (50 Hz is 20 ms, half of it high): T = 1/f = 1/50 Hz = 20 ms; t_high = D·T = 0.5·20 ms = 10 ms; t_low = T − t_high = 10 ms"},
+    {"values": {"f": 125, "t": 0.008, "duty": 0.2, "th": 0.0016, "tl": 0.0064}, "ref": "definition (125 Hz is 8 ms): T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"values": {"f": 20000, "t": 5e-05, "duty": 0.9, "th": 4.5e-05, "tl": 4.9999999999999996e-06}, "ref": "definition (20 kHz is 50 µs): T = 1/f = 1/20 kHz = 50 µs; t_high = D·T = 0.9·50 µs = 45 µs; t_low = T − t_high = 5 µs"}
+  ],
+  "solve": [
+    {"inputs": {"f": 1000, "duty": 0.3}, "expect": {"t": 0.001, "th": 0.0003, "tl": 0.0007000000000000001}, "ref": "definition: T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"inputs": {"f": 125, "duty": 0.2}, "expect": {"t": 0.008, "th": 0.0016, "tl": 0.0064}, "ref": "definition: T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"f": 50, "th": 0.01}, "expect": {"t": 0.02, "duty": 0.5, "tl": 0.01}, "ref": "definition: T = 1/50 Hz = 20 ms, D = t_high/T = 10 ms/20 ms = 0.5; T = 1/f = 1/50 Hz = 20 ms; t_high = D·T = 0.5·20 ms = 10 ms; t_low = T − t_high = 10 ms"},
+    {"inputs": {"f": 125, "th": 0.0016}, "expect": {"t": 0.008, "duty": 0.2, "tl": 0.0064}, "ref": "definition: T = 8 ms, D = 1.6 ms/8 ms = 0.2; T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"f": 20000, "tl": 4.9999999999999996e-06}, "expect": {"t": 5e-05, "duty": 0.9, "th": 4.5e-05}, "ref": "definition: T = 50 µs, t_high = T − t_low = 50 µs − 5 µs = 45 µs; T = 1/f = 1/20 kHz = 50 µs; t_high = D·T = 0.9·50 µs = 45 µs; t_low = T − t_high = 5 µs"},
+    {"inputs": {"f": 1000, "tl": 0.0007000000000000001}, "expect": {"t": 0.001, "duty": 0.3, "th": 0.0003}, "ref": "definition: T = 1 ms, t_high = 1 ms − 0.7 ms = 0.3 ms; T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"inputs": {"t": 0.008, "duty": 0.2}, "expect": {"f": 125, "th": 0.0016, "tl": 0.0064}, "ref": "definition: f = 1/T = 1/8 ms = 125 Hz; T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"t": 5e-05, "duty": 0.9}, "expect": {"f": 20000, "th": 4.5e-05, "tl": 4.9999999999999996e-06}, "ref": "definition: f = 1/50 µs = 20 kHz; T = 1/f = 1/20 kHz = 50 µs; t_high = D·T = 0.9·50 µs = 45 µs; t_low = T − t_high = 5 µs"},
+    {"inputs": {"t": 0.02, "th": 0.01}, "expect": {"f": 50, "duty": 0.5, "tl": 0.01}, "ref": "definition: f = 1/20 ms = 50 Hz, t_low = 20 ms − 10 ms = 10 ms; T = 1/f = 1/50 Hz = 20 ms; t_high = D·T = 0.5·20 ms = 10 ms; t_low = T − t_high = 10 ms"},
+    {"inputs": {"t": 0.001, "th": 0.0003}, "expect": {"f": 1000, "duty": 0.3, "tl": 0.0007000000000000001}, "ref": "definition: f = 1/1 ms = 1 kHz, D = 0.3 ms/1 ms = 0.3; T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"inputs": {"t": 0.008, "tl": 0.0064}, "expect": {"f": 125, "duty": 0.2, "th": 0.0016}, "ref": "definition: f = 125 Hz, t_high = 8 ms − 6.4 ms = 1.6 ms; T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"t": 5e-05, "tl": 4.9999999999999996e-06}, "expect": {"f": 20000, "duty": 0.9, "th": 4.5e-05}, "ref": "definition: f = 20 kHz, D = 1 − 5 µs/50 µs = 0.9; T = 1/f = 1/20 kHz = 50 µs; t_high = D·T = 0.9·50 µs = 45 µs; t_low = T − t_high = 5 µs"},
+    {"inputs": {"duty": 0.2, "th": 0.0016}, "expect": {"f": 125, "t": 0.008, "tl": 0.0064}, "ref": "definition: T = t_high/D = 1.6 ms/0.2 = 8 ms, f = 125 Hz; T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"duty": 0.3, "th": 0.0003}, "expect": {"f": 1000, "t": 0.001, "tl": 0.0007000000000000001}, "ref": "definition: T = 0.3 ms/0.3 = 1 ms, f = 1 kHz; T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"inputs": {"duty": 0.5, "tl": 0.01}, "expect": {"f": 50, "t": 0.02, "th": 0.01}, "ref": "definition: T = t_low/(1 − D) = 10 ms/0.5 = 20 ms, f = 50 Hz; T = 1/f = 1/50 Hz = 20 ms; t_high = D·T = 0.5·20 ms = 10 ms; t_low = T − t_high = 10 ms"},
+    {"inputs": {"duty": 0.9, "tl": 4.9999999999999996e-06}, "expect": {"f": 20000, "t": 5e-05, "th": 4.5e-05}, "ref": "definition: T = 5 µs/(1 − 0.9) = 50 µs, f = 20 kHz; T = 1/f = 1/20 kHz = 50 µs; t_high = D·T = 0.9·50 µs = 45 µs; t_low = T − t_high = 5 µs"},
+    {"inputs": {"th": 0.0003, "tl": 0.0007000000000000001}, "expect": {"f": 1000, "t": 0.001, "duty": 0.3}, "ref": "definition: T = 0.3 ms + 0.7 ms = 1 ms, f = 1 kHz, D = 0.3; T = 1/f = 1/1 kHz = 1 ms; t_high = D·T = 0.3·1 ms = 300 µs; t_low = T − t_high = 700 µs"},
+    {"inputs": {"th": 0.0016, "tl": 0.0064}, "expect": {"f": 125, "t": 0.008, "duty": 0.2}, "ref": "definition: T = 1.6 ms + 6.4 ms = 8 ms; T = 1/f = 1/125 Hz = 8 ms; t_high = D·T = 0.2·8 ms = 1.6 ms; t_low = T − t_high = 6.4 ms"},
+    {"inputs": {"f": 1000, "duty": 1.2}, "expect": {"t": 0.001, "th": 0.0012, "tl": -0.0002}, "errors": {"tl": "range"}, "warnings": [0], "ref": "hand: D = 120 % gives t_high = 1.2 ms and t_low = 1 ms − 1.2 ms = −0.2 ms, out of range; the duty check fires"},
+    {"inputs": {"f": 1000, "duty": 1}, "expect": {"t": 0.001, "th": 0.001}, "errors": {"tl": "range"}, "warnings": [0], "ref": "hand: D = 100 % leaves no low time (t_low = 0, out of range); the duty check fires"},
+    {"inputs": {"f": 1000, "t": 0.001}, "expect": {}, "errors": {"duty": "undetermined", "th": "undetermined", "tl": "undetermined"}, "warnings": [], "ref": "the frequency and the period are the same information; the duty cycle is missing"}
+  ]
+}

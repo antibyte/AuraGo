@@ -65,6 +65,7 @@ type Profile struct {
 	EmailTo        string    `json:"email_to"`
 	EmailVerified  bool      `json:"email_verified"`
 	TelegramDaily  bool      `json:"telegram_daily"`
+	WhatsAppDaily  bool      `json:"whatsapp_daily"`
 }
 
 type RSSFeed struct {

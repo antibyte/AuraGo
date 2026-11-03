@@ -42,7 +42,7 @@ func ScheduleIsolatedExecution(ctx context.Context, code, language, kind, descri
 }
 
 func ScheduleIsolatedShell(ctx context.Context, command string) (*BackgroundTask, error) {
-	if err := ValidateShellCommandPolicy(command); err != nil {
+	if err := validateIsolatedShellCommandPolicy(command); err != nil {
 		return nil, err
 	}
 	return ScheduleIsolatedExecution(ctx, isolatedShellCode(command), "python", "shell", "Isolated background shell")

@@ -19,7 +19,8 @@ func TestLocalLLMNamedVolumesAreRejectedByCreateMountValidation(t *testing.T) {
 			t.Fatalf("validateDockerBindMount(%q) error = %v", name, err)
 		}
 	}
-	if err := validateDockerBindMount(DockerConfig{}, "ordinary-data:/data"); err != nil {
+	host := fakeDockerHost(t, http.NotFound)
+	if err := validateDockerBindMount(DockerConfig{Host: host}, "ordinary-data:/data"); err != nil {
 		t.Fatalf("ordinary named volume was rejected: %v", err)
 	}
 }
@@ -103,8 +104,9 @@ func TestCYDCreatorVolumesAreRejectedByMountAndVolumeHelpers(t *testing.T) {
 			t.Fatalf("validateDockerBindMount(%q) error = %v", bind, err)
 		}
 	}
+	volumeHost := fakeDockerHost(t, http.NotFound)
 	for _, bind := range []string{"aurago-cyd-work-it:/work", "aurago-cyd-cache-it:/cache", "cyd-ci-cache:/cache"} {
-		if err := validateDockerBindMount(DockerConfig{}, bind); err != nil {
+		if err := validateDockerBindMount(DockerConfig{Host: volumeHost}, bind); err != nil {
 			t.Fatalf("test volume %q was rejected: %v", bind, err)
 		}
 	}

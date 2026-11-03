@@ -54,6 +54,18 @@ func TestMeshCoreNoticeOnlyAtDirectContact(t *testing.T) {
 	if notice, _, _ := m.PendingNotice(); notice != "" {
 		t.Fatal("notice not acknowledged")
 	}
+
+	// WhatsApp owner chats count as direct contact like the other chat sources.
+	second := meshcore.Message{ID: strings.Repeat("55", 32), Direction: "incoming", Kind: "direct", Sender: strings.Repeat("22", 6), Text: "SECOND_EXTERNAL_BODY", State: "quarantine"}
+	data, _ = json.Marshal(second)
+	if _, err := db.Exec("INSERT INTO meshcore_messages(id,received,state,data) VALUES(?,0,?,?)", second.ID, second.State, data); err != nil {
+		t.Fatal(err)
+	}
+	wa := RunConfig{Config: cfg, MessageSource: "whatsapp"}
+	appendMeshCoreNotice(&wa)()
+	if len(wa.TrustedPromptAddenda) != 1 || !strings.Contains(wa.TrustedPromptAddenda[0].Text, second.ID) || strings.Contains(wa.TrustedPromptAddenda[0].Text, second.Text) {
+		t.Fatal("whatsapp chat did not get the notice, or it was unsafe")
+	}
 }
 
 type meshSearchTransport func(*http.Request) (*http.Response, error)

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -31,10 +33,12 @@ func newStepUpTestServer(t *testing.T) (*Server, *http.Cookie) {
 	t.Helper()
 	resetLoginRecordsForStepUpTest(t)
 	s := newBootstrapTestServer(t, "127.0.0.1", false)
-	hash, err := HashPassword(stepUpTestPassword)
+	// Authorization fixtures must not spend their race-test deadlines hashing passwords.
+	rawHash, err := bcrypt.GenerateFromPassword([]byte(stepUpTestPassword), bcrypt.MinCost)
 	if err != nil {
-		t.Fatalf("HashPassword: %v", err)
+		t.Fatalf("fixture password hash: %v", err)
 	}
+	hash := string(rawHash)
 	if err := s.Vault.WriteSecret("auth_password_hash", hash); err != nil {
 		t.Fatalf("WriteSecret(hash): %v", err)
 	}

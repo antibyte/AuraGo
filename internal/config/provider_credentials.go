@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 // HasMaskedCredentials distinguishes invalid placeholders from keyless providers.
 func (p ProviderEntry) HasMaskedCredentials() bool {
@@ -160,6 +163,32 @@ func (c *Config) applyProviderCredentialBindings(tokens map[string]string) {
 					*binding.kind = "invalid-provider"
 				}
 			}
+			continue
+		}
+		c.applyEnvironmentAPIKeyOverride(binding.key)
+	}
+}
+
+func (c *Config) applyEnvironmentAPIKeyOverride(target *string) {
+	var names []string
+	switch target {
+	case &c.LLM.APIKey:
+		names = []string{"LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"}
+	case &c.CoAgents.LLM.APIKey:
+		names = []string{"CO_AGENTS_LLM_API_KEY"}
+	case &c.Embeddings.APIKey:
+		names = []string{"EMBEDDINGS_API_KEY"}
+	case &c.Vision.APIKey:
+		names = []string{"VISION_API_KEY"}
+	case &c.Whisper.APIKey:
+		names = []string{"WHISPER_API_KEY"}
+	case &c.FallbackLLM.APIKey:
+		names = []string{"FALLBACK_LLM_API_KEY"}
+	}
+	for _, name := range names {
+		if value := os.Getenv(name); value != "" {
+			*target = value
+			return
 		}
 	}
 }

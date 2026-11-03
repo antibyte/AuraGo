@@ -698,6 +698,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.mu.RLock()
 		accepted := s.acceptedPlans[job.ID]
 		budget := s.planBudgets[job.ID]
+		submitted := budget != nil && budget.calls > 0
 		exhausted := budget != nil && budget.charged >= planChargedLimit
 		planErr := s.planErrors[job.ID]
 		s.mu.RUnlock()
@@ -714,7 +715,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		if planErr != nil {
 			planDiagnostics[0].Message = planErr.Error()
 		}
-		if exhausted {
+		// The runner already corrected missing tool calls; restarting resets those retries.
+		if !submitted || exhausted {
 			break
 		}
 	}

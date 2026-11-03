@@ -47,7 +47,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **It remembers.** Conversation history, core facts, local embeddings, document RAG, a knowledge graph, notes and a journal. Insights keep their evidence, and memory corrections let you fix what it got wrong. Personality traits, moods and an inner voice shape how it talks.
 - **Put it on autopilot.** Missions, cron schedules and webhooks start recurring work. **EasyDrag** flows run as missions, and **Looper** runs goal loops with a cost budget. Co-agents tackle subtasks. **Invasion Control** hatches worker “Eggs” on remote “Nests” over SSH or Docker. Yes, those are the actual names.
 - **Give it a computer.** Agent Workspaces provide disposable Firecracker VMs with a shell, files and a visible Chromium browser. The main agent does the thinking; the VM is its workbench.
-- **Give it a voice.** Telegram, Discord, Rocket.Chat, email, realtime speech and SIP telephony. Speech Lab adds local speech recognition and synthesis.
+- **Give it a voice.** Telegram, WhatsApp, Discord, Rocket.Chat, email, realtime speech and SIP telephony. Speech Lab adds local speech recognition and synthesis.
 - **MeshCore, over the air.** Trusted direct messages and restricted channel replies over mesh radio.
 - **Your own personal newspaper and radio station.** A daily Newspaper tailored to your interests, plus Personal Radio with imported or generated music, an AI host and optional news bulletins.
 - **Tune into RTL-SDR.** Live listening, scheduled recordings and optional speech transcription. Needs Linux with a local Docker Engine and an RTL2832/RTL2838 dongle.
@@ -162,7 +162,7 @@ AuraGo comes with **twelve personalities**: a friendly sidekick, a thoughtful ph
 | put the agent on autopilot | [Missions](documentation/manuals/en/11-missions.md) and [EasyDrag flows](documentation/manuals/en/24-easydrag.md) |
 | keep it offline | [Local models](documentation/local_llm_aurago_qwen.md) and [Local Wikipedia](documentation/local-wikipedia.md) |
 | lock it down | [Security introduction](documentation/security_introduction.md) and [Security chapter](documentation/manuals/en/14-security.md) |
-| talk to it from my phone | [Telegram setup](documentation/telegram_setup.md) · [more channels](documentation/manuals/en/08-integrations.md) |
+| talk to it from my phone | [Telegram setup](documentation/telegram_setup.md) · [WhatsApp setup](documentation/whatsapp_setup.md) · [more channels](documentation/manuals/en/08-integrations.md) |
 | build a tiny desk gadget | [CYD Creator](documentation/cyd-creator.md) |
 
 ## Under the hood
@@ -273,7 +273,7 @@ locally served resource set included by the installer and Docker image.
 
 Want to tinker? Start with [AGENTS.md](AGENTS.md), follow the build steps above, and test with `go test ./...`.
 
-**Source code: [MIT licensed](LICENSE).** The release binaries link the GPL-3.0 WhatsApp stack, so the binaries we ship are GPL-3.0 combined works ([notices](THIRD_PARTY_NOTICES.md)). Have fun. Mind the permissions.
+**Source code: [MIT licensed](LICENSE).** The release binaries link GPL-3.0 code (the WhatsApp stack and a few code-graph scanners), so the binaries we ship are GPL-3.0 combined works ([notices](THIRD_PARTY_NOTICES.md)). Have fun. Mind the permissions.
 
 *The illustrations are hand-inked-style renders. Prompts and provenance are in [assets/readme/imagegen-prompts.md](assets/readme/imagegen-prompts.md).*
 

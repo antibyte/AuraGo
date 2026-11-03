@@ -4083,20 +4083,20 @@ directories:
 	}
 }
 
-func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
+func TestLoadRequiresExplicitUnsandboxedShellPermission(t *testing.T) {
 	cases := []struct {
 		name            string
 		yaml            string
-		wantLegacy      bool
 		wantUnsandboxed bool
 	}{
-		{"shell on, key absent", "agent:\n  allow_shell: true\n", true, false},
-		{"shell on, allow_unsandboxed_shell: false", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: false\n", false, false},
-		{"shell on, allow_unsandboxed_shell: true", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: true\n", false, true},
-		// config-merger has written the template's allow_unsafe_host_execution: false
-		// into every merged config (Docker, update.sh); that alone is no decision.
-		{"shell on, only allow_unsafe_host_execution: false written", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: false\n", true, false},
-		{"shell off", "agent:\n  allow_shell: false\n", false, false},
+		{"shell on, key absent", "agent:\n  allow_shell: true\n", false},
+		{"shell on, key null", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell:\n", false},
+		{"shell on, allow_unsandboxed_shell: false", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: false\n", false},
+		{"shell on, allow_unsandboxed_shell: true", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: true\n", true},
+		{"shell on, unsafe host execution disabled", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: false\n", false},
+		{"shell off", "agent:\n  allow_shell: false\n", false},
+		{"null agent section", "agent:\n", false},
+		{"no agent section", "server:\n  port: 8088\n", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4108,9 +4108,6 @@ func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load() error = %v", err)
 			}
-			if cfg.Agent.LegacyUnsandboxedShell != tc.wantLegacy {
-				t.Fatalf("LegacyUnsandboxedShell = %v, want %v", cfg.Agent.LegacyUnsandboxedShell, tc.wantLegacy)
-			}
 			if cfg.Agent.AllowUnsandboxedShell != tc.wantUnsandboxed {
 				t.Fatalf("AllowUnsandboxedShell = %v, want %v", cfg.Agent.AllowUnsandboxedShell, tc.wantUnsandboxed)
 			}
@@ -4118,30 +4115,28 @@ func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
 	}
 }
 
-// Relays and MQTT-triggered missions on an anonymous broker keep working until
-// mqtt.allow_unauthenticated_relay is written. Mission triggers live in the
-// mission store, so an enabled anonymous broker is grandfathered even without a
-// relay flag; a null value counts as unwritten, as config-merger reads it.
-func TestLoadGrandfathersUnauthenticatedMQTTRelay(t *testing.T) {
+// Anonymous agent triggers require an explicit opt-in, including mission-only
+// configurations whose trigger registrations are stored outside config.yaml.
+func TestLoadRequiresExplicitUnauthenticatedMQTTRelayPermission(t *testing.T) {
 	const on = "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n"
 	cases := []struct {
 		name string
 		yaml string
 		want bool
 	}{
-		{"relay on, no user, key absent", on + "  relay_to_agent: true\n", true},
-		{"frigate relay only, key absent", on + "frigate:\n  enabled: true\n  event_relay: true\n", true},
-		{"mission triggers only, key absent", on + "  relay_to_agent: false\n", true},
-		{"enabled as yes, key absent", "mqtt:\n  enabled: yes\n  broker: tcp://broker.lan:1883\n", true},
-		{"relay on, blank username", on + "  relay_to_agent: true\n  username: \"  \"\n", true},
-		{"relay on, key null", on + "  relay_to_agent: true\n  allow_unauthenticated_relay:\n", true},
+		{"relay on, no user, key absent", on + "  relay_to_agent: true\n", false},
+		{"frigate relay only, key absent", on + "frigate:\n  enabled: true\n  event_relay: true\n", false},
+		{"mission triggers only, key absent", on + "  relay_to_agent: false\n", false},
+		{"enabled as yes, key absent", "mqtt:\n  enabled: yes\n  broker: tcp://broker.lan:1883\n", false},
+		{"relay on, blank username", on + "  relay_to_agent: true\n  username: \"  \"\n", false},
+		{"relay on, key null", on + "  relay_to_agent: true\n  allow_unauthenticated_relay:\n", false},
 		{"relay on, key false", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: false\n", false},
 		{"relay on, key true", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: true\n", true},
 		{"relay on, user set", on + "  relay_to_agent: true\n  username: iot\n", false},
 		// The client presents its certificate only over TLS; on tcp:// it
 		// connects anonymously.
-		{"relay on, client certificate over tcp", on + "  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", true},
-		{"relay on, client certificate, tls.enabled on tcp", on + "  relay_to_agent: true\n  tls:\n    enabled: true\n    cert_file: client.crt\n    key_file: client.key\n", true},
+		{"relay on, client certificate over tcp", on + "  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		{"relay on, client certificate, tls.enabled on tcp", on + "  relay_to_agent: true\n  tls:\n    enabled: true\n    cert_file: client.crt\n    key_file: client.key\n", false},
 		{"relay on, client certificate over ssl", "mqtt:\n  enabled: true\n  broker: ssl://broker.lan:8883\n  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
 		{"relay on, client certificate over mqtts", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  relay_to_agent: true\n  tls:\n    enabled: true\n    cert_file: client.crt\n    key_file: client.key\n", false},
 		{"mqtt disabled", "mqtt:\n  enabled: false\n  relay_to_agent: true\n", false},
@@ -4164,15 +4159,7 @@ func TestLoadGrandfathersUnauthenticatedMQTTRelay(t *testing.T) {
 	}
 }
 
-// Every config save, health check and bootstrap reloads the config; the
-// grandfather warning appears once per process, not on every load.
-func TestLoadWarnsAboutGrandfatheredMQTTRelayOncePerProcess(t *testing.T) {
-	var logs strings.Builder
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
-	t.Cleanup(func() { slog.SetDefault(previous) })
-	mqttRelayGrandfatherWarning = sync.Once{}
-
+func TestLoadKeepsAnonymousMQTTRelayDisabledAcrossReloads(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -4182,13 +4169,9 @@ func TestLoadWarnsAboutGrandfatheredMQTTRelayOncePerProcess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load() error = %v", err)
 		}
-		if !cfg.MQTT.AllowUnauthenticatedRelay {
-			t.Fatal("anonymous enabled broker must stay grandfathered on every load")
+		if cfg.MQTT.AllowUnauthenticatedRelay {
+			t.Fatal("anonymous broker must require explicit relay permission on every load")
 		}
-	}
-	const want = "anonymous MQTT broker grandfathered"
-	if got := strings.Count(logs.String(), want); got != 1 {
-		t.Fatalf("grandfather warning logged %d times, want once:\n%s", got, logs.String())
 	}
 }
 

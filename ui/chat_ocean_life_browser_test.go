@@ -48,7 +48,7 @@ window.matchMedia=q=>q==='(prefers-reduced-motion: reduce)'?{get matches(){retur
 	defer server.Close()
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("Chrome or Edge required")
+		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()

@@ -24,6 +24,7 @@ func TestAnthropicLiveThinkingExtendsBothStreamReaders(t *testing.T) {
 		t.Run(fmt.Sprintf("minimal=%t", minimal), func(t *testing.T) {
 			const thought = "ongoing signed thinking "
 			const count = 30
+			const idleTimeout = time.Second // The 1.5-second stream must still renew this budget.
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "text/event-stream")
 				fmt.Fprint(w, "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"fixture\",\"model\":\"claude-sonnet-4\",\"usage\":{\"input_tokens\":10}}}\n\n")
@@ -51,10 +52,10 @@ func TestAnthropicLiveThinkingExtendsBothStreamReaders(t *testing.T) {
 			var response openai.ChatCompletionResponse
 			var err error
 			if minimal {
-				response, err = minimalLoopStreamText(ctx, client, req, 300*time.Millisecond)
+				response, err = minimalLoopStreamText(ctx, client, req, idleTimeout)
 			} else {
 				retries := 0
-				result := handleStreamingResponse(ctx, req, client, false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), NoopBroker{}, AgentTelemetryScope{}, cancel, 300*time.Millisecond, &retries, true)
+				result := handleStreamingResponse(ctx, req, client, false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), NoopBroker{}, AgentTelemetryScope{}, cancel, idleTimeout, &retries, true)
 				response, err = result.resp, result.err
 			}
 			if err != nil || len(response.Choices) != 1 || response.Choices[0].Message.Content != "Finished" {

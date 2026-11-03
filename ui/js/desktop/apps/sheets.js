@@ -19,14 +19,21 @@
             return key;
         };
         const icons={new:'file-plus',open:'folder-open',save:'save',saveAs:'copy',navigation:'list',search:'search',format:'sliders',data:'grid',chart:'analytics',assist:'star',undo:'undo',redo:'redo',print:'printer',addSheet:'plus',sheetMenu:'more-horizontal',borders:'grid',fill:'palette',color:'palette',merge:'columns',zoomIn:'zoom-in',zoomOut:'zoom-out',zoomReset:'search',more:'menu',closeLeft:'x',closeRight:'x',cancelFormula:'x',commitFormula:'check',expandFormula:'chevron-down'};
-        const button=(action,label,symbol)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label||action))+'" aria-label="'+esc(tr(label||action))+'">'+(ctx.iconMarkup?.(icons[action]||action,symbol,'sheets-icon',18,'action')||esc(symbol))+'</button>';
-        host.innerHTML='<div class="sheets-app"><header class="sheets-documentbar"><div class="sheets-document"><button class="sheets-document-name" data-action="document"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">'+esc(tr('loading'))+'</span></div><nav class="sheets-views">'+button('navigation','navigation','☷')+button('search','find','⌕')+'<span class="sheets-divider"></span>'+button('format','format','A')+button('data','data','▦')+button('chart','chart','▥')+button('assist','assist','✦')+'</nav></header>'+
+        const button=(action,label,symbol,markup)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label||action))+'" aria-label="'+esc(tr(label||action))+'">'+(markup||ctx.iconMarkup?.(icons[action]||action,symbol,'sheets-icon',18,'action')||esc(symbol))+'</button>';
+        // The view switcher remembers which panel it opened, so the open panel stays visible in the chrome.
+        const viewButton=(action,label,symbol,panel)=>'<button type="button" data-action="'+action+'" data-panel="'+panel+'" aria-pressed="false" title="'+esc(tr(label))+'" aria-label="'+esc(tr(label))+'">'+(ctx.iconMarkup?.(icons[action]||action,symbol,'sheets-icon',18,'action')||esc(symbol))+'</button>';
+        // Left, center and right share one glyph in every icon set, so they carry their own artwork.
+        const alignIcon=mode=>'<svg class="sheets-align-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="'+({left:'M1.5 3.5h13M1.5 8h8M1.5 12.5h13',center:'M1.5 3.5h13M3.5 8h9M1.5 12.5h13',right:'M1.5 3.5h13M6.5 8h8M1.5 12.5h13'}[mode]||'')+'" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+        // The overflow menu carries the actions that stay out of the toolbar: printing, exports and sheet options.
+        const moreItem=(action,label,icon)=>'<button type="button" data-action="'+action+'">'+(ctx.iconMarkup?.(icon,'','sheets-icon',16,'action')||'')+'<span>'+esc(tr(label))+'</span></button>';
+        host.innerHTML='<div class="sheets-app"><header class="sheets-documentbar"><div class="sheets-document"><button class="sheets-document-name" data-action="document"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">'+esc(tr('loading'))+'</span></div><nav class="sheets-views">'+viewButton('navigation','navigation','☷','navigation')+viewButton('search','find','⌕','search')+'<span class="sheets-divider"></span>'+viewButton('format','format','A','format')+viewButton('data','data','▦','data')+viewButton('chart','chart','▥','chart')+viewButton('assist','assist','✦','assist')+'</nav></header>'+
             '<div class="sheets-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="rename">'+esc(tr('rename'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="save">'+esc(tr('save'))+'</button></div>'+
-            '<div class="sheets-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="sheets-toolgroup">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><div class="sheets-toolgroup sheets-fonts"><select data-format="font" aria-label="'+esc(tr('font'))+'">'+['Arial','Calibri','Carlito','Geist','Georgia','Times New Roman','Courier New'].map(name=>'<option>'+name+'</option>').join('')+'</select><input data-format="size" type="number" min="1" max="200" step=".5" value="11" aria-label="'+esc(tr('size'))+'"></div><div class="sheets-toolgroup">'+button('bold','bold','B')+button('italic','italic','I')+button('underline','underline','U')+'</div><div class="sheets-toolgroup"><select data-format="number" aria-label="'+esc(tr('number_format'))+'">'+[['General','general'],['0.00','format_number'],['0.00%','format_percent'],['#,##0.00 "€"','format_currency'],['yyyy-mm-dd','format_date'],['@','format_text']].map(([v,k])=>'<option value="'+esc(v)+'">'+esc(tr(k))+'</option>').join('')+'</select></div><div class="sheets-toolgroup">'+button('left','align_left','≡')+button('center','align_center','≡')+button('right','align_right','≡')+'</div><div class="sheets-toolgroup">'+button('borders','format_borders','▦')+button('fill','fill_color','▰')+button('merge','merge_cells','↔')+'</div>'+button('more','more','•••')+'</div>'+
-            '<div class="sheets-formula-line"><input data-address aria-label="'+esc(tr('address'))+'" value="A1" spellcheck="false"><button data-action="function" class="sheets-fx" title="'+esc(tr('function_assistant'))+'">ƒx</button><div class="sheets-formula-wrap"><textarea data-formula rows="1" spellcheck="false" aria-label="'+esc(tr('formula'))+'"></textarea><div data-formula-hints class="sheets-formula-hints" hidden></div></div><span data-formula-actions hidden>'+button('cancelFormula','cancel','×')+button('commitFormula','apply','✓')+'</span>'+button('expandFormula','expand_formula','⌄')+'</div>'+
+            '<div class="sheets-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="sheets-toolgroup">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><div class="sheets-toolgroup sheets-fonts"><select data-format="font" aria-label="'+esc(tr('font'))+'">'+['Arial','Calibri','Carlito','Geist','Georgia','Times New Roman','Courier New'].map(name=>'<option>'+name+'</option>').join('')+'</select><input data-format="size" type="number" min="1" max="200" step=".5" value="11" aria-label="'+esc(tr('size'))+'"></div><div class="sheets-toolgroup">'+button('bold','bold','B')+button('italic','italic','I')+button('underline','underline','U')+'</div><div class="sheets-toolgroup"><select data-format="number" aria-label="'+esc(tr('number_format'))+'">'+[['General','general'],['0.00','format_number'],['0.00%','format_percent'],['#,##0.00 "€"','format_currency'],['yyyy-mm-dd','format_date'],['@','format_text']].map(([v,k])=>'<option value="'+esc(v)+'">'+esc(tr(k))+'</option>').join('')+'</select></div><div class="sheets-toolgroup">'+button('left','align_left','≡',alignIcon('left'))+button('center','align_center','≡',alignIcon('center'))+button('right','align_right','≡',alignIcon('right'))+'</div><div class="sheets-toolgroup">'+button('borders','format_borders','▦')+button('fill','fill_color','▰')+button('merge','merge_cells','↔')+'</div>'+button('more','more','•••')+'</div>'+
+            '<div class="sheets-more-menu" data-more-menu hidden>'+moreItem('print','printNow','printer')+moreItem('xlsx','download_xlsx','download')+moreItem('csv','export_csv','download')+moreItem('sheetMenu','sheet_options','list')+'</div>'+
+            '<div class="sheets-formula-line"><input data-address aria-label="'+esc(tr('address'))+'" value="A1" spellcheck="false"><button data-action="function" class="sheets-fx" title="'+esc(tr('function_assistant'))+'">ƒx</button><div class="sheets-formula-wrap"><textarea data-formula rows="1" spellcheck="false" aria-label="'+esc(tr('formula'))+'"></textarea>'+button('expandFormula','expand_formula','⌄')+'<div data-formula-hints class="sheets-formula-hints" hidden></div></div><span data-formula-actions hidden>'+button('cancelFormula','cancel','×')+button('commitFormula','apply','✓')+'</span></div>'+
             '<div class="sheets-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry">'+esc(tr('retry'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="dismiss" aria-label="'+esc(tr('close'))+'">×</button></div>'+
-            '<div class="sheets-workspace"><aside class="sheets-left" data-left hidden></aside><main class="sheets-canvas"><div class="sheets-engine" data-engine></div><div class="sheets-charts" data-charts></div><div class="sheets-loading" data-loading><div class="sheets-load-message"><p data-load-status>'+esc(tr('loading'))+'</p><div class="sheets-buttonrow" data-load-actions hidden><button type="button" data-action="new"'+(ctx.readonly?' disabled':'')+'>'+esc(tr('new'))+'</button><button type="button" data-action="open">'+esc(tr('open'))+'</button></div></div></div></main><aside class="sheets-right" data-right hidden></aside></div>'+
-            '<div class="sheets-tabsbar"><div data-tabs class="sheets-tabs" role="tablist" aria-label="'+esc(tr('navigation'))+'"></div>'+button('addSheet','add_sheet','+')+button('sheetMenu','sheet_options','•••')+'</div><footer class="sheets-statusbar"><span data-selection></span><span class="sheets-status-spacer"></span><span data-stats></span>'+button('zoomOut','zoom_out','−')+'<button data-action="zoomReset" data-zoom>100%</button>'+button('zoomIn','zoom_in','+')+'</footer></div>';
+            '<div class="sheets-workspace"><aside class="sheets-left" data-left hidden></aside><main class="sheets-canvas"><div class="sheets-engine" data-engine></div><div class="sheets-charts" data-charts></div><div class="sheets-loading" data-loading data-state="loading"><div class="sheets-load-message"><span class="sheets-spinner" aria-hidden="true"></span><p data-load-status>'+esc(tr('loading'))+'</p><div class="sheets-buttonrow" data-load-actions hidden><button type="button" data-action="new"'+(ctx.readonly?' disabled':'')+'>'+esc(tr('new'))+'</button><button type="button" data-action="open">'+esc(tr('open'))+'</button></div></div></div></main><aside class="sheets-right" data-right hidden></aside></div>'+
+            '<div class="sheets-tabsbar"><div data-tabs class="sheets-tabs" role="tablist" aria-label="'+esc(tr('navigation'))+'"></div>'+button('addSheet','add_sheet','+')+button('sheetMenu','sheet_options','•••')+'</div><footer class="sheets-statusbar"><span data-selection></span><span class="sheets-status-spacer"></span><span data-stats></span><span class="sheets-zoom">'+button('zoomOut','zoom_out','−')+'<button type="button" data-action="zoomReset" data-zoom title="'+esc(tr('zoom'))+'" aria-label="'+esc(tr('zoom'))+'">100%</button>'+button('zoomIn','zoom_in','+')+'</span></footer></div>';
         const root=host.firstElementChild,find=selector=>root.querySelector(selector),mount=find('[data-engine]');
         const lifecycle=new AbortController();
         let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView,imageView;
@@ -97,7 +104,7 @@
             const token=++generation;
             releaseDocument();documentLife=new AbortController();path=target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;pin=null;formulaTarget=null;formulaChanged=false;
             aux={charts:[],images:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
-            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;notice('');
+            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-loading]').dataset.state='loading';find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;notice('');
             find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
             ctx.updateWindowContext?.(windowId,{path});
             try{
@@ -166,7 +173,7 @@
             }catch(error){
                 if(token!==generation||disposed)return;
                 releaseDocument();loading=false;loadingFailed=true;
-                find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
+                find('[data-loading]').hidden=false;find('[data-loading]').dataset.state='error';find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
                 find('[data-notice] [data-action="saveAs"]').hidden=true;
                 find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
                 if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
@@ -174,6 +181,21 @@
             }
         }
         function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,40);}
+        // The open panel stays visible in the chrome: every view button mirrors the panel it opened.
+        function syncViewState(){
+            for(const view of root.querySelectorAll('.sheets-views [data-panel]')){
+                const key=view.dataset.panel,open=(key==='navigation'||key==='search')?leftPanel===key:rightPanel===key;
+                view.setAttribute('aria-pressed',String(open));
+            }
+        }
+        // The overflow menu sits under its button, wherever the toolbar scrolls to.
+        function positionMoreMenu(){
+            const menu=find('[data-more-menu]'),trigger=find('[data-action="more"]');
+            if(!menu||!trigger||menu.hidden)return;
+            const box=trigger.getBoundingClientRect(),base=root.getBoundingClientRect();
+            menu.style.top=Math.round(box.bottom-base.top+6)+'px';
+            menu.style.left=Math.round(Math.max(8,Math.min(base.width-menu.offsetWidth-8,box.right-base.left-menu.offsetWidth)))+'px';
+        }
         function refresh(){
             if(!book||disposed||loading)return;
             const active=sheet(),r=selection(),range=active.getRange(r);
@@ -181,6 +203,7 @@
             if(!formulaChanged&&document.activeElement!==find('[data-formula]'))find('[data-formula]').value=range.getFormula()||String(range.getRawValue()??'');
             const style=range.getCellStyleData();
             for(const [key,val]of Object.entries({bold:style?.bl===1,italic:style?.it===1,underline:style?.ul?.s===1,left:style?.ht===1,center:style?.ht===2,right:style?.ht===3}))find('[data-action="'+key+'"]').setAttribute('aria-pressed',String(val));
+            syncViewState();
             for(const [key,value]of Object.entries({font:style?.ff||'Arial',size:style?.fs||11,number:style?.n?.pattern||'General'})){const input=find('[data-format="'+key+'"]');if(document.activeElement!==input)input.value=value;}
             const rows=r.endRow-r.startRow+1,cols=r.endColumn-r.startColumn+1;
             find('[data-selection]').textContent=tr('selection_size',{rows,columns:cols});
@@ -232,24 +255,28 @@
         }
         async function act(action){
             try{
+                // One popover at a time: an action that did not open a menu closes the open ones.
+                if(action!=='document')find('[data-document-menu]').hidden=true;
+                if(action!=='more')find('[data-more-menu]').hidden=true;
                 if(action==='dismiss'){notice('');return;}
                 if(action==='document'){find('[data-document-menu]').hidden=!find('[data-document-menu]').hidden;return;}
+                if(action==='more'){const menu=find('[data-more-menu]');menu.hidden=!menu.hidden;positionMoreMenu();return;}
                 if(action==='retry'){if(loadingFailed)await load(path);else await save();return;}
                 if(action==='save'){await save();return;}if(action==='saveAs'||action==='rename'){await saveAs();return;}
                 if(action==='new'){if(await guard())await load(newPath(),'blank');return;}
                 if(action==='open'){if(!await guard())return;const result=await ctx.openFileDialog({title:tr('open'),filters:[{label:'Excel / CSV',extensions:['.xlsx','.xlsm','.csv']}]});if(result)await load(typeof result==='string'?result:result.path);return;}
                 if(!book||loading)return;
                 if(action==='qr'){await insertQR();return;}
-                if(action==='chartSelected'){rightPanel='chart';panels.showRight('chart');return;}
-                if(['navigation','search','format','data','chart','assist','function','more','borders','fill','sheetMenu'].includes(action)){
-                    pinSelection();const left=['navigation','search'].includes(action),key=({more:'format',borders:'format',fill:'format',function:'function',sheetMenu:'sheets'})[action]||action;
-                    if(left){leftPanel=leftPanel===key?'':key;panels.showLeft(leftPanel);}else{rightPanel=rightPanel===key?'':key;panels.showRight(rightPanel);}return;
+                if(action==='chartSelected'){rightPanel='chart';panels.showRight('chart');syncViewState();return;}
+                if(['navigation','search','format','data','chart','assist','function','borders','fill','sheetMenu'].includes(action)){
+                    pinSelection();const left=['navigation','search'].includes(action),key=({borders:'format',fill:'format',function:'function',sheetMenu:'sheets'})[action]||action;
+                    if(left){leftPanel=leftPanel===key?'':key;panels.showLeft(leftPanel);}else{rightPanel=rightPanel===key?'':key;panels.showRight(rightPanel);}syncViewState();return;
                 }
-                if(action==='closeLeft'){leftPanel='';panels.showLeft('');return;}if(action==='closeRight'){rightPanel='';panels.showRight('');return;}
+                if(action==='closeLeft'){leftPanel='';panels.showLeft('');syncViewState();return;}if(action==='closeRight'){rightPanel='';panels.showRight('');syncViewState();return;}
                 if(action==='commitFormula'){commitFormula();refresh();return;}if(action==='cancelFormula'){cancelFormula();return;}
                 if(action==='expandFormula'){find('[data-formula]').rows=find('[data-formula]').rows===1?4:1;return;}
                 if(action==='xlsx'||action==='csv'){await download(action==='xlsx'&&/\.xlsm$/i.test(path)?'xlsm':action);return;}
-                if(action==='print'){panels.showRight('print');rightPanel='print';return;}
+                if(action==='print'){panels.showRight('print');rightPanel='print';syncViewState();return;}
                 if(action.startsWith('zoom')){const zoom=action==='zoomReset'?1:Math.max(.25,Math.min(3,sheet().getZoom()+(action==='zoomIn'?.1:-.1)));sheet().zoom(zoom);refresh();return;}
                 if(action==='copy')return await panels.action('copy');
                 return await run(()=>{
@@ -294,7 +321,10 @@
             ]);
         }
         root.addEventListener('pointerdown',event=>{if(!event.target.closest('.sheets-engine,.sheets-charts'))pinSelection();const btn=event.target.closest('.sheets-toolbar button,.sheets-views button');if(btn)event.preventDefault();},{signal:lifecycle.signal});
-        root.addEventListener('click',event=>{const tab=event.target.closest('[data-sheet]');if(tab&&book){commitFormula();pin=null;book.setActiveSheet(tab.dataset.sheet);refresh();return;}const target=event.target.closest('[data-action]');if(target)act(target.dataset.action);},{signal:lifecycle.signal});
+        root.addEventListener('click',event=>{const tab=event.target.closest('[data-sheet]');if(tab&&book){commitFormula();pin=null;book.setActiveSheet(tab.dataset.sheet);refresh();return;}const target=event.target.closest('[data-action]');if(target)act(target.dataset.action);
+            // A click outside a popover closes it.
+            if(!event.target.closest('.sheets-document-menu,.sheets-document-name'))find('[data-document-menu]').hidden=true;
+            if(!event.target.closest('.sheets-more-menu,[data-action="more"]'))find('[data-more-menu]').hidden=true;},{signal:lifecycle.signal});
         mount.addEventListener('contextmenu',event=>{
             if(!book||!ctx.showContextMenu)return;
             event.preventDefault();event.stopPropagation();pinSelection();
@@ -306,11 +336,25 @@
         find('[data-formula]').addEventListener('input',()=>{if(!book||ctx.readonly)return;if(!formulaTarget)formulaTarget={sheet:sheet().getSheetId(),range:selection()};formulaChanged=true;find('[data-formula-actions]').hidden=false;panels.formulaHints(find('[data-formula]').value);},{signal:lifecycle.signal});
         find('[data-formula]').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();commitFormula();event.target.blur();refresh();}if(event.key==='Escape'){event.preventDefault();cancelFormula();}},{signal:lifecycle.signal});
         root.addEventListener('keydown',event=>{
+            if(event.key==='Escape'){
+                const menu=find('[data-document-menu]'),more=find('[data-more-menu]');
+                if(!menu.hidden||!more.hidden){menu.hidden=true;more.hidden=true;event.stopPropagation();}
+                return;
+            }
             if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
-            const action={s:event.shiftKey?'saveAs':'save',o:'open',n:'new',p:'print',f:'search'}[event.key.toLowerCase()];if(action){event.preventDefault();event.stopPropagation();act(action);}
-        },{signal:lifecycle.signal});
+            const key=event.key.toLowerCase();
+            // A text field keeps its own undo and its own text shortcuts; the sheet owns the rest.
+            const typing=event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement||event.target.isContentEditable;
+            if(typing&&(key==='z'||key==='y'))return;
+            if(event.shiftKey&&key==='z'){if(typing)return;event.preventDefault();event.stopPropagation();act('redo');return;}
+            const action={s:event.shiftKey?'saveAs':'save',o:'open',n:'new',p:'print',f:'search',z:'undo',y:'redo'}[key];
+            if(action){event.preventDefault();event.stopPropagation();act(action);return;}
+            if(typing)return;
+            const format={b:'bold',i:'italic',u:'underline'}[key];
+            if(format){event.preventDefault();event.stopPropagation();act(format);}
+        },{signal:lifecycle.signal,capture:true});
         if(ctx.readonly){find('[data-formula]').readOnly=true;root.querySelectorAll('.sheets-toolbar button,.sheets-toolbar input,.sheets-toolbar select,[data-action="addSheet"]').forEach(control=>control.disabled=true);}
-        const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();imageView?.position();});resize.observe(root);
+        const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();imageView?.position();positionMoreMenu();});resize.observe(root);
         window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
         function releaseDocument(){
             documentLife.abort();queue?.dispose();queue=null;panels?.dispose();chartView?.dispose();imageView?.dispose();panels=chartView=imageView=null;

@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/persondetect"
 	"aurago/internal/tools"
+	"aurago/internal/whatsapp"
 )
 
 type personAlertSendLog struct {
@@ -163,7 +164,10 @@ func TestPersonAlertDiscordPhotoUsesARemovedTempFile(t *testing.T) {
 
 func TestPersonAlertAllSendsTextAndPhotos(t *testing.T) {
 	log := stubPersonAlertSenders(t, personAlertSentResult, nil, nil)
+	wa := &fakeWhatsAppOwner{ready: true}
+	useFakeWhatsAppOwner(t, wa)
 	s := personAlertTestServer()
+	s.Cfg.WhatsApp.Enabled = true
 	if err := s.sendPersonAlertMessage(context.Background(), "", "Title", "Body", personAlertTestPhoto); err != nil {
 		t.Fatal(err)
 	}
@@ -172,15 +176,151 @@ func TestPersonAlertAllSendsTextAndPhotos(t *testing.T) {
 		len(images) != 1 || images[0] != "chan-1|Title|7|true" {
 		t.Fatalf("texts %q, photos %q, images %q", texts, photos, images)
 	}
-	// Without Telegram and Discord the photo goes nowhere; the text still goes to "all".
+	if attachments, messages := personAlertWhatsAppSent(wa); strings.Join(attachments, ";") != "person-detection.jpg|Title|7" || len(messages) != 0 {
+		t.Fatalf("whatsapp attachments %q, messages %q", attachments, messages)
+	}
+	// Without Telegram and Discord the photo goes nowhere; the text still goes to "all". A
+	// read-only WhatsApp gets no photo either.
 	s.Cfg.Telegram.BotToken = ""
 	s.Cfg.Discord.Enabled = false
+	s.Cfg.WhatsApp.ReadOnly = true
 	if err := s.sendPersonAlertMessage(context.Background(), "all", "Title", "Body", personAlertTestPhoto); err != nil {
 		t.Fatal(err)
 	}
 	texts, photos, images, _ = log.snapshot()
 	if len(texts) != 2 || len(photos) != 1 || len(images) != 1 {
 		t.Fatalf("texts %q, photos %q, images %q", texts, photos, images)
+	}
+	if attachments, _ := personAlertWhatsAppSent(wa); len(attachments) != 1 {
+		t.Fatalf("a read-only WhatsApp got a photo: %q", attachments)
+	}
+}
+
+// personAlertWhatsAppSent copies what the fake owner API recorded.
+func personAlertWhatsAppSent(f *fakeWhatsAppOwner) (attachments, messages []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.attachments...), append([]string(nil), f.messages...)
+}
+
+func TestPersonAlertWhatsAppSendsOnePhotoWithCaption(t *testing.T) {
+	log := stubPersonAlertSenders(t, personAlertSentResult, nil, nil)
+	wa := &fakeWhatsAppOwner{ready: true}
+	useFakeWhatsAppOwner(t, wa)
+	s := personAlertTestServer()
+	s.Cfg.WhatsApp.Enabled = true
+	if err := s.sendPersonAlertMessage(context.Background(), " WhatsApp ", "Title", "Body", personAlertTestPhoto); err != nil {
+		t.Fatal(err)
+	}
+	attachments, messages := personAlertWhatsAppSent(wa)
+	texts, photos, images, _ := log.snapshot()
+	if len(attachments) != 1 || attachments[0] != "person-detection.jpg|Title\nBody|7" || len(messages) != 0 ||
+		len(texts)+len(photos)+len(images) != 0 {
+		t.Fatalf("attachments %q, messages %q, texts %q, photos %q, images %q", attachments, messages, texts, photos, images)
+	}
+}
+
+// A failed WhatsApp photo is replaced by the text exactly once, unless the caption already went
+// out (as text, or as the caption of the photo that reached one owner) or the owner API refuses
+// everything (read-only, no connection).
+func TestPersonAlertWhatsAppPhotoFailureFallsBackToTextOnce(t *testing.T) {
+	boom := errors.New("upload failed")
+	cases := []struct {
+		name      string
+		attachErr error
+		textSent  bool
+		wantTexts string
+		wantSkip  bool
+	}{
+		{name: "photo fails", attachErr: boom, wantTexts: "whatsapp|Title|Body|high"},
+		{name: "caption already sent as text", attachErr: boom, textSent: true},
+		// Two owners: the first got the photo with its caption, the second failed. The owner API
+		// reports TextSent with the error, so the alert is not sent again as text ("never twice");
+		// the second owner misses this alert.
+		{name: "caption reached the first owner, the second owner failed", attachErr: boom, textSent: true},
+		{name: "read-only", attachErr: whatsapp.ErrReadOnly, wantSkip: true},
+		{name: "not connected", attachErr: whatsapp.ErrNotConnected, wantSkip: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			log := stubPersonAlertSenders(t, personAlertSentResult, nil, nil)
+			wa := &fakeWhatsAppOwner{ready: true, attachErr: tc.attachErr, attachTextSent: tc.textSent}
+			useFakeWhatsAppOwner(t, wa)
+			s := personAlertTestServer()
+			s.Cfg.WhatsApp.Enabled = true
+			err := s.sendPersonAlertMessage(context.Background(), "whatsapp", "Title", "Body", personAlertTestPhoto)
+			var skip *persondetect.SkipError
+			switch {
+			case tc.wantSkip:
+				if !errors.As(err, &skip) || skip.Reason != "channel unavailable" {
+					t.Fatalf("err = %v, want skipped channel unavailable", err)
+				}
+			case err != nil:
+				t.Fatalf("err = %v, want sent", err)
+			}
+			texts, _, _, _ := log.snapshot()
+			if strings.Join(texts, ";") != tc.wantTexts {
+				t.Fatalf("texts = %q, want %q", texts, tc.wantTexts)
+			}
+		})
+	}
+
+	// The text fallback fails as well: the action is a failure, not a skip, so no cooldown starts.
+	log := stubPersonAlertSenders(t,
+		`{"status":"success","results":[{"channel":"whatsapp","status":"error","detail":"whatsapp is not linked or not running"}]}`, nil, nil)
+	useFakeWhatsAppOwner(t, &fakeWhatsAppOwner{ready: true, attachErr: boom})
+	s := personAlertTestServer()
+	s.Cfg.WhatsApp.Enabled = true
+	err := s.sendPersonAlertMessage(context.Background(), "whatsapp", "Title", "Body", personAlertTestPhoto)
+	var skip *persondetect.SkipError
+	if err == nil || errors.As(err, &skip) || !strings.Contains(err.Error(), "whatsapp:") {
+		t.Fatalf("err = %v, want a failure naming whatsapp", err)
+	}
+	if texts, _, _, _ := log.snapshot(); len(texts) != 1 {
+		t.Fatalf("texts = %q, want one fallback", texts)
+	}
+}
+
+func TestPersonAlertWhatsAppUnavailableIsSkipped(t *testing.T) {
+	cases := []struct {
+		name     string
+		enabled  bool
+		readOnly bool
+		ready    bool
+	}{
+		{"disabled", false, false, true},
+		{"read-only", true, true, true},
+		{"not linked or not running", true, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			log := stubPersonAlertSenders(t, personAlertSentResult, nil, nil)
+			wa := &fakeWhatsAppOwner{ready: tc.ready}
+			useFakeWhatsAppOwner(t, wa)
+			s := personAlertTestServer()
+			s.Cfg.WhatsApp.Enabled, s.Cfg.WhatsApp.ReadOnly = tc.enabled, tc.readOnly
+			var skip *persondetect.SkipError
+			if err := s.sendPersonAlertMessage(context.Background(), "whatsapp", "Title", "Body", personAlertTestPhoto); !errors.As(err, &skip) || skip.Reason != "channel unavailable" {
+				t.Fatalf("err = %v, want skipped channel unavailable", err)
+			}
+			attachments, messages := personAlertWhatsAppSent(wa)
+			if texts, _, _, _ := log.snapshot(); len(attachments)+len(messages)+len(texts) != 0 {
+				t.Fatalf("attachments %q, messages %q, texts %q; nothing may be sent", attachments, messages, texts)
+			}
+		})
+	}
+}
+
+// The server's channel set, the config allowlist and the camera UI name the same channels.
+func TestPersonAlertChannelsFollowTheConfigAllowlist(t *testing.T) {
+	allowed := config.Go2RTCDetectionChannels()
+	if len(allowed) != len(personAlertChannels) {
+		t.Fatalf("config allows %v, the server sends to %v", allowed, personAlertChannels)
+	}
+	for _, channel := range allowed {
+		if !personAlertChannels[channel] {
+			t.Errorf("config allows %q, the server does not send to it", channel)
+		}
 	}
 }
 

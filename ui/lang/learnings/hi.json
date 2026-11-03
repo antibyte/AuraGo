@@ -53,7 +53,7 @@
   "learnings.graph_enable": "मूल कोड ग्राफ़ सक्षम करें",
   "learnings.graph_help": "डिफ़ॉल्ट रूप से बंद। स्वीकृत प्रोजेक्ट पहली बार उपयोग होने पर अनुक्रमित होते हैं और अपने आप अपडेट होते हैं। स्रोत और सूचकांक मेमोरी में रहते हैं।",
   "codeStudio.knowledge": "सीख",
-  "game_maker.knowledge": "सीख",
+  "game_maker.knowledge": "ज्ञान",
   "config.memory_analysis.learnings_enable": "सीख सक्षम करें",
   "config.memory_analysis.learnings_help": "डिफ़ॉल्ट रूप से बंद। मौजूदा बातचीत विश्लेषण सत्यापित मानवीय प्रमाण से सीखता है। लिखने योग्य मेमोरी चाहिए; अनिश्चित निष्कर्ष प्रस्ताव रहते हैं।",
   "config.memory_analysis.graph_enable": "मूल कोड ग्राफ़ सक्षम करें",

@@ -483,7 +483,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		}
 		if useNativeFunctions {
 			req.Tools = ntSchemas
-			req.ToolChoice = "auto"
+			if req.ToolChoice == nil {
+				req.ToolChoice = "auto"
+			}
 			if toolingPolicy.ParallelToolCallsEnabled {
 				req.ParallelToolCalls = true
 			}

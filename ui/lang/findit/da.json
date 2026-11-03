@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Gentag præcis anmodning",
   "findit.pending_command_queue_full": "For mange lagerændringer eller reservationer afventer afklaring i denne fane. Afklar en ventende anmodning før en ny ændring.",
   "findit.pending_command_storage_unavailable": "Browserfanen kunne ikke gemme den ventende anmodning, så ændringen blev ikke sendt. Aktivér sessionslager, og prøv igen.",
-  "findit.pending_command": "Afklar ventende ændring"
+  "findit.pending_command": "Afklar ventende ændring",
+  "findit.invalid_number": "Angiv et gyldigt tal.",
+  "findit.invalid_url": "Angiv en gyldig webadresse.",
+  "findit.required_field": "Dette felt er påkrævet."
 }

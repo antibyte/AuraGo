@@ -22,6 +22,15 @@ Manage generic Docker containers, images, networks, and volumes directly through
 {"action": "docker", "operation": "inspect", "container_id": "my_container"}
 ```
 
+Inspect returns a trimmed, redacted view. Container command arguments hide
+password/token values and conservatively mask `-p VALUE`, `-p=VALUE` and `-pVALUE`.
+An environment value containing a credential flag is hidden completely, including
+quoted or multiword passwords; its variable name stays visible. Flag-free values
+retain their ordinary secret scrubbing. A container may use `-p` for a port, so a
+masked value is not proof of a password. Named `--port` arguments in `Cmd` and the
+separate network port mappings remain visible. Administrator Docker Manager
+inspect uses the same projection.
+
 #### start / stop / restart / pause / unpause
 ```json
 {"action": "docker", "operation": "start", "container_id": "my_container"}

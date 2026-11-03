@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -236,8 +235,8 @@ func handleKnowledgeGraphNodeDetail(s *Server) http.HandlerFunc {
 				Label      string            `json:"label"`
 				Properties map[string]string `json:"properties"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.ID) == "" {
-				jsonError(w, "id is required", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil || strings.TrimSpace(req.ID) == "" {
+				jsonError(w, "id is required", jsonDecodeStatus(err))
 				return
 			}
 
@@ -297,8 +296,8 @@ func handleKnowledgeGraphNodeProtect(s *Server) http.HandlerFunc {
 			ID        string `json:"id"`
 			Protected bool   `json:"protected"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.ID) == "" {
-			jsonError(w, "id is required", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil || strings.TrimSpace(req.ID) == "" {
+			jsonError(w, "id is required", jsonDecodeStatus(err))
 			return
 		}
 
@@ -332,8 +331,8 @@ func handleKnowledgeGraphEdgeMutate(s *Server) http.HandlerFunc {
 				NewRelation string            `json:"new_relation"`
 				Properties  map[string]string `json:"properties"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Source) == "" || strings.TrimSpace(req.Target) == "" || strings.TrimSpace(req.Relation) == "" {
-				jsonError(w, "source, target, and relation are required", http.StatusBadRequest)
+			if err := decodeJSONRequest(w, r, &req, s); err != nil || strings.TrimSpace(req.Source) == "" || strings.TrimSpace(req.Target) == "" || strings.TrimSpace(req.Relation) == "" {
+				jsonError(w, "source, target, and relation are required", jsonDecodeStatus(err))
 				return
 			}
 
@@ -451,8 +450,8 @@ func handleKnowledgeGraphConflictResolve(s *Server) http.HandlerFunc {
 			ClaimID    string `json:"claim_id"`
 			Reason     string `json:"reason"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 			return
 		}
 		req.ClaimID = strings.TrimSpace(req.ClaimID)
@@ -488,8 +487,8 @@ func handleKnowledgeGraphMerge(s *Server) http.HandlerFunc {
 			TargetID string `json:"target_id"`
 			SourceID string `json:"source_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Invalid request body", http.StatusBadRequest)
+		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+			jsonError(w, "Invalid request body", jsonDecodeStatus(err))
 			return
 		}
 		targetID := strings.TrimSpace(req.TargetID)

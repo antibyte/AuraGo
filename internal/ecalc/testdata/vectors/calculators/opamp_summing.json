@@ -1,0 +1,21 @@
+{
+  "calc": "opamp_summing",
+  "sets": [
+    {"values": {"vs": [1, 0.5, 0.25], "r": 10000, "rf": 10000, "vout": -1.75, "vsum": 1.75, "gi": 1, "ifb": 0.000175}, "ref": "hand: V_1 + V_2 + V_3 = 1 + 0.5 + 0.25 = 1.75 V; gain per input = 10k / 10k = 1; V_out = -1.75 V; I_fb = 1.75 V / 10k = 175 uA (= 1.75 V / 10k through R_f)"},
+    {"values": {"vs": [0.1, 0.2], "r": 1000, "rf": 10000, "vout": -3, "vsum": 0.3, "gi": 10, "ifb": 0.0003}, "ref": "hand: 0.1 V + 0.2 V = 0.3 V; gain per input = 10k / 1k = 10; V_out = -10 * 0.3 V = -3 V; I_fb = 0.3 V / 1k = 0.3 mA (= 3 V / 10k)"},
+    {"values": {"vs": [2, -1, 0.5, 1], "r": 22000, "rf": 33000, "vout": -3.75, "vsum": 2.5, "gi": 1.5, "ifb": 0.00011363636363636364}, "ref": "hand: 2 V - 1 V + 0.5 V + 1 V = 2.5 V; gain per input = 33k / 22k = 1.5; V_out = -1.5 * 2.5 V = -3.75 V; I_fb = 2.5 V / 22k = 113.64 uA (= 3.75 V / 33k)"},
+    {"values": {"vs": [0.3], "r": 10000, "rf": 47000, "vout": -1.41, "vsum": 0.3, "gi": 4.7, "ifb": 3e-05}, "ref": "hand: a single input is the inverting amplifier: gain 47k / 10k = 4.7; V_out = -4.7 * 0.3 V = -1.41 V; I_fb = 0.3 V / 10k = 30 uA (= 1.41 V / 47k)"}
+  ],
+  "solve": [
+    {"inputs": {"vs": [1, 0.5, 0.25], "r": 10000, "rf": 10000}, "expect": {"vout": -1.75, "vsum": 1.75, "gi": 1}, "ref": "hand: V_out = -(10k / 10k) * 1.75 V = -1.75 V"},
+    {"inputs": {"vs": [0.1, 0.2], "r": 1000, "rf": 10000}, "expect": {"vout": -3, "vsum": 0.3}, "ref": "hand: V_out = -(10k / 1k) * 0.3 V = -3 V"},
+    {"inputs": {"vs": [1, 0.5, 0.25], "r": 10000, "vout": -1.75}, "expect": {"rf": 10000}, "ref": "hand: R_f = -V_out * R / sum = 1.75 V * 10k / 1.75 V = 10k"},
+    {"inputs": {"vs": [0.1, 0.2], "r": 1000, "vout": -3}, "expect": {"rf": 10000}, "ref": "hand: R_f = 3 V * 1k / 0.3 V = 10k"},
+    {"inputs": {"vs": [1, 0.5, 0.25], "rf": 10000, "vout": -1.75}, "expect": {"r": 10000}, "ref": "hand: R = -R_f * sum / V_out = 10k * 1.75 V / 1.75 V = 10k"},
+    {"inputs": {"vs": [2, -1, 0.5, 1], "rf": 33000, "vout": -3.75}, "expect": {"r": 22000}, "ref": "hand: R = 33k * 2.5 V / 3.75 V = 22k"},
+    {"inputs": {"vs": [1, 0.5], "r": 10000, "vout": 1.5}, "expect": {"vsum": 1.5}, "errors": {"rf": "range"}, "ref": "hand: a positive output for positive inputs would need R_f = -1.5 V * 10k / 1.5 V = -10k, out of range"},
+    {"inputs": {"vs": [1, -1], "r": 10000, "vout": 1}, "expect": {"vsum": 0}, "errors": {"rf": "nonfinite"}, "ref": "hand: the inputs cancel (sum 0 V) but the output is 1 V: R_f = -1 V * 10k / 0 V = -infinity"},
+    {"inputs": {"vs": [0.3], "r": 10000, "rf": 47000}, "expect": {"vout": -1.41, "gi": 4.7}, "ref": "hand: one input, gain 4.7, V_out = -4.7 * 0.3 V = -1.41 V"},
+    {"inputs": {"vs": [1], "r": 10000}, "errors": {"rf": "undetermined", "vout": "undetermined"}, "ref": "the feedback resistor and the output are missing: neither is determined"}
+  ]
+}

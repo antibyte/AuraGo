@@ -586,6 +586,7 @@ server:
 ```
 
 - **Auth-aus-Freigabe:** Startet AuraGo ohne Login (`auth.enabled: false`) und lauscht nicht nur auf localhost, verlangt der Start (und jede Config-Speicherung) ausdrücklich `auth.allow_unauthenticated_remote: true`. Die Ausnahme öffnet niemals `/speech-lab/` — dieser Proxy verlangt unabhängig von der Auth-Einstellung eine echte AuraGo-Sitzung. Konfigurierte eingehende Webhook- und Integrations-Authentifizierungen bleiben ebenfalls aktiv.
+- **Hostprüfung ohne Anmeldung:** Auch lesende Zugriffe und native Clients ohne Origin-Header brauchen eine IP-Adresse, localhost, den lokalen Rechnernamen oder einen ausdrücklich konfigurierten vertrauenswürdigen Hostnamen. Eine passende Origin auf einem beliebigen Hostnamen oder ein ungeprüfter Bearer umgehen diesen DNS-Rebinding-Schutz nicht.
 - **Desktop-Embed-Tickets:** Medien- und Datei-Referenzen in Desktop-Embeds laufen über `/desktop-ticket/<ticket>/...`. Das kurzlebige Ticket trägt die Zugangsdaten im Pfadsegment, wird vor Routing und Zugriffslogging entfernt und gilt nur für Desktop-Dateipfade (`/files/desktop/`) oder die Drucker-Kamerastreams; Query-Token werden abgelehnt.
 - **Speech-Lab-Browser:** `/speech-lab/` verlangt eine AuraGo-Sitzung, schreibende Zugriffe und WebSocket-Origin müssen same-origin sein, und das Backend ist eine konfigurationseigene private Adresse. AuraGo-Anmeldedaten werden vom Proxy gestrippt; im External-Modus zeigt nur der serverseitige `speech_lab.browser_backend_url` auf den s2s-Web-Backend — niemals eine Legacy-URL im Browser.
 - **CSP:** Die Haupt-UI unter `/` trägt eine report-only Content-Security-Policy ohne `unsafe-inline`; Desktop-Apps behalten ihre eigene, strengere Policy.
@@ -596,7 +597,7 @@ server:
 
 ### SSRF-Schutz für ausgehende HTTP-Anrufe
 
-`api_request`, der Web-Scraper und die LLM-Clients nutzen einen SSRF-geschützten Client: DNS-Auflösung wählt eine öffentliche IP, der Wählvorgang wird an diese IP gepinnt, jede Weiterleitung wird neu validiert (maximal 10, sonst Abbruch) und System-Proxies sind deaktiviert. Loopback-, privaten, CGNAT- und Metadaten-Adressen werden blockiert; `AURAGO_SSRF_ALLOW_LOOPBACK` bleibt ein ausdrücklicher Entwicklungsausnahmehahn.
+`api_request`, der Web-Scraper und öffentliche Provider-Prüfungen im Setup nutzen einen SSRF-geschützten Client: Die DNS-Auflösung wählt eine öffentliche IP, die Verbindung wird an diese IP gebunden, Weiterleitungen werden erneut geprüft und System-Proxies sind deaktiviert. Prüfungen mit Zugangsdaten verweigern außerdem Weiterleitungen zu einer anderen Origin. Loopback-, private, CGNAT- und Metadaten-Adressen werden blockiert; `AURAGO_SSRF_ALLOW_LOOPBACK` bleibt eine ausdrückliche Entwicklungsausnahme. Ausdrücklich erlaubtes lokales Ollama und konfigurierte Integrations-/LLM-Endpunkte behalten ihre eigene Adressprüfung.
 
 ### Netzwerk-MCP-Server
 
@@ -618,7 +619,13 @@ Das Compose-Profil `browser-automation` startet `browser-egress` neben dem Sidec
 
 ### Host-Ausführung ohne Isolation
 
-Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-/macOS-Host-Shell ohne wirksame Sandbox braucht `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`; Updates über `update.sh` und Docker schreiben `allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`). Konfigurationen, die nie durch den config-merger laufen und in denen der Schlüssel nie geschrieben wurde, bleiben auch dann freigestellt, wenn die Shell später aktiviert wird; schreibe `agent.allow_unsandboxed_shell` ausdrücklich, damit die Entscheidung dauerhaft gilt. Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.
+Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-/macOS-Host-Shell ohne wirksame Sandbox braucht ausdrücklich `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`. Fehlendes oder leeres `allow_unsandboxed_shell` bleibt beim Laden und bei Updates `false`, auch wenn `allow_shell` eingeschaltet ist. Ausdrücklich gesetzte Werte bleiben erhalten; das gilt auch für von älteren Updatern geschriebene `true`-Werte, deren Herkunft nicht gespeichert wurde.
+
+Die Befehlsprüfung erkennt ausgeschriebene `command`-/BusyBox-Hüllen und verweigert ausführende `find`-Varianten. Diese Prüfungen ergänzen den Isolations-Supervisor und bilden keine vollständige Shell-Sandbox. Ausführung ohne Sandbox kann den Schutz von Desktop Notes und die Mutationssperren der Datei-Tools umgehen.
+
+Die Filterung der Kindprozess-Umgebung entfernt die AWS-Access-Key-ID zusammen mit Secret- und Session-Zugangsdaten. Prozessabschluss-Ergebnisse und Folgeprompts schwärzen registrierte Geheimnisse vor Kürzung und Speicherung. Docker-Inspect maskiert auch kurze `-p`-Passwortformen vorsorglich; dadurch können gleich geschriebene Port- oder Projektargumente verdeckt werden.
+
+Befehle, die so laufen, können AuraGos Datenordner lesen, auch `data/vault.bin` und die Schlüssel des verknüpften WhatsApp-Geräts in `data/whatsapp/device.db`; die Datei-Tools des Agenten verweigern beide Dateien, diese Ausnahme nicht.
 
 ```yaml
 agent:

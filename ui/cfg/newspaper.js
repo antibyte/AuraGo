@@ -4,13 +4,13 @@ let newspaperBudgetPreviewController = null;
 let newspaperBudgetPreviewVersion = 0;
 
 function renderNewspaperSection(section) {
-    const data = configData.newspaper || (configData.newspaper = {enabled:false,readonly:false,budget_mode:'fixed',overview_sources:[],max_minutes:30,max_pages:60,max_searches:32,max_editions:365,allow_email:false,allow_telegram:false});
+    const data = configData.newspaper || (configData.newspaper = {enabled:false,readonly:false,budget_mode:'fixed',overview_sources:[],max_minutes:30,max_pages:60,max_searches:32,max_editions:365,allow_email:false,allow_telegram:false,allow_whatsapp:false});
     const label = key => escapeHtml(t('config.newspaper.' + key));
     const budgetMode = data.budget_mode === 'auto' ? 'auto' : 'fixed';
     const sources = Array.isArray(data.overview_sources) ? data.overview_sources : [];
     let html = '<div class="cfg-section active"><div class="section-header">' + escapeHtml(section.label) + '</div><div class="section-desc">' + escapeHtml(section.desc) + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + label('setup_note') + '</div>';
-    for (const key of ['enabled','readonly','allow_email','allow_telegram']) {
+    for (const key of ['enabled','readonly','allow_email','allow_telegram','allow_whatsapp']) {
         html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><div class="field-help">' + label(key + '_help') + '</div><div class="toggle ' + (data[key] ? 'on' : '') + '" data-path="newspaper.' + key + '" aria-label="' + label(key) + '" onclick="toggleBool(this)"></div></div>';
     }
     html += '<div class="field-grid two-cols">';
@@ -142,7 +142,7 @@ async function newspaperLoadReadiness() {
     const response = await fetch('/api/desktop/newspaper/capabilities', {credentials:'same-origin',cache:'no-store'});
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const caps = await response.json();
-    const summary = [caps.enabled ? t('config.newspaper.active') : t('config.newspaper.inactive'), caps.research_ready ? t('config.newspaper.research_ready') : t('config.newspaper.research_blocked'), caps.email_ready ? t('config.newspaper.email_ready') : t('config.newspaper.email_pending'), caps.telegram_ready ? t('config.newspaper.telegram_ready') : t('config.newspaper.telegram_pending')].join(' · ');
+    const summary = [caps.enabled ? t('config.newspaper.active') : t('config.newspaper.inactive'), caps.research_ready ? t('config.newspaper.research_ready') : t('config.newspaper.research_blocked'), caps.email_ready ? t('config.newspaper.email_ready') : t('config.newspaper.email_pending'), caps.telegram_ready ? t('config.newspaper.telegram_ready') : t('config.newspaper.telegram_pending'), caps.whatsapp_ready ? t('config.newspaper.whatsapp_ready') : t('config.newspaper.whatsapp_pending')].join(' · ');
     const message = reason => t('config.newspaper.reason_' + (['ready','disabled','key_missing','network_disabled','feeds_missing','scraper_disabled','read_only','model_missing','skill_missing','rate_limited','quota_exhausted','access_denied'].includes(reason) ? reason : 'failed'));
     if (caps.research_reason) { const p = document.createElement('p'); p.textContent = message(caps.research_reason); target.append(p); }
     const list = document.createElement('ul');

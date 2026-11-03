@@ -1,0 +1,17 @@
+{
+  "calc": "linear_regulator_loss",
+  "sets": [
+    {"values": {"vin": 12, "vout": 5, "iout": 0.5, "iq": 0.005, "p": 3.56, "pin": 6.06, "pout": 2.5, "eta": 0.41254125412541254}, "ref": "hand: P = (12 - 5) * 0.5 + 12 * 0.005 = 3.5 + 0.06 = 3.56 W; P_in = 12 * 0.505 = 6.06 W; P_out = 5 * 0.5 = 2.5 W; eta = 2.5 / 6.06 = 0.41254"},
+    {"values": {"vin": 9, "vout": 5, "iout": 0.1, "iq": 0.004, "p": 0.436, "pin": 0.936, "pout": 0.5, "eta": 0.5341880341880342}, "ref": "hand: P = (9 - 5) * 0.1 + 9 * 0.004 = 0.4 + 0.036 = 0.436 W; P_in = 9 * 0.104 = 0.936 W; P_out = 5 * 0.1 = 0.5 W; eta = 0.5 / 0.936 = 0.53419"},
+    {"values": {"vin": 24, "vout": 12, "iout": 1, "iq": 0.01, "p": 12.24, "pin": 24.24, "pout": 12, "eta": 0.49504950495049505}, "ref": "hand: P = (24 - 12) * 1 + 24 * 0.01 = 12 + 0.24 = 12.24 W; P_in = 24 * 1.01 = 24.24 W; P_out = 12 W; eta = 12 / 24.24 = 0.49505"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 12, "vout": 5, "iout": 0.5, "iq": 0.005}, "expect": {"p": 3.56, "pin": 6.06, "pout": 2.5, "eta": 0.41254125412541254}, "ref": "hand: the defaults, P = 3.5 + 0.06 = 3.56 W; eta = 2.5 W / 6.06 W"},
+    {"inputs": {"vin": 12, "vout": 5, "iq": 0.005, "p": 3.56}, "expect": {"iout": 0.5}, "ref": "hand: I_out = (P - V_in * I_q) / (V_in - V_out) = (3.56 - 0.06) / 7 = 0.5 A"},
+    {"inputs": {"vout": 5, "iout": 0.5, "iq": 0.005, "p": 3.56}, "expect": {"vin": 12}, "ref": "hand: V_in = (P + V_out * I_out) / (I_out + I_q) = (3.56 + 2.5) / 0.505 = 12 V"},
+    {"inputs": {"vin": 12, "iout": 0.5, "iq": 0.005, "p": 3.56}, "expect": {"vout": 5}, "ref": "hand: V_out = (V_in * (I_out + I_q) - P) / I_out = (6.06 - 3.56) / 0.5 = 5 V"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 0.5, "p": 3.56}, "expect": {"iq": 0.005}, "ref": "hand: I_q = (P - (V_in - V_out) * I_out) / V_in = (3.56 - 3.5) / 12 = 5 mA"},
+    {"inputs": {"vin": 5, "vout": 9, "iout": 0.1, "iq": 0.004}, "expect": {"p": -0.38, "pin": 0.52, "pout": 0.9}, "warnings": [0], "ref": "hand: V_out above V_in: P = (5 - 9) * 0.1 + 5 * 0.004 = -0.4 + 0.02 = -0.38 W (negative); P_in = 5 * 0.104 = 0.52 W; P_out = 0.9 W; the V_out >= V_in check fires"},
+    {"inputs": {"vin": 12, "vout": 5, "iout": 0.5}, "errors": {"p": "undetermined", "iq": "undetermined"}, "ref": "neither the quiescent current nor the power is known"}
+  ]
+}

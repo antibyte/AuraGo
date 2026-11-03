@@ -195,6 +195,7 @@ func TestCoAgentQueueRechecksAdmission(t *testing.T) {
 			tracker := budget.NewTracker(cfg, logger, t.TempDir())
 			defer tracker.Flush()
 			registry := NewCoAgentRegistry(1, logger)
+			defer registry.Shutdown()
 			holder, _ := registry.Register("occupied", func() {})
 			parent := newCoAgentSpawnContext(&DispatchContext{Cfg: cfg, Logger: logger, CoAgentRegistry: registry, BudgetTracker: tracker})
 			id, state, err := SpawnCoAgent(parent, CoAgentRequest{Task: "must never call a model"}, nil)
@@ -217,6 +218,8 @@ func TestCoAgentQueueRechecksAdmission(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 			defer cancel()
 			status, err := registry.WaitForResult(ctx, id)
+			// Terminal results can arrive before the worker returns its physical slot.
+			registry.workers.Wait()
 			want := string(CoAgentFailed)
 			if reason == "cancelled" {
 				want = string(CoAgentCancelled)

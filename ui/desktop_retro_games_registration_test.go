@@ -62,7 +62,6 @@ func TestDesktopRetroGamesRegistration(t *testing.T) {
 		{"routing", routing, "window.RetroGamesApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp, showContextMenu }))"},
 		{"size", shell, "'retro-games': { width: 1100, height: 720 }"},
 		{"min size", shell, "'retro-games': { width: 640, height: 480 }"},
-		{"mobile", shell, "'retro-games': true"},
 		{"existing window", shell, "window.RetroGamesApp.open(existing.id, context)"},
 		{"events", events, "launch.game = event.payload.game"},
 	}

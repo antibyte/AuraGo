@@ -352,7 +352,7 @@ func textEntropy(text string) float64 {
 func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 	switch a.Tool {
 	case "api_request", "call_webhook", "telnyx_sms",
-		"send_email", "send_telegram", "send_discord", "send_rocketchat", "send_push", "send_push_notification",
+		"send_email", "send_telegram", "send_whatsapp", "send_discord", "send_rocketchat", "send_push", "send_push_notification",
 		"send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video",
 		"dns_lookup", "network_ping", "port_scanner", "whois_lookup",
 		"web_scraper", "web_capture", "web_performance_audit", "site_crawler", "browser_automation", "form_automation",

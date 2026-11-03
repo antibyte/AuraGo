@@ -1,7 +1,6 @@
 package server
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -129,20 +128,13 @@ func handleDesktopArchiveList(s *Server) http.HandlerFunc {
 			return
 		}
 
-		srcResolved, err := svc.ResolvePath(zipPath)
+		listing, err := svc.ListArchive(r.Context(), zipPath)
 		if err != nil {
+			if errors.Is(err, desktop.ErrArchiveTooManyEntries) {
+				jsonError(w, "Archive contains too many entries", http.StatusRequestEntityTooLarge)
+				return
+			}
 			jsonError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		reader, err := zip.OpenReader(srcResolved)
-		if err != nil {
-			jsonError(w, fmt.Sprintf("Failed to open zip file: %v", err), http.StatusBadRequest)
-			return
-		}
-		defer reader.Close()
-		if len(reader.File) > desktop.ArchiveEntryLimit {
-			jsonError(w, "Archive contains too many entries", http.StatusRequestEntityTooLarge)
 			return
 		}
 
@@ -152,21 +144,32 @@ func handleDesktopArchiveList(s *Server) http.HandlerFunc {
 			CompressedSize int64  `json:"compressed_size"`
 			IsDir          bool   `json:"is_dir"`
 			ModTime        string `json:"mod_time"`
+			Link           bool   `json:"link,omitempty"`
 		}
-
-		entries := make([]zipEntry, 0, len(reader.File))
-		for _, f := range reader.File {
+		entries := make([]zipEntry, 0, len(listing.Entries))
+		for _, entry := range listing.Entries {
+			modTime := ""
+			if !entry.ModTime.IsZero() {
+				modTime = entry.ModTime.UTC().Format(time.RFC3339)
+			}
 			entries = append(entries, zipEntry{
-				Name:           f.Name,
-				Size:           int64(f.UncompressedSize64),
-				CompressedSize: int64(f.CompressedSize64),
-				IsDir:          f.FileInfo().IsDir(),
-				ModTime:        f.Modified.Format(time.RFC3339),
+				Name:           entry.Name,
+				Size:           entry.Size,
+				CompressedSize: entry.CompressedSize,
+				IsDir:          entry.IsDir,
+				ModTime:        modTime,
+				Link:           entry.Link,
 			})
 		}
-
+		payload := map[string]interface{}{
+			"format":  listing.Format,
+			"entries": entries,
+		}
+		if listing.SkippedLinks > 0 {
+			payload["skipped_links"] = listing.SkippedLinks
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"entries": entries})
+		_ = json.NewEncoder(w).Encode(payload)
 	}
 }
 

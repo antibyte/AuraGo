@@ -73,7 +73,7 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 			msg, _ := json.Marshal("Core memory rejected fact: " + err.Error())
 			return fmt.Sprintf(`{"status":"error","message":%s}`, msg), nil
 		}
-		if err := stm.UpdateCoreMemoryFact(id, fact); err != nil {
+		if err := stm.UpdateModelCoreFact(id, fact, sessionID); err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%v"}`, err), nil
 		}
 		return fmt.Sprintf(`{"status":"success","id":%d,"message":"%s"}`, id, i18n.T(lang, "tools.core_memory_entry_updated")), nil

@@ -509,7 +509,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Deterministic skill quality review runs before the free-form maintenance
 	// agent. It is provenance-gated and never exposes source in the run ledger.
-	skillResult := runSkillQualityMaintenance(taskCtx, cfg, logger, client, guardian, daemonSupervisor, cronManager)
+	skillResult := runSkillQualityMaintenanceGated(taskCtx, cfg, logger, client, guardian, daemonSupervisor, cronManager, destructiveOK)
 	ledger.phaseResults.SkillsReviewed = skillResult.Reviewed
 	ledger.phaseResults.SkillsImproved = skillResult.Improved
 	ledger.phaseResults.SkillsDeleted = skillResult.Deleted
@@ -1264,13 +1264,8 @@ Conversation:
 			{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		MaxTokens: 1000,
-		ResponseFormat: func() *openai.ChatCompletionResponseFormat {
-			if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
-				return llm.JSONResponseFormat(caps.StructuredOutputs)
-			}
-			return nil
-		}(),
+		MaxTokens:      1000,
+		ResponseFormat: maintenanceJSONResponseFormat(cfg, model),
 	}
 	maxTokens, err := maintenanceCompletionBudget(cfg, request)
 	if err != nil {

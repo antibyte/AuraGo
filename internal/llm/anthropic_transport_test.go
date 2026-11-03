@@ -176,7 +176,7 @@ func TestAnthropicThinkingBudgetClamping(t *testing.T) {
 	if ant.Thinking == nil {
 		t.Fatal("expected thinking to be enabled")
 	}
-	// Default 10000 is clamped to MaxTokens/2 = 4096
+	// The default 10000 stays strictly below the output cap of 8192.
 	if ant.Thinking.BudgetTokens != 8191 {
 		t.Errorf("expected default budget clamped to 8191, got %d", ant.Thinking.BudgetTokens)
 	}
@@ -335,10 +335,10 @@ func TestAnthropicToolChoiceMapping(t *testing.T) {
 		input    any
 		wantType string
 		wantName string
-		wantNil  bool
 	}{
 		{input: "auto", wantType: "auto"},
-		{input: "none", wantNil: true},
+		{input: "none", wantType: "none"},
+		{input: map[string]interface{}{"type": "none"}, wantType: "none"},
 		{input: "required", wantType: "any"},
 		{input: map[string]interface{}{"type": "function", "function": map[string]interface{}{"name": "my_tool"}}, wantType: "tool", wantName: "my_tool"},
 	}
@@ -347,12 +347,6 @@ func TestAnthropicToolChoiceMapping(t *testing.T) {
 		tc, err := translateToolChoice(tt.input)
 		if err != nil {
 			t.Errorf("toolChoice(%v): err = %v", tt.input, err)
-			continue
-		}
-		if tt.wantNil {
-			if tc != nil {
-				t.Errorf("toolChoice(%v) = %+v, want nil", tt.input, tc)
-			}
 			continue
 		}
 		if tc == nil {
@@ -423,7 +417,11 @@ func TestAnthropicStopReasonMapping(t *testing.T) {
 		{"tool_use", "tool_calls"},
 		{"max_tokens", "length"},
 		{"stop_sequence", "stop"},
-		{"unknown", "stop"},
+		{"model_context_window_exceeded", "length"},
+		{"refusal", "content_filter"},
+		{"pause_turn", "pause_turn"},
+		{"unknown", "unknown"},
+		{"", ""},
 	}
 	for _, tt := range tests {
 		got := mapStopReason(tt.input)
@@ -677,7 +675,7 @@ func TestAnthropicStreamToolUse(t *testing.T) {
 	transport := &anthropicTransport{base: base}
 	client := &http.Client{Transport: transport}
 
-	body := `{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":"Weather?"}],"stream":true,"tools":[{"type":"function","function":{"name":"get_weather","parameters":{}}}]}`
+	body := `{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":"Weather?"}],"stream":true,"tools":[{"type":"function","function":{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]}`
 	resp, err := client.Post("https://api.anthropic.com/v1/chat/completions", "application/json", strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("request: %v", err)

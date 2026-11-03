@@ -270,7 +270,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "file_path"),
 		),
 		tool("send_image",
-			"Send an image to the user. Shown inline with a click-to-zoom lightbox in the Web UI, as a native photo in Telegram, and as a file attachment in Discord. Provide a local workspace path or an image URL.",
+			"Send an image to the user. Shown inline with a click-to-zoom lightbox in the Web UI, as a native photo in Telegram, as an image message in WhatsApp, and as a file attachment in Discord. Provide a local workspace path or an image URL.",
 			schema(map[string]interface{}{
 				"path":    prop("string", "Local file path within the workspace (e.g. 'images/chart.png') or a full HTTPS URL to an image"),
 				"caption": prop("string", "Optional caption or description shown with the image"),
@@ -393,7 +393,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 	if ff.SendYouTubeVideoEnabled {
 		tools = append(tools, tool("send_youtube_video",
 			"Send a YouTube video to the user. This is the player path. Prefer yepapi_youtube for metadata when that tool is available; otherwise use video_download search or info. Read captions or subtitles before video_download transcribe, and use download only when a file is wanted. "+
-				"In the Web UI it appears as an embedded YouTube player; in Telegram, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",
+				"In the Web UI it appears as an embedded YouTube player; in Telegram, WhatsApp, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",
 			schema(map[string]interface{}{
 				"url":           prop("string", "YouTube URL (youtube.com/watch, youtu.be, shorts, live, or embed URL)"),
 				"title":         prop("string", "Optional title shown above the embedded player or before the link"),

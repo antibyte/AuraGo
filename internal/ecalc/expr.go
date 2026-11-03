@@ -39,7 +39,7 @@ type Env struct {
 // funcArity is the fixed function whitelist: name -> {min, max} argument count (max -1 = unbounded).
 var funcArity = map[string][2]int{
 	"sqrt": {1, 1}, "ln": {1, 1}, "log10": {1, 1}, "exp": {1, 1}, "sin": {1, 1}, "cos": {1, 1},
-	"tan": {1, 1}, "atan": {1, 1}, "abs": {1, 1}, "round": {1, 1},
+	"tan": {1, 1}, "atan": {1, 1}, "abs": {1, 1}, "round": {1, 1}, "floor": {1, 1}, "ceil": {1, 1},
 	"min": {2, -1}, "max": {2, -1}, "if": {3, 3}, "sum": {1, 1}, "par": {1, 1},
 }
 
@@ -559,6 +559,10 @@ func evalCall(n *Node, env Env) (float64, error) {
 		return math.Abs(args[0]), nil
 	case "round":
 		return math.Round(args[0]), nil
+	case "floor":
+		return math.Floor(args[0]), nil
+	case "ceil":
+		return math.Ceil(args[0]), nil
 	case "min", "max":
 		m := args[0]
 		for _, a := range args[1:] {

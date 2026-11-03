@@ -74,7 +74,7 @@ func TestMemoryPrivacyJobsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
-		t.Skip("headless browser smoke test requires Chrome or Edge")
+		browserSmokeUnavailable(t, "headless browser smoke test requires Chrome or Edge")
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
@@ -97,7 +97,7 @@ func TestMemoryPrivacyJobsBrowser(t *testing.T) {
 	launch := launcher.New().Context(launchCtx).Bin(bin).Headless(true).NoSandbox(true).Leakless(false).Set("disable-gpu").Set("disable-dev-shm-usage")
 	controlURL, err := launch.Launch()
 	if err != nil {
-		t.Skipf("headless browser smoke test skipped; browser launch failed: %v", err)
+		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
 	}
 	browser := rod.New().ControlURL(controlURL)
 	if err := browser.Connect(); err != nil {

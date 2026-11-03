@@ -53,7 +53,7 @@
   "learnings.graph_enable": "Activar grafo de código nativo",
   "learnings.graph_help": "Desactivado por defecto. Indexa proyectos autorizados al usarlos por primera vez y los actualiza automáticamente. Código e índice permanecen en memoria.",
   "codeStudio.knowledge": "Aprendizajes",
-  "game_maker.knowledge": "Aprendizajes",
+  "game_maker.knowledge": "Conocimiento",
   "config.memory_analysis.learnings_enable": "Activar aprendizajes",
   "config.memory_analysis.learnings_help": "Desactivado por defecto. El análisis de conversación existente aprende de pruebas humanas verificadas. Requiere memoria editable; las conclusiones inciertas quedan como propuestas.",
   "config.memory_analysis.graph_enable": "Activar grafo de código nativo",

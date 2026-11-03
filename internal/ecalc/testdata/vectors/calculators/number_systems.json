@@ -1,0 +1,22 @@
+{
+  "calc": "number_systems",
+  "sets": [
+    {"values": {"dec": 255, "hex": 255, "bin": 255, "oct": 255}, "ref": "hand: 255 = 15 * 16 + 15 = 0xFF (eight one bits) = 3 * 64 + 7 * 8 + 7 = 0o377"},
+    {"values": {"dec": 1024, "hex": 1024, "bin": 1024, "oct": 1024}, "ref": "hand: 1024 = 2^10 = 0x400 (a single one bit at position 10) = 2 * 512 = 0o2000"},
+    {"values": {"dec": 0, "hex": 0, "bin": 0, "oct": 0}, "ref": "hand: zero is 0 in every number system (0x0, 0o0)"},
+    {"values": {"dec": 9007199254740991, "hex": 9007199254740991, "bin": 9007199254740991, "oct": 9007199254740991}, "ref": "hand: 2^53 - 1 = 9007199254740991 is 53 one bits = 0x1F_FFFF_FFFF_FFFF = 0o377777777777777777"}
+  ],
+  "solve": [
+    {"inputs": {"dec": 255}, "expect": {"dec": 255, "hex": 255, "bin": 255, "oct": 255}, "errors": {}, "warnings": [], "ref": "hand: 255 = 0xFF = 0o377 (eight one bits in binary), every field holds the same whole number"},
+    {"inputs": {"hex": 255}, "expect": {"dec": 255, "hex": 255, "bin": 255, "oct": 255}, "errors": {}, "warnings": [], "ref": "hand: 0xFF is 255 in decimal, binary and octal"},
+    {"inputs": {"bin": 255}, "expect": {"dec": 255, "hex": 255, "bin": 255, "oct": 255}, "errors": {}, "warnings": [], "ref": "hand: eight one bits are 255 in decimal, hexadecimal and octal"},
+    {"inputs": {"oct": 255}, "expect": {"dec": 255, "hex": 255, "bin": 255, "oct": 255}, "errors": {}, "warnings": [], "ref": "hand: 0o377 is 255 in decimal, hexadecimal and binary"},
+    {"inputs": {"dec": 1024}, "expect": {"dec": 1024, "hex": 1024, "bin": 1024, "oct": 1024}, "errors": {}, "warnings": [], "ref": "hand: 1024 = 0x400 = 0o2000 (2^10)"},
+    {"inputs": {"hex": 1024}, "expect": {"dec": 1024, "hex": 1024, "bin": 1024, "oct": 1024}, "errors": {}, "warnings": [], "ref": "hand: 0x400 is 1024"},
+    {"inputs": {"oct": 9007199254740991}, "expect": {"dec": 9007199254740991, "hex": 9007199254740991, "bin": 9007199254740991, "oct": 9007199254740991}, "errors": {}, "warnings": [], "ref": "hand: the largest whole number the engine keeps exact, 2^53 - 1, is accepted"},
+    {"inputs": {"dec": 1.5}, "errors": {"dec": "range", "hex": "range", "bin": "range", "oct": "range"}, "warnings": [], "ref": "hand: 1.5 is not a whole number, so every field of the same value is out of range"},
+    {"inputs": {"dec": -1}, "errors": {"dec": "range", "hex": "range", "bin": "range", "oct": "range"}, "warnings": [], "ref": "hand: a negative number is not an integer quantity (0 .. 2^53 - 1)"},
+    {"inputs": {"hex": 9007199254740992}, "errors": {"dec": "range", "hex": "range", "bin": "range", "oct": "range"}, "warnings": [], "ref": "hand: 2^53 = 9007199254740992 is above 2^53 - 1 and out of range"},
+    {"inputs": {}, "errors": {"dec": "undetermined", "hex": "undetermined", "bin": "undetermined", "oct": "undetermined"}, "ref": "hand: without a value nothing is known"}
+  ]
+}

@@ -156,6 +156,7 @@ func persistMCPSectionUpdateLocked(s *Server, mutate func(map[string]interface{}
 	}
 	newCfg.ConfigPath = configPath
 	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ResolveProviders()
 	newCfg.ApplyOAuthTokens(s.Vault)
 	s.CfgMu.Lock()
 	s.replaceConfigSnapshot(newCfg)
@@ -362,8 +363,8 @@ func handlePutMCPSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 			DeleteValue bool   `json:"delete_value"`
 		} `json:"secrets"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &payload, s); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 
@@ -465,8 +466,8 @@ func handleGetMCPPreferences(s *Server, w http.ResponseWriter, _ *http.Request) 
 
 func handlePutMCPPreferences(s *Server, w http.ResponseWriter, r *http.Request) {
 	var preferences config.MCPPreferredCapabilities
-	if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
-		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decodeJSONRequest(w, r, &preferences, s); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
 

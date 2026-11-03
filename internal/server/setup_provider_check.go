@@ -41,7 +41,13 @@ func checkSetupProvider(parent context.Context, s *Server, cfg *config.Config, p
 		stop := context.AfterFunc(s.integrationCtx, cancel)
 		defer stop()
 	}
-	req, client, err := llm.ProviderMetadataProbe(ctx, cfg, p)
+	var transport http.RoundTripper
+	if !strings.EqualFold(strings.TrimSpace(p.Type), "ollama") {
+		publicClient := security.NewSSRFProtectedHTTPClientSameOrigin(20 * time.Second)
+		defer publicClient.CloseIdleConnections()
+		transport = publicClient.Transport
+	}
+	req, client, err := llm.ProviderMetadataProbeWithTransport(ctx, cfg, p, transport)
 	if err != nil || req == nil || client == nil {
 		return setupProviderCheck{Code: "metadata_probe_unavailable"}
 	}

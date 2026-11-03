@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod/lib/proto"
+	"golang.org/x/image/webp"
 )
 
 // Review images of the Green Slime gel: 2x-8x crops of the window frame, drips, bubble stages, strand, drops
@@ -89,11 +90,11 @@ func slimeSheet(t *testing.T, sheet string, cols int, names ...string) {
 // slimeWallpaperCrop writes a magnified crop of the wallpaper image (image pixels) for side-by-side review.
 func slimeWallpaperCrop(t *testing.T, name string, x, y, w, h, factor int) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("img", "wallpapers", "themes", "green_slime.png"))
+	raw, err := os.ReadFile(filepath.Join("img", "wallpapers", "themes", "green_slime.webp"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	src, err := png.Decode(bytes.NewReader(raw))
+	src, err := webp.Decode(bytes.NewReader(raw))
 	if err != nil {
 		t.Fatal(err)
 	}

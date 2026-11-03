@@ -243,6 +243,7 @@ func PersistOutgoingWebhooks(configPath string, current *Config, incoming []Outg
 	}
 	loaded.ConfigPath = configPath
 	loaded.ApplyVaultSecrets(vault)
+	loaded.ResolveProviders()
 	loaded.ApplyOAuthTokens(vault)
 
 	kept := make(map[string]struct{}, len(prepared))

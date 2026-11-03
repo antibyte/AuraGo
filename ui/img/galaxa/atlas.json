@@ -3,467 +3,467 @@
   "artVersion": "arcade-2026-09-v1",
   "sheets": {
     "backgrounds": {
-      "file": "backgrounds.png",
+      "file": "backgrounds.webp",
       "width": 1190,
       "height": 1322
     },
     "boss-asteroid": {
-      "file": "boss-asteroid.png",
+      "file": "boss-asteroid.webp",
       "width": 1254,
       "height": 1254
     },
     "boss-blackhole": {
-      "file": "boss-blackhole.png",
+      "file": "boss-blackhole.webp",
       "width": 1254,
       "height": 1254
     },
     "boss-crystal": {
-      "file": "boss-crystal.png",
+      "file": "boss-crystal.webp",
       "width": 1254,
       "height": 1254
     },
     "boss-nebula": {
-      "file": "boss-nebula.png",
+      "file": "boss-nebula.webp",
       "width": 1254,
       "height": 1254
     },
     "boss-storm": {
-      "file": "boss-storm.png",
+      "file": "boss-storm.webp",
       "width": 1254,
       "height": 1254
     },
     "boss-void": {
-      "file": "boss-void.png",
+      "file": "boss-void.webp",
       "width": 1254,
       "height": 1254
     },
     "effects": {
-      "file": "effects.png",
+      "file": "effects.webp",
       "width": 1254,
       "height": 1254
     },
     "enemies-a": {
-      "file": "enemies-a.png",
+      "file": "enemies-a.webp",
       "width": 1254,
       "height": 1254
     },
     "enemies-b": {
-      "file": "enemies-b.png",
+      "file": "enemies-b.webp",
       "width": 1261,
       "height": 1247
     },
     "enemies-c": {
-      "file": "enemies-c.png",
+      "file": "enemies-c.webp",
       "width": 1254,
       "height": 1254
     },
     "enemies-d": {
-      "file": "enemies-d.png",
+      "file": "enemies-d.webp",
       "width": 1230,
       "height": 1278
     },
     "items": {
-      "file": "items.png",
+      "file": "items.webp",
       "width": 1254,
       "height": 1254
     },
     "player-classic": {
-      "file": "player-classic.png",
+      "file": "player-classic.webp",
       "width": 1774,
       "height": 887
     },
     "player-heavy": {
-      "file": "player-heavy.png",
+      "file": "player-heavy.webp",
       "width": 1774,
       "height": 887
     },
     "player-interceptor": {
-      "file": "player-interceptor.png",
+      "file": "player-interceptor.webp",
       "width": 1774,
       "height": 887
     },
     "player-stealth": {
-      "file": "player-stealth.png",
+      "file": "player-stealth.webp",
       "width": 1774,
       "height": 887
     },
     "exp-asteroid-crater-boulder": {
-      "file": "exp-asteroid-crater-boulder.png",
+      "file": "exp-asteroid-crater-boulder.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-basalt-monolith": {
-      "file": "exp-asteroid-basalt-monolith.png",
+      "file": "exp-asteroid-basalt-monolith.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-iron-meteor": {
-      "file": "exp-asteroid-iron-meteor.png",
+      "file": "exp-asteroid-iron-meteor.webp",
       "width": 1330,
       "height": 1182
     },
     "exp-asteroid-ore-geode": {
-      "file": "exp-asteroid-ore-geode.png",
+      "file": "exp-asteroid-ore-geode.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-ice-boulder": {
-      "file": "exp-asteroid-ice-boulder.png",
+      "file": "exp-asteroid-ice-boulder.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-frost-comet": {
-      "file": "exp-asteroid-frost-comet.png",
+      "file": "exp-asteroid-frost-comet.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-crystal-cluster": {
-      "file": "exp-asteroid-crystal-cluster.png",
+      "file": "exp-asteroid-crystal-cluster.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-prism-shard": {
-      "file": "exp-asteroid-prism-shard.png",
+      "file": "exp-asteroid-prism-shard.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-lava-boulder": {
-      "file": "exp-asteroid-lava-boulder.png",
+      "file": "exp-asteroid-lava-boulder.webp",
       "width": 1269,
       "height": 1240
     },
     "exp-asteroid-slag-core": {
-      "file": "exp-asteroid-slag-core.png",
+      "file": "exp-asteroid-slag-core.webp",
       "width": 1330,
       "height": 1182
     },
     "exp-asteroid-wreck-fragment": {
-      "file": "exp-asteroid-wreck-fragment.png",
+      "file": "exp-asteroid-wreck-fragment.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-asteroid-hollow-asteroid": {
-      "file": "exp-asteroid-hollow-asteroid.png",
+      "file": "exp-asteroid-hollow-asteroid.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-nebula-ray": {
-      "file": "exp-alien-nebula-ray.png",
+      "file": "exp-alien-nebula-ray.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-spore-hunter": {
-      "file": "exp-alien-spore-hunter.png",
+      "file": "exp-alien-spore-hunter.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-ore-cracker": {
-      "file": "exp-alien-ore-cracker.png",
+      "file": "exp-alien-ore-cracker.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-armor-crab": {
-      "file": "exp-alien-armor-crab.png",
+      "file": "exp-alien-armor-crab.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-prism-falcon": {
-      "file": "exp-alien-prism-falcon.png",
+      "file": "exp-alien-prism-falcon.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-splinter-polyp": {
-      "file": "exp-alien-splinter-polyp.png",
+      "file": "exp-alien-splinter-polyp.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-lightning-jelly": {
-      "file": "exp-alien-lightning-jelly.png",
+      "file": "exp-alien-lightning-jelly.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-storm-wasp": {
-      "file": "exp-alien-storm-wasp.png",
+      "file": "exp-alien-storm-wasp.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-gravity-spider": {
-      "file": "exp-alien-gravity-spider.png",
+      "file": "exp-alien-gravity-spider.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-phase-isopod": {
-      "file": "exp-alien-phase-isopod.png",
+      "file": "exp-alien-phase-isopod.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-void-runner": {
-      "file": "exp-alien-void-runner.png",
+      "file": "exp-alien-void-runner.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-alien-swarm-carrier": {
-      "file": "exp-alien-swarm-carrier.png",
+      "file": "exp-alien-swarm-carrier.webp",
       "width": 1254,
       "height": 1254
     },
     "exp-weapon-proximity-mine": {
-      "file": "exp-weapon-proximity-mine.png",
+      "file": "exp-weapon-proximity-mine.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-weapon-emp-mine": {
-      "file": "exp-weapon-emp-mine.png",
+      "file": "exp-weapon-emp-mine.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-weapon-cluster-mine": {
-      "file": "exp-weapon-cluster-mine.png",
+      "file": "exp-weapon-cluster-mine.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-weapon-seeker-rocket": {
-      "file": "exp-weapon-seeker-rocket.png",
+      "file": "exp-weapon-seeker-rocket.webp",
       "width": 1774,
       "height": 887
     },
     "exp-weapon-swarm-rocket": {
-      "file": "exp-weapon-swarm-rocket.png",
+      "file": "exp-weapon-swarm-rocket.webp",
       "width": 1774,
       "height": 887
     },
     "exp-weapon-seeker-torpedo": {
-      "file": "exp-weapon-seeker-torpedo.png",
+      "file": "exp-weapon-seeker-torpedo.webp",
       "width": 1774,
       "height": 887
     },
     "exp-planet-ocean-a": {
-      "file": "exp-planet-ocean-a.png",
+      "file": "exp-planet-ocean-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ocean-b": {
-      "file": "exp-planet-ocean-b.png",
+      "file": "exp-planet-ocean-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ocean-c": {
-      "file": "exp-planet-ocean-c.png",
+      "file": "exp-planet-ocean-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-terran-a": {
-      "file": "exp-planet-terran-a.png",
+      "file": "exp-planet-terran-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-terran-b": {
-      "file": "exp-planet-terran-b.png",
+      "file": "exp-planet-terran-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-terran-c": {
-      "file": "exp-planet-terran-c.png",
+      "file": "exp-planet-terran-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-desert-a": {
-      "file": "exp-planet-desert-a.png",
+      "file": "exp-planet-desert-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-desert-b": {
-      "file": "exp-planet-desert-b.png",
+      "file": "exp-planet-desert-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-desert-c": {
-      "file": "exp-planet-desert-c.png",
+      "file": "exp-planet-desert-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crater-a": {
-      "file": "exp-planet-crater-a.png",
+      "file": "exp-planet-crater-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crater-b": {
-      "file": "exp-planet-crater-b.png",
+      "file": "exp-planet-crater-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crater-c": {
-      "file": "exp-planet-crater-c.png",
+      "file": "exp-planet-crater-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ice-a": {
-      "file": "exp-planet-ice-a.png",
+      "file": "exp-planet-ice-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ice-b": {
-      "file": "exp-planet-ice-b.png",
+      "file": "exp-planet-ice-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ice-c": {
-      "file": "exp-planet-ice-c.png",
+      "file": "exp-planet-ice-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crystal-a": {
-      "file": "exp-planet-crystal-a.png",
+      "file": "exp-planet-crystal-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crystal-b": {
-      "file": "exp-planet-crystal-b.png",
+      "file": "exp-planet-crystal-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-crystal-c": {
-      "file": "exp-planet-crystal-c.png",
+      "file": "exp-planet-crystal-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-storm-gas-a": {
-      "file": "exp-planet-storm-gas-a.png",
+      "file": "exp-planet-storm-gas-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-storm-gas-b": {
-      "file": "exp-planet-storm-gas-b.png",
+      "file": "exp-planet-storm-gas-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-storm-gas-c": {
-      "file": "exp-planet-storm-gas-c.png",
+      "file": "exp-planet-storm-gas-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ringed-a": {
-      "file": "exp-planet-ringed-a.png",
+      "file": "exp-planet-ringed-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ringed-b": {
-      "file": "exp-planet-ringed-b.png",
+      "file": "exp-planet-ringed-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-ringed-c": {
-      "file": "exp-planet-ringed-c.png",
+      "file": "exp-planet-ringed-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-lava-a": {
-      "file": "exp-planet-lava-a.png",
+      "file": "exp-planet-lava-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-lava-b": {
-      "file": "exp-planet-lava-b.png",
+      "file": "exp-planet-lava-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-lava-c": {
-      "file": "exp-planet-lava-c.png",
+      "file": "exp-planet-lava-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-night-a": {
-      "file": "exp-planet-night-a.png",
+      "file": "exp-planet-night-a.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-night-b": {
-      "file": "exp-planet-night-b.png",
+      "file": "exp-planet-night-b.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-planet-night-c": {
-      "file": "exp-planet-night-c.png",
+      "file": "exp-planet-night-c.webp",
       "width": 1254,
       "height": 1254,
       "optional": "planet"
     },
     "exp-effect-rock-shatter": {
-      "file": "exp-effect-rock-shatter.png",
+      "file": "exp-effect-rock-shatter.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-metal-sparks": {
-      "file": "exp-effect-metal-sparks.png",
+      "file": "exp-effect-metal-sparks.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-ice-shatter": {
-      "file": "exp-effect-ice-shatter.png",
+      "file": "exp-effect-ice-shatter.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-crystal-shatter": {
-      "file": "exp-effect-crystal-shatter.png",
+      "file": "exp-effect-crystal-shatter.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-lava-ejecta": {
-      "file": "exp-effect-lava-ejecta.png",
+      "file": "exp-effect-lava-ejecta.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-alien-plasma": {
-      "file": "exp-effect-alien-plasma.png",
+      "file": "exp-effect-alien-plasma.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-target-lock": {
-      "file": "exp-effect-target-lock.png",
+      "file": "exp-effect-target-lock.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-rocket-exhaust": {
-      "file": "exp-effect-rocket-exhaust.png",
+      "file": "exp-effect-rocket-exhaust.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-emp-wave": {
-      "file": "exp-effect-emp-wave.png",
+      "file": "exp-effect-emp-wave.webp",
       "width": 1448,
       "height": 1086
     },
     "exp-effect-torpedo-shock": {
-      "file": "exp-effect-torpedo-shock.png",
+      "file": "exp-effect-torpedo-shock.webp",
       "width": 1448,
       "height": 1086
     }

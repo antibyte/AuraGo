@@ -17,8 +17,8 @@
     const MAX_ZONE_NAME = 48;
     const MAX_INSTRUCTION = 500;
     const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    const CHANNELS = ['all', 'telegram', 'discord', 'ntfy', 'pushover', 'push', 'telnyx', 'cyd'];
-    const CHANNEL_NAMES = Object.freeze({ telegram: 'Telegram', discord: 'Discord', ntfy: 'ntfy', pushover: 'Pushover', telnyx: 'Telnyx', cyd: 'CYD' });
+    const CHANNELS = ['all', 'telegram', 'whatsapp', 'discord', 'ntfy', 'pushover', 'push', 'telnyx', 'cyd'];
+    const CHANNEL_NAMES = Object.freeze({ telegram: 'Telegram', whatsapp: 'WhatsApp', discord: 'Discord', ntfy: 'ntfy', pushover: 'Pushover', telnyx: 'Telnyx', cyd: 'CYD' });
     const ACTIONS = ['message', 'agent', 'desktop', 'mission'];
     const ACTION_GLYPHS = Object.freeze({ message: '✉', agent: '✦', desktop: '▣', mission: '⚑' });
     const ALERT_STATES = ['sent', 'failed', 'skipped'];

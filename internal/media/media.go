@@ -2,19 +2,24 @@ package media
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // SaveAttachment downloads a URL and saves it persistently to destDir with a
@@ -88,18 +93,7 @@ func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir s
 		return "", err
 	}
 
-	// Sanitize filename
-	base := filepath.Base(originalFilename)
-	base = strings.ReplaceAll(base, " ", "_")
-	// Strip any path traversal attempts
-	base = strings.ReplaceAll(base, "..", "")
-	if base == "" || base == "." {
-		base = "file.bin"
-	}
-
-	ts := time.Now().Format("20060102_150405")
-	filename := ts + "_" + base
-	destPath := filepath.Join(destDir, filename)
+	destPath := filepath.Join(destDir, attachmentFileName(originalFilename, time.Now()))
 
 	dst, err := os.Create(destPath)
 	if err != nil {
@@ -121,6 +115,133 @@ func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir s
 	}
 
 	return destPath, nil
+}
+
+// attachmentFileName is the stored name of an attachment: timestamp, underscore and the base
+// name with spaces as underscores and ".." removed; "file.bin" when nothing is left.
+func attachmentFileName(original string, now time.Time) string {
+	base := filepath.Base(original)
+	base = strings.ReplaceAll(base, " ", "_")
+	// Strip any path traversal attempts
+	base = strings.ReplaceAll(base, "..", "")
+	if base == "" || base == "." {
+		base = "file.bin"
+	}
+	return now.Format("20060102_150405") + "_" + base
+}
+
+// SaveAttachmentReaderContext stores r under destDir with attachmentFileName, like
+// SaveAttachmentContext does for a URL, with the same 100 MB limit. It never overwrites: an
+// existing name gets "_1" … "_9" before the extension (O_EXCL), then fails.
+func SaveAttachmentReaderContext(ctx context.Context, r io.Reader, originalFilename, destDir string) (string, error) {
+	return saveAttachmentReader(ctx, r, originalFilename, destDir, time.Now())
+}
+
+func saveAttachmentReader(ctx context.Context, r io.Reader, originalFilename, destDir string, now time.Time) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create attachments dir: %w", err)
+	}
+	// The name comes from a remote party: reduce it to one safe base name before the shared
+	// naming policy runs (which stays as it is for URL downloads).
+	dst, destPath, err := createExclusive(destDir, attachmentFileName(SanitizeFileName(originalFilename), now))
+	if err != nil {
+		return "", err
+	}
+	copyErr := copyWithSizeLimit(dst, &contextReader{ctx: ctx, r: r}, maxAttachmentSize, "attachment")
+	closeErr := dst.Close()
+	if copyErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to write attachment: %w", copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to close attachment: %w", closeErr)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(destPath)
+		return "", err
+	}
+	return destPath, nil
+}
+
+const (
+	maxSanitizedNameBytes = 100 // the base name, extension included
+	maxSanitizedExtBytes  = 16  // a longer "extension" is just part of the name
+)
+
+// SanitizeFileName reduces a file name chosen by a remote party to one base name that is safe
+// on every file system AuraGo runs on, or "" when nothing usable is left:
+//   - only the part after the last "/" or "\" stays;
+//   - the characters < > : " / \ | ? * (":" starts an NTFS alternate data stream), all control
+//     characters (Cc) and all format characters (Cf, such as U+202E) become "_";
+//   - leading and trailing white space and trailing dots are removed (Windows drops them);
+//   - the name is cut to about 100 bytes on a rune boundary, keeping a short extension.
+func SanitizeFileName(name string) string {
+	name = strings.ToValidUTF8(name, "_")
+	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
+		name = name[i+1:]
+	}
+	name = strings.Map(func(r rune) rune {
+		if strings.ContainsRune(`<>:"/\|?*`, r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return '_'
+		}
+		return r
+	}, name)
+	name = strings.TrimRight(strings.TrimSpace(name), ". ")
+	if len(name) <= maxSanitizedNameBytes {
+		return name
+	}
+	ext := filepath.Ext(name)
+	if len(ext) > maxSanitizedExtBytes || ext == name {
+		ext = ""
+	}
+	stem := name[:len(name)-len(ext)]
+	cut := maxSanitizedNameBytes - len(ext)
+	for cut > 0 && !utf8.RuneStart(stem[cut]) {
+		cut--
+	}
+	return strings.TrimRight(stem[:cut], ". ") + ext
+}
+
+// createExclusive creates name in dir with O_EXCL. A taken name gets "_1" … "_9" before the
+// extension; the tenth collision is an error.
+func createExclusive(dir, name string) (*os.File, string, error) {
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	for i := 0; i <= 9; i++ {
+		candidate := name
+		if i > 0 {
+			candidate = stem + "_" + strconv.Itoa(i) + ext
+		}
+		path := filepath.Join(dir, candidate)
+		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err == nil {
+			return f, path, nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return nil, "", fmt.Errorf("failed to create destination file: %w", err)
+		}
+	}
+	return nil, "", errors.New("failed to create destination file: the name is taken")
+}
+
+// contextReader stops a copy from a local reader when ctx ends.
+type contextReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c *contextReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
 }
 
 // DownloadFile downloads a URL to a temporary file and returns the path.

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const write = process.argv.includes('--write');
 const root = new URL('../', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'));
 const atlas = read('ui/img/galaxa/atlas.json'), provenance = read('ui/img/galaxa/provenance.json');
-provenance.production = 'Original image_gen PNG outputs, unchanged pixels. Alpha-derived frame rectangles and source anchors live in atlas.json. Gameplay uses nearest-neighbor sprite crops; optional planet sheets draw directly with smoothed scaling and frame blending.';
+provenance.production = 'WebP quality 95 of the original image_gen sheets. Frame rectangles and source anchors were measured on the PNG pixels and live in atlas.json. Gameplay uses nearest-neighbor sprite crops; optional planet sheets draw directly with smoothed scaling and frame blending.';
 const motifs = read('assets/galaxa-expansion/catalog.json').motifs;
 assert.equal(motifs.length, 50); assert.equal(new Set(motifs.map(m => m.kind + '.' + m.id)).size, 50);
 const metadata = JSON.parse(execFileSync('go', ['run', './scripts/galaxa-atlas-metadata.go'], { cwd: new URL('.', root), maxBuffer: 8 * 1024 * 1024, encoding: 'utf8' }));
@@ -18,7 +18,7 @@ for (const [motifIndex, m] of motifs.entries()) {
     const ids = m.kind === 'planet' ? ['a', 'b', 'c'].map(part => `exp-${m.kind}-${m.id}-${part}`) : [`exp-${m.kind}-${m.id}`];
     const frames = [], anchors = [], sheets = []; let sourceSize = 0;
     for (const id of ids) {
-        const file = id + '.png', meta = metadata[file]; assert.ok(meta, 'Missing source: ' + file);
+        const file = id + '.webp', meta = metadata[file]; assert.ok(meta, 'Missing source: ' + file);
         const source = read(`assets/galaxa-expansion/sources/${id.slice(4)}.json`);
         const bytes = readFileSync(new URL('ui/img/galaxa/' + file, root));
         atlas.sheets[id] = { file, width: meta.width, height: meta.height, ...(m.kind === 'planet' ? { optional: 'planet' } : {}) };

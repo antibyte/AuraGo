@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"aurago/internal/tools"
 )
 
-func dispatchPackageManager(tc ToolCall, dc *DispatchContext) string {
+func dispatchPackageManager(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
 	vault := dc.Vault
 	if cfg == nil {
@@ -49,6 +50,9 @@ func dispatchPackageManager(tc ToolCall, dc *DispatchContext) string {
 	var sudoPassword string
 	useSudo := tools.PackageManagerRequiresSudo(manager, operation)
 	if useSudo {
+		if !cfg.Agent.AllowShell {
+			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "Linux package mutations require agent.allow_shell=true"})
+		}
 		if !cfg.Agent.SudoEnabled {
 			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "Linux package mutations require agent.sudo_enabled=true and sudo_password in the vault"})
 		}
@@ -77,16 +81,16 @@ func dispatchPackageManager(tc ToolCall, dc *DispatchContext) string {
 
 	switch operation {
 	case "install":
-		stdout, stderr, err := tools.PackageManagerInstall(manager, pkg, useSudo, sudoPassword)
+		stdout, stderr, err := tools.PackageManagerInstall(ctx, manager, pkg, useSudo, sudoPassword)
 		return packageManagerExecutionResult(operation, manager, pkg, stdout, stderr, err)
 	case "remove":
-		stdout, stderr, err := tools.PackageManagerRemove(manager, pkg, useSudo, sudoPassword)
+		stdout, stderr, err := tools.PackageManagerRemove(ctx, manager, pkg, useSudo, sudoPassword)
 		return packageManagerExecutionResult(operation, manager, pkg, stdout, stderr, err)
 	case "update":
-		stdout, stderr, err := tools.PackageManagerUpdate(manager, useSudo, sudoPassword)
+		stdout, stderr, err := tools.PackageManagerUpdate(ctx, manager, useSudo, sudoPassword)
 		return packageManagerExecutionResult(operation, manager, pkg, stdout, stderr, err)
 	case "upgrade":
-		stdout, stderr, err := tools.PackageManagerUpgrade(manager, pkg, useSudo, sudoPassword)
+		stdout, stderr, err := tools.PackageManagerUpgrade(ctx, manager, pkg, useSudo, sudoPassword)
 		return packageManagerExecutionResult(operation, manager, pkg, stdout, stderr, err)
 	case "search":
 		out, err := tools.PackageManagerSearch(manager, pkg)

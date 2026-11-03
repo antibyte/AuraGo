@@ -372,7 +372,8 @@ func TestStartupSweepClearsLeftoverPublicationMarkersOnReopen(t *testing.T) {
 	if err := stm.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// Reopen a current-schema database: the sweep must run on this path.
+	// Simulate a new process; a second handle in the same process must not sweep.
+	memorySnapshotCoordinators.Delete(snapshotPathKey(path))
 	stm, err = NewSQLiteMemory(path, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)

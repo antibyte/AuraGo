@@ -12,6 +12,7 @@ var (
 		{reason: "direct recursive delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(del|erase|rmdir|rd)\b[^\r\n;|&]*\s(/s|/q)\b`)},
 		{reason: "direct recursive delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*remove-item\b[^\r\n;|&]*-(recurse|force)\b`)},
 		{reason: "direct destructive find/delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*find\b[^\r\n;|&]*-delete\b`)},
+		{reason: "find command that executes another program", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*find\b[^\r\n;|&]*\s-(exec|execdir|ok|okdir)\b`)},
 		{reason: "disk formatting or partitioning command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(format|mkfs(\.[a-z0-9_+-]+)?|fdisk|sfdisk|parted|diskpart)\b`)},
 		{reason: "raw disk write command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*dd\b[^\r\n;|&]*\bof=(/dev/|\\\\\.\\physicaldrive)`)},
 		{reason: "secure wipe command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*shred\b`)},
@@ -43,7 +44,13 @@ type pattern struct {
 
 // ValidateCommand rejects shell commands that fall into high-risk classes.
 func ValidateCommand(command string) error {
-	if reason := BlockedReason(command); reason != "" {
+	return ValidateCommandWithEscape(command, '\\')
+}
+
+// ValidateCommandWithEscape uses the executing shell's escape character:
+// backslash for POSIX, backtick for PowerShell and caret for Windows cmd.
+func ValidateCommandWithEscape(command string, escape byte) error {
+	if reason := blockedReasonWithEscape(command, escape); reason != "" {
 		return fmt.Errorf("command blocked: %s", reason)
 	}
 	return nil
@@ -51,11 +58,26 @@ func ValidateCommand(command string) error {
 
 // BlockedReason returns the first policy reason for a blocked command.
 func BlockedReason(command string) string {
+	return blockedReasonWithEscape(command, '\\')
+}
+
+func blockedReasonWithEscape(command string, escape byte) string {
 	normalized := strings.TrimSpace(command)
 	if normalized == "" {
 		return "empty shell command"
 	}
 
+	if reason := blockedReason(normalized); reason != "" {
+		return reason
+	}
+	view, splitString := normalizeCommandHeads(normalized, escape)
+	if splitString {
+		return "interpreter command chain that can bypass shell policy"
+	}
+	return blockedReason(view)
+}
+
+func blockedReason(normalized string) string {
 	if reason := match(normalized, privilegeEscalationPatterns); reason != "" {
 		return reason
 	}

@@ -14,7 +14,7 @@ Nine thematic groups, one section per integration:
 
 | Group | Integrations |
 |-------|--------------|
-| [Messaging & Telephony](#messaging--telephony) | [Telegram](#telegram-bot-setup), [Discord](#discord-bot-setup), [Email](#email-configuration), [AgentMail](#agentmail-integration), [Rocket.Chat](#rocketchat-integration), [Telnyx](#telnyx-integration), [SIP telephony](#native-sip-telephony), [Realtime Speech](#realtime-speech), [TTS/Whisper](#tts--whisper-integration), [Speech Lab](#speech-lab-integration), [Notifications](#notifications-integration), [Web Push/PWA](#web-push--pwa-notifications), [MeshCore](#meshcore-radio) |
+| [Messaging & Telephony](#messaging--telephony) | [Telegram](#telegram-bot-setup), [WhatsApp](#whatsapp-setup), [Discord](#discord-bot-setup), [Email](#email-configuration), [AgentMail](#agentmail-integration), [Rocket.Chat](#rocketchat-integration), [Telnyx](#telnyx-integration), [SIP telephony](#native-sip-telephony), [Realtime Speech](#realtime-speech), [TTS/Whisper](#tts--whisper-integration), [Speech Lab](#speech-lab-integration), [Notifications](#notifications-integration), [Web Push/PWA](#web-push--pwa-notifications), [MeshCore](#meshcore-radio) |
 | [Smart Home, IoT & Cameras](#smart-home-iot--cameras) | [Home Assistant](#home-assistant-integration), [MQTT](#mqtt-integration), [Fritz!Box](#fritzbox-integration), [AdGuard](#adguard-home-integration), [Bluetooth](#bluetooth-integration), [Chromecast](#chromecast-integration), [Frigate](#frigate-integration), [go2rtc](#go2rtc-camera-integration), [3D printer](#3d-printer-integration), [CYD](#cheap-yellow-display) |
 | [Infrastructure, Storage & Networking](#infrastructure-storage--networking) | [Docker](#docker-integration), [Package Manager](#package-manager-integration), [Proxmox](#proxmox-integration), [Ansible](#ansible-integration), [TrueNAS](#truenas-integration), [MeshCentral](#meshcentral-integration), [Tailscale](#tailscale-integration), [Cloudflare Tunnel](#cloudflare-tunnel-integration), [S3 storage](#s3-storage-integration), [OneDrive](#onedrive-integration), [WebDAV/Koofr](#webdavkoofr-setup), [SMB/NFS](#local-smb-and-nfs-shares), [LDAP](#ldap--active-directory-integration), [Homepage](#homepage-integration), [Grafana](#grafana-integration), [Uptime Kuma](#uptime-kuma-integration), [Netlify](#netlify-integration), [Vercel](#vercel-integration) |
 | [AI Models & Generation](#ai-models--generation) | [Ollama](#ollama-integration), [HuggingFace](#huggingface-platform-integration), [AI Gateway](#ai-gateway-integration), [Fallback LLM](#fallback-llm-integration), [LLM Guardian](#llm-guardian-integration), [YepAPI](#yepapi-integration), [Image generation](#image-generation-integration), [Video generation](#video-generation-integration), [Music generation](#music-generation-integration), [MCP](#mcp-model-context-protocol), [Composio](#composio-integration), [A2A](#a2a-protocol-integration), [Manus](#manus-integration), [OmniRoute](#omniroute-integration) |
@@ -88,6 +88,37 @@ telegram:
     bot_token: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
     telegram_user_id: 123456789
 ```
+
+### WhatsApp Setup
+
+AuraGo can talk to you on WhatsApp. It joins your account as a linked device and answers only your owner numbers. The full guide, with the status table and troubleshooting, is in the [WhatsApp setup guide](../../whatsapp_setup.md).
+
+#### Web UI Setup
+1. Open **Config → Communication → WhatsApp**.
+2. Turn on **Enable WhatsApp**, choose the **Number** mode (**Dedicated AuraGo number** is recommended) and enter your **Owner numbers** in international format, such as `+491701234567`. Save.
+3. Under **Linked device**, press **Link via QR code** and scan the code on the phone (Settings → Linked devices → Link a device), or press **Link via phone number** and enter the code that AuraGo shows.
+4. When the status shows `healthy`, press **Send test message**.
+
+> [!WARNING]
+> - Open WhatsApp on the linked phone at least every 14 days, or WhatsApp removes the linked devices.
+> - An account can have up to 4 linked devices.
+> - Use a dedicated number for AuraGo. WhatsApp's terms forbid automated messaging, and accounts can be banned.
+> - Never bulk-send or script mass messages through the linked device.
+
+#### YAML Reference
+```yaml
+whatsapp:
+    enabled: false
+    # dedicated: AuraGo has its own number and the owner writes to it.
+    # self_chat: your personal number; only the "Message yourself" chat reaches AuraGo.
+    mode: dedicated
+    owner_numbers: ["+491701234567"]  # international format, e.g. "+491701234567"; required in dedicated mode
+    readonly: false                    # true blocks send_whatsapp and notifications; replies to the owner still work
+    send_read_receipts: true           # dedicated mode only
+    self_chat_prefix: "🤖 "            # marks AuraGo's messages in self_chat mode
+```
+
+Turn `enabled` on before you link, because the template ships with `false`. In `self_chat` mode the owner numbers are not used. The guide explains the self-chat prefix, read-only mode and the status states.
 
 ### Discord Bot Setup
 
@@ -2373,7 +2404,7 @@ Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CP
 **Web UI:** Config → Integrations → Shell Sandbox → Enable and configure limits.
 
 > [!TIP]
-> Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the Linux/macOS host shell without an effective sandbox also requires `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Updates via `update.sh` and Docker write `agent.allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise); configurations that never had the key written keep working and show the `shell_unsafe_host_legacy` hint. Inside Docker no shell sandbox exists, so a fresh Docker install that enables the shell must set `agent.allow_unsandboxed_shell: true` (or `allow_unsafe_host_execution: true`).
+> The optional Landlock layer is Linux-only and `shell_sandbox.enabled` defaults to `false`. The standard execution supervisor remains fail-closed. Linux/macOS host-shell execution without isolation requires explicit `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`, including inside Docker. Missing or null `allow_unsandboxed_shell` stays false on loading and upgrades; explicit values, including true written by an older upgrader, remain unchanged. Review those grants before enabling host execution. The former implicit host-shell exemption and its `shell_unsafe_host_legacy` hint have been removed.
 
 Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses. `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) are only passed to shell commands and host Python while the Docker tool is enabled (`docker.enabled`). Skills (Python skills, daemon skills and Agent Skill scripts) still receive `DOCKER_HOST`: installed skills are treated as trusted, and the Docker manager skill template depends on it.
 

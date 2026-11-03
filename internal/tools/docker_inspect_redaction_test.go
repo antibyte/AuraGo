@@ -145,7 +145,7 @@ func TestDockerInspectRequiresDockerPermission(t *testing.T) {
 
 // Credential words glued to a prefix (WEBPASSWORD, PGPASSWORD, TS_AUTHKEY) are
 // masked, and a credential flag inside an ordinary env value
-// (REDIS_ARGS=--requirepass x) loses its value; harmless values stay intact.
+// (REDIS_ARGS=--requirepass x) masks that entire env value; harmless values stay intact.
 func TestDockerInspectRedactsGluedCredentialWordsAndEnvFlagValues(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, true)
 	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
@@ -169,8 +169,8 @@ func TestDockerInspectRedactsGluedCredentialWordsAndEnvFlagValues(t *testing.T) 
 			t.Fatalf("docker inspect did not mask %q: %s", masked, out)
 		}
 	}
-	for _, kept := range []string{`"REDIS_ARGS=--requirepass ` + dockerInspectRedacted + ` --port 6379"`,
-		`"VALKEY_EXTRA_FLAGS=--masterauth=` + dockerInspectRedacted + `"`,
+	for _, kept := range []string{`"REDIS_ARGS=` + dockerInspectRedacted + `"`,
+		`"VALKEY_EXTRA_FLAGS=` + dockerInspectRedacted + `"`,
 		`"EXTRA_FLAGS=--verbose --log-level info"`, `"PASSPORT_OFFICE=kept-value"`, `"PATH=/usr/bin"`, `"PWD=/app"`} {
 		if !strings.Contains(out, kept) {
 			t.Fatalf("docker inspect output lacks %s: %s", kept, out)
@@ -180,8 +180,7 @@ func TestDockerInspectRedactsGluedCredentialWordsAndEnvFlagValues(t *testing.T) 
 
 // The whole value of an ordinary env key still goes through the scrubber, so
 // its patterns that span whitespace (a bearer header, key = value,
-// key: value) keep masking; the command-line pass then also masks the
-// argument of a credential flag.
+// key: value) keep masking; a credential flag masks the entire env value.
 func TestDockerInspectEnvValuesKeepWhitespaceSpanningScrubbing(t *testing.T) {
 	encoded, _ := json.Marshal(redactDockerInspectEnv([]interface{}{
 		"CURL_ARGS=-H Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",
@@ -201,8 +200,8 @@ func TestDockerInspectEnvValuesKeepWhitespaceSpanningScrubbing(t *testing.T) {
 			t.Fatalf("env output lost the key %s: %s", key, out)
 		}
 	}
-	if !strings.Contains(out, `"VALKEY_ARGS=--requirepass `+dockerInspectRedacted+`"`) {
-		t.Fatalf("credential flag argument not masked: %s", out)
+	if !strings.Contains(out, `"VALKEY_ARGS=`+dockerInspectRedacted+`"`) {
+		t.Fatalf("credential-bearing env value not masked: %s", out)
 	}
 	// A value with nothing to mask keeps its original spacing.
 	if !strings.Contains(out, `"JAVA_OPTS=-Xmx1g  -Dlog.level=info"`) {

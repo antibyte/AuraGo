@@ -872,5 +872,8 @@
   "findit.retry_exact_command": "Repetir pedido exato",
   "findit.pending_command_queue_full": "Há demasiadas alterações de stock ou reservas por resolver neste separador. Resolve um pedido pendente antes de fazer outra alteração.",
   "findit.pending_command_storage_unavailable": "Este separador não conseguiu guardar o pedido pendente, por isso a alteração não foi enviada. Ativa o armazenamento de sessão e tenta novamente.",
-  "findit.pending_command": "Resolver alteração pendente"
+  "findit.pending_command": "Resolver alteração pendente",
+  "findit.invalid_number": "Introduza um número válido.",
+  "findit.invalid_url": "Introduza um endereço web válido.",
+  "findit.required_field": "Este campo é obrigatório."
 }

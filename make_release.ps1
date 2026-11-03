@@ -103,6 +103,10 @@ $hostGoArch = (go env GOHOSTARCH).Trim()
 $env:GOOS = $hostGoOS
 $env:GOARCH = $hostGoArch
 
+# A GPL-3.0-incompatible module linked into the binary blocks the release (licences/AGENTS.md).
+go test ./internal/audit -run 'TestLinkedGoModulesHaveGPL3CompatibleLicenses' -count=1
+if ($LASTEXITCODE -ne 0) { throw 'A module linked into cmd/aurago, cmd/remote or cmd/config-merger has no reviewed GPL-3.0-compatible licence; nothing was built.' }
+
 if (Test-Path "deploy") {
     Get-ChildItem -LiteralPath 'deploy' -Force |
         Where-Object { $_.Name -notin @('docker', 'phonon') } |
@@ -191,6 +195,12 @@ $configContent = $configContent -replace 'bot_token: "[^"]*"', 'bot_token: ""'
 $configContent = $configContent -replace 'access_token: "[^"]*"', 'access_token: ""'
 Set-Content -Path (Join-Path $tmpStage "config.yaml") -Value $configContent
 
+# GPL-3.0 combined work: the licence texts and notices travel with every binary.
+Copy-Item -LiteralPath 'LICENSE', 'THIRD_PARTY_NOTICES.md' -Destination $tmpStage -Force
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $tmpStage 'licences')
+Copy-Item -LiteralPath 'licences\texts' -Destination (Join-Path $tmpStage 'licences') -Recurse -Force
+Copy-Item -LiteralPath 'licences\linked-go-modules.tsv' -Destination (Join-Path $tmpStage 'licences') -Force
+
 # Create tar.gz
 node scripts/build-ui-bundles.js
 if ($LASTEXITCODE -ne 0) { throw 'UI bundle generation failed.' }
@@ -215,6 +225,10 @@ if ($LASTEXITCODE -ne 0) {
 tar -tzf $resourcesOut | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "deploy\resources.dat is not a readable tar.gz archive"
+}
+$resourceEntries = @(tar -tzf $resourcesOut)
+foreach ($notice in @('./LICENSE', './THIRD_PARTY_NOTICES.md', './licences/texts/GPL-3.0-only.txt', './licences/linked-go-modules.tsv')) {
+    if ($resourceEntries -notcontains $notice) { throw "resources.dat lacks $notice; nothing was published." }
 }
 Write-Host "    -> deploy\resources.dat" -ForegroundColor Green
 
@@ -465,6 +479,13 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 - Linux amd64 / arm64 (main, config-merger, aurago-remote)
 - macOS amd64 / arm64 (Apple Silicon)
 - Windows x64 / arm64
+
+### License and source
+
+AuraGo's source code is MIT licensed. The binaries of this release link GPL-3.0 code, `go.mau.fi/libsignal` through `go.mau.fi/whatsmeow` and the GPL-3.0 scanners of `github.com/odvcencio/gotreesitter`, so they are distributed as GPL-3.0 combined works.
+
+- Corresponding source: tag [{VERSION}](https://github.com/antibyte/AuraGo/tree/{VERSION}) ([tar.gz](https://github.com/antibyte/AuraGo/archive/refs/tags/{VERSION}.tar.gz)), with the module versions pinned in `go.mod` and `go.sum`.
+- License texts and notices: `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licences/` in `resources.dat` and in the Docker image under `/app`, and [online at the tag](https://github.com/antibyte/AuraGo/blob/{VERSION}/THIRD_PARTY_NOTICES.md).
 '@
 $notes = $notes -replace '\{VERSION\}', $Version
 
@@ -497,7 +518,8 @@ if ($env:AURAGO_KEEP_RELEASES -eq '1') {
     $toDelete = $releases | Where-Object { $_.tagName -match '^v[0-9]' } | Select-Object -Skip 3
     foreach ($rel in $toDelete) {
         Write-Host "    Deleting old release: $($rel.tagName)" -ForegroundColor Gray
-        gh release delete $rel.tagName --yes --cleanup-tag 2>$null
+        # Keep the tag: every GPL-3.0 release links it as its corresponding source.
+        gh release delete $rel.tagName --yes 2>$null
     }
 } catch {
     Write-Host "    Could not cleanup old releases (non-fatal)" -ForegroundColor Gray

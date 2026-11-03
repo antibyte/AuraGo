@@ -663,6 +663,9 @@ func sendDiscordNotice(s *discordgo.Session, channelID, text string, logger *slo
 	}
 }
 
+// Replaceable so ingress tests can supply attachment text without ASR or FFmpeg.
+var discordAttachmentProcessor = processDiscordAttachmentContext
+
 func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	botUserID := discordBotUserID(s)
 	decision := shouldHandleDiscordMessage(botUserID, m, cfg)
@@ -698,6 +701,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		inputText = strings.ReplaceAll(inputText, "<@!"+botUserID+">", "")
 		inputText = strings.TrimSpace(inputText)
 	}
+	commandText := inputText
 
 	// ── Voice & Image Attachments ───────────────────────────────────────
 	// Discord sends voice messages and images as attachments on the message.
@@ -705,7 +709,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		if ctx.Err() != nil {
 			return
 		}
-		inputText = processDiscordAttachmentContext(ctx, att, inputText, cfg, logger)
+		inputText = discordAttachmentProcessor(ctx, att, inputText, cfg, logger)
 	}
 
 	if ctx.Err() != nil || inputText == "" {
@@ -725,7 +729,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	logger.Info("[Discord] Processing message", "user", m.Author.Username, "channel", m.ChannelID, "isDM", decision.IsDM, "trigger", decision.Reason)
 
 	// Slash command interception
-	if strings.HasPrefix(inputText, "/") {
+	if strings.HasPrefix(commandText, "/") {
 		cmdCtx := commands.Context{
 			STM:           shortTermMem,
 			SessionID:     sessionID,
@@ -735,7 +739,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			PromptsDir:    cfg.Directories.PromptsDir,
 			AllowOperator: decision.IsDM,
 		}
-		cmdResult, isCmd, err := commands.Handle(inputText, cmdCtx)
+		cmdResult, isCmd, err := commands.Handle(commandText, cmdCtx)
 		if ctx.Err() != nil {
 			return
 		}

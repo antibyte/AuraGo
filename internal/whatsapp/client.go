@@ -2,7 +2,9 @@ package whatsapp
 
 import (
 	"context"
+	"io"
 	"sync"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waCompanionReg"
@@ -20,8 +22,8 @@ const linkedDeviceName = "AuraGo"
 const pairClientDisplay = "Chrome (Linux)"
 
 // waClient is the narrow transport the channel uses. whatsmeowClient wraps the
-// library; tests use fakeClient. Later stages add receipts, chat presence, LID
-// lookups and media here.
+// library; tests use fakeClient. Stage 2 adds receipts, chat presence, LID
+// lookups and the login time; stage 3 adds media download and upload.
 type waClient interface {
 	AddEventHandler(handler func(evt any)) uint32
 	ConnectContext(ctx context.Context) error
@@ -31,9 +33,26 @@ type waClient interface {
 	GetQRChannel(ctx context.Context) (<-chan whatsmeow.QRChannelItem, error)
 	PairPhone(ctx context.Context, phone string) (string, error)
 	Logout(ctx context.Context) error
-	SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error)
+	// GenerateMessageID returns a fresh message ID. The sender registers it as sent before
+	// SendMessage, so an echo that races the call is already recognised.
+	GenerateMessageID() types.MessageID
+	// SendMessage sends msg under id, which comes from GenerateMessageID.
+	SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error)
 	SendPresence(ctx context.Context, state types.Presence) error
 	OwnJID() types.JID
+	MarkRead(ctx context.Context, ids []types.MessageID, timestamp time.Time, chat, sender types.JID) error
+	SendChatPresence(ctx context.Context, chat types.JID, state types.ChatPresence, media types.ChatPresenceMedia) error
+	// OwnLID is the linked account's LID without a device part, or EmptyJID before the first login.
+	OwnLID() types.JID
+	// PNForLID maps a LID to its phone JID through Store.LIDs. An unknown LID returns EmptyJID and no error.
+	PNForLID(ctx context.Context, lid types.JID) (types.JID, error)
+	// LastSuccessfulConnect is the time whatsmeow accepted the current login. Read it only from an
+	// event handler: whatsmeow writes it on its handler queue without a lock (connectionevents.go:164).
+	LastSuccessfulConnect() time.Time
+	// DownloadToFile writes the decrypted attachment of msg into file (download-to-file.go:41).
+	DownloadToFile(ctx context.Context, msg whatsmeow.DownloadableMessage, file whatsmeow.File) error
+	// Upload encrypts r and uploads it through UploadReader (upload.go:115).
+	Upload(ctx context.Context, r io.Reader, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error)
 }
 
 // deviceStore is one opened linked-device database.
@@ -118,8 +137,10 @@ func (c *whatsmeowClient) PairPhone(ctx context.Context, phone string) (string, 
 
 func (c *whatsmeowClient) Logout(ctx context.Context) error { return c.cli.Logout(ctx) }
 
-func (c *whatsmeowClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message) (whatsmeow.SendResponse, error) {
-	return c.cli.SendMessage(ctx, to, msg)
+func (c *whatsmeowClient) GenerateMessageID() types.MessageID { return c.cli.GenerateMessageID() }
+
+func (c *whatsmeowClient) SendMessage(ctx context.Context, to types.JID, msg *waE2E.Message, id types.MessageID) (whatsmeow.SendResponse, error) {
+	return c.cli.SendMessage(ctx, to, msg, whatsmeow.SendRequestExtra{ID: id})
 }
 
 func (c *whatsmeowClient) SendPresence(ctx context.Context, state types.Presence) error {
@@ -127,3 +148,28 @@ func (c *whatsmeowClient) SendPresence(ctx context.Context, state types.Presence
 }
 
 func (c *whatsmeowClient) OwnJID() types.JID { return c.cli.Store.GetJID().ToNonAD() }
+
+func (c *whatsmeowClient) MarkRead(ctx context.Context, ids []types.MessageID, timestamp time.Time, chat, sender types.JID) error {
+	return c.cli.MarkRead(ctx, ids, timestamp, chat, sender)
+}
+
+func (c *whatsmeowClient) SendChatPresence(ctx context.Context, chat types.JID, state types.ChatPresence, media types.ChatPresenceMedia) error {
+	return c.cli.SendChatPresence(ctx, chat, state, media)
+}
+
+func (c *whatsmeowClient) OwnLID() types.JID { return c.cli.Store.GetLID().ToNonAD() }
+
+func (c *whatsmeowClient) PNForLID(ctx context.Context, lid types.JID) (types.JID, error) {
+	pn, err := c.cli.Store.LIDs.GetPNForLID(ctx, lid.ToNonAD())
+	return pn.ToNonAD(), err
+}
+
+func (c *whatsmeowClient) LastSuccessfulConnect() time.Time { return c.cli.LastSuccessfulConnect }
+
+func (c *whatsmeowClient) DownloadToFile(ctx context.Context, msg whatsmeow.DownloadableMessage, file whatsmeow.File) error {
+	return c.cli.DownloadToFile(ctx, msg, file)
+}
+
+func (c *whatsmeowClient) Upload(ctx context.Context, r io.Reader, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error) {
+	return c.cli.UploadReader(ctx, r, nil, mediaType)
+}

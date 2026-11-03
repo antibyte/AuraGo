@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,8 +46,8 @@ func handleDashboardAudit(s *Server, _ *SSEBroadcaster) http.HandlerFunc {
 		case http.MethodDelete:
 			var req dashboardAuditDeleteRequest
 			if r.Body != nil && r.ContentLength != 0 {
-				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-					jsonError(w, "Invalid audit delete request", http.StatusBadRequest)
+				if err := decodeJSONRequest(w, r, &req, s); err != nil {
+					jsonError(w, "Invalid audit delete request", jsonDecodeStatus(err))
 					return
 				}
 			}

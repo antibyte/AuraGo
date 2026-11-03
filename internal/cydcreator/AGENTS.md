@@ -573,8 +573,9 @@ OTA updates and the ZIP export and import.
   added/modified/deleted since the newest `job` revision; nil before the first green job). A project tree that
   `snapshotTree` refuses (an app file above 256 KiB: `CYD_FILE_LIMIT`; an asset above 2 MiB: `CYD_ASSET_TOO_LARGE`)
   refuses the start with that typed error; any failed preparation ends the job `failed` and frees the lock. The
-  phases run in a goroutine joined to `s.wg`; `Close` sets `jobs.closing` before it cancels and waits, so a running
-  job ends `interrupted`.
+  phases run in a goroutine joined to `s.wg`; `Close` cancels the service before taking `jobs.mu`, then sets
+  `jobs.closing` before waiting. Shutdown interrupts a publication that has not started its directory swap;
+  a swap already in progress finishes atomically. The `jobs.mu` barrier still orders every `s.wg.Add` before the wait.
 - Phases: new = planning, awaiting confirmation, layout, coding, building, (repairing, building)*, done; change and
   generate_code start at coding (generate_code, unless resumed, refuses a layout with errors: `CYD_INVALID_LAYOUT`
   with `details.issues`). Planning ends on an accepted `SubmitPlan` (none: "The agent stopped: ..."), coding and
@@ -588,8 +589,11 @@ OTA updates and the ZIP export and import.
   Only `CYD_BUILD_FAILED` with non-generated error diagnostics and `CYD_FLASH_BUDGET_EXCEEDED` are repaired, at most
   `MaxRepairAttempts` times; any other build failure ends the job with the build's code.
 - Publication (`publishJob`): the green working copy replaces the project through the receipt swap
-  (`publishStage`, below); its asset entries pass `checkLayoutAssets` against the stored list. The commit point is
-  the transaction that bumps the version, stores `publish_receipt`, mirrors name/board/theme (`layoutRowMeta`),
+  (`publishStage`, below); its asset entries pass `checkLayoutAssets` against the stored list. Each attempt takes
+  `jobs.mu` before the project mutex and keeps it through publication and final events. A previously accepted
+  cancel wins; a later `CancelJob` waits, then returns `CYD_JOB_STATE` after success, including while publication
+  waits for the project mutex. Timeout and shutdown cancellation remain effective until the first directory rename.
+  The commit point is the transaction that bumps the version, stores `publish_receipt`, mirrors name/board/theme (`layoutRowMeta`),
   clears lock, draft and `app_changed_since_job` and stores the job `succeeded`. After it, without the job's
   cancellation: the `job` revision (a failure is only logged), the project's private conversations are deleted, an
   older draft is removed, then `project_changed` (layout and files, origin `job:<id>`), `lock_changed`,
@@ -706,6 +710,11 @@ OTA updates and the ZIP export and import.
   `new_version`); the commit stores the receipt id in `cc_projects.publish_receipt`. While a swap of a project is
   unresolved the project is fenced in memory: every write, `StartJob` and `ConfirmJob` refuse with `CYD_BUSY`
   (`details.reason` `publication_review`) and `ProjectSummary.publish_review` is true, until a start resolves it.
+- `publishStage` checks the caller context immediately before the first rename and removes the unused receipt
+  when cancelled. Once the swap starts, its transaction, callbacks and rollback finish without cancellation;
+  post-commit revisions and events do too. Verify `TestPublishStageCancellationBoundary`,
+  `TestPublicationDoesNotOverwriteAnAcceptedCancel`, `TestPublicationWinsBeforeWaitingForTheProjectLock`,
+  `TestPublicationTimeoutBeforeTheSwapKeepsTheStage` and `TestPublicationShutdownBeforeTheSwapKeepsTheStage`.
 - `NewService` order: `unfinishedJobIDs` → `recoverStore` → `discardPartialArtifacts` → `recoverJobs` → build
   worker; nothing can start a job or build before recovery ends, and a recovery failure never fails the start.
   `recoverJobs` (`jobs_recover.go`):

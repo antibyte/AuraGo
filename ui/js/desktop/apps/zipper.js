@@ -3,6 +3,16 @@
 
     const instances = new Map();
 
+    function isOpenableArchive(name) {
+        return /\.(?:tar\.(?:gz|bz2|xz|zst|lzma|lz)|tgz|tbz2?|txz|tzst|zip|7z|rar|tar|gz|bz2|xz|zst|lzma|lz|cab|iso|wim|arj|lzh|lha|cpio|deb|rpm|xar|img|raw|ext[234]|squashfs|sqsh|sfs|btrfs|xfs|erofs|cramfs|qcow2?|vmdk|vhdx?|vdi|dmg|udf)$/i.test(String(name || ''));
+    }
+
+    function isCreatableArchive(name) {
+        return /\.(?:tar\.(?:gz|xz|zst)|tgz|txz|tzst|zip|tar)$/i.test(String(name || ''));
+    }
+
+    const archiveOpenExtensions = ['zip', '7z', 'rar', 'tar', 'gz', 'tgz', 'bz2', 'tbz', 'tbz2', 'xz', 'txz', 'zst', 'tzst', 'lzma', 'lz', 'cab', 'iso', 'wim', 'arj', 'lzh', 'lha', 'cpio', 'deb', 'rpm', 'xar', 'img', 'raw', 'ext2', 'ext3', 'ext4', 'squashfs', 'sqsh', 'sfs', 'btrfs', 'xfs', 'erofs', 'cramfs', 'qcow2', 'qcow', 'vmdk', 'vhd', 'vhdx', 'vdi', 'dmg', 'udf', 'tar.gz', 'tar.bz2', 'tar.xz', 'tar.zst', 'tar.lzma', 'tar.lz'];
+
     function render(host, windowId, context) {
         if (!host) return;
         const state = { container: host };
@@ -25,6 +35,8 @@
         let sortCol = 'name';
         let sortAsc = true;
         let selected = new Set();
+        let archiveFormat = '';
+        let skippedLinks = 0;
         window.AuraDesktopEmail?.attach(windowId, '.zipper-toolbar', () => {
             const members=entries.filter(entry=>selected.has(entry.name)&&!entry.is_dir&&!entry.directory);
             return {key:zipPath+':'+members.map(entry=>entry.name).join('\n'),disabled:!zipPath,
@@ -111,7 +123,7 @@
 
         function ensureZipExtension(path) {
             const value = normalizePath(path);
-            return /\.zip$/i.test(value) ? value : value + '.zip';
+            return isCreatableArchive(value) ? value : value + '.zip';
         }
 
         function defaultArchiveName(paths) {
@@ -264,6 +276,10 @@
                 applyFilter();
                 return;
             }
+            if (entry.link) {
+                notify({ type: 'info', message: t('zipper.skipped_links') });
+                return;
+            }
             if (!zipPath) {
                 notify({ type: 'error', message: t('zipper.no_archive') });
                 return;
@@ -309,7 +325,7 @@
                 const name = displayName(e);
                 const checked = selected.has(e.name) ? 'checked' : '';
                 const icon = iconMarkup(entryIconKey(e), e.is_dir ? 'Dir' : 'File', 'zipper-entry-icon', 42);
-                return `<tr data-idx="${i}" class="${selected.has(e.name) ? 'zipper-selected' : ''}">
+                return `<tr data-idx="${i}" class="${[selected.has(e.name) ? 'zipper-selected' : '', e.link ? 'zipper-link' : ''].filter(Boolean).join(' ')}">
                     <td class="zipper-col-check"><input type="checkbox" data-check="${esc(e.name)}" ${checked}></td>
                     <td class="zipper-col-name"><span class="zipper-icon">${icon}</span> ${esc(name)}</td>
                     <td class="zipper-col-size">${e.is_dir ? '—' : fmtBytes(e.size)}</td>
@@ -363,12 +379,14 @@
             if (selected.size > 0) {
                 msg.unshift(t('zipper.selected').replace('{{count}}', selected.size));
             }
+            if (archiveFormat) msg.push(archiveFormat);
+            if (skippedLinks) msg.push(t('zipper.skipped_links'));
             setStatus(msg.join('  ·  '));
         }
 
         async function openFile() {
             if (!openFileDialog) return;
-            const result = await openFileDialog({ filters: [{ label: t('desktop.file_dialog_zip'), extensions: ['zip'] }] });
+            const result = await openFileDialog({ filters: [{ label: t('desktop.file_dialog_zip'), extensions: archiveOpenExtensions }] });
             if (result && !result.canceled && result.path) {
                 openZipPath(result.path);
             }
@@ -393,8 +411,11 @@
                     size: e.size || 0,
                     compressed_size: e.compressed_size || 0,
                     is_dir: !!e.is_dir,
-                    mod_time: e.mod_time || ''
+                    mod_time: e.mod_time || '',
+                    link: !!e.link
                 }));
+                archiveFormat = body.format || '';
+                skippedLinks = body.skipped_links || 0;
                 const dirs = new Set();
                 for (const e of entries) {
                     const parts = e.name.split('/').filter(Boolean);
@@ -449,7 +470,7 @@
         async function createArchiveFromPaths(paths) {
             const cleanPaths = [...new Set((paths || []).map(normalizePath).filter(Boolean))];
             if (!cleanPaths.length) return false;
-            if (cleanPaths.length === 1 && /\.zip$/i.test(cleanPaths[0])) {
+            if (cleanPaths.length === 1 && isOpenableArchive(cleanPaths[0])) {
                 openZipPath(cleanPaths[0]);
                 return true;
             }

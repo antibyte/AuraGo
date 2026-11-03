@@ -40,7 +40,7 @@
             '<div class="ss-tour" data-tour hidden></div>'+
             '<footer class="ss-footer"><span data-save-state role="status"></span><span class="ss-footer-hint">'+esc(tr('shortcuts'))+'</span><span class="ss-midi-led" data-midi-led aria-hidden="true"></span><span data-footer-count></span><button type="button" class="ss-tour-button" data-action="tour">'+esc(tr('tour'))+'</button></footer><input type="file" data-midi-file accept=".mid,.midi,audio/midi" hidden></div>';
         const root=host.firstElementChild, find=q=>root.querySelector(q);
-        editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail});
+        editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail,onTrackMenu:(action,trackId)=>{if(action==='delete')deleteTrackById(trackId);else if(action==='duplicate')duplicateTrackById(trackId);}});
         workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();}});
         composer=window.SynthStudioCompose.create(workspace.performance,{tr,esc,signal,project,selection:()=>editor.selection(),cursor:()=>cursor,blocked,mutate,audio,fail,stopTransport:()=>stop(false,true),showNotes:()=>workspace.panel('notes'),onArpNote:captureArp});
         const midi=window.SynthStudioMIDI.create({onNoteOn:e=>noteOn(e.pitch,e.velocity,e.time,e.channel),onNoteOff:e=>noteOff(e.pitch,e.time,e.channel),onController:e=>controller(e),onState:s=>{midiState=s;if(s.status!=='connected'){if(recording)stop();else panic();}renderMIDI();}});
@@ -84,6 +84,11 @@
             });if(cid)editor.select(chosen,cid);
         }
         function newClip(tid,tick){let cid='';mutate(p=>{const t=p.tracks.find(t=>t.id===tid),c=M.createClip(t.instrument,tick);c.name=tr('clip');t.clips.push(c);cid=c.id;});editor.select(tid,cid);}
+        // A track can be deleted from its own head or from the sound panel. The
+        // confirmation is only asked when the host can show one, so an embedded
+        // view without a dialog service still removes the track.
+        async function deleteTrackById(id){const t=project().tracks.find(x=>x.id===id);if(!t||blocked())return;const ok=ctx.confirmDialog?await ctx.confirmDialog(tr('delete_track'),tr('delete_track_confirm')):true;if(!ok)return;mutate(p=>{p.tracks=p.tracks.filter(x=>x.id!==id);});const next=project().tracks[0];editor.select(next?next.id:'',next?.clips[0]?.id||'');}
+        function duplicateTrackById(id){let created='';mutate(p=>{const src=p.tracks.find(t=>t.id===id);if(!src)return;const copy=M.addTrack(p,src.instrument);copy.name=src.name;copy.volume=src.volume;copy.pan=src.pan;copy.mute=src.mute;copy.solo=src.solo;copy.params={...(src.params||{})};if(src.fx)copy.fx=JSON.parse(JSON.stringify(src.fx));if(src.automation)copy.automation=JSON.parse(JSON.stringify(src.automation));copy.clips=src.clips.map(c=>M.cloneClip(c,c.start));created=copy.id;});if(created){const t=project().tracks.find(x=>x.id===created);editor.select(created,t?.clips[0]?.id||'');}}
         function patternName(pattern){return tr('pattern_'+pattern.id);}
         function markRecent(id){const list=libraryPrefs.recent.filter(x=>x!==id);list.unshift(id);libraryPrefs.recent=list.slice(0,12);saveLibraryPrefs();}
         function renderLibrary(){
@@ -99,7 +104,7 @@
             find('[data-library-tags]').innerHTML=vocabulary.map(t=>'<button data-tag="'+esc(t)+'" aria-pressed="'+String(activeTag===t)+'">'+esc(tr('tag_'+t))+'</button>').join('');
             find('[data-library-list]').innerHTML=items.map(x=>{
                 const favourite=libraryPrefs.favourites.includes(x.id);
-                const chips=x.tags.slice(0,2).map(t=>'<em class="ss-tag">'+esc(tr('tag_'+t))+'</em>').join('');
+                const chips=x.tags.slice(0,2).map(t=>'<em class="ss-tag" data-tag="'+esc(t)+'">'+esc(tr('tag_'+t))+'</em>').join('');
                 return '<div class="ss-library-item '+(x.id===selectedInstrument?'is-selected':'')+'" draggable="'+!readonly()+'" data-library-id="'+esc(x.id)+'" data-library-type="'+(libraryMode==='patterns'?'pattern':'instrument')+'"><button data-preview="'+esc(x.id)+'" aria-label="'+esc(tr('preview')+' '+x.name)+'">'+(libraryMode==='patterns'?'▥':'♪')+'</button><button class="ss-library-name" data-choose="'+esc(x.id)+'"><span>'+esc(x.name)+'</span><small>'+(libraryMode==='patterns'?esc(tr('pattern')):chips)+'</small></button>'+(libraryMode==='patterns'?'':'<button class="ss-favourite" data-favourite="'+esc(x.id)+'" aria-pressed="'+String(favourite)+'" aria-label="'+esc(tr('lib_favourites'))+'">'+(favourite?'★':'☆')+'</button>')+'<button class="ss-insert" data-insert="'+esc(x.id)+'" aria-label="'+esc(tr('add'))+'">＋</button></div>';
             }).join('')||'<p class="ss-muted">'+esc(tr('no_results'))+'</p>';
             root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
@@ -115,7 +120,7 @@
             const rack=inserts.map((insert,index)=>{
                 const def=M.FX_TYPES.find(x=>x.id===insert.type);if(!def)return '';
                 const rows=def.params.map(p=>{const label=FX_PARAM_LABELS[p.key]||p.key;return '<label class="ss-parameter"><span>'+esc(tr(label))+'</span><input data-fx-param="'+index+':'+p.key+'" type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+insert[p.key]+'" aria-label="'+esc(tr(label))+'"><output>'+Number(insert[p.key]).toFixed(2)+'</output></label>';}).join('');
-                return '<section class="ss-fx-slot" data-fx-slot="'+index+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
+                return '<section class="ss-fx-slot" data-fx-slot="'+index+'" data-fx="'+esc(insert.type)+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
             }).join('');
             pane.innerHTML='<h3>'+esc(tr('track'))+'</h3><input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="'+esc(t.name)+'" aria-label="'+esc(tr('name'))+'"><label>'+esc(tr('instrument'))+'<select data-instrument>'+items.map(i=>'<option value="'+esc(i.id)+'"'+(i.id===t.instrument?' selected':'')+'>'+esc(i.name)+'</option>').join('')+'</select></label>'+
                 '<h4>'+esc(tr('your_sound'))+'</h4><div class="ss-param-grid">'+sound.map(p=>slider(...p)).join('')+'</div>'+
@@ -286,7 +291,7 @@
                 notice(type==='midi'?tr('midi_export_hint')+' '+tr('midi_automation_hint'):'');
             }catch(error){if(asFile)throw error;fail(error);}finally{busy=false;status();}
         }
-        const actions={play:()=>playing?stop():play(),pause:()=>stop(),stop:()=>stop(true),record:startRecording,new:()=>replaceProject(M.create(tr('untitled'))),demo:()=>{const p=M.demo();p.tracks.forEach(t=>{const pat=M.patterns.find(x=>x.instrument===t.instrument);if(pat){t.name=patternName(pat);t.clips.forEach(c=>c.name=patternName(pat));}});return replaceProject(p);},open:()=>{stop();return storage.open();},save:()=>storage.save(false),saveAs:()=>storage.save(true),undo:()=>updatedHistory('undo'),redo:()=>updatedHistory('redo'),library:()=>{root.classList.remove('ss-inspector-open');root.classList.toggle('ss-library-open');},inspector:()=>{root.classList.remove('ss-library-open');root.classList.toggle('ss-inspector-open');},midi:()=>{find('[data-midi-panel]').hidden=!find('[data-midi-panel]').hidden;},connect:async()=>{await midi.connect();renderMIDI();},importMidi:()=>find('[data-midi-file]').click(),master:()=>{const panel=find('[data-master-panel]');if(!panel)return;panel.hidden=!panel.hidden;const toggle=find('[data-action="master"]');if(toggle)toggle.setAttribute('aria-expanded',String(!panel.hidden));},tour:()=>{tourIndex=0;renderTour();},tourNext:()=>{tourIndex=Math.min(TOUR_STEPS.length-1,tourIndex+1);renderTour();},tourBack:()=>{tourIndex=Math.max(0,tourIndex-1);renderTour();},tourSkip:()=>{tourIndex=-1;renderTour();},rename:async()=>{if(blocked())return;const value=await ctx.promptDialog?.(tr('name'),project().name);if(value?.trim())mutate(p=>{p.name=value.trim().slice(0,80);});},deleteTrack:async()=>{const t=track();if(!t||blocked())return;if(await ctx.confirmDialog?.(tr('delete_track'),tr('delete_track_confirm')))mutate(p=>{p.tracks=p.tracks.filter(x=>x.id!==t.id);});}};
+        const actions={play:()=>playing?stop():play(),pause:()=>stop(),stop:()=>stop(true),record:startRecording,new:()=>replaceProject(M.create(tr('untitled'))),demo:()=>{const p=M.demo();p.tracks.forEach(t=>{const pat=M.patterns.find(x=>x.instrument===t.instrument);if(pat){t.name=patternName(pat);t.clips.forEach(c=>c.name=patternName(pat));}});return replaceProject(p);},open:()=>{stop();return storage.open();},save:()=>storage.save(false),saveAs:()=>storage.save(true),undo:()=>updatedHistory('undo'),redo:()=>updatedHistory('redo'),library:()=>{root.classList.remove('ss-inspector-open');root.classList.toggle('ss-library-open');},inspector:()=>{root.classList.remove('ss-library-open');root.classList.toggle('ss-inspector-open');},midi:()=>{find('[data-midi-panel]').hidden=!find('[data-midi-panel]').hidden;},connect:async()=>{await midi.connect();renderMIDI();},importMidi:()=>find('[data-midi-file]').click(),master:()=>{const panel=find('[data-master-panel]');if(!panel)return;panel.hidden=!panel.hidden;const toggle=find('[data-action="master"]');if(toggle)toggle.setAttribute('aria-expanded',String(!panel.hidden));},tour:()=>{tourIndex=0;renderTour();},tourNext:()=>{tourIndex=Math.min(TOUR_STEPS.length-1,tourIndex+1);renderTour();},tourBack:()=>{tourIndex=Math.max(0,tourIndex-1);renderTour();},tourSkip:()=>{tourIndex=-1;renderTour();},rename:async()=>{if(blocked())return;const value=await ctx.promptDialog?.(tr('name'),project().name);if(value?.trim())mutate(p=>{p.name=value.trim().slice(0,80);});},deleteTrack:async()=>{await deleteTrackById(track()?.id||'');}};
 
         // A five step tour that walks through the workbench panels so the new
         // features are discoverable without a manual.
@@ -300,13 +305,13 @@
         }
 
         // The master analyser is feedback only: it never influences the audio.
-        function drawAnalyser(){
+        let meterColor='',meterFrames=0;const meterRgb=canvas=>{if(!meterColor||++meterFrames>=30){meterColor=getComputedStyle(canvas).getPropertyValue('--ss-meter').trim()||'#3fe0b0';meterFrames=0;}const hex=meterColor.replace('#',''),full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex,n=parseInt(full,16);return Number.isFinite(n)?[(n>>16)&255,(n>>8)&255,n&255]:[63,224,176];};function drawAnalyser(){
             if(disposed)return;
             const canvas=find('[data-analyser]');
             if(canvas&&canvas.isConnected){
                 const ctx2d=canvas.getContext?.('2d');
                 if(ctx2d){
-                    const bins=audio.spectrum(48);
+                    const bins=audio.spectrum(48);const tint=meterRgb(canvas);
                     const width=canvas.width,height=canvas.height;
                     ctx2d.clearRect(0,0,width,height);
                     if(bins){
@@ -314,11 +319,11 @@
                         for(let i=0;i<bins;i++){
                             const value=bins[i]/255;
                             const bar=Math.max(1,value*height);
-                            ctx2d.fillStyle='rgba(23,104,81,'+(0.25+value*0.75).toFixed(3)+')';
+                            ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
                             ctx2d.fillRect(i*step,height-bar,Math.max(1,step-1),bar);
                         }
                     }else{
-                        ctx2d.fillStyle='rgba(120,132,146,.35)';
+                        ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.4)';
                         ctx2d.fillRect(0,height-1,width,1);
                     }
                 }

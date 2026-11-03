@@ -189,7 +189,7 @@ func TestValidateGo2RTCStreamDetectionFields(t *testing.T) {
 
 func TestGo2RTCDetectionChannelsReturnsACopy(t *testing.T) {
 	channels := Go2RTCDetectionChannels()
-	if len(channels) != 8 || channels[len(channels)-1] != "all" {
+	if len(channels) != 9 || channels[len(channels)-1] != "all" {
 		t.Fatalf("channels = %v", channels)
 	}
 	channels[0] = "sms"

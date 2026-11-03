@@ -706,6 +706,9 @@ func isTransientHelperError(err error) bool {
 	if errors.Is(err, memory.ErrVectorDBDisabled) || errors.Is(err, memory.ErrVectorDBNotReady) || errors.Is(err, memory.ErrVectorDBClosed) || errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
+	if llm.ClassifyError(err) == llm.ErrCategoryNonRetryableConfig {
+		return false
+	}
 	msg := err.Error()
 	if strings.Contains(msg, "429") || strings.Contains(msg, "rate_limit") || strings.Contains(msg, "rate limit") {
 		return true

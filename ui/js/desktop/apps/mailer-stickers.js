@@ -3,7 +3,7 @@
 
     function sticker(attachment) {
         if (!attachment?.inline || !attachment.content_id) return null;
-        const match = /^sticker-([a-z-]+)\.png$/.exec(attachment.filename || '');
+        const match = /^sticker-([a-z-]+)\.(?:png|webp)$/.exec(attachment.filename || '');
         return match && window.AuraStickerLibrary?.byId.get(match[1]);
     }
 

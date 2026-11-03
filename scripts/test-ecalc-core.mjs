@@ -1,5 +1,6 @@
 // ECalc desktop app: parity test of the JavaScript core against the shared vectors of the Go package.
-// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset}.js run in a Node vm (no document),
+// The DOM-free files ui/js/desktop/apps/ecalc/ecalc-{expr,units,eseries,solve,typeset,chart}.js run in a Node vm (no document;
+// ecalc-calc-page.js is loaded too, only its launchState is called),
 // the calculators come from internal/ecalc/testdata/catalog.en.json (the catalog JSON of the server route), and every case
 // of internal/ecalc/testdata/vectors/core.json and vectors/calculators/*.json must give the same result as Go: numbers match
 // at a relative error of 1e-12 (calculator vectors 1e-9), a zero want allows an absolute error of 1e-12, and the strings
@@ -13,13 +14,21 @@ import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js'];
+const files = ['ecalc-expr.js', 'ecalc-units.js', 'ecalc-eseries.js', 'ecalc-solve.js', 'ecalc-typeset.js', 'ecalc-chart.js', 'ecalc-calc-page.js'];
 const plain = value => JSON.parse(JSON.stringify(value));
 // The core runs in its own vm realm, so what it returns is compared as plain JSON.
 const eq = (actual, expected, message) => assert.deepStrictEqual(plain(actual), plain(expected), message);
 
 const window = {};
-vm.runInNewContext(files.map(file => read('ui/js/desktop/apps/ecalc/' + file)).join('\n'), { window });
+const sandbox = vm.createContext({ window });
+vm.runInContext(files.map(file => read('ui/js/desktop/apps/ecalc/' + file)).join('\n'), sandbox);
+// A call that must terminate runs inside the vm under a time limit, so a regression that loops forever fails this test
+// ("Script execution timed out") instead of freezing it.
+const bounded = (code, args) => {
+    sandbox.args = args;
+    try { return vm.runInContext(code, sandbox, { timeout: 5000 }); } finally { delete sandbox.args; }
+};
+const combineWithin = (series, target, limit) => bounded('window.ECalcCore.eseries.combine(...args)', [series, target, limit]);
 const core = window.ECalcCore, Typeset = window.ECalcTypeset;
 assert.ok(core && core.expr && core.units && core.eseries && core.solve && Typeset, 'the core files publish window.ECalcCore and window.ECalcTypeset');
 const catalog = JSON.parse(read('internal/ecalc/testdata/catalog.en.json'));
@@ -64,7 +73,7 @@ let count = 0;
 
 // ---- core.json: expressions, units, E-series --------------------------------------------------------------------------
 const vectors = JSON.parse(read('internal/ecalc/testdata/vectors/core.json'));
-const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format'];
+const sections = ['expr', 'eval_error', 'parse', 'parse_error', 'formula', 'formula_error', 'deps', 'round_sig', 'eseries', 'eseries_error', 'units_parse', 'units_parse_error', 'units_list', 'units_list_error', 'units_format', 'units_roundtrip', 'solve_range', 'combine', 'combine_count', 'combine_error'];
 for (const section of sections) assert.ok(Array.isArray(vectors[section]) && vectors[section].length > 0, `core.json has no ${section} vectors`);
 const expr = core.expr;
 const environment = v => Object.assign({}, v.env || {}, v.lists || {});
@@ -83,7 +92,26 @@ for (const v of vectors.eseries) {
     same(found.dev, v.dev, `eseries ${v.series} ${v.v} deviation`);
     count += 1;
 }
-for (const v of vectors.eseries_error) { assert.equal(core.eseries.nearest(v.series, decode(v.v)), null, `eseries error ${v.series} ${v.v}`); count += 1; }
+for (const v of vectors.eseries_error) { assert.equal(bounded('window.ECalcCore.eseries.nearest(...args)', [v.series, decode(v.v)]), null, `eseries error ${v.series} ${v.v}`); count += 1; }
+// The standard-value combiner: the same entries in the same order as Combine in Go (devPct is dev_pct in the vectors).
+function checkCombine(v, where) {
+    assert.ok(v.ref, `${where}: the combine vector has no ref`);
+    const got = combineWithin(v.series, v.target, v.limit);
+    const label = `${where}: combine ${v.series} ${v.target} limit ${v.limit}`;
+    assert.ok(Array.isArray(got), `${label} gives a list`);
+    assert.equal(got.length, v.want.length, `${label}: number of entries`);
+    v.want.forEach((want, index) => {
+        assert.equal(got[index].kind, want.kind, `${label} entry ${index} kind`);
+        same(got[index].r1, want.r1, `${label} entry ${index} r1`);
+        same(got[index].r2, want.r2, `${label} entry ${index} r2`);
+        same(got[index].value, want.value, `${label} entry ${index} value`);
+        same(got[index].devPct, want.dev_pct, `${label} entry ${index} deviation`, 1e-9);
+    });
+}
+for (const v of vectors.combine) { checkCombine(v, 'core.json'); count += 1; }
+for (const v of vectors.combine_count) { assert.equal(combineWithin(v.series, v.target, v.limit).length, v.want, `combine count ${v.series} ${v.target} limit ${v.limit}`); count += 1; }
+for (const v of vectors.combine_error) { assert.equal(combineWithin(v.series, decode(v.target), 5), null, `combine error ${v.series} ${v.target}`); count += 1; }
+assert.ok(vectors.combine.length >= 6, 'core.json has at least six combiner cases');
 assert.ok(vectors.eseries_tables, 'core.json carries the E-series tables');
 for (const [name, table] of Object.entries(vectors.eseries_tables)) { eq(core.eseries.TABLES[name], table, 'table ' + name); count += 1; }
 eq(Object.keys(core.eseries.TABLES), Object.keys(vectors.eseries_tables), 'the same series');
@@ -92,6 +120,18 @@ for (const v of vectors.units_parse_error) { throwsCode(() => units.parse(v.in, 
 for (const v of vectors.units_list) { eq(units.parseList(v.in, v.dim, v.unit || '').map((x, i) => (Math.abs(x - v.want[i]) <= 1e-12 * Math.abs(v.want[i]) ? v.want[i] : x)), v.want, `list ${JSON.stringify(v.in)}`); count += 1; }
 for (const v of vectors.units_list_error) { throwsCode(() => units.parseList(v.in, v.dim, v.unit || ''), 'parse', `list error ${JSON.stringify(v.in)}`); count += 1; }
 for (const v of vectors.units_format) { assert.equal(units.format(decode(v.v), v.dim, v.unit || '', v.sig || 0), v.want, `format ${v.v} as ${v.dim} ${v.unit || ''}`); count += 1; }
+for (const v of vectors.units_roundtrip) {
+    const text = units.format(v.v, v.dim, v.unit, 0);
+    assert.equal(text, v.text, `roundtrip format ${v.v} as ${v.dim} ${v.unit}`);
+    assert.ok(text.length <= core.units.MAX_VALUE_LENGTH, `${text} is within the ${core.units.MAX_VALUE_LENGTH} characters that parse accepts`);
+    assert.equal(units.parse(text, v.dim, v.unit), v.v, `roundtrip parse ${text} as ${v.dim} ${v.unit}`);
+    count += 3;
+}
+for (const v of vectors.solve_range) {
+    const calc = { vars: [{ id: 'n', dim: v.dim }], choices: [], rules: [], derived: [], checks: [] };
+    assert.equal(core.solve.solve(calc, { n: decode(v.v) }, {}, units).errors.n || '', v.want, `solve_range ${v.dim} ${v.v}`);
+    count += 1;
+}
 
 // ---- calculators/*.json: consistent solutions and single solves -----------------------------------------------------
 const split = values => {
@@ -100,6 +140,11 @@ const split = values => {
     return env;
 };
 const SOLVE_TOLERANCE = 1e-9;
+// Every file in the vector directory is <id>.json of a calculator of the catalog (the Go twin: TestCalculatorVectorFilesNameACalculator).
+for (const file of fs.readdirSync(path.join(root, 'internal/ecalc/testdata/vectors/calculators'))) {
+    assert.ok(calculators.some(item => item.id + '.json' === file), `${file} in testdata/vectors/calculators names no calculator of the catalog`);
+    count += 1;
+}
 for (const item of calculators) {
     const file = path.join(root, 'internal/ecalc/testdata/vectors/calculators', item.id + '.json');
     assert.ok(fs.existsSync(file), `no vectors for the calculator ${item.id}`);
@@ -136,6 +181,9 @@ for (const item of calculators) {
         eq(result.warnings, v.warnings || [], `${label}: warnings`);
         count += 1;
     }
+    // A calculator with finder: combine carries combos (checked against combine); no other calculator does.
+    assert.equal((set.combos || []).length > 0, item.finder === 'combine', `${item.id}: combos belong to finder: combine and are required there`);
+    for (const v of set.combos || []) { checkCombine(v, item.id); count += 1; }
 }
 
 // ---- the defaults of every calculator solve, and every solvable set reproduces them (every choice option) ---------------
@@ -269,12 +317,16 @@ for (const item of calculators) {
     same(units.parse('5V', 'voltage', 'prefix:m'), 5, 'a typed unit wins');
     same(units.parse('5k', 'voltage', 'prefix:m'), 5000, 'a typed prefix wins');
     throwsCode(() => units.parse('5', 'voltage', 'prefix:x'), 'parse', 'an unknown fixed prefix');
-    eq(units.options('voltage').map(option => option.id), ['', 'prefix:n', 'prefix:µ', 'prefix:m', 'prefix:', 'prefix:k', 'prefix:M', 'dBV', 'dBu']);
+    eq(units.options('voltage').map(option => option.id), ['', 'prefix:n', 'prefix:µ', 'prefix:m', 'prefix:', 'prefix:k', 'prefix:M', 'dBV', 'dBu', 'dBuV']);
     eq(units.options('number').map(option => option.id), ['']);
     eq(units.options('resistance').map(option => option.label), ['', 'mΩ', 'Ω', 'kΩ', 'MΩ', 'GΩ']);
+    eq(units.options('area').map(option => option.id), ['', 'prefix:', 'mm2', 'mil2', 'kcmil', 'AWG'], 'aliases are input spellings, not dropdown entries');
+    eq(units.options('temperature').map(option => option.label), ['', 'K', '°C', '°F']);
+    eq(units.options('integer').map(option => option.id), ['', 'dec', 'hex', 'bin', 'oct'], 'an integer field offers the number systems');
+    eq(units.dim('integer').integer, true, 'the dimension carries the integer flag');
     same(units.parse('4.7kΩ', 'resistance', ''), 4700, 'the ohm sign');
     same(units.parse('3μA', 'current', ''), 3e-6, 'the Greek mu');
-    count += 12;
+    count += 16;
 }
 
 // ---- a unit that cannot show a value falls back to the automatic text (dBV for zero or a negative voltage) ------------------
@@ -291,7 +343,12 @@ for (const item of calculators) {
     const bridge = S.solve(wheatstone, S.readInputs(wheatstone, start, units, auto).values, start.choices, units).values;
     assert.ok(bridge.vd < 0 && units.format(bridge.vd, 'voltage', 'dBV', 4) === '', 'the bridge voltage of the defaults is negative and blank in dBV');
     assert.equal(units.format(bridge.vd, 'voltage', '', 4), '-119 mV');
-    count += 9;
+    // A number system writes its own text (0xFF) that reads back under the same selection; a value it cannot show falls back.
+    const radixVar = { id: 'n', dim: 'integer' };
+    assert.equal(S.exactText(radixVar, 255, units, () => 'hex'), '0xFF', 'a field in hex shows 0xFF');
+    same(units.parse(S.exactText(radixVar, 255, units, () => 'hex'), 'integer', 'hex'), 255, 'and it reads back');
+    assert.equal(S.exactText(radixVar, 1.5, units, () => 'hex'), '1.5', 'a fraction falls back to the plain number');
+    count += 12;
 }
 
 // ---- the store: every change is a read-modify-write, so two windows never overwrite each other -------------------------
@@ -397,7 +454,18 @@ for (const item of calculators) {
     eq(S.restoreState(series, roomy, units, auto).inputs, roomy.inputs, 'a list text of 159 characters is within the list limit');
     const tooLong = { inputs: { rs: '1 '.repeat(129) }, recency: ['rs'], locked: [], choices: {} };
     eq(S.restoreState(series, tooLong, units, auto), S.defaultState(series, units, auto), 'a stored list beyond 256 characters is not used');
-    count += 23;
+    // A stored text that no longer parses (a value from before the magnitude limit, or text that never read) is not used, so
+    // an old poisoned value cannot keep a page closed: the state falls back to the defaults.
+    for (const [name, text] of [['r1', '1e305'], ['r1', '5e-324'], ['vin', '1e-301 V'], ['r2', 'abc'], ['r2', '']]) {
+        const poisoned = Object.assign({}, stored, { inputs: Object.assign({}, stored.inputs, { [name]: text }) });
+        eq(S.restoreState(divider, poisoned, units, auto), S.defaultState(divider, units, auto), `a stored ${name} of ${JSON.stringify(text)} is not used`);
+    }
+    const poisonedList = { inputs: { rs: '10k 1e305' }, recency: ['rs'], locked: [], choices: {} };
+    eq(S.restoreState(series, poisonedList, units, auto), S.defaultState(series, units, auto), 'a stored list with an item that no longer parses is not used');
+    // The text is read under the unit stored for its field.
+    const keV = S.restoreState(divider, { inputs: { vin: '5', r1: '1k', r2: '1k' }, recency: [], locked: [], choices: {} }, units, name => (name === 'vin' ? 'prefix:k' : ''));
+    eq(keV.inputs, { vin: '5', r1: '1k', r2: '1k' }, 'a bare number reads under the stored display unit of its field');
+    count += 30;
 }
 
 // ---- the typesetter: structure and escaping ---------------------------------------------------------------------------
@@ -412,6 +480,58 @@ for (const item of calculators) {
     const live = Typeset.liveHTML(expr.parseFormula('vout = vin / r2'), Object.assign({}, ctx, { valueOf: name => (name === 'vin' ? { html: '12 V', prec: 3 } : name === 'vout' ? { html: '3.8 V', prec: 3 } : null) }));
     assert.ok(live.includes('12 V') && live.includes('3.8 V') && live.includes('ec-u'), 'the live line shows values, the unknown variable keeps its label');
     count += 5;
+}
+
+// ---- the chart: whatever range the data spans, svg ends and writes finite numbers only ------------------------------------
+{
+    assert.ok(window.ECalcChart && typeof window.ECalcChart.svg === 'function', 'ecalc-chart.js publishes window.ECalcChart');
+    // The sample is lo for the first half of x = 0 .. 1 and hi for the second. 5e-324 used to make the axis step 0 and the
+    // search for it loop forever.
+    const draw = (lo, hi) => bounded('window.ECalcChart.svg({ xMax: 1, samples: 11, label: "t" }, x => (x < 0.5 ? args[0] : args[1]))', [lo, hi]);
+    const finiteOnly = (markup, label) => {
+        assert.equal(typeof markup, 'string', `${label}: a string`);
+        assert.ok(!/NaN|Infinity|undefined/.test(markup), `${label}: no non-finite number in the markup`);
+    };
+    // Vanishing, flat and large ranges draw on a finite axis (the vanishing ones on the fixed axis 0 .. 4).
+    for (const [lo, hi] of [[0, 5e-324], [0, 1e-320], [0, 1e-301], [0, 1e-300], [0, 1e300], [0, Infinity], [0, 0]]) {
+        const markup = draw(lo, hi);
+        finiteOnly(markup, `chart ${lo} .. ${hi}`);
+        assert.ok(markup.startsWith('<svg'), `chart ${lo} .. ${hi} is drawn`);
+        count += 1;
+    }
+    // Data near the largest doubles has no finite axis: nothing is drawn (the page hides the chart), and the call ends.
+    for (const [lo, hi] of [[0, 1.7e308], [-1.7976931348623157e308, 1.7976931348623157e308]]) {
+        assert.equal(draw(lo, hi), '', `chart ${lo} .. ${hi} draws nothing`);
+        count += 1;
+    }
+    // An ordinary range keeps its round ticks.
+    const ordinary = draw(0, 1);
+    for (const tick of ['>0<', '>0.25<', '>0.5<', '>0.75<', '>1<']) assert.ok(ordinary.includes(tick), `the y axis of 0 .. 1 has the tick ${tick}`);
+    assert.ok(draw(0, 1e300).includes('>1e+300<'), 'a range up to 1e300 keeps a real axis');
+    count += 2;
+}
+
+// ---- launchState: a launched bare number is read in the catalog unit of its variable (the Go twin: Catalog.Check) ------------
+{
+    const Page = window.ECalcCalcPage;
+    assert.ok(Page && typeof Page.launchState === 'function', 'ecalc-calc-page.js publishes window.ECalcCalcPage.launchState');
+    const dac = calcOf('dac'), divider = calcOf('voltage_divider');
+    const catalogUnit = (calc, name) => calc.vars.find(v => v.id === name).unit || '';
+    // The user last picked hex for the code field (its catalog unit is dec): 255 is still 255, FF is not a decimal number.
+    const hexPicked = name => (name === 'code' ? 'hex' : catalogUnit(dac, name));
+    const dec = Page.launchState(dac, { values: { code: '255' } }, units, hexPicked);
+    assert.equal(dec.inputs.code, '255');
+    same(core.solve.readInputs(dac, dec, units, name => catalogUnit(dac, name)).values.code, 255, 'the launched 255 is 255');
+    eq(dec.launched, ['code'], 'the launched variables are reported for the shell to reset their display unit');
+    const hex = Page.launchState(dac, { values: { code: 'FF' } }, units, hexPicked);
+    assert.equal(hex.inputs.code, core.solve.defaultState(dac, units, hexPicked).inputs.code, 'FF does not read as a dec number, so it is skipped like Check does');
+    eq(hex.launched, [], 'a skipped value is not reported');
+    // 4700 on R1 is 4.7 kOhm whatever fixed prefix the user picked there before.
+    const kPicked = name => (name === 'r1' ? 'prefix:k' : '');
+    const divided = Page.launchState(divider, { values: { r1: '4700' } }, units, kPicked);
+    same(core.solve.readInputs(divider, divided, units, name => catalogUnit(divider, name)).values.r1, 4700, 'the launched 4700 on R1 is 4700 ohm');
+    eq(divided.launched, ['r1']);
+    count += 8;
 }
 
 console.log(`ecalc core tests: ${count} cases ok`);

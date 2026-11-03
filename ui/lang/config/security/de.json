@@ -11,5 +11,9 @@
   "config.security.severity.critical": "KRITISCH",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "WARNUNG",
-  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests mit Docker (Entfernt) deployen über unverschlüsseltes HTTP"
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests mit Docker (Entfernt) deployen über unverschlüsseltes HTTP",
+  "security.hint.whatsapp_dedicated_no_owner.description": "Die eigene AuraGo-Nummer ist gewählt, aber es ist keine gültige Besitzernummer eingetragen. Der WhatsApp-Kanal bleibt aus und antwortet niemandem, bis du deine Nummer im internationalen Format einträgst.",
+  "security.hint.whatsapp_dedicated_no_owner.title": "WhatsApp: keine Besitzernummer",
+  "security.hint.whatsapp_self_chat_personal_account.description": "AuraGo ist ein verknüpftes Gerät deines eigenen WhatsApp-Kontos. Es liest nur deinen Chat mit dir selbst, aber die Geräteschlüssel öffnen alle deine Chats, und eine Sperre wegen automatisierter Nutzung trifft deine persönliche Nummer. Eine eigene AuraGo-Nummer ist sicherer.",
+  "security.hint.whatsapp_self_chat_personal_account.title": "WhatsApp: Selbst-Chat-Modus nutzt dein persönliches Konto"
 }

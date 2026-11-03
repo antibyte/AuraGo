@@ -25,8 +25,8 @@ func ecalcScripts(t *testing.T) map[string]string {
 			scripts[entry.Name()] = readDesktopAssetText(t, ecalcDir+"/"+entry.Name())
 		}
 	}
-	if len(scripts) != 11 {
-		t.Fatalf("%s holds %d scripts, want the 11 of the plan", ecalcDir, len(scripts))
+	if len(scripts) != 21 {
+		t.Fatalf("%s holds %d scripts, want the 21 of the plan", ecalcDir, len(scripts))
 	}
 	return scripts
 }
@@ -113,7 +113,7 @@ func TestECalcSearchShortcutStopsPropagation(t *testing.T) {
 		"event.stopPropagation();",
 		"shell.focusSearch()",
 	})
-	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose };", "ctx.api(catalogURL(lang), { cache: 'no-cache' })", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
+	for _, marker := range []string{"function dispose(id)", "window.ECalcApp = { render, dispose, launch };", "ctx.api(catalogURL(lang), { cache: 'no-cache' })", "desktop.ecalc_load_failed", "desktop.ecalc_retry"} {
 		if !strings.Contains(root, marker) {
 			t.Errorf("ecalc.js is missing %q", marker)
 		}
@@ -136,7 +136,11 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		ecalc_derived ecalc_eseries_nearest ecalc_eseries_series ecalc_lock ecalc_unlock ecalc_unit_auto ecalc_error_undetermined
 		ecalc_error_nonfinite ecalc_error_range ecalc_error_parse ecalc_error_locked ecalc_settings ecalc_settings_digits ecalc_settings_symbols ecalc_symbols_iec
 		ecalc_symbols_ansi ecalc_back ecalc_load_failed ecalc_retry ecalc_warnings ecalc_inputs ecalc_computed ecalc_dim_voltage ecalc_dim_current
-		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain`) {
+		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain
+		ecalc_dim_capacitance ecalc_dim_inductance ecalc_dim_frequency ecalc_dim_time ecalc_dim_length ecalc_dim_area ecalc_dim_temperature
+		ecalc_dim_tempdiff ecalc_dim_thermal_resistance ecalc_dim_resistivity ecalc_dim_tempco ecalc_dim_ratio ecalc_dim_angle ecalc_dim_baudrate
+		ecalc_dim_integer ecalc_unused_field ecalc_combos ecalc_combo_single ecalc_combo_series ecalc_combo_parallel ecalc_combo_value
+		ecalc_combo_deviation ecalc_chart`) {
 		allowed["desktop."+key] = true
 	}
 	keyPattern := regexp.MustCompile(`['"](desktop\.[A-Za-z0-9_.]+)['"]`)
@@ -158,7 +162,9 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		words := readMergedLangMap(t, lang)
-		for _, dim := range []string{"voltage", "current", "resistance", "power", "charge", "energy", "number", "gain"} {
+		for _, dim := range []string{"voltage", "current", "resistance", "power", "charge", "energy", "number", "gain",
+			"capacitance", "inductance", "frequency", "time", "length", "area", "temperature", "tempdiff", "thermal_resistance",
+			"resistivity", "tempco", "ratio", "angle", "baudrate", "integer"} {
 			if strings.TrimSpace(words["desktop.ecalc_dim_"+dim]) == "" {
 				t.Errorf("%s misses desktop.ecalc_dim_%s, which the unit dropdown looks up dynamically", lang, dim)
 			}
@@ -187,7 +193,7 @@ func TestECalcStylesheetUsesOnlyTokens(t *testing.T) {
 	if strings.Count(body, "!important") != 1 || !strings.Contains(body, ".ec-app [hidden] { display: none !important; }") {
 		t.Error("the only !important allowed is the [hidden] rule")
 	}
-	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`} {
+	for _, marker := range []string{"var(--vd-mat-canvas", "var(--vd-mat-bar", "var(--vd-mat-side", "var(--vd-mat-card", "var(--vd-mat-well", "var(--vd-mat-field", "var(--vd-mat-btn", "var(--vd-mat-selected", "var(--ds-color-success-fg)", "var(--ds-color-danger-fg)", "var(--ds-color-border-focus)", `.ec-app[data-compact="true"]`, `.ec-field[data-state="computed"]`, `.ec-field[data-state="error"]`, `.ec-field[data-unused="true"]`, ".ec-combo-table", ".ec-chart-curve", ".ec-chart-dot", ".ec-sr {"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("css/desktop-app-ecalc.css is missing %q", marker)
 		}
@@ -215,7 +221,7 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
 		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
 	}
-	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-schematics.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)
@@ -236,6 +242,65 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	} {
 		if !strings.Contains(readDesktopAssetText(t, check.file), check.marker) {
 			t.Errorf("%s is missing %q", check.file, check.marker)
+		}
+	}
+}
+
+// The chart builder is a DOM-free string builder (it is run by the page, the markup uses currentColor and the ec-chart-*
+// classes of the stylesheet), so it holds no document access and no colour of its own.
+func TestECalcChartIsADomFreeStringBuilder(t *testing.T) {
+	t.Parallel()
+	chart := ecalcScripts(t)["ecalc-chart.js"]
+	for _, marker := range []string{"window.ECalcChart = { svg };", "function svg(spec, sample)", "function axis(lo, hi)", "const TICKS = 5,", `stroke="currentColor"`, `class="ec-chart-curve"`, `class="ec-chart-dot"`, `class="ec-chart-axis"`} {
+		if !strings.Contains(chart, marker) {
+			t.Errorf("ecalc-chart.js is missing %q", marker)
+		}
+	}
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(chart, "")
+	for label, pattern := range map[string]string{
+		"document access": `\bdocument\b`,
+		"DOM write":       `\b(?:innerHTML|createElement|appendChild)\b`,
+		"hex colour":      `#[0-9a-fA-F]{3,8}\b`,
+		"colour function": `\b(?:rgba?|hsla?)\(`,
+	} {
+		if regexp.MustCompile(pattern).MatchString(body) {
+			t.Errorf("ecalc-chart.js must not contain a %s", label)
+		}
+	}
+}
+
+// The page extensions of phase 2 are wired where the contract puts them: the unit whitelist, the dimmed fields of an
+// `ignore` list, the radix keyboard, the combiner block and the chart block.
+func TestECalcPageExtensionsAreWired(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-calc-page.js"]
+	for _, marker := range []string{
+		"function unitChoices(v, units)", "function unitFor(calc, store, units)", "function ignoredIds()", "dataset.unused",
+		"desktop.ecalc_unused_field", "isRadix(v) ? 'text' : 'decimal'", "calc.finder === 'combine'",
+		"core.eseries.combine(series, target, COMBO_LIMIT)", "function paintCombos()", "function drawCombos()", "clearTimeout(comboTimer);", "function chartData()",
+		"window.ECalcChart.svg(data.spec, data.sample)", "if (unused.has(v.id)) continue;",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-calc-page.js is missing %q", marker)
+		}
+	}
+}
+
+// The launch hook is wired where the contract puts it: ctx.launch at render time and ECalcApp.launch for an open window
+// reach the shell, which stores the pre-filled state (ECalcCalcPage.launchState) and opens the page. The desktop core
+// itself is not touched by this part.
+func TestECalcLaunchHookIsWired(t *testing.T) {
+	t.Parallel()
+	scripts := ecalcScripts(t)
+	for file, markers := range map[string][]string{
+		"ecalc-calc-page.js": {"function launchState(calc, payload, units, unitOf)", "window.ECalcCalcPage = { create, launchState, unitFor };"},
+		"ecalc-shell.js":     {"function launch(payload)", "Page.launchState(item, payload, units, Page.unitFor(item, store, units))", "if (wanted) launch(options.launch);"},
+		"ecalc.js":           {"ctx.launch", "function launch(id, payload)", "if (shell) shell.launch(payload); else pending = payload;", "uid, launch: pending"},
+	} {
+		for _, marker := range markers {
+			if !strings.Contains(scripts[file], marker) {
+				t.Errorf("%s is missing %q", file, marker)
+			}
 		}
 	}
 }

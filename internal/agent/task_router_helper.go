@@ -52,10 +52,7 @@ func classifyTaskWithHelper(ctx context.Context, run RunConfig, intent string) (
 	if err != nil || output > 256 || input > 768 {
 		return unknown, fmt.Errorf("routing helper token budget unavailable")
 	}
-	structured := false
-	if caps, ok := llm.CapabilitiesFromRegistry(m.providerType, m.model); ok {
-		structured = caps.StructuredOutputs
-	}
+	responseFormat := llm.JSONResponseFormatForModel(m.providerType, m.model)
 	if err := ctx.Err(); err != nil {
 		return unknown, err
 	}
@@ -64,7 +61,7 @@ func classifyTaskWithHelper(ctx context.Context, run RunConfig, intent string) (
 	taskRouterState.Unlock()
 	m.observeStat("routing", func(s *HelperLLMOperationStats) { s.Requests++; s.LLMCalls++ })
 	ctx = budget.WithTracking(ctx, run.BudgetTracker, "routing")
-	resp, err := budget.CompleteChat(ctx, m.client, openai.ChatCompletionRequest{Model: m.model, Messages: []openai.ChatCompletionMessage{{Role: "system", Content: system}, {Role: "user", Content: user}}, MaxTokens: output, Temperature: 0.1, ResponseFormat: llm.JSONResponseFormat(structured)}, m.route, "routing", output, prompts.CountTokensForModelContext)
+	resp, err := budget.CompleteChat(ctx, m.client, openai.ChatCompletionRequest{Model: m.model, Messages: []openai.ChatCompletionMessage{{Role: "system", Content: system}, {Role: "user", Content: user}}, MaxTokens: output, Temperature: 0.1, ResponseFormat: responseFormat}, m.route, "routing", output, prompts.CountTokensForModelContext)
 	if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
 		taskRouterState.Lock()
 		taskRouterState.stats.HelperInputTokens += resp.Usage.PromptTokens

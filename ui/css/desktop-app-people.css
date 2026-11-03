@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .vd-people {
+    container: people / inline-size;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -43,6 +44,7 @@
 }
 .vd-people-search {
     flex: 1;
+    min-width: 0;
     padding: 7px 12px;
     border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
     border-radius: var(--vd-mat-field-radius, var(--ds-radius-md));
@@ -123,6 +125,12 @@
     min-height: 0;
     overflow: hidden;
     position: relative;
+}
+.vd-people-browse {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
 }
 
 /* ── Sidebar ── */
@@ -672,9 +680,69 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 600px) {
+@container people (max-width: 600px) {
+    .vd-people-search-wrap {
+        flex-basis: 100%;
+        min-width: 0;
+    }
+    .vd-people-toolbar-actions {
+        flex-wrap: wrap;
+    }
+    .vd-people-browse {
+        flex-direction: column;
+        overflow-y: auto;
+    }
     .vd-people-sidebar {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+        min-width: 0;
+        max-height: 96px;
+        padding: 4px 8px;
+        overflow: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    }
+    .vd-people-sidebar-section {
+        flex: 0 0 auto;
+        margin-bottom: 0;
+    }
+    .vd-people-sidebar-groups {
+        display: flex;
+        align-items: center;
+    }
+    .vd-people-sidebar-item,
+    .vd-people-birthday-item,
+    .vd-people-toolbar button {
+        min-height: 44px;
+    }
+    .vd-people-content {
+        flex: 1 0 auto;
+        min-height: 0;
+        overflow-y: visible;
+    }
+    .vd-people-list-header {
         display: none;
+    }
+    .vd-people-list-row {
+        display: grid;
+        gap: 4px;
+        padding: 12px;
+    }
+    .vd-people-list-col {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .vd-people-list-col:empty {
+        display: none;
+    }
+    .vd-people-detail:not(.open) {
+        display: none;
+    }
+    .vd-people-detail-close {
+        width: 44px;
+        height: 44px;
     }
     .vd-people-detail.open {
         position: absolute;
