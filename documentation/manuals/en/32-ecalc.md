@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 77 calculators in ten categories. The agent can calculate with the same formulas and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). Reference tables, component codes and pinouts come in later versions (see [What Comes Next](#what-comes-next)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 79 calculators in ten categories, 44 reference tables (see [Tables](#tables)) and five component code pages (see [Component Codes](#component-codes)). The agent can calculate with the same formulas, read the tables and codes, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). Pinouts come in a later version (see [What Comes Next](#what-comes-next)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -12,10 +12,13 @@ ECalc has 77 calculators in ten categories. The agent can calculate with the sam
 5. [Standard Values (E Series)](#standard-values-e-series)
 6. [Settings](#settings)
 7. [The Calculators](#the-calculators)
-8. [Using ECalc from the Agent](#using-ecalc-from-the-agent)
-9. [What Comes Next](#what-comes-next)
-10. [Privacy and Safety](#privacy-and-safety)
-11. [When Something Goes Wrong](#when-something-goes-wrong)
+8. [Tables](#tables)
+9. [Component Codes](#component-codes)
+10. [Sources and Honesty](#sources-and-honesty)
+11. [Using ECalc from the Agent](#using-ecalc-from-the-agent)
+12. [What Comes Next](#what-comes-next)
+13. [Privacy and Safety](#privacy-and-safety)
+14. [When Something Goes Wrong](#when-something-goes-wrong)
 
 ---
 
@@ -30,11 +33,11 @@ calculator, and use **Back** to return to the previous level.
 
 ## Finding a Calculator
 
-- **Category rail:** **Favorites** and **Recent** come first, followed by the categories that hold calculators: Basics, Passive,
-  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital and Wiring & PCB. Each category shows how many calculators
-  it holds. The rail lists a category only when it has content, so Tables, Codes and Pinouts will appear once they are added.
-- **Search:** type in the search box at the top to find a calculator by its name in your language, by its English name or by a
-  keyword such as "divider". Each calculator has keywords, and the search matches them too.
+- **Category rail:** **Favorites** and **Recent** come first, followed by the categories that hold items: Basics, Passive,
+  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital, Wiring & PCB, **Tables** and **Codes**. Each category shows
+  how many items it holds. The rail lists a category only when it has content, so **Pinouts** will appear once they are added.
+- **Search:** type in the search box at the top to find a calculator, a table or a component code by its name in your language, by
+  its English name or by a keyword such as "divider". Each item has keywords, and the search matches them too.
 - **Favorites:** the favorite button on a calculator page adds it to **Favorites**. Click it again to remove it.
 - **Recent:** ECalc remembers the last 12 calculators you opened.
 
@@ -131,7 +134,7 @@ browser data resets them. ECalc works without browser storage too, it just forge
 
 ## The Calculators
 
-ECalc has 77 calculators in ten categories. Each table lists the calculators of one category, in the order of the category rail.
+ECalc has 79 calculators in ten categories. Each table lists the calculators of one category, in the order of the category rail.
 The source behind each formula, the standard, datasheet or textbook, is shown on the calculator's page under **Explanation**, so
 the tables leave it out.
 
@@ -261,46 +264,144 @@ the tables leave it out.
 | PCB trace resistance | Resistance, voltage drop and power of a copper trace. Also solves for its length, width or thickness. |
 | Via current capacity | Copper cross-section, resistance and current of a plated-through via. |
 | AWG wire size conversion | Converts wire diameter and cross-section between AWG, mm, mil, inch, kcmil and mil². |
+| Cable cross-section finder | Finds the smallest standard cross-section for a design current from the cable current-rating tables, with the ambient temperature and grouping factors of the installation method. The result row is highlighted in the table. |
+| PCB conductor spacing finder (IPC-2221) | Finds the minimum conductor spacing for a voltage from IPC-2221B or IPC-2221C table 6-1, including the rule per volt above 500 V. The result band is highlighted in the table. |
+
+## Tables
+
+The **Tables** category holds 44 reference tables. 40 are transcribed from standards and published sources. The other 4 are generated by ECalc from formulas: the AWG wire gauges, the PCB trace width after IPC-2221 and the two E-series tables. Open a table from the category. The list is sorted into the groups **Conductors and Cables**, **Components**, **Materials** and **General**.
+
+On the table page:
+
+- **Filter:** type in the filter box, or press `/` to jump to it. The filter keeps the rows in which a shown cell contains the text.
+- **Sort:** click a column header to sort the rows ascending or descending, or back in table order. Empty cells always come last.
+- **Units:** each column has its own unit dropdown, with the units that suit it (a cross-section can be shown as mm², kcmil or AWG). ECalc remembers your choice for that column of that table.
+- **Empty columns:** a column without any value is hidden. The line under the table says how many columns are hidden: "Columns without verified data are hidden: N".
+- **Copy table:** copies the visible rows, in the units shown, as tab-separated text that you can paste into a spreadsheet.
+- **Banners and notes:** a table marked as guide values shows a banner: the values are guide values from the cited source, and the standard itself is authoritative. A table with mains installation data shows a mains note: the applicable national rules decide, and the installation work is for qualified persons. Each table names its source and shows its notes.
+- **Finders:** two calculators select a row of a table, the **Cable cross-section finder** and the **PCB conductor spacing finder (IPC-2221)**. Their card sits on the table page, shows the inputs that are still free and hides the fixed choice of the finder. The row that matches the result is highlighted and scrolled into view, and the highlight moves when you change the inputs. If the inputs lie outside the verified data, the finder shows the warning "Not covered by the verified data" and highlights no row.
+
+### Conductors and Cables
+
+| Table | What it shows |
+|-------|---------------|
+| Cable current ratings, copper, PVC (70 °C) | Current-carrying capacity of copper cables with PVC insulation for the installation methods A1 to F. |
+| Cable current ratings, copper, XLPE/EPR (90 °C) | Current-carrying capacity of copper cables with XLPE or EPR insulation (90 °C). |
+| Cable current ratings, aluminium, PVC (70 °C) | Current-carrying capacity of aluminium cables from 16 to 240 mm² with PVC insulation; only the confirmed cells are filled. |
+| Cable current ratings, aluminium, XLPE/EPR (90 °C) | Current-carrying capacity of aluminium cables from 16 to 240 mm² with XLPE or EPR insulation; only the confirmed cells are filled. |
+| Ambient temperature factors for cables in air | Correction factors for ambient temperatures from 10 to 85 °C. |
+| Grouping factors for cables | Reduction factors for 1 to 20 circuits in one group, by installation arrangement. |
+| Factors for multi-core cables and cords | Factors for cables and cords up to 10 mm² with more than three loaded cores. |
+| Flexible cord current ratings (DIN VDE 0298-4) | Current-carrying capacity of flexible copper cords from 0.5 to 400 mm², by cord type. |
+| NEC ampacities by AWG (table 310.16) | Allowable ampacities of copper and aluminium conductors from 18 AWG to 500 kcmil at 60, 75 and 90 °C. |
+| Standard conductor sizes (IEC 60228) | The standard cross-sections from 0.5 to 2500 mm² with the maximum DC resistance per km. |
+| PCB conductor spacing by voltage (IPC-2221B) | Minimum spacing between conductors on a printed board by voltage band. Functional spacing, not safety isolation. |
+| PCB conductor spacing by voltage (IPC-2221C) | The revised IPC-2221C table (December 2023). Functional spacing, not safety isolation. |
+| PCB copper weight and thickness | Copper weight in oz/ft² from 1/4 to 4 oz, with the area weight and the thickness by four conventions. |
+| AWG wire gauges | Generated: the AWG sizes from 4/0 to 40, from the AWG formula of ASTM B258. |
+| PCB trace width (IPC-2221) | Generated: trace widths for a grid of currents, outer and inner layers, copper weights and temperature rises. |
+
+### Components
+
+| Table | What it shows |
+|-------|---------------|
+| SMD chip sizes (resistors, capacitors) | EIA and metric size codes from 01005 to 2512 with the body size, and the typical power and voltage of chip resistors. |
+| Ceramic capacitor dielectrics (C0G, X7R …) | Temperature range and capacitance behaviour of C0G, X8R, X7R, X7S, X7T, X6S, X5R and Y5V. |
+| Fuse time-current characteristics (FF, F, M, T, TT) | The characteristic letters of miniature fuses with their speed order and, for F and T, the pre-arcing time at 10 times the rated current. |
+| Fuse pre-arcing times (IEC 60127-2, 5×20 mm) | Minimum and maximum melting times of 5×20 mm fuses at 1.5 to 10 times the rated current. |
+| Miniature fuse formats (5×20, 6.3×32, TR5) | Body diameter, length and lead spacing of three common formats. |
+| Battery chemistries (voltages and energy density) | Nominal and cut-off voltages per cell and the specific energy of common chemistries. |
+| Battery sizes (AA, 18650, CR2032 …) | IEC and ANSI designations, dimensions and nominal voltage of common cells. |
+| DC barrel connectors (power plugs) | Outer and inner diameter, centre pin, voltage class and rated current of common DC plugs. |
+| Preferred values E3 to E24 | Generated: the IEC 60063 values, with the series each value belongs to. |
+| Preferred values E48 to E192 | Generated: the same for E48 to E192. |
+
+### Materials
+
+| Table | What it shows |
+|-------|---------------|
+| Resistivity of conductor and resistance materials | Resistivity at 20 °C and temperature coefficient of 22 materials, with the spread between the sources. |
+| Relative permittivity and loss tangent of dielectrics | εr and tan δ of 14 materials (circuit board laminates, cable insulation, air, glass and alumina), each with its test frequency. |
+| Thermocouple types (IEC 60584) | The eight standard types B, E, J, K, N, R, S and T with their materials, tolerance classes, voltages and cable colours. |
+| Solder alloys | Seven common soft solders with their ISO 9453 numbers, solidus and liquidus, and their typical use. |
+
+### General
+
+| Table | What it shows |
+|-------|---------------|
+| SI prefixes | The 24 prefixes from quetta to quecto with symbol and factor. |
+| SI units | The seven base units, the named units and the common derived units, each with its expression in base units. |
+| Physical constants | 30 constants for electronics with the CODATA 2022 value, uncertainty and unit. |
+| Greek alphabet | The 24 letters with their variant forms, names and typical uses as symbols. |
+| IP codes (IEC 60529) | The characteristic numerals of the IP code for solids and water, with their meaning. |
+| Protection classes (IEC 61140) | Protection classes 0, I, II and III against electric shock, with protection principle and marking. |
+| Mains voltage, frequency and plugs by country | Nominal voltage, frequency and plug types of 48 countries. Guide values. |
+| ISM and SRD bands | The ITU ISM bands and the EU short-range-device bands, with their limits, power and duty cycle. |
+| LoRaWAN regional channel plans (EU868, US915, AS923) | Default channels and RX2 and beacon settings of the regional plans. |
+| Wi-Fi channels 2.4 and 5 GHz | Centre frequencies, channel edges and availability in Germany/EU and the USA. |
+| Amateur radio bands in Germany (AFuV) | The 45 frequency ranges of AFuV Annex 1 with their status and the maximum power per licence class. |
+| Logic levels | Input and output voltages, currents and switching thresholds of TTL and CMOS families. |
+| RS-232, RS-485 and LVDS signal levels | Driver and receiver voltages, thresholds, loads and terminations. |
+| ASCII table | The codes 0 to 127 in decimal and hexadecimal, with the character or control name. |
+| Wire colours (IEC/DE and US NEC) | Conductor colours for L1, L2, L3, N and PE in Germany and the EU, and for the grounded and ungrounded conductors in the USA. |
+
+## Component Codes
+
+The **Codes** category decodes component markings and writes them from a value. There is one page for each kind of code:
+
+- **Resistor colour code** and **Inductor colour code**: the colour bands. Click a band to choose its colour in the menu, or use the keyboard: Tab moves to a band, Enter, Space or the down arrow opens its menu, the arrow keys move through the colours, Enter picks one and Escape closes the menu. The page shows the value, the tolerance and, for six-band resistors, the temperature coefficient, and it gives the nearest standard value of the chosen series. Inductors have four or five bands.
+- **SMD resistor codes**: the three-digit code (472 is 4.7 kΩ), the four-digit code, the EIA-96 code (01C) and the R notation (4R7 is 4.7 Ω). A value that you enter shows its three-digit, four-digit and EIA-96 marking.
+- **Capacitor codes**: the picofarad code (104 is 100 nF, 4p7 is 4.7 pF), the tolerance letter and the voltage code. A marking can have up to three parts, for example `104K 1H`: 100 nF, ±10 % and 50 V.
+- **Ceramic capacitor temperature codes**: class 1 (temperature compensating, for example C0G or NP0) with its temperature coefficient in ppm/K and its tolerance, and class 2 (high permittivity, for example X7R or U2J) with its temperature range and the permitted capacitance change. A class 2 code has no value of its own, so the page shows no number for it.
+
+Resistor colours follow IEC 60062:2016. Where makers still print an older tolerance reading, the page shows it as a warning. Voltage codes are a maker convention, so the page says so and the datasheet decides. Warnings and error messages come from the engine and are in English in every language.
+
+## Sources and Honesty
+
+Transcribed standard tables are guide values, cross-checked against two independent sources. Cells that could not be cross-checked are left empty, and a column without any verified value is hidden. Each table names its source; check a design that matters against the standard or the datasheet.
 
 ## Using ECalc from the Agent
 
-The AuraGo agent can use ECalc's formulas through the `ecalc` tool. The tool computes on your AuraGo server with the same catalog
+The AuraGo agent can use ECalc's formulas, reference tables and component codes through the `ecalc` tool. The tool computes on your AuraGo server with the same catalog
 and formulas as the app. It reads nothing from the network or from files, and it has no switch of its own in **Config**.
 
-The agent has four operations:
+The agent has seven operations:
 
-- **search** finds calculators by a topic, a part or a formula, in English or German. Without a search term it lists the categories.
+- **search** finds calculators, tables and component codes by a topic, a part or a formula, in English or German. Without a search term it lists the categories.
 - **describe** shows the variables of a calculator with their units and defaults, its choices, the sets of inputs that work, the
-  values it computes and its checks.
+  values it computes and its checks. For a table it shows the columns and the key; for a component code, the forms it reads and writes.
 - **calculate** solves a calculator from the values you give. Any complete set of inputs works, so it can solve for whichever value
   is missing. It reports every value in SI units and as formatted text, with the calculator's warnings. It also tells you when a value
   you gave differs from the result by more than 1 %. For a computed resistor it names the nearest standard value of the chosen series,
   and the standard-value combiner returns its pairs.
+- **table** reads the rows of a reference table. It filters them, pages through them (`offset`, `limit`) and answers one lookup:
+  `exact` (the row whose column equals the value), `ge` (the first row whose column is at least the value) or `interp` (a value
+  between the neighbouring rows). Rows come in the column units, with the SI values for further calculation.
+- **decode** reads a component code, for example the colour bands of a resistor, and reports its value and fields. **encode** writes
+  one from a value: it picks the nearest standard value of the series that the tolerance implies and returns the matching marking
+  or bands.
 - **open** shows a calculator in the ECalc app on the desktop, with the values filled in as if you had typed them. The answer
   computes nothing; for the numbers the agent uses **calculate**. Names and values are checked one by one, but the values are not
   checked against each other, so a set of values that contradict each other opens as typed.
 
 **open** needs the Virtual Desktop to be switched on, and **Allow agent control** to be enabled, in **Config → Integrations →
 Virtual Desktop**. Without them the agent gets a "policy denied" answer and gives you the numbers from **calculate** instead.
-Other agents that reach AuraGo through A2A (agent-to-agent requests) may use search, describe and calculate, but they cannot open
-ECalc.
+Other agents that reach AuraGo through A2A (agent-to-agent requests) may use search, describe, calculate, table, decode and encode, all of which only read, but they cannot open ECalc.
 
-Two prompts you can type:
+Prompts you can type:
 
 - "What resistor do I need for a red LED at 20 mA on 5 V?" The agent calculates the series resistor with the **LED series resistor**
   calculator and reports the nearest standard value.
 - "Open ECalc with the 555 astable for 1 kHz." The agent opens the **NE555 astable (oscillator)** calculator in the Virtual Desktop with
   the frequency filled in, if the Virtual Desktop and agent control are switched on.
+- "Which AWG size has a diameter of about 2 mm?" The agent reads the **AWG wire gauges** table with a lookup and names the matching size.
+- "What resistor is brown black red gold?" The agent decodes the colour bands with `decode` and reports the value and tolerance.
 
 ## What Comes Next
 
-The catalog grows in later versions:
+One part of the catalog is still to come:
 
-- **Reference tables**, for example the current capacity of cables and PCB traces.
-- **Component codes**, for example the resistor colour code and SMD codes.
-- **Pinouts** of connectors and ICs.
-- **Finders that read the tables**, for example a cable cross-section for a given current according to VDE, and a trace spacing
-  for a given voltage.
+- **Pinouts** of connectors and ICs, in a later version.
 
 This chapter grows with them.
 
@@ -329,6 +430,9 @@ This chapter grows with them.
 | The agent cannot open ECalc ("policy denied") | Switch on the Virtual Desktop and **Allow agent control** in **Config → Integrations → Virtual Desktop**. Until then the agent can still give you the numbers from **calculate**. |
 | The favorites or the last values are gone | They live in the browser. A different browser, a private window or cleared browser data starts with empty ones. |
 | The E-series value is far from the calculated one | Choose a series with more values, such as E96 or E192. |
+| A table column is hidden | The column has no verified data: its cells could not be cross-checked, so they are left empty and the column is hidden. The line under the table says how many columns are hidden. |
+| A finder shows a warning ("Not covered by the verified data") | The inputs lie outside the verified data, or no second source confirmed a value for this combination. Choose another combination; the finder highlights no row. |
+| A code is rejected as "not cross-checked" or "ambiguous" | The symbol is not in the verified data ("not cross-checked"), or makers read it in conflicting ways ("ambiguous"). Read the marking on the part and check the datasheet. In the agent tool the answer has the code `unsupported`. |
 
 ---
 

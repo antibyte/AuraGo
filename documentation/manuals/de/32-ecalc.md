@@ -5,10 +5,11 @@ Ergebnisse nebeneinander und rechnet schon während du tippst. Du gibst die Wert
 Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E-Reihe vor, und der Rechner **Kombination von
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
-ECalc enthält 77 Rechner in zehn Kategorien. Der Agent kann mit denselben Formeln rechnen und für dich einen Rechner öffnen (siehe
-[ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). Nachschlagetabellen, Bauteilcodes und Pinbelegungen folgen in
-späteren Versionen (siehe [Wie es weitergeht](#wie-es-weitergeht)). ECalc läuft in deinem Browser. Es braucht keinen Provider und
-hat keinen eigenen Schalter unter **Config**.
+ECalc enthält 79 Rechner in zehn Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)) und fünf Bauteilcode-Seiten (siehe
+[Bauteilcodes](#bauteilcodes)). Der Agent kann mit denselben Formeln rechnen, die Tabellen und Codes lesen und für dich einen
+Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). Pinbelegungen folgen in einer späteren
+Version (siehe [Wie es weitergeht](#wie-es-weitergeht)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
+eigenen Schalter unter **Config**.
 
 ## Inhalt
 1. [ECalc öffnen](#ecalc-öffnen)
@@ -18,10 +19,13 @@ hat keinen eigenen Schalter unter **Config**.
 5. [Normwerte (E-Reihen)](#normwerte-e-reihen)
 6. [Einstellungen](#einstellungen)
 7. [Die Rechner](#die-rechner)
-8. [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)
-9. [Wie es weitergeht](#wie-es-weitergeht)
-10. [Datenschutz und Sicherheit](#datenschutz-und-sicherheit)
-11. [Wenn etwas schiefgeht](#wenn-etwas-schiefgeht)
+8. [Tabellen](#tabellen)
+9. [Bauteilcodes](#bauteilcodes)
+10. [Quellen und Grenzen](#quellen-und-grenzen)
+11. [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)
+12. [Wie es weitergeht](#wie-es-weitergeht)
+13. [Datenschutz und Sicherheit](#datenschutz-und-sicherheit)
+14. [Wenn etwas schiefgeht](#wenn-etwas-schiefgeht)
 
 ---
 
@@ -36,12 +40,12 @@ dann einen Rechner, und gehe mit **Zurück** eine Ebene nach oben.
 
 ## Einen Rechner finden
 
-- **Kategorieleiste:** Zuerst kommen **Favoriten** und **Zuletzt verwendet**, danach die Kategorien mit Rechnern: Grundlagen, Passive
-  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital und Leitungen & PCB. Jede Kategorie zeigt, wie viele
-  Rechner sie enthält. Die Leiste zeigt eine Kategorie nur, wenn sie Inhalte hat; Tabellen, Bauteilcodes und Pinbelegungen erscheinen
-  also, sobald sie hinzukommen.
-- **Suche:** Tippe oben ins Suchfeld, um einen Rechner über seinen Namen in deiner Sprache, über den englischen Namen oder über
-  ein Stichwort wie „Teiler“ zu finden. Jeder Rechner hat Schlagwörter, die die Suche ebenfalls durchsucht.
+- **Kategorieleiste:** Zuerst kommen **Favoriten** und **Zuletzt verwendet**, danach die Kategorien mit Inhalten: Grundlagen, Passive
+  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital, Leitungen & PCB, **Tabellen** und **Bauteilcodes**.
+  Jede Kategorie zeigt, wie viele Einträge sie enthält. Die Leiste zeigt eine Kategorie nur, wenn sie Inhalte hat; **Pinbelegungen**
+  erscheinen also, sobald sie hinzukommen.
+- **Suche:** Tippe oben ins Suchfeld, um einen Rechner, eine Tabelle oder einen Bauteilcode über seinen Namen in deiner Sprache, über
+  den englischen Namen oder über ein Stichwort wie „Teiler“ zu finden. Jeder Eintrag hat Schlagwörter, die die Suche ebenfalls durchsucht.
 - **Favoriten:** Die Favoriten-Schaltfläche auf einer Rechenseite nimmt den Rechner in die **Favoriten** auf. Ein weiterer Klick
   entfernt ihn wieder.
 - **Zuletzt verwendet:** ECalc merkt sich die letzten 12 Rechner, die du geöffnet hast.
@@ -144,7 +148,7 @@ Browser-Speicher, vergisst dann aber alles, sobald du das Fenster schließt.
 
 ## Die Rechner
 
-ECalc enthält 77 Rechner in zehn Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
+ECalc enthält 79 Rechner in zehn Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
 Kategorieleiste. Die Quelle hinter jeder Formel, also die Norm, das Datenblatt oder das Lehrbuch, zeigt die Seite des Rechners
 unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 
@@ -274,48 +278,147 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Leiterbahnwiderstand | Widerstand, Spannungsfall und Verlustleistung einer Kupfer-Leiterbahn. Löst auch nach Länge, Breite oder Dicke auf. |
 | Strombelastbarkeit einer Durchkontaktierung | Kupferquerschnitt, Widerstand und Strom einer durchkontaktierten Via. |
 | AWG-Umrechnung (Drahtdurchmesser und Querschnitt) | Rechnet Drahtdurchmesser und Querschnitt zwischen AWG, mm, mil, Zoll, kcmil und mil² um. |
+| Kabelquerschnitt bestimmen | Bestimmt aus den Kabel-Belastbarkeitstabellen den kleinsten Normquerschnitt für einen Betriebsstrom, mit Umrechnungsfaktor für die Umgebungstemperatur und Häufungsfaktor der gewählten Verlegeart. Die Ergebniszeile ist in der Tabelle hervorgehoben. |
+| Leiterabstand auf der Leiterplatte bestimmen (IPC-2221) | Bestimmt den Mindestabstand der Leiter für eine Spannung aus Tabelle 6-1 von IPC-2221B oder IPC-2221C, einschließlich der Regel je Volt über 500 V. Das Band des Ergebnisses ist in der Tabelle hervorgehoben. |
+
+## Tabellen
+
+Die Kategorie **Tabellen** enthält 44 Nachschlagetabellen. 40 sind aus Normen und veröffentlichten Quellen übertragen. Die anderen 4 erzeugt ECalc aus Formeln: die AWG-Leitergrößen, die Leiterbahnbreite nach IPC-2221 und die beiden E-Reihen-Tabellen. Öffne eine Tabelle aus der Kategorie. Die Liste ist in die Gruppen **Leiter und Kabel**, **Bauteile**, **Werkstoffe** und **Allgemein** gegliedert.
+
+Auf der Tabellenseite:
+
+- **Filter:** Tippe ins Filterfeld oder drücke `/`, um dorthin zu springen. Der Filter behält die Zeilen, in denen eine sichtbare Zelle den Text enthält.
+- **Sortieren:** Klicke auf eine Spaltenüberschrift, um die Zeilen aufsteigend oder absteigend zu sortieren oder zurück in die Reihenfolge der Tabelle. Leere Zellen stehen immer am Ende.
+- **Einheiten:** Jede Spalte hat ihr eigenes Einheiten-Auswahlfeld mit den Einheiten, die zu ihr passen (ein Querschnitt lässt sich als mm², kcmil oder AWG zeigen). ECalc merkt sich deine Wahl für diese Spalte dieser Tabelle.
+- **Leere Spalten:** Eine Spalte ohne einen einzigen Wert ist ausgeblendet. Die Zeile unter der Tabelle nennt, wie viele Spalten ausgeblendet sind: „Ausgeblendete Spalten ohne geprüfte Daten: N“.
+- **Tabelle kopieren:** Kopiert die sichtbaren Zeilen in den angezeigten Einheiten als tabulatorgetrennten Text, den du in eine Tabellenkalkulation einfügen kannst.
+- **Banner und Hinweise:** Eine Tabelle mit Richtwerten zeigt ein Banner: Die Werte sind Richtwerte aus der genannten Quelle, maßgeblich ist die Norm selbst. Eine Tabelle mit Netzinstallationsdaten zeigt einen Netzhinweis: Die geltenden nationalen Vorschriften entscheiden, und die Installation gehört in die Hand einer Elektrofachkraft. Jede Tabelle nennt ihre Quelle und zeigt ihre Anmerkungen.
+- **Finder:** Zwei Rechner wählen eine Zeile einer Tabelle aus: der **Kabelquerschnitt bestimmen** und der **Leiterabstand auf der Leiterplatte bestimmen (IPC-2221)**. Ihre Karte steht auf der Tabellenseite, zeigt die noch freien Eingaben und blendet die feste Auswahl des Finders aus. Die Zeile zum Ergebnis ist hervorgehoben und ins Blickfeld gescrollt; die Hervorhebung wandert, wenn du die Eingaben änderst. Liegen die Eingaben außerhalb der geprüften Daten, zeigt der Finder die Warnung „Not covered by the verified data“ und hebt keine Zeile hervor. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.
+
+### Leiter und Kabel
+
+| Tabelle | Was sie zeigt |
+|---------|---------------|
+| Strombelastbarkeit von Kabeln, Kupfer, PVC (70 °C) | Strombelastbarkeit von Kupferkabeln mit PVC-Isolierung für die Verlegearten A1 bis F. |
+| Strombelastbarkeit von Kabeln, Kupfer, VPE/EPR (90 °C) | Strombelastbarkeit von Kupferkabeln mit VPE- oder EPR-Isolierung (90 °C). |
+| Strombelastbarkeit von Kabeln, Aluminium, PVC (70 °C) | Strombelastbarkeit von Aluminiumkabeln von 16 bis 240 mm² mit PVC-Isolierung; nur die bestätigten Zellen sind gefüllt. |
+| Strombelastbarkeit von Kabeln, Aluminium, VPE/EPR (90 °C) | Strombelastbarkeit von Aluminiumkabeln von 16 bis 240 mm² mit VPE- oder EPR-Isolierung; nur die bestätigten Zellen sind gefüllt. |
+| Umrechnungsfaktoren Umgebungstemperatur (Kabel in Luft) | Umrechnungsfaktoren für Umgebungstemperaturen von 10 bis 85 °C. |
+| Häufungsfaktoren für Kabel | Reduktionsfaktoren für 1 bis 20 Stromkreise in einer Gruppe, nach Anordnung. |
+| Umrechnungsfaktoren für vieladrige Leitungen | Faktoren für Kabel und Leitungen bis 10 mm² mit mehr als drei belasteten Adern. |
+| Strombelastbarkeit flexibler Leitungen (DIN VDE 0298-4) | Strombelastbarkeit flexibler Kupferleitungen von 0,5 bis 400 mm² nach Leitungstyp. |
+| NEC-Strombelastbarkeit nach AWG (Tabelle 310.16) | Zulässige Strombelastbarkeit von Kupfer- und Aluminiumleitern von 18 AWG bis 500 kcmil bei 60, 75 und 90 °C. |
+| Normquerschnitte von Leitern (IEC 60228) | Die Normquerschnitte von 0,5 bis 2500 mm² mit dem höchstzulässigen Gleichstromwiderstand je km. |
+| Leiterabstände auf Leiterplatten nach Spannung (IPC-2221B) | Mindestabstand zwischen Leitern auf einer Leiterplatte je Spannungsband. Funktionsabstand, keine Schutztrennung. |
+| Leiterabstände auf Leiterplatten nach Spannung (IPC-2221C) | Die überarbeitete Tabelle IPC-2221C (Dezember 2023). Funktionsabstand, keine Schutztrennung. |
+| Kupferauflage und Dicke bei Leiterplatten | Kupferauflage in oz/ft² von 1/4 bis 4 oz, mit dem Flächengewicht und der Dicke nach vier Konventionen. |
+| AWG-Leitergrößen | Erzeugt: die AWG-Größen von 4/0 bis 40 nach der AWG-Formel der ASTM B258. |
+| Leiterbahnbreite (IPC-2221) | Erzeugt: Leiterbahnbreiten für ein Raster aus Strömen, Außen- und Innenlagen, Kupferdicken und Temperaturanstiegen. |
+
+### Bauteile
+
+| Tabelle | Was sie zeigt |
+|---------|---------------|
+| SMD-Chip-Bauformen (Widerstände, Kondensatoren) | EIA- und metrische Baugrößencodes von 01005 bis 2512 mit Körpergröße sowie typischer Leistung und Spannung von Chipwiderständen. |
+| Keramikkondensator-Dielektrika (C0G, X7R …) | Temperaturbereich und Kapazitätsverhalten von C0G, X8R, X7R, X7S, X7T, X6S, X5R und Y5V. |
+| Sicherungs-Kennlinien (FF, F, M, T, TT) | Die Kennbuchstaben von Feinsicherungen mit ihrer Trägheitsfolge und, für F und T, der Schmelzzeit beim 10-fachen Nennstrom. |
+| Schmelzzeiten von Sicherungen (IEC 60127-2, 5×20 mm) | Minimale und maximale Schmelzzeit von 5×20-mm-Sicherungen beim 1,5- bis 10-fachen Nennstrom. |
+| Bauformen von Feinsicherungen (5×20, 6,3×32, TR5) | Körperdurchmesser, Länge und Anschlussraster der drei gängigen Bauformen. |
+| Batteriechemien (Spannungen und Energiedichte) | Nenn- und Entladeschlussspannung je Zelle sowie die spezifische Energie gängiger Chemien. |
+| Batteriegrößen (AA, 18650, CR2032 …) | IEC- und ANSI-Bezeichnungen, Abmessungen und Nennspannung gängiger Zellen. |
+| Hohlstecker (DC-Koaxialstecker) | Außen- und Innendurchmesser, Mittelstift, Spannungsklasse und Bemessungsstrom gängiger Gleichstromstecker. |
+| Normwerte E3 bis E24 | Erzeugt: die Werte nach IEC 60063 mit der Reihe, zu der jeder Wert gehört. |
+| Normwerte E48 bis E192 | Erzeugt: dasselbe für E48 bis E192. |
+
+### Werkstoffe
+
+| Tabelle | Was sie zeigt |
+|---------|---------------|
+| Spezifischer Widerstand von Leiter- und Widerstandswerkstoffen | Spezifischer Widerstand bei 20 °C und Temperaturkoeffizient von 22 Werkstoffen, mit der Streuung zwischen den Quellen. |
+| Permittivitätszahl und Verlustfaktor von Dielektrika | εr und tan δ von 14 Stoffen (Leiterplatten-Basismaterialien, Kabelisolierstoffe, Luft, Glas und Aluminiumoxid), jeweils mit Messfrequenz. |
+| Thermoelement-Typen (IEC 60584) | Die acht genormten Typen B, E, J, K, N, R, S und T mit Werkstoffen, Toleranzklassen, Spannungen und Leitungsfarben. |
+| Lotlegierungen | Sieben gebräuchliche Weichlote mit ISO-9453-Nummern, Solidus und Liquidus sowie typischer Verwendung. |
+
+### Allgemein
+
+| Tabelle | Was sie zeigt |
+|---------|---------------|
+| SI-Vorsätze | Die 24 Vorsätze von Quetta bis Quekto mit Zeichen und Faktor. |
+| SI-Einheiten | Die sieben Basiseinheiten, die benannten Einheiten und die gängigen abgeleiteten Einheiten mit ihrer Darstellung in Basiseinheiten. |
+| Physikalische Konstanten | 30 Konstanten für die Elektronik mit dem CODATA-2022-Wert, der Unsicherheit und der Einheit. |
+| Griechisches Alphabet | Die 24 Buchstaben mit Varianten, Namen und typischer Verwendung als Formelzeichen. |
+| IP-Schutzarten (IEC 60529) | Die Kennziffern des IP-Codes für feste Körper und Wasser, mit ihrer Bedeutung. |
+| Schutzklassen (IEC 61140) | Schutzklassen 0, I, II und III gegen elektrischen Schlag, mit Schutzprinzip und Kennzeichnung. |
+| Netzspannung, Frequenz und Steckertypen nach Land | Nennspannung, Frequenz und Steckertypen von 48 Ländern. Richtwerte. |
+| ISM- und SRD-Bänder | Die ITU-ISM-Bänder und die EU-SRD-Bänder mit Grenzen, Leistung und Tastgrad. |
+| LoRaWAN-Kanalpläne (EU868, US915, AS923) | Standardkanäle sowie RX2- und Beacon-Einstellungen der regionalen Pläne. |
+| WLAN-Kanäle 2,4 und 5 GHz | Mittenfrequenzen, Kanalgrenzen und Verfügbarkeit in Deutschland/EU und den USA. |
+| Amateurfunkbänder in Deutschland (AFuV) | Die 45 Frequenzbereiche der AFuV-Anlage 1 mit Status und Höchstleistung je Klasse. |
+| Logikpegel | Eingangs- und Ausgangsspannungen, Ströme und Schaltschwellen von TTL- und CMOS-Familien. |
+| Signalpegel von RS-232, RS-485 und LVDS | Treiber- und Empfängerspannungen, Schwellen, Lasten und Abschlüsse. |
+| ASCII-Tabelle | Die Codes 0 bis 127 dezimal und hexadezimal, mit Zeichen oder Steuerzeichenname. |
+| Aderfarben (IEC/DE und US-NEC) | Leiterfarben für L1, L2, L3, N und PE in Deutschland und der EU sowie für die geerdeten und ungeerdeten Leiter in den USA. |
+
+## Bauteilcodes
+
+Die Kategorie **Bauteilcodes** liest Kennzeichnungen von Bauteilen und schreibt sie aus einem Wert. Es gibt eine Seite je Codeart:
+
+- **Widerstands-Farbcode** und **Spulen-Farbcode**: die Farbringe. Klicke auf einen Ring, um seine Farbe im Menü zu wählen, oder bediene die Seite mit der Tastatur: Tab führt zu einem Ring, Eingabe, Leertaste oder Pfeil nach unten öffnet sein Menü, mit den Pfeiltasten wählst du die Farben, Eingabe übernimmt eine Farbe und Escape schließt das Menü. Die Seite zeigt den Wert, die Toleranz und bei Widerständen mit sechs Ringen den Temperaturkoeffizienten sowie den nächsten Normwert der gewählten Reihe. Spulen haben vier oder fünf Ringe.
+- **SMD-Widerstandscodes**: der Dreistellen-Code (472 ist 4,7 kΩ), der Vierstellen-Code, der EIA-96-Code (01C) und die R-Schreibweise (4R7 ist 4,7 Ω). Ein Wert, den du eingibst, zeigt seine Dreistellen-, Vierstellen- und EIA-96-Kennzeichnung.
+- **Kondensatorcodes**: der Pikofarad-Code (104 ist 100 nF, 4p7 ist 4,7 pF), der Toleranzbuchstabe und der Spannungscode. Eine Kennzeichnung kann bis zu drei Teile haben, zum Beispiel `104K 1H`: 100 nF, ±10 % und 50 V.
+- **Temperaturcodes für Keramikkondensatoren**: Klasse 1 (temperaturkompensierend, zum Beispiel C0G oder NP0) mit Temperaturkoeffizient in ppm/K und Toleranz, Klasse 2 (hohe Permittivität, zum Beispiel X7R oder U2J) mit Temperaturbereich und zulässiger Kapazitätsänderung. Ein Code der Klasse 2 hat keinen eigenen Wert, deshalb zeigt die Seite dafür keine Zahl.
+
+Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleranzangabe drucken, zeigt die Seite sie als Warnung. Spannungscodes sind eine Herstellerkonvention; die Seite sagt das, und das Datenblatt entscheidet. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.
+
+## Quellen und Grenzen
+
+Übertragene Normtabellen sind Richtwerte, die gegen zwei voneinander unabhängige Quellen geprüft wurden. Zellen, die sich nicht gegenprüfen ließen, bleiben leer, und eine Spalte ohne geprüften Wert wird ausgeblendet. Jede Tabelle nennt ihre Quelle; prüfe einen wichtigen Entwurf anhand der Norm oder des Datenblatts.
 
 ## ECalc mit dem Agenten nutzen
 
-Der AuraGo-Agent kann die Formeln von ECalc über das Tool `ecalc` nutzen. Das Tool rechnet auf deinem AuraGo-Server mit demselben
+Der AuraGo-Agent kann die Formeln, Nachschlagetabellen und Bauteilcodes von ECalc über das Tool `ecalc` nutzen. Das Tool rechnet auf deinem AuraGo-Server mit demselben
 Katalog und denselben Formeln wie die App. Es liest weder aus dem Netzwerk noch aus Dateien, und es hat keinen eigenen Schalter unter
 **Config**.
 
-Der Agent hat vier Operationen:
+Der Agent hat sieben Operationen:
 
-- **search** findet Rechner zu einem Thema, einem Bauteil oder einer Formel, auf Deutsch oder Englisch. Ohne Suchbegriff listet es
+- **search** findet Rechner, Tabellen und Bauteilcodes zu einem Thema, einem Bauteil oder einer Formel, auf Deutsch oder Englisch. Ohne Suchbegriff listet es
   die Kategorien.
 - **describe** zeigt die Variablen eines Rechners mit Einheiten und Vorgaben, seine Auswahlen, die Eingabesätze, die funktionieren,
-  die berechneten Größen und die Prüfungen.
+  die berechneten Größen und die Prüfungen. Bei einer Tabelle zeigt es die Spalten und den Schlüssel, bei einem Bauteilcode die Formen, die er liest und schreibt.
 - **calculate** löst einen Rechner aus den Werten, die du angibst. Jeder vollständige Eingabesatz genügt, daher kann es jede fehlende
   Größe berechnen. Es nennt jeden Wert in SI-Einheiten und als formatierten Text, dazu die Warnungen des Rechners. Es meldet auch,
   wenn ein Wert, den du angegeben hast, um mehr als 1 % vom Ergebnis abweicht. Bei einem berechneten Widerstand nennt es den nächsten
   Normwert der gewählten Reihe, und der Kombinationsrechner liefert seine Paare.
+- **table** liest die Zeilen einer Nachschlagetabelle. Es filtert sie, blättert durch sie (`offset`, `limit`) und beantwortet eine
+  Suche: `exact` (die Zeile, deren Spalte dem Wert entspricht), `ge` (die erste Zeile, deren Spalte mindestens dem Wert entspricht)
+  oder `interp` (ein Wert zwischen den Nachbarzeilen). Die Zeilen stehen in den Einheiten der Spalten, dazu die SI-Werte zum
+  Weiterrechnen.
+- **decode** liest einen Bauteilcode, zum Beispiel die Farbringe eines Widerstands, und nennt Wert und Felder. **encode** schreibt
+  einen Code aus einem Wert: Es wählt den nächsten Normwert der Reihe, die die Toleranz verlangt, und nennt die passende
+  Kennzeichnung oder die Ringe.
 - **open** öffnet ECalc auf dem Desktop bei einem Rechner, mit den Werten, als hättest du sie eingetippt. Die Antwort rechnet nichts aus;
   die Zahlen liefert **calculate**. Namen und Werte werden einzeln geprüft, die Werte aber nicht gegeneinander. Ein widersprüchlicher
   Satz von Werten öffnet sich daher so, wie er eingetragen ist.
 
 Für **open** muss der Virtual Desktop eingeschaltet und **Agentensteuerung erlauben** unter **Config → Integrationen → Virtual
 Desktop** aktiv sein. Fehlt eines davon, bekommt der Agent die Antwort „policy denied“ und nennt dir stattdessen die Zahlen aus
-**calculate**. Andere Agenten, die über A2A (Agent-zu-Agent-Anfragen) mit AuraGo sprechen, dürfen suchen, beschreiben und rechnen,
-aber ECalc nicht öffnen.
+**calculate**. Andere Agenten, die über A2A (Agent-zu-Agent-Anfragen) mit AuraGo sprechen, dürfen suchen, beschreiben, rechnen, `table`, `decode` und `encode` nutzen, alles nur lesend, aber ECalc nicht öffnen.
 
-Zwei Beispiele, die du eintippen kannst:
+Beispiele, die du eintippen kannst:
 
 - „Welchen Vorwiderstand brauche ich für eine rote LED bei 20 mA an 5 V?“ Der Agent rechnet den Vorwiderstand mit dem Rechner
   **LED-Vorwiderstand** und nennt dir den nächsten Normwert.
 - „Öffne ECalc mit dem NE555 astabil für 1 kHz.“ Der Agent öffnet den Rechner **NE555 astabil (Oszillator)** im Virtual Desktop, mit
   eingetragener Frequenz, sofern Virtual Desktop und Agentensteuerung eingeschaltet sind.
+- „Welche AWG-Größe hat einen Durchmesser von etwa 2 mm?“ Der Agent liest die Tabelle **AWG-Leitergrößen** mit einer Suche und nennt die passende Größe.
+- „Welcher Widerstand ist braun schwarz rot gold?“ Der Agent liest die Farbringe mit `decode` und nennt Wert und Toleranz.
 
 ## Wie es weitergeht
 
-Der Katalog wächst in späteren Versionen:
+Noch fehlt ein Teil des Katalogs:
 
-- **Nachschlagetabellen**, zum Beispiel die Strombelastbarkeit von Kabeln und Leiterbahnen.
-- **Bauteilcodes**, zum Beispiel der Widerstandsfarbcode und SMD-Codes.
-- **Pinbelegungen** von Steckverbindern und ICs.
-- **Auswertungen aus Tabellen**, zum Beispiel ein Kabelquerschnitt für einen Strom nach VDE und ein Leiterbahnabstand für eine
-  Spannung.
+- **Pinbelegungen** von Steckverbindern und ICs, in einer späteren Version.
 
 Dieses Kapitel wächst mit.
 
@@ -345,6 +448,9 @@ Dieses Kapitel wächst mit.
 | Der Agent kann ECalc nicht öffnen („policy denied“) | Schalte den Virtual Desktop ein und aktiviere **Agentensteuerung erlauben** unter **Config → Integrationen → Virtual Desktop**. Bis dahin kann der Agent dir die Zahlen aus **calculate** trotzdem nennen. |
 | Favoriten oder letzte Werte sind weg | Sie liegen im Browser. Ein anderer Browser, ein privates Fenster oder gelöschte Browserdaten beginnen mit leeren. |
 | Der E-Reihen-Wert weicht stark vom berechneten ab | Wähle eine Reihe mit mehr Werten, etwa E96 oder E192. |
+| Eine Tabellenspalte ist ausgeblendet | Die Spalte hat keine geprüften Daten: Ihre Zellen ließen sich nicht gegenprüfen, deshalb bleiben sie leer und die Spalte ist ausgeblendet. Die Zeile unter der Tabelle zählt die ausgeblendeten Spalten. |
+| Ein Finder zeigt eine Warnung („Not covered by the verified data“) | Die Eingaben liegen außerhalb der geprüften Daten, oder für diese Kombination hat keine zweite Quelle einen Wert bestätigt. Wähle eine andere Kombination; der Finder hebt keine Zeile hervor. |
+| Ein Code wird als „not cross-checked“ oder „ambiguous“ abgelehnt | Das Symbol steht nicht in den geprüften Daten („not cross-checked“), oder Hersteller lesen es widersprüchlich („ambiguous“). Lies die Kennzeichnung am Bauteil ab und prüfe das Datenblatt. Im Agenten-Tool lautet der Code `unsupported`. |
 
 ---
 
