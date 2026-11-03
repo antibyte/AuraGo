@@ -213,7 +213,8 @@ func TestLookupExact(t *testing.T) {
 
 func TestLookupGreaterOrEqual(t *testing.T) {
 	cat := queryFixture(t)
-	// The first row in table order whose column is at least the value (not the nearest, no tolerance).
+	// The row with the smallest cell that is still at least the value (no tolerance); equal cells keep table order. On a
+	// column that rises that is the first row that qualifies.
 	for value, want := range map[string]string{"20": "4 mm²", "19.5": "2.5 mm²", "15.5": "1.5 mm²", "0": "1.5 mm²", "46": "10 mm²"} {
 		l := lookupOf(t, cat, "t_amp", TableLookup{Mode: "ge", Column: "amps", Value: value, Output: "section"})
 		if !l.Found || l.Mode != "ge" || l.Result != want || l.Row == nil {
@@ -224,7 +225,23 @@ func TestLookupGreaterOrEqual(t *testing.T) {
 	if l.Found || l.Row != nil || l.Message != "no row has amps of at least 47 A; the largest is 46 A" {
 		t.Errorf("ge beyond the table = %+v", l)
 	}
-	// It agrees with the table function lookup_ge.
+	// Equal cells: 60 degC and 80 degC are met by the 70 degC rows and the 90 degC rows, the first of each wins.
+	for value, want := range map[string]string{"60": "1.5 mm²", "70": "1.5 mm²", "80": "4 mm²", "90": "4 mm²"} {
+		if l := lookupOf(t, cat, "t_amp", TableLookup{Mode: "ge", Column: "temp", Value: value, Output: "section"}); !l.Found || l.Result != want {
+			t.Errorf("ge temp %s = %+v, want %s", value, l, want)
+		}
+	}
+	// On a column that falls (10, 5, 2.5) the smallest value that is still large enough wins, not the first row in table order.
+	fix := loadFixture(t)
+	for value, want := range map[string]string{"4": "2", "5": "2", "5.1": "1", "2.5": "3", "0": "3", "10": "1"} {
+		if l := lookupOf(t, fix, "t_dec", TableLookup{Mode: "ge", Column: "x", Value: value, Output: "y"}); !l.Found || l.Result != want {
+			t.Errorf("ge x %s on a falling column = %+v, want y = %s", value, l, want)
+		}
+	}
+	if l := lookupOf(t, fix, "t_dec", TableLookup{Mode: "ge", Column: "x", Value: "11", Output: "y"}); l.Found || !strings.Contains(l.Message, "the largest is 10") {
+		t.Errorf("ge beyond a falling column = %+v", l)
+	}
+	// On a rising column it agrees with the table function lookup_ge (the first row that qualifies).
 	tbl := cat.Table("t_amp")
 	l = lookupOf(t, cat, "t_amp", TableLookup{Mode: "ge", Column: "amps", Value: "20", Output: "section"})
 	if want := tbl.LookupGE("amps", 20, "section"); l.SI == nil || !near(*l.SI, want, 1e-11) {
@@ -322,10 +339,22 @@ func TestLookupInTheGeneratedTables(t *testing.T) {
 			t.Errorf("awg %+v = %+v, want %s", c.lk, l, c.want)
 		}
 	}
-	// ge answers with the first row in table order, like lookup_ge: the AWG table falls from 4/0 to 40, so the first
-	// row is the answer whenever its area is large enough.
-	if l := lookupOf(t, cat, "awg", TableLookup{Mode: "ge", Column: "area", Value: "3", Output: "size"}); !l.Found || l.Result != "4/0" {
-		t.Errorf("ge on a falling column = %+v", l)
+	// ge answers with the smallest cell that is large enough: the AWG table falls from 4/0 to 40, and the wire for a 1 mm
+	// hole is AWG 18 (1.024 mm), not the first row 4/0 (11.68 mm).
+	for _, c := range []struct {
+		lk   TableLookup
+		want string
+	}{
+		{TableLookup{Mode: "ge", Column: "diameter", Value: "1 mm", Output: "size"}, "18"},
+		{TableLookup{Mode: "ge", Column: "diameter", Value: "1 mm", Output: "diameter"}, "1.024 mm"},
+		{TableLookup{Mode: "ge", Column: "area", Value: "3", Output: "size"}, "12"},
+		{TableLookup{Mode: "ge", Column: "r_km", Value: "100", Output: "size"}, "25"}, // a column that rises: the first row that qualifies
+		{TableLookup{Mode: "ge", Column: "awg", Value: "-3", Output: "size"}, "4/0"},
+		{TableLookup{Mode: "ge", Column: "awg", Value: "10.5", Output: "size"}, "11"},
+	} {
+		if l := lookupOf(t, cat, "awg", c.lk); !l.Found || l.Result != c.want {
+			t.Errorf("awg ge %+v = %+v, want %s", c.lk, l, c.want)
+		}
 	}
 	// Between two rows of the IPC-2221 grid.
 	ipc := cat.Table("ipc2221")

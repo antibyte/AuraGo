@@ -127,7 +127,7 @@ func TestECalcTableFiltersAndLooksUp(t *testing.T) {
 	}
 	// With a filter, rows come too.
 	out = ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "awg", Filter: "4/0", Lookup: &ecalc.TableLookup{Mode: "ge", Column: "area", Value: "3", Output: "size"}}))
-	if rows, _ = out["rows"].([]any); len(rows) != 1 || out["lookup"].(map[string]any)["result"] != "4/0" {
+	if rows, _ = out["rows"].([]any); len(rows) != 1 || out["lookup"].(map[string]any)["result"] != "12" {
 		t.Errorf("filter and lookup = %v", out)
 	}
 	// The mistakes of a call say what to change.

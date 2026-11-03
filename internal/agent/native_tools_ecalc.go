@@ -47,7 +47,7 @@ func ecalcSchema() openai.Tool {
 			"filter": prop("string", "table: rows with a cell containing this text."),
 			"lookup": map[string]interface{}{
 				"type":        "object",
-				"description": "table: exact finds the row, ge the first row >= value, interp interpolates output.",
+				"description": "table: exact finds the row, ge the row with the smallest cell >= value, interp interpolates output.",
 				"properties": map[string]interface{}{
 					"column": prop("string", "Column id."),
 					"value":  prop("string", "As typed; a bare number is in the column's unit."),

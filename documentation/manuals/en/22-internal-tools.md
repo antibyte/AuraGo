@@ -1649,7 +1649,7 @@ Electronics calculators from the same catalog and formulas as the ECalc desktop 
 | `limit` | integer | Number of results, 1–25 (default 10; `search`), or of rows, 1–50 (default 20; `table`) |
 | `offset` | integer | First row to list (`table`) |
 | `filter` | string | Only rows with a cell that contains this text, case-insensitive (`table`, at most 128 characters) |
-| `lookup` | object | `{column, value, mode, output}`: `mode` is `exact` (default), `ge` (first row whose column is at least the value) or `interp` (linear, needs `output`) (`table`) |
+| `lookup` | object | `{column, value, mode, output}`: `mode` is `exact` (default), `ge` (the row with the smallest cell that is at least the value) or `interp` (linear, needs `output`) (`table`) |
 | `kind` | string | Code kind, as shown by `describe` of a code item (`decode`, `encode`) |
 | `code` | string | The code as printed or as English colour names, at most 64 characters (`decode`) |
 | `value` | string | The value to write as a code, for example `4k7` (`encode`) |

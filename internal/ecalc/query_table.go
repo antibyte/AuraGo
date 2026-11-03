@@ -20,7 +20,9 @@ const (
 )
 
 // TableLookup is the lookup of a QueryTable request: Mode "exact" (the default) finds the row whose Column equals Value,
-// "ge" the first row (table order) whose Column is at least Value, "interp" interpolates the column Output linearly
+// "ge" the row with the smallest Column cell that is still at least Value (equal cells: the first in table order, so on a
+// column that rises it is the first row that qualifies; on a falling one like the AWG diameters it is the smallest wire
+// that is large enough, not the first row of the table), "interp" interpolates the column Output linearly
 // over Column at Value. Value is written the way a person types it and read with the dimension and unit of Column (a
 // bare number is in the column's unit; a text column compares text). Output names the column to return: without it
 // exact and ge answer with the whole row; interp needs it. An empty Column means the key column (exact only).
@@ -292,14 +294,14 @@ func (c *Catalog) lookupInTable(t *Table, lk TableLookup) (*LookupResult, error)
 		}
 	case "ge":
 		row := -1
-		largest := math.NaN()
+		smallest, largest := math.NaN(), math.NaN()
 		for r := range t.Rows {
 			cell := t.Rows[r][col]
 			if cell.Null {
 				continue
 			}
-			if row < 0 && cell.Num >= x {
-				row = r
+			if cell.Num >= x && (row < 0 || cell.Num < smallest) {
+				row, smallest = r, cell.Num
 			}
 			if math.IsNaN(largest) || cell.Num > largest {
 				largest = cell.Num

@@ -1637,7 +1637,7 @@ Elektronik-Rechner aus demselben Katalog und mit denselben Formeln wie die Deskt
 | `limit` | integer | Anzahl der Treffer, 1–25 (Standard 10; `search`), oder der Zeilen, 1–50 (Standard 20; `table`) |
 | `offset` | integer | Erste aufzulistende Zeile (`table`) |
 | `filter` | string | Nur Zeilen mit einer Zelle, die diesen Text enthält, ohne Beachtung der Groß-/Kleinschreibung (`table`, höchstens 128 Zeichen) |
-| `lookup` | object | `{column, value, mode, output}`: `mode` ist `exact` (Standard), `ge` (erste Zeile, deren Spalte mindestens den Wert hat) oder `interp` (linear, braucht `output`) (`table`) |
+| `lookup` | object | `{column, value, mode, output}`: `mode` ist `exact` (Standard), `ge` (die Zeile mit dem kleinsten Wert, der mindestens dem gesuchten entspricht) oder `interp` (linear, braucht `output`) (`table`) |
 | `kind` | string | Codeart, wie `describe` eines Code-Elements sie nennt (`decode`, `encode`) |
 | `code` | string | Der Code wie gedruckt oder als englische Farbnamen, höchstens 64 Zeichen (`decode`) |
 | `value` | string | Der als Code zu schreibende Wert, zum Beispiel `4k7` (`encode`) |

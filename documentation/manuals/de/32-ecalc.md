@@ -392,7 +392,7 @@ Der Agent hat sieben Operationen:
   wenn ein Wert, den du angegeben hast, um mehr als 1 % vom Ergebnis abweicht. Bei einem berechneten Widerstand nennt es den nächsten
   Normwert der gewählten Reihe, und der Kombinationsrechner liefert seine Paare.
 - **table** liest die Zeilen einer Nachschlagetabelle. Es filtert sie, blättert durch sie (`offset`, `limit`) und beantwortet eine
-  Suche: `exact` (die Zeile, deren Spalte dem Wert entspricht), `ge` (die erste Zeile, deren Spalte mindestens dem Wert entspricht)
+  Suche: `exact` (die Zeile, deren Spalte dem Wert entspricht), `ge` (die Zeile mit dem kleinsten Wert, der mindestens dem gesuchten entspricht)
   oder `interp` (ein Wert zwischen den Nachbarzeilen). Die Zeilen stehen in den Einheiten der Spalten, dazu die SI-Werte zum
   Weiterrechnen.
 - **decode** liest einen Bauteilcode, zum Beispiel die Farbringe eines Widerstands, und nennt Wert und Felder. **encode** schreibt

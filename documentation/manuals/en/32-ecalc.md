@@ -376,7 +376,7 @@ The agent has seven operations:
   you gave differs from the result by more than 1 %. For a computed resistor it names the nearest standard value of the chosen series,
   and the standard-value combiner returns its pairs.
 - **table** reads the rows of a reference table. It filters them, pages through them (`offset`, `limit`) and answers one lookup:
-  `exact` (the row whose column equals the value), `ge` (the first row whose column is at least the value) or `interp` (a value
+  `exact` (the row whose column equals the value), `ge` (the row with the smallest cell that is at least the value) or `interp` (a value
   between the neighbouring rows). Rows come in the column units, with the SI values for further calculation.
 - **decode** reads a component code, for example the colour bands of a resistor, and reports its value and fields. **encode** writes
   one from a value: it picks the nearest standard value of the series that the tolerance implies and returns the matching marking
