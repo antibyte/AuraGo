@@ -669,7 +669,7 @@ func (m *BackgroundTaskManager) checkWaitCondition(payload WaitForEventTaskPaylo
 			if info.IsAlive() {
 				return false, fmt.Sprintf("process %d is still running", payload.PID), nil
 			}
-			output := strings.TrimSpace(info.ReadOutput())
+			output := strings.TrimSpace(security.Scrub(info.ReadOutput()))
 			if len(output) > 2000 {
 				output = output[len(output)-2000:]
 			}
@@ -680,7 +680,7 @@ func (m *BackgroundTaskManager) checkWaitCondition(payload WaitForEventTaskPaylo
 			if output != "" {
 				details += " logs:\n" + output
 			}
-			return true, details, nil
+			return true, security.Scrub(details), nil
 		}
 		return true, fmt.Sprintf("process %d exited", payload.PID), nil
 	case "http_available":

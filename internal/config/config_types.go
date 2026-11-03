@@ -1302,25 +1302,19 @@ type Config struct {
 		SudoEnabled                     bool               `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		SudoUnrestricted                bool               `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (Go zero value and template are false) ──
-		AllowShell               bool `yaml:"allow_shell"`                 // allow execute_shell
-		AllowPython              bool `yaml:"allow_python"`                // allow execute_python / save_tool / execute_skill
-		AllowUnsafeHostExecution bool `yaml:"allow_unsafe_host_execution"` // explicitly permit host Python, Windows shell and unsandboxed Linux shell
-		AllowUnsandboxedShell    bool `yaml:"allow_unsandboxed_shell"`     // let the Linux/macOS host shell run without a sandbox even when allow_unsafe_host_execution is false; upgrades of configurations with allow_shell: true set it to true, fresh installs get false
-		// LegacyUnsandboxedShell is set at load time when allow_shell is on but
-		// allow_unsandboxed_shell was never written to config.yaml (an install
-		// that config-merger has not upgraded yet). It keeps the Linux host shell
-		// working for configurations that predate the gate; the security check
-		// reports it until the operator writes the key.
-		LegacyUnsandboxedShell bool   `yaml:"-" json:"-"`
-		AllowFilesystemWrite   bool   `yaml:"allow_filesystem_write"` // allow filesystem write operations
-		AllowNetworkRequests   bool   `yaml:"allow_network_requests"` // allow api_request
-		AllowRemoteShell       bool   `yaml:"allow_remote_shell"`     // allow execute_remote_shell
-		AllowSelfUpdate        bool   `yaml:"allow_self_update"`      // allow manage_updates
-		AllowPackageManager    bool   `yaml:"allow_package_manager"`  // allow package_manager tool
-		AllowMCP               bool   `yaml:"allow_mcp"`              // allow MCP (Model Context Protocol) server connections
-		AllowWebScraper        *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
-		AdditionalPrompt       string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
-		AdaptiveTools          struct {
+		AllowShell               bool   `yaml:"allow_shell"`                 // allow execute_shell
+		AllowPython              bool   `yaml:"allow_python"`                // allow execute_python / save_tool / execute_skill
+		AllowUnsafeHostExecution bool   `yaml:"allow_unsafe_host_execution"` // explicitly permit host Python, Windows shell and unsandboxed Linux shell
+		AllowUnsandboxedShell    bool   `yaml:"allow_unsandboxed_shell"`     // explicitly permit the Linux/macOS host shell without a sandbox; missing/null remains false
+		AllowFilesystemWrite     bool   `yaml:"allow_filesystem_write"`      // allow filesystem write operations
+		AllowNetworkRequests     bool   `yaml:"allow_network_requests"`      // allow api_request
+		AllowRemoteShell         bool   `yaml:"allow_remote_shell"`          // allow execute_remote_shell
+		AllowSelfUpdate          bool   `yaml:"allow_self_update"`           // allow manage_updates
+		AllowPackageManager      bool   `yaml:"allow_package_manager"`       // allow package_manager tool
+		AllowMCP                 bool   `yaml:"allow_mcp"`                   // allow MCP (Model Context Protocol) server connections
+		AllowWebScraper          *bool  `yaml:"allow_web_scraper"`           // deprecated: migrated to tools.web_scraper.enabled
+		AdditionalPrompt         string `yaml:"additional_prompt"`           // extra instructions always appended to the system prompt
+		AdaptiveTools            struct {
 			Enabled                   bool     `yaml:"enabled"`                      // enable adaptive tool filtering (default: true when omitted)
 			MaxTools                  int      `yaml:"max_tools"`                    // maximum adaptive/preferred tool schemas; always-include tools are added on top (0 = unlimited, default: 10)
 			MaxTotalTools             int      `yaml:"max_total_tools"`              // maximum final native tool schemas after required tools are kept (0 = unlimited, default: 20)

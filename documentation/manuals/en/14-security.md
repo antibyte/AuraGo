@@ -543,6 +543,7 @@ server:
 ```
 
 - **Auth-off exception:** Starting AuraGo without login (`auth.enabled: false`) while any remote listener is configured requires an explicit `auth.allow_unauthenticated_remote: true` at startup and config save. The exception never opens `/speech-lab/` — that proxy requires a real AuraGo session regardless of the auth setting. Configured inbound webhook and integration authentication stays active as well.
+- **Auth-off host checks:** Requests still require an IP literal, localhost, the local machine name or an explicitly configured trusted hostname, including reads and native clients without an Origin header. A matching Origin on an arbitrary hostname or an unvalidated Bearer does not bypass this DNS-rebinding protection.
 - **Desktop embed tickets:** Media and file references in desktop embeds go through `/desktop-ticket/<ticket>/...`. The short-lived ticket carries credentials in a path segment, is stripped before routing and access logging, and is scoped to desktop file paths (`/files/desktop/`) or the printer camera streams; query tokens are rejected.
 - **Speech Lab browser:** `/speech-lab/` requires an AuraGo session; writes and the WebSocket Origin must be same-origin, and the backend must be a configuration-owned private address. AuraGo credentials are stripped by the proxy; in external mode only the server-side `speech_lab.browser_backend_url` points to the s2s web backend — never a legacy URL in the browser.
 - **CSP:** The main UI at `/` carries a report-only Content Security Policy without `unsafe-inline`; desktop apps keep their own stricter policy.
@@ -553,7 +554,7 @@ server:
 
 ### SSRF Protection for Outbound HTTP
 
-`api_request`, the web scraper, and the LLM clients use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, every redirect is revalidated (at most 10, then abort), and system proxies are disabled. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch.
+`api_request`, the web scraper, and public provider probes during Setup use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, redirects are revalidated, and system proxies are disabled. Credentialed probes also refuse redirects to another origin. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch. Explicitly permitted local Ollama and configured integration/LLM endpoints retain their own address policy.
 
 ### Network MCP Servers
 
@@ -575,7 +576,11 @@ Compose profile `browser-automation` starts `browser-egress` beside the sidecar.
 
 ### Host Execution without Isolation
 
-Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker write `allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise). Configurations that never run config-merger and never had the key written are grandfathered even if the shell is enabled later; write `agent.allow_unsandboxed_shell` explicitly to make the decision durable. Desktop Notes protection and file jails apply regardless.
+Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs explicit `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Missing or null `allow_unsandboxed_shell` stays false when loading or upgrading configurations, even if `allow_shell` is enabled. Explicit true/false values remain unchanged; this includes true values written by an older upgrader whose origin was not recorded.
+
+The command policy recognizes literal `command`/BusyBox wrappers and refuses executing `find` forms. These checks supplement the isolation supervisor; they are not a complete shell sandbox. Unsandboxed execution can bypass Desktop Notes and file-tool mutation protection.
+
+Child-process environment filtering removes the AWS access-key ID together with secret/session credentials. Process-completion results and follow-up prompts scrub registered secrets before shortening and persistence. Docker inspect also masks short `-p` password forms conservatively, which can hide port or project arguments using the same spelling.
 
 Host commands that run this way can read AuraGo's data folder, including `data/vault.bin` and the linked WhatsApp device keys in `data/whatsapp/device.db`; agent file tools refuse both files, this exception does not.
 

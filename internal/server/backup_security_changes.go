@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -377,7 +378,7 @@ func (s *Server) rebindingSafeHost(r *http.Request) bool {
 	if host == "" {
 		return false
 	}
-	if net.ParseIP(host) != nil || host == "localhost" || strings.HasSuffix(host, ".localhost") {
+	if _, err := netip.ParseAddr(host); err == nil || host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return true
 	}
 	if name, err := os.Hostname(); err == nil && name != "" && !strings.Contains(name, ".") {

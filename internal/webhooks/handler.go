@@ -507,22 +507,7 @@ func newInternalWebhookHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func (h *Handler) deliverMessage(prompt string, internalToken string) error {
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			time.Sleep(200 * time.Millisecond)
-		}
-		err := h.postInternalWebhook(prompt, internalToken)
-		if err == nil {
-			return nil
-		}
-		var statusErr *webhookDeliveryStatusError
-		if errors.As(err, &statusErr) {
-			return err
-		}
-		lastErr = err
-	}
-	return lastErr
+	return h.postInternalWebhook(prompt, internalToken)
 }
 
 type webhookDeliveryStatusError struct {
@@ -560,7 +545,7 @@ func (h *Handler) postInternalWebhook(prompt string, internalToken string) error
 	client := newInternalWebhookHTTPClient(2 * time.Minute)
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("agent delivery outcome unknown: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {

@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -788,23 +789,25 @@ func TestNewManagerFlagsLoadedSHA1WebhooksForDeprecationWarning(t *testing.T) {
 	}
 }
 
-func TestDeliverMessageRetriesTransportFailure(t *testing.T) {
-	var calls int
+func TestDeliverMessageDoesNotRetryUnknownOutcome(t *testing.T) {
+	var accepted atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if calls == 1 {
-			hj, ok := w.(http.Hijacker)
-			if !ok {
-				t.Fatal("response cannot be hijacked")
-			}
-			conn, _, err := hj.Hijack()
-			if err != nil {
-				t.Fatal(err)
-			}
-			conn.Close()
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			t.Error(err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+		accepted.Add(1)
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Error("response cannot be hijacked")
+			return
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		conn.Close()
 	}))
 	defer server.Close()
 
@@ -823,11 +826,12 @@ func TestDeliverMessageRetriesTransportFailure(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.Port = port
 	handler := NewHandler(nil, nil, nil, nil, nil, cfg, slog.Default(), port, 4096, 0)
-	if err := handler.deliverMessage("hello", "internal-secret"); err != nil {
-		t.Fatalf("deliverMessage() error = %v", err)
+	err = handler.deliverMessage("hello", "internal-secret")
+	if accepted.Load() != 1 {
+		t.Fatalf("accepted requests = %d, want 1 even when the response is lost", accepted.Load())
 	}
-	if calls != 2 {
-		t.Fatalf("calls = %d, want 2", calls)
+	if err == nil || !strings.Contains(err.Error(), "outcome unknown") {
+		t.Fatalf("error = %v, want an unknown-outcome error", err)
 	}
 }
 

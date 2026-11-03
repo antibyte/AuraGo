@@ -717,7 +717,7 @@ func (s *Service) RestoreRevision(ctx context.Context, revisionID string) (int64
 	name, board, theme := layoutRowMeta(row, p)
 	version, err := s.publishStage(ctx, row, stage, receiptRestore, receiptRestore+"_"+strings.TrimPrefix(stageName, "restore-"),
 		func(tx *sql.Tx, version int64) error {
-			_, err := tx.ExecContext(ctx, `UPDATE cc_projects SET name=?, board=?, theme=?, app_changed_since_job=1 WHERE id=?`,
+			_, err := tx.Exec(`UPDATE cc_projects SET name=?, board=?, theme=?, app_changed_since_job=1 WHERE id=?`,
 				name, board, theme, row.ID)
 			return err
 		})

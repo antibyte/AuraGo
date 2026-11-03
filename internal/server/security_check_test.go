@@ -177,64 +177,45 @@ func TestCheckSecurityWarnsWhenShellSandboxFallsBackUnsandboxed(t *testing.T) {
 	}
 }
 
-func TestCheckSecurityReportsLegacyUnsandboxedHostShell(t *testing.T) {
-	cfg := &config.Config{}
-	cfg.Agent.AllowShell = true
-	cfg.Agent.LegacyUnsandboxedShell = true
-	cfg.ShellSandbox.Enabled = false
-
+func TestCheckSecurityRequiresExplicitUnsandboxedHostShell(t *testing.T) {
 	oldGOOS := runtimeGOOS
 	runtimeGOOS = "linux"
 	t.Cleanup(func() { runtimeGOOS = oldGOOS })
 	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
-
-	hint := findSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy")
-	if hint == nil {
-		t.Fatal("expected shell_unsafe_host_legacy when the Linux host shell runs under the legacy default")
-	}
-	if hint.Severity != SevWarning {
-		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
-	}
-	if !strings.Contains(hint.Description, "agent.allow_unsandboxed_shell: true") {
-		t.Fatalf("legacy hint must name the explicit allow_unsandboxed_shell option: %s", hint.Description)
-	}
 	const hostShellRule = "Without agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution the Linux/macOS host shell is refused."
-	shellHint := findSecurityHint(CheckSecurity(cfg), "shell_no_sandbox")
-	if shellHint == nil || !strings.Contains(shellHint.Description, hostShellRule) {
-		t.Fatalf("shell_no_sandbox must state the host shell rule, got %#v", shellHint)
+	for _, tc := range []struct {
+		name, setting string
+		allowed       bool
+	}{
+		{name: "omitted"},
+		{name: "explicit false", setting: "  allow_unsandboxed_shell: false\n"},
+		{name: "explicit true", setting: "  allow_unsandboxed_shell: true\n", allowed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte("agent:\n  allow_shell: true\n"+tc.setting+"shell_sandbox:\n  enabled: false\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Agent.AllowUnsandboxedShell != tc.allowed {
+				t.Fatalf("allow_unsandboxed_shell=%v, want %v", cfg.Agent.AllowUnsandboxedShell, tc.allowed)
+			}
+			hints := CheckSecurity(cfg)
+			if hasSecurityHint(hints, "shell_unsafe_host_legacy") {
+				t.Fatal("the security hints still promise implicit host-shell permission")
+			}
+			if hint := findSecurityHint(hints, "shell_no_sandbox"); hint == nil || !strings.Contains(hint.Description, hostShellRule) {
+				t.Fatalf("shell_no_sandbox must state the explicit host-shell rule, got %#v", hint)
+			}
+		})
 	}
-
-	cfg.Agent.LegacyUnsandboxedShell = false
-	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
-		t.Fatal("did not expect shell_unsafe_host_legacy without the legacy grandfather")
-	}
-	cfg.Agent.LegacyUnsandboxedShell = true
-
-	cfg.ShellSandbox.Enabled = true
-	restoreBlocked := sandbox.SetForTest(&sandbox.BlockingSandbox{})
-	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
-		t.Fatal("did not expect shell_unsafe_host_legacy while the blocked sandbox refuses the shell")
-	}
-	restoreBlocked()
-	cfg.ShellSandbox.Enabled = false
-
-	cfg.Agent.AllowUnsafeHostExecution = true
-	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
-		t.Fatal("did not expect shell_unsafe_host_legacy once allow_unsafe_host_execution is explicit")
-	}
-
-	cfg.Agent.AllowUnsafeHostExecution = false
-	cfg.Agent.AllowUnsandboxedShell = true
-	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
-		t.Fatal("did not expect shell_unsafe_host_legacy once allow_unsandboxed_shell is explicit")
-	}
-
-	cfg.Agent.AllowUnsandboxedShell = false
 	runtimeGOOS = "windows"
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
 	windowsHints := CheckSecurity(cfg)
-	if hasSecurityHint(windowsHints, "shell_unsafe_host_legacy") {
-		t.Fatal("did not expect shell_unsafe_host_legacy on Windows, which has its own shell gate")
-	}
 	if shellHint := findSecurityHint(windowsHints, "shell_no_sandbox"); shellHint == nil || strings.Contains(shellHint.Description, hostShellRule) {
 		t.Fatalf("shell_no_sandbox on Windows must omit the Linux/macOS host shell rule, got %#v", shellHint)
 	}

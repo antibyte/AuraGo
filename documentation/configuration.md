@@ -114,6 +114,8 @@ Core agent behaviour settings.
 | `system_language` | `"English"` | Language for system prompts and agent responses. Any natural language name works (e.g. `"German"`, `"French"`). |
 | `max_tool_calls` | `15` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
 | `max_concurrent_loops` | `8` | Maximum agent loops that may run at the same time. |
+| `allow_unsandboxed_shell` | `false` | Explicitly permit the Linux/macOS host shell without a sandbox. Missing/null stays false on upgrades, even with `allow_shell` enabled. |
+| `allow_unsafe_host_execution` | `false` | Explicit host Python/Windows shell exception; also permits unsandboxed Linux/macOS shell. Existing tool gates still apply. |
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `60000` | Character threshold at which the agent compresses older messages in the prompt. |
 | `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (`0` = unlimited). |
@@ -425,6 +427,11 @@ Optional daily token cost tracking and enforcement.
 | `models` | *(list)* | Per-model cost rates. Each entry: `name`, `input_per_million`, `output_per_million` (USD). |
 | `default_cost.input_per_million` | `1.00` | Fallback input cost for models not listed above. |
 | `default_cost.output_per_million` | `3.00` | Fallback output cost for models not listed above. |
+
+Daily enforcement is checked before each model request, including retries in an
+already running co-agent. `partial` keeps main chat available; an in-flight
+response can still spend beyond the limit and is recorded once before the next
+request is refused.
 
 ---
 

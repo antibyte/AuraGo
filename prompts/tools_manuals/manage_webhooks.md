@@ -76,9 +76,11 @@ https://your-aurago-host/webhook/{slug}
 
 The slug is the URL-friendly identifier you provide when creating the webhook.
 
-Authenticate incoming requests with `Authorization: Bearer <token>` whenever the provider supports custom headers. The compatibility form `?token=<token>` remains available for restricted providers, but URLs can be recorded in access logs, browser history, and intermediary systems.
+Authenticate incoming requests with `Authorization: Bearer <token>`. Query-string tokens are rejected. A complete HMAC-SHA256 signature can authenticate a request without a bearer token; SHA1 signatures still require the token.
 
-Incoming JSON is validated from its media type and isolated before it reaches the agent. Delivery is asynchronous. `webhooks.rate_limit` is a per-token token bucket measured in requests per minute; its capacity also defines the allowed burst.
+Incoming JSON is validated from its media type, then its prompt representation passes through the same full-body escaping and control-token protection as text. Mission callbacks retain the original payload bytes. Delivery is asynchronous: an accepted response does not confirm agent completion. Agent delivery makes one attempt; a timeout or lost connection leaves the execution outcome unknown and is not automatically retried. Check the delivery log and effects before resubmitting.
+
+`webhooks.rate_limit` is a per-token token bucket measured in requests per minute; its capacity also defines the allowed burst.
 
 ## Outgoing Webhooks
 

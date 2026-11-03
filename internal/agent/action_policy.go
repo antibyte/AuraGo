@@ -83,7 +83,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	case "execute_shell", "execute_python", "run_tool", "execute_skill", "run_agent_skill_script":
 		a.Operation = "execute" // These tools have no caller-selectable operation.
 		a.Mutating = true
-		a.HighRisk = dc != nil && dc.Cfg != nil && (dc.Cfg.Agent.AllowUnsafeHostExecution || tc.Action == "execute_shell" && (dc.Cfg.Agent.AllowUnsandboxedShell || dc.Cfg.Agent.LegacyUnsandboxedShell))
+		a.HighRisk = dc != nil && dc.Cfg != nil && (dc.Cfg.Agent.AllowUnsafeHostExecution || tc.Action == "execute_shell" && dc.Cfg.Agent.AllowUnsandboxedShell)
 		switch tc.TransportAction {
 		case "git_push", "git_pull", "git_commit", "git_rollback":
 			a.HighRisk = true

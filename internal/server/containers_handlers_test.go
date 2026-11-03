@@ -418,7 +418,7 @@ func TestContainerRoutesStayOpenWhenAuthIsDisabled(t *testing.T) {
 	s.registerToolAPIRoutes(mux)
 
 	rec := httptest.NewRecorder()
-	authMiddleware(s, mux).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/containers", nil))
+	authMiddleware(s, mux).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/api/containers", nil))
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "Docker is not enabled") {
 		t.Fatalf("auth-disabled status = %d, want 503 Docker is not enabled from the handler; body=%s", rec.Code, rec.Body.String())
 	}
@@ -433,8 +433,8 @@ func TestContainerRoutesAuthDisabledIgnoreBearerScope(t *testing.T) {
 	s.Cfg.Auth.Enabled = false // authMiddleware reads cfg per request
 	for _, tok := range []string{readToken, desktopToken} {
 		for _, req := range []*http.Request{
-			httptest.NewRequest(http.MethodGet, "/api/containers", nil),
-			httptest.NewRequest(http.MethodPost, "/api/containers/demo/restart", nil),
+			httptest.NewRequest(http.MethodGet, "http://localhost/api/containers", nil),
+			httptest.NewRequest(http.MethodPost, "http://localhost/api/containers/demo/restart", nil),
 		} {
 			req.Header.Set("Authorization", "Bearer "+tok)
 			rec := httptest.NewRecorder()

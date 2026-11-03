@@ -133,9 +133,8 @@ func TestRepositoryConfigTemplateJellyfinDefaults(t *testing.T) {
 	}
 }
 
-// Fresh installs must write allow_unsandboxed_shell: false explicitly: an absent
-// key would grant the legacy unsandboxed-shell grandfather at load time.
 func TestRepositoryConfigTemplateWritesUnsandboxedShellFalse(t *testing.T) {
+	// Keep the host-execution opt-in explicit in the operator reference.
 	t.Parallel()
 
 	path := filepath.Join("..", "..", "config_template.yaml")

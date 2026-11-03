@@ -80,20 +80,26 @@ tools remain available under the current configuration and the run's own
 restrictions. Background operational failures remain recorded for diagnosis.
 
 Broker messages start agent runs (Relay to Agent, the Frigate event and review
-relays, MQTT-triggered missions) only while AuraGo logs in to the broker with a
-username or a client certificate over TLS, or `mqtt.allow_unauthenticated_relay`
-is true. A client certificate counts only with a secure broker URL such as
-`mqtts://` or `ssl://`; over `tcp://` it is never sent. A username protects the
-relay only when the broker rejects anonymous clients (for Mosquitto,
-`allow_anonymous false`). The check reads the live configuration for every
-delivery, so saving credentials or the flag takes effect without a restart.
-Refused deliveries are logged once until a delivery is admitted again; a
-refused mission trigger still consumes its trigger interval, because the
-interval is claimed before the check runs. Configurations from before this
-check that used an enabled broker without login keep working: loading them and
-the next upgrade set `allow_unauthenticated_relay: true`, and the security
-hints report that as critical. Set the key to `false` once credentials are in
-place or if you use no relays or MQTT-triggered missions.
+relays, MQTT-triggered missions) through the live relay gate. Normally this needs
+a broker username or client certificate over verified TLS. An authenticated
+broker on plaintext or unverified TLS additionally needs
+`mqtt.allow_untrusted_transport: true`. A username protects the relay only when
+the broker rejects anonymous clients (for Mosquitto, `allow_anonymous false`).
+
+Anonymous agent triggers require an explicit
+`mqtt.allow_unauthenticated_relay: true`. Missing or null values remain false,
+including when loading or upgrading old configurations and when only mission
+triggers are registered. Explicit values survive upgrades. A true value written
+by an older upgrader is also retained because its origin was not stored; review
+it and set false when anonymous triggers are unnecessary. The existing separate
+compatibility rule for `allow_untrusted_transport` is unchanged.
+
+The gate reads the live configuration for every delivery, so saving credentials
+or the flag takes effect without a restart. Refused deliveries are logged once
+until a delivery is admitted again. A refused mission trigger does not consume
+its trigger interval; admission precedes the interval claim. High-threat relay
+content is replaced with a fixed quarantine notice; high-threat mission messages
+are dropped without starting a mission or consuming its interval.
 
 The controller runs one relay worker with at most 100 waiting messages. Disabling
 MQTT or stopping the server cancels its current relay and joins the workers.

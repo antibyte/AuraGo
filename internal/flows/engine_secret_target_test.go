@@ -155,15 +155,15 @@ func TestRunRefusesUntrustedDataChoosingWhereASecretGoes(t *testing.T) {
 // The rule is about the secret: without an auth_secret the same flow only has the plain
 // untrusted-data warning and its request still goes out, and so does a request that has a
 // secret but a fixed address (outside data in the body does not choose where it is sent).
-func TestRunStillSendsWhenNoSecretFollowsUntrustedData(t *testing.T) {
+func TestRunStillSendsToFixedAuthorities(t *testing.T) {
 	for _, c := range []struct {
 		name       string
 		params     map[string]any
 		wantURL    string
 		wantSecret int
 	}{
-		{"no secret", map[string]any{"url": "{{trigger.data.link}}"}, "https://attacker.example/steal", 0},
-		{"blank secret", map[string]any{"url": "{{trigger.data.link}}", "auth_secret": "  "}, "https://attacker.example/steal", 0},
+		{"no secret", map[string]any{"url": "https://api.example.org/{{trigger.data.host}}"}, "https://api.example.org/attacker.example", 0},
+		{"blank secret", map[string]any{"url": "https://api.example.org/?next={{trigger.data.host}}", "auth_secret": "  "}, "https://api.example.org/?next=attacker.example", 0},
 		{"secret with a fixed address", map[string]any{"method": "POST", "url": "https://api.example.org/v1", "body": "{{trigger.data.link}}", "auth_secret": "partner_token"},
 			"https://api.example.org/v1", 1},
 		{"secret with outside data in a header", map[string]any{"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"},

@@ -142,6 +142,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 ### Budget accounting
 
 - Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every consumption-evidenced provider response once before any early return, including incomplete streams and empty choices. Preserve measured usage components and estimate only missing values from the observed response; connection failures without usage or output are not billable. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.
+- Main-loop daily-budget checks and response booking share one run category:
+  `coagent` for a co-agent flag or co-agent/specialist/A2A session, otherwise `chat`.
+  Check before every model request and retry. Partial enforcement keeps main chat
+  available while stopping an exhausted child before its next request; already
+  consumed usage remains booked once. Verify `TestAgentLoopChecksDailyBudgetByRunCategory`
+  and `TestCoAgentDailyBudgetStopsBeforeRetryAndBooksOnce`.
 
 - `ExecuteMinimalLoop` owns per-response booking through `DispatchContext.BudgetTracker` and `MinimalLoopOptions.BudgetCategory`; callers retain result telemetry but never book the aggregate again. Writer, Sheets, Radio, MeshCore, Looper and Game Maker preserve their own categories.
 

@@ -198,7 +198,7 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
 		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,
-		AllowUnsandboxedShell:      cfg.Agent.AllowUnsandboxedShell || cfg.Agent.LegacyUnsandboxedShell,
+		AllowUnsandboxedShell:      cfg.Agent.AllowUnsandboxedShell,
 		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,
 		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:              cfg.Docker.Enabled,

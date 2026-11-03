@@ -345,19 +345,6 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 7c2. shell_unsafe_host_legacy — host shell permitted by the pre-flag default.
-	// A blocked sandbox refuses the shell anyway, so the hint would be wrong there.
-	if cfg.Agent.AllowShell && cfg.Agent.LegacyUnsandboxedShell && !cfg.Agent.AllowUnsafeHostExecution && !cfg.Agent.AllowUnsandboxedShell && !shellSandboxReady(cfg) && !sandbox.IsBlocked() && runtimeGOOS != "windows" {
-		hints = append(hints, SecurityHint{
-			ID: "shell_unsafe_host_legacy", Severity: SevWarning,
-			Title: "Host shell runs under a legacy default",
-			Description: "agent.allow_shell is enabled, no shell sandbox is active and agent.allow_unsandboxed_shell is not written in config.yaml. " +
-				"AuraGo keeps the Linux/macOS host shell working for this existing configuration. Write agent.allow_unsandboxed_shell: true to make the decision explicit, " +
-				"or enable shell_sandbox on a supported Linux host. Writing the key as false stops the host shell unless agent.allow_unsafe_host_execution is true.",
-			AutoFixable: false,
-		})
-	}
-
 	// 7d. mcp_public — MCP exposed on an internet-facing instance
 	if facing && cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		hints = append(hints, SecurityHint{

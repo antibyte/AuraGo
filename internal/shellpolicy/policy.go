@@ -12,6 +12,7 @@ var (
 		{reason: "direct recursive delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(del|erase|rmdir|rd)\b[^\r\n;|&]*\s(/s|/q)\b`)},
 		{reason: "direct recursive delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*remove-item\b[^\r\n;|&]*-(recurse|force)\b`)},
 		{reason: "direct destructive find/delete command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*find\b[^\r\n;|&]*-delete\b`)},
+		{reason: "find command that executes another program", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*find\b[^\r\n;|&]*\s-(exec|execdir|ok|okdir)\b`)},
 		{reason: "disk formatting or partitioning command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(format|mkfs(\.[a-z0-9_+-]+)?|fdisk|sfdisk|parted|diskpart)\b`)},
 		{reason: "raw disk write command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*dd\b[^\r\n;|&]*\bof=(/dev/|\\\\\.\\physicaldrive)`)},
 		{reason: "secure wipe command", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*shred\b`)},

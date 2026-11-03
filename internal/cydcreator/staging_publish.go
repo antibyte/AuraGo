@@ -223,6 +223,10 @@ func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind,
 	if err != nil {
 		return 0, err
 	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(receipt)
+		return 0, context.Cause(ctx)
+	}
 	if err := fileutil.Rename(target, backup); err != nil {
 		_ = os.Remove(receipt)
 		return 0, swapError("move project aside", err)

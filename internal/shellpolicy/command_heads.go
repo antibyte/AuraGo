@@ -15,14 +15,14 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 	if escape != '\\' {
 		breaks += "\r"
 	}
-	atHead, envOptions, envValue := true, false, false
+	atHead, envOptions, envValue, commandOptions := true, false, false, false
 	for i := 0; i < len(command); {
 		c := command[i]
 		if strings.IndexByte(breaks, c) >= 0 {
 			out.WriteByte(c)
 			i++
 			if c != ' ' && c != '\t' {
-				atHead, envOptions, envValue = true, false, false
+				atHead, envOptions, envValue, commandOptions = true, false, false, false
 			}
 			continue
 		}
@@ -58,6 +58,20 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			}
 			continue
 		}
+		if commandOptions && strings.HasPrefix(word, "-") {
+			if word == "--" {
+				commandOptions = false
+				continue
+			}
+			if strings.Trim(word[1:], "pvV") != "" {
+				return out.String(), true
+			}
+			if strings.ContainsAny(word, "vV") {
+				out.WriteString("command " + word)
+				atHead = false
+			}
+			continue
+		}
 		if commandAssignment.MatchString(word) {
 			continue
 		}
@@ -65,6 +79,12 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		name = strings.TrimSuffix(strings.ToLower(name), ".exe")
 		if name == "env" {
 			envOptions = true
+			commandOptions = false
+			continue
+		}
+		if name == "command" || name == "busybox" {
+			envOptions = false
+			commandOptions = name == "command"
 			continue
 		}
 		out.WriteString(name)

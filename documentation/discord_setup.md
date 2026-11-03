@@ -59,6 +59,11 @@ discord:
 Saving Discord settings takes effect without restarting AuraGo: the bot is
 stopped and started again with the new configuration.
 
+Slash commands use your typed message after removing the bot mention. Audio
+transcripts and other attachment content stay chat data; they cannot supply
+commands or add command arguments. Type operator commands such as `/personality`
+or `/restart` in a DM. A pending question is answered before command handling.
+
 ---
 
 ## Step 3: Allowed channels

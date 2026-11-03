@@ -935,11 +935,22 @@ func redactDockerInspectArgs(value interface{}) interface{} {
 			maskNext = false
 			continue
 		}
+		// Short -p values are ambiguous, so diagnostic output masks them conservatively.
+		if strings.HasPrefix(text, "-p") && len(text) > 2 {
+			prefix := "-p"
+			if text[2] == '=' {
+				prefix += "="
+			} else {
+				maskNext = dockerInspectFlagSensitive(text)
+			}
+			redacted[i] = prefix + dockerInspectRedacted
+			continue
+		}
 		if flag, _, found := strings.Cut(text, "="); found && dockerInspectFlagSensitive(flag) {
 			redacted[i] = flag + "=" + dockerInspectRedacted
 			continue
 		}
-		maskNext = dockerInspectFlagSensitive(text)
+		maskNext = text == "-p" || dockerInspectFlagSensitive(text)
 		redacted[i] = security.RedactSensitiveInfo(text)
 	}
 	return redacted

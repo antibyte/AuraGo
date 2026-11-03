@@ -41,15 +41,21 @@ func ResolveProviderAIGatewayRoute(cfg *config.Config, p config.ProviderEntry) A
 // authentication, redirect and per-request gateway policy as generation.
 // A nil request means no documented safe metadata endpoint is available.
 func AIGatewayMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry) (*http.Request, *http.Client, error) {
-	return providerMetadataProbe(ctx, cfg, p, false)
+	return providerMetadataProbe(ctx, cfg, p, false, nil)
 }
 
 // ProviderMetadataProbe also supports saved direct endpoints, without generation.
 func ProviderMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry) (*http.Request, *http.Client, error) {
-	return providerMetadataProbe(ctx, cfg, p, true)
+	return providerMetadataProbe(ctx, cfg, p, true, nil)
 }
 
-func providerMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry, direct bool) (*http.Request, *http.Client, error) {
+// ProviderMetadataProbeWithTransport applies a caller-owned base transport before
+// gateway policy. An invalid provider's local refusal cannot be overridden.
+func ProviderMetadataProbeWithTransport(ctx context.Context, cfg *config.Config, p config.ProviderEntry, base http.RoundTripper) (*http.Request, *http.Client, error) {
+	return providerMetadataProbe(ctx, cfg, p, true, base)
+}
+
+func providerMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry, direct bool, base http.RoundTripper) (*http.Request, *http.Client, error) {
 	route := ResolveProviderAIGatewayRoute(cfg, p)
 	if !route.RouteSupported && !direct {
 		return nil, nil, nil
@@ -89,6 +95,9 @@ func providerMetadataProbe(ctx context.Context, cfg *config.Config, p config.Pro
 		copy := *directClient
 		copy.Timeout = 20 * time.Second
 		client = &copy
+	}
+	if _, blocked := client.Transport.(invalidProviderTransport); base != nil && !blocked {
+		client.Transport = base
 	}
 	token := ""
 	if cfg != nil && route.AuthHeader == "cf-aig-authorization" {

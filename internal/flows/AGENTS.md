@@ -105,9 +105,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Validation and lint
 - Structural problems are always errors; publish rules are errors only in `ModePublish` (warnings in
   `ModeDraft`). `NODE_UNREACHABLE`, `TEMPLATE_UNKNOWN_FIELD` and the lint are always warnings, except
-  `UNTRUSTED_SECRET_TARGET` (see the lint below), which is a publish rule. Callers
+  `UNTRUSTED_SECRET_TARGET` and `UNTRUSTED_URL_TARGET` (see the lint below), which are publish rules. Callers
   save a draft only when `!HasErrors(Validate(…, ModeDraft))`; test runs (`StartTestRun`) validate with draft
-  rules too, so a publish rule never blocks them, and `PublishPreview`/`Publish` use publish rules. A cycle is only a draft warning
+  rules too, so draft validation keeps them saveable; the engine separately refuses untrusted address targets in every run.
+  `PublishPreview`/`Publish` use publish rules. A cycle is only a draft warning
   (an error when publishing). A template in a `ParamSecretRef` parameter is a publish rule for every node type
   (`PARAM_INVALID` on that param): the parameter names a vault entry, and outside data must not pick it
   (`Templatable` is only an editor hint; `ResolveParams` resolves every param).
@@ -163,15 +164,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   to fix the origin, and still decides a secret target). A secret target keeps `UNTRUSTED_SECRET_TARGET` and gets
   no second finding; a value that is not text, or a template that does not parse, counts every reference; past
   the 1000-reference cap the address is assumed tainted and is the error too. Like every lint error it is a
-  warning in `ModeDraft`. Unlike the secret target the engine does not refuse such a run: a revision published
-  before the rule keeps running, and test runs validate with draft rules. That is the open half of the finding
-  (actions_exfil-7), deferred for a product call (owner: flows): refusing the node at run time
-  is one line (`IssueUntrustedURLTarget` in `refusalsOf`) but stops every already published flow that templates a
-  host, and every test run of a draft that does, and the lint taints a node whole, so a constant host field of a
-  tainted node would be refused too; it needs a decision and release notes. And `http.request`
-  has no egress classification of its own under `RunType` flow (its GET goes through `api_request`, which is not
-  high-risk), a change in the `internal/agent` action policy. Until both land, a flow published before the rule
-  can still be steered to a host by its untrusted data. Verify `TestLintUntrustedHostPositionIsError`,
+  warning in `ModeDraft`, but `refusalsOf` also blocks the node before execution in live revisions and test runs,
+  including revisions published under older rules. The lint taints a node whole, so a constant host field of a
+  tainted node is refused too; write the trusted authority directly in the destination parameter. Plain body,
+  header, path and query warnings do not block execution. Verify `TestRunRefusesUntrustedURLAuthority`,
+  `TestRunStillSendsToFixedAuthorities`, `TestLintUntrustedHostPositionIsError`,
   `TestLintURLWithoutUntrustedDataIsQuiet`, `TestLintUntrustedBodyStaysAWarningAndSecretTargetKeepsItsCode`
   and `TestGenericURLParamsAreURLTargets`.
 - A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
@@ -189,15 +186,16 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
   panicking definition hook `FLOW_NODE_PANIC`. Test runs execute unpublished drafts, so these are the
   guard. Definitions, ports and default ports are computed once per run; a definition is pinned for it.
-- Run-time refusal of an untrusted secret target: `checkFlow` runs the lint once per run (`lintUntrusted`, which
-  also yields the taint for the render-time fence below) and reads its `UNTRUSTED_SECRET_TARGET` errors through
+- Run-time refusal of an untrusted secret or URL target: `checkFlow` runs the lint once per run (`lintUntrusted`, which
+  also yields the taint for the render-time fence below) and reads its `UNTRUSTED_SECRET_TARGET` and `UNTRUSTED_URL_TARGET` errors through
   `refusalsOf` (`secretTargetRefusals` is that reader for a flow, so the taint rules stay in the lint), live
   or test, and stores the result in `nodeInfo.refusal`. `executeNode` fails such a node with the lint's message
   and the non-retryable `FLOW_PARAM_INVALID` before it resolves params or calls `Execute`, so the vault is not read
   and the tool is not called. It is an ordinary node failure: `on_error` decides only what follows (stop the run,
   or `{error}` on the continue or error port), never whether the request happens, and Retry does not repeat it.
   The cost is one lint pass per run (about 5 ms for a `MaxNodes` document with a few references per node; the
-  same pass `Validate` makes on every save). A flow without `auth_secret` keeps only the plain warning and runs.
+  same pass `Validate` makes on every save). Failing only that node preserves the existing `on_error` behavior;
+  an author-fixed authority with untrusted path, query, headers or body still runs.
 - Render-time fence: a prompt that reaches a model must show which part came from outside. `checkFlow` keeps the
   taint the lint found anyway (`lintUntrusted`: the root `trigger` when an enabled trigger has `UntrustedOutput`,
   plus the key of every tainted node) in `runState.untrusted`, and `runState.env` hands it on as `Env.Untrusted`.

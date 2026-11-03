@@ -24,6 +24,7 @@ func FilterEnv(env []string) []string {
 		"TOGETHER_API_KEY",
 		"TAILSCALE_API_KEY",
 		"ANSIBLE_API_TOKEN",
+		"AWS_ACCESS_KEY_ID",
 		"AWS_SECRET_ACCESS_KEY",
 		"AWS_SESSION_TOKEN",
 		"AWS_SECURITY_TOKEN",

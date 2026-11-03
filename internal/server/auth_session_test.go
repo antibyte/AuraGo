@@ -40,6 +40,7 @@ func TestAuthSessionActivity(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+			s.Cfg.Server.HTTPS.Domain = "aurago.test"
 			s.Cfg.Auth.Enabled = !tt.disabled
 			s.Cfg.Auth.PasswordHash = "configured"
 			s.Cfg.Auth.SessionSecret = secret

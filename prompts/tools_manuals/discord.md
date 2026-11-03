@@ -93,7 +93,6 @@ No parameters required. Uses `guild_id` from config.yaml.
 ```yaml
 discord:
   enabled: true
-  bot_token: "your-discord-bot-token"
   guild_id: "your-server-id"           # Required for list_discord_channels
   allowed_user_id: "your-discord-user-id"  # Required for inbound control; empty blocks user messages
   default_channel_id: "channel-id"     # Fallback for send/fetch without explicit channel_id
@@ -105,10 +104,10 @@ discord:
 3. Enable **MESSAGE CONTENT INTENT** under Bot → Privileged Gateway Intents
 4. Invite URL: `https://discord.com/api/oauth2/authorize?client_id=YOUR_APP_ID&permissions=3072&scope=bot`
    - `3072` = Send Messages + Read Message History
-5. Paste the bot token into `config.yaml`
+5. Save the bot token through Configuration → Discord into the encrypted Vault.
 
 ## Behavior
-- The bot only responds when **@mentioned** in a server channel or messaged via **DM**
+- The bot responds in `default_channel_id`, to **@mentions** in server channels, or to **DMs**. A configured `guild_id` limits mention routing to that server.
 - `allowed_user_id` must be set for inbound Discord control; only that Discord user can interact with the agent
 - Messages from other users are silently ignored (logged as warnings)
-- Slash commands (`/help`, etc.) work the same as in Telegram and the Web UI
+- Slash commands use only the sender's original typed text after removing the bot mention. Audio transcripts and other attachment content remain chat data and cannot supply commands or command arguments. Operator commands such as `/personality` and `/restart` require a DM from the allowed user.

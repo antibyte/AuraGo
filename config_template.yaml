@@ -80,7 +80,7 @@ agent:
     allow_shell: false
     allow_python: false
     allow_unsafe_host_execution: false # explicit unsafe exception for host Python, Windows shell and unsandboxed Linux shell
-    allow_unsandboxed_shell: false # Linux/macOS host shell without sandbox needs this or allow_unsafe_host_execution; updates set it true for configs that already had allow_shell: true
+    allow_unsandboxed_shell: false # Linux/macOS host shell without sandbox needs an explicit true here or allow_unsafe_host_execution; missing/null stays false on upgrades too
     allow_filesystem_write: false
     allow_network_requests: false
     allow_remote_shell: false
@@ -1455,7 +1455,7 @@ mqtt:
     topics: []
     qos: 0
     relay_to_agent: false
-    allow_unauthenticated_relay: false  # relays and MQTT mission triggers need a username or a client certificate over TLS unless true
+    allow_unauthenticated_relay: false  # anonymous relay/Frigate/mission agent runs require explicit true; missing/null stays false on upgrades too
     allow_untrusted_transport: false    # plaintext or skipped certificate verification cannot start those runs unless true
     connect_timeout: 15             # connection timeout in seconds
     clean_session: true             # true = broker does not keep a persistent session for this client

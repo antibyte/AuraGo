@@ -371,15 +371,17 @@ func (s *Service) publishJob(run *jobRun, b Build) error {
 	}
 }
 
-// publishOnce is one publication attempt under the project mutex. The
-// commit point is publishStage's transaction (version bump and
+// publishOnce serializes cancellation with publication before taking the project
+// mutex. The commit point is publishStage's transaction (version bump and
 // publish_receipt); everything after it runs without the job's cancellation
 // and announces the result even when the "job" revision cannot be stored.
 func (s *Service) publishOnce(run *jobRun, b Build) error {
+	s.jobs.mu.Lock()
+	defer s.jobs.mu.Unlock()
 	if err := run.ctx.Err(); err != nil {
 		return context.Cause(run.ctx)
 	}
-	ctx := context.WithoutCancel(run.ctx)
+	ctx := run.ctx
 	unlock := s.lockProject(run.projectID)
 	defer unlock()
 	row, err := s.loadProjectRow(ctx, run.projectID)
@@ -424,6 +426,7 @@ func (s *Service) publishOnce(run *jobRun, b Build) error {
 	if err != nil {
 		return err
 	}
+	ctx = context.WithoutCancel(ctx)
 	run.job = job
 	if root, err := s.openRoot(row, ""); err == nil {
 		if _, err := s.createRevision(ctx, row.ID, root, job.Prompt, RevisionJob, job.ID, b.ID); err != nil {
