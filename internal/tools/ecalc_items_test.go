@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/ecalc"
 )
@@ -369,5 +370,32 @@ func TestECalcTableKeepsTheDigitsOfTranscribedCells(t *testing.T) {
 	// A generated table is computed, not published: four significant digits.
 	if out = ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: "awg", Filter: "4/0", Limit: 1})); !strings.Contains(fmt.Sprint(out["rows"]), "11.68 mm") {
 		t.Errorf("awg 4/0: %v", out["rows"])
+	}
+}
+
+// An id of any length is answered quickly with the unknown-id error and without repeating the id: the search for close
+// matches ran on the whole text and cost seconds for 100 KB.
+func TestECalcRefusesALongIDQuickly(t *testing.T) {
+	long := strings.Repeat("ab cd ef ", 12000)
+	start := time.Now()
+	for _, req := range []ECalcRequest{
+		{Operation: "describe", ID: long},
+		{Operation: "calculate", ID: long, Inputs: ecalcPairs("x", "1")},
+		{Operation: "table", ID: long},
+		{Operation: "open", ID: long},
+		{Operation: "decode", Kind: long, Code: "103"},
+	} {
+		exec := ExecuteECalc(ecalcDesktopConfig(), req)
+		out := ecalcDecode(t, exec)
+		code := "unknown_id"
+		if req.Operation == "decode" {
+			code = "unknown_code_kind"
+		}
+		if out["status"] != "error" || out["code"] != code || len(exec.Output) > 600 || exec.Event != nil {
+			t.Errorf("%s: %s", req.Operation, exec.Output)
+		}
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("five refusals took %v", took)
 	}
 }

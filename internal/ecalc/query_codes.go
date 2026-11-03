@@ -2,6 +2,7 @@ package ecalc
 
 import (
 	"strings"
+	"unicode/utf8"
 )
 
 // The query API of the component codes: DescribeCode describes a code item, QueryDecode and QueryEncode wrap Decode and
@@ -76,6 +77,9 @@ func codeFormsOf(kind string) codeForms {
 
 // lookupCodeItem finds a code item by id (case-insensitive), like lookupTable.
 func (c *Catalog) lookupCodeItem(id string) (*Code, error) {
+	if qe := idTooLong(id, "code"); qe != nil {
+		return nil, qe
+	}
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
 		return nil, queryErr(CodeUnknownID, "id is required; use search to find a code id")
@@ -126,6 +130,9 @@ type CodeAnswer struct {
 // resolveCodeKind returns the registered code kind a request means: the kind itself or the id of a code item (whose kind
 // it is). The error of anything else lists the kinds.
 func (c *Catalog) resolveCodeKind(kind string) (string, error) {
+	if utf8.RuneCountInString(strings.TrimSpace(kind)) > MaxIDLength {
+		return "", queryErr(CodeUnknownCodeKind, "unknown code kind: it is longer than %d characters; kinds: %s", MaxIDLength, strings.Join(CodeKindIDs(), ", "))
+	}
 	key := strings.ToLower(strings.TrimSpace(kind))
 	if _, ok := codeKindOf(key); ok && key != "" {
 		return key, nil

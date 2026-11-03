@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // The query API behind the agent tool ecalc: Search, Describe, Calculate and Check. Output texts are English; the
@@ -25,6 +26,9 @@ const (
 	ContradictionTolerance = 0.01
 	// DefaultESeries is the series of the suggestions when the request names none.
 	DefaultESeries = "E24"
+	// MaxIDLength is the longest item id a request may carry, in characters. The ids of the catalog have at most 63; a
+	// longer one is refused as unknown before the search for close matches runs on it.
+	MaxIDLength = 256
 
 	querySig     = 4   // significant digits of every formatted value
 	summaryRunes = 200 // longest summary of a search hit
@@ -514,6 +518,9 @@ func (c *Catalog) Describe(id string) (Description, error) {
 // lookup finds a calculator by id (case-insensitive). The error of an unknown id suggests the best search hits; the
 // id of a table or a code names the operations that read it.
 func (c *Catalog) lookup(id string) (*Calculator, error) {
+	if qe := idTooLong(id, "calculator"); qe != nil {
+		return nil, qe
+	}
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
 		return nil, queryErr(CodeUnknownID, "id is required; use search to find a calculator id")
@@ -522,6 +529,19 @@ func (c *Catalog) lookup(id string) (*Calculator, error) {
 		return calc, nil
 	}
 	return nil, c.notFound(id, key, "calculator")
+}
+
+// idTooLong is the unknown-id error of an id of more than MaxIDLength characters (nil for any other id). The lookups
+// answer with it before they search for close matches, which costs seconds for a very long id; the message does not
+// repeat the id. want is the kind of item that was asked for ("" for any).
+func idTooLong(id, want string) *QueryError {
+	if utf8.RuneCountInString(strings.TrimSpace(id)) <= MaxIDLength {
+		return nil
+	}
+	if want == "" {
+		return queryErr(CodeUnknownID, "unknown id: it is longer than %d characters; use search to find a calculator, table or code id", MaxIDLength)
+	}
+	return queryErr(CodeUnknownID, "unknown %s: the id is longer than %d characters; use search to find a %s id", want, MaxIDLength, want)
 }
 
 // notFound is the error of an id that is no item of the wanted kind ("calculator", "table", "code" or "" for any). The
@@ -562,6 +582,9 @@ func (c *Catalog) notFound(id, key, want string) *QueryError {
 // ResolveItem finds an item of any kind by id (case-insensitive) and returns its kind ("calculator", "table" or
 // "code") and its canonical id. The error of an unknown id suggests the best search hits.
 func (c *Catalog) ResolveItem(id string) (kind, canonical string, err error) {
+	if qe := idTooLong(id, ""); qe != nil {
+		return "", "", qe
+	}
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
 		return "", "", queryErr(CodeUnknownID, "id is required; use search to find a calculator, table or code id")

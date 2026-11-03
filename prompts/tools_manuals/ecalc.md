@@ -109,7 +109,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 
 ## Errors
 
-- `unknown_id`: the message suggests close matches; search first. `not_a_calculator`, `not_a_table` and `not_a_code`: the id names an item of another kind; the message says which operation reads it.
+- `unknown_id`: the message suggests close matches; search first. An id of more than 256 characters is refused as unknown without a search. `not_a_calculator`, `not_a_table` and `not_a_code`: the id names an item of another kind; the message says which operation reads it.
 - `unknown_variable`, `not_an_input` (a computed output cannot be given), `unknown_choice`, `unknown_option`, `unknown_eseries`, `duplicate_name`, `too_many_values`: the message lists the valid names; fix the call.
 - `parse_error`: the text of one value could not be read with the unit of its variable or column; the message names the variable or column and its dimension.
 - `underdetermined`: too few values, or no combination of them is a solvable set; `sets` lists the input sets closest first and the message says what to add.

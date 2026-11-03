@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func queryCatalog(t *testing.T) *Catalog {
@@ -891,5 +892,53 @@ func TestCalculateFormatsNumberSystemsWithoutAUnit(t *testing.T) {
 	res, err := cat.Calculate("t_num", CalcRequest{Values: nv("m", "255")})
 	if err != nil || !res.HasErrors() || !strings.Contains(quantity(t, res, "n").Error, "range") {
 		t.Fatalf("255 / 2 is no whole number: %v %+v", err, res.Quantities)
+	}
+}
+
+// ---- an id is a short word ----------------------------------------------------------------------------------------
+
+// A request id is at most MaxIDLength characters. A longer one is refused with the unknown-id error before anything
+// searches for close matches: SearchAll on 100 KB of short words cost seconds of CPU, and the message must not echo it.
+func TestQueryRefusesAnIDOfAnyKindThatIsTooLongWithoutSearching(t *testing.T) {
+	cat := queryCatalog(t)
+	long := strings.Repeat("ab cd ef ", 12000) // 108 KB of short words
+	atLimit := strings.Repeat("a", MaxIDLength)
+	over := strings.Repeat("a", MaxIDLength+1)
+	run := map[string]func(id string) error{
+		"describe":      func(id string) error { _, err := cat.Describe(id); return err },
+		"describeTable": func(id string) error { _, err := cat.DescribeTable(id); return err },
+		"describeCode":  func(id string) error { _, err := cat.DescribeCode(id); return err },
+		"queryTable":    func(id string) error { _, err := cat.QueryTable(id, TableRequest{}); return err },
+		"resolveItem":   func(id string) error { _, _, err := cat.ResolveItem(id); return err },
+		"calculate":     func(id string) error { _, err := cat.Calculate(id, CalcRequest{}); return err },
+		"check":         func(id string) error { _, err := cat.Check(id, CalcRequest{}); return err },
+	}
+	start := time.Now()
+	for name, f := range run {
+		for label, id := range map[string]string{"100 KB": long, "257 runes": over, "257 runes with spaces around": "  " + over + "  "} {
+			err := f(id)
+			qe := AsQueryError(err)
+			if qe == nil || qe.Code != CodeUnknownID || !strings.Contains(qe.Message, "256") || len(qe.Message) > 300 || strings.Contains(qe.Message, "ab cd") || strings.Contains(qe.Message, "aaaa") {
+				t.Errorf("%s with %s: %v, want unknown_id naming the limit without echoing the id", name, label, err)
+			}
+		}
+		// An id at the limit is looked up as usual: unknown, with the id in the message and without trouble.
+		if qe := AsQueryError(f(atLimit)); qe == nil || qe.Code != CodeUnknownID || !strings.Contains(qe.Message, "unknown") {
+			t.Errorf("%s with an id of %d runes: %v", name, MaxIDLength, qe)
+		}
+	}
+	// The kind of decode and encode may be the id of a code item: a long one is not echoed either.
+	if _, err := cat.QueryDecode(long, "103"); AsQueryError(err) == nil || AsQueryError(err).Code != CodeUnknownCodeKind || len(err.Error()) > 400 || strings.Contains(err.Error(), "ab cd") {
+		t.Errorf("decode with a long kind: %v", err)
+	}
+	if _, err := cat.QueryEncode(long, EncodeRequest{Value: "4k7"}); AsQueryError(err) == nil || AsQueryError(err).Code != CodeUnknownCodeKind || len(err.Error()) > 400 {
+		t.Errorf("encode with a long kind: %v", err)
+	}
+	// Non-ASCII ids count in characters, not bytes: 200 two-byte letters are within the limit.
+	if qe := AsQueryError(run["describe"](strings.Repeat("ä", 200))); qe == nil || !strings.Contains(qe.Message, "unknown calculator") {
+		t.Errorf("200 characters of 2 bytes: %v", qe)
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("the refusals took %v: a long id must be refused before the search for close matches", took)
 	}
 }

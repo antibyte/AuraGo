@@ -136,6 +136,9 @@ func (c *Catalog) columnInfo(t *Table, withUnits bool) []TableColumnInfo {
 // lookupTable finds a table by id (case-insensitive). The error of an unknown id suggests the best search hits of the
 // tables; the id of a calculator or a code says what it is.
 func (c *Catalog) lookupTable(id string) (*Table, error) {
+	if qe := idTooLong(id, "table"); qe != nil {
+		return nil, qe
+	}
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
 		return nil, queryErr(CodeUnknownID, "id is required; use search to find a table id")
