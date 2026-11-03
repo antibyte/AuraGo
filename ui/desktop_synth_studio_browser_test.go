@@ -136,6 +136,17 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("undo restores track count", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, before))
 	page.MustElement(".ss-app [data-action=redo]").MustClick()
 	check("redo restores instrument", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, before+1))
+	// The track menu removes a track from the timeline. Reaching the delete
+	// button at the bottom of the sound panel is not a way to delete a track.
+	page.MustEval(`()=>{document.querySelectorAll('[data-track-menu]')[1].click();}`)
+	check("track menu offers the track actions", `()=>{const m=document.querySelector('.ss-track-menu');return !!m&&!!m.querySelector('[data-track-menu-action=delete]')&&!!m.querySelector('[data-track-menu-action=duplicate]');}`)
+	menuTracks := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
+	page.MustElement(".ss-track-menu [data-track-menu-action=delete]").MustClick()
+	waitForJSBool(t, page, fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, menuTracks-1))
+	check("track menu deletes the track", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, menuTracks-1))
+	check("deleted track leaves a valid selection", `()=>{const p=synthInstance().project(),id=synthInstance().editor.selection().trackId;return !id||p.tracks.some(t=>t.id===id);}`)
+	page.MustElement(".ss-app [data-action=undo]").MustClick()
+	check("undo restores the deleted track", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, menuTracks))
 	// Exercise the actual custom drag/drop payload through the arrangement listener.
 	page.MustEval(`()=>{const d=new DataTransfer();d.setData('application/x-aurago-synth',JSON.stringify({type:'pattern',id:SynthStudioModel.patterns.find(p=>p.category==='leads').id}));document.querySelector('[data-empty-drop]').dispatchEvent(new DragEvent('drop',{dataTransfer:d,bubbles:true,cancelable:true}));}`)
 	check("pattern drop creates notes", `()=>synthInstance().project().tracks.at(-1).clips[0].notes.length>0`)
@@ -241,6 +252,31 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1500px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
 	waitForJSBool(t, page, `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
 	check("wide workbench follows the window width", `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
+	// The three separators size the library rail, the sound column and the
+	// workbench band. They keep the size in the local view preferences and a
+	// double click restores the default.
+	dragSeparator := func(selector string, dx, dy int) {
+		t.Helper()
+		page.MustEval(`(selector,dx,dy)=>{
+			const g=document.querySelector(selector);if(!g)return;
+			const r=g.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+			const ev=(t,cx,cy)=>new PointerEvent(t,{bubbles:true,cancelable:true,clientX:cx,clientY:cy,button:0,pointerId:1});
+			g.dispatchEvent(ev('pointerdown',x,y));g.dispatchEvent(ev('pointermove',x+dx,y+dy));g.dispatchEvent(ev('pointerup',x+dx,y+dy));
+		}`, selector, dx, dy)
+	}
+	dragSeparator(".ss-splitter-library", 70, 0)
+	libraryWidth := page.MustEval(`()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)`).Int()
+	check("library separator resizes the rail", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)===%d`, libraryWidth))
+	check("library separator keeps its size", `()=>JSON.parse(localStorage.getItem('aurago:synth-studio:view:1')).libraryWidth===`+fmt.Sprint(libraryWidth))
+	dragSeparator(".ss-splitter-panel", -60, 0)
+	panelWidth := page.MustEval(`()=>Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)`).Int()
+	check("sound column separator resizes the column", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)===%d`, panelWidth))
+	dragSeparator(".ss-workbench-grip", 0, -80)
+	workbenchHeight := page.MustEval(`()=>Math.round(document.querySelector('.ss-note-editor').getBoundingClientRect().height)`).Int()
+	check("workbench separator resizes the lower band", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-note-editor').getBoundingClientRect().height)===%d`, workbenchHeight))
+	check("sound panel keeps the room it was given", `()=>{const p=document.querySelector('.ss-sound-workbench'),i=document.querySelector('.ss-inspector');return p.getBoundingClientRect().height>=100&&i.scrollHeight>i.clientHeight;}`)
+	page.MustEval(`()=>{['.ss-splitter-library','.ss-splitter-panel','.ss-workbench-grip'].forEach(s=>document.querySelector(s).dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true})));}`)
+	check("double click restores the default sizes", `()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)===220&&Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)===360`)
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='420px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
 	waitForJSBool(t, page, `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)
 	check("wide workbench releases on a narrow window", `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)

@@ -9,6 +9,10 @@
     --ss-card:var(--vd-mat-card,var(--ss-panel));--ss-card-color:var(--vd-mat-card-color,var(--ss-panel));--ss-card-border:var(--vd-mat-card-border,var(--ss-border));--ss-card-radius:var(--vd-mat-card-radius,9px);--ss-card-shadow:var(--vd-mat-card-shadow,none);
     --ss-field:var(--vd-mat-field,var(--ss-bg));--ss-field-border:var(--vd-mat-field-border,var(--ss-border));--ss-field-radius:var(--vd-mat-field-radius,5px);--ss-field-shadow:var(--vd-mat-field-shadow,none);
     --ss-line:var(--vd-mat-divider,var(--ss-border));--ss-hover:var(--vd-mat-hover,color-mix(in srgb,var(--ss-text) 4%,transparent));
+    --ss-danger:color-mix(in srgb,#ff6b8a 72%,var(--ss-text));
+    /* Panel sizes the user drags. The workspace writes the pixel values, the
+       stylesheets only decide where they are allowed to grow. */
+    --ss-library-width:220px;--ss-panel-width:360px;--ss-workbench-height:290px;
     --ss-btn-fb:transparent;
     color:var(--ss-text);background:var(--ss-canvas);display:flex;flex-direction:column;height:100%;min-height:0;font-size:12px;overflow:hidden;outline:none;container-type:inline-size;
 }
@@ -51,8 +55,9 @@
 .ss-loop-range input {width:43px}
 .ss-history {display:flex;margin-left:auto}
 .ss-notice {flex-shrink:0;padding:8px 14px;background:color-mix(in srgb,#dda349 12%,var(--ss-bg));border-bottom:1px solid color-mix(in srgb,#dda349 35%,transparent);overflow-wrap:anywhere}
-.ss-workspace {display:grid;grid-template-columns:210px minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
-.ss-library {background:var(--ss-side);box-shadow:var(--ss-side-edge);border-right:1px solid var(--ss-line);display:flex;flex-direction:column;min-height:0;padding:10px;gap:10px}
+.ss-workspace {display:grid;grid-template-columns:min(var(--ss-library-width,220px),var(--ss-library-cap,460px)) 6px minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
+.ss-library {grid-column:1;grid-row:1;background:var(--ss-side);box-shadow:var(--ss-side-edge);border-right:1px solid var(--ss-line);display:flex;flex-direction:column;min-height:0;padding:10px;gap:10px}
+.ss-main {grid-column:3;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .ss-library-tabs {display:flex;border-bottom:1px solid var(--ss-line);gap:3px;padding-bottom:5px}
 .ss-library-tabs button {min-width:0;overflow-wrap:anywhere;font-size:11px;flex:1}
 .ss-library-tabs button[aria-pressed=true] {color:var(--vd-mat-selected-text,var(--ss-text));background:var(--vd-mat-selected,color-mix(in srgb,var(--ss-text) 7%,transparent));box-shadow:var(--vd-mat-selected-edge,none);--ss-hover-bg:var(--vd-mat-selected,color-mix(in srgb,var(--ss-text) 7%,transparent))}
@@ -69,7 +74,6 @@
 .ss-library-item .ss-insert {color:var(--ss-muted);font-size:16px}
 .ss-library-item.is-selected {border-left:2px solid var(--ss-accent);background:var(--vd-mat-selected,transparent);color:var(--vd-mat-selected-text,inherit)}
 .ss-midi-toggle {border:1px solid var(--ss-border)!important;font-size:11px!important}
-.ss-main {min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .ss-arrange-tools {display:flex;align-items:center;gap:12px;padding:6px 10px;flex-shrink:0;border-bottom:1px solid var(--ss-line);background:var(--ss-bar);box-shadow:var(--ss-bar-edge);height:38px;font-size:10px;color:var(--ss-muted)}
 .ss-arrange-tools>span {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;letter-spacing:var(--vd-mat-label-tracking,1px);text-transform:var(--vd-mat-label-transform,uppercase);font-family:var(--vd-mat-label-font,inherit);color:var(--vd-mat-label-color,var(--ss-muted))}
 .ss-arrange-tools label {display:flex;align-items:center;gap:5px}
@@ -83,11 +87,11 @@
 .ss-ruler-grid {position:relative;height:27px;background:repeating-linear-gradient(90deg,var(--ss-border) 0 1px,transparent 1px calc(var(--ss-beat)*4));cursor:crosshair}
 .ss-ruler-grid span {position:absolute;padding:6px 7px;font:10px monospace;font-family:var(--vd-mat-mono-font,monospace);color:var(--ss-muted)}
 .ss-track {display:flex;height:75px;border-bottom:1px solid var(--ss-line)}
-.ss-track-head {position:sticky;left:0;z-index:3;flex-shrink:0;width:180px;display:grid;grid-template-columns:1fr 85px;grid-template-rows:32px 20px;padding:7px 9px 5px 11px;gap:3px;background:var(--ss-side);box-shadow:var(--ss-side-edge);border-left:3px solid var(--ss-track-color);border-right:1px solid var(--ss-line)}
+.ss-track-head {position:sticky;left:0;z-index:3;flex-shrink:0;width:180px;display:grid;grid-template-columns:1fr 92px;grid-template-rows:32px 20px;padding:7px 9px 5px 11px;gap:3px;background:var(--ss-side);box-shadow:var(--ss-side-edge);border-left:3px solid var(--ss-track-color);border-right:1px solid var(--ss-line)}
 .ss-track-head input {grid-column:1/-1;width:142px!important;accent-color:var(--ss-track-color)!important}
 .ss-track-name {text-align:left;font-size:11px!important;padding:0!important;line-height:1.2;overflow:hidden;text-overflow:ellipsis;max-width:72px}
-.ss-track-buttons {display:flex;gap:2px;align-items:center}
-.ss-track-buttons button {font-size:9px;min-height:22px;width:24px;padding:3px}
+.ss-track-buttons {display:flex;gap:1px;align-items:center}
+.ss-track-buttons button {font-size:9px;min-height:22px;width:22px;padding:3px}
 .ss-track-buttons button[aria-pressed=true] {color:var(--ss-track-color);border-color:var(--ss-track-color)}
 .ss-track.is-selected .ss-track-head {background:color-mix(in srgb,var(--ss-track-color) 10%,var(--ss-side-color))}
 .ss-lane {position:relative;flex-shrink:0;background-image:repeating-linear-gradient(90deg,var(--ss-border) 0 1px,transparent 1px calc(var(--ss-beat)*4)),repeating-linear-gradient(90deg,color-mix(in srgb,var(--ss-border) 40%,transparent) 0 1px,transparent 1px var(--ss-beat));}
@@ -145,55 +149,71 @@
 .ss-midi-led {height:5px;width:5px;border-radius:50%;background:var(--ss-border)}.ss-midi-led.is-on {background:var(--ss-accent)}
 .ss-muted {color:var(--ss-muted);font-size:11px;line-height:1.7;padding:8px}
 .ss-compact-only,.ss-inspector-toggle {display:none!important}
-@container (max-width:1000px){.ss-workspace{grid-template-columns:185px minmax(0,1fr)}.ss-transport{gap:9px;padding:8px}.ss-time-signature{display:none}.ss-brand-mark{display:none}.ss-note-editor{flex-basis:210px}.ss-footer-hint{display:none}}
-@container (max-width:760px){.ss-workspace{position:relative;grid-template-columns:175px minmax(0,1fr)}.ss-inspector-toggle{display:block!important}.ss-inspector{display:none;position:absolute;right:0;top:0;bottom:0;width:210px;z-index:11;box-shadow:-12px 0 25px #0004}.ss-inspector-open .ss-inspector{display:block}.ss-header{padding:8px}.ss-transport{gap:7px}.ss-transport label{font-size:10px}.ss-tempo input{width:62px}.ss-transport-buttons button{width:28px}.ss-position{font-size:14px;min-width:72px}}
-@container (max-width:540px){.ss-workspace{position:relative;display:flex}.ss-main{width:100%}.ss-library{display:none;position:absolute;left:0;top:0;bottom:0;width:210px;z-index:10;box-shadow:12px 0 25px #0004}.ss-library-open .ss-library{display:flex}.ss-compact-only{display:block!important}.ss-transport{flex-wrap:wrap;row-gap:5px;overflow:visible}.ss-transport .ss-loop-range input{width:36px}.ss-transport label{font-size:10px}.ss-header{gap:4px}.ss-brand strong{font-size:12px}.ss-project-name{max-width:130px!important}.ss-file-actions{gap:0;justify-content:flex-end;width:100%}.ss-file-actions button{padding:4px;width:28px}.ss-file-actions select{width:76px;font-size:10px}.ss-transport .ss-history{margin-left:0}.ss-editor-header{gap:6px}.ss-editor-header strong{max-width:90px}.ss-editor-header label{font-size:9px}.ss-editor-header label input{width:40px!important}.ss-note-editor{flex-basis:190px}.ss-arrange-tools{gap:8px}.ss-arrange-tools input{width:45px!important}.ss-footer>span:last-child{font-size:7px}.ss-midi-panel{max-height:180px;overflow:auto}.ss-midi-panel select{max-width:170px}}
+@container (max-width:1000px){.ss-workspace{--ss-library-cap:185px}.ss-transport{gap:9px;padding:8px}.ss-time-signature{display:none}.ss-brand-mark{display:none}.ss-note-editor{flex-basis:210px}.ss-footer-hint{display:none}}
+@container (max-width:760px){.ss-workspace{position:relative;--ss-library-cap:175px}.ss-inspector-toggle{display:block!important}.ss-inspector{display:none;position:absolute;right:0;top:0;bottom:0;width:210px;z-index:11;box-shadow:-12px 0 25px #0004}.ss-inspector-open .ss-inspector{display:block}.ss-header{padding:8px}.ss-transport{gap:7px}.ss-transport label{font-size:10px}.ss-tempo input{width:62px}.ss-transport-buttons button{width:28px}.ss-position{font-size:14px;min-width:72px}}
+@container (max-width:540px){.ss-workspace{position:relative;display:flex}.ss-main{width:100%;grid-column:auto}.ss-library{display:none;position:absolute;left:0;top:0;bottom:0;width:210px;z-index:10;box-shadow:12px 0 25px #0004}.ss-library-open .ss-library{display:flex}.ss-splitter-library{display:none!important}.ss-compact-only{display:block!important}.ss-transport{flex-wrap:wrap;row-gap:5px;overflow:visible}.ss-transport .ss-loop-range input{width:36px}.ss-transport label{font-size:10px}.ss-header{gap:4px}.ss-brand strong{font-size:12px}.ss-project-name{max-width:130px!important}.ss-file-actions{gap:0;justify-content:flex-end;width:100%}.ss-file-actions button{padding:4px;width:28px}.ss-file-actions select{width:76px;font-size:10px}.ss-transport .ss-history{margin-left:0}.ss-editor-header{gap:6px}.ss-editor-header strong{max-width:90px}.ss-editor-header label{font-size:9px}.ss-editor-header label input{width:40px!important}.ss-note-editor{flex-basis:190px}.ss-arrange-tools{gap:8px}.ss-arrange-tools input{width:45px!important}.ss-footer>span:last-child{font-size:7px}.ss-midi-panel{max-height:180px;overflow:auto}.ss-midi-panel select{max-width:170px}}
 @media(prefers-reduced-motion:reduce){.ss-app *{scroll-behavior:auto!important}}
 
 /* Instrument workspace: scoped to Synth Studio, with native desktop colour schemes. */
 .ss-app {--ss-workbench-height:290px;font-size:13px;background:var(--vd-mat-canvas,#161b24)}
 [data-scheme="light"] .ss-app {--ss-bg:#edf0f2;--ss-panel:#f9fafb;--ss-text:var(--vd-text,#202731);--ss-muted:var(--vd-theme-muted,#505c69);--ss-border:var(--vd-theme-border,#c6ced6);--ss-accent:#176851;background:var(--vd-mat-canvas,var(--ss-bg))}
-.ss-workspace {grid-template-columns:220px minmax(0,1fr)}
 .ss-header {min-height:55px}.ss-brand strong {font-size:16px}.ss-project-name {font-size:13px!important}
 .ss-transport {flex-wrap:wrap;overflow:visible;gap:10px}.ss-transport label {font-size:13px}.ss-transport-buttons button {width:38px;height:38px}
 .ss-library-tabs button,.ss-library-name,.ss-search,.ss-categories button,.ss-track-name,.ss-arrange-tools,.ss-editor-header,.ss-inspector label,.ss-inspector h3,.ss-parameter,.ss-file-actions button {font-size:13px!important}
 .ss-track-head {grid-template-columns:1fr 85px;width:180px}.ss-track-name {max-width:none}.ss-track-buttons button {font-size:11px}
 .ss-library-collapsed .ss-library {display:none!important}.ss-library-collapsed .ss-workspace {grid-template-columns:minmax(0,1fr)}
+.ss-library-collapsed .ss-main {grid-column:1}.ss-library-collapsed .ss-splitter-library {display:none!important}
 .ss-compact-only,.ss-inspector-toggle {display:block!important}
 .ss-workbench-tabs {display:flex;gap:5px;padding:7px 10px;background:var(--ss-bar);box-shadow:var(--ss-bar-edge);border-top:1px solid var(--ss-line)}
 .ss-workbench-tabs button {font-size:13px;padding:6px 13px;border:1px solid var(--ss-border)}
 .ss-workbench-tabs button[aria-selected="true"] {background:var(--vd-mat-selected,var(--ss-accent));color:var(--vd-mat-selected-text,var(--ss-bg));border-color:var(--vd-mat-btn-border,var(--ss-border));box-shadow:var(--vd-mat-selected-edge,none);--ss-hover-bg:var(--vd-mat-selected,var(--ss-accent))}
 .ss-workbench-grip {height:9px;flex:0 0 9px;cursor:ns-resize;touch-action:none;background:linear-gradient(var(--ss-line),var(--ss-line)) center/38px 2px no-repeat}
 .ss-workbench-grip:focus-visible {outline:2px solid var(--ss-accent)}
-.ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {flex:0 1 var(--ss-workbench-height);min-height:100px;max-height:60%;overflow:auto}
-.ss-sound-workbench {background:var(--ss-side);box-shadow:var(--ss-side-edge)}
+.ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {flex:0 1 var(--ss-workbench-height);min-height:100px;overflow:auto}
+.ss-sound-workbench {background:var(--ss-side);box-shadow:var(--ss-side-edge);display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ss-performance-workbench {background:var(--ss-canvas)}
 .ss-note-editor {border:0;overflow:hidden}.ss-editor-header {height:auto;min-height:38px;flex-wrap:wrap;gap:6px}
 .ss-editor-header strong {margin-right:auto}.ss-editor-header>span {display:none}
-.ss-sound-workbench .ss-inspector {display:block;position:static;width:auto;border:0;box-shadow:none}
-.ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(5,minmax(85px,1fr));gap:16px}
+.ss-sound-workbench .ss-inspector {display:block;position:static;width:auto;border:0;box-shadow:none;flex:1;min-height:0;overflow:auto}
+.ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px 10px}
 .ss-parameter {padding:10px;background:var(--ss-card);border:1px solid var(--ss-card-border);border-radius:var(--ss-card-radius)}
 .ss-parameter output {font:13px ui-monospace,monospace;font-family:var(--vd-mat-mono-font,ui-monospace,monospace);color:var(--ss-text)}
 .ss-parameter button {font-size:11px;padding:2px;min-height:23px}
 .ss-welcome {display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px;background:var(--ss-card);border-bottom:1px solid var(--ss-line)}
 .ss-welcome strong {width:100%;font-size:15px;font-weight:var(--vd-mat-heading-weight,700);font-family:var(--vd-mat-heading-font,inherit);color:var(--vd-mat-heading-color,inherit);letter-spacing:var(--vd-mat-heading-tracking,normal);text-transform:var(--vd-mat-heading-transform,none)}.ss-welcome button {border:1px solid var(--ss-border);padding:8px 12px}
 .ss-loop-handle {position:absolute;top:0;height:27px!important;min-height:0!important;z-index:6;padding:0 4px!important;cursor:ew-resize;touch-action:none;background:var(--ss-accent)!important;color:var(--ss-bg)!important}
+/* Drag handles between the panels. They light up while the pointer or the
+   keyboard focus is on them, so the resizable border is discoverable. */
+.ss-splitter {position:relative;z-index:6;touch-action:none;background:transparent}
+.ss-splitter::after {content:'';position:absolute;inset:-2px 0;background:transparent;transition:background .16s ease}
+.ss-splitter:hover::after,.ss-splitter:focus-visible::after,.ss-splitter.is-dragging::after {background:color-mix(in srgb,var(--ss-accent) 55%,transparent)}
+.ss-splitter:focus-visible {outline:2px solid var(--ss-accent);outline-offset:-2px}
+.ss-splitter-library {grid-column:2;grid-row:1;cursor:col-resize}
+.ss-splitter-panel {display:none;cursor:col-resize}
+.ss-wide .ss-splitter-panel {display:block}
+.ss-wide .ss-splitter-panel::after {inset:0 -3px}
+.ss-track-menu-button {font-size:13px!important;line-height:1;letter-spacing:1px}
+.ss-track-menu {position:fixed;z-index:80;min-width:168px;display:flex;flex-direction:column;gap:2px;padding:5px;border-radius:10px;border:1px solid var(--ss-line);background:var(--ss-card);box-shadow:0 16px 38px #0008}
+.ss-track-menu button {width:100%;text-align:left;font-size:12px!important;min-height:32px;padding:6px 10px;border:0;border-radius:7px;background:transparent;color:var(--ss-text)}
+.ss-track-menu button:hover,.ss-track-menu button:focus-visible {background:var(--ss-hover);outline:none}
+.ss-track-menu button.is-danger {color:var(--ss-danger)}
+.ss-track-menu button.is-danger:hover {background:color-mix(in srgb,var(--ss-danger) 18%,transparent)}
 .ss-selection-box {position:absolute;pointer-events:none;border:1px solid var(--ss-accent);background:color-mix(in srgb,var(--ss-accent) 16%,transparent)}
 .ss-note-velocities {display:flex;flex-shrink:0;gap:8px;max-height:55px;overflow:auto}
 .ss-note-velocities:empty {display:none}.ss-note-velocities label {min-width:100px;padding:4px;font-size:11px}
 .ss-library-name[aria-pressed="true"] {color:var(--ss-accent)}
 .ss-app .ss-library-item.is-selected :where(button,small,.ss-tag) {color:inherit}
 @container (max-width:760px) {
- .ss-workspace {grid-template-columns:170px minmax(0,1fr)}
- .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(3,minmax(85px,1fr))}
+ .ss-workspace {--ss-library-cap:170px}
+ .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
  .ss-header,.ss-transport {padding:7px}.ss-file-actions {width:auto}
 }
 @container (max-width:540px) {
  .ss-workspace {display:flex}.ss-library {display:none}.ss-library-open .ss-library {display:flex}
  .ss-transport {gap:5px}.ss-transport label {font-size:12px}.ss-transport-buttons button {width:34px;height:36px}
  .ss-header {min-height:55px}.ss-time-signature,.ss-footer-hint {display:none}
- .ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {max-height:55%;flex-basis:var(--ss-workbench-height)}
- .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(2,minmax(85px,1fr))}
+ .ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {flex-basis:var(--ss-workbench-height)}
+ .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
  .ss-editor-header strong,.ss-editor-header>label {display:none}.ss-editor-header button {font-size:12px}
  .ss-workbench-tabs button {padding:5px 9px}.ss-welcome {padding:8px;gap:5px}
 }
@@ -274,14 +294,17 @@
 /* On a wide desktop the arrangement keeps the full width of the workbench and
    the piano roll sits next to the sound workbench below it. The timeline must
    never be squeezed into a narrow column, because clips outside the visible
-   strip cannot be reached at all. */
-.ss-wide .ss-editor-host {display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(130px,1.2fr) minmax(150px,1fr)}
-.ss-wide .ss-workbench-tabs {grid-area:1/1/2/3}
-.ss-wide .ss-arrangement {grid-area:2/1/3/3}
-.ss-wide .ss-note-editor,.ss-wide .ss-performance-workbench {grid-area:3/1/4/2;min-width:0}
-.ss-wide .ss-sound-workbench {grid-area:3/2/4/3;width:360px;border-left:1px solid var(--ss-line);border-top:0}
+   strip cannot be reached at all. Both the height of the lower band and the
+   width of the sound column are user sizes, so the row keeps the space the
+   user gave it instead of clamping the panels into an unusable strip. */
+.ss-wide .ss-editor-host {display:grid;grid-template-columns:minmax(0,1fr) 6px var(--ss-panel-width,360px);grid-template-rows:auto minmax(120px,1fr) 9px var(--ss-workbench-height,290px)}
+.ss-wide .ss-workbench-tabs {grid-area:1/1/2/4}
+.ss-wide .ss-arrangement {grid-area:2/1/3/4}
+.ss-wide .ss-workbench-grip {grid-area:3/1/4/4;display:block;height:auto;min-height:0}
+.ss-wide .ss-note-editor,.ss-wide .ss-performance-workbench {grid-area:4/1/5/2;min-width:0;max-height:none}
+.ss-wide .ss-splitter-panel {grid-area:4/2/5/3}
+.ss-wide .ss-sound-workbench {grid-area:4/3/5/4;width:auto;border-left:1px solid var(--ss-line);border-top:0;max-height:none}
 .ss-wide .ss-workbench-tabs [data-work-tab=sound] {display:none}
-.ss-wide .ss-workbench-grip {display:none}
 /* Master strip: the project wide mix controls live in the transport area, so
    they can be reached without opening the sound panel. */
 .ss-master-toggle {flex-shrink:0;border:1px solid var(--ss-border);font-size:11px;padding:4px 12px;color:var(--ss-muted);white-space:nowrap}

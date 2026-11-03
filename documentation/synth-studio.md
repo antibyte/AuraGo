@@ -27,7 +27,10 @@ implemented. That plan remains the record of the intended scope.
 - Drag clips to move them, Alt-drag to copy, and drag their right edge to crop
   or extend. Shift-drag that edge repeats their notes into the extended clip.
   Ctrl/Cmd+D duplicates the selected clip directly after itself.
-- Track controls provide volume, mute, solo and recording selection. The sound
+- Track controls provide volume, mute, solo and recording selection. Every track
+  head carries a track menu that duplicates the track or deletes it together with
+  its clips; deletion asks for confirmation and moves the selection to a track
+  that still exists. The sound
   panel provides instrument choice, pan, tone, resonance, drive, attack and release,
   the two effect sends (reverb and delay) and the effect chain.
 - Space plays/pauses, Ctrl/Cmd+S saves, Shift+Ctrl/Cmd+S saves a copy, and
@@ -43,14 +46,23 @@ window keeps playback running. Reopening never starts playback automatically.
 ## Instrument workspace
 
 The transport stays visible while Notes, Sound and Performance share a resizable workbench.
-Panel height, the selected workbench and library visibility are local view preferences. Dark and light
+Panel height, the selected workbench, library visibility and the panel sizes are
+local view preferences. Dark and light
 desktop schemes use graphite and aluminium surfaces respectively. On a window of at least
 1400 pixels the arrangement keeps the full width of the workbench and the notes panel
 and the sound workbench sit side by side below it, so the timeline stays readable
-while the instrument and its effect chain stay in view. A guided tour in the footer
+while the instrument and its effect chain stay in view. The lower band always keeps
+the height the user gave it: the sound panel scrolls inside its own column instead
+of being squeezed into an unreadable strip. A guided tour in the footer
 walks through the five workbench areas and can be skipped at any point. Electronic,
 Chill and Retro templates start paused; each is a distinct sixteen-bar
 composition with its own instruments, groove, harmony and mix.
+
+Three draggable separators size the studio: the library rail on the left, the sound
+column on the right and the workbench band under the arrangement. Every separator is
+a real `separator` role: the arrow keys move it in steps, Shift multiplies the step
+and a double click restores the default size. The sizes are stored per browser and
+applied again on the next start.
 
 The library separates selection, preview and insertion and searches all banks
 until a category is selected. Search matches names and tags; the tag chips
