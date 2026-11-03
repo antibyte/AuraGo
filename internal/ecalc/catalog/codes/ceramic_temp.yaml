@@ -1,0 +1,34 @@
+- id: ceramic_temp_code
+  kind: code
+  category: codes
+  code: ceramic_temp
+  name: {cs: "Teplotní kódy keramických kondenzátorů", da: "Temperaturkoder for keramiske kondensatorer", de: "Temperaturcodes für Keramikkondensatoren", el: "Κωδικοί θερμοκρασίας κεραμικών πυκνωτών", en: "Ceramic capacitor temperature codes", es: "Códigos de temperatura de condensadores cerámicos", fr: "Codes de température des condensateurs céramiques", hi: "सिरेमिक संधारित्र तापमान कोड", it: "Codici di temperatura dei condensatori ceramici", ja: "セラミックコンデンサの温度特性コード", nl: "Temperatuurcodes voor keramische condensatoren", no: "Temperaturkoder for keramiske kondensatorer", pl: "Kody temperaturowe kondensatorów ceramicznych", pt: "Códigos de temperatura de capacitores cerâmicos", sv: "Temperaturkoder för keramiska kondensatorer", zh: "陶瓷电容温度特性代码"}
+  doc: {en: "EIA-198 temperature characteristics of ceramic capacitors: class 1 codes such as C0G or U2J (temperature coefficient and tolerance in ppm/K) and class 2 codes such as X7R or Y5V (category temperature range and capacitance change), in both directions.", de: "EIA-198-Temperaturkennlinien von Keramikkondensatoren: Klasse-1-Codes wie C0G oder U2J (Temperaturkoeffizient und Toleranz in ppm/K) und Klasse-2-Codes wie X7R oder Y5V (Kategorie-Temperaturbereich und Kapazitätsänderung), in beide Richtungen."}
+  tags: ["ceramic", "keramik", "capacitor", "kondensator", "c0g", "np0", "x7r", "x5r", "y5v", "z5u", "temperature", "temperatur", "eia-198", "dielectric", "dielektrikum"]
+  source: "EIA-198 code letters as printed in the Vishay general information on ceramic disc capacitors and in the Murata, KEMET and TDK ceramic capacitor catalogues"
+  data:
+    class1:
+      sig: [{letter: "C", value: 0}, {letter: "M", value: 1}, {letter: "P", value: 1.5}, {letter: "R", value: 2.2}, {letter: "S", value: 3.3}, {letter: "T", value: 4.7}, {letter: "U", value: 7.5}]
+      mult: [{digit: "0", value: -1}, {digit: "1", value: -10}, {digit: "2", value: -100}, {digit: "3", value: -1000}, {digit: "5", value: 1}, {digit: "6", value: 10}, {digit: "7", value: 100}, {digit: "8", value: 1000}]
+      tol: [{letter: "G", ppm: 30}, {letter: "H", ppm: 60}, {letter: "J", ppm: 120}, {letter: "K", ppm: 250}, {letter: "L", ppm: 500}, {letter: "M", ppm: 1000}, {letter: "N", ppm: 2500}]
+    class2:
+      low: [{letter: "X", c: -55}, {letter: "Y", c: -30}, {letter: "Z", c: 10}]
+      high: [{digit: "4", c: 65}, {digit: "5", c: 85}, {digit: "6", c: 105}, {digit: "7", c: 125}, {digit: "8", c: 150}]
+      change: [{letter: "P", plus: 10, minus: 10}, {letter: "R", plus: 15, minus: 15}, {letter: "S", plus: 22, minus: 22}, {letter: "T", plus: 22, minus: 33}, {letter: "U", plus: 22, minus: 56}, {letter: "V", plus: 22, minus: 82}]
+    aliases:
+      - {name: "NP0", code: "C0G"}
+      - {name: "NPO", code: "C0G"}
+      - {name: "N750", code: "U2J"}
+      - {name: "N1500", code: "P3K"}
+    industry:
+      - {code: "C0G", name: "NP0"}
+      - {code: "U2J", name: "N750"}
+      - {code: "P3K", name: "N1500"}
+    not_cross_checked: {c1_sig: ["B", "L", "A", "V"], c1_mult: ["4", "9"], c2_high: ["2", "9"], c2_change: ["A", "B", "C", "D", "E", "F", "L"]}
+    common: ["C0G", "U2J", "P3K", "X5R", "X6S", "X7R", "X7S", "X7T", "X7U", "X8R", "Y5V", "Z5U"]
+    notes:
+      - {en: "C0G (NP0) is the most stable class 1 dielectric: 0 ± 30 ppm/K.", de: "C0G (NP0) ist das stabilste Klasse-1-Dielektrikum: 0 ± 30 ppm/K."}
+      - {en: "Class 2 codes describe only the temperature range and the change over temperature; DC bias and ageing reduce the capacitance further.", de: "Klasse-2-Codes beschreiben nur Temperaturbereich und Änderung über die Temperatur; Gleichspannung und Alterung verringern die Kapazität zusätzlich."}
+      - {en: "X7R: −55 to +125 °C, ±15 %; Y5V: −30 to +85 °C, +22/−82 %.", de: "X7R: −55 bis +125 °C, ±15 %; Y5V: −30 bis +85 °C, +22/−82 %."}
+      - {en: "Y5V and Z5U are class 2 here; some manufacturers call them class 3.", de: "Y5V und Z5U zählen hier zu Klasse 2; manche Hersteller nennen sie Klasse 3."}
+      - {en: "Letters and digits that only one source lists are not decoded; the decoder says so.", de: "Buchstaben und Ziffern, die nur eine Quelle nennt, werden nicht gelesen; der Decoder weist darauf hin."}

@@ -1,0 +1,67 @@
+- id: capacitor_code
+  kind: code
+  category: codes
+  code: capacitor
+  name: {cs: "Kódy kondenzátorů", da: "Kondensatorkoder", de: "Kondensatorcodes", el: "Κωδικοί πυκνωτών", en: "Capacitor codes", es: "Códigos de condensadores", fr: "Codes des condensateurs", hi: "संधारित्र कोड", it: "Codici dei condensatori", ja: "コンデンサの表示コード", nl: "Condensatorcodes", no: "Kondensatorkoder", pl: "Kody kondensatorów", pt: "Códigos de capacitores", sv: "Kondensatorkoder", zh: "电容代码"}
+  doc: {en: "Capacitor markings: the picofarad code (104 = 100 nF), R and RKM notation (4R7, 4p7, 2n2), tolerance letters and the two-character rated-voltage codes (1H = 50 V). Several parts of one marking can be read together (\"104K 1H\").", de: "Kondensator-Aufdrucke: der Pikofarad-Code (104 = 100 nF), R- und RKM-Schreibweise (4R7, 4p7, 2n2), Toleranzbuchstaben und die zweistelligen Nennspannungs-Codes (1H = 50 V). Mehrere Teile eines Aufdrucks lassen sich zusammen lesen (\"104K 1H\")."}
+  tags: ["capacitor", "kondensator", "code", "marking", "aufdruck", "104", "tolerance letter", "toleranzbuchstabe", "voltage code", "spannungscode", "rkm", "pf"]
+  source: "IEC 60062:2016 (capacitance codes and tolerance letters); the voltage codes are a convention of the part-numbering systems of TDK, Nichicon, Panasonic and Murata, not of IEC 60062; KEMET and Vishay ceramic capacitor datasheets"
+  data:
+    multipliers:
+      - {digit: "0", exp: 0}
+      - {digit: "1", exp: 1}
+      - {digit: "2", exp: 2}
+      - {digit: "3", exp: 3}
+      - {digit: "4", exp: 4}
+      - {digit: "5", exp: 5}
+      - {digit: "6", exp: 6}
+      - {digit: "8", exp: -2, maker: "kemet"}
+      - {digit: "9", exp: -1, maker: "kemet"}
+    rkm:
+      - {letters: ["p", "P"], exp: -12}
+      - {letters: ["n", "N"], exp: -9}
+      - {letters: ["u", "U", "µ"], exp: -6}
+      - {letters: ["m"], exp: -3}
+    tolerances:
+      - {letter: "W", minus: 0.05, plus: 0.05, unit: "pf", when: "lt10pf"}
+      - {letter: "B", minus: 0.1, plus: 0.1, unit: "pf", when: "lt10pf"}
+      - {letter: "C", minus: 0.25, plus: 0.25, unit: "pf", when: "lt10pf"}
+      - {letter: "D", minus: 0.5, plus: 0.5, unit: "pf", when: "lt10pf"}
+      - {letter: "D", minus: 0.5, plus: 0.5, unit: "pct", when: "ge10pf"}
+      - {letter: "F", minus: 1, plus: 1, unit: "pct", when: "ge10pf"}
+      - {letter: "G", minus: 2, plus: 2, unit: "pct", when: "ge10pf"}
+      - {letter: "J", minus: 5, plus: 5, unit: "pct", when: "any"}
+      - {letter: "K", minus: 10, plus: 10, unit: "pct", when: "any"}
+      - {letter: "M", minus: 20, plus: 20, unit: "pct", when: "any"}
+      - {letter: "Q", minus: 10, plus: 30, unit: "pct", when: "any"}
+      - {letter: "T", minus: 10, plus: 50, unit: "pct", when: "any"}
+      - {letter: "Z", minus: 20, plus: 80, unit: "pct", when: "any"}
+    voltages:
+      - {code: "0E", volts: 2.5, makers: ["nichicon", "murata"]}
+      - {code: "0G", volts: 4, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "0J", volts: 6.3, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "1A", volts: 10, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "1C", volts: 16, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "1E", volts: 25, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "1V", volts: 35, makers: ["tdk", "nichicon", "panasonic"]}
+      - {code: "1H", volts: 50, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "1J", volts: 63, makers: ["nichicon", "panasonic", "murata"]}
+      - {code: "1K", volts: 80, makers: ["nichicon", "panasonic", "murata"]}
+      - {code: "2A", volts: 100, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "2C", volts: 160, makers: ["nichicon", "panasonic"]}
+      - {code: "2D", volts: 200, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "2E", volts: 250, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "2V", volts: 350, makers: ["nichicon", "panasonic"]}
+      - {code: "2G", volts: 400, makers: ["nichicon", "panasonic"]}
+      - {code: "2W", volts: 450, makers: ["tdk", "nichicon", "panasonic", "murata"]}
+      - {code: "2H", volts: 500, makers: ["nichicon", "murata"]}
+      - {code: "2J", volts: 630, makers: ["tdk", "murata"]}
+      - {code: "3A", volts: 1000, makers: ["tdk", "murata"]}
+      - {code: "3D", volts: 2000, makers: ["tdk", "murata"]}
+      - {code: "3F", volts: 3150, makers: ["tdk", "murata"], note: {en: "Murata lists 3F as 3.15 kV, TDK as 3 kV.", de: "Murata führt 3F als 3,15 kV, TDK als 3 kV."}}
+    not_cross_checked: {tolerance: ["E", "H", "N", "P", "S", "Y"], multiplier: ["7"]}
+    notes:
+      - {en: "Ceramic and film capacitors: the code is in picofarads - 104 = 100 000 pF = 100 nF. Aluminium electrolytic part numbers use microfarads (101 = 100 µF); that reading is not offered.", de: "Keramik- und Folienkondensatoren: der Code ist in Pikofarad - 104 = 100 000 pF = 100 nF. Aluminium-Elko-Bestellnummern verwenden Mikrofarad (101 = 100 µF); diese Lesart wird nicht angeboten."}
+      - {en: "Below 10 pF tolerance letters mean absolute pF (C = ±0.25 pF), from 10 pF up they mean percent.", de: "Unter 10 pF bedeuten Toleranzbuchstaben absolute pF (C = ±0,25 pF), ab 10 pF Prozent."}
+      - {en: "Voltage codes come from maker part-numbering systems and are not part of IEC 60062; some makers deviate (Murata writes YA for 35 V).", de: "Spannungscodes stammen aus Hersteller-Nummernsystemen und gehören nicht zu IEC 60062; manche Hersteller weichen ab (Murata schreibt YA für 35 V)."}
+      - {en: "Codes and letters that only one source lists are not decoded; the decoder says so.", de: "Codes und Buchstaben, die nur eine Quelle nennt, werden nicht gelesen; der Decoder weist darauf hin."}

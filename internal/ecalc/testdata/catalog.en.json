@@ -17147,6 +17147,1360 @@
         ]
       ],
       "finder": null
+    },
+    {
+      "kind": "code",
+      "id": "capacitor_code",
+      "category": "codes",
+      "code": "capacitor",
+      "name": "Capacitor codes",
+      "name_en": "Capacitor codes",
+      "doc": "Capacitor markings: the picofarad code (104 = 100 nF), R and RKM notation (4R7, 4p7, 2n2), tolerance letters and the two-character rated-voltage codes (1H = 50 V). Several parts of one marking can be read together (\"104K 1H\").",
+      "tags": [
+        "capacitor",
+        "kondensator",
+        "code",
+        "marking",
+        "aufdruck",
+        "104",
+        "tolerance letter",
+        "toleranzbuchstabe",
+        "voltage code",
+        "spannungscode",
+        "rkm",
+        "pf"
+      ],
+      "source": "IEC 60062:2016 (capacitance codes and tolerance letters); the voltage codes are a convention of the part-numbering systems of TDK, Nichicon, Panasonic and Murata, not of IEC 60062; KEMET and Vishay ceramic capacitor datasheets",
+      "data": {
+        "multipliers": [
+          {
+            "digit": "0",
+            "exp": 0,
+            "maker": ""
+          },
+          {
+            "digit": "1",
+            "exp": 1,
+            "maker": ""
+          },
+          {
+            "digit": "2",
+            "exp": 2,
+            "maker": ""
+          },
+          {
+            "digit": "3",
+            "exp": 3,
+            "maker": ""
+          },
+          {
+            "digit": "4",
+            "exp": 4,
+            "maker": ""
+          },
+          {
+            "digit": "5",
+            "exp": 5,
+            "maker": ""
+          },
+          {
+            "digit": "6",
+            "exp": 6,
+            "maker": ""
+          },
+          {
+            "digit": "8",
+            "exp": -2,
+            "maker": "kemet"
+          },
+          {
+            "digit": "9",
+            "exp": -1,
+            "maker": "kemet"
+          }
+        ],
+        "rkm": [
+          {
+            "letters": [
+              "p",
+              "P"
+            ],
+            "exp": -12
+          },
+          {
+            "letters": [
+              "n",
+              "N"
+            ],
+            "exp": -9
+          },
+          {
+            "letters": [
+              "u",
+              "U",
+              "µ"
+            ],
+            "exp": -6
+          },
+          {
+            "letters": [
+              "m"
+            ],
+            "exp": -3
+          }
+        ],
+        "tolerances": [
+          {
+            "letter": "W",
+            "minus": 0.05,
+            "plus": 0.05,
+            "unit": "pf",
+            "when": "lt10pf"
+          },
+          {
+            "letter": "B",
+            "minus": 0.1,
+            "plus": 0.1,
+            "unit": "pf",
+            "when": "lt10pf"
+          },
+          {
+            "letter": "C",
+            "minus": 0.25,
+            "plus": 0.25,
+            "unit": "pf",
+            "when": "lt10pf"
+          },
+          {
+            "letter": "D",
+            "minus": 0.5,
+            "plus": 0.5,
+            "unit": "pf",
+            "when": "lt10pf"
+          },
+          {
+            "letter": "D",
+            "minus": 0.5,
+            "plus": 0.5,
+            "unit": "pct",
+            "when": "ge10pf"
+          },
+          {
+            "letter": "F",
+            "minus": 1,
+            "plus": 1,
+            "unit": "pct",
+            "when": "ge10pf"
+          },
+          {
+            "letter": "G",
+            "minus": 2,
+            "plus": 2,
+            "unit": "pct",
+            "when": "ge10pf"
+          },
+          {
+            "letter": "J",
+            "minus": 5,
+            "plus": 5,
+            "unit": "pct",
+            "when": "any"
+          },
+          {
+            "letter": "K",
+            "minus": 10,
+            "plus": 10,
+            "unit": "pct",
+            "when": "any"
+          },
+          {
+            "letter": "M",
+            "minus": 20,
+            "plus": 20,
+            "unit": "pct",
+            "when": "any"
+          },
+          {
+            "letter": "Q",
+            "minus": 10,
+            "plus": 30,
+            "unit": "pct",
+            "when": "any"
+          },
+          {
+            "letter": "T",
+            "minus": 10,
+            "plus": 50,
+            "unit": "pct",
+            "when": "any"
+          },
+          {
+            "letter": "Z",
+            "minus": 20,
+            "plus": 80,
+            "unit": "pct",
+            "when": "any"
+          }
+        ],
+        "voltages": [
+          {
+            "code": "0E",
+            "volts": 2.5,
+            "makers": [
+              "nichicon",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "0G",
+            "volts": 4,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "0J",
+            "volts": 6.3,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1A",
+            "volts": 10,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1C",
+            "volts": 16,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1E",
+            "volts": 25,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1V",
+            "volts": 35,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1H",
+            "volts": 50,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1J",
+            "volts": 63,
+            "makers": [
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "1K",
+            "volts": 80,
+            "makers": [
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2A",
+            "volts": 100,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2C",
+            "volts": 160,
+            "makers": [
+              "nichicon",
+              "panasonic"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2D",
+            "volts": 200,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2E",
+            "volts": 250,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2V",
+            "volts": 350,
+            "makers": [
+              "nichicon",
+              "panasonic"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2G",
+            "volts": 400,
+            "makers": [
+              "nichicon",
+              "panasonic"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2W",
+            "volts": 450,
+            "makers": [
+              "tdk",
+              "nichicon",
+              "panasonic",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2H",
+            "volts": 500,
+            "makers": [
+              "nichicon",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "2J",
+            "volts": 630,
+            "makers": [
+              "tdk",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "3A",
+            "volts": 1000,
+            "makers": [
+              "tdk",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "3D",
+            "volts": 2000,
+            "makers": [
+              "tdk",
+              "murata"
+            ],
+            "note": "",
+            "note_en": ""
+          },
+          {
+            "code": "3F",
+            "volts": 3150,
+            "makers": [
+              "tdk",
+              "murata"
+            ],
+            "note": "Murata lists 3F as 3.15 kV, TDK as 3 kV.",
+            "note_en": "Murata lists 3F as 3.15 kV, TDK as 3 kV."
+          }
+        ],
+        "not_cross_checked": {
+          "tolerance": [
+            "E",
+            "H",
+            "N",
+            "P",
+            "S",
+            "Y"
+          ],
+          "multiplier": [
+            "7"
+          ]
+        },
+        "notes": [
+          "Ceramic and film capacitors: the code is in picofarads - 104 = 100 000 pF = 100 nF. Aluminium electrolytic part numbers use microfarads (101 = 100 µF); that reading is not offered.",
+          "Below 10 pF tolerance letters mean absolute pF (C = ±0.25 pF), from 10 pF up they mean percent.",
+          "Voltage codes come from maker part-numbering systems and are not part of IEC 60062; some makers deviate (Murata writes YA for 35 V).",
+          "Codes and letters that only one source lists are not decoded; the decoder says so."
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "id": "ceramic_temp_code",
+      "category": "codes",
+      "code": "ceramic_temp",
+      "name": "Ceramic capacitor temperature codes",
+      "name_en": "Ceramic capacitor temperature codes",
+      "doc": "EIA-198 temperature characteristics of ceramic capacitors: class 1 codes such as C0G or U2J (temperature coefficient and tolerance in ppm/K) and class 2 codes such as X7R or Y5V (category temperature range and capacitance change), in both directions.",
+      "tags": [
+        "ceramic",
+        "keramik",
+        "capacitor",
+        "kondensator",
+        "c0g",
+        "np0",
+        "x7r",
+        "x5r",
+        "y5v",
+        "z5u",
+        "temperature",
+        "temperatur",
+        "eia-198",
+        "dielectric",
+        "dielektrikum"
+      ],
+      "source": "EIA-198 code letters as printed in the Vishay general information on ceramic disc capacitors and in the Murata, KEMET and TDK ceramic capacitor catalogues",
+      "data": {
+        "class1": {
+          "sig": [
+            {
+              "letter": "C",
+              "value": 0
+            },
+            {
+              "letter": "M",
+              "value": 1
+            },
+            {
+              "letter": "P",
+              "value": 1.5
+            },
+            {
+              "letter": "R",
+              "value": 2.2
+            },
+            {
+              "letter": "S",
+              "value": 3.3
+            },
+            {
+              "letter": "T",
+              "value": 4.7
+            },
+            {
+              "letter": "U",
+              "value": 7.5
+            }
+          ],
+          "mult": [
+            {
+              "digit": "0",
+              "value": -1
+            },
+            {
+              "digit": "1",
+              "value": -10
+            },
+            {
+              "digit": "2",
+              "value": -100
+            },
+            {
+              "digit": "3",
+              "value": -1000
+            },
+            {
+              "digit": "5",
+              "value": 1
+            },
+            {
+              "digit": "6",
+              "value": 10
+            },
+            {
+              "digit": "7",
+              "value": 100
+            },
+            {
+              "digit": "8",
+              "value": 1000
+            }
+          ],
+          "tol": [
+            {
+              "letter": "G",
+              "ppm": 30
+            },
+            {
+              "letter": "H",
+              "ppm": 60
+            },
+            {
+              "letter": "J",
+              "ppm": 120
+            },
+            {
+              "letter": "K",
+              "ppm": 250
+            },
+            {
+              "letter": "L",
+              "ppm": 500
+            },
+            {
+              "letter": "M",
+              "ppm": 1000
+            },
+            {
+              "letter": "N",
+              "ppm": 2500
+            }
+          ]
+        },
+        "class2": {
+          "low": [
+            {
+              "letter": "X",
+              "c": -55
+            },
+            {
+              "letter": "Y",
+              "c": -30
+            },
+            {
+              "letter": "Z",
+              "c": 10
+            }
+          ],
+          "high": [
+            {
+              "digit": "4",
+              "c": 65
+            },
+            {
+              "digit": "5",
+              "c": 85
+            },
+            {
+              "digit": "6",
+              "c": 105
+            },
+            {
+              "digit": "7",
+              "c": 125
+            },
+            {
+              "digit": "8",
+              "c": 150
+            }
+          ],
+          "change": [
+            {
+              "letter": "P",
+              "plus": 10,
+              "minus": 10
+            },
+            {
+              "letter": "R",
+              "plus": 15,
+              "minus": 15
+            },
+            {
+              "letter": "S",
+              "plus": 22,
+              "minus": 22
+            },
+            {
+              "letter": "T",
+              "plus": 22,
+              "minus": 33
+            },
+            {
+              "letter": "U",
+              "plus": 22,
+              "minus": 56
+            },
+            {
+              "letter": "V",
+              "plus": 22,
+              "minus": 82
+            }
+          ]
+        },
+        "aliases": [
+          {
+            "name": "NP0",
+            "code": "C0G"
+          },
+          {
+            "name": "NPO",
+            "code": "C0G"
+          },
+          {
+            "name": "N750",
+            "code": "U2J"
+          },
+          {
+            "name": "N1500",
+            "code": "P3K"
+          }
+        ],
+        "industry": [
+          {
+            "code": "C0G",
+            "name": "NP0"
+          },
+          {
+            "code": "U2J",
+            "name": "N750"
+          },
+          {
+            "code": "P3K",
+            "name": "N1500"
+          }
+        ],
+        "not_cross_checked": {
+          "c1_sig": [
+            "B",
+            "L",
+            "A",
+            "V"
+          ],
+          "c1_mult": [
+            "4",
+            "9"
+          ],
+          "c2_high": [
+            "2",
+            "9"
+          ],
+          "c2_change": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "L"
+          ]
+        },
+        "common": [
+          "C0G",
+          "U2J",
+          "P3K",
+          "X5R",
+          "X6S",
+          "X7R",
+          "X7S",
+          "X7T",
+          "X7U",
+          "X8R",
+          "Y5V",
+          "Z5U"
+        ],
+        "notes": [
+          "C0G (NP0) is the most stable class 1 dielectric: 0 ± 30 ppm/K.",
+          "Class 2 codes describe only the temperature range and the change over temperature; DC bias and ageing reduce the capacitance further.",
+          "X7R: −55 to +125 °C, ±15 %; Y5V: −30 to +85 °C, +22/−82 %.",
+          "Y5V and Z5U are class 2 here; some manufacturers call them class 3.",
+          "Letters and digits that only one source lists are not decoded; the decoder says so."
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "id": "inductor_color_code",
+      "category": "codes",
+      "code": "inductor_bands",
+      "name": "Inductor colour code",
+      "name_en": "Inductor colour code",
+      "doc": "Colour bands of inductors in microhenries: the four-band EIA style and the five-band military style (wide silver first band, gold as the decimal point), read and written in both directions.",
+      "tags": [
+        "inductor",
+        "spule",
+        "induktivität",
+        "coil",
+        "colour code",
+        "color code",
+        "farbcode",
+        "bands",
+        "ringe",
+        "eia",
+        "mil-prf-15305"
+      ],
+      "source": "Bourns colour-code markings for inductors (EIA and military tables) and MIL-PRF-15305 for RF coils; IEC 60062 defines no inductor colour code; E-series from IEC 60063",
+      "data": {
+        "colors": [
+          {
+            "id": "black",
+            "name": "black",
+            "hex": "#000000",
+            "digit": 0,
+            "eia_exp": 0,
+            "eia_tol": null,
+            "mil_exp": 0,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "brown",
+            "name": "brown",
+            "hex": "#8B4513",
+            "digit": 1,
+            "eia_exp": 1,
+            "eia_tol": null,
+            "mil_exp": 1,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "red",
+            "name": "red",
+            "hex": "#D62828",
+            "digit": 2,
+            "eia_exp": 2,
+            "eia_tol": null,
+            "mil_exp": 2,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "orange",
+            "name": "orange",
+            "hex": "#F77F00",
+            "digit": 3,
+            "eia_exp": 3,
+            "eia_tol": null,
+            "mil_exp": 3,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "yellow",
+            "name": "yellow",
+            "hex": "#FCD116",
+            "digit": 4,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "green",
+            "name": "green",
+            "hex": "#2E9E3E",
+            "digit": 5,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "blue",
+            "name": "blue",
+            "hex": "#1F5FD6",
+            "digit": 6,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "violet",
+            "name": "violet",
+            "hex": "#7B2CBF",
+            "digit": 7,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "grey",
+            "name": "grey",
+            "hex": "#8C8C8C",
+            "digit": 8,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "white",
+            "name": "white",
+            "hex": "#FFFFFF",
+            "digit": 9,
+            "eia_exp": null,
+            "eia_tol": null,
+            "mil_exp": null,
+            "mil_tol": null,
+            "mil_role": ""
+          },
+          {
+            "id": "gold",
+            "name": "gold",
+            "hex": "#CFA93A",
+            "digit": null,
+            "eia_exp": -1,
+            "eia_tol": 5,
+            "mil_exp": null,
+            "mil_tol": 5,
+            "mil_role": "point"
+          },
+          {
+            "id": "silver",
+            "name": "silver",
+            "hex": "#C0C0C0",
+            "digit": null,
+            "eia_exp": -2,
+            "eia_tol": 10,
+            "mil_exp": null,
+            "mil_tol": 10,
+            "mil_role": "identifier"
+          }
+        ],
+        "notes": [
+          "Inductor colour codes are maker and military conventions; IEC 60062 only covers resistors. Values are in µH.",
+          "A wide silver first band marks a military (MIL-PRF-15305) coil; gold inside the value bands is then the decimal point.",
+          "Without the wide silver band (EIA style), gold in the third band means ×0.1 and silver ×0.01.",
+          "Only gold (±5 %) and silver (±10 %) are decoded as tolerance; other tolerance colours are not cross-checked in the sources."
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "id": "resistor_color_code",
+      "category": "codes",
+      "code": "resistor_bands",
+      "name": "Resistor colour code",
+      "name_en": "Resistor colour code",
+      "doc": "Colour bands of resistors per IEC 60062: 3 to 6 bands read and written in both directions (two or three significant figures, multiplier, tolerance and temperature coefficient). Writing a value picks the nearest standard value of the series that fits the tolerance.",
+      "tags": [
+        "resistor",
+        "widerstand",
+        "colour code",
+        "color code",
+        "farbcode",
+        "bands",
+        "ringe",
+        "iec 60062",
+        "tolerance",
+        "toleranz",
+        "tcr"
+      ],
+      "source": "IEC 60062:2016 (marking codes for resistors and capacitors) with COR1:2016 and AMD1:2019, Table 1; the older tolerance colours from the resistor colour-code notes of Panasonic and TT Electronics; E-series from IEC 60063",
+      "data": {
+        "colors": [
+          {
+            "id": "black",
+            "name": "black",
+            "iec": "BK",
+            "hex": "#000000",
+            "digit": 0,
+            "exp": 0,
+            "tol": null,
+            "tcr": 250,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "brown",
+            "name": "brown",
+            "iec": "BN",
+            "hex": "#8B4513",
+            "digit": 1,
+            "exp": 1,
+            "tol": 1,
+            "tcr": 100,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "red",
+            "name": "red",
+            "iec": "RD",
+            "hex": "#D62828",
+            "digit": 2,
+            "exp": 2,
+            "tol": 2,
+            "tcr": 50,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "orange",
+            "name": "orange",
+            "iec": "OG",
+            "hex": "#F77F00",
+            "digit": 3,
+            "exp": 3,
+            "tol": 0.05,
+            "tcr": 15,
+            "legacy_tol": null,
+            "legacy_tol_none": true
+          },
+          {
+            "id": "yellow",
+            "name": "yellow",
+            "iec": "YE",
+            "hex": "#FCD116",
+            "digit": 4,
+            "exp": 4,
+            "tol": 0.02,
+            "tcr": 25,
+            "legacy_tol": null,
+            "legacy_tol_none": true
+          },
+          {
+            "id": "green",
+            "name": "green",
+            "iec": "GN",
+            "hex": "#2E9E3E",
+            "digit": 5,
+            "exp": 5,
+            "tol": 0.5,
+            "tcr": 20,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "blue",
+            "name": "blue",
+            "iec": "BU",
+            "hex": "#1F5FD6",
+            "digit": 6,
+            "exp": 6,
+            "tol": 0.25,
+            "tcr": 10,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "violet",
+            "name": "violet",
+            "iec": "VT",
+            "hex": "#7B2CBF",
+            "digit": 7,
+            "exp": 7,
+            "tol": 0.1,
+            "tcr": 5,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "grey",
+            "name": "grey",
+            "iec": "GY",
+            "hex": "#8C8C8C",
+            "digit": 8,
+            "exp": 8,
+            "tol": 0.01,
+            "tcr": 1,
+            "legacy_tol": 0.05,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "white",
+            "name": "white",
+            "iec": "WH",
+            "hex": "#FFFFFF",
+            "digit": 9,
+            "exp": 9,
+            "tol": null,
+            "tcr": null,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "gold",
+            "name": "gold",
+            "iec": "GD",
+            "hex": "#CFA93A",
+            "digit": null,
+            "exp": -1,
+            "tol": 5,
+            "tcr": null,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "silver",
+            "name": "silver",
+            "iec": "SR",
+            "hex": "#C0C0C0",
+            "digit": null,
+            "exp": -2,
+            "tol": 10,
+            "tcr": null,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "pink",
+            "name": "pink",
+            "iec": "PK",
+            "hex": "#FF8FB1",
+            "digit": null,
+            "exp": -3,
+            "tol": null,
+            "tcr": null,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          },
+          {
+            "id": "none",
+            "name": "no band",
+            "iec": "",
+            "hex": "transparent",
+            "digit": null,
+            "exp": null,
+            "tol": 20,
+            "tcr": null,
+            "legacy_tol": null,
+            "legacy_tol_none": false
+          }
+        ],
+        "layouts": [
+          {
+            "bands": 3,
+            "roles": [
+              "digit",
+              "digit",
+              "multiplier"
+            ]
+          },
+          {
+            "bands": 4,
+            "roles": [
+              "digit",
+              "digit",
+              "multiplier",
+              "tolerance"
+            ]
+          },
+          {
+            "bands": 5,
+            "roles": [
+              "digit",
+              "digit",
+              "digit",
+              "multiplier",
+              "tolerance"
+            ]
+          },
+          {
+            "bands": 6,
+            "roles": [
+              "digit",
+              "digit",
+              "digit",
+              "multiplier",
+              "tolerance",
+              "tcr"
+            ]
+          }
+        ],
+        "notes": [
+          "Read from the end where the bands start; the tolerance band is at least 1.5 times as wide as the others (IEC 60062, corrigendum 2016). Gold, silver and pink never stand first.",
+          "Older charts use grey = ±0.05 % and give orange and yellow no tolerance; IEC 60062:2016 uses grey ±0.01 %, orange ±0.05 % and yellow ±0.02 %. Check the datasheet of precision resistors.",
+          "Pink (×0.001) is new in IEC 60062:2016 for very low resistances.",
+          "A single black band marks a zero-ohm jumper.",
+          "The temperature coefficient band only exists together with three significant figures (six bands).",
+          "Displayed colours are illustrations only."
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "id": "smd_resistor_code",
+      "category": "codes",
+      "code": "smd_resistor",
+      "name": "SMD resistor codes",
+      "name_en": "SMD resistor codes",
+      "doc": "Markings of chip resistors: the 3-digit and 4-digit codes, the R notation (4R7, R47, 1L5) and the EIA-96 code (two digits for the E96 value plus a multiplier letter). The input is auto-detected; writing a value lists every marking that can express it.",
+      "tags": [
+        "smd",
+        "chip resistor",
+        "chipwiderstand",
+        "resistor",
+        "widerstand",
+        "eia-96",
+        "e96",
+        "rkm",
+        "marking",
+        "aufdruck",
+        "3-digit",
+        "4-digit"
+      ],
+      "source": "IEC 60062:2016 (RKM code, three- and four-character codes); EIA-96 marking tables of Yageo, Bourns, Venkel and TT Electronics; E96 values from IEC 60063",
+      "data": {
+        "eia96": [
+          100,
+          102,
+          105,
+          107,
+          110,
+          113,
+          115,
+          118,
+          121,
+          124,
+          127,
+          130,
+          133,
+          137,
+          140,
+          143,
+          147,
+          150,
+          154,
+          158,
+          162,
+          165,
+          169,
+          174,
+          178,
+          182,
+          187,
+          191,
+          196,
+          200,
+          205,
+          210,
+          215,
+          221,
+          226,
+          232,
+          237,
+          243,
+          249,
+          255,
+          261,
+          267,
+          274,
+          280,
+          287,
+          294,
+          301,
+          309,
+          316,
+          324,
+          332,
+          340,
+          348,
+          357,
+          365,
+          374,
+          383,
+          392,
+          402,
+          412,
+          422,
+          432,
+          442,
+          453,
+          464,
+          475,
+          487,
+          499,
+          511,
+          523,
+          536,
+          549,
+          562,
+          576,
+          590,
+          604,
+          619,
+          634,
+          649,
+          665,
+          681,
+          698,
+          715,
+          732,
+          750,
+          768,
+          787,
+          806,
+          825,
+          845,
+          866,
+          887,
+          909,
+          931,
+          953,
+          976
+        ],
+        "letters": [
+          {
+            "letter": "Z",
+            "exp": -3,
+            "rare": true
+          },
+          {
+            "letter": "Y",
+            "exp": -2,
+            "rare": false
+          },
+          {
+            "letter": "X",
+            "exp": -1,
+            "rare": false
+          },
+          {
+            "letter": "A",
+            "exp": 0,
+            "rare": false
+          },
+          {
+            "letter": "B",
+            "exp": 1,
+            "rare": false
+          },
+          {
+            "letter": "C",
+            "exp": 2,
+            "rare": false
+          },
+          {
+            "letter": "D",
+            "exp": 3,
+            "rare": false
+          },
+          {
+            "letter": "E",
+            "exp": 4,
+            "rare": false
+          },
+          {
+            "letter": "F",
+            "exp": 5,
+            "rare": false
+          }
+        ],
+        "rkm": [
+          {
+            "letter": "L",
+            "exp": -3,
+            "rare": false
+          },
+          {
+            "letter": "R",
+            "exp": 0,
+            "rare": false
+          },
+          {
+            "letter": "K",
+            "exp": 3,
+            "rare": false
+          },
+          {
+            "letter": "M",
+            "exp": 6,
+            "rare": false
+          },
+          {
+            "letter": "G",
+            "exp": 9,
+            "rare": false
+          }
+        ],
+        "ambiguous": [
+          {
+            "letter": "S"
+          },
+          {
+            "letter": "H"
+          }
+        ],
+        "notes": [
+          "The two EIA-96 digits are an index, not the value: 01 means 100, 68 means 499.",
+          "3-digit codes: the last digit is the number of zeros, so 100 = 10 Ω, not 100 Ω.",
+          "R (and L for milliohm) marks the decimal point: 4R7 = 4.7 Ω, R47 = 0.47 Ω, 1L5 = 1.5 mΩ.",
+          "Very small chips (0402 and smaller) are usually unmarked.",
+          "Some makers use R, S or H as extra EIA-96 letters with conflicting meanings; they are not decoded - check the datasheet."
+        ]
+      }
     }
   ]
 }

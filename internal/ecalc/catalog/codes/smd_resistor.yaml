@@ -1,0 +1,35 @@
+- id: smd_resistor_code
+  kind: code
+  category: codes
+  code: smd_resistor
+  name: {cs: "Kódy SMD rezistorů", da: "SMD-modstandskoder", de: "SMD-Widerstandscodes", el: "Κωδικοί αντιστάσεων SMD", en: "SMD resistor codes", es: "Códigos de resistencias SMD", fr: "Codes des résistances CMS", hi: "एसएमडी प्रतिरोधक कोड", it: "Codici dei resistori SMD", ja: "チップ抵抗の表示コード", nl: "SMD-weerstandscodes", no: "SMD-motstandskoder", pl: "Kody rezystorów SMD", pt: "Códigos de resistores SMD", sv: "SMD-motståndskoder", zh: "贴片电阻代码"}
+  doc: {en: "Markings of chip resistors: the 3-digit and 4-digit codes, the R notation (4R7, R47, 1L5) and the EIA-96 code (two digits for the E96 value plus a multiplier letter). The input is auto-detected; writing a value lists every marking that can express it.", de: "Aufdrucke von Chip-Widerständen: der 3- und 4-stellige Code, die R-Schreibweise (4R7, R47, 1L5) und der EIA-96-Code (zwei Ziffern für den E96-Wert plus Multiplikator-Buchstabe). Die Eingabe wird automatisch erkannt; beim Schreiben eines Werts erscheinen alle Aufdrucke, die ihn ausdrücken können."}
+  tags: ["smd", "chip resistor", "chipwiderstand", "resistor", "widerstand", "eia-96", "e96", "rkm", "marking", "aufdruck", "3-digit", "4-digit"]
+  source: "IEC 60062:2016 (RKM code, three- and four-character codes); EIA-96 marking tables of Yageo, Bourns, Venkel and TT Electronics; E96 values from IEC 60063"
+  data:
+    eia96: [100, 102, 105, 107, 110, 113, 115, 118, 121, 124, 127, 130, 133, 137, 140, 143, 147, 150, 154, 158, 162, 165, 169, 174, 178, 182, 187, 191, 196, 200, 205, 210, 215, 221, 226, 232, 237, 243, 249, 255, 261, 267, 274, 280, 287, 294, 301, 309, 316, 324, 332, 340, 348, 357, 365, 374, 383, 392, 402, 412, 422, 432, 442, 453, 464, 475, 487, 499, 511, 523, 536, 549, 562, 576, 590, 604, 619, 634, 649, 665, 681, 698, 715, 732, 750, 768, 787, 806, 825, 845, 866, 887, 909, 931, 953, 976]
+    letters:
+      - {letter: "Z", exp: -3, rare: true}
+      - {letter: "Y", exp: -2}
+      - {letter: "X", exp: -1}
+      - {letter: "A", exp: 0}
+      - {letter: "B", exp: 1}
+      - {letter: "C", exp: 2}
+      - {letter: "D", exp: 3}
+      - {letter: "E", exp: 4}
+      - {letter: "F", exp: 5}
+    rkm:
+      - {letter: "L", exp: -3}
+      - {letter: "R", exp: 0}
+      - {letter: "K", exp: 3}
+      - {letter: "M", exp: 6}
+      - {letter: "G", exp: 9}
+    ambiguous:
+      - {letter: "S"}
+      - {letter: "H"}
+    notes:
+      - {en: "The two EIA-96 digits are an index, not the value: 01 means 100, 68 means 499.", de: "Die zwei EIA-96-Ziffern sind ein Index, nicht der Wert: 01 bedeutet 100, 68 bedeutet 499."}
+      - {en: "3-digit codes: the last digit is the number of zeros, so 100 = 10 Ω, not 100 Ω.", de: "Dreistellige Codes: die letzte Ziffer ist die Anzahl Nullen, 100 = 10 Ω, nicht 100 Ω."}
+      - {en: "R (and L for milliohm) marks the decimal point: 4R7 = 4.7 Ω, R47 = 0.47 Ω, 1L5 = 1.5 mΩ.", de: "R (und L für Milliohm) markiert das Komma: 4R7 = 4,7 Ω, R47 = 0,47 Ω, 1L5 = 1,5 mΩ."}
+      - {en: "Very small chips (0402 and smaller) are usually unmarked.", de: "Sehr kleine Chips (0402 und kleiner) sind meist unbeschriftet."}
+      - {en: "Some makers use R, S or H as extra EIA-96 letters with conflicting meanings; they are not decoded - check the datasheet.", de: "Manche Hersteller verwenden R, S oder H als zusätzliche EIA-96-Buchstaben mit widersprüchlicher Bedeutung; sie werden nicht gelesen - Datenblatt prüfen."}
