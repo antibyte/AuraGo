@@ -4951,6 +4951,616 @@
     },
     {
       "kind": "calculator",
+      "id": "cable_cross_section_finder",
+      "category": "wiring",
+      "name": "Cable cross-section finder",
+      "name_en": "Cable cross-section finder",
+      "doc": "Finds the smallest standard cross-section of a cable for a design current Ib from the current-carrying capacity tables of IEC 60364-5-52 and DIN VDE 0298-4 (guide values; the standard is authoritative). Choose the conductor and insulation (copper or aluminium, PVC 70 °C or XLPE/EPR 90 °C), the installation method (A1 to F) and the number of loaded conductors (2 for single-phase or DC, 3 for three-phase). The table value, valid for 30 °C ambient air and one circuit, is multiplied by the ambient temperature factor kt (linear interpolation between the listed temperatures) and by the grouping factor kg of the number of circuits (bunched for A1 to B2, one layer on a wall for C, one layer on a perforated tray for E and F; a count between two listed counts takes the next larger listed one). The result is the first cross-section whose corrected capacity Iz = table value × kt × kg is at least Ib, so the table value must reach Ib / (kt × kg). Empty cells of the tables (method F below 25 mm², the 2.5 mm² cells of copper XLPE in A1 and B1, most aluminium cells and the bunched factor for 14 circuits have no value that two sources confirmed) are skipped by the search, and a combination without any cell is reported as not covered. The protective device (Ib ≤ In ≤ Iz), voltage drop and short-circuit limits are not checked. The row of the result is highlighted in the table. The defaults (20 A, 30 °C, one circuit, copper PVC, method B2, two loaded conductors) give 2.5 mm² with Iz = 23 A. Where IEC and DIN differ (1.5 mm² in A1 and A2, two loaded conductors) the IEC table value is used.",
+      "tags": [
+        "cable",
+        "cross-section",
+        "wire size",
+        "ampacity",
+        "current rating",
+        "derating",
+        "grouping",
+        "ambient temperature",
+        "installation method",
+        "iec 60364-5-52",
+        "din vde 0298-4",
+        "kabelquerschnitt",
+        "leitungsquerschnitt",
+        "strombelastbarkeit",
+        "verlegeart",
+        "häufung",
+        "umgebungstemperatur",
+        "belastbarkeit"
+      ],
+      "source": "IEC 60364-5-52:2009 annex B (current-carrying capacity tables B.52.2 to B.52.5 and B.52.10 to B.52.13, ambient temperature factors B.52.14, grouping factors B.52.17) and DIN VDE 0298-4:2013-06; selection rule Iz = table value × kt × kg ≥ Ib",
+      "vars": [
+        {
+          "id": "ib",
+          "dim": "current",
+          "label": "I_b",
+          "name": "Design current",
+          "default": 20,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "ta",
+          "dim": "temperature",
+          "label": "T_A",
+          "name": "Ambient air temperature",
+          "default": 303.15,
+          "default_list": null,
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF",
+            ""
+          ],
+          "eseries": false,
+          "list": false,
+          "input": true
+        },
+        {
+          "id": "nc",
+          "dim": "number",
+          "label": "n",
+          "name": "Circuits in the group",
+          "default": 1,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "cable",
+          "name": "Conductor and insulation",
+          "default": "cu_pvc",
+          "options": [
+            {
+              "id": "cu_pvc",
+              "name": "Copper, PVC (70 °C)",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "kcol": "k_70",
+                "tbl": "cable_ampacity_cu_pvc"
+              }
+            },
+            {
+              "id": "cu_xlpe",
+              "name": "Copper, XLPE/EPR (90 °C)",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "kcol": "k_90",
+                "tbl": "cable_ampacity_cu_xlpe"
+              }
+            },
+            {
+              "id": "al_pvc",
+              "name": "Aluminium, PVC (70 °C)",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "kcol": "k_70",
+                "tbl": "cable_ampacity_al_pvc"
+              }
+            },
+            {
+              "id": "al_xlpe",
+              "name": "Aluminium, XLPE/EPR (90 °C)",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "kcol": "k_90",
+                "tbl": "cable_ampacity_al_xlpe"
+              }
+            }
+          ]
+        },
+        {
+          "id": "method",
+          "name": "Installation method",
+          "default": "b2",
+          "options": [
+            {
+              "id": "a1",
+              "name": "A1 – single-core in conduit in an insulated wall",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "a1_2",
+                "c3": "a1_3",
+                "grp": "bunched"
+              }
+            },
+            {
+              "id": "a2",
+              "name": "A2 – multi-core in conduit in an insulated wall",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "a2_2",
+                "c3": "a2_3",
+                "grp": "bunched"
+              }
+            },
+            {
+              "id": "b1",
+              "name": "B1 – single-core in conduit on a wall",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "b1_2",
+                "c3": "b1_3",
+                "grp": "bunched"
+              }
+            },
+            {
+              "id": "b2",
+              "name": "B2 – multi-core in conduit on a wall",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "b2_2",
+                "c3": "b2_3",
+                "grp": "bunched"
+              }
+            },
+            {
+              "id": "c",
+              "name": "C – fixed on a wall or on an unperforated tray",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "c_2",
+                "c3": "c_3",
+                "grp": "wall_touching"
+              }
+            },
+            {
+              "id": "e",
+              "name": "E – multi-core in free air or on a perforated tray",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "e_2",
+                "c3": "e_3",
+                "grp": "perforated_tray"
+              }
+            },
+            {
+              "id": "f",
+              "name": "F – single-core cables touching in free air",
+              "consts": {},
+              "ignore": [],
+              "refs": {
+                "c2": "f_2",
+                "c3": "f_3",
+                "grp": "perforated_tray"
+              }
+            }
+          ]
+        },
+        {
+          "id": "loaded",
+          "name": "Loaded conductors",
+          "default": "two",
+          "options": [
+            {
+              "id": "two",
+              "name": "2 (single-phase or DC)",
+              "consts": {
+                "three": 0
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "three",
+              "name": "3 (three-phase)",
+              "consts": {
+                "three": 1
+              },
+              "ignore": [],
+              "refs": {}
+            }
+          ]
+        }
+      ],
+      "dof": 3,
+      "rules": [],
+      "derived": [
+        {
+          "id": "kt",
+          "dim": "number",
+          "label": "k_t",
+          "name": "Ambient temperature factor",
+          "alts": [
+            "interp(cable_ambient_temp_factors, ambient_c, kcol, ta)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ng",
+          "dim": "number",
+          "label": "n_g",
+          "name": "Circuit count taken from the table",
+          "alts": [
+            "if(lookup(cable_grouping_factors, grp, lookup_ge(cable_grouping_factors, circuits, nc, circuits)), lookup_ge(cable_grouping_factors, circuits, nc, circuits), lookup_ge(cable_grouping_factors, circuits, lookup_ge(cable_grouping_factors, circuits, nc, circuits) + 1, circuits))"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "kg",
+          "dim": "number",
+          "label": "k_g",
+          "name": "Grouping factor",
+          "alts": [
+            "lookup(cable_grouping_factors, grp, ng)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ireq",
+          "dim": "current",
+          "label": "I_req",
+          "name": "Required table value (30 °C, one circuit)",
+          "alts": [
+            "ib/(kt*kg)"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "a_min",
+          "dim": "area",
+          "label": "A",
+          "name": "Smallest cross-section",
+          "alts": [
+            "if(three, lookup_ge(tbl, c3, ireq, section), lookup_ge(tbl, c2, ireq, section))"
+          ],
+          "unit": "mm2",
+          "units": [
+            "mm2",
+            "kcmil",
+            "AWG"
+          ]
+        },
+        {
+          "id": "itab",
+          "dim": "current",
+          "label": "I_tab",
+          "name": "Table value of that cross-section",
+          "alts": [
+            "if(three, lookup(tbl, c3, a_min), lookup(tbl, c2, a_min))"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "iz",
+          "dim": "current",
+          "label": "I_z",
+          "name": "Corrected current-carrying capacity",
+          "alts": [
+            "itab*kt*kg"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "if(three, if(lookup_ge(tbl, c3, 0, section), 0, 1), if(lookup_ge(tbl, c2, 0, section), 0, 1))",
+          "warn": "Not covered by the verified data: no value for this conductor and installation method was confirmed by a second source (most aluminium cells are empty), so no cross-section can be found. Choose another combination."
+        },
+        {
+          "when": "if(interp(cable_ambient_temp_factors, ambient_c, kcol, ta), 0, 1)",
+          "warn": "The ambient temperature is outside the factor table for this insulation (PVC: 10 to 65 °C, XLPE/EPR: 10 to 80 °C), so there is no factor."
+        },
+        {
+          "when": "if(lookup_ge(cable_grouping_factors, circuits, nc, circuits), 0, 1)",
+          "warn": "The number of circuits is above the largest count of the grouping table (20), so there is no factor."
+        },
+        {
+          "when": "if(three, if(lookup_ge(tbl, c3, ireq, section), 0, if(lookup_ge(tbl, c3, 0, section), 1, 0)), if(lookup_ge(tbl, c2, ireq, section), 0, if(lookup_ge(tbl, c2, 0, section), 1, 0)))",
+          "warn": "The required table value is above the largest cross-section of the table (240 mm²) for this combination. Split the load over parallel cables or size it from another source."
+        }
+      ],
+      "formula": [
+        "ireq = ib / (kt * kg)",
+        "itab >= ireq",
+        "iz = itab * kt * kg"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "ib",
+          "ta",
+          "nc"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
+      "id": "trace_spacing_finder",
+      "category": "wiring",
+      "name": "PCB conductor spacing finder (IPC-2221)",
+      "name_en": "PCB conductor spacing finder (IPC-2221)",
+      "doc": "Finds the minimum spacing between two conductors on a printed board for the voltage between them, from table 6-1 of IPC-2221B or IPC-2221C. Enter the DC voltage or the AC peak value, or choose AC RMS of a sine wave (the peak is then the RMS value times √2). Choose the revision and the column of the table for the board condition: B1 internal conductors, B2 external uncoated up to 3050 m, B3 external uncoated above 3050 m, B4 external with a polymer coating, B5 (A5 in revision B) external with a conformal coating, A6 to A8 component leads; A6 and A7 mean different things in the two revisions (revision B: A6 uncoated, A7 coated; revision C: A6 coated, A7 uncoated up to 3050 m, A8 uncoated above 3050 m). The voltage bands use whole volts, so a voltage between two bands (15.5 V) takes the next band up. Above 500 V the spacing is the value of the 301 to 500 V band plus the per-volt increment of the table for every volt above 500 V. IPC-2221 gives functional spacing for the board, not safety isolation: for mains or SELV separation the creepage and clearance of IEC 60664-1 and IEC 62368-1 apply. The row of the result is highlighted in the table. The defaults (400 V, revision C, column B2) give 2.5 mm.",
+      "tags": [
+        "pcb",
+        "trace spacing",
+        "conductor spacing",
+        "clearance",
+        "creepage",
+        "voltage",
+        "high voltage",
+        "ipc-2221",
+        "ipc-2221b",
+        "ipc-2221c",
+        "leiterabstand",
+        "leiterbahnabstand",
+        "leiterplatte",
+        "spannung",
+        "abstand",
+        "kriechstrecke",
+        "luftstrecke"
+      ],
+      "source": "IPC-2221B and IPC-2221C table 6-1 (electrical conductor spacing); above 500 V the 301 to 500 V value plus the per-volt increment of the table (IPC-2221 section 6.3); AC RMS to peak for a sine wave: peak = RMS × √2",
+      "vars": [
+        {
+          "id": "v",
+          "dim": "voltage",
+          "label": "U",
+          "name": "Voltage between the conductors",
+          "default": 400,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": true
+        }
+      ],
+      "choices": [
+        {
+          "id": "revision",
+          "name": "IPC-2221 revision",
+          "default": "c",
+          "options": [
+            {
+              "id": "b",
+              "name": "IPC-2221B",
+              "consts": {
+                "revc": 0
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "c",
+              "name": "IPC-2221C (2023)",
+              "consts": {
+                "revc": 1
+              },
+              "ignore": [],
+              "refs": {}
+            }
+          ]
+        },
+        {
+          "id": "wave",
+          "name": "Voltage is",
+          "default": "peak",
+          "options": [
+            {
+              "id": "peak",
+              "name": "DC or AC peak",
+              "consts": {
+                "vf": 1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "rms",
+              "name": "AC RMS (sine)",
+              "consts": {
+                "vf": 1.4142135623730951
+              },
+              "ignore": [],
+              "refs": {}
+            }
+          ]
+        },
+        {
+          "id": "cond",
+          "name": "Board condition (IPC column)",
+          "default": "b2",
+          "options": [
+            {
+              "id": "b1",
+              "name": "B1 – internal conductors",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "b1",
+                "cc": "b1"
+              }
+            },
+            {
+              "id": "b2",
+              "name": "B2 – external, uncoated, up to 3050 m",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "b2",
+                "cc": "b2"
+              }
+            },
+            {
+              "id": "b3",
+              "name": "B3 – external, uncoated, above 3050 m",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "b3",
+                "cc": "b3"
+              }
+            },
+            {
+              "id": "b4",
+              "name": "B4 – external, polymer coating",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "b4",
+                "cc": "b4"
+              }
+            },
+            {
+              "id": "b5",
+              "name": "B5 (Rev. B: A5) – external, conformal coating",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "a5",
+                "cc": "b5"
+              }
+            },
+            {
+              "id": "a6",
+              "name": "A6 – component lead (B: uncoated, C: coated)",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "a6",
+                "cc": "a6"
+              }
+            },
+            {
+              "id": "a7",
+              "name": "A7 – component lead (B: coated, C: uncoated, up to 3050 m)",
+              "consts": {
+                "inb": 1
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "a7",
+                "cc": "a7"
+              }
+            },
+            {
+              "id": "a8",
+              "name": "A8 – component lead, uncoated, above 3050 m (Rev. C only)",
+              "consts": {
+                "inb": 0
+              },
+              "ignore": [],
+              "refs": {
+                "cb": "b1",
+                "cc": "a8"
+              }
+            }
+          ]
+        }
+      ],
+      "dof": 1,
+      "rules": [],
+      "derived": [
+        {
+          "id": "vpk",
+          "dim": "voltage",
+          "label": "U_pk",
+          "name": "Voltage used (DC or AC peak)",
+          "alts": [
+            "abs(v)*vf"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "band_min",
+          "dim": "voltage",
+          "label": "U_min",
+          "name": "Lower limit of the voltage band",
+          "alts": [
+            "if(vpk > 500, 500, if(revc, lookup_ge(ipc2221c_conductor_spacing, v_max, vpk, v_min), lookup_ge(ipc2221b_conductor_spacing, v_max, vpk, v_min)))"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "s",
+          "dim": "length",
+          "label": "s",
+          "name": "Minimum spacing",
+          "alts": [
+            "if(revc, if(vpk > 500, lookup_ge(ipc2221c_conductor_spacing, v_max, 500, cc) + (vpk - 500) * lookup(ipc2221c_conductor_spacing, cc, 500), lookup_ge(ipc2221c_conductor_spacing, v_max, vpk, cc)), if(inb, if(vpk > 500, lookup_ge(ipc2221b_conductor_spacing, v_max, 500, cb) + (vpk - 500) * lookup(ipc2221b_conductor_spacing, cb, 500), lookup_ge(ipc2221b_conductor_spacing, v_max, vpk, cb)), 0/0))"
+          ],
+          "unit": "mm",
+          "units": [
+            "mm",
+            "mil",
+            ""
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "when": "(1 - revc) * (1 - inb)",
+          "warn": "Column A8 does not exist in IPC-2221B (it was added in IPC-2221C), so no spacing is given."
+        },
+        {
+          "when": "vpk > 500",
+          "warn": "Above 500 V the spacing is the value of the 301 to 500 V band plus the per-volt increment for every volt above 500 V (IPC-2221 section 6.3). Check it against the rules of your board manufacturer."
+        }
+      ],
+      "formula": [
+        "vpk = abs(v) * vf"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        [
+          "v"
+        ]
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "opamp_inverting",
       "category": "opamps",
       "name": "Inverting amplifier",
@@ -15533,7 +16143,14 @@
           485
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "cable_cross_section_finder",
+        "column": "section",
+        "var": "a_min",
+        "choices": {
+          "cable": "cu_pvc"
+        }
+      }
     },
     {
       "kind": "table",
@@ -15976,7 +16593,14 @@
           607
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "cable_cross_section_finder",
+        "column": "section",
+        "var": "a_min",
+        "choices": {
+          "cable": "cu_xlpe"
+        }
+      }
     },
     {
       "kind": "table",
@@ -16334,7 +16958,14 @@
           null
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "cable_cross_section_finder",
+        "column": "section",
+        "var": "a_min",
+        "choices": {
+          "cable": "al_pvc"
+        }
+      }
     },
     {
       "kind": "table",
@@ -16692,7 +17323,14 @@
           471
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "cable_cross_section_finder",
+        "column": "section",
+        "var": "a_min",
+        "choices": {
+          "cable": "al_xlpe"
+        }
+      }
     },
     {
       "kind": "table",
@@ -18326,7 +18964,14 @@
           1
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "trace_spacing_finder",
+        "column": "v_min",
+        "var": "band_min",
+        "choices": {
+          "revision": "b"
+        }
+      }
     },
     {
       "kind": "table",
@@ -18608,7 +19253,14 @@
           1
         ]
       ],
-      "finder": null
+      "finder": {
+        "calc": "trace_spacing_finder",
+        "column": "v_min",
+        "var": "band_min",
+        "choices": {
+          "revision": "c"
+        }
+      }
     },
     {
       "kind": "table",
