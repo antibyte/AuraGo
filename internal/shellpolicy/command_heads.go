@@ -98,6 +98,8 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 func literalCommandWord(command string, from int, escape byte, breaks string) (string, int) {
 	var word strings.Builder
 	var quote byte
+	raw := strings.TrimLeft(command[from:], "\"'")
+	windowsPath := escape == '\\' && (strings.HasPrefix(raw, `\\`) || len(raw) > 2 && raw[1] == ':' && raw[2] == '\\')
 	i := from
 	for ; i < len(command); i++ {
 		c := command[i]
@@ -114,7 +116,13 @@ func literalCommandWord(command string, from int, escape byte, breaks string) (s
 				i += 2
 				continue
 			}
-			if next == escape || quote == 0 && strings.IndexByte(" \t\"';&|", next) >= 0 || quote == '"' && next == '"' {
+			// Unquoted POSIX/cmd escapes quote any next character. PowerShell
+			// also quotes ordinary letters inside double quotes. Keep Windows
+			// path separators and Windows PowerShell's control escapes intact.
+			literalEscape := (quote == 0 || escape == '`' && quote == '"') &&
+				(escape != '`' || strings.IndexByte("0abfnrtv", next) < 0) &&
+				(!windowsPath || strings.IndexByte(" \t\"';&|", next) >= 0)
+			if literalEscape || next == escape || quote == '"' && next == '"' {
 				i++
 				word.WriteByte(next)
 				continue

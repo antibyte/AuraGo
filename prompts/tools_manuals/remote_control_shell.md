@@ -13,7 +13,7 @@ must not be retried unchanged. Classic commands are cancelled on disconnect or
 permission changes, and text output is visibly truncated at 1 MiB.
 
 Classic one-shot commands apply the shared command policy with the remote shell's
-escape syntax. Literal `command` and BusyBox wrappers do not bypass high-risk
+escape syntax, including literal escapes in executable names. Literal `command` and BusyBox wrappers do not bypass high-risk
 checks; `command -v`/`-V` and ordinary read-only `find` work, while executing
 `find -exec`, `-execdir`, `-ok` and `-okdir` forms are refused. This heuristic
 is not an OS sandbox and does not restrict an authorized remote shell to its

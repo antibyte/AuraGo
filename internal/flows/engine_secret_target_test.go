@@ -152,10 +152,9 @@ func TestRunRefusesUntrustedDataChoosingWhereASecretGoes(t *testing.T) {
 	}
 }
 
-// The rule is about the secret: without an auth_secret the same flow only has the plain
-// untrusted-data warning and its request still goes out, and so does a request that has a
-// secret but a fixed address (outside data in the body does not choose where it is sent).
 func TestRunStillSendsToFixedAuthorities(t *testing.T) {
+	// A fixed authority stays usable with or without a secret: untrusted paths,
+	// queries, bodies and headers do not choose the connection origin.
 	for _, c := range []struct {
 		name       string
 		params     map[string]any

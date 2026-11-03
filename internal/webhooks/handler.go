@@ -498,6 +498,9 @@ func dedicatedInternalLoopbackPort(cfg *config.Config) int {
 func newInternalWebhookHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 		Transport: &http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // SECURE: only used for 127.0.0.1 loopback delivery
 			ForceAttemptHTTP2: false,
@@ -548,7 +551,7 @@ func (h *Handler) postInternalWebhook(prompt string, internalToken string) error
 		return fmt.Errorf("agent delivery outcome unknown: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &webhookDeliveryStatusError{status: resp.StatusCode}
 	}
 	return nil

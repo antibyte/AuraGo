@@ -104,6 +104,42 @@ func TestPublicationTimeoutBeforeTheSwapKeepsTheStage(t *testing.T) {
 	}
 }
 
+func TestPublicationShutdownBeforeTheSwapKeepsTheStage(t *testing.T) {
+	env, p, run := newPublicationRun(t)
+	observed := &publicationCheckContext{Context: run.ctx, checked: make(chan struct{})}
+	run.ctx = observed
+	unlock := sync.OnceFunc(env.svc.lockProject(p.ID))
+	t.Cleanup(unlock)
+	published := make(chan error, 1)
+	env.svc.wg.Add(1)
+	go func() {
+		defer env.svc.wg.Done()
+		published <- env.svc.publishOnce(run, Build{ID: "ccb_ready"})
+	}()
+	waitClosed(t, observed.checked, "publication entry")
+	closed := make(chan error, 1)
+	go func() { closed <- env.svc.Close() }()
+	cancelledBeforeSwap := false
+	select {
+	case <-run.ctx.Done():
+		cancelledBeforeSwap = true
+	case <-time.After(time.Second):
+	}
+	unlock()
+	err := <-published
+	if closeErr := <-closed; closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if !cancelledBeforeSwap || !errors.Is(err, context.Canceled) || !dirExists(run.stage) {
+		t.Errorf("shutdown before swap: cancelled=%v publication=%v stage=%v", cancelledBeforeSwap, err, dirExists(run.stage))
+	}
+	reopened := reopenService(t, env)
+	row, err := reopened.svc.loadProjectRow(context.Background(), p.ID)
+	if err != nil || row.Version != p.Version {
+		t.Fatalf("shutdown changed the project: row=%+v err=%v", row, err)
+	}
+}
+
 func TestPublishStageCancellationBoundary(t *testing.T) {
 	for _, beforeSwap := range []bool{true, false} {
 		name := "after swap"

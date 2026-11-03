@@ -518,10 +518,11 @@ Server-owned HTTP and cross-component integration contracts.
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
 - An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup, config save or setup save (`applyConfigPatch`). The check uses the effective bind host, including `AURAGO_SERVER_HOST`. This exception never opens `/speech-lab/`.
 - With login disabled, every request must pass `rebindingSafeHost`: IP literals (including IPv6 zone identifiers), localhost/local machine names
-  or explicitly configured host names. This includes reads and headerless native clients; a presented Bearer
+  or explicitly configured host names, including the exact effective `server.host` (`AURAGO_SERVER_HOST` wins).
+  Wildcard binds grant no DNS-name trust. This includes reads and headerless native clients; a presented Bearer
   does not bypass it. Writes carrying Origin or Referer still require same-origin, including opaque Game Maker
-  previews. Verify `TestAuthDisabledRejectsRebindingHosts`, `TestAuthDisabledBrowserWriteOrigins`
-  and `TestGameMakerPreviewCannotWriteProjectAPI`.
+  previews. Verify `TestAuthDisabledRejectsRebindingHosts`, `TestAuthDisabledBrowserWriteOrigins`,
+  `TestAuthDisabledUsesEffectiveBindHost` and `TestGameMakerPreviewCannotWriteProjectAPI`.
 - Setup's public metadata probes inject the DNS-pinned same-origin SSRF base through
   `llm.ProviderMetadataProbeWithTransport`, before gateway policy; invalid-provider refusals remain final.
   Explicit local Ollama uses its existing transport, and completed setup rejects probes before network access.
@@ -1005,9 +1006,10 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - `manage_webhooks` uses the single live `*webhooks.Manager` published on the server. The tool does not open a second manager. A nil manager means the receiver is not running. Tool delete removes vault key `webhook_<id>_signature_secret` before the file and restores that secret when the file delete fails.
 - Agent `manage_outgoing_webhooks` updates merge only fields that were sent. An empty method, URL or body, and a missing `headers` value, keep the stored values. An explicit `headers` object replaces headers, and `{}` clears secret headers. `PUT /api/outgoing-webhooks` stays a full replace. Outgoing names are unique case-insensitively; the next save rejects an existing duplicate. `call_webhook` returns `status: error` with `http_status_code` for HTTP status 400 and above, and lists IDs when several hooks share the name.
 - Loopback agent delivery sends exactly one POST inside the existing goroutine and delivery slot, including
-  quarantine notices. A transport failure has an unknown execution outcome and is never replayed automatically;
-  HTTP failures are not retried either. The incoming webhook still answers before that delivery. Verify
-  `TestDeliverMessageDoesNotRetryUnknownOutcome`.
+  quarantine notices. Redirects are refused to keep the internal token and payload at the fixed loopback receiver;
+  only 2xx responses count as successful delivery. A transport failure has an unknown execution outcome and is
+  never replayed automatically; HTTP failures are not retried either. The incoming webhook still answers before
+  that delivery. Verify `TestDeliverMessageDoesNotRetryUnknownOutcome` and `TestDeliverMessageDoesNotFollowRedirects`.
 - Verify webhook transaction, callback roundtrip and live policy regression tests plus mission suites.
 
 ## Desktop invocation ownership

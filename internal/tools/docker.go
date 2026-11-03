@@ -862,47 +862,19 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	return strings.HasSuffix(upper, "_PWD")
 }
 
-// redactDockerInspectEnvValue redacts the value of a non-sensitive environment
-// variable in two passes. First the whole value goes through the scrubber, so
-// its patterns that span whitespace (a bearer header, key = value, key: value,
-// URL credentials) mask as they did before. Then the scrubbed value is treated
-// as a command line, so a credential flag embedded in it
-// (REDIS_ARGS=--requirepass x, VALKEY_EXTRA_FLAGS=--masterauth=y) loses the
-// argument after the flag. Limits: the second pass splits on whitespace, so a
-// quoted multi-word credential after a flag (--requirepass "two words") is only
-// partly masked (its first word), and when that pass masks something the value's
-// whitespace is collapsed to single spaces. A value with nothing for the second
-// pass to mask is returned as scrubbed, spacing intact.
+// redactDockerInspectEnvValue masks an entire value containing a credential
+// flag: environment strings do not provide argv boundaries for quoted values.
+// Other values retain the scrubber's whitespace-spanning and URL protections.
 func redactDockerInspectEnvValue(val string) string {
 	scrubbed := security.RedactSensitiveInfo(val)
-	fields := strings.Fields(scrubbed)
-	if len(fields) == 0 {
-		return scrubbed
-	}
-	args := make([]interface{}, len(fields))
-	for i, f := range fields {
-		args[i] = f
-	}
-	redacted, ok := redactDockerInspectArgs(args).([]interface{})
-	if !ok {
-		return scrubbed
-	}
-	parts := make([]string, len(redacted))
-	changed := false
-	for i, r := range redacted {
-		if s, isString := r.(string); isString {
-			parts[i] = s
-		} else {
-			parts[i] = fmt.Sprint(r)
-		}
-		if parts[i] != fields[i] {
-			changed = true
+	for _, field := range strings.Fields(scrubbed) {
+		flag, _, _ := strings.Cut(strings.Trim(field, `"'`), "=")
+		flag = strings.Trim(flag, `"'`)
+		if strings.HasPrefix(flag, "-p") || dockerInspectFlagSensitive(flag) {
+			return dockerInspectRedacted
 		}
 	}
-	if !changed {
-		return scrubbed
-	}
-	return strings.Join(parts, " ")
+	return scrubbed
 }
 
 // redactDockerInspectArgs masks credential values in a command line: the value
@@ -932,7 +904,7 @@ func redactDockerInspectArgs(value interface{}) interface{} {
 		}
 		if maskNext {
 			redacted[i] = dockerInspectRedacted
-			maskNext = false
+			maskNext = text == "-p" || dockerInspectFlagSensitive(text)
 			continue
 		}
 		// Short -p values are ambiguous, so diagnostic output masks them conservatively.

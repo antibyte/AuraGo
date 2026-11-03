@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/cydcreator"
 	"aurago/internal/restorepending"
 	"aurago/internal/security"
@@ -391,7 +392,7 @@ func (s *Server) rebindingSafeHost(r *http.Request) bool {
 	defer s.CfgMu.RUnlock()
 	c := s.Cfg
 	for _, configured := range []string{
-		c.Server.HTTPS.Domain, c.SecurityProxy.Domain, c.Server.OAuthRedirectBaseURL, c.Server.PreviewDomain,
+		config.EffectiveServerHost(c.Server.Host), c.Server.HTTPS.Domain, c.SecurityProxy.Domain, c.Server.OAuthRedirectBaseURL, c.Server.PreviewDomain,
 	} {
 		if configuredHostMatches(host, configured) {
 			return true
