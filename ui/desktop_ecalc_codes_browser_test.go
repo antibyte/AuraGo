@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,35 @@ func TestECalcCodeLocaleKeys(t *testing.T) {
 					t.Errorf("%s: %s must keep the %s placeholder: %q", lang, key, placeholder, words[key])
 				}
 			}
+		}
+	}
+}
+
+// The drawings are string builders like the chart: no document access, and no colour in the code except the hex that the
+// caller passes in (the hex of the data) after the check in safeColor.
+func TestECalcCodeDrawIsADomFreeStringBuilder(t *testing.T) {
+	t.Parallel()
+	draw := ecalcScripts(t)["ecalc-code-draw.js"]
+	for _, marker := range []string{
+		"window.ECalcCodeDraw = { bandsSVG, chipSVG, safeColor, POSITIONS };", "function bandsSVG(spec)", "function chipSVG(spec)", "const safeColor =",
+		`class="ec-code-art"`, `class="ec-band"`, `class="ec-band-hit"`, `class="ec-band-fill`, `class="ec-band-ring"`, `class="ec-draw-body"`, `class="ec-chip-body"`, `class="ec-chip-text"`,
+		`aria-haspopup="listbox"`, `aria-expanded=`, "tabindex=\"0\" role=\"button\"", "resistor: { 3:", "inductor: { 4:", "const colour = safeColor(band.color)",
+	} {
+		if !strings.Contains(draw, marker) {
+			t.Errorf("ecalc-code-draw.js is missing %q", marker)
+		}
+	}
+	body := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(draw, "")
+	for label, pattern := range map[string]string{
+		"document access": `\bdocument\b`,
+		"window access":   `\bwindow\.(?:document|ECalcCore|localStorage)\b`,
+		"DOM write":       `\b(?:innerHTML|createElement|appendChild|setAttribute)\b`,
+		"hex colour":      `#[0-9a-fA-F]{3,8}\b`,
+		"colour function": `\b(?:rgba?|hsla?)\(`,
+		"inline style":    `\bstyle=`,
+	} {
+		if match := regexp.MustCompile(pattern).FindString(body); match != "" {
+			t.Errorf("ecalc-code-draw.js must not contain a %s (%q)", label, match)
 		}
 	}
 }
