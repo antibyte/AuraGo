@@ -1,0 +1,20 @@
+{
+  "_doc": "Vectors of battery_formats. Expected values are the maker maxima and the VARTA, Energizer and Wikipedia designations of the research file, in the unit of the column (mm, V).",
+  "table": "battery_formats",
+  "cells": [
+    {"key": "AA", "column": "d_mm", "want": 14.5, "ref": "AA max. diameter 14.5 mm: VARTA, Energizer E91 (13.50-14.50) and Wikipedia agree"},
+    {"key": "AA", "column": "h_mm", "want": 50.5, "ref": "AA max. height 50.5 mm: VARTA, Energizer E91 (49.50-50.50) and Wikipedia agree"},
+    {"key": "AA", "column": "ansi", "want": "15A", "ref": "AA = ANSI 15A: Energizer E91 datasheet and Wikipedia"},
+    {"key": "AAA", "column": "h_mm", "want": 44.5, "ref": "AAA max. height 44.5 mm: VARTA and Wikipedia agree"},
+    {"key": "AAA", "column": "iec", "want": "LR03", "ref": "AAA = IEC LR03 (Micro): VARTA and Wikipedia agree"},
+    {"key": "AAA", "column": "ansi", "want": null, "ref": "ANSI 24A for AAA comes from Wikipedia only and is left empty"},
+    {"key": "D", "column": "h_mm", "want": 61.5, "ref": "D max. height 61.5 mm: VARTA and Wikipedia agree"},
+    {"key": "9V", "column": "t_mm", "want": 17.5, "ref": "9 V block 48.5 x 26.5 x 17.5 mm: VARTA and Wikipedia agree"},
+    {"key": "9V", "column": "iec", "want": "6LR61", "ref": "9 V alkaline block = IEC 6LR61 (Wikipedia; VARTA designates it 6LP3146)"},
+    {"key": "CR2032", "column": "d_mm", "want": 20.0, "ref": "CR2032 20.0 mm: Panasonic CR2032 datasheet and Wikipedia agree"},
+    {"key": "CR2032", "column": "h_mm", "want": 3.2, "ref": "CR2032 3.2 mm: Panasonic CR2032 datasheet and Wikipedia agree"},
+    {"key": "18650", "column": "h_mm", "want": 65.3, "ref": "18650 max. length 65.3 mm with tube: Panasonic NCR18650B datasheet (Wikipedia nominal 65 mm)"},
+    {"key": "14500", "column": "d_mm", "want": null, "ref": "14500 dimensions come from Wikipedia only and are left empty"}
+  ],
+  "lookups": []
+}

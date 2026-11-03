@@ -1,0 +1,16 @@
+{
+  "_doc": "Vectors of fuse_speed_classes. Expected values are the names and 10 x In limits of the research file; a time is in seconds (the column unit).",
+  "table": "fuse_speed_classes",
+  "cells": [
+    {"key": "FF", "column": "name", "want": "very quick-acting", "ref": "DIN EN 60127-4 abstract: very quick acting (FF)"},
+    {"key": "T", "column": "name", "want": "time-lag", "ref": "DIN EN 60127-4 abstract and Schurter FST / Littelfuse 218 datasheets: time-lag (T)"},
+    {"key": "M", "column": "name", "want": "medium time-lag", "ref": "DIN 41571-2 title: medium time-lag (M)"},
+    {"key": "TT", "column": "speed_rank", "want": 5, "ref": "Order of the characteristics FF, F, M, T, TT (DIN EN 60127-4 names FF, F, T, TT; M from DIN 41571-2)"},
+    {"key": "F", "column": "example_10x_max", "want": 0.02, "ref": "IEC 60127-2 sheet 2, 5x20 mm, 0.125-6.3 A at 10 x In: 20 ms max.; Schurter FSF and Littelfuse 217 agree"},
+    {"key": "T", "column": "example_10x_max", "want": 0.3, "ref": "IEC 60127-2 sheet 3, 5x20 mm, 0.125-6.3 A at 10 x In: 300 ms max.; Schurter FST and Littelfuse 218 agree"},
+    {"key": "FF", "column": "example_10x_max", "want": null, "ref": "No sourced 10 x In example for FF, M and TT, left empty"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(fuse_speed_classes, speed_rank, 4, example_10x_max)", "want": 0.3, "ref": "T (rank 4) is the first class of rank 4 or slower; its 10 x In example is 300 ms"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_doc": "Vectors of fuse_formats. Expected values are the maker dimensions of the research file, in the unit of the column (mm).",
+  "table": "fuse_formats",
+  "cells": [
+    {"key": "5×20 mm", "column": "body_d_mm", "want": 5.2, "ref": "5x20: diameter 5.2 +0.1/-0.2 mm: Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "5×20 mm", "column": "length_mm", "want": 20, "ref": "5x20: length 20 +-0.5 mm: Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "5×20 mm", "column": "pin_pitch_mm", "want": null, "ref": "A cartridge fuse has no lead spacing"},
+    {"key": "6.3×32 mm", "column": "body_d_mm", "want": 6.35, "ref": "6.3x32: diameter 6.35 mm: Schurter SPT 6.3x32 (6.35 +-0.1) and Littelfuse 312 (6.35) agree"},
+    {"key": "6.3×32 mm", "column": "length_mm", "want": 31.75, "ref": "6.3x32: length 31.75 mm = 1-1/4 in: Littelfuse 312; Schurter SPT 6.3x32 gives 31.8 +-0.8 mm"},
+    {"key": "TR5", "column": "body_d_mm", "want": 8.5, "ref": "TR5: body diameter 8.5 mm: Schurter MST 250 and Littelfuse 372 agree"},
+    {"key": "TR5", "column": "pin_pitch_mm", "want": 5.08, "ref": "TR5: lead pitch 5.08 mm: Schurter MST 250 and Littelfuse 372 agree"},
+    {"key": "TR5", "column": "length_mm", "want": null, "ref": "TR5 body height could not be read reliably from the two datasheets and is left empty"}
+  ],
+  "lookups": []
+}

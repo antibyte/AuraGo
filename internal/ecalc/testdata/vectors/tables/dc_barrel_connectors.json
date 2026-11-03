@@ -1,0 +1,22 @@
+{
+  "_doc": "Vectors of dc_barrel_connectors. Expected values are the Lumberg RC-5320A drawings, Wikipedia EIAJ connector and the Lumberg/Schurter plug datasheets of the research file, in the unit of the column (mm, V, A).",
+  "table": "dc_barrel_connectors",
+  "cells": [
+    {"key": "EIAJ-01 (JSAP1)", "column": "od_mm", "want": 2.35, "ref": "JEITA RC-5320A type 1, 2.35 x 0.7 mm: Lumberg 1636 01 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-01 (JSAP1)", "column": "v_max", "want": 3.15, "ref": "JEITA RC-5320A type 1, rated voltage 3.15 V: Lumberg 1636 01 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-02 (JSAP2)", "column": "od_mm", "want": 4.0, "ref": "JEITA RC-5320A type 2, 4.0 x 1.7 mm: Lumberg 1636 02 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-02 (JSAP2)", "column": "id_mm", "want": 1.7, "ref": "JEITA RC-5320A type 2, 4.0 x 1.7 mm: Lumberg 1636 02 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-03 (JSAP3)", "column": "od_mm", "want": 4.75, "ref": "JEITA RC-5320A type 3, 4.75 x 1.7 mm: Lumberg 1636 03 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-03 (JSAP3)", "column": "v_min", "want": 6.3, "ref": "JEITA RC-5320A type 3, voltage class 6.3 to 10.5 V: Lumberg 1636 03 and Wikipedia EIAJ connector agree"},
+    {"key": "EIAJ-04 (JSBP4)", "column": "id_mm", "want": 3.3, "ref": "JEITA RC-5320A type 4, inner diameter 3.3 mm: Lumberg 1636 04 and Wikipedia EIAJ connector (GlobTek gives 3.4 mm)"},
+    {"key": "EIAJ-04 (JSBP4)", "column": "pin_mm", "want": 1.0, "ref": "JEITA RC-5320A type 4, centre pin 1.0 mm: Lumberg 1636 04, Wikipedia EIAJ connector and GlobTek agree"},
+    {"key": "EIAJ-05 (JSBP5)", "column": "id_mm", "want": null, "ref": "JEITA RC-5320A type 5 inner diameter: Lumberg 4.3 mm against Wikipedia and GlobTek 4.4 mm, left empty"},
+    {"key": "EIAJ-05 (JSBP5)", "column": "pin_mm", "want": 1.4, "ref": "JEITA RC-5320A type 5, centre pin 1.4 mm: Lumberg 1636 05 and Wikipedia EIAJ connector agree"},
+    {"key": "5.5 × 2.1", "column": "id_mm", "want": 2.1, "ref": "5.5 x 2.1 mm plug: Wikipedia Coaxial power connector and Lumberg NES/J 210 agree"},
+    {"key": "5.5 × 2.1", "column": "i_max_a", "want": 0.5, "ref": "Lumberg NES/J 210: 0.5 A, 12 V DC"},
+    {"key": "5.5 × 2.5", "column": "id_mm", "want": 2.5, "ref": "5.5 x 2.5 mm plug: Wikipedia Coaxial power connector and Schurter 4840.5210 agree"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(dc_barrel_connectors, v_max, 12, od_mm)", "want": 0.0055, "ref": "RC-5320A type 4 (class 10.5-13.5 V, plug outer diameter 5.5 mm) is the first type whose rated voltage is at least 12 V"}
+  ]
+}

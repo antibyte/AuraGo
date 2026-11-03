@@ -15704,6 +15704,1944 @@
     },
     {
       "kind": "table",
+      "id": "smd_chip_sizes",
+      "category": "tables",
+      "group": "components",
+      "name": "SMD chip sizes (resistors, capacitors)",
+      "name_en": "SMD chip sizes (resistors, capacitors)",
+      "doc": "Sizes of SMD chip resistors and capacitors: EIA (inch) and metric size codes, body length and width, and the typical rated power and working voltage of thick-film chip resistors with the values of three makers.",
+      "notes": "Ratings are for general-purpose thick-film chip resistors at 70 °C ambient; above 70 °C derate linearly to zero at the maximum film temperature (155 °C for most series, 125 °C for Yageo RC0075–RC0201 and Panasonic ERJ-XG/1G). The continuous working voltage is the lower of √(P·R) and the maximum working voltage. The typical columns show the value that most makers share for the standard type; where the makers differ (power at 0402, voltage at 2010 and 2512, body size of 2512) the maker columns and the remark show the spread. Capacitor (MLCC) bodies use the same size codes, but thickness and tolerances are maker-specific. Panasonic marks some sizes and parts NRFND (not recommended for new designs). Beware of mixed-up codes: 0402 and 0603 exist in both systems (imperial 0402 = metric 1005, metric 0402 = imperial 01005; imperial 0603 = metric 1608, metric 0603 = imperial 0201).",
+      "tags": [
+        "smd",
+        "chip",
+        "package",
+        "footprint",
+        "case size",
+        "0402",
+        "0603",
+        "0805",
+        "1206",
+        "resistor",
+        "capacitor",
+        "eia",
+        "imperial",
+        "metric",
+        "baugröße",
+        "bauform",
+        "gehäuse",
+        "widerstand",
+        "kondensator",
+        "metrisch"
+      ],
+      "source": "Yageo RC_L series product specification (V.11); Vishay Dale D/CRCW e3 datasheet (document 20035); Panasonic ERJ precision thick film chip resistors; KEMET C0G/X7R and TDK MLCC size code tables",
+      "guide": false,
+      "mains": false,
+      "key": "imperial",
+      "columns": [
+        {
+          "id": "imperial",
+          "name": "EIA size code (inch)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "metric",
+          "name": "Metric size code",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "l_mm",
+          "name": "Body length",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in",
+            "mil"
+          ],
+          "label": ""
+        },
+        {
+          "id": "w_mm",
+          "name": "Body width",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in",
+            "mil"
+          ],
+          "label": ""
+        },
+        {
+          "id": "p_typ_w",
+          "name": "Typical rated power at 70 °C",
+          "dim": "power",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_typ",
+          "name": "Typical max. working voltage",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "yageo_rc_p_w",
+          "name": "Yageo RC_L: rated power at 70 °C",
+          "dim": "power",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "yageo_rc_v",
+          "name": "Yageo RC_L: max. working voltage",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "vishay_crcw_p_w",
+          "name": "Vishay D/CRCW e3: rated power P70 (standard mode)",
+          "dim": "power",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "vishay_crcw_v",
+          "name": "Vishay D/CRCW e3: max. voltage (standard mode)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "panasonic_erj_p_w",
+          "name": "Panasonic ERJ: rated power at 70 °C",
+          "dim": "power",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "panasonic_erj_v",
+          "name": "Panasonic ERJ: limiting element voltage",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remarks",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "01005",
+          "0402",
+          0.0004,
+          0.0002,
+          0.031,
+          15,
+          0.03125,
+          15,
+          null,
+          null,
+          0.031,
+          15,
+          "Yageo calls this size 0100 (RC0100 = 1/32 W)"
+        ],
+        [
+          "0201",
+          "0603",
+          0.0006,
+          0.0003,
+          0.05,
+          25,
+          0.05,
+          25,
+          null,
+          null,
+          0.05,
+          25,
+          "Vishay CRCW0201 is a separate datasheet, not read"
+        ],
+        [
+          "0402",
+          "1005",
+          0.001,
+          0.0005,
+          0.0625,
+          50,
+          0.0625,
+          50,
+          0.063,
+          50,
+          0.1,
+          50,
+          "Power varies by maker: 1/16 W (Yageo, Vishay standard) or 0.1 W (Panasonic ERJ-2R, Vishay extended mode 0.10 W/75 V); Yageo also offers a 1/8 W type"
+        ],
+        [
+          "0603",
+          "1608",
+          0.0016,
+          0.0008,
+          0.1,
+          75,
+          0.1,
+          75,
+          0.1,
+          75,
+          0.1,
+          75,
+          "Vishay extended mode 0.125 W; Yageo also 1/5 W type; Vishay body 1.55 x 0.85 mm"
+        ],
+        [
+          "0805",
+          "2012",
+          0.002,
+          0.00125,
+          0.125,
+          150,
+          0.125,
+          150,
+          0.125,
+          150,
+          0.125,
+          150,
+          "Vishay extended mode 0.25 W; Yageo also 1/4 W type"
+        ],
+        [
+          "1206",
+          "3216",
+          0.0032,
+          0.0016,
+          0.25,
+          200,
+          0.25,
+          200,
+          0.25,
+          200,
+          0.25,
+          200,
+          "Yageo body 3.10 mm long; Yageo also 1/2 W type; Panasonic ERJ-8EN is NRFND"
+        ],
+        [
+          "1210",
+          "3225",
+          0.0032,
+          0.0025,
+          0.5,
+          200,
+          0.5,
+          200,
+          0.5,
+          200,
+          0.5,
+          200,
+          "Yageo body 3.10 x 2.60 mm; Panasonic ERJ-14N is NRFND"
+        ],
+        [
+          "1812",
+          "4532",
+          0.0045000000000000005,
+          0.0032,
+          0.75,
+          200,
+          null,
+          null,
+          null,
+          null,
+          0.75,
+          200,
+          "Common MLCC size; resistor rating from Panasonic ERJ-12N only (NRFND)"
+        ],
+        [
+          "2010",
+          "5025",
+          0.005,
+          0.0025,
+          0.75,
+          200,
+          0.75,
+          200,
+          0.75,
+          400,
+          0.75,
+          200,
+          "Vishay allows 400 V; Panasonic ERJ-12S is NRFND"
+        ],
+        [
+          "2512",
+          "6332",
+          0.0063,
+          0.0032,
+          1,
+          200,
+          1,
+          200,
+          1,
+          500,
+          1,
+          200,
+          "Maker body sizes differ: 6.35 x 3.10 (Yageo), 6.3 x 3.15 (Vishay), 6.40 x 3.20 (Panasonic); Vishay allows 500 V; Yageo also 2 W type"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "mlcc_dielectrics",
+      "category": "tables",
+      "group": "components",
+      "name": "Ceramic capacitor dielectrics (C0G, X7R …)",
+      "name_en": "Ceramic capacitor dielectrics (C0G, X7R …)",
+      "doc": "EIA temperature-characteristic codes of ceramic capacitors (C0G, X7R, X5R, Y5V …): temperature range, temperature coefficient or maximum capacitance change, and typical use.",
+      "notes": "Code reading (class II/III): 1st letter = lower temperature (X −55 °C, Y −30 °C, Z +10 °C), digit = upper temperature (5 +85, 6 +105, 7 +125, 8 +150 °C), last letter = max. capacitance change (R ±15 %, S ±22 %, T +22/−33 %, V +22/−82 %). Class II/III capacitors also lose capacitance with applied DC voltage and with age (ageing); the temperature code says nothing about DC bias. Some makers (e.g. KEMET) call Y5V \"Class III\"; in IEC terms it is a class 2 dielectric. The IEC 60384-8/-9 equivalents are not listed because only one source gives them. The use texts of X8R, X7S, X7T and X6S are editorial wording derived from the code meaning, not taken from a source.",
+      "tags": [
+        "mlcc",
+        "ceramic capacitor",
+        "dielectric",
+        "c0g",
+        "np0",
+        "x7r",
+        "x5r",
+        "y5v",
+        "eia",
+        "temperature coefficient",
+        "class 1",
+        "class 2",
+        "keramikkondensator",
+        "dielektrikum",
+        "temperaturkoeffizient",
+        "klasse 1",
+        "klasse 2"
+      ],
+      "source": "EIA RS-198 temperature codes as printed in the KEMET datasheets C1003 (C0G), C1002 (X7R), C1006 (X5R) and C1005 (Y5V) and the TDK MLCC Product Guide; code reading after Wikipedia \"Ceramic capacitor\"",
+      "guide": false,
+      "mains": false,
+      "key": "code",
+      "columns": [
+        {
+          "id": "code",
+          "name": "Temperature code",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "alias",
+          "name": "Other name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "eia_class",
+          "name": "EIA class",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "t_min_c",
+          "name": "Lower temperature limit",
+          "dim": "temperature",
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF"
+          ],
+          "label": ""
+        },
+        {
+          "id": "t_max_c",
+          "name": "Upper temperature limit",
+          "dim": "temperature",
+          "unit": "degC",
+          "units": [
+            "degC",
+            "degF"
+          ],
+          "label": ""
+        },
+        {
+          "id": "tc_ppm_k",
+          "name": "Temperature coefficient (class I)",
+          "dim": "tempco",
+          "unit": "ppmK",
+          "units": [
+            "ppmK"
+          ],
+          "label": ""
+        },
+        {
+          "id": "tc_tol_ppm_k",
+          "name": "Tolerance of the temperature coefficient (±)",
+          "dim": "tempco",
+          "unit": "ppmK",
+          "units": [
+            "ppmK"
+          ],
+          "label": ""
+        },
+        {
+          "id": "dc_min_pct",
+          "name": "Max. capacitance change, lower bound (class II/III)",
+          "dim": "ratio",
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "dc_max_pct",
+          "name": "Max. capacitance change, upper bound (class II/III)",
+          "dim": "ratio",
+          "unit": "pct",
+          "units": [
+            "pct",
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "use",
+          "name": "Typical use",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "C0G",
+          "NP0",
+          "I",
+          218.14999999999998,
+          398.15,
+          0,
+          0.000029999999999999997,
+          null,
+          null,
+          "Resonant circuits, filters, timing, where Q and capacitance stability matter; no ageing, no DC-bias effect"
+        ],
+        [
+          "X8R",
+          null,
+          "II",
+          218.14999999999998,
+          423.15,
+          null,
+          null,
+          -0.15,
+          0.15,
+          "Decoupling/bypass at high temperature (e.g. automotive)"
+        ],
+        [
+          "X7R",
+          null,
+          "II",
+          218.14999999999998,
+          398.15,
+          null,
+          null,
+          -0.15,
+          0.15,
+          "General-purpose bypass, decoupling and filtering where Q and stability are not critical"
+        ],
+        [
+          "X7S",
+          null,
+          "II",
+          218.14999999999998,
+          398.15,
+          null,
+          null,
+          -0.22,
+          0.22,
+          "Decoupling with higher capacitance per size than X7R, wider tolerance"
+        ],
+        [
+          "X7T",
+          null,
+          "II",
+          218.14999999999998,
+          398.15,
+          null,
+          null,
+          -0.33,
+          0.22,
+          "High-capacitance decoupling; large negative change at temperature extremes"
+        ],
+        [
+          "X6S",
+          null,
+          "II",
+          218.14999999999998,
+          378.15,
+          null,
+          null,
+          -0.22,
+          0.22,
+          "High-capacitance decoupling up to 105 °C"
+        ],
+        [
+          "X5R",
+          null,
+          "II",
+          218.14999999999998,
+          358.15,
+          null,
+          null,
+          -0.15,
+          0.15,
+          "High-capacitance decoupling and bypass up to 85 °C"
+        ],
+        [
+          "Y5V",
+          null,
+          "III (KEMET)",
+          243.14999999999998,
+          358.15,
+          null,
+          null,
+          -0.8200000000000001,
+          0.22,
+          "Low-cost bypass/decoupling where stability does not matter; avoid where temperature varies"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "fuse_speed_classes",
+      "category": "tables",
+      "group": "components",
+      "name": "Fuse time-current characteristics (FF, F, M, T, TT)",
+      "name_en": "Fuse time-current characteristics (FF, F, M, T, TT)",
+      "doc": "The characteristic letters of miniature fuses (FF, F, M, T, TT) with their names and speed order, and the maximum pre-arcing time at 10 times the rated current for two of the classes.",
+      "notes": "The letter is printed on the end cap of the fuse together with rated current, rated voltage and breaking capacity (e.g. L = low, H = high, as used by Schurter). The exact pre-arcing limits depend on the standard sheet (size, breaking capacity), see the table of IEC 60127-2 pre-arcing times. Never replace a fuse with a slower class or a higher rating. The meaning texts are short editorial wording, not quotations from a standard, and the inrush examples are general engineering guidance. The 10 × In example exists only for F and T, the two classes with a sourced value; FF, M and TT are left empty.",
+      "tags": [
+        "fuse",
+        "fast",
+        "slow blow",
+        "time-lag",
+        "quick-acting",
+        "ff",
+        "tt",
+        "iec 60127",
+        "characteristic",
+        "sicherung",
+        "flink",
+        "träge",
+        "superflink",
+        "superträge",
+        "kennlinie",
+        "geräteschutzsicherung"
+      ],
+      "source": "IEC 60127 characteristic letters (names from DIN EN 60127-4 and DIN 41571-2); 10 × In values from the Schurter FSF/FST 5x20 and Littelfuse 217/218 datasheets",
+      "guide": false,
+      "mains": false,
+      "key": "code",
+      "columns": [
+        {
+          "id": "code",
+          "name": "Marking",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "name",
+          "name": "Name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "speed_rank",
+          "name": "Speed rank (1 = fastest)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "meaning",
+          "name": "Meaning",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "example_10x_max",
+          "name": "Example: max. pre-arcing time at 10 × In (5×20 mm, 0.125–6.3 A)",
+          "dim": "time",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "FF",
+          "very quick-acting",
+          1,
+          "Interrupts overcurrents fastest; for protecting sensitive semiconductors",
+          null
+        ],
+        [
+          "F",
+          "quick-acting",
+          2,
+          "Fast response to overload and short circuit; general protection of electronics without inrush",
+          0.02
+        ],
+        [
+          "M",
+          "medium time-lag",
+          3,
+          "Between quick-acting and time-lag; tolerates small inrush peaks",
+          null
+        ],
+        [
+          "T",
+          "time-lag",
+          4,
+          "Tolerates inrush currents (transformers, motors, capacitor charging) but still clears sustained overload",
+          0.3
+        ],
+        [
+          "TT",
+          "long time-lag",
+          5,
+          "Slowest class; for very high or long inrush currents",
+          null
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "fuse_prearc_iec60127_2",
+      "category": "tables",
+      "group": "components",
+      "name": "Fuse pre-arcing times (IEC 60127-2, 5×20 mm)",
+      "name_en": "Fuse pre-arcing times (IEC 60127-2, 5×20 mm)",
+      "doc": "Minimum and maximum pre-arcing (melting) times of 5×20 mm glass fuses with low breaking capacity, quick-acting (IEC 60127-2 sheet 2) and time-lag (sheet 3), at test currents of 1.5 to 10 times the rated current.",
+      "notes": "Limits are pre-arcing (melting) times at room temperature for 5×20 mm glass fuses with low breaking capacity. A fuse that meets the standard opens between t_min and t_max at the given multiple; an empty time means no limit in that direction. Each row is one test current of one rated-current range, the first column names it. Ratings of 8 A and above extend beyond the classic standard-sheet range; check the actual datasheet. The standard itself was not read: the values are those that Schurter and Littelfuse print for their fuses, and the two makers agree on every cell. Sheets 1 and 5 (high breaking capacity) and the sheets for 6.3×32 mm fuses are not covered.",
+      "tags": [
+        "fuse",
+        "pre-arcing",
+        "melting time",
+        "time-current",
+        "iec 60127-2",
+        "5x20",
+        "glass fuse",
+        "quick-acting",
+        "time-lag",
+        "sicherung",
+        "schmelzzeit",
+        "feinsicherung",
+        "kennlinie",
+        "prüfstrom"
+      ],
+      "source": "IEC 60127-2 sheets 2 (F) and 3 (T) as printed in the Schurter FSF/FST 5x20 and Littelfuse 217/218 datasheets (the standard itself was not read)",
+      "guide": true,
+      "mains": false,
+      "key": "case",
+      "columns": [
+        {
+          "id": "case",
+          "name": "Fuse and test current",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "sheet",
+          "name": "IEC 60127-2 sheet",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "char",
+          "name": "Characteristic (F quick-acting, T time-lag)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "in_min_a",
+          "name": "Rated current from",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "in_max_a",
+          "name": "Rated current to",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "multiple",
+          "name": "Test current as multiple of In",
+          "dim": "ratio",
+          "unit": "",
+          "units": [
+            "",
+            "pct"
+          ],
+          "label": ""
+        },
+        {
+          "id": "t_min_s",
+          "name": "Min. pre-arcing time (must not open earlier)",
+          "dim": "time",
+          "unit": "",
+          "units": [
+            "",
+            "min",
+            "h"
+          ],
+          "label": ""
+        },
+        {
+          "id": "t_max_s",
+          "name": "Max. pre-arcing time (must open by then)",
+          "dim": "time",
+          "unit": "",
+          "units": [
+            "",
+            "min",
+            "h"
+          ],
+          "label": ""
+        },
+        {
+          "id": "as_printed",
+          "name": "Limits as printed",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "F, 0.032–0.1 A, 1.5 × In",
+          2,
+          "F",
+          0.032,
+          0.1,
+          1.5,
+          3600,
+          null,
+          "60 min min."
+        ],
+        [
+          "F, 0.032–0.1 A, 2.1 × In",
+          2,
+          "F",
+          0.032,
+          0.1,
+          2.1,
+          null,
+          1800,
+          "30 min max."
+        ],
+        [
+          "F, 0.032–0.1 A, 2.75 × In",
+          2,
+          "F",
+          0.032,
+          0.1,
+          2.75,
+          0.01,
+          0.5,
+          "10 ms – 500 ms"
+        ],
+        [
+          "F, 0.032–0.1 A, 4 × In",
+          2,
+          "F",
+          0.032,
+          0.1,
+          4,
+          0.003,
+          0.1,
+          "3 ms – 100 ms"
+        ],
+        [
+          "F, 0.032–0.1 A, 10 × In",
+          2,
+          "F",
+          0.032,
+          0.1,
+          10,
+          null,
+          0.02,
+          "20 ms max."
+        ],
+        [
+          "F, 0.125–6.3 A, 1.5 × In",
+          2,
+          "F",
+          0.125,
+          6.3,
+          1.5,
+          3600,
+          null,
+          "60 min min."
+        ],
+        [
+          "F, 0.125–6.3 A, 2.1 × In",
+          2,
+          "F",
+          0.125,
+          6.3,
+          2.1,
+          null,
+          1800,
+          "30 min max."
+        ],
+        [
+          "F, 0.125–6.3 A, 2.75 × In",
+          2,
+          "F",
+          0.125,
+          6.3,
+          2.75,
+          0.05,
+          2,
+          "50 ms – 2 s"
+        ],
+        [
+          "F, 0.125–6.3 A, 4 × In",
+          2,
+          "F",
+          0.125,
+          6.3,
+          4,
+          0.01,
+          0.3,
+          "10 ms – 300 ms"
+        ],
+        [
+          "F, 0.125–6.3 A, 10 × In",
+          2,
+          "F",
+          0.125,
+          6.3,
+          10,
+          null,
+          0.02,
+          "20 ms max."
+        ],
+        [
+          "F, 8–10 A, 1.5 × In",
+          2,
+          "F",
+          8,
+          10,
+          1.5,
+          1800,
+          null,
+          "30 min min."
+        ],
+        [
+          "F, 8–10 A, 2.1 × In",
+          2,
+          "F",
+          8,
+          10,
+          2.1,
+          null,
+          1800,
+          "30 min max."
+        ],
+        [
+          "F, 8–10 A, 2.75 × In",
+          2,
+          "F",
+          8,
+          10,
+          2.75,
+          0.05,
+          2,
+          "50 ms – 2 s"
+        ],
+        [
+          "F, 8–10 A, 4 × In",
+          2,
+          "F",
+          8,
+          10,
+          4,
+          0.01,
+          0.4,
+          "10 ms – 400 ms"
+        ],
+        [
+          "F, 8–10 A, 10 × In",
+          2,
+          "F",
+          8,
+          10,
+          10,
+          null,
+          0.04,
+          "40 ms max."
+        ],
+        [
+          "T, 0.032–0.1 A, 1.5 × In",
+          3,
+          "T",
+          0.032,
+          0.1,
+          1.5,
+          3600,
+          null,
+          "60 min min."
+        ],
+        [
+          "T, 0.032–0.1 A, 2.1 × In",
+          3,
+          "T",
+          0.032,
+          0.1,
+          2.1,
+          null,
+          120,
+          "120 s max."
+        ],
+        [
+          "T, 0.032–0.1 A, 2.75 × In",
+          3,
+          "T",
+          0.032,
+          0.1,
+          2.75,
+          0.2,
+          10,
+          "200 ms – 10 s"
+        ],
+        [
+          "T, 0.032–0.1 A, 4 × In",
+          3,
+          "T",
+          0.032,
+          0.1,
+          4,
+          0.04,
+          3,
+          "40 ms – 3 s"
+        ],
+        [
+          "T, 0.032–0.1 A, 10 × In",
+          3,
+          "T",
+          0.032,
+          0.1,
+          10,
+          0.01,
+          0.3,
+          "10 ms – 300 ms"
+        ],
+        [
+          "T, 0.125–6.3 A, 1.5 × In",
+          3,
+          "T",
+          0.125,
+          6.3,
+          1.5,
+          3600,
+          null,
+          "60 min min."
+        ],
+        [
+          "T, 0.125–6.3 A, 2.1 × In",
+          3,
+          "T",
+          0.125,
+          6.3,
+          2.1,
+          null,
+          120,
+          "120 s max."
+        ],
+        [
+          "T, 0.125–6.3 A, 2.75 × In",
+          3,
+          "T",
+          0.125,
+          6.3,
+          2.75,
+          0.6,
+          10,
+          "600 ms – 10 s"
+        ],
+        [
+          "T, 0.125–6.3 A, 4 × In",
+          3,
+          "T",
+          0.125,
+          6.3,
+          4,
+          0.15,
+          3,
+          "150 ms – 3 s"
+        ],
+        [
+          "T, 0.125–6.3 A, 10 × In",
+          3,
+          "T",
+          0.125,
+          6.3,
+          10,
+          0.02,
+          0.3,
+          "20 ms – 300 ms"
+        ],
+        [
+          "T, 8–16 A, 1.5 × In",
+          3,
+          "T",
+          8,
+          16,
+          1.5,
+          1800,
+          null,
+          "30 min min."
+        ],
+        [
+          "T, 8–16 A, 2.1 × In",
+          3,
+          "T",
+          8,
+          16,
+          2.1,
+          null,
+          120,
+          "120 s max."
+        ],
+        [
+          "T, 8–16 A, 2.75 × In",
+          3,
+          "T",
+          8,
+          16,
+          2.75,
+          0.6,
+          10,
+          "600 ms – 10 s"
+        ],
+        [
+          "T, 8–16 A, 4 × In",
+          3,
+          "T",
+          8,
+          16,
+          4,
+          0.15,
+          3,
+          "150 ms – 3 s"
+        ],
+        [
+          "T, 8–16 A, 10 × In",
+          3,
+          "T",
+          8,
+          16,
+          10,
+          0.02,
+          0.3,
+          "20 ms – 300 ms"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "fuse_formats",
+      "category": "tables",
+      "group": "components",
+      "name": "Miniature fuse formats (5×20, 6.3×32, TR5)",
+      "name_en": "Miniature fuse formats (5×20, 6.3×32, TR5)",
+      "doc": "Body diameter, length and lead spacing of the common miniature fuse formats 5×20 mm, 6.3×32 mm and TR5 (8.5 mm radial).",
+      "notes": "Dimensions only: the time-current class (F, T …), rated voltage and breaking capacity are separate properties; fuses of the same size are not interchangeable unless all of them match. 6.3×32 mm fuses are mainly North-American (UL 248-14) types. TE5, 2AG, SMD chip fuses and blade fuses are not listed because no second source was read; the height of the TR5 body is left empty for the same reason.",
+      "tags": [
+        "fuse",
+        "5x20",
+        "6.3x32",
+        "3ag",
+        "tr5",
+        "cartridge",
+        "glass fuse",
+        "dimensions",
+        "sicherung",
+        "feinsicherung",
+        "bauform",
+        "abmessungen",
+        "glasrohrsicherung"
+      ],
+      "source": "Schurter FST 5x20, SPT 6.3x32 and MST 250 datasheets; Littelfuse 218, 312/318 and 372 (TR5) datasheets; IEC 60127-2 and -3 as cited there",
+      "guide": false,
+      "mains": false,
+      "key": "format",
+      "columns": [
+        {
+          "id": "format",
+          "name": "Format",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "aliases",
+          "name": "Other names",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "standard",
+          "name": "Standard of the cited parts",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "body_d_mm",
+          "name": "Body diameter",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "length_mm",
+          "name": "Overall length",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "pin_pitch_mm",
+          "name": "Lead spacing",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "mounting",
+          "name": "Mounting",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remarks",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "5×20 mm",
+          "G-fuse, 5x20",
+          "IEC 60127-2",
+          0.005200000000000001,
+          0.02,
+          null,
+          "cartridge in fuse holder (pigtail versions exist)",
+          "Diameter 5.2 +0.1/−0.2 mm, length 20 ±0.5 mm; most common IEC fuse in equipment"
+        ],
+        [
+          "6.3×32 mm",
+          "1/4 x 1-1/4 in, 3AG/3AB",
+          "UL 248-14 (cited parts)",
+          0.00635,
+          0.03175,
+          null,
+          "cartridge in fuse holder",
+          "Littelfuse 312: 6.35 x 31.75 mm; Schurter SPT 6.3x32: Ø6.35 ±0.1 x 31.8 ±0.8 mm"
+        ],
+        [
+          "TR5",
+          "subminiature radial fuse, 8.5 mm",
+          "IEC 60127-3",
+          0.0085,
+          null,
+          0.00508,
+          "radial, soldered into PCB or plugged into socket",
+          "Body Ø 8.5 mm (max.), pins ~0.6 mm; the body height could not be read reliably and is left out"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "battery_chemistries",
+      "category": "tables",
+      "group": "components",
+      "name": "Battery chemistries (voltages and energy density)",
+      "name_en": "Battery chemistries (voltages and energy density)",
+      "doc": "Cell voltages (nominal, end of charge, discharge cut-off) and specific energy of the common primary and rechargeable battery chemistries.",
+      "notes": "Typical values; always use the datasheet of the actual cell. Specific energy depends on cell size and design (high-power cells have less). The example column is the nominal voltage times the capacity divided by the mass of the cell named in the next column, rounded to whole numbers. Li-ion charging needs a CC/CV charger with the exact end voltage; never charge primary cells (alkaline, CR). LiPo and Li-ion differ in construction, not in cell voltage. Two cells are empty because no source confirms them: the discharge cut-off of lithium primary cells (CR) and the IEC letter of LiFePO4. Lead-acid has no IEC 60086, 61951 or 61960 letter.",
+      "tags": [
+        "battery",
+        "cell",
+        "chemistry",
+        "voltage",
+        "alkaline",
+        "nimh",
+        "nicd",
+        "li-ion",
+        "lifepo4",
+        "lipo",
+        "lead-acid",
+        "energy density",
+        "cut-off",
+        "batterie",
+        "akku",
+        "zelle",
+        "spannung",
+        "energiedichte",
+        "bleiakku",
+        "entladeschluss"
+      ],
+      "source": "Maker datasheets (Energizer E91 and alkaline handbook, Panasonic BK-3MCC, NCR18650B and CR2032, Saft VRE AA 700, Samsung INR21700-50E, A123 ANR26650M1-B, Renata ICP402035, Yuasa NP7-12L); Battery University BU-205 and BU-501; IEC letters after Wikipedia \"Battery nomenclature\"",
+      "guide": false,
+      "mains": false,
+      "key": "chem",
+      "columns": [
+        {
+          "id": "chem",
+          "name": "Chemistry",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iec_letter",
+          "name": "IEC letter",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rechargeable",
+          "name": "Rechargeable",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "v_nom",
+          "name": "Nominal voltage per cell",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_charge",
+          "name": "End-of-charge voltage per cell",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_cutoff",
+          "name": "Typical discharge cut-off voltage per cell",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "wh_kg_typ",
+          "name": "Typical specific energy range (Wh/kg)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "wh_kg_example",
+          "name": "Specific energy of the example cell (Wh/kg)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "example_cell",
+          "name": "Example cell (datasheet)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remarks",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "Alkaline (Zn/MnO2)",
+          "L",
+          "no",
+          1.5,
+          null,
+          0.8,
+          null,
+          163,
+          "Energizer E91 AA (23.0 g; 2500 mAh at 100 mA to 0.8 V per handbook)",
+          "Fresh open-circuit voltage about 1.6 V; devices often stop at 0.9 V; example uses V_nom, so it is an upper bound"
+        ],
+        [
+          "NiMH",
+          "H",
+          "yes",
+          1.2,
+          null,
+          1,
+          null,
+          89,
+          "Panasonic eneloop BK-3MCC AA (2000 mAh typ., 27 g)",
+          "Charged with constant current and −ΔV or dT/dt termination, not a fixed voltage"
+        ],
+        [
+          "NiCd",
+          "K",
+          "yes",
+          1.2,
+          null,
+          1,
+          null,
+          45,
+          "Saft VRE AA 700 (780 mAh typ., 21 g)",
+          "Charged like NiMH (−ΔV or dT/dt end of charge)"
+        ],
+        [
+          "Li-ion (NMC/NCA)",
+          "IN",
+          "yes",
+          3.6,
+          4.2,
+          2.5,
+          "150–220",
+          256,
+          "Samsung INR21700-50E (4900 mAh min., 3.63 V, 69.5 g max.)",
+          "Nominal 3.6–3.7 V; many applications cut off at 3.0 V; Panasonic NCR18650B states 243 Wh/kg"
+        ],
+        [
+          "LiFePO4 (LFP)",
+          null,
+          "yes",
+          3.3,
+          3.6,
+          2.5,
+          "90–120",
+          109,
+          "A123 ANR26650M1-B (2.5 Ah, 76 g)",
+          "Nominal 3.2–3.3 V; charge limit 3.6–3.65 V; cut-off 2.0–2.7 V in the sources"
+        ],
+        [
+          "Li-polymer (LiPo, pouch)",
+          "IC",
+          "yes",
+          3.7,
+          4.2,
+          3,
+          null,
+          150,
+          "Renata ICP402035 (195 mAh, 4.8 g)",
+          "Same electrochemistry as Li-ion with pouch/polymer construction; IEC 61960 name of the example: ICP052136"
+        ],
+        [
+          "Lead-acid (VRLA/AGM)",
+          null,
+          "yes",
+          2,
+          2.42,
+          1.75,
+          null,
+          38,
+          "Yuasa NP7-12L 12 V 7 Ah (20 h), 2.2 kg",
+          "Float charge 2.275 V/cell, cyclic charge 2.42 V/cell at 20 °C; 1.75 V/cell is the end voltage of the 20-hour rating"
+        ],
+        [
+          "Lithium primary (Li/MnO2, CR)",
+          "C",
+          "no",
+          3,
+          null,
+          null,
+          null,
+          241,
+          "Panasonic CR2032 (225 mAh at 0.2 mA, 2.8 g)",
+          "The discharge cut-off is left empty: the Panasonic CR2032 datasheet does not state one"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "battery_formats",
+      "category": "tables",
+      "group": "components",
+      "name": "Battery sizes (AA, 18650, CR2032 …)",
+      "name_en": "Battery sizes (AA, 18650, CR2032 …)",
+      "doc": "Sizes and designations of common batteries and cells: IEC and ANSI names, maximum diameter, height and thickness, and the nominal voltage of the usual chemistry.",
+      "notes": "Dimensions are maximum outline values; real cells are slightly smaller. Li-ion sizes (14500, 18650, 21700, 26650) are named after their nominal diameter and length in mm; they say nothing about chemistry or voltage. A 14500 Li-ion cell fits an AA holder but has 3.6–3.7 V and can destroy 1.5 V devices. ANSI designations are listed for AA only, where two sources agree; the dimensions and voltage of the 14500 come from a single source and are left empty. AAAA, CR2025, CR2016, CR1220, CR123A, LR44, 4.5 V flat packs, 10440 and 16340 are not listed.",
+      "tags": [
+        "battery",
+        "size",
+        "aa",
+        "aaa",
+        "9v",
+        "18650",
+        "21700",
+        "26650",
+        "cr2032",
+        "coin cell",
+        "dimensions",
+        "batterie",
+        "akku",
+        "größe",
+        "knopfzelle",
+        "mignon",
+        "micro",
+        "baby",
+        "mono",
+        "e-block"
+      ],
+      "source": "VARTA General Purpose assortment 2016/17; Energizer E91, Panasonic CR2032, NCR18650B and BK-3MCC, Samsung INR21700-50E and A123 ANR26650M1-B datasheets; Wikipedia \"List of battery sizes\" and \"Battery nomenclature\" (IEC 60086-1 naming)",
+      "guide": false,
+      "mains": false,
+      "key": "format",
+      "columns": [
+        {
+          "id": "format",
+          "name": "Size",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "de_name",
+          "name": "German name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iec",
+          "name": "IEC designation (alkaline)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "ansi",
+          "name": "ANSI designation (alkaline)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "shape",
+          "name": "Shape",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "d_mm",
+          "name": "Diameter (max.), width of the 9 V block",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "h_mm",
+          "name": "Height / length (max.)",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "t_mm",
+          "name": "Thickness (prismatic cells)",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_nom",
+          "name": "Nominal voltage (usual chemistry)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remarks",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "AAA",
+          "Micro",
+          "LR03",
+          null,
+          "round",
+          0.0105,
+          0.0445,
+          null,
+          1.5,
+          "NiMH: HR03 (1.2 V)"
+        ],
+        [
+          "AA",
+          "Mignon",
+          "LR6",
+          "15A",
+          "round",
+          0.0145,
+          0.0505,
+          null,
+          1.5,
+          "Energizer E91: Ø 13.50–14.50, h 49.50–50.50 mm; NiMH HR6 1.2 V (eneloop 14.35 x 50.4 mm)"
+        ],
+        [
+          "C",
+          "Baby",
+          "LR14",
+          null,
+          "round",
+          0.0262,
+          0.05,
+          null,
+          1.5,
+          "NiMH: HR14"
+        ],
+        [
+          "D",
+          "Mono",
+          "LR20",
+          null,
+          "round",
+          0.0342,
+          0.0615,
+          null,
+          1.5,
+          "NiMH: HR20"
+        ],
+        [
+          "9V",
+          "E-Block",
+          "6LR61",
+          null,
+          "prismatic",
+          0.0265,
+          0.0485,
+          0.0175,
+          9,
+          "Varta designates its 9 V alkaline 6LP3146 (same outline); NiMH 6HR61 is 7.2–9.6 V"
+        ],
+        [
+          "CR2032",
+          null,
+          "CR2032",
+          null,
+          "coin",
+          0.02,
+          0.0032,
+          null,
+          3,
+          "Name = chemistry C + diameter 20 mm + height 3.2 mm"
+        ],
+        [
+          "14500",
+          null,
+          null,
+          null,
+          "round",
+          null,
+          null,
+          null,
+          null,
+          "Li-ion in AA size, NOT interchangeable with a 1.5 V AA cell; dimensions and voltage come from a single source and are left empty"
+        ],
+        [
+          "18650",
+          null,
+          null,
+          null,
+          "round",
+          0.0185,
+          0.0653,
+          null,
+          3.6,
+          "Size code ≈ nominal Ø 18 mm and length 65 mm; max. with tube per Panasonic NCR18650B"
+        ],
+        [
+          "21700",
+          null,
+          null,
+          null,
+          "round",
+          0.02125,
+          0.0708,
+          null,
+          3.6,
+          "Max. with sleeve per Samsung INR21700-50E (3.63 V nominal)"
+        ],
+        [
+          "26650",
+          null,
+          null,
+          null,
+          "round",
+          0.026000000000000002,
+          0.065,
+          null,
+          3.3,
+          "Nominal size (A123 LiFePO4 ANR26650M1-B, 3.3 V); Li-ion versions 3.6–3.7 V"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
+      "id": "dc_barrel_connectors",
+      "category": "tables",
+      "group": "components",
+      "name": "DC barrel connectors (power plugs)",
+      "name_en": "DC barrel connectors (power plugs)",
+      "doc": "Sizes of DC barrel (coaxial power) plugs: outer and inner diameter, centre pin, voltage class and rated current. The five JEITA RC-5320A types plus the common sizes 5.5 × 2.1, 5.5 × 2.5 and 3.5 × 1.35 mm.",
+      "notes": "Barrel size does not define voltage, current or polarity except for the JEITA RC-5320A types, whose size encodes the voltage class so that a higher-voltage plug does not fit a lower-voltage jack. Centre-positive is the most common polarity, but check the symbol on the device. Inner diameter = diameter of the jack's centre pin. For EIAJ-04 the sources give the inner diameter as 3.3 mm (Lumberg drawing, Wikipedia EIAJ connector) or 3.4 mm; 3.3 mm is shown. For EIAJ-05 the inner diameter is left empty because the sources give 4.3 mm and 4.4 mm. For the common sizes the current is that of the cited Lumberg and Schurter plugs (0.5 A); plugs of the same size can be rated higher. The 2.5 × 0.7 mm plug is not listed because only one source was found. The standard itself (JEITA RC-5320A) was not read.",
+      "tags": [
+        "dc",
+        "barrel",
+        "jack",
+        "plug",
+        "connector",
+        "power",
+        "5.5x2.1",
+        "5.5x2.5",
+        "3.5x1.35",
+        "eiaj",
+        "rc-5320a",
+        "jeita",
+        "hohlstecker",
+        "netzteil",
+        "stecker",
+        "buchse",
+        "koaxial"
+      ],
+      "source": "JEITA (EIAJ) RC-5320A types 1 to 5 as in the Lumberg datasheets 1636 01 to 1636 05 and Wikipedia \"EIAJ connector\"; Lumberg NES/J 210 and NES/J 135, Schurter 4840.5210; Wikipedia \"Coaxial power connector\" (the standard itself was not read)",
+      "guide": true,
+      "mains": false,
+      "key": "name",
+      "columns": [
+        {
+          "id": "name",
+          "name": "Size / type",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "standard",
+          "name": "Standard",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "od_mm",
+          "name": "Plug outer diameter",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "id_mm",
+          "name": "Plug inner diameter (jack centre pin)",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "pin_mm",
+          "name": "Centre pin in the plug (types 4 and 5)",
+          "dim": "length",
+          "unit": "mm",
+          "units": [
+            "mm",
+            "in"
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_min",
+          "name": "Voltage class from",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "v_max",
+          "name": "Rated voltage (class upper end)",
+          "dim": "voltage",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "i_max_a",
+          "name": "Rated current of the cited plugs",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "use",
+          "name": "Use / remarks",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "EIAJ-01 (JSAP1)",
+          "JEITA RC-5320A type 1",
+          0.00235,
+          0.0007,
+          null,
+          0,
+          3.15,
+          2,
+          "Voltage class up to 3.15 V"
+        ],
+        [
+          "EIAJ-02 (JSAP2)",
+          "JEITA RC-5320A type 2",
+          0.004,
+          0.0017,
+          null,
+          3.15,
+          6.3,
+          2,
+          "Voltage class 3.15–6.3 V; = the common 4.0 × 1.7 plug (e.g. Sony PSP charger)"
+        ],
+        [
+          "EIAJ-03 (JSAP3)",
+          "JEITA RC-5320A type 3",
+          0.00475,
+          0.0017,
+          null,
+          6.3,
+          10.5,
+          2,
+          "Voltage class 6.3–10.5 V"
+        ],
+        [
+          "EIAJ-04 (JSBP4)",
+          "JEITA RC-5320A type 4",
+          0.0055,
+          0.0033,
+          0.001,
+          10.5,
+          13.5,
+          2,
+          "Voltage class 10.5–13.5 V; plug has its own centre pin"
+        ],
+        [
+          "EIAJ-05 (JSBP5)",
+          "JEITA RC-5320A type 5",
+          0.006500000000000001,
+          null,
+          0.0014,
+          13.5,
+          18,
+          2,
+          "Voltage class 13.5–18 V; plug has its own centre pin; inner diameter left empty because the sources give 4.3 mm and 4.4 mm"
+        ],
+        [
+          "5.5 × 2.1",
+          "common (IEC 60130-10 type A per Wikipedia)",
+          0.0055,
+          0.0021000000000000003,
+          null,
+          null,
+          null,
+          0.5,
+          "Very common (e.g. Arduino adapters, guitar effects pedals); current rating depends on the part (Lumberg NES/J 210: 0.5 A, 12 V)"
+        ],
+        [
+          "5.5 × 2.5",
+          "common (IEC 60130-10 type A per Wikipedia)",
+          0.0055,
+          0.0025,
+          null,
+          null,
+          null,
+          0.5,
+          "Looks like 5.5 × 2.1 but needs a 2.5 mm jack pin; a 2.1 plug does not fit a 2.5 jack pin, a 2.5 plug fits loosely on 2.1; Schurter 4840.5210: 0.5 A, 12 V"
+        ],
+        [
+          "3.5 × 1.35",
+          "common",
+          0.0035,
+          0.00135,
+          null,
+          null,
+          null,
+          0.5,
+          "Small devices and chargers (e.g. Canon CA-570, 8.4 V); Lumberg sells the size as 3.4 × 1.4 mm (NES/J 135: 0.5 A, 12 V)"
+        ]
+      ],
+      "finder": null
+    },
+    {
+      "kind": "table",
       "id": "cable_ampacity_cu_pvc",
       "category": "tables",
       "group": "conductors",

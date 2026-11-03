@@ -1,0 +1,20 @@
+{
+  "_doc": "Vectors of mlcc_dielectrics. Expected values are the KEMET and TDK datasheet numbers and the EIA RS-198 code reading of the research file, in the unit of the column.",
+  "table": "mlcc_dielectrics",
+  "cells": [
+    {"key": "X7R", "column": "t_max_c", "want": 125, "ref": "X7R: -55 to +125 degC, +-15 %: KEMET C1002 and TDK MLCC Product Guide agree"},
+    {"key": "X7R", "column": "dc_max_pct", "want": 15, "ref": "X7R: +-15 % over the range: KEMET C1002 and TDK MLCC Product Guide agree"},
+    {"key": "X5R", "column": "t_max_c", "want": 85, "ref": "X5R: -55 to +85 degC: KEMET C1006 and TDK MLCC Product Guide agree"},
+    {"key": "C0G", "column": "tc_tol_ppm_k", "want": 30, "ref": "C0G: 0 +-30 ppm/degC: KEMET C1003 and TDK MLCC Product Guide agree"},
+    {"key": "C0G", "column": "tc_ppm_k", "want": 0, "ref": "C0G: 0 ppm/degC: KEMET C1003 and TDK MLCC Product Guide agree"},
+    {"key": "C0G", "column": "dc_min_pct", "want": null, "ref": "C0G is class I: a temperature coefficient, no capacitance-change limits"},
+    {"key": "Y5V", "column": "dc_min_pct", "want": -82, "ref": "Y5V: +22 %/-82 %, -30 to +85 degC: KEMET C1005 and the EIA code reading (V = +22/-82 %)"},
+    {"key": "Y5V", "column": "t_min_c", "want": -30, "ref": "Y5V: lower limit -30 degC (code letter Y): KEMET C1005 and the EIA code reading"},
+    {"key": "X7T", "column": "dc_min_pct", "want": -33, "ref": "X7T: +22 %/-33 %: TDK MLCC Product Guide and the EIA code reading (T = +22/-33 %)"},
+    {"key": "X8R", "column": "t_max_c", "want": 150, "ref": "X8R: -55 to +150 degC, +-15 %: TDK MLCC Product Guide and the EIA code reading (8 = +150 degC)"},
+    {"key": "Y5V", "column": "eia_class", "want": "III (KEMET)", "ref": "KEMET C1005: EIA characterizes Y5V dielectric as a Class III material"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(mlcc_dielectrics, t_max_c, 400, t_min_c)", "want": 218.15, "ref": "X8R (-55 to +150 degC) is the first dielectric in table order that covers more than 126.85 degC (400 K); lower limit -55 degC = 218.15 K"}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "_doc": "Vectors of battery_chemistries. Expected values are the maker datasheet and Battery University numbers of the research file, in the unit of the column (V).",
+  "table": "battery_chemistries",
+  "cells": [
+    {"key": "NiMH", "column": "v_nom", "want": 1.2, "ref": "NiMH 1.2 V: Panasonic eneloop BK-3MCC datasheet"},
+    {"key": "NiMH", "column": "v_cutoff", "want": 1.0, "ref": "NiMH end-of-discharge 1.0 V per cell: Panasonic BK-3MCC (E.V. = 1.0 V) and Battery University BU-501"},
+    {"key": "Alkaline (Zn/MnO2)", "column": "v_cutoff", "want": 0.8, "ref": "Energizer alkaline handbook: minimum cut-off 0.8 V per cell"},
+    {"key": "Li-ion (NMC/NCA)", "column": "v_charge", "want": 4.2, "ref": "Li-ion 4.20 V CC-CV: Panasonic NCR18650B, Samsung INR21700-50E and Battery University BU-205 agree"},
+    {"key": "Li-ion (NMC/NCA)", "column": "v_cutoff", "want": 2.5, "ref": "Li-ion discharge to 2.50 V: Panasonic NCR18650B, Samsung INR21700-50E and Battery University BU-205 agree"},
+    {"key": "Li-ion (NMC/NCA)", "column": "wh_kg_typ", "want": "150–220", "ref": "Battery University BU-205: NMC 150-220 Wh/kg"},
+    {"key": "Lead-acid (VRLA/AGM)", "column": "v_cutoff", "want": 1.75, "ref": "Lead-acid 1.75 V per cell: Yuasa NP7-12L (20 h rating) and Battery University BU-501 agree"},
+    {"key": "Lead-acid (VRLA/AGM)", "column": "v_charge", "want": 2.42, "ref": "Yuasa NP7-12L: cyclic charge 14.5 V per 12 V block = 2.42 V per cell"},
+    {"key": "LiFePO4 (LFP)", "column": "v_nom", "want": 3.3, "ref": "A123 ANR26650M1-B datasheet: 3.3 V nominal (Battery University BU-205: 3.20/3.30 V)"},
+    {"key": "LiFePO4 (LFP)", "column": "iec_letter", "want": null, "ref": "IEC 61960 positive-electrode letters (C, N, M, V, T) do not include F, so no letter is shown for LiFePO4"},
+    {"key": "Lithium primary (Li/MnO2, CR)", "column": "v_cutoff", "want": null, "ref": "The Panasonic CR2032 datasheet states no discharge cut-off voltage, so the cell is left empty"},
+    {"key": "Lithium primary (Li/MnO2, CR)", "column": "v_nom", "want": 3.0, "ref": "Panasonic CR2032 datasheet: 3 V"},
+    {"key": "NiCd", "column": "iec_letter", "want": "K", "ref": "IEC 60086 letter K for nickel-cadmium; Saft VRE AA 700 is designated KRMR 15/51"}
+  ],
+  "lookups": []
+}

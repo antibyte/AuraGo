@@ -1,0 +1,21 @@
+{
+  "_doc": "Vectors of fuse_prearc_iec60127_2. Expected values are the pre-arcing limits that Schurter FSF/FST 5x20 and Littelfuse 217/218 print identically; a time is in seconds (the column unit), a current in amperes.",
+  "table": "fuse_prearc_iec60127_2",
+  "cells": [
+    {"key": "F, 0.125–6.3 A, 10 × In", "column": "t_max_s", "want": 0.02, "ref": "IEC 60127-2 sheet 2: 20 ms max. at 10 x In; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 0.125–6.3 A, 10 × In", "column": "t_min_s", "want": null, "ref": "IEC 60127-2 sheet 2 at 10 x In has a maximum only; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 0.125–6.3 A, 2.75 × In", "column": "t_min_s", "want": 0.05, "ref": "IEC 60127-2 sheet 2: 50 ms - 2 s at 2.75 x In; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 0.125–6.3 A, 2.75 × In", "column": "t_max_s", "want": 2, "ref": "IEC 60127-2 sheet 2: 50 ms - 2 s at 2.75 x In; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 0.032–0.1 A, 1.5 × In", "column": "t_min_s", "want": 3600, "ref": "IEC 60127-2 sheet 2: 60 min min. at 1.5 x In; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 8–10 A, 1.5 × In", "column": "t_min_s", "want": 1800, "ref": "IEC 60127-2 sheet 2: 30 min min. at 1.5 x In for 8 A and above; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "F, 8–10 A, 10 × In", "column": "t_max_s", "want": 0.04, "ref": "IEC 60127-2 sheet 2: 40 ms max. at 10 x In for 8 A and above; Schurter FSF 5x20 and Littelfuse 217 agree"},
+    {"key": "T, 0.125–6.3 A, 10 × In", "column": "t_min_s", "want": 0.02, "ref": "IEC 60127-2 sheet 3: 20 ms - 300 ms at 10 x In; Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "T, 0.125–6.3 A, 10 × In", "column": "t_max_s", "want": 0.3, "ref": "IEC 60127-2 sheet 3: 20 ms - 300 ms at 10 x In; Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "T, 8–16 A, 4 × In", "column": "t_max_s", "want": 3, "ref": "IEC 60127-2 sheet 3: 150 ms - 3 s at 4 x In for 8 A and above; Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "T, 0.032–0.1 A, 2.1 × In", "column": "t_max_s", "want": 120, "ref": "IEC 60127-2 sheet 3: 120 s max. at 2.1 x In; Schurter FST 5x20 and Littelfuse 218 agree"},
+    {"key": "F, 0.125–6.3 A, 4 × In", "column": "as_printed", "want": "10 ms – 300 ms", "ref": "IEC 60127-2 sheet 2 at 4 x In as printed by Schurter FSF 5x20 and Littelfuse 217"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(fuse_prearc_iec60127_2, multiple, 10, t_max_s)", "want": 0.02, "ref": "The first row with a test current of at least 10 x In is sheet 2, 0.032-0.1 A: 20 ms max."}
+  ]
+}

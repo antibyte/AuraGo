@@ -1,0 +1,21 @@
+{
+  "_doc": "Vectors of smd_chip_sizes. Expected values are the maker numbers of the research file (Yageo RC_L, Vishay D/CRCW e3, Panasonic ERJ, KEMET MLCC, TDK MLCC), in the unit of the column.",
+  "table": "smd_chip_sizes",
+  "cells": [
+    {"key": "0805", "column": "l_mm", "want": 2.0, "ref": "0805 body length 2.0 mm: Yageo RC_L, Vishay D/CRCW e3, Panasonic ERJ and KEMET MLCC tables agree within 0.1 mm"},
+    {"key": "0805", "column": "w_mm", "want": 1.25, "ref": "0805 body width 1.25 mm: Yageo RC_L, Vishay D/CRCW e3, Panasonic ERJ and KEMET MLCC tables agree within 0.1 mm"},
+    {"key": "0603", "column": "metric", "want": "1608", "ref": "0603 = metric 1608: Vishay RR1608M and KEMET C1002 size code table"},
+    {"key": "01005", "column": "metric", "want": "0402", "ref": "01005 = metric 0402 (0.40 x 0.20 mm): TDK MLCC Product Guide, Yageo and Panasonic bodies"},
+    {"key": "0603", "column": "p_typ_w", "want": 0.1, "ref": "0603 rated power 0.1 W at 70 degC: Yageo, Vishay and Panasonic agree"},
+    {"key": "1206", "column": "p_typ_w", "want": 0.25, "ref": "1206 rated power 0.25 W at 70 degC: Yageo, Vishay and Panasonic agree"},
+    {"key": "1206", "column": "v_typ", "want": 200, "ref": "1206 max. working voltage 200 V: Yageo, Vishay and Panasonic agree"},
+    {"key": "0402", "column": "p_typ_w", "want": 0.0625, "ref": "0402 typical 1/16 W: Yageo RC_L and Vishay standard mode (Panasonic ERJ-2R states 0.1 W)"},
+    {"key": "0402", "column": "panasonic_erj_p_w", "want": 0.1, "ref": "Panasonic ERJ precision thick film, 0402 rated power 0.1 W"},
+    {"key": "2512", "column": "vishay_crcw_v", "want": 500, "ref": "Vishay D/CRCW e3 2512 operating voltage 500 V (Yageo and Panasonic state 200 V)"},
+    {"key": "2512", "column": "v_typ", "want": 200, "ref": "2512 typical 200 V: Yageo RC_L and Panasonic ERJ"},
+    {"key": "1812", "column": "yageo_rc_p_w", "want": null, "ref": "Yageo RC_L has no part in size 1812 (series 0075 to 2512 without 1812)"}
+  ],
+  "lookups": [
+    {"expr": "lookup_ge(smd_chip_sizes, p_typ_w, 0.2, l_mm)", "want": 0.0032, "ref": "1206 (0.25 W, 3.2 mm) is the first size with a typical rating of at least 0.2 W"}
+  ]
+}
