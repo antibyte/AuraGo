@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "桌面宠物",
   "desktop.pet_empty": "尚未安装宠物。请在下方导入一个。",
   "desktop.pet_enabled": "显示宠物",
+  "desktop.pet_gravity": "重力",
+  "desktop.pet_gravity_desc": "宠物始终落在程序坞栏上。",
   "desktop.pet_hello": "你好！",
   "desktop.pet_hide_bubble": "隐藏气泡",
   "desktop.pet_import": "导入 ZIP",

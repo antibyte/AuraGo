@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "डेस्कटॉप पालतू",
   "desktop.pet_empty": "अभी तक कोई पेट स्थापित नहीं। नीचे से एक आयात करें।",
   "desktop.pet_enabled": "पेट दिखाएं",
+  "desktop.pet_gravity": "गुरुत्वाकर्षण",
+  "desktop.pet_gravity_desc": "पालतू हमेशा डॉक बार पर गिरता है।",
   "desktop.pet_hello": "नमस्ते!",
   "desktop.pet_hide_bubble": "बुलबुला छिपाएं",
   "desktop.pet_import": "ZIP आयात करें",

@@ -610,6 +610,7 @@
         'pet.position_x': '-1',
         'pet.position_y': '-1',
         'pet.always_on_top': 'false',
+        'pet.gravity': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',
         'phone_gadget.position_x': '',
@@ -3431,6 +3432,8 @@
     const DRAG_TILT_SPRING = 220;
     const DRAG_TILT_DAMPING = 16;
     const DRAG_SETTLE_EPS = 0.08;
+    const GRAVITY_ACCEL_PX_S2 = 2400;
+    const GRAVITY_MAX_FALL_PX_S = 2400;
     const PET_REACTION_DURATION_MS = 2200;
     const PET_REACTION_DURATIONS_MS = {
         thinking: 1800,
@@ -3488,6 +3491,10 @@
     let ambientReturnTimer = null;
     let ambientMoveFrame = null;
     let reactionTimer = null;
+    let gravityFallFrame = null;
+    let gravityVelocity = 0;
+    let dockFloorObserver = null;
+    let dockFloorTarget = null;
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -3513,6 +3520,11 @@
 
     function petAlwaysOnTop() {
         return String(settingValue('pet.always_on_top')).toLowerCase() === 'true';
+    }
+
+    // Gravity keeps the pet on the dock bar: it drops down instead of staying where it was placed.
+    function petGravity() {
+        return String(settingValue('pet.gravity')).toLowerCase() === 'true';
     }
 
     function activePet() {
@@ -3600,12 +3612,14 @@
         bubbleEl = layer.querySelector('.vd-pet-bubble');
         spriteEl.setAttribute('aria-label', t('desktop.pet_aria_label'));
         wireDrag();
+        watchDockFloor();
     }
 
     function removeLayer() {
         if (!layer) return;
         clearAmbientTimers();
         clearReactionTimer();
+        stopGravityFall();
         layer.remove();
         layer = null;
         spriteEl = null;
@@ -3621,6 +3635,86 @@
         layer.dataset.alwaysOnTop = petAlwaysOnTop() ? 'true' : 'false';
     }
 
+    // The dock bar (dock shell) or the taskbar strip (taskbar shell) is the floor the pet stands on.
+    function petFloorTop() {
+        if (shellLayout() === 'dock') {
+            const host = document.getElementById('vd-taskbar-apps');
+            if (host) {
+                const rect = host.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) return rect.top;
+            }
+        }
+        const taskbar = document.querySelector('.vd-taskbar');
+        if (taskbar) {
+            const rect = taskbar.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) return rect.top;
+        }
+        return window.innerHeight;
+    }
+
+    function petRestingY(scale) {
+        const height = Math.round(PET_FRAME_H * scale);
+        return Math.max(0, Math.round(petFloorTop() - height));
+    }
+
+    function stopGravityFall() {
+        if (gravityFallFrame) {
+            window.cancelAnimationFrame(gravityFallFrame);
+            gravityFallFrame = null;
+        }
+        if (layer) layer.classList.remove('is-falling');
+    }
+
+    // Remember where the pet landed so switching gravity off keeps it in place.
+    function persistRestingY(y) {
+        if (String(settingValue('pet.position_y')) === String(y)) return;
+        saveSetting('pet.position_y', String(y));
+    }
+
+    // Gravity owns the vertical axis: the pet drops onto the dock bar and stays there.
+    function startGravityFall() {
+        if (!layer) return;
+        stopGravityFall();
+        if (!petGravity()) return;
+        layer.classList.add('is-falling');
+        let last = performance.now();
+        const tick = now => {
+            const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+            last = now;
+            const targetY = petRestingY(petScale());
+            const currentY = layer.offsetTop;
+            if (currentY >= targetY - 0.5) {
+                layer.style.top = targetY + 'px';
+                layer.classList.remove('is-falling');
+                gravityFallFrame = null;
+                gravityVelocity = 0;
+                persistRestingY(targetY);
+                positionBubbleInViewport();
+                return;
+            }
+            gravityVelocity = Math.min(GRAVITY_MAX_FALL_PX_S, gravityVelocity + GRAVITY_ACCEL_PX_S2 * dt);
+            layer.style.top = Math.round(currentY + gravityVelocity * dt) + 'px';
+            positionBubbleInViewport();
+            gravityFallFrame = window.requestAnimationFrame(tick);
+        };
+        gravityFallFrame = window.requestAnimationFrame(tick);
+    }
+
+    // The dock bar can collapse or grow; re-seat the pet whenever its footprint changes.
+    function watchDockFloor() {
+        if (typeof window.ResizeObserver !== 'function') return;
+        const target = document.getElementById('vd-taskbar-apps') || document.querySelector('.vd-taskbar');
+        if (!target) return;
+        if (dockFloorObserver && dockFloorTarget === target) return;
+        if (dockFloorObserver) dockFloorObserver.disconnect();
+        dockFloorTarget = target;
+        dockFloorObserver = new window.ResizeObserver(() => {
+            if (!layer || drag || !petGravity()) return;
+            applyPosition();
+        });
+        dockFloorObserver.observe(target);
+    }
+
     function applyPosition() {
         if (!layer) return;
         const scale = petScale();
@@ -3629,10 +3723,15 @@
         const h = Math.round(PET_FRAME_H * scale);
         const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });
         layer.style.left = clamped.x + 'px';
-        layer.style.top = clamped.y + 'px';
         layer.style.width = w + 'px';
         layer.style.height = h + 'px';
         if (spriteEl) spriteEl.style.transform = 'scale(' + scale + ')';
+        if (petGravity()) {
+            // Gravity owns the vertical axis: drop onto the dock bar instead of pinning a spot.
+            startGravityFall();
+            return;
+        }
+        layer.style.top = clamped.y + 'px';
         positionBubbleInViewport();
     }
 
@@ -3709,6 +3808,8 @@
             direction *= -1;
             target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
         }
+        // With gravity the pet runs along the dock bar, never away from it.
+        if (petGravity()) target.y = startY;
         return {
             startX,
             startY,
@@ -3790,6 +3891,7 @@
             return;
         }
         ensureLayer();
+        watchDockFloor();
         const url = spritesheetURL(pet);
         if (!url) {
             removeLayer();
@@ -4071,6 +4173,7 @@
             clearAmbientTimers();
             cancelDragSettle();
             stopDragMotionLoop();
+            stopGravityFall();
             const now = performance.now();
             drag = {
                 pointerId: event.pointerId,
@@ -4104,6 +4207,12 @@
                 cancelDragSettle();
                 drag = null;
                 saveSetting('pet.position_x', String(x));
+                if (petGravity()) {
+                    // Gravity pulls the dropped pet back down onto the dock bar.
+                    gravityVelocity = 0;
+                    startGravityFall();
+                    return;
+                }
                 saveSetting('pet.position_y', String(y));
             });
         });
@@ -4126,11 +4235,13 @@
     function showPetContextMenu(event) {
         const petVisible = petEnabled();
         const petOnTop = petAlwaysOnTop();
+        const petGravityOn = petGravity();
         const items = [
             { label: t('desktop.pet_open_picker'), icon: 'heart', action: () => openApp('pet-picker') },
             { separator: true },
             { label: t('desktop.pet_enabled'), icon: petVisible ? 'check-square' : 'square', fallback: petVisible ? '\u2713' : '\u2610', action: toggleEnabled },
             { label: t('desktop.pet_always_on_top'), icon: petOnTop ? 'check-square' : 'square', fallback: petOnTop ? '\u2713' : '\u2610', action: toggleAlwaysOnTop },
+            { label: t('desktop.pet_gravity'), icon: petGravityOn ? 'check-square' : 'square', fallback: petGravityOn ? '\u2713' : '\u2610', action: toggleGravity },
             { separator: true },
             { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
         ];
@@ -4148,6 +4259,21 @@
     function toggleAlwaysOnTop() {
         const next = !petAlwaysOnTop();
         saveSetting('pet.always_on_top', String(next)).then(updateLayerZIndex);
+    }
+
+    function toggleGravity() {
+        const next = !petGravity();
+        saveSetting('pet.gravity', String(next)).then(() => {
+            gravityVelocity = 0;
+            if (next) {
+                // Switched on: the pet drops onto the dock bar and stays there.
+                startGravityFall();
+                return;
+            }
+            // Switched off: the pet keeps the spot it last rested on.
+            stopGravityFall();
+            applyPosition();
+        });
     }
 
     function handlePetEvent(event) {
@@ -4182,6 +4308,7 @@
         window.addEventListener('resize', () => {
             if (layer) applyPosition();
         });
+        watchDockFloor();
         // Re-render after bootstrap is ready.
         const check = () => {
             if (state.bootstrap) {

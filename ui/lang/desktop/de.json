@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Desktop-Haustier",
   "desktop.pet_empty": "Noch keine Pets installiert. Importiere eines unten.",
   "desktop.pet_enabled": "Pet anzeigen",
+  "desktop.pet_gravity": "Schwerkraft",
+  "desktop.pet_gravity_desc": "Das Pet fällt immer auf die Dock-Leiste.",
   "desktop.pet_hello": "Hallo!",
   "desktop.pet_hide_bubble": "Blase ausblenden",
   "desktop.pet_import": "ZIP importieren",

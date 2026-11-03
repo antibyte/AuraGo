@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Animal de bureau",
   "desktop.pet_empty": "Aucune mascotte installée. Importe-en une ci-dessous.",
   "desktop.pet_enabled": "Afficher la mascotte",
+  "desktop.pet_gravity": "Gravité",
+  "desktop.pet_gravity_desc": "L'animal tombe toujours sur la barre du Dock.",
   "desktop.pet_hello": "Salut !",
   "desktop.pet_hide_bubble": "Masquer la bulle",
   "desktop.pet_import": "Importer un ZIP",

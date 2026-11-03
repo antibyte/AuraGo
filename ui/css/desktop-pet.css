@@ -21,6 +21,11 @@
     transition: none;
 }
 
+/* Gravity animates the fall frame by frame; the slide transition would fight it. */
+.vd-pet-layer.is-falling {
+    transition: none;
+}
+
 .vd-pet-sprite {
     position: absolute;
     left: 0;

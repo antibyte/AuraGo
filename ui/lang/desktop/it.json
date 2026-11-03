@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Animaletto del desktop",
   "desktop.pet_empty": "Nessun animale installato. Importane uno qui sotto.",
   "desktop.pet_enabled": "Mostra animale",
+  "desktop.pet_gravity": "Gravità",
+  "desktop.pet_gravity_desc": "L'animale cade sempre sulla barra del Dock.",
   "desktop.pet_hello": "Ciao!",
   "desktop.pet_hide_bubble": "Nascondi bolla",
   "desktop.pet_import": "Importa ZIP",

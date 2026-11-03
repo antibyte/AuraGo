@@ -2845,6 +2845,8 @@
   "desktop.pet_aria_label": "Desktop pet",
   "desktop.pet_empty": "No pets installed yet. Import one below.",
   "desktop.pet_enabled": "Show pet",
+  "desktop.pet_gravity": "Gravity",
+  "desktop.pet_gravity_desc": "The pet always falls onto the dock bar.",
   "desktop.pet_hello": "Hi there!",
   "desktop.pet_hide_bubble": "Hide bubble",
   "desktop.pet_import": "Import ZIP",

@@ -341,6 +341,7 @@
         'pet.position_x': '-1',
         'pet.position_y': '-1',
         'pet.always_on_top': 'false',
+        'pet.gravity': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',
         'phone_gadget.position_x': '',

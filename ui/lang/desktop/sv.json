@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Skrivbordsdjur",
   "desktop.pet_empty": "Inga husdjur installerade än. Importera ett nedan.",
   "desktop.pet_enabled": "Visa husdjur",
+  "desktop.pet_gravity": "Gravitation",
+  "desktop.pet_gravity_desc": "Husdjuret faller alltid ned på dockfältet.",
   "desktop.pet_hello": "Hej!",
   "desktop.pet_hide_bubble": "Dölj bubbla",
   "desktop.pet_import": "Importera ZIP",

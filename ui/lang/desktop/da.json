@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Skrivebordskæledyr",
   "desktop.pet_empty": "Ingen kæledyr installeret endnu. Importer et nedenfor.",
   "desktop.pet_enabled": "Vis kæledyr",
+  "desktop.pet_gravity": "Tyngdekraft",
+  "desktop.pet_gravity_desc": "Kæledyret falder altid ned på docklinjen.",
   "desktop.pet_hello": "Hej!",
   "desktop.pet_hide_bubble": "Skjul boble",
   "desktop.pet_import": "Importer ZIP",

@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Desktopový mazlíček",
   "desktop.pet_empty": "Zatím žádní mazlíčci. Importuj jednoho níže.",
   "desktop.pet_enabled": "Zobrazit mazlíčka",
+  "desktop.pet_gravity": "Gravitace",
+  "desktop.pet_gravity_desc": "Pet vždy spadne na lištu Docku.",
   "desktop.pet_hello": "Ahoj!",
   "desktop.pet_hide_bubble": "Skrýt bublinu",
   "desktop.pet_import": "Importovat ZIP",

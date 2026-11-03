@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Κατοικίδιο επιφάνειας",
   "desktop.pet_empty": "Δεν υπάρχουν εγκατεστημένα κατοικίδια ακόμα. Εισήγαγε ένα παρακάτω.",
   "desktop.pet_enabled": "Εμφάνιση κατοικιδίου",
+  "desktop.pet_gravity": "Βαρύτητα",
+  "desktop.pet_gravity_desc": "Το κατοικίδιο πέφτει πάντα στη γραμμή του Dock.",
   "desktop.pet_hello": "Γειά!",
   "desktop.pet_hide_bubble": "Απόκρυψη φυσαλίδας",
   "desktop.pet_import": "Εισαγωγή ZIP",

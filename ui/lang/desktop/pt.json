@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Mascote da área de trabalho",
   "desktop.pet_empty": "Nenhuma mascote instalada ainda. Importe uma abaixo.",
   "desktop.pet_enabled": "Mostrar mascote",
+  "desktop.pet_gravity": "Gravidade",
+  "desktop.pet_gravity_desc": "O animal de estimação cai sempre na barra do Dock.",
   "desktop.pet_hello": "Oi!",
   "desktop.pet_hide_bubble": "Ocultar bolha",
   "desktop.pet_import": "Importar ZIP",

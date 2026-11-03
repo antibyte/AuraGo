@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "デスクトップペット",
   "desktop.pet_empty": "まだペットがインストールされていません。下からインポートしてください。",
   "desktop.pet_enabled": "ペットを表示",
+  "desktop.pet_gravity": "重力",
+  "desktop.pet_gravity_desc": "ペットは常にドックバーに落ちます。",
   "desktop.pet_hello": "こんにちは！",
   "desktop.pet_hide_bubble": "バブルを隠す",
   "desktop.pet_import": "ZIPをインポート",

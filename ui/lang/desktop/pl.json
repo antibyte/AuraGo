@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Zwierzak pulpitu",
   "desktop.pet_empty": "Brak zainstalowanych zwierzaków. Zaimportuj jednego poniżej.",
   "desktop.pet_enabled": "Pokaż zwierzaka",
+  "desktop.pet_gravity": "Grawitacja",
+  "desktop.pet_gravity_desc": "Zwierzak zawsze spada na pasek Docka.",
   "desktop.pet_hello": "Cześć!",
   "desktop.pet_hide_bubble": "Ukryj dymek",
   "desktop.pet_import": "Importuj ZIP",

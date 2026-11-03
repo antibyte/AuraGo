@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Bureaubladdier",
   "desktop.pet_empty": "Nog geen huisdieren geïnstalleerd. Importeer er een hieronder.",
   "desktop.pet_enabled": "Toon huisdier",
+  "desktop.pet_gravity": "Zwaartekracht",
+  "desktop.pet_gravity_desc": "Het huisdier valt altijd op de dockbalk.",
   "desktop.pet_hello": "Hoi!",
   "desktop.pet_hide_bubble": "Verberg tekstballon",
   "desktop.pet_import": "Importeer ZIP",

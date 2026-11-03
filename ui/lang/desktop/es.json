@@ -2844,6 +2844,8 @@
   "desktop.pet_aria_label": "Mascota del escritorio",
   "desktop.pet_empty": "Aún no hay mascotas instaladas. Importa una abajo.",
   "desktop.pet_enabled": "Mostrar mascota",
+  "desktop.pet_gravity": "Gravedad",
+  "desktop.pet_gravity_desc": "La mascota siempre cae sobre la barra del Dock.",
   "desktop.pet_hello": "¡Hola!",
   "desktop.pet_hide_bubble": "Ocultar burbuja",
   "desktop.pet_import": "Importar ZIP",

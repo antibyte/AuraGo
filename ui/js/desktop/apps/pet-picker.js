@@ -33,6 +33,10 @@
                         <span>${esc(t('desktop.pet_always_on_top'))}</span>
                         <input type="checkbox" class="vd-pet-picker-always-on-top">
                     </label>
+                    <label class="vd-pet-picker-setting" title="${esc(t('desktop.pet_gravity_desc'))}">
+                        <span>${esc(t('desktop.pet_gravity'))}</span>
+                        <input type="checkbox" class="vd-pet-picker-gravity">
+                    </label>
                 </div>
                 <div class="vd-pet-picker-actions">
                     <button type="button" class="vd-pet-picker-import vd-btn-primary">${esc(t('desktop.pet_import'))}</button>
@@ -46,6 +50,7 @@
         const scaleValue = host.querySelector('.vd-pet-picker-scale-value');
         const enabledInput = host.querySelector('.vd-pet-picker-enabled');
         const alwaysOnTopInput = host.querySelector('.vd-pet-picker-always-on-top');
+        const gravityInput = host.querySelector('.vd-pet-picker-gravity');
         const importBtn = host.querySelector('.vd-pet-picker-import');
         const fileInput = host.querySelector('.vd-pet-picker-file');
 
@@ -84,6 +89,7 @@
                 scaleValue.textContent = formatScale(scaleInput.value);
                 enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
                 alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';
+                gravityInput.checked = String(settings['pet.gravity']).toLowerCase() === 'true';
                 syncPetBootstrap({ pets, active_pet_id: activeId, settings });
                 if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();
             } catch (err) {
@@ -150,6 +156,9 @@
         });
         alwaysOnTopInput.addEventListener('change', () => {
             saveSetting('pet.always_on_top', String(alwaysOnTopInput.checked));
+        });
+        gravityInput.addEventListener('change', () => {
+            saveSetting('pet.gravity', String(gravityInput.checked));
         });
 
         importBtn.addEventListener('click', () => fileInput.click());
