@@ -5527,7 +5527,7 @@
           "label": "s",
           "name": "Minimum spacing",
           "alts": [
-            "if(revc, if(vpk > 500, lookup_ge(ipc2221c_conductor_spacing, v_max, 500, cc) + (vpk - 500) * lookup(ipc2221c_conductor_spacing, cc, 500), lookup_ge(ipc2221c_conductor_spacing, v_max, vpk, cc)), if(inb, if(vpk > 500, lookup_ge(ipc2221b_conductor_spacing, v_max, 500, cb) + (vpk - 500) * lookup(ipc2221b_conductor_spacing, cb, 500), lookup_ge(ipc2221b_conductor_spacing, v_max, vpk, cb)), 0/0))"
+            "if(revc, if(vpk > 500, lookup_ge(ipc2221c_conductor_spacing, v_max, 500, cc) + (vpk - 500) * lookup_ge(ipc2221c_conductor_spacing, per_volt, 1, cc), lookup_ge(ipc2221c_conductor_spacing, v_max, vpk, cc)), if(inb, if(vpk > 500, lookup_ge(ipc2221b_conductor_spacing, v_max, 500, cb) + (vpk - 500) * lookup_ge(ipc2221b_conductor_spacing, per_volt, 1, cb), lookup_ge(ipc2221b_conductor_spacing, v_max, vpk, cb)), 0/0))"
           ],
           "unit": "mm",
           "units": [
@@ -20651,7 +20651,7 @@
       "name": "PCB conductor spacing by voltage (IPC-2221B)",
       "name_en": "PCB conductor spacing by voltage (IPC-2221B)",
       "doc": "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221B table 6-1, the same table as in IPC-2221A).",
-      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.",
+      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.",
       "tags": [
         "ipc-2221",
         "pcb",
@@ -20672,8 +20672,16 @@
       "source": "IPC-2221B table 6-1 (electrical conductor spacing), read from the Altium Resources and P. McGaw reproductions and checked against smps.us and the Siemens EDA article by S. V. Chavez (2025)",
       "guide": true,
       "mains": false,
-      "key": "v_min",
+      "key": "band",
       "columns": [
+        {
+          "id": "band",
+          "name": "Voltage band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
         {
           "id": "v_min",
           "name": "Voltage from (DC or AC peak)",
@@ -20782,6 +20790,7 @@
       ],
       "rows": [
         [
+          "0–15 V",
           0,
           15,
           0.00005,
@@ -20794,6 +20803,7 @@
           0
         ],
         [
+          "16–30 V",
           16,
           30,
           0.00005,
@@ -20806,6 +20816,7 @@
           0
         ],
         [
+          "31–50 V",
           31,
           50,
           0.0001,
@@ -20818,6 +20829,7 @@
           0
         ],
         [
+          "51–100 V",
           51,
           100,
           0.0001,
@@ -20830,6 +20842,7 @@
           0
         ],
         [
+          "101–150 V",
           101,
           150,
           0.0002,
@@ -20842,6 +20855,7 @@
           0
         ],
         [
+          "151–170 V",
           151,
           170,
           0.0002,
@@ -20854,6 +20868,7 @@
           0
         ],
         [
+          "171–250 V",
           171,
           250,
           0.0002,
@@ -20866,6 +20881,7 @@
           0
         ],
         [
+          "251–300 V",
           251,
           300,
           0.0002,
@@ -20878,6 +20894,7 @@
           0
         ],
         [
+          "301–500 V",
           301,
           500,
           0.00025,
@@ -20890,7 +20907,8 @@
           0
         ],
         [
-          500,
+          "above 500 V, per volt",
+          null,
           null,
           0.0000025,
           0.000005,
@@ -20919,7 +20937,7 @@
       "name": "PCB conductor spacing by voltage (IPC-2221C)",
       "name_en": "PCB conductor spacing by voltage (IPC-2221C)",
       "doc": "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221C table 6-1, December 2023).",
-      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.",
+      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.",
       "tags": [
         "ipc-2221",
         "pcb",
@@ -20940,8 +20958,16 @@
       "source": "IPC-2221C (December 2023) table 6-1 (electrical conductor spacing), read from the figure in the Siemens EDA article by S. V. Chavez (2025) and checked against the constants of the pcb-toolkit crate",
       "guide": true,
       "mains": false,
-      "key": "v_min",
+      "key": "band",
       "columns": [
+        {
+          "id": "band",
+          "name": "Voltage band",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
         {
           "id": "v_min",
           "name": "Voltage from (DC or AC peak)",
@@ -21061,6 +21087,7 @@
       ],
       "rows": [
         [
+          "0–15 V",
           0,
           15,
           0.00005,
@@ -21074,6 +21101,7 @@
           0
         ],
         [
+          "16–30 V",
           16,
           30,
           0.00005,
@@ -21087,6 +21115,7 @@
           0
         ],
         [
+          "31–50 V",
           31,
           50,
           0.0001,
@@ -21100,6 +21129,7 @@
           0
         ],
         [
+          "51–100 V",
           51,
           100,
           0.0001,
@@ -21113,6 +21143,7 @@
           0
         ],
         [
+          "101–150 V",
           101,
           150,
           0.0002,
@@ -21126,6 +21157,7 @@
           0
         ],
         [
+          "151–170 V",
           151,
           170,
           0.0002,
@@ -21139,6 +21171,7 @@
           0
         ],
         [
+          "171–250 V",
           171,
           250,
           0.0002,
@@ -21152,6 +21185,7 @@
           0
         ],
         [
+          "251–300 V",
           251,
           300,
           0.0002,
@@ -21165,6 +21199,7 @@
           0
         ],
         [
+          "301–500 V",
           301,
           500,
           0.00025,
@@ -21178,7 +21213,8 @@
           0
         ],
         [
-          500,
+          "above 500 V, per volt",
+          null,
           null,
           0.0000025,
           0.000005,

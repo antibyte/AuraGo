@@ -412,12 +412,13 @@
   finder: {calc: trace_spacing_finder, column: v_min, var: band_min, choices: {revision: b}}
   name: {cs: "Vzdálenosti vodičů na DPS podle napětí (IPC-2221B)", da: "Lederafstand på print efter spænding (IPC-2221B)", de: "Leiterabstände auf Leiterplatten nach Spannung (IPC-2221B)", el: "Αποστάσεις αγωγών PCB ανά τάση (IPC-2221B)", en: "PCB conductor spacing by voltage (IPC-2221B)", es: "Separación de conductores en PCB según la tensión (IPC-2221B)", fr: "Distances entre conducteurs d'un circuit imprimé selon la tension (IPC-2221B)", hi: "वोल्टेज के अनुसार पीसीबी चालक दूरी (IPC-2221B)", it: "Distanza tra i conduttori del PCB in base alla tensione (IPC-2221B)", ja: "電圧別のプリント基板導体間隔 (IPC-2221B)", nl: "Geleiderafstand op pcb per spanning (IPC-2221B)", no: "Lederavstand på kretskort etter spenning (IPC-2221B)", pl: "Odstępy między ścieżkami PCB według napięcia (IPC-2221B)", pt: "Distância entre condutores em PCB por tensão (IPC-2221B)", sv: "Ledaravstånd på kretskort efter spänning (IPC-2221B)", zh: "按电压的 PCB 导体间距 (IPC-2221B)"}
   doc: {en: "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221B table 6-1, the same table as in IPC-2221A).", de: "Mindestabstand zwischen Leitern auf einer Leiterplatte nach der Spannung zwischen ihnen (DC oder AC-Scheitelwert), für Innen- und Außenlagen und Bauteilanschlüsse (IPC-2221B Tabelle 6-1, dieselbe Tabelle wie in IPC-2221A)."}
-  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. In der letzten Zeile (Zeile je Volt, mit 1 markiert) stehen Millimeter (oder mil) je Volt: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Lötstopplack gilt für B2 und B3 nicht als Beschichtung. Eine Wiedergabe der Tabelle nannte für B2 bei 251 bis 300 V 2,5 mm statt 1,25 mm; 1,25 mm passt zur Angabe, dass IPC bei 300 V 1,25 mm und bei 301 V 2,5 mm nennt, und zu IPC-2221C. IPC-2221C (2023) hat die Tabelle überarbeitet, siehe die eigene Tabelle."}
+  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Solder resist does not count as a coating for B2 and B3. One reproduction of the table printed 2.5 mm instead of 1.25 mm for B2 at 251 to 300 V; 1.25 mm agrees with the remark that IPC gives 1.25 mm at 300 V and 2.5 mm at 301 V and with IPC-2221C. IPC-2221C (2023) revised the table, see its own table.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. Die letzte Zeile (über 500 V, je Volt; in der Spalte je Volt mit 1 markiert) enthält Millimeter (oder mil) je Volt und keinen Abstand: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Sie gehört zu keinem Spannungsband (Spannung ab und bis sind leer), eine Suche nach der Spannung trifft sie deshalb nie; sie wird mit je Volt = 1 gewählt. Lötstopplack gilt für B2 und B3 nicht als Beschichtung. Eine Wiedergabe der Tabelle nannte für B2 bei 251 bis 300 V 2,5 mm statt 1,25 mm; 1,25 mm passt zur Angabe, dass IPC bei 300 V 1,25 mm und bei 301 V 2,5 mm nennt, und zu IPC-2221C. IPC-2221C (2023) hat die Tabelle überarbeitet, siehe die eigene Tabelle."}
   tags: [ipc-2221, pcb, spacing, clearance, creepage, conductor spacing, voltage, isolation, leiterplatte, abstand, leiterabstand, spannung, kriechstrecke, luftstrecke, ipc-2221b]
   source: "IPC-2221B table 6-1 (electrical conductor spacing), read from the Altium Resources and P. McGaw reproductions and checked against smps.us and the Siemens EDA article by S. V. Chavez (2025)"
   guide: true
-  key: v_min
+  key: band
   columns:
+    - {id: band, name: {en: "Voltage band", de: "Spannungsband"}, dim: text}
     - {id: v_min, name: {en: "Voltage from (DC or AC peak)", de: "Spannung ab (DC oder AC-Scheitelwert)"}, dim: voltage, units: [""], label: "U"}
     - {id: v_max, name: {en: "Voltage to", de: "Spannung bis"}, dim: voltage, units: [""], label: "U"}
     - {id: b1, name: {en: "B1: internal conductors", de: "B1: Innenlagen"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
@@ -429,16 +430,16 @@
     - {id: a7, name: {en: "A7: component lead, conformal coating", de: "A7: Bauteilanschluss, Schutzlack"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
     - {id: per_volt, name: {en: "Per-volt row (1: values are mm per volt)", de: "Zeile je Volt (1: Werte in mm je Volt)"}, dim: number}
   rows:
-    - [0, 15, 0.05, 0.1, 0.1, 0.05, 0.13, 0.13, 0.13, 0]
-    - [16, 30, 0.05, 0.1, 0.1, 0.05, 0.13, 0.25, 0.13, 0]
-    - [31, 50, 0.1, 0.6, 0.6, 0.13, 0.13, 0.4, 0.13, 0]
-    - [51, 100, 0.1, 0.6, 1.5, 0.13, 0.13, 0.5, 0.13, 0]
-    - [101, 150, 0.2, 0.6, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
-    - [151, 170, 0.2, 1.25, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
-    - [171, 250, 0.2, 1.25, 6.4, 0.4, 0.4, 0.8, 0.4, 0]
-    - [251, 300, 0.2, 1.25, 12.5, 0.4, 0.4, 0.8, 0.8, 0]
-    - [301, 500, 0.25, 2.5, 12.5, 0.8, 0.8, 1.5, 0.8, 0]
-    - [500, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 1]
+    - ["0–15 V", 0, 15, 0.05, 0.1, 0.1, 0.05, 0.13, 0.13, 0.13, 0]
+    - ["16–30 V", 16, 30, 0.05, 0.1, 0.1, 0.05, 0.13, 0.25, 0.13, 0]
+    - ["31–50 V", 31, 50, 0.1, 0.6, 0.6, 0.13, 0.13, 0.4, 0.13, 0]
+    - ["51–100 V", 51, 100, 0.1, 0.6, 1.5, 0.13, 0.13, 0.5, 0.13, 0]
+    - ["101–150 V", 101, 150, 0.2, 0.6, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
+    - ["151–170 V", 151, 170, 0.2, 1.25, 3.2, 0.4, 0.4, 0.8, 0.4, 0]
+    - ["171–250 V", 171, 250, 0.2, 1.25, 6.4, 0.4, 0.4, 0.8, 0.4, 0]
+    - ["251–300 V", 251, 300, 0.2, 1.25, 12.5, 0.4, 0.4, 0.8, 0.8, 0]
+    - ["301–500 V", 301, 500, 0.25, 2.5, 12.5, 0.8, 0.8, 1.5, 0.8, 0]
+    - [{en: "above 500 V, per volt", de: "über 500 V, je Volt"}, null, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 1]
 
 - id: ipc2221c_conductor_spacing
   kind: table
@@ -447,12 +448,13 @@
   finder: {calc: trace_spacing_finder, column: v_min, var: band_min, choices: {revision: c}}
   name: {cs: "Vzdálenosti vodičů na DPS podle napětí (IPC-2221C)", da: "Lederafstand på print efter spænding (IPC-2221C)", de: "Leiterabstände auf Leiterplatten nach Spannung (IPC-2221C)", el: "Αποστάσεις αγωγών PCB ανά τάση (IPC-2221C)", en: "PCB conductor spacing by voltage (IPC-2221C)", es: "Separación de conductores en PCB según la tensión (IPC-2221C)", fr: "Distances entre conducteurs d'un circuit imprimé selon la tension (IPC-2221C)", hi: "वोल्टेज के अनुसार पीसीबी चालक दूरी (IPC-2221C)", it: "Distanza tra i conduttori del PCB in base alla tensione (IPC-2221C)", ja: "電圧別のプリント基板導体間隔 (IPC-2221C)", nl: "Geleiderafstand op pcb per spanning (IPC-2221C)", no: "Lederavstand på kretskort etter spenning (IPC-2221C)", pl: "Odstępy między ścieżkami PCB według napięcia (IPC-2221C)", pt: "Distância entre condutores em PCB por tensão (IPC-2221C)", sv: "Ledaravstånd på kretskort efter spänning (IPC-2221C)", zh: "按电压的 PCB 导体间距 (IPC-2221C)"}
   doc: {en: "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221C table 6-1, December 2023).", de: "Mindestabstand zwischen Leitern auf einer Leiterplatte nach der Spannung zwischen ihnen (DC oder AC-Scheitelwert), für Innen- und Außenlagen und Bauteilanschlüsse (IPC-2221C Tabelle 6-1, Dezember 2023)."}
-  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. In the last row (per-volt row, marked 1) the values are millimetres (or mil) per volt: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. In der letzten Zeile (Zeile je Volt, mit 1 markiert) stehen Millimeter (oder mil) je Volt: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Die Spalte B5 hieß früher A5; die alten A6-Werte stehen jetzt in A7 und die alten A7-Werte (außer 251 bis 300 V) in A6; A8 ist neu. Die Werte wurden der veröffentlichten Tabelle entnommen und stimmen in zwei Quellen überein; der Wortlaut der Spalten B4, A6, A7 und A8 stammt nur aus einer Quelle (dem Crate pcb-toolkit) und wurde nicht mit IPC-2221C Abschnitt 6.3 verglichen."}
+  notes: {en: "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.", de: "IPC-2221 gibt Funktionsabstände für Leiterplatten an; für Netz- bzw. Schutztrennung gelten die Kriech- und Luftstrecken nach IEC 60664-1 und IEC 62368-1. Die Bänder verwenden ganze Volt; eine Spannung zwischen zwei Bändern (15,5 V) gehört zum nächsthöheren Band. Die letzte Zeile (über 500 V, je Volt; in der Spalte je Volt mit 1 markiert) enthält Millimeter (oder mil) je Volt und keinen Abstand: Für eine Spannung über 500 V werden sie für jedes Volt über 500 V zum Wert der Zeile 301 bis 500 V addiert. Sie gehört zu keinem Spannungsband (Spannung ab und bis sind leer), eine Suche nach der Spannung trifft sie deshalb nie; sie wird mit je Volt = 1 gewählt. Die Spalte B5 hieß früher A5; die alten A6-Werte stehen jetzt in A7 und die alten A7-Werte (außer 251 bis 300 V) in A6; A8 ist neu. Die Werte wurden der veröffentlichten Tabelle entnommen und stimmen in zwei Quellen überein; der Wortlaut der Spalten B4, A6, A7 und A8 stammt nur aus einer Quelle (dem Crate pcb-toolkit) und wurde nicht mit IPC-2221C Abschnitt 6.3 verglichen."}
   tags: [ipc-2221, pcb, spacing, clearance, creepage, conductor spacing, voltage, isolation, leiterplatte, abstand, leiterabstand, spannung, kriechstrecke, luftstrecke, ipc-2221c]
   source: "IPC-2221C (December 2023) table 6-1 (electrical conductor spacing), read from the figure in the Siemens EDA article by S. V. Chavez (2025) and checked against the constants of the pcb-toolkit crate"
   guide: true
-  key: v_min
+  key: band
   columns:
+    - {id: band, name: {en: "Voltage band", de: "Spannungsband"}, dim: text}
     - {id: v_min, name: {en: "Voltage from (DC or AC peak)", de: "Spannung ab (DC oder AC-Scheitelwert)"}, dim: voltage, units: [""], label: "U"}
     - {id: v_max, name: {en: "Voltage to", de: "Spannung bis"}, dim: voltage, units: [""], label: "U"}
     - {id: b1, name: {en: "B1: internal conductors", de: "B1: Innenlagen"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
@@ -465,16 +467,16 @@
     - {id: a8, name: {en: "A8: component lead, uncoated, above 3050 m or vacuum", de: "A8: Bauteilanschluss, unbeschichtet, über 3050 m oder Vakuum"}, dim: length, unit: mm, units: [mm, mil], label: "s"}
     - {id: per_volt, name: {en: "Per-volt row (1: values are mm per volt)", de: "Zeile je Volt (1: Werte in mm je Volt)"}, dim: number}
   rows:
-    - [0, 15, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.13, 0.13, 0]
-    - [16, 30, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.25, 0.25, 0]
-    - [31, 50, 0.1, 0.64, 0.64, 0.3, 0.13, 0.13, 0.4, 0.8, 0]
-    - [51, 100, 0.1, 0.64, 1.5, 0.3, 0.13, 0.13, 0.5, 1.0, 0]
-    - [101, 150, 0.2, 0.64, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
-    - [151, 170, 0.2, 1.25, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
-    - [171, 250, 0.2, 1.25, 6.4, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
-    - [251, 300, 0.2, 1.25, 12.5, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
-    - [301, 500, 0.25, 2.5, 12.5, 1.6, 0.8, 0.8, 1.5, 3.0, 0]
-    - [500, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 0.0061, 1]
+    - ["0–15 V", 0, 15, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.13, 0.13, 0]
+    - ["16–30 V", 16, 30, 0.05, 0.1, 0.1, 0.075, 0.075, 0.13, 0.25, 0.25, 0]
+    - ["31–50 V", 31, 50, 0.1, 0.64, 0.64, 0.3, 0.13, 0.13, 0.4, 0.8, 0]
+    - ["51–100 V", 51, 100, 0.1, 0.64, 1.5, 0.3, 0.13, 0.13, 0.5, 1.0, 0]
+    - ["101–150 V", 101, 150, 0.2, 0.64, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - ["151–170 V", 151, 170, 0.2, 1.25, 3.2, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - ["171–250 V", 171, 250, 0.2, 1.25, 6.4, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - ["251–300 V", 251, 300, 0.2, 1.25, 12.5, 0.8, 0.4, 0.4, 0.8, 1.6, 0]
+    - ["301–500 V", 301, 500, 0.25, 2.5, 12.5, 1.6, 0.8, 0.8, 1.5, 3.0, 0]
+    - [{en: "above 500 V, per volt", de: "über 500 V, je Volt"}, null, null, 0.0025, 0.005, 0.025, 0.00305, 0.00305, 0.00305, 0.00305, 0.0061, 1]
 
 - id: pcb_copper_weight
   kind: table

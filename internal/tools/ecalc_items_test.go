@@ -280,3 +280,49 @@ func TestECalcDecodeAndEncodeRefuseWhatTheyCannotRead(t *testing.T) {
 		}
 	}
 }
+
+// The last row of the IPC-2221 spacing tables holds millimetres per volt in the same length columns as the spacings.
+// It has no voltage band, so no lookup on a voltage may reach it: a lookup that reached it answered 0.005 mm for 500 V
+// (the right spacing is 2.5 mm). This test names the two content tables because the defect lived in their data.
+func TestECalcSpacingTablesNeverAnswerWithThePerVoltRow(t *testing.T) {
+	lookup := func(id string, lk ecalc.TableLookup) map[string]any {
+		t.Helper()
+		out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "table", ID: id, Lookup: &lk}))
+		if out["status"] != "ok" {
+			t.Fatalf("%s %+v: %v", id, lk, out)
+		}
+		l, _ := out["lookup"].(map[string]any)
+		if l == nil {
+			t.Fatalf("%s %+v: no lookup in %v", id, lk, out)
+		}
+		return l
+	}
+	for _, id := range []string{"ipc2221b_conductor_spacing", "ipc2221c_conductor_spacing"} {
+		// 500 on the key column, ge and interp over the start of the band: nothing, never the per-volt value.
+		for name, lk := range map[string]ecalc.TableLookup{
+			"exact 500":        {Value: "500", Output: "b2"},
+			"exact 500 V":      {Column: "v_min", Value: "500 V", Output: "b2"},
+			"ge v_min 400":     {Mode: "ge", Column: "v_min", Value: "400", Output: "b2"},
+			"interp v_min":     {Mode: "interp", Column: "v_min", Value: "400", Output: "b2"},
+			"interp v_min 600": {Mode: "interp", Column: "v_min", Value: "600", Output: "b1"},
+		} {
+			if l := lookup(id, lk); l["found"] != false || l["result"] != nil || l["row"] != nil || l["message"] == nil {
+				t.Errorf("%s %s = %v, want found:false", id, name, l)
+			}
+		}
+		// 400 V belongs to the 301 to 500 V band: B2 = 2.5 mm.
+		if l := lookup(id, ecalc.TableLookup{Mode: "ge", Column: "v_max", Value: "400", Output: "b2"}); l["found"] != true || l["result"] != "2.5 mm" {
+			t.Errorf("%s ge v_max 400 = %v, want 2.5 mm", id, l)
+		}
+		// The band is the key and reads as text.
+		if l := lookup(id, ecalc.TableLookup{Value: "301–500 V", Output: "b2"}); l["found"] != true || l["result"] != "2.5 mm" {
+			t.Errorf("%s exact band = %v, want 2.5 mm", id, l)
+		}
+		// The per-volt row is reached by its marker and by its text key, and it says that it is a per-volt row.
+		l := lookup(id, ecalc.TableLookup{Mode: "ge", Column: "per_volt", Value: "1", Output: "b1"})
+		row, _ := l["row"].([]any)
+		if l["found"] != true || len(row) == 0 || !strings.Contains(row[0].(string), "per volt") {
+			t.Errorf("%s per_volt marker = %v", id, l)
+		}
+	}
+}
