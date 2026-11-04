@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Tool",
   "dashboard.selftest_connections": "Verbindingen",
-  "dashboard.rustfs_running_unready": "Draait, nog niet gereed"
+  "dashboard.rustfs_running_unready": "Draait, nog niet gereed",
+  "dashboard.audit_type_flow_mission_repair": "Missiekoppeling van flow hersteld"
 }

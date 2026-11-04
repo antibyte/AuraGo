@@ -1270,11 +1270,38 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
-- Twenty scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
+- The classic scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
   order of `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`), `easydrag.js` last.
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
   shows the start page once the editor's `leave()` allowed it.
+- `easydrag-workspace.js` owns panel resizing, the visible step outline and path framing.
+  Preferences contain only view choices in `aurago.easydrag.workspace`, never flow payloads.
+  Resizers have keyboard and pointer controls. Keep the selected node visible when a panel
+  opens; below 760 px retain graph/inspector turn-taking. Opening a populated flow may collapse
+  the palette to preserve readable fit, but must respect an explicit preference. Outline updates
+  must not add a full-document traversal to every run event.
+  Resize observers schedule writes in animation frames and skip unchanged dimensions; disposal
+  cancels those frames. Do not suppress browser observer-loop errors.
+- Mapping has an explicit target selector. Never fall back to an arbitrary first field; preserve
+  the selected field/caret and pending IME edits. Wide inspectors can show source and target
+  together. Result text stays plain text and bounded; tree/table/JSON remain available.
+- Form refresh compares parameter/settings/key content, including same-object mutations. Data
+  and validation-only refreshes retain existing controls, focus and caret; real content changes
+  still update the form. Verify the flagship regression and Decisions browser journey.
+- Recipe discovery filters by name/category and uses backend `effects_known`/`local_only`
+  metadata. A nonlocal recipe does not imply a missing integration. The introductory local
+  recipe provides first-success guidance without accounts, external actions or model calls.
+- `easydrag-testing.js` extends the test dialog with clearly separate real/simulated execution.
+  Simulation samples remain window-local; consume the synchronous isolated endpoint, never the
+  real test endpoint or SSE. Label results as simulated. Refuse edited test data containing exact
+  redaction/omission sentinels before real execution; ordinary text containing similar words is
+  valid. An unchanged remembered sample can still use the server's authoritative data.
+- Run history supports explicit refresh and older retained pages, deduplicates run IDs, and
+  searches the loaded rows only. Completed results expose a timeline and failure context without
+  repainting it on every live event. Semantic publish review shows bounded before/after changes
+  and exact-draft test evidence; a later edit invalidates that evidence. Unknown and omitted
+  values remain visible as such. Tests and simulations never silently activate a paused flow.
 - Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
   template filters mirror `internal/flows`. Template errors keep Go's English message (the parity
   checks compare it) and carry `err.code` (`TPL_*`, `tplError`) with `err.params` ({name},

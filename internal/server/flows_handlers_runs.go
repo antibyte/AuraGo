@@ -20,6 +20,18 @@ type flowTestBody struct {
 	OnlyNode     string         `json:"only_node"`
 	RememberData bool           `json:"remember_data"`
 	BaseRevision int            `json:"base_revision"`
+	Simulation   bool           `json:"simulation"`
+	Simulate     bool           `json:"simulate"`
+	Mode         string         `json:"mode"`
+}
+
+type flowSimulationBody struct {
+	TriggerNode  string                             `json:"trigger_node"`
+	TriggerData  map[string]any                     `json:"trigger_data"`
+	OnlyNode     string                             `json:"only_node"`
+	BaseRevision int                                `json:"base_revision"`
+	Fixtures     map[string]flows.SimulationFixture `json:"fixtures"`
+	At           time.Time                          `json:"at"`
 }
 
 // flowsTestDataBodyLimit bounds the body of PUT {id}/test-data/{node}: the flows cap on
@@ -27,6 +39,8 @@ type flowTestBody struct {
 // flows.ErrTestDataTooLarge) plus room for the {"data": …} wrapper and formatting. Data near
 // the cap gets the flow service's answer; a far larger body is refused before it is decoded.
 const flowsTestDataBodyLimit = flows.MaxStoredOutputBytes + 32<<10
+
+var flowSimulationSlots = make(chan struct{}, 4)
 
 // flowRunIDPattern accepts what can be a run id (flows.NewRunID gives "run_" and twelve
 // characters); anything else is FLOW_RUN_NOT_FOUND before the store or the bus is asked.
@@ -68,6 +82,43 @@ func flowRunFilter(q url.Values) (flows.RunFilter, string) {
 func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, action string, rest []string) bool {
 	ctx := r.Context()
 	switch {
+	case action == "simulate" && len(rest) == 0:
+		if r.Method != http.MethodPost {
+			flowsMethodNotAllowed(w)
+			return true
+		}
+		var body flowSimulationBody
+		if !flowsDecode(w, r, &body, flowsTestDataBodyLimit, false) {
+			return true
+		}
+		if body.BaseRevision <= 0 {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "a positive draft revision is required")
+			return true
+		}
+		select {
+		case flowSimulationSlots <- struct{}{}:
+			defer func() { <-flowSimulationSlots }()
+		default:
+			flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", "too many simulations are running")
+			return true
+		}
+		simCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		res, err := s.Flows.Simulate(simCtx, id, flows.SimulationRequest{TriggerNode: body.TriggerNode,
+			TriggerData: body.TriggerData, OnlyNode: body.OnlyNode, BaseRevision: body.BaseRevision, Fixtures: body.Fixtures, At: body.At})
+		if simCtx.Err() != nil {
+			if ctx.Err() != nil {
+				s.flowsErrorFrom(w, r, ctx.Err())
+			} else {
+				flowsError(w, http.StatusServiceUnavailable, "FLOW_SIMULATION_TIMEOUT", "the simulation took too long")
+			}
+			return true
+		}
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return true
+		}
+		s.flowsJSONScrubbed(w, http.StatusOK, res)
 	case action == "test" && len(rest) == 0:
 		if r.Method != http.MethodPost {
 			flowsMethodNotAllowed(w)
@@ -75,6 +126,10 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 		}
 		var body flowTestBody
 		if !flowsDecode(w, r, &body, flowsDocBodyLimit, true) {
+			return true
+		}
+		if body.Simulation || body.Simulate || (body.Mode != "" && body.Mode != "test") {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "simulation requests must use the simulate route")
 			return true
 		}
 		res, err := s.Flows.StartTestRun(ctx, id, flows.TestRunRequest{TriggerNode: body.TriggerNode,
@@ -116,7 +171,26 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			s.flowsErrorFrom(w, r, err)
 			return true
 		}
-		s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"runs": runs})
+		limit := filter.Limit
+		if limit == 0 {
+			limit = 50
+		} else if limit > 200 {
+			limit = 200
+		}
+		var nextOffset *int
+		if len(runs) == limit && filter.Offset <= int(^uint(0)>>1)-len(runs) {
+			next := filter.Offset + len(runs)
+			filter.Offset, filter.Limit = next, 1
+			more, err := s.Flows.Runs(ctx, id, filter)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return true
+			}
+			if len(more) != 0 {
+				nextOffset = &next
+			}
+		}
+		s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"runs": runs, "has_more": nextOffset != nil, "next_offset": nextOffset})
 	case action == "test-data" && len(rest) == 1:
 		// Sample data can hold anything the user pasted, a secret included: both answers
 		// are scrubbed by value. Only an enabled trigger of the draft has sample data (the

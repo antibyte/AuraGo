@@ -50,6 +50,31 @@ func (b flowMissionBridge) CreateFlowMission(flowID, name string) (string, error
 	return id, err
 }
 
+func (b flowMissionBridge) RestoreFlowMission(missionID, flowID, name string, bindings []flows.TriggerBinding, published bool) error {
+	mm, err := b.missions()
+	if err != nil {
+		return fmt.Errorf("%w: %v", flows.ErrMissionControlUnavailable, err)
+	}
+	specs, err := flowTriggerSpecs(bindings)
+	if err != nil {
+		return err
+	}
+	err = mm.EnsureRestoredFlowMission(missionID, flowID, name, specs, published)
+	if err == nil {
+		broadcastMissionState(b.s)
+	}
+	return err
+}
+
+func (b flowMissionBridge) FlowMissionExists(missionID string) (bool, error) {
+	mm, err := b.missions()
+	if err != nil {
+		return false, fmt.Errorf("%w: %v", flows.ErrMissionControlUnavailable, err)
+	}
+	_, exists := mm.Get(missionID)
+	return exists, nil
+}
+
 // SyncFlowMission implements flows.MissionBridge.
 func (b flowMissionBridge) SyncFlowMission(missionID, name string, bindings []flows.TriggerBinding) error {
 	mm, err := b.missions()

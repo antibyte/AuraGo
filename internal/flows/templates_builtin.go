@@ -17,6 +17,9 @@ type TemplateInfo struct {
 	NameKey        string   `json:"name_key"`
 	DescriptionKey string   `json:"description_key"`
 	Categories     []string `json:"categories"`
+	Effects        []Effect `json:"effects"`
+	EffectsKnown   bool     `json:"effects_known"`
+	LocalOnly      bool     `json:"local_only"`
 	textKeys       []string
 }
 
@@ -78,7 +81,7 @@ func chainEdges(keys ...string) []templateEdge {
 // templateCol is the x position of the i-th column of nodes on the canvas.
 func templateCol(i int) float64 { return 80 + float64(i)*300 }
 
-// starterTemplates are the six starter templates in gallery order. Node keys are fixed
+// starterTemplates are listed in gallery order. Node keys are fixed
 // English identifiers so that template strings can reference them in every language.
 //
 // A translated text is trusted template text. The language files of the editor
@@ -92,6 +95,16 @@ func templateCol(i int) float64 { return 80 + float64(i)*300 }
 // plan 1c. The name and the description of a template and the labels of its nodes are
 // plain text.
 var starterTemplates = []templateDef{
+	{
+		info: newTemplateInfo("local_first_result", 2, "trigger", "logic"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"start", TypeTriggerManual, map[string]any{"data": map[string]any{"name": text(1)}}, templateCol(0), 200},
+				{"greeting", TypeSet, map[string]any{"fields": []any{map[string]any{"name": "greeting", "value": text(2) + " {{trigger.data.name}}"}}}, templateCol(1), 200},
+				{"check", TypeIf, map[string]any{"condition": map[string]any{"match": "all", "rows": []any{map[string]any{"left": "{{trigger.data.name}}", "op": "not_empty"}}}}, templateCol(2), 200},
+			}, chainEdges("start", "greeting", "check")
+		},
+	},
 	{
 		info: newTemplateInfo("ai_news_pdf_telegram", 4, "trigger", "web", "ai", "documents", "notify"),
 		build: func(text func(int) string) ([]templateNode, []templateEdge) {
@@ -169,6 +182,45 @@ func Templates() []TemplateInfo {
 		out[i].textKeys = slices.Clone(def.info.textKeys)
 	}
 	return out
+}
+
+// DescribeTemplates derives effect and local-execution metadata from the supplied registry.
+func DescribeTemplates(reg *Registry) []TemplateInfo {
+	infos := Templates()
+	for i, tmpl := range starterTemplates {
+		info := &infos[i]
+		info.Effects = []Effect{}
+		info.EffectsKnown, info.LocalOnly = reg != nil, reg != nil
+		nodes, _ := tmpl.build(func(n int) string { return templateKey(tmpl.info.ID, fmt.Sprintf("text_%d", n)) })
+		seen := map[Effect]bool{}
+		for _, node := range nodes {
+			if reg == nil {
+				break
+			}
+			def, ok := reg.Lookup(node.typ)
+			if !ok {
+				info.EffectsKnown, info.LocalOnly = false, false
+				continue
+			}
+			n := &Node{Key: node.key, Type: node.typ, Params: node.params}
+			var effects []Effect
+			if catchPanic(func() { effects = def.EffectsOf(n) }) != nil {
+				info.EffectsKnown, info.LocalOnly = false, false
+				continue
+			}
+			if len(effects) != 0 || def.Tool != "" || !(node.typ == TypeTriggerManual || simulationPureType(node.typ)) {
+				info.LocalOnly = false
+			}
+			for _, effect := range effects {
+				if !seen[effect] {
+					info.Effects = append(info.Effects, effect)
+					seen[effect] = true
+				}
+			}
+		}
+		slices.Sort(info.Effects)
+	}
+	return infos
 }
 
 // translatedOr returns tr(key), or fallback when tr returns nothing but white space. Unlike

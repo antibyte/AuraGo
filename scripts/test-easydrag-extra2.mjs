@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-runs.js', 'easydrag-publish.js'];
+    'easydrag-detail.js', 'easydrag-testing.js', 'easydrag-runs.js', 'easydrag-publish.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const A = 'n_aaaaaaaa';
@@ -112,7 +112,7 @@ export async function run(env) {
             fail() { if (!this.closed && this.onerror) this.onerror({ type: 'error' }); }
         }
         const box = vm.createContext({
-            window: win, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL,
+            window: win, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
             setTimeout: (fn, ms) => { const id = nextId++; timers.set(id, { fn, ms }); return id; },
@@ -307,13 +307,14 @@ export async function run(env) {
         const c = await open();
         c.area.value = JSON.stringify({ name: 'Linus', token: '[redacted]' });
         await runIt(c.dialog);
-        eq('c1d06 unchanged test data runs with the stored sample; edits are remembered unless they hold [redacted]',
-            [shown, tests(), h.notes],
+        eq('c1d06 unchanged test data uses the stored sample; edited redacted data stays in the dialog and never runs',
+            [shown, tests(), h.notes, c.dialog.body.querySelector('.ed-error').textContent],
             [JSON.stringify(samples[T1], null, 2), [
                 { trigger_node: T1, remember_data: false, base_revision: 3 },
-                { trigger_node: T1, remember_data: true, base_revision: 3, trigger_data: { name: 'Grace' } },
-                { trigger_node: T1, remember_data: false, base_revision: 3, trigger_data: { name: 'Linus', token: '[redacted]' } }
-            ], [{ title: 'test_title', message: 'test_data_redacted' }]]);
+                { trigger_node: T1, remember_data: true, base_revision: 3, trigger_data: { name: 'Grace' } }
+            ], [], 'test_data_incomplete']);
+        c.dialog.close();
+        await settle();
         // Another trigger shows its own sample; unchanged, it runs with that trigger's stored one.
         const d = await open();
         d.select.value = T2;
@@ -327,7 +328,7 @@ export async function run(env) {
         e.select.fire('change');
         await settle();
         eq('c1d06 picking another trigger loads its sample unless the text was edited',
-            [switched, tests()[3], e.area.value], [JSON.stringify(samples[T2], null, 2), { trigger_node: T2, remember_data: false, base_revision: 3 }, '{"mine": true}']);
+            [switched, tests()[2], e.area.value], [JSON.stringify(samples[T2], null, 2), { trigger_node: T2, remember_data: false, base_revision: 3 }, '{"mine": true}']);
         eq('c1d06 the test data checks log no errors', h.logged, []);
     });
 
@@ -338,11 +339,15 @@ export async function run(env) {
         h.ed.lastRunData = { runId: 'r1', label: 'Last run', roots: { alpha: { results: [{ title: 'A' }] } } };
         const rows = () => h.ed.root.querySelectorAll('.ed-tree-row');
         const alphaRow = () => rows().find(r => r.getAttribute('data-ref') === 'alpha.results');
-        // Editing: rows drag, and a click inserts into the first template field.
+        // Editing: rows drag, and insertion requires an explicit target field.
         h.ED.detail.open(h.ed, B);
         eq('c1d06 opening the detail listens for viewport and fullscreen changes',
             [h.windowListeners.resize?.length || 0, h.docListeners.fullscreenchange?.length || 0], [1, 1]);
         const editDrag = rows().map(r => r.getAttribute('draggable'));
+        alphaRow().fire('click');
+        eq('flagship mapping never guesses the first field', h.model.node(B).params.query, '');
+        const target = h.ed.root.querySelector('[data-ed-mapping-target]');
+        target.value = 'query'; target.fire('change');
         alphaRow().fire('click');
         const inserted = h.model.node(B).params.query;
         h.ED.detail.close(h.ed);

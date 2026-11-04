@@ -14,6 +14,9 @@ import (
 // store keeps test data without a limit of its own.
 var ErrTestDataTooLarge = fmt.Errorf("the test data is larger than %d KiB", MaxStoredOutputBytes>>10)
 
+// ErrTestDataRedacted refuses a real test using a scrubbed or truncated payload.
+var ErrTestDataRedacted = errors.New("test data contains a redacted or truncated value")
+
 // Trigger types stored with a run. TriggerFromMission accepts only maxTriggerTypeBytes
 // of [a-z0-9_] from Mission Control and records anything else as unknownTriggerType.
 const (
@@ -62,6 +65,11 @@ const (
 // run starts, so it stays remembered when the runner then refuses the run. The
 // runner's ErrQueueFull and ErrRunnerClosed are returned unchanged.
 func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunRequest) (StartResult, error) {
+	if req.TriggerData != nil {
+		if err := rejectRedactedTestData(req.TriggerData); err != nil {
+			return StartResult{}, err
+		}
+	}
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err

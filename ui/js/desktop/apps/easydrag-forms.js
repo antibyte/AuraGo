@@ -77,6 +77,7 @@
         const optionCache = new Map();
         const forced = new Set();
         let node = env.node;
+        let contentSignature = JSON.stringify([node.params, node.settings, node.key]);
         let roots = env.roots || {};
         // The secret pickers of this form share one list request (dropped after a save).
         const secretCache = {};
@@ -498,6 +499,9 @@
             // refresh re-renders after the node changed outside the form (undo, other window).
             refresh(nextNode, nextRoots, issues) {
                 const visibleBefore = Array.from(controls.keys()).join(',');
+                const nextSignature = JSON.stringify([nextNode.params, nextNode.settings, nextNode.key]);
+                const nodeChanged = contentSignature !== nextSignature;
+                contentSignature = nextSignature;
                 const decisionModeChanged = env.info && env.info.type === 'ai.decision' &&
                     node.params && nextNode && nextNode.params && node.params.mode !== nextNode.params.mode;
                 node = nextNode;
@@ -506,7 +510,7 @@
                 const visibleAfter = ((env.info && env.info.params) || []).filter(p => visible(p, node.params)).map(p => p.name).join(',');
                 // A field's own blur commit must retain its buffer and reference-insertion caret.
                 const focused = committingField || el.contains(document.activeElement);
-                if (visibleBefore !== visibleAfter || decisionModeChanged || !focused) build();
+                if (visibleBefore !== visibleAfter || decisionModeChanged || (!focused && nodeChanged)) build();
                 else {
                     controls.forEach((_, name) => previewFor(name));
                     syncIssues();

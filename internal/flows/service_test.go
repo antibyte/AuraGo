@@ -82,7 +82,7 @@ func TestServicePublishEnableAndPreview(t *testing.T) {
 		t.Fatal(err)
 	}
 	preview, err := s.PublishPreview(ctx, rec.ID)
-	if err != nil || !preview.CanPublish || !preview.Diff.FirstPublish || preview.Diff.AddedNodes != 4 {
+	if err != nil || !preview.CanPublish || preview.DraftRevision != rev || !preview.Diff.FirstPublish || preview.Diff.AddedNodes != 4 {
 		t.Fatalf("preview = %+v, %v", preview, err)
 	}
 	if _, _, err := s.Publish(ctx, rec.ID, rev-1); !errors.Is(err, ErrRevisionConflict) {
@@ -120,7 +120,7 @@ func TestServicePublishEnableAndPreview(t *testing.T) {
 		t.Fatal(err)
 	}
 	preview, _ = s.PublishPreview(ctx, rec.ID)
-	if preview.Diff != (DiffSummary{ChangedNodes: 1}) {
+	if diffCounts(preview.Diff) != (diffCountSummary{ChangedNodes: 1}) {
 		t.Fatalf("diff = %+v", preview.Diff)
 	}
 
@@ -173,17 +173,17 @@ func TestServiceDelete(t *testing.T) {
 func TestDiffFlows(t *testing.T) {
 	live := simpleFlow("A")
 	draft, _ := live.Clone()
-	if d := DiffFlows(live, draft); d != (DiffSummary{}) {
+	if d := DiffFlows(live, draft); diffCounts(d) != (diffCountSummary{}) {
 		t.Fatalf("identical = %+v", d)
 	}
 	draft.Nodes[1].Position = Point{X: 5, Y: 5}
-	if d := DiffFlows(live, draft); d != (DiffSummary{}) {
+	if d := DiffFlows(live, draft); diffCounts(d) != (diffCountSummary{}) {
 		t.Fatalf("moving is not a change: %+v", d)
 	}
 	draft.Nodes[1].Label = "neu"
 	draft.Nodes = append(draft.Nodes, Node{ID: testNodeID(30), Key: "extra", Type: TypeSet})
 	draft.Edges = append(draft.Edges, Edge{ID: "e_x", Source: PortRef{Node: draft.Nodes[1].ID, Port: PortOut}, Target: PortRef{Node: testNodeID(30), Port: PortIn}})
-	if d := DiffFlows(live, draft); d != (DiffSummary{AddedNodes: 1, ChangedNodes: 1, ChangedEdges: 1}) {
+	if d := DiffFlows(live, draft); diffCounts(d) != (diffCountSummary{AddedNodes: 1, ChangedNodes: 1, ChangedEdges: 1}) {
 		t.Fatalf("changes = %+v", d)
 	}
 	if d := DiffFlows(draft, live); d.RemovedNodes != 1 {

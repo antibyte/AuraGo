@@ -80,7 +80,7 @@
 
         // The screen-reader step list is a region beside the canvas, not inside it: role="application"
         // keeps browse mode out of its content (U4). The editor appends listRegion to .ed-body.
-        const listRegion = core.el('<section class="ed-sr-only ed-node-region" aria-label="' + esc(t('easydrag.ui.node_list')) + '"><ul class="ed-node-list"></ul></section>');
+        const listRegion = core.el('<section class="ed-sr-only ed-node-region" aria-label="' + esc(t('easydrag.ui.node_list')) + '"><header class="ed-outline-head" hidden><h3>' + esc(t('easydrag.ui.node_list')) + '</h3><button type="button" class="ed-icon-btn" data-ed-outline-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header><ul class="ed-node-list"></ul></section>');
 
         const grid = el.querySelector('.ed-grid');
         const world = el.querySelector('.ed-world');
@@ -209,6 +209,8 @@
             if (palette && typeof getComputedStyle === 'function' && getComputedStyle(palette).position === 'absolute') {
                 left = clampCover(palette.getBoundingClientRect().right - s.left, s.w);
             }
+            const outline = find('.ed-node-region.is-outline');
+            if (outline && typeof getComputedStyle === 'function' && getComputedStyle(outline).position === 'absolute') left = Math.max(left, clampCover(outline.getBoundingClientRect().right - s.left, s.w));
             if (s.w - left - right < 240) return { left: 0, w: s.w, h: s.h };
             return { left, w: s.w - left - right, h: s.h };
         }
@@ -293,6 +295,42 @@
             const a = visibleArea();
             const zoom = Math.max(ed.view.zoom, READABLE_ZOOM);
             setView({ x: a.left + a.w / 2 - (rect.x + rect.w / 2) * zoom, y: a.h / 2 - (rect.y + rect.h / 2) * zoom, zoom }, opts);
+        }
+
+        // Panel changes move only an obscured selection, retaining the user's zoom and context.
+        function ensureSelected() {
+            if (ed.selection.size !== 1 || ed.root.classList.contains('is-inspector')) return;
+            const rect = nodeRect(ed.selection.values().next().value);
+            if (!rect) return;
+            const a = visibleArea(), v = ed.view, pad = 24;
+            const left = rect.x * v.zoom + v.x, top = rect.y * v.zoom + v.y;
+            const width = rect.w * v.zoom, height = rect.h * v.zoom;
+            const dx = width > a.w - pad * 2 ? a.left + a.w / 2 - left - width / 2 : Math.max(a.left + pad - left, Math.min(0, a.left + a.w - pad - left - width));
+            const dy = height > a.h - pad * 2 ? a.h / 2 - top - height / 2 : Math.max(pad - top, Math.min(0, a.h - pad - top - height));
+            if (dx || dy) setView({ x: v.x + dx, y: v.y + dy, zoom: v.zoom });
+        }
+
+        function focusSelection() {
+            const ids = new Set(ed.selection);
+            if (!ids.size) { fit({ animate: true, readable: true }); return; }
+            const add = (seed, edges, side) => {
+                const seen = new Set(seed), stack = Array.from(seed);
+                while (stack.length) edges(stack.pop()).forEach(e => { const id = e[side].node; if (!seen.has(id)) { seen.add(id); stack.push(id); ids.add(id); } });
+            };
+            add(ed.selection, id => ed.model.incoming(id), 'source');
+            add(ed.selection, id => ed.model.outgoing(id), 'target');
+            const a = visibleArea();
+            const v = G.fit(G.bounds(Array.from(ids, nodeRect).filter(Boolean)), { w: a.w, h: a.h }, 48, 1);
+            setView({ x: v.x + a.left, y: v.y, zoom: v.zoom }, { animate: true });
+        }
+
+        function setOutline(open) {
+            ed.outlineOpen = !!open;
+            listRegion.classList.toggle('ed-sr-only', !open);
+            listRegion.classList.toggle('is-outline', !!open);
+            listRegion.querySelector('.ed-outline-head').hidden = !open;
+            listEl.querySelectorAll('button').forEach(b => { b.tabIndex = open ? 0 : -1; });
+            ed.bus.emit('outline', !!open);
         }
 
         // ── node cards ──────────────────────────────────────────────────────────
@@ -602,6 +640,7 @@
                 if (card.className !== nextClass) card.className = nextClass;
                 syncTools(card, n.id);
             });
+            listEl.querySelectorAll('[data-ed-focus-node]').forEach(button => button.setAttribute('aria-current', ed.selection.has(button.dataset.edFocusNode) ? 'step' : 'false'));
             selectionTick++;
             minimapFrame.request();
         }
@@ -795,7 +834,7 @@
             listEl.innerHTML = ed.model.doc.nodes.map(n => {
                 const targets = leadsTo.get(n.id) || [];
                 const text = (n.label || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
-                return '<li><button type="button" tabindex="-1" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
+                return '<li><button type="button" tabindex="' + (ed.outlineOpen ? '0' : '-1') + '" aria-current="' + (ed.selection.has(n.id) ? 'step' : 'false') + '" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
             }).join('');
         }
 
@@ -808,6 +847,7 @@
             const btn = event.target.closest('[data-ed-focus-node]');
             if (btn) ed.bus.emit('focus-node', btn.dataset.edFocusNode);
         });
+        bag.listen(listRegion.querySelector('[data-ed-outline-close]'), 'click', () => { setOutline(false); el.focus({ preventScroll: true }); });
 
         bag.listen(el.querySelector('.ed-zoom'), 'click', (event) => {
             const btn = event.target.closest('[data-ed-zoom]');
@@ -865,7 +905,7 @@
 
         return {
             el, world, wiresSvg, nodesHost, listRegion,
-            render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce,
+            render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce, ensureSelected, focusSelection, setOutline,
             autoLayout, alignSelection,
             nodeEl: id => nodeEls.get(id) || null,
             dispose() { bag.dispose(); listRegion.remove(); }

@@ -1,0 +1,121 @@
+// Explicit simulation controls and bounded, text-only run results in the existing workspace.
+(function () {
+    'use strict';
+    const ED = window.EasyDrag = window.EasyDrag || {};
+    const MAX_SAMPLE = 2 * 1024 * 1024;
+
+    function parseSample(text) {
+        if (typeof text !== 'string' || text.length > MAX_SAMPLE) throw new Error('sample');
+        const value = JSON.parse(text || '{}');
+        if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('sample');
+        const stack = [value];
+        let budget = 20000;
+        while (stack.length) {
+            const item = stack.pop();
+            if (--budget < 0) throw new Error('sample');
+            if (item === '[redacted]') throw new Error('sample');
+            if (!item || typeof item !== 'object') continue;
+            const keys = Object.keys(item);
+            if (keys.length && keys.every(key => key === '_preview' || key === '_omitted')) throw new Error('sample');
+            Object.values(item).forEach(child => stack.push(child));
+        }
+        return value;
+    }
+
+    function decorate(ed, dialog, env) {
+        const core = ED.core, { t, esc } = ed;
+        let busy = false, closed = false;
+        const controller = new AbortController();
+        const mode = core.el('<label class="ed-label">' + esc(t('easydrag.ui.test_title')) + '<select class="ed-input" data-ed-test-mode><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
+        const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul></section>');
+        dialog.body.insertBefore(mode, dialog.body.firstChild);
+        dialog.body.appendChild(panel);
+        const select = mode.querySelector('select');
+        function syncMode() {
+            const simulated = select.value === 'simulation';
+            panel.hidden = !simulated;
+            dialog.body.querySelectorAll('[data-ed-test-effects], [data-ed-effects-unchecked]').forEach(node => { node.hidden = simulated; });
+            const remember = dialog.body.querySelector('[data-ed-test-remember]');
+            if (remember) remember.disabled = simulated;
+            const button = dialog.el.querySelector('[data-ed-action="run"] span');
+            if (button) button.textContent = t(simulated ? 'easydrag.ui.simulation_run' : 'easydrag.ui.test_run');
+        }
+        select.addEventListener('change', syncMode);
+        dialog.done.then(() => { closed = true; controller.abort(); });
+        return {
+            isSelected: () => select.value === 'simulation',
+            syncMode,
+            async run() {
+                if (busy || closed || !env.isCurrent()) return false;
+                const error = dialog.body.querySelector('.ed-error');
+                let data, fixtures;
+                try {
+                    data = parseSample(dialog.body.querySelector('[data-ed-test-data]').value);
+                    fixtures = parseSample(panel.querySelector('textarea').value);
+                } catch (err) { error.hidden = false; error.textContent = t('easydrag.ui.simulation_invalid'); return false; }
+                busy = true;
+                const revision = env.revision();
+                try {
+                    const result = await ed.api.simulate(ed.flow.id, { trigger_node: env.trigger(), trigger_data: data, only_node: env.onlyNode || undefined, base_revision: revision, fixtures }, controller.signal);
+                    if (closed) return false;
+                    if (!env.isCurrent() || Number(result.revision) !== revision) { error.hidden = false; error.textContent = t('easydrag.ui.error_flow_revision_conflict'); return false; }
+                    env.apply(result, data);
+                    return true;
+                } catch (err) {
+                    if (!closed) { error.hidden = false; error.textContent = core.errorText(t, err); }
+                    return false;
+                } finally { busy = false; }
+            }
+        };
+    }
+
+    function contentResult(ed, steps) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+            const step = steps[i], node = ed.model.node(step.node_id);
+            if (step.status !== 'success' || !node) continue;
+            const fields = ed.model.fieldsOf(node);
+            const text = ED.detail.previewText(step.output, fields);
+            if (text) return { text, label: node.label || node.type };
+        }
+        return null;
+    }
+
+    function createResults(ed, canvas) {
+        const core = ED.core, bag = core.bag(), { t, esc } = ed;
+        const el = core.el('<details class="ed-run-results" hidden><summary></summary><div class="ed-run-results-body"></div></details>');
+        canvas.el.appendChild(el);
+        let signature = '';
+        function render() {
+            const run = ed.run;
+            if (!run || !ED.runs.isFinal(run.status)) { el.hidden = true; return; }
+            const steps = Array.from(run.steps.values()).sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || '')));
+            const key = [run.id, run.mode, run.status, run.record && run.record.finished_at, steps.map(step => step.node_id + ':' + step.status).join(',')].join('|');
+            if (key === signature) return;
+            signature = key;
+            el.hidden = false;
+            el.open = run.status === 'error';
+            const simulation = run.mode === 'simulation';
+            el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + run.status, run.status);
+            const failed = steps.find(step => step.status === 'error');
+            const complete = steps.filter(step => step.status === 'success');
+            const preview = contentResult(ed, complete);
+            const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || n.type : step.node_key || step.node_id; };
+            el.querySelector('.ed-run-results-body').innerHTML =
+                (simulation ? '<p class="ed-hint">' + esc(t('easydrag.ui.simulation_hint')) + '</p>' : '') +
+                (failed ? '<section class="ed-run-diagnosis"><h3>' + esc(label(failed)) + '</h3><p>' + esc(core.stepErrorText(t, failed)) + '</p><p>' + esc(t('easydrag.ui.run_next_action')) + '</p><h4>' + esc(t('easydrag.ui.run_completed_effects')) + '</h4><p>' + esc(complete.map(label).join(' · ') || '—') + '</p></section>' : '') +
+                (preview ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview') + ' · ' + preview.label) + '</h4><p>' + esc(preview.text.slice(0, 1500)) + '</p></section>' : '') +
+                '<h4>' + esc(t('easydrag.ui.run_timeline')) + '</h4><ol class="ed-run-timeline">' + steps.map(step => '<li><button type="button" data-ed-result-node="' + esc(step.node_id) + '"><span class="ed-run-dot ed-run-dot--' + esc(step.status) + '"></span><span>' + esc(label(step)) + '</span><span class="ed-muted">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + (step.duration_ms ? ' · ' + esc(core.fmt.duration(step.duration_ms)) : '') + (step.effect_uncertain ? ' · ' + esc(t('easydrag.ui.step_effect_uncertain')) : '') + '</span></button></li>').join('') + '</ol>';
+        }
+        bag.listen(el, 'pointerdown', event => event.stopPropagation());
+        bag.listen(el, 'wheel', event => event.stopPropagation());
+        bag.listen(el, 'click', event => {
+            const button = event.target.closest('[data-ed-result-node]');
+            if (!button) return;
+            ed.bus.emit('focus-node', button.dataset.edResultNode);
+            ed.bus.emit('open-detail', { nodeId: button.dataset.edResultNode, column: 'output' });
+        });
+        bag.add(ed.bus.on('run', render));
+        return { dispose() { bag.dispose(); el.remove(); } };
+    }
+    ED.testing = { decorate, createResults, parseSample, contentResult };
+})();

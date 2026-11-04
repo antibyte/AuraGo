@@ -68,10 +68,11 @@ type EventSink func(RunEvent)
 
 // Engine executes flow runs.
 type Engine struct {
-	reg      *Registry
-	services *Services
-	logger   *slog.Logger
-	parallel int
+	reg        *Registry
+	services   *Services
+	logger     *slog.Logger
+	parallel   int
+	simulation bool
 	// abandonAfter is the real-time grace for running nodes after the run's
 	// context ended; tests shorten it.
 	abandonAfter time.Duration
@@ -145,6 +146,9 @@ func (e *Engine) Services() *Services { return e.services }
 //     fail-closed branch (NodeDef.ContinuePort), with
 //     {"error": {"code": ..., "message": ...}} as its output.
 func (e *Engine) Execute(ctx context.Context, req RunRequest, emit EventSink) RunResult {
+	if req.Mode == ModeSimulation && !e.simulation {
+		return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", ErrorMessage: "simulation requires an isolated engine"}
+	}
 	if emit == nil {
 		emit = func(RunEvent) {}
 	}
@@ -204,20 +208,21 @@ func clampInt(v, lo, hi int) int {
 // differently. The set is a contract for node authors (see AGENTS.md): a node picks
 // its code knowing this.
 var nonRetryableCodes = map[string]bool{
-	"FLOW_PARAM_INVALID":        true,
-	"FLOW_CONDITION_INVALID":    true,
-	"FLOW_CONDITION_FAILED":     true,
-	"FLOW_VALUE_TYPE":           true,
-	"FLOW_WAIT_TOO_LONG":        true,
-	"FLOW_AI_OUTPUT_CUT":        true,
-	"FLOW_BUDGET_EXCEEDED":      true,
-	"FLOW_TOOL_DENIED":          true,
-	"FLOW_ACTION_RULE_REQUIRED": true,
-	"FLOW_NODE_UNAVAILABLE":     true,
-	"FLOW_TOOLS_UNAVAILABLE":    true,
-	"FLOW_AI_UNAVAILABLE":       true,
-	"FLOW_SECRET_UNAVAILABLE":   true,
-	"FLOW_OUTPUT_TOO_LARGE":     true,
+	"FLOW_PARAM_INVALID":               true,
+	"FLOW_CONDITION_INVALID":           true,
+	"FLOW_CONDITION_FAILED":            true,
+	"FLOW_VALUE_TYPE":                  true,
+	"FLOW_WAIT_TOO_LONG":               true,
+	"FLOW_AI_OUTPUT_CUT":               true,
+	"FLOW_BUDGET_EXCEEDED":             true,
+	"FLOW_TOOL_DENIED":                 true,
+	"FLOW_ACTION_RULE_REQUIRED":        true,
+	"FLOW_NODE_UNAVAILABLE":            true,
+	"FLOW_TOOLS_UNAVAILABLE":           true,
+	"FLOW_AI_UNAVAILABLE":              true,
+	"FLOW_SECRET_UNAVAILABLE":          true,
+	"FLOW_OUTPUT_TOO_LARGE":            true,
+	"FLOW_SIMULATION_FIXTURE_REQUIRED": true,
 }
 
 // hopeless reports whether err, a node's failure, is final whatever the Retry

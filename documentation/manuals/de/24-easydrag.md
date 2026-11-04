@@ -25,6 +25,13 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Der erste Flow
 
+Für ein erstes Ergebnis ohne Konto wähle **Dein erstes lokales Ergebnis** in der
+Rezeptauswahl. Drei Schritte lesen einen Beispielnamen, bilden eine Begrüßung und prüfen,
+ob der Name vorhanden ist. Öffne nach dem Test die Ausgabe des Begrüßungsschritts.
+Suche und Kategorien helfen bei weiteren Rezepten. Die Karten unterscheiden lokale
+Verarbeitung und mögliche externe Auswirkungen. Ein Einrichtungshinweis bedeutet nicht,
+dass eine Integration fehlt oder ihre Verbindung geprüft wurde.
+
 1. Öffne **EasyDrag** auf dem Desktop. Wähle **Neuer Flow** und gib ihm einen Namen, oder starte mit einer **Vorlage**.
 2. Klicke **Auslöser wählen** und such dir einen Auslöser aus.
 3. Wähle den Auslöser aus und drücke **Strg+K**: Die Schnellsuche fügt den nächsten Schritt direkt dahinter ein und verbindet ihn. **Tab** verschiebt nur den Fokus. Du kannst auch **Hinzufügen** an der gewählten Karte nutzen oder Bausteine aus der Leiste links auf die Fläche oder auf eine Verbindung ziehen.
@@ -33,6 +40,16 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 6. **Veröffentlichen** prüft den Flow, zeigt, was er außerhalb von AuraGo tut, und schaltet ihn auf Wunsch gleich aktiv. Nur veröffentlichte Flows laufen selbstständig. Dein Entwurf bleibt bearbeitbar; die veröffentlichte Version läuft.
 
 ## Der Editor
+
+Die Schrittliste in der linken Werkzeugleiste zeigt Dir den Flow als sichtbare Liste.
+Wähle dort einen Schritt, um ohne Ziehen zu navigieren. **Ausgewählten Pfad fokussieren**
+zeigt den verbundenen Pfad. Baustein-Bibliothek und Inspektor lassen sich am Trenner
+mit Maus oder Tastatur vergrößern. Diese Ansichten werden nur auf diesem Gerät gemerkt
+und ändern den Flow nicht.
+
+Wähle beim Einfügen von Eingabedaten zuerst **Daten einfügen in**. EasyDrag rät kein
+Zielfeld mehr. Das gewählte Feld und die Einfügeposition bleiben erhalten; ein breiter
+Inspektor kann Quelldaten und Parameter nebeneinander anzeigen.
 
 - Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Rückgängig** und **Wiederholen**, **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Versionsverlauf*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. In einem Editor, der 560 px oder schmaler ist (auf dem Handy), wandern auch **Läufe** und **Testen** ins Menü ⋯, und *Pausiert* bleibt neben dem Namen sichtbar; ebenso *Neu veröffentlichen nötig* und die Warnung „Auslöser „Datum & Uhrzeit“ laufen nicht“. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
 - **Rückgängig** und **Wiederholen** im Kopf nehmen die letzte Änderung zurück oder wiederholen sie, auch auf Touchscreens (auf der Fläche tun Strg+Z und Strg+Umschalt+Z dasselbe). Löschst du Schritte, erscheint für einige Sekunden ein Hinweis wie „Alpha gelöscht“ mit **Rückgängig**; eine Rückfrage vor dem Löschen gibt es nicht.
@@ -66,9 +83,20 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Testen
 
+Der Dialog unterscheidet **Echter Test** und **Simulation**. Ein echter Test kann die
+aufgeführten Aktionen ausführen. In der Simulation laufen reine Verarbeitungsschritte
+lokal; andere unterstützte Schritte verwenden nur Deine Beispielausgaben. Fehlende
+oder unpassende Beispiele stoppen die Simulation. Ihre Laufzeit hat keinen Zugriff
+auf Werkzeuge, Modelle, Geräte oder Geheimnisse.
+
+Die Beispielausgaben sind JSON mit Schritt-IDs als Schlüsseln und enthalten `output`
+sowie optional `ports`. Sie bleiben im geöffneten Fenster. Ergebnisse sind ausdrücklich
+als simuliert markiert und erscheinen nicht als echte Läufe in der Historie. Ergänze
+ausgeblendete oder ausgelassene Werte in bearbeiteten Testdaten vor einem echten Test.
+
 - **Testen** speichert zuerst den Entwurf; einen Entwurf, der sich nicht speichern lässt, testet EasyDrag nicht. Der Flow braucht einen eingeschalteten Auslöser.
 - Der Testdialog zeigt die Daten, mit denen der Auslöser den Test startet. Hat der Flow mehrere Auslöser, wählst du einen unter *Starten mit*. Ändere das JSON, um andere Fälle auszuprobieren; *Diese Daten für spätere Tests merken* behält deine Änderung.
-- Gespeicherte Testdaten zeigen geheime Werte als `[redacted]`. Lässt du sie unverändert, nutzt der Test die echten gespeicherten Daten. Geänderte Daten, die noch `[redacted]` enthalten, laufen, werden aber nicht gemerkt.
+- Gespeicherte Testdaten zeigen geheime Werte als `[redacted]`. Unverändert nutzt der Test die echten gespeicherten Daten. Ersetze exakte Platzhalter für ausgeblendete oder ausgelassene Werte in bearbeiteten Daten vor einem echten Test; unvollständige bearbeitete Daten werden abgelehnt.
 - Ein Test hat echte Auswirkungen. Der Dialog nennt jede Art (*Sendet Nachrichten*, *Schreibt Dateien*, *Steuert Geräte*, …) mit den Schritten, die sie auslösen können. Jeder Schritt zählt mit dem, was sein Baustein standardmäßig tut, und mit dem, was seine tatsächlichen Einstellungen tun; eine HTTP-Anfrage mit POST zählt deshalb als Senden, obwohl der Baustein allein das nicht tut. Kann AuraGo die Einstellungen nicht prüfen oder kann ein Baustein seine Auswirkungen nicht nennen, sagt der Dialog, dass sich die Auswirkungen nicht vollständig prüfen ließen. **Test starten** bestätigt die genannten Arten, sobald der Test gestartet ist, solange der Flow offen bleibt; *Für diesen Flow nicht mehr fragen* merkt sie auf diesem Gerät. Ein Test, der nicht startet (AuraGo lehnt ihn ab oder ist nicht erreichbar), bestätigt nichts. Eine Art, die du noch nicht bestätigt hast, fragt EasyDrag wieder ab.
 - **Schritt testen** in der Detailansicht (auch *Diesen Schritt testen* an der gewählten Karte und in ihrem Kontextmenü) führt diesen Schritt zusammen mit den Schritten davor aus. Sein Dialog fragt deshalb nach den Auswirkungen jedes Schritts, der läuft: des Schritts selbst und der Schritte davor, die der gewählte Auslöser erreicht. Ein ausgeschalteter Schritt läuft nicht, ebenso wenig die Schritte, zu denen nur er führt.
 - **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast, ohne Rückfrage (auch einen Lauf, den du mit *Jetzt ausführen* gestartet hast). Andere Läufe, die noch nicht beendet sind, stoppst du unter **Läufe** (siehe [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)). Solange dieser Test oder Live-Lauf noch startet oder läuft, startet EasyDrag keinen weiteren und schickt einen ungewissen Start nicht erneut. Stoppen macht bereits gelaufene Schritte nicht rückgängig. Das automatische Speichern bleibt unverändert. Die Lauf-Liste öffnet sich im Editor, unter dem Kopf und einem Lauf-Banner.
@@ -76,19 +104,25 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Veröffentlichen
 
+Die Prüfung zeigt benannte Änderungen an Schritten und Parametern mit Vorher/Nachher-Werten,
+soweit diese sicher angezeigt werden können. Dazu kommt der Testnachweis für genau diesen
+Entwurf in diesem Editor; eine weitere Bearbeitung macht ihn ungültig. Geheimnisse bleiben
+verborgen und große Vergleiche können als unvollständig markiert sein. Ein erfolgreicher
+Test garantiert nicht, dass eine spätere Live-Aktion gelingt.
+
 - Der Veröffentlichen-Dialog nennt blockierende Probleme, was der Flow außerhalb von AuraGo tut, Daten von außen, die sensible Schritte erreichen, Hinweise und die Änderungen seit der letzten Veröffentlichung. Mit blockierenden Problemen lässt er sich nur schließen; ein Klick auf ein Problem öffnet seinen Schritt.
 - **Versionsverlauf** (Menü ⋯ oder das Menü *Flow*) listet die veröffentlichten Versionen, die neueste zuerst, mit Datum, Anzahl der Schritte und Verbindungen und *Live* bei der Version, die läuft. **Als Entwurf wiederherstellen** ersetzt deinen Entwurf nach einer Rückfrage durch diese Version; die Live-Version bleibt, bis du veröffentlichst. Einen Entwurf, der sich vorher nicht speichern lässt (offline, ungültig), ersetzt EasyDrag nicht. EasyDrag behält die letzten 50 veröffentlichten Versionen; die Ansicht eines älteren Laufs, dessen Version aufgeräumt wurde, sagt das.
 - *Jetzt aktivieren, damit die Auslöser greifen* schaltet den Flow mit der Veröffentlichung ein. Danach schaltest du ihn mit dem Schalter **Aktiv** aus und wieder ein. Einen unveröffentlichten Flow kannst du nicht einschalten; EasyDrag bietet an, ihn zuerst zu veröffentlichen.
 - Die Bausteine-Leiste markiert Bausteine mit echten Auswirkungen außerhalb von AuraGo. Die Markierung betrachtet die Standardeinstellungen eines Bausteins (bei einem allgemeinen Werkzeug seine weitreichendste Operation) und ist keine Sicherheitsgarantie. Der Veröffentlichen-Dialog nennt die Auswirkungen deiner tatsächlichen Einstellungen; der Testdialog nennt zusätzlich die der Standardeinstellungen der Bausteine.
 - **Mit einem Problem veröffentlicht** heißt: Die neue Version läuft, aber Mission Control oder die Timer ließen sich nicht aktualisieren. Der Kopf zeigt dann *Veröffentlichung unvollständig*, und **Veröffentlichen** bleibt verfügbar: Veröffentliche erneut, um den Vorgang abzuschließen.
-- Fehlt der Mission-Control-Eintrag des Flows, hilft erneutes Veröffentlichen nicht. Exportiere den Flow, lösche ihn und importiere ihn erneut.
+- Fehlt der Mission-Control-Eintrag des Flows, verwende **Mission-Control-Verknüpfung reparieren**. Die bestehende Verknüpfung wird deaktiviert wiederhergestellt; Flow, Versionen und Laufhistorie bleiben erhalten. Prüfe den Flow, bevor Du ihn ausdrücklich aktivierst.
 - *Daten von außen erreichen einen sensiblen Schritt* (etwa ein Mail-Betreff in einem Shell-Befehl, ein Dateipfad oder ein Empfänger) ist ein Hinweis, kein blockierendes Problem: AuraGo kann nicht erkennen, ob der Schritt die Daten prüft, und viele Flows reichen Text von außen bewusst weiter. Solche Flows lassen sich veröffentlichen und ausführen; stelle sicher, dass sich der Schritt nicht missbrauchen lässt. Daten von außen, die Schema, Host, Port oder Benutzernamen einer Webadresse oder das Ziel eines Geheimnisses bestimmen, sperren die Veröffentlichung und lassen den Schritt auch in Tests und älteren veröffentlichten Versionen scheitern. Schreib die vertrauenswürdige Adresse bis zum ersten `/`, `?` oder `#` nach dem Host direkt in den Schritt; Daten dürfen weiter Pfad, Abfrage, Header und Inhalt füllen. Ein Schritt, der Daten von außen liest, gilt mit allen Ausgabefeldern als ungeprüft, auch mit seinen festen Feldern.
 - Ein Header wie *Authorization*, *X-Api-Key* oder *Cookie* mit eingetipptem Wert ist ebenfalls ein Hinweis: Der Wert liegt im Klartext im Flow und seinen Versionen. Lege ihn als Geheimnis an und nutze das Feld *Geheimnis*. Exporte und die Ansicht eines Laufs zeigen solche Werte als `[redacted]`.
 
 ## Läufe und Benachrichtigungen
 
-- **Läufe** zeigt die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. Ein Klick öffnet die Ansicht des Laufs: die Flow-Version dieses Laufs mit allen Ein- und Ausgaben, nur zum Lesen. Ein Banner nennt den Lauf; **Zurück zum Entwurf** oder **Esc** führt zurück. In der Ansicht eines Laufs bleibt die Bausteine-Leiste verborgen, und ein fehlgeschlagener Lauf öffnet sich zentriert auf den gescheiterten Schritt.
-- In der Ansicht eines Laufs öffnet **Mit diesen Daten erneut testen** den Testdialog mit den Auslöserdaten dieses Laufs. Als `[redacted]` verborgene Werte musst du ersetzen, sonst läuft der Test mit dem Platzhaltertext. Der Dialog nennt die echten Auswirkungen und fragt vor dem Start, wie bei jedem Test; die Daten werden nur gemerkt, wenn du *Diese Daten für spätere Tests merken* ankreuzt. Der Knopf fehlt, solange ein Lauf läuft, und bei einem Lauf, dessen Auslöserdaten zu groß waren, um ganz gespeichert zu werden.
+- **Läufe** zeigt zunächst die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. **Ältere Läufe laden** holt die nächste aufbewahrte Seite; die Suche durchsucht die geladenen Einträge. Aktualisieren beginnt wieder bei der neuesten Seite. Ein Klick öffnet die genaue Flow-Version mit den gespeicherten Ein- und Ausgaben, nur zum Lesen. Schrittverlauf und Fehlerhinweis helfen bei der Diagnose. **Zurück zum Entwurf** oder **Esc** führt zurück. Die Bausteine-Leiste bleibt in der Laufansicht verborgen; ein Fehlerlauf öffnet sich beim gescheiterten Schritt.
+- **Mit diesen Daten erneut testen** öffnet den Testdialog mit den Auslöserdaten des betrachteten Laufs. Ersetze ausgeblendete oder ausgelassene Werte vor einem echten Test. Der Dialog nennt die echten Auswirkungen und fragt vor dem Start; Daten werden nur mit *Diese Daten für spätere Tests merken* gespeichert. Der Knopf fehlt während eines laufenden Tests und bei unvollständig aufbewahrten Auslöserdaten.
 - Ein Lauf, der noch nicht beendet ist (*In Warteschlange* – auch wenn er auf einen freien Platz wartet – oder *Läuft*), zeigt in der Liste und im Banner seiner Ansicht **Stoppen**, auch wenn ein Auslöser oder ein anderes Fenster ihn gestartet hat. Außer bei einem Test fragt EasyDrag vorher nach; Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht. Auch ein schreibgeschützter Desktop bietet **Stoppen** an, denn Stoppen ändert keinen Flow; schreibgeschützte Missionen lehnen es ab.
 - **Jetzt ausführen** (Menü ⋯, das Menü *Flow* oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Solange er pausiert ist, ist *Jetzt ausführen* ausgeschaltet, und sein Tooltip sagt, dass du den Flow zuerst einschalten musst, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.
 - Ein Flow, der in seinen Einstellungen auf *Überspringen* steht, überspringt neue Läufe, solange noch einer läuft: **Jetzt ausführen** startet dann nichts und sagt das.

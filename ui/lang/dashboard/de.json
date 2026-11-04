@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Tool",
   "dashboard.selftest_connections": "Verbindungen",
-  "dashboard.rustfs_running_unready": "Läuft, noch nicht bereit"
+  "dashboard.rustfs_running_unready": "Läuft, noch nicht bereit",
+  "dashboard.audit_type_flow_mission_repair": "Mission-Verknüpfung des Flows repariert"
 }

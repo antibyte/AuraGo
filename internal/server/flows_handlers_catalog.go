@@ -256,9 +256,10 @@ func (s *Server) flowsTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 	tr := flowsTranslator(s.flowsLang(r))
 	list := []map[string]any{}
-	for _, info := range flows.Templates() {
+	for _, info := range flows.DescribeTemplates(s.Flows.Registry()) {
 		list = append(list, map[string]any{"id": info.ID, "name": tr(info.NameKey),
-			"description": tr(info.DescriptionKey), "categories": info.Categories})
+			"description": tr(info.DescriptionKey), "categories": info.Categories,
+			"effects": info.Effects, "effects_known": info.EffectsKnown, "local_only": info.LocalOnly})
 	}
 	flowsJSON(w, http.StatusOK, map[string]any{"templates": list})
 }

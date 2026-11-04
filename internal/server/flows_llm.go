@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -109,12 +110,38 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 	if err != nil {
 		return flows.LLMResponse{}, err
 	}
+	defer rt.release()
 	request := flowAIRequest(rt, req)
 	resp, err := f.complete(ctx, rt.client, request, rt.limits.Route)
 	if err != nil {
 		return flows.LLMResponse{}, flowAIFailure(ctx, err, rt.credentials)
 	}
-	return flowAIAnswer(resp, rt.model, req.JSONSchema != nil, max(request.MaxTokens, request.MaxCompletionTokens))
+	answer, err := flowAIAnswer(resp, rt.model, req.JSONSchema != nil, max(request.MaxTokens, request.MaxCompletionTokens))
+	if err != nil {
+		return answer, err
+	}
+	content := answer.Text
+	if !json.Valid([]byte(content)) {
+		if normalized, err := llm.NormalizeJSONContent(content); err == nil {
+			content = normalized
+		}
+	}
+	answer.Text = security.Scrub(answer.Text)
+	if json.Valid([]byte(content)) {
+		var value any
+		if json.Unmarshal([]byte(content), &value) == nil {
+			safe := scrubFlowValue(value)
+			if !reflect.DeepEqual(value, safe) {
+				if encoded, err := json.Marshal(safe); err == nil {
+					answer.Text = string(encoded)
+				}
+			}
+		}
+	}
+	if answer.JSON != nil {
+		answer.JSON = scrubFlowValue(answer.JSON).(map[string]any)
+	}
+	return answer, nil
 }
 
 // scanText checks the full composition before the task provider is resolved.
@@ -359,9 +386,8 @@ func flowScrubbedError(prefix string, err error, literals ...string) error {
 // flowAIFailure reports the error of a request made under ctx. A cancelled or expired ctx
 // comes back as ctx's own error, so the engine sees a cancel or a timeout and not an AI
 // failure. Any other error can carry a provider's response body, and a provider may echo
-// the credential it was sent (an "invalid API key …" answer). The route's credentials are
-// not registered with the global scrubber (the agent does not register provider keys
-// either), so they are replaced in this text only.
+// the credential it was sent (an "invalid API key …" answer). Registered credentials
+// are also replaced explicitly here before general redaction.
 func flowAIFailure(ctx context.Context, err error, credentials []string) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
@@ -383,6 +409,25 @@ type flowAIRoute struct {
 	caps        llm.ProviderCapabilityResult
 	limits      llm.ModelLimits
 	credentials []string
+	release     func()
+}
+
+func flowCredentialScope(values ...string) func() {
+	seen := make(map[string]bool)
+	var releases []func()
+	for _, value := range values {
+		for _, form := range []string{value, strings.TrimSpace(value)} {
+			if form != "" && !seen[form] {
+				seen[form] = true
+				releases = append(releases, security.RegisterScopedSensitiveExact(form))
+			}
+		}
+	}
+	return func() {
+		for _, release := range releases {
+			release()
+		}
+	}
 }
 
 // route picks client and model: the node's provider id, else flows.ai_provider, else the
@@ -403,6 +448,11 @@ func (f *flowLLM) route(cfg *config.Config, providerID string) (flowAIRoute, err
 		if err != nil {
 			return flowAIRoute{}, err
 		}
+		if entry.AuthType != "oauth2" {
+			registerStaticLLMSecret(entry.APIKey)
+		}
+		registerStaticLLMSecret(cfg.AIGateway.Token)
+		release := flowCredentialScope(entry.APIKey, cfg.AIGateway.Token)
 		fallback := llm.CapabilityFallback{}
 		if entry.ID == cfg.LLM.Provider {
 			fallback.StructuredOutputs = cfg.LLM.StructuredOutputs
@@ -410,13 +460,20 @@ func (f *flowLLM) route(cfg *config.Config, providerID string) (flowAIRoute, err
 		limits := llm.ResolveModelLimitsCached(llm.ModelRoute{ProviderID: entry.ID, ProviderType: entry.Type, BaseURL: entry.BaseURL,
 			Model: entry.Model, ContextWindowOverride: entry.ContextWindow, MaxOutputTokensOverride: entry.MaxOutputTokens}, cfg.Agent.ContextWindow)
 		return flowAIRoute{client: f.newClient(cfg, entry), model: entry.Model, caps: llm.ResolveProviderCapabilities(entry, fallback),
-			limits: limits, credentials: []string{entry.APIKey}}, nil
+			limits: limits, credentials: []string{entry.APIKey}, release: release}, nil
 	}
 	if f.s.LLMClient == nil {
 		return flowAIRoute{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "no AI model is configured")
 	}
+	registerStaticLLMSecret(cfg.AIGateway.Token)
+	for _, slot := range []struct{ id, key string }{{cfg.LLM.Provider, cfg.LLM.APIKey}, {cfg.FallbackLLM.Provider, cfg.FallbackLLM.APIKey}} {
+		if provider := cfg.FindProvider(slot.id); provider == nil || provider.AuthType != "oauth2" {
+			registerStaticLLMSecret(slot.key)
+		}
+	}
 	return flowAIRoute{client: f.s.LLMClient, model: cfg.LLM.Model, caps: llm.ResolveConfigProviderCapabilities(cfg),
-		limits: gameMakerRouteLimits(cfg), credentials: []string{cfg.LLM.APIKey, cfg.FallbackLLM.APIKey}}, nil
+		limits: gameMakerRouteLimits(cfg), credentials: []string{cfg.LLM.APIKey, cfg.FallbackLLM.APIKey},
+		release: flowCredentialScope(cfg.LLM.APIKey, cfg.FallbackLLM.APIKey, cfg.AIGateway.Token)}, nil
 }
 
 // flowProviderEntry returns the provider id names, with the credential its client needs,

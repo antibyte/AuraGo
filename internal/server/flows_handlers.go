@@ -34,7 +34,7 @@ const (
 	flowPublishIncompleteMessage = "Published, but not every part could be updated (Mission Control or timers). Publish again to finish."
 	// flowPublishMissionMissingMessage answers such a publish when the flow's mission is gone
 	// from Mission Control: publishing again cannot recreate it.
-	flowPublishMissionMissingMessage = "Published, but the flow's Mission Control entry is missing. Export the flow, delete it and import it again."
+	flowPublishMissionMissingMessage = "Published, but the flow's Mission Control entry is missing. Repair its connection before enabling it."
 )
 
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
@@ -50,7 +50,7 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"versions": 1, "test": 1, "run": 1, "runs": 1, "test-data": 2}
+	"versions": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -253,7 +253,9 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusServiceUnavailable, "FLOW_MISSION_CONTROL_UNAVAILABLE", flowsErrorText(err))
 	case errors.Is(err, tools.ErrFlowMissionNotFound), errors.Is(err, flows.ErrFlowMissionMissing):
 		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
-			"the flow's Mission Control entry is missing; export the flow, delete it and import it again")
+			"the flow's Mission Control entry is missing; repair its connection")
+	case errors.Is(err, tools.ErrFlowMissionConflict):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_CONFLICT", "the Mission Control identity is already in use")
 	case errors.Is(err, flows.ErrQueueFull):
 		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunnerClosed):
@@ -262,9 +264,11 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
 	case errors.Is(err, flows.ErrTestDataTooLarge):
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsErrorText(err))
+	case errors.Is(err, flows.ErrTestDataRedacted):
+		flowsError(w, http.StatusBadRequest, "FLOW_TEST_DATA_REDACTED", "replace redacted or truncated test data before using it")
 	case errors.As(err, &tooLarge) && tooLarge != nil:
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", tooLarge.Limit>>10))
-	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate):
+	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate), errors.Is(err, flows.ErrInvalidSimulationFixture):
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
 	case errors.As(err, &ne) && ne != nil:
 		code := ne.Code
@@ -545,6 +549,10 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		return
 	}
 	switch action {
+	case "ai-proposal":
+		s.flowAIProposal(w, r, id)
+	case "repair-mission":
+		s.flowRepairMission(w, r, id)
 	case "":
 		switch r.Method {
 		case http.MethodGet:
@@ -602,7 +610,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		flowsJSON(w, http.StatusOK, preview)
+		s.flowsJSONScrubbed(w, http.StatusOK, preview)
 	case "publish":
 		if r.Method != http.MethodPost {
 			flowsMethodNotAllowed(w)
@@ -734,7 +742,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 // Exception: when the flow's mission is gone from Mission Control
 // (tools.ErrFlowMissionNotFound), publishing again fails the same way, because a publish
 // never recreates the mission. The code is then FLOW_MISSION_MISSING and the message
-// (flowPublishMissionMissingMessage) says to export, delete and import the flow.
+// (flowPublishMissionMissingMessage) directs the user to repair the connection.
 func (s *Server) flowPublishIncomplete(w http.ResponseWriter, rec *flows.FlowRecord, issues []flows.Issue, err error) {
 	code, msg, summary := "FLOW_PUBLISH_INCOMPLETE", flowPublishIncompleteMessage, "Flow "+rec.Name+" published; Mission Control update failed"
 	if errors.Is(err, tools.ErrFlowMissionNotFound) {

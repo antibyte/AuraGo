@@ -158,7 +158,7 @@ func (s *Service) reconcileFlow(ctx context.Context, id string, recon MissionRec
 	if recon != nil && *missions != nil && s.missionGone(recon, missions, rec.MissionID) {
 		tally.problems++
 		s.logger.Warn("the Mission Control mission of a flow is gone; the flow cannot run from Mission Control "+
-			"(delete it in EasyDrag, or export and import it again)", "flow", id, "mission_id", rec.MissionID)
+			"(repair the Mission Control connection in EasyDrag)", "flow", id, "mission_id", rec.MissionID)
 		return nil
 	}
 	if rec.Live == nil {

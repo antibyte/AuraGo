@@ -543,14 +543,14 @@ export async function run(env) {
         const html = dialog.el.parentNode.html;
         const opened = [s.ed.runView, s.h.dialogs.length - dialogs, html.includes('Ada'), dialog.body.querySelector('[data-ed-test-remember]').checked,
             !!dialog.body.querySelector('[data-ed-rerun-redacted]'), s.h.requests.some(r => r.url.includes('test-data'))];
-        // The browser's text area holds the shown JSON; the run sends it although it is unchanged.
+        // Reused input with an actual redaction sentinel must be completed before real execution.
         dialog.body.querySelector('[data-ed-test-data]').value = JSON.stringify({ name: 'Ada', token: '[redacted]' }, null, 2);
         dialog.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const post = s.h.requests.find(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/test');
-        eq('b5 U15 the run view leaves, the dialog shows the data, says what is hidden, remembers nothing by default and sends the data',
+        eq('b5 U15 the run view leaves, the dialog shows the data and blocks an incomplete real test',
             [offered, opened, post && [post.body.trigger_node, post.body.trigger_data, post.body.remember_data, post.body.base_revision], s.h.logged],
-            [false, [null, 1, true, false, true, false], [T1, { name: 'Ada', token: '[redacted]' }, false, 3], []]);
+            [false, [null, 1, true, false, true, false], undefined, []]);
         s.editor.dispose();
         const hiddenFor = async (opts, run) => {
             const v = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc' ? viewed(run) : undefined), opts);
@@ -801,6 +801,7 @@ export async function run(env) {
     // ── F6: run-event rendering cost ──
 
     await guardAsync('b5 F6 run events repaint only the steps they touch: 300 steps, 1000 events', async () => {
+        const started = performance.now();
         const chain = chainDoc(300);
         const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { run_id: 'r1' } : undefined),
             { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
@@ -814,6 +815,7 @@ export async function run(env) {
             source.emit('event', { seq: 2 * k + 1, type: 'step_started', node_id: id });
             source.emit('event', { seq: 2 * k + 2, type: 'step_finished', node_id: id, step: { node_id: id, status: 'success', duration_ms: 3, item_count: 1 } });
         }
+        console.log('info b5 F6 1000 events complete in ' + Math.round(performance.now() - started) + ' ms');
         s.h.flushFrames();
         const used = [stats.cards - before.cards, stats.paints - before.paints, stats.wires - before.wires <= 2000];
         eq('b5 F6 no card is re-rendered, one paint per event, at most two wires per event, every finished step\'s wire has its pill',

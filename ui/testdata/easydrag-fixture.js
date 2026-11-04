@@ -97,6 +97,8 @@
                 output_fields: [{ name: 'message_id', type: 'number' }] }),
             T('logic.if', 'logic', 'arrows-split', 'Wenn / dann', { description: 'Verzweigt nach einer Bedingung.', outputs: ['true', 'false'],
                 params: [P('condition', 'condition_group', 'Bedingung', { required: true })] }),
+            T('logic.set', 'logic', 'pencil', 'Felder setzen', { description: 'Erzeugt Werte aus lokalen Daten.',
+                params: [P('fields', 'fields', 'Felder', { templatable: true })], dynamic_fields: 'fields', output_fields: [{ name: 'greeting', type: 'text', primary: true }] }),
             T('smart_home.service', 'smart_home', 'home', 'Home Assistant', { description: 'Schaltet Geräte.', effects: ['controls_devices'], risky: true,
                 availability: { state: 'needs_setup', config_section: 'home_assistant' },
                 params: [P('entity', 'select', 'Gerät', { required: true, options_source: 'ha_entities' })] }),
@@ -107,8 +109,9 @@
     const types = new Map(catalog.node_types.map(i => [i.type, i]));
     const CATALOG_ETAG = 'W/"easydrag-fixture-1"';
     const templates = [
-        { id: 'ai_news_pdf_telegram', name: 'KI-Nachrichten als PDF', description: 'Sucht jeden Morgen Nachrichten, fasst sie zusammen und schickt ein PDF.', categories: ['trigger', 'web', 'ai', 'documents', 'notify'] },
-        { id: 'daily_digest', name: 'Tagesrückblick', description: 'Fasst den Tag am Abend zusammen.', categories: ['trigger', 'ai', 'notify'] }
+        { id: 'ai_news_pdf_telegram', name: 'KI-Nachrichten als PDF', description: 'Sucht jeden Morgen Nachrichten, fasst sie zusammen und schickt ein PDF.', categories: ['trigger', 'web', 'ai', 'documents', 'notify'], effects: ['writes_files', 'sends_message'], effects_known: true, local_only: false },
+        { id: 'daily_digest', name: 'Tagesrückblick', description: 'Fasst den Tag am Abend zusammen.', categories: ['trigger', 'ai', 'notify'], effects: ['sends_message'], effects_known: true, local_only: false },
+        { id: 'local_first_result', name: 'Dein erstes lokales Ergebnis', description: 'Erstellt eine Begrüßung und prüft die Eingabe. Ohne Konto und externe Aufrufe.', categories: ['trigger', 'logic'], effects: [], effects_known: true, local_only: true }
     ];
 
     const node = (id, key, type, label, x, y, params) => ({ id, key, type, type_version: 1, label, position: { x, y }, params: params || {}, settings: { retry: {} } });
@@ -128,6 +131,14 @@
     }
     function emptyFlow(name) {
         return { schema: 1, kind: 'flow', name: name || 'Neuer Flow', nodes: [], edges: [], settings: clone(FLOW_SETTINGS) };
+    }
+
+    function localFirstResult() {
+        return { schema: 1, kind: 'flow', name: 'Dein erstes Ergebnis', settings: clone(FLOW_SETTINGS), nodes: [
+            node('n_start', 'start', 'trigger.manual', 'Manuell starten', 80, 200, { data: { name: 'Welt' } }),
+            node('n_greeting', 'greeting', 'logic.set', 'Begrüßung', 380, 200, { fields: [{ name: 'greeting', value: 'Hallo {{trigger.data.name}}' }] }),
+            node('n_check', 'check', 'logic.if', 'Eingabe prüfen', 680, 200, { condition: { match: 'all', rows: [{ left: '{{trigger.data.name}}', op: 'not_empty' }] } })
+        ], edges: [edge('e_local1', 'n_start', 'n_greeting'), edge('e_local2', 'n_greeting', 'n_check')] };
     }
 
     // state is what the test reads and switches:
@@ -326,6 +337,7 @@
         const stored = state.testData[entry.rec.id + '/' + nodeId];
         if (stored) return clone(stored);
         const n = entry.rec.draft.nodes.find(x => x.id === nodeId);
+        if (n && n.params && n.params.data && typeof n.params.data === 'object') return clone(n.params.data);
         const sample = n && (types.get(n.type) || {}).sample;
         return sample && sample.data ? clone(sample.data) : {};
     }
@@ -508,7 +520,7 @@
             doc = clone(body.import);
         } else if (body.template) {
             if (!templates.some(tp => tp.id === body.template)) return fail(400, 'FLOW_BAD_REQUEST', 'unknown template');
-            doc = Object.assign(briefing(), { name: 'Vorlage: Morgenbriefing' });
+            doc = body.template === 'local_first_result' ? localFirstResult() : Object.assign(briefing(), { name: 'Vorlage: Morgenbriefing' });
         } else {
             doc = emptyFlow(body.name);
         }
@@ -576,7 +588,7 @@
     function flowRoute(method, id, rest, body, query) {
         if (!ID_PATTERN.test(id)) return fail(404, 'FLOW_NOT_FOUND', 'flow not found');
         const action = rest[0] || '';
-        const segments = { '': 0, 'publish-preview': 1, publish: 1, enabled: 1, export: 1, test: 1, run: 1, runs: 1, 'test-data': 2 };
+        const segments = { '': 0, 'publish-preview': 1, publish: 1, enabled: 1, export: 1, test: 1, simulate: 1, run: 1, runs: 1, 'test-data': 2 };
         if (!(action in segments) || rest.length !== segments[action]) return null;
         const entry = state.flows.get(id);
         if (!entry) return fail(404, 'FLOW_NOT_FOUND', 'flow not found');
@@ -604,7 +616,7 @@
         if (action === 'publish-preview' && method === 'GET') {
             if (state.failPreview) return fail(500, 'FLOW_INTERNAL', 'the flow service failed; see the server log');
             const issues = validate(rec.draft, 'publish');
-            return reply({ issues, effects: effects(rec.draft), diff: diff(rec.live || null, rec.draft), can_publish: !hasErrors(issues) });
+            return reply({ draft_revision: rec.draft_revision, issues, effects: effects(rec.draft), diff: diff(rec.live || null, rec.draft), can_publish: !hasErrors(issues) });
         }
         if (action === 'publish' && method === 'POST') {
             if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT', 'the draft was changed elsewhere');
@@ -637,6 +649,29 @@
             state.exports.push(clone(rec.draft));
             return reply(rec.draft, 200, { 'Content-Disposition': 'attachment; filename="flow.easydrag.json"' });
         }
+        if (action === 'simulate' && method === 'POST') {
+            if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT', 'the draft was changed elsewhere');
+            const trigger = rec.draft.nodes.find(n => n.id === body.trigger_node && (types.get(n.type) || {}).trigger);
+            if (!trigger) return fail(409, 'FLOW_NO_TRIGGER', 'choose a trigger');
+            const started = body.at || iso(), data = body.trigger_data || sampleOf(entry, trigger.id);
+            const roots = { trigger: { data, fired_at: started }, run: { started_at: started, mode: 'simulation' }, flow: { id: rec.id, name: rec.name } };
+            const steps = [];
+            let error = '';
+            for (const n of plan(rec.draft, trigger.id, body.only_node)) {
+                const fixture = (body.fixtures || {})[n.id];
+                let output, ports = ['out'];
+                if ((types.get(n.type) || {}).trigger) output = { data, fired_at: started };
+                else if (n.type === 'logic.set') output = Object.fromEntries((n.params.fields || []).map(field => [field.name, window.EasyDrag.template.evaluate(field.value, roots)]));
+                else if (n.type === 'logic.if') { output = {}; ports = [data.name ? 'true' : 'false']; }
+                else if (fixture && Object.prototype.hasOwnProperty.call(fixture, 'output')) { output = fixture.output; ports = fixture.ports || ['out']; }
+                else error = 'FLOW_SIMULATION_FIXTURE_REQUIRED';
+                if (fixture && fixture.error_code) error = fixture.error_code;
+                const step = { node_id: n.id, node_key: n.key, status: error ? 'error' : 'success', started_at: started, finished_at: started, duration_ms: 0, output, ports };
+                if (error) { step.error_code = error; steps.push(step); break; }
+                steps.push(step); roots[n.key] = output;
+            }
+            return reply({ mode: 'simulation', revision: rec.draft_revision, started_at: started, status: error ? 'error' : 'success', error_code: error || undefined, error_node_id: error ? steps[steps.length - 1].node_id : undefined, steps });
+        }
         if ((action === 'test' || action === 'run') && method === 'POST') {
             if (action === 'run' && !rec.live) return fail(409, 'FLOW_NOT_PUBLISHED', 'the flow is not published');
             // RunNow refuses a paused flow (ErrFlowDisabled); test runs stay allowed.
@@ -660,9 +695,10 @@
             if (status && !['queued', 'running', 'waiting', 'success', 'error', 'cancelled'].includes(status)) return fail(400, 'FLOW_BAD_REQUEST', 'status must be queued, running, waiting, success, error or cancelled');
             if (limitText && !/^\d+$/.test(limitText)) return fail(400, 'FLOW_BAD_REQUEST', 'limit must be a non-negative whole number');
             const limit = Math.min(Number(limitText) || 50, 200);
+            const offset = Number(query.get('offset')) || 0;
             const runs = Array.from(state.runs.values()).map(r => r.run).filter(r => r.flow_id === rec.id && (!mode || r.mode === mode) && (!status || r.status === status));
-            runs.sort((a, b) => b.started_at.localeCompare(a.started_at));
-            return reply({ runs: runs.slice(0, limit).map(header) });
+            runs.sort((a, b) => b.started_at.localeCompare(a.started_at) || b.id.localeCompare(a.id));
+            return reply({ runs: runs.slice(offset, offset + limit).map(header), has_more: runs.length > offset + limit, next_offset: offset + Math.min(limit, Math.max(0, runs.length - offset)) });
         }
         if (action === 'test-data') {
             const nodeId = rest[1];

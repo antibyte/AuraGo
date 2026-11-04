@@ -281,7 +281,86 @@ func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) er
 	if cur.MissionID != missionID {
 		return nil
 	}
+	linked, err := s.store.GetFlowByMission(ctx, missionID)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if linked.ID != cur.ID {
+		return nil
+	}
+	checker, ok := s.bridge.(interface{ FlowMissionExists(string) (bool, error) })
+	if !ok {
+		return ErrMissionControlUnavailable
+	}
+	exists, err := checker.FlowMissionExists(missionID)
+	if err != nil {
+		return fmt.Errorf("check the flow mission: %w", err)
+	}
+	if exists {
+		return nil
+	}
 	return s.deleteLocked(ctx, cur.ID)
+}
+
+// RepairMission restores the same missing mission in a disabled state. It never
+// changes the flow's mission ID or creates an entry for an ambiguous link.
+func (s *Service) RepairMission(ctx context.Context, id string, baseDraftRevision, baseLiveRevision int) error {
+	unlock, err := s.locks.lock(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	unlockDraft, err := s.draftLocks.lock(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer unlockDraft()
+	rec, err := s.store.GetFlow(ctx, id)
+	if err != nil {
+		return err
+	}
+	if rec.DraftRevision != baseDraftRevision || rec.LiveRevision != baseLiveRevision {
+		return ErrRevisionConflict
+	}
+	if rec.MissionID == "" {
+		return ErrFlowMissionMissing
+	}
+	linked, err := s.store.GetFlowByMission(ctx, rec.MissionID)
+	if err != nil {
+		return err
+	}
+	if linked.ID != rec.ID {
+		return ErrMissionAmbiguous
+	}
+	restorer, ok := s.bridge.(interface {
+		RestoreFlowMission(string, string, string, []TriggerBinding, bool) error
+	})
+	if !ok {
+		return ErrMissionControlUnavailable
+	}
+	name := rec.Draft.Name
+	var bindings []TriggerBinding
+	if rec.Live != nil {
+		at := rec.PublishedAt
+		if at.IsZero() {
+			at = s.now()
+		}
+		bindings, err = BindTriggers(rec.Live, s.reg, s.services.Loc(), at)
+		if err != nil {
+			return fmt.Errorf("bind published triggers: %w", err)
+		}
+		name = rec.Live.Name
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := restorer.RestoreFlowMission(rec.MissionID, rec.ID, name, bindings, rec.Live != nil); err != nil {
+		return err
+	}
+	return s.armTimers(context.WithoutCancel(ctx), rec)
 }
 
 // deleteLocked switches the flow's timers off, cancels its runs and deletes the flow.

@@ -4,7 +4,37 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 
 Product roadmap: `plans/2026-11-04-easydrag-flagship-plan.md` proposes the flagship UX,
 testing and runtime expansion. Its phases and acceptance gates describe planned work;
-the contracts below continue to describe shipped behavior until implementation.
+the contracts below describe the implemented behavior of each delivered slice.
+
+## Flagship authoring and testing
+- `simulation.go` owns synchronous, nonpersistent draft simulation. Construct a fresh built-in
+  registry and an engine with no production tool, LLM, secret or notification service. Only the
+  explicit pure-logic allowlist executes; other known steps require bounded, typed fixtures.
+  Unknown types and invalid ports fail closed. A production engine refuses `ModeSimulation`.
+  Snapshot requests, validate the exact draft revision, and freeze one explicit simulation time
+  (`at`, otherwise current time); return it as `started_at`. Never derive resumable state from
+  these results or store them as real runs. Verify `TestSimulation*`.
+- Explicit edited real-test input refuses exact redaction placeholders and actual truncated
+  preview markers before saving samples or starting work. Omitted input may still select the
+  original server-side sample; ordinary strings containing marker text remain valid.
+- `local_first_result` is the seventh starter recipe: manual sample input, a greeting made with
+  `logic.set`, then a name check. It needs no account or model. `DescribeTemplates` derives effects
+  from actual definitions and marks local execution only for the manual/pure allowlist; absent
+  metadata means unknown, never configured or reachable. All recipe text remains localized.
+- `logic.set` publishes dynamic output fields only for unique, static field names with
+  `keep_input: false`. Templated names or retained input leave the shape unknown; the editor
+  mirrors this conservative rule. Verify `TestSetOutputFieldsAreConservative`.
+- `DiffFlows` retains the existing counts and adds bounded semantic details. Credential values
+  stay redacted; URL previews expose only static scheme/authority. Omission markers and the
+  truncation flag prevent a bounded preview from claiming completeness. Coordinates alone stay
+  outside the semantic review. Verify the semantic-diff and template tests with the full suite.
+- Explicit mission repair restores the existing mission ID, disabled, with current published
+  bindings. It preserves the flow, revisions and runs and checks both observed revisions and
+  unique ownership. Serialize repair with draft saves separately from ordinary publication locks.
+  A delayed mission-delete callback rechecks absence under the flow lock; an occupied ID or
+  unavailable proof must never delete the repaired flow. Backend ownership checks belong to
+  `internal/tools`/`internal/server`; no export/delete/import workaround or activation is needed.
+  Verify `TestRepairMission*` and manager/API repair tests.
 
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
@@ -28,7 +58,7 @@ the contracts below continue to describe shipped behavior until implementation.
   `FLOW_CONDITION_INVALID` (the node's own parameters), `FLOW_AI_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
   `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED`, `FLOW_ACTION_RULE_REQUIRED`, `FLOW_SECRET_UNAVAILABLE` (missing, refused or unusable
   capability, a vault entry included), `FLOW_BUDGET_EXCEEDED`,
-  `FLOW_OUTPUT_TOO_LARGE`, and the failures that follow from the input alone (params are resolved once, so every
+  `FLOW_OUTPUT_TOO_LARGE`, `FLOW_SIMULATION_FIXTURE_REQUIRED`, and the failures that follow from the input alone (params are resolved once, so every
   attempt sees the same): `FLOW_CONDITION_FAILED` (a condition that cannot be evaluated: two dates needed, a bad
   or too complex pattern), `FLOW_VALUE_TYPE` (a `logic.set` value that does not fit its type) and
   `FLOW_WAIT_TOO_LONG` (a `logic.wait` until time more than an hour away; it reads the clock, but a retry delay is

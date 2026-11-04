@@ -430,11 +430,11 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ── palette ────────────────────────────────────────────────────────────────── */
 .ed-palette {
-    position: relative; display: flex; flex-direction: column; width: 280px; flex: none; min-height: 0;
+    position: relative; display: flex; flex-direction: column; width: var(--ed-palette-width, 280px); flex: none; min-height: 0;
     background: var(--ed-side); box-shadow: var(--ed-side-edge); border-right: 1px solid var(--ed-border); z-index: 2;
     transition: margin-left var(--ed-base) var(--ed-ease), opacity var(--ed-base) var(--ed-ease);
 }
-.ed-palette.is-collapsed { margin-left: -280px; opacity: 0; pointer-events: none; visibility: hidden; }
+.ed-palette.is-collapsed { margin-left: calc(-1 * var(--ed-palette-width, 280px)); opacity: 0; pointer-events: none; visibility: hidden; }
 .ed-palette-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 8px; }
 .ed-palette-head .ed-search { flex: 1; }
 .ed-palette-list { flex: 1; overflow: auto; padding: 0 8px 8px; }
@@ -677,7 +677,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ── step inspector (not a modal; the old backdrop class is only a wrapper) ── */
 .ed-detail-backdrop {
-    position: relative; inset: auto; z-index: 2; display: flex; flex: 0 0 360px; width: 360px; max-width: 100%;
+    position: relative; inset: auto; z-index: 2; display: flex; flex: 0 0 var(--ed-inspector-width, 400px); width: var(--ed-inspector-width, 400px); max-width: 100%;
     min-width: 0; min-height: 0; padding: 0; overflow: hidden;
     background: var(--ed-side); border-left: 1px solid var(--ed-border);
     box-shadow: var(--ed-side-edge); backdrop-filter: none; opacity: 1;
@@ -720,6 +720,61 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-detail .ed-input, .ed-detail textarea, .ed-detail select { font-size: 16px; }
 .ed-detail .ed-error, .ed-detail .ed-field-issue, .ed-detail .ed-field-preview.is-error { font-size: 14px; line-height: 1.45; color: var(--ed-danger-ink); }
 .ed-detail-desc { margin: 0 0 12px; color: var(--ed-muted); line-height: 1.5; }
+.ed-panel-resize { position: absolute; top: 0; bottom: 0; width: 8px; z-index: 8; cursor: col-resize; touch-action: none; outline-offset: -2px; }
+.ed-panel-resize--palette { right: 0; }
+.ed-panel-resize--inspector { left: 0; }
+.ed-panel-resize::after { content: ''; position: absolute; top: 35%; bottom: 35%; left: 3px; width: 2px; border-radius: 2px; background: var(--ed-border); }
+.ed-panel-resize:hover::after, .ed-panel-resize:focus-visible::after { background: var(--ed-accent); }
+.ed-editor.is-resizing-panel { cursor: col-resize; user-select: none; }
+.ed-editor.is-resizing-panel .ed-palette { transition: none; }
+.ed-node-region.is-outline { order: -1; width: 240px; min-width: 0; flex: 0 0 240px; overflow: auto; background: var(--ed-side); border-right: 1px solid var(--ed-border); }
+.ed-rail { order: -2; }
+.ed-outline-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--ed-side); border-bottom: 1px solid var(--ed-border); }
+.ed-outline-head h3 { font-size: 14px; margin: 0; }
+.ed-node-list { padding: 8px; margin: 0; list-style: none; }
+.ed-node-list button { width: 100%; min-height: 44px; padding: 8px; background: transparent; color: var(--ed-text); border: 0; border-radius: 8px; font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.ed-node-list button:hover, .ed-node-list button[aria-current="step"] { background: var(--ed-selected); color: var(--ed-selected-text); }
+.ed-mapping-target { display: grid; gap: 6px; padding-bottom: 16px; margin-bottom: 12px; border-bottom: 1px solid var(--ed-border); font-weight: 600; }
+.ed-mapping-target .ed-hint { margin: 0; font-weight: 400; }
+.ed-detail.is-mapping-wide .ed-detail-body { grid-template-columns: minmax(240px, 0.9fr) minmax(300px, 1.1fr); }
+.ed-detail.is-mapping-wide [data-col="input"], .ed-detail.is-mapping-wide [data-col="params"] { display: block; }
+.ed-detail.is-mapping-wide [data-col="params"] { border-left: 1px solid var(--ed-border); }
+.ed-result-preview { margin: 0 0 16px; padding: 14px; border-radius: 10px; background: var(--ed-panel-strong); border: 1px solid var(--ed-border); }
+.ed-result-preview h4 { font-size: 12px; color: var(--ed-muted); margin: 0 0 8px; }
+.ed-result-preview p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
+.ed-publish-changes { display: grid; gap: 12px; margin: 16px 0; }
+.ed-publish-change { border: 1px solid var(--ed-border); border-radius: 10px; padding: 12px; min-width: 0; }
+.ed-publish-change h4 { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+.ed-publish-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.ed-publish-values strong { font-size: 12px; color: var(--ed-muted); }
+.ed-publish-values pre { max-height: 140px; overflow: auto; margin: 4px 0 0; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ed-well); border-radius: 6px; font-size: 12px; }
+.ed-recipe-intro { padding: 20px 24px; margin-bottom: 24px; border: 1px solid var(--ed-border); border-left: 3px solid var(--ed-accent); border-radius: 12px; background: var(--ed-panel); }
+.ed-recipe-intro h2 { font-size: 20px; margin: 0 0 8px; }
+.ed-recipe-intro p { max-width: 70ch; line-height: 1.6; color: var(--ed-muted); }
+.ed-recipe-steps { display: flex; flex-wrap: wrap; gap: 8px 24px; font-weight: 600; font-size: 13px; }
+.ed-recipe-tools { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.ed-recipe-tools .ed-search { flex: 1 1 240px; }
+.ed-recipe-tools select { width: auto; max-width: 100%; }
+.ed-recipe-meta { display: grid; gap: 6px; margin: 12px 0 0; font-size: 12px; line-height: 1.5; }
+.ed-recipe-meta dt { color: var(--ed-muted); font-weight: 600; }
+.ed-recipe-meta dd { margin: 0; overflow-wrap: anywhere; }
+.ed-runs-tools { display: flex; gap: 8px; padding: 10px 12px; }
+.ed-runs-tools .ed-search { flex: 1; min-width: 0; }
+.ed-runs-pager { width: calc(100% - 24px); margin: 8px 12px 12px; flex-shrink: 0; }
+.ed-run-diagnosis { padding: 12px; margin: 0 0 12px; border: 1px solid var(--ed-border); border-radius: 10px; background: var(--ed-panel); }
+.ed-run-diagnosis h3, .ed-run-diagnosis h4 { font-size: 14px; margin: 0 0 8px; }
+.ed-run-diagnosis p { line-height: 1.5; overflow-wrap: anywhere; }
+.ed-run-timeline { list-style: none; padding: 0; margin: 12px 0; }
+.ed-run-timeline button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; background: transparent; border: 0; border-bottom: 1px solid var(--ed-border); color: var(--ed-text); padding: 8px; font: inherit; text-align: left; cursor: pointer; }
+.ed-run-timeline button > span:nth-child(2) { flex: 1; }
+.ed-run-timeline .ed-muted { font-size: 12px; font-variant-numeric: tabular-nums; }
+.ed-run-results { position: absolute; top: 16px; left: 16px; z-index: 3; width: min(380px, calc(100% - 32px)); max-height: calc(100% - 80px); overflow: auto; border-radius: 12px; border: 1px solid var(--ed-border); background: var(--ed-panel-strong); box-shadow: var(--ed-shadow-lg); user-select: text; touch-action: pan-y; }
+.ed-run-results > summary { padding: 12px 14px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.ed-run-results-body { padding: 0 12px 12px; border-top: 1px solid var(--ed-border); }
+.ed-run-results-body h4 { font-size: 13px; }
+.ed-simulation-fields { border-top: 1px solid var(--ed-border); margin-top: 16px; padding-top: 12px; }
+.ed-simulation-nodes { max-height: 150px; overflow: auto; padding-left: 20px; font-size: 12px; line-height: 1.8; }
+.ed-simulation-nodes code { overflow-wrap: anywhere; }
 .ed-subtabs { display: flex; gap: 2px; margin: -2px 0 12px; border-bottom: 1px solid var(--ed-border); }
 .ed-subtabs button { padding: 7px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ed-muted); font: inherit; font-weight: 600; cursor: pointer; }
 .ed-subtabs button[aria-selected="true"] { color: var(--ed-text); border-bottom-color: var(--ed-accent); }
@@ -987,7 +1042,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-palette { position: absolute; top: 0; bottom: 0; left: 48px; z-index: 4; box-shadow: var(--ed-shadow-lg); }
     .ed-minimap { display: none; }
     .ed-drawer { width: min(340px, 100%); }
+    .ed-node-region.is-outline { position: absolute; top: 0; bottom: 0; left: 48px; z-index: 5; width: min(280px, calc(100% - 48px)); box-shadow: var(--ed-shadow-lg); }
 }
+@container (max-width: 759px) { .ed-panel-resize { display: none; } }
 /* Inspector open under 1180: palette floats, so it does not eat the graph. isOverlay reads this absolute. */
 @container (max-width: 1179px) {
     .ed-body:has(.ed-detail-backdrop) > .ed-palette {
@@ -996,7 +1053,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     }
 }
 @container (min-width: 888px) {
-    .ed-editor:not(.is-inspector) .ed-canvas { min-width: 480px; }
+    .ed-editor:not(.is-inspector) .ed-canvas { min-width: 320px; }
 }
 @container (max-width: 560px) {
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }

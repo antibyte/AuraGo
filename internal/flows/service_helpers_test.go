@@ -77,6 +77,9 @@ func (b *fakeBridge) DeleteFlowMission(missionID string) error {
 	return nil
 }
 
+// Delete callbacks in legacy fixtures represent a mission already removed by the manager.
+func (b *fakeBridge) FlowMissionExists(string) (bool, error) { return false, nil }
+
 func (b *fakeBridge) FlowRunStarted(missionID string, rec RunRecord) string {
 	b.mu.Lock()
 	defer b.mu.Unlock()

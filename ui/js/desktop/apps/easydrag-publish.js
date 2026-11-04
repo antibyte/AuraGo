@@ -109,6 +109,20 @@
             return parts.length ? parts.join(' · ') : t('easydrag.ui.diff_none');
         }
 
+        function diffMarkup(diff) {
+            if (!diff || !Array.isArray(diff.details) || !diff.details.length) return '';
+            const value = item => esc(item === undefined ? '—' : typeof item === 'string' ? item : JSON.stringify(item, null, 2));
+            return '<section class="ed-publish-changes"><h3>' + esc(t('easydrag.ui.publish_changes')) + '</h3>' + diff.details.slice(0, 500).map(item => {
+                const change = item.kind.endsWith('_added') ? t('easydrag.ui.publish_change_added') : item.kind.endsWith('_removed') ? t('easydrag.ui.publish_change_removed') : t('easydrag.ui.publish_change_changed');
+                const node = ed.model.node(item.node_id) || ((ed.flow.live || {}).nodes || []).find(n => n.id === item.node_id);
+                const info = node && ed.model.info(node.type);
+                const param = info && (info.params || []).find(p => item.field === 'params.' + p.name || item.field === p.name);
+                const name = item.label || item.node_key || (node && node.label) || item.node_id || '';
+                const field = param ? param.label || param.name : item.field || '';
+                return '<article class="ed-publish-change"><h4>' + esc(change + (name ? ' · ' + name : '') + (field ? ' · ' + field : '')) + '</h4><div class="ed-publish-values"><div><strong>' + esc(t('easydrag.ui.publish_change_before')) + '</strong><pre>' + value(item.before) + '</pre></div><div><strong>' + esc(t('easydrag.ui.publish_change_after')) + '</strong><pre>' + value(item.after) + '</pre></div></div></article>';
+            }).join('') + (diff.details_truncated ? '<p class="ed-hint">…</p>' : '') + '</section>';
+        }
+
         // openDialog opens the publish dialog once: clicks while it loads or is open do nothing.
         async function openDialog() {
             if (ed.readonly || ed.runView || dialogBusy) return undefined;
@@ -163,7 +177,11 @@
             }
             if (warnings.length) body += '<details class="ed-details"><summary>' + esc(t('easydrag.ui.publish_warnings', { count: warnings.length })) + '</summary>' + issuesMarkup(warnings) + '</details>';
             body += '<p class="ed-diff">' + core.icon('history') + '<span>' + esc(diffText(preview.diff)) + '</span></p>';
-            if (!enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate checked> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
+            body += diffMarkup(preview.diff);
+            const evidence = ed.testEvidence;
+            const exactTest = evidence && Number.isInteger(preview.draft_revision) && Number(evidence.revision) === preview.draft_revision && !(ed.saver && ed.saver.isDirty());
+            body += '<section class="ed-publish-evidence"><h4>' + esc(t('easydrag.ui.publish_tested_revision')) + '</h4><p>' + esc(exactTest ? (evidence.mode === 'simulation' ? t('easydrag.ui.simulation_title') : t('easydrag.ui.real_test')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + evidence.status, evidence.status) : t('easydrag.ui.publish_not_tested')) + '</p></section>';
+            if (!enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate' + (ed.flow.live ? '' : ' checked') + '> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
             const dialog = core.modal(ed.root, {
                 title: t('easydrag.ui.publish_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--publish', body,
                 actions: errors.length

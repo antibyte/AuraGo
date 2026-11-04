@@ -335,10 +335,11 @@
         bag.listen(el.querySelector('[data-ed-palette-close]'), 'click', () => setOpen(false));
 
         render();
-        setOpen(core.storage.get(OPEN_KEY, true));
+        const savedOpen = core.storage.get(OPEN_KEY, null);
+        setOpen(savedOpen !== false, true);
 
         return {
-            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove, restoreDocked,
+            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove, restoreDocked, hasPreference: () => savedOpen !== null,
             focusSearch() { setOpen(true); input.focus(); input.select(); },
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };

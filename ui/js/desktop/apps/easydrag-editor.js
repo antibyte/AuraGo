@@ -24,7 +24,7 @@
         const core = ED.core;
         const { t, esc, ctx } = app;
         const bag = core.bag();
-        let canvas, wires, interact, palette, runs, publish, history;
+        let canvas, wires, interact, palette, runs, publish, history, workspace;
         // A build that fails later releases what it set up (dispose skips what does not exist yet).
         guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
@@ -103,6 +103,7 @@
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
         body.appendChild(canvas.listRegion);
+        workspace = ED.workspace && ED.workspace.create(ed, canvas, palette);
         // Undo/Redo in the header and the "deleted – Undo" toast (easydrag-history.js).
         history = ED.history.create(ed, {
             host: el.querySelector('[data-ed-history-host]'), toastHost: body,
@@ -147,7 +148,7 @@
         function revisionText() {
             // The run view's chip says "Past run" already; the line stays empty and hidden there.
             if (ed.runView) return '';
-            if (!ed.flow.live) return t('easydrag.ui.state_draft');
+            if (!ed.flow.live) return '';
             const liveN = Number(ed.flow.live_revision) || 0;
             if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return t('easydrag.ui.revision_ahead', { n: liveN });
             return t('easydrag.ui.revision_live', { n: liveN });
@@ -172,7 +173,7 @@
             node.dataset.draft = draftN;
             node.dataset.live = liveN;
             node.dataset.paused = paused ? 'true' : 'false';
-            node.hidden = !!ed.runView;
+            node.hidden = !!ed.runView || !ed.flow.live;
             node.textContent = revisionText();
         }
 
@@ -586,12 +587,35 @@
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
+                ...(ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') ? [{ icon: 'link', label: t('easydrag.ui.repair_mission'), disabled: ro, action: repairMission }] : []),
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
             ]));
+        }
+
+        async function repairMission() {
+            if (ed.readonly || ed.runView || !ed.flushPendingEdits() || !(await ed.saver.flush())) return;
+            const revision = ed.flow.draft_revision, liveRevision = ed.flow.live_revision;
+            core.modal(ed.root, {
+                title: t('easydrag.ui.repair_mission'), closeLabel: t('easydrag.ui.close'),
+                body: '<p>' + esc(t('easydrag.ui.repair_mission_hint')) + '</p>',
+                actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'repair', label: t('easydrag.ui.repair_mission'), primary: true }],
+                onAction: async action => {
+                    if (action !== 'repair') return true;
+                    try {
+                        await ed.api.repairMission(ed.flow.id, revision, liveRevision);
+                        if (disposed) return true;
+                        ed.publishIncomplete = ''; ed.flowEnabled = false;
+                        await refreshRecord();
+                        renderHeader(); setMenus();
+                        ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.repair_mission_done') });
+                        return true;
+                    } catch (err) { if (!disposed) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return false; }
+                }
+            });
         }
 
         // ── window menus ────────────────────────────────────────────────────────
@@ -711,7 +735,7 @@
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
         bag.add(ed.bus.on('open-detail', req => {
             if (!ed.flushPendingEdits()) return;
-            ED.detail.open(ed, req.nodeId, { param: req.param });
+            ED.detail.open(ed, req.nodeId, { param: req.param, column: req.column });
             setMenus();
         }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));
@@ -953,7 +977,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());
             safely(() => bag.dispose());

@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "テスト",
   "dashboard.selftest_tool": "ツール",
   "dashboard.selftest_connections": "接続",
-  "dashboard.rustfs_running_unready": "実行中・未準備"
+  "dashboard.rustfs_running_unready": "実行中・未準備",
+  "dashboard.audit_type_flow_mission_repair": "フローのミッション連携を修復"
 }

@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Verktyg",
   "dashboard.selftest_connections": "Anslutningar",
-  "dashboard.rustfs_running_unready": "Körs, ännu inte klar"
+  "dashboard.rustfs_running_unready": "Körs, ännu inte klar",
+  "dashboard.audit_type_flow_mission_repair": "Flödets uppdragskoppling reparerad"
 }

@@ -13,10 +13,10 @@ import (
 // Tests of the list of starter templates and of TemplateFlow itself (the unknown id, a
 // translator without translations). They use the helpers of the hardening tests.
 
-// The gallery lists the six templates in the order of the plan, each with categories of the
+// The gallery lists the templates in order, each with categories of the
 // catalog; the list is a copy that a caller may modify.
 func TestTemplatesListInGalleryOrder(t *testing.T) {
-	want := []string{"ai_news_pdf_telegram", "webhook_summary_email", "appointment_reminder", "leaving_home", "budget_guard", "rss_digest"}
+	want := []string{"local_first_result", "ai_news_pdf_telegram", "webhook_summary_email", "appointment_reminder", "leaving_home", "budget_guard", "rss_digest"}
 	var ids []string
 	for _, info := range Templates() {
 		ids = append(ids, info.ID)

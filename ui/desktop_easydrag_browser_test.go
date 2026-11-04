@@ -26,8 +26,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s := startEasyDragSmoke(t)
 	page := s.page
 
-	// Start page: the seeded flow and both templates.
-	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelectorAll('.ed-template-card').length===2`)
+	// Start page: the seeded flow and the three fixture recipes, including local onboarding.
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelectorAll('.ed-template-card').length===3`)
 	s.shot("home-standard")
 	s.noRawKeys("home")
 
@@ -48,7 +48,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>[...document.querySelectorAll('.ed-node')].every(c=>{const sub=c.querySelector('.ed-node-summary');return !sub || sub.textContent!==c.querySelector('.ed-node-label').textContent})`)
 	// The flow opens at a readable zoom (no stored view yet), and the name field keeps its own font.
 	s.wait(`()=>edFixture.editor().view.zoom>=0.8`)
-	s.wait(`()=>{const cs=getComputedStyle(document.querySelector('[data-ed-name]'));return cs.fontSize==='16px' && cs.fontWeight==='700'}`)
+	s.wait(`()=>{const cs=getComputedStyle(document.querySelector('[data-ed-name]'));return cs.fontSize==='16px' && cs.fontWeight===(cs.getPropertyValue('--vd-mat-heading-weight').trim()||'700')}`)
 	// The schedule trigger's summary ({mode}) shows the label of its mode.
 	s.wait(`()=>document.querySelector('.ed-node[data-node-id="n_zeitplan"] .ed-node-summary').textContent==='Werktags (Mo–Fr)'`)
 
@@ -728,7 +728,7 @@ func (s *easyDragSmoke) phone() {
 	page.MustEval(`()=>fixtureCloseAll()`)
 	s.wait(`()=>!document.querySelector('.ed-app')`)
 	page.MustEval(`async()=>{await fixtureOpen('easydrag')}`)
-	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelectorAll('.ed-template-card').length===2`)
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelectorAll('.ed-template-card').length===3`)
 	s.wait(`()=>{const r=document.querySelector('.ed-app').getBoundingClientRect();const home=document.querySelector('.ed-home');return r.width>0 && r.left>=0 && r.right<=innerWidth+1 && home.scrollWidth<=home.clientWidth+1}`)
 	s.shot("home-phone")
 	s.noRawKeys("phone home")

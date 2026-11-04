@@ -115,7 +115,7 @@ type FieldInfo struct {
 //   - home.assistant: "operation" is segmented; get_state and call_service have their own fields.
 var (
 	dynamicOutputs = map[string]string{TypeSwitch: "cases", TypeAIDecision: "decision_choices"}
-	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeMerge: "mode", TypeAIDecision: "mode", TypeHomeAssistant: "operation"}
+	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeSet: "fields", TypeMerge: "mode", TypeAIDecision: "mode", TypeHomeAssistant: "operation"}
 )
 
 // DescribeNodeTypes describes every registered node type for the editor, ordered by

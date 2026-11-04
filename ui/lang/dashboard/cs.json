@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Nástroj",
   "dashboard.selftest_connections": "Spojení",
-  "dashboard.rustfs_running_unready": "Běží, zatím nepřipraveno"
+  "dashboard.rustfs_running_unready": "Běží, zatím nepřipraveno",
+  "dashboard.audit_type_flow_mission_repair": "Propojení mise s flow opraveno"
 }

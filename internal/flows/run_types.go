@@ -6,16 +6,17 @@ import "time"
 type RunMode string
 
 const (
-	ModeTest  RunMode = "test"
-	ModeLive  RunMode = "live"
-	ModeAgent RunMode = "agent"
-	ModeCall  RunMode = "call"
+	ModeTest       RunMode = "test"
+	ModeSimulation RunMode = "simulation"
+	ModeLive       RunMode = "live"
+	ModeAgent      RunMode = "agent"
+	ModeCall       RunMode = "call"
 )
 
 // Valid reports whether m is one of the run modes above.
 func (m RunMode) Valid() bool {
 	switch m {
-	case ModeTest, ModeLive, ModeAgent, ModeCall:
+	case ModeTest, ModeSimulation, ModeLive, ModeAgent, ModeCall:
 		return true
 	}
 	return false

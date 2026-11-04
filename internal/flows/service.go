@@ -134,7 +134,7 @@ var (
 	ErrFlowDisabled = errors.New("the flow is paused; switch it on first")
 	// ErrFlowMissionMissing refuses Run now of a flow whose mission is gone from Mission
 	// Control (publishing does not recreate it).
-	ErrFlowMissionMissing = errors.New("the flow's Mission Control entry is missing; export the flow, delete it and import it again")
+	ErrFlowMissionMissing = errors.New("the flow's Mission Control entry is missing")
 	// ErrMissionControlUnavailable refuses Run now while Mission Control is not available,
 	// so the flow's switch cannot be read.
 	ErrMissionControlUnavailable = errors.New("Mission Control is not available")
@@ -142,16 +142,17 @@ var (
 
 // Service is the entry point for the HTTP API, Mission Control and timers.
 type Service struct {
-	store    *Store
-	reg      *Registry
-	services *Services
-	bridge   MissionBridge
-	cfg      ServiceConfig
-	logger   *slog.Logger
-	engine   *Engine
-	runner   *Runner
-	timers   *TimerService
-	locks    flowLocks
+	store      *Store
+	reg        *Registry
+	services   *Services
+	bridge     MissionBridge
+	cfg        ServiceConfig
+	logger     *slog.Logger
+	engine     *Engine
+	runner     *Runner
+	timers     *TimerService
+	locks      flowLocks
+	draftLocks flowLocks
 
 	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
 	startMu sync.Mutex
@@ -427,6 +428,11 @@ func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevis
 	if HasErrors(issues) {
 		return 0, issues, &ValidationError{Issues: issues}
 	}
+	unlock, err := s.draftLocks.lock(ctx, id)
+	if err != nil {
+		return 0, issues, err
+	}
+	defer unlock()
 	rev, err := s.store.SaveDraft(ctx, id, f, baseRevision, s.now())
 	return rev, issues, err
 }
@@ -533,19 +539,22 @@ func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseR
 
 // DiffSummary counts what changed between the published revision and the draft.
 type DiffSummary struct {
-	FirstPublish bool `json:"first_publish"`
-	AddedNodes   int  `json:"added_nodes"`
-	RemovedNodes int  `json:"removed_nodes"`
-	ChangedNodes int  `json:"changed_nodes"`
-	ChangedEdges int  `json:"changed_edges"`
+	FirstPublish     bool         `json:"first_publish"`
+	AddedNodes       int          `json:"added_nodes"`
+	RemovedNodes     int          `json:"removed_nodes"`
+	ChangedNodes     int          `json:"changed_nodes"`
+	ChangedEdges     int          `json:"changed_edges"`
+	Details          []DiffDetail `json:"details"`
+	DetailsTruncated bool         `json:"details_truncated,omitempty"`
 }
 
 // PublishPreview is shown in the publish dialog.
 type PublishPreview struct {
-	Issues     []Issue         `json:"issues"`
-	Effects    []EffectSummary `json:"effects"`
-	Diff       DiffSummary     `json:"diff"`
-	CanPublish bool            `json:"can_publish"`
+	DraftRevision int             `json:"draft_revision"`
+	Issues        []Issue         `json:"issues"`
+	Effects       []EffectSummary `json:"effects"`
+	Diff          DiffSummary     `json:"diff"`
+	CanPublish    bool            `json:"can_publish"`
 }
 
 // PublishPreview validates the draft with publish rules and summarises effects and changes.
@@ -562,7 +571,7 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 	if effects == nil {
 		effects = []EffectSummary{}
 	}
-	return &PublishPreview{Issues: issues, Effects: effects, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, nil
+	return &PublishPreview{DraftRevision: rec.DraftRevision, Issues: issues, Effects: effects, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, nil
 }
 
 // DiffFlows compares the live revision with the draft. Moving a node is not a change.
@@ -578,7 +587,9 @@ func DiffFlows(live, draft *Flow) DiffSummary {
 		draft = &Flow{}
 	}
 	if live == nil {
-		return DiffSummary{FirstPublish: true, AddedNodes: len(draft.Nodes)}
+		d := DiffSummary{FirstPublish: true, AddedNodes: len(draft.Nodes)}
+		d.Details, d.DetailsTruncated = diffDetails(nil, draft)
+		return d
 	}
 	signature := func(n Node) string {
 		n.Position = Point{}
@@ -626,5 +637,6 @@ func DiffFlows(live, draft *Flow) DiffSummary {
 			d.ChangedEdges++
 		}
 	}
+	d.Details, d.DetailsTruncated = diffDetails(live, draft)
 	return d
 }

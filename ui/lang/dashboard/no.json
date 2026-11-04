@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Verktøy",
   "dashboard.selftest_connections": "Forbindelser",
-  "dashboard.rustfs_running_unready": "Kjører, ikke klar ennå"
+  "dashboard.rustfs_running_unready": "Kjører, ikke klar ennå",
+  "dashboard.audit_type_flow_mission_repair": "Flytens oppdragskobling reparert"
 }

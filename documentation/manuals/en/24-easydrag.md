@@ -25,6 +25,13 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## Your First Flow
 
+For a first result without an account, choose **Your first local result** in the recipe
+gallery. Its three steps read a sample name, make a greeting and check that the name
+is present. Open the greeting step's output after testing. Recipe search and category
+filters help you find other examples; the cards distinguish local processing from
+possible external effects. A setup reminder does not mean an integration is missing
+or that its connection has been tested.
+
 1. Open **EasyDrag** on the desktop. Choose **New flow** and give it a name, or start from a **template**.
 2. Click **Choose a trigger** and pick one.
 3. Select the trigger and press **Ctrl+K**: quick search adds the next step right behind it and connects it. **Tab** only moves focus. You can also use **Add** on the selected card, or drag building blocks from the left panel onto the canvas or onto a connection.
@@ -33,6 +40,15 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
 
 ## The Editor
+
+The step list in the left toolbar provides a visible outline of the flow. Select a
+step there to navigate without dragging. **Focus selected path** frames its connected
+path. You can resize the library and inspector with their separators, using a pointer
+or the keyboard. These device-local view preferences do not modify the flow.
+
+When inserting input data, choose **Insert data into** first. EasyDrag never guesses
+the first available field. It retains the selected field and insertion position;
+a wide inspector can show the source data beside the parameter form.
 
 - The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Undo** and **Redo**, **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Version history*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. In an editor 560 px wide or narrower (a phone), **Runs** and **Test** move into the ⋯ menu too, and *Paused* stays next to the name; so do *Republish needed* and the warning about stopped Date & time triggers. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
 - **Undo** and **Redo** in the header take back or repeat the last change, also on touch screens (Ctrl+Z and Ctrl+Shift+Z do the same on the canvas). Deleting steps shows a note such as "Alpha deleted" with **Undo** for a few seconds; deleting asks no question first.
@@ -66,9 +82,17 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## Testing
 
+The dialog separates **Real test** from **Simulation**. A real test can perform the
+listed actions. A simulation runs pure processing steps locally and replaces other
+supported steps with the sample outputs you provide. Missing or incompatible samples
+stop the simulation; the simulation engine has no tool, model, device or secret access.
+Sample outputs are JSON keyed by step ID, with `output` and optional `ports`. They stay
+in the open window. Results are explicitly marked as simulated and are not live-run
+history. Edited real-test data with redacted or omitted values must be completed first.
+
 - **Test** saves the draft first; a draft that cannot be saved is not tested. The flow needs a trigger that is turned on.
 - The test dialog shows the trigger data the test starts with. With several triggers, pick one under *Start from*. Change the JSON to try other cases; *Remember this data for later tests* keeps your edit.
-- Stored test data shows secret values as `[redacted]`. Left unchanged, the test uses the real stored data. Edited data that still contains `[redacted]` runs, but is not remembered.
+- Stored test data shows secret values as `[redacted]`. Left unchanged, the test uses the real stored data. Replace exact redaction and omission placeholders in edited data before a real test; incomplete edited data is refused.
 - A test has real effects. The dialog lists each kind (*Sends messages*, *Writes files*, *Controls devices*, …) with the steps that may cause it. Each step counts with what its building block does by default and with what its actual settings do, so an HTTP request with POST counts as sending, although the building block alone does not. If AuraGo cannot check the settings, or a building block cannot name its effects, the dialog says that the effects could not be fully checked. **Run test** confirms the listed kinds once the test has started, while the flow stays open; *Don't ask again for this flow* remembers them on this device. A test that does not start (AuraGo refuses it or cannot be reached) confirms nothing. A kind you have not confirmed yet is asked again.
 - **Test step** in a step's detail view (also *Test this step* on the selected card and in its context menu) runs that step together with the steps before it. Its dialog therefore asks about the effects of every step that runs: the step itself and the steps before it that the chosen trigger reaches. A turned-off step does not run, nor do the steps that only it leads to.
 - **Stop** in the header cancels the test or run you started in this window, without asking (also a run started with *Run now*). Other runs that have not ended are stopped under **Runs** (see [Runs and notifications](#runs-and-notifications)). While that test or live run is still starting or still going, EasyDrag does not start another and does not send an uncertain start again. Stopping does not undo steps that already ran. Automatic saving is unchanged. The runs list opens in the editor body, under the header and any run banner.
@@ -76,19 +100,24 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## Publishing
 
+The review includes named step and parameter changes, with before/after values where
+safe, and the test evidence for the exact draft in this editor. A later edit invalidates
+that evidence. Credentials remain hidden and large comparisons may be marked as partial;
+a successful test does not guarantee that a future live action will succeed.
+
 - The publish dialog lists blocking problems, what the flow does outside AuraGo, data from outside that reaches sensitive steps, hints and the changes since the last publication. With blocking problems it can only be closed; a click on a problem opens its step.
 - **Version history** (⋯ menu or the *Flow* menu) lists the published versions, newest first, with their date, number of steps and connections, and *Live* on the version that runs. **Restore as draft** replaces your draft with that version after a question; the live version stays until you publish. A draft that cannot be saved first (offline, invalid) is not replaced. EasyDrag keeps the last 50 published versions; the run view of an older run whose version was cleaned up says so.
 - *Activate now so the triggers start working* switches the flow on with the publication. Later, the **Active** switch pauses and resumes it. An unpublished flow cannot be switched on; EasyDrag offers to publish it first.
 - The building blocks panel marks blocks with real effects outside AuraGo. The mark looks at a block's default settings (for a generic tool, at its most far-reaching operation) and is no safety guarantee. The publish dialog lists the effects of your actual settings; the test dialog adds those of the blocks' default settings.
 - **Published with a problem** means the new version is live, but Mission Control or the timers could not be updated. The header then shows *Publish not finished*, and **Publish** stays available: publish again to finish.
-- When the flow's Mission Control entry is missing, publishing again does not help. Export the flow, delete it and import it again.
+- When the flow's Mission Control entry is missing, use **Repair Mission Control connection**. It restores the existing link disabled and preserves the flow, versions and run history. Review the restored flow before explicitly activating it.
 - *Data from outside reaches a sensitive step* (for example a mail subject in a shell command, a file path or a recipient) is a hint, not a blocking problem: AuraGo cannot tell whether the step checks the data, and many flows pass outside text on on purpose. Such flows can be published and run; make sure the step cannot be misused. Outside data that selects a web address's scheme, host, port or user name, or where a secret is sent, blocks publishing and fails that step in tests and older published versions too. Write the trusted address up to the first `/`, `?` or `#` after the host directly in the step; data may still fill the path, query, headers and body. A step that reads outside data is treated as untrusted as a whole, including its fixed output fields.
 - A header such as *Authorization*, *X-Api-Key* or *Cookie* with a typed-in value is a hint as well: the value sits in clear text in the flow and its versions. Store it as a secret and use the *Secret* field. Exports and the run view show such values as `[redacted]`.
 
 ## Runs and Notifications
 
-- **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
-- In the run view, **Test again with this data** opens the test dialog with the trigger data of that run. Values hidden as `[redacted]` must be replaced, or the test runs with the placeholder text. The dialog lists the real effects and asks before anything runs, as every test does; the data is not remembered unless you tick *Remember this data for later tests*. The button is missing while a run is going, and for a run whose trigger data was too large to be kept in full.
+- **Runs** initially lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. **Load older runs** retrieves another retained page; search covers the loaded rows. Refresh explicitly to restart at the newest page. Clicking a run opens its exact flow version and recorded input/output, read-only. A timeline and failure explanation help locate the affected step. **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
+- In the run view, **Test again with this data** opens the test dialog with that run's trigger data. Replace redacted or omitted values before a real test. The dialog lists the real effects and asks before anything runs; data is remembered only when you tick *Remember this data for later tests*. The button is missing while a run is going and when the original trigger data was not retained in full.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers Stop too, because stopping changes no flow; read-only missions refuse it.
 - **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.
 - A flow set to *Skip* in its settings does not start a new run while one is still going, so **Run now** starts nothing and says so; such flows skip new runs until the running one has ended.

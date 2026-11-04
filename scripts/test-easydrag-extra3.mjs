@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-testing.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -118,7 +118,7 @@ export async function run(env) {
         const box = vm.createContext({
             window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
                 removeEventListener: (type, fn) => { const list = winListeners[type] || []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); } }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
-            EventSource, URLSearchParams, URL,
+            EventSource, URLSearchParams, URL, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: {
                 get length() { return store.size; },

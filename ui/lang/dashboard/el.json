@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "Δοκιμή",
   "dashboard.selftest_tool": "Εργαλείο",
   "dashboard.selftest_connections": "Συνδέσεις",
-  "dashboard.rustfs_running_unready": "Εκτελείται, δεν είναι ακόμη έτοιμο"
+  "dashboard.rustfs_running_unready": "Εκτελείται, δεν είναι ακόμη έτοιμο",
+  "dashboard.audit_type_flow_mission_repair": "Επιδιορθώθηκε η σύνδεση αποστολής της ροής"
 }

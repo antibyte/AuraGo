@@ -290,23 +290,23 @@ func TestServiceLifecycle(t *testing.T) {
 
 func TestDiffFlowsNilDocumentsAndEdgeSets(t *testing.T) {
 	live := simpleFlow("A")
-	if d := DiffFlows(nil, nil); d != (DiffSummary{FirstPublish: true}) {
+	if d := DiffFlows(nil, nil); diffCounts(d) != (diffCountSummary{FirstPublish: true}) {
 		t.Fatalf("nil, nil = %+v", d)
 	}
-	if d := DiffFlows(nil, live); d != (DiffSummary{FirstPublish: true, AddedNodes: 2}) {
+	if d := DiffFlows(nil, live); diffCounts(d) != (diffCountSummary{FirstPublish: true, AddedNodes: 2}) {
 		t.Fatalf("first publish = %+v", d)
 	}
-	if d := DiffFlows(live, nil); d != (DiffSummary{RemovedNodes: 2, ChangedEdges: 1}) {
+	if d := DiffFlows(live, nil); diffCounts(d) != (diffCountSummary{RemovedNodes: 2, ChangedEdges: 1}) {
 		t.Fatalf("a nil draft removes everything: %+v", d)
 	}
 	dup, _ := live.Clone()
 	dup.Edges = append(dup.Edges, Edge{ID: "e_copy", Source: dup.Edges[0].Source, Target: dup.Edges[0].Target})
-	if d := DiffFlows(live, dup); d != (DiffSummary{}) {
+	if d := DiffFlows(live, dup); diffCounts(d) != (diffCountSummary{}) {
 		t.Fatalf("an edge with the same ports collapses: %+v", d)
 	}
 	rewired, _ := live.Clone()
 	rewired.Edges[0].Source.Port = PortError
-	if d := DiffFlows(live, rewired); d != (DiffSummary{ChangedEdges: 2}) {
+	if d := DiffFlows(live, rewired); diffCounts(d) != (diffCountSummary{ChangedEdges: 2}) {
 		t.Fatalf("a rewired edge = %+v", d)
 	}
 }

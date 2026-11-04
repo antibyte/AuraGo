@@ -438,6 +438,7 @@ guard('c1d02 model review fixes', () => {
 
 // ── c1d03 extras: autosave errors and the shell's api() errors ──
 async function guardAsync(name, fn) {
+    if (process.env.AURAGO_EASYDRAG_TEST_FILTER && !name.includes(process.env.AURAGO_EASYDRAG_TEST_FILTER)) return;
     try { await fn(); } catch (err) { failures++; console.log('FAIL ' + name + ' threw: ' + (err && err.message)); }
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -950,6 +951,7 @@ function miniDom() {
         getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
         setAttribute(name, value) { this.attrs.set(name, String(value)); }
         appendChild(child) { child.remove(); child.parentNode = this; this.children.push(child); return child; }
+        insertBefore(child, before) { if (!before) return this.appendChild(child); child.remove(); const at = this.children.indexOf(before); if (at < 0) throw new Error('insertBefore target missing'); child.parentNode = this; this.children.splice(at, 0, child); return child; }
         remove() { if (!this.parentNode) return; const list = this.parentNode.children; list.splice(list.indexOf(this), 1); this.parentNode = null; }
         contains(node) { for (let x = node; x; x = x.parentNode) if (x === this) return true; return false; }
         closest(sel) { for (let x = this; x; x = x.parentNode) if (matches(x, sel)) return x; return null; }
@@ -1121,6 +1123,7 @@ await (await import('./test-easydrag-live-state.mjs')).run({ apps, types, t, min
 await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
 // ── b5: fix batch 5, editor UX, accessibility and i18n (test-easydrag-ux-batch5.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, eq, guardAsync, settle });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 
 // ── start page preview and shortcut table ──

@@ -11,8 +11,8 @@ import (
 var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
-	"easydrag-forms.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-runs.js", "easydrag-publish.js",
-	"easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-editor.js", "easydrag.js",
+	"easydrag-forms.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-testing.js", "easydrag-runs.js", "easydrag-publish.js",
+	"easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-editor.js", "easydrag.js",
 }
 
 func TestEasyDragAssetsLoadInDependencyOrder(t *testing.T) {
@@ -149,6 +149,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.notify_":      {"desktop", "push", "telegram", "whatsapp", "off"},
 		"easydrag.ui.home_filter_": {"all", "active", "inactive", "drafts", "errors"},
 		"easydrag.ui.runs_filter_": {"all", "errors", "tests", "live"},
+		"easydrag.ui.recipe_step_": {"build", "test", "result"},
 		"easydrag.ui.detail_":      {"input", "parameters", "output"},
 		"easydrag.ui.op_":          {"eq", "ne", "contains", "not_contains", "starts_with", "ends_with", "matches", "gt", "gte", "lt", "lte", "before", "after", "empty", "not_empty", "is_true", "is_false"},
 		"easydrag.ui.issue_": {"edge_duplicate", "edge_id_duplicate", "edge_node_missing", "edge_port_invalid", "edge_self", "flow_cycle", "flow_name_required",
@@ -161,6 +162,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_not_published", "flow_no_trigger", "flow_options_unavailable", "flow_permission_denied", "flow_revision_conflict", "flow_run_limit",
 			"flow_run_not_found", "flow_run_timeout", "flow_node_timeout", "flow_tool_error", "flow_tool_denied", "flow_ai_unavailable", "flow_budget_exceeded",
 			"flow_secret_unavailable", "flow_restarted", "flow_ai_output_cut", "generic", "network",
+			"flow_simulation_fixture_required", "flow_simulation_fixture_invalid", "flow_simulation_unsupported",
 			"flow_exists", "flow_mission_ambiguous", "flow_mission_missing", "flow_too_large", "flow_rate_limited", "flow_run_finished", "flow_publish_incomplete",
 			"flow_too_many_issues", "flow_port_invalid", "flow_run_output_too_large", "flow_node_abandoned", "flow_runner_panic", "flow_tools_unavailable",
 			"node_type_unknown", "flow_ai_output_invalid", "flow_condition_failed", "flow_condition_invalid", "flow_cycle", "flow_file_exists",

@@ -208,7 +208,7 @@
             parked = null;
             clearTimeout(parkTimer);
             failedSpoken = new Set();
-            setRun({ id: runId, status: 'queued', mode, steps: new Map(), changes: [], record: null, error: '' });
+            setRun({ id: runId, status: 'queued', mode, steps: new Map(), changes: [], record: null, error: '', draftRevision: meta && meta.draftRevision });
             connect(runId);
         }
 
@@ -348,6 +348,7 @@
                 ed.bus.emit('last-run', detail.run);
             }
             setRun(ed.run);
+            if (current.mode === 'test' && current.draftRevision && isFinal(current.status)) ed.testEvidence = { revision: current.draftRevision, status: current.status, id: current.id };
             const failed = Array.from(ed.run.steps.values()).find(s => s.status === 'error');
             const node = failed && ed.model.node(failed.node_id);
             canvas.announce(ed.run.status === 'success' ? t('easydrag.ui.run_done') : node ? t('easydrag.ui.run_failed_at', { node: node.label || node.type }) : t('easydrag.ui.run_failed'));
@@ -483,6 +484,7 @@
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
             // back: unchanged text runs without trigger_data, so the server uses the stored sample.
             let shown = JSON.stringify(sample, null, 2);
+            let simulation = null;
             const dialog = core.modal(ed.root, {
                 title: o.onlyNode ? t('easydrag.ui.test_node_title') : t('easydrag.ui.test_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--test',
                 body: (list.length > 1 ? '<label class="ed-label">' + esc(t('easydrag.ui.test_trigger')) + '<select class="ed-input" data-ed-test-trigger>' +
@@ -506,12 +508,16 @@
                         if (!saved) { err.hidden = false; err.textContent = t('easydrag.ui.test_unsaved'); }
                         return false;
                     }
+                    if (simulation && simulation.isSelected()) return trackStart(() => simulation.run());
                     const text = d.body.querySelector('[data-ed-test-data]').value;
                     const edited = text !== shown || prefilled;
                     let data = null;
                     if (edited) {
                         try { data = JSON.parse(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
                         if (!data || typeof data !== 'object' || Array.isArray(data)) { err.hidden = false; err.textContent = t('easydrag.ui.test_data_object'); return false; }
+                        if (ED.testing) {
+                            try { ED.testing.parseSample(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.test_data_incomplete'); return false; }
+                        }
                     }
                     const sel = d.body.querySelector('[data-ed-test-trigger]');
                     if (sel) trigger = ed.model.node(sel.value) || trigger;
@@ -532,6 +538,21 @@
                     });
                 }
             });
+            if (ED.testing && ed.api.simulate) simulation = ED.testing.decorate(ed, dialog, {
+                trigger: () => { const select = dialog.body.querySelector('[data-ed-test-trigger]'); return select ? select.value : trigger.id; },
+                onlyNode: o.onlyNode, revision: baseRevision,
+                isCurrent: () => !disposed && !ed.runView && ed.model.version === version,
+                apply: (result, data) => {
+                    const record = { id: 'simulation', mode: 'simulation', revision: result.revision, status: result.status, error_code: result.error_code, error_message: result.error_message, started_at: result.started_at || new Date().toISOString(), trigger_node: dialog.body.querySelector('[data-ed-test-trigger]') ? dialog.body.querySelector('[data-ed-test-trigger]').value : trigger.id, trigger_data: data };
+                    const run = stepsFrom(result.steps || [], record);
+                    ed.lastRunData = { label: t('easydrag.ui.simulation_result'), roots: rootsFrom(result.steps || [], record) };
+                    ed.testEvidence = { revision: result.revision, status: result.status, mode: 'simulation' };
+                    setRun(run);
+                    ed.bus.emit('last-run', record);
+                    ed.bus.emit('last-run-data', ed.lastRunData);
+                    canvas.announce(t('easydrag.ui.simulation_result'));
+                }
+            });
             // showChecks shows the hint and the effects for a trigger again (another trigger, a newer
             // check); the "don't ask again" tick stays as it was.
             function showChecks(body, id) {
@@ -541,6 +562,7 @@
                 fx = pending(id);
                 if (unchecked(id)) body.appendChild(core.el(uncheckedMarkup()));
                 if (fx.size) body.appendChild(core.el(effectsMarkup(fx))).querySelector('[data-ed-effects-skip]').checked = remember;
+                if (simulation) simulation.syncMode();
             }
             // Another trigger shows its own sample, unless the text was edited. For a step test it
             // also shows the effects of what that trigger reaches.
@@ -577,7 +599,7 @@
                     if (rev) body.base_revision = rev;
                     if (data) body.trigger_data = data;
                     const res = await ed.api.test(ed.flow.id, body);
-                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'test' }); canvas.announce(t('easydrag.ui.announce_test_started')); }
+                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'test', draftRevision: rev }); canvas.announce(t('easydrag.ui.announce_test_started')); }
                     return true;
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
@@ -820,35 +842,57 @@
 
         // listedRuns holds the runs the drawer shows, by id (for their Stop buttons).
         let listedRuns = new Map();
+        let runsOffset = 0, runsMore = false, runsLoading = false, runsQuery = '';
+
+        function drawRuns() {
+            if (!drawer) return;
+            const list = drawer.querySelector('.ed-runs-list');
+            const rows = Array.from(listedRuns.values()).filter(r => !runsQuery || [r.id, r.status, triggerLabel(r), core.fmt.dateTime(r.started_at), r.revision].join(' ').toLocaleLowerCase().includes(runsQuery));
+            list.innerHTML = rows.length ? rows.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
+            const more = drawer.querySelector('[data-ed-runs-more]');
+            more.hidden = !runsMore;
+            more.disabled = runsLoading;
+        }
 
         // loadRuns fills the drawer; only the answer to the latest request (filter) is shown. A
         // refresh keeps the rows until its answer. Focus in the list stays in the drawer: on the
         // same run's row while it is listed.
-        async function loadRuns(refresh) {
+        async function loadRuns(refresh, append) {
             if (!drawer) return;
+            // Keep an inspected history prefix stable; explicit Refresh starts a new list.
+            if (refresh && runsOffset > 50) return;
+            if (append && (runsLoading || !runsMore)) return;
             const mine = ++runsSeq;
             const list = drawer.querySelector('.ed-runs-list');
-            const params = { limit: 50 };
+            const params = { limit: 50, offset: append ? runsOffset : undefined };
             if (drawerFilter === 'errors') params.status = 'error';
             if (drawerFilter === 'tests') params.mode = 'test';
             if (drawerFilter === 'live') params.mode = 'live';
-            if (!refresh) list.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.loading')) + '</p>';
-            let markup;
+            runsLoading = true;
+            drawer.querySelector('[data-ed-runs-more]').disabled = true;
+            drawer.querySelector('[data-ed-runs-error]').hidden = true;
+            if (!refresh && !append) list.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.loading')) + '</p>';
             try {
-                const runs = (await ed.api.runs(ed.flow.id, params)).runs || [];
+                const response = await ed.api.runs(ed.flow.id, params);
+                const runs = response.runs || [];
                 if (mine !== runsSeq || !drawer) return;
-                listedRuns = new Map(runs.map(r => [r.id, r]));
-                markup = runs.length ? runs.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
+                if (!append) listedRuns = new Map();
+                runs.forEach(r => { if (!append || !listedRuns.has(r.id)) listedRuns.set(r.id, r); });
+                runsOffset = Number.isInteger(response.next_offset) ? response.next_offset : (params.offset || 0) + runs.length;
+                runsMore = typeof response.has_more === 'boolean' ? response.has_more : runs.length === 50;
             } catch (err) {
                 if (mine !== runsSeq || !drawer) return;
-                listedRuns = new Map();
-                markup = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+                if (!append && !refresh) { listedRuns = new Map(); runsOffset = 0; runsMore = false; }
+                const error = drawer.querySelector('[data-ed-runs-error]');
+                error.textContent = core.errorText(t, err); error.hidden = false;
             }
+            if (mine !== runsSeq || !drawer) return;
+            runsLoading = false;
             const active = document.activeElement;
             const inList = !!(active && list.contains(active));
             const focusRun = inList ? (active.dataset.edRunStop || active.dataset.edRun || '') : null;
             const onStop = inList && active.dataset.edRunStop !== undefined;
-            list.innerHTML = markup;
+            drawRuns();
             if (focusRun === null) return;
             // The same control when it is still there (the Stop of a run that goes on), else the row.
             const stop = onStop && Array.from(list.querySelectorAll('[data-ed-run-stop]')).find(b => b.dataset.edRunStop === focusRun);
@@ -864,6 +908,7 @@
                 const hadFocus = drawer.contains(document.activeElement);
                 drawer.remove();
                 drawer = null;
+                ++runsSeq; runsLoading = false; runsOffset = 0;
                 ed.root.classList.remove('has-drawer');
                 if (hadFocus && drawerOpener && typeof drawerOpener.focus === 'function') drawerOpener.focus();
                 drawerOpener = null;
@@ -874,11 +919,14 @@
             drawer = core.el('<aside class="ed-drawer" aria-label="' + esc(t('easydrag.ui.runs_title')) + '"><header class="ed-drawer-head"><h3>' + esc(t('easydrag.ui.runs_title')) + '</h3>' +
                 '<button type="button" class="ed-icon-btn" data-ed-drawer-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header>' +
                 '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.runs_filter_label')) + '">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
-                '<div class="ed-runs-list"></div></aside>');
+                '<div class="ed-runs-tools"><div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-runs-search aria-label="' + esc(t('easydrag.ui.runs_search')) + '" placeholder="' + esc(t('easydrag.ui.runs_search')) + '"></div><button type="button" class="ed-icon-btn" data-ed-runs-refresh title="' + esc(t('easydrag.ui.runs_refresh')) + '" aria-label="' + esc(t('easydrag.ui.runs_refresh')) + '">' + core.icon('refresh') + '</button></div>' +
+                '<p class="ed-error" data-ed-runs-error role="alert" hidden></p><div class="ed-runs-list"></div><button type="button" class="ed-btn ed-runs-pager" data-ed-runs-more hidden>' + esc(t('easydrag.ui.runs_load_more')) + '</button></aside>');
             (ed.root.querySelector('.ed-body') || ed.root).appendChild(drawer);
             ed.root.classList.add('has-drawer');
             drawer.addEventListener('click', (event) => {
                 if (event.target.closest('[data-ed-drawer-close]')) { toggleDrawer(false); return; }
+                if (event.target.closest('[data-ed-runs-more]')) { loadRuns(false, true); return; }
+                if (event.target.closest('[data-ed-runs-refresh]')) { loadRuns(false); return; }
                 const f = event.target.closest('[data-ed-runs-filter]');
                 if (f) {
                     drawerFilter = f.dataset.edRunsFilter;
@@ -891,6 +939,8 @@
                 const row = event.target.closest('[data-ed-run]');
                 if (row) openRunView(row.dataset.edRun);
             });
+            drawer.querySelector('[data-ed-runs-search]').value = runsQuery;
+            drawer.querySelector('[data-ed-runs-search]').addEventListener('input', event => { runsQuery = event.target.value.trim().toLocaleLowerCase(); drawRuns(); });
             loadRuns();
             const first = drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]') || drawer.querySelector('button');
             if (first) first.focus();

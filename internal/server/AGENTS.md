@@ -712,6 +712,21 @@ Server-owned HTTP and cross-component integration contracts.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
 ### EasyDrag flows
+- Flagship routes remain under the existing Desktop origin, grant and cancellation gates.
+  `POST {id}/simulate` returns a bounded synchronous simulation result from the isolated flow
+  service; it cannot invoke production tools or create a run. Validate fixture data and the
+  observed draft revision. `GET {id}/runs` adds `has_more`/`next_offset` without removing `runs`;
+  ordering is stable for equal timestamps, while concurrent insertion/deletion can shift offsets.
+- `POST {id}/repair-mission` requires the observed draft and live revisions. Restore the same
+  missing mission ID disabled, preserving flow data; refuse unknown/foreign ownership and audit
+  success as `flow_mission_repair`. Repeated requests remain safe. Never activate or run as repair.
+- `POST {id}/ai-proposal` generates a review-only draft from a bounded explicit user goal and trusted
+  built-in catalog schemas. Existing draft parameters, run data, fixtures and Vault data are not
+  sent. Reuse `flowLLM` provider routing, budgets and Guardian; a configured reviewer may also
+  receive the goal/catalog. Bound concurrent proposals and validate the model's document/types;
+  check the draft revision before and after generation. Return a diff/effects without saving,
+  publishing, enabling or executing. Applying remains an explicit editor action with save CAS.
+  Verify simulation, pagination, repair and proposal handler tests plus flow LLM policy tests.
 - Native document success returns generated file metadata; the authored Flow may pass that reference to
   its attachment node without treating it as copied external text. External reads still enter the copy
   gate. The tool bridge reports actual copied-text refusals as `FLOW_TOOL_DENIED`, with fixed exact-call

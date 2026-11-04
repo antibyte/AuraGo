@@ -86,6 +86,14 @@
         return { listKey, rows, cols, total: output[listKey].length };
     }
 
+    function previewText(output, fields) {
+        if (typeof output === 'string') return output.slice(0, 8000);
+        if (!output || typeof output !== 'object') return '';
+        const primary = (fields || []).find(f => f.primary && typeof output[f.name] === 'string');
+        const key = primary ? primary.name : ['text', 'content', 'message', 'summary', 'result'].find(k => typeof output[k] === 'string');
+        return key ? output[key].slice(0, 8000) : '';
+    }
+
     function files(value, out, depth) {
         const list = out || [];
         const d = depth || 0;
@@ -160,7 +168,7 @@
         if (!node) return null;
         let info = ed.model.info(node.type);
         let pane = 'params';
-        let narrowTab = 'params';
+        let narrowTab = opts && ['input', 'output'].includes(opts.column) ? opts.column : 'params';
         let outputView = 'tree';
         let outputSubject = 'output';
         let sourceId = 'last';
@@ -269,15 +277,39 @@
             const env = {
                 ed: locked && !ed.readonly ? Object.assign(Object.create(ed), { readonly: true }) : ed, sources: sources(), sourceId, upstream: upstreamList(),
                 onSource: id => { sourceId = id; if (form) form.refresh(node, roots()); },
-                onInsert: locked ? () => {} : ref => { if (form && lastField) form.insert(lastField, ref); else if (form) firstTemplatable(ref); }
+                onInsert: locked ? () => {} : ref => {
+                    if (!form || !mappingTargets().some(p => p.name === lastField)) {
+                        const target = el.querySelector('[data-ed-mapping-target]');
+                        if (target) target.focus();
+                        core.say(ed, t('easydrag.ui.mapping_choose_target'));
+                        return;
+                    }
+                    form.insert(lastField, ref);
+                    narrowTab = 'params';
+                    applyNarrow();
+                }
             };
-            if (!mapping) { mapping = ED.mapping.create(env); host.appendChild(mapping.el); }
+            if (!mapping) {
+                host.appendChild(core.el('<label class="ed-mapping-target">' + esc(t('easydrag.ui.mapping_target')) + '<select class="ed-input" data-ed-mapping-target></select><span class="ed-hint">' + esc(t('easydrag.ui.mapping_choose_target')) + '</span></label>'));
+                mapping = ED.mapping.create(env); host.appendChild(mapping.el);
+            }
             else mapping.refresh(env);
+            renderMappingTarget();
         }
 
-        function firstTemplatable(ref) {
-            const p = ((info && info.params) || []).find(x => x.templatable && ED.forms.visible(x, node.params));
-            if (p) form.insert(p.name, ref);
+        function mappingTargets() {
+            return ((info && info.params) || []).filter(p => p.templatable && ED.forms.visible(p, node.params));
+        }
+
+        function renderMappingTarget() {
+            const select = el.querySelector('[data-ed-mapping-target]');
+            if (!select) return;
+            const targets = mappingTargets();
+            if (!targets.some(p => p.name === lastField)) lastField = null;
+            const markup = '<option value="">' + esc(t('easydrag.ui.mapping_choose_target')) + '</option>' + targets.map(p => '<option value="' + esc(p.name) + '">' + esc(p.label || p.name) + '</option>').join('');
+            if (select.innerHTML !== markup) select.innerHTML = markup;
+            select.value = lastField || '';
+            select.disabled = !!(ed.readonly || ed.runView || !targets.length);
         }
 
         function renderParams() {
@@ -540,8 +572,10 @@
                 return;
             }
             const payload = outputSubject === 'params' && hasParams ? step.params : (step.output || {});
+            const text = outputSubject === 'output' && outputView !== 'json' ? previewText(payload, ed.model.fieldsOf(node)) : '';
             const fileList = outputSubject === 'output' ? files(payload) : [];
-            let html = fileList.map(f => {
+            let html = text ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview')) + '</h4><p>' + esc(text) + '</p></section>' : '';
+            html += fileList.map(f => {
                 const mime = String(f.mime || '');
                 const url = safeFileUrl(f.web_path);
                 const media = !url ? '' : mime.startsWith('image/') ? '<img src="' + esc(url) + '" alt="" loading="lazy">'
@@ -590,6 +624,7 @@
 
         function applyNarrow() {
             dialog.classList.add('is-narrow');
+            dialog.classList.toggle('is-mapping-wide', el.getBoundingClientRect().width >= 640 && narrowTab !== 'output');
             el.querySelectorAll('[data-ed-narrow]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.edNarrow === narrowTab)));
             el.querySelectorAll('.ed-detail-col').forEach(c => { c.classList.toggle('is-active', c.dataset.col === narrowTab); });
             syncPane();
@@ -643,7 +678,10 @@
 
         bag.listen(el, 'focusin', (event) => {
             const field = event.target.closest && event.target.closest('.ed-field[data-param]');
-            if (field) lastField = field.dataset.param;
+            if (field && mappingTargets().some(p => p.name === field.dataset.param)) { lastField = field.dataset.param; renderMappingTarget(); }
+        });
+        bag.listen(el, 'change', event => {
+            if (event.target.matches('[data-ed-mapping-target]')) lastField = event.target.value || null;
         });
         bag.listen(el, 'dragover', (event) => {
             if (!event.target.closest('[data-ed-narrow="params"]') || !event.dataTransfer ||
@@ -713,6 +751,7 @@
             node = current;
             renderHead();
             if (form && (change.nodes.includes(node.id) || change.kind !== 'change')) form.refresh(node, roots(), ed.issues);
+            renderMappingTarget();
             if (pane === 'settings' && change.nodes.includes(node.id) && !el.querySelector('[data-pane="settings"]').contains(document.activeElement)) renderSettings();
             // A wire added or removed, also one that touches no step (an undo of a disconnect), or a
             // neighbour renamed: the connections list follows whatever the settings pane does.
@@ -731,10 +770,11 @@
         }));
         bag.add(ed.bus.on('last-run', refreshData));
         bag.add(ed.bus.on('issues', () => { if (form) form.refresh(node, roots(), ed.issues); }));
-        const ro = new ResizeObserver(applyNarrow);
+        const narrowFrame = core.frame(applyNarrow);
+        const ro = new ResizeObserver(() => narrowFrame.request());
         ro.observe(ed.root);
         ro.observe(el);
-        bag.add(() => ro.disconnect());
+        bag.add(() => { ro.disconnect(); narrowFrame.cancel(); });
 
         // ed.detail exists before the first render, so a render that throws still closes cleanly.
         let closed = false;
@@ -758,6 +798,7 @@
         };
         try {
             renderAll();
+            ed.bus.emit('detail-opened', el);
         } catch (err) {
             console.error('EasyDrag detail view failed', err);
             ed.detail.close();
@@ -771,5 +812,5 @@
 
     function close(ed) { if (ed.detail) ed.detail.close(); }
 
-    ED.detail = { open, close, jsonTree, safeFileUrl };
+    ED.detail = { open, close, jsonTree, safeFileUrl, previewText };
 })();

@@ -322,6 +322,8 @@
             publish: (id, revision) => api(flow(id) + '/publish', json('POST', { base_revision: revision })),
             setEnabled: (id, enabled) => api(flow(id) + '/enabled', json('POST', { enabled })),
             test: (id, body) => api(flow(id) + '/test', json('POST', body)),
+            simulate: (id, body, signal) => api(flow(id) + '/simulate', Object.assign(json('POST', body), { signal })),
+            repairMission: (id, revision, liveRevision) => api(flow(id) + '/repair-mission', json('POST', { base_revision: revision, base_live_revision: liveRevision })),
             runNow: id => api(flow(id) + '/run', json('POST')),
             runs: (id, params) => api(flow(id) + '/runs' + query(params)),
             run: (runId, includeDoc) => api(base + '/runs/' + enc(runId) + (includeDoc ? '?include=doc' : '')),

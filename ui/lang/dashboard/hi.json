@@ -1152,5 +1152,6 @@
   "dashboard.selftest_case": "परीक्षण",
   "dashboard.selftest_tool": "टूल",
   "dashboard.selftest_connections": "कनेक्शन",
-  "dashboard.rustfs_running_unready": "चल रहा है, अभी तैयार नहीं"
+  "dashboard.rustfs_running_unready": "चल रहा है, अभी तैयार नहीं",
+  "dashboard.audit_type_flow_mission_repair": "फ़्लो का मिशन लिंक ठीक किया गया"
 }

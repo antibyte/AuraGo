@@ -233,8 +233,13 @@
                 });
                 return out;
             }
-            if (i.dynamic_fields === 'fields') {
+            if (i.dynamic_fields === 'fields' || n.type === 'logic.set') {
                 const defs = Array.isArray(n.params && n.params.fields) ? n.params.fields : [];
+                if (n.type === 'logic.set') {
+                    if ((n.params && n.params.keep_input !== undefined && n.params.keep_input !== false) || defs.some(f => !f || typeof f.name !== 'string' || !f.name.trim() || f.name.includes('{{'))) return [];
+                    if (new Set(defs.map(f => f.name.trim())).size !== defs.length) return [];
+                    return defs.map((f, idx) => ({ name: f.name.trim(), type: !f.type || f.type === 'auto' ? 'any' : f.type, primary: idx === 0 }));
+                }
                 const own = defs.filter(f => f && f.name).map((f, idx) => ({ name: String(f.name), type: f.type || 'text', primary: idx === 0 }));
                 if (n.params && n.params.output_mode === 'fields' && own.length) return own.concat([{ name: 'tokens', type: 'object' }, { name: 'model', type: 'text' }]);
             }

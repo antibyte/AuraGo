@@ -152,6 +152,7 @@ func TestC17ErrorMapCoversEveryFlowSentinel(t *testing.T) {
 		{flows.ErrRunnerClosed, http.StatusServiceUnavailable, "FLOW_RUNNER_STOPPED"},
 		{flows.ErrDocumentTooLarge, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
 		{flows.ErrTestDataTooLarge, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
+		{flows.ErrTestDataRedacted, http.StatusBadRequest, "FLOW_TEST_DATA_REDACTED"},
 		{&http.MaxBytesError{Limit: 4096}, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
 		{fmt.Errorf("%w: 99", flows.ErrUnsupportedSchema), http.StatusBadRequest, "FLOW_BAD_REQUEST"},
 		{fmt.Errorf("%w: %q", flows.ErrUnknownTemplate, "nope"), http.StatusBadRequest, "FLOW_BAD_REQUEST"},

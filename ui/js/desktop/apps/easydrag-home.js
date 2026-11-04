@@ -52,6 +52,8 @@
         let filter = core.storage.get(FILTER_KEY, 'all');
         let sortBy = 'updated';
         let query = '';
+        let templateQuery = '';
+        let templateCategory = '';
         let focusFlow = (opts && opts.focusFlow) || '';
 
         const el = core.el('<div class="ed-home">' +
@@ -68,7 +70,9 @@
             '<option value="last_run">' + esc(t('easydrag.ui.home_sort_last_run')) + '</option>' +
             '<option value="name">' + esc(t('easydrag.ui.home_sort_name')) + '</option></select></div>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-flow-grid"></div></section>' +
-            '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p><div class="ed-template-grid"></div></section>' +
+            '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p>' +
+            '<div class="ed-recipe-intro" data-ed-recipe-intro hidden><h2>' + esc(t('easydrag.ui.recipe_intro_title')) + '</h2><p>' + esc(t('easydrag.ui.recipe_intro_hint')) + '</p><div class="ed-recipe-steps">' + ['build', 'test', 'result'].map(id => '<span>' + esc(t('easydrag.ui.recipe_step_' + id)) + '</span>').join('') + '</div></div>' +
+            '<div class="ed-recipe-tools"><div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-template-search aria-label="' + esc(t('easydrag.ui.template_search')) + '" placeholder="' + esc(t('easydrag.ui.template_search')) + '"></div><select class="ed-input" data-ed-template-category aria-label="' + esc(t('easydrag.ui.template_category')) + '"><option value="">' + esc(t('easydrag.ui.template_all')) + '</option></select></div><div class="ed-template-grid"></div></section>' +
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
@@ -264,10 +268,16 @@
             if (templateError && !templates.length && !loadError) {
                 tplGrid.innerHTML = '<p class="ed-error">' + esc(t('easydrag.ui.home_templates_failed', { reason: core.errorText(t, templateError) })) + '</p>' +
                     '<div class="ed-row"><button type="button" class="ed-btn" data-ed-templates-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
-            } else tplGrid.innerHTML = templates.map(tp =>
+            } else tplGrid.innerHTML = templates.filter(tp => (!templateCategory || (tp.categories || []).includes(templateCategory)) &&
+                (!templateQuery || (tp.name + ' ' + tp.description).toLocaleLowerCase().includes(templateQuery))).map(tp =>
                 '<article class="ed-template-card" data-ed-template="' + esc(tp.id) + '" tabindex="' + (off ? '-1' : '0') + '" role="button"' + (off ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(tp.name) + '">' +
                 '<div class="ed-template-cats">' + (tp.categories || []).map(c => '<span class="ed-cat-dot" data-cat="' + esc(c) + '"></span>').join('') + '</div>' +
-                '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
+                '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><dl class="ed-recipe-meta"><div><dt>' + esc(t('easydrag.ui.recipe_requirements')) + '</dt><dd>' + esc(t(tp.local_only ? 'easydrag.ui.recipe_local' : 'easydrag.ui.recipe_setup_review')) + '</dd></div>' +
+                (tp.effects_known ? (tp.effects || []).length ? '<div><dt>' + esc(t('easydrag.ui.recipe_effects')) + '</dt><dd>' + (tp.effects || []).map(effect => esc(core.tr(t, 'easydrag.ui.effect_' + effect, effect))).join(' · ') + '</dd></div>' : '' : '<div><dd>' + esc(t('easydrag.ui.effects_unchecked')) + '</dd></div>') + '</dl><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('') || '<p class="ed-hint">' + esc(t('easydrag.ui.input_none')) + '</p>';
+            el.querySelector('[data-ed-recipe-intro]').hidden = !!loadError || !templates.some(tp => tp.id === 'local_first_result' && tp.local_only);
+            const categories = el.querySelector('[data-ed-template-category]');
+            const categoryOptions = '<option value="">' + esc(t('easydrag.ui.template_all')) + '</option>' + Array.from(new Set(templates.flatMap(tp => tp.categories || []))).sort().map(c => '<option value="' + esc(c) + '">' + esc(core.tr(t, 'easydrag.category.' + c, c)) + '</option>').join('');
+            if (categories.innerHTML !== categoryOptions) { categories.innerHTML = categoryOptions; categories.value = templateCategory; }
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
             el.querySelectorAll('[data-ed-import]').forEach(b => { b.disabled = off; });
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
@@ -556,6 +566,8 @@
             const card = event.target.closest('[data-ed-flow]');
             if (card) app.openFlow(card.dataset.edFlow);
         });
+        bag.listen(el.querySelector('[data-ed-template-search]'), 'input', event => { templateQuery = event.target.value.trim().toLocaleLowerCase(); render(); });
+        bag.listen(el.querySelector('[data-ed-template-category]'), 'change', event => { templateCategory = event.target.value; render(); });
         bag.listen(el, 'keydown', (event) => {
             if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
             const card = event.target.closest('[data-ed-flow], [data-ed-template]');

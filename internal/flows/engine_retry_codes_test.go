@@ -113,7 +113,7 @@ func TestNonRetryableCodesAreTheDocumentedSet(t *testing.T) {
 		"FLOW_NODE_UNAVAILABLE": true, "FLOW_TOOLS_UNAVAILABLE": true, "FLOW_AI_UNAVAILABLE": true,
 		"FLOW_OUTPUT_TOO_LARGE": true, "FLOW_CONDITION_INVALID": true, "FLOW_SECRET_UNAVAILABLE": true,
 		"FLOW_ACTION_RULE_REQUIRED": true, "FLOW_CONDITION_FAILED": true, "FLOW_WAIT_TOO_LONG": true,
-		"FLOW_VALUE_TYPE": true, "FLOW_AI_OUTPUT_CUT": true,
+		"FLOW_VALUE_TYPE": true, "FLOW_AI_OUTPUT_CUT": true, "FLOW_SIMULATION_FIXTURE_REQUIRED": true,
 	}
 	if len(nonRetryableCodes) != len(want) {
 		t.Fatalf("nonRetryableCodes = %v", nonRetryableCodes)

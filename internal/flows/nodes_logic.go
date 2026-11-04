@@ -347,6 +347,39 @@ func waitDuration(in ExecInput) (time.Duration, error) {
 
 func setNodeDef() *NodeDef {
 	def := logicDef(TypeSet, "pencil")
+	def.OutputFieldsFunc = func(n *Node) []FieldSpec {
+		keep := n.Params["keep_input"]
+		if text, ok := keep.(string); ok && HasTemplate(text) {
+			return nil
+		}
+		if truthy(keep) {
+			return nil
+		}
+		fields, ok := n.Params["fields"].([]any)
+		if !ok {
+			return nil
+		}
+		out := make([]FieldSpec, 0, len(fields))
+		seen := map[string]bool{}
+		for _, field := range fields {
+			m, ok := field.(map[string]any)
+			if !ok {
+				return nil
+			}
+			name, ok := m["name"].(string)
+			name = strings.TrimSpace(name)
+			if !ok || name == "" || HasTemplate(name) || seen[name] {
+				return nil
+			}
+			seen[name] = true
+			typ, ok := m["type"].(string)
+			if !ok || !fieldTypes[typ] || typ == "" || typ == "auto" {
+				typ = "any"
+			}
+			out = append(out, FieldSpec{Name: name, Type: typ, Primary: len(out) == 0})
+		}
+		return out
+	}
 	def.Params = []ParamSpec{
 		{Name: "fields", Kind: ParamFields, LabelKey: "easydrag.param.fields", Required: true, Templatable: true,
 			Fields: []ParamSpec{
