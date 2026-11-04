@@ -21,8 +21,9 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: var(--pw-space-4) var(--pw-space-3) var(--pw-space-8);
-    border-right: 1px solid var(--pw-line);
-    background: var(--pw-surface);
+    border-right: 1px solid var(--pw-mat-divider);
+    background: var(--pw-mat-side);
+    box-shadow: var(--pw-mat-side-edge);
     scrollbar-width: thin;
     scrollbar-color: var(--pw-line-strong) transparent;
 }
@@ -77,7 +78,7 @@
 
 .pw-page[data-workspace-page="dashboard"] .dash-nav-link:hover {
     color: var(--pw-text);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-hover);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-nav-link:focus-visible {
@@ -86,9 +87,9 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-nav-link[aria-current="page"] {
-    color: var(--pw-text);
+    color: var(--pw-mat-selected-text);
     border-color: color-mix(in srgb, var(--pw-accent) 32%, var(--pw-line));
-    background: color-mix(in srgb, var(--pw-accent) 14%, var(--pw-surface));
+    background: var(--pw-mat-selected);
     font-weight: 650;
 }
 

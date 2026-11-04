@@ -40,13 +40,46 @@
     --pw-duration-base: 260ms;
     --pw-duration-slow: 320ms;
     --pw-shadow-soft: 0 22px 60px rgba(0, 0, 0, 0.35);
+    --pw-mat-bar-color: #1a2029;
+    --pw-mat-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 70%), var(--pw-mat-bar-color);
+    --pw-mat-bar-edge: inset 0 -1px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --pw-mat-side-color: #0e1218;
+    --pw-mat-side: var(--pw-mat-side-color);
+    --pw-mat-side-edge: inset -1px 0 0 rgba(255, 255, 255, 0.045), inset 1px 0 0 rgba(0, 0, 0, 0.3);
+    --pw-mat-card: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 60%), var(--pw-surface);
+    --pw-mat-card-border: rgba(191, 210, 235, 0.13);
+    --pw-mat-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --pw-mat-well: #0b0e13;
+    --pw-mat-well-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+    --pw-mat-field-color: #0c1016;
+    --pw-mat-field: var(--pw-mat-field-color);
+    --pw-mat-field-border: rgba(191, 210, 235, 0.17);
+    --pw-mat-field-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+    --pw-mat-btn: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)), #222a35;
+    --pw-mat-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)), #222a35;
+    --pw-mat-btn-border: rgba(191, 210, 235, 0.2);
+    --pw-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --pw-mat-primary: linear-gradient(180deg, #f08763, #ed764d), #ed764d;
+    --pw-mat-primary-hover: linear-gradient(180deg, #f19575, #ef805a), #ed764d;
+    --pw-mat-primary-border: #a33b16;
+    --pw-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --pw-mat-selected: linear-gradient(0deg, rgba(233, 84, 32, 0.24), rgba(233, 84, 32, 0.24)), #1f2a38;
+    --pw-mat-selected-text: #f4f7fb;
+    --pw-mat-hover: rgba(255, 255, 255, 0.07);
+    --pw-mat-divider: rgba(191, 210, 235, 0.15);
     --bg-primary: var(--pw-canvas);
     --bg-secondary: var(--pw-surface);
     --bg-tertiary: var(--pw-surface-elevated);
-    --header-bg: color-mix(in srgb, var(--pw-canvas) 88%, transparent);
-    --sidebar-bg: color-mix(in srgb, var(--pw-surface) 94%, transparent);
+    --header-bg: var(--pw-mat-bar-color);
+    --sidebar-bg: var(--pw-mat-side-color);
     --card-bg: var(--pw-surface);
-    --input-bg: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-canvas));
+    --input-bg: var(--pw-mat-field-color);
+    --success: var(--pw-success);
+    --warning: var(--pw-warning);
+    --danger: var(--pw-danger);
+    --modal-bg: var(--pw-scrim);
+    --modal-surface: var(--pw-surface);
+    --modal-border: var(--pw-line-strong);
     --input-border: var(--pw-line-strong);
     --text-primary: var(--pw-text);
     --text-secondary: var(--pw-muted);
@@ -170,6 +203,33 @@
     --pw-terminal-bg: #050807;
     --pw-terminal-text: #d7e1ec;
     --pw-shadow-soft: 0 24px 62px rgba(40, 52, 76, 0.13);
+    --pw-mat-bar-color: #f2f3f7;
+    --pw-mat-bar: linear-gradient(180deg, #fbfbfd 0%, #eceef2 100%), var(--pw-mat-bar-color);
+    --pw-mat-bar-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(40, 52, 76, 0.14);
+    --pw-mat-side-color: #e8ebf0;
+    --pw-mat-side: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%), var(--pw-mat-side-color);
+    --pw-mat-side-edge: inset -1px 0 0 rgba(40, 52, 76, 0.13);
+    --pw-mat-card: var(--pw-surface);
+    --pw-mat-card-border: rgba(40, 52, 76, 0.1);
+    --pw-mat-card-shadow: 0 0 0 0.5px rgba(40, 52, 76, 0.06), 0 1px 2px rgba(40, 52, 76, 0.1), 0 8px 20px rgba(40, 52, 76, 0.08);
+    --pw-mat-well: #eceef2;
+    --pw-mat-well-shadow: inset 0 1px 3px rgba(40, 52, 76, 0.16), inset 0 0 0 1px rgba(40, 52, 76, 0.07);
+    --pw-mat-field-color: #ffffff;
+    --pw-mat-field: var(--pw-mat-field-color);
+    --pw-mat-field-border: rgba(40, 52, 76, 0.24);
+    --pw-mat-field-shadow: inset 0 1px 2px rgba(40, 52, 76, 0.12);
+    --pw-mat-btn: linear-gradient(180deg, #ffffff, #f2f3f6), #f7f8fa;
+    --pw-mat-btn-hover: linear-gradient(180deg, #ffffff, #e9ecf1), #f7f8fa;
+    --pw-mat-btn-border: rgba(40, 52, 76, 0.22);
+    --pw-mat-btn-shadow: 0 1px 1px rgba(40, 52, 76, 0.12), inset 0 1px 0 #ffffff;
+    --pw-mat-primary: linear-gradient(180deg, #b93e0b, #a83809), #b93e0b;
+    --pw-mat-primary-hover: linear-gradient(180deg, #9a3412, #8b2f10), #9a3412;
+    --pw-mat-primary-border: #9a3412;
+    --pw-mat-primary-shadow: 0 1px 2px rgba(20, 30, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    --pw-mat-selected: #f8e8e2;
+    --pw-mat-selected-text: #1c2430;
+    --pw-mat-hover: rgba(194, 65, 12, 0.08);
+    --pw-mat-divider: rgba(40, 52, 76, 0.14);
     color-scheme: light;
 }
 
@@ -228,9 +288,10 @@
 .pw-page .field-select,
 .pw-page .cfg-input {
     min-height: 46px;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--input-bg);
+    background: var(--pw-mat-field);
+    box-shadow: var(--pw-mat-field-shadow);
     transition:
         border-color var(--pw-duration-fast) var(--pw-ease),
         box-shadow var(--pw-duration-fast) var(--pw-ease),
@@ -256,12 +317,13 @@
 .pw-page .btn-save,
 .pw-page .btn-primary {
     min-height: 44px;
-    border-radius: 999px;
+    border: 1px solid var(--pw-mat-primary-border);
+    border-radius: var(--pw-radius-sm);
     padding: 0.65rem 1.15rem;
     font-weight: 650;
-    background: var(--pw-accent);
-    color: var(--pw-canvas);
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
+    background: var(--pw-mat-primary);
+    color: var(--pw-on-accent);
+    box-shadow: var(--pw-mat-primary-shadow);
     transition:
         transform var(--pw-duration-fast) var(--pw-ease),
         background var(--pw-duration-fast) var(--pw-ease),
@@ -270,11 +332,9 @@
 
 .pw-page .btn-save:hover,
 .pw-page .btn-primary:hover {
-    background: var(--pw-accent-strong);
-    transform: translateY(-1px);
-    box-shadow:
-        inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent),
-        0 10px 28px color-mix(in srgb, var(--pw-accent) 18%, transparent);
+    background: var(--pw-mat-primary-hover);
+    transform: none;
+    box-shadow: var(--pw-mat-primary-shadow);
 }
 
 .pw-page .btn-save:active,

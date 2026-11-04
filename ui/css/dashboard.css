@@ -23,8 +23,8 @@
 }
 .pw-page[data-workspace-page="dashboard"] .dash-card:hover {
     border-color: var(--pw-line-strong);
-    background: var(--pw-surface);
-    box-shadow: none;
+    background: var(--pw-mat-card);
+    box-shadow: var(--pw-mat-card-shadow);
     transform: none;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-card::before,
@@ -95,13 +95,12 @@ to { transform: rotate(360deg); }
         box-shadow var(--pw-duration-fast) var(--pw-ease);
     position: relative;
     animation: card-enter 0.3s ease backwards;
-    border: 1px solid var(--pw-line);
+    border: 1px solid var(--pw-mat-card-border);
     border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
+    background: var(--pw-mat-card);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    box-shadow: none;
+    box-shadow: var(--pw-mat-card-shadow);
     transform: none;
 }
 .pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {

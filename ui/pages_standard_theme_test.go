@@ -67,3 +67,26 @@ func TestPagesStandardThemeTokenContrast(t *testing.T) {
 		}
 	}
 }
+
+func TestPagesStandardThemeGradientsLiveInMaterialTokens(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
+	for number, line := range strings.Split(css, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(trimmed, "gradient(") && !strings.HasPrefix(trimmed, "--pw-mat-") {
+			t.Errorf("precision-workspace.css:%d: gradients belong in --pw-mat-* token values: %s", number+1, trimmed)
+		}
+	}
+	dark := standardThemeBlock(t, css, standardThemeDarkHeader)
+	light := standardThemeBlock(t, css, standardThemeLightHeader)
+	for _, name := range []string{"bar", "side", "card", "well", "field", "btn", "primary", "selected", "hover", "divider"} {
+		token := "--pw-mat-" + name + ":"
+		if !strings.Contains(dark, token) {
+			t.Errorf("dark block lacks %s", token)
+		}
+		if !strings.Contains(light, token) {
+			t.Errorf("light block lacks %s", token)
+		}
+	}
+}

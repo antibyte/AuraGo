@@ -101,10 +101,10 @@ func TestPrecisionWorkspaceStandardPaletteTokens(t *testing.T) {
 		`--bg-primary: var(--pw-canvas);`,
 		`--bg-secondary: var(--pw-surface);`,
 		`--bg-tertiary: var(--pw-surface-elevated);`,
-		`--header-bg: color-mix(in srgb, var(--pw-canvas) 88%, transparent);`,
-		`--sidebar-bg: color-mix(in srgb, var(--pw-surface) 94%, transparent);`,
+		`--header-bg: var(--pw-mat-bar-color);`,
+		`--sidebar-bg: var(--pw-mat-side-color);`,
 		`--card-bg: var(--pw-surface);`,
-		`--input-bg: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-canvas));`,
+		`--input-bg: var(--pw-mat-field-color);`,
 		`--text-primary: var(--pw-text);`,
 		`--text-secondary: var(--pw-muted);`,
 		`--text-tertiary: var(--pw-subtle);`,
@@ -118,8 +118,8 @@ func TestPrecisionWorkspaceStandardPaletteTokens(t *testing.T) {
 		}
 	}
 	primaryButtonRule := regexp.MustCompile(`(?s)\.pw-page \.btn-save,\s*\.pw-page \.btn-primary\s*\{([^}]*)\}`).FindStringSubmatch(foundation)
-	if len(primaryButtonRule) != 2 || !strings.Contains(primaryButtonRule[1], `color: var(--pw-canvas);`) {
-		t.Error("Precision primary buttons must use the canvas token for text")
+	if len(primaryButtonRule) != 2 || !strings.Contains(primaryButtonRule[1], `color: var(--pw-on-accent);`) {
+		t.Error("Precision primary buttons must use the on-accent token for text")
 	}
 	if strings.Contains(foundation, `#2dd4bf`) || strings.Contains(foundation, `#5eead4`) ||
 		strings.Contains(foundation, `#0f766e`) || strings.Contains(foundation, `#0d9488`) ||
