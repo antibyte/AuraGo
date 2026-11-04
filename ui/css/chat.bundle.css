@@ -19951,3 +19951,204 @@ html[data-theme="8bit"]::after {
         display: contents !important;
     }
 }
+
+/* ui/css/chat-standard.css */
+/* Chat default theme ("Standard") in the desktop Standard look. Every selector starts with
+   :root:is([data-theme="dark"], :not([data-theme])), so no other chat theme is touched
+   (TestChatStandardThemeIsScoped). Values come from desktop-materials.css and desktop-app-chat.css. */
+
+:root:is([data-theme="dark"], :not([data-theme])) {
+    color-scheme: dark;
+    --bg-primary: #12161d;
+    --bg-secondary: #1a212b;
+    --bg-tertiary: #222a35;
+    --bg-elevated: #222a35;
+    --bg-glass: rgba(255, 255, 255, 0.035);
+    --header-bg: #1a2029;
+    --accent: #ed764d;
+    --accent-secondary: #f08763;
+    --accent-hover: #f08763;
+    --accent-active: #ed764d;
+    --accent-dim: rgba(233, 84, 32, 0.16);
+    --accent-glow: rgba(233, 84, 32, 0.22);
+    --user-bubble: linear-gradient(135deg, color-mix(in srgb, rgba(233, 84, 32, 0.16) 92%, transparent), color-mix(in srgb, rgba(233, 84, 32, 0.16) 55%, transparent));
+    --user-bubble-tail: transparent;
+    --user-bubble-shadow: transparent;
+    --bot-bubble: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 60%), #1a212b;
+    --bot-bubble-tail: transparent;
+    --text-primary: #edf1f7;
+    --text-secondary: #aeb7c6;
+    --text-muted: #a4afc0;
+    --text-inverse: #0c1016;
+    --strong-color: #f3f6fb;
+    --border: rgba(191, 210, 235, 0.15);
+    --border-subtle: rgba(191, 210, 235, 0.15);
+    --border-accent: rgba(233, 84, 32, 0.38);
+    --modal-bg: rgba(4, 7, 12, 0.62);
+    --modal-surface: #1a212b;
+    --modal-border: rgba(191, 210, 235, 0.28);
+    --code-bg: #0b0e13;
+    --inline-code-bg: rgba(255, 255, 255, 0.07);
+    --sidebar-bg: #0e1218;
+    --card-bg: #1a212b;
+    --input-bg: #0c1016;
+    --input-border: rgba(191, 210, 235, 0.17);
+    --success: #4ad29c;
+    --success-bg: rgba(74, 210, 156, 0.15);
+    --warning: #f2b84b;
+    --warning-bg: rgba(242, 184, 75, 0.15);
+    --danger: #ff7a72;
+    --danger-bg: rgba(255, 122, 114, 0.15);
+    --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 20px rgba(0, 0, 0, 0.2);
+    --surface-shadow-strong: 0 32px 88px rgba(0, 0, 0, 0.56), 0 10px 28px rgba(0, 0, 0, 0.34);
+    --surface-highlight: rgba(255, 255, 255, 0.05);
+    --page-orb-opacity: 0;
+    --chat-image-opacity: 0;
+    /* chat-modules.css and stt-overlay.css read these before their teal fallbacks. */
+    --vd-mat-primary: linear-gradient(180deg, #f08763, #ed764d), #ed764d;
+    --vd-mat-primary-hover: linear-gradient(180deg, #f19575, #ef805a), #ed764d;
+    --vd-mat-primary-text: #0c1016;
+    --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --vd-mat-card-border: rgba(191, 210, 235, 0.13);
+}
+
+/* Background: no noise, orbs, tint or logo. */
+:root:is([data-theme="dark"], :not([data-theme])) body::before,
+:root:is([data-theme="dark"], :not([data-theme])) body::after,
+:root:is([data-theme="dark"], :not([data-theme])) #chat-box::before,
+:root:is([data-theme="dark"], :not([data-theme])) #chat-box::after {
+    content: none;
+    animation: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) #chat-box {
+    background-image: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) ::selection {
+    background: rgba(233, 84, 32, 0.28);
+    text-shadow: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) ::-moz-selection {
+    background: rgba(233, 84, 32, 0.28);
+}
+
+/* Header */
+:root:is([data-theme="dark"], :not([data-theme])) .app-header {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 70%), #1a2029;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .app-header::after {
+    background: rgba(191, 210, 235, 0.15);
+    opacity: 1;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .logo .logo-wordmark-accent {
+    background: none;
+    color: #ed764d;
+    -webkit-text-fill-color: currentColor;
+    text-shadow: none;
+}
+
+/* Bubbles follow .vd-chat-bubble in desktop-app-chat.css. */
+:root:is([data-theme="dark"], :not([data-theme])) .bubble.bot {
+    backdrop-filter: none;
+    border: 1px solid rgba(191, 210, 235, 0.13);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .bubble.user {
+    border: 1px solid rgba(233, 84, 32, 0.38);
+    color: #edf1f7;
+    box-shadow: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .bubble.bot::before,
+:root:is([data-theme="dark"], :not([data-theme])) .bubble.user::before {
+    content: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .msg-row:hover .bubble.bot {
+    transform: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .msg-row:hover .bubble.user {
+    transform: none;
+    box-shadow: none;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .avatar.bot {
+    background: rgba(233, 84, 32, 0.16);
+    box-shadow: none;
+}
+
+/* Primary actions */
+:root:is([data-theme="dark"], :not([data-theme])) .btn-send,
+:root:is([data-theme="dark"], :not([data-theme])) .modal-btn.confirm {
+    border: 1px solid #a33b16;
+    background: linear-gradient(180deg, #f08763, #ed764d), #ed764d;
+    color: #0c1016;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .btn-send:hover,
+:root:is([data-theme="dark"], :not([data-theme])) .modal-btn.confirm:hover {
+    background: linear-gradient(180deg, #f19575, #ef805a), #ed764d;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    filter: none;
+    transform: none;
+}
+
+/* Tool buttons */
+:root:is([data-theme="dark"], :not([data-theme])) .btn-more:hover,
+:root:is([data-theme="dark"], :not([data-theme])) .btn-more.is-open,
+:root:is([data-theme="dark"], :not([data-theme])) .btn-upload:hover,
+:root:is([data-theme="dark"], :not([data-theme])) .btn-voice:hover,
+:root:is([data-theme="dark"], :not([data-theme])) .btn-push:hover {
+    background: rgba(233, 84, 32, 0.15);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .scroll-to-bottom-btn:hover,
+:root:is([data-theme="dark"], :not([data-theme])) .scroll-to-bottom-btn:active {
+    color: #0c1016;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .scroll-to-bottom-btn.has-new {
+    color: #0c1016;
+    animation-name: chat-standard-pulse-dot;
+}
+
+@keyframes chat-standard-pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(233, 84, 32, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(233, 84, 32, 0); }
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .trait-bar-fill[data-trait="affinity"] {
+    background: linear-gradient(90deg, #ed764d, #f08763);
+}
+
+/* enhancements.css: input focus, scrollbars, hover sweep */
+:root:is([data-theme="dark"], :not([data-theme])) .input-wrap textarea:focus {
+    border-color: #ed764d;
+    background: #0c1016;
+    box-shadow: 0 0 0 3px rgba(233, 84, 32, 0.22);
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) #chat-content::-webkit-scrollbar-thumb,
+:root:is([data-theme="dark"], :not([data-theme])) .session-drawer ::-webkit-scrollbar-thumb {
+    background: rgba(191, 210, 235, 0.28);
+    background-clip: padding-box;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) #chat-content::-webkit-scrollbar-track,
+:root:is([data-theme="dark"], :not([data-theme])) .session-drawer ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+:root:is([data-theme="dark"], :not([data-theme])) .chat-theme-option::after,
+:root:is([data-theme="dark"], :not([data-theme])) .session-item::after {
+    background: linear-gradient(90deg, transparent, rgba(233, 84, 32, 0.45), transparent);
+}

@@ -275,7 +275,8 @@ const cssBundles = [
       'ui/css/integrations-drawer.css',
       'ui/css/enhancements.css',
       'ui/css/chat-themes.css',
-      'ui/css/chat-header-controls.css'
+      'ui/css/chat-header-controls.css',
+      'ui/css/chat-standard.css'
     ]
   }
 ];

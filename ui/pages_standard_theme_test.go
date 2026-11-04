@@ -90,3 +90,67 @@ func TestPagesStandardThemeGradientsLiveInMaterialTokens(t *testing.T) {
 		}
 	}
 }
+
+const chatStandardPrefix = `:root:is([data-theme="dark"], :not([data-theme]))`
+
+func standardThemeSplitSelectors(header string) []string {
+	var selectors []string
+	depth, start := 0, 0
+	for i, char := range header {
+		switch char {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				selectors = append(selectors, strings.TrimSpace(header[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	return append(selectors, strings.TrimSpace(header[start:]))
+}
+
+func TestChatStandardThemeIsScoped(t *testing.T) {
+	t.Parallel()
+
+	raw := normalizeAssetText(mustReadUIFile(t, "css/chat-standard.css"))
+	css := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(raw, "")
+	depth, start, rules := 0, 0, 0
+	for i, char := range css {
+		switch char {
+		case '{':
+			if depth == 0 {
+				header := strings.TrimSpace(css[start:i])
+				rules++
+				if strings.HasPrefix(header, "@") {
+					if !strings.HasPrefix(header, "@keyframes chat-standard-") {
+						t.Errorf("only @keyframes chat-standard-* at-rules are allowed: %q", header)
+					}
+				} else {
+					for _, selector := range standardThemeSplitSelectors(header) {
+						if selector != chatStandardPrefix && !strings.HasPrefix(selector, chatStandardPrefix+" ") {
+							t.Errorf("selector must start with the default-theme prefix: %q", selector)
+						}
+					}
+				}
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				start = i + 1
+			}
+		}
+	}
+	if rules == 0 {
+		t.Fatal("chat-standard.css has no rules")
+	}
+
+	bundle := normalizeAssetText(mustReadUIFile(t, "css/chat.bundle.css"))
+	standardAt := strings.Index(bundle, `/* ui/css/chat-standard.css */`)
+	if standardAt < 0 || standardAt < strings.Index(bundle, `/* ui/css/chat-header-controls.css */`) {
+		t.Errorf("chat-standard.css must be the last chat bundle part, found at %d", standardAt)
+	}
+}
