@@ -235,13 +235,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		touchTokenID = tokenMeta.ID
 	}
 
-	// 3. Rate limiting (before recording token use, so floods do not write)
-	if rateLimiter != nil && !rateLimiter.Allow(rateKey) {
+	// Protected events use rate admission after authenticated duplicate lookup.
+	if !wh.Format.ReplayProtection && rateLimiter != nil && !rateLimiter.Allow(rateKey) {
 		h.logEvent(wh.ID, wh.Name, 429, sourceIP, 0, false, "rate limit exceeded")
 		http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 		return
 	}
-	if touchTokenID != "" {
+	if !wh.Format.ReplayProtection && touchTokenID != "" {
 		tokens.TouchLastUsed(touchTokenID)
 	}
 
@@ -301,7 +301,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	headers := extractHeaders(r)
 
 	var releaseDelivery func()
+	rateLimited := false
 	admit := func() bool {
+		if wh.Format.ReplayProtection && rateLimiter != nil && !rateLimiter.Allow(rateKey) {
+			rateLimited = true
+			return false
+		}
 		var ok bool
 		releaseDelivery, ok = h.acquireDeliverySlot()
 		return ok
@@ -315,6 +320,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if wh.Format.ReplayProtection {
 		duplicate, err := h.manager.claimNonce(r.Context(), wh.ID, nonce, time.Now(), admit)
 		if err != nil {
+			if rateLimited {
+				h.logEvent(wh.ID, wh.Name, 429, sourceIP, rawPayloadSize, false, "rate limit exceeded")
+				http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
+				return
+			}
 			h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "replay admission unavailable")
 			http.Error(w, `{"error":"webhook replay admission unavailable"}`, http.StatusServiceUnavailable)
 			return
@@ -323,6 +333,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "duplicate"})
 			return
+		}
+		if touchTokenID != "" {
+			tokens.TouchLastUsed(touchTokenID)
 		}
 	} else if !admit() {
 		h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "delivery queue full")

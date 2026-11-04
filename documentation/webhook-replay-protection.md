@@ -29,6 +29,10 @@ Expired entries are pruned during subsequent claims.
 The first valid event returns `200 {"status":"accepted"}` after admission.
 A valid repetition returns `200 {"status":"duplicate"}` without repeating
 Guardian/model checks, agent delivery, SSE, mission callbacks or fire counts.
+The event rate limit applies only to new protected events. Authenticated
+duplicates consume no event allowance and remain acknowledged after exhaustion;
+new events still return 429 when that limit is reached. Payload-size and signature
+checks apply to every request. Legacy webhook rate limiting is unchanged.
 An accepted claim remains even if later checks quarantine the event or delivery
 has an uncertain outcome. A duplicate receipt confirms previous admission,
 not successful business processing. Do not change the nonce to automatically

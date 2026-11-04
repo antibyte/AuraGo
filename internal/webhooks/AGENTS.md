@@ -25,8 +25,10 @@ Persistent webhook configuration, bounded ingress, authenticated delivery and lo
 - Only a missing receipt file initializes an empty store. Existing files must
   declare version 1 and a non-null claims map; null or incomplete state fails
   closed without replacing the evidence. Verify `TestReplayProtectionRejectsIncompleteStoredState`.
-- Valid duplicates return 200/`duplicate`, even when delivery slots are full;
-  they run no scan, agent, SSE, mission callback or fire counter. A new claim
+- Valid duplicates return 200/`duplicate`, even when delivery slots are full or
+  the event rate limit is exhausted. Authenticate and bound payloads first;
+  only new protected events consume rate admission under the receipt lock.
+  Duplicates run no scan, agent, SSE, mission callback or fire counter. A new claim
   reserves a delivery slot before persistence; a failed publication releases it.
   A persisted claim remains after uncertain delivery or quarantine.
 - Payloads are untrusted, callback bytes stay unchanged, configuration reads
@@ -44,6 +46,8 @@ Persistent webhook configuration, bounded ingress, authenticated delivery and lo
 - `go test ./internal/webhooks ./internal/server` webhook and publication tests.
 - Run replay concurrency tests with the Linux race detector. UI checks cover the
   editor, all sixteen locales and boolean save/reopen behavior.
+- `TestReplayProtectionDuplicatesDoNotConsumeRateLimit` and the concurrent
+  delivery/restart test cover exhausted limits, invalid signatures and new events.
 
 ## Child DOX Index
 

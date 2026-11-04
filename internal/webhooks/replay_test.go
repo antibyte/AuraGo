@@ -44,6 +44,7 @@ func replayRequest(timestamp, nonce, body string) *http.Request {
 
 func TestReplayProtectionConcurrentDeliveryAndRestart(t *testing.T) {
 	h, m, wh := newReplayHandler(t)
+	h.Reconfigure(4096, 1)
 	var callbacks, accepted, duplicates atomic.Int32
 	m.RegisterMissionTrigger(wh.ID, func([]byte) { callbacks.Add(1) })
 	stamp := strconv.FormatInt(time.Now().Unix(), 10)
@@ -89,6 +90,48 @@ func TestReplayProtectionConcurrentDeliveryAndRestart(t *testing.T) {
 	}
 	if strings.Contains(string(data), "same_nonce") || strings.Contains(string(data), replayTestSecret) || strings.Contains(string(data), "ok") {
 		t.Fatal("replay store leaked source material")
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, replayRequest(stamp, "different_nonce_1234", `{"ok":true}`))
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("new event bypassed rate limit: %d %s", w.Code, w.Body)
+	}
+	h.Reconfigure(4096, 1)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, replayRequest(stamp, "different_nonce_1234", `{"ok":true}`))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "accepted") {
+		t.Fatalf("rate refusal claimed the nonce: %d %s", w.Code, w.Body)
+	}
+}
+
+func TestReplayProtectionDuplicatesDoNotConsumeRateLimit(t *testing.T) {
+	h, m, wh := newReplayHandler(t)
+	h.Reconfigure(4096, 2)
+	stamp := strconv.FormatInt(time.Now().Unix(), 10)
+	for _, tc := range []struct {
+		nonce, status string
+	}{
+		{"first_nonce_123456", "accepted"},
+		{"first_nonce_123456", "duplicate"},
+		{"second_nonce_12345", "accepted"},
+		{"first_nonce_123456", "duplicate"},
+	} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, replayRequest(stamp, tc.nonce, `{"ok":true}`))
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), tc.status) {
+			t.Fatalf("want %s, got %d %s", tc.status, w.Code, w.Body)
+		}
+	}
+	got, _ := m.Get(wh.ID)
+	if got.FireCount != 2 {
+		t.Fatalf("fire count=%d, want 2", got.FireCount)
+	}
+	w := httptest.NewRecorder()
+	r := replayRequest(stamp, "first_nonce_123456", `{"ok":true}`)
+	r.Header.Set("X-Signature", "sha256=0000")
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("unsigned duplicate acknowledged: %d %s", w.Code, w.Body)
 	}
 }
 
