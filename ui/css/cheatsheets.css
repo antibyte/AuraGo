@@ -607,9 +607,9 @@
 .pw-page[data-workspace-page="cheatsheets"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .pw-page[data-workspace-page="cheatsheets"] select, .pw-page[data-workspace-page="cheatsheets"] textarea {
     max-width: 100%;
     min-height: 44px;
-    border-color: var(--pw-line-strong);
+    border-color: var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;

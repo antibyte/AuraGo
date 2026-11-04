@@ -733,7 +733,7 @@
     padding: 0.2rem 0.45rem;
     border: 1px solid var(--pw-line);
     border-radius: 0.35rem;
-    background: color-mix(in srgb, var(--pw-surface-strong) 76%, transparent);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 76%, transparent);
 }
 
 .pw-page[data-workspace-page="config"] .speech-lab-section .cfg-card {

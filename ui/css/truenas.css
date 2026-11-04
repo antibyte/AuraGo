@@ -391,9 +391,9 @@
 }
 
 .pw-page[data-workspace-page="truenas"] input, .pw-page[data-workspace-page="truenas"] select, .pw-page[data-workspace-page="truenas"] textarea {
-    border-color: var(--pw-line-strong);
+    border-color: var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     box-shadow: none;
 }

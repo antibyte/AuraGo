@@ -404,7 +404,7 @@
 }
 
 .pw-page[data-workspace-page="containers"] .ct-search {
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     box-shadow: none;
 }

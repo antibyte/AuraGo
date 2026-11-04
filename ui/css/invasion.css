@@ -400,9 +400,9 @@
 /* ── Form enhancements ── */
 
 .pw-page[data-workspace-page="invasion"] input, .pw-page[data-workspace-page="invasion"] select, .pw-page[data-workspace-page="invasion"] textarea, .pw-page[data-workspace-page="invasion"] .form-select {
-    border-color: var(--pw-line-strong);
+    border-color: var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;

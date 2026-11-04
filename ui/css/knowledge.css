@@ -122,9 +122,9 @@
 .pw-page[data-workspace-page="knowledge"] .kc-filter-select {
     min-height: 44px;
     min-width: 0;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;
@@ -666,8 +666,8 @@
 .pw-page[data-workspace-page="knowledge"] .field-input {
     width: 100%;
     min-height: 44px;
-    background: var(--pw-surface-elevated, var(--pw-surface-elevated));
-    border: 1px solid var(--pw-line-strong, var(--pw-line));
+    background: var(--pw-mat-field);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: 10px;
     padding: var(--space-2) var(--space-3);
     color: var(--pw-text);
@@ -799,6 +799,11 @@
     box-shadow: none;
     filter: none;
     transform: none;
+}
+
+.pw-page[data-workspace-page="knowledge"] .empty-state {
+    border-color: var(--pw-mat-card-border);
+    background: var(--pw-mat-card);
 }
 
 .pw-page[data-workspace-page="knowledge"] .kc-appointment-card {
@@ -1628,8 +1633,8 @@
 .pw-page[data-workspace-page="knowledge"] .kc-picker-search {
     width: 100%;
     padding: var(--space-2) var(--space-2);
-    background: var(--pw-surface-elevated);
-    border: 1px solid var(--pw-line);
+    background: var(--pw-mat-field);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--radius-md);
     color: var(--pw-text);
     font-size: var(--pw-font-md);

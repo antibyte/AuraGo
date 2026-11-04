@@ -931,9 +931,9 @@ to { transform: rotate(360deg); }
 .pw-page[data-workspace-page="dashboard"] .profile-search,
 .pw-page[data-workspace-page="dashboard"] .cf-add-input {
     min-height: 40px;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: 10px;
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;
@@ -1071,8 +1071,8 @@ to { transform: rotate(360deg); }
 }
 .pw-page[data-workspace-page="dashboard"] .profile-edit-input {
     width: 100%;
-    background: var(--pw-surface);
-    border: 1px solid var(--pw-line);
+    background: var(--pw-mat-field);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: 0.5rem;
     color: var(--pw-text);
     padding: 0.45rem 0.65rem;
@@ -1772,8 +1772,8 @@ to { opacity: 1; }
     flex: 1;
     padding: 0.45rem 0.8rem;
     border-radius: 0.6rem;
-    border: 1px solid var(--pw-line);
-    background: var(--pw-surface-elevated);
+    border: 1px solid var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     font-size: var(--text-sm);
     font-family: inherit;
@@ -2357,7 +2357,7 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] .guardian-metric-val {
     font-size: var(--pw-font-2xl);
     font-weight: 700;
-    color: var(--text);
+    color: var(--pw-text);
 }
 .pw-page[data-workspace-page="dashboard"] .guardian-metric-val.ok {
     color: var(--pw-success);
@@ -2773,8 +2773,8 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] .kg-filter-select {
     padding: 0.3rem 0.5rem;
     border-radius: 8px;
-    border: 1px solid var(--pw-line);
-    background: var(--pw-surface);
+    border: 1px solid var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     font-size: var(--text-xs);
     cursor: pointer;
@@ -2838,7 +2838,7 @@ gray = hollow circle */
     padding: 0.55rem 0.65rem;
     border: 1px solid var(--pw-line);
     border-radius: 8px;
-    background: color-mix(in srgb, var(--pw-surface-2) 82%, transparent);
+    background: color-mix(in srgb, var(--pw-surface-soft) 82%, transparent);
     color: var(--pw-text);
 }
 .pw-page[data-workspace-page="dashboard"] .kg-health-row strong {
@@ -3139,8 +3139,8 @@ gray = hollow circle */
     min-height: 180px;
     resize: vertical;
     border-radius: 12px;
-    border: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-surface) 88%, var(--pw-surface-elevated));
+    border: 1px solid var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     padding: 0.75rem 0.85rem;
     font: 500 12px/1.5 "Consolas", "SFMono-Regular", "Monaco", monospace;
@@ -3683,8 +3683,8 @@ gray = hollow circle */
     min-width: 0;
     padding: 0.5rem 0.65rem;
     border-radius: 0.55rem;
-    border: 1px solid var(--pw-line);
-    background: var(--pw-surface-elevated);
+    border: 1px solid var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     font: inherit;
     font-size: var(--text-sm);
@@ -3890,7 +3890,7 @@ gray = hollow circle */
     padding: 0.5rem 0.7rem;
     border-radius: 0.6rem;
     border: 1px solid color-mix(in srgb, var(--pw-accent) 18%, var(--pw-line-strong));
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     color: var(--pw-text);
     font: inherit;
     font-size: var(--text-sm);

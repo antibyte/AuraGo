@@ -1792,7 +1792,7 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .danger-card {
-    background: var(--surface);
+    background: var(--pw-surface);
     backdrop-filter: none;
     border: 1px solid color-mix(in srgb, var(--pw-danger) 25%, transparent);
     border-radius: 10px;
@@ -2454,7 +2454,7 @@ transform:none; filter:none;
     padding: 0.65rem 0.75rem;
     border-radius: 6px;
     background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--pw-line);
 }
 
 .pw-page[data-workspace-page="config"] .rc-token-ready {
@@ -3611,7 +3611,7 @@ transform:none; filter:none;
     cursor: pointer;
     border-radius: 6px;
 }
-.pw-page[data-workspace-page="config"] .tts-voice-item:hover { background: var(--bg-hover); }
+.pw-page[data-workspace-page="config"] .tts-voice-item:hover { background: var(--pw-mat-hover); }
 .pw-page[data-workspace-page="config"] .tts-voice-item-name { font-weight: 600; font-size: 0.9rem; }
 .pw-page[data-workspace-page="config"] .tts-voice-item-desc { font-size: 0.8rem; color: var(--text-secondary); }
 .pw-page[data-workspace-page="config"] .tts-voice-item-lang { font-size: 0.78rem; color: var(--text-tertiary); }
@@ -4290,7 +4290,7 @@ transform:none; filter:none;
     padding: 0.55rem 0.8rem;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    background: var(--surface-elevated);
+    background: var(--pw-surface-elevated);
     margin-bottom: 0.4rem;
 }
 
@@ -4402,7 +4402,7 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .idx-chip-text {
-    background: var(--accent-subtle);
+    background: var(--accent-dim);
     color: var(--accent);
 }
 
@@ -4431,7 +4431,7 @@ transform:none; filter:none;
     border-radius: 999px;
     font-size: 0.72rem;
     font-weight: 600;
-    background: var(--accent-subtle);
+    background: var(--accent-dim);
     color: var(--accent);
     border: 1px solid color-mix(in srgb, var(--pw-accent) 25%, transparent);
 }
@@ -4827,7 +4827,7 @@ transform:none; filter:none;
     top: 1rem;
     right: 1rem;
     z-index: 9999;
-    background: var(--surface-elevated);
+    background: var(--pw-surface-elevated);
     border: 1px solid color-mix(in srgb, var(--pw-danger) 35%, transparent);
     border-radius: 10px;
     padding: 0.75rem 1.25rem;
@@ -5507,7 +5507,7 @@ transform:none; filter:none;
 /* ── Cloudflare Tunnel config additions (cf-*) ─────── */
 .pw-page[data-workspace-page="config"] .cf-loopback-toggle { margin-top: 0.6rem; }
 .pw-page[data-workspace-page="config"] .cf-loopback-hint { font-size: 0.78rem; color: var(--text-muted); margin: 0.1rem 0 0.3rem 0.2rem; display: flex; align-items: center; gap: 0.4rem; }
-.pw-page[data-workspace-page="config"] .cf-loopback-port-input { width: 5.5rem; font-size: 0.78rem; padding: 1px 4px; border: 1px solid var(--border); border-radius: 3px; background: var(--input-bg); color: var(--text); }
+.pw-page[data-workspace-page="config"] .cf-loopback-port-input { width: 5.5rem; font-size: 0.78rem; padding: 1px 4px; border: 1px solid var(--border); border-radius: 3px; background: var(--input-bg); color: var(--pw-text); }
 .pw-page[data-workspace-page="config"] .cf-notice-loopback { margin-top: 0.3rem; }
 .pw-page[data-workspace-page="config"] .cf-notice-mt-sm { margin-top: 0.5rem; }
 .pw-page[data-workspace-page="config"] .cf-expose-narrow { max-width: 420px; margin-top: 0.4rem; }
@@ -5655,7 +5655,7 @@ transform:none; filter:none;
     padding: 0.75rem;
     background: var(--bg-secondary);
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--pw-line);
 }
 
 .pw-page[data-workspace-page="config"] .cfg-messages-list {
@@ -5669,7 +5669,7 @@ transform:none; filter:none;
     display: flex;
     gap: 0.75rem;
     padding: 0.4rem 0;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--pw-line);
     align-items: flex-start;
     flex-wrap: wrap;
 }
@@ -5708,7 +5708,7 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .cfg-error-text {
-    color: var(--color-error);
+    color: var(--pw-danger);
     text-align: center;
     padding: 1rem;
 }
@@ -6132,7 +6132,7 @@ transform:none; filter:none;
 
 .pw-page[data-workspace-page="config"] .rules-card-tags span {
     padding: 0.16rem 0.44rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--pw-line);
     border-radius: 8px;
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--pw-canvas) 14%, transparent);
@@ -6366,7 +6366,7 @@ transform:none; filter:none;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     color: var(--text-secondary);
-    background: var(--surface-muted);
+    background: var(--pw-surface-soft);
     font-size: 0.82rem;
 }
 
@@ -6466,7 +6466,7 @@ transform:none; filter:none;
     padding: 0.35rem 0.75rem;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    background: var(--surface);
+    background: var(--pw-surface);
     color: var(--text-secondary);
     cursor: pointer;
     line-height: 1.2;
@@ -6627,7 +6627,7 @@ transform:none; filter:none;
 
 /* Decisions setup remains sequential on narrow screens. */
 [data-decisions-settings] .decisions-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 1rem; padding: 0; margin: 1.2rem 0; list-style: none; counter-reset: decisions-step; }
-[data-decisions-settings] .decisions-step { display: flex; flex-direction: column; align-items: flex-start; gap: .7rem; min-width: 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: 10px; counter-increment: decisions-step; }
+[data-decisions-settings] .decisions-step { display: flex; flex-direction: column; align-items: flex-start; gap: .7rem; min-width: 0; padding: 1rem; border: 1px solid var(--pw-line); border-radius: 10px; counter-increment: decisions-step; }
 [data-decisions-settings] .decisions-step h4 { margin: 0; font-size: 1rem; }
 [data-decisions-settings] .decisions-step h4::before { content: counter(decisions-step) ". "; color: var(--text-secondary); }
 [data-decisions-settings] .decisions-step p { margin: 0 0 .3rem; flex: 1; }
@@ -6643,7 +6643,7 @@ transform:none; filter:none;
 @media (max-width: 1000px) { [data-decisions-settings] .decisions-steps { grid-template-columns: 1fr; } }
 
 /* Remote device controls retain focused drafts during status refreshes. */
-.pw-page[data-workspace-page="config"] .rc-managed-device { padding: 1rem; margin-block: .7rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-tertiary); min-width: 0; }
+.pw-page[data-workspace-page="config"] .rc-managed-device { padding: 1rem; margin-block: .7rem; border: 1px solid var(--pw-line); border-radius: 10px; background: var(--bg-tertiary); min-width: 0; }
 .pw-page[data-workspace-page="config"] .rc-managed-device summary { cursor: pointer; min-height: 44px; padding-block: .7rem; }
 .pw-page[data-workspace-page="config"] .rc-device-actions { flex-wrap: wrap; }
 .pw-page[data-workspace-page="config"] .rc-device-actions button { min-height: 44px; white-space: normal; }

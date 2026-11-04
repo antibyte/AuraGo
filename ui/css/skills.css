@@ -1088,9 +1088,9 @@
 .pw-page[data-workspace-page="skills"] .sk-search, .pw-page[data-workspace-page="skills"] .sk-input, .pw-page[data-workspace-page="skills"] .sk-select {
     min-height: 44px;
     min-width: 0;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;

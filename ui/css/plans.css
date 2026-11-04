@@ -37,9 +37,9 @@
 
 .pw-page[data-workspace-page="plans"] .plans-toolbar-group input, .pw-page[data-workspace-page="plans"] .plans-toolbar-group select, .pw-page[data-workspace-page="plans"] .inline-note {
     min-height: 44px;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-surface-elevated);
+    background: var(--pw-mat-field);
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;
