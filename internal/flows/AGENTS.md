@@ -2,6 +2,10 @@
 
 Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored).
 
+Product roadmap: `plans/2026-11-04-easydrag-flagship-plan.md` proposes the flagship UX,
+testing and runtime expansion. Its phases and acceptance gates describe planned work;
+the contracts below continue to describe shipped behavior until implementation.
+
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
