@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/selftest"
 
@@ -325,6 +327,8 @@ func ExecuteSelfTestPrompt(ctx context.Context, client llm.ChatClient, model str
 		out.Verdict, out.Code = "BLOCKED_PERMISSION", "permission_or_setup"
 	case failed:
 		out.Verdict, out.Code = "FAIL", "tool_execution"
+	case errors.Is(err, budget.ErrCompletionBudgetBlocked), errors.Is(err, budget.ErrCompletionBudgetUnavailable):
+		out.Verdict, out.Code = "BLOCKED_BUDGET", "daily_budget"
 	case err != nil:
 		out.Verdict, out.Code = "INCONCLUSIVE", "model_or_transport_failure"
 		if strings.Contains(err.Error(), "self_test_budget_exhausted") {

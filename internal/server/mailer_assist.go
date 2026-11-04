@@ -181,6 +181,9 @@ func (s *Server) handleMailerAssist(w http.ResponseWriter, r *http.Request) {
 	}
 	dc := &agent.DispatchContext{Cfg: cfg, Logger: s.Logger, LLMClient: client, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "mailer-assist", MessageSource: "mailer_assist", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
 	result, _, err := agent.ExecuteMinimalLoop(ctx, client, cfg.LLM.Model, system, input, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "mailer"})
+	if writeMinimalLoopBudgetError(w, err, cfg.Server.UILanguage) {
+		return
+	}
 	if err != nil || result.FinishReason != openai.FinishReasonStop || strings.TrimSpace(result.Response) == "" || len(result.Response) > 65536 {
 		mailerJSON(w, http.StatusBadGateway, map[string]string{"error": "ai_incomplete"})
 		return

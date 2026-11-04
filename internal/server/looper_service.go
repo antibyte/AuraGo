@@ -277,6 +277,9 @@ func (r *LooperRunner) executeStarted(
 			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, stepDispatch, history, r.logger, opts)
 			stepCancel()
 			r.recordLooperUsage(res, model, dispatchCtx)
+			if minimalLoopBudgetCode(err) != "" {
+				return res, h, err
+			}
 
 			if err != nil {
 				r.logger.Warn("[Looper] step error", "step", stepName, "attempt", attempt, "maxRetries", maxRetries, "error", err)

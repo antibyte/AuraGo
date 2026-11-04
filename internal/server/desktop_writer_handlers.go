@@ -206,6 +206,9 @@ func handleDesktopWriterAssist(s *Server) http.HandlerFunc {
 		defer cancel()
 		dc := &agent.DispatchContext{Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "writer-assist", MessageSource: "writer_assist", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
 		result, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, input, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "writer"})
+		if writeMinimalLoopBudgetError(w, err, cfg.Server.UILanguage) {
+			return
+		}
 		if err != nil || result.FinishReason != openai.FinishReasonStop || strings.TrimSpace(result.Response) == "" {
 			jsonError(w, "AI could not produce a complete suggestion. Try again.", http.StatusBadGateway)
 			return

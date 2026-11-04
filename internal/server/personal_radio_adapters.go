@@ -84,6 +84,9 @@ func (s *Server) personalRadioComplete(ctx context.Context, system, input string
 	copyCfg.LLM = cfg.LLM
 	dc := &agent.DispatchContext{Cfg: &copyCfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "personal-radio", MessageSource: "personal_radio", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
 	result, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, security.IsolateExternalData(input), nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "personal_radio"})
+	if minimalLoopBudgetCode(err) != "" {
+		return "", personalradio.ErrLimit
+	}
 	if err != nil {
 		return "", err
 	}

@@ -100,6 +100,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Accepted tool batches and bounded side effects
 
+- Every minimal-loop send (streamed, corrected, continued or final summary)
+  checks the shared daily tracker with its resolved category. Enabled budgeting
+  without a tracker fails closed; reported usage is still booked once. Admission
+  errors are terminal and remain budget outcomes in callers and self-tests.
+  Verify `TestMinimalLoopBudget*` and server `TestMinimalLoopBudgetError*`.
+
 - Stop cancels the registered run context, including provider waits and queued
   turns, without creating a privacy deletion fence. Serialize ingress history
   construction through final publication; Discord uses `LockSessionTurn`.

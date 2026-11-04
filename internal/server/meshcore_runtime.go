@@ -101,6 +101,9 @@ func (s *Server) scanMeshCoreMessage(ctx context.Context, msg meshcore.Message) 
 		}
 	}
 	if err != nil {
+		if code := minimalLoopBudgetCode(err); code != "" {
+			return meshcore.Review{Decision: "suspicious", Reason: code}
+		}
 		s.meshCoreIssue("security_check", true)
 		return blocked
 	}

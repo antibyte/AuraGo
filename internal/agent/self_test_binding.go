@@ -3,11 +3,13 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/selftest"
 	openai "github.com/sashabaranov/go-openai"
@@ -197,6 +199,9 @@ func executeBoundSelfTest(ctx context.Context, client llm.ChatClient, model stri
 		}
 		if err != nil && primary.Status == "" {
 			out.Code = "model_or_transport_failure"
+			if errors.Is(err, budget.ErrCompletionBudgetBlocked) || errors.Is(err, budget.ErrCompletionBudgetUnavailable) {
+				out.Verdict, out.Code = "BLOCKED_BUDGET", "daily_budget"
+			}
 		}
 		return
 	}

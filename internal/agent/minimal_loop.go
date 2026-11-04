@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
@@ -116,6 +117,29 @@ func ExecuteMinimalLoop(
 	if dispatchCtx.Logger == nil {
 		dispatchCtx.Logger = logger
 	}
+	category := "chat"
+	if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
+		category = strings.TrimSpace(opts.BudgetCategory)
+	}
+	if dispatchCtx.BudgetTracker == nil {
+		dispatchCtx.BudgetTracker, _ = budget.Tracking(ctx)
+	}
+	checkBudget := func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if dispatchCtx.BudgetTracker == nil && dispatchCtx.Cfg != nil && dispatchCtx.Cfg.Budget.Enabled {
+			return fmt.Errorf("%w: tracker unavailable", budget.ErrCompletionBudgetUnavailable)
+		}
+		if dispatchCtx.BudgetTracker != nil && dispatchCtx.BudgetTracker.IsBlocked(category) {
+			return budget.ErrCompletionBudgetBlocked
+		}
+		return nil
+	}
+	if err := checkBudget(); err != nil {
+		return result, history, err
+	}
+	ctx = budget.WithTracking(ctx, dispatchCtx.BudgetTracker, category)
 
 	maxRounds := defaultMaxToolRounds
 	noTools := false
@@ -193,6 +217,9 @@ func ExecuteMinimalLoop(
 	preserveReasoning := opts != nil && opts.PreserveReasoning
 
 	for round := 0; round <= maxRounds; round++ {
+		if err := checkBudget(); err != nil {
+			return result, req.Messages, err
+		}
 		if opts != nil && opts.Checkpoint != nil {
 			if err := opts.Checkpoint(req.Messages); err != nil {
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
@@ -231,6 +258,9 @@ func ExecuteMinimalLoop(
 			setRunDiscoverToolsState(dispatchCtx, all, req.Tools)
 		}
 		var err error
+		if err := checkBudget(); err != nil {
+			return result, req.Messages, err
+		}
 		callCtx, observe := observer.begin(ctx, req, prepared.ProviderType, profile.Revision(), localHit)
 		capture := llm.UsageCaptureFromContext(callCtx)
 		if capture == nil {
@@ -262,10 +292,6 @@ func ExecuteMinimalLoop(
 			accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
 		}
 		if dispatchCtx.BudgetTracker != nil {
-			category := "chat"
-			if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
-				category = strings.TrimSpace(opts.BudgetCategory)
-			}
 			dispatchCtx.BudgetTracker.RecordResponseUsage(category, prepared.ProviderType, modelForUsage, capture, promptTokens, completionTokens, shouldCharge)
 		}
 		if err == nil {
@@ -370,6 +396,9 @@ func ExecuteMinimalLoop(
 		}
 	}
 
+	if err := checkBudget(); err != nil {
+		return result, req.Messages, err
+	}
 	// Tool-round narration is not a final answer. Request a tool-free summary.
 	if profile != nil {
 		req.ToolChoice = "none"
@@ -384,6 +413,9 @@ func ExecuteMinimalLoop(
 	provider := ""
 	if dispatchCtx.Cfg != nil {
 		provider = dispatchCtx.Cfg.LLM.ProviderType
+	}
+	if err := checkBudget(); err != nil {
+		return result, req.Messages, err
 	}
 	callCtx, observe := observer.begin(ctx, req, provider, profile.Revision(), profile != nil)
 	capture := llm.UsageCaptureFromContext(callCtx)
@@ -403,10 +435,6 @@ func ExecuteMinimalLoop(
 		accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
 	}
 	if dispatchCtx.BudgetTracker != nil {
-		category := "chat"
-		if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
-			category = strings.TrimSpace(opts.BudgetCategory)
-		}
 		dispatchCtx.BudgetTracker.RecordResponseUsage(category, prepared.ProviderType, modelForUsage, capture, promptTokens, completionTokens, shouldCharge)
 	}
 	if err == nil {

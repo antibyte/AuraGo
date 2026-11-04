@@ -307,6 +307,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### HTTP trust and shutdown boundaries
 
+- Minimal-loop assistants return `budget_blocked` (429) or `budget_unavailable`
+  (503) for admission failures. Looper, Game Maker and Radio must not retry a
+  budget refusal; MeshCore scan refusals remain quarantined budget outcomes.
+
 - The shared loopback listener may be exposed by cloudflared. Only a valid
   loopback process token can override Homepage-only routing; the presence of
   internal headers never grants routing authority. Verify `TestLoopbackTargetRequiresProcessToken`.

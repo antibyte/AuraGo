@@ -22,6 +22,8 @@ Versioned prompt catalog parsing, bounded run coordination, private evidence and
 ## Work Guidance
 
 - Reuse the normal minimal loop and dispatch. No new dependency, tool bypass or fake success handler.
+- Daily-budget admission failures remain `BLOCKED_BUDGET` alongside the case's
+  token reservation. Do not retry them or report a provider/transport failure.
 - Keep the catalog deterministic and prompts complete. Human/laboratory cases require appropriate fixtures; absence is a reported blocker.
 
 ## Verification
