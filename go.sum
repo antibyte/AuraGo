@@ -802,8 +802,6 @@ github.com/ldez/structtags v0.6.1/go.mod h1:YDxVSgDy/MON6ariaxLF2X09bh19qL7MtGBN
 github.com/ldez/tagliatelle v0.8.0 h1:QczqVPa22JdT40p3m5JTTVmPMv5wDORqdomJn6/Pnn0=
 github.com/ldez/tagliatelle v0.8.0/go.mod h1:K9n83Wv0wyVq3JYF9WI28BX8xXhDBVP3thHJ0ENuiEs=
 github.com/ldez/usetesting v0.5.0/go.mod h1:Spnb4Qppf8JTuRgblLrEWb7IE6rDmUpGvxY3iRrzvDQ=
-github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0 h1:7Q+xNAZFmnfYOMweHN3c/PDFUKKfY1pVJ26K++QvVfU=
-github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0/go.mod h1:1fEHWurg7pvf5SG6XNE5Q8UZmOwex51Mkx3SLhrW5B4=
 github.com/leonklingele/grouper v1.1.2/go.mod h1:6D0M/HVkhs2yRKRFZUoGjeDy7EZTfFBE9gl4kjmIGkA=
 github.com/lib/pq v1.12.3 h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=
 github.com/lib/pq v1.12.3/go.mod h1:/p+8NSbOcwzAEI7wiMXFlgydTwcgTr3OSKMsD2BitpA=

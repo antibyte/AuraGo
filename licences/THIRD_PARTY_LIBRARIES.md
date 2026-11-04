@@ -54,6 +54,12 @@ original/adapted checksums and local adaptation script are recorded in
 
 ## 1. Go — direct dependencies
 
+The PDF parser is a locally maintained source copy in `internal/pdftext/parser`,
+based on ledongthuc/pdf `6c8c28e0e8a0` (BSD-3-Clause, Copyright 2009 The Go Authors).
+It includes bounded parsing/cancellation patches documented in
+`documentation/dependencies.md`. The verbatim license is also shipped in
+`licences/texts/ledongthuc-pdf-BSD-3-Clause.txt`.
+
 Shared QR generation/scanning adds `github.com/makiuchi-d/gozxing` v0.1.1 ([upstream](https://github.com/makiuchi-d/gozxing), MIT plus ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 ([upstream](https://github.com/go-text/typesetting), Unlicense OR BSD-3-Clause, HarfBuzz translation MIT). Copyright notices are in `THIRD_PARTY_NOTICES.md`; the corresponding licence families are in `licences/texts/`.
 
 QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji and Liberation Serif (OFL-1.1). Exact upstream revisions, URLs, hashes and sizes are in `ui/fonts/qr/manifest.json`; original OFL texts accompany the fonts. Go Sans/Mono come from the existing `golang.org/x/image/font/gofont` module. `jsqr` 1.4.0 ([upstream](https://github.com/cozmo/jsQR), Apache-2.0) is a pinned development-only independent decoder fixture and is not shipped in production UI. Mini QR is a functional reference only; no upstream code/assets are copied.
@@ -88,7 +94,6 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/hajimehoshi/go-mp3` | v0.3.4 | Apache-2.0 | https://github.com/hajimehoshi/go-mp3 |
 | `github.com/johnfercher/maroto/v2` | v2.4.3 | MIT | https://github.com/johnfercher/maroto |
 | `github.com/klauspost/compress` | v1.20.3 | BSD-3-Clause (`zstd/internal/xxhash`: MIT) | https://github.com/klauspost/compress |
-| `github.com/ledongthuc/pdf` | v0.0.0-20260907135840-6c8c28e0e8a0 | BSD-style / MIT-compatible | https://github.com/ledongthuc/pdf |
 | `github.com/lib/pq` | v1.12.3 | MIT | https://github.com/lib/pq |
 | `github.com/miekg/dns` | v1.1.73 | BSD-3-Clause | https://github.com/miekg/dns |
 | `github.com/minio/minio-go/v7` | v7.4.1 | Apache-2.0 | https://github.com/minio/minio-go |

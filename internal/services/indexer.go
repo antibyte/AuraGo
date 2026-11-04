@@ -17,6 +17,7 @@ import (
 	"aurago/internal/chunking"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/pdftext"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -703,8 +704,12 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 	} else if IsDocumentFile(ext) {
 		// The scanned-PDF fallback sends the whole file to the multimodal provider.
 		pdfFallback := multimodal && allowMedia && ext == ".pdf"
-		extracted, extractErr := ExtractText(path)
+		extracted, extractErr := ExtractTextContext(ctx, path)
 		if extractErr != nil {
+			if stderrors.Is(extractErr, pdftext.ErrLimit) || stderrors.Is(extractErr, context.Canceled) || stderrors.Is(extractErr, context.DeadlineExceeded) {
+				outcome.err = fmt.Errorf("PDF extraction stopped: %w", extractErr)
+				return outcome
+			}
 			if pdfFallback {
 				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
 				if fallbackErr == nil {

@@ -3,6 +3,7 @@ package services
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -12,7 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ledongthuc/pdf"
+	"aurago/internal/pdftext"
 )
 
 // ── Binary file detection ────────────────────────────────────────────────────
@@ -142,10 +143,15 @@ func IsAudioFile(ext string) bool {
 // ExtractText extracts text content from a document file based on its extension.
 // Returns the extracted text or an error if extraction fails.
 func ExtractText(path string) (string, error) {
+	return ExtractTextContext(context.Background(), path)
+}
+
+// ExtractTextContext carries cancellation into bounded PDF parsing.
+func ExtractTextContext(ctx context.Context, path string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".pdf":
-		return extractPDFText(path)
+		return extractPDFText(ctx, path)
 	case ".docx":
 		if err := ValidateDocumentArchive(path, "word/document.xml", ""); err != nil {
 			return "", fmt.Errorf("invalid DOCX archive: %w", err)
@@ -178,34 +184,27 @@ func ExtractText(path string) (string, error) {
 	}
 }
 
-// ── PDF text extraction (ledongthuc/pdf) ────────────────────────────────────
+// ── Bounded PDF text extraction ───────────────────────────────────────────
 
-// extractPDFText extracts text from a PDF file using ledongthuc/pdf,
-// which properly parses PDF cross-reference tables and content streams.
-func extractPDFText(path string) (string, error) {
-	f, r, err := pdf.Open(path)
+// extractPDFText shares parsing budgets with the rooted PDF tool.
+func extractPDFText(ctx context.Context, path string) (string, error) {
+	f, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open PDF: %w", err)
 	}
 	defer f.Close()
 
-	var sb strings.Builder
-	for i := 1; i <= r.NumPage(); i++ {
-		page := r.Page(i)
-		if page.V.IsNull() {
-			continue
-		}
-		text, err := page.GetPlainText(nil)
-		if err != nil {
-			continue
-		}
-		sb.WriteString(text)
-		sb.WriteString("\n")
+	info, err := f.Stat()
+	if err != nil {
+		return "", fmt.Errorf("stat PDF: %w", err)
 	}
-
-	result := cleanExtractedText(strings.TrimSpace(sb.String()))
+	text, err := pdftext.Extract(ctx, f, info.Size())
+	if err != nil {
+		return "", err
+	}
+	result := cleanExtractedText(text)
 	if len(result) < 10 {
-		return "", fmt.Errorf("PDF contains no extractable text (possibly scanned/image-based)")
+		return "", pdftext.ErrNoText
 	}
 	return result, nil
 }

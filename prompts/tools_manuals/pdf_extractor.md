@@ -24,6 +24,9 @@ information to extract from the document.
 - `search_query` (string, optional but **required in summary mode**): Tell the summarisation model exactly what information you are looking for in the document. Be specific — e.g. "revenue figures and growth trends" rather than just "summary".
 
 ### Notes
+- Limits: 32 MiB input, 1,000 pages, 16 MiB per decoded stream, 128 MiB decoded
+  in total, 8 MiB extracted text and 30 seconds. Limit/cancellation errors stop
+  extraction without returning partial text or invoking the summary model.
 - `pdf_extractor` is for PDFs only. For PNG/JPG/WebP screenshots or photos, use `analyze_image` instead.
 - Image-based PDFs (scanned documents without OCR) cannot be extracted — the tool will report that no text was found.
 - The file must be accessible within the project tree (path traversal outside the project is blocked).

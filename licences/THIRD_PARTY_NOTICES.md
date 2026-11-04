@@ -1,5 +1,13 @@
 # Third-party notices
 
+## Bounded PDF parser
+
+`internal/pdftext/parser` derives from ledongthuc/pdf revision `6c8c28e0e8a0`,
+Copyright (c) 2009 The Go Authors. All rights reserved. Local modifications add
+resource bounds, cancellation and terminal error propagation. The original
+BSD-3-Clause license is reproduced in
+`licences/texts/ledongthuc-pdf-BSD-3-Clause.txt` and retained with the sources.
+
 ## WhatsApp channel (whatsmeow and libsignal)
 
 The WhatsApp channel compiles `go.mau.fi/whatsmeow` (MPL-2.0, Copyright Tulir

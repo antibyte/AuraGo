@@ -26,6 +26,15 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+PDF text extraction uses the source-pinned BSD-3-Clause ledongthuc/pdf revision
+`6c8c28e0e8a0` in `internal/pdftext/parser`, shared by the indexer, PDF tool and
+export verification. Local changes add context/deadline checks, checked xref,
+predictor and CMap allocations, stream/aggregate/text limits, cycle checks and
+terminal error propagation. Keep these guards when refreshing upstream; run
+`go test ./internal/pdftext/...` and the consumer PDF/export regressions.
+The original copyright and license are retained in `parser/LICENSE` and the
+redistribution text `licences/texts/ledongthuc-pdf-BSD-3-Clause.txt`.
+
 FindIt and CYD icon authoring pin Pillow 13.0.0 in their respective
 `assets/*/requirements.txt` files. Keep both pins aligned and run
 `scripts/export-findit-assets.py --check`, `scripts/export-cyd-icons.py --check`

@@ -12,7 +12,7 @@ import (
 
 	"aurago/internal/infra"
 
-	"github.com/ledongthuc/pdf"
+	pdf "aurago/internal/pdftext/parser"
 )
 
 var testNow = time.Date(2026, 10, 31, 14, 30, 0, 0, time.UTC)

@@ -362,7 +362,7 @@
   "help.tools.network_scan.enabled": "Aktivuje nástroj mDNS sítěového skenu (mdns_scan). Vyhledává zařízení v lokální síti oznamující se přes Bonjour/ZeroConf.",
   "help.tools.notes.enabled": "Povoluje správu poznámek a úkolů (manage_notes). Umožňuje agentovi spravovat poznámky a úkoly.",
   "help.tools.notes.readonly": "Když je povoleno, agent může poznámky jen prohlížet, ale nemůže je vytvářet, měnit ani mazat.",
-  "help.tools.pdf_extractor.enabled": "Povolí nástroj pro extrakci textu z PDF. Pokud je zakázáno, agent nemůže extrahovat textový obsah z PDF souborů.",
+  "help.tools.pdf_extractor.enabled": "Povolí nástroj pro extrakci textu z PDF. Pokud je zakázáno, agent nemůže extrahovat textový obsah z PDF souborů. Limity: 32 MiB, 1 000 stran, 8 MiB textu a 30 sekund. Při překročení limitu se extrakce zastaví.",
   "help.tools.pdf_extractor.summary_mode": "Pokud je zapnuto, extrahovaný text PDF je odeslán přes centrální pomocný LLM pro cílené shrnutí před vrácením agentovi. Užitečné pro velké dokumenty.",
   "help.tools.python_secret_injection.enabled": "Umožňuje nástrojům Python (execute_python, execute_sandbox, execute_skill, run_tool) vyžádat si tajemství z trezoru pomocí parametru vault_keys. Tajemství se vkládají jako proměnné prostředí AURAGO_SECRET_&lt;KEY&gt;. Přístupné jsou pouze hodnoty, které agent sám vytvořil pomocí secrets_vault; hodnoty z uživatelského rozhraní, bezpečného dialogu, systému a starší neklasifikované hodnoty zůstávají skryté. Ve výchozím nastavení z bezpečnostních důvodů zakázáno.",
   "help.tools.python_tool_bridge.allowed_sql_connections": "Vyberte, jaké názvy SQL připojení mohou Python skilly použít při volání sql_query přes nástrojový bridge. Nechte prázdné pro zablokování SQL volání přes bridge.",

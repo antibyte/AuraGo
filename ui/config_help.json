@@ -650,7 +650,7 @@
     },
     "pdf_extractor": {
       "title": "PDF Extractor",
-      "description": "Extract text content from PDF files. Summary mode sends extracted text through the central Helper LLM for focused summarisation"
+      "description": "Extract text content from PDF files. Limits: 32 MiB, 1,000 pages, 8 MiB of text and 30 seconds. Summary mode sends successfully extracted text through the central Helper LLM for focused summarisation"
     }
   },
   "a2a": {

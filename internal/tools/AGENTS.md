@@ -10,6 +10,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- PDF text extraction reads the rooted file handle through `pdftext.Extract`.
+  Pass dispatch cancellation; failed extraction never reaches the summary LLM.
+  Resource limits and source maintenance belong to `../pdftext/AGENTS.md`.
+  Verify `TestExecutePDFExtract*` and agent PDF summary-boundary regressions.
+
 - Managed Browser Automation, its egress proxy and Ansible use the configured Docker build context unchanged. Resolve a context-root Dockerfile first for existing custom contexts, then `deploy/docker/<Dockerfile>` for source checkouts. Share this through `sidecarDockerfilePath`; verify `TestSidecarDockerfilePath` and `TestBrowserAutomationBuildFindsRepositoryDockerfiles` alongside build/fallback tests.
 
 - Core-memory tool updates use memory.UpdateModelCoreFact with the trusted dispatch session; content and current model provenance commit together. Explicit user-edit and existing-fact reuse semantics remain memory-owned. Verify `TestManageMemoryUpdateRecordsCurrentModelOrigin`.

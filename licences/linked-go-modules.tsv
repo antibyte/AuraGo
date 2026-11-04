@@ -96,7 +96,6 @@ github.com/klauspost/compress	BSD-3-Clause AND Apache-2.0 AND MIT	LICENSE	LICENS
 github.com/klauspost/cpuid/v2	MIT	LICENSE
 github.com/klauspost/crc32	BSD-3-Clause	LICENSE
 github.com/kr/fs	BSD-3-Clause	LICENSE
-github.com/ledongthuc/pdf	BSD-3-Clause	LICENSE
 github.com/lib/pq	MIT	LICENSE
 github.com/makiuchi-d/gozxing	MIT AND Apache-2.0	LICENSE	LICENSE adds the original ZXing Apache-2.0 text
 github.com/mattn/go-colorable	MIT	LICENSE

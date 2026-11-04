@@ -246,6 +246,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Local prompt-injection model | `internal/injectionguard/AGENTS.md`, `internal/security/AGENTS.md`, `internal/onnxrt/AGENTS.md` | Optional Horizon CPU model, verified downloads, isolated worker, web/mail gates and administrative Config controls. |
 | Serial ports | `internal/serialutil/AGENTS.md` | Shared enumeration/canonical reservations/cancellation-safe leases. |
 | HTTP/integrations | `internal/server/AGENTS.md` | HTTP/cross-component contracts: System World Tower Voice, 3D Printer, go2rtc, AI Gateway, here.now, GitHub, Homepage Managed Website Ledger, Configuration UI Integration Test Contract. |
+| Bounded PDF extraction | `internal/pdftext/AGENTS.md` | Shared indexer/tool parser, resource limits, cancellation and pinned source/license. |
 | Workspace search | `internal/services/AGENTS.md` | Background services/search. |
 | Native SIP | `internal/sipphone/AGENTS.md` | Telephone registration/calls/media/agent policy. |
 | Speech Lab | `internal/speechlab/AGENTS.md` | Active ASR/TTS snapshots/speech-driven chat routing. |

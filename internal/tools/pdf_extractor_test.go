@@ -9,9 +9,27 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/pdftext/pdftest"
 )
 
 // --- PDF Extractor tests ---
+
+func TestExecutePDFExtractBoundsAndCancellation(t *testing.T) {
+	dir := t.TempDir()
+	data := pdftest.Document("2147483647", nil, "")
+	if err := os.WriteFile(filepath.Join(dir, "too-many.pdf"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	result := ExecutePDFExtract(dir, "too-many.pdf")
+	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "limit exceeded") {
+		t.Fatal(result)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := ExecutePDFExtractContext(ctx, dir, "too-many.pdf"); !strings.Contains(got, "context canceled") {
+		t.Fatal(got)
+	}
+}
 
 func TestExecutePDFExtract_FileNotFound(t *testing.T) {
 	workDir := t.TempDir()

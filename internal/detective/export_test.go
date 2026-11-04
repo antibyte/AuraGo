@@ -5,13 +5,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/ledongthuc/pdf"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	pdf "aurago/internal/pdftext/parser"
 )
 
 func TestAutomaticUpdateExportsPreserveEverySection(t *testing.T) {

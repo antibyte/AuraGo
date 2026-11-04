@@ -362,7 +362,7 @@
   "help.tools.network_scan.enabled": "启用 mDNS 网络扫描工具 (mdns_scan)。通过 Bonjour/ZeroConf 发现本地网络上的设备，包括 Raspberry Pi、NAS、打印机、Apple 设备等。",
   "help.tools.notes.enabled": "启用笔记/待办事项管理 (manage_notes)。允许代理管理笔记和任务。",
   "help.tools.notes.readonly": "启用后，客服人员只能查看备注，但无法创建、更新或删除备注。",
-  "help.tools.pdf_extractor.enabled": "启用PDF文本提取工具。禁用后，代理无法从PDF文件中提取文本内容。",
+  "help.tools.pdf_extractor.enabled": "启用PDF文本提取工具。禁用后，代理无法从PDF文件中提取文本内容。 限制：32 MiB、1,000页、8 MiB文本和30秒。超过限制时将停止提取。",
   "help.tools.pdf_extractor.summary_mode": "启用后，提取的PDF文本将通过中央辅助LLM进行聚焦摘要，然后再返回给代理。适用于大型文档。",
   "help.tools.python_secret_injection.enabled": "允许 Python 工具 (execute_python, execute_sandbox, execute_skill, run_tool) 通过 vault_keys 参数请求 Vault 密钥。密钥作为 AURAGO_SECRET_&lt;KEY&gt; 环境变量注入。只有代理通过 secrets_vault 自行创建的值可访问；来自界面、安全对话框、系统以及未分类的旧值仍保持隐藏。出于安全考虑，默认禁用。",
   "help.tools.python_tool_bridge.allowed_sql_connections": "选择 Python 技能通过工具桥调用 sql_query 时允许使用的 SQL 连接名称。留空将阻止 SQL 桥接调用。",

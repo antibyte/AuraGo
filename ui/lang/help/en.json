@@ -362,7 +362,7 @@
   "help.tools.network_scan.enabled": "Enables the mDNS network scan tool (mdns_scan). Discovers devices on the local network that advertise via Bonjour/ZeroConf — Raspberry Pis, NAS boxes, printers, Apple devices, and more.",
   "help.tools.notes.enabled": "Enables notes/todo management (manage_notes). Allows the agent to manage notes and tasks.",
   "help.tools.notes.readonly": "When enabled, the agent can only view notes but cannot create, update, or delete them.",
-  "help.tools.pdf_extractor.enabled": "Enables the PDF text extraction tool. When disabled, the agent cannot extract text content from PDF files.",
+  "help.tools.pdf_extractor.enabled": "Enables the PDF text extraction tool. When disabled, the agent cannot extract text content from PDF files. Limits: 32 MiB, 1,000 pages, 8 MiB of text and 30 seconds. Extraction stops if a limit is exceeded.",
   "help.tools.pdf_extractor.summary_mode": "When enabled, extracted PDF text is sent through the central Helper LLM for focused summarisation before returning to the agent. Useful for large documents.",
   "help.tools.python_secret_injection.enabled": "Allows Python tools (execute_python, execute_sandbox, execute_skill, run_tool) to request Vault secrets through the vault_keys parameter. Secrets are injected as AURAGO_SECRET_&lt;KEY&gt; environment variables. Only values the agent itself created through secrets_vault are accessible; UI, secure-dialog, system, and unclassified legacy values remain hidden. Disabled by default for security.",
   "help.tools.python_tool_bridge.allowed_sql_connections": "Select which SQL connection names Python skills may use when calling sql_query via the tool bridge. Leave empty to block SQL bridge calls.",

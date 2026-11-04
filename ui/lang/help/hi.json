@@ -362,7 +362,7 @@
   "help.tools.network_scan.enabled": "mDNS नेटवर्क स्कैन टूल (mdns_scan) सक्षम करता है। Bonjour/ZeroConf के माध्यम से लोकल नेटवर्क पर डिवाइस खोजता है।",
   "help.tools.notes.enabled": "नोट्स/टूडू प्रबंधन सक्षम करता है (manage_notes)। एजेंट को नोट्स और कार्यों को प्रबंधित करने की अनुमति देता है।",
   "help.tools.notes.readonly": "सक्षम होने पर, एजेंट केवल नोट्स देख सकता है, लेकिन उन्हें बना, अपडेट या हटा नहीं सकता।",
-  "help.tools.pdf_extractor.enabled": "PDF टेक्स्ट निष्कर्षण टूल सक्षम करता है। अक्षम होने पर, एजेंट PDF फ़ाइलों से टेक्स्ट सामग्री निकाल नहीं सकता।",
+  "help.tools.pdf_extractor.enabled": "PDF टेक्स्ट निष्कर्षण टूल सक्षम करता है। अक्षम होने पर, एजेंट PDF फ़ाइलों से टेक्स्ट सामग्री निकाल नहीं सकता। सीमाएँ: 32 MiB, 1,000 पृष्ठ, 8 MiB टेक्स्ट और 30 सेकंड। सीमा पार होने पर निष्कर्षण रुक जाता है।",
   "help.tools.pdf_extractor.summary_mode": "सक्षम होने पर, निकाला गया PDF टेक्स्ट एजेंट को लौटाने से पहले केंद्रीय सहायक LLM के माध्यम से केंद्रित सारांश के लिए भेजा जाता है। बड़े दस्तावेज़ों के लिए उपयोगी।",
   "help.tools.python_secret_injection.enabled": "Python टूल्स (execute_python, execute_sandbox, execute_skill, run_tool) को vault_keys पैरामीटर के माध्यम से Vault secrets का अनुरोध करने देता है। Secrets AURAGO_SECRET_&lt;KEY&gt; एनवायरनमेंट वैरिएबल्स के रूप में इंजेक्ट किए जाते हैं। केवल वे मान उपलब्ध हैं जिन्हें एजेंट ने स्वयं secrets_vault से बनाया है; UI, सुरक्षित संवाद, सिस्टम और बिना वर्गीकृत पुराने मान छिपे रहते हैं। सुरक्षा के लिए डिफ़ॉल्ट रूप से अक्षम।",
   "help.tools.python_tool_bridge.allowed_sql_connections": "चुनें कि Python skills टूल ब्रिज के जरिए sql_query कॉल करते समय किन SQL कनेक्शन नामों का उपयोग कर सकते हैं। खाली छोड़ने पर SQL ब्रिज कॉल ब्लॉक हो जाएंगे।",

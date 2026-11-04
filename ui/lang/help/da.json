@@ -362,7 +362,7 @@
   "help.tools.network_scan.enabled": "Aktiverer mDNS-netværks-skanværktøjet (mdns_scan). Finder enheder på det lokale netværk via Bonjour/ZeroConf.",
   "help.tools.notes.enabled": "Aktiverer styring af noter og opgaver (manage_notes). Lader agenten styre noter og opgaver.",
   "help.tools.notes.readonly": "Når dette er aktiveret, kan agenten kun se noter, men ikke oprette, opdatere eller slette dem.",
-  "help.tools.pdf_extractor.enabled": "Aktiverer PDF-tekstudtrækningsværktøjet. Når deaktiveret, kan agenten ikke udtrække tekstindhold fra PDF-filer.",
+  "help.tools.pdf_extractor.enabled": "Aktiverer PDF-tekstudtrækningsværktøjet. Når deaktiveret, kan agenten ikke udtrække tekstindhold fra PDF-filer. Grænser: 32 MiB, 1.000 sider, 8 MiB tekst og 30 sekunder. Udtrækningen stopper, hvis en grænse overskrides.",
   "help.tools.pdf_extractor.summary_mode": "Når aktiveret, sendes udtrukket PDF-tekst gennem den centrale hjælpe-LLM til fokuseret opsummering, før den returneres til agenten. Nyttigt til store dokumenter.",
   "help.tools.python_secret_injection.enabled": "Gør det muligt for Python-værktøjer (execute_python, execute_sandbox, execute_skill, run_tool) at anmode om Vault-hemmeligheder via parameteren vault_keys. Hemmeligheder injiceres som miljøvariabler af typen AURAGO_SECRET_&lt;KEY&gt;. Kun værdier, som agenten selv har oprettet via secrets_vault, er tilgængelige; værdier fra brugerfladen, den sikre dialog, systemet og ældre uklassificerede værdier forbliver skjulte. Deaktiveret som standard af sikkerhedshensyn.",
   "help.tools.python_tool_bridge.allowed_sql_connections": "Vælg hvilke SQL-forbindelsesnavne Python-færdigheder må bruge, når de kalder sql_query via værktøjsbroen. Lad stå tomt for at blokere SQL-bro-kald.",

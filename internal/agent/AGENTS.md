@@ -100,6 +100,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Accepted tool batches and bounded side effects
 
+- PDF extraction receives the dispatch context. Only successful extraction may
+  enter summary mode; limit, cancellation and parse failures return directly.
+  Shared limits and parser ownership: `../pdftext/AGENTS.md`.
+
 - Every minimal-loop send (streamed, corrected, continued or final summary)
   checks the shared daily tracker with its resolved category. Enabled budgeting
   without a tracker fails closed; reported usage is still booked once. Admission

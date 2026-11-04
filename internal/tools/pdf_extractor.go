@@ -1,23 +1,24 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/pdftext"
 	"aurago/internal/security"
-
-	"github.com/ledongthuc/pdf"
 )
 
 // ExecutePDFExtract extracts all text content from a PDF file.
 // workspaceDir is used to resolve relative paths and enforce path-traversal
 // protection — the resolved file must stay within the project tree.
 func ExecutePDFExtract(workspaceDir, filePath string) string {
+	return ExecutePDFExtractContext(context.Background(), workspaceDir, filePath)
+}
+
+// ExecutePDFExtractContext parses the rooted input handle with shared limits.
+func ExecutePDFExtractContext(ctx context.Context, workspaceDir, filePath string) string {
 	if filePath == "" {
 		return pdfError("filepath is required")
 	}
@@ -34,44 +35,13 @@ func ExecutePDFExtract(workspaceDir, filePath string) string {
 		return pdfError(fmt.Sprintf("Failed to open PDF: %v", err))
 	}
 	defer input.Close()
-	stagingDir, err := os.MkdirTemp("", "aurago-pdf-extract-*")
+	info, err := input.Stat()
 	if err != nil {
-		return pdfError(fmt.Sprintf("Failed to stage PDF: %v", err))
+		return pdfError(fmt.Sprintf("Failed to stat PDF: %v", err))
 	}
-	defer os.RemoveAll(stagingDir)
-	stagedPath := filepath.Join(stagingDir, "source.pdf")
-	staged, err := os.OpenFile(stagedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	content, err := pdftext.Extract(ctx, input, info.Size())
 	if err != nil {
-		return pdfError(fmt.Sprintf("Failed to stage PDF: %v", err))
-	}
-	_, copyErr := io.Copy(staged, input)
-	closeErr := staged.Close()
-	if copyErr != nil || closeErr != nil {
-		return pdfError(fmt.Sprintf("Failed to stage PDF: %v %v", copyErr, closeErr))
-	}
-	f, r, err := pdf.Open(stagedPath)
-	if err != nil {
-		return pdfError(fmt.Sprintf("Failed to open PDF: %v", err))
-	}
-	defer f.Close()
-
-	var sb strings.Builder
-	for i := 1; i <= r.NumPage(); i++ {
-		page := r.Page(i)
-		if page.V.IsNull() {
-			continue
-		}
-		text, err := page.GetPlainText(nil)
-		if err != nil {
-			continue
-		}
-		sb.WriteString(text)
-		sb.WriteString("\n")
-	}
-
-	content := strings.TrimSpace(sb.String())
-	if content == "" {
-		return pdfError("PDF contains no extractable text (may be image-based)")
+		return pdfError(err.Error())
 	}
 
 	result := map[string]interface{}{

@@ -43,7 +43,6 @@ require (
 	github.com/itlightning/dateparse v0.2.1
 	github.com/johnfercher/maroto/v2 v2.4.3
 	github.com/klauspost/compress v1.20.3
-	github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0
 	github.com/lib/pq v1.12.3
 	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/mdlayher/vsock v1.3.0
