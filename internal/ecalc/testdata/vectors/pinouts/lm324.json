@@ -1,0 +1,98 @@
+{
+  "pinout": "lm324",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "signal": 12
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "2",
+          "name": "1IN-",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "3",
+          "name": "1IN+",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "4",
+          "name": "VCC+",
+          "type": "power",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "5",
+          "name": "2IN+",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "6",
+          "name": "2IN-",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "7",
+          "name": "2OUT",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "8",
+          "name": "3OUT",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "9",
+          "name": "3IN-",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "10",
+          "name": "3IN+",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "11",
+          "name": "VCC-",
+          "type": "power",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "12",
+          "name": "4IN+",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "13",
+          "name": "4IN-",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        },
+        {
+          "number": "14",
+          "name": "4OUT",
+          "type": "signal",
+          "ref": "TI SLOS066AE, Table 5-1, column D/DB/J/N/NS/PW/W"
+        }
+      ]
+    }
+  ]
+}

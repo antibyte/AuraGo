@@ -1,0 +1,184 @@
+{
+  "pinout": "atmega328p",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "ground": 2,
+        "signal": 2,
+        "io": 22
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "PC6/RESET",
+          "type": "signal",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "2",
+          "name": "PD0",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "3",
+          "name": "PD1",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "4",
+          "name": "PD2",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "5",
+          "name": "PD3",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "6",
+          "name": "PD4",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "7",
+          "name": "VCC",
+          "type": "power",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "9",
+          "name": "PB6",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "10",
+          "name": "PB7",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "11",
+          "name": "PD5",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "12",
+          "name": "PD6",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "13",
+          "name": "PD7",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "14",
+          "name": "PB0",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "15",
+          "name": "PB1",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "16",
+          "name": "PB2",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "17",
+          "name": "PB3",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "18",
+          "name": "PB4",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "19",
+          "name": "PB5",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "20",
+          "name": "AVCC",
+          "type": "power",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "21",
+          "name": "AREF",
+          "type": "signal",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "22",
+          "name": "GND",
+          "type": "ground",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "23",
+          "name": "PC0",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "24",
+          "name": "PC1",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "25",
+          "name": "PC2",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "26",
+          "name": "PC3",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "27",
+          "name": "PC4",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        },
+        {
+          "number": "28",
+          "name": "PC5",
+          "type": "io",
+          "ref": "Microchip DS40002061B, Figure 1-1, 28 SPDIP"
+        }
+      ]
+    }
+  ]
+}

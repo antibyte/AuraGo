@@ -1,0 +1,32 @@
+{
+  "pinout": "lm317",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "signal": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "ADJUST",
+          "type": "signal",
+          "ref": "TI SLVS044Z, table Pin Functions, column TO-220, and Figure 5-2"
+        },
+        {
+          "number": "2",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "TI SLVS044Z, table Pin Functions, column TO-220, and Figure 5-2"
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "type": "power",
+          "ref": "TI SLVS044Z, table Pin Functions, column TO-220, and Figure 5-2"
+        }
+      ]
+    }
+  ]
+}

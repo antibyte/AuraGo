@@ -1,0 +1,32 @@
+{
+  "pinout": "l78xx",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "INPUT",
+          "type": "power",
+          "ref": "ST DocID2143 Rev 34, Figure 2, TO-220, rotated to leads down"
+        },
+        {
+          "number": "2",
+          "name": "GROUND",
+          "type": "ground",
+          "ref": "ST DocID2143 Rev 34, Figure 2, TO-220, rotated to leads down"
+        },
+        {
+          "number": "3",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "ST DocID2143 Rev 34, Figure 2, TO-220, rotated to leads down"
+        }
+      ]
+    }
+  ]
+}

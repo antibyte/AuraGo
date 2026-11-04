@@ -1,0 +1,62 @@
+{
+  "pinout": "lm358",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "signal": 6
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "OUT1",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "2",
+          "name": "IN1-",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "3",
+          "name": "IN1+",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "4",
+          "name": "V-",
+          "type": "power",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "5",
+          "name": "IN2+",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "6",
+          "name": "IN2-",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "7",
+          "name": "OUT2",
+          "type": "signal",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        },
+        {
+          "number": "8",
+          "name": "V+",
+          "type": "power",
+          "ref": "TI SLOS068AB, Table 4-1, column SOIC/.../PDIP"
+        }
+      ]
+    }
+  ]
+}

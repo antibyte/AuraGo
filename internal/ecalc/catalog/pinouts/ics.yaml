@@ -1,0 +1,269 @@
+# Integrated circuits and small packages. The sources behind every item are in documentation/ecalc-sources/pinouts/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: ne555
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "NE555 (DIP-8)", da: "NE555 (DIP-8)", de: "NE555 (DIP-8)", el: "NE555 (DIP-8)", en: "NE555 (DIP-8)", es: "NE555 (DIP-8)", fr: "NE555 (DIP-8)", hi: "NE555 (DIP-8)", it: "NE555 (DIP-8)", ja: "NE555 (DIP-8)", nl: "NE555 (DIP-8)", no: "NE555 (DIP-8)", pl: "NE555 (DIP-8)", pt: "NE555 (DIP-8)", sv: "NE555 (DIP-8)", zh: "NE555 (DIP-8)"}
+  doc: {en: "Bipolar timer for monostable and astable circuits, drawn as the 8-pin PDIP from above.", de: "Bipolarer Timer für monostabile und astabile Schaltungen, gezeichnet als 8-poliges PDIP von oben."}
+  notes: {en: "The SOIC (D), SO (PS) and TSSOP (PW) versions of the NE555 have the same pin numbers as the PDIP (P).", de: "Die Versionen SOIC (D), SO (PS) und TSSOP (PW) des NE555 haben dieselben Pin-Nummern wie das PDIP (P)."}
+  tags: ["ne555", "555", "timer", "zeitgeber", "monostable", "monostabil", "astable", "astabil", "oscillator", "oszillator", "dip8", "dip-8", "trig", "thres", "disch"]
+  source: "Texas Instruments NA555, NE555, SA555, SE555 datasheet SLFS022K (March 2026), section 4, pin figure and Table 4-1"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "2", name: "TRIG", function: {en: "Trigger input: starts the timing when it falls below half of CONT", de: "Triggereingang: startet die Zeit, wenn er unter die Hälfte von CONT fällt"}, type: signal}
+    - {number: "3", name: "OUT", function: {en: "Timer output, can carry a high current", de: "Timerausgang, hoch belastbar"}, type: signal}
+    - {number: "4", name: "RESET", function: {en: "Reset, active low: forces OUT and DISCH low", de: "Reset, aktiv low: zieht OUT und DISCH auf low"}, type: signal}
+    - {number: "5", name: "CONT", function: {en: "Control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor", de: "Steuerspannung: legt die Komparatorschwellen fest, 2/3 von VCC ohne Ansteuerung; Platz für einen Abblockkondensator"}, type: signal}
+    - {number: "6", name: "THRES", function: {en: "Threshold input: ends the timing when it rises above CONT", de: "Schwellwerteingang: beendet die Zeit, wenn er über CONT steigt"}, type: signal}
+    - {number: "7", name: "DISCH", function: {en: "Open-collector output that discharges the timing capacitor", de: "Open-Collector-Ausgang, der den Zeitkondensator entlädt"}, type: signal}
+    - {number: "8", name: "VCC", function: {en: "Supply, 4.5 V to 16 V", de: "Versorgung, 4,5 V bis 16 V"}, type: power}
+
+- id: lm317
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "LM317 (TO-220)", da: "LM317 (TO-220)", de: "LM317 (TO-220)", el: "LM317 (TO-220)", en: "LM317 (TO-220)", es: "LM317 (TO-220)", fr: "LM317 (TO-220)", hi: "LM317 (TO-220)", it: "LM317 (TO-220)", ja: "LM317 (TO-220)", nl: "LM317 (TO-220)", no: "LM317 (TO-220)", pl: "LM317 (TO-220)", pt: "LM317 (TO-220)", sv: "LM317 (TO-220)", zh: "LM317 (TO-220)"}
+  doc: {en: "Adjustable positive voltage regulator, 1.25 V to 37 V, drawn from the front: label side towards you, leads pointing down.", de: "Einstellbarer positiver Spannungsregler, 1,25 V bis 37 V, von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab is connected to pin 2 (OUTPUT), so a heat sink on the tab carries the output voltage: insulate it from metal at any other potential.", de: "Die Metallfahne ist mit Pin 2 (OUTPUT) verbunden; ein Kühlkörper an der Fahne führt also die Ausgangsspannung. Gegen Metall mit anderem Potenzial isolieren."}
+  tags: ["lm317", "regulator", "spannungsregler", "regler", "adjustable", "einstellbar", "adj", "adjust", "vin", "vout", "to220", "to-220"]
+  source: "Texas Instruments LM317 datasheet SLVS044Z (April 2025), section 5, Figure 5-2 and table Pin Functions"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "ADJUST", function: {en: "Sets the output voltage through a resistor divider", de: "Stellt die Ausgangsspannung über einen Spannungsteiler ein"}, type: signal}
+    - {number: "2", name: "OUTPUT", function: {en: "Regulated output, also on the tab", de: "Geregelter Ausgang, auch an der Metallfahne"}, type: power}
+    - {number: "3", name: "INPUT", function: {en: "Unregulated input voltage", de: "Ungeregelte Eingangsspannung"}, type: power}
+
+- id: l78xx
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "L78xx (TO-220)", da: "L78xx (TO-220)", de: "L78xx (TO-220)", el: "L78xx (TO-220)", en: "L78xx (TO-220)", es: "L78xx (TO-220)", fr: "L78xx (TO-220)", hi: "L78xx (TO-220)", it: "L78xx (TO-220)", ja: "L78xx (TO-220)", nl: "L78xx (TO-220)", no: "L78xx (TO-220)", pl: "L78xx (TO-220)", pt: "L78xx (TO-220)", sv: "L78xx (TO-220)", zh: "L78xx (TO-220)"}
+  doc: {en: "ST L78 series of fixed positive regulators such as the L7805 (5 V) and L7812 (12 V), drawn from the front: label side towards you, leads pointing down.", de: "ST-Baureihe L78 positiver Festspannungsregler wie L7805 (5 V) und L7812 (12 V), von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab of the TO-220 is at ground: ST marks it GND in the pin figure. The pin numbers here are positions from left to right, because the figure names the leads without numbering them. The TO-220FP has the same lead order.", de: "Die Metallfahne des TO-220 liegt auf Masse: ST bezeichnet sie in der Pin-Abbildung mit GND. Die Pin-Nummern hier sind Positionen von links nach rechts, weil die Abbildung die Anschlüsse benennt, aber nicht nummeriert. Das TO-220FP hat dieselbe Anschlussfolge."}
+  tags: ["l78xx", "l78", "l7805", "l7809", "l7812", "l7815", "7805", "7812", "78xx", "regulator", "spannungsregler", "festspannungsregler", "to220", "to-220"]
+  source: "STMicroelectronics L78 datasheet DocID2143 Rev 34 (November 2016) and L78xx datasheet Rev 19 (March 2008), Figure 2 Pin connections (top view)"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "INPUT", function: {en: "Unregulated input voltage", de: "Ungeregelte Eingangsspannung"}, type: power}
+    - {number: "2", name: "GROUND", function: {en: "Ground, also on the tab", de: "Masse, auch an der Metallfahne"}, type: ground}
+    - {number: "3", name: "OUTPUT", function: {en: "Regulated fixed output", de: "Geregelter Festspannungsausgang"}, type: power}
+
+- id: lm358
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "LM358 (DIP-8)", da: "LM358 (DIP-8)", de: "LM358 (DIP-8)", el: "LM358 (DIP-8)", en: "LM358 (DIP-8)", es: "LM358 (DIP-8)", fr: "LM358 (DIP-8)", hi: "LM358 (DIP-8)", it: "LM358 (DIP-8)", ja: "LM358 (DIP-8)", nl: "LM358 (DIP-8)", no: "LM358 (DIP-8)", pl: "LM358 (DIP-8)", pt: "LM358 (DIP-8)", sv: "LM358 (DIP-8)", zh: "LM358 (DIP-8)"}
+  doc: {en: "Dual operational amplifier that can run from one supply, drawn as the 8-pin PDIP from above.", de: "Doppel-Operationsverstärker, der auch an einer einzigen Versorgung läuft, gezeichnet als 8-poliges PDIP von oben."}
+  notes: {en: "The other 8-pin packages in TI's datasheet (SOIC, VSSOP, TSSOP and others) have the same pin numbers, and so do the LM158, LM258 and LM2904 it also covers.", de: "Die übrigen 8-poligen Gehäuse im Datenblatt von TI (SOIC, VSSOP, TSSOP und andere) haben dieselben Pin-Nummern, ebenso die dort mitbeschriebenen LM158, LM258 und LM2904."}
+  tags: ["lm358", "op-amp", "opamp", "operational amplifier", "operationsverstärker", "dual", "lm2904", "lm258", "dip8", "dip-8"]
+  source: "Texas Instruments LM158, LM258, LM2904, LM358 datasheet SLOS068AB (October 2024), section 4, Figure 4-1 and Table 4-1"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "OUT1", function: {en: "Output of amplifier 1", de: "Ausgang von Verstärker 1"}, type: signal}
+    - {number: "2", name: "IN1-", function: {en: "Inverting input of amplifier 1", de: "Invertierender Eingang von Verstärker 1"}, type: signal}
+    - {number: "3", name: "IN1+", function: {en: "Non-inverting input of amplifier 1", de: "Nichtinvertierender Eingang von Verstärker 1"}, type: signal}
+    - {number: "4", name: "V-", function: {en: "Negative supply, or ground in single-supply use", de: "Negative Versorgung, bei Einfachversorgung Masse"}, type: power}
+    - {number: "5", name: "IN2+", function: {en: "Non-inverting input of amplifier 2", de: "Nichtinvertierender Eingang von Verstärker 2"}, type: signal}
+    - {number: "6", name: "IN2-", function: {en: "Inverting input of amplifier 2", de: "Invertierender Eingang von Verstärker 2"}, type: signal}
+    - {number: "7", name: "OUT2", function: {en: "Output of amplifier 2", de: "Ausgang von Verstärker 2"}, type: signal}
+    - {number: "8", name: "V+", function: {en: "Positive supply", de: "Positive Versorgung"}, type: power}
+
+- id: lm324
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "LM324 (DIP-14)", da: "LM324 (DIP-14)", de: "LM324 (DIP-14)", el: "LM324 (DIP-14)", en: "LM324 (DIP-14)", es: "LM324 (DIP-14)", fr: "LM324 (DIP-14)", hi: "LM324 (DIP-14)", it: "LM324 (DIP-14)", ja: "LM324 (DIP-14)", nl: "LM324 (DIP-14)", no: "LM324 (DIP-14)", pl: "LM324 (DIP-14)", pt: "LM324 (DIP-14)", sv: "LM324 (DIP-14)", zh: "LM324 (DIP-14)"}
+  doc: {en: "Quad operational amplifier that can run from one supply, drawn as the 14-pin PDIP from above.", de: "Vierfach-Operationsverstärker, der auch an einer einzigen Versorgung läuft, gezeichnet als 14-poliges PDIP von oben."}
+  notes: {en: "The supply pins sit in the middle of the package: VCC+ is pin 4 and VCC- is pin 11. The other 14-pin packages in TI's datasheet (SOIC, SSOP, TSSOP and others) have the same pin numbers, and so do the LM124, LM224 and LM2902 it also covers.", de: "Die Versorgungspins liegen in der Mitte des Gehäuses: VCC+ ist Pin 4, VCC- ist Pin 11. Die übrigen 14-poligen Gehäuse im Datenblatt von TI (SOIC, SSOP, TSSOP und andere) haben dieselben Pin-Nummern, ebenso die dort mitbeschriebenen LM124, LM224 und LM2902."}
+  tags: ["lm324", "op-amp", "opamp", "operational amplifier", "operationsverstärker", "quad", "vierfach", "lm2902", "lm224", "dip14", "dip-14"]
+  source: "Texas Instruments LM124, LM224, LM324, LM2902 datasheet SLOS066AE (September 2025), section 5, Figure 5-1 and Table 5-1"
+  shape:
+    type: dip
+    pins: 14
+  pins:
+    - {number: "1", name: "1OUT", function: {en: "Output of amplifier 1", de: "Ausgang von Verstärker 1"}, type: signal}
+    - {number: "2", name: "1IN-", function: {en: "Inverting input of amplifier 1", de: "Invertierender Eingang von Verstärker 1"}, type: signal}
+    - {number: "3", name: "1IN+", function: {en: "Non-inverting input of amplifier 1", de: "Nichtinvertierender Eingang von Verstärker 1"}, type: signal}
+    - {number: "4", name: "VCC+", function: {en: "Positive supply", de: "Positive Versorgung"}, type: power}
+    - {number: "5", name: "2IN+", function: {en: "Non-inverting input of amplifier 2", de: "Nichtinvertierender Eingang von Verstärker 2"}, type: signal}
+    - {number: "6", name: "2IN-", function: {en: "Inverting input of amplifier 2", de: "Invertierender Eingang von Verstärker 2"}, type: signal}
+    - {number: "7", name: "2OUT", function: {en: "Output of amplifier 2", de: "Ausgang von Verstärker 2"}, type: signal}
+    - {number: "8", name: "3OUT", function: {en: "Output of amplifier 3", de: "Ausgang von Verstärker 3"}, type: signal}
+    - {number: "9", name: "3IN-", function: {en: "Inverting input of amplifier 3", de: "Invertierender Eingang von Verstärker 3"}, type: signal}
+    - {number: "10", name: "3IN+", function: {en: "Non-inverting input of amplifier 3", de: "Nichtinvertierender Eingang von Verstärker 3"}, type: signal}
+    - {number: "11", name: "VCC-", function: {en: "Negative supply, or ground in single-supply use", de: "Negative Versorgung, bei Einfachversorgung Masse"}, type: power}
+    - {number: "12", name: "4IN+", function: {en: "Non-inverting input of amplifier 4", de: "Nichtinvertierender Eingang von Verstärker 4"}, type: signal}
+    - {number: "13", name: "4IN-", function: {en: "Inverting input of amplifier 4", de: "Invertierender Eingang von Verstärker 4"}, type: signal}
+    - {number: "14", name: "4OUT", function: {en: "Output of amplifier 4", de: "Ausgang von Verstärker 4"}, type: signal}
+
+- id: sn74hc595
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC595 (DIP-16)", da: "SN74HC595 (DIP-16)", de: "SN74HC595 (DIP-16)", el: "SN74HC595 (DIP-16)", en: "SN74HC595 (DIP-16)", es: "SN74HC595 (DIP-16)", fr: "SN74HC595 (DIP-16)", hi: "SN74HC595 (DIP-16)", it: "SN74HC595 (DIP-16)", ja: "SN74HC595 (DIP-16)", nl: "SN74HC595 (DIP-16)", no: "SN74HC595 (DIP-16)", pl: "SN74HC595 (DIP-16)", pt: "SN74HC595 (DIP-16)", sv: "SN74HC595 (DIP-16)", zh: "SN74HC595 (DIP-16)"}
+  doc: {en: "8-bit shift register with serial input, a storage register and 3-state parallel outputs, drawn as the 16-pin PDIP from above.", de: "8-Bit-Schieberegister mit seriellem Eingang, Speicherregister und parallelen Tri-State-Ausgängen, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "QA is alone on pin 15, on the other side from QB to QH. SRCLK shifts SER in; RCLK copies the shift register to the outputs. To chain chips, feed QH' into SER of the next one.", de: "QA liegt allein auf Pin 15, auf der anderen Seite als QB bis QH. SRCLK schiebt SER ein; RCLK übernimmt das Schieberegister an die Ausgänge. Zum Kaskadieren QH' an SER des nächsten Bausteins legen."}
+  tags: ["sn74hc595", "74hc595", "hc595", "595", "shift register", "schieberegister", "latch", "ser", "srclk", "rclk", "srclr", "oe", "dip16", "dip-16"]
+  source: "Texas Instruments SN54HC595, SN74HC595 datasheet SCLS041J (October 2021), section 5, pin figure and Table 5-1"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "QB", function: {en: "Parallel output B", de: "Paralleler Ausgang B"}, type: data}
+    - {number: "2", name: "QC", function: {en: "Parallel output C", de: "Paralleler Ausgang C"}, type: data}
+    - {number: "3", name: "QD", function: {en: "Parallel output D", de: "Paralleler Ausgang D"}, type: data}
+    - {number: "4", name: "QE", function: {en: "Parallel output E", de: "Paralleler Ausgang E"}, type: data}
+    - {number: "5", name: "QF", function: {en: "Parallel output F", de: "Paralleler Ausgang F"}, type: data}
+    - {number: "6", name: "QG", function: {en: "Parallel output G", de: "Paralleler Ausgang G"}, type: data}
+    - {number: "7", name: "QH", function: {en: "Parallel output H", de: "Paralleler Ausgang H"}, type: data}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "QH'", function: {en: "Serial output for chaining to SER of the next chip", de: "Serieller Ausgang zum Kaskadieren an SER des nächsten Bausteins"}, type: data}
+    - {number: "10", name: "SRCLR", function: {en: "Shift register clear, active low", de: "Löschen des Schieberegisters, aktiv low"}, type: signal}
+    - {number: "11", name: "SRCLK", function: {en: "Shift register clock, rising edge", de: "Schieberegistertakt, steigende Flanke"}, type: data}
+    - {number: "12", name: "RCLK", function: {en: "Storage register clock, rising edge", de: "Speicherregistertakt, steigende Flanke"}, type: data}
+    - {number: "13", name: "OE", function: {en: "Output enable, active low: high makes the outputs high-impedance", de: "Ausgangsfreigabe, aktiv low: high schaltet die Ausgänge hochohmig"}, type: signal}
+    - {number: "14", name: "SER", function: {en: "Serial data input", de: "Serieller Dateneingang"}, type: data}
+    - {number: "15", name: "QA", function: {en: "Parallel output A", de: "Paralleler Ausgang A"}, type: data}
+    - {number: "16", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: uln2003
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "ULN2003A (DIP-16)", da: "ULN2003A (DIP-16)", de: "ULN2003A (DIP-16)", el: "ULN2003A (DIP-16)", en: "ULN2003A (DIP-16)", es: "ULN2003A (DIP-16)", fr: "ULN2003A (DIP-16)", hi: "ULN2003A (DIP-16)", it: "ULN2003A (DIP-16)", ja: "ULN2003A (DIP-16)", nl: "ULN2003A (DIP-16)", no: "ULN2003A (DIP-16)", pl: "ULN2003A (DIP-16)", pt: "ULN2003A (DIP-16)", sv: "ULN2003A (DIP-16)", zh: "ULN2003A (DIP-16)"}
+  doc: {en: "Seven Darlington sink drivers with common-cathode clamp diodes, drawn as the 16-pin PDIP from above.", de: "Sieben Darlington-Lowside-Treiber mit Freilaufdioden an gemeinsamer Kathode, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "Each input nB drives the output nC opposite it, and the outputs only sink current towards E. Pin 9 (COM) joins the cathodes of all seven clamp diodes: for inductive loads such as relay or motor coils, tie it to the coil supply so that the diodes catch the kickback; with resistive loads it may stay open.", de: "Jeder Eingang nB steuert den Ausgang nC gegenüber, und die Ausgänge ziehen den Strom nur nach E. Pin 9 (COM) verbindet die Kathoden aller sieben Freilaufdioden: Bei induktiven Lasten wie Relais- oder Motorspulen gehört er an die Spulenversorgung, damit die Dioden die Abschaltspannung abfangen; bei ohmschen Lasten darf er offen bleiben."}
+  tags: ["uln2003", "uln2003a", "darlington", "driver", "treiber", "relay", "relais", "stepper", "schrittmotor", "clamp diode", "flyback", "freilaufdiode", "com", "dip16", "dip-16"]
+  source: "Texas Instruments ULN200x, ULQ200x datasheet SLRS027T (March 2025), section 4, Figure 4-1 and Table 4-1; sections 7.4 and 8.4 for COM"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "1B", function: {en: "Input of channel 1 (Darlington base)", de: "Eingang von Kanal 1 (Darlington-Basis)"}, type: signal}
+    - {number: "2", name: "2B", function: {en: "Input of channel 2 (Darlington base)", de: "Eingang von Kanal 2 (Darlington-Basis)"}, type: signal}
+    - {number: "3", name: "3B", function: {en: "Input of channel 3 (Darlington base)", de: "Eingang von Kanal 3 (Darlington-Basis)"}, type: signal}
+    - {number: "4", name: "4B", function: {en: "Input of channel 4 (Darlington base)", de: "Eingang von Kanal 4 (Darlington-Basis)"}, type: signal}
+    - {number: "5", name: "5B", function: {en: "Input of channel 5 (Darlington base)", de: "Eingang von Kanal 5 (Darlington-Basis)"}, type: signal}
+    - {number: "6", name: "6B", function: {en: "Input of channel 6 (Darlington base)", de: "Eingang von Kanal 6 (Darlington-Basis)"}, type: signal}
+    - {number: "7", name: "7B", function: {en: "Input of channel 7 (Darlington base)", de: "Eingang von Kanal 7 (Darlington-Basis)"}, type: signal}
+    - {number: "8", name: "E", function: {en: "Common emitter of all channels, normally ground", de: "Gemeinsamer Emitter aller Kanäle, normalerweise Masse"}, type: ground}
+    - {number: "9", name: "COM", function: {en: "Common cathode of the clamp diodes", de: "Gemeinsame Kathode der Freilaufdioden"}, type: power, notes: {en: "Tie to the coil supply for inductive loads. The outputs must not rise far above COM, or the diodes conduct heavily.", de: "Bei induktiven Lasten an die Spulenversorgung legen. Die Ausgänge dürfen nicht deutlich über COM steigen, sonst leiten die Dioden stark."}}
+    - {number: "10", name: "7C", function: {en: "Output of channel 7 (Darlington collector)", de: "Ausgang von Kanal 7 (Darlington-Kollektor)"}, type: signal}
+    - {number: "11", name: "6C", function: {en: "Output of channel 6 (Darlington collector)", de: "Ausgang von Kanal 6 (Darlington-Kollektor)"}, type: signal}
+    - {number: "12", name: "5C", function: {en: "Output of channel 5 (Darlington collector)", de: "Ausgang von Kanal 5 (Darlington-Kollektor)"}, type: signal}
+    - {number: "13", name: "4C", function: {en: "Output of channel 4 (Darlington collector)", de: "Ausgang von Kanal 4 (Darlington-Kollektor)"}, type: signal}
+    - {number: "14", name: "3C", function: {en: "Output of channel 3 (Darlington collector)", de: "Ausgang von Kanal 3 (Darlington-Kollektor)"}, type: signal}
+    - {number: "15", name: "2C", function: {en: "Output of channel 2 (Darlington collector)", de: "Ausgang von Kanal 2 (Darlington-Kollektor)"}, type: signal}
+    - {number: "16", name: "1C", function: {en: "Output of channel 1 (Darlington collector)", de: "Ausgang von Kanal 1 (Darlington-Kollektor)"}, type: signal}
+
+- id: atmega328p
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "ATmega328P (DIP-28)", da: "ATmega328P (DIP-28)", de: "ATmega328P (DIP-28)", el: "ATmega328P (DIP-28)", en: "ATmega328P (DIP-28)", es: "ATmega328P (DIP-28)", fr: "ATmega328P (DIP-28)", hi: "ATmega328P (DIP-28)", it: "ATmega328P (DIP-28)", ja: "ATmega328P (DIP-28)", nl: "ATmega328P (DIP-28)", no: "ATmega328P (DIP-28)", pl: "ATmega328P (DIP-28)", pt: "ATmega328P (DIP-28)", sv: "ATmega328P (DIP-28)", zh: "ATmega328P (DIP-28)"}
+  doc: {en: "8-bit AVR microcontroller in the 28-pin SPDIP, seen from above. The name is the port bit; the function lists what else the pin can do.", de: "8-Bit-AVR-Mikrocontroller im 28-poligen SPDIP, von oben gesehen. Der Name ist das Port-Bit; die Funktion nennt, was der Pin außerdem kann."}
+  notes: {en: "Connect AVCC to VCC even when the ADC is unused, and through a low-pass filter when it is used. PB6 and PB7 are taken when the fuses select a crystal. ADC6 and ADC7 exist only in the TQFP and VQFN packages, not in this one. The ATmega48A/PA, 88A/PA, 168A/PA and 328 of the same datasheet share this drawing.", de: "AVCC auch ohne ADC-Nutzung mit VCC verbinden, bei genutztem ADC über einen Tiefpass. PB6 und PB7 sind belegt, wenn die Fuses einen Quarz wählen. ADC6 und ADC7 gibt es nur in den TQFP- und VQFN-Gehäusen, nicht in diesem. Die ATmega48A/PA, 88A/PA, 168A/PA und 328 desselben Datenblatts teilen diese Zeichnung."}
+  tags: ["atmega328p", "atmega328", "atmega168", "avr", "microcontroller", "mikrocontroller", "mcu", "dip28", "dip-28", "spdip", "pb5", "adc", "spi", "i2c", "twi", "usart", "uart", "pwm", "reset", "xtal", "quarz"]
+  source: "Microchip ATmega48A/PA/88A/PA/168A/PA/328/P datasheet DS40002061B (2020), Figure 1-1 (28 SPDIP), section 1.1 and the alternate-function tables of ports B, C and D"
+  shape:
+    type: dip
+    pins: 28
+  pins:
+    - {number: "1", name: "PC6/RESET", function: {en: "Reset input, active low; PCINT14", de: "Reset-Eingang, aktiv low; PCINT14"}, type: signal, notes: {en: "With the RSTDISBL fuse programmed the pin becomes I/O bit PC6, with electrical characteristics unlike the rest of port C.", de: "Mit programmierter RSTDISBL-Fuse wird der Pin zum I/O-Bit PC6, mit anderen elektrischen Werten als der übrige Port C."}}
+    - {number: "2", name: "PD0", function: {en: "Port D bit 0; RXD (USART receive), PCINT16", de: "Port D Bit 0; RXD (USART-Empfang), PCINT16"}, type: io}
+    - {number: "3", name: "PD1", function: {en: "Port D bit 1; TXD (USART transmit), PCINT17", de: "Port D Bit 1; TXD (USART-Senden), PCINT17"}, type: io}
+    - {number: "4", name: "PD2", function: {en: "Port D bit 2; INT0 (external interrupt 0), PCINT18", de: "Port D Bit 2; INT0 (externer Interrupt 0), PCINT18"}, type: io}
+    - {number: "5", name: "PD3", function: {en: "Port D bit 3; INT1 (external interrupt 1), OC2B (timer 2 compare output), PCINT19", de: "Port D Bit 3; INT1 (externer Interrupt 1), OC2B (Vergleichsausgang Timer 2), PCINT19"}, type: io}
+    - {number: "6", name: "PD4", function: {en: "Port D bit 4; XCK (USART clock), T0 (timer 0 counter input), PCINT20", de: "Port D Bit 4; XCK (USART-Takt), T0 (Zähleingang Timer 0), PCINT20"}, type: io}
+    - {number: "7", name: "VCC", function: {en: "Digital supply", de: "Digitale Versorgung"}, type: power}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "PB6", function: {en: "Port B bit 6; XTAL1 (oscillator input), TOSC1 (timer oscillator), PCINT6", de: "Port B Bit 6; XTAL1 (Oszillatoreingang), TOSC1 (Timer-Oszillator), PCINT6"}, type: io}
+    - {number: "10", name: "PB7", function: {en: "Port B bit 7; XTAL2 (oscillator output), TOSC2 (timer oscillator), PCINT7", de: "Port B Bit 7; XTAL2 (Oszillatorausgang), TOSC2 (Timer-Oszillator), PCINT7"}, type: io}
+    - {number: "11", name: "PD5", function: {en: "Port D bit 5; T1 (timer 1 counter input), OC0B (timer 0 compare output), PCINT21", de: "Port D Bit 5; T1 (Zähleingang Timer 1), OC0B (Vergleichsausgang Timer 0), PCINT21"}, type: io}
+    - {number: "12", name: "PD6", function: {en: "Port D bit 6; AIN0 (comparator positive input), OC0A (timer 0 compare output), PCINT22", de: "Port D Bit 6; AIN0 (positiver Komparatoreingang), OC0A (Vergleichsausgang Timer 0), PCINT22"}, type: io}
+    - {number: "13", name: "PD7", function: {en: "Port D bit 7; AIN1 (comparator negative input), PCINT23", de: "Port D Bit 7; AIN1 (negativer Komparatoreingang), PCINT23"}, type: io}
+    - {number: "14", name: "PB0", function: {en: "Port B bit 0; ICP1 (timer 1 input capture), CLKO (clock output), PCINT0", de: "Port B Bit 0; ICP1 (Input Capture Timer 1), CLKO (Taktausgang), PCINT0"}, type: io}
+    - {number: "15", name: "PB1", function: {en: "Port B bit 1; OC1A (timer 1 compare output), PCINT1", de: "Port B Bit 1; OC1A (Vergleichsausgang Timer 1), PCINT1"}, type: io}
+    - {number: "16", name: "PB2", function: {en: "Port B bit 2; SS (SPI slave select, active low), OC1B (timer 1 compare output), PCINT2", de: "Port B Bit 2; SS (SPI-Slave-Auswahl, aktiv low), OC1B (Vergleichsausgang Timer 1), PCINT2"}, type: io}
+    - {number: "17", name: "PB3", function: {en: "Port B bit 3; MOSI (SPI master out, slave in), OC2A (timer 2 compare output), PCINT3", de: "Port B Bit 3; MOSI (SPI Master aus, Slave ein), OC2A (Vergleichsausgang Timer 2), PCINT3"}, type: io}
+    - {number: "18", name: "PB4", function: {en: "Port B bit 4; MISO (SPI master in, slave out), PCINT4", de: "Port B Bit 4; MISO (SPI Master ein, Slave aus), PCINT4"}, type: io}
+    - {number: "19", name: "PB5", function: {en: "Port B bit 5; SCK (SPI clock), PCINT5", de: "Port B Bit 5; SCK (SPI-Takt), PCINT5"}, type: io}
+    - {number: "20", name: "AVCC", function: {en: "Supply of the A/D converter and PC3:0", de: "Versorgung von A/D-Wandler und PC3:0"}, type: power}
+    - {number: "21", name: "AREF", function: {en: "Analogue reference of the A/D converter", de: "Analoge Referenz des A/D-Wandlers"}, type: signal}
+    - {number: "22", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "23", name: "PC0", function: {en: "Port C bit 0; ADC0 (analogue input 0), PCINT8", de: "Port C Bit 0; ADC0 (Analogeingang 0), PCINT8"}, type: io}
+    - {number: "24", name: "PC1", function: {en: "Port C bit 1; ADC1 (analogue input 1), PCINT9", de: "Port C Bit 1; ADC1 (Analogeingang 1), PCINT9"}, type: io}
+    - {number: "25", name: "PC2", function: {en: "Port C bit 2; ADC2 (analogue input 2), PCINT10", de: "Port C Bit 2; ADC2 (Analogeingang 2), PCINT10"}, type: io}
+    - {number: "26", name: "PC3", function: {en: "Port C bit 3; ADC3 (analogue input 3), PCINT11", de: "Port C Bit 3; ADC3 (Analogeingang 3), PCINT11"}, type: io}
+    - {number: "27", name: "PC4", function: {en: "Port C bit 4; ADC4 (analogue input 4), SDA (I²C data), PCINT12", de: "Port C Bit 4; ADC4 (Analogeingang 4), SDA (I²C-Daten), PCINT12"}, type: io}
+    - {number: "28", name: "PC5", function: {en: "Port C bit 5; ADC5 (analogue input 5), SCL (I²C clock), PCINT13", de: "Port C Bit 5; ADC5 (Analogeingang 5), SCL (I²C-Takt), PCINT13"}, type: io}
+
+- id: to92
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "TO-92: příklady", da: "TO-92: eksempler", de: "TO-92: Beispiele", el: "TO-92: παραδείγματα", en: "TO-92: examples", es: "TO-92: ejemplos", fr: "Exemples TO-92", hi: "TO-92: उदाहरण", it: "TO-92: esempi", ja: "TO-92の例", nl: "TO-92: voorbeelden", no: "TO-92: eksempler", pl: "TO-92: przykłady", pt: "TO-92: exemplos", sv: "TO-92: exempel", zh: "TO-92 示例"}
+  doc: {en: "The pin order of a TO-92 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from the front, flat side towards you and leads pointing down, and the numbers are positions from left to right.", de: "Die Pin-Reihenfolge eines TO-92-Bauteils hängt vom Bauteil ab, nicht vom Gehäuse: Diese Seite zeigt nur Beispiele, prüfe also das Datenblatt deines genauen Bauteils und Herstellers. Alle sind von vorn gezeichnet, flache Seite zu dir und Anschlüsse nach unten, und die Nummern sind Positionen von links nach rechts."}
+  notes: {en: "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes.", de: "Der Eintrag PN2222A ist der TO-92-Typ aus Kunststoff von onsemi (früher Fairchild). Er gilt nicht für den runden 2N2222 im Metallgehäuse (TO-18), dessen Anschlüsse ein Dreieck bilden, und beim ähnlich benannten onsemi P2N2222A sind Kollektor und Emitter vertauscht: Kollektor links, Emitter rechts. Der 78L05 läuft umgekehrt zum L78xx im TO-220: Sein Eingang liegt rechts. Die Tabelle von TI nummeriert die Anschlüsse des TL431 gegenläufig zu den Positionen hier; siehe die Pin-Hinweise."}
+  tags: ["to92", "to-92", "transistor", "mosfet", "bc547", "pn2222a", "2n2222", "2n3904", "2n7000", "lm35", "78l05", "ua78l05", "mc78l05", "tl431", "npn", "collector", "kollektor", "base", "basis", "emitter", "gate", "source", "drain", "regulator", "spannungsregler", "temperature sensor", "temperatursensor", "voltage reference", "spannungsreferenz"]
+  source: "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45"
+  shape:
+    type: to
+    package: to92
+    pins: ["1", "2", "3"]
+  variants:
+    - id: bc547
+      name: {en: "BC547", de: "BC547"}
+      pins:
+        - {number: "1", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+    - id: q2n2222
+      name: {en: "PN2222A", de: "PN2222A"}
+      pins:
+        - {number: "1", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal, notes: {en: "For the TO-92 PN2222A. Not for the metal-can 2N2222 or the P2N2222A.", de: "Für den PN2222A im TO-92. Nicht für den 2N2222 im Metallgehäuse oder den P2N2222A."}}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+    - id: q2n3904
+      name: {en: "2N3904", de: "2N3904"}
+      pins:
+        - {number: "1", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+    - id: q2n7000
+      name: {en: "2N7000", de: "2N7000"}
+      pins:
+        - {number: "1", name: "S", function: {en: "Source of the N-channel MOSFET", de: "Source des N-Kanal-MOSFET"}, type: signal}
+        - {number: "2", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+        - {number: "3", name: "D", function: {en: "Drain", de: "Drain"}, type: signal}
+    - id: lm35
+      name: {en: "LM35", de: "LM35"}
+      pins:
+        - {number: "1", name: "+VS", function: {en: "Positive supply", de: "Positive Versorgung"}, type: power}
+        - {number: "2", name: "VOUT", function: {en: "Analogue temperature output", de: "Analoger Temperaturausgang"}, type: signal}
+        - {number: "3", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - id: reg78l05
+      name: {en: "78L05", de: "78L05"}
+      pins:
+        - {number: "1", name: "OUTPUT", function: {en: "Regulated 5 V output", de: "Geregelter 5-V-Ausgang"}, type: power}
+        - {number: "2", name: "COMMON", function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "3", name: "INPUT", function: {en: "Unregulated input voltage", de: "Ungeregelte Eingangsspannung"}, type: power}
+    - id: tl431
+      name: {en: "TL431", de: "TL431"}
+      pins:
+        - {number: "1", name: "REF", function: {en: "Reference input", de: "Referenzeingang"}, type: signal, notes: {en: "Position 1 here; TI's table calls it pin 3, onsemi pin 1.", de: "Hier Position 1; die Tabelle von TI nennt ihn Pin 3, onsemi Pin 1."}}
+        - {number: "2", name: "ANODE", function: {en: "Anode, the common pin, normally tied to ground", de: "Anode, der gemeinsame Anschluss, normalerweise an Masse"}, type: ground, notes: {en: "Position 2 here; pin 2 at TI and onsemi.", de: "Hier Position 2; bei TI und onsemi Pin 2."}}
+        - {number: "3", name: "CATHODE", function: {en: "Cathode, carries the shunt current", de: "Kathode, führt den Shunt-Strom"}, type: signal, notes: {en: "Position 3 here; TI's table calls it pin 1, onsemi pin 3.", de: "Hier Position 3; die Tabelle von TI nennt sie Pin 1, onsemi Pin 3."}}

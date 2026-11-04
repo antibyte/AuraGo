@@ -1,0 +1,191 @@
+{
+  "pinout": "to92",
+  "variants": [
+    {
+      "variant": "bc547",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi BC546/D Rev. 8, page 1 (case 29, style 17), case outline end view"
+        },
+        {
+          "number": "2",
+          "name": "B",
+          "type": "signal",
+          "ref": "onsemi BC546/D Rev. 8, page 1 (case 29, style 17), case outline end view"
+        },
+        {
+          "number": "3",
+          "name": "E",
+          "type": "signal",
+          "ref": "onsemi BC546/D Rev. 8, page 1 (case 29, style 17), case outline end view"
+        }
+      ]
+    },
+    {
+      "variant": "q2n2222",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "E",
+          "type": "signal",
+          "ref": "onsemi/Fairchild PN2222A Rev. 1.1.0, page 1 figure E B C, Figure 1 end view"
+        },
+        {
+          "number": "2",
+          "name": "B",
+          "type": "signal",
+          "ref": "onsemi/Fairchild PN2222A Rev. 1.1.0, page 1 figure E B C, Figure 1 end view"
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi/Fairchild PN2222A Rev. 1.1.0, page 1 figure E B C, Figure 1 end view"
+        }
+      ]
+    },
+    {
+      "variant": "q2n3904",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "E",
+          "type": "signal",
+          "ref": "onsemi 2N3903/D Rev. 9, page 1 (case 29, style 1), case outline end view"
+        },
+        {
+          "number": "2",
+          "name": "B",
+          "type": "signal",
+          "ref": "onsemi 2N3903/D Rev. 9, page 1 (case 29, style 1), case outline end view"
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi 2N3903/D Rev. 9, page 1 (case 29, style 1), case outline end view"
+        }
+      ]
+    },
+    {
+      "variant": "q2n7000",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "S",
+          "type": "signal",
+          "ref": "onsemi NDS7002A/D Rev. 11, page 1 (1 Source, 2 Gate, 3 Drain), case 135AN outline end view"
+        },
+        {
+          "number": "2",
+          "name": "G",
+          "type": "signal",
+          "ref": "onsemi NDS7002A/D Rev. 11, page 1 (1 Source, 2 Gate, 3 Drain), case 135AN outline end view"
+        },
+        {
+          "number": "3",
+          "name": "D",
+          "type": "signal",
+          "ref": "onsemi NDS7002A/D Rev. 11, page 1 (1 Source, 2 Gate, 3 Drain), case 135AN outline end view"
+        }
+      ]
+    },
+    {
+      "variant": "lm35",
+      "counts": {
+        "power": 1,
+        "signal": 1,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "+VS",
+          "type": "power",
+          "ref": "TI SNIS159H, LP package figure (bottom view) and table Pin Functions, column TO92"
+        },
+        {
+          "number": "2",
+          "name": "VOUT",
+          "type": "signal",
+          "ref": "TI SNIS159H, LP package figure (bottom view) and table Pin Functions, column TO92"
+        },
+        {
+          "number": "3",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SNIS159H, LP package figure (bottom view) and table Pin Functions, column TO92"
+        }
+      ]
+    },
+    {
+      "variant": "reg78l05",
+      "counts": {
+        "power": 2,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "TI SLVS010X, Figure 5-2 (top view) and pin table, column TO-92; onsemi MC78L00A/D Rev. 21, page 1"
+        },
+        {
+          "number": "2",
+          "name": "COMMON",
+          "type": "ground",
+          "ref": "TI SLVS010X, Figure 5-2 (top view) and pin table, column TO-92; onsemi MC78L00A/D Rev. 21, page 1"
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "type": "power",
+          "ref": "TI SLVS010X, Figure 5-2 (top view) and pin table, column TO-92; onsemi MC78L00A/D Rev. 21, page 1"
+        }
+      ]
+    },
+    {
+      "variant": "tl431",
+      "counts": {
+        "signal": 2,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "REF",
+          "type": "signal",
+          "ref": "TI SLVS543S, LP figure (top view) rotated to the front view; onsemi TL431/D Rev. 45, page 1"
+        },
+        {
+          "number": "2",
+          "name": "ANODE",
+          "type": "ground",
+          "ref": "TI SLVS543S, LP figure (top view) rotated to the front view; onsemi TL431/D Rev. 45, page 1"
+        },
+        {
+          "number": "3",
+          "name": "CATHODE",
+          "type": "signal",
+          "ref": "TI SLVS543S, LP figure (top view) rotated to the front view; onsemi TL431/D Rev. 45, page 1"
+        }
+      ]
+    }
+  ]
+}

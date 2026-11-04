@@ -1,0 +1,63 @@
+{
+  "pinout": "ne555",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 6
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "2",
+          "name": "TRIG",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "3",
+          "name": "OUT",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "4",
+          "name": "RESET",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "5",
+          "name": "CONT",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "6",
+          "name": "THRES",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "7",
+          "name": "DISCH",
+          "type": "signal",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLFS022K, Table 4-1, column D/P/PS/PW/JG"
+        }
+      ]
+    }
+  ]
+}

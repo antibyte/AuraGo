@@ -1,0 +1,112 @@
+{
+  "pinout": "sn74hc595",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 2,
+        "data": 12
+      },
+      "pins": [
+        {
+          "number": "15",
+          "name": "QA",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "1",
+          "name": "QB",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "2",
+          "name": "QC",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "3",
+          "name": "QD",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "4",
+          "name": "QE",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "5",
+          "name": "QF",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "6",
+          "name": "QG",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "7",
+          "name": "QH",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "9",
+          "name": "QH'",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "10",
+          "name": "SRCLR",
+          "type": "signal",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "11",
+          "name": "SRCLK",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "12",
+          "name": "RCLK",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "13",
+          "name": "OE",
+          "type": "signal",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "14",
+          "name": "SER",
+          "type": "data",
+          "ref": "TI SCLS041J, Table 5-1, column SOIC/PDIP/..."
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS041J, section 5 pin figure of the 16-pin packages"
+        }
+      ]
+    }
+  ]
+}

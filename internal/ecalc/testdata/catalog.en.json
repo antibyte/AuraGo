@@ -38491,6 +38491,1452 @@
     },
     {
       "kind": "pinout",
+      "id": "ne555",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "NE555 (DIP-8)",
+      "name_en": "NE555 (DIP-8)",
+      "doc": "Bipolar timer for monostable and astable circuits, drawn as the 8-pin PDIP from above.",
+      "notes": "The SOIC (D), SO (PS) and TSSOP (PW) versions of the NE555 have the same pin numbers as the PDIP (P).",
+      "tags": [
+        "ne555",
+        "555",
+        "timer",
+        "zeitgeber",
+        "monostable",
+        "monostabil",
+        "astable",
+        "astabil",
+        "oscillator",
+        "oszillator",
+        "dip8",
+        "dip-8",
+        "trig",
+        "thres",
+        "disch"
+      ],
+      "source": "Texas Instruments NA555, NE555, SA555, SE555 datasheet SLFS022K (March 2026), section 4, pin figure and Table 4-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "TRIG",
+          "function": "Trigger input: starts the timing when it falls below half of CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "OUT",
+          "function": "Timer output, can carry a high current",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "RESET",
+          "function": "Reset, active low: forces OUT and DISCH low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "CONT",
+          "function": "Control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "THRES",
+          "function": "Threshold input: ends the timing when it rises above CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "DISCH",
+          "function": "Open-collector output that discharges the timing capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply, 4.5 V to 16 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm317",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM317 (TO-220)",
+      "name_en": "LM317 (TO-220)",
+      "doc": "Adjustable positive voltage regulator, 1.25 V to 37 V, drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab is connected to pin 2 (OUTPUT), so a heat sink on the tab carries the output voltage: insulate it from metal at any other potential.",
+      "tags": [
+        "lm317",
+        "regulator",
+        "spannungsregler",
+        "regler",
+        "adjustable",
+        "einstellbar",
+        "adj",
+        "adjust",
+        "vin",
+        "vout",
+        "to220",
+        "to-220"
+      ],
+      "source": "Texas Instruments LM317 datasheet SLVS044Z (April 2025), section 5, Figure 5-2 and table Pin Functions",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "ADJUST",
+          "function": "Sets the output voltage through a resistor divider",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "OUTPUT",
+          "function": "Regulated output, also on the tab",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "function": "Unregulated input voltage",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "l78xx",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "L78xx (TO-220)",
+      "name_en": "L78xx (TO-220)",
+      "doc": "ST L78 series of fixed positive regulators such as the L7805 (5 V) and L7812 (12 V), drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab of the TO-220 is at ground: ST marks it GND in the pin figure. The pin numbers here are positions from left to right, because the figure names the leads without numbering them. The TO-220FP has the same lead order.",
+      "tags": [
+        "l78xx",
+        "l78",
+        "l7805",
+        "l7809",
+        "l7812",
+        "l7815",
+        "7805",
+        "7812",
+        "78xx",
+        "regulator",
+        "spannungsregler",
+        "festspannungsregler",
+        "to220",
+        "to-220"
+      ],
+      "source": "STMicroelectronics L78 datasheet DocID2143 Rev 34 (November 2016) and L78xx datasheet Rev 19 (March 2008), Figure 2 Pin connections (top view)",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "INPUT",
+          "function": "Unregulated input voltage",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "GROUND",
+          "function": "Ground, also on the tab",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "OUTPUT",
+          "function": "Regulated fixed output",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm358",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM358 (DIP-8)",
+      "name_en": "LM358 (DIP-8)",
+      "doc": "Dual operational amplifier that can run from one supply, drawn as the 8-pin PDIP from above.",
+      "notes": "The other 8-pin packages in TI's datasheet (SOIC, VSSOP, TSSOP and others) have the same pin numbers, and so do the LM158, LM258 and LM2904 it also covers.",
+      "tags": [
+        "lm358",
+        "op-amp",
+        "opamp",
+        "operational amplifier",
+        "operationsverstärker",
+        "dual",
+        "lm2904",
+        "lm258",
+        "dip8",
+        "dip-8"
+      ],
+      "source": "Texas Instruments LM158, LM258, LM2904, LM358 datasheet SLOS068AB (October 2024), section 4, Figure 4-1 and Table 4-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "OUT1",
+          "function": "Output of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "IN1-",
+          "function": "Inverting input of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "IN1+",
+          "function": "Non-inverting input of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "V-",
+          "function": "Negative supply, or ground in single-supply use",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "IN2+",
+          "function": "Non-inverting input of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "IN2-",
+          "function": "Inverting input of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "OUT2",
+          "function": "Output of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "V+",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm324",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM324 (DIP-14)",
+      "name_en": "LM324 (DIP-14)",
+      "doc": "Quad operational amplifier that can run from one supply, drawn as the 14-pin PDIP from above.",
+      "notes": "The supply pins sit in the middle of the package: VCC+ is pin 4 and VCC- is pin 11. The other 14-pin packages in TI's datasheet (SOIC, SSOP, TSSOP and others) have the same pin numbers, and so do the LM124, LM224 and LM2902 it also covers.",
+      "tags": [
+        "lm324",
+        "op-amp",
+        "opamp",
+        "operational amplifier",
+        "operationsverstärker",
+        "quad",
+        "vierfach",
+        "lm2902",
+        "lm224",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments LM124, LM224, LM324, LM2902 datasheet SLOS066AE (September 2025), section 5, Figure 5-1 and Table 5-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "function": "Output of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1IN-",
+          "function": "Inverting input of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1IN+",
+          "function": "Non-inverting input of amplifier 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "VCC+",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2IN+",
+          "function": "Non-inverting input of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2IN-",
+          "function": "Inverting input of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "2OUT",
+          "function": "Output of amplifier 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3OUT",
+          "function": "Output of amplifier 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3IN-",
+          "function": "Inverting input of amplifier 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3IN+",
+          "function": "Non-inverting input of amplifier 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "VCC-",
+          "function": "Negative supply, or ground in single-supply use",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4IN+",
+          "function": "Non-inverting input of amplifier 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4IN-",
+          "function": "Inverting input of amplifier 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "4OUT",
+          "function": "Output of amplifier 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc595",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC595 (DIP-16)",
+      "name_en": "SN74HC595 (DIP-16)",
+      "doc": "8-bit shift register with serial input, a storage register and 3-state parallel outputs, drawn as the 16-pin PDIP from above.",
+      "notes": "QA is alone on pin 15, on the other side from QB to QH. SRCLK shifts SER in; RCLK copies the shift register to the outputs. To chain chips, feed QH' into SER of the next one.",
+      "tags": [
+        "sn74hc595",
+        "74hc595",
+        "hc595",
+        "595",
+        "shift register",
+        "schieberegister",
+        "latch",
+        "ser",
+        "srclk",
+        "rclk",
+        "srclr",
+        "oe",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments SN54HC595, SN74HC595 datasheet SCLS041J (October 2021), section 5, pin figure and Table 5-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "QB",
+          "function": "Parallel output B",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "QC",
+          "function": "Parallel output C",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "QD",
+          "function": "Parallel output D",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "QE",
+          "function": "Parallel output E",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "QF",
+          "function": "Parallel output F",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "QG",
+          "function": "Parallel output G",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "QH",
+          "function": "Parallel output H",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "QH'",
+          "function": "Serial output for chaining to SER of the next chip",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "SRCLR",
+          "function": "Shift register clear, active low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "SRCLK",
+          "function": "Shift register clock, rising edge",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "RCLK",
+          "function": "Storage register clock, rising edge",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "OE",
+          "function": "Output enable, active low: high makes the outputs high-impedance",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "SER",
+          "function": "Serial data input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "QA",
+          "function": "Parallel output A",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "uln2003",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "ULN2003A (DIP-16)",
+      "name_en": "ULN2003A (DIP-16)",
+      "doc": "Seven Darlington sink drivers with common-cathode clamp diodes, drawn as the 16-pin PDIP from above.",
+      "notes": "Each input nB drives the output nC opposite it, and the outputs only sink current towards E. Pin 9 (COM) joins the cathodes of all seven clamp diodes: for inductive loads such as relay or motor coils, tie it to the coil supply so that the diodes catch the kickback; with resistive loads it may stay open.",
+      "tags": [
+        "uln2003",
+        "uln2003a",
+        "darlington",
+        "driver",
+        "treiber",
+        "relay",
+        "relais",
+        "stepper",
+        "schrittmotor",
+        "clamp diode",
+        "flyback",
+        "freilaufdiode",
+        "com",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments ULN200x, ULQ200x datasheet SLRS027T (March 2025), section 4, Figure 4-1 and Table 4-1; sections 7.4 and 8.4 for COM",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1B",
+          "function": "Input of channel 1 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "2B",
+          "function": "Input of channel 2 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "3B",
+          "function": "Input of channel 3 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "4B",
+          "function": "Input of channel 4 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "5B",
+          "function": "Input of channel 5 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "6B",
+          "function": "Input of channel 6 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "7B",
+          "function": "Input of channel 7 (Darlington base)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "E",
+          "function": "Common emitter of all channels, normally ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "COM",
+          "function": "Common cathode of the clamp diodes",
+          "type": "power",
+          "notes": "Tie to the coil supply for inductive loads. The outputs must not rise far above COM, or the diodes conduct heavily.",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "7C",
+          "function": "Output of channel 7 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "6C",
+          "function": "Output of channel 6 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "5C",
+          "function": "Output of channel 5 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4C",
+          "function": "Output of channel 4 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "3C",
+          "function": "Output of channel 3 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "2C",
+          "function": "Output of channel 2 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "1C",
+          "function": "Output of channel 1 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "atmega328p",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "ATmega328P (DIP-28)",
+      "name_en": "ATmega328P (DIP-28)",
+      "doc": "8-bit AVR microcontroller in the 28-pin SPDIP, seen from above. The name is the port bit; the function lists what else the pin can do.",
+      "notes": "Connect AVCC to VCC even when the ADC is unused, and through a low-pass filter when it is used. PB6 and PB7 are taken when the fuses select a crystal. ADC6 and ADC7 exist only in the TQFP and VQFN packages, not in this one. The ATmega48A/PA, 88A/PA, 168A/PA and 328 of the same datasheet share this drawing.",
+      "tags": [
+        "atmega328p",
+        "atmega328",
+        "atmega168",
+        "avr",
+        "microcontroller",
+        "mikrocontroller",
+        "mcu",
+        "dip28",
+        "dip-28",
+        "spdip",
+        "pb5",
+        "adc",
+        "spi",
+        "i2c",
+        "twi",
+        "usart",
+        "uart",
+        "pwm",
+        "reset",
+        "xtal",
+        "quarz"
+      ],
+      "source": "Microchip ATmega48A/PA/88A/PA/168A/PA/328/P datasheet DS40002061B (2020), Figure 1-1 (28 SPDIP), section 1.1 and the alternate-function tables of ports B, C and D",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 28,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "PC6/RESET",
+          "function": "Reset input, active low; PCINT14",
+          "type": "signal",
+          "notes": "With the RSTDISBL fuse programmed the pin becomes I/O bit PC6, with electrical characteristics unlike the rest of port C.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "PD0",
+          "function": "Port D bit 0; RXD (USART receive), PCINT16",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "PD1",
+          "function": "Port D bit 1; TXD (USART transmit), PCINT17",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "PD2",
+          "function": "Port D bit 2; INT0 (external interrupt 0), PCINT18",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "PD3",
+          "function": "Port D bit 3; INT1 (external interrupt 1), OC2B (timer 2 compare output), PCINT19",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "PD4",
+          "function": "Port D bit 4; XCK (USART clock), T0 (timer 0 counter input), PCINT20",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "VCC",
+          "function": "Digital supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "PB6",
+          "function": "Port B bit 6; XTAL1 (oscillator input), TOSC1 (timer oscillator), PCINT6",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "PB7",
+          "function": "Port B bit 7; XTAL2 (oscillator output), TOSC2 (timer oscillator), PCINT7",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "PD5",
+          "function": "Port D bit 5; T1 (timer 1 counter input), OC0B (timer 0 compare output), PCINT21",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "PD6",
+          "function": "Port D bit 6; AIN0 (comparator positive input), OC0A (timer 0 compare output), PCINT22",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "PD7",
+          "function": "Port D bit 7; AIN1 (comparator negative input), PCINT23",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "PB0",
+          "function": "Port B bit 0; ICP1 (timer 1 input capture), CLKO (clock output), PCINT0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "PB1",
+          "function": "Port B bit 1; OC1A (timer 1 compare output), PCINT1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "PB2",
+          "function": "Port B bit 2; SS (SPI slave select, active low), OC1B (timer 1 compare output), PCINT2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "PB3",
+          "function": "Port B bit 3; MOSI (SPI master out, slave in), OC2A (timer 2 compare output), PCINT3",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "PB4",
+          "function": "Port B bit 4; MISO (SPI master in, slave out), PCINT4",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "PB5",
+          "function": "Port B bit 5; SCK (SPI clock), PCINT5",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "20",
+          "name": "AVCC",
+          "function": "Supply of the A/D converter and PC3:0",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "21",
+          "name": "AREF",
+          "function": "Analogue reference of the A/D converter",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "22",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "23",
+          "name": "PC0",
+          "function": "Port C bit 0; ADC0 (analogue input 0), PCINT8",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "24",
+          "name": "PC1",
+          "function": "Port C bit 1; ADC1 (analogue input 1), PCINT9",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "25",
+          "name": "PC2",
+          "function": "Port C bit 2; ADC2 (analogue input 2), PCINT10",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "26",
+          "name": "PC3",
+          "function": "Port C bit 3; ADC3 (analogue input 3), PCINT11",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "27",
+          "name": "PC4",
+          "function": "Port C bit 4; ADC4 (analogue input 4), SDA (I²C data), PCINT12",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "28",
+          "name": "PC5",
+          "function": "Port C bit 5; ADC5 (analogue input 5), SCL (I²C clock), PCINT13",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "to92",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "TO-92: examples",
+      "name_en": "TO-92: examples",
+      "doc": "The pin order of a TO-92 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from the front, flat side towards you and leads pointing down, and the numbers are positions from left to right.",
+      "notes": "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes.",
+      "tags": [
+        "to92",
+        "to-92",
+        "transistor",
+        "mosfet",
+        "bc547",
+        "pn2222a",
+        "2n2222",
+        "2n3904",
+        "2n7000",
+        "lm35",
+        "78l05",
+        "ua78l05",
+        "mc78l05",
+        "tl431",
+        "npn",
+        "collector",
+        "kollektor",
+        "base",
+        "basis",
+        "emitter",
+        "gate",
+        "source",
+        "drain",
+        "regulator",
+        "spannungsregler",
+        "temperature sensor",
+        "temperatursensor",
+        "voltage reference",
+        "spannungsreferenz"
+      ],
+      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to92",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "bc547",
+          "name": "BC547",
+          "pins": [
+            {
+              "number": "1",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "q2n2222",
+          "name": "PN2222A",
+          "pins": [
+            {
+              "number": "1",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "For the TO-92 PN2222A. Not for the metal-can 2N2222 or the P2N2222A.",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "q2n3904",
+          "name": "2N3904",
+          "pins": [
+            {
+              "number": "1",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "q2n7000",
+          "name": "2N7000",
+          "pins": [
+            {
+              "number": "1",
+              "name": "S",
+              "function": "Source of the N-channel MOSFET",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "G",
+              "function": "Gate",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "D",
+              "function": "Drain",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "lm35",
+          "name": "LM35",
+          "pins": [
+            {
+              "number": "1",
+              "name": "+VS",
+              "function": "Positive supply",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "VOUT",
+              "function": "Analogue temperature output",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "reg78l05",
+          "name": "78L05",
+          "pins": [
+            {
+              "number": "1",
+              "name": "OUTPUT",
+              "function": "Regulated 5 V output",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "COMMON",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "INPUT",
+              "function": "Unregulated input voltage",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "tl431",
+          "name": "TL431",
+          "pins": [
+            {
+              "number": "1",
+              "name": "REF",
+              "function": "Reference input",
+              "type": "signal",
+              "notes": "Position 1 here; TI's table calls it pin 3, onsemi pin 1.",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "ANODE",
+              "function": "Anode, the common pin, normally tied to ground",
+              "type": "ground",
+              "notes": "Position 2 here; pin 2 at TI and onsemi.",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "CATHODE",
+              "function": "Cathode, carries the shunt current",
+              "type": "signal",
+              "notes": "Position 3 here; TI's table calls it pin 1, onsemi pin 3.",
+              "wire": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
       "id": "atx_24",
       "category": "pinouts",
       "group": "pc_power",
