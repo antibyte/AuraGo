@@ -58,6 +58,8 @@ func (m *Manager) claimNonce(ctx context.Context, webhookID, nonce string, now t
 	}
 	f, err := os.Open(path)
 	if err == nil {
+		// Existing files must supply every required field instead of inheriting new-store defaults.
+		state = replayState{}
 		data, readErr := io.ReadAll(io.LimitReader(f, (2<<20)+1))
 		closeErr := f.Close()
 		if readErr != nil || closeErr != nil || len(data) > 2<<20 || json.Unmarshal(data, &state) != nil || state.Version != 1 || state.Claims == nil {

@@ -213,3 +213,26 @@ func TestReplayStoreCapacityExpiryAndAtomicFailure(t *testing.T) {
 		t.Fatal("failed receipt publication accepted")
 	}
 }
+
+func TestReplayProtectionRejectsIncompleteStoredState(t *testing.T) {
+	for _, data := range []string{`null`, `{}`, `{"version":1}`, `{"claims":{}}`, `{"version":1,"claims":null}`, `{"version":2,"claims":{}}`} {
+		t.Run(data, func(t *testing.T) {
+			h, m, wh := newReplayHandler(t)
+			if err := os.WriteFile(m.replayPath(), []byte(data), 0600); err != nil {
+				t.Fatal(err)
+			}
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, replayRequest(strconv.FormatInt(time.Now().Unix(), 10), "stored_state_12345678", `{"ok":true}`))
+			if w.Code != 503 {
+				t.Fatalf("incomplete receipt store admitted event: %d %s", w.Code, w.Body)
+			}
+			got, _ := m.Get(wh.ID)
+			if got.FireCount != 0 || len(h.deliverySlots) != 0 {
+				t.Fatal("failed receipt validation caused delivery")
+			}
+			if after, err := os.ReadFile(m.replayPath()); err != nil || string(after) != data {
+				t.Fatalf("invalid evidence was replaced: %v", err)
+			}
+		})
+	}
+}

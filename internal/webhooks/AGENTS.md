@@ -22,6 +22,9 @@ Persistent webhook configuration, bounded ingress, authenticated delivery and lo
   Atomic, synced publication precedes acceptance. Keep at most 10,000 active
   claims; never evict an unexpired claim. Invalid/unavailable/full stores fail
   protected admission with 503, without changing legacy ingress.
+- Only a missing receipt file initializes an empty store. Existing files must
+  declare version 1 and a non-null claims map; null or incomplete state fails
+  closed without replacing the evidence. Verify `TestReplayProtectionRejectsIncompleteStoredState`.
 - Valid duplicates return 200/`duplicate`, even when delivery slots are full;
   they run no scan, agent, SSE, mission callback or fire counter. A new claim
   reserves a delivery slot before persistence; a failed publication releases it.
