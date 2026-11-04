@@ -26,6 +26,7 @@ type storymakerRuntime struct {
 	projects *storymaker.ProjectStore
 	catalog  *storymaker.Catalog
 	browsers *render.Browsers
+	ffmpeg   *storymakerFFmpegCache // the FFmpeg check of the status endpoint
 	runner   *render.Runner
 	jobs     *render.Manager
 }
@@ -91,6 +92,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		projects: storymaker.NewProjectStore(store, render.ProjectsRoot),
 		catalog:  catalog,
 		browsers: render.NewBrowsers(dir),
+		ffmpeg:   newStorymakerFFmpegCache(),
 	}
 	if s.storymakerBrowsers != nil {
 		rt.browsers = s.storymakerBrowsers

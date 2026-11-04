@@ -217,7 +217,7 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lim := storymakerLimits(cfg)
-	ff := videostudio.CheckRuntime(r.Context(), cfg.VideoStudio.FFmpegPath)
+	ff := rt.ffmpeg.status(r.Context(), cfg.VideoStudio.FFmpegPath)
 	ffmpeg := map[string]any{"ready": ff.Ready}
 	if ff.Version != "" {
 		ffmpeg["version"] = storymakerFFmpegVersion(ff.Version)
