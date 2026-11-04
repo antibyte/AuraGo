@@ -466,65 +466,110 @@ func (b *RequestBudget) trimHistoryWorkingSet(messages []openai.ChatCompletionMe
 }
 
 func (b *RequestBudget) trimHistoryWorkingSetWithTaskAnchor(messages []openai.ChatCompletionMessage, currentUserText string, anchorIndex int, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, historyWorkingSetStats) {
-	working := append([]openai.ChatCompletionMessage(nil), messages...)
-	currentUser := anchorIndex
-	stats := historyWorkingSetStats{LimitTokens: b.historyWorkingSetLimitForMessages(working, currentUser, systemPrompt, tools, cache), CurrentUserIndex: currentUser}
-	if len(working) == 0 {
-		return working, nil, stats
-	}
-	if !validTaskAnchor(working, currentUser, currentUserText) {
-		return working, nil, stats
-	}
-	stats.CurrentTokens = b.maxMessageTokensAt(working, currentUser, cache)
-	stats.KeptTokens = b.maxCarriedHistoryTokens(working, currentUser, cache)
-	if b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache) {
-		stats.SummaryTokens = b.maxSummaryTokens(working, cache)
-		return working, nil, stats
+	stats := historyWorkingSetStats{CurrentUserIndex: anchorIndex, LimitTokens: int(^uint(0) >> 1)}
+	if !validTaskAnchor(messages, anchorIndex, currentUserText) {
+		stats.LimitTokens = b.historyWorkingSetLimitForMessages(messages, anchorIndex, systemPrompt, tools, cache)
+		return append([]openai.ChatCompletionMessage(nil), messages...), nil, stats
 	}
 
-	groups := buildConversationGroups(working)
-	protectedRounds := newestNativeToolRoundIndices(working, 2)
-	var dropped []openai.ChatCompletionMessage
-	for len(groups) > 1 && !b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache) {
-		candidate := -1
-		for i, group := range groups {
-			if group.end <= currentUser && !groupContainsAnyIndex(group, protectedRounds) {
-				candidate = i
-				break
+	// Keep per-message costs for this pass: a bounded shared cache can thrash on long histories.
+	type routeTokens struct {
+		messages                           []int
+		limit, carried, summaries, dropped int
+	}
+	counts := make([]routeTokens, len(b.Routes))
+	encodedTools, _ := json.Marshal(tools)
+	for r, route := range b.Routes {
+		count := &counts[r]
+		count.messages = make([]int, len(messages))
+		available := b.inputLimit(route.Limits)
+		model := route.Limits.Route.Model
+		if systemPrompt != "" {
+			available -= cache.Count(systemPrompt, model) + 4
+		}
+		if len(tools) > 0 {
+			available -= cache.Count(string(encodedTools), model)
+		}
+		for i, message := range messages {
+			tokens := routeMessageTokens(message, route.Limits.Route, cache)
+			count.messages[i] = tokens
+			summary := isSheddableHistorySystem(message)
+			if summary {
+				count.summaries += tokens
+			}
+			switch {
+			case i == anchorIndex:
+				available -= tokens
+				stats.CurrentTokens = max(stats.CurrentTokens, tokens)
+			case message.Role == openai.ChatMessageRoleSystem && (i == 0 || !summary):
+				if i > 0 {
+					available -= tokens
+				}
+			default:
+				count.carried += tokens
 			}
 		}
-		if candidate < 0 {
+		count.limit = min(available, min(historyWorkingSetMaxTokens, max(historyWorkingSetMinTokens, route.Limits.ContextWindow*historyWorkingSetPercent/100)))
+		stats.LimitTokens = min(stats.LimitTokens, max(0, count.limit))
+	}
+	fits := func() bool {
+		for _, count := range counts {
+			if count.carried > count.limit {
+				return false
+			}
+		}
+		return true
+	}
+
+	removed := make([]bool, len(messages))
+	var dropped []openai.ChatCompletionMessage
+	remove := func(start, end int) {
+		dropped = append(dropped, messages[start:end]...)
+		for i := start; i < end; i++ {
+			removed[i] = true
+			for r := range counts {
+				count := &counts[r]
+				tokens := count.messages[i]
+				count.carried -= tokens
+				count.dropped += tokens
+				if isSheddableHistorySystem(messages[i]) {
+					count.summaries -= tokens
+				}
+			}
+		}
+	}
+	protectedRounds := newestNativeToolRoundIndices(messages, 2)
+	for _, group := range buildConversationGroups(messages) {
+		if fits() || group.end > anchorIndex {
 			break
 		}
-		group := groups[candidate]
-		dropped = append(dropped, working[group.start:group.end]...)
-		if group.start < currentUser {
-			currentUser -= group.end - group.start
+		if !groupContainsAnyIndex(group, protectedRounds) {
+			remove(group.start, group.end)
 		}
-		protectedRounds = rebaseProtectedIndicesAfterRemoval(protectedRounds, group.start, group.end)
-		working = append(append([]openai.ChatCompletionMessage(nil), working[:group.start]...), working[group.end:]...)
-		groups = buildConversationGroups(working)
 	}
 
 	// Compacted tool summaries and old recaps are system messages after the
 	// generated system prompt. They are history, not immutable policy.
-	for i := 1; i < len(working) && !b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache); {
-		if !isSheddableHistorySystem(working[i]) {
-			i++
-			continue
+	for i := 1; i < len(messages) && !fits(); i++ {
+		if !removed[i] && isSheddableHistorySystem(messages[i]) {
+			remove(i, i+1)
 		}
-		dropped = append(dropped, working[i])
-		working = append(working[:i], working[i+1:]...)
-		if i < currentUser {
-			currentUser--
-		}
-		protectedRounds = rebaseProtectedIndicesAfterRemoval(protectedRounds, i, i+1)
 	}
 
-	stats.CurrentUserIndex = currentUser
-	stats.DroppedTokens = b.maxMessagesTokens(dropped, cache)
-	stats.KeptTokens = b.maxCarriedHistoryTokens(working, currentUser, cache)
-	stats.SummaryTokens = b.maxSummaryTokens(working, cache)
+	working := make([]openai.ChatCompletionMessage, 0, len(messages)-len(dropped))
+	for i, message := range messages {
+		if !removed[i] {
+			if i == anchorIndex {
+				stats.CurrentUserIndex = len(working)
+			}
+			working = append(working, message)
+		}
+	}
+	for _, count := range counts {
+		stats.DroppedTokens = max(stats.DroppedTokens, count.dropped)
+		stats.KeptTokens = max(stats.KeptTokens, count.carried)
+		stats.SummaryTokens = max(stats.SummaryTokens, count.summaries)
+	}
 	return working, dropped, stats
 }
 
