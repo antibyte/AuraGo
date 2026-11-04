@@ -58,6 +58,9 @@ const (
 	CodeInvalidFilter   = "invalid_filter"
 	CodeInvalidLookup   = "invalid_lookup"
 	CodeUnknownCodeKind = "unknown_code_kind"
+	// The codes of the pinout operation (query_pinout.go).
+	CodeNotAPinout     = "not_a_pinout"
+	CodeUnknownVariant = "unknown_variant"
 )
 
 // QueryError is a problem with a request. Message names the valid alternatives; Sets is filled for
@@ -94,7 +97,7 @@ type SearchHit struct {
 	Summary  string `json:"summary"`
 }
 
-// CategorySummary is one category with the number of its items (calculators, tables and codes).
+// CategorySummary is one category with the number of its items (calculators, tables, codes and pinouts).
 type CategorySummary struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -233,10 +236,10 @@ func (f *searchFields) tokenTier(tok string) int {
 	return best
 }
 
-// SearchAll returns every item (calculator, table or code) that matches the query, best match first. The query is
+// SearchAll returns every item (calculator, table, code or pinout) that matches the query, best match first. The query is
 // split into words that must all match (case-insensitively) the id, one of the names in the 16 locales, a tag or the
 // category. A hit ranks by its weakest word: exact id, then name prefix, name word, tag or category, substring; equal
-// ranks keep the order of the catalog (calculators, then tables, then codes). An empty query matches everything in
+// ranks keep the order of the catalog (calculators, tables, codes, then pinouts). An empty query matches everything in
 // catalog order.
 func (c *Catalog) SearchAll(query string) []SearchHit {
 	tokens := wordsOf(query)
@@ -539,7 +542,7 @@ func idTooLong(id, want string) *QueryError {
 		return nil
 	}
 	if want == "" {
-		return queryErr(CodeUnknownID, "unknown id: it is longer than %d characters; use search to find a calculator, table or code id", MaxIDLength)
+		return queryErr(CodeUnknownID, "unknown id: it is longer than %d characters; use search to find a calculator, table, code or pinout id", MaxIDLength)
 	}
 	return queryErr(CodeUnknownID, "unknown %s: the id is longer than %d characters; use search to find a %s id", want, MaxIDLength, want)
 }
@@ -552,13 +555,14 @@ func (c *Catalog) notFound(id, key, want string) *QueryError {
 			"calculator": "describe and calculate work on it",
 			"table":      "describe lists its columns and table reads its rows",
 			"code":       "describe lists its code kind, and decode and encode work on that kind",
+			"pinout":     "describe summarizes it and pinout reads its pins",
 		}[kind]
-		code := map[string]string{"calculator": CodeNotACalculator, "table": CodeNotATable, "code": CodeNotACode}[want]
+		code := map[string]string{"calculator": CodeNotACalculator, "table": CodeNotATable, "code": CodeNotACode, "pinout": CodeNotAPinout}[want]
 		return queryErr(code, "%s is a %s, not a %s; %s", key, kind, want, hint)
 	}
 	label := want
 	if label == "" {
-		label = "calculator, table or code"
+		label = "calculator, table, code or pinout"
 	}
 	msg := fmt.Sprintf("unknown %s %q; use search to find a %s id", want, id, label)
 	if want == "" {
@@ -587,7 +591,7 @@ func (c *Catalog) ResolveItem(id string) (kind, canonical string, err error) {
 	}
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
-		return "", "", queryErr(CodeUnknownID, "id is required; use search to find a calculator, table or code id")
+		return "", "", queryErr(CodeUnknownID, "id is required; use search to find a calculator, table, code or pinout id")
 	}
 	if kind, ok := c.Item(key); ok {
 		return kind, key, nil

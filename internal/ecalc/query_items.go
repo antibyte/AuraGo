@@ -7,8 +7,9 @@ import (
 )
 
 // The query API of the items that are not calculators, next to the calculator queries of query.go: Search, SearchAll and
-// Overview list items of all three kinds (searchItems), ResolveItem finds an item of any kind, and DescribeTable
-// describes a table. The rows of a table are in query_table.go, the component codes in query_codes.go. Output texts are
+// Overview list items of all four kinds (searchItems), ResolveItem finds an item of any kind, and DescribeTable
+// describes a table. The rows of a table are in query_table.go, the component codes in query_codes.go, the pinouts in
+// query_pinout.go. Output texts are
 // English; the structs carry JSON tags because the tool sends them as they are.
 
 // The cautions the tables carry: guide marks values transcribed from a standard, mains marks installation data.
@@ -35,7 +36,7 @@ func (it searchItem) summary() string {
 	return firstSentence(it.fallback)
 }
 
-// searchItems lists every item in catalog order: the calculators, then the tables, then the codes.
+// searchItems lists every item in catalog order: the calculators, the tables, the codes, then the pinouts.
 func (c *Catalog) searchItems() []searchItem {
 	items := make([]searchItem, 0, c.ItemCount())
 	for _, calc := range c.Calculators {
@@ -57,11 +58,20 @@ func (c *Catalog) searchItems() []searchItem {
 			fallback: fmt.Sprintf("Component code of kind %s.", k.CodeKind),
 		})
 	}
+	for _, p := range c.Pinouts {
+		pins, _, _ := p.PinsOf("")
+		items = append(items, searchItem{
+			id: p.ID, kind: "pinout", category: p.Category, name: p.Name, doc: p.Doc, tags: p.Tags,
+			fallback: pinoutConnector(p, len(pins)) + ".",
+		})
+	}
 	return items
 }
 
 // ItemCount is the number of items of all kinds.
-func (c *Catalog) ItemCount() int { return len(c.Calculators) + len(c.Tables) + len(c.Codes) }
+func (c *Catalog) ItemCount() int {
+	return len(c.Calculators) + len(c.Tables) + len(c.Codes) + len(c.Pinouts)
+}
 
 // ---- describe -------------------------------------------------------------------------------------------------
 

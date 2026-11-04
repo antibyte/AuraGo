@@ -183,7 +183,7 @@ func TestResolveItemAndTheErrorsOfTheWrongKind(t *testing.T) {
 		t.Errorf("ResolveItem(Voltage_Divider) = %q %q %v", kind, id, err)
 	}
 	_, _, err := real.ResolveItem("")
-	wantQueryError(t, err, CodeUnknownID, "id is required", "calculator, table or code")
+	wantQueryError(t, err, CodeUnknownID, "id is required", "calculator, table, code or pinout")
 	_, _, err = real.ResolveItem("awg_wire")
 	wantQueryError(t, err, CodeUnknownID, `unknown id "awg_wire"`, "did you mean", "awg")
 

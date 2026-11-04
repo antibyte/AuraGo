@@ -229,10 +229,15 @@ func TestSearchMatchesTheCategory(t *testing.T) {
 	if total != cat.ItemCount() {
 		t.Errorf("the overview counts %d items, the catalog has %d", total, cat.ItemCount())
 	}
+	// The pinouts are listed when the catalog has some, and only then.
+	pinoutCount := 0
 	for _, c := range overview {
 		if c.ID == "pinouts" {
-			t.Error("the pinouts have no items yet and must not be listed")
+			pinoutCount = c.Count
 		}
+	}
+	if pinoutCount != len(cat.Pinouts) {
+		t.Errorf("the overview counts %d pinouts, the catalog has %d", pinoutCount, len(cat.Pinouts))
 	}
 }
 
