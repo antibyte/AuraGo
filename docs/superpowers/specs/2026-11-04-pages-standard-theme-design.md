@@ -15,6 +15,7 @@ In English: all pages except the chat get the same look as the desktop Standard 
 | Light mode | Stays. The header toggle on the pages stays. Dark equals Standard. Light is a derived variant, since Standard itself is dark only. |
 | Accent | Fixed Standard orange `#E95420` everywhere, independent of the desktop's `appearance.accent` setting. No server lookup, so it works on login and setup. |
 | Approach | A: tokens plus component surfaces. Rejected: B (tokens only), because radii up to 28 px and component shapes would still look different. Rejected: C (loading the desktop CSS bundle on the pages), because of size and collisions with page CSS. |
+| Login effects | The neural net, the flame around the login card and the scan line stay, recoloured to orange. Aurora and orbs are removed. |
 
 ## Reference look
 

@@ -142,6 +142,19 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Web Chat (`index.html`) and Virtual Desktop (`desktop.html`) retain their own
   established visual systems. `gallery.html` is removed (wave 4); the
   `/gallery` route keeps its 301 redirect to `/media`.
+- Pages use the desktop Standard look. Dark and light colours are tokens in
+  `css/precision-workspace.css`; surfaces are `--pw-mat-*` tokens there. Gradient
+  literals appear only on `--pw-mat-*` lines
+  (`TestPagesStandardThemeGradientsLiveInMaterialTokens`). Component rules use
+  `background: var(--pw-mat-card)` and never set `background-image: none` next to it.
+  Page tokens must keep 4.5:1 (`TestPagesStandardThemeTokenContrast`). Config inherits
+  the palette and must not redefine it. The accent is fixed and independent of the
+  desktop's `appearance.accent`.
+- The chat default theme lives in `css/chat-standard.css`, the last chat bundle part.
+  Every selector starts with `:root:is([data-theme="dark"], :not([data-theme]))`
+  (`TestChatStandardThemeIsScoped`). Do not use a bare `[data-theme="dark"]` there: it
+  also matches the Standard entry in the theme dropdown. Do not change
+  `shared-variables.css` or `tokens.css` for it. Run `npm run build:ui` after edits.
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
