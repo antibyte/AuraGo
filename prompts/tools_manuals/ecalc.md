@@ -1,12 +1,12 @@
-# ECalc (electronics calculators, reference tables and component codes)
+# ECalc (electronics calculators, reference tables, component codes and pinouts)
 
-Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, timers, op-amp stages, power supplies, RF, standard resistor values and more. It computes with the same catalog and formulas as the ECalc desktop app, exactly and with units; use it instead of calculating by hand. The catalog also holds reference **tables** (AWG wire sizes, PCB trace width after IPC-2221, E-series values and more) that you read with `table`, and **component codes** (resistor and inductor colour bands, SMD markings, capacitor and ceramic codes) that you read with `decode` and write with `encode`. It reads nothing from the network or from files.
+Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, timers, op-amp stages, power supplies, RF, standard resistor values and more. It computes with the same catalog and formulas as the ECalc desktop app, exactly and with units; use it instead of calculating by hand. The catalog also holds reference **tables** (AWG wire sizes, PCB trace width after IPC-2221, E-series values and more) that you read with `table`, **component codes** (resistor and inductor colour bands, SMD markings, capacitor and ceramic codes) that you read with `decode` and write with `encode`, and **pinouts** (connectors, PC power plugs, board headers, debug ports, IC packages) whose pins you read with `pinout`. It reads nothing from the network or from files.
 
 ## Workflow
 
-1. `search` with a few words (English or German, at most 256 characters): a topic, a part or a formula. A hit has a `kind`: `calculator`, `table` or `code`. An empty `query` lists the categories.
-2. `describe` the item you picked. A calculator: its variables with units and defaults, the choices, how many values are needed (`dof`), which input combinations work (`sets`), the computed outputs (`derived`), the checks and the formula. A table: its columns, key, row count, notes and source. A code: its `code_kind` and the forms it reads and writes.
-3. `calculate` with the values you know (any complete input set works, so you can solve for whichever quantity is missing), `table` to read rows or one value of a table, `decode` to read a code, `encode` to write one.
+1. `search` with a few words (English or German, at most 256 characters): a topic, a part or a formula. A hit has a `kind`: `calculator`, `table`, `code` or `pinout`. An empty `query` lists the categories.
+2. `describe` the item you picked. A calculator: its variables with units and defaults, the choices, how many values are needed (`dof`), which input combinations work (`sets`), the computed outputs (`derived`), the checks and the formula. A table: its columns, key, row count, notes and source. A code: its `code_kind` and the forms it reads and writes. A pinout: its group, connector, what the drawing shows (`view`), the pin count, the variants and the pins per type, but not the pins.
+3. `calculate` with the values you know (any complete input set works, so you can solve for whichever quantity is missing), `table` to read rows or one value of a table, `pinout` to read the pins of a connector or board, `decode` to read a code, `encode` to write one.
 4. `open` only when the user wants to see or play with the item; it opens the ECalc app on the desktop (pre-filled for a calculator).
 
 ```json
@@ -38,6 +38,18 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 ```
 
 ```json
+{"action":"ecalc","operation":"pinout","id":"usb_a"}
+```
+
+```json
+{"action":"ecalc","operation":"pinout","id":"rj45","variant":"t568b","pin":"1"}
+```
+
+```json
+{"action":"ecalc","operation":"pinout","id":"raspberry_pi_40","pin":"GND"}
+```
+
+```json
 {"action":"ecalc","operation":"decode","kind":"resistor_bands","code":"brown black red gold"}
 ```
 
@@ -52,12 +64,13 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 ## Operations
 
 - `search`: `query`, optional `limit` (1-25, default 10). Results hold `id`, `kind`, `name`, `category` and a one-sentence `summary`, best match first; `total` is the number of matches and `truncated: true` means more exist than were returned.
-- `describe`: `id` of a calculator, table or code. Calculator vars have `id`, `label`, `name`, `dim`, `unit` (the unit a bare number is read in; empty means the SI unit), `units` (units a value may carry), `input`, `eseries` and the `default`. A table has `columns` (`id`, `name`, `dim`, `unit`, `units`, `key`), `key`, `row_count`, `notes`, `source`, `guide`/`mains` with a `caution`, and a `finder` when a calculator selects its rows. A code has `code_kind` (the `kind` for decode and encode), `decode` (the forms it reads), `encode` (the request fields) and `fields`.
+- `describe`: `id` of a calculator, table, code or pinout. Calculator vars have `id`, `label`, `name`, `dim`, `unit` (the unit a bare number is read in; empty means the SI unit), `units` (units a value may carry), `input`, `eseries` and the `default`. A table has `columns` (`id`, `name`, `dim`, `unit`, `units`, `key`), `key`, `row_count`, `notes`, `source`, `guide`/`mains` with a `caution`, and a `finder` when a calculator selects its rows. A code has `code_kind` (the `kind` for decode and encode), `decode` (the forms it reads), `encode` (the request fields) and `fields`. A pinout has `group`, `connector`, `view`, `pin_count`, `counts` (pins per type), `variants` (`id`, `name`, `counts`), `notes` and `source`, and no pins.
 - `calculate`: `id`, `inputs`, optional `choices` and `eseries` (E3, E6, E12, E24, E48, E96 or E192; default E24).
 - `table`: `id` and optionally `filter`, `offset`, `limit` and `lookup` (see Tables).
+- `pinout`: `id` and optionally `pin`, `variant`, `filter`, `offset` and `limit` (see Pinouts).
 - `decode`: `kind` and `code` (see Codes).
 - `encode`: `kind`, `value` and optionally `bands`, `tolerance`, `tempco`, `voltage` and `class` (which of them a kind reads: see Codes).
-- `open`: `id` of any item (optional), optional `inputs` and `choices` (calculators only). Without `id` it only opens the app. The values are not checked against each other; the app shows them as typed.
+- `open`: `id` of any item (optional; a pinout opens its page), optional `inputs` and `choices` (calculators only). Without `id` it only opens the app. The values are not checked against each other; the app shows them as typed.
 
 ## Values
 
@@ -89,6 +102,15 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 - `guide: true` marks values transcribed from a standard as a guide: the standard itself is authoritative. `mains: true` marks installation data: the national rules and a qualified person decide. Pass the `caution` on to the user and name the `source` when they rely on a value. `notes` explain conditions and assumptions of the table.
 - Answers are shortened to fit the output limit and the `note` says what was left out: first `si`, then fewer rows are listed (`truncated`, continue at `next_offset`); with a very small limit also the column names, the notes and the source, and as the last resort the rows themselves (`returned: 0`: read single cells with a `lookup` that names its `output` column). A table page is shortened, never refused for its size. Use `filter` or `lookup` instead of asking for more rows.
 
+## Pinouts
+
+- `pinout` lists the pins of a connector, board header or IC package: `pins` is a list of `{number, name, function, type, wire, notes}` in pin order. `type` is `power`, `ground`, `signal`, `data`, `io` (a pin the user programs, such as GPIO) or `nc` (not connected or reserved). `wire` is the English colour name (`white-green`) where a standard names one (RJ45, ATX, servo cables) and absent otherwise. `connector` says what the item is, `view` what its drawing shows: read it before you tell the user where a pin sits (rows are as seen looking at the mating face of the plug or the socket; a DIP is seen from above with the notch at the top).
+- `pin` is a pin number (`"7"`, `"A1"`) or a name (`GND`, `TX+`), exact and case-insensitive; several pins can share a name (a board has many GND), and all of them are returned. A `pin` that matches nothing answers `found: false` with an empty list and the `variants`, not an error: try another spelling, another variant, or leave `pin` out. The value is text, a number is read as typed.
+- `variant` is a variant id from `describe` (RJ45 `t568a` and `t568b`, audio `ctia` and `omtp`); without it the first variant is read and `variant` and `variants` in the answer say which. A variant the item does not have is an error that lists the ids.
+- `filter` keeps the pins whose number, name, function or notes contain the text (English or German, at most 128 characters); with `pin` both must match. `total` counts the pins that match, `returned` those listed from `offset`; `limit` is 1-50, default 50.
+- Pins come from datasheets and standards named in `source`; pass the `notes` on when a pin has a caution (voltage, direction) and name the `source` when the user relies on a pin out for wiring or soldering. Never guess a pin the answer does not list.
+- Answers are shortened to fit the output limit and the `note` says what was left out: first the clipped notes and source, then the notes of the pins, then the notes of the pinout, then fewer pins are listed (`truncated`, continue at `next_offset`). Use `pin` or `filter` instead of asking for more.
+
 ## Codes
 
 - `decode` reads a code, `encode` writes one. `kind` is the `code_kind` from `describe` of a code item (the id of the code item works too).
@@ -109,13 +131,14 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 
 ## Errors
 
-- `unknown_id`: the message suggests close matches; search first. An id of more than 256 characters is refused as unknown without a search. `not_a_calculator`, `not_a_table` and `not_a_code`: the id names an item of another kind; the message says which operation reads it.
+- `unknown_id`: the message suggests close matches; search first. An id of more than 256 characters is refused as unknown without a search. `not_a_calculator`, `not_a_table`, `not_a_code` and `not_a_pinout`: the id names an item of another kind; the message says which operation reads it.
 - `unknown_variable`, `not_an_input` (a computed output cannot be given), `unknown_choice`, `unknown_option`, `unknown_eseries`, `duplicate_name`, `too_many_values`: the message lists the valid names; fix the call.
 - `parse_error`: the text of one value could not be read with the unit of its variable or column; the message names the variable or column and its dimension.
 - `underdetermined`: too few values, or no combination of them is a solvable set; `sets` lists the input sets closest first and the message says what to add.
-- `unknown_column`, `invalid_lookup` (bad mode, no value, missing output, a text column in ge or interp, a column that is not steady for interp), `invalid_filter` (more than 128 characters): the message lists the columns or the valid forms.
+- `unknown_column`, `invalid_lookup` (bad mode, no value, missing output, a text column in ge or interp, a column that is not steady for interp), `invalid_filter` (more than 128 characters, also for `pinout`): the message lists the columns or the valid forms.
+- `unknown_variant`: the pinout has no such variant; the message lists the variant ids (or says that the item has none).
 - `unknown_code_kind`: the message lists the kinds. `invalid_code`: the code to decode could not be read (the message says why: an unknown colour, a wrong number of bands, more than 64 characters). `invalid_value`: a field of an encode request could not be read or contradicts another (a value that is no number, `bands` out of range, nothing to encode). `unsupported`: well formed, but not decodable or not codable, for example a symbol that makers disagree on or a tolerance without a band colour.
-- `invalid_operation`: use `search`, `describe`, `calculate`, `table`, `decode`, `encode` or `open`.
+- `invalid_operation`: use `search`, `describe`, `calculate`, `table`, `pinout`, `decode`, `encode` or `open`.
 - `policy_denied` with `desktop_unavailable` or `desktop_agent_control_disabled` (open only): the desktop is off or the user has not allowed the agent to control it. Give the numbers from `calculate` or `table` instead and say that the user can open ECalc themselves.
 - `output_budget_exceeded`: a complete calculation cannot fit the available response budget. Do not interpret it as a partial numeric result. Describe/search responses may omit optional explanatory detail.
 - Answers are shortened to fit the output limit; `truncated: true` marks it. Search again with more specific words or fewer results rather than asking for more.

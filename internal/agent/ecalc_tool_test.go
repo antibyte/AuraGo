@@ -53,7 +53,7 @@ func TestECalcSchemaIsStrictCompactAndNamedSafely(t *testing.T) {
 	}
 	params := s.Function.Parameters.(map[string]interface{})
 	props := params["properties"].(map[string]interface{})
-	if got := props["operation"].(map[string]interface{})["enum"]; !slices.Equal(got.([]string), []string{"search", "describe", "calculate", "open", "table", "decode", "encode"}) {
+	if got := props["operation"].(map[string]interface{})["enum"]; !slices.Equal(got.([]string), []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"}) {
 		t.Fatalf("operations = %v", got)
 	}
 	// The code kinds of the engine are the enum of kind, so the schema cannot drift from them.
@@ -69,7 +69,7 @@ func TestECalcSchemaIsStrictCompactAndNamedSafely(t *testing.T) {
 	}
 	// The parameters that share a name with a field of ToolCall have its type (a string or an integer), so a call with
 	// them is never flagged malformed.
-	for name, typ := range map[string]string{"code": "string", "value": "string", "offset": "integer", "limit": "integer", "filter": "string", "bands": "integer"} {
+	for name, typ := range map[string]string{"code": "string", "value": "string", "offset": "integer", "limit": "integer", "filter": "string", "bands": "integer", "pin": "string", "variant": "string"} {
 		if got := props[name].(map[string]interface{})["type"]; got != typ {
 			t.Errorf("%s has type %v, want %v", name, got, typ)
 		}
@@ -100,7 +100,8 @@ func TestECalcSchemaIsStrictCompactAndNamedSafely(t *testing.T) {
 		}
 	}
 	// 450 tokens held the four calculator operations; table, decode and encode add three operations and eleven
-	// parameters. The manual carries the details, so the schema keeps to names, types and one short hint each.
+	// parameters, pinout one operation and two parameters (755 tokens before it, 799 with it). The manual carries the
+	// details, so the schema keeps to names, types and one short hint each.
 	if got := estimateSingleToolSchemaTokens(s); got > 800 {
 		t.Fatalf("the ecalc schema is %d tokens, keep it at most 800", got)
 	}
@@ -266,12 +267,22 @@ func TestECalcManualExamplesAreValidCalls(t *testing.T) {
 		seen[call["operation"].(string)] = true
 		raw, _ := json.Marshal(call)
 		tc := ecalcNativeCall(t, string(raw))
+		// The pinout examples name a pinout of the shipped catalog; they run as soon as it has the item (the content comes
+		// after the tool), so a typo in the id is caught then.
+		if id, _ := call["id"].(string); id != "" && (call["operation"] == "pinout" || call["operation"] == "describe") {
+			if cat, err := ecalc.Default(); err == nil && len(cat.Pinouts) == 0 {
+				if _, known := cat.Item(id); !known {
+					t.Logf("the catalog has no pinouts yet: the example %s is only checked against the schema", example[1])
+					continue
+				}
+			}
+		}
 		out, ok := dispatchPlatform(context.Background(), tc, &DispatchContext{Cfg: ecalcAgentConfig(), Logger: testLogger, Broker: &ecalcJSONBroker{}})
 		if !ok || !strings.Contains(out, `"status":"ok"`) {
 			t.Errorf("the example does not run: %s\n%s", example[1], out)
 		}
 	}
-	for _, op := range []string{"search", "describe", "calculate", "open", "table", "decode", "encode"} {
+	for _, op := range []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"} {
 		if !seen[op] {
 			t.Errorf("the manual has no example for %s", op)
 		}

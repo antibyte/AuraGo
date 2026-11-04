@@ -91,7 +91,7 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **treg-Katalog** | `treg_catalog`, `treg_call`, `treg_status` — dynamischer API-Katalog mit expliziten Endpoint-Genehmigungen und Kostendeckel |
 | **Lokale Wikipedia** | `local_wikipedia` — eine Offline-Wikipedia-Ausgabe (Kiwix-ZIM) durchsuchen und lesen; nur lesend |
 | **Retro Games** | `retro_games` — den archive.org-Index der Retro-Spiele durchsuchen und ein Spiel in der Desktop-App Retro Games öffnen; nur lesend (siehe [Retro Games](../../retro-games.md)) |
-| **ECalc** | `ecalc` — Elektronik-Rechner, Referenztabellen und Bauteilcodes: suchen, beschreiben, mit Einheiten rechnen, Tabellen lesen, Codes lesen und schreiben; `open` zeigt ein Element in der Desktop-App ECalc (siehe [Kapitel 32](32-ecalc.md)); immer verfügbar |
+| **ECalc** | `ecalc` — Elektronik-Rechner, Referenztabellen, Bauteilcodes und Steckerbelegungen: suchen, beschreiben, mit Einheiten rechnen, Tabellen und Belegungen lesen, Codes lesen und schreiben; `open` zeigt ein Element in der Desktop-App ECalc (siehe [Kapitel 32](32-ecalc.md)); immer verfügbar |
 | **desktop_notes** | Desktop-Notizen lesen, durchsuchen und neu anlegen; bestehende Notizen sind für den Agenten unveränderbar (siehe [Desktop Notes](../../desktop-notes.md)) |
 
 ---

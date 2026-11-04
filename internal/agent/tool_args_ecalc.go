@@ -19,7 +19,8 @@ import (
 // ToolCall, which fails on a type mismatch of the whole call: code and value are in toolCallStringFields (a number
 // becomes its text, a list of words is joined with ", ", which the band parser accepts; Params keeps what was sent), and
 // offset and limit are in numericStringToolFields (a numeric text becomes a number). The other texts (filter, tolerance,
-// tempco, voltage, class) and the whole numbers (bands) are no ToolCall fields and are read from Params, a number as typed.
+// tempco, voltage, class) and the whole numbers (bands) are no ToolCall fields and are read from Params, a number as typed
+// (pin 5 is "5"; the texts are filter, pin, variant, tolerance, tempco, voltage and class).
 func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 	return tools.ECalcRequest{
 		Operation: toolCallSnapshotOperation(tc), // the precedence of the action policy, so that both see the same operation
@@ -33,6 +34,9 @@ func decodeECalcArgs(tc ToolCall) tools.ECalcRequest {
 		Filter: ecalcParamText(tc.Params, "filter"),
 		Offset: firstNonEmptyInt(toolArgInt(tc.Params, 0, "offset"), tc.Offset),
 		Lookup: ecalcLookup(tc.Params["lookup"]),
+
+		Pin:     ecalcParamText(tc.Params, "pin"),
+		Variant: ecalcParamText(tc.Params, "variant"),
 
 		Kind:      strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "kind", "code_kind"))),
 		Code:      firstNonEmptyToolString(ecalcParamText(tc.Params, "code"), tc.Code),

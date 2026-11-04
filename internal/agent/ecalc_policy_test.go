@@ -9,11 +9,11 @@ import (
 )
 
 // The ecalc tool is pure computation except for open: only open mutates, and an A2A peer (a remote agent whose
-// request is not the owner's) may search, describe, calculate, read tables and decode or encode codes but not put a
-// window on the owner's desktop.
+// request is not the owner's) may search, describe, calculate, read tables and pinouts and decode or encode codes but
+// not put a window on the owner's desktop.
 
 func TestECalcActionPolicyOnlyOpenMutates(t *testing.T) {
-	for op, want := range map[string]bool{"search": false, "describe": false, "calculate": false, "table": false, "decode": false, "encode": false, "open": true} {
+	for op, want := range map[string]bool{"search": false, "describe": false, "calculate": false, "table": false, "pinout": false, "decode": false, "encode": false, "open": true} {
 		a := DescribeAction(ToolCall{Action: "ecalc", Operation: op}, nil)
 		if a.Mutating != want || a.HighRisk || a.Tool != "ecalc" || a.Operation != op {
 			t.Errorf("%s: %+v, want mutating=%v and no high risk", op, a, want)
@@ -34,7 +34,7 @@ func TestECalcRoleRestrictionKeepsComputationForPeersButNotOpen(t *testing.T) {
 	a2a := &DispatchContext{SessionID: "a2a-task-1", IsCoAgent: true, MessageSource: "a2a"}
 	prefixOnly := &DispatchContext{SessionID: "a2a-task-2", IsCoAgent: true}
 
-	for _, op := range []string{"search", "describe", "calculate", "table", "decode", "encode"} {
+	for _, op := range []string{"search", "describe", "calculate", "table", "pinout", "decode", "encode"} {
 		for name, dc := range map[string]*DispatchContext{"main": main, "local": local, "a2a": a2a, "a2a prefix": prefixOnly} {
 			if got := roleToolRestriction(ToolCall{Action: "ecalc", Operation: op}, dc); got != "" {
 				t.Errorf("%s run is denied ecalc %s: %q", name, op, got)
@@ -46,7 +46,7 @@ func TestECalcRoleRestrictionKeepsComputationForPeersButNotOpen(t *testing.T) {
 			t.Errorf("%s run is denied ecalc open: %q", name, got)
 		}
 	}
-	for _, op := range []string{"open", "", "pinout", "OPEN_APP", "tables"} {
+	for _, op := range []string{"open", "", "pinouts", "OPEN_APP", "tables"} {
 		for name, dc := range map[string]*DispatchContext{"a2a": a2a, "a2a prefix": prefixOnly} {
 			if got := roleToolRestriction(ToolCall{Action: "ecalc", Operation: op}, dc); !strings.Contains(got, "policy_denied") || !strings.Contains(got, "cannot change the virtual desktop") {
 				t.Errorf("%s run may call ecalc %q: %q", name, op, got)
@@ -63,13 +63,13 @@ func TestECalcDiscoveryOffersAPeerOnlyTheReadOperations(t *testing.T) {
 	if !ok || !entry.Enabled {
 		t.Fatalf("ecalc must stay discoverable for a peer: %+v", entry)
 	}
-	if ops := toolCatalogOperationField(entry, "operation"); !slices.Equal(ops, []string{"search", "describe", "calculate", "table", "decode", "encode"}) {
+	if ops := toolCatalogOperationField(entry, "operation"); !slices.Equal(ops, []string{"search", "describe", "calculate", "table", "pinout", "decode", "encode"}) {
 		t.Fatalf("a peer is offered %v", ops)
 	}
 	local := BuildToolCatalog(BuildNativeToolSchemas("", nil, ToolFeatureFlags{}, nil), nil, "")
 	applyCatalogEntryPolicies(local, &DispatchContext{Cfg: &config.Config{}, SessionID: "default"})
 	entry, _ = local.Get("ecalc")
-	if ops := toolCatalogOperationField(entry, "operation"); !slices.Equal(ops, []string{"search", "describe", "calculate", "open", "table", "decode", "encode"}) {
+	if ops := toolCatalogOperationField(entry, "operation"); !slices.Equal(ops, []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"}) {
 		t.Fatalf("the main agent is offered %v", ops)
 	}
 }
