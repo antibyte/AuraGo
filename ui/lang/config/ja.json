@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "画像のインデックス作成",
   "config.decisions.consumers_desc_indexer_images": "インデックス作成中に画像を説明します。",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker の視覚チェック",
-  "config.decisions.consumers_desc_game_maker_visual": "生成されたゲームのスクリーンショットを確認します。"
+  "config.decisions.consumers_desc_game_maker_visual": "生成されたゲームのスクリーンショットを確認します。",
+  "config.backup.flow_key_pairing_required": "対応する設定、フローデータベース、パスワードで保護されたVaultをまとめて復元してください。この部分バックアップでは、別のフローデータの鍵が置き換えられてしまいます。",
+  "config.backup.flow_keys_skipped": "既存のフローデータを引き続き読み取れるように、フローの暗号化鍵をスキップしました。"
 }

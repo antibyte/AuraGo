@@ -1141,4 +1141,6 @@ if (failures) {
     console.log(failures + ' failure(s)');
     process.exit(1);
 }
+await import('./test-easydrag-authoring.mjs');
+await import('./test-easydrag-compare.mjs');
 console.log('all EasyDrag checks passed');

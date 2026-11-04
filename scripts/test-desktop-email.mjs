@@ -106,4 +106,26 @@ await check('NASSCAD capture is scoped and never falls through to a download aft
     const life=new AbortController(),pending=api.createFiles('stl',life.signal);life.abort();resume();await assert.rejects(()=>pending);assert.equal(c.regularDownloads,1);assert.equal(api.active,false);
 });
 
+await check('menu bindings activate the same guarded export without a toolbar button',async()=>{
+    const button=new class extends EventTarget {
+        dataset={};disabled=false;
+        click(){if(!this.disabled)this.dispatchEvent(new Event('click'));}
+        remove(){}
+    }();
+    document.createElement=()=>button;
+    context.MutationObserver=class {observe(){}disconnect(){}};
+    const settle=async()=>{for(let i=0;i<10;i++)await new Promise(resolve=>setImmediate(resolve));};
+    const host=new EventTarget();
+    let exported=0;
+    const binding=mail.attach('a',()=>null,()=>options({key:'one',createFiles:async()=>{exported++;return [text()];}}),host);
+    binding.activate();binding.activate();await settle();
+    assert.equal(exported,1);assert.equal(opened.length,1);
+    readonly=true;binding.refresh();binding.activate();await settle();
+    assert.equal(exported,1);assert.equal(opened.length,1);
+    readonly=false;body.readonly=true;binding.refresh();binding.activate();await settle();
+    assert.equal(exported,1);assert.equal(opened.length,1);
+    binding.dispose();body.readonly=false;binding.activate();await settle();
+    assert.equal(exported,1);assert.equal(opened.length,1);
+});
+
 console.log(`desktop-email: ${count} checks passed`);

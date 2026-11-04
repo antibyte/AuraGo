@@ -60,6 +60,7 @@ func reservedVaultSecretKey(key string) bool {
 	key = strings.ToLower(canonicalVaultSecretKey(strings.TrimSpace(key)))
 	return strings.HasPrefix(key, "rustfs_") || strings.HasPrefix(key, "auth_") || strings.HasPrefix(key, "auth.") ||
 		key == "aurago_master_key" || key == "master_key" || key == "internal_token" ||
+		key == flowCheckpointVaultKey || key == flowScenarioVaultKey ||
 		strings.HasPrefix(key, "session_") || strings.HasPrefix(key, "session.")
 }
 
@@ -113,7 +114,7 @@ func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	out := make([]vaultSecretJSON, 0, len(keys))
 	for _, k := range keys {
-		if strings.HasPrefix(strings.ToLower(k), "rustfs_") || filterUser && !tools.IsPythonAccessibleSecret(k) {
+		if lower := strings.ToLower(k); strings.HasPrefix(lower, "rustfs_") || lower == flowCheckpointVaultKey || lower == flowScenarioVaultKey || filterUser && !tools.IsPythonAccessibleSecret(k) {
 			continue
 		}
 		out = append(out, vaultSecretJSON{Key: k})

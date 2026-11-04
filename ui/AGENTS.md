@@ -1117,6 +1117,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 - Keep the generic Config UI state/action contracts in `ui/js/config/` and
   integration-specific behavior in `ui/cfg/`.
+- Backup restore translates the flow-key pairing refusal and skipped-key warning from stable codes. Passwordless backups do not carry the Vault keys needed to recover encrypted EasyDrag test data or checkpoints. Verify `TestBackupRestoreStaged*` and `node --check ui/cfg/backup.js`.
 - Schema-rendered integration connection tests use the shared registry in
   `ui/js/config/integration_actions.js`; keep their saved-state/Vault gating,
   inline status region, and all-locale translation coverage intact.

@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "已注册的通行密钥 (WebAuthn) 将被替换。",
   "config.backup.sc_require_origin": "已登录请求的 Origin 头要求将被关闭。",
   "config.backup.sc_files_crontab": "定时任务:新增 {new} 个,修改 {changed} 个(会自动运行)。",
-  "config.backup.sc_files_databases": "包含连接或凭据的数据库:新增 {new} 个,修改 {changed} 个。"
+  "config.backup.sc_files_databases": "包含连接或凭据的数据库:新增 {new} 个,修改 {changed} 个。",
+  "config.backup.flow_key_pairing_required": "请一并恢复相互匹配的配置、流程数据库和受密码保护的 Vault。此部分备份会替换其他流程数据的密钥。",
+  "config.backup.flow_keys_skipped": "已跳过流程加密密钥，以确保现有流程数据仍可读取。"
 }

@@ -90,39 +90,54 @@ func agoParseAppVersion(v string) ([]int, bool) {
 // and writes the secrets, encrypted with the local vault key, to dest. The live
 // vault is not touched.
 func stageVaultSecrets(vault *security.Vault, encData []byte, password, dest string) (int, error) {
-	data, err := stageVaultSecretsMap(vault, encData, password, dest)
+	data, _, err := stageVaultSecretsMap(vault, encData, password, dest, false, false)
 	return len(data), err
 }
 
 // stageVaultSecretsMap is stageVaultSecrets that also returns the staged
 // (decrypted) secrets so the import can compare them with the current state.
-func stageVaultSecretsMap(vault *security.Vault, encData []byte, password, dest string) (map[string]string, error) {
+var errFlowKeyPairingRequired = errors.New("flow key pairing requires a complete backup")
+
+func stageVaultSecretsMap(vault *security.Vault, encData []byte, password, dest string, allowFlowKeys, hasFlowDB bool) (map[string]string, bool, error) {
 	if vault == nil {
-		return nil, nil
+		return nil, false, nil
 	}
 	plain, err := decryptVaultSecretsBlob(encData, password)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var data map[string]string
 	if err := json.Unmarshal(plain, &data); err != nil {
-		return nil, fmt.Errorf("vault secrets parse: %w", err)
+		return nil, false, fmt.Errorf("vault secrets parse: %w", err)
 	}
+	flowKeysSkipped := false
 	for key := range data {
 		if vaultSkipKeys[key] {
 			delete(data, key)
+		} else if !allowFlowKeys && (strings.EqualFold(key, flowCheckpointVaultKey) || strings.EqualFold(key, flowScenarioVaultKey)) {
+			if hasFlowDB {
+				current, err := vault.ReadSecret(key)
+				if err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+					return nil, false, err
+				}
+				if err != nil || current != data[key] {
+					return nil, false, errFlowKeyPairingRequired
+				}
+			}
+			delete(data, key)
+			flowKeysSkipped = true
 		}
 	}
 	staged, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	enc, err := vault.EncryptBytes(staged)
 	if err != nil {
-		return nil, fmt.Errorf("vault secrets encrypt: %w", err)
+		return nil, false, fmt.Errorf("vault secrets encrypt: %w", err)
 	}
 	if err := os.WriteFile(dest, enc, 0o600); err != nil {
-		return nil, fmt.Errorf("vault secrets stage: %w", err)
+		return nil, false, fmt.Errorf("vault secrets stage: %w", err)
 	}
-	return data, nil
+	return data, flowKeysSkipped, nil
 }

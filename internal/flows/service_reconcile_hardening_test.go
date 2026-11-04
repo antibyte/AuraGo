@@ -338,7 +338,7 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 	}
 	defer raw.Close()
 	if _, err := raw.Exec(`CREATE TABLE flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '2')`); err != nil {
+		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '3')`); err != nil {
 		t.Fatal(err)
 	}
 	setVersion := func(v string) {
@@ -348,7 +348,7 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 		}
 	}
 	for version, want := range map[string]string{
-		"2":    "flows database schema 2 is newer than this AuraGo supports (1)",
+		"3":    "flows database schema 3 is newer than this AuraGo supports (2)",
 		"zwei": "is not a number",
 	} {
 		setVersion(version)
@@ -375,7 +375,7 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 		t.Fatalf("OpenStore at schema 1: %v", err)
 	}
 	_ = s.Close()
-	if _, err := raw.Exec(`DELETE FROM flows_meta`); err != nil {
+	if _, err := raw.Exec(`DROP TABLE flow_checkpoints; DROP TABLE flow_test_scenarios; DELETE FROM flows_meta`); err != nil {
 		t.Fatal(err)
 	}
 	s, err = OpenStore(path, discardLogger())
@@ -384,7 +384,7 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 	}
 	defer s.Close()
 	var stored string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != "1" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != "2" {
 		t.Fatalf("version row after migration = %q (%v)", stored, err)
 	}
 }

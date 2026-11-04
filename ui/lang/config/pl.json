@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Indeksowanie obrazów",
   "config.decisions.consumers_desc_indexer_images": "Opisuje obrazy podczas indeksowania.",
   "config.decisions.consumers_name_game_maker_visual": "Kontrola wizualna Game Makera",
-  "config.decisions.consumers_desc_game_maker_visual": "Sprawdza zrzuty ekranu wygenerowanych gier."
+  "config.decisions.consumers_desc_game_maker_visual": "Sprawdza zrzuty ekranu wygenerowanych gier.",
+  "config.backup.flow_key_pairing_required": "Przywróć razem pasującą konfigurację, bazę danych przepływów i Vault chroniony hasłem. Ta częściowa kopia zapasowa zastąpiłaby klucz do innych danych przepływów.",
+  "config.backup.flow_keys_skipped": "Pominięto klucze szyfrowania przepływów, aby istniejące dane nadal można było odczytać."
 }

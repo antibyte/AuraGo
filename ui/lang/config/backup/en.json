@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "The registered passkeys (WebAuthn) would be replaced.",
   "config.backup.sc_require_origin": "The Origin header requirement for logged-in requests would be turned off.",
   "config.backup.sc_files_crontab": "Cron jobs: {new} new, {changed} changed (they run autonomously).",
-  "config.backup.sc_files_databases": "Databases with connections or credentials: {new} new, {changed} changed."
+  "config.backup.sc_files_databases": "Databases with connections or credentials: {new} new, {changed} changed.",
+  "config.backup.flow_key_pairing_required": "Restore the matching configuration, flow database and password-protected Vault together. This partial backup would replace the key for different flow data.",
+  "config.backup.flow_keys_skipped": "Flow encryption keys were skipped to keep existing flow data readable."
 }

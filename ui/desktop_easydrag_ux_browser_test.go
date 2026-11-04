@@ -28,7 +28,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 
 	// Standard has one appearance; Fruity supplies the existing light/dark variants.
 	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
-		for _, width := range []int{320, 390, 768, 1024, 1440} {
+		for _, width := range []int{320, 360, 390, 768, 1024, 1440} {
 			t.Run(fmt.Sprintf("%s/%d", theme, width), func(t *testing.T) {
 				parent := s.t
 				s.t = t
@@ -45,9 +45,9 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 				page.MustSetViewport(width, 900, 1, width < 760)
 				page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 				s.wait(`()=>{const app=document.querySelector('.ed-app'),head=document.querySelector('.ed-head'),box=head.getBoundingClientRect();return app && box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && head.scrollWidth<=head.clientWidth+1 && document.querySelector('.ed-canvas').getBoundingClientRect().width>100;}`)
-				s.wait(`()=>{const narrow=document.querySelector('.ed-app').getBoundingClientRect().width<=560;const shown=narrow?['publish']:['test','publish'];return shown.every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]'),label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';}) && (!narrow || getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display==='none')}`)
+				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]'),label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
 				if width < 760 {
-					s.wait(`()=>{const narrow=document.querySelector('.ed-app').getBoundingClientRect().width<=560;return (narrow?['publish','more']:['test','publish','more']).every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})}`)
+					s.wait(`()=>['test','publish','more'].every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
 				}
 				s.headerNames()
 				// Position is fixture setup; opening and closing use real keyboard/buttons.
@@ -73,7 +73,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	page.MustSetViewport(390, 844, 1, true)
-	s.wait(`()=>document.querySelector('.ed-app').getBoundingClientRect().width<=560 && getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display==='none'`)
+	s.wait(`()=>document.querySelector('.ed-app').getBoundingClientRect().width<=560 && getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display!=='none'`)
 	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();const items=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].map(b=>b.textContent);return items.some(x=>x.includes(ed.t('easydrag.ui.runs_title'))) && items.some(x=>x.includes(ed.t('easydrag.ui.test_draft')))}`)
 	page.MustEval(`()=>aurora.closeContextMenu()`)
@@ -109,6 +109,45 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-home-retry]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
 	s.failOnPageErrors("initial load recovery")
+
+	// Goal-first authoring creates nothing until Apply, then the same phone Test path saves
+	// and replays a private scenario with an exact expected-result check.
+	page.MustElement(`[data-ed-authoring]`).MustClick()
+	s.wait(`()=>!!document.querySelector('[data-ed-authoring-goal]')`)
+	page.MustElement(`[data-ed-authoring-goal]`).MustInput("Create a local greeting")
+	page.MustElement(`[data-ed-action="generate"]`).MustClick()
+	s.wait(`()=>{const b=document.querySelector('[data-ed-action="apply"]');return b && !b.hidden && edFixture.state.flows.size===1;}`)
+	s.shot("ux-authoring-review")
+	page.MustElement(`[data-ed-action="cancel"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal') && edFixture.state.flows.size===1`)
+	page.MustElement(`[data-ed-authoring]`).MustClick()
+	page.MustElement(`[data-ed-authoring-goal]`).MustInput("Create a local greeting")
+	page.MustElement(`[data-ed-action="generate"]`).MustClick()
+	s.wait(`()=>!document.querySelector('[data-ed-action="apply"]').hidden`)
+	page.MustElement(`[data-ed-action="apply"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-editor') && edFixture.state.flows.size===2 && edFixture.editor().model.doc.nodes.length===3`)
+	page.MustSetViewport(360, 844, 1, true)
+	s.wait(`()=>{const r=document.querySelector('[data-ed-cmd="test"]').getBoundingClientRect();return r.width>=44 && r.height>=44 && r.right<=innerWidth;}`)
+	s.shot("ux-first-result-header-360")
+	page.MustElement(`[data-ed-cmd="test"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('[data-ed-test-mode]')`)
+	page.MustEval(`()=>{const s=document.querySelector('[data-ed-test-mode]');s.value='simulation';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	s.wait(`()=>!!document.querySelector('[data-ed-scenario-name]') && !document.querySelector('.ed-simulation-fields').hidden`)
+	page.MustElement(`[data-ed-assertion-add]`).MustClick()
+	page.MustEval(`()=>{document.querySelector('[data-ed-assertion-node]').value='n_greeting';}`)
+	page.MustElement(`[data-ed-assertion-output]`).MustInput(`{"greeting":"Hallo Welt"}`)
+	page.MustElement(`[data-ed-scenario-name]`).MustInput("Lokaler Gruß")
+	page.MustElement(`[data-ed-scenario-save-button]`).MustClick()
+	s.wait(`()=>document.querySelector('[data-ed-test-data]').readOnly && !!document.querySelector('[data-ed-scenario]').value`)
+	s.shot("ux-private-scenario-360")
+	page.MustElement(`[data-ed-action="run"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal') && edFixture.editor().run.mode==='simulation' && edFixture.editor().run.record.assertions[0].passed`)
+	s.wait(`()=>document.querySelector('.ed-run-results').open && document.querySelector('.ed-result-preview').textContent.includes('Hallo Welt')`)
+	s.shot("ux-scenario-result-360")
+	page.MustSetViewport(390, 844, 1, true)
+	s.shot("ux-scenario-result-390")
+	s.noRawKeys("goal-first authoring and private scenarios")
+	s.failOnPageErrors("goal-first authoring and private scenarios")
 }
 
 // axName returns the accessible name Chrome computes for the first element that matches selector.

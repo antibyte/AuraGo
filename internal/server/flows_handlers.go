@@ -40,7 +40,7 @@ const (
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
 // are listed: a new collection route in handleFlows adds its segment here.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -266,6 +266,26 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsErrorText(err))
 	case errors.Is(err, flows.ErrTestDataRedacted):
 		flowsError(w, http.StatusBadRequest, "FLOW_TEST_DATA_REDACTED", "replace redacted or truncated test data before using it")
+	case errors.Is(err, flows.ErrScenarioNotFound):
+		flowsError(w, http.StatusNotFound, "FLOW_SCENARIO_NOT_FOUND", "the test scenario was not found")
+	case errors.Is(err, flows.ErrScenarioConflict):
+		flowsError(w, http.StatusConflict, "FLOW_SCENARIO_CONFLICT", "the test scenario changed elsewhere")
+	case errors.Is(err, flows.ErrScenarioStale):
+		flowsError(w, http.StatusConflict, "FLOW_SCENARIO_STALE", "the test scenario no longer matches the draft")
+	case errors.Is(err, flows.ErrScenarioLimit):
+		flowsError(w, http.StatusConflict, "FLOW_SCENARIO_LIMIT", "the test scenario storage limit was reached")
+	case errors.Is(err, flows.ErrScenarioInvalid):
+		flowsError(w, http.StatusBadRequest, "FLOW_SCENARIO_INVALID", "the test scenario is invalid")
+	case errors.Is(err, flows.ErrScenarioSensitive):
+		flowsError(w, http.StatusBadRequest, "FLOW_SCENARIO_SENSITIVE", "remove credentials from the test scenario")
+	case errors.Is(err, flows.ErrScenarioUnreadable):
+		flowsError(w, http.StatusConflict, "FLOW_SCENARIO_UNREADABLE", "the encrypted test scenario cannot be read")
+	case errors.Is(err, errFlowDataKeyMissing):
+		flowsError(w, http.StatusConflict, "FLOW_DATA_KEY_MISSING", "the flow data encryption key is missing")
+	case errors.Is(err, errFlowDataKeyInvalid):
+		flowsError(w, http.StatusConflict, "FLOW_DATA_KEY_INVALID", "the flow data encryption key is invalid")
+	case errors.Is(err, errFlowVaultUnavailable):
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_VAULT_UNAVAILABLE", "the vault is not available")
 	case errors.As(err, &tooLarge) && tooLarge != nil:
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", tooLarge.Limit>>10))
 	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate), errors.Is(err, flows.ErrInvalidSimulationFixture):
@@ -420,6 +440,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsTemplates(w, r)
 	case parts[0] == "validate" && len(parts) == 1:
 		s.flowsValidate(w, r)
+	case parts[0] == "ai-proposal" && len(parts) == 1:
+		s.flowAIProposal(w, r, "")
 	case flowsCollectionRoutes[parts[0]]:
 		// templates/… and validate/…: a collection name is never a flow id.
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
@@ -475,6 +497,8 @@ func isFlowsAPIPath(path string) bool {
 // (validRouteBearer) and handleFlows apply it; session users are not affected.
 func flowsRequiredScope(method string, parts []string) string {
 	switch {
+	case len(parts) >= 2 && parts[1] == "scenarios":
+		return desktopScopeAdmin
 	case method == http.MethodGet || method == http.MethodHead:
 		return desktopScopeRead
 	case flowsIsValidate(method, parts):
@@ -544,11 +568,13 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 	if len(rest) > 0 {
 		action = rest[0]
 	}
-	if n, ok := flowRouteSegments[action]; !ok || len(rest) != n {
+	if n, ok := flowRouteSegments[action]; (!ok || len(rest) != n) && !(action == "scenarios" && (len(rest) == 1 || len(rest) == 2)) {
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
 		return
 	}
 	switch action {
+	case "scenarios":
+		s.flowScenarios(w, r, id, rest[1:])
 	case "ai-proposal":
 		s.flowAIProposal(w, r, id)
 	case "repair-mission":

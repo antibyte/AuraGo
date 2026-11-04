@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Ευρετηρίαση εικόνων",
   "config.decisions.consumers_desc_indexer_images": "Περιγράφει εικόνες κατά την ευρετηρίαση.",
   "config.decisions.consumers_name_game_maker_visual": "Οπτικός έλεγχος Game Maker",
-  "config.decisions.consumers_desc_game_maker_visual": "Ελέγχει στιγμιότυπα των παραγόμενων παιχνιδιών."
+  "config.decisions.consumers_desc_game_maker_visual": "Ελέγχει στιγμιότυπα των παραγόμενων παιχνιδιών.",
+  "config.backup.flow_key_pairing_required": "Επαναφέρετε μαζί τις αντίστοιχες ρυθμίσεις, τη βάση δεδομένων ροών και το Vault που προστατεύεται με κωδικό. Αυτό το μερικό αντίγραφο θα αντικαθιστούσε το κλειδί για διαφορετικά δεδομένα ροών.",
+  "config.backup.flow_keys_skipped": "Τα κλειδιά κρυπτογράφησης ροών παραλείφθηκαν ώστε τα υπάρχοντα δεδομένα ροών να παραμείνουν αναγνώσιμα."
 }

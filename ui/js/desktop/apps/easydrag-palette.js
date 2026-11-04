@@ -100,6 +100,7 @@
         const el = core.el('<aside class="ed-palette" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' +
             '<div class="ed-palette-head"><div class="ed-search">' + core.icon('search') +
             '<input type="search" class="ed-palette-search" placeholder="' + esc(t('easydrag.ui.palette_search')) + '" aria-label="' + esc(t('easydrag.ui.palette_search')) + '" enterkeyhint="search" inputmode="search"></div>' +
+            '<button type="button" class="ed-icon-btn ed-panel-width-btn" data-ed-palette-size aria-haspopup="menu" title="' + esc(t('easydrag.ui.panel_resize_palette')) + '" aria-label="' + esc(t('easydrag.ui.panel_resize_palette')) + '">' + core.icon('fit') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-palette-close title="' + esc(t('easydrag.ui.palette_hide')) + '" aria-label="' + esc(t('easydrag.ui.palette_hide')) + '">' + core.icon('chevron-left') + '</button></div>' +
             '<div class="ed-palette-list"></div>' +
             '<p class="ed-palette-hint">' + esc(t('easydrag.ui.palette_hint')) + '</p></aside>');
@@ -333,6 +334,7 @@
             if (item && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); addByClick(item.dataset.edType); }
         });
         bag.listen(el.querySelector('[data-ed-palette-close]'), 'click', () => setOpen(false));
+        bag.listen(el.querySelector('[data-ed-palette-size]'), 'click', event => ed.bus.emit('panel-size-menu', { kind: 'palette', anchor: event.currentTarget || el.querySelector('[data-ed-palette-size]') }));
 
         render();
         const savedOpen = core.storage.get(OPEN_KEY, null);

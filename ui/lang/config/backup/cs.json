@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "Registrované přístupové klíče (WebAuthn) by byly nahrazeny.",
   "config.backup.sc_require_origin": "Požadavek na hlavičku Origin u přihlášených požadavků by se vypnul.",
   "config.backup.sc_files_crontab": "Cron úlohy: {new} nových, {changed} změněných (spouštějí se samy).",
-  "config.backup.sc_files_databases": "Databáze s připojeními nebo přihlašovacími údaji: {new} nových, {changed} změněných."
+  "config.backup.sc_files_databases": "Databáze s připojeními nebo přihlašovacími údaji: {new} nových, {changed} změněných.",
+  "config.backup.flow_key_pairing_required": "Obnov společně odpovídající konfiguraci, databázi toků a trezor chráněný heslem. Tato částečná záloha by nahradila klíč pro jiná data toků.",
+  "config.backup.flow_keys_skipped": "Šifrovací klíče toků byly přeskočeny, aby stávající data toků zůstala čitelná."
 }

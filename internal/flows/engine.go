@@ -61,6 +61,8 @@ type RunRequest struct {
 	// Slot is the run's global slot, which a logic.wait gives back while it waits (A7); nil
 	// without a runner.
 	Slot RunSlot
+	// durable is set only by the durable coordinator, never by ordinary runs.
+	durable *durableRunControl
 }
 
 // EventSink receives run events in order, always from the run's coordinator goroutine.
@@ -68,11 +70,12 @@ type EventSink func(RunEvent)
 
 // Engine executes flow runs.
 type Engine struct {
-	reg        *Registry
-	services   *Services
-	logger     *slog.Logger
-	parallel   int
-	simulation bool
+	reg         *Registry
+	services    *Services
+	logger      *slog.Logger
+	parallel    int
+	simulation  bool
+	durableSafe bool
 	// abandonAfter is the real-time grace for running nodes after the run's
 	// context ended; tests shorten it.
 	abandonAfter time.Duration
@@ -148,6 +151,9 @@ func (e *Engine) Services() *Services { return e.services }
 func (e *Engine) Execute(ctx context.Context, req RunRequest, emit EventSink) RunResult {
 	if req.Mode == ModeSimulation && !e.simulation {
 		return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", ErrorMessage: "simulation requires an isolated engine"}
+	}
+	if req.durable != nil && (!e.durableSafe || req.Mode != ModeLive || !durableGraphAllowed(req.Flow)) {
+		return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", ErrorMessage: "durable execution requires an isolated pure graph"}
 	}
 	if emit == nil {
 		emit = func(RunEvent) {}

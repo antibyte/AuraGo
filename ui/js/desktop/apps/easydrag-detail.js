@@ -193,7 +193,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-nav="1" aria-label="' + esc(t('easydrag.ui.detail_next')) + '" title="' + esc(t('easydrag.ui.detail_next')) + '">' + core.icon('chevron-right') + '</button></div>' +
             '<span class="ed-detail-tile"></span><div class="ed-detail-title"><input class="ed-detail-label" aria-label="' + esc(t('easydrag.ui.detail_label')) + '"><span class="ed-detail-type"></span></div>' +
             '<span class="ed-detail-status"></span>' +
-            '<div class="ed-detail-actions"><button type="button" class="ed-btn" data-ed-detail-test>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.detail_test')) + '</span></button>' +
+            '<div class="ed-detail-actions"><button type="button" class="ed-icon-btn ed-panel-width-btn" data-ed-detail-size aria-haspopup="menu" title="' + esc(t('easydrag.ui.panel_resize_inspector')) + '" aria-label="' + esc(t('easydrag.ui.panel_resize_inspector')) + '">' + core.icon('fit') + '</button><button type="button" class="ed-btn" data-ed-detail-test>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.detail_test')) + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close_hint', { key: 'Esc' })) + '">' + core.icon('x') + '</button></div></header>' +
             '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => tab('col', id, 'data-ed-narrow', t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id)))).join('') + '</div>' +
             '<div class="ed-detail-body">' +
@@ -694,6 +694,8 @@
             const nav = event.target.closest('[data-ed-nav]');
             if (nav) { go(Number(nav.dataset.edNav)); return; }
             if (event.target.closest('[data-ed-detail-back]') || event.target.closest('[data-ed-detail-close]')) { closeSelf(); return; }
+            const size = event.target.closest('[data-ed-detail-size]');
+            if (size) { ed.bus.emit('panel-size-menu', { kind: 'inspector', anchor: size }); return; }
             if (event.target.closest('[data-ed-detail-test]')) { ed.bus.emit('node-test', { nodeId: node.id }); return; }
             const rm = event.target.closest('[data-ed-conn-remove]');
             if (rm) { if (!ed.readonly && !ed.runView) core.removeConnection(ed, rm.dataset.edConnRemove); return; }

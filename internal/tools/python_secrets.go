@@ -86,6 +86,8 @@ var blockedSecretPrefixes = []string{
 // managed by system integrations and must NEVER be accessible to Python tools.
 var blockedSecretExact = map[string]struct{}{
 	"ai_gateway_token":                    {},
+	"flows_checkpoint_key_v1":             {},
+	"flows_scenario_key_v1":               {},
 	"telegram_bot_token":                  {},
 	"discord_bot_token":                   {},
 	"meshcentral_password":                {},

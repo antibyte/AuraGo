@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "De geregistreerde passkeys (WebAuthn) zouden worden vervangen.",
   "config.backup.sc_require_origin": "De verplichte Origin-header voor ingelogde verzoeken zou worden uitgeschakeld.",
   "config.backup.sc_files_crontab": "Cronjobs: {new} nieuw, {changed} gewijzigd (ze draaien zelfstandig).",
-  "config.backup.sc_files_databases": "Databases met verbindingen of inloggegevens: {new} nieuw, {changed} gewijzigd."
+  "config.backup.sc_files_databases": "Databases met verbindingen of inloggegevens: {new} nieuw, {changed} gewijzigd.",
+  "config.backup.flow_key_pairing_required": "Herstel de bij elkaar horende configuratie, flowdatabase en met een wachtwoord beveiligde Vault samen. Deze gedeeltelijke back-up zou de sleutel voor andere flowgegevens vervangen.",
+  "config.backup.flow_keys_skipped": "De versleutelingssleutels van flows zijn overgeslagen zodat bestaande flowgegevens leesbaar blijven."
 }

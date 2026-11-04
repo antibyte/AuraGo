@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "As chaves de acesso registadas (WebAuthn) seriam substituídas.",
   "config.backup.sc_require_origin": "A exigência do cabeçalho Origin nos pedidos autenticados seria desativada.",
   "config.backup.sc_files_crontab": "Tarefas cron: {new} novas, {changed} alteradas (executam-se sozinhas).",
-  "config.backup.sc_files_databases": "Bases de dados com ligações ou credenciais: {new} novas, {changed} alteradas."
+  "config.backup.sc_files_databases": "Bases de dados com ligações ou credenciais: {new} novas, {changed} alteradas.",
+  "config.backup.flow_key_pairing_required": "Restaura em conjunto a configuração, a base de dados dos fluxos e o Vault protegido por palavra-passe correspondentes. Esta cópia de segurança parcial substituiria a chave de outros dados de fluxos.",
+  "config.backup.flow_keys_skipped": "As chaves de encriptação dos fluxos foram ignoradas para manter os dados existentes legíveis."
 }

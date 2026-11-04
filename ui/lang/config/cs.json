@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Indexování obrázků",
   "config.decisions.consumers_desc_indexer_images": "Popisuje obrázky při indexování.",
   "config.decisions.consumers_name_game_maker_visual": "Vizuální kontrola Game Makeru",
-  "config.decisions.consumers_desc_game_maker_visual": "Kontroluje snímky obrazovky vytvořených her."
+  "config.decisions.consumers_desc_game_maker_visual": "Kontroluje snímky obrazovky vytvořených her.",
+  "config.backup.flow_key_pairing_required": "Obnov společně odpovídající konfiguraci, databázi toků a trezor chráněný heslem. Tato částečná záloha by nahradila klíč pro jiná data toků.",
+  "config.backup.flow_keys_skipped": "Šifrovací klíče toků byly přeskočeny, aby stávající data toků zůstala čitelná."
 }

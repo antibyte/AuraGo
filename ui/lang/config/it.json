@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Indicizzazione immagini",
   "config.decisions.consumers_desc_indexer_images": "Descrive le immagini durante l'indicizzazione.",
   "config.decisions.consumers_name_game_maker_visual": "Controllo visivo Game Maker",
-  "config.decisions.consumers_desc_game_maker_visual": "Controlla gli screenshot dei giochi generati."
+  "config.decisions.consumers_desc_game_maker_visual": "Controlla gli screenshot dei giochi generati.",
+  "config.backup.flow_key_pairing_required": "Ripristina insieme la configurazione, il database dei flussi e il Vault protetto da password corrispondenti. Questo backup parziale sostituirebbe la chiave di altri dati dei flussi.",
+  "config.backup.flow_keys_skipped": "Le chiavi di crittografia dei flussi sono state ignorate per mantenere leggibili i dati esistenti."
 }

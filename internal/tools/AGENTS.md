@@ -192,6 +192,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
   `TestDockerStreamContextStreamsAndHonoursGates` and `TestDockerStreamContextCancelEndsTheRead`.
 
 ### Flow missions (`execution_type: "flow"`)
+- `flows_checkpoint_key_v1` and `flows_scenario_key_v1` are system Vault keys: deny them to agent Vault operations and Python export. They are not user-managed flow secrets.
 - `EnsureRestoredFlowMission` restores a proven-missing flow mission at its existing ID and
   installs its current published bindings atomically under the manager mutex. Check every
   occupied ID and every flow claim; reject foreign, duplicate, enabled or locked identities.

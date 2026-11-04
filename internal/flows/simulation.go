@@ -82,48 +82,12 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		return nil, ErrInvalidSimulationFixture
 	}
 	req.TriggerData, req.Fixtures = snapshot.Data, snapshot.Fixtures
-	for _, fixture := range req.Fixtures {
-		switch fixture.ErrorCode {
-		case "", "FLOW_NODE_UNAVAILABLE", "FLOW_NODE_TIMEOUT", "FLOW_NODE_FAILED", "FLOW_TOOL_ERROR":
-		default:
-			return nil, ErrInvalidSimulationFixture
-		}
-	}
 	reg := NewRegistry()
 	if err := RegisterCatalog(reg, nil); err != nil {
 		return nil, err
 	}
-	for i := range rec.Draft.Nodes {
-		n := &rec.Draft.Nodes[i]
-		if _, ok := reg.Lookup(n.Type); !ok {
-			return nil, &ValidationError{Issues: []Issue{{Code: IssueNodeTypeUnknown, Severity: SeverityError,
-				NodeID: truncateRunes(n.ID, maxIssueIDRunes), Message: "node type " + quoteForError(n.Type) + " cannot be simulated"}}}
-		}
-	}
-	for id, fixture := range req.Fixtures {
-		n := rec.Draft.NodeByID(id)
-		if n == nil {
-			return nil, ErrInvalidSimulationFixture
-		}
-		def, ok := reg.Lookup(n.Type)
-		if !ok || def.Trigger {
-			return nil, ErrInvalidSimulationFixture
-		}
-		var fields []FieldSpec
-		var ports []string
-		if catchPanic(func() { fields, ports = def.FieldsOf(n), def.OutputPorts(n) }) != nil {
-			return nil, ErrInvalidSimulationFixture
-		}
-		for _, port := range fixture.Ports {
-			if port == PortError || !containsString(ports, port) {
-				return nil, ErrInvalidSimulationFixture
-			}
-		}
-		for _, field := range fields {
-			if value, present := fixture.Output[field.Name]; present && value != nil && !simulationValueMatches(field.Type, value) {
-				return nil, ErrInvalidSimulationFixture
-			}
-		}
+	if err := validateSimulationFixtures(rec.Draft, reg, req.Fixtures); err != nil {
+		return nil, err
 	}
 	for _, def := range reg.All() {
 		if def.Trigger {
@@ -202,6 +166,50 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	}
 	return &SimulationResult{Mode: ModeSimulation, Revision: rec.DraftRevision, StartedAt: result.StartedAt, Status: result.Status,
 		ErrorCode: result.ErrorCode, ErrorMessage: result.ErrorMessage, ErrorNodeID: result.ErrorNodeID, Steps: result.Steps}, nil
+}
+
+func validateSimulationFixtures(doc *Flow, reg *Registry, fixtures map[string]SimulationFixture) error {
+	if doc == nil || reg == nil {
+		return ErrInvalidSimulationFixture
+	}
+	for i := range doc.Nodes {
+		n := &doc.Nodes[i]
+		if _, ok := reg.Lookup(n.Type); !ok {
+			return &ValidationError{Issues: []Issue{{Code: IssueNodeTypeUnknown, Severity: SeverityError,
+				NodeID: truncateRunes(n.ID, maxIssueIDRunes), Message: "node type " + quoteForError(n.Type) + " cannot be simulated"}}}
+		}
+	}
+	for id, fixture := range fixtures {
+		switch fixture.ErrorCode {
+		case "", "FLOW_NODE_UNAVAILABLE", "FLOW_NODE_TIMEOUT", "FLOW_NODE_FAILED", "FLOW_TOOL_ERROR":
+		default:
+			return ErrInvalidSimulationFixture
+		}
+		n := doc.NodeByID(id)
+		if n == nil {
+			return ErrInvalidSimulationFixture
+		}
+		def, ok := reg.Lookup(n.Type)
+		if !ok || def.Trigger {
+			return ErrInvalidSimulationFixture
+		}
+		var fields []FieldSpec
+		var ports []string
+		if catchPanic(func() { fields, ports = def.FieldsOf(n), def.OutputPorts(n) }) != nil {
+			return ErrInvalidSimulationFixture
+		}
+		for _, port := range fixture.Ports {
+			if port == PortError || !containsString(ports, port) {
+				return ErrInvalidSimulationFixture
+			}
+		}
+		for _, field := range fields {
+			if value, present := fixture.Output[field.Name]; present && value != nil && !simulationValueMatches(field.Type, value) {
+				return ErrInvalidSimulationFixture
+			}
+		}
+	}
+	return nil
 }
 
 func simulationValueMatches(typ string, value any) bool {

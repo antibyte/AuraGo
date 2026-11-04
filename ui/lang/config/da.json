@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Billedindeksering",
   "config.decisions.consumers_desc_indexer_images": "Beskriver billeder under indekseringen.",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visuel kontrol",
-  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skærmbilleder af genererede spil."
+  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skærmbilleder af genererede spil.",
+  "config.backup.flow_key_pairing_required": "Gendan den tilhørende konfiguration, flowdatabase og adgangskodebeskyttede Vault sammen. Denne delvise sikkerhedskopi ville erstatte nøglen til andre flowdata.",
+  "config.backup.flow_keys_skipped": "Krypteringsnøglerne til flows blev sprunget over, så eksisterende flowdata fortsat kan læses."
 }

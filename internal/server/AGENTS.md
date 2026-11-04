@@ -87,6 +87,7 @@ Server-owned HTTP and cross-component integration contracts.
   individual disconnected waiters do not. Verify `TestModelListCache*`.
 
 - Backup export stages an owner-restricted ZIP file; plain export/import stream through file readers. Multipart import spools above 8 MiB and removes its temporary uploads. Existing current/legacy encrypted formats use one archive-sized authentication buffer; legacy retries reload immutable ciphertext. Verify Backup/EncryptAGO/DecryptAGO tests and `TestBackupEncryptionReadersRoundTripWithoutChangingInput`.
+- Encrypted EasyDrag checkpoints and private scenarios use separate Vault keys. Restore stages different keys only with the matching validated configuration and flows database; a Vault-only import skips them with a translated warning, and an unpaired database/key import fails before staging. Passwordless or keyless backups cannot recover encrypted data; missing or wrong keys fail closed. Verify `TestFlowDataKeys*` and `TestRestoreFlow*`.
 - Kaggle project write denials end the response immediately; quota errors use kaggle.PublicError. Docker Manager JSON body overflow shares decodeSized and returns 413. Verify `TestKaggleDeniedProjectWriteReturnsOneJSONResponse` and `TestDockerManagerJSONBodyLimitReturns413`.
 
 - `ConfigSnapshot` initializes through the same once barrier as writers, then reads only the atomic immutable pointer. Publication retains `CfgMu`/`CfgSaveMu` order; never fall back to an unsynchronized `Cfg` read. Verify `TestConfigSnapshotConcurrentFirstPublication`.

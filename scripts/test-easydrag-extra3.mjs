@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-testing.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -90,7 +90,10 @@ export async function run(env) {
         proto.removeAttribute = function (name) { this.attrs.delete(name); };
         proto.setSelectionRange = function (start, end) { this.selectionStart = start; this.selectionEnd = end; };
         proto.scrollIntoView = function () {};
-        proto.click = function () { this.fire('click'); };
+        proto.click = function () {
+            if (this.localName === 'a' && this.download) downloads.push({ name: this.download, blob: objects.get(this.href) });
+            this.fire('click');
+        };
         proto.blur = function () {};
         proto.select = function () {};
         const body = new dom.El('body', {});
@@ -109,6 +112,11 @@ export async function run(env) {
         const store = new Map();
         const logged = [];
         const sources = [];
+        const objects = new Map(), downloads = [];
+        class DownloadURL extends URL {
+            static createObjectURL(blob) { const url = 'blob:fixture/' + objects.size; objects.set(url, blob); return url; }
+            static revokeObjectURL(url) { objects.delete(url); }
+        }
         class EventSource {
             constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; sources.push(this); }
             addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
@@ -118,7 +126,7 @@ export async function run(env) {
         const box = vm.createContext({
             window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
                 removeEventListener: (type, fn) => { const list = winListeners[type] || []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); } }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
-            EventSource, URLSearchParams, URL, AbortController,
+            EventSource, URLSearchParams, URL: DownloadURL, Blob, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: {
                 get length() { return store.size; },
@@ -153,7 +161,7 @@ export async function run(env) {
             return Promise.resolve().then(() => { const out = answer(req); return out === undefined ? defaults(req) : out; });
         };
         const h = {
-            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport, sources,
+            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport, sources, downloads, objects,
             api: ED.core.createApi(transport), catalog: catalogOf(),
             notes: [], confirms: [], confirmAnswer: false, menus: [], cleared: [], homes: [], opened: [],
             puts: () => requests.filter(r => r.method === 'PUT'),
@@ -1450,6 +1458,7 @@ export async function run(env) {
             [blocked, late.requests.filter(r => r.method === 'DELETE').length, late.logged, h.logged], [[0, 0], 0, [], []]);
     });
 
+    await (await import('./test-easydrag-scenarios.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

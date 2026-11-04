@@ -17,6 +17,12 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Explicit edited real-test input refuses exact redaction placeholders and actual truncated
   preview markers before saving samples or starting work. Omitted input may still select the
   original server-side sample; ordinary strings containing marker text remain valid.
+- Named simulation scenarios encrypt the name, trigger data, fixtures and assertions with the
+  Vault-backed scenario key. They are limited to 20 per flow, 256 KiB per ciphertext and 16 MiB
+  globally. Writes use revision/version checks and serialized quota/key admission; semantic
+  graph changes invalidate scenarios, while canvas-only changes do not. Never accept sensitive,
+  redacted or truncated sample data as a saved scenario. Simulation assertions require a
+  successful, untruncated step and compare normalized output/selected ports. Verify `TestScenario*`.
 - `local_first_result` is the seventh starter recipe: manual sample input, a greeting made with
   `logic.set`, then a name check. It needs no account or model. `DescribeTemplates` derives effects
   from actual definitions and marks local execution only for the manual/pure allowlist; absent
@@ -339,10 +345,22 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (1). `OpenStore` refuses a database
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (2). `OpenStore` refuses a database
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
+- Before v1-to-v2 migration of any on-disk database, `OpenStore` creates a unique SQLite snapshot in a
+  `.flows-v1-backup-*` sibling directory, verifies integrity and syncs the backup. A failed backup blocks
+  migration. Version 2 creates `flow_test_scenarios` and `flow_checkpoints` transactionally and writes the
+  version last; an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
+  Verify `TestFlowsV2Migration*` and `TestC16OpenStoreRefusesANewerSchema`.
+- Checkpoint cryptography, complete coordinator snapshots, per-step CAS/lease fencing and private pure-only
+  suspend/resume helpers are implementation groundwork, not a registered node or user-facing recovery feature.
+  `NewRunner` reserves flows with valid checkpoint metadata before accepting live starts; malformed metadata blocks
+  recovery, and `MarkInterruptedRuns` excludes checkpoint rows. No scheduler, cancellation or restart wake-up is
+  wired yet. Do not expose the private path until permission rechecks, queue ownership and crash tests are complete.
+  A checkpoint is at most 40 MiB, with 64 rows/512 MiB globally; scans reject more than one million JSON values.
+  Scenario and checkpoint keys are separate, agent-hidden Vault entries; backups need their matching Vault keys.
 - Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one
   transaction with the run row) and refer to it through `flow_runs.doc_hash`; rows from before keep `doc_json`.
   `PruneRunsByMode` sweeps documents no run refers to. Live runs reference `flow_versions`. `Publish` keeps the
@@ -350,7 +368,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   (`pruneVersionsSQL`: one non-correlated subquery on `idx_flow_runs_flow_started`, pinned by
   `TestAudit18VersionPruningSearchesTheRunsByIndex`), so the run view (`GetRunDoc`, `include=doc`) can show the
   document while the run goes on; such a version goes with the first publish after the run finished. Once a version is pruned, `Service.Run` reports `RunDetail.DocMissing` (`version_pruned`, `not_stored` for a test run whose document was too large, `unreadable`) so the run view can say why. A run row
-  left unfinished by a crash is marked interrupted at the next `Start`, so it holds nothing.
+  left unfinished by a crash is marked interrupted at the next `Start` unless it owns a checkpoint row.
 - Retention is per mode: `PruneRunsByMode(days, live, test)`; the Service keeps `MaxRunsPerFlow` non-test runs and
   `MaxTestRunsPerFlow` (default `DefaultMaxTestRunsPerFlow` 20, at most `MaxRunsPerFlow`) test runs (A6).
   `SetScrubber` scrubs trigger data, step params, outputs and error texts before they are written (S7); the
@@ -375,7 +393,8 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Timers are settled conditionally on the occurrence that fired (`DeleteTimerAt`, `MoveTimer`).
 - `NextTimerAt(flowID)` is one `MIN(fire_at)` over the flow's rows (primary key `flow_id` prefix, pinned by
   `TestStoreNextTimerAtUsesThePrimaryKey`); rows whose `fire_at` is not in `timeLayout` are left out.
-- Keep migrations idempotent (`CREATE … IF NOT EXISTS`); add columns with `dbutil.MigrateAddColumn`.
+- Keep ordinary additive migrations idempotent; add columns with `dbutil.MigrateAddColumn`. A versioned
+  transactional migration may reject unexpected pre-existing target tables to avoid adopting unknown data.
 
 ## Timers
 - Callbacks run synchronously, are panic-recovered (the timer counts as handled), must return quickly

@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Afbeeldingen indexeren",
   "config.decisions.consumers_desc_indexer_images": "Beschrijft afbeeldingen tijdens het indexeren.",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker-visuele controle",
-  "config.decisions.consumers_desc_game_maker_visual": "Controleert screenshots van gegenereerde spellen."
+  "config.decisions.consumers_desc_game_maker_visual": "Controleert screenshots van gegenereerde spellen.",
+  "config.backup.flow_key_pairing_required": "Herstel de bij elkaar horende configuratie, flowdatabase en met een wachtwoord beveiligde Vault samen. Deze gedeeltelijke back-up zou de sleutel voor andere flowgegevens vervangen.",
+  "config.backup.flow_keys_skipped": "De versleutelingssleutels van flows zijn overgeslagen zodat bestaande flowgegevens leesbaar blijven."
 }

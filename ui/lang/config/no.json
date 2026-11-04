@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Bildeindeksering",
   "config.decisions.consumers_desc_indexer_images": "Beskriver bilder under indekseringen.",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visuell kontroll",
-  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skjermbilder av genererte spill."
+  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skjermbilder av genererte spill.",
+  "config.backup.flow_key_pairing_required": "Gjenopprett tilhørende konfigurasjon, flytdatabase og passordbeskyttet Vault sammen. Denne delvise sikkerhetskopien ville erstatte nøkkelen for andre flytdata.",
+  "config.backup.flow_keys_skipped": "Krypteringsnøklene for flyter ble hoppet over slik at eksisterende flytdata fortsatt kan leses."
 }

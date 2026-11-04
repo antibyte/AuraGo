@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "Zarejestrowane klucze dostępu (WebAuthn) zostałyby zastąpione.",
   "config.backup.sc_require_origin": "Wymóg nagłówka Origin dla zalogowanych żądań zostałby wyłączony.",
   "config.backup.sc_files_crontab": "Zadania cron: {new} nowych, {changed} zmienionych (uruchamiają się samodzielnie).",
-  "config.backup.sc_files_databases": "Bazy danych z połączeniami lub danymi logowania: {new} nowych, {changed} zmienionych."
+  "config.backup.sc_files_databases": "Bazy danych z połączeniami lub danymi logowania: {new} nowych, {changed} zmienionych.",
+  "config.backup.flow_key_pairing_required": "Przywróć razem pasującą konfigurację, bazę danych przepływów i Vault chroniony hasłem. Ta częściowa kopia zapasowa zastąpiłaby klucz do innych danych przepływów.",
+  "config.backup.flow_keys_skipped": "Pominięto klucze szyfrowania przepływów, aby istniejące dane nadal można było odczytać."
 }

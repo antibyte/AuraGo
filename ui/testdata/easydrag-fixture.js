@@ -153,7 +153,7 @@
     //   failLists       answers {status, code, error} the next GET /api/desktop/flows lists get, in order
     //   delay           milliseconds each step of a run takes
     const state = {
-        flows: new Map(), runs: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
+        flows: new Map(), runs: new Map(), scenarios: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
         delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
@@ -588,11 +588,33 @@
     function flowRoute(method, id, rest, body, query) {
         if (!ID_PATTERN.test(id)) return fail(404, 'FLOW_NOT_FOUND', 'flow not found');
         const action = rest[0] || '';
-        const segments = { '': 0, 'publish-preview': 1, publish: 1, enabled: 1, export: 1, test: 1, simulate: 1, run: 1, runs: 1, 'test-data': 2 };
-        if (!(action in segments) || rest.length !== segments[action]) return null;
+        const segments = { '': 0, 'publish-preview': 1, publish: 1, enabled: 1, export: 1, test: 1, simulate: 1, run: 1, runs: 1, 'test-data': 2, 'ai-proposal': 1 };
+        if (action === 'scenarios' ? rest.length !== 1 && rest.length !== 2 : !(action in segments) || rest.length !== segments[action]) return null;
         const entry = state.flows.get(id);
         if (!entry) return fail(404, 'FLOW_NOT_FOUND', 'flow not found');
         const rec = entry.rec;
+        const semantic = () => JSON.stringify({ nodes: rec.draft.nodes.map(node => ({ id: node.id, key: node.key, type: node.type, params: node.params, settings: node.settings })), edges: rec.draft.edges });
+        const cases = state.scenarios.get(id) || new Map();
+        const caseSummary = item => ({ id: item.id, name: item.name, version: item.version, draft_revision: item.draft_revision, stale: item.fingerprint !== semantic() });
+        if (action === 'scenarios') {
+            const item = rest[1] && cases.get(rest[1]);
+            if (rest.length === 2 && !item) return fail(404, 'FLOW_SCENARIO_NOT_FOUND');
+            if (method === 'GET') return rest.length === 1 ? reply({ scenarios: Array.from(cases.values()).map(caseSummary) }) : reply({ scenario: Object.assign(clone(item), caseSummary(item)) });
+            if (rest.length === 2 && body.expected_version !== item.version) return fail(409, 'FLOW_SCENARIO_CONFLICT');
+            if (rest.length === 2 && method === 'PATCH') { item.name = String(body.name).trim(); item.version++; return reply({ scenario: caseSummary(item) }); }
+            if (rest.length === 2 && method === 'DELETE') { cases.delete(item.id); return reply({ status: 'deleted' }); }
+            if (rest.length !== 1 || method !== 'POST') return null;
+            if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT');
+            if (!body.scenario || body.expected_version !== 0 || !String(body.scenario.name || '').trim() || Array.from(body.scenario.name.trim()).length > 80) return fail(400, 'FLOW_SCENARIO_INVALID');
+            const saved = Object.assign(clone(body.scenario), { id: nextID('sc_'), version: 1, draft_revision: rec.draft_revision, at: body.scenario.at || iso(), fingerprint: semantic() });
+            cases.set(saved.id, saved); state.scenarios.set(id, cases);
+            return reply({ scenario: Object.assign(clone(saved), caseSummary(saved)) }, 201);
+        }
+        if (action === 'ai-proposal' && method === 'POST') {
+            if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT');
+            const doc = localFirstResult();
+            return reply({ base_revision: rec.draft_revision, doc, issues: [], effects: effects(doc), diff: diff(rec.draft, doc) });
+        }
         if (!action) {
             if (method === 'GET') return reply({ flow: rec, enabled: entry.enabled, issues: validate(rec.draft, 'draft') });
             if (method === 'DELETE') { state.flows.delete(rec.id); broadcast(rec.id, 'deleted'); return reply({ status: 'deleted' }); }
@@ -651,6 +673,16 @@
         }
         if (action === 'simulate' && method === 'POST') {
             if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT', 'the draft was changed elsewhere');
+            let assertions = [];
+            if (body.scenario_id) {
+                if (Object.keys(body).some(key => !['base_revision', 'scenario_id', 'scenario_version'].includes(key))) return fail(400, 'FLOW_BAD_REQUEST');
+                const saved = cases.get(body.scenario_id);
+                if (!saved) return fail(404, 'FLOW_SCENARIO_NOT_FOUND');
+                if (saved.version !== body.scenario_version) return fail(409, 'FLOW_SCENARIO_CONFLICT');
+                if (caseSummary(saved).stale) return fail(409, 'FLOW_SCENARIO_STALE');
+                assertions = saved.assertions || [];
+                body = Object.assign({}, saved, { base_revision: body.base_revision });
+            }
             const trigger = rec.draft.nodes.find(n => n.id === body.trigger_node && (types.get(n.type) || {}).trigger);
             if (!trigger) return fail(409, 'FLOW_NO_TRIGGER', 'choose a trigger');
             const started = body.at || iso(), data = body.trigger_data || sampleOf(entry, trigger.id);
@@ -670,7 +702,12 @@
                 if (error) { step.error_code = error; steps.push(step); break; }
                 steps.push(step); roots[n.key] = output;
             }
-            return reply({ mode: 'simulation', revision: rec.draft_revision, started_at: started, status: error ? 'error' : 'success', error_code: error || undefined, error_node_id: error ? steps[steps.length - 1].node_id : undefined, steps });
+            const checked = assertions.map(assertion => {
+                const step = steps.find(item => item.node_id === assertion.node_id && item.status === 'success');
+                const code = !step ? 'step_unavailable' : Object.prototype.hasOwnProperty.call(assertion, 'output') && JSON.stringify(step.output) !== JSON.stringify(assertion.output) ? 'output_mismatch' : assertion.ports && JSON.stringify(step.ports) !== JSON.stringify(assertion.ports) ? 'ports_mismatch' : '';
+                return { node_id: assertion.node_id, passed: !code, code: code || undefined };
+            });
+            return reply({ mode: 'simulation', revision: rec.draft_revision, started_at: started, status: error ? 'error' : 'success', error_code: error || undefined, error_node_id: error ? steps[steps.length - 1].node_id : undefined, steps, assertions: checked });
         }
         if ((action === 'test' || action === 'run') && method === 'POST') {
             if (action === 'run' && !rec.live) return fail(409, 'FLOW_NOT_PUBLISHED', 'the flow is not published');
@@ -720,6 +757,7 @@
         const parts = u.pathname.replace(/^\/api\/desktop\/flows\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
         let answer = null;
         if (!parts.length) answer = collection(method, body);
+        else if (parts[0] === 'ai-proposal' && parts.length === 1 && method === 'POST') { const doc = localFirstResult(); answer = reply({ doc, issues: [], effects: effects(doc) }); }
         else if (parts[0] === 'secrets') answer = secrets(method, parts.slice(1), body);
         else if (parts[0] === 'runs') answer = runRoute(method, parts.slice(1));
         else if (parts[0] === 'node-types') answer = nodeTypes(method, parts.slice(1), headers);

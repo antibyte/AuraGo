@@ -26,12 +26,14 @@ type flowTestBody struct {
 }
 
 type flowSimulationBody struct {
-	TriggerNode  string                             `json:"trigger_node"`
-	TriggerData  map[string]any                     `json:"trigger_data"`
-	OnlyNode     string                             `json:"only_node"`
-	BaseRevision int                                `json:"base_revision"`
-	Fixtures     map[string]flows.SimulationFixture `json:"fixtures"`
-	At           time.Time                          `json:"at"`
+	TriggerNode     string                             `json:"trigger_node"`
+	TriggerData     map[string]any                     `json:"trigger_data"`
+	OnlyNode        string                             `json:"only_node"`
+	BaseRevision    int                                `json:"base_revision"`
+	Fixtures        map[string]flows.SimulationFixture `json:"fixtures"`
+	At              time.Time                          `json:"at"`
+	ScenarioID      string                             `json:"scenario_id"`
+	ScenarioVersion int                                `json:"scenario_version"`
 }
 
 // flowsTestDataBodyLimit bounds the body of PUT {id}/test-data/{node}: the flows cap on
@@ -47,14 +49,14 @@ var flowSimulationSlots = make(chan struct{}, 4)
 var flowRunIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // flowRunFilter reads ?mode=, ?status=, ?limit= and ?offset= of GET {id}/runs. A mode or
-// status that is not one of the flows package's (RunMode.Valid, RunStatus.Valid), or a
+// status that is not a persisted run mode or a valid RunStatus, or a
 // limit or offset that is not a non-negative whole number, gives the message of a
 // FLOW_BAD_REQUEST answer (it does not echo the value); an absent or empty one is left
 // unset. The limit is not clamped here: Store.ListRuns applies its default (50) and its cap
 // (200).
 func flowRunFilter(q url.Values) (flows.RunFilter, string) {
 	f := flows.RunFilter{Mode: flows.RunMode(q.Get("mode")), Status: flows.RunStatus(q.Get("status"))}
-	if f.Mode != "" && !f.Mode.Valid() {
+	if f.Mode != "" && (!f.Mode.Valid() || f.Mode == flows.ModeSimulation) {
 		return f, "mode must be test, live, agent or call"
 	}
 	if f.Status != "" && !f.Status.Valid() {
@@ -104,6 +106,27 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 		}
 		simCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
+		if body.ScenarioID != "" || body.ScenarioVersion != 0 {
+			if body.ScenarioID == "" || body.ScenarioVersion <= 0 || body.TriggerNode != "" || body.TriggerData != nil || body.OnlyNode != "" || body.Fixtures != nil || !body.At.IsZero() {
+				flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "choose either a saved scenario or inline simulation data")
+				return true
+			}
+			res, err := s.Flows.SimulateScenario(simCtx, id, body.ScenarioID, body.BaseRevision, body.ScenarioVersion, flowDataKeys{s})
+			if simCtx.Err() != nil {
+				if ctx.Err() != nil {
+					s.flowsErrorFrom(w, r, ctx.Err())
+				} else {
+					flowsError(w, http.StatusServiceUnavailable, "FLOW_SIMULATION_TIMEOUT", "the simulation took too long")
+				}
+				return true
+			}
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return true
+			}
+			s.flowsJSONScrubbed(w, http.StatusOK, res)
+			return true
+		}
 		res, err := s.Flows.Simulate(simCtx, id, flows.SimulationRequest{TriggerNode: body.TriggerNode,
 			TriggerData: body.TriggerData, OnlyNode: body.OnlyNode, BaseRevision: body.BaseRevision, Fixtures: body.Fixtures, At: body.At})
 		if simCtx.Err() != nil {

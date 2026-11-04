@@ -32,6 +32,15 @@ Suche und Kategorien helfen bei weiteren Rezepten. Die Karten unterscheiden loka
 Verarbeitung und mögliche externe Auswirkungen. Ein Einrichtungshinweis bedeutet nicht,
 dass eine Integration fehlt oder ihre Verbindung geprüft wurde.
 
+**Beschreibe Deine Automatisierung** erstellt aus Deinem Ziel einen KI-Vorschlag. Prüfe Schritte,
+Änderungen und mögliche Auswirkungen vor **Übernehmen**. Erst dann entsteht ein neuer
+Flow; bei einem bestehenden Flow wird der Vorschlag als eine rückgängig machbare
+Änderung übernommen. Veröffentlichen, Aktivieren und Ausführen bleiben eigene Aktionen.
+An den eingerichteten KI-Anbieter gehen Dein eingegebenes Ziel und die verfügbaren
+Bausteinbeschreibungen, keine gespeicherten Testdaten oder Lauf-Ausgaben. Gib deshalb
+auch im Zieltext keine Geheimnisse ein. Ohne verfügbaren Anbieter bleiben Vorlagen
+und manuelles Bearbeiten nutzbar.
+
 1. Öffne **EasyDrag** auf dem Desktop. Wähle **Neuer Flow** und gib ihm einen Namen, oder starte mit einer **Vorlage**.
 2. Klicke **Auslöser wählen** und such dir einen Auslöser aus.
 3. Wähle den Auslöser aus und drücke **Strg+K**: Die Schnellsuche fügt den nächsten Schritt direkt dahinter ein und verbindet ihn. **Tab** verschiebt nur den Fokus. Du kannst auch **Hinzufügen** an der gewählten Karte nutzen oder Bausteine aus der Leiste links auf die Fläche oder auf eine Verbindung ziehen.
@@ -46,12 +55,13 @@ Wähle dort einen Schritt, um ohne Ziehen zu navigieren. **Ausgewählten Pfad fo
 zeigt den verbundenen Pfad. Baustein-Bibliothek und Inspektor lassen sich am Trenner
 mit Maus oder Tastatur vergrößern. Diese Ansichten werden nur auf diesem Gerät gemerkt
 und ändern den Flow nicht.
+Die Breitenmenüs an den Panel-Köpfen bieten dieselben Größen auch per Klick oder Tippen.
 
 Wähle beim Einfügen von Eingabedaten zuerst **Daten einfügen in**. EasyDrag rät kein
 Zielfeld mehr. Das gewählte Feld und die Einfügeposition bleiben erhalten; ein breiter
 Inspektor kann Quelldaten und Parameter nebeneinander anzeigen.
 
-- Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Rückgängig** und **Wiederholen**, **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Versionsverlauf*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. In einem Editor, der 560 px oder schmaler ist (auf dem Handy), wandern auch **Läufe** und **Testen** ins Menü ⋯, und *Pausiert* bleibt neben dem Namen sichtbar; ebenso *Neu veröffentlichen nötig* und die Warnung „Auslöser „Datum & Uhrzeit“ laufen nicht“. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
+- Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Rückgängig** und **Wiederholen**, **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Versionsverlauf*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. In einem Editor, der 560 px oder schmaler ist (auf dem Handy), wandert **Läufe** ins Menü ⋯; **Testen** bleibt direkt erreichbar, und *Pausiert* bleibt neben dem Namen sichtbar; ebenso *Neu veröffentlichen nötig* und die Warnung „Auslöser „Datum & Uhrzeit“ laufen nicht“. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
 - **Rückgängig** und **Wiederholen** im Kopf nehmen die letzte Änderung zurück oder wiederholen sie, auch auf Touchscreens (auf der Fläche tun Strg+Z und Strg+Umschalt+Z dasselbe). Löschst du Schritte, erscheint für einige Sekunden ein Hinweis wie „Alpha gelöscht“ mit **Rückgängig**; eine Rückfrage vor dem Löschen gibt es nicht.
 - **Schritt im Flow suchen** (Strg+F, auch im Menü *Ansicht* und im Kontextmenü der Fläche) sucht Schritte nach Name, Datenname, Typ oder Text in den Parametern; Enter springt zum ersten Treffer.
 - **Automatisch anordnen** (Alt+Umschalt+F, auch im Menü *Bearbeiten* und im Kontextmenü der Fläche) stellt die Schritte in Spalten vom Auslöser nach rechts auf. Das ist ein einziger Schritt für Rückgängig.
@@ -90,9 +100,25 @@ oder unpassende Beispiele stoppen die Simulation. Ihre Laufzeit hat keinen Zugri
 auf Werkzeuge, Modelle, Geräte oder Geheimnisse.
 
 Die Beispielausgaben sind JSON mit Schritt-IDs als Schlüsseln und enthalten `output`
-sowie optional `ports`. Sie bleiben im geöffneten Fenster. Ergebnisse sind ausdrücklich
+sowie optional `ports` oder einen unterstützten `error_code` für einen Fehlerfall.
+Ohne Speichern bleiben sie im geöffneten Fenster. Ergebnisse sind ausdrücklich
 als simuliert markiert und erscheinen nicht als echte Läufe in der Historie. Ergänze
 ausgeblendete oder ausgelassene Werte in bearbeiteten Testdaten vor einem echten Test.
+
+Einfache Text-, Zahlen- und Ja/Nein-Felder lassen sich direkt bearbeiten; verschachtelte
+Werte bleiben unter **Erweitertes Beispiel-JSON** erreichbar. In der Simulation
+kannst Du Eingaben, Beispielausgaben und **Erwartete Ergebnisse** als benanntes privates
+Testszenario speichern. Eine Prüfung vergleicht die genaue JSON-Ausgabe eines Schritts,
+seine Ausgänge oder beides und zeigt Abweichungen nach der Simulation an.
+
+Gespeicherte Szenarien verwenden ihren ursprünglichen Datenstand. Umbenennen erhält
+diese Daten; **Neues Szenario beginnen** startet mit leeren Eingaben. Ändern sich
+Ausführung, Parameter oder Verbindungen, muss ein passendes neues Szenario angelegt
+werden. Reine Positions-, Beschriftungs- und Notizänderungen machen es nicht ungültig.
+Es gibt höchstens 20 Szenarien pro Flow und 256 KiB pro Szenario. Ihre Daten werden auf
+dem AuraGo-Server verschlüsselt gespeichert und nicht mit dem Flow exportiert.
+Eine vollständige Sicherung braucht auch den passwortgeschützten Vault-Export; ohne
+den zugehörigen Schlüssel können diese Daten nicht wiederhergestellt werden.
 
 - **Testen** speichert zuerst den Entwurf; einen Entwurf, der sich nicht speichern lässt, testet EasyDrag nicht. Der Flow braucht einen eingeschalteten Auslöser.
 - Der Testdialog zeigt die Daten, mit denen der Auslöser den Test startet. Hat der Flow mehrere Auslöser, wählst du einen unter *Starten mit*. Ändere das JSON, um andere Fälle auszuprobieren; *Diese Daten für spätere Tests merken* behält deine Änderung.
@@ -120,6 +146,13 @@ Test garantiert nicht, dass eine spätere Live-Aktion gelingt.
 - Ein Header wie *Authorization*, *X-Api-Key* oder *Cookie* mit eingetipptem Wert ist ebenfalls ein Hinweis: Der Wert liegt im Klartext im Flow und seinen Versionen. Lege ihn als Geheimnis an und nutze das Feld *Geheimnis*. Exporte und die Ansicht eines Laufs zeigen solche Werte als `[redacted]`.
 
 ## Läufe und Benachrichtigungen
+
+**Läufe vergleichen** stellt zwei abgeschlossene Läufe aus der geladenen, gefilterten
+Liste gegenüber (höchstens 200 zur Auswahl). Du siehst geänderte Eingaben, Ausgaben,
+Verzweigungen und Zustände. Gekürzte oder ausgeblendete Daten erlauben keinen sicheren
+Gleichheitsvergleich und werden als unvollständig gekennzeichnet. **Diagnose herunterladen**
+exportiert nur technische Metadaten, ohne Namen, Dateninhalte oder Fehlermeldungstexte.
+Beim Vergleichen wird kein Schritt erneut ausgeführt.
 
 - **Läufe** zeigt zunächst die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. **Ältere Läufe laden** holt die nächste aufbewahrte Seite; die Suche durchsucht die geladenen Einträge. Aktualisieren beginnt wieder bei der neuesten Seite. Ein Klick öffnet die genaue Flow-Version mit den gespeicherten Ein- und Ausgaben, nur zum Lesen. Schrittverlauf und Fehlerhinweis helfen bei der Diagnose. **Zurück zum Entwurf** oder **Esc** führt zurück. Die Bausteine-Leiste bleibt in der Laufansicht verborgen; ein Fehlerlauf öffnet sich beim gescheiterten Schritt.
 - **Mit diesen Daten erneut testen** öffnet den Testdialog mit den Auslöserdaten des betrachteten Laufs. Ersetze ausgeblendete oder ausgelassene Werte vor einem echten Test. Der Dialog nennt die echten Auswirkungen und fragt vor dem Start; Daten werden nur mit *Diese Daten für spätere Tests merken* gespeichert. Der Knopf fehlt während eines laufenden Tests und bei unvollständig aufbewahrten Auslöserdaten.
@@ -157,7 +190,7 @@ Test garantiert nicht, dass eine spätere Live-Aktion gelingt.
 
 ## Vorlagen, Import und Export
 
-- Die Startseite bietet sechs Vorlagen: *KI-News als PDF per Telegram*, *Webhook per E-Mail zusammenfassen*, *Terminerinnerung*, *Licht aus beim Verlassen*, *Budgetwächter* und *Täglicher RSS-Überblick*. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
+- Die Startseite bietet sieben Vorlagen: *Dein erstes lokales Ergebnis*, *KI-News als PDF per Telegram*, *Webhook per E-Mail zusammenfassen*, *Terminerinnerung*, *Licht aus beim Verlassen*, *Budgetwächter* und *Täglicher RSS-Überblick*. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
 - **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Eine Flow-Datei enthält die Namen von Geheimnissen, nie ihre Werte; Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; andere Werte in gewöhnlichen Feldern so, wie du sie eingegeben hast.
 
 ## Mission Control, Missionsseite und Dashboard

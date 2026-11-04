@@ -1425,14 +1425,22 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		// the next start, only if the file restore was applied as well.
 		vaultRestored := 0
 		vaultErr := ""
+		var warningCodes []string
 		var stagedVaultData map[string]string
 		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
-			stagedSecrets, err := stageVaultSecretsMap(s.Vault, vaultEncData, password, restorepending.StagedVaultPath(stagingRoot))
+			stagedSecrets, skippedFlowKeys, err := stageVaultSecretsMap(s.Vault, vaultEncData, password, restorepending.StagedVaultPath(stagingRoot), restoreHasFlowsDatabase(s.Cfg, importEntries), restoreContainsFlowsDatabase(importEntries))
+			if errors.Is(err, errFlowKeyPairingRequired) {
+				jsonError(w, "flow_key_pairing_required", http.StatusBadRequest)
+				return
+			}
 			if err != nil {
 				s.Logger.Warn("[Backup] Vault secrets staging failed", "error", err)
 				vaultErr = err.Error()
 				warnings = append(warnings, "Vault-Import fehlgeschlagen: "+err.Error())
 			} else {
+				if skippedFlowKeys {
+					warningCodes = append(warningCodes, "flow_keys_skipped")
+				}
 				vaultRestored = len(stagedSecrets)
 				stagedVaultData = stagedSecrets
 			}
@@ -1496,7 +1504,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		}
 
 		status := "ok"
-		if vaultErr != "" || tokenErr != "" {
+		if vaultErr != "" || tokenErr != "" || len(warningCodes) > 0 {
 			status = "partial"
 		}
 		if warnings == nil {
@@ -1504,6 +1512,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
+			"warning_codes":         warningCodes,
 			"status":                status,
 			"pending_restore":       true,
 			"restart_required":      !awaiting,

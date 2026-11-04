@@ -197,6 +197,12 @@ func (s *Store) SetRunStatus(ctx context.Context, runID string, status RunStatus
 // ErrRunNotFound when the run does not exist, for example because its flow was
 // deleted meanwhile.
 func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRecord) error {
+	return s.saveStepOn(ctx, s.db, runID, seq, step, true)
+}
+
+func (s *Store) saveStepOn(ctx context.Context, target interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, runID string, seq int, step StepRecord, replace bool) error {
 	params, err := marshalMap(step.Params)
 	if err != nil {
 		return err
@@ -226,7 +232,11 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 	if step.EffectUncertain {
 		effectUncertain = 1
 	}
-	res, err := s.db.ExecContext(ctx, `INSERT OR REPLACE INTO flow_run_steps (run_id, seq, node_id, node_key, attempt, status,
+	insert := "INSERT INTO"
+	if replace {
+		insert = "INSERT OR REPLACE INTO"
+	}
+	res, err := target.ExecContext(ctx, insert+` flow_run_steps (run_id, seq, node_id, node_key, attempt, status,
 		started_at, finished_at, duration_ms, params_json, params_truncated, output_json, output_truncated, item_count,
 		ports_json, error_code, error_message, effect_uncertain)
 		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
@@ -410,7 +420,8 @@ func (s *Store) LastLiveRuns(ctx context.Context) (map[string]RunRecord, error) 
 func (s *Store) MarkInterruptedRuns(ctx context.Context, before, now time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `UPDATE flow_runs SET status = 'cancelled', error_code = 'FLOW_RESTARTED',
 		error_message = 'AuraGo restarted while the run was active', finished_at = ?
-		WHERE status IN ('queued', 'running', 'waiting') AND started_at < ?`, formatTime(now), formatTime(before))
+		WHERE status IN ('queued', 'running', 'waiting') AND started_at < ?
+		AND NOT EXISTS (SELECT 1 FROM flow_checkpoints c WHERE c.run_id=flow_runs.id)`, formatTime(now), formatTime(before))
 	if err != nil {
 		return 0, err
 	}

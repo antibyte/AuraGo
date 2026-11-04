@@ -108,12 +108,14 @@ type SecretReader interface {
 
 // Services bundles what nodes may use. Any field may be nil; helpers fall back to defaults.
 type Services struct {
-	Tools     ToolInvoker
-	LLM       LLMStepper
-	Decisions DecisionEvaluator
-	Secrets   SecretReader
-	Clock     Clock
-	Location  *time.Location
+	Tools          ToolInvoker
+	LLM            LLMStepper
+	Decisions      DecisionEvaluator
+	Secrets        SecretReader
+	CheckpointKeys CheckpointKeyProvider
+	ScenarioKeys   ScenarioKeyProvider
+	Clock          Clock
+	Location       *time.Location
 }
 
 func (s *Services) clock() Clock {

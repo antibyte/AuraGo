@@ -992,25 +992,39 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-run-item > .ed-btn { flex: none; margin-right: 4px; }
 
 .ed-modal-backdrop {
-    position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
+    position: absolute; inset: 0; z-index: 40; display: grid; grid-template-rows: minmax(0, 1fr); place-items: center; padding: 16px;
     background: color-mix(in srgb, var(--vd-theme-overlay-bg, black) 75%, transparent); backdrop-filter: blur(4px);
     opacity: 0; transition: opacity var(--ed-fast) var(--ed-ease);
 }
 .ed-modal-backdrop.is-open { opacity: 1; }
 .ed-modal-backdrop.is-closing { opacity: 0; }
 .ed-modal {
-    width: min(520px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--vd-mat-card-radius, 18px);
+    width: min(520px, 100%); max-height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--vd-mat-card-radius, 18px);
     background: var(--vd-mat-card, var(--ed-panel)); border: 1px solid var(--vd-mat-card-border, var(--ed-border-strong)); box-shadow: var(--vd-mat-card-shadow, var(--ed-shadow-lg));
     transform: translateY(8px) scale(0.98); transition: transform var(--ed-base) var(--ed-ease-spring);
 }
 .ed-modal-backdrop.is-open .ed-modal { transform: none; }
-.ed-modal-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 6px 18px; }
+.ed-modal-head { display: flex; flex: none; align-items: center; gap: 10px; padding: 14px 14px 6px 18px; }
 .ed-modal-title { flex: 1; margin: 0; font-family: var(--vd-mat-heading-font, inherit); font-size: 16px; font-weight: var(--vd-mat-heading-weight, 700); letter-spacing: var(--vd-mat-heading-tracking, -0.01em); text-transform: var(--vd-mat-heading-transform, none); color: var(--vd-mat-heading-color, var(--ed-text)); }
-.ed-modal-body { flex: 1; overflow: auto; padding: 6px 18px 12px; line-height: 1.5; }
+.ed-modal-body { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 6px 18px 12px; line-height: 1.5; }
 .ed-modal-body > p:first-child { margin-top: 0; }
-.ed-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ed-border); background: color-mix(in srgb, var(--ed-chrome) 60%, transparent); }
+.ed-modal-foot { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ed-border); background: color-mix(in srgb, var(--ed-chrome) 60%, transparent); }
+.ed-app .ed-modal-foot > .ed-btn { min-width: 0; max-width: 100%; white-space: normal; }
+.ed-app .ed-modal-foot > .ed-btn > span { overflow-wrap: anywhere; }
 .ed-modal--keys { width: min(720px, 100%); }
 .ed-modal--test textarea { min-height: 180px; }
+.ed-app .ed-sample-fields, .ed-app .ed-scenario-fields, .ed-app .ed-assertions { display: grid; gap: 10px; min-width: 0; }
+.ed-app [data-ed-sample-fields] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px 16px; }
+.ed-app .ed-scenario-fields { border-top: 1px solid var(--ed-border); margin-top: 16px; padding-top: 16px; }
+.ed-app .ed-scenario-fields h4, .ed-app .ed-sample-fields h4 { margin: 0; }
+.ed-app .ed-scenario-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ed-app [data-ed-scenario-save] { display: grid; gap: 10px; justify-items: start; }
+.ed-app [data-ed-scenario-save] > label { width: 100%; }
+.ed-app .ed-assertion-row { display: grid; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--ed-border); }
+.ed-app .ed-assertion-row > button { justify-self: start; }
+.ed-app .ed-assertion-row textarea { min-height: 96px; }
+.ed-app .ed-scenario-actions .ed-btn { white-space: normal; text-align: start; }
+.ed-app .ed-assertion-results { display: grid; gap: 8px; padding-left: 20px; }
 .ed-publish-lead { margin: 0 0 4px; }
 .ed-effects { display: grid; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
 .ed-effects li { display: flex; align-items: center; gap: 8px; }
@@ -1044,7 +1058,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-drawer { width: min(340px, 100%); }
     .ed-node-region.is-outline { position: absolute; top: 0; bottom: 0; left: 48px; z-index: 5; width: min(280px, calc(100% - 48px)); box-shadow: var(--ed-shadow-lg); }
 }
-@container (max-width: 759px) { .ed-panel-resize { display: none; } }
+@container (max-width: 759px) { .ed-panel-resize, .ed-panel-width-btn { display: none; } }
 /* Inspector open under 1180: palette floats, so it does not eat the graph. isOverlay reads this absolute. */
 @container (max-width: 1179px) {
     .ed-body:has(.ed-detail-backdrop) > .ed-palette {
@@ -1060,8 +1074,12 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     /* the state chip goes, Paused stays (U13): a paused flow must be told apart on a phone too */
     .ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }
     .ed-state > [data-ed-live-outdated], .ed-state > [data-ed-timers-off] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* Runs, Test and Run now move into the ⋯ menu (editor moreMenu); Stop stays while a run goes on (V4) */
-    .ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }
+    /* Keep the first-test path visible; history and live runs remain in the More menu. */
+    .ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }
+    .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="publish"] { flex: 1 1 80px; min-width: 80px; padding: 6px 8px; font-size: 13px; }
+    .ed-head-actions [data-ed-cmd="publish"] { flex: 1 0 auto; min-width: min-content; }
+    .ed-head-actions [data-ed-cmd="publish"] > .ed-icon { display: none; }
+    .ed-head-actions [data-ed-cmd="test"] > span, .ed-head-actions [data-ed-cmd="publish"] > span { overflow-wrap: normal; }
     .ed-detail-backdrop { padding: 0; }
     .ed-detail { border-radius: 0; }
     .ed-detail-head {

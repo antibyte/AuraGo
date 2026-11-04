@@ -1293,15 +1293,31 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   metadata. A nonlocal recipe does not imply a missing integration. The introductory local
   recipe provides first-success guidance without accounts, external actions or model calls.
 - `easydrag-testing.js` extends the test dialog with clearly separate real/simulated execution.
-  Simulation samples remain window-local; consume the synchronous isolated endpoint, never the
+  Unsaved simulation samples remain window-local; consume the synchronous isolated endpoint, never the
   real test endpoint or SSE. Label results as simulated. Refuse edited test data containing exact
   redaction/omission sentinels before real execution; ordinary text containing similar words is
   valid. An unchanged remembered sample can still use the server's authoritative data.
+- `easydrag-scenarios.js` owns structured sample fields, private scenario selection and result
+  assertions. Stored snapshots are read-only in the client: replay sends only ID/version and
+  draft revision; rename sends only the new name/version. Never resubmit scrubbed display data.
+  Nested JSON survives simple-field edits; invalid numeric input blocks actions instead of
+  using the previous JSON. Stale snapshots require a new scenario. Late responses and disposal
+  cannot apply another selection. The private scenario store is separate from flow exports.
+- `easydrag-authoring.js` owns goal-only AI proposal review. New-flow proposals create nothing
+  before Apply; existing-flow proposals are revision/model-version-bound and apply as one undo
+  operation. Never send current drafts, run records, fixtures or Vault data to this endpoint.
+  Applying does not publish, activate or execute. Unavailable AI retains manual authoring.
 - Run history supports explicit refresh and older retained pages, deduplicates run IDs, and
   searches the loaded rows only. Completed results expose a timeline and failure context without
   repainting it on every live event. Semantic publish review shows bounded before/after changes
   and exact-draft test evidence; a later edit invalidates that evidence. Unknown and omitted
   values remain visible as such. Tests and simulations never silently activate a paused flow.
+- `easydrag-compare.js` compares completed retained runs from the loaded, filtered history.
+  Match exact run/flow identities, fence late replies and close its dialog with the editor.
+  Compare resolved `params`, outputs and branch/status metadata with bounded work; redacted,
+  truncated or omitted values never prove equality. Diagnostic downloads include only whitelisted
+  technical metadata, excluding names, documents, payloads and message text. Verify
+  `scripts/test-easydrag-compare.mjs` and the history journey.
 - Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
   template filters mirror `internal/flows`. Template errors keep Go's English message (the parity
   checks compare it) and carry `err.code` (`TPL_*`, `tplError`) with `err.params` ({name},

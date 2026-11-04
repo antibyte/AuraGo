@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Indexação de imagens",
   "config.decisions.consumers_desc_indexer_images": "Descreve imagens durante a indexação.",
   "config.decisions.consumers_name_game_maker_visual": "Verificação visual do Game Maker",
-  "config.decisions.consumers_desc_game_maker_visual": "Verifica capturas de tela dos jogos gerados."
+  "config.decisions.consumers_desc_game_maker_visual": "Verifica capturas de tela dos jogos gerados.",
+  "config.backup.flow_key_pairing_required": "Restaura em conjunto a configuração, a base de dados dos fluxos e o Vault protegido por palavra-passe correspondentes. Esta cópia de segurança parcial substituiria a chave de outros dados de fluxos.",
+  "config.backup.flow_keys_skipped": "As chaves de encriptação dos fluxos foram ignoradas para manter os dados existentes legíveis."
 }

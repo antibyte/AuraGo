@@ -795,7 +795,7 @@ export async function run(env) {
             [draft.el.querySelector('.ed-title').contains(save), save.className, !!draft.el.querySelector('.ed-foot [data-ed-save]'),
                 cmdBtn(draft.el, 'test').getAttribute('title').includes('test_draft'), cmdBtn(draft.el, 'run-now').hidden,
                 draft.el.querySelector('[data-ed-revision]').textContent],
-            [true, 'ed-foot-item ed-save ed-save--saved', false, true, true, 'state_draft']);
+            [true, 'ed-foot-item ed-save ed-save--saved', false, true, true, '']);
 
         const on = publishedEditor({ exists: true, enabled: true });
         await settle();

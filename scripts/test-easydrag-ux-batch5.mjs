@@ -581,12 +581,12 @@ export async function run(env) {
         const inView = head();
         s.editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
         eq('b5 V1 draft: no Past run; run view: once, revision line and Saved hidden; back: as before',
-            [before, inView, head(), s.h.logged], [[0, false, false], [1, true, true], [0, false, false], []]);
+            [before, inView, head(), s.h.logged], [[0, true, false], [1, true, true], [0, true, false], []]);
         s.editor.dispose();
     });
     // ── V4, U13: phone header ──
 
-    await guardAsync('b5 V4 U13 a phone header moves Runs and Test into the more menu and keeps Paused in view', async () => {
+    await guardAsync('b5 V4 U13 a phone header keeps Test visible and offers history in More', async () => {
         const s = await session(undefined, { enabled: false, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
         let items = [];
         s.h.ctx.showContextMenu = (x, y, list) => { items = list; };
@@ -606,9 +606,9 @@ export async function run(env) {
         const paused = s.editor.el.querySelector('[data-ed-state]').html.includes('data-ed-paused');
         const sheet = css();
         const narrow = sheet.slice(sheet.indexOf('@container (max-width: 560px)')).split(/\r?\n\}\r?\n/)[0];
-        eq('b5 V4 U13 wide: Run now first; phone: Runs and Test first and working; Paused chip marked; the 560 px rules hide the three buttons and only the non-paused chips',
+        eq('b5 V4 U13 phone keeps Test visible, both menu shortcuts work and Paused stays visible',
             [wide.slice(0, 2), phone.slice(0, 4), drawer, testOpened, paused,
-                narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }'),
+                narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }') && !narrow.includes('[data-ed-cmd="test"] { display: none; }'),
                 narrow.includes('.ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }'), narrow.includes('.ed-state { display: none; }'), s.h.logged],
             [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, true, false, []]);
         s.editor.dispose();

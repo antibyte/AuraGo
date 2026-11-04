@@ -117,15 +117,17 @@ type RunSummary struct {
 
 // RunResult is what the engine returns for a finished run.
 type RunResult struct {
-	Status       RunStatus
-	ErrorCode    string
-	ErrorMessage string
-	ErrorNodeID  string
-	StartedAt    time.Time
-	FinishedAt   time.Time
-	DurationMS   int64
-	Steps        []StepRecord
-	Outputs      map[string]map[string]any
+	Status         RunStatus
+	ErrorCode      string
+	ErrorMessage   string
+	ErrorNodeID    string
+	StartedAt      time.Time
+	FinishedAt     time.Time
+	DurationMS     int64
+	Steps          []StepRecord
+	Outputs        map[string]map[string]any
+	suspended      bool
+	durabilityLost bool
 }
 
 // RunRecord is the persisted header of a run.

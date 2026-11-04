@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Indexation d'images",
   "config.decisions.consumers_desc_indexer_images": "Décrit les images pendant l'indexation.",
   "config.decisions.consumers_name_game_maker_visual": "Contrôle visuel Game Maker",
-  "config.decisions.consumers_desc_game_maker_visual": "Vérifie les captures d'écran des jeux générés."
+  "config.decisions.consumers_desc_game_maker_visual": "Vérifie les captures d'écran des jeux générés.",
+  "config.backup.flow_key_pairing_required": "Restaure ensemble la configuration, la base de données des flux et le Vault protégé par mot de passe qui correspondent entre eux. Cette sauvegarde partielle remplacerait la clé d’autres données de flux.",
+  "config.backup.flow_keys_skipped": "Les clés de chiffrement des flux ont été ignorées pour que les données existantes restent lisibles."
 }

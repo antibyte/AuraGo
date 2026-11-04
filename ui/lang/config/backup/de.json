@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "Die registrierten Passkeys (WebAuthn) würden ersetzt.",
   "config.backup.sc_require_origin": "Die Pflicht zum Origin-Header bei angemeldeten Anfragen würde abgeschaltet.",
   "config.backup.sc_files_crontab": "Cron-Jobs: {new} neu, {changed} geändert (sie laufen selbstständig).",
-  "config.backup.sc_files_databases": "Datenbanken mit Verbindungen oder Zugangsdaten: {new} neu, {changed} geändert."
+  "config.backup.sc_files_databases": "Datenbanken mit Verbindungen oder Zugangsdaten: {new} neu, {changed} geändert.",
+  "config.backup.flow_key_pairing_required": "Stelle die zusammengehörige Konfiguration, Flow-Datenbank und den passwortgeschützten Vault gemeinsam wieder her. Dieses Teil-Backup würde den Schlüssel anderer Flow-Daten ersetzen.",
+  "config.backup.flow_keys_skipped": "Die Flow-Verschlüsselungsschlüssel wurden übersprungen, damit vorhandene Flow-Daten lesbar bleiben."
 }

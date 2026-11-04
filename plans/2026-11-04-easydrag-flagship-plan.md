@@ -1,9 +1,22 @@
 # EasyDrag flagship product plan
 
-Status: proposed roadmap, not an implementation specification or a statement of shipped behavior.
+Status: implementation in progress. This roadmap is not a statement that every phase has shipped.
 Requested outcome: make EasyDrag the flagship AuraGo experience, with exceptional usability, visual quality and depth.
 Baseline: checkout `5f28d1967` and the working tree inspected on 2026-11-04. Reconfirm affected source before implementation.
 Owners: `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md`; agent changes additionally require `internal/agent/AGENTS.md` and the prompt/training contracts.
+
+## Implementation checkpoints
+
+| Area | Current implementation boundary |
+| --- | --- |
+| Daily editing | Resizable workspace, step outline, selected-path focus, explicit mapping target, local introductory recipe, readable results and semantic publication review implemented; browser acceptance in progress. |
+| Testing | Isolated backend simulation, encrypted private named scenarios, structured input, exact output/branch assertions and bounded retained-run comparison implemented. Scenario replay uses exact scenario version and current draft revision; browser acceptance is in progress. |
+| Lifecycle | Paginated run history and explicit disabled Mission Control repair implemented. Test evidence requires the exact preview draft revision. |
+| AI | Goal-only proposal API and review/apply UI implemented for new and existing flows. Apply creates a new draft or one undoable revision-bound edit. Automated policy/shape/revision cases pass; real-provider task-quality evaluation remains open. No automatic publish, activation or execution. |
+| Durable execution | State-transition contract is in `2026-11-04-easydrag-durable-execution-contract.md`. Private pure-run checkpoint/coordinator primitives have migration, encryption, lease and crash tests. Scheduler/admission/cancellation integration is in progress; no restart/resume promise is exposed. |
+| Release acceptance | Human usability sessions, assistive-technology acceptance, reference-hardware performance and production integration acceptance remain unmeasured. Local fixture tests cannot substitute for these gates. |
+
+Later phases and their acceptance criteria below remain part of the authorized implementation scope.
 
 ## 1. Product direction
 

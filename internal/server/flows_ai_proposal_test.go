@@ -82,3 +82,51 @@ func TestFlowAIProposalOnlySendsGoalAndChecksRevision(t *testing.T) {
 		t.Fatal("unsupported model-generated step was accepted")
 	}
 }
+
+func TestNewFlowAIProposalDoesNotCreateFlow(t *testing.T) {
+	s, _ := newFlowsTestServer(t)
+	ctx := context.Background()
+	before, err := s.Flows.ListFlows(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stepper := proposalStepper(func(_ context.Context, req flows.LLMRequest) (flows.LLMResponse, error) {
+		if req.FlowID != "flow_ai_proposal" || !strings.Contains(req.Prompt, "say hello") {
+			t.Fatalf("unexpected proposal request: %+v", req)
+		}
+		return flows.LLMResponse{Text: greetFlowJSON}, nil
+	})
+	result, err := s.makeNewFlowProposal(ctx, "say hello", stepper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := result["doc"].(*flows.Flow)
+	if doc.ID != "" || doc.Kind != flows.KindFlow || result["effects"] == nil {
+		t.Fatalf("unexpected proposal: %+v", result)
+	}
+	after, err := s.Flows.ListFlows(ctx)
+	if err != nil || len(after) != len(before) {
+		t.Fatalf("proposal changed flow collection: before=%d after=%d err=%v", len(before), len(after), err)
+	}
+	bad := proposalStepper(func(context.Context, flows.LLMRequest) (flows.LLMResponse, error) {
+		return flows.LLMResponse{Text: strings.ReplaceAll(greetFlowJSON, "logic.set", "unsupported.node")}, nil
+	})
+	if _, err := s.makeNewFlowProposal(ctx, "say hello", bad); err == nil {
+		t.Fatal("unsupported model-generated step was accepted")
+	}
+}
+
+func TestNewFlowAIProposalRouteRequiresAdmin(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	path := "/api/desktop/flows/ai-proposal"
+	readToken, _, err := s.TokenManager.Create("read only", []string{desktopScopeRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := flowsCall(t, s, http.MethodPost, path, readToken, `{"goal":"hello"}`); w.Code != http.StatusForbidden {
+		t.Fatalf("read-only token = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, path, token, `{"goal":""}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("empty goal = %d %s", w.Code, w.Body.String())
+	}
+}

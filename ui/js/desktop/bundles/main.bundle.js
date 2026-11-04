@@ -9812,7 +9812,7 @@ function wireWindow(win, id) {
         host.addEventListener('change', schedule);
         host.addEventListener('click', schedule);
         document.addEventListener('aurago:desktop-policy', schedule);
-        const binding = { refresh, dispose() {
+        const binding = { refresh, activate() { if (!disposed && !working) button.click(); }, dispose() {
             disposed = true;
             observer.disconnect();
             host.removeEventListener('input', schedule);

@@ -126,6 +126,7 @@
         // loadOptions fills a select (or the datalist of a combo box) with the param's dynamic
         // options. Only an answer is cached: after a failed request the next build asks again.
         async function loadOptions(param, select, value) {
+            delete select.dataset.error;
             const key = env.info.type + '|' + param.name;
             let answer = optionCache.get(key);
             if (!answer) {
@@ -512,6 +513,12 @@
                 const focused = committingField || el.contains(document.activeElement);
                 if (visibleBefore !== visibleAfter || decisionModeChanged || (!focused && nodeChanged)) build();
                 else {
+                    // Retry failed option reads in place; validation refreshes must not detach controls.
+                    controls.forEach((entry, name) => {
+                        const param = ((env.info && env.info.params) || []).find(item => item.name === name);
+                        const select = param && param.options_source && entry.field.querySelector('select, datalist');
+                        if (select && select.dataset.error) loadOptions(param, select, node.params[name]);
+                    });
                     controls.forEach((_, name) => previewFor(name));
                     syncIssues();
                 }

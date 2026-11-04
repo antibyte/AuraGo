@@ -216,13 +216,16 @@
                 '/js/desktop/apps/easydrag-forms.js',
                 '/js/desktop/apps/easydrag-mapping.js',
                 '/js/desktop/apps/easydrag-detail.js',
+                '/js/desktop/apps/easydrag-scenarios.js',
                 '/js/desktop/apps/easydrag-testing.js',
+                '/js/desktop/apps/easydrag-compare.js',
                 '/js/desktop/apps/easydrag-runs.js',
                 '/js/desktop/apps/easydrag-publish.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',
                 '/js/desktop/apps/easydrag-history.js',
                 '/js/desktop/apps/easydrag-workspace.js',
+                '/js/desktop/apps/easydrag-authoring.js',
                 '/js/desktop/apps/easydrag-editor.js',
                 '/js/desktop/apps/easydrag.js'
             ]

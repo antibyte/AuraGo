@@ -161,20 +161,22 @@ type Runner struct {
 	// record while holding it instead of mu (see Start). It is taken before mu.
 	startMu sync.Mutex
 
-	mu         sync.Mutex
-	closed     bool
-	slots      int
-	live       map[string]int
-	flowSlots  map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
-	flowQueue  map[string][]*pendingRun
-	waiting    []*pendingRun
-	resumers   []*resumeWait // parked runs waiting for a slot again (A7)
-	parked     int           // runs whose global slot is given back (A7)
-	nextTicket uint64        // arrival order of waiting runs and resumers
-	cancels    map[string]activeRun
-	baseCtx    context.Context
-	baseStop   context.CancelFunc
-	wg         sync.WaitGroup
+	mu          sync.Mutex
+	closed      bool
+	slots       int
+	live        map[string]int
+	durable     map[string]durableReservation
+	recoveryErr error
+	flowSlots   map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
+	flowQueue   map[string][]*pendingRun
+	waiting     []*pendingRun
+	resumers    []*resumeWait // parked runs waiting for a slot again (A7)
+	parked      int           // runs whose global slot is given back (A7)
+	nextTicket  uint64        // arrival order of waiting runs and resumers
+	cancels     map[string]activeRun
+	baseCtx     context.Context
+	baseStop    context.CancelFunc
+	wg          sync.WaitGroup
 
 	// testOnEvent, when set before the first Start, sees every engine event before
 	// it is published. Tests use it to inject failures into the event sink.
@@ -205,17 +207,28 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		logger = slog.Default()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Runner{
+	r := &Runner{
 		engine: engine, store: store, hooks: hooks, cfg: cfg, logger: logger,
 		bus:       NewEventBus(eventRetention, engine.services.Now),
 		now:       engine.services.Now,
 		live:      map[string]int{},
+		durable:   map[string]durableReservation{},
 		flowSlots: map[string]int{},
 		flowQueue: map[string][]*pendingRun{},
 		cancels:   map[string]activeRun{},
 		baseCtx:   ctx,
 		baseStop:  cancel,
 	}
+	reservations, err := store.durableReservations(context.Background())
+	if err != nil {
+		r.recoveryErr = err
+	} else {
+		for _, reservation := range reservations {
+			r.durable[reservation.RunID] = reservation
+			r.live[reservation.FlowID]++
+		}
+	}
+	return r
 }
 
 // Bus returns the run event bus.
@@ -238,6 +251,9 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	}
 	if req.Mode == "" {
 		req.Mode = ModeLive
+	}
+	if req.Mode != ModeTest && r.recoveryErr != nil {
+		return StartResult{}, fmt.Errorf("durable run recovery unavailable: %w", r.recoveryErr)
 	}
 	counted := req.Mode != ModeTest
 	flowID := req.Flow.ID

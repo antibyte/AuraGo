@@ -508,6 +508,7 @@
                         if (!saved) { err.hidden = false; err.textContent = t('easydrag.ui.test_unsaved'); }
                         return false;
                     }
+                    if (simulation && !simulation.flush()) return false;
                     if (simulation && simulation.isSelected()) return trackStart(() => simulation.run());
                     const text = d.body.querySelector('[data-ed-test-data]').value;
                     const edited = text !== shown || prefilled;
@@ -538,15 +539,16 @@
                     });
                 }
             });
+            dialog.body.querySelector('[data-ed-test-data]').value = shown;
             if (ED.testing && ed.api.simulate) simulation = ED.testing.decorate(ed, dialog, {
                 trigger: () => { const select = dialog.body.querySelector('[data-ed-test-trigger]'); return select ? select.value : trigger.id; },
                 onlyNode: o.onlyNode, revision: baseRevision,
                 isCurrent: () => !disposed && !ed.runView && ed.model.version === version,
                 apply: (result, data) => {
-                    const record = { id: 'simulation', mode: 'simulation', revision: result.revision, status: result.status, error_code: result.error_code, error_message: result.error_message, started_at: result.started_at || new Date().toISOString(), trigger_node: dialog.body.querySelector('[data-ed-test-trigger]') ? dialog.body.querySelector('[data-ed-test-trigger]').value : trigger.id, trigger_data: data };
+                    const record = { id: 'simulation', mode: 'simulation', revision: result.revision, status: result.status, error_code: result.error_code, error_message: result.error_message, assertions: result.assertions, started_at: result.started_at || new Date().toISOString(), trigger_node: dialog.body.querySelector('[data-ed-test-trigger]') ? dialog.body.querySelector('[data-ed-test-trigger]').value : trigger.id, trigger_data: data };
                     const run = stepsFrom(result.steps || [], record);
                     ed.lastRunData = { label: t('easydrag.ui.simulation_result'), roots: rootsFrom(result.steps || [], record) };
-                    ed.testEvidence = { revision: result.revision, status: result.status, mode: 'simulation' };
+                    ed.testEvidence = { revision: result.revision, status: (result.assertions || []).some(assertion => !assertion.passed) ? 'error' : result.status, mode: 'simulation' };
                     setRun(run);
                     ed.bus.emit('last-run', record);
                     ed.bus.emit('last-run-data', ed.lastRunData);
@@ -578,6 +580,7 @@
                     if (select.value !== id || area.value !== shown) return;
                     shown = JSON.stringify(next, null, 2);
                     area.value = shown;
+                    if (simulation) simulation.refreshData();
                     prefilled = false;
                 });
             }
@@ -844,14 +847,20 @@
         let listedRuns = new Map();
         let runsOffset = 0, runsMore = false, runsLoading = false, runsQuery = '';
 
+        function matchingRuns() {
+            return Array.from(listedRuns.values()).filter(r => !runsQuery || [r.id, r.status, core.tr(t, 'easydrag.ui.status_' + r.status, r.status), triggerLabel(r), core.fmt.dateTime(r.started_at), r.revision].join(' ').toLocaleLowerCase().includes(runsQuery));
+        }
+
         function drawRuns() {
             if (!drawer) return;
             const list = drawer.querySelector('.ed-runs-list');
-            const rows = Array.from(listedRuns.values()).filter(r => !runsQuery || [r.id, r.status, triggerLabel(r), core.fmt.dateTime(r.started_at), r.revision].join(' ').toLocaleLowerCase().includes(runsQuery));
+            const rows = matchingRuns();
             list.innerHTML = rows.length ? rows.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
             const more = drawer.querySelector('[data-ed-runs-more]');
             more.hidden = !runsMore;
             more.disabled = runsLoading;
+            const compare = drawer.querySelector('[data-ed-runs-compare]');
+            if (compare) compare.disabled = !ED.compare || rows.filter(r => isFinal(r.status)).length < 2;
         }
 
         // loadRuns fills the drawer; only the answer to the latest request (filter) is shown. A
@@ -920,13 +929,14 @@
                 '<button type="button" class="ed-icon-btn" data-ed-drawer-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header>' +
                 '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.runs_filter_label')) + '">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
                 '<div class="ed-runs-tools"><div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-runs-search aria-label="' + esc(t('easydrag.ui.runs_search')) + '" placeholder="' + esc(t('easydrag.ui.runs_search')) + '"></div><button type="button" class="ed-icon-btn" data-ed-runs-refresh title="' + esc(t('easydrag.ui.runs_refresh')) + '" aria-label="' + esc(t('easydrag.ui.runs_refresh')) + '">' + core.icon('refresh') + '</button></div>' +
-                '<p class="ed-error" data-ed-runs-error role="alert" hidden></p><div class="ed-runs-list"></div><button type="button" class="ed-btn ed-runs-pager" data-ed-runs-more hidden>' + esc(t('easydrag.ui.runs_load_more')) + '</button></aside>');
+                '<button type="button" class="ed-btn ed-runs-pager" data-ed-runs-compare disabled>' + esc(t('easydrag.ui.compare_runs')) + '</button><p class="ed-error" data-ed-runs-error role="alert" hidden></p><div class="ed-runs-list"></div><button type="button" class="ed-btn ed-runs-pager" data-ed-runs-more hidden>' + esc(t('easydrag.ui.runs_load_more')) + '</button></aside>');
             (ed.root.querySelector('.ed-body') || ed.root).appendChild(drawer);
             ed.root.classList.add('has-drawer');
             drawer.addEventListener('click', (event) => {
                 if (event.target.closest('[data-ed-drawer-close]')) { toggleDrawer(false); return; }
                 if (event.target.closest('[data-ed-runs-more]')) { loadRuns(false, true); return; }
                 if (event.target.closest('[data-ed-runs-refresh]')) { loadRuns(false); return; }
+                if (event.target.closest('[data-ed-runs-compare]')) { if (ED.compare) ED.compare.open(ed, matchingRuns()); return; }
                 const f = event.target.closest('[data-ed-runs-filter]');
                 if (f) {
                     drawerFilter = f.dataset.edRunsFilter;
@@ -1004,6 +1014,7 @@
         bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
         bag.add(() => runFinished.cancel());
         bag.add(() => toggleDrawer(false));
+        bag.add(() => { if (ED.compare) ED.compare.close(ed); });
 
         return {
             startTest, attach, runLive, cancel, stopRun, refreshShown, runFinished, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,

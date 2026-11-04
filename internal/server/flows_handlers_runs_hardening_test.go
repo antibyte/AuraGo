@@ -524,7 +524,7 @@ func TestC18RunListQueryIsValidated(t *testing.T) {
 	rec := createTestFlow(t, s, greetFlowJSON)
 	waitFlowRunStatus(t, s, token, c18StartTestRun(t, s, token, rec, ""), "success")
 	base := "/api/desktop/flows/" + rec.ID + "/runs"
-	for _, q := range []string{"?mode=bogus_mode", "?mode=TEST", "?status=bogus_status", "?limit=-1", "?offset=-3",
+	for _, q := range []string{"?mode=bogus_mode", "?mode=TEST", "?mode=simulation", "?status=bogus_status", "?limit=-1", "?offset=-3",
 		"?limit=ten", "?offset=1.5", "?limit=99999999999999999999"} {
 		w := flowsCall(t, s, http.MethodGet, base+q, token, "")
 		if w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_BAD_REQUEST" || strings.Contains(w.Body.String(), "bogus") {

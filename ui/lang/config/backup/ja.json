@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "登録済みのパスキー (WebAuthn) が置き換えられます。",
   "config.backup.sc_require_origin": "ログイン済みリクエストの Origin ヘッダー必須設定が無効になります。",
   "config.backup.sc_files_crontab": "Cron ジョブ: 新規 {new} 件、変更 {changed} 件 (自動的に実行されます)。",
-  "config.backup.sc_files_databases": "接続情報や認証情報を含むデータベース: 新規 {new} 件、変更 {changed} 件。"
+  "config.backup.sc_files_databases": "接続情報や認証情報を含むデータベース: 新規 {new} 件、変更 {changed} 件。",
+  "config.backup.flow_key_pairing_required": "対応する設定、フローデータベース、パスワードで保護されたVaultをまとめて復元してください。この部分バックアップでは、別のフローデータの鍵が置き換えられてしまいます。",
+  "config.backup.flow_keys_skipped": "既存のフローデータを引き続き読み取れるように、フローの暗号化鍵をスキップしました。"
 }

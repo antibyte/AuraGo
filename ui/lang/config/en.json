@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Image indexing",
   "config.decisions.consumers_desc_indexer_images": "Describes images while indexing.",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visual check",
-  "config.decisions.consumers_desc_game_maker_visual": "Checks screenshots of generated games."
+  "config.decisions.consumers_desc_game_maker_visual": "Checks screenshots of generated games.",
+  "config.backup.flow_key_pairing_required": "Restore the matching configuration, flow database and password-protected Vault together. This partial backup would replace the key for different flow data.",
+  "config.backup.flow_keys_skipped": "Flow encryption keys were skipped to keep existing flow data readable."
 }

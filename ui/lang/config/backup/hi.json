@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "पंजीकृत पासकी (WebAuthn) बदल दी जाएँगी।",
   "config.backup.sc_require_origin": "लॉगिन किए हुए अनुरोधों के लिए Origin हेडर की आवश्यकता बंद हो जाएगी।",
   "config.backup.sc_files_crontab": "क्रॉन जॉब: {new} नए, {changed} बदले हुए (ये अपने आप चलते हैं)।",
-  "config.backup.sc_files_databases": "कनेक्शन या क्रेडेंशियल वाले डेटाबेस: {new} नए, {changed} बदले हुए।"
+  "config.backup.sc_files_databases": "कनेक्शन या क्रेडेंशियल वाले डेटाबेस: {new} नए, {changed} बदले हुए।",
+  "config.backup.flow_key_pairing_required": "संबंधित कॉन्फ़िगरेशन, फ़्लो डेटाबेस और पासवर्ड से सुरक्षित Vault को एक साथ बहाल करें। यह आंशिक बैकअप दूसरे फ़्लो डेटा की कुंजी बदल देगा।",
+  "config.backup.flow_keys_skipped": "मौजूदा फ़्लो डेटा पढ़ने योग्य बना रहे, इसलिए फ़्लो की एन्क्रिप्शन कुंजियों को छोड़ दिया गया।"
 }

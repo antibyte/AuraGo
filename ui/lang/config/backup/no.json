@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "De registrerte passnøklene (WebAuthn) ville bli erstattet.",
   "config.backup.sc_require_origin": "Kravet om Origin-header for innloggede forespørsler ville bli slått av.",
   "config.backup.sc_files_crontab": "Cron-jobber: {new} nye, {changed} endret (de kjører selvstendig).",
-  "config.backup.sc_files_databases": "Databaser med tilkoblinger eller legitimasjon: {new} nye, {changed} endret."
+  "config.backup.sc_files_databases": "Databaser med tilkoblinger eller legitimasjon: {new} nye, {changed} endret.",
+  "config.backup.flow_key_pairing_required": "Gjenopprett tilhørende konfigurasjon, flytdatabase og passordbeskyttet Vault sammen. Denne delvise sikkerhetskopien ville erstatte nøkkelen for andre flytdata.",
+  "config.backup.flow_keys_skipped": "Krypteringsnøklene for flyter ble hoppet over slik at eksisterende flytdata fortsatt kan leses."
 }

@@ -94,6 +94,12 @@
             resizeControl(host, 'inspector'); frame.request();
         }));
         bag.add(ed.bus.on('detail-closed', () => { controls.delete('inspector'); frame.request(); }));
+        bag.add(ed.bus.on('panel-size-menu', ({ kind, anchor }) => {
+            if (!anchor || !['palette', 'inspector'].includes(kind) || typeof ed.ctx.showContextMenu !== 'function') return;
+            const limit = bounds(kind), rect = anchor.getBoundingClientRect();
+            const choices = Array.from(new Set([limit.min, kind === 'inspector' ? 400 : 280, Math.round((limit.min + limit.max) / 2), limit.max])).filter(width => width >= limit.min && width <= limit.max).sort((a, b) => a - b);
+            ed.ctx.showContextMenu(rect.left, rect.bottom, choices.map(width => ({ label: width + ' px', action: () => { prefs[kind] = apply(kind, width); save(); anchor.focus({ preventScroll: true }); } })));
+        }));
         const layout = core.frame(() => {
             if (dead) return;
             chooseLayout();

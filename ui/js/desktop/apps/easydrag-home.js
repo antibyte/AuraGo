@@ -60,6 +60,7 @@
             '<header class="ed-home-hero"><div class="ed-home-brand"><span class="ed-logo" aria-hidden="true">' + core.icon('git-branch') + '</span>' +
             '<div><h1>EasyDrag</h1><p>' + esc(t('easydrag.ui.home_tagline')) + '</p></div></div>' +
             '<div class="ed-home-actions"><button type="button" class="ed-btn" data-ed-import>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.home_import')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-authoring>' + core.icon('sparkles') + '<span>' + esc(t('easydrag.ui.authoring_title')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button>' +
             '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file></div></header>' +
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
@@ -280,6 +281,7 @@
             if (categories.innerHTML !== categoryOptions) { categories.innerHTML = categoryOptions; categories.value = templateCategory; }
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
             el.querySelectorAll('[data-ed-import]').forEach(b => { b.disabled = off; });
+            el.querySelectorAll('[data-ed-authoring]').forEach(b => { b.disabled = off; });
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
             const sortSel = el.querySelector('[data-ed-home-sort]');
             if (sortSel) sortSel.disabled = !!loadError;
@@ -391,13 +393,15 @@
         let gone = false;
         const runsPending = new Set();
         function mayChange() { return !gone && !createOff(); }
+        const authoring = ED.authoring && ED.authoring.createNew(app, el, mayChange);
+        if (authoring) bag.add(() => authoring.dispose());
 
-        async function create(body) {
+        async function create(body, openOptions) {
             if (!mayChange() || creating) return;
             creating = true;
             try {
                 const res = await app.api.create(body);
-                app.openFlow(res.flow.id);
+                app.openFlow(res.flow.id, openOptions);
             } catch (err) {
                 ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
             } finally {
@@ -548,6 +552,7 @@
             if (event.target.closest('[data-ed-home-clear-search]')) { clearSearch(); return; }
             if (event.target.closest('[data-ed-home-clear-filter]')) { clearFilter(); return; }
             if (event.target.closest('[data-ed-new]')) { newFlow(); return; }
+            if (event.target.closest('[data-ed-authoring]')) { if (authoring) authoring.open(); return; }
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');
             if (f) {

@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "图像索引",
   "config.decisions.consumers_desc_indexer_images": "在索引时描述图像。",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker 视觉检查",
-  "config.decisions.consumers_desc_game_maker_visual": "检查生成游戏的截图。"
+  "config.decisions.consumers_desc_game_maker_visual": "检查生成游戏的截图。",
+  "config.backup.flow_key_pairing_required": "请一并恢复相互匹配的配置、流程数据库和受密码保护的 Vault。此部分备份会替换其他流程数据的密钥。",
+  "config.backup.flow_keys_skipped": "已跳过流程加密密钥，以确保现有流程数据仍可读取。"
 }

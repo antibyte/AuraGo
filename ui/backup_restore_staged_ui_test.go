@@ -19,6 +19,9 @@ func TestBackupRestoreStagedUIContract(t *testing.T) {
 		"li.textContent = String(w)",
 		"msg.textContent = String(data.message)",
 		"config.backup.error_http",
+		"config.backup.flow_key_pairing_required",
+		"config.backup.flow_keys_skipped",
+		"data.warning_codes",
 		"config.backup.restore_pending_since",
 		"config.backup.last_restore_",
 		"method: 'DELETE'",
@@ -61,7 +64,8 @@ func TestBackupRestoreStagedLocales(t *testing.T) {
 		"security_changes_title", "security_changes_intro", "sc_auth_disabled", "sc_host_changed", "sc_password_hash", "sc_tokens",
 		"sc_files_prompts", "sc_files_skills", "sc_files_agent_skills", "sc_files_tools",
 		"sc_totp_disabled", "sc_totp_secret", "sc_webauthn", "sc_require_origin", "sc_files_crontab", "sc_files_databases",
-		"confirm_restore", "confirming", "confirm_done", "confirm_dialog_title", "confirm_dialog_message"}
+		"confirm_restore", "confirming", "confirm_done", "confirm_dialog_title", "confirm_dialog_message",
+		"flow_key_pairing_required", "flow_keys_skipped"}
 	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	en := map[string]string{}
 	for _, loc := range locales {

@@ -53,7 +53,7 @@ func parseTime(s string) time.Time {
 // storeSchemaVersion is the flows.db schema this code creates and migrates to; it is
 // stored as flows_meta.schema_version. OpenStore refuses a database with a greater
 // version (a newer AuraGo migrated it), so an older AuraGo never writes into it.
-const storeSchemaVersion = 1
+const storeSchemaVersion = 2
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -147,7 +147,7 @@ var schemaStatements = []string{
 		json TEXT NOT NULL,
 		PRIMARY KEY (flow_id, hash)
 	)`,
-	`INSERT OR IGNORE INTO flows_meta (key, value) VALUES ('schema_version', '` + strconv.Itoa(storeSchemaVersion) + `')`,
+	`INSERT OR IGNORE INTO flows_meta (key, value) VALUES ('schema_version', '1')`,
 }
 
 // storeColumns are columns added after the first release. OpenStore adds them to an older
@@ -202,6 +202,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := backupFlowsBeforeV2(db, logger); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	s := &Store{db: db, logger: logger}
 	for _, stmt := range schemaStatements {
 		if _, err := db.Exec(stmt); err != nil {
@@ -220,6 +224,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 			_ = db.Close()
 			return nil, fmt.Errorf("migrate flows database: %w", err)
 		}
+	}
+	if err := migrateFlowsV2(db); err != nil {
+		_ = db.Close()
+		return nil, err
 	}
 	return s, nil
 }

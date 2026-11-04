@@ -89,6 +89,29 @@ func (s *runState) publish(ev RunEvent) {
 	ev.Seq = s.seq
 	ev.RunID = s.req.RunID
 	ev.Time = s.e.services.Now()
+	if control := s.req.durable; control != nil && control.active && ev.Type == EventStepFinished && ev.Step != nil {
+		if control.lost {
+			return
+		}
+		if ev.Step.Status == StepWaiting {
+			s.emit(ev)
+			return
+		}
+		if s.failure != nil || s.stop != nil || ev.Step.Status == StepCancelled {
+			control.pending = append(control.pending, ev)
+			return
+		}
+		state, err := captureDurableState(s, "", time.Time{}, time.Time{}, control.deadline)
+		if err == nil {
+			err = control.checkpoint(control.ctx, state, *ev.Step)
+		}
+		if err != nil {
+			control.lost = true
+			s.failure = NewNodeError("FLOW_NODE_UNAVAILABLE", "the durable checkpoint could not be saved")
+			s.failedID = ev.NodeID
+			return
+		}
+	}
 	s.emit(ev)
 }
 
@@ -218,7 +241,10 @@ func (s *runState) run(parent context.Context) RunResult {
 		s.inScope[s.req.OnlyNode] = true
 	}
 	s.fireTrigger(trigger)
+	return s.drive(parent, ctx, cancel)
+}
 
+func (s *runState) drive(parent, ctx context.Context, cancel context.CancelFunc) RunResult {
 	// Buffered for every worker that can be in flight, so a worker never blocks
 	// on its send, even after the coordinator gave up waiting for it.
 	done := make(chan nodeDone, s.e.parallel)
@@ -235,6 +261,24 @@ loop:
 	for {
 		for len(ready) > 0 && s.running < s.e.parallel && s.failure == nil && s.stop == nil && ctx.Err() == nil {
 			id := ready[0]
+			if s.req.durable != nil && s.g.nodes[id].Type == durableWaitType {
+				if s.running != 0 {
+					break
+				}
+				ready = ready[1:]
+				result, failure := s.suspendDurableNode(ctx, id)
+				if failure == nil {
+					return result
+				}
+				s.failure, s.failedID, s.status[id] = failure, id, StepError
+				s.skipOutgoing(id)
+				now := s.e.services.Now()
+				step := StepRecord{NodeID: id, NodeKey: s.g.nodes[id].Key, Attempt: 1, Status: StepError,
+					StartedAt: now, FinishedAt: now, ErrorCode: failure.Code, ErrorMessage: failure.Message}
+				s.steps = append(s.steps, step)
+				s.publish(RunEvent{Type: EventStepFinished, NodeID: id, Step: &step})
+				break
+			}
 			ready = ready[1:]
 			s.launch(ctx, id, done)
 		}
@@ -664,6 +708,20 @@ func (s *runState) finish(status RunStatus, code, msg, nodeID string) RunResult 
 		Status: status, ErrorCode: code, ErrorMessage: msg, ErrorNodeID: nodeID,
 		StartedAt: s.started, FinishedAt: end, DurationMS: end.Sub(s.started).Milliseconds(),
 		Steps: s.steps, Outputs: s.outputs,
+	}
+	if control := s.req.durable; control != nil && control.active {
+		if control.lost || control.finish == nil || control.finish(context.WithoutCancel(control.ctx), res, control.pending) != nil {
+			res.Status = RunError
+			res.ErrorCode = "FLOW_NODE_UNAVAILABLE"
+			res.ErrorMessage = "the durable run could not be finalized"
+			res.Steps, res.Outputs = nil, nil
+			res.durabilityLost = true
+			return res
+		}
+		for _, ev := range control.pending {
+			s.emit(ev)
+		}
+		control.pending = nil
 	}
 	s.publish(RunEvent{Type: EventRunFinished, Run: &RunSummary{Status: status, ErrorCode: code, ErrorMessage: msg, DurationMS: res.DurationMS}})
 	return res

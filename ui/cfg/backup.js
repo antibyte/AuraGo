@@ -198,6 +198,7 @@ function backupImportReason(body, ctx) {
     if (body && typeof body === 'object' && (body.error || body.message)) {
         if (body.error === 'password_required') return t('config.backup.password_required');
         if (body.error === 'decryption_failed') return t('config.backup.decryption_failed');
+        if (body.error === 'flow_key_pairing_required') return t('config.backup.flow_key_pairing_required');
         return String(body.error || body.message);
     }
     const status = ctx && ctx.httpStatus;
@@ -288,6 +289,9 @@ function backupRenderImportResult(result, data, state) {
         box.appendChild(msg);
     }
     const warnings = Array.isArray(data.warnings) ? data.warnings.filter(Boolean) : [];
+    if (Array.isArray(data.warning_codes) && data.warning_codes.includes('flow_keys_skipped')) {
+        warnings.push(t('config.backup.flow_keys_skipped'));
+    }
     if (warnings.length) {
         const list = document.createElement('ul');
         list.className = 'backup-import-warnings';

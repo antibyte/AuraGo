@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Bildindexering",
   "config.decisions.consumers_desc_indexer_images": "Beskriver bilder under indexeringen.",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker-visuell kontroll",
-  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerar skärmdumpar av genererade spel."
+  "config.decisions.consumers_desc_game_maker_visual": "Kontrollerar skärmdumpar av genererade spel.",
+  "config.backup.flow_key_pairing_required": "Återställ den tillhörande konfigurationen, flödesdatabasen och det lösenordsskyddade Vault tillsammans. Den här partiella säkerhetskopian skulle ersätta nyckeln för andra flödesdata.",
+  "config.backup.flow_keys_skipped": "Flödenas krypteringsnycklar hoppades över så att befintliga flödesdata fortfarande går att läsa."
 }

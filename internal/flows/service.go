@@ -249,6 +249,9 @@ func (s *Service) Start(ctx context.Context) error {
 	if started {
 		return nil
 	}
+	if s.runner.recoveryErr != nil {
+		return fmt.Errorf("durable run recovery unavailable: %w", s.runner.recoveryErr)
+	}
 	// A failed earlier attempt may have marked the interrupted runs already; doing it
 	// again only touches runs from before the boot time, so it is harmless.
 	n, err := s.store.MarkInterruptedRuns(ctx, s.bootTime, s.now())

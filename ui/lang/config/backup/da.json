@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "De registrerede adgangsnøgler (WebAuthn) ville blive erstattet.",
   "config.backup.sc_require_origin": "Kravet om Origin-header for loggede anmodninger ville blive slået fra.",
   "config.backup.sc_files_crontab": "Cron-jobs: {new} nye, {changed} ændrede (de kører automatisk).",
-  "config.backup.sc_files_databases": "Databaser med forbindelser eller loginoplysninger: {new} nye, {changed} ændrede."
+  "config.backup.sc_files_databases": "Databaser med forbindelser eller loginoplysninger: {new} nye, {changed} ændrede.",
+  "config.backup.flow_key_pairing_required": "Gendan den tilhørende konfiguration, flowdatabase og adgangskodebeskyttede Vault sammen. Denne delvise sikkerhedskopi ville erstatte nøglen til andre flowdata.",
+  "config.backup.flow_keys_skipped": "Krypteringsnøglerne til flows blev sprunget over, så eksisterende flowdata fortsat kan læses."
 }

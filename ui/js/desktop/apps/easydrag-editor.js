@@ -24,7 +24,7 @@
         const core = ED.core;
         const { t, esc, ctx } = app;
         const bag = core.bag();
-        let canvas, wires, interact, palette, runs, publish, history, workspace;
+        let canvas, wires, interact, palette, runs, publish, history, workspace, authoring, emailBinding;
         // A build that fails later releases what it set up (dispose skips what does not exist yet).
         guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
@@ -100,6 +100,7 @@
         palette = ED.palette.createPanel(ed, canvas);
         runs = ED.runs.create(ed, canvas);
         publish = ED.publish.create(ed);
+        authoring = ED.authoring && ED.authoring.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
         body.appendChild(canvas.listRegion);
@@ -212,9 +213,11 @@
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
             btn('test').disabled = ro || running;
             btn('test').classList.toggle('is-busy', running);
+            btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
             btn('cancel').hidden = !running;
             btn('publish').disabled = ro;
             btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
+            btn('publish').classList.toggle('ed-btn--primary', !!ed.flow.live && !ro);
             const runBtn = btn('run-now');
             if (runBtn) {
                 const run = runNowState();
@@ -548,7 +551,7 @@
             }
         }
         ed.flushPendingEdits = flushPendingEdits;
-        window.AuraDesktopEmail?.attach(app.windowId, '.ed-head-actions', () => ({
+        emailBinding = window.AuraDesktopEmail?.attach(app.windowId, () => null, () => ({
             key:disposed?null:ed.flow.id,disabled:disposed||restoring||deleting,
             subject:draftModel.doc.name,formats:[{id:'json',label:'.easydrag.json'}],
             createFiles:async(_format,signal)=>{
@@ -587,9 +590,11 @@
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
+                { icon: 'sparkles', label: t('easydrag.ui.authoring_title'), disabled: ro || runs.isRunning() || !authoring, action: () => authoring && authoring.open() },
                 ...(ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') ? [{ icon: 'link', label: t('easydrag.ui.repair_mission'), disabled: ro, action: repairMission }] : []),
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
+                { icon: 'mail', label: t('desktop.email_export'), disabled: !!ed.readonly || !emailBinding, action: () => emailBinding && emailBinding.activate() },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
@@ -774,6 +779,7 @@
         }));
         // The Active switch also decides whether Run now is offered.
         bag.add(ed.bus.on('enabled', () => { renderHeader(); setMenus(); }));
+        bag.add(ed.bus.on('proposal-applied', () => { ED.detail.close(ed); canvas.fit({ readable: true }); }));
         // A refused paste is announced to screen readers by interact; this shows it to everyone.
         bag.add(ed.bus.on('paste-refused', () => ctx.notify({ title: t('easydrag.ui.paste'), message: t('easydrag.ui.paste_refused') })));
         // The viewport is stored per flow once panning or zooming pauses for 400 ms, not on every
@@ -977,7 +983,8 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());
             safely(() => bag.dispose());

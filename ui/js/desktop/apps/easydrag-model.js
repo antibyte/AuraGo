@@ -391,7 +391,10 @@
             const pick = entry => dir === 'after' ? entry.after : entry.before;
             setItems(state.doc.nodes, dir === 'after' ? set.nodes : set.nodes.slice().reverse(), pick);
             setItems(state.doc.edges, dir === 'after' ? set.edges : set.edges.slice().reverse(), pick);
-            if (set.meta) Object.assign(state.doc, clone(dir === 'after' ? set.meta.after : set.meta.before));
+            if (set.meta) {
+                const meta = dir === 'after' ? set.meta.after : set.meta.before;
+                Object.keys(meta).forEach(key => { if (meta[key] === undefined) delete state.doc[key]; else state.doc[key] = clone(meta[key]); });
+            }
         }
 
         // restoreOrder puts list back into the id order recorded before a change; items the

@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "Le passkey registrate (WebAuthn) verrebbero sostituite.",
   "config.backup.sc_require_origin": "L'obbligo dell'intestazione Origin per le richieste autenticate verrebbe disattivato.",
   "config.backup.sc_files_crontab": "Job cron: {new} nuovi, {changed} modificati (vengono eseguiti in autonomia).",
-  "config.backup.sc_files_databases": "Database con connessioni o credenziali: {new} nuovi, {changed} modificati."
+  "config.backup.sc_files_databases": "Database con connessioni o credenziali: {new} nuovi, {changed} modificati.",
+  "config.backup.flow_key_pairing_required": "Ripristina insieme la configurazione, il database dei flussi e il Vault protetto da password corrispondenti. Questo backup parziale sostituirebbe la chiave di altri dati dei flussi.",
+  "config.backup.flow_keys_skipped": "Le chiavi di crittografia dei flussi sono state ignorate per mantenere leggibili i dati esistenti."
 }

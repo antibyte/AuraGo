@@ -32,6 +32,14 @@ filters help you find other examples; the cards distinguish local processing fro
 possible external effects. A setup reminder does not mean an integration is missing
 or that its connection has been tested.
 
+**Describe your automation** creates an AI proposal from your goal. Review its steps,
+changes and possible effects before **Apply**. Only then is a new flow created; in an
+existing flow, applying is one undoable edit. Publishing, activation and execution
+remain separate actions. Your configured AI provider receives the goal you enter and
+the available building-block descriptions, without stored test data or run outputs.
+Keep secrets out of the goal text too. Templates and manual editing remain available
+when the provider is unavailable.
+
 1. Open **EasyDrag** on the desktop. Choose **New flow** and give it a name, or start from a **template**.
 2. Click **Choose a trigger** and pick one.
 3. Select the trigger and press **Ctrl+K**: quick search adds the next step right behind it and connects it. **Tab** only moves focus. You can also use **Add** on the selected card, or drag building blocks from the left panel onto the canvas or onto a connection.
@@ -45,12 +53,13 @@ The step list in the left toolbar provides a visible outline of the flow. Select
 step there to navigate without dragging. **Focus selected path** frames its connected
 path. You can resize the library and inspector with their separators, using a pointer
 or the keyboard. These device-local view preferences do not modify the flow.
+Panel-header width menus offer the same sizes by click or tap.
 
 When inserting input data, choose **Insert data into** first. EasyDrag never guesses
 the first available field. It retains the selected field and insertion position;
 a wide inspector can show the source data beside the parameter form.
 
-- The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Undo** and **Redo**, **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Version history*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. In an editor 560 px wide or narrower (a phone), **Runs** and **Test** move into the ⋯ menu too, and *Paused* stays next to the name; so do *Republish needed* and the warning about stopped Date & time triggers. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
+- The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Undo** and **Redo**, **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Version history*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. In an editor 560 px wide or narrower (a phone), **Runs** moves into the ⋯ menu; **Test** remains directly accessible, and *Paused* stays next to the name; so do *Republish needed* and the warning about stopped Date & time triggers. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
 - **Undo** and **Redo** in the header take back or repeat the last change, also on touch screens (Ctrl+Z and Ctrl+Shift+Z do the same on the canvas). Deleting steps shows a note such as "Alpha deleted" with **Undo** for a few seconds; deleting asks no question first.
 - **Find step in flow** (Ctrl+F, also in the *View* menu and the canvas context menu) searches the steps by name, data name, type or parameter text; Enter jumps to the first match.
 - **Arrange automatically** (Alt+Shift+F, also in the *Edit* menu and the canvas context menu) lines the steps up in columns from the trigger to the right. It is one undo step.
@@ -86,9 +95,22 @@ The dialog separates **Real test** from **Simulation**. A real test can perform 
 listed actions. A simulation runs pure processing steps locally and replaces other
 supported steps with the sample outputs you provide. Missing or incompatible samples
 stop the simulation; the simulation engine has no tool, model, device or secret access.
-Sample outputs are JSON keyed by step ID, with `output` and optional `ports`. They stay
-in the open window. Results are explicitly marked as simulated and are not live-run
+Sample outputs are JSON keyed by step ID, with `output` and optional `ports`, or a
+supported `error_code` to simulate failure. Unless saved, they stay in the open window.
+Results are explicitly marked as simulated and are not live-run
 history. Edited real-test data with redacted or omitted values must be completed first.
+
+Edit simple text, number and boolean fields directly; nested values remain accessible
+in the advanced JSON section. In Simulation, save inputs, fixture outputs and
+**Expected results** as a named private test scenario. Each check compares a step's
+exact JSON output, its output ports, or both, and reports differences after simulation.
+
+Stored scenarios use their original data snapshot. Renaming preserves it;
+**Start a fresh scenario** starts with empty inputs. Execution, parameter or connection
+changes require a compatible new scenario; position, label and note changes do not.
+Limits are 20 scenarios per flow and 256 KiB per scenario. Their data is encrypted on
+the AuraGo server and excluded from flow exports. A complete backup also needs the
+password-protected Vault export; the matching key is required to recover these data.
 
 - **Test** saves the draft first; a draft that cannot be saved is not tested. The flow needs a trigger that is turned on.
 - The test dialog shows the trigger data the test starts with. With several triggers, pick one under *Start from*. Change the JSON to try other cases; *Remember this data for later tests* keeps your edit.
@@ -115,6 +137,12 @@ a successful test does not guarantee that a future live action will succeed.
 - A header such as *Authorization*, *X-Api-Key* or *Cookie* with a typed-in value is a hint as well: the value sits in clear text in the flow and its versions. Store it as a secret and use the *Secret* field. Exports and the run view show such values as `[redacted]`.
 
 ## Runs and Notifications
+
+**Compare runs** compares two completed runs from the loaded, filtered history
+(up to 200 choices). It highlights changed inputs, outputs, branches and states.
+Truncated or redacted data cannot establish equality and is marked incomplete.
+**Download diagnostics** exports technical metadata only, without names, payloads or
+error-message text. Comparing never replays a step.
 
 - **Runs** initially lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. **Load older runs** retrieves another retained page; search covers the loaded rows. Refresh explicitly to restart at the newest page. Clicking a run opens its exact flow version and recorded input/output, read-only. A timeline and failure explanation help locate the affected step. **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
 - In the run view, **Test again with this data** opens the test dialog with that run's trigger data. Replace redacted or omitted values before a real test. The dialog lists the real effects and asks before anything runs; data is remembered only when you tick *Remember this data for later tests*. The button is missing while a run is going and when the original trigger data was not retained in full.
@@ -152,7 +180,7 @@ a successful test does not guarantee that a future live action will succeed.
 
 ## Templates, Import and Export
 
-- The start page offers six templates: *AI news as PDF via Telegram*, *Summarise a webhook by email*, *Appointment reminder*, *Lights off when leaving*, *Budget guard* and *Daily RSS digest*. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
+- The start page offers seven templates: *Your first local result*, *AI news as PDF via Telegram*, *Summarise a webhook by email*, *Appointment reminder*, *Lights off when leaving*, *Budget guard* and *Daily RSS digest*. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
 - **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; other values typed into ordinary fields are exported as typed.
 
 ## Mission Control, the Missions Page and the Dashboard

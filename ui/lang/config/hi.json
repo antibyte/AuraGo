@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "छवि अनुक्रमण",
   "config.decisions.consumers_desc_indexer_images": "अनुक्रमण के दौरान छवियों का वर्णन करता है।",
   "config.decisions.consumers_name_game_maker_visual": "Game Maker दृश्य जाँच",
-  "config.decisions.consumers_desc_game_maker_visual": "बनाए गए गेम के स्क्रीनशॉट जाँचता है।"
+  "config.decisions.consumers_desc_game_maker_visual": "बनाए गए गेम के स्क्रीनशॉट जाँचता है।",
+  "config.backup.flow_key_pairing_required": "संबंधित कॉन्फ़िगरेशन, फ़्लो डेटाबेस और पासवर्ड से सुरक्षित Vault को एक साथ बहाल करें। यह आंशिक बैकअप दूसरे फ़्लो डेटा की कुंजी बदल देगा।",
+  "config.backup.flow_keys_skipped": "मौजूदा फ़्लो डेटा पढ़ने योग्य बना रहे, इसलिए फ़्लो की एन्क्रिप्शन कुंजियों को छोड़ दिया गया।"
 }

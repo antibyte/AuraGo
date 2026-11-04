@@ -822,5 +822,7 @@
   "config.decisions.consumers_name_indexer_images": "Bild-Indizierung",
   "config.decisions.consumers_desc_indexer_images": "Beschreibt Bilder während der Indizierung.",
   "config.decisions.consumers_name_game_maker_visual": "Game-Maker-Sichtprüfung",
-  "config.decisions.consumers_desc_game_maker_visual": "Prüft Screenshots der erzeugten Spiele."
+  "config.decisions.consumers_desc_game_maker_visual": "Prüft Screenshots der erzeugten Spiele.",
+  "config.backup.flow_key_pairing_required": "Stelle die zusammengehörige Konfiguration, Flow-Datenbank und den passwortgeschützten Vault gemeinsam wieder her. Dieses Teil-Backup würde den Schlüssel anderer Flow-Daten ersetzen.",
+  "config.backup.flow_keys_skipped": "Die Flow-Verschlüsselungsschlüssel wurden übersprungen, damit vorhandene Flow-Daten lesbar bleiben."
 }

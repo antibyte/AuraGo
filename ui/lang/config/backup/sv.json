@@ -69,5 +69,7 @@
   "config.backup.sc_webauthn": "De registrerade nycklarna (WebAuthn) skulle ersättas.",
   "config.backup.sc_require_origin": "Kravet på Origin-huvud för inloggade anrop skulle stängas av.",
   "config.backup.sc_files_crontab": "Cron-jobb: {new} nya, {changed} ändrade (de körs självständigt).",
-  "config.backup.sc_files_databases": "Databaser med anslutningar eller inloggningsuppgifter: {new} nya, {changed} ändrade."
+  "config.backup.sc_files_databases": "Databaser med anslutningar eller inloggningsuppgifter: {new} nya, {changed} ändrade.",
+  "config.backup.flow_key_pairing_required": "Återställ den tillhörande konfigurationen, flödesdatabasen och det lösenordsskyddade Vault tillsammans. Den här partiella säkerhetskopian skulle ersätta nyckeln för andra flödesdata.",
+  "config.backup.flow_keys_skipped": "Flödenas krypteringsnycklar hoppades över så att befintliga flödesdata fortfarande går att läsa."
 }
