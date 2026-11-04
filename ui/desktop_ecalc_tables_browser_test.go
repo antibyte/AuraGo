@@ -186,8 +186,9 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	// ---- the app opens on a calculator; the rail shows Tables and Codes (they have items), Pinouts stays hidden -------------
 	f.OpenApp(`.ec-page[data-calc]`)
 	f.Wait(`()=>!!document.querySelector('.ec-rail-btn[data-rail="tables"]') && !!document.querySelector('.ec-rail-btn[data-rail="codes"]')`)
-	if page.MustEval(`()=>!!document.querySelector('.ec-rail-btn[data-rail="pinouts"]')`).Bool() {
-		t.Fatal("the Pinouts category has no items yet and must stay off the rail")
+	// The Pinouts category is on the rail exactly when the real catalog has pinout items (the tables fixture adds none).
+	if got := page.MustEval(`()=>!!document.querySelector('.ec-rail-btn[data-rail="pinouts"]')`).Bool(); got != (len(f.Catalog.Pinouts) > 0) {
+		t.Fatalf("the Pinouts rail entry is shown = %v with %d real pinouts", got, len(f.Catalog.Pinouts))
 	}
 	if got := page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="tables"] .ec-count').textContent`).Str(); got != "8" {
 		t.Fatalf("the Tables rail entry counts %s tables, want the 8 of the fixture", got)
@@ -523,7 +524,7 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	f.Wait(`()=>document.querySelector('.ec-page')?.dataset.table==='fx_long'`)
 	search.MustType(input.Escape)
 
-	// ---- one options object for all three page creators; a kind without a page creator says so -------------------------------
+	// ---- one options object for all page creators; a kind without a page creator says so -------------------------------
 	page.MustEval(`()=>{
 		window.pageOptions={};
 		const record=(name,Page)=>{const create=Page.create;Page.create=options=>{window.pageOptions[name]=Object.keys(options).sort().join(',');return create(options);};};
@@ -540,7 +541,7 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	page.MustElement(`.ec-rail-btn[data-rail="wiring"]`).MustClick()
 	page.MustElement(`.ec-item[data-id="fx_pick"]`).MustClick()
 	f.Wait(`()=>document.querySelector('.ec-page')?.dataset.calc==='fx_pick'`)
-	const optionKeys = "decimalComma,getItem,icon,item,onFavorite,schematics,store,t,uid,units"
+	const optionKeys = "decimalComma,getItem,icon,item,onFavorite,pinTypes,schematics,store,t,uid,units,wires"
 	if got := page.MustEval(`()=>JSON.stringify(Object.fromEntries(Object.entries(window.pageOptions).sort()))`).Str(); got != fmt.Sprintf(`{"calculator":%q,"code":%q,"table":%q}`, optionKeys, optionKeys, optionKeys) {
 		t.Fatalf("the page creators received %s, want the same keys %q everywhere", got, optionKeys)
 	}

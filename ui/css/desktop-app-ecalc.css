@@ -380,3 +380,74 @@
     body:not([data-animations="false"]) .ec-code-opt, body:not([data-animations="false"]) .ec-chip-btn, body:not([data-animations="false"]) .ec-code-print { transition: background-color .12s ease, border-color .12s ease, color .12s ease; }
 }
 /* end of code pages */
+
+/* pinouts */
+/* The pinout pages: the connector drawing of ecalc-pinout-draw.js and the pin table. The fill of a contact and the ink of its
+   number are attributes of the drawing (the hex and ink of the pin type in the catalog data, a red power pin is red in every
+   desktop skin); the shells, the leaders, the names and the numbers outside a contact take tokens. */
+.ec-pinout-page { max-width: 1280px; overflow-anchor: none; }
+.ec-pinout-page :is(.ec-pin-doc, .ec-pin-notes, .ec-source, .ec-pin-detail) { overflow-wrap: anywhere; }
+.ec-pin-doc { max-width: 78ch; color: var(--vd-theme-muted); }
+.ec-pin-doc p { margin: 0 0 6px; }
+.ec-pin-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; min-width: 0; }
+.ec-pin-controls .ec-choice { max-width: 100%; }
+.ec-pin-face { color: var(--vd-theme-muted); font-size: 12.5px; }
+.ec-pin-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
+.ec-pinout-page[data-narrow="false"] .ec-pin-main { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+.ec-app[data-compact="true"] .ec-pinout-page .ec-pin-main { grid-template-columns: minmax(0, 1fr); }
+.ec-pin-stage { justify-items: stretch; }
+.ec-pin-art-host { display: grid; justify-items: start; min-width: 0; padding: 4px 0; overflow-x: auto; }
+.ec-pin-art { display: block; flex: none; margin-inline: auto; overflow: visible; color: var(--vd-text); }
+.ec-shell { fill: color-mix(in srgb, var(--vd-text) 7%, transparent); stroke: var(--vd-text); stroke-width: 1.6; stroke-linejoin: round; }
+.ec-shell-flange { fill: color-mix(in srgb, var(--vd-text) 4%, transparent); stroke: var(--vd-text); stroke-width: 1.4; stroke-linejoin: round; }
+.ec-shell-tongue { fill: color-mix(in srgb, var(--vd-text) 14%, transparent); stroke: color-mix(in srgb, var(--vd-text) 50%, transparent); stroke-width: 1; stroke-linejoin: round; }
+.ec-shell-hole { fill: var(--ec-stage-bg); stroke: var(--vd-text); stroke-width: 1.2; }
+.ec-shell-latch, .ec-shell-key, .ec-shell-conn, .ec-shell-tab, .ec-shell-insulator { fill: color-mix(in srgb, var(--vd-text) 22%, transparent); stroke: var(--vd-text); stroke-width: 1.4; stroke-linejoin: round; }
+.ec-shell-lead { fill: none; stroke: var(--vd-text); stroke-width: 3; stroke-linecap: round; opacity: .7; }
+.ec-pin { cursor: pointer; outline: none; }
+.ec-pin-hit { fill: transparent; }
+.ec-pin-body { stroke: var(--vd-text); stroke-width: 1.2; }
+.ec-pin[data-type="nc"] .ec-pin-body { stroke-dasharray: 3 2; }
+.ec-pin-ring { fill: none; stroke: transparent; stroke-width: 2.5; pointer-events: none; }
+.ec-pin[data-hover="true"] .ec-pin-ring { stroke: color-mix(in srgb, var(--ds-color-border-focus) 60%, transparent); }
+.ec-pin[data-selected="true"] .ec-pin-ring { stroke: var(--ds-color-border-focus); stroke-width: 3; }
+.ec-pin[data-dim="true"] { opacity: .2; }
+.ec-pin-num { font-family: var(--ec-mono); font-weight: 700; pointer-events: none; }
+.ec-pin-num-out { fill: var(--vd-text); }
+.ec-pin-name { fill: var(--vd-text); font-family: var(--vd-font-ui, system-ui, sans-serif); }
+.ec-pin-mark { fill: var(--vd-text); pointer-events: none; }
+.ec-leader { fill: none; stroke: var(--vd-text); stroke-width: 1; opacity: .45; pointer-events: none; }
+.ec-pin-inner-label { fill: var(--vd-theme-muted); font-family: var(--vd-font-ui, system-ui, sans-serif); font-weight: 600; }
+.ec-wire-base { stroke: var(--vd-text); stroke-width: .8; }
+.ec-pin-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
+.ec-pin-legend-item, .ec-pin-chip, .ec-pin-wire { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ec-pin-swatch { width: 12px; height: 12px; flex: 0 0 auto; }
+.ec-pin-swatch rect { stroke: var(--vd-text); stroke-width: 1; }
+.ec-pin-swatch[data-type="nc"] rect { stroke-dasharray: 2 1.5; }
+.ec-wire-swatch { width: 24px; height: 10px; flex: 0 0 auto; }
+.ec-pin-detail { min-height: 104px; padding: 8px 10px; border: 1px solid var(--ec-line); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); }
+.ec-pin-hint { margin: 0; color: var(--vd-theme-muted); }
+.ec-pin-detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.ec-pin-detail-num { display: inline-grid; place-items: center; min-width: 28px; height: 24px; padding: 0 6px; border: 1px solid var(--vd-text); border-radius: var(--ds-radius-xs, 4px); font: 700 13px var(--ec-mono); }
+.ec-pin-detail-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 0; }
+.ec-pin-detail-rows dt { color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-weight: 600; }
+.ec-pin-detail-rows dd { min-width: 0; margin: 0; }
+.ec-pin-tablewrap { min-width: 0; }
+.ec-pin-scroll { max-height: min(560px, 70vh); }
+.ec-app .ec-table.ec-pin-table { width: 100%; table-layout: auto; }
+.ec-app .ec-table.ec-pin-table :is(th, td) { min-width: 0; max-width: none; padding: 5px 8px; vertical-align: top; white-space: normal; overflow-wrap: break-word; }
+.ec-app .ec-table.ec-pin-table .ec-pin-cell-notes { overflow-wrap: anywhere; }
+.ec-app .ec-table.ec-pin-table thead th { vertical-align: bottom; }
+.ec-pin-table .ec-pin-cell-name { font-family: var(--ec-mono); font-size: 13px; }
+.ec-pin-table tbody tr[data-hover="true"] > * { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
+.ec-pin-table tbody tr[data-selected="true"] > * { background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); color: var(--vd-mat-selected-text, inherit); }
+.ec-pin-table tbody tr[data-selected="true"] > :first-child { box-shadow: inset 3px 0 0 var(--vd-accent); }
+.ec-pin-rowbtn { min-width: 30px; height: 24px; padding: 0 6px; border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border)); border-radius: var(--ds-radius-xs, 4px); background: var(--vd-mat-btn, var(--vd-theme-control-bg)); color: var(--vd-mat-btn-text, inherit); font: 700 12px var(--ec-mono); cursor: pointer; }
+.ec-pin-rowbtn:hover { background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover)); }
+.ec-pin-rowbtn[aria-pressed="true"] { border-color: var(--vd-mat-selected-color, var(--vd-theme-accent-border)); background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); color: var(--vd-mat-selected-text, inherit); }
+@media (pointer: coarse) { .ec-pin-rowbtn { min-height: 44px; min-width: 44px; } }
+@media (prefers-reduced-motion: no-preference) {
+    body:not([data-animations="false"]) .ec-pin-ring { transition: stroke .1s ease; }
+    body:not([data-animations="false"]) .ec-pin { transition: opacity .12s ease; }
+}
+/* end of pinouts */

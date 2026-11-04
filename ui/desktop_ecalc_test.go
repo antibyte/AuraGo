@@ -148,6 +148,9 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 	for _, key := range ecalcCodeKeys { // the code pages (desktop_ecalc_codes_browser_test.go)
 		allowed[key] = true
 	}
+	for _, key := range ecalcPinoutKeys { // the pinout pages (desktop_ecalc_pinouts_test.go)
+		allowed[key] = true
+	}
 	keyPattern := regexp.MustCompile(`['"](desktop\.[A-Za-z0-9_.]+)['"]`)
 	used := 0
 	for name, script := range ecalcScripts(t) {
@@ -351,7 +354,7 @@ func TestECalcShellRoutesByKind(t *testing.T) {
 	assertECalcMarkersInOrder(t, shell, []string{
 		"const TABLE_GROUPS = ['conductors', 'components', 'materials', 'general'];",
 		"core.tables.register(tableItems)",
-		"function pageCreator(item)", "return window.ECalcCalcPage || null;", "return window.ECalcTablePage || null;", "return window.ECalcCodePage || null;",
+		"function pageCreator(item)", "return window.ECalcCalcPage || null;", "return window.ECalcTablePage || null;", "return window.ECalcCodePage || null;", "return window.ECalcPinoutPage || null;",
 		"function pageOptions(item)", "getItem: id => itemById.get(id) || null,",
 		"function unavailablePage(item)", "desktop.ecalc_page_unavailable",
 		"creator.create(pageOptions(item)) : unavailablePage(item)",

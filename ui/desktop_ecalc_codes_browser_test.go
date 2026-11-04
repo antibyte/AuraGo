@@ -96,8 +96,9 @@ func TestECalcCodeStylesheetSection(t *testing.T) {
 	if start < 0 || end < start {
 		t.Fatal("css/desktop-app-ecalc.css has no /* code pages */ ... /* end of code pages */ section")
 	}
-	if strings.TrimSpace(css[end+len("/* end of code pages */"):]) != "" {
-		t.Error("the code pages section is the last section of css/desktop-app-ecalc.css")
+	// Only the pinouts section (desktop_ecalc_pinouts_test.go) may follow the code pages.
+	if rest := strings.TrimSpace(css[end+len("/* end of code pages */"):]); rest != "" && !(strings.HasPrefix(rest, "/* pinouts */") && strings.HasSuffix(rest, "/* end of pinouts */")) {
+		t.Error("the code pages section is followed by nothing but the pinouts section of css/desktop-app-ecalc.css")
 	}
 	section := css[start:end]
 	for _, marker := range []string{
@@ -828,8 +829,8 @@ func TestECalcCodePagesAreWired(t *testing.T) {
 	}
 	entry := loader[start : start+strings.Index(loader[start:], "\n        },")]
 	// The engine follows the table registry; the drawings and the page follow the table page and come before the shell, which
-	// looks up window.ECalcCodePage when it mounts a page.
-	order := []string{"ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-codes.js", "ecalc-typeset.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-code-draw.js", "ecalc-code-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	// looks up window.ECalcCodePage when it mounts a page (the pinout scripts of phase 4 follow the code page).
+	order := []string{"ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-codes.js", "ecalc-typeset.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-code-draw.js", "ecalc-code-page.js", "ecalc-pinout-draw.js", "ecalc-pinout-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)

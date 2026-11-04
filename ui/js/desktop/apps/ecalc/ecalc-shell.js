@@ -2,9 +2,10 @@
    categories that have items), the item list and the page host. Below 720 px of width the three columns collapse into
    one stack (rail, list, page) with a back button. Search covers the name in the current language, the English name and
    the catalog tags. launch(payload) opens a page with pre-filled inputs (the pre-fill bridge of the agent tool). The page
-   of an item depends on its kind: a calculator gets ECalcCalcPage, a table ECalcTablePage and a code ECalcCodePage (a
-   kind without a page creator shows a message); every creator gets the same options object (see pageOptions) and returns
-   {el, dispose} plus the optional layout(), refresh() and focusFilter(). The Tables list is sectioned by `group`. The
+   of an item depends on its kind: a calculator gets ECalcCalcPage, a table ECalcTablePage, a code ECalcCodePage and a
+   pinout ECalcPinoutPage (a kind without a page creator shows a message); every creator gets the same options object (see
+   pageOptions) and returns {el, dispose} plus the optional layout(), refresh() and focusFilter(). The Tables and the Pinouts
+   list are sectioned by `group`. The
    shell registers the tables with ECalcCore.tables after the catalog has loaded, so that table functions can read them.
    Publishes window.ECalcShell; ecalc.js owns the data and the window lifecycle. */
 (function () {
@@ -15,6 +16,8 @@
     const COMPACT_BELOW = 720;
     // The sections of the Tables list, in this order; a group the shell does not know follows, named by its id.
     const TABLE_GROUPS = ['conductors', 'components', 'materials', 'general'];
+    // The sections of the Pinouts list (the groups of internal/ecalc PinoutGroups), in this order.
+    const PINOUT_GROUPS = ['data', 'audio', 'pc_power', 'boards', 'debug', 'ics'];
 
     const ICONS = {
         search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
@@ -34,7 +37,7 @@
     // options: {root, catalog, t, store, schematics, decimalComma, uid, launch}; launch is an optional payload that opens the
     // app on a pre-filled page instead of the remembered one.
     //
-    // The options object every page creator (ECalcCalcPage, ECalcTablePage, ECalcCodePage) receives from pageOptions():
+    // The options object every page creator (ECalcCalcPage, ECalcTablePage, ECalcCodePage, ECalcPinoutPage) receives from pageOptions():
     //   item         the catalog item of the page (its JSON, see internal/ecalc/localize.go)
     //   units        ECalcCore.units.create(catalog.units)
     //   store        the ECalcStore of the window (favorites, recents, display units, inputs; see ecalc-store.js)
@@ -45,6 +48,8 @@
     //   decimalComma true for the languages that write the decimal comma
     //   getItem      id -> catalog item or null (a table uses it to find its finder calculator)
     //   onFavorite   called after the page changed the favorite flag of its item (the shell repaints rail and list)
+    //   pinTypes     `pin_types` of the catalog: [{id, hex, ink, name}] (the pinout page colours and names the pin types with it)
+    //   wires        `wires` of the catalog: [{id, hex, stripe, name}] (the wire colours of the pin tables)
     // The page object: el (the article the shell puts into the host) and dispose() are required; layout() (the host changed
     // its size, also called once after the page is attached), refresh() (digits, E series or symbol standard changed) and
     // focusFilter() (the "/" shortcut) are optional.
@@ -134,7 +139,8 @@
                 + (store.isFavorite(item.id) ? '<span class="ec-item-fav">' + icon('star') + '</span>' : '') + '</button></li>';
             // The Tables list is sectioned by group (catalog order inside a group); search results, favorites and recents are flat.
             if (!searching && ui.rail !== 'favorites' && ui.rail !== 'recent' && rows.some(item => item.group)) {
-                const groups = TABLE_GROUPS.concat([...new Set(rows.map(item => item.group || ''))].filter(group => group && !TABLE_GROUPS.includes(group)));
+                const known = rows.some(item => item.kind === 'pinout') ? PINOUT_GROUPS : TABLE_GROUPS;
+                const groups = known.concat([...new Set(rows.map(item => item.group || ''))].filter(group => group && !known.includes(group)));
                 itemsEl.innerHTML = groups.map(group => {
                     const members = rows.filter(item => (item.group || '') === group);
                     return members.length ? '<li class="ec-group"><h3 class="ec-group-title">' + esc(groupName(group)) + '</h3></li>' + members.map(itemMarkup).join('') : '';
@@ -168,12 +174,14 @@
             if (kind === 'calculator') return window.ECalcCalcPage || null;
             if (kind === 'table') return window.ECalcTablePage || null;
             if (kind === 'code') return window.ECalcCodePage || null;
+            if (kind === 'pinout') return window.ECalcPinoutPage || null;
             return null;
         }
         function pageOptions(item) {
             return {
                 item, units, store, t, icon, schematics, uid: options.uid + '-' + item.id, decimalComma: options.decimalComma,
                 getItem: id => itemById.get(id) || null,
+                pinTypes: catalog.pin_types || [], wires: catalog.wires || [],
                 onFavorite: () => { paintRail(); paintList(); }
             };
         }
@@ -316,7 +324,7 @@
         arrowKeys(itemsEl, '.ec-item');
         root.addEventListener('keydown', event => {
             if (event.key === 'Escape' && popoverOpen) { event.preventDefault(); event.stopPropagation(); closePopover(); settingsEl.focus(); return; }
-            // "/" jumps to the filter box of a table page, unless the key is typed into a field.
+            // "/" jumps to the filter box of a table or pinout page, unless the key is typed into a field.
             if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && page && typeof page.focusFilter === 'function' && !event.target.closest('input, select, textarea, [contenteditable]')) {
                 event.preventDefault();
                 page.focusFilter();
