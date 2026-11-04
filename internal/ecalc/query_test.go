@@ -117,7 +117,7 @@ func TestSearchOrdersEqualRanksByCatalogPosition(t *testing.T) {
 			t.Errorf("%s ranks after %s although it comes first in the catalog (positions %v)", order[i-1], id, position)
 		}
 	}
-	// An empty query lists every item in catalog order: the calculators, then the tables, then the codes.
+	// An empty query lists every item in catalog order: the calculators, the tables, the codes, then the pinouts.
 	all := cat.SearchAll("")
 	if len(all) != cat.ItemCount() || all[0].ID != cat.Calculators[0].ID || all[1].ID != cat.Calculators[1].ID {
 		t.Fatalf("an empty query must list the catalog in order, got %v", hitIDs(all))
@@ -132,8 +132,11 @@ func TestSearchOrdersEqualRanksByCatalogPosition(t *testing.T) {
 	for _, code := range cat.Codes {
 		want = append(want, code.ID)
 	}
+	for _, pinout := range cat.Pinouts {
+		want = append(want, pinout.ID)
+	}
 	if got := hitIDs(all); strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("an empty query lists %v, want the calculators, the tables and the codes in order: %v", got, want)
+		t.Fatalf("an empty query lists %v, want the calculators, the tables, the codes and the pinouts in order: %v", got, want)
 	}
 }
 

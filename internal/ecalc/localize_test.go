@@ -86,8 +86,8 @@ func TestLocalizedJSONLanguagesAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The item count follows the catalog (content files add items of the three kinds); the 13 categories are fixed.
-	total := len(cat.Calculators) + len(cat.Tables) + len(cat.Codes)
+	// The item count follows the catalog (content files add items of the four kinds); the 13 categories are fixed.
+	total := cat.ItemCount()
 	if en.Version != 1 || en.Lang != "en" || len(en.Items) != total || len(cat.Calculators) < 12 || len(en.Categories) != 13 {
 		t.Fatalf("en: version %d lang %q items %d (catalog %d) categories %d", en.Version, en.Lang, len(en.Items), total, len(en.Categories))
 	}

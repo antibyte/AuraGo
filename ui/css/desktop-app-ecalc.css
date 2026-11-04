@@ -42,7 +42,7 @@
 .ec-set select { height: 32px; padding: 0 8px; border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border)); border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm)); background: var(--vd-mat-field, var(--vd-theme-control-bg)); }
 
 /* Segmented control (symbol standard, choices) */
-.ec-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border)); border-radius: var(--vd-mat-btn-radius, var(--ds-radius-sm)); background: var(--vd-mat-btn, var(--vd-theme-control-bg)); overflow: hidden; }
+.ec-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border)); border-radius: min(var(--vd-mat-btn-radius, var(--ds-radius-sm)), 12px); background: var(--vd-mat-btn, var(--vd-theme-control-bg)); overflow: hidden; }
 .ec-seg label { position: relative; display: block; min-width: 0; cursor: pointer; }
 .ec-seg label + label { box-shadow: -1px 0 0 var(--ec-line), 0 -1px 0 var(--ec-line); }
 .ec-seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
@@ -52,8 +52,8 @@
 .ec-seg input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: -2px; }
 
 /* Three columns: rail, list, page */
-.ec-body { display: grid; grid-template-columns: 176px 196px minmax(0, 1fr); min-height: 0; }
-.ec-rail { padding: 6px; overflow: auto; border-right: 1px solid var(--ec-line); background: var(--vd-mat-side, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-side-edge, none); }
+.ec-body { display: grid; grid-template-columns: 188px 196px minmax(0, 1fr); min-height: 0; }
+.ec-rail { padding: 6px; overflow: auto; scrollbar-width: thin; border-right: 1px solid var(--ec-line); background: var(--vd-mat-side, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-side-edge, none); }
 .ec-rail-sep { height: 1px; margin: var(--ds-space-2) var(--ds-space-2); background: var(--ec-line); }
 .ec-rail-btn { display: flex; align-items: center; gap: var(--ds-space-2); width: 100%; min-height: 36px; padding: 5px 6px; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; font-weight: 500; line-height: 1.25; text-align: left; cursor: pointer; }
 .ec-rail-btn:hover { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
@@ -61,7 +61,7 @@
 .ec-rail-label { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
 .ec-count { flex: 0 0 auto; margin-left: auto; padding: 0 6px; border-radius: var(--ds-radius-full); background: var(--vd-theme-control-bg); color: var(--vd-theme-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .ec-rail-btn[aria-current="true"] .ec-count { background: transparent; color: inherit; }
-.ec-list { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; border-right: 1px solid var(--ec-line); }
+.ec-list { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; scrollbar-width: thin; border-right: 1px solid var(--ec-line); }
 .ec-list-title { margin: 0; padding: var(--ds-space-3) var(--ds-space-3) var(--ds-space-1); color: var(--vd-mat-heading-color, var(--vd-text)); font-family: var(--vd-mat-heading-font, inherit); font-size: 15px; font-weight: var(--vd-mat-heading-weight, 600); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ec-items { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; padding: var(--ds-space-2); list-style: none; }
 .ec-item { display: flex; align-items: center; gap: var(--ds-space-2); width: 100%; min-height: 40px; padding: 4px var(--ds-space-2); border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; text-align: left; cursor: pointer; }
@@ -74,7 +74,7 @@
 .ec-item-fav { display: inline-grid; color: var(--ec-warn-text); }
 .ec-item-fav .ec-glyph { width: 13px; height: 13px; fill: currentColor; }
 .ec-empty { margin: 0; padding: var(--ds-space-4) var(--ds-space-3); color: var(--vd-theme-muted); }
-.ec-page-host { min-width: 0; min-height: 0; padding: 16px 16px 28px; overflow: auto; }
+.ec-page-host { min-width: 0; min-height: 0; padding: 16px 16px 28px; overflow: auto; scrollbar-width: thin; }
 
 /* Calculator page */
 .ec-page { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 16px; max-width: 1180px; margin: 0 auto; }

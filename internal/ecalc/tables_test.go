@@ -252,6 +252,15 @@ func checkOtherItemJSON(t *testing.T, it map[string]any) {
 		if _, ok := it["data"]; !ok {
 			t.Errorf("code %v lacks data", it["id"])
 		}
+	case "pinout":
+		for _, key := range []string{"tags", "pins", "variants"} {
+			if _, ok := it[key].([]any); !ok {
+				t.Errorf("pinout %v: %s = %#v, want an array", it["id"], key, it[key])
+			}
+		}
+		if _, ok := it["shape"].(map[string]any); !ok {
+			t.Errorf("pinout %v: shape = %#v, want an object", it["id"], it["shape"])
+		}
 	default:
 		t.Errorf("item %v has the unknown kind %v", it["id"], it["kind"])
 	}

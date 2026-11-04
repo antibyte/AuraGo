@@ -8,7 +8,7 @@ filters:
 semiconductors:
   name: {cs: "Polovodiče", da: "Halvledere", de: "Halbleiter", el: "Ημιαγωγοί", en: "Semiconductors", es: "Semiconductores", fr: "Semi-conducteurs", hi: "अर्धचालक", it: "Semiconduttori", ja: "半導体", nl: "Halfgeleiders", no: "Halvledere", pl: "Półprzewodniki", pt: "Semicondutores", sv: "Halvledare", zh: "半导体"}
 power:
-  name: {cs: "Napájení", da: "Strømforsyning", de: "Stromversorgung", el: "Τροφοδοσία", en: "Power supply", es: "Fuentes de alimentación", fr: "Alimentation", hi: "बिजली आपूर्ति", it: "Alimentazione", ja: "電源", nl: "Voeding", no: "Strømforsyning", pl: "Zasilanie", pt: "Fontes de alimentação", sv: "Strömförsörjning", zh: "电源"}
+  name: {cs: "Napájení", da: "Strømforsyning", de: "Strom­versorgung", el: "Τροφοδοσία", en: "Power supply", es: "Fuentes de alimentación", fr: "Alimentation", hi: "बिजली आपूर्ति", it: "Alimentazione", ja: "電源", nl: "Voeding", no: "Strømforsyning", pl: "Zasilanie", pt: "Fontes de alimentação", sv: "Ström­försörjning", zh: "电源"}
 opamps:
   name: {cs: "Operační zesilovače", da: "Operationsforstærkere", de: "OpAmps", el: "Τελεστικοί ενισχυτές", en: "Op-amps", es: "Amplificadores operacionales", fr: "Amplificateurs opérationnels", hi: "ऑप-एम्प", it: "Amplificatori operazionali", ja: "オペアンプ", nl: "Operationele versterkers", no: "Operasjonsforsterkere", pl: "Wzmacniacze operacyjne", pt: "Amplificadores operacionais", sv: "Operationsförstärkare", zh: "运算放大器"}
 timers:
