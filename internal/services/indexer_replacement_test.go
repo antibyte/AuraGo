@@ -75,14 +75,16 @@ func TestPDFLimitPreservesPreviousIndexWithoutMediaFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, pdftest.Document("2147483647", nil, ""), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fi.IndexFile(context.Background(), directory, path, nil); !errors.Is(err, pdftext.ErrLimit) {
-		t.Fatalf("expected terminal limit, got %v", err)
-	}
-	tracked, err := s.GetFileEmbeddingDocIDs(path, IndexerCollection)
-	if err != nil || len(vdb.deleted) != 0 || len(tracked) != len(old.DocumentIDs) {
-		t.Fatalf("old index lost: tracked=%v deleted=%v err=%v", tracked, vdb.deleted, err)
+	for _, data := range [][]byte{pdftest.Document("2147483647", nil, ""), pdftest.NestedDecoderLimit()} {
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fi.IndexFile(context.Background(), directory, path, nil); !errors.Is(err, pdftext.ErrLimit) {
+			t.Fatalf("expected terminal limit, got %v", err)
+		}
+		tracked, err := s.GetFileEmbeddingDocIDs(path, IndexerCollection)
+		if err != nil || len(vdb.deleted) != 0 || len(tracked) != len(old.DocumentIDs) {
+			t.Fatalf("old index lost: tracked=%v deleted=%v err=%v", tracked, vdb.deleted, err)
+		}
 	}
 }

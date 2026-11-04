@@ -98,10 +98,18 @@ func (b *boundedStream) Read(p []byte) (int, error) {
 	if b.safety != nil {
 		remaining = min(remaining, MaxDecodedBytes-b.safety.decoded)
 	}
+	if remaining < 0 {
+		b.safety.fail(fmt.Errorf("%w: decoded stream bytes", ErrLimit))
+	}
 	if int64(len(p)) > remaining+1 {
 		p = p[:remaining+1]
 	}
 	n, err := b.reader.Read(p)
+	b.safety.check()
+	// Nested decoders may have consumed the shared allowance during Read.
+	if b.safety != nil {
+		remaining = min(remaining, MaxDecodedBytes-b.safety.decoded)
+	}
 	if int64(n) > remaining {
 		b.safety.fail(fmt.Errorf("%w: decoded stream bytes", ErrLimit))
 	}

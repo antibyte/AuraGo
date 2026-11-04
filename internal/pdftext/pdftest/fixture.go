@@ -3,14 +3,32 @@ package pdftest
 
 import (
 	"bytes"
+	"compress/zlib"
+	"encoding/ascii85"
 	"fmt"
 )
 
 func Document(pageCount string, content []byte, streamOptions string) []byte {
+	return document(pageCount, content, streamOptions, "4 0 R")
+}
+
+// NestedDecoderLimit crosses the aggregate decoding budget using a small input.
+func NestedDecoderLimit() []byte {
+	raw := bytes.Repeat([]byte(" "), 12<<20)
+	encoded := make([]byte, ascii85.MaxEncodedLen(len(raw)))
+	encoded = encoded[:ascii85.Encode(encoded, raw)]
+	var compressed bytes.Buffer
+	w := zlib.NewWriter(&compressed)
+	w.Write(encoded)
+	w.Close()
+	return document("1", compressed.Bytes(), "/Filter [/FlateDecode /ASCII85Decode]", "[4 0 R 4 0 R 4 0 R 4 0 R 4 0 R]")
+}
+
+func document(pageCount string, content []byte, streamOptions, contents string) []byte {
 	objects := []string{
 		"<< /Type /Catalog /Pages 2 0 R >>",
 		fmt.Sprintf("<< /Type /Pages /Count %s /Kids [3 0 R] >>", pageCount),
-		"<< /Type /Page /Parent 2 0 R /Resources <<>> /Contents 4 0 R >>",
+		fmt.Sprintf("<< /Type /Page /Parent 2 0 R /Resources <<>> /Contents %s >>", contents),
 		fmt.Sprintf("<< /Length %d %s >>\nstream\n%s\nendstream", len(content), streamOptions, content),
 	}
 	var out bytes.Buffer

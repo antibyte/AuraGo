@@ -2,7 +2,9 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
+	"encoding/ascii85"
 	"errors"
 	"io"
 	"strings"
@@ -37,6 +39,40 @@ func TestLimitsReachTokenizerAndAggregateStreams(t *testing.T) {
 		safety.decoded = MaxDecodedBytes - 3
 		io.ReadAll(&boundedStream{reader: strings.NewReader("ab"), safety: safety})
 		assertLimit(t, ErrLimit, func() { io.ReadAll(&boundedStream{reader: strings.NewReader("ab"), safety: safety}) })
+	})
+	t.Run("nested aggregate decoding", func(t *testing.T) {
+		encode := func(b []byte) []byte {
+			out := make([]byte, ascii85.MaxEncodedLen(len(b)))
+			return out[:ascii85.Encode(out, b)]
+		}
+		once := encode([]byte("BT ET"))
+		safety := newSafety(t.Context())
+		safety.decoded = MaxDecodedBytes - int64(len(once))
+		inner := applyFilter(bytes.NewReader(encode(once)), "ASCII85Decode", Value{}, safety)
+		outer := applyFilter(inner, "ASCII85Decode", Value{}, safety)
+		assertLimit(t, ErrLimit, func() { io.ReadAll(outer) })
+		if safety.decoded > MaxDecodedBytes || !errors.Is(safety.err, ErrLimit) {
+			t.Fatalf("aggregate=%d terminal=%v", safety.decoded, safety.err)
+		}
+	})
+	t.Run("flate counted once", func(t *testing.T) {
+		var compressed bytes.Buffer
+		w := zlib.NewWriter(&compressed)
+		w.Write([]byte("abc"))
+		w.Close()
+		safety := newSafety(t.Context())
+		safety.decoded = MaxDecodedBytes - 3
+		data, err := io.ReadAll(applyFilter(&compressed, "FlateDecode", Value{}, safety))
+		if err != nil || string(data) != "abc" || safety.decoded != MaxDecodedBytes {
+			t.Fatalf("data=%q aggregate=%d err=%v", data, safety.decoded, err)
+		}
+	})
+	t.Run("cancel during decoder read", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		safety := newSafety(ctx)
+		reader := &boundedStream{reader: &cancelReader{Reader: strings.NewReader("a"), cancel: cancel}, safety: safety}
+		assertLimit(t, context.Canceled, func() { reader.Read(make([]byte, 1)) })
 	})
 	t.Run("xref allocation", func(t *testing.T) {
 		safety := newSafety(context.Background())

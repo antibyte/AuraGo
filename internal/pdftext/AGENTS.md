@@ -17,6 +17,10 @@ Shared pure-Go PDF parsing for the indexer, PDF tool and PDF export verification
 
 - Cap input at 32 MiB, pages at 1,000, each decoded stream at 16 MiB,
   aggregate decoding at 128 MiB, text at 8 MiB and parsing at 30 seconds.
+- Count each filter's decoded bytes once, before predictor processing. Validate
+  predictor columns, default omitted columns to one and retain no-prediction mode.
+  Recheck shared byte allowances and cancellation after nested decoder reads;
+  exhaustion must retain `ErrLimit`, never become a generic parse error.
 - Context checks reach tokenization, indirect references and page traversal.
   Check document-controlled sizes before allocation. Limit and cancellation
   errors are terminal; never publish partial text or send a fallback request.
@@ -33,6 +37,8 @@ Shared pure-Go PDF parsing for the indexer, PDF tool and PDF export verification
 
 - `go test ./internal/pdftext/...` plus PDF tests in services, tools, Detective
   and Infra; index replacement tests verify failure preserves the old generation.
+- `TestExtractDecoderLimits` covers predictor and chained-filter exhaustion;
+  `TestLimitsReachTokenizerAndAggregateStreams` covers exact accounting and aborts.
 
 ## Child DOX Index
 

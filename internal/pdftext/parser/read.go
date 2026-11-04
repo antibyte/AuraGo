@@ -907,13 +907,13 @@ func (v Value) Reader() io.ReadCloser {
 	case Null:
 		// ok
 	case Name:
-		rd = &boundedStream{reader: applyFilter(rd, filter.Name(), param, safety), safety: safety}
+		rd = applyFilter(rd, filter.Name(), param, safety)
 	case Array:
 		for i := 0; i < filter.Len(); i++ {
 			if i >= 16 {
 				safety.fail(fmt.Errorf("%w: filter chain", ErrLimit))
 			}
-			rd = &boundedStream{reader: applyFilter(rd, filter.Index(i).Name(), param.Index(i), safety), safety: safety}
+			rd = applyFilter(rd, filter.Index(i).Name(), param.Index(i), safety)
 		}
 	}
 
@@ -933,12 +933,17 @@ func applyFilter(rd io.Reader, name string, param Value, safety *readSafety) io.
 		if err != nil {
 			panic(err)
 		}
+		// Count inflated row bytes before a predictor can consume them silently.
+		decoded := &boundedStream{reader: zr, safety: safety}
 		pred := param.Key("Predictor")
-		if pred.Kind() == Null {
-			return zr
+		if pred.Kind() == Null || pred.Int64() == 1 {
+			return decoded
 		}
-		columns := param.Key("Columns").Int64()
-		if columns < 0 || columns >= MaxStreamBytes/2 {
+		columns := int64(1)
+		if value := param.Key("Columns"); value.Kind() != Null {
+			columns = value.Int64()
+		}
+		if columns <= 0 || columns >= MaxStreamBytes/2 {
 			safety.fail(fmt.Errorf("%w: predictor columns", ErrLimit))
 		}
 		safety.reserve(columns+1, 2)
@@ -949,7 +954,7 @@ func applyFilter(rd io.Reader, name string, param Value, safety *readSafety) io.
 			}
 			panic("pred")
 		case 12:
-			return &pngUpReader{r: zr, hist: make([]byte, 1+columns), tmp: make([]byte, 1+columns)}
+			return &pngUpReader{r: decoded, hist: make([]byte, 1+columns), tmp: make([]byte, 1+columns)}
 		}
 	case "ASCII85Decode":
 		cleanASCII85 := newAlphaReader(rd)
@@ -962,7 +967,7 @@ func applyFilter(rd io.Reader, name string, param Value, safety *readSafety) io.
 			}
 			panic("not expected DecodeParms for ascii85")
 		case nil:
-			return decoder
+			return &boundedStream{reader: decoder, safety: safety}
 		}
 	}
 }
