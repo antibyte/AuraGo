@@ -2,6 +2,13 @@
 
 Manage incoming webhook endpoints for AuraGo. Create, list, update, delete webhooks and view their request logs.
 
+Incoming hooks can optionally use replay protection, configured by the operator
+in Config or the admin API. It defaults off and requires the sender protocol in
+`documentation/webhook-replay-protection.md`. Omitted format fields retain their
+saved values; ordinary tool updates must preserve that protection. A duplicate
+receipt confirms previous admission and must not trigger an automatic retry with
+a new nonce.
+
 ## Operations
 
 | Operation | Description |

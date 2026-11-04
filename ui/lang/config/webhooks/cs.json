@@ -159,5 +159,8 @@
   "config.webhooks.signature_header_help": "Název hlavičky, ve které odesílatel přenáší podpis. Nechte prázdné, pokud služba nepodepisuje.",
   "config.webhooks.signature_secret_help": "Sdílený tajný klíč pro ověření podpisu. Je uložen šifrovaně ve vault.",
   "config.webhooks.token_help": "Token, který musí odesílatel předložit. Tokeny spravujete v seznamu tokenů výše.",
-  "config.webhooks.og_headers_invalid": "Řádky hlaviček {lines} nemají tvar „Název: hodnota“ a nebyly by uloženy."
+  "config.webhooks.og_headers_invalid": "Řádky hlaviček {lines} nemají tvar „Název: hodnota“ a nebyly by uloženy.",
+  "config.webhooks.replay_label": "Ochrana proti opakování",
+  "config.webhooks.replay_help": "Ve výchozím stavu vypnuto. Odesílatel musí podporovat HMAC-SHA256 pro timestamp.nonce.rawBody a hlavičky X-AuraGo-Webhook-Timestamp (unixové sekundy) a X-AuraGo-Webhook-Nonce. Povolená odchylka hodin je 5 minut; opakovaná nonce vrátí duplicate bez dalšího doručení.",
+  "config.webhooks.replay_requires_signature": "Ochrana proti opakování vyžaduje HMAC-SHA256, hlavičku podpisu a tajný klíč ve Vaultu."
 }

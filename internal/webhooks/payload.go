@@ -141,6 +141,9 @@ func extractMappedFields(raw map[string]interface{}, mappings []FieldMapping) ma
 }
 
 func validateSignatureConfiguration(format WebhookFormat) error {
+	if err := validateReplayConfiguration(format); err != nil {
+		return err
+	}
 	header := strings.TrimSpace(format.SignatureHeader)
 	algorithm := strings.ToLower(strings.TrimSpace(format.SignatureAlgo))
 	secret := strings.TrimSpace(format.SignatureSecret)
@@ -156,6 +159,13 @@ func validateSignatureConfiguration(format WebhookFormat) error {
 	default:
 		return fmt.Errorf("unsupported signature algorithm %q", format.SignatureAlgo)
 	}
+}
+
+func validateReplayConfiguration(format WebhookFormat) error {
+	if format.ReplayProtection && (strings.TrimSpace(format.SignatureHeader) == "" || strings.ToLower(strings.TrimSpace(format.SignatureAlgo)) != "sha256") {
+		return fmt.Errorf("replay protection requires HMAC-SHA256 and its signature header and Vault secret")
+	}
+	return nil
 }
 
 // ValidateSignatureConfiguration verifies that signature settings are complete and supported.

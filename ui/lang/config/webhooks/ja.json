@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "パラメーター名",
   "config.webhooks.og_param_type_label": "パラメーターの型",
   "config.webhooks.og_param_desc_label": "パラメーターの説明",
-  "config.webhooks.og_headers_invalid": "ヘッダーの {lines} 行目は「名前: 値」の形式ではないため、保存されません。"
+  "config.webhooks.og_headers_invalid": "ヘッダーの {lines} 行目は「名前: 値」の形式ではないため、保存されません。",
+  "config.webhooks.replay_label": "リプレイ保護",
+  "config.webhooks.replay_help": "初期設定は無効です。送信側は timestamp.nonce.rawBody の HMAC-SHA256 と X-AuraGo-Webhook-Timestamp（Unix秒）、X-AuraGo-Webhook-Nonce ヘッダーに対応する必要があります。時刻差は5分まで許可され、同じ nonce の再送には再配信せず duplicate を返します。",
+  "config.webhooks.replay_requires_signature": "リプレイ保護には HMAC-SHA256、署名ヘッダー、Vault のシークレットが必要です。"
 }

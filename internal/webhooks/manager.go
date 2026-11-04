@@ -138,10 +138,11 @@ func isMissingVaultSecretError(err error) bool {
 
 // UpdateOptions records which zero-value fields were explicitly provided by the caller.
 type UpdateOptions struct {
-	EnabledSet         bool
-	SignatureHeaderSet bool
-	SignatureAlgoSet   bool
-	SignatureSecretSet bool
+	EnabledSet          bool
+	SignatureHeaderSet  bool
+	SignatureAlgoSet    bool
+	SignatureSecretSet  bool
+	ReplayProtectionSet bool
 }
 
 // NewManager creates a Manager and loads existing webhooks from disk.
@@ -226,6 +227,9 @@ func (m *Manager) GetBySlug(slug string) (Webhook, error) {
 func (m *Manager) Create(w Webhook) (Webhook, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if err := validateReplayConfiguration(w.Format); err != nil {
+		return Webhook{}, err
+	}
 
 	if len(m.webhooks) >= MaxWebhooks {
 		return Webhook{}, fmt.Errorf("maximum of %d webhooks reached", MaxWebhooks)
@@ -335,6 +339,12 @@ func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions
 		}
 		if opts.SignatureSecretSet {
 			updated.Format.SignatureSecret = patch.Format.SignatureSecret
+		}
+		if opts.ReplayProtectionSet {
+			updated.Format.ReplayProtection = patch.Format.ReplayProtection
+		}
+		if err := validateReplayConfiguration(updated.Format); err != nil {
+			return Webhook{}, err
 		}
 
 		// Update delivery

@@ -1012,6 +1012,9 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - `restartFileIndexer` replaces the indexer under `CfgSaveMu` while handlers run. Read it only through `s.fileIndexer()` into a local, once per use, and write it only through `setFileIndexer`; never re-read between the nil check and the call. Verify `TestRestartFileIndexerConcurrentWithReads` with `-race` (Linux CGO).
 
 ### Webhook publication
+- Replay-protected ingress and receipts follow `../webhooks/AGENTS.md`.
+  Admin updates preserve omitted `format.replay_protection`; validate the
+  effective format with its resolved Vault secret before any publication.
 - Mission webhook registrations use stable mission keys, replacing the old callback and removing it on disable, delete, manager replacement or shutdown. A-B-A trigger changes must not accumulate callbacks.
 - Incoming webhook handlers obtain current immutable config and Guardian services together under the server config lock. Disabled integrations reject new deliveries; scan policy changes take effect without restart.
 - JSON webhook prompts pass through `security.IsolateExternalData` after their last serialization/truncation;

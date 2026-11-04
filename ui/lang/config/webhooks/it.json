@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Nome del parametro",
   "config.webhooks.og_param_type_label": "Tipo del parametro",
   "config.webhooks.og_param_desc_label": "Descrizione del parametro",
-  "config.webhooks.og_headers_invalid": "Le righe di intestazione {lines} non hanno il formato «Nome: valore» e non verrebbero salvate."
+  "config.webhooks.og_headers_invalid": "Le righe di intestazione {lines} non hanno il formato «Nome: valore» e non verrebbero salvate.",
+  "config.webhooks.replay_label": "Protezione dalle ripetizioni",
+  "config.webhooks.replay_help": "Disattivata per impostazione predefinita. Il mittente deve supportare HMAC-SHA256 su timestamp.nonce.rawBody e le intestazioni X-AuraGo-Webhook-Timestamp (secondi Unix) e X-AuraGo-Webhook-Nonce. Sono ammessi 5 minuti di scarto; una nonce ripetuta restituisce duplicate senza un altro invio.",
+  "config.webhooks.replay_requires_signature": "La protezione richiede HMAC-SHA256, un’intestazione di firma e un segreto nel Vault."
 }

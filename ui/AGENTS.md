@@ -21,6 +21,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Incoming webhook replay protection uses a default-off boolean checkbox in
+  `cfg/webhooks.js`. Save/reopen preserves the saved boolean and rejects enabling
+  without SHA256, its header and a stored/new secret. All sixteen webhook locale
+  tables explain the required sender protocol; presets never enable it silently.
+  Runtime/receipts: `../internal/webhooks/AGENTS.md`.
+
 - Kaggle configuration, Desktop and Dashboard use `/api/kaggle/status` and the same backend grants. `lang/kaggle/` owns all sixteen locale sets; `cfg/kaggle.js` keeps policy saves separate from Vault credential saves/removal and tests saved credentials only. The app loader includes its locale section, styles, DOMPurify and notebook editor. See `js/desktop/apps/AGENTS.md`, `../internal/kaggle/AGENTS.md` and `../documentation/kaggle.md`.
 - Kaggle's passive configured state is not proof of connectivity. Credential acknowledgements belong to their mounted section and submitted value, never a new draft. Its native switch buttons retain Config switch geometry. Verify `TestKaggleConfigBrowser`; `AURAGO_KAGGLE_CONFIG_AUDIT_URL_FILE` exposes the same local fixture for a bounded review, ended through `<file>.stop`.
 - Kaggle numeric limits use the Config catalog validation rules in both inputs and draft validation, matching backend normalization. Verify `TestKaggleConfigLimits*`, including boundary saves and reloads.

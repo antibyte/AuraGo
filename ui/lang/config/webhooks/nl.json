@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Parameternaam",
   "config.webhooks.og_param_type_label": "Parametertype",
   "config.webhooks.og_param_desc_label": "Parameterbeschrijving",
-  "config.webhooks.og_headers_invalid": "Headerregels {lines} hebben niet de vorm „Naam: waarde” en zouden niet worden opgeslagen."
+  "config.webhooks.og_headers_invalid": "Headerregels {lines} hebben niet de vorm „Naam: waarde” en zouden niet worden opgeslagen.",
+  "config.webhooks.replay_label": "Bescherming tegen herhaling",
+  "config.webhooks.replay_help": "Standaard uit. De afzender moet HMAC-SHA256 over timestamp.nonce.rawBody en de headers X-AuraGo-Webhook-Timestamp (Unix-seconden) en X-AuraGo-Webhook-Nonce ondersteunen. Er is 5 minuten klokafwijking toegestaan; een herhaalde nonce geeft duplicate zonder nieuwe bezorging.",
+  "config.webhooks.replay_requires_signature": "De bescherming vereist HMAC-SHA256, een ondertekeningsheader en een geheim in de Vault."
 }

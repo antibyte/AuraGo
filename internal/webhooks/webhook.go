@@ -31,9 +31,10 @@ type WebhookFormat struct {
 	Description string `json:"description,omitempty"`
 
 	// HMAC signature validation (e.g. GitHub X-Hub-Signature-256)
-	SignatureHeader string `json:"signature_header,omitempty"`
-	SignatureAlgo   string `json:"signature_algo,omitempty"`   // "sha256", "sha1", "plain"
-	SignatureSecret string `json:"signature_secret,omitempty"` // stored in vault if set
+	SignatureHeader  string `json:"signature_header,omitempty"`
+	SignatureAlgo    string `json:"signature_algo,omitempty"`   // "sha256", "sha1", "plain"
+	SignatureSecret  string `json:"signature_secret,omitempty"` // stored in vault if set
+	ReplayProtection bool   `json:"replay_protection"`
 }
 
 // FieldMapping maps a dot-path source field to an alias.

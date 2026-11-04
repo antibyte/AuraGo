@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "पैरामीटर का नाम",
   "config.webhooks.og_param_type_label": "पैरामीटर का प्रकार",
   "config.webhooks.og_param_desc_label": "पैरामीटर का विवरण",
-  "config.webhooks.og_headers_invalid": "हेडर पंक्तियाँ {lines} \"नाम: मान\" रूप में नहीं हैं और सहेजी नहीं जाएँगी।"
+  "config.webhooks.og_headers_invalid": "हेडर पंक्तियाँ {lines} \"नाम: मान\" रूप में नहीं हैं और सहेजी नहीं जाएँगी।",
+  "config.webhooks.replay_label": "दोबारा भेजे जाने से सुरक्षा",
+  "config.webhooks.replay_help": "डिफ़ॉल्ट रूप से बंद। भेजने वाले को timestamp.nonce.rawBody पर HMAC-SHA256 और X-AuraGo-Webhook-Timestamp (Unix सेकंड) तथा X-AuraGo-Webhook-Nonce हेडर का समर्थन करना होगा। समय में 5 मिनट का अंतर स्वीकार है; दोहराए गए nonce पर बिना फिर से पहुँचाए duplicate मिलता है।",
+  "config.webhooks.replay_requires_signature": "इस सुरक्षा के लिए HMAC-SHA256, हस्ताक्षर हेडर और Vault में सीक्रेट चाहिए।"
 }

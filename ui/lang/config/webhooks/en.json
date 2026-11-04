@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Parameter name",
   "config.webhooks.og_param_type_label": "Parameter type",
   "config.webhooks.og_param_desc_label": "Parameter description",
-  "config.webhooks.og_headers_invalid": "Header lines {lines} are not in \"Name: value\" form and would not be saved."
+  "config.webhooks.og_headers_invalid": "Header lines {lines} are not in \"Name: value\" form and would not be saved.",
+  "config.webhooks.replay_label": "Replay protection",
+  "config.webhooks.replay_help": "Off by default. The sender must support HMAC-SHA256 over timestamp.nonce.rawBody and the headers X-AuraGo-Webhook-Timestamp (Unix seconds) and X-AuraGo-Webhook-Nonce. Allows 5 minutes of clock skew; repeated nonces return duplicate without another delivery.",
+  "config.webhooks.replay_requires_signature": "Replay protection requires HMAC-SHA256, a signature header and a Vault secret."
 }

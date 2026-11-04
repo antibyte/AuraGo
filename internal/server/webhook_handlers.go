@@ -288,6 +288,10 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if effectiveFormat.ReplayProtection && s.Vault == nil {
+			jsonError(w, "Vault unavailable for webhook replay protection", http.StatusServiceUnavailable)
+			return
+		}
 		if updateOpts.SignatureSecretSet && signatureSecret != "" && !keepExistingSecret && s.Vault == nil {
 			jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
 			return
@@ -339,6 +343,9 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 
 func effectiveWebhookSignatureFormat(existing, patch webhooks.WebhookFormat, opts webhooks.UpdateOptions, vault *security.Vault, webhookID string) (webhooks.WebhookFormat, error) {
 	effective := existing
+	if opts.ReplayProtectionSet {
+		effective.ReplayProtection = patch.ReplayProtection
+	}
 	if opts.SignatureHeaderSet {
 		effective.SignatureHeader = patch.SignatureHeader
 	}

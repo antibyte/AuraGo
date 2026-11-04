@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Nazwa parametru",
   "config.webhooks.og_param_type_label": "Typ parametru",
   "config.webhooks.og_param_desc_label": "Opis parametru",
-  "config.webhooks.og_headers_invalid": "Wiersze nagłówków {lines} nie mają postaci „Nazwa: wartość” i nie zostałyby zapisane."
+  "config.webhooks.og_headers_invalid": "Wiersze nagłówków {lines} nie mają postaci „Nazwa: wartość” i nie zostałyby zapisane.",
+  "config.webhooks.replay_label": "Ochrona przed ponowieniem",
+  "config.webhooks.replay_help": "Domyślnie wyłączona. Nadawca musi obsługiwać HMAC-SHA256 dla timestamp.nonce.rawBody oraz nagłówki X-AuraGo-Webhook-Timestamp (sekundy Unix) i X-AuraGo-Webhook-Nonce. Dopuszczalne odchylenie czasu to 5 minut; powtórzona nonce zwraca duplicate bez kolejnego dostarczenia.",
+  "config.webhooks.replay_requires_signature": "Ochrona wymaga HMAC-SHA256, nagłówka podpisu i sekretu w Vault."
 }

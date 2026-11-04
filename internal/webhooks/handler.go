@@ -179,6 +179,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"webhook disabled"}`, http.StatusForbidden)
 		return
 	}
+	if wh.Format.ReplayProtection {
+		wh.Format.SignatureSecret = ""
+	}
 	if wh.Format.SignatureSecret == "" && h.vault != nil {
 		if secret, err := h.vault.ReadSecret(SignatureSecretVaultKey(wh.ID)); err == nil && strings.TrimSpace(secret) != "" {
 			wh.Format.SignatureSecret = secret
@@ -265,9 +268,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. HMAC signature validation (optional)
+	signedBody, nonce := body, ""
+	if wh.Format.ReplayProtection {
+		signedBody, nonce, err = replaySignatureBody(r, body, time.Now())
+		if err != nil {
+			http.Error(w, `{"error":"invalid webhook timestamp or nonce"}`, http.StatusForbidden)
+			return
+		}
+	}
 	if wh.Format.SignatureHeader != "" {
 		sigHeader := r.Header.Get(wh.Format.SignatureHeader)
-		if !verifySignature(body, sigHeader, wh.Format.SignatureSecret, wh.Format.SignatureAlgo) {
+		if !verifySignature(signedBody, sigHeader, wh.Format.SignatureSecret, wh.Format.SignatureAlgo) {
 			h.logEvent(wh.ID, wh.Name, 403, sourceIP, len(body), false, "signature verification failed")
 			http.Error(w, `{"error":"signature verification failed"}`, http.StatusForbidden)
 			return
@@ -288,6 +299,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := prepared.Fields
 	headers := extractHeaders(r)
+
+	var releaseDelivery func()
+	admit := func() bool {
+		var ok bool
+		releaseDelivery, ok = h.acquireDeliverySlot()
+		return ok
+	}
+	queued := false
+	defer func() {
+		if !queued && releaseDelivery != nil {
+			releaseDelivery()
+		}
+	}()
+	if wh.Format.ReplayProtection {
+		duplicate, err := h.manager.claimNonce(r.Context(), wh.ID, nonce, time.Now(), admit)
+		if err != nil {
+			h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "replay admission unavailable")
+			http.Error(w, `{"error":"webhook replay admission unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+		if duplicate {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "duplicate"})
+			return
+		}
+	} else if !admit() {
+		h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "delivery queue full")
+		http.Error(w, `{"error":"webhook delivery queue full"}`, http.StatusServiceUnavailable)
+		return
+	}
 
 	// 8. Scan raw payload before rendering or dispatching any raw callback.
 	// All webhook payloads are external, untrusted data — always isolate them.
@@ -317,7 +358,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if quarantine != nil {
-		h.quarantineWebhook(w, wh, internalToken, sourceIP, rawPayloadSize, *quarantine)
+		queued = true
+		h.quarantineWebhook(w, wh, internalToken, sourceIP, rawPayloadSize, *quarantine, releaseDelivery)
 		return
 	}
 
@@ -328,18 +370,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		prompt = fmt.Sprintf("[Webhook: %s]\nPayload:\n%s", wh.Name, prepared.PromptPayload)
 	}
 
-	releaseDelivery, ok := h.acquireDeliverySlot()
-	if !ok {
-		h.logEvent(wh.ID, wh.Name, 503, sourceIP, rawPayloadSize, false, "delivery queue full")
-		http.Error(w, `{"error":"webhook delivery queue full"}`, http.StatusServiceUnavailable)
-		return
-	}
-
 	// 9. Respond immediately, deliver async
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 
+	queued = true
 	// 10. Delivery. Silent mode only records local state, so keep it synchronous
 	// to avoid leaving test temp directories in use after the handler returns.
 	deliver := func() {
@@ -390,20 +426,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go deliver()
 }
 
-func (h *Handler) quarantineWebhook(w http.ResponseWriter, wh Webhook, internalToken, sourceIP string, payloadSize int, result security.GuardianResult) {
+func (h *Handler) quarantineWebhook(w http.ResponseWriter, wh Webhook, internalToken, sourceIP string, payloadSize int, result security.GuardianResult, release func()) {
 	mode := wh.Delivery.Mode
 	hasMissionTarget := h.manager != nil && h.manager.HasMissionTriggers(wh.ID)
 	sendAgentNotice := mode == DeliveryModeMessage || hasMissionTarget
-	var release func()
-	if sendAgentNotice {
-		var ok bool
-		release, ok = h.acquireDeliverySlot()
-		if !ok {
-			h.logEvent(wh.ID, wh.Name, http.StatusServiceUnavailable, sourceIP, payloadSize, false, "quarantine notice queue full")
-			http.Error(w, `{"error":"quarantine notice queue full"}`, http.StatusServiceUnavailable)
-			return
-		}
-	}
 
 	h.log().Warn("[Webhook] Quarantined incoming payload", "webhook", wh.ID, "category", result.QuarantineReason)
 	http.Error(w, `{"error":"payload quarantined by guardian"}`, http.StatusForbidden)

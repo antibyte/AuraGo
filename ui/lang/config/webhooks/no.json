@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Parameternavn",
   "config.webhooks.og_param_type_label": "Parametertype",
   "config.webhooks.og_param_desc_label": "Parameterbeskrivelse",
-  "config.webhooks.og_headers_invalid": "Header-linje {lines} har ikke formen «Navn: verdi» og ville ikke blitt lagret."
+  "config.webhooks.og_headers_invalid": "Header-linje {lines} har ikke formen «Navn: verdi» og ville ikke blitt lagret.",
+  "config.webhooks.replay_label": "Beskyttelse mot gjentakelser",
+  "config.webhooks.replay_help": "Av som standard. Avsenderen må støtte HMAC-SHA256 over timestamp.nonce.rawBody og headerne X-AuraGo-Webhook-Timestamp (Unix-sekunder) og X-AuraGo-Webhook-Nonce. Tillatt klokkeavvik er 5 minutter; en gjentatt nonce gir duplicate uten ny levering.",
+  "config.webhooks.replay_requires_signature": "Beskyttelsen krever HMAC-SHA256, en signaturheader og en hemmelighet i Vault."
 }

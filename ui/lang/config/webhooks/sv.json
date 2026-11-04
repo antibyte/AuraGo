@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Parameternamn",
   "config.webhooks.og_param_type_label": "Parametertyp",
   "config.webhooks.og_param_desc_label": "Parameterbeskrivning",
-  "config.webhooks.og_headers_invalid": "Rubrikraderna {lines} har inte formen ”Namn: värde” och skulle inte sparas."
+  "config.webhooks.og_headers_invalid": "Rubrikraderna {lines} har inte formen ”Namn: värde” och skulle inte sparas.",
+  "config.webhooks.replay_label": "Skydd mot återuppspelning",
+  "config.webhooks.replay_help": "Av som standard. Avsändaren måste stödja HMAC-SHA256 över timestamp.nonce.rawBody och rubrikerna X-AuraGo-Webhook-Timestamp (Unix-sekunder) och X-AuraGo-Webhook-Nonce. Tillåten tidsavvikelse är 5 minuter; en upprepad nonce ger duplicate utan ny leverans.",
+  "config.webhooks.replay_requires_signature": "Skyddet kräver HMAC-SHA256, en signaturrubrik och en hemlighet i Vault."
 }

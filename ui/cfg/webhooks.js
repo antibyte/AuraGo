@@ -363,6 +363,11 @@ function whShowEditor(id) {
                     <input id="wh-f-sigsec" aria-describedby="wh-f-sigsec-help" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(format.signature_secret) ? '1' : '0'}" value="${esc(cfgSecretValue(format.signature_secret))}" placeholder="${esc(cfgSecretPlaceholder(format.signature_secret, t('config.webhooks.sig_secret_placeholder')))}">
                     <small class="wh-field-hint field-help" id="wh-f-sigsec-help">${t('config.webhooks.signature_secret_help')}</small>
                 </div>
+                <div class="wh-form-row">
+                    <label for="wh-f-replay">${t('config.webhooks.replay_label')}</label>
+                    <input id="wh-f-replay" type="checkbox" aria-describedby="wh-f-replay-help" ${format.replay_protection ? 'checked' : ''}>
+                    <small class="wh-field-hint field-help" id="wh-f-replay-help">${t('config.webhooks.replay_help')}</small>
+                </div>
                 <div class="wh-subsection-title">
                     ${t('config.webhooks.field_mappings_label')}
                     <button class="wh-btn wh-btn-sm wh-field-add-btn" onclick="whAddFieldRow()">${t('config.webhooks.add_field_button')}</button>
@@ -483,6 +488,7 @@ function whCollectEditor() {
             signature_header: document.getElementById('wh-f-sighdr').value.trim(),
             signature_algo: document.getElementById('wh-f-sigalgo').value,
             signature_secret: sigInput && !sigInput.value && sigInput.dataset.hasSecret === '1' ? CFG_MASKED_SECRET : (sigInput ? sigInput.value : ''),
+            replay_protection: document.getElementById('wh-f-replay').checked,
         },
         delivery: {
             mode: document.getElementById('wh-f-mode').value,
@@ -503,6 +509,9 @@ async function whSaveWebhook() {
     whClearError('wh-editor-error-host');
     if (!data.name) return whShowError('wh-editor-error-host', t('config.webhooks.name_required'));
     if (!whEditingId && !data.slug) return whShowError('wh-editor-error-host', t('config.webhooks.slug_required'));
+    if (data.format.replay_protection && (data.format.signature_algo !== 'sha256' || !data.format.signature_header || !data.format.signature_secret)) {
+        return whShowError('wh-editor-error-host', t('config.webhooks.replay_requires_signature'));
+    }
 
     const saveBtn = document.getElementById('wh-editor-save-btn');
     if (saveBtn) { if (saveBtn.disabled) return; saveBtn.disabled = true; }

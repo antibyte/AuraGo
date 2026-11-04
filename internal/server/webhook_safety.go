@@ -51,6 +51,9 @@ func webhookUpdateOptions(body []byte) webhooks.UpdateOptions {
 	if _, ok := format["signature_secret"]; ok {
 		opts.SignatureSecretSet = true
 	}
+	if _, ok := format["replay_protection"]; ok {
+		opts.ReplayProtectionSet = true
+	}
 	return opts
 }
 

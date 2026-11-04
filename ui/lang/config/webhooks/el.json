@@ -159,5 +159,8 @@
   "config.webhooks.signature_header_help": "Όνομα της κεφαλίδας στην οποία ο αποστολέας μεταδίδει την υπογραφή. Αφήστε κενό αν η υπηρεσία δεν υπογράφει.",
   "config.webhooks.signature_secret_help": "Κοινό μυστικό για την επαλήθευση της υπογραφής. Αποθηκεύεται κρυπτογραφημένο στο vault.",
   "config.webhooks.token_help": "Διακριτικό που πρέπει να παρουσιάσει ο αποστολέας. Τα διακριτικά τα διαχειρίζεστε στη λίστα διακριτικών παραπάνω.",
-  "config.webhooks.og_headers_invalid": "Οι γραμμές κεφαλίδων {lines} δεν έχουν τη μορφή «Όνομα: τιμή» και δεν θα αποθηκευτούν."
+  "config.webhooks.og_headers_invalid": "Οι γραμμές κεφαλίδων {lines} δεν έχουν τη μορφή «Όνομα: τιμή» και δεν θα αποθηκευτούν.",
+  "config.webhooks.replay_label": "Προστασία από επανάληψη",
+  "config.webhooks.replay_help": "Ανενεργή από προεπιλογή. Ο αποστολέας πρέπει να υποστηρίζει HMAC-SHA256 στο timestamp.nonce.rawBody και τις κεφαλίδες X-AuraGo-Webhook-Timestamp (δευτερόλεπτα Unix) και X-AuraGo-Webhook-Nonce. Επιτρέπεται απόκλιση ώρας 5 λεπτών· επαναλαμβανόμενο nonce επιστρέφει duplicate χωρίς νέα παράδοση.",
+  "config.webhooks.replay_requires_signature": "Η προστασία απαιτεί HMAC-SHA256, κεφαλίδα υπογραφής και μυστικό στο Vault."
 }

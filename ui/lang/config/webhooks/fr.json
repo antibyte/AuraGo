@@ -159,5 +159,8 @@
   "config.webhooks.og_param_name_label": "Nom du paramètre",
   "config.webhooks.og_param_type_label": "Type du paramètre",
   "config.webhooks.og_param_desc_label": "Description du paramètre",
-  "config.webhooks.og_headers_invalid": "Les lignes d'en-tête {lines} n'ont pas la forme « Nom : valeur » et ne seraient pas enregistrées."
+  "config.webhooks.og_headers_invalid": "Les lignes d'en-tête {lines} n'ont pas la forme « Nom : valeur » et ne seraient pas enregistrées.",
+  "config.webhooks.replay_label": "Protection contre le rejeu",
+  "config.webhooks.replay_help": "Désactivée par défaut. L’émetteur doit prendre en charge HMAC-SHA256 sur timestamp.nonce.rawBody et les en-têtes X-AuraGo-Webhook-Timestamp (secondes Unix) et X-AuraGo-Webhook-Nonce. Un décalage de 5 minutes est permis ; une nonce répétée renvoie duplicate sans nouvelle livraison.",
+  "config.webhooks.replay_requires_signature": "La protection exige HMAC-SHA256, un en-tête de signature et un secret dans le Vault."
 }
