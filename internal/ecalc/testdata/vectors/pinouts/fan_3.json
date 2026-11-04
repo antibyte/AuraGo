@@ -1,0 +1,33 @@
+{
+ "pinout": "fan_3",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "power": 1,
+    "signal": 1
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Noctua FAQ: Black = Ground (GND); Sunon: - Black; ASRock B450 Steel Legend manual: pin 1 GND"
+    },
+    {
+     "number": "2",
+     "name": "+12V",
+     "type": "power",
+     "ref": "Noctua FAQ: Red = +12V; Sunon: + Red; ASRock B450 Steel Legend manual: pin 2 FAN_VOLTAGE_CONTROL"
+    },
+    {
+     "number": "3",
+     "name": "RPM",
+     "type": "signal",
+     "ref": "Noctua FAQ: Yellow = RPM Speed Signal; Sunon: F type third wire Yellow; ASRock B450 Steel Legend manual: pin 3 FAN_SPEED"
+    }
+   ]
+  }
+ ]
+}

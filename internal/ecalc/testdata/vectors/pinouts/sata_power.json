@@ -1,0 +1,63 @@
+{
+ "pinout": "sata_power",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 9,
+    "ground": 5,
+    "signal": 1
+   },
+   "pins": [
+    {
+     "number": "P1",
+     "name": "V33",
+     "type": "power",
+     "ref": "SATA-IO TP 037 v1.1, table 1 and note 5: 3.3 V power, retired; Seagate 100817550 Rev. L, table 5: P1, V33"
+    },
+    {
+     "number": "P3",
+     "name": "V33",
+     "type": "power",
+     "ref": "SATA-IO TP 037 v1.1, table 1: 3.3 V power, pre-charge"
+    },
+    {
+     "number": "P4",
+     "name": "GND",
+     "type": "ground",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P4, GND"
+    },
+    {
+     "number": "P7",
+     "name": "V5",
+     "type": "power",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P7, V5, 5 V power, pre-charge"
+    },
+    {
+     "number": "P11",
+     "name": "DAS/DSS",
+     "type": "signal",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P11, DAS/DSS"
+    },
+    {
+     "number": "P12",
+     "name": "GND",
+     "type": "ground",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P12, GND"
+    },
+    {
+     "number": "P13",
+     "name": "V12",
+     "type": "power",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P13, V12, 12 V power, pre-charge"
+    },
+    {
+     "number": "P15",
+     "name": "V12",
+     "type": "power",
+     "ref": "SATA-IO TP 037 v1.1, table 1: P15, V12, 12 V power"
+    }
+   ]
+  }
+ ]
+}

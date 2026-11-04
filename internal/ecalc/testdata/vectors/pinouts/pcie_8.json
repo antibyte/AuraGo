@@ -1,0 +1,45 @@
+{
+ "pinout": "pcie_8",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 3,
+    "signal": 2,
+    "ground": 3
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "+12V",
+     "type": "power",
+     "ref": "PCIe CEM Rev. 4.0, table 51: pin 1, +12 V"
+    },
+    {
+     "number": "4",
+     "name": "Sense1",
+     "type": "signal",
+     "ref": "PCIe CEM Rev. 4.0, table 51: pin 4, Sense1; NVIDIA BlueField-3 guide: pin 4, Sense1"
+    },
+    {
+     "number": "5",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-5: pin 5, COM, Black"
+    },
+    {
+     "number": "6",
+     "name": "Sense0",
+     "type": "signal",
+     "ref": "PCIe CEM Rev. 4.0, table 51: pin 6, Sense0; NVIDIA BlueField-3 guide: pin 6, Sense0"
+    },
+    {
+     "number": "8",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-5: pin 8, COM, Black"
+    }
+   ]
+  }
+ ]
+}

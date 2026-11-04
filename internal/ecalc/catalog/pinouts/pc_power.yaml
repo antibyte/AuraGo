@@ -1,0 +1,276 @@
+# PC power and fan connectors. The sources behind every item are in documentation/ecalc-sources/pinouts/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: atx_24
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Hlavní napájení ATX, 24 pinů", da: "ATX-hovedstrøm, 24-polet", de: "ATX-Hauptstrom, 24-polig", el: "Κύρια τροφοδοσία ATX, 24 ακίδων", en: "ATX main power, 24-pin", es: "Alimentación principal ATX, 24 pines", fr: "Alimentation principale ATX, 24 broches", hi: "ATX मुख्य पावर, 24-पिन", it: "Alimentazione principale ATX, 24 pin", ja: "ATX メイン電源 24 ピン", nl: "ATX-hoofdvoeding, 24-polig", "no": "ATX-hovedstrøm, 24-polet", pl: "Główne zasilanie ATX, 24-pinowe", pt: "Alimentação principal ATX, 24 pinos", sv: "ATX-huvudström, 24-polig", zh: "ATX 主电源 24 针"}
+  doc: {en: "Main plug of an ATX power supply, a Mini-Fit Jr. housing with two rows of twelve. The latch sits on the row with pins 13 to 24; it is drawn on top.", de: "Hauptstecker eines ATX-Netzteils, ein Mini-Fit-Jr.-Gehäuse mit zwei Zwölferreihen. Die Rastnase sitzt an der Reihe mit den Pins 13 bis 24 und ist oben gezeichnet."}
+  notes: {en: "On a 20+4 plug the split-off part carries pins 11, 12, 23 and 24; a 20-pin plug goes along pins 1 and 13. The colours are the ones the ATX guide recommends. Some cables differ, so go by position, not by colour.", de: "Beim 20+4-Stecker trägt das abtrennbare Teil die Pins 11, 12, 23 und 24; ein 20-poliger Stecker sitzt bündig an den Pins 1 und 13. Die Farben sind die Empfehlung des ATX-Leitfadens. Manche Kabel weichen ab, also nach Position gehen, nicht nach Farbe."}
+  tags: ["atx", "atx12v", "24-pin", "24-polig", "20+4", "mainboard", "motherboard", "psu", "netzteil", "ps_on", "ps-on", "pwr_ok", "power good", "5vsb", "standby", "mini-fit", "minifit", "molex 39-01-2240", "44206"]
+  source: "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-1 and figure 5-2; PCI Express CEM Specification Rev. 4.0, figures 58 and 59 (view of the Mini-Fit family); NZXT, PSU paperclip test; Gigabyte B450M K and ASRock B450 Steel Legend manuals"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the board (pin contacts)", de: "Stiftleiste auf der Platine (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"]}
+      - {pins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]}
+  pins:
+    - {number: "1", name: "+3.3V", function: {en: "+3.3 V supply", de: "+3,3-V-Versorgung"}, type: power, wire: orange}
+    - {number: "2", name: "+3.3V", function: {en: "+3.3 V supply", de: "+3,3-V-Versorgung"}, type: power, wire: orange}
+    - {number: "3", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "4", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+    - {number: "5", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "6", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+    - {number: "7", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "8", name: "PWR_OK", function: {en: "Power-good signal from the supply: outputs are within limits", de: "Power-Good-Meldung des Netzteils: Ausgänge im Sollbereich"}, type: signal, wire: grey}
+    - {number: "9", name: "+5VSB", function: {en: "+5 V standby, stays on while the PC is off", de: "+5-V-Standby, auch bei ausgeschaltetem PC aktiv"}, type: power, wire: purple}
+    - {number: "10", name: "+12V1", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "11", name: "+12V1", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "12", name: "+3.3V", function: {en: "+3.3 V supply", de: "+3,3-V-Versorgung"}, type: power, wire: orange}
+    - {number: "13", name: "+3.3V", function: {en: "+3.3 V supply", de: "+3,3-V-Versorgung"}, type: power, wire: orange, notes: {en: "A thin brown sense wire for +3.3 V shares this contact with the orange supply wire.", de: "Eine dünne braune Fühlerleitung für +3,3 V sitzt mit der orangen Versorgungsader im selben Kontakt."}}
+    - {number: "14", name: "-12V", function: {en: "-12 V supply", de: "-12-V-Versorgung"}, type: power, wire: blue}
+    - {number: "15", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "16", name: "PS_ON#", function: {en: "Power-on input, active low: pulling it to ground starts the supply", de: "Einschalteingang, low-aktiv: nach Masse gezogen startet er das Netzteil"}, type: signal, wire: green}
+    - {number: "17", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "18", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "19", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "20", name: "Reserved", function: {en: "Reserved, not connected", de: "Reserviert, nicht belegt"}, type: nc, notes: {en: "Older ATX supplies had -5 V here.", de: "Ältere ATX-Netzteile hatten hier -5 V."}}
+    - {number: "21", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+    - {number: "22", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+    - {number: "23", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+    - {number: "24", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: eps_8
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení CPU EPS12V, 8 pinů", da: "EPS12V CPU-strøm, 8-polet", de: "EPS12V-CPU-Strom, 8-polig", el: "Τροφοδοσία CPU EPS12V, 8 ακίδων", en: "EPS12V CPU power, 8-pin", es: "Alimentación CPU EPS12V, 8 pines", fr: "Alimentation CPU EPS12V, 8 broches", hi: "EPS12V CPU पावर, 8-पिन", it: "Alimentazione CPU EPS12V, 8 pin", ja: "EPS12V CPU 電源 8 ピン", nl: "EPS12V-CPU-voeding, 8-polig", "no": "EPS12V CPU-strøm, 8-polet", pl: "Zasilanie CPU EPS12V, 8-pinowe", pt: "Alimentação CPU EPS12V, 8 pinos", sv: "EPS12V CPU-ström, 8-polig", zh: "EPS12V CPU 电源 8 针"}
+  doc: {en: "The extra 12 V supply of the CPU on the board, a Mini-Fit Jr. housing with two rows of four. The latch sits on the row with the +12 V pins 5 to 8; it is drawn on top.", de: "Die zusätzliche 12-V-Versorgung der CPU auf der Platine, ein Mini-Fit-Jr.-Gehäuse mit zwei Viererreihen. Die Rastnase sitzt an der Reihe mit den +12-V-Pins 5 bis 8 und ist oben gezeichnet."}
+  notes: {en: "It looks like the 8-pin PCIe plug, but there the row at the latch is ground and the housing is keyed differently. Never force one into the other: +12 V would meet ground. A 4-pin ATX12V plug goes along pins 1 and 5.", de: "Er sieht aus wie der 8-polige PCIe-Stecker, dort liegt an der Rastnase aber die Masse-Reihe, und das Gehäuse ist anders kodiert. Nie mit Gewalt tauschen: +12 V träfe auf Masse. Ein 4-poliger ATX12V-Stecker sitzt bündig an den Pins 1 und 5."}
+  tags: ["eps", "eps12v", "eps-12v", "atx12v", "8-pin", "8-polig", "4+4", "cpu", "cpu power", "prozessor", "p8", "psu", "netzteil", "mini-fit", "minifit", "39-01-2080"]
+  source: "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-9 and figure 5-2; SSI EPS12V Power Supply Design Guide V2.91, table 8; PCI Express CEM Specification Rev. 4.0, figures 58 and 59 (view of the Mini-Fit family); ASRock B450 Steel Legend manual; Moddiy, Power Supply Connectors & Pinouts"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the board (pin contacts)", de: "Stiftleiste auf der Platine (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["5", "6", "7", "8"]}
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "2", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "3", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "4", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "5", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+    - {number: "6", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+    - {number: "7", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+    - {number: "8", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+
+- id: pcie_6
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení PCIe, 6 pinů (2x3)", da: "PCIe-strøm, 6-polet (2x3)", de: "PCIe-Strom, 6-polig (2x3)", el: "Τροφοδοσία PCIe, 6 ακίδων (2x3)", en: "PCIe power, 6-pin (2x3)", es: "Alimentación PCIe, 6 pines (2x3)", fr: "Alimentation PCIe, 6 broches (2x3)", hi: "PCIe पावर, 6-पिन (2x3)", it: "Alimentazione PCIe, 6 pin (2x3)", ja: "PCIe 電源 6 ピン (2x3)", nl: "PCIe-voeding, 6-polig (2x3)", "no": "PCIe-strøm, 6-polet (2x3)", pl: "Zasilanie PCIe, 6-pinowe (2x3)", pt: "Alimentação PCIe, 6 pinos (2x3)", sv: "PCIe-ström, 6-polig (2x3)", zh: "PCIe 电源 6 针 (2x3)"}
+  doc: {en: "Extra 12 V supply of a graphics card, up to 75 W. A plug of 4.2 mm pitch with two rows of three; the latch sits on the row with pins 4 to 6 and is drawn on top.", de: "Zusätzliche 12-V-Versorgung einer Grafikkarte, bis 75 W. Ein Stecker im Raster 4,2 mm mit zwei Dreierreihen; die Rastnase sitzt an der Reihe mit den Pins 4 bis 6 und ist oben gezeichnet."}
+  notes: {en: "In an 8-pin header this plug reaches pins 1 to 3 and 5 to 7, so its sense pin meets Sense0 and Sense1 stays open: the card then draws at most 75 W. Some older cables leave pin 2 unconnected.", de: "In einer 8-poligen Stiftleiste erreicht dieser Stecker die Pins 1 bis 3 und 5 bis 7. Sein Sense-Pin trifft auf Sense0, Sense1 bleibt offen: Die Karte zieht dann höchstens 75 W. Manche älteren Kabel lassen Pin 2 unbelegt."}
+  tags: ["pcie", "pci-e", "pci express", "peg", "6-pin", "6-polig", "2x3", "gpu", "grafikkarte", "graphics card", "75 w", "sense", "psu", "netzteil", "mini-fit", "minifit"]
+  source: "PCI Express Card Electromechanical Specification Rev. 4.0 Version 1.0, figure 60 and table 53; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-4"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the graphics card (pin contacts)", de: "Stiftleiste auf der Grafikkarte (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["4", "5", "6"]}
+      - {pins: ["1", "2", "3"]}
+  pins:
+    - {number: "1", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "2", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "3", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "4", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "5", name: "Sense", function: {en: "Tells the card that a plug is attached", de: "Meldet der Karte einen gesteckten Stecker"}, type: signal, wire: black, notes: {en: "Grounded in the supply or by a jumper to a neighbouring ground pin.", de: "Im Netzteil oder per Brücke zu einem benachbarten Masse-Pin auf Masse gelegt."}}
+    - {number: "6", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: pcie_8
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení PCIe, 8 pinů (2x4)", da: "PCIe-strøm, 8-polet (2x4)", de: "PCIe-Strom, 8-polig (2x4)", el: "Τροφοδοσία PCIe, 8 ακίδων (2x4)", en: "PCIe power, 8-pin (2x4)", es: "Alimentación PCIe, 8 pines (2x4)", fr: "Alimentation PCIe, 8 broches (2x4)", hi: "PCIe पावर, 8-पिन (2x4)", it: "Alimentazione PCIe, 8 pin (2x4)", ja: "PCIe 電源 8 ピン (2x4)", nl: "PCIe-voeding, 8-polig (2x4)", "no": "PCIe-strøm, 8-polet (2x4)", pl: "Zasilanie PCIe, 8-pinowe (2x4)", pt: "Alimentação PCIe, 8 pinos (2x4)", sv: "PCIe-ström, 8-polig (2x4)", zh: "PCIe 电源 8 针 (2x4)"}
+  doc: {en: "Extra 12 V supply of a graphics card, up to 150 W. A plug of 4.2 mm pitch with two rows of four; the latch sits on the row with pins 5 to 8, all black wires, and is drawn on top.", de: "Zusätzliche 12-V-Versorgung einer Grafikkarte, bis 150 W. Ein Stecker im Raster 4,2 mm mit zwei Viererreihen; die Rastnase sitzt an der Reihe mit den Pins 5 bis 8, alles schwarze Adern, und ist oben gezeichnet."}
+  notes: {en: "The card reads both sense pins: both grounded means this 150 W plug. It looks like the 8-pin EPS12V plug, but there the row at the latch is +12 V and the housing is keyed differently. Never force one into the other: +12 V would meet ground.", de: "Die Karte liest beide Sense-Pins: Beide auf Masse bedeutet diesen 150-W-Stecker. Er sieht aus wie der 8-polige EPS12V-Stecker, dort liegt an der Rastnase aber +12 V, und das Gehäuse ist anders kodiert. Nie mit Gewalt tauschen: +12 V träfe auf Masse."}
+  tags: ["pcie", "pci-e", "pci express", "peg", "8-pin", "8-polig", "2x4", "6+2", "gpu", "grafikkarte", "graphics card", "150 w", "sense0", "sense1", "psu", "netzteil", "mini-fit", "minifit"]
+  source: "PCI Express Card Electromechanical Specification Rev. 4.0 Version 1.0, figures 58 and 59, tables 51 and 52; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, tables 5-5 and 5-6; NVIDIA BlueField-3 hardware guide, External Power Supply Connector"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the graphics card (pin contacts)", de: "Stiftleiste auf der Grafikkarte (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["5", "6", "7", "8"]}
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "2", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "3", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "4", name: "Sense1", function: {en: "Second sense pin: grounded only in the 8-pin plug", de: "Zweiter Sense-Pin: nur im 8-poligen Stecker auf Masse"}, type: signal, wire: black}
+    - {number: "5", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "6", name: "Sense0", function: {en: "First sense pin: grounded in 6-pin and 8-pin plugs", de: "Erster Sense-Pin: im 6- und 8-poligen Stecker auf Masse"}, type: signal, wire: black}
+    - {number: "7", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "8", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: sata_data
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Data SATA, 7 pinů", da: "SATA-data, 7-polet", de: "SATA-Daten, 7-polig", el: "Δεδομένα SATA, 7 ακίδων", en: "SATA data, 7-pin", es: "Datos SATA, 7 pines", fr: "Données SATA, 7 broches", hi: "SATA डेटा, 7-पिन", it: "Dati SATA, 7 pin", ja: "SATA データ 7 ピン", nl: "SATA-data, 7-polig", "no": "SATA-data, 7-polet", pl: "Dane SATA, 7-pinowe", pt: "Dados SATA, 7 pinos", sv: "SATA-data, 7-polig", zh: "SATA 数据 7 针"}
+  doc: {en: "Seven contacts in a single row at 1.27 mm pitch: three grounds around two differential pairs. The L-shaped key sits at the S7 end and is drawn at the bottom.", de: "Sieben Kontakte in einer Reihe im Raster 1,27 mm: drei Massen um zwei differenzielle Paare. Der L-förmige Kodiersteg sitzt am Ende bei S7 und ist unten gezeichnet."}
+  notes: {en: "Both ends of a data cable are the same and either may go to the drive or the host. On a drive the data contacts continue the row of the power contacts: S1 to S7, a gap, then P1 to P15.", de: "Beide Enden eines Datenkabels sind gleich, jedes darf ans Laufwerk oder an den Host. Am Laufwerk setzt sich die Reihe der Datenkontakte in den Stromkontakten fort: S1 bis S7, eine Lücke, dann P1 bis P15."}
+  tags: ["sata", "serial ata", "data", "daten", "7-pin", "7-polig", "hdd", "ssd", "festplatte", "hard disk", "tx", "rx", "a+", "a-", "b+", "b-"]
+  source: "SATA-IO Technical Proposal TP 037 v1.1, table 1; Seagate BarraCuda Product Manual 100817550 Rev. L, table 5; Gigabyte B450M K manual, SATA connector drawing and table"
+  views:
+    plug: {en: "Cable connector (SATA receptacle)", de: "Kabelstecker (SATA-Receptacle)"}
+    socket: {en: "Drive or board connector (SATA plug)", de: "Anschluss an Laufwerk oder Platine (SATA-Plug)"}
+  shape:
+    type: rows
+    outline: sata_data
+    contact: blade
+    drawn: plug
+    rows:
+      - {pins: ["S1", "S2", "S3", "S4", "S5", "S6", "S7"]}
+  pins:
+    - {number: "S1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "S2", name: "A+", function: {en: "Pair A, positive line (TXP on a board connector)", de: "Paar A, positive Leitung (TXP am Platinenanschluss)"}, type: data}
+    - {number: "S3", name: "A-", function: {en: "Pair A, negative line (TXN on a board connector)", de: "Paar A, negative Leitung (TXN am Platinenanschluss)"}, type: data}
+    - {number: "S4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "S5", name: "B-", function: {en: "Pair B, negative line (RXN on a board connector)", de: "Paar B, negative Leitung (RXN am Platinenanschluss)"}, type: data}
+    - {number: "S6", name: "B+", function: {en: "Pair B, positive line (RXP on a board connector)", de: "Paar B, positive Leitung (RXP am Platinenanschluss)"}, type: data}
+    - {number: "S7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: sata_power
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení SATA, 15 pinů", da: "SATA-strøm, 15-polet", de: "SATA-Strom, 15-polig", el: "Τροφοδοσία SATA, 15 ακίδων", en: "SATA power, 15-pin", es: "Alimentación SATA, 15 pines", fr: "Alimentation SATA, 15 broches", hi: "SATA पावर, 15-पिन", it: "Alimentazione SATA, 15 pin", ja: "SATA 電源 15 ピン", nl: "SATA-voeding, 15-polig", "no": "SATA-strøm, 15-polet", pl: "Zasilanie SATA, 15-pinowe", pt: "Alimentação SATA, 15 pinos", sv: "SATA-ström, 15-polig", zh: "SATA 电源 15 针"}
+  doc: {en: "Fifteen contacts in a single row at 1.27 mm pitch, three each for +3.3 V, ground, +5 V, ground and +12 V. The L-shaped key sits at the P1 end and is drawn at the bottom.", de: "Fünfzehn Kontakte in einer Reihe im Raster 1,27 mm, je drei für +3,3 V, Masse, +5 V, Masse und +12 V. Der L-förmige Kodiersteg sitzt am Ende bei P1 und ist unten gezeichnet."}
+  notes: {en: "Five wires feed the fifteen contacts, so wire numbers and contact numbers are not the same. The SATA specification has retired +3.3 V on P1 to P3, but some power supplies still deliver it, which matters for drives with the Power Disable feature on P3.", de: "Fünf Adern versorgen die fünfzehn Kontakte, Adernummern und Kontaktnummern sind also nicht gleich. Die SATA-Spezifikation hat +3,3 V auf P1 bis P3 gestrichen, manche Netzteile liefern sie aber weiter. Das ist wichtig für Laufwerke mit Power Disable auf P3."}
+  tags: ["sata", "serial ata", "power", "strom", "15-pin", "15-polig", "hdd", "ssd", "festplatte", "hard disk", "psu", "netzteil", "power disable", "pwdis", "staggered spin-up", "das", "dss", "3.3v", "5v", "12v"]
+  source: "SATA-IO Technical Proposal TP 037 v1.1, table 1; Seagate BarraCuda Product Manual 100817550 Rev. L, table 5; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-10 and figure 5-2; Western Digital tech brief, Power Disable Feature"
+  views:
+    plug: {en: "Cable connector (SATA receptacle)", de: "Kabelstecker (SATA-Receptacle)"}
+    socket: {en: "Drive or board connector (SATA plug)", de: "Anschluss an Laufwerk oder Platine (SATA-Plug)"}
+  shape:
+    type: rows
+    outline: sata_power
+    contact: blade
+    drawn: plug
+    rows:
+      - {pins: ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "P15"]}
+  pins:
+    - {number: "P1", name: "V33", function: {en: "3.3 V supply (retired)", de: "3,3-V-Versorgung (gestrichen)"}, type: power, wire: orange}
+    - {number: "P2", name: "V33", function: {en: "3.3 V supply (retired)", de: "3,3-V-Versorgung (gestrichen)"}, type: power, wire: orange}
+    - {number: "P3", name: "V33", function: {en: "3.3 V supply, pre-charge (retired)", de: "3,3-V-Versorgung, Vorladung (gestrichen)"}, type: power, wire: orange, notes: {en: "Newer enterprise drives can use this pin as Power Disable: 3.3 V here holds them in reset, so they do not spin up.", de: "Neuere Enterprise-Laufwerke können diesen Pin als Power Disable nutzen: 3,3 V halten sie hier im Reset, sie laufen dann nicht an."}}
+    - {number: "P4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black, notes: {en: "Mates first on a backplane.", de: "Schließt an einer Backplane zuerst."}}
+    - {number: "P5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "P6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "P7", name: "V5", function: {en: "5 V supply, pre-charge", de: "5-V-Versorgung, Vorladung"}, type: power, wire: red}
+    - {number: "P8", name: "V5", function: {en: "5 V supply", de: "5-V-Versorgung"}, type: power, wire: red}
+    - {number: "P9", name: "V5", function: {en: "5 V supply", de: "5-V-Versorgung"}, type: power, wire: red}
+    - {number: "P10", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "P11", name: "DAS/DSS", function: {en: "Drive activity output and staggered spin-up control", de: "Aktivitätsausgang und Steuerung des gestaffelten Anlaufs"}, type: signal, wire: black, notes: {en: "Always grounded on the cable side. A grounded P11 makes the drive start at once.", de: "Auf der Kabelseite immer auf Masse. Mit P11 auf Masse läuft das Laufwerk sofort an."}}
+    - {number: "P12", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black, notes: {en: "Mates first on a backplane.", de: "Schließt an einer Backplane zuerst."}}
+    - {number: "P13", name: "V12", function: {en: "12 V supply, pre-charge", de: "12-V-Versorgung, Vorladung"}, type: power, wire: yellow}
+    - {number: "P14", name: "V12", function: {en: "12 V supply", de: "12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "P15", name: "V12", function: {en: "12 V supply", de: "12-V-Versorgung"}, type: power, wire: yellow}
+
+- id: molex_4
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení periferií, 4 piny (Molex)", da: "Periferistrøm, 4-polet (Molex)", de: "Laufwerksstrom, 4-polig (Molex)", el: "Τροφοδοσία μονάδων, 4 ακίδων (Molex)", en: "Peripheral power, 4-pin (Molex)", es: "Alim. de periféricos, 4 pines (Molex)", fr: "Alim. périphériques, 4 broches (Molex)", hi: "पेरिफेरल पावर, 4-पिन (Molex)", it: "Alim. periferiche, 4 pin (Molex)", ja: "周辺機器電源 4 ピン (Molex)", nl: "Randapparaatvoeding, 4-polig (Molex)", "no": "Periferistrøm, 4-polet (Molex)", pl: "Zasilanie urządzeń, 4-pinowe (Molex)", pt: "Alim. de periféricos, 4 pinos (Molex)", sv: "Periferiström, 4-polig (Molex)", zh: "外设电源 4 针 (Molex)"}
+  doc: {en: "The 4-pin peripheral power connector of older drives and accessories, AMP Mate-N-Lok 1-480424-0 or Molex 8981 type. The two cut corners are drawn at the bottom.", de: "Der vierpolige Peripherie-Stromstecker älterer Laufwerke und Zubehörteile, Typ AMP Mate-N-Lok 1-480424-0 oder Molex 8981. Die beiden abgeschrägten Ecken sind unten gezeichnet."}
+  notes: {en: "Hold it with the cut corners on top and the order flips: the cable connector then reads 1, 2, 3, 4 from the left and the drive connector 4, 3, 2, 1. The pin numbers of the smaller floppy connector are different.", de: "Mit den abgeschrägten Ecken nach oben dreht sich die Folge um: Der Kabelstecker liest sich dann von links 1, 2, 3, 4 und der Laufwerksanschluss 4, 3, 2, 1. Der kleinere Floppy-Stecker hat andere Pinnummern."}
+  tags: ["molex", "ide", "pata", "peripheral", "peripherie", "laufwerk", "drive", "4-pin", "4-polig", "mate-n-lok", "8981", "1-480424-0", "15-24-4048", "psu", "netzteil", "12v", "5v"]
+  source: "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-2 and figure 5-2; Maxtor DiamondMax 17 product manual, figure 3-5 and table 3-3; Wikipedia, Molex connector"
+  views:
+    plug: {en: "Cable connector from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Connector on the drive (pin contacts)", de: "Anschluss am Laufwerk (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: molex
+    contact: round
+    drawn: plug
+    rows:
+      - {pins: ["4", "3", "2", "1"]}
+  pins:
+    - {number: "1", name: "+12V1", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power, wire: yellow}
+    - {number: "2", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "3", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "4", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power, wire: red}
+
+- id: fan_3
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Ventilátor, 3 piny", da: "Blæser, 3-polet", de: "Lüfter, 3-polig", el: "Ανεμιστήρας, 3 ακίδων", en: "Fan, 3-pin", es: "Ventilador, 3 pines", fr: "Ventilateur, 3 broches", hi: "पंखा, 3-पिन", it: "Ventola, 3 pin", ja: "ファン 3 ピン", nl: "Ventilator, 3-polig", "no": "Vifte, 3-polet", pl: "Wentylator, 3-pinowy", pt: "Ventoinha, 3 pinos", sv: "Fläkt, 3-polig", zh: "风扇 3 针"}
+  doc: {en: "Three-wire fan connector with a speed signal and no PWM input. The notch stands for the guide rails on the plug, which take the wall of the header.", de: "Dreiadriger Lüfteranschluss mit Drehzahlsignal, ohne PWM-Eingang. Die Kerbe steht für die Führungsschienen am Stecker, in die der Steg der Stiftleiste greift."}
+  notes: {en: "It fits pins 1 to 3 of a 4-pin header. The colours are the makers' habit, not a standard: the third wire can also be white, and on 4-wire fans yellow is +12 V. Go by position.", de: "Er passt auf die Pins 1 bis 3 einer vierpoligen Stiftleiste. Die Farben sind Herstellergewohnheit, kein Standard: Die dritte Ader kann auch weiß sein, und bei vieradrigen Lüftern ist Gelb +12 V. Nach Position gehen."}
+  tags: ["fan", "lüfter", "luefter", "3-pin", "3-polig", "tach", "tacho", "rpm", "sense", "chassis fan", "gehäuselüfter", "cpu fan", "noctua", "sunon"]
+  source: "Noctua FAQ, What pin configuration do Noctua fans use?; Sunon, Fan 3rd Wire Signal (PMD1212PTB3-A datasheet); ASRock B450 Steel Legend manual, fan connectors; Intel 4-Wire PWM Controlled Fans Specification Rev. 1.2, figures 6 and 7 (key and view of the family)"
+  views:
+    plug: {en: "Fan cable plug (socket contacts)", de: "Lüfterstecker am Kabel (Buchsenkontakte)"}
+    socket: {en: "Header on the board (pin contacts)", de: "Stiftleiste auf der Platine (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: top
+    rows:
+      - {pins: ["1", "2", "3"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "2", name: "+12V", function: {en: "Fan supply, +12 V or a voltage the board varies", de: "Lüfterversorgung, +12 V oder von der Platine geregelte Spannung"}, type: power, wire: red}
+    - {number: "3", name: "RPM", function: {en: "Speed signal from the fan (tachometer)", de: "Drehzahlsignal des Lüfters (Tacho)"}, type: signal, wire: yellow}
+
+- id: fan_4
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Ventilátor, 4 piny PWM", da: "Blæser, 4-polet PWM", de: "Lüfter, 4-polig PWM", el: "Ανεμιστήρας, 4 ακίδων PWM", en: "Fan, 4-pin PWM", es: "Ventilador, 4 pines PWM", fr: "Ventilateur, 4 broches PWM", hi: "पंखा, 4-पिन PWM", it: "Ventola, 4 pin PWM", ja: "ファン 4 ピン PWM", nl: "Ventilator, 4-polig PWM", "no": "Vifte, 4-polet PWM", pl: "Wentylator, 4-pinowy PWM", pt: "Ventoinha, 4 pinos PWM", sv: "Fläkt, 4-polig PWM", zh: "风扇 4 针 PWM"}
+  doc: {en: "Four-wire fan connector to Intel's PWM specification, 2.54 mm pitch. The notch stands for the guide rails on the plug; they span pins 1 to 3 and take the wall of the header.", de: "Vieradriger Lüfteranschluss nach Intels PWM-Spezifikation, Raster 2,54 mm. Die Kerbe steht für die Führungsschienen am Stecker; sie umfassen die Pins 1 bis 3 und nehmen den Steg der Stiftleiste auf."}
+  notes: {en: "A 3-pin fan fits pins 1 to 3 of the header and has no control input. Without a control signal a 4-wire fan runs at full speed. Some boards also vary the voltage on pin 2.", de: "Ein dreipoliger Lüfter passt auf die Pins 1 bis 3 der Stiftleiste und hat keinen Steuereingang. Ohne Steuersignal läuft ein vieradriger Lüfter mit voller Drehzahl. Manche Platinen regeln zusätzlich die Spannung an Pin 2."}
+  tags: ["fan", "lüfter", "luefter", "4-pin", "4-polig", "pwm", "tach", "tacho", "rpm", "sense", "control", "cpu fan", "cpu_fan", "sys_fan", "25 khz", "intel", "noctua"]
+  source: "Intel 4-Wire Pulse Width Modulation (PWM) Controlled Fans Specification Rev. 1.2 (July 2004), table 1, sections 2 and 3, figures 6 and 7; Noctua FAQ, What pin configuration do Noctua fans use?; Gigabyte B450M K and ASRock B450 Steel Legend manuals"
+  views:
+    plug: {en: "Fan cable plug (socket contacts)", de: "Lüfterstecker am Kabel (Buchsenkontakte)"}
+    socket: {en: "Header on the board (pin contacts)", de: "Stiftleiste auf der Platine (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: top
+    rows:
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "2", name: "12 V", function: {en: "Fan supply, +12 V", de: "Lüfterversorgung, +12 V"}, type: power, wire: yellow}
+    - {number: "3", name: "Sense", function: {en: "Speed signal from the fan (tachometer)", de: "Drehzahlsignal des Lüfters (Tacho)"}, type: signal, wire: green, notes: {en: "Open collector or open drain, two pulses per revolution; the board pulls it up to at most 13.2 V.", de: "Open Collector oder Open Drain, zwei Impulse pro Umdrehung; die Platine zieht auf höchstens 13,2 V hoch."}}
+    - {number: "4", name: "Control", function: {en: "PWM speed input of the fan", de: "PWM-Drehzahleingang des Lüfters"}, type: signal, wire: blue, notes: {en: "Target 25 kHz, allowed 21 to 28 kHz; at most 5.25 V open circuit and 5 mA short circuit.", de: "Soll 25 kHz, zulässig 21 bis 28 kHz; höchstens 5,25 V im Leerlauf und 5 mA im Kurzschluss."}}

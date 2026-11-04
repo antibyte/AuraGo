@@ -1,0 +1,38 @@
+{
+ "pinout": "molex_4",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 2,
+    "ground": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "+12V1",
+     "type": "power",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-2: pin 1, +12V1 DC, Yellow; Maxtor DiamondMax 17, table 3-3: pin 1, +12 VDC"
+    },
+    {
+     "number": "2",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-2: pin 2, COM, Black"
+    },
+    {
+     "number": "3",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-2: pin 3, COM, Black"
+    },
+    {
+     "number": "4",
+     "name": "+5V",
+     "type": "power",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-2: pin 4, +5 VDC, Red; Maxtor DiamondMax 17, table 3-3: pin 4, +5 VDC"
+    }
+   ]
+  }
+ ]
+}

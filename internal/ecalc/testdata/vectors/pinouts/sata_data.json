@@ -1,0 +1,56 @@
+{
+ "pinout": "sata_data",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 3,
+    "data": 4
+   },
+   "pins": [
+    {
+     "number": "S1",
+     "name": "GND",
+     "type": "ground",
+     "ref": "SATA-IO TP 037 v1.1, table 1: S1, GND"
+    },
+    {
+     "number": "S2",
+     "name": "A+",
+     "type": "data",
+     "ref": "SATA-IO TP 037 v1.1, table 1: S2, A+"
+    },
+    {
+     "number": "S3",
+     "name": "A-",
+     "type": "data",
+     "ref": "Seagate 100817550 Rev. L, table 5: S3, A-"
+    },
+    {
+     "number": "S4",
+     "name": "GND",
+     "type": "ground",
+     "ref": "SATA-IO TP 037 v1.1, table 1: S4, GND"
+    },
+    {
+     "number": "S5",
+     "name": "B-",
+     "type": "data",
+     "ref": "SATA-IO TP 037 v1.1, table 1: S5, B-"
+    },
+    {
+     "number": "S6",
+     "name": "B+",
+     "type": "data",
+     "ref": "Seagate 100817550 Rev. L, table 5: S6, B+"
+    },
+    {
+     "number": "S7",
+     "name": "GND",
+     "type": "ground",
+     "ref": "SATA-IO TP 037 v1.1, table 1: S7, GND"
+    }
+   ]
+  }
+ ]
+}

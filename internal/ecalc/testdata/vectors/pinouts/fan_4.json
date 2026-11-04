@@ -1,0 +1,39 @@
+{
+ "pinout": "fan_4",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "power": 1,
+    "signal": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel 4-Wire PWM Specification Rev. 1.2, table 1: pin 1, GND, Black"
+    },
+    {
+     "number": "2",
+     "name": "12 V",
+     "type": "power",
+     "ref": "Intel 4-Wire PWM Specification Rev. 1.2, table 1: pin 2, 12 V, Yellow"
+    },
+    {
+     "number": "3",
+     "name": "Sense",
+     "type": "signal",
+     "ref": "Intel 4-Wire PWM Specification Rev. 1.2, table 1: pin 3, Sense, Green"
+    },
+    {
+     "number": "4",
+     "name": "Control",
+     "type": "signal",
+     "ref": "Intel 4-Wire PWM Specification Rev. 1.2, table 1: pin 4, Control, Blue"
+    }
+   ]
+  }
+ ]
+}

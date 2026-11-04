@@ -1,0 +1,38 @@
+{
+ "pinout": "eps_8",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 4,
+    "power": 4
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-9: COM, Black"
+    },
+    {
+     "number": "4",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-9: COM, Black"
+    },
+    {
+     "number": "5",
+     "name": "+12V2",
+     "type": "power",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-9: +12V2 DC, Yellow"
+    },
+    {
+     "number": "8",
+     "name": "+12V2",
+     "type": "power",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-9: +12V2 DC, Yellow"
+    }
+   ]
+  }
+ ]
+}

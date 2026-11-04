@@ -37201,6 +37201,1286 @@
         }
       ],
       "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "atx_24",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "ATX main power, 24-pin",
+      "name_en": "ATX main power, 24-pin",
+      "doc": "Main plug of an ATX power supply, a Mini-Fit Jr. housing with two rows of twelve. The latch sits on the row with pins 13 to 24; it is drawn on top.",
+      "notes": "On a 20+4 plug the split-off part carries pins 11, 12, 23 and 24; a 20-pin plug goes along pins 1 and 13. The colours are the ones the ATX guide recommends. Some cables differ, so go by position, not by colour.",
+      "tags": [
+        "atx",
+        "atx12v",
+        "24-pin",
+        "24-polig",
+        "20+4",
+        "mainboard",
+        "motherboard",
+        "psu",
+        "netzteil",
+        "ps_on",
+        "ps-on",
+        "pwr_ok",
+        "power good",
+        "5vsb",
+        "standby",
+        "mini-fit",
+        "minifit",
+        "molex 39-01-2240",
+        "44206"
+      ],
+      "source": "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-1 and figure 5-2; PCI Express CEM Specification Rev. 4.0, figures 58 and 59 (view of the Mini-Fit family); NZXT, PSU paperclip test; Gigabyte B450M K and ASRock B450 Steel Legend manuals",
+      "views": {
+        "plug": "Cable plug from the power supply (socket contacts)",
+        "socket": "Header on the board (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "minifit",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "13",
+              "14",
+              "15",
+              "16",
+              "17",
+              "18",
+              "19",
+              "20",
+              "21",
+              "22",
+              "23",
+              "24"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11",
+              "12"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "+3.3V",
+          "function": "+3.3 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "2",
+          "name": "+3.3V",
+          "function": "+3.3 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "3",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "4",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "5",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "6",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "7",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "8",
+          "name": "PWR_OK",
+          "function": "Power-good signal from the supply: outputs are within limits",
+          "type": "signal",
+          "notes": "",
+          "wire": "grey"
+        },
+        {
+          "number": "9",
+          "name": "+5VSB",
+          "function": "+5 V standby, stays on while the PC is off",
+          "type": "power",
+          "notes": "",
+          "wire": "purple"
+        },
+        {
+          "number": "10",
+          "name": "+12V1",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "11",
+          "name": "+12V1",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "12",
+          "name": "+3.3V",
+          "function": "+3.3 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "13",
+          "name": "+3.3V",
+          "function": "+3.3 V supply",
+          "type": "power",
+          "notes": "A thin brown sense wire for +3.3 V shares this contact with the orange supply wire.",
+          "wire": "orange"
+        },
+        {
+          "number": "14",
+          "name": "-12V",
+          "function": "-12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "blue"
+        },
+        {
+          "number": "15",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "16",
+          "name": "PS_ON#",
+          "function": "Power-on input, active low: pulling it to ground starts the supply",
+          "type": "signal",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "17",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "18",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "19",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "20",
+          "name": "Reserved",
+          "function": "Reserved, not connected",
+          "type": "nc",
+          "notes": "Older ATX supplies had -5 V here.",
+          "wire": ""
+        },
+        {
+          "number": "21",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "22",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "23",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "24",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "eps_8",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "EPS12V CPU power, 8-pin",
+      "name_en": "EPS12V CPU power, 8-pin",
+      "doc": "The extra 12 V supply of the CPU on the board, a Mini-Fit Jr. housing with two rows of four. The latch sits on the row with the +12 V pins 5 to 8; it is drawn on top.",
+      "notes": "It looks like the 8-pin PCIe plug, but there the row at the latch is ground and the housing is keyed differently. Never force one into the other: +12 V would meet ground. A 4-pin ATX12V plug goes along pins 1 and 5.",
+      "tags": [
+        "eps",
+        "eps12v",
+        "eps-12v",
+        "atx12v",
+        "8-pin",
+        "8-polig",
+        "4+4",
+        "cpu",
+        "cpu power",
+        "prozessor",
+        "p8",
+        "psu",
+        "netzteil",
+        "mini-fit",
+        "minifit",
+        "39-01-2080"
+      ],
+      "source": "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-9 and figure 5-2; SSI EPS12V Power Supply Design Guide V2.91, table 8; PCI Express CEM Specification Rev. 4.0, figures 58 and 59 (view of the Mini-Fit family); ASRock B450 Steel Legend manual; Moddiy, Power Supply Connectors & Pinouts",
+      "views": {
+        "plug": "Cable plug from the power supply (socket contacts)",
+        "socket": "Header on the board (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "minifit",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "5",
+              "6",
+              "7",
+              "8"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "2",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "3",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "4",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "5",
+          "name": "+12V2",
+          "function": "+12 V supply for the CPU",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "6",
+          "name": "+12V2",
+          "function": "+12 V supply for the CPU",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "7",
+          "name": "+12V2",
+          "function": "+12 V supply for the CPU",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "8",
+          "name": "+12V2",
+          "function": "+12 V supply for the CPU",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "pcie_6",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "PCIe power, 6-pin (2x3)",
+      "name_en": "PCIe power, 6-pin (2x3)",
+      "doc": "Extra 12 V supply of a graphics card, up to 75 W. A plug of 4.2 mm pitch with two rows of three; the latch sits on the row with pins 4 to 6 and is drawn on top.",
+      "notes": "In an 8-pin header this plug reaches pins 1 to 3 and 5 to 7, so its sense pin meets Sense0 and Sense1 stays open: the card then draws at most 75 W. Some older cables leave pin 2 unconnected.",
+      "tags": [
+        "pcie",
+        "pci-e",
+        "pci express",
+        "peg",
+        "6-pin",
+        "6-polig",
+        "2x3",
+        "gpu",
+        "grafikkarte",
+        "graphics card",
+        "75 w",
+        "sense",
+        "psu",
+        "netzteil",
+        "mini-fit",
+        "minifit"
+      ],
+      "source": "PCI Express Card Electromechanical Specification Rev. 4.0 Version 1.0, figure 60 and table 53; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-4",
+      "views": {
+        "plug": "Cable plug from the power supply (socket contacts)",
+        "socket": "Header on the graphics card (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "minifit",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "4",
+              "5",
+              "6"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "1",
+              "2",
+              "3"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "2",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "3",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "4",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "5",
+          "name": "Sense",
+          "function": "Tells the card that a plug is attached",
+          "type": "signal",
+          "notes": "Grounded in the supply or by a jumper to a neighbouring ground pin.",
+          "wire": "black"
+        },
+        {
+          "number": "6",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "pcie_8",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "PCIe power, 8-pin (2x4)",
+      "name_en": "PCIe power, 8-pin (2x4)",
+      "doc": "Extra 12 V supply of a graphics card, up to 150 W. A plug of 4.2 mm pitch with two rows of four; the latch sits on the row with pins 5 to 8, all black wires, and is drawn on top.",
+      "notes": "The card reads both sense pins: both grounded means this 150 W plug. It looks like the 8-pin EPS12V plug, but there the row at the latch is +12 V and the housing is keyed differently. Never force one into the other: +12 V would meet ground.",
+      "tags": [
+        "pcie",
+        "pci-e",
+        "pci express",
+        "peg",
+        "8-pin",
+        "8-polig",
+        "2x4",
+        "6+2",
+        "gpu",
+        "grafikkarte",
+        "graphics card",
+        "150 w",
+        "sense0",
+        "sense1",
+        "psu",
+        "netzteil",
+        "mini-fit",
+        "minifit"
+      ],
+      "source": "PCI Express Card Electromechanical Specification Rev. 4.0 Version 1.0, figures 58 and 59, tables 51 and 52; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, tables 5-5 and 5-6; NVIDIA BlueField-3 hardware guide, External Power Supply Connector",
+      "views": {
+        "plug": "Cable plug from the power supply (socket contacts)",
+        "socket": "Header on the graphics card (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "minifit",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "5",
+              "6",
+              "7",
+              "8"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "2",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "3",
+          "name": "+12V",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "4",
+          "name": "Sense1",
+          "function": "Second sense pin: grounded only in the 8-pin plug",
+          "type": "signal",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "5",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "6",
+          "name": "Sense0",
+          "function": "First sense pin: grounded in 6-pin and 8-pin plugs",
+          "type": "signal",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "7",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "8",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sata_data",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "SATA data, 7-pin",
+      "name_en": "SATA data, 7-pin",
+      "doc": "Seven contacts in a single row at 1.27 mm pitch: three grounds around two differential pairs. The L-shaped key sits at the S7 end and is drawn at the bottom.",
+      "notes": "Both ends of a data cable are the same and either may go to the drive or the host. On a drive the data contacts continue the row of the power contacts: S1 to S7, a gap, then P1 to P15.",
+      "tags": [
+        "sata",
+        "serial ata",
+        "data",
+        "daten",
+        "7-pin",
+        "7-polig",
+        "hdd",
+        "ssd",
+        "festplatte",
+        "hard disk",
+        "tx",
+        "rx",
+        "a+",
+        "a-",
+        "b+",
+        "b-"
+      ],
+      "source": "SATA-IO Technical Proposal TP 037 v1.1, table 1; Seagate BarraCuda Product Manual 100817550 Rev. L, table 5; Gigabyte B450M K manual, SATA connector drawing and table",
+      "views": {
+        "plug": "Cable connector (SATA receptacle)",
+        "socket": "Drive or board connector (SATA plug)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "sata_data",
+        "contact": "blade",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6",
+              "S7"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "S1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S2",
+          "name": "A+",
+          "function": "Pair A, positive line (TXP on a board connector)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S3",
+          "name": "A-",
+          "function": "Pair A, negative line (TXN on a board connector)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S5",
+          "name": "B-",
+          "function": "Pair B, negative line (RXN on a board connector)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S6",
+          "name": "B+",
+          "function": "Pair B, positive line (RXP on a board connector)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sata_power",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "SATA power, 15-pin",
+      "name_en": "SATA power, 15-pin",
+      "doc": "Fifteen contacts in a single row at 1.27 mm pitch, three each for +3.3 V, ground, +5 V, ground and +12 V. The L-shaped key sits at the P1 end and is drawn at the bottom.",
+      "notes": "Five wires feed the fifteen contacts, so wire numbers and contact numbers are not the same. The SATA specification has retired +3.3 V on P1 to P3, but some power supplies still deliver it, which matters for drives with the Power Disable feature on P3.",
+      "tags": [
+        "sata",
+        "serial ata",
+        "power",
+        "strom",
+        "15-pin",
+        "15-polig",
+        "hdd",
+        "ssd",
+        "festplatte",
+        "hard disk",
+        "psu",
+        "netzteil",
+        "power disable",
+        "pwdis",
+        "staggered spin-up",
+        "das",
+        "dss",
+        "3.3v",
+        "5v",
+        "12v"
+      ],
+      "source": "SATA-IO Technical Proposal TP 037 v1.1, table 1; Seagate BarraCuda Product Manual 100817550 Rev. L, table 5; Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-10 and figure 5-2; Western Digital tech brief, Power Disable Feature",
+      "views": {
+        "plug": "Cable connector (SATA receptacle)",
+        "socket": "Drive or board connector (SATA plug)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "sata_power",
+        "contact": "blade",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "P1",
+              "P2",
+              "P3",
+              "P4",
+              "P5",
+              "P6",
+              "P7",
+              "P8",
+              "P9",
+              "P10",
+              "P11",
+              "P12",
+              "P13",
+              "P14",
+              "P15"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "P1",
+          "name": "V33",
+          "function": "3.3 V supply (retired)",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "P2",
+          "name": "V33",
+          "function": "3.3 V supply (retired)",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "P3",
+          "name": "V33",
+          "function": "3.3 V supply, pre-charge (retired)",
+          "type": "power",
+          "notes": "Newer enterprise drives can use this pin as Power Disable: 3.3 V here holds them in reset, so they do not spin up.",
+          "wire": "orange"
+        },
+        {
+          "number": "P4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "Mates first on a backplane.",
+          "wire": "black"
+        },
+        {
+          "number": "P5",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "P6",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "P7",
+          "name": "V5",
+          "function": "5 V supply, pre-charge",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "P8",
+          "name": "V5",
+          "function": "5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "P9",
+          "name": "V5",
+          "function": "5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "P10",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "P11",
+          "name": "DAS/DSS",
+          "function": "Drive activity output and staggered spin-up control",
+          "type": "signal",
+          "notes": "Always grounded on the cable side. A grounded P11 makes the drive start at once.",
+          "wire": "black"
+        },
+        {
+          "number": "P12",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "Mates first on a backplane.",
+          "wire": "black"
+        },
+        {
+          "number": "P13",
+          "name": "V12",
+          "function": "12 V supply, pre-charge",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "P14",
+          "name": "V12",
+          "function": "12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "P15",
+          "name": "V12",
+          "function": "12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "molex_4",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "Peripheral power, 4-pin (Molex)",
+      "name_en": "Peripheral power, 4-pin (Molex)",
+      "doc": "The 4-pin peripheral power connector of older drives and accessories, AMP Mate-N-Lok 1-480424-0 or Molex 8981 type. The two cut corners are drawn at the bottom.",
+      "notes": "Hold it with the cut corners on top and the order flips: the cable connector then reads 1, 2, 3, 4 from the left and the drive connector 4, 3, 2, 1. The pin numbers of the smaller floppy connector are different.",
+      "tags": [
+        "molex",
+        "ide",
+        "pata",
+        "peripheral",
+        "peripherie",
+        "laufwerk",
+        "drive",
+        "4-pin",
+        "4-polig",
+        "mate-n-lok",
+        "8981",
+        "1-480424-0",
+        "15-24-4048",
+        "psu",
+        "netzteil",
+        "12v",
+        "5v"
+      ],
+      "source": "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-2 and figure 5-2; Maxtor DiamondMax 17 product manual, figure 3-5 and table 3-3; Wikipedia, Molex connector",
+      "views": {
+        "plug": "Cable connector from the power supply (socket contacts)",
+        "socket": "Connector on the drive (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "molex",
+        "contact": "round",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "4",
+              "3",
+              "2",
+              "1"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "+12V1",
+          "function": "+12 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "2",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "3",
+          "name": "COM",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "4",
+          "name": "+5V",
+          "function": "+5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "fan_3",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "Fan, 3-pin",
+      "name_en": "Fan, 3-pin",
+      "doc": "Three-wire fan connector with a speed signal and no PWM input. The notch stands for the guide rails on the plug, which take the wall of the header.",
+      "notes": "It fits pins 1 to 3 of a 4-pin header. The colours are the makers' habit, not a standard: the third wire can also be white, and on 4-wire fans yellow is +12 V. Go by position.",
+      "tags": [
+        "fan",
+        "lüfter",
+        "luefter",
+        "3-pin",
+        "3-polig",
+        "tach",
+        "tacho",
+        "rpm",
+        "sense",
+        "chassis fan",
+        "gehäuselüfter",
+        "cpu fan",
+        "noctua",
+        "sunon"
+      ],
+      "source": "Noctua FAQ, What pin configuration do Noctua fans use?; Sunon, Fan 3rd Wire Signal (PMD1212PTB3-A datasheet); ASRock B450 Steel Legend manual, fan connectors; Intel 4-Wire PWM Controlled Fans Specification Rev. 1.2, figures 6 and 7 (key and view of the family)",
+      "views": {
+        "plug": "Fan cable plug (socket contacts)",
+        "socket": "Header on the board (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "top",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "2",
+          "name": "+12V",
+          "function": "Fan supply, +12 V or a voltage the board varies",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "3",
+          "name": "RPM",
+          "function": "Speed signal from the fan (tachometer)",
+          "type": "signal",
+          "notes": "",
+          "wire": "yellow"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "fan_4",
+      "category": "pinouts",
+      "group": "pc_power",
+      "name": "Fan, 4-pin PWM",
+      "name_en": "Fan, 4-pin PWM",
+      "doc": "Four-wire fan connector to Intel's PWM specification, 2.54 mm pitch. The notch stands for the guide rails on the plug; they span pins 1 to 3 and take the wall of the header.",
+      "notes": "A 3-pin fan fits pins 1 to 3 of the header and has no control input. Without a control signal a 4-wire fan runs at full speed. Some boards also vary the voltage on pin 2.",
+      "tags": [
+        "fan",
+        "lüfter",
+        "luefter",
+        "4-pin",
+        "4-polig",
+        "pwm",
+        "tach",
+        "tacho",
+        "rpm",
+        "sense",
+        "control",
+        "cpu fan",
+        "cpu_fan",
+        "sys_fan",
+        "25 khz",
+        "intel",
+        "noctua"
+      ],
+      "source": "Intel 4-Wire Pulse Width Modulation (PWM) Controlled Fans Specification Rev. 1.2 (July 2004), table 1, sections 2 and 3, figures 6 and 7; Noctua FAQ, What pin configuration do Noctua fans use?; Gigabyte B450M K and ASRock B450 Steel Legend manuals",
+      "views": {
+        "plug": "Fan cable plug (socket contacts)",
+        "socket": "Header on the board (pin contacts)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "top",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "2",
+          "name": "12 V",
+          "function": "Fan supply, +12 V",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "3",
+          "name": "Sense",
+          "function": "Speed signal from the fan (tachometer)",
+          "type": "signal",
+          "notes": "Open collector or open drain, two pulses per revolution; the board pulls it up to at most 13.2 V.",
+          "wire": "green"
+        },
+        {
+          "number": "4",
+          "name": "Control",
+          "function": "PWM speed input of the fan",
+          "type": "signal",
+          "notes": "Target 25 kHz, allowed 21 to 28 kHz; at most 5.25 V open circuit and 5 mA short circuit.",
+          "wire": "blue"
+        }
+      ],
+      "variants": []
     }
   ]
 }
