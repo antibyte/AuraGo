@@ -15,6 +15,10 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 - `UEBERSICHT.md` is the German listing. Keep it aligned with the direct `go.mod` require block, root `package.json`, `browser_automation_sidecar/package.json`, `tools/aurago-tui/Cargo.toml`, and `internal/desktopstore/catalog.go`.
 - Texts in `texts/` are verbatim upstream or SPDX texts. Do not rewrite them.
 - One SPDX text covers a license family. Project copyright lines stay in the overview or in the vendor `LICENSES.md` files. The SPDX MIT text uses year and holder placeholders.
+- The source-pinned PDF parser retains its exact Go Authors notice and named
+  Google non-endorsement clause in `internal/pdftext/parser/LICENSE` and
+  `texts/ledongthuc-pdf-BSD-3-Clause.txt` for binary redistribution. Keep these
+  identical; this project notice supplements the shared BSD-3-Clause SPDX text.
 - Floating image tags describe the upstream project, not a digest-pinned legal snapshot.
 - Leave Datatype and any image whose license file was not read marked as unverified. Do not invent an SPDX id.
 - `command-code` npm metadata `UNLICENSED` stays stated as no granted license.
