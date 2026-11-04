@@ -527,38 +527,15 @@ func normalizeOllamaModelsBaseURL(rawURL string) (string, error) {
 // and returns it as JSON. The frontend uses this to display a model browser.
 // No API key is required — the endpoint is public.
 func handleOpenRouterModels(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-
-		client := &http.Client{Timeout: 15 * time.Second}
-		resp, err := client.Get("https://openrouter.ai/api/v1/models")
-		if err != nil {
-			w.WriteHeader(http.StatusBadGateway)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"available": false,
-				"reason":    "Failed to reach OpenRouter",
-			})
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			w.WriteHeader(http.StatusBadGateway)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"available": false,
-				"reason":    fmt.Sprintf("OpenRouter returned HTTP %d", resp.StatusCode),
-			})
-			return
-		}
-
-		// Stream the response directly to reduce memory usage
-		w.Header().Set("Content-Type", "application/json")
-		io.Copy(w, resp.Body)
+	parent := s.integrationCtx
+	if parent == nil {
+		parent = context.Background()
 	}
+	cache := &modelListCache{parent: parent, client: &http.Client{
+		Timeout:       15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}
+	return cache.serveHTTP
 }
 
 // handleMeshCentralTest attempts a login + WebSocket handshake against the MeshCentral server.

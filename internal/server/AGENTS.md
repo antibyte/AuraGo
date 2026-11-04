@@ -81,6 +81,11 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- The public `/api/openrouter/models` setup route shares one bounded cache:
+  15-minute successful JSON, 30-second failure, one concurrent refresh, 8 MiB
+  response and 15-second fetch deadline. Server shutdown cancels refreshes;
+  individual disconnected waiters do not. Verify `TestModelListCache*`.
+
 - Backup export stages an owner-restricted ZIP file; plain export/import stream through file readers. Multipart import spools above 8 MiB and removes its temporary uploads. Existing current/legacy encrypted formats use one archive-sized authentication buffer; legacy retries reload immutable ciphertext. Verify Backup/EncryptAGO/DecryptAGO tests and `TestBackupEncryptionReadersRoundTripWithoutChangingInput`.
 - Kaggle project write denials end the response immediately; quota errors use kaggle.PublicError. Docker Manager JSON body overflow shares decodeSized and returns 413. Verify `TestKaggleDeniedProjectWriteReturnsOneJSONResponse` and `TestDockerManagerJSONBodyLimitReturns413`.
 
