@@ -90,27 +90,25 @@
         function getWebGLTheme(theme) {
             if (theme === 'light') {
                 return {
-                    clearColor: 0xedf3fa,
-                    fogColor: 0xedf3fa,
-                    particleStart: 0x2864b4,
-                    particleEnd: 0x1d4e93,
+                    clearColor: 0xf6f7f9,
+                    fogColor: 0xf6f7f9,
+                    particleStart: 0xb93e0b,
+                    particleEnd: 0x9a3412,
                     nodeFlash: 0xffffff,
-                    lineColor: 0x2864b4,
-                    trailColor: 0x83baff,
-                    pulseColor: 0x54c5d7,
-                    orbColors: [0x2864b4, 0x54c5d7, 0x8098af]
+                    lineColor: 0xb93e0b,
+                    trailColor: 0xed764d,
+                    pulseColor: 0xe95420
                 };
             }
             return {
-                clearColor: 0x0d1726,
-                fogColor: 0x0d1726,
-                particleStart: 0x83baff,
-                particleEnd: 0x2864b4,
-                nodeFlash: 0xedf3fa,
-                lineColor: 0x83baff,
-                trailColor: 0xb2d5ff,
-                pulseColor: 0x54c5d7,
-                orbColors: [0x83baff, 0x54c5d7, 0x20364e]
+                clearColor: 0x12161d,
+                fogColor: 0x12161d,
+                particleStart: 0xed764d,
+                particleEnd: 0xb93e0b,
+                nodeFlash: 0xedf1f7,
+                lineColor: 0xed764d,
+                trailColor: 0xf08763,
+                pulseColor: 0xe95420
             };
         }
 
@@ -139,18 +137,6 @@
             renderer.setClearColor(palette.clearColor, 0);
             if (scene.fog) scene.fog.color.setHex(palette.fogColor);
 
-            scene.children.forEach(child => {
-                if (
-                    child.userData &&
-                    typeof child.userData.orbIndex === 'number' &&
-                    child.material &&
-                    child.material.color
-                ) {
-                    const orbColor = palette.orbColors[child.userData.orbIndex] || palette.orbColors[0];
-                    child.material.color.setHex(orbColor);
-                    child.material.needsUpdate = true;
-                }
-            });
 
             if (particles && lines && impulseTrails && impulseHeads) {
                 updateNodeVisuals();
@@ -183,14 +169,13 @@
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            // Transparent clear so the AuraGo color aurora shows through the neural net.
+            // Transparent clear so the page canvas shows through the neural net.
             renderer.setClearColor(palette.clearColor, 0);
             
             // Create particle system
             createParticles();
             createConnections();
             createImpulseEffects();
-            createFloatingOrbs();
             updateNodePositions(0);
             updateNodeVisuals();
             updateConnectionField();
@@ -440,54 +425,6 @@
             scene.add(impulseHeads);
         }
         
-        function createFloatingOrbs() {
-            // Large glowing orbs in background
-            const orbGeometry = new THREE.SphereGeometry(1, 32, 32);
-            const palette = getWebGLTheme(getCurrentTheme());
-
-            const orbPositions = [
-                { x: -30, y: 20, z: -20, scale: 8, color: palette.orbColors[0] },
-                { x: 35, y: -15, z: -30, scale: 6, color: palette.orbColors[1] },
-                { x: 0, y: -25, z: -10, scale: 10, color: palette.orbColors[2] }
-            ];
-            
-            orbPositions.forEach((orb, i) => {
-                const material = new THREE.MeshBasicMaterial({
-                    color: orb.color,
-                    transparent: true,
-                    opacity: 0.08,
-                    blending: THREE.AdditiveBlending
-                });
-                
-                const mesh = new THREE.Mesh(orbGeometry, material);
-                mesh.position.set(orb.x, orb.y, orb.z);
-                mesh.scale.setScalar(orb.scale);
-                mesh.userData = { 
-                    originalPos: { ...orb },
-                    phase: i * Math.PI / 3,
-                    orbIndex: i
-                };
-                
-                scene.add(mesh);
-                
-                // Add glow halo
-                const haloMaterial = new THREE.MeshBasicMaterial({
-                    color: orb.color,
-                    transparent: true,
-                    opacity: 0.03,
-                    blending: THREE.AdditiveBlending
-                });
-                const halo = new THREE.Mesh(orbGeometry, haloMaterial);
-                halo.position.copy(mesh.position);
-                halo.scale.setScalar(orb.scale * 1.5);
-                halo.userData = {
-                    originalPos: { ...orb },
-                    phase: i * Math.PI / 3,
-                    orbIndex: i
-                };
-                scene.add(halo);
-            });
-        }
         
         function updateNodePositions(delta) {
             if (!particles) return;
@@ -755,14 +692,6 @@
                 updateConnectionField();
             }
             
-            // Animate orbs
-            scene.children.forEach(child => {
-                if (child.userData && child.userData.originalPos) {
-                    const { originalPos, phase } = child.userData;
-                    child.position.x = originalPos.x + Math.sin(time * 0.5 + phase) * 5;
-                    child.position.y = originalPos.y + Math.cos(time * 0.3 + phase) * 3;
-                }
-            });
             
             // Camera follows mouse subtly
             camera.position.x += (mouseX * 2 - camera.position.x) * 0.02;

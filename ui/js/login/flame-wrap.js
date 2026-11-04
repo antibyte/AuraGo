@@ -68,11 +68,11 @@ function currentTheme() {
 }
 
 function colorForTheme(theme) {
-  // Config blue/slate fire (RGB 0-1).
+  // Standard orange fire (RGB 0-1): --pw-accent of each mode.
   if (theme === "light") {
-    return [0.157, 0.392, 0.706];
+    return [0.725, 0.243, 0.043];
   }
-  return [0.514, 0.729, 1];
+  return [0.929, 0.463, 0.302];
 }
 
 function readCardRadius(card) {

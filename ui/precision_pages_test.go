@@ -2402,7 +2402,7 @@ func TestPrecisionEntryLoginCSSFallbackRemainsAvailable(t *testing.T) {
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/login.css"))
 	prefix := `.pw-page.pw-entry-page[data-entry-page="login"]`
-	for _, selector := range []string{`.css-fallback-bg`, `.particle-grid`, `.scan-line`, `.orb`} {
+	for _, selector := range []string{`.css-fallback-bg`, `.particle-grid`, `.scan-line`} {
 		pattern := regexp.MustCompile(`(?s)([^{}]*` + regexp.QuoteMeta(selector) + `[^{}]*)\{([^}]*)\}`)
 		matches := pattern.FindAllStringSubmatch(css, -1)
 		if len(matches) == 0 {

@@ -27,217 +27,16 @@
            EPIC BACKGROUND ANIMATION - WebGL + CSS Fallback
            ═══════════════════════════════════════════════════════════════ */
 
-        /* AuraGo blue/slate aurora — always under neural net / CSS fallback */
+        /* Solid backplate under the neural net / CSS fallback. */
         .login-color-aurora {
             position: fixed;
             inset: 0;
             z-index: 0;
             overflow: hidden;
             pointer-events: none;
-            background:
-                radial-gradient(ellipse 120% 80% at 50% 120%, #0d1726 0%, #0a1420 45%, #07101a 100%);
+            background: var(--pw-canvas);
         }
 
-        .login-aurora-blob {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(72px);
-            opacity: 0.55;
-            will-change: transform, opacity, background-color;
-            mix-blend-mode: screen;
-        }
-
-        .login-aurora-blob-a {
-            width: min(72vw, 720px);
-            height: min(72vw, 720px);
-            top: -18%;
-            left: -12%;
-            background: radial-gradient(circle at 40% 40%,
-                rgba(131, 186, 255, 0.75) 0%,
-                rgba(84, 197, 215, 0.35) 42%,
-                transparent 70%);
-            animation: login-aurora-drift-a 22s ease-in-out infinite,
-                       login-aurora-hue-a 18s ease-in-out infinite;
-        }
-
-        .login-aurora-blob-b {
-            width: min(64vw, 640px);
-            height: min(64vw, 640px);
-            right: -14%;
-            bottom: -10%;
-            background: radial-gradient(circle at 55% 45%,
-                rgba(178, 213, 255, 0.65) 0%,
-                rgba(40, 100, 180, 0.4) 48%,
-                transparent 72%);
-            animation: login-aurora-drift-b 26s ease-in-out infinite,
-                       login-aurora-hue-b 20s ease-in-out infinite;
-            animation-delay: -6s, -3s;
-        }
-
-        .login-aurora-blob-c {
-            width: min(58vw, 560px);
-            height: min(58vw, 560px);
-            top: 28%;
-            left: 32%;
-            background: radial-gradient(circle at 50% 50%,
-                rgba(131, 186, 255, 0.55) 0%,
-                rgba(84, 197, 215, 0.28) 46%,
-                transparent 70%);
-            animation: login-aurora-drift-c 24s ease-in-out infinite,
-                       login-aurora-hue-c 16s ease-in-out infinite;
-            animation-delay: -11s, -7s;
-        }
-
-        .login-aurora-blob-d {
-            width: min(48vw, 480px);
-            height: min(48vw, 480px);
-            top: 8%;
-            right: 18%;
-            background: radial-gradient(circle at 50% 50%,
-                rgba(131, 186, 255, 0.4) 0%,
-                rgba(178, 213, 255, 0.22) 50%,
-                transparent 72%);
-            animation: login-aurora-drift-d 28s ease-in-out infinite,
-                       login-aurora-hue-d 22s ease-in-out infinite;
-            animation-delay: -4s, -9s;
-            opacity: 0.45;
-        }
-
-        .login-aurora-sheen {
-            position: absolute;
-            inset: -30%;
-            background:
-                conic-gradient(from 120deg at 50% 50%,
-                    rgba(131, 186, 255, 0.0) 0deg,
-                    rgba(131, 186, 255, 0.14) 60deg,
-                    rgba(178, 213, 255, 0.1) 130deg,
-                    rgba(40, 100, 180, 0.16) 200deg,
-                    rgba(84, 197, 215, 0.1) 270deg,
-                    rgba(178, 213, 255, 0.12) 330deg,
-                    rgba(131, 186, 255, 0.0) 360deg);
-            filter: blur(40px);
-            opacity: 0.7;
-            mix-blend-mode: soft-light;
-            animation: login-aurora-sheen-spin 48s linear infinite,
-                       login-aurora-sheen-breathe 14s ease-in-out infinite;
-        }
-
-        @keyframes login-aurora-drift-a {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(12%, 10%) scale(1.12); }
-            66% { transform: translate(4%, 18%) scale(0.94); }
-        }
-
-        @keyframes login-aurora-drift-b {
-            0%, 100% { transform: translate(0, 0) scale(1.05); }
-            40% { transform: translate(-14%, -8%) scale(1.18); }
-            70% { transform: translate(-6%, -16%) scale(0.92); }
-        }
-
-        @keyframes login-aurora-drift-c {
-            0%, 100% { transform: translate(-50%, -40%) scale(1); }
-            50% { transform: translate(-35%, -55%) scale(1.2); }
-        }
-
-        @keyframes login-aurora-drift-d {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-18%, 14%) scale(1.15); }
-        }
-
-        @keyframes login-aurora-hue-a {
-            0%, 100% {
-                background: radial-gradient(circle at 40% 40%,
-                    rgba(131, 186, 255, 0.78) 0%,
-                    rgba(84, 197, 215, 0.32) 42%,
-                    transparent 70%);
-                opacity: 0.58;
-            }
-            50% {
-                background: radial-gradient(circle at 45% 35%,
-                    rgba(178, 213, 255, 0.82) 0%,
-                    rgba(40, 100, 180, 0.38) 44%,
-                    transparent 72%);
-                opacity: 0.72;
-            }
-        }
-
-        @keyframes login-aurora-hue-b {
-            0%, 100% {
-                background: radial-gradient(circle at 55% 45%,
-                    rgba(178, 213, 255, 0.68) 0%,
-                    rgba(40, 100, 180, 0.38) 48%,
-                    transparent 72%);
-                opacity: 0.52;
-            }
-            50% {
-                background: radial-gradient(circle at 50% 50%,
-                    rgba(131, 186, 255, 0.7) 0%,
-                    rgba(84, 197, 215, 0.36) 46%,
-                    transparent 74%);
-                opacity: 0.68;
-            }
-        }
-
-        @keyframes login-aurora-hue-c {
-            0%, 100% {
-                background: radial-gradient(circle at 50% 50%,
-                    rgba(131, 186, 255, 0.5) 0%,
-                    rgba(22, 43, 64, 0.28) 48%,
-                    transparent 70%);
-                opacity: 0.48;
-            }
-            50% {
-                background: radial-gradient(circle at 50% 50%,
-                    rgba(178, 213, 255, 0.58) 0%,
-                    rgba(131, 186, 255, 0.3) 46%,
-                    transparent 72%);
-                opacity: 0.62;
-            }
-        }
-
-        @keyframes login-aurora-hue-d {
-            0%, 100% {
-                background: radial-gradient(circle at 50% 50%,
-                    rgba(178, 213, 255, 0.42) 0%,
-                    rgba(84, 197, 215, 0.22) 50%,
-                    transparent 72%);
-                opacity: 0.4;
-            }
-            50% {
-                background: radial-gradient(circle at 50% 50%,
-                    rgba(131, 186, 255, 0.5) 0%,
-                    rgba(178, 213, 255, 0.28) 48%,
-                    transparent 74%);
-                opacity: 0.58;
-            }
-        }
-
-        @keyframes login-aurora-sheen-spin {
-            0% { transform: rotate(0deg) scale(1); }
-            100% { transform: rotate(360deg) scale(1.05); }
-        }
-
-        @keyframes login-aurora-sheen-breathe {
-            0%, 100% { opacity: 0.45; }
-            50% { opacity: 0.85; }
-        }
-
-        [data-theme="light"] .login-color-aurora {
-            background:
-                radial-gradient(ellipse 120% 80% at 50% 120%, #edf3fa 0%, #e4ecf5 50%, #ffffff 100%);
-        }
-
-        [data-theme="light"] .login-aurora-blob {
-            mix-blend-mode: multiply;
-            filter: blur(64px);
-            opacity: 0.4;
-        }
-
-        [data-theme="light"] .login-aurora-sheen {
-            mix-blend-mode: multiply;
-            opacity: 0.35;
-        }
-        
         #bg-canvas {
             position: fixed;
             inset: 0;
@@ -251,102 +50,16 @@
             inset: 0;
             z-index: 0;
             overflow: hidden;
-            background: 
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(131, 186, 255, 0.08), transparent),
-                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(40, 100, 180, 0.05), transparent),
-                radial-gradient(ellipse 50% 30% at 20% 100%, rgba(131, 186, 255, 0.04), transparent);
-        }
-
-        .css-fallback-bg::before {
-            content: '';
-            position: absolute;
-            inset: -50%;
-            background: 
-                radial-gradient(circle at 30% 30%, rgba(131, 186, 255, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 70% 70%, rgba(40, 100, 180, 0.1) 0%, transparent 45%),
-                radial-gradient(circle at 50% 50%, rgba(131, 186, 255, 0.05) 0%, transparent 50%);
-            animation: aurora-move 20s ease-in-out infinite;
-        }
-
-        .css-fallback-bg::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            opacity: 0.02;
-            mix-blend-mode: overlay;
-        }
-
-        @keyframes aurora-move {
-            0%, 100% {
-                transform: translate(0, 0) rotate(0deg) scale(1);
-            }
-            25% {
-                transform: translate(5%, 5%) rotate(2deg) scale(1.05);
-            }
-            50% {
-                transform: translate(-3%, 8%) rotate(-1deg) scale(0.95);
-            }
-            75% {
-                transform: translate(-5%, -3%) rotate(1deg) scale(1.02);
-            }
-        }
-
-        /* Floating Orbs for CSS Fallback */
-        .orb {
-            position: absolute;
-            border-radius: var(--radius-full);
-            filter: blur(60px);
-            opacity: 0.4;
-            animation: orb-float 15s ease-in-out infinite;
-        }
-
-        .orb-1 {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(131, 186, 255, 0.4) 0%, transparent 70%);
-            top: -100px;
-            left: -100px;
-            animation-delay: 0s;
-        }
-
-        .orb-2 {
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(40, 100, 180, 0.3) 0%, transparent 70%);
-            bottom: -50px;
-            right: -50px;
-            animation-delay: -5s;
-        }
-
-        .orb-3 {
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(131, 186, 255, 0.25) 0%, transparent 70%);
-            top: 50%;
-            left: 50%;
-            animation-delay: -10s;
-        }
-
-        @keyframes orb-float {
-            0%, 100% {
-                transform: translate(0, 0) scale(1);
-            }
-            33% {
-                transform: translate(30px, -30px) scale(1.1);
-            }
-            66% {
-                transform: translate(-20px, 20px) scale(0.9);
-            }
+            background: var(--pw-canvas);
         }
 
         /* Particle Network Grid */
         .particle-grid {
             position: absolute;
             inset: 0;
-            background-image: 
-                linear-gradient(rgba(131, 186, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(131, 186, 255, 0.03) 1px, transparent 1px);
+            background-image:
+                linear-gradient(color-mix(in srgb, var(--pw-accent) 3%, transparent) 1px, transparent 1px),
+                linear-gradient(90deg, color-mix(in srgb, var(--pw-accent) 3%, transparent) 1px, transparent 1px);
             background-size: 50px 50px;
             animation: grid-pulse 4s ease-in-out infinite;
         }
@@ -623,20 +336,6 @@
             100% { transform: translateY(100vh); }
         }
 
-        [data-theme="light"] .css-fallback-bg {
-            background:
-                radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, var(--pw-accent) 12%, transparent), transparent),
-                radial-gradient(ellipse 60% 42% at 84% 82%, rgba(56, 189, 248, 0.09), transparent),
-                radial-gradient(ellipse 48% 30% at 16% 100%, rgba(250, 204, 21, 0.06), transparent);
-        }
-
-        [data-theme="light"] .css-fallback-bg::before {
-            background:
-                radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--pw-accent) 16%, transparent) 0%, transparent 40%),
-                radial-gradient(circle at 70% 70%, rgba(56, 189, 248, 0.11) 0%, transparent 45%),
-                radial-gradient(circle at 50% 50%, rgba(250, 204, 21, 0.07) 0%, transparent 50%);
-        }
-
         [data-theme="light"] .particle-grid {
             background-image:
                 linear-gradient(color-mix(in srgb, var(--pw-accent) 4%, transparent) 1px, transparent 1px),
@@ -644,7 +343,7 @@
         }
 
         [data-theme="light"] .vignette {
-            background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.03) 0%, rgba(216, 228, 223, 0.92) 100%);
+            background: radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, var(--pw-canvas) 92%, transparent) 100%);
             opacity: 1;
         }
 
@@ -693,21 +392,6 @@
             .login-title {
                 font-size: var(--text-base);
                 letter-spacing: 0.11em;
-            }
-
-            .orb-1 {
-                width: 280px;
-                height: 280px;
-            }
-
-            .orb-2 {
-                width: 220px;
-                height: 220px;
-            }
-
-            .orb-3 {
-                width: 180px;
-                height: 180px;
             }
 
             .particle-grid {
@@ -873,11 +557,10 @@
     width: 100%;
     max-width: none;
     padding: clamp(1.5rem, 5vw, 2.5rem);
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-card-border);
     border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
+    background: var(--pw-mat-card);
+    box-shadow: var(--pw-mat-card-shadow);
     backdrop-filter: none;
     overflow-wrap: anywhere;
 }
@@ -931,12 +614,12 @@
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-input {
     min-height: 46px;
-    border: 1px solid var(--pw-line-strong);
+    border: 1px solid var(--pw-mat-field-border);
     border-radius: var(--pw-radius-sm);
     background: var(--input-bg);
     background-image: none;
     color: var(--pw-text);
-    box-shadow: none;
+    box-shadow: var(--pw-mat-field-shadow);
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-input:hover,
@@ -954,18 +637,17 @@
 
 .pw-page.pw-entry-page[data-entry-page="login"] .btn-login {
     min-height: 46px;
-    border: 1px solid var(--pw-accent);
+    border: 1px solid var(--pw-mat-primary-border);
     border-radius: var(--pw-radius-sm);
-    background: var(--pw-accent);
-    background-image: none;
-    color: var(--pw-canvas);
-    box-shadow: none;
+    background: var(--pw-mat-primary);
+    color: var(--pw-on-accent);
+    box-shadow: var(--pw-mat-primary-shadow);
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .btn-login:hover,
 .pw-page.pw-entry-page[data-entry-page="login"] .btn-login:active {
-    background: var(--pw-accent-strong);
-    box-shadow: none;
+    background: var(--pw-mat-primary-hover);
+    box-shadow: var(--pw-mat-primary-shadow);
     transform: none;
 }
 
@@ -977,7 +659,6 @@
     box-shadow: none;
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) .login-card,
 .pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) .corner-theme {
     background: var(--pw-surface);
     border-color: var(--pw-line-strong);
@@ -1031,8 +712,6 @@
 
     .pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-color-aurora,
-    .pw-page.pw-entry-page[data-entry-page="login"] .login-aurora-blob,
-    .pw-page.pw-entry-page[data-entry-page="login"] .login-aurora-sheen,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card::before,
     .pw-page.pw-entry-page[data-entry-page="login"] .login-card::after {
