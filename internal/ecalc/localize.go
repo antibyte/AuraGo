@@ -16,7 +16,9 @@ type catalogJSON struct {
 	Lang       string         `json:"lang"`
 	Units      unitsJSON      `json:"units"`
 	Categories []categoryJSON `json:"categories"`
-	Items      []any          `json:"items"` // itemJSON (calculators), then tableJSON, then codeJSON
+	PinTypes   []pinTypeJSON  `json:"pin_types"`
+	Wires      []wireJSON     `json:"wires"`
+	Items      []any          `json:"items"` // itemJSON (calculators), then tableJSON, codeJSON and pinoutJSON
 }
 
 type unitsJSON struct {
@@ -86,7 +88,7 @@ type chartJSON struct {
 	Samples int    `json:"samples"`
 }
 
-// itemJSON is a calculator; tables (tableJSON) and codes (codeJSON) follow it in the items array. NameEN is the English
+// itemJSON is a calculator; tables (tableJSON), codes (codeJSON) and pinouts (pinoutJSON) follow it in the items array. NameEN is the English
 // name in every language (equal to Name for English), so that the app can find "voltage divider" in a German catalog.
 type itemJSON struct {
 	Kind      string        `json:"kind"`
@@ -182,8 +184,9 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 		Lang:       lang,
 		Units:      unitsJSON{Prefixes: orEmpty(c.Units.Prefixes), Dims: orEmpty(c.Units.Dims)},
 		Categories: make([]categoryJSON, 0, len(c.Categories)),
-		Items:      make([]any, 0, len(c.Calculators)+len(c.Tables)+len(c.Codes)),
+		Items:      make([]any, 0, len(c.Calculators)+len(c.Tables)+len(c.Codes)+len(c.Pinouts)),
 	}
+	out.PinTypes, out.Wires = c.pinStylesJSON(lang)
 	for _, cat := range c.Categories {
 		out.Categories = append(out.Categories, categoryJSON{ID: cat.ID, Name: cat.Name.in(lang)})
 	}
@@ -236,6 +239,9 @@ func (c *Catalog) render(lang string) ([]byte, error) {
 	}
 	for _, code := range c.Codes {
 		out.Items = append(out.Items, code.json(lang))
+	}
+	for _, p := range c.Pinouts {
+		out.Items = append(out.Items, p.json(lang))
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

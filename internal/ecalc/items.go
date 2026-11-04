@@ -31,7 +31,7 @@ func readItems[T any](l *loader, fsys fs.FS, file string) ([]T, bool) {
 	return raws, true
 }
 
-// claimID registers the id of an item as defined in file; ids are unique across calculators, tables and codes.
+// claimID registers the id of an item as defined in file; ids are unique across the four kinds.
 func (l *loader) claimID(id, file string, fail func(string, ...any)) {
 	switch {
 	case !idRe.MatchString(id):
@@ -65,7 +65,7 @@ func (l *loader) commonFields(fail func(string, ...any), text func(string, Text,
 	}
 }
 
-// Item returns the kind of the catalog item with the given id: "calculator", "table" or "code".
+// Item returns the kind of the catalog item with the given id: "calculator", "table", "code" or "pinout".
 func (c *Catalog) Item(id string) (kind string, ok bool) {
 	kind, ok = c.kinds[id]
 	return kind, ok

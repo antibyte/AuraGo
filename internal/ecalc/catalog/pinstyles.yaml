@@ -1,0 +1,79 @@
+# The colours of the pinout drawings. They are data and not theme tokens: a pin type must read the same on every skin
+# (several skins have near-monochrome palettes) and a red supply rail is red on any desktop.
+#   types: the six pin types; `ink` is the text colour on `hex` (contrast at least 4.5, checked at load).
+#   wires: the standard wire colours (T568, ATX, servo, Qwiic, ...); `stripe` is the second colour of a striped wire.
+types:
+  power:
+    hex: "#c62828"
+    ink: "#ffffff"
+    name: {cs: "Napájení", da: "Forsyning", de: "Versorgung", el: "Τροφοδοσία", en: "Power", es: "Alimentación", fr: "Alimentation", hi: "पावर", it: "Alimentazione", ja: "電源", nl: "Voeding", no: "Forsyning", pl: "Zasilanie", pt: "Alimentação", sv: "Matning", zh: "电源"}
+  ground:
+    hex: "#263238"
+    ink: "#ffffff"
+    name: {cs: "Zem", da: "Stel", de: "Masse", el: "Γείωση", en: "Ground", es: "Masa", fr: "Masse", hi: "ग्राउंड", it: "Massa", ja: "グランド", nl: "Massa", no: "Jord", pl: "Masa", pt: "Terra", sv: "Jord", zh: "地"}
+  signal:
+    hex: "#f9a825"
+    ink: "#000000"
+    name: {cs: "Signál", da: "Signal", de: "Signal", el: "Σήμα", en: "Signal", es: "Señal", fr: "Signal", hi: "सिग्नल", it: "Segnale", ja: "信号", nl: "Signaal", no: "Signal", pl: "Sygnał", pt: "Sinal", sv: "Signal", zh: "信号"}
+  data:
+    hex: "#1565c0"
+    ink: "#ffffff"
+    name: {cs: "Data", da: "Data", de: "Daten", el: "Δεδομένα", en: "Data", es: "Datos", fr: "Données", hi: "डेटा", it: "Dati", ja: "データ", nl: "Data", no: "Data", pl: "Dane", pt: "Dados", sv: "Data", zh: "数据"}
+  io:
+    hex: "#2e7d32"
+    ink: "#ffffff"
+    name: {cs: "Univerzální I/O", da: "Generel I/O", de: "Allzweck-I/O", el: "I/O γενικής χρήσης", en: "General-purpose I/O", es: "E/S de propósito general", fr: "E/S générale", hi: "सामान्य I/O", it: "I/O generico", ja: "汎用入出力", nl: "Algemene I/O", no: "Generell I/O", pl: "Uniwersalne I/O", pt: "E/S de uso geral", sv: "Allmän I/O", zh: "通用输入输出"}
+  nc:
+    hex: "#9e9e9e"
+    ink: "#000000"
+    name: {cs: "Nezapojeno", da: "Ikke tilsluttet", de: "Nicht belegt", el: "Μη συνδεδεμένο", en: "Not connected", es: "No conectado", fr: "Non connecté", hi: "कनेक्ट नहीं", it: "Non connesso", ja: "未接続", nl: "Niet aangesloten", no: "Ikke tilkoblet", pl: "Niepodłączony", pt: "Não conectado", sv: "Ej ansluten", zh: "未连接"}
+wires:
+  black:
+    hex: "#212121"
+    name: {cs: "černá", da: "sort", de: "schwarz", el: "μαύρο", en: "black", es: "negro", fr: "noir", hi: "काला", it: "nero", ja: "黒", nl: "zwart", no: "svart", pl: "czarny", pt: "preto", sv: "svart", zh: "黑色"}
+  brown:
+    hex: "#6d4c41"
+    name: {cs: "hnědá", da: "brun", de: "braun", el: "καφέ", en: "brown", es: "marrón", fr: "marron", hi: "भूरा", it: "marrone", ja: "茶", nl: "bruin", no: "brun", pl: "brązowy", pt: "marrom", sv: "brun", zh: "棕色"}
+  red:
+    hex: "#d32f2f"
+    name: {cs: "červená", da: "rød", de: "rot", el: "κόκκινο", en: "red", es: "rojo", fr: "rouge", hi: "लाल", it: "rosso", ja: "赤", nl: "rood", no: "rød", pl: "czerwony", pt: "vermelho", sv: "röd", zh: "红色"}
+  orange:
+    hex: "#ef6c00"
+    name: {cs: "oranžová", da: "orange", de: "orange", el: "πορτοκαλί", en: "orange", es: "naranja", fr: "orange", hi: "नारंगी", it: "arancione", ja: "橙", nl: "oranje", no: "oransje", pl: "pomarańczowy", pt: "laranja", sv: "orange", zh: "橙色"}
+  yellow:
+    hex: "#fdd835"
+    name: {cs: "žlutá", da: "gul", de: "gelb", el: "κίτρινο", en: "yellow", es: "amarillo", fr: "jaune", hi: "पीला", it: "giallo", ja: "黄", nl: "geel", no: "gul", pl: "żółty", pt: "amarelo", sv: "gul", zh: "黄色"}
+  green:
+    hex: "#2e7d32"
+    name: {cs: "zelená", da: "grøn", de: "grün", el: "πράσινο", en: "green", es: "verde", fr: "vert", hi: "हरा", it: "verde", ja: "緑", nl: "groen", no: "grønn", pl: "zielony", pt: "verde", sv: "grön", zh: "绿色"}
+  blue:
+    hex: "#1565c0"
+    name: {cs: "modrá", da: "blå", de: "blau", el: "μπλε", en: "blue", es: "azul", fr: "bleu", hi: "नीला", it: "blu", ja: "青", nl: "blauw", no: "blå", pl: "niebieski", pt: "azul", sv: "blå", zh: "蓝色"}
+  purple:
+    hex: "#7b1fa2"
+    name: {cs: "fialová", da: "lilla", de: "violett", el: "μοβ", en: "purple", es: "morado", fr: "violet", hi: "बैंगनी", it: "viola", ja: "紫", nl: "paars", no: "lilla", pl: "fioletowy", pt: "roxo", sv: "lila", zh: "紫色"}
+  grey:
+    hex: "#9e9e9e"
+    name: {cs: "šedá", da: "grå", de: "grau", el: "γκρι", en: "grey", es: "gris", fr: "gris", hi: "धूसर", it: "grigio", ja: "灰", nl: "grijs", no: "grå", pl: "szary", pt: "cinza", sv: "grå", zh: "灰色"}
+  white:
+    hex: "#ffffff"
+    name: {cs: "bílá", da: "hvid", de: "weiß", el: "λευκό", en: "white", es: "blanco", fr: "blanc", hi: "सफेद", it: "bianco", ja: "白", nl: "wit", no: "hvit", pl: "biały", pt: "branco", sv: "vit", zh: "白色"}
+  pink:
+    hex: "#ec407a"
+    name: {cs: "růžová", da: "pink", de: "rosa", el: "ροζ", en: "pink", es: "rosa", fr: "rose", hi: "गुलाबी", it: "rosa", ja: "ピンク", nl: "roze", no: "rosa", pl: "różowy", pt: "rosa", sv: "rosa", zh: "粉色"}
+  white_orange:
+    hex: "#ffffff"
+    stripe: "#ef6c00"
+    name: {cs: "bílo-oranžová", da: "hvid-orange", de: "weiß-orange", el: "λευκό-πορτοκαλί", en: "white-orange", es: "blanco-naranja", fr: "blanc-orange", hi: "सफेद-नारंगी", it: "bianco-arancione", ja: "白橙", nl: "wit-oranje", no: "hvit-oransje", pl: "biało-pomarańczowy", pt: "branco-laranja", sv: "vit-orange", zh: "白橙色"}
+  white_green:
+    hex: "#ffffff"
+    stripe: "#2e7d32"
+    name: {cs: "bílo-zelená", da: "hvid-grøn", de: "weiß-grün", el: "λευκό-πράσινο", en: "white-green", es: "blanco-verde", fr: "blanc-vert", hi: "सफेद-हरा", it: "bianco-verde", ja: "白緑", nl: "wit-groen", no: "hvit-grønn", pl: "biało-zielony", pt: "branco-verde", sv: "vit-grön", zh: "白绿色"}
+  white_blue:
+    hex: "#ffffff"
+    stripe: "#1565c0"
+    name: {cs: "bílo-modrá", da: "hvid-blå", de: "weiß-blau", el: "λευκό-μπλε", en: "white-blue", es: "blanco-azul", fr: "blanc-bleu", hi: "सफेद-नीला", it: "bianco-blu", ja: "白青", nl: "wit-blauw", no: "hvit-blå", pl: "biało-niebieski", pt: "branco-azul", sv: "vit-blå", zh: "白蓝色"}
+  white_brown:
+    hex: "#ffffff"
+    stripe: "#6d4c41"
+    name: {cs: "bílo-hnědá", da: "hvid-brun", de: "weiß-braun", el: "λευκό-καφέ", en: "white-brown", es: "blanco-marrón", fr: "blanc-marron", hi: "सफेद-भूरा", it: "bianco-marrone", ja: "白茶", nl: "wit-bruin", no: "hvit-brun", pl: "biało-brązowy", pt: "branco-marrom", sv: "vit-brun", zh: "白棕色"}

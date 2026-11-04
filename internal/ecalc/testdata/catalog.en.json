@@ -732,6 +732,136 @@
       "name": "Pinouts"
     }
   ],
+  "pin_types": [
+    {
+      "id": "power",
+      "hex": "#c62828",
+      "ink": "#ffffff",
+      "name": "Power"
+    },
+    {
+      "id": "ground",
+      "hex": "#263238",
+      "ink": "#ffffff",
+      "name": "Ground"
+    },
+    {
+      "id": "signal",
+      "hex": "#f9a825",
+      "ink": "#000000",
+      "name": "Signal"
+    },
+    {
+      "id": "data",
+      "hex": "#1565c0",
+      "ink": "#ffffff",
+      "name": "Data"
+    },
+    {
+      "id": "io",
+      "hex": "#2e7d32",
+      "ink": "#ffffff",
+      "name": "General-purpose I/O"
+    },
+    {
+      "id": "nc",
+      "hex": "#9e9e9e",
+      "ink": "#000000",
+      "name": "Not connected"
+    }
+  ],
+  "wires": [
+    {
+      "id": "black",
+      "hex": "#212121",
+      "stripe": "",
+      "name": "black"
+    },
+    {
+      "id": "brown",
+      "hex": "#6d4c41",
+      "stripe": "",
+      "name": "brown"
+    },
+    {
+      "id": "red",
+      "hex": "#d32f2f",
+      "stripe": "",
+      "name": "red"
+    },
+    {
+      "id": "orange",
+      "hex": "#ef6c00",
+      "stripe": "",
+      "name": "orange"
+    },
+    {
+      "id": "yellow",
+      "hex": "#fdd835",
+      "stripe": "",
+      "name": "yellow"
+    },
+    {
+      "id": "green",
+      "hex": "#2e7d32",
+      "stripe": "",
+      "name": "green"
+    },
+    {
+      "id": "blue",
+      "hex": "#1565c0",
+      "stripe": "",
+      "name": "blue"
+    },
+    {
+      "id": "purple",
+      "hex": "#7b1fa2",
+      "stripe": "",
+      "name": "purple"
+    },
+    {
+      "id": "grey",
+      "hex": "#9e9e9e",
+      "stripe": "",
+      "name": "grey"
+    },
+    {
+      "id": "white",
+      "hex": "#ffffff",
+      "stripe": "",
+      "name": "white"
+    },
+    {
+      "id": "pink",
+      "hex": "#ec407a",
+      "stripe": "",
+      "name": "pink"
+    },
+    {
+      "id": "white_orange",
+      "hex": "#ffffff",
+      "stripe": "#ef6c00",
+      "name": "white-orange"
+    },
+    {
+      "id": "white_green",
+      "hex": "#ffffff",
+      "stripe": "#2e7d32",
+      "name": "white-green"
+    },
+    {
+      "id": "white_blue",
+      "hex": "#ffffff",
+      "stripe": "#1565c0",
+      "name": "white-blue"
+    },
+    {
+      "id": "white_brown",
+      "hex": "#ffffff",
+      "stripe": "#6d4c41",
+      "name": "white-brown"
+    }
+  ],
   "items": [
     {
       "kind": "calculator",

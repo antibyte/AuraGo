@@ -157,19 +157,26 @@ type Calculator struct {
 // Var returns the primary variable with the given id, or nil.
 func (c *Calculator) Var(id string) *Var { return c.varByID[id] }
 
-// Catalog is the validated ECalc catalog: calculators, tables and codes, each in catalog order (file order, files
-// sorted).
+// Catalog is the validated ECalc catalog: calculators, tables, codes and pinouts, each in catalog order (file order,
+// files sorted). PinTypeStyles and Wires are the colours of pinstyles.yaml.
 type Catalog struct {
 	Units       *Units
 	Categories  []Category
 	Calculators []*Calculator
 	Tables      []*Table
 	Codes       []*Code
+	Pinouts     []*Pinout
 
-	byID      map[string]*Calculator
-	tableByID map[string]*Table
-	codeByID  map[string]*Code
-	kinds     map[string]string // item id -> "calculator", "table" or "code"
+	PinTypeStyles []*PinType
+	Wires         []*Wire
+
+	byID        map[string]*Calculator
+	tableByID   map[string]*Table
+	codeByID    map[string]*Code
+	pinoutByID  map[string]*Pinout
+	pinTypeByID map[string]*PinType
+	wireByID    map[string]*Wire
+	kinds       map[string]string // item id -> "calculator", "table", "code" or "pinout"
 
 	locMu sync.Mutex
 	loc   map[string]localized // LocalizedJSON cache, by normalized language
@@ -275,7 +282,8 @@ func (l *loader) fail(format string, args ...any) {
 }
 
 // Load reads and validates a catalog: units.yaml, categories.yaml, calculators/*.yaml, tables/*.yaml and codes/*.yaml
-// (in that order, each sorted) at the root of fsys. All problems found are reported together.
+// and pinouts/*.yaml (in that order, each sorted), plus pinstyles.yaml (required when there are pinouts), at the root of
+// fsys. All problems found are reported together.
 func Load(fsys fs.FS) (*Catalog, error) {
 	unitsData, err := fs.ReadFile(fsys, "units.yaml")
 	if err != nil {
@@ -286,7 +294,8 @@ func Load(fsys fs.FS) (*Catalog, error) {
 		return nil, err
 	}
 	l := &loader{units: units, cats: map[string]bool{}, ids: map[string]string{}}
-	cat := &Catalog{Units: units, byID: map[string]*Calculator{}, tableByID: map[string]*Table{}, codeByID: map[string]*Code{}, kinds: map[string]string{}}
+	cat := &Catalog{Units: units, byID: map[string]*Calculator{}, tableByID: map[string]*Table{}, codeByID: map[string]*Code{}, kinds: map[string]string{},
+		pinoutByID: map[string]*Pinout{}, pinTypeByID: map[string]*PinType{}, wireByID: map[string]*Wire{}}
 
 	catData, err := fs.ReadFile(fsys, "categories.yaml")
 	if err != nil {
@@ -316,6 +325,11 @@ func Load(fsys fs.FS) (*Catalog, error) {
 		return nil, err
 	}
 	if err := l.codes(fsys, cat); err != nil {
+		return nil, err
+	}
+	pinoutFiles, _ := fs.Glob(fsys, "pinouts/*.yaml")
+	l.pinstyles(fsys, cat, len(pinoutFiles) > 0) // before the pinouts: they refer to the wire colours
+	if err := l.pinouts(fsys, cat); err != nil {
 		return nil, err
 	}
 	l.checkTableUse(cat)
