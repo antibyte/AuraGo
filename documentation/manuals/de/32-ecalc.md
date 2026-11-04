@@ -5,10 +5,10 @@ Ergebnisse nebeneinander und rechnet schon während du tippst. Du gibst die Wert
 Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E-Reihe vor, und der Rechner **Kombination von
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
-ECalc enthält 79 Rechner in zehn Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)) und fünf Bauteilcode-Seiten (siehe
-[Bauteilcodes](#bauteilcodes)). Der Agent kann mit denselben Formeln rechnen, die Tabellen und Codes lesen und für dich einen
-Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). Pinbelegungen folgen in einer späteren
-Version (siehe [Wie es weitergeht](#wie-es-weitergeht)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
+ECalc enthält 79 Rechner in zehn Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), fünf Bauteilcode-Seiten (siehe
+[Bauteilcodes](#bauteilcodes)) und 47 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
+Der Agent kann mit denselben Formeln rechnen, Tabellen, Codes und Pinbelegungen lesen und für dich einen
+Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
 eigenen Schalter unter **Config**.
 
 ## Inhalt
@@ -21,9 +21,9 @@ eigenen Schalter unter **Config**.
 7. [Die Rechner](#die-rechner)
 8. [Tabellen](#tabellen)
 9. [Bauteilcodes](#bauteilcodes)
-10. [Quellen und Grenzen](#quellen-und-grenzen)
-11. [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)
-12. [Wie es weitergeht](#wie-es-weitergeht)
+10. [Pinbelegungen](#pinbelegungen)
+11. [Quellen und Grenzen](#quellen-und-grenzen)
+12. [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)
 13. [Datenschutz und Sicherheit](#datenschutz-und-sicherheit)
 14. [Wenn etwas schiefgeht](#wenn-etwas-schiefgeht)
 
@@ -41,10 +41,9 @@ dann einen Rechner, und gehe mit **Zurück** eine Ebene nach oben.
 ## Einen Rechner finden
 
 - **Kategorieleiste:** Zuerst kommen **Favoriten** und **Zuletzt verwendet**, danach die Kategorien mit Inhalten: Grundlagen, Passive
-  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital, Leitungen & PCB, **Tabellen** und **Bauteilcodes**.
-  Jede Kategorie zeigt, wie viele Einträge sie enthält. Die Leiste zeigt eine Kategorie nur, wenn sie Inhalte hat; **Pinbelegungen**
-  erscheinen also, sobald sie hinzukommen.
-- **Suche:** Tippe oben ins Suchfeld, um einen Rechner, eine Tabelle oder einen Bauteilcode über seinen Namen in deiner Sprache, über
+  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital, Leitungen & PCB, **Tabellen**, **Bauteilcodes** und **Pinbelegungen**.
+  Jede Kategorie zeigt, wie viele Einträge sie enthält. Die Leiste zeigt eine Kategorie nur, wenn sie Inhalte hat.
+- **Suche:** Tippe oben ins Suchfeld, um einen Rechner, eine Tabelle, einen Bauteilcode oder eine Pinbelegung über seinen Namen in deiner Sprache, über
   den englischen Namen oder über ein Stichwort wie „Teiler“ zu finden. Jeder Eintrag hat Schlagwörter, die die Suche ebenfalls durchsucht.
 - **Favoriten:** Die Favoriten-Schaltfläche auf einer Rechenseite nimmt den Rechner in die **Favoriten** auf. Ein weiterer Klick
   entfernt ihn wieder.
@@ -371,22 +370,125 @@ Die Kategorie **Bauteilcodes** liest Kennzeichnungen von Bauteilen und schreibt 
 
 Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleranzangabe drucken, zeigt die Seite sie als Warnung. Spannungscodes sind eine Herstellerkonvention; die Seite sagt das, und das Datenblatt entscheidet. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.
 
+## Pinbelegungen
+
+Die Kategorie **Pinbelegungen** enthält 47 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen** und **ICs** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
+
+Eine Pinbelegungsseite zeigt:
+
+- **Die Zeichnung:** ECalc zeichnet das Bauteil aus seiner Form und seiner Pinliste. Es ist eine Zeichnung, kein Foto.
+- **Die Titelzeile:** den Namen, die Favoriten-Schaltfläche und **Pinbelegung kopieren**.
+- **Variante:** eine Auswahl bei den Pinbelegungen, die Varianten haben.
+- **Ansicht:** bei den Pinbelegungen mit zwei Ansichten die Wahl zwischen Stecker und Buchse. Die Bezeichnung daneben lautet **Blick auf die Steckseite**.
+- **Pin-Typen:** eine Legende der Pin-Typen, die die Pinbelegung nutzt.
+- **Detailfeld:** Funktion, Typ, Ader und Hinweise des gewählten Pins.
+- **Pin-Tabelle:** die Spalten **Pin**, **Name**, **Funktion**, **Typ**, **Ader** und **Hinweise**. Die Spalte Ader erscheint nur, wenn ein Pin der Variante eine Aderfarbe hat.
+- **Hinweise und Quelle:** unten auf der Seite die Hinweise der Pinbelegung und die Quelle, aus der sie stammt.
+
+**Zwei Ansichten.** 31 der 47 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
+
+**Pin-Farben.** Jeder Kontakt ist in der Farbe seines Pin-Typs gefüllt. Die Legende nennt die Typen der Pinbelegung:
+
+| Typ | Farbe | Bedeutung |
+|-----|-------|-----------|
+| Versorgung | rot | Eine Versorgungsspannung, zum Beispiel VBUS oder +5 V |
+| Masse | dunkles Blaugrau | Die Rück- oder Erdleitung, GND |
+| Signal | Bernstein | Eine Steuer-, Status- oder analoge Leitung, zum Beispiel ein Audiokanal, ein Reset oder das Drehzahlsignal eines Lüfters |
+| Daten | blau | Eine Leitung einer Datenverbindung, zum Beispiel die USB-Leitungen D+ und D- |
+| Allzweck-I/O | grün | Ein Pin, den der Nutzer programmiert, zum Beispiel ein GPIO-Pin eines Boards |
+| Nicht belegt | grau | Ein Pin, der nicht angeschlossen oder reserviert ist, oder eine Codierposition ohne Stift |
+
+**Aderfarben.** Eine Aderfarbe steht nur dort, wo ein Standard oder eine Anleitung sie nennt, zum Beispiel bei USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove und dem Servokabel. Manche Kabel weichen von diesen Farben ab. Die Hinweise zur ATX-Belegung sagen, dass man nach der Position geht, nicht nach der Farbe.
+
+**Varianten.** Vier Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. TO-92: Beispiele hat sieben Bauteilbeispiele: BC547, PN2222A, 2N3904, 2N7000, LM35, 78L05 und TL431.
+
+**Zeigen, anklicken, filtern.** Wenn du auf einen Kontakt in der Zeichnung oder auf eine Zeile der Tabelle zeigst, werden beide hervorgehoben. Ein Klick wählt den Pin: sein Detail erscheint im Detailfeld, und seine Zeile wird ins Blickfeld gerollt. Ein zweiter Klick hebt die Auswahl auf. Die Zeichnung reagiert nur auf den Zeiger; mit der Tastatur nutzt du die Pin-Schaltfläche am Anfang jeder Zeile. Das Filterfeld über der Tabelle sucht in Pin-Nummer, Name, Funktion, Typname, Aderfarbe und Hinweisen. Nicht passende Pins werden in der Zeichnung abgeblendet, und ihre Zeilen werden ausgeblendet. `/` springt ins Filterfeld, Escape leert es.
+
+**Pinbelegung kopieren** kopiert die Zeilen, die nach dem Filter zu sehen sind, für die gewählte Variante. Der Text ist tabulatorgetrennt und beginnt mit einer Kopfzeile, sodass du ihn in eine Tabellenkalkulation einfügen kannst. ECalc merkt sich Variante und Ansicht jeder Pinbelegung im Browser, zusammen mit den übrigen Einstellungen.
+
+**Prüfe die Ansicht, bevor du etwas verdrahtest.** Ein Anschluss, von der anderen Seite gesehen, ist spiegelverkehrt. Ein gespiegelter Anschluss ist der typische Fehler: links und rechts vertauschen sich, und Pin 1 liegt am anderen Ende seiner Reihe. Prüfe, welche Ansicht du siehst und ob sie die Steckseite des Teils zeigt, an dem du verdrahtest. Nachbauten können von der Zeichnung abweichen; der Eintrag NodeMCU sagt das und bittet, vor dem Verdrahten mit dem Aufdruck der Platine zu vergleichen. Die TO-92-Seite listet nur Beispiele. Die Pinfolge hängt vom Bauteil und vom Hersteller ab, prüfe also das Datenblatt deines genauen Bauteils.
+
+### Daten und Video
+
+- USB 2.0 Type-A
+- USB 3.x Type-A
+- USB 2.0 Type-B
+- USB Mini-B
+- USB Micro-B
+- USB Type-C
+- HDMI Type A
+- DisplayPort
+- VGA (DE-15)
+- RJ45 (8P8C)
+- RS-232 (DE-9)
+
+### Audio
+
+- 3,5-mm-Klinke, Stereo (TRS)
+- 3,5-mm-Headset-Klinke (TRRS)
+- XLR, 3-polig (symmetrisch)
+- MIDI (DIN-5, 180°)
+
+### PC-Netzteil und Lüfter
+
+- ATX-Hauptstrom, 24-polig
+- EPS12V-CPU-Strom, 8-polig
+- PCIe-Strom, 6-polig (2x3)
+- PCIe-Strom, 8-polig (2x4)
+- SATA-Daten, 7-polig
+- SATA-Strom, 15-polig
+- Laufwerksstrom, 4-polig (Molex)
+- Lüfter, 3-polig
+- Lüfter, 4-polig PWM
+
+### Boards
+
+- Arduino Uno R3
+- Arduino Nano
+- ESP32-DevKitC V4
+- NodeMCU DevKit 1.0 (ESP8266)
+- Raspberry Pi 40-Pin-Stiftleiste
+- Raspberry Pi Pico / Pico W
+
+### Debug und Schnittstellen
+
+- ARM JTAG (20-polig)
+- Cortex Debug / SWD (10-polig)
+- AVR ISP (6-polig)
+- FTDI TTL-232R (6-polig)
+- Qwiic / STEMMA QT
+- Grove (4-polig)
+- Modellbau-Servo (3-polig)
+- OBD-II (SAE J1962)
+
+### ICs
+
+- NE555 (DIP-8)
+- LM317 (TO-220)
+- L78xx (TO-220)
+- LM358 (DIP-8)
+- LM324 (DIP-14)
+- SN74HC595 (DIP-16)
+- ULN2003A (DIP-16)
+- ATmega328P (DIP-28)
+- TO-92: Beispiele
+
 ## Quellen und Grenzen
 
-Übertragene Normtabellen sind Richtwerte, die gegen zwei voneinander unabhängige Quellen geprüft wurden. Zellen, die sich nicht gegenprüfen ließen, bleiben leer, und eine Spalte ohne geprüften Wert wird ausgeblendet. Jede Tabelle nennt ihre Quelle; prüfe einen wichtigen Entwurf anhand der Norm oder des Datenblatts.
+Übertragene Normtabellen sind Richtwerte, die gegen zwei voneinander unabhängige Quellen geprüft wurden. Zellen, die sich nicht gegenprüfen ließen, bleiben leer, und eine Spalte ohne geprüften Wert wird ausgeblendet. Jede Tabelle nennt ihre Quelle; prüfe einen wichtigen Entwurf anhand der Norm oder des Datenblatts. Pinbelegungen nennen ihre Quellen auf dieselbe Weise, unten auf jeder Seite. Prüfe den Pin, den du verdrahtest, am Datenblatt deines Bauteils.
 
 ## ECalc mit dem Agenten nutzen
 
-Der AuraGo-Agent kann die Formeln, Nachschlagetabellen und Bauteilcodes von ECalc über das Tool `ecalc` nutzen. Das Tool rechnet auf deinem AuraGo-Server mit demselben
+Der AuraGo-Agent kann die Formeln, Nachschlagetabellen, Bauteilcodes und Pinbelegungen von ECalc über das Tool `ecalc` nutzen. Das Tool rechnet auf deinem AuraGo-Server mit demselben
 Katalog und denselben Formeln wie die App. Es liest weder aus dem Netzwerk noch aus Dateien, und es hat keinen eigenen Schalter unter
 **Config**.
 
-Der Agent hat sieben Operationen:
+Der Agent hat acht Operationen:
 
 - **search** findet Rechner, Tabellen und Bauteilcodes zu einem Thema, einem Bauteil oder einer Formel, auf Deutsch oder Englisch. Ohne Suchbegriff listet es
   die Kategorien.
 - **describe** zeigt die Variablen eines Rechners mit Einheiten und Vorgaben, seine Auswahlen, die Eingabesätze, die funktionieren,
-  die berechneten Größen und die Prüfungen. Bei einer Tabelle zeigt es die Spalten und den Schlüssel, bei einem Bauteilcode die Formen, die er liest und schreibt.
+  die berechneten Größen und die Prüfungen. Bei einer Tabelle zeigt es die Spalten und den Schlüssel, bei einem Bauteilcode die Formen, die er liest und schreibt; bei einer Pinbelegung Anschluss, Ansicht, Pinzahl und Varianten, aber nicht die Pins.
 - **calculate** löst einen Rechner aus den Werten, die du angibst. Jeder vollständige Eingabesatz genügt, daher kann es jede fehlende
   Größe berechnen. Es nennt jeden Wert in SI-Einheiten und als formatierten Text, dazu die Warnungen des Rechners. Es meldet auch,
   wenn ein Wert, den du angegeben hast, um mehr als 1 % vom Ergebnis abweicht. Bei einem berechneten Widerstand nennt es den nächsten
@@ -395,16 +497,17 @@ Der Agent hat sieben Operationen:
   Suche: `exact` (die Zeile, deren Spalte dem Wert entspricht), `ge` (die Zeile mit dem kleinsten Wert, der mindestens dem gesuchten entspricht)
   oder `interp` (ein Wert zwischen den Nachbarzeilen). Die Zeilen stehen in den Einheiten der Spalten, dazu die SI-Werte zum
   Weiterrechnen.
+- **pinout** liest die Pins eines Steckverbinders, einer Stiftleiste oder eines IC-Gehäuses in Pin-Reihenfolge. Jeder Pin hat Nummer, Name, Funktion, Typ und, wo ein Standard sie nennt, seine Aderfarbe. Gib `pin` für einen Pin an, mit Nummer (`7`) oder Name (`GND`; mehrere Pins können einen Namen teilen), `variant` für eine Variante wie `t568b` oder `filter` für ein Wort. Die Antwort nennt außerdem, was die Zeichnung zeigt (`view`); lies das, bevor du dem Nutzer sagst, wo ein Pin sitzt.
 - **decode** liest einen Bauteilcode, zum Beispiel die Farbringe eines Widerstands, und nennt Wert und Felder. **encode** schreibt
   einen Code aus einem Wert: Es wählt den nächsten Normwert der Reihe, die die Toleranz verlangt, und nennt die passende
   Kennzeichnung oder die Ringe.
 - **open** öffnet ECalc auf dem Desktop bei einem Rechner, mit den Werten, als hättest du sie eingetippt. Die Antwort rechnet nichts aus;
   die Zahlen liefert **calculate**. Namen und Werte werden einzeln geprüft, die Werte aber nicht gegeneinander. Ein widersprüchlicher
-  Satz von Werten öffnet sich daher so, wie er eingetragen ist.
+  Satz von Werten öffnet sich daher so, wie er eingetragen ist. Bei einer Pinbelegung öffnet **open** die Seite der Pinbelegung.
 
 Für **open** muss der Virtual Desktop eingeschaltet und **Agentensteuerung erlauben** unter **Config → Integrationen → Virtual
 Desktop** aktiv sein. Fehlt eines davon, bekommt der Agent die Antwort „policy denied“ und nennt dir stattdessen die Zahlen aus
-**calculate**. Andere Agenten, die über A2A (Agent-zu-Agent-Anfragen) mit AuraGo sprechen, dürfen suchen, beschreiben, rechnen, `table`, `decode` und `encode` nutzen, alles nur lesend, aber ECalc nicht öffnen.
+**calculate**. Andere Agenten, die über A2A (Agent-zu-Agent-Anfragen) mit AuraGo sprechen, dürfen suchen, beschreiben, rechnen, `table`, `pinout`, `decode` und `encode` nutzen, alles nur lesend, aber ECalc nicht öffnen.
 
 Beispiele, die du eintippen kannst:
 
@@ -414,14 +517,7 @@ Beispiele, die du eintippen kannst:
   eingetragener Frequenz, sofern Virtual Desktop und Agentensteuerung eingeschaltet sind.
 - „Welche AWG-Größe hat einen Durchmesser von etwa 2 mm?“ Der Agent liest die Tabelle **AWG-Leitergrößen** mit einer Suche und nennt die passende Größe.
 - „Welcher Widerstand ist braun schwarz rot gold?“ Der Agent liest die Farbringe mit `decode` und nennt Wert und Toleranz.
-
-## Wie es weitergeht
-
-Noch fehlt ein Teil des Katalogs:
-
-- **Pinbelegungen** von Steckverbindern und ICs, in einer späteren Version.
-
-Dieses Kapitel wächst mit.
+- „Welcher Pin eines USB-A-Steckers ist Masse?“ Der Agent liest die Pins von **USB 2.0 Type-A** mit `pinout` und nennt Pin 4, GND.
 
 ## Datenschutz und Sicherheit
 
@@ -432,7 +528,7 @@ Dieses Kapitel wächst mit.
   ist.
 - **Schreibgeschützt.** ECalc liest nur. Ein schreibgeschützter Virtual Desktop ändert nichts an seiner Funktion.
 - **Prüfe, worauf es ankommt.** Jeder Rechner nennt seine Quelle unter **Erklärung**. Die Ergebnisse sind nur so gut wie die
-  Formel und deine Eingaben. Prüfe einen wichtigen Entwurf anhand der Datenblätter deiner Bauteile. Netzspannung ist
+  Formel und deine Eingaben. Prüfe einen wichtigen Entwurf anhand der Datenblätter deiner Bauteile. Prüfe bei einer Pinbelegung den Pin am Datenblatt deines Bauteils, bevor du verdrahtest oder lötest. Netzspannung ist
   gefährlich, und ECalc ersetzt keine Arbeit durch eine Elektrofachkraft.
 - **Netzinstallationen.** Der Rechner **Spannungsfall im Kabel** liefert Richtwerte für Netzinstallationen. Seine Seite hält fest, dass
   die Auslegung einer Netzinstallation der Installationsnorm (zum Beispiel DIN VDE 0100-520 oder IEC 60364-5-52) und den örtlichen
@@ -452,6 +548,8 @@ Dieses Kapitel wächst mit.
 | Eine Tabellenspalte ist ausgeblendet | Die Spalte hat keine geprüften Daten: Ihre Zellen ließen sich nicht gegenprüfen, deshalb bleiben sie leer und die Spalte ist ausgeblendet. Die Zeile unter der Tabelle zählt die ausgeblendeten Spalten. |
 | Ein Finder zeigt eine Warnung („Not covered by the verified data“) | Die Eingaben liegen außerhalb der geprüften Daten, oder für diese Kombination hat keine zweite Quelle einen Wert bestätigt. Wähle eine andere Kombination; der Finder hebt keine Zeile hervor. |
 | Ein Code wird als „not cross-checked“ oder „ambiguous“ abgelehnt | Das Symbol steht nicht in den geprüften Daten („not cross-checked“), oder Hersteller lesen es widersprüchlich („ambiguous“). Lies die Kennzeichnung am Bauteil ab und prüfe das Datenblatt. Im Agenten-Tool lautet der Code `unsupported`. |
+| Die Pin-Tabelle zeigt „Kein Pin passt zum Filter.“ | Der Filtertext steht in der Pin-Nummer, im Namen, in der Funktion, im Typ, in der Aderfarbe oder in den Hinweisen keines Pins dieser Variante. Leere das Feld oder drücke Escape darin. |
+| Die Spalte **Ader** fehlt | Kein Pin der Variante hat eine Aderfarbe, weil die Quelle keine nennt. Die Spalte erscheint nur, wenn ein Pin eine hat. |
 
 ---
 

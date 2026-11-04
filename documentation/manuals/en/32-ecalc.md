@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 79 calculators in ten categories, 44 reference tables (see [Tables](#tables)) and five component code pages (see [Component Codes](#component-codes)). The agent can calculate with the same formulas, read the tables and codes, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). Pinouts come in a later version (see [What Comes Next](#what-comes-next)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 79 calculators in ten categories, 44 reference tables (see [Tables](#tables)), five component code pages (see [Component Codes](#component-codes)) and 47 pinouts of connectors, board headers and ICs (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -14,9 +14,9 @@ ECalc has 79 calculators in ten categories, 44 reference tables (see [Tables](#t
 7. [The Calculators](#the-calculators)
 8. [Tables](#tables)
 9. [Component Codes](#component-codes)
-10. [Sources and Honesty](#sources-and-honesty)
-11. [Using ECalc from the Agent](#using-ecalc-from-the-agent)
-12. [What Comes Next](#what-comes-next)
+10. [Pinouts](#pinouts)
+11. [Sources and Honesty](#sources-and-honesty)
+12. [Using ECalc from the Agent](#using-ecalc-from-the-agent)
 13. [Privacy and Safety](#privacy-and-safety)
 14. [When Something Goes Wrong](#when-something-goes-wrong)
 
@@ -34,9 +34,9 @@ calculator, and use **Back** to return to the previous level.
 ## Finding a Calculator
 
 - **Category rail:** **Favorites** and **Recent** come first, followed by the categories that hold items: Basics, Passive,
-  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital, Wiring & PCB, **Tables** and **Codes**. Each category shows
-  how many items it holds. The rail lists a category only when it has content, so **Pinouts** will appear once they are added.
-- **Search:** type in the search box at the top to find a calculator, a table or a component code by its name in your language, by
+  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital, Wiring & PCB, **Tables**, **Codes** and **Pinouts**. Each
+  category shows how many items it holds. The rail lists a category only when it has content.
+- **Search:** type in the search box at the top to find a calculator, a table, a component code or a pinout by its name in your language, by
   its English name or by a keyword such as "divider". Each item has keywords, and the search matches them too.
 - **Favorites:** the favorite button on a calculator page adds it to **Favorites**. Click it again to remove it.
 - **Recent:** ECalc remembers the last 12 calculators you opened.
@@ -357,20 +357,123 @@ The **Codes** category decodes component markings and writes them from a value. 
 
 Resistor colours follow IEC 60062:2016. Where makers still print an older tolerance reading, the page shows it as a warning. Voltage codes are a maker convention, so the page says so and the datasheet decides. Warnings and error messages come from the engine and are in English in every language.
 
+## Pinouts
+
+The **Pinouts** category holds 47 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces** and **ICs**; the groups are listed at the end of this section.
+
+A pinout page shows:
+
+- **The drawing:** ECalc draws the part from its shape and its pin list. It is a drawing, not a photo.
+- **The title bar:** the name, the favorite button and **Copy pinout**.
+- **Variant:** a choice of variants, on the pinouts that have them.
+- **View:** a choice of plug or socket, on the pinouts that have two views. The caption next to it reads **Looking at the mating face**.
+- **Pin types:** a legend of the pin types that the pinout uses.
+- **Detail panel:** the function, type, wire and notes of the selected pin.
+- **Pin table:** the columns **Pin**, **Name**, **Function**, **Type**, **Wire** and **Notes**. The Wire column appears only when a pin of the variant has a wire colour.
+- **Notes and source:** the notes of the pinout and the source it was taken from, at the foot of the page.
+
+**Two views.** 31 of the 47 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
+
+**Pin colours.** Each contact is filled with the colour of its pin type. The legend names the types the pinout uses:
+
+| Type | Colour | What it means |
+|------|--------|---------------|
+| Power | red | A supply voltage, such as VBUS or +5 V |
+| Ground | dark slate | The return or earth connection, GND |
+| Signal | amber | A control, status or analogue line, such as an audio channel, a reset or the speed signal of a fan |
+| Data | blue | A line of a data link, such as the USB D+ and D- lines |
+| General-purpose I/O | green | A pin that the user programs, such as a GPIO pin of a board |
+| Not connected | grey | A pin that is not connected or reserved, or a key position without a pin |
+
+**Wire colours.** A wire colour is shown only where a standard or guide names one, for example for USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove and the servo cable. Some cables differ from those colours. The ATX notes say to go by position, not by colour.
+
+**Variants.** Four pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. TO-92: examples has seven part examples: BC547, PN2222A, 2N3904, 2N7000, LM35, 78L05 and TL431.
+
+**Hover, click and filter.** Hovering a contact in the drawing or a row in the table highlights both. A click selects the pin: its details appear in the detail panel and its row is scrolled into view. A second click clears the selection. The drawing reacts to the pointer only; with the keyboard, use the pin number button at the start of each row. The filter box above the table matches the pin number, name, function, type name, wire colour name and notes. Pins that do not match are dimmed in the drawing and their rows are hidden. Press `/` to jump to the filter box, and Escape to clear it.
+
+**Copy pinout** copies the rows that are shown, after the filter, for the chosen variant. The text is tab-separated and starts with a header line, so you can paste it into a spreadsheet. ECalc remembers the variant and the view of each pinout in the browser, with its other settings.
+
+**Check the view before you wire anything.** A connector seen from the other side is mirrored, and a mirrored connector is the classic mistake: left and right swap, and pin 1 sits at the other end of its row. Check which view you are looking at, and that it shows the mating face of the part you are wiring to. Clone boards can differ from the drawing; the NodeMCU entry says so and asks you to compare with the silk screen before wiring. The TO-92 page lists examples only. The pin order depends on the part and the maker, so check the datasheet of your exact part.
+
+### Data and video
+
+- USB 2.0 Type-A
+- USB 3.x Type-A
+- USB 2.0 Type-B
+- USB Mini-B
+- USB Micro-B
+- USB Type-C
+- HDMI Type A
+- DisplayPort
+- VGA (DE-15)
+- RJ45 (8P8C)
+- RS-232 (DE-9)
+
+### Audio
+
+- 3.5 mm jack, stereo (TRS)
+- 3.5 mm headset jack (TRRS)
+- XLR, 3-pin (balanced audio)
+- MIDI (DIN-5, 180°)
+
+### PC power and fans
+
+- ATX main power, 24-pin
+- EPS12V CPU power, 8-pin
+- PCIe power, 6-pin (2x3)
+- PCIe power, 8-pin (2x4)
+- SATA data, 7-pin
+- SATA power, 15-pin
+- Peripheral power, 4-pin (Molex)
+- Fan, 3-pin
+- Fan, 4-pin PWM
+
+### Boards
+
+- Arduino Uno R3
+- Arduino Nano
+- ESP32-DevKitC V4
+- NodeMCU DevKit 1.0 (ESP8266)
+- Raspberry Pi 40-pin header
+- Raspberry Pi Pico / Pico W
+
+### Debug and interfaces
+
+- ARM JTAG (20-pin)
+- Cortex Debug / SWD (10-pin)
+- AVR ISP (6-pin)
+- FTDI TTL-232R (6-pin)
+- Qwiic / STEMMA QT
+- Grove (4-pin)
+- Hobby servo (3-pin)
+- OBD-II (SAE J1962)
+
+### ICs
+
+- NE555 (DIP-8)
+- LM317 (TO-220)
+- L78xx (TO-220)
+- LM358 (DIP-8)
+- LM324 (DIP-14)
+- SN74HC595 (DIP-16)
+- ULN2003A (DIP-16)
+- ATmega328P (DIP-28)
+- TO-92: examples
+
 ## Sources and Honesty
 
-Transcribed standard tables are guide values, cross-checked against two independent sources. Cells that could not be cross-checked are left empty, and a column without any verified value is hidden. Each table names its source; check a design that matters against the standard or the datasheet.
+Transcribed standard tables are guide values, cross-checked against two independent sources. Cells that could not be cross-checked are left empty, and a column without any verified value is hidden. Each table names its source; check a design that matters against the standard or the datasheet. Pinouts name their sources the same way, at the foot of each page. Check the pin you wire against the datasheet of your part.
 
 ## Using ECalc from the Agent
 
-The AuraGo agent can use ECalc's formulas, reference tables and component codes through the `ecalc` tool. The tool computes on your AuraGo server with the same catalog
+The AuraGo agent can use ECalc's formulas, reference tables, component codes and pinouts through the `ecalc` tool. The tool computes on your AuraGo server with the same catalog
 and formulas as the app. It reads nothing from the network or from files, and it has no switch of its own in **Config**.
 
-The agent has seven operations:
+The agent has eight operations:
 
 - **search** finds calculators, tables and component codes by a topic, a part or a formula, in English or German. Without a search term it lists the categories.
 - **describe** shows the variables of a calculator with their units and defaults, its choices, the sets of inputs that work, the
-  values it computes and its checks. For a table it shows the columns and the key; for a component code, the forms it reads and writes.
+  values it computes and its checks. For a table it shows the columns and the key; for a component code, the forms it reads and writes; for a pinout, the connector, the view, the pin counts and the variants, but not the pins.
 - **calculate** solves a calculator from the values you give. Any complete set of inputs works, so it can solve for whichever value
   is missing. It reports every value in SI units and as formatted text, with the calculator's warnings. It also tells you when a value
   you gave differs from the result by more than 1 %. For a computed resistor it names the nearest standard value of the chosen series,
@@ -378,16 +481,20 @@ The agent has seven operations:
 - **table** reads the rows of a reference table. It filters them, pages through them (`offset`, `limit`) and answers one lookup:
   `exact` (the row whose column equals the value), `ge` (the row with the smallest cell that is at least the value) or `interp` (a value
   between the neighbouring rows). Rows come in the column units, with the SI values for further calculation.
+- **pinout** lists the pins of a connector, a board header or an IC package, in pin order. Each pin has its number, name, function,
+  type and, where a standard names one, its wire colour. Give `pin` for one pin, by number (`7`) or by name (`GND`; several pins can
+  share a name), `variant` for a variant such as `t568b`, or `filter` for a word. The answer also says what the drawing shows (`view`);
+  read it before you tell the user where a pin sits.
 - **decode** reads a component code, for example the colour bands of a resistor, and reports its value and fields. **encode** writes
   one from a value: it picks the nearest standard value of the series that the tolerance implies and returns the matching marking
   or bands.
 - **open** shows a calculator in the ECalc app on the desktop, with the values filled in as if you had typed them. The answer
   computes nothing; for the numbers the agent uses **calculate**. Names and values are checked one by one, but the values are not
-  checked against each other, so a set of values that contradict each other opens as typed.
+  checked against each other, so a set of values that contradict each other opens as typed. For a pinout, **open** opens the pinout's page.
 
 **open** needs the Virtual Desktop to be switched on, and **Allow agent control** to be enabled, in **Config → Integrations →
 Virtual Desktop**. Without them the agent gets a "policy denied" answer and gives you the numbers from **calculate** instead.
-Other agents that reach AuraGo through A2A (agent-to-agent requests) may use search, describe, calculate, table, decode and encode, all of which only read, but they cannot open ECalc.
+Other agents that reach AuraGo through A2A (agent-to-agent requests) may use search, describe, calculate, table, pinout, decode and encode, all of which only read, but they cannot open ECalc.
 
 Prompts you can type:
 
@@ -397,14 +504,7 @@ Prompts you can type:
   the frequency filled in, if the Virtual Desktop and agent control are switched on.
 - "Which AWG size has a diameter of about 2 mm?" The agent reads the **AWG wire gauges** table with a lookup and names the matching size.
 - "What resistor is brown black red gold?" The agent decodes the colour bands with `decode` and reports the value and tolerance.
-
-## What Comes Next
-
-One part of the catalog is still to come:
-
-- **Pinouts** of connectors and ICs, in a later version.
-
-This chapter grows with them.
+- "Which pin of a USB-A plug is ground?" The agent reads the pins of **USB 2.0 Type-A** with `pinout` and names pin 4, GND.
 
 ## Privacy and Safety
 
@@ -414,7 +514,7 @@ This chapter grows with them.
   or from files. **open** works only while the Virtual Desktop is switched on and agent control is allowed.
 - **Read-only.** ECalc only reads. A read-only Virtual Desktop does not change how it works.
 - **Check what matters.** Each calculator names its source under **Explanation**. The results are only as good as the formula
-  and your inputs. Check a design that matters against the datasheets of your parts. Mains voltage is dangerous, and ECalc is
+  and your inputs. Check a design that matters against the datasheets of your parts. For a pinout, check the pin against the datasheet of your part before you wire or solder. Mains voltage is dangerous, and ECalc is
   no substitute for qualified electrical work.
 - **Mains installations.** The **Cable voltage drop** calculator gives guide values for mains installations. Its page says that the
   design of a mains installation must follow the installation standard (for example DIN VDE 0100-520 or IEC 60364-5-52) and the local
@@ -434,6 +534,8 @@ This chapter grows with them.
 | A table column is hidden | The column has no verified data: its cells could not be cross-checked, so they are left empty and the column is hidden. The line under the table says how many columns are hidden. |
 | A finder shows a warning ("Not covered by the verified data") | The inputs lie outside the verified data, or no second source confirmed a value for this combination. Choose another combination; the finder highlights no row. |
 | A code is rejected as "not cross-checked" or "ambiguous" | The symbol is not in the verified data ("not cross-checked"), or makers read it in conflicting ways ("ambiguous"). Read the marking on the part and check the datasheet. In the agent tool the answer has the code `unsupported`. |
+| The pin table says "No pin matches the filter." | The filter text is not in the number, name, function, type, wire colour or notes of any pin of this variant. Clear the box, or press Escape in it. |
+| The **Wire** column is missing | No pin of the variant has a wire colour, because the source gives none. The column appears only when a pin has one. |
 
 ---
 
