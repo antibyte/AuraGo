@@ -71,7 +71,7 @@ Exact gradients for primary buttons come from Standard's `--vd-mat-primary`.
 
 ### Component surfaces
 
-Central rules in `ui/css/precision-workspace.css` are driven by new `--pw-mat-*` tokens. These mirror the Standard materials:
+New `--pw-mat-*` tokens in `ui/css/precision-workspace.css` drive the surfaces. Gradient literals appear only in these tokens. Existing rules are edited where they already live (`precision-pages.css`, the entry-page adapters), because `precision-pages.css` loads later and entry pages do not load it. The tokens mirror the Standard materials:
 
 - bar
 - side
@@ -108,9 +108,12 @@ Manual work is needed in these files:
 | `ui/css/setup.css` | 76 hex, 64 rgba |
 | `ui/css/login.css` | 2 hex, 47 rgba |
 | `ui/css/precision-pages.css` | 10 hex |
-| `ui/css/enhancements.css` | the `[data-theme="dark"]` rules, which both pages and chat load |
 
-The background logo and the colour orbs disappear from the pages.
+`ui/css/config-workspace.css` also redefines the whole `--pw-*` palette and the radii for config. That block is deleted, so config inherits the new tokens.
+
+`ui/css/enhancements.css` is not edited, because the other chat themes load it. Later rules in `precision-workspace.css` and `chat-standard.css` override its `[data-theme="dark"]` rules.
+
+The noise layer and the colour orbs disappear from the pages. On the login page, the aurora and the orbs are removed from the CSS, `ui/login.html` and `ui/js/login/main.js`. The hardcoded blue in `ui/js/login/main.js` and `ui/js/login/flame-wrap.js` becomes orange.
 
 ## Light variant of the pages
 
@@ -129,7 +132,7 @@ The light variant is derived from the desktop's Fruity light palette:
 | --pw-text | #162b40 | #1c2430 |
 | --pw-muted | #455e76 | #4a5568 |
 | --pw-subtle | #546c83 | #5a6577 |
-| --pw-accent | #2864b4 | #c2410c |
+| --pw-accent | #2864b4 | #b93e0b |
 | --pw-accent-strong | #1d4e93 | #9a3412 |
 | --pw-on-accent | #ffffff | #ffffff |
 | --pw-line | #cad6e2 | rgba(40, 52, 76, 0.14) |
@@ -143,7 +146,7 @@ Only the default theme (`dark`, label "Standard") changes. All other chat themes
 
 ### Scope of the CSS change
 
-- The new values apply to `[data-theme="dark"]` and `:root:not([data-theme])`.
+- Every selector starts with `:root:is([data-theme="dark"], :not([data-theme]))`. A bare `[data-theme="dark"]` would also match the Standard entry in the theme dropdown while another theme is active.
 - The rules live only inside the chat bundle, in a new part `ui/css/chat-standard.css`.
 - `scripts/build-ui-bundles.js` adds that part to `ui/css/chat.bundle.css`.
 - `ui/shared-variables.css` and `ui/css/tokens.css` stay untouched. The desktop loads them too, and at least the Retro CRT chat theme inherits from their `:root` block.
@@ -161,10 +164,7 @@ Bubbles follow the desktop chat app (`ui/css/desktop-app-chat.css`, `.vd-chat-bu
 
 ### Hardcoded teal
 
-The hardcoded teal in these files gets override rules scoped to the default theme:
-
-- `ui/css/chat.css` (23 lines)
-- `ui/css/chat-modules.css` (21 lines)
+Active teal gets override rules scoped to the default theme. Most teal lines in `ui/css/chat.css` and `ui/css/chat-modules.css` are inert `var(--accent, #2dd4bf)` fallbacks. Other active teal sits in `ui/css/enhancements.css` (selection, focus, scrollbars, hover sweep) and in the `--vd-mat-*` fallbacks of `ui/css/stt-overlay.css`. These base files stay unchanged.
 
 The chat background logo is removed for the default theme.
 
