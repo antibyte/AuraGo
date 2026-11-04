@@ -140,7 +140,8 @@
                 if (reasons.indexOf('errors') >= 0) view.appendChild(el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'export-issues' }, onClick: () => { close(); inst.showIssues(); } }, icon('alert'), el('span', { text: t('storymaker.issues.show') })));
             } else {
                 const seconds = inst.report ? inst.report.duration_ms / 1000 : 0;
-                view.appendChild(el('p', { class: 'stm-muted', text: t('storymaker.export.summary', { duration: S.format.clock(inst.report.frame_count, inst.report.fps), format: (inst.story.format ? inst.story.format.aspect : '') + ' · ' + (inst.report.fps || '') + ' fps', width: inst.report.width || '', height: inst.report.height || '' }) }));
+                const size = S.model.exportSize(inst.story.format ? inst.story.format.aspect : '');
+                view.appendChild(el('p', { class: 'stm-muted', text: t('storymaker.export.summary', { duration: S.format.clock(inst.report.frame_count, inst.report.fps), format: (inst.story.format ? inst.story.format.aspect : '') + ' · ' + (inst.report.fps || '') + ' fps', width: size[0], height: size[1] }) }));
                 if (seconds > 0) view.appendChild(el('p', { class: 'stm-hint', text: t('storymaker.export.silent_note') }));
             }
             view.appendChild(el('div', { class: 'stm-actions' },

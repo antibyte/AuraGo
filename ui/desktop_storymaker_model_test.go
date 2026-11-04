@@ -157,5 +157,8 @@ eq(P({ sm: 1, type: 'thumb', req: 't1', scene_id: 's1', bitmap: {} }), null, 'a 
 eq(P({ sm: 1, type: 'thumb', req: 't1', scene_id: 's1', bitmap: new FakeBitmap() }).scene_id, 's1', 'a thumb');
 eq(P({ sm: 1, type: 'error', code: 'code_error', message: 'x'.repeat(5000), scene_id: 's3' }).message.length, 2000, 'long messages are cut');
 eq(P({ sm: 1, type: 'ready', caps: { workers: true, offscreen: false }, extra: 'x' }), { type: 'ready', caps: { workers: true, offscreen: false } }, 'unknown fields are dropped');
+// the export size follows the aspect, as render.CanvasSize does (the preview compiles smaller)
+eq([M.exportSize('16:9'), M.exportSize('9:16'), M.exportSize('1:1'), M.exportSize(''), M.exportSize('4:3')], [[1920, 1080], [1080, 1920], [1080, 1080], [1920, 1080], [1920, 1080]], 'export size by aspect');
+
 console.log('storymaker app model ok');
 `

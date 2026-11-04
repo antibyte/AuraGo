@@ -192,6 +192,13 @@
         return browser.can_download === true ? 'download' : 'missing';
     }
 
+    // The size of the exported MP4 by aspect, the rule of render.CanvasSize (the preview compiles at a smaller width).
+    function exportSize(aspect) {
+        if (aspect === '9:16') return [1080, 1920];
+        if (aspect === '1:1') return [1080, 1080];
+        return [1920, 1080];
+    }
+
     function issueCounts(list) {
         const counts = { error: 0, warning: 0, minor: 0 };
         (Array.isArray(list) ? list : []).forEach(issue => { if (counts[issue.severity] !== undefined) counts[issue.severity]++; });
@@ -404,6 +411,7 @@
     M.mergeIssues = mergeIssues;
     M.visibleIssues = visibleIssues;
     M.issueCounts = issueCounts;
+    M.exportSize = exportSize;
     M.browserState = browserState;
     M.sceneIndexOfIssue = sceneIndexOfIssue;
     M.indexCatalog = indexCatalog;
