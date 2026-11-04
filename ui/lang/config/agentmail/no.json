@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Én oppføring per linje: en full adresse (anna@example.com) eller et helt domene (@example.com). Bare e-post fra disse avsenderne når agenten; e-post fra alle andre ignoreres. Så lenge listen er tom, når ingen e-post agenten, og du får bare et karantenevarsel for hver melding. From-headeren kan forfalskes, så hold listen kort og la LLM-skanningen av e-post være slått på.",
   "help.agentmail.api_key": "AgentMail API-nøkkel. Lagres sikkert i kryptert Vault.",
   "help.agentmail.auto_create_inbox": "Lar oppsettsflyter opprette den konfigurerte innboksen automatisk når støttet.",
-  "help.agentmail.base_url": "Base-URL for AgentMail REST API.",
+  "help.agentmail.base_url": "Offentlig HTTPS-basis-URL for AgentMail-API-et uten påloggingsinformasjon, spørringsparametere eller fragment. Videresendinger må beholde vert, port og HTTPS.",
   "help.agentmail.display_name": "Vennlig navn for nyopprettede innbokser.",
   "help.agentmail.domain": "Valgfritt AgentMail-domene ved opprettelse av innboks.",
   "help.agentmail.enabled": "Aktiverer AgentMail API-integrasjonen og eksponerer verktøyet agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Valgfritt cheatsheet der innholdet legges ved som instruksjoner i hver videresendte ny-epostprompt.",
   "help.agentmail.use_websocket": "Foretrekker utgående WebSockets for nye e-postvarsler; polling er fallback.",
   "help.agentmail.username": "Innboksens brukernavn for automatisk eller manuell opprettelse.",
-  "help.agentmail.websocket_url": "WebSocket-endepunkt for varsler om innkommende meldinger."
+  "help.agentmail.websocket_url": "WebSocket-endepunkt for varsler om innkommende meldinger.",
+  "config.agentmail.test_auth_failed": "Innlogging mislyktes. Kontroller brukernavn og påloggingsinformasjon.",
+  "config.agentmail.test_certificate_invalid": "TLS-sertifikatet er ugyldig eller ikke betrodd.",
+  "config.agentmail.test_timeout": "Tilkoblingen fikk tidsavbrudd.",
+  "config.agentmail.test_target_blocked": "Serveradressen eller videresendingen er blokkert.",
+  "config.agentmail.test_rate_limited": "E-postleverandøren begrenser forespørsler. Prøv igjen senere.",
+  "config.agentmail.test_provider_rejected": "E-postleverandøren avviste forespørselen.",
+  "config.agentmail.test_connection_failed": "Tilkoblingen mislyktes. Kontroller adresse, port og TLS-innstillinger.",
+  "config.agentmail.test_cancelled": "Tilkoblingstesten ble avbrutt.",
+  "config.agentmail.test_invalid_url": "Bruk en HTTPS-API-URL uten påloggingsinformasjon, spørringsparametere eller fragment.",
+  "config.agentmail.test_mail_test_busy": "En tilkoblingstest kjører allerede. Vent litt og prøv igjen.",
+  "config.agentmail.allow_delete_label": "Tillat permanent sletting",
+  "help.agentmail.allow_delete": "Tillater sletting av innbokser, meldinger og AgentMail-utkast. Av som standard; skrivebeskyttelse blokkerer fortsatt alle endringer."
 }

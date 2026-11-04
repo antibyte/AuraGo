@@ -454,6 +454,7 @@ func (s *Server) handleMailerOAuthStart(w http.ResponseWriter, r *http.Request) 
 			mailerJSON(w, http.StatusBadRequest, map[string]string{"error": "client_secret_required"})
 			return
 		}
+		security.RegisterSensitive(secret)
 		scopes := mailerGoogleAPIScopes(a, cfg.Gog.ReadOnly)
 		if len(scopes) == 0 {
 			mailerJSON(w, http.StatusBadRequest, map[string]string{"error": "gmail_scope_required"})

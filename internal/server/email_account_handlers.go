@@ -96,12 +96,20 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		result := map[string]interface{}{
 			"status": "ok",
 		}
+		release, ok := s.beginMailProbe(w)
+		if !ok {
+			return
+		}
+		defer release()
 		var errors []string
 
 		if imapHost != "" {
 			if err := tools.TestIMAPConnectionWithTLS(r.Context(), imapHost, settings.imapPort, settings.imapUsername, settings.imapPassword, settings.receiveTLS); err != nil {
 				result["imap"] = "error"
-				errors = append(errors, "IMAP: "+err.Error())
+				code := mailConnectionErrorCode(err)
+				result["imap_error"] = code
+				result["code"] = code
+				errors = append(errors, "IMAP: "+code)
 			} else {
 				result["imap"] = "ok"
 			}
@@ -112,7 +120,12 @@ func handleEmailAccountsTest(s *Server) http.HandlerFunc {
 		if smtpHost != "" {
 			if err := tools.TestSMTPAuthWithTransport(r.Context(), smtpHost, settings.smtpPort, settings.smtpUsername, settings.smtpPassword, settings.smtpTransport); err != nil {
 				result["smtp"] = "error"
-				errors = append(errors, "SMTP: "+err.Error())
+				code := mailConnectionErrorCode(err)
+				result["smtp_error"] = code
+				if result["code"] == nil {
+					result["code"] = code
+				}
+				errors = append(errors, "SMTP: "+code)
 			} else {
 				result["smtp"] = "ok"
 			}

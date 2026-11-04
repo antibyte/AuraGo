@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Eén invoer per regel: een volledig adres (anna@example.com) of een heel domein (@example.com). Alleen e-mail van deze afzenders bereikt de agent; e-mail van anderen wordt genegeerd. Zolang de lijst leeg is, bereikt geen enkele e-mail de agent en komt er per bericht alleen een quarantainemelding. De From-header kan vervalst worden, dus houd de lijst kort en laat de LLM-mailscan ingeschakeld.",
   "help.agentmail.api_key": "AgentMail API-sleutel. Veilig opgeslagen in de versleutelde Vault.",
   "help.agentmail.auto_create_inbox": "Laat setupflows de geconfigureerde inbox automatisch maken wanneer dit wordt ondersteund.",
-  "help.agentmail.base_url": "Basis-URL voor de AgentMail REST API.",
+  "help.agentmail.base_url": "Openbare HTTPS-basis-URL van de AgentMail-API zonder aanmeldgegevens, queryparameters of fragment. Omleidingen moeten dezelfde host, poort en HTTPS behouden.",
   "help.agentmail.display_name": "Vriendelijke naam voor nieuw gemaakte inboxen.",
   "help.agentmail.domain": "Optioneel AgentMail-domein voor het maken van een inbox.",
   "help.agentmail.enabled": "Schakelt de AgentMail API-integratie in en maakt de tool agentmail beschikbaar.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Optionele cheatsheet waarvan de inhoud als instructies aan elke doorgestuurde nieuwe-mailprompt wordt toegevoegd.",
   "help.agentmail.use_websocket": "Geeft de voorkeur aan uitgaande WebSockets voor nieuwe mailmeldingen; polling blijft fallback.",
   "help.agentmail.username": "Inbox-gebruikersnaam voor automatisch of handmatig maken.",
-  "help.agentmail.websocket_url": "WebSocket-endpoint voor meldingen van inkomende berichten."
+  "help.agentmail.websocket_url": "WebSocket-endpoint voor meldingen van inkomende berichten.",
+  "config.agentmail.test_auth_failed": "Aanmelden mislukt. Controleer de gebruikersnaam en aanmeldgegevens.",
+  "config.agentmail.test_certificate_invalid": "Het TLS-certificaat is ongeldig of niet vertrouwd.",
+  "config.agentmail.test_timeout": "De verbinding heeft de tijdslimiet overschreden.",
+  "config.agentmail.test_target_blocked": "Het serveradres of de omleiding is geblokkeerd.",
+  "config.agentmail.test_rate_limited": "De mailprovider beperkt aanvragen. Probeer het later opnieuw.",
+  "config.agentmail.test_provider_rejected": "De mailprovider heeft de aanvraag geweigerd.",
+  "config.agentmail.test_connection_failed": "Verbinding mislukt. Controleer adres, poort en TLS-instellingen.",
+  "config.agentmail.test_cancelled": "Verbindingstest geannuleerd.",
+  "config.agentmail.test_invalid_url": "Gebruik een HTTPS-API-URL zonder aanmeldgegevens, queryparameters of fragment.",
+  "config.agentmail.test_mail_test_busy": "Er loopt al een verbindingstest. Wacht even en probeer het opnieuw.",
+  "config.agentmail.allow_delete_label": "Permanent verwijderen toestaan",
+  "help.agentmail.allow_delete": "Staat het verwijderen van postvakken, berichten en AgentMail-concepten toe. Standaard uit; alleen-lezen blokkeert nog steeds alle wijzigingen."
 }

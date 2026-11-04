@@ -98,7 +98,7 @@ func dialTransport(ctx context.Context, cfg TransportConfig, network, address st
 	if cfg.DialContext != nil {
 		return cfg.DialContext(ctx, network, address)
 	}
-	return (&net.Dialer{Timeout: timeout}).DialContext(ctx, network, address)
+	return dialMailTransport(ctx, network, address, timeout)
 }
 
 // WithIMAPClient runs fn with an authenticated IMAP client using the shared

@@ -513,6 +513,11 @@ func (s *Server) mailerTestConnection(w http.ResponseWriter, r *http.Request, id
 		mailerHTTPError(w, mailer.ErrInvalid)
 		return
 	}
+	release, ok := s.beginMailProbe(w)
+	if !ok {
+		return
+	}
+	defer release()
 	adapter, _, err := s.resolveMailerAdapter(r.Context(), id)
 	if err != nil {
 		mailerHTTPError(w, err)

@@ -69,5 +69,15 @@
   "config.email.username_help": "Uživatelské jméno pro IMAP a SMTP, obvykle celá e-mailová adresa.",
   "config.email.watch_enabled_help": "AuraGo pravidelně kontroluje níže zvolenou složku, zda nepřišla nová pošta, a může na ni reagovat.",
   "config.email.watch_folder_help": "Složka IMAP, která se sleduje kvůli nové poště. Výchozí je INBOX.",
-  "config.email.id_sanitised": "Povoleno je jen a-z, 0-9, - a _. ID bude uloženo jako '{id}'."
+  "config.email.id_sanitised": "Povoleno je jen a-z, 0-9, - a _. ID bude uloženo jako '{id}'.",
+  "config.email.test_auth_failed": "Přihlášení se nezdařilo. Zkontroluj uživatelské jméno a přihlašovací údaje.",
+  "config.email.test_certificate_invalid": "Certifikát TLS je neplatný nebo nedůvěryhodný.",
+  "config.email.test_timeout": "Vypršel časový limit připojení.",
+  "config.email.test_target_blocked": "Adresa serveru nebo přesměrování je blokováno.",
+  "config.email.test_rate_limited": "Poskytovatel pošty omezuje požadavky. Zkus to později.",
+  "config.email.test_provider_rejected": "Poskytovatel pošty požadavek odmítl.",
+  "config.email.test_connection_failed": "Připojení se nezdařilo. Zkontroluj adresu, port a nastavení TLS.",
+  "config.email.test_cancelled": "Test připojení byl zrušen.",
+  "config.email.test_invalid_url": "Použij adresu API s HTTPS bez přihlašovacích údajů, parametrů dotazu a fragmentu.",
+  "config.email.test_mail_test_busy": "Test připojení již probíhá. Chvíli počkej a zkus to znovu."
 }

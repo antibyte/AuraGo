@@ -251,6 +251,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   it completely. A quarantined result contains a safe local notice instead of
   the original payload. Preserve the actual operation status, especially for
   AgentMail writes whose response is withheld; never invite replay of a send.
+- Modern email accounts keep independent disabled/agent_access/readonly/watch gates;
+  the legacy email.enabled bit is migration input, not their global master switch.
+  AgentMail delete operations additionally require default-off agentmail.allow_delete;
+  writable send permission alone never grants deletion. See `../agentmail/AGENTS.md`.
 - Shell, Python and `run_tool` results always use escaped external-data isolation.
   Capture execution status first and preserve the wrapper through bounding,
   compression and saved-result reads. Copyable source wrappers remain limited

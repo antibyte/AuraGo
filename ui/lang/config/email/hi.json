@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo नीचे चुने गए फ़ोल्डर में नए मेल की नियमित रूप से जाँच करता है और उन पर प्रतिक्रिया दे सकता है।",
   "config.email.watch_folder_help": "नए मेल के लिए निगरानी किया जाने वाला IMAP फ़ोल्डर। डिफ़ॉल्ट INBOX है।",
   "config.email.interval_seconds_help": "फ़ोल्डर की जाँच कितनी बार होती है, सेकंड में (डिफ़ॉल्ट 120)। छोटे अंतराल मेल सर्वर पर अधिक भार डालते हैं।",
-  "config.email.id_sanitised": "केवल a-z, 0-9, - और _ की अनुमति है। ID '{id}' के रूप में सहेजा जाएगा।"
+  "config.email.id_sanitised": "केवल a-z, 0-9, - और _ की अनुमति है। ID '{id}' के रूप में सहेजा जाएगा।",
+  "config.email.test_auth_failed": "साइन-इन विफल हुआ। उपयोगकर्ता नाम और लॉगिन विवरण जाँचें।",
+  "config.email.test_certificate_invalid": "TLS प्रमाणपत्र अमान्य है या विश्वसनीय नहीं है।",
+  "config.email.test_timeout": "कनेक्शन का समय समाप्त हो गया।",
+  "config.email.test_target_blocked": "सर्वर का पता या रीडायरेक्ट अवरुद्ध है।",
+  "config.email.test_rate_limited": "मेल प्रदाता अनुरोध सीमित कर रहा है। बाद में फिर कोशिश करें।",
+  "config.email.test_provider_rejected": "मेल प्रदाता ने अनुरोध अस्वीकार कर दिया।",
+  "config.email.test_connection_failed": "कनेक्शन विफल हुआ। पता, पोर्ट और TLS सेटिंग जाँचें।",
+  "config.email.test_cancelled": "कनेक्शन परीक्षण रद्द कर दिया गया।",
+  "config.email.test_invalid_url": "ऐसा HTTPS API URL उपयोग करें जिसमें लॉगिन विवरण, क्वेरी पैरामीटर या फ़्रैगमेंट न हो।",
+  "config.email.test_mail_test_busy": "कनेक्शन परीक्षण पहले से चल रहा है। थोड़ी देर बाद फिर कोशिश करें।"
 }

@@ -719,6 +719,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateAgentMailBaseURL(validateCfg.AgentMail.BaseURL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.ValidateWhatsAppConfig(validateCfg.WhatsApp); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

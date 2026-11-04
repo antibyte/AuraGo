@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/testutil"
 	"aurago/internal/tools"
 )
 
@@ -36,7 +37,7 @@ func TestHandleAgentMailStatusReportsDisabled(t *testing.T) {
 }
 
 func TestHandleAgentMailTestListsInboxes(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}
@@ -46,6 +47,8 @@ func TestHandleAgentMailTestListsInboxes(t *testing.T) {
 		_, _ = w.Write([]byte(`{"inboxes":[{"inbox_id":"inbox-1","email_address":"bot@example.com"}]}`))
 	}))
 	defer upstream.Close()
+	testutil.TrustHTTPSTestServer(t, upstream)
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	cfg := &config.Config{}
 	cfg.AgentMail.Enabled = true

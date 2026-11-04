@@ -212,8 +212,9 @@ func (a EmailAccount) AllowsAgentAccess() bool {
 // AgentMailConfig configures the AgentMail API integration.
 type AgentMailConfig struct {
 	Enabled             bool   `yaml:"enabled" json:"enabled"`
-	ReadOnly            bool   `yaml:"readonly" json:"readonly"`   // true = list/read only; block create/update/delete/send/reply/forward
-	APIKey              string `yaml:"-" vault:"api_key" json:"-"` // vault-only: stored as agentmail_api_key
+	ReadOnly            bool   `yaml:"readonly" json:"readonly"`         // true = list/read only; block create/update/delete/send/reply/forward
+	AllowDelete         bool   `yaml:"allow_delete" json:"allow_delete"` // explicit delete permission; readonly still wins
+	APIKey              string `yaml:"-" vault:"api_key" json:"-"`       // vault-only: stored as agentmail_api_key
 	InboxID             string `yaml:"inbox_id" json:"inbox_id"`
 	AutoCreateInbox     bool   `yaml:"auto_create_inbox" json:"auto_create_inbox"`
 	Username            string `yaml:"username" json:"username"`

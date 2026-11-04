@@ -20,11 +20,18 @@ func handleAgentMailStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := s.Cfg.AgentMail
+		snapshot := s.ConfigSnapshot()
+		if snapshot == nil {
+			jsonError(w, "Configuration unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		cfg := snapshot.AgentMail
 		running := false
+		s.AgentMailMu.Lock()
 		if s.AgentMailService != nil {
 			running = s.AgentMailService.Running()
 		}
+		s.AgentMailMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		if !cfg.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -77,9 +84,14 @@ func handleAgentMailTest(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "AgentMail API key is not configured"})
 			return
 		}
+		release, ok := s.beginMailProbe(w)
+		if !ok {
+			return
+		}
+		defer release()
 		client, err := agentmail.NewClient(agentmail.ClientConfig{BaseURL: cfg.BaseURL, APIKey: cfg.APIKey})
 		if err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})
+			writeMailConnectionError(w, "invalid_url")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -87,7 +99,7 @@ func handleAgentMailTest(s *Server) http.HandlerFunc {
 		if cfg.InboxID != "" {
 			inbox, err := client.GetInbox(ctx, cfg.InboxID)
 			if err != nil {
-				json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})
+				writeMailConnectionError(w, mailConnectionErrorCode(err))
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "message": "Connection successful", "inbox": inbox})
@@ -95,7 +107,7 @@ func handleAgentMailTest(s *Server) http.HandlerFunc {
 		}
 		res, err := client.ListInboxes(ctx, agentmail.ListInboxesOptions{Limit: 10})
 		if err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})
+			writeMailConnectionError(w, mailConnectionErrorCode(err))
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{

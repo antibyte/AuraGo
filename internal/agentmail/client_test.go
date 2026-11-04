@@ -25,7 +25,7 @@ func TestListMessagesResponseNormalizesNextPageToken(t *testing.T) {
 func TestClientDisableRetriesForSend(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		http.Error(w, `{"error":{"message":"temporary"}}`, http.StatusServiceUnavailable)
 	}))
@@ -45,7 +45,7 @@ func TestClientDisableRetriesForSend(t *testing.T) {
 func TestClientListMessagesUsesBearerAuthAndQuery(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes/inbox-1/messages" {
 			t.Fatalf("path = %q, want /v0/inboxes/inbox-1/messages", r.URL.Path)
 		}
@@ -89,7 +89,7 @@ func TestClientRetriesRateLimitWithRetryAfter(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		if calls == 1 {
 			w.Header().Set("Retry-After", "1")
@@ -130,7 +130,7 @@ func TestClientRetriesRateLimitWithRetryAfter(t *testing.T) {
 func TestUpdateMessageLabelsPayload(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Fatalf("method = %s, want PATCH", r.Method)
 		}
@@ -171,7 +171,7 @@ func TestUpdateMessageLabelsPayload(t *testing.T) {
 func TestSendMessagePayloadIncludesAttachments(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes/inbox-1/messages/send" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}

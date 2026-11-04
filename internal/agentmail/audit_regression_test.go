@@ -13,7 +13,7 @@ import (
 
 func TestMutationIsNeverReplayedByDefault(t *testing.T) {
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); http.Error(w, "unavailable", 503) }))
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); http.Error(w, "unavailable", 503) }))
 	defer srv.Close()
 	c, err := NewClient(ClientConfig{BaseURL: srv.URL, APIKey: "fixture-only", HTTPClient: srv.Client()})
 	if err != nil {
@@ -27,7 +27,7 @@ func TestMutationIsNeverReplayedByDefault(t *testing.T) {
 
 func TestAcceptedMutationWithLostResponseIsNotRepeated(t *testing.T) {
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		conn, _, err := w.(http.Hijacker).Hijack()
 		if err != nil {
@@ -49,7 +49,7 @@ func TestAcceptedMutationWithLostResponseIsNotRepeated(t *testing.T) {
 
 func TestRelayWaitsForSuccessfulSeedAndStops(t *testing.T) {
 	started := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		close(started)
 		<-r.Context().Done()
 	}))
@@ -77,7 +77,7 @@ func TestRelayWaitsForSuccessfulSeedAndStops(t *testing.T) {
 }
 
 func TestAcceptedRelaySurvivesFailedLabel(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "unavailable", 503) }))
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "unavailable", 503) }))
 	defer srv.Close()
 	c, err := NewClient(ClientConfig{BaseURL: srv.URL, APIKey: "fixture-only", HTTPClient: srv.Client(), DisableRetries: true})
 	if err != nil {

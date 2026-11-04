@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Uma entrada por linha: um endereço completo (anna@example.com) ou um domínio inteiro (@example.com). Só o e-mail destes remetentes chega ao agente; o de todos os outros é ignorado. Enquanto a lista estiver vazia, nenhum e-mail chega ao agente e só é entregue um aviso de quarentena por mensagem. O cabeçalho From pode ser falsificado, por isso convém manter a lista curta e deixar a análise de e-mail por LLM ativada.",
   "help.agentmail.api_key": "Chave de API do AgentMail. Armazenada com segurança no Vault criptografado.",
   "help.agentmail.auto_create_inbox": "Permite que fluxos de configuração criem a caixa automaticamente quando houver suporte.",
-  "help.agentmail.base_url": "URL base da API REST do AgentMail.",
+  "help.agentmail.base_url": "URL base HTTPS público da API AgentMail, sem credenciais, parâmetros de consulta ou fragmento. Os redirecionamentos devem manter o servidor, a porta e HTTPS.",
   "help.agentmail.display_name": "Nome amigável para caixas recém-criadas.",
   "help.agentmail.domain": "Domínio opcional do AgentMail para criar uma caixa.",
   "help.agentmail.enabled": "Ativa a integração da API AgentMail e expõe a ferramenta agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Cheatsheet opcional cujo conteúdo é anexado como instruções a cada prompt de novo e-mail retransmitido.",
   "help.agentmail.use_websocket": "Prefere WebSockets de saída para notificações de novos e-mails; polling continua como fallback.",
   "help.agentmail.username": "Nome de usuário da caixa para criação automática ou manual.",
-  "help.agentmail.websocket_url": "Endpoint WebSocket usado para notificações de mensagens recebidas."
+  "help.agentmail.websocket_url": "Endpoint WebSocket usado para notificações de mensagens recebidas.",
+  "config.agentmail.test_auth_failed": "Falha ao iniciar sessão. Verifica o utilizador e as credenciais.",
+  "config.agentmail.test_certificate_invalid": "O certificado TLS é inválido ou não é de confiança.",
+  "config.agentmail.test_timeout": "O tempo de ligação expirou.",
+  "config.agentmail.test_target_blocked": "O endereço do servidor ou o redirecionamento está bloqueado.",
+  "config.agentmail.test_rate_limited": "O fornecedor de correio está a limitar os pedidos. Tenta mais tarde.",
+  "config.agentmail.test_provider_rejected": "O fornecedor de correio rejeitou o pedido.",
+  "config.agentmail.test_connection_failed": "Falha na ligação. Verifica o endereço, a porta e as definições TLS.",
+  "config.agentmail.test_cancelled": "Teste de ligação cancelado.",
+  "config.agentmail.test_invalid_url": "Usa um URL de API HTTPS sem credenciais, parâmetros de consulta ou fragmento.",
+  "config.agentmail.test_mail_test_busy": "Já está a decorrer um teste de ligação. Aguarda um pouco e tenta novamente.",
+  "config.agentmail.allow_delete_label": "Permitir eliminação permanente",
+  "help.agentmail.allow_delete": "Permite eliminar caixas de correio, mensagens e rascunhos do AgentMail. Desativado por predefinição; o modo só de leitura continua a bloquear todas as alterações."
 }

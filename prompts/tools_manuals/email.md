@@ -130,13 +130,18 @@ Returns a JSON array of email objects:
 ## Configuration (config.yaml)
 
 ### New format: Multiple accounts
-```yaml
-email:
-  enabled: true         # master switch
 
+Modern accounts use their own `disabled`, `readonly`, `agent_access`, and
+`watch_enabled` settings. The legacy `email.enabled` field is not a global switch
+for this list. Legacy migration preserves its enabled/disabled state.
+
+```yaml
 email_accounts:
   - id: personal
     name: "Personal Gmail"
+    disabled: false
+    readonly: false
+    agent_access: true
     imap_host: "imap.gmail.com"
     imap_port: 993
     smtp_host: "smtp.gmail.com"

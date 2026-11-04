@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Μία καταχώριση ανά γραμμή: πλήρης διεύθυνση (anna@example.com) ή ολόκληρο domain (@example.com). Μόνο η αλληλογραφία από αυτούς τους αποστολείς φτάνει στον agent· η αλληλογραφία όλων των άλλων αγνοείται. Όσο η λίστα είναι κενή, καμία αλληλογραφία δεν φτάνει στον agent και για κάθε μήνυμα λαμβάνεται μόνο ειδοποίηση καραντίνας. Η κεφαλίδα From μπορεί να πλαστογραφηθεί, γι’ αυτό κρατήστε τη λίστα σύντομη και αφήστε ενεργή τη σάρωση αλληλογραφίας μέσω LLM.",
   "help.agentmail.api_key": "AgentMail API key. Αποθηκεύεται με ασφάλεια στο κρυπτογραφημένο Vault.",
   "help.agentmail.auto_create_inbox": "Επιτρέπει στις ροές ρύθμισης να δημιουργούν αυτόματα τη θυρίδα όταν υποστηρίζεται.",
-  "help.agentmail.base_url": "Βασικό URL για το AgentMail REST API.",
+  "help.agentmail.base_url": "Δημόσια βασική διεύθυνση HTTPS του API AgentMail χωρίς διαπιστευτήρια, παραμέτρους ερωτήματος ή τμήμα. Οι ανακατευθύνσεις πρέπει να διατηρούν τον ίδιο διακομιστή, θύρα και HTTPS.",
   "help.agentmail.display_name": "Φιλικό όνομα για νέες θυρίδες.",
   "help.agentmail.domain": "Προαιρετικό AgentMail domain για δημιουργία θυρίδας.",
   "help.agentmail.enabled": "Ενεργοποιεί την ενσωμάτωση AgentMail API και εμφανίζει το εργαλείο agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Προαιρετικό cheatsheet του οποίου το περιεχόμενο προστίθεται ως οδηγίες σε κάθε προωθημένη ειδοποίηση νέου email.",
   "help.agentmail.use_websocket": "Προτιμά εξερχόμενα WebSockets για ειδοποιήσεις νέας αλληλογραφίας· το polling παραμένει εφεδρικό.",
   "help.agentmail.username": "Όνομα χρήστη θυρίδας για αυτόματη ή χειροκίνητη δημιουργία.",
-  "help.agentmail.websocket_url": "WebSocket endpoint για ειδοποιήσεις εισερχόμενων μηνυμάτων."
+  "help.agentmail.websocket_url": "WebSocket endpoint για ειδοποιήσεις εισερχόμενων μηνυμάτων.",
+  "config.agentmail.test_auth_failed": "Η σύνδεση απέτυχε. Έλεγξε το όνομα χρήστη και τα διαπιστευτήρια.",
+  "config.agentmail.test_certificate_invalid": "Το πιστοποιητικό TLS δεν είναι έγκυρο ή αξιόπιστο.",
+  "config.agentmail.test_timeout": "Έληξε το χρονικό όριο σύνδεσης.",
+  "config.agentmail.test_target_blocked": "Η διεύθυνση διακομιστή ή η ανακατεύθυνση αποκλείστηκε.",
+  "config.agentmail.test_rate_limited": "Ο πάροχος αλληλογραφίας περιορίζει τα αιτήματα. Δοκίμασε αργότερα.",
+  "config.agentmail.test_provider_rejected": "Ο πάροχος αλληλογραφίας απέρριψε το αίτημα.",
+  "config.agentmail.test_connection_failed": "Η σύνδεση απέτυχε. Έλεγξε τη διεύθυνση, τη θύρα και τις ρυθμίσεις TLS.",
+  "config.agentmail.test_cancelled": "Η δοκιμή σύνδεσης ακυρώθηκε.",
+  "config.agentmail.test_invalid_url": "Χρησιμοποίησε διεύθυνση API HTTPS χωρίς διαπιστευτήρια, παραμέτρους ερωτήματος ή τμήμα.",
+  "config.agentmail.test_mail_test_busy": "Εκτελείται ήδη δοκιμή σύνδεσης. Περίμενε λίγο και δοκίμασε ξανά.",
+  "config.agentmail.allow_delete_label": "Να επιτρέπεται η οριστική διαγραφή",
+  "help.agentmail.allow_delete": "Επιτρέπει τη διαγραφή γραμματοκιβωτίων, μηνυμάτων και προχείρων AgentMail. Απενεργοποιημένο αρχικά· η λειτουργία μόνο για ανάγνωση εξακολουθεί να αποκλείει κάθε αλλαγή."
 }

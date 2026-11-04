@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "प्रति पंक्ति एक प्रविष्टि: पूरा पता (anna@example.com) या पूरा डोमेन (@example.com)। केवल इन प्रेषकों के मेल एजेंट तक पहुँचते हैं; बाकी सभी के मेल अनदेखे किए जाते हैं। सूची खाली रहने पर कोई भी मेल एजेंट तक नहीं पहुँचता और हर संदेश के लिए केवल क्वारंटीन सूचना मिलती है। From हेडर को नकली बनाया जा सकता है, इसलिए सूची छोटी रखें और LLM मेल स्कैन चालू रखें।",
   "help.agentmail.api_key": "AgentMail API कुंजी। यह एन्क्रिप्टेड Vault में सुरक्षित रूप से संग्रहीत होती है।",
   "help.agentmail.auto_create_inbox": "समर्थित होने पर सेटअप फ्लो को कॉन्फ़िगर किया इनबॉक्स स्वतः बनाने देता है।",
-  "help.agentmail.base_url": "AgentMail REST API का बेस URL।",
+  "help.agentmail.base_url": "AgentMail API का सार्वजनिक HTTPS बेस URL, बिना लॉगिन विवरण, क्वेरी पैरामीटर या फ़्रैगमेंट के। रीडायरेक्ट में होस्ट, पोर्ट और HTTPS समान रहने चाहिए।",
   "help.agentmail.display_name": "नए बनाए गए इनबॉक्स के लिए मित्रवत नाम।",
   "help.agentmail.domain": "इनबॉक्स बनाते समय वैकल्पिक AgentMail डोमेन।",
   "help.agentmail.enabled": "AgentMail API एकीकरण सक्रिय करता है और agentmail टूल उपलब्ध कराता है।",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "वैकल्पिक चीटशीट जिसकी सामग्री हर रिले किए गए नए-मेल प्रॉम्प्ट में निर्देशों के रूप में जोड़ी जाती है।",
   "help.agentmail.use_websocket": "नई मेल सूचनाओं के लिए आउटबाउंड WebSockets को प्राथमिकता देता है; polling fallback रहता है।",
   "help.agentmail.username": "स्वचालित या मैनुअल निर्माण के लिए इनबॉक्स उपयोगकर्ता नाम।",
-  "help.agentmail.websocket_url": "आने वाले संदेशों की सूचना के लिए WebSocket endpoint।"
+  "help.agentmail.websocket_url": "आने वाले संदेशों की सूचना के लिए WebSocket endpoint।",
+  "config.agentmail.test_auth_failed": "साइन-इन विफल हुआ। उपयोगकर्ता नाम और लॉगिन विवरण जाँचें।",
+  "config.agentmail.test_certificate_invalid": "TLS प्रमाणपत्र अमान्य है या विश्वसनीय नहीं है।",
+  "config.agentmail.test_timeout": "कनेक्शन का समय समाप्त हो गया।",
+  "config.agentmail.test_target_blocked": "सर्वर का पता या रीडायरेक्ट अवरुद्ध है।",
+  "config.agentmail.test_rate_limited": "मेल प्रदाता अनुरोध सीमित कर रहा है। बाद में फिर कोशिश करें।",
+  "config.agentmail.test_provider_rejected": "मेल प्रदाता ने अनुरोध अस्वीकार कर दिया।",
+  "config.agentmail.test_connection_failed": "कनेक्शन विफल हुआ। पता, पोर्ट और TLS सेटिंग जाँचें।",
+  "config.agentmail.test_cancelled": "कनेक्शन परीक्षण रद्द कर दिया गया।",
+  "config.agentmail.test_invalid_url": "ऐसा HTTPS API URL उपयोग करें जिसमें लॉगिन विवरण, क्वेरी पैरामीटर या फ़्रैगमेंट न हो।",
+  "config.agentmail.test_mail_test_busy": "कनेक्शन परीक्षण पहले से चल रहा है। थोड़ी देर बाद फिर कोशिश करें।",
+  "config.agentmail.allow_delete_label": "स्थायी रूप से हटाने की अनुमति दें",
+  "help.agentmail.allow_delete": "इनबॉक्स, संदेश और AgentMail ड्राफ़्ट हटाने की अनुमति देता है। डिफ़ॉल्ट रूप से बंद; केवल-पठन मोड सभी बदलाव रोकता है।"
 }

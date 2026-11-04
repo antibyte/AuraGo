@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "1 行に 1 件ずつ、完全なアドレス (anna@example.com) またはドメイン全体 (@example.com) を入力します。これらの送信者からのメールだけがエージェントに届き、それ以外の送信者のメールは無視されます。リストが空の間は、どのメールもエージェントに届かず、メッセージごとに隔離通知だけが届きます。From ヘッダーは偽装できるため、リストは短く保ち、LLM によるメールスキャンを有効にしておいてください。",
   "help.agentmail.api_key": "AgentMail API キー。暗号化された Vault に安全に保存されます。",
   "help.agentmail.auto_create_inbox": "対応している場合、設定フローが受信箱を自動作成できます。",
-  "help.agentmail.base_url": "AgentMail REST API のベース URL。",
+  "help.agentmail.base_url": "認証情報、クエリパラメーター、フラグメントを含まないAgentMail APIの公開HTTPSベースURL。リダイレクトでもホスト、ポート、HTTPSを維持する必要があります。",
   "help.agentmail.display_name": "新しく作成する受信箱のわかりやすい名前。",
   "help.agentmail.domain": "受信箱作成時の任意の AgentMail ドメイン。",
   "help.agentmail.enabled": "AgentMail API 連携を有効にし、agentmail ツールを公開します。",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "各転送済み新着メールプロンプトに指示として内容を追加する任意のチートシートです。",
   "help.agentmail.use_websocket": "新着メール通知にアウトバウンド WebSocket を優先します。ポーリングはフォールバックです。",
   "help.agentmail.username": "自動または手動作成に使う受信箱ユーザー名。",
-  "help.agentmail.websocket_url": "受信メッセージ通知に使う WebSocket エンドポイント。"
+  "help.agentmail.websocket_url": "受信メッセージ通知に使う WebSocket エンドポイント。",
+  "config.agentmail.test_auth_failed": "ログインに失敗しました。ユーザー名と認証情報を確認してください。",
+  "config.agentmail.test_certificate_invalid": "TLS証明書が無効か、信頼されていません。",
+  "config.agentmail.test_timeout": "接続がタイムアウトしました。",
+  "config.agentmail.test_target_blocked": "サーバーのアドレスまたはリダイレクトがブロックされています。",
+  "config.agentmail.test_rate_limited": "メール事業者がリクエストを制限しています。後でもう一度お試しください。",
+  "config.agentmail.test_provider_rejected": "メール事業者がリクエストを拒否しました。",
+  "config.agentmail.test_connection_failed": "接続に失敗しました。アドレス、ポート、TLS設定を確認してください。",
+  "config.agentmail.test_cancelled": "接続テストをキャンセルしました。",
+  "config.agentmail.test_invalid_url": "認証情報、クエリパラメーター、フラグメントを含まないHTTPSのAPI URLを使用してください。",
+  "config.agentmail.test_mail_test_busy": "接続テストは実行中です。少し待ってから再試行してください。",
+  "config.agentmail.allow_delete_label": "完全削除を許可",
+  "help.agentmail.allow_delete": "受信箱、メッセージ、AgentMailの下書きの削除を許可します。初期設定では無効です。読み取り専用では引き続きすべての変更を禁止します。"
 }

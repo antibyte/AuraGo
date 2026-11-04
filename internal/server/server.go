@@ -171,6 +171,7 @@ type Server struct {
 	providerRevision     atomic.Pointer[string]
 	providerTests        sync.Map
 	providerProbeHistory sync.Map
+	mailTests            mailProbeGate
 	CfgMu                sync.RWMutex // protects Cfg during hot-reload
 	CfgSaveMu            sync.Mutex   // serializes config file writes to prevent TOCTOU races
 	httpDrainMu          sync.Mutex
@@ -2199,9 +2200,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Like the Uptime Kuma relay: join a running camera detection wake-up before
 		// closeRuntimeResources closes what it uses. Later alerts are skipped.
 		s.personAlertAgents.stop()
+		s.AgentMailMu.Lock()
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
 		}
+		s.AgentMailMu.Unlock()
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox

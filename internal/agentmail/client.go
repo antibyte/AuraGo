@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 )
 
@@ -47,10 +48,7 @@ func (e *APIError) Error() string {
 	if e == nil {
 		return ""
 	}
-	if e.Message != "" {
-		return fmt.Sprintf("agentmail api error (%d): %s", e.StatusCode, e.Message)
-	}
-	return fmt.Sprintf("agentmail api error (%d): %s", e.StatusCode, e.Body)
+	return fmt.Sprintf("agentmail api error (HTTP %d)", e.StatusCode)
 }
 
 func NewClient(cfg ClientConfig) (*Client, error) {
@@ -58,10 +56,10 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	if base == "" {
 		base = DefaultBaseURL
 	}
-	parsed, err := url.Parse(base)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, fmt.Errorf("invalid AgentMail base URL %q", base)
+	if err := config.ValidateAgentMailBaseURL(base); err != nil {
+		return nil, err
 	}
+	parsed, _ := url.Parse(base)
 	apiKey := strings.TrimSpace(cfg.APIKey)
 	if apiKey == "" {
 		return nil, fmt.Errorf("agentmail api key is required")
@@ -69,7 +67,18 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	security.RegisterSensitive(apiKey)
 	httpClient := cfg.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+		httpClient = security.NewSSRFProtectedHTTPClientSameOrigin(30 * time.Second)
+	}
+	clientCopy := *httpClient
+	previousRedirect := clientCopy.CheckRedirect
+	clientCopy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := security.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if previousRedirect != nil {
+			return previousRedirect(req, via)
+		}
+		return nil
 	}
 	maxBytes := cfg.MaxResponseBytes
 	if maxBytes <= 0 {
@@ -93,7 +102,7 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	return &Client{
 		baseURL:              parsed,
 		apiKey:               apiKey,
-		httpClient:           httpClient,
+		httpClient:           &clientCopy,
 		attachmentHTTPClient: newAttachmentHTTPClient(),
 		maxResponseBytes:     maxBytes,
 		maxRetries:           maxRetries,

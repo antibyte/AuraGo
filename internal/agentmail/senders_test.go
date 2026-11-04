@@ -72,7 +72,7 @@ func relayMessage(id, from string) Message {
 
 func TestRelayWithAllowedSendersNotifiesOnlyAllowlistedSenders(t *testing.T) {
 	var patches atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch {
 			patches.Add(1)
 		}
@@ -135,7 +135,7 @@ func TestRelayWithoutAllowedSendersDeliversOnlyTheQuarantineNotice(t *testing.T)
 // asks for the sender before it decides; a failed lookup is retried, not guessed.
 func TestRelayLooksUpTheSenderOfAnEventThatLacksOne(t *testing.T) {
 	var fail atomic.Bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if fail.Load() {
 			http.Error(w, "unavailable", http.StatusServiceUnavailable)
 			return

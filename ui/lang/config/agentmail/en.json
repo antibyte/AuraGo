@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "One entry per line: a full address (anna@example.com) or a whole domain (@example.com). Only mail from these senders reaches the agent; mail from anyone else is ignored. While the list is empty, no mail reaches the agent and you only get a quarantine notice for each message. The From header can be forged, so keep the list short and keep the LLM mail scan on.",
   "help.agentmail.api_key": "AgentMail API key. Stored securely in the encrypted vault.",
   "help.agentmail.auto_create_inbox": "Allows setup flows to create the configured inbox automatically when supported.",
-  "help.agentmail.base_url": "Base URL for the AgentMail REST API.",
+  "help.agentmail.base_url": "Public HTTPS base URL for the AgentMail API without credentials, query parameters or a fragment. Redirects must keep the same host, port and HTTPS scheme.",
   "help.agentmail.display_name": "Friendly name shown for newly created inboxes.",
   "help.agentmail.domain": "Optional AgentMail domain to use when creating an inbox.",
   "help.agentmail.enabled": "Enables the AgentMail API integration and exposes the namespaced agentmail tool.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Optional cheatsheet whose content is appended as instructions to every relayed new-mail prompt.",
   "help.agentmail.use_websocket": "Prefer outbound WebSockets for new mail notifications; polling remains the fallback.",
   "help.agentmail.username": "Inbox username used when auto-creating or creating inboxes.",
-  "help.agentmail.websocket_url": "WebSocket endpoint used for inbound message notifications."
+  "help.agentmail.websocket_url": "WebSocket endpoint used for inbound message notifications.",
+  "config.agentmail.test_auth_failed": "Sign-in failed. Check the username and credentials.",
+  "config.agentmail.test_certificate_invalid": "The TLS certificate is invalid or not trusted.",
+  "config.agentmail.test_timeout": "The connection timed out.",
+  "config.agentmail.test_target_blocked": "The server address or redirect is blocked.",
+  "config.agentmail.test_rate_limited": "The mail provider is limiting requests. Try again later.",
+  "config.agentmail.test_provider_rejected": "The mail provider rejected the request.",
+  "config.agentmail.test_connection_failed": "Connection failed. Check the address, port and TLS settings.",
+  "config.agentmail.test_cancelled": "Connection test cancelled.",
+  "config.agentmail.test_invalid_url": "Use an HTTPS API URL without credentials, query parameters or a fragment.",
+  "config.agentmail.test_mail_test_busy": "A connection test is already running. Wait briefly and try again.",
+  "config.agentmail.allow_delete_label": "Allow permanent deletion",
+  "help.agentmail.allow_delete": "Allows deleting inboxes, messages and AgentMail drafts. Off by default; read-only still blocks every change."
 }

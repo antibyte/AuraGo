@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo regularly checks the folder chosen below for new mail and can react to it.",
   "config.email.watch_folder_help": "IMAP folder that is watched for new mail. The default is INBOX.",
   "config.email.interval_seconds_help": "How often the folder is checked, in seconds (default 120). Shorter intervals put more load on the mail server.",
-  "config.email.id_sanitised": "Only a-z, 0-9, - and _ are allowed. The ID will be saved as '{id}'."
+  "config.email.id_sanitised": "Only a-z, 0-9, - and _ are allowed. The ID will be saved as '{id}'.",
+  "config.email.test_auth_failed": "Sign-in failed. Check the username and credentials.",
+  "config.email.test_certificate_invalid": "The TLS certificate is invalid or not trusted.",
+  "config.email.test_timeout": "The connection timed out.",
+  "config.email.test_target_blocked": "The server address or redirect is blocked.",
+  "config.email.test_rate_limited": "The mail provider is limiting requests. Try again later.",
+  "config.email.test_provider_rejected": "The mail provider rejected the request.",
+  "config.email.test_connection_failed": "Connection failed. Check the address, port and TLS settings.",
+  "config.email.test_cancelled": "Connection test cancelled.",
+  "config.email.test_invalid_url": "Use an HTTPS API URL without credentials, query parameters or a fragment.",
+  "config.email.test_mail_test_busy": "A connection test is already running. Wait briefly and try again."
 }

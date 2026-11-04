@@ -97,6 +97,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.ValidateActionPolicy(validateCfg.Agent.ActionPolicy); err != nil {
 		return nil, err
 	}
+	if err := config.ValidateAgentMailBaseURL(validateCfg.AgentMail.BaseURL); err != nil {
+		return nil, err
+	}
 	if err := config.ValidateLocalLLMConfig(&validateCfg); err != nil {
 		return nil, err
 	}

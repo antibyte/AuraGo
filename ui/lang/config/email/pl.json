@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo regularnie sprawdza wybrany poniżej folder pod kątem nowych wiadomości i może na nie reagować.",
   "config.email.watch_folder_help": "Folder IMAP monitorowany pod kątem nowych wiadomości. Domyślnie INBOX.",
   "config.email.interval_seconds_help": "Jak często folder jest sprawdzany, w sekundach (domyślnie 120). Krótsze odstępy bardziej obciążają serwer poczty.",
-  "config.email.id_sanitised": "Dozwolone są tylko a-z, 0-9, - i _. Identyfikator zostanie zapisany jako '{id}'."
+  "config.email.id_sanitised": "Dozwolone są tylko a-z, 0-9, - i _. Identyfikator zostanie zapisany jako '{id}'.",
+  "config.email.test_auth_failed": "Logowanie nie powiodło się. Sprawdź nazwę użytkownika i dane logowania.",
+  "config.email.test_certificate_invalid": "Certyfikat TLS jest nieprawidłowy lub niezaufany.",
+  "config.email.test_timeout": "Upłynął limit czasu połączenia.",
+  "config.email.test_target_blocked": "Adres serwera lub przekierowanie jest zablokowane.",
+  "config.email.test_rate_limited": "Dostawca poczty ogranicza żądania. Spróbuj ponownie później.",
+  "config.email.test_provider_rejected": "Dostawca poczty odrzucił żądanie.",
+  "config.email.test_connection_failed": "Połączenie nie powiodło się. Sprawdź adres, port i ustawienia TLS.",
+  "config.email.test_cancelled": "Test połączenia został anulowany.",
+  "config.email.test_invalid_url": "Użyj adresu API HTTPS bez danych logowania, parametrów zapytania i fragmentu.",
+  "config.email.test_mail_test_busy": "Test połączenia już trwa. Poczekaj chwilę i spróbuj ponownie."
 }

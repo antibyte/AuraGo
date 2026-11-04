@@ -21,6 +21,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- AgentMail exposes default-off `allow_delete` separately from readonly. Connection
+  tests render only translated fixed error codes, with all sixteen email/AgentMail
+  locale sets aligned. HTTPS help matches the backend base-URL and redirect rules.
 - MQTT configuration uses explicit `relay_topics` and typed `relay_grants` rows
   with action dropdowns and concrete targets. Missing permissions pause relays;
   show the saved pause reason, queue/drop diagnostics and binary metadata.

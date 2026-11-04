@@ -136,6 +136,15 @@ func (s *Server) mailerSourceAccounts(ctx context.Context) ([]mailer.Account, er
 	am := cfg.AgentMail
 	if am.InboxID != "" {
 		a := mailer.AccountFromTransportConfig(mailer.TransportConfig{ID: am.InboxID, Source: "agentmail", Name: am.DisplayName, Address: am.InboxID, ReceiveProtocol: "agentmail", ReadOnly: am.ReadOnly, AgentAccess: am.Enabled})
+		if !am.AllowDelete {
+			caps := a.Capabilities[:0]
+			for _, capability := range a.Capabilities {
+				if capability != "delete" {
+					caps = append(caps, capability)
+				}
+			}
+			a.Capabilities = caps
+		}
 		if a.Name == "" {
 			a.Name = "AgentMail"
 		}

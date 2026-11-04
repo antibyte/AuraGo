@@ -396,6 +396,7 @@ async function emailAccountTestFromModal(data) {
         body: JSON.stringify(fields)
     }), {
         target: 'ea-test-result',
+        reasonText: body => body && body.code ? t('config.email.test_' + body.code) : '',
         pending: t('config.email.testing'),
         success: outcome => outcome.reason || t('config.email.test_ok'),
         warning: outcome => outcome.reason ? '' : t('config.email.test_partial'),

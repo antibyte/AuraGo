@@ -11,6 +11,14 @@ remain in the Vault and are resolved only when an adapter is created.
 
 ## Safety and lifecycle
 
+- Classic SMTP/IMAP/POP3 dials share `dialMailTransport`: resolve once, validate
+  every answer, and dial only the validated IPs under one deadline. Explicit
+  operator-selected LAN/loopback mail servers stay supported; unspecified,
+  multicast, link-local and known metadata targets are refused. Injected dialers
+  are trusted internal/test dependencies, never account-controlled settings.
+- AgentMail inherits `../agentmail/AGENTS.md`; server source capabilities remove
+  permanent deletion unless `agentmail.allow_delete` is explicitly enabled.
+
 - Gmail requests bind redirects to the original API origin, including injected
   clients, without mutating shared clients or relaxing stricter redirect policies.
 

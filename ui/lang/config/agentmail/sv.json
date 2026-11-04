@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "En post per rad: en fullständig adress (anna@example.com) eller en hel domän (@example.com). Bara e-post från dessa avsändare når agenten; e-post från alla andra ignoreras. Så länge listan är tom når ingen e-post agenten och bara ett karantänmeddelande levereras per meddelande. From-huvudet kan förfalskas, så håll listan kort och låt LLM-skanningen av e-post vara påslagen.",
   "help.agentmail.api_key": "AgentMail API-nyckel. Sparas säkert i det krypterade Vault.",
   "help.agentmail.auto_create_inbox": "Låter konfigurationsflöden skapa inkorgen automatiskt när det stöds.",
-  "help.agentmail.base_url": "Bas-URL för AgentMail REST API.",
+  "help.agentmail.base_url": "Offentlig HTTPS-bas-URL för AgentMail-API utan inloggningsuppgifter, frågeparametrar eller fragment. Omdirigeringar måste behålla samma värd, port och HTTPS.",
   "help.agentmail.display_name": "Vänligt namn för nyskapade inkorgar.",
   "help.agentmail.domain": "Valfri AgentMail-domän när en inkorg skapas.",
   "help.agentmail.enabled": "Aktiverar AgentMail API-integrationen och exponerar verktyget agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Valfritt cheatsheet vars innehåll bifogas som instruktioner till varje vidarebefordrad ny-e-postprompt.",
   "help.agentmail.use_websocket": "Föredrar utgående WebSockets för nya e-postaviseringar; pollning är fallback.",
   "help.agentmail.username": "Inkorgens användarnamn för automatisk eller manuell skapning.",
-  "help.agentmail.websocket_url": "WebSocket-endpoint för inkommande meddelandeaviseringar."
+  "help.agentmail.websocket_url": "WebSocket-endpoint för inkommande meddelandeaviseringar.",
+  "config.agentmail.test_auth_failed": "Inloggningen misslyckades. Kontrollera användarnamn och inloggningsuppgifter.",
+  "config.agentmail.test_certificate_invalid": "TLS-certifikatet är ogiltigt eller inte betrott.",
+  "config.agentmail.test_timeout": "Anslutningen tog för lång tid.",
+  "config.agentmail.test_target_blocked": "Serveradressen eller omdirigeringen är blockerad.",
+  "config.agentmail.test_rate_limited": "E-postleverantören begränsar förfrågningar. Försök igen senare.",
+  "config.agentmail.test_provider_rejected": "E-postleverantören avvisade förfrågan.",
+  "config.agentmail.test_connection_failed": "Anslutningen misslyckades. Kontrollera adress, port och TLS-inställningar.",
+  "config.agentmail.test_cancelled": "Anslutningstestet avbröts.",
+  "config.agentmail.test_invalid_url": "Använd en HTTPS-API-URL utan inloggningsuppgifter, frågeparametrar eller fragment.",
+  "config.agentmail.test_mail_test_busy": "Ett anslutningstest pågår redan. Vänta en stund och försök igen.",
+  "config.agentmail.allow_delete_label": "Tillåt permanent borttagning",
+  "help.agentmail.allow_delete": "Tillåter borttagning av inkorgar, meddelanden och AgentMail-utkast. Av som standard; skrivskydd blockerar fortfarande alla ändringar."
 }

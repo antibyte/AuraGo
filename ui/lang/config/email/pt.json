@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "O AuraGo verifica regularmente a pasta escolhida abaixo em busca de novos e-mails e pode reagir a eles.",
   "config.email.watch_folder_help": "Pasta IMAP monitorada em busca de novos e-mails. O padrão é INBOX.",
   "config.email.interval_seconds_help": "Com que frequência a pasta é verificada, em segundos (padrão 120). Intervalos menores sobrecarregam mais o servidor de e-mail.",
-  "config.email.id_sanitised": "Só são permitidos a-z, 0-9, - e _. O ID será guardado como '{id}'."
+  "config.email.id_sanitised": "Só são permitidos a-z, 0-9, - e _. O ID será guardado como '{id}'.",
+  "config.email.test_auth_failed": "Falha ao iniciar sessão. Verifica o utilizador e as credenciais.",
+  "config.email.test_certificate_invalid": "O certificado TLS é inválido ou não é de confiança.",
+  "config.email.test_timeout": "O tempo de ligação expirou.",
+  "config.email.test_target_blocked": "O endereço do servidor ou o redirecionamento está bloqueado.",
+  "config.email.test_rate_limited": "O fornecedor de correio está a limitar os pedidos. Tenta mais tarde.",
+  "config.email.test_provider_rejected": "O fornecedor de correio rejeitou o pedido.",
+  "config.email.test_connection_failed": "Falha na ligação. Verifica o endereço, a porta e as definições TLS.",
+  "config.email.test_cancelled": "Teste de ligação cancelado.",
+  "config.email.test_invalid_url": "Usa um URL de API HTTPS sem credenciais, parâmetros de consulta ou fragmento.",
+  "config.email.test_mail_test_busy": "Já está a decorrer um teste de ligação. Aguarda um pouco e tenta novamente."
 }

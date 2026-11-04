@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo 会定期检查下方所选文件夹中的新邮件，并可对其作出响应。",
   "config.email.watch_folder_help": "监视新邮件的 IMAP 文件夹。默认是 INBOX。",
   "config.email.interval_seconds_help": "检查文件夹的频率，单位为秒（默认 120）。间隔越短，给邮件服务器带来的负载越大。",
-  "config.email.id_sanitised": "仅允许 a-z、0-9、- 和 _。ID 将保存为 '{id}'。"
+  "config.email.id_sanitised": "仅允许 a-z、0-9、- 和 _。ID 将保存为 '{id}'。",
+  "config.email.test_auth_failed": "登录失败。请检查用户名和凭据。",
+  "config.email.test_certificate_invalid": "TLS证书无效或不受信任。",
+  "config.email.test_timeout": "连接超时。",
+  "config.email.test_target_blocked": "服务器地址或重定向已被阻止。",
+  "config.email.test_rate_limited": "邮件服务商正在限制请求，请稍后重试。",
+  "config.email.test_provider_rejected": "邮件服务商拒绝了请求。",
+  "config.email.test_connection_failed": "连接失败。请检查地址、端口和TLS设置。",
+  "config.email.test_cancelled": "连接测试已取消。",
+  "config.email.test_invalid_url": "请使用不含凭据、查询参数或片段的HTTPS API地址。",
+  "config.email.test_mail_test_busy": "已有连接测试正在运行，请稍等后重试。"
 }

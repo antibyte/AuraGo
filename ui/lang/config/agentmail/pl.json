@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Jeden wpis w wierszu: pełny adres (anna@example.com) albo cała domena (@example.com). Do agenta trafia tylko poczta od tych nadawców; poczta od wszystkich pozostałych jest ignorowana. Dopóki lista jest pusta, żadna wiadomość nie dociera do agenta, a za każdą przychodzi tylko powiadomienie o kwarantannie. Nagłówek From można sfałszować, dlatego warto trzymać listę krótką i pozostawić włączone skanowanie poczty przez LLM.",
   "help.agentmail.api_key": "Klucz API AgentMail. Przechowywany bezpiecznie w szyfrowanym Vault.",
   "help.agentmail.auto_create_inbox": "Pozwala konfiguracji automatycznie tworzyć skrzynkę, gdy jest to obsługiwane.",
-  "help.agentmail.base_url": "Bazowy URL API REST AgentMail.",
+  "help.agentmail.base_url": "Publiczny bazowy adres HTTPS interfejsu AgentMail bez danych logowania, parametrów zapytania i fragmentu. Przekierowania muszą zachować ten sam host, port i HTTPS.",
   "help.agentmail.display_name": "Przyjazna nazwa dla nowych skrzynek.",
   "help.agentmail.domain": "Opcjonalna domena AgentMail przy tworzeniu skrzynki.",
   "help.agentmail.enabled": "Włącza integrację API AgentMail i udostępnia narzędzie agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Opcjonalna ściągawka, której treść jest dołączana jako instrukcje do każdego przekazanego promptu nowej poczty.",
   "help.agentmail.use_websocket": "Preferuje wychodzące WebSockety dla powiadomień o nowej poczcie; polling pozostaje zapasowy.",
   "help.agentmail.username": "Nazwa użytkownika skrzynki do tworzenia automatycznego lub ręcznego.",
-  "help.agentmail.websocket_url": "Endpoint WebSocket używany do powiadomień o przychodzących wiadomościach."
+  "help.agentmail.websocket_url": "Endpoint WebSocket używany do powiadomień o przychodzących wiadomościach.",
+  "config.agentmail.test_auth_failed": "Logowanie nie powiodło się. Sprawdź nazwę użytkownika i dane logowania.",
+  "config.agentmail.test_certificate_invalid": "Certyfikat TLS jest nieprawidłowy lub niezaufany.",
+  "config.agentmail.test_timeout": "Upłynął limit czasu połączenia.",
+  "config.agentmail.test_target_blocked": "Adres serwera lub przekierowanie jest zablokowane.",
+  "config.agentmail.test_rate_limited": "Dostawca poczty ogranicza żądania. Spróbuj ponownie później.",
+  "config.agentmail.test_provider_rejected": "Dostawca poczty odrzucił żądanie.",
+  "config.agentmail.test_connection_failed": "Połączenie nie powiodło się. Sprawdź adres, port i ustawienia TLS.",
+  "config.agentmail.test_cancelled": "Test połączenia został anulowany.",
+  "config.agentmail.test_invalid_url": "Użyj adresu API HTTPS bez danych logowania, parametrów zapytania i fragmentu.",
+  "config.agentmail.test_mail_test_busy": "Test połączenia już trwa. Poczekaj chwilę i spróbuj ponownie.",
+  "config.agentmail.allow_delete_label": "Zezwalaj na trwałe usuwanie",
+  "help.agentmail.allow_delete": "Zezwala na usuwanie skrzynek, wiadomości i szkiców AgentMail. Domyślnie wyłączone; tryb tylko do odczytu nadal blokuje wszystkie zmiany."
 }

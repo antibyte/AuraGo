@@ -16,6 +16,7 @@ function renderAgentMailSection(section) {
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.agentmail.enabled_label'), help: t('help.agentmail.enabled'), path: 'agentmail.enabled', value: enabledOn }),
             form.toggle({ label: t('config.agentmail.readonly_label'), help: t('help.agentmail.readonly'), path: 'agentmail.readonly', value: readonlyOn }),
+            form.toggle({ label: t('config.agentmail.allow_delete_label'), help: t('help.agentmail.allow_delete'), path: 'agentmail.allow_delete', value: data.allow_delete === true }),
         ] }, { titleKey: 'config.refresh.credentials', fields: [
             form.password({
                 label: t('config.agentmail.api_key_label'),
@@ -144,6 +145,7 @@ function agentMailTestConnection() {
         body: JSON.stringify({ draft: cfgDraftPatch(['agentmail']) })
     }), {
         target: 'agentmail-test-result',
+        reasonText: body => body && body.code ? t('config.agentmail.test_' + body.code) : '',
         success: outcome => t('config.agentmail.test_ok', { count: (outcome.body && outcome.body.inbox_count) || 0 }),
         failure: t('config.agentmail.test_fail'),
         onSuccess: () => agentMailCheckStatus()

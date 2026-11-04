@@ -70,6 +70,9 @@ func dispatchAgentMailCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		}
 	}
 	amCfg := agentmail.ConfigFromAppConfig(cfg.AgentMail)
+	if strings.HasPrefix(req.Operation, "delete_") && !cfg.AgentMail.AllowDelete {
+		return agentMailError("AgentMail deletion is disabled. Enable agentmail.allow_delete to allow this operation."), true
+	}
 	client, err := agentmail.NewClient(agentmail.ClientConfig{
 		BaseURL: amCfg.BaseURL,
 		APIKey:  amCfg.APIKey,

@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Jeden záznam na řádek: úplná adresa (anna@example.com) nebo celá doména (@example.com). Agenta dosáhne jen pošta od těchto odesílatelů, pošta od všech ostatních se ignoruje. Dokud je seznam prázdný, žádná pošta agenta nedosáhne a za každou zprávu přijde jen upozornění na karanténu. Hlavičku From lze podvrhnout, proto seznam udržujte krátký a nechte zapnuté skenování pošty pomocí LLM.",
   "help.agentmail.api_key": "API klíč AgentMail. Bezpečně uložen v šifrovaném Vaultu.",
   "help.agentmail.auto_create_inbox": "Umožní průvodcům nastavením automaticky vytvořit schránku, pokud je to podporováno.",
-  "help.agentmail.base_url": "Základní URL pro AgentMail REST API.",
+  "help.agentmail.base_url": "Veřejná základní adresa HTTPS rozhraní AgentMail bez přihlašovacích údajů, parametrů dotazu a fragmentu. Přesměrování musí zachovat hostitele, port a HTTPS.",
   "help.agentmail.display_name": "Přátelský název pro nově vytvořené schránky.",
   "help.agentmail.domain": "Volitelná doména AgentMail pro vytvoření schránky.",
   "help.agentmail.enabled": "Zapne integraci AgentMail API a zpřístupní nástroj agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Volitelný cheatsheet, jehož obsah se připojí jako pokyny ke každému předanému upozornění na novou poštu.",
   "help.agentmail.use_websocket": "Preferuje odchozí WebSockety pro oznámení nové pošty; polling zůstává zálohou.",
   "help.agentmail.username": "Uživatelské jméno schránky pro automatické nebo ruční vytvoření.",
-  "help.agentmail.websocket_url": "WebSocket endpoint pro oznámení příchozích zpráv."
+  "help.agentmail.websocket_url": "WebSocket endpoint pro oznámení příchozích zpráv.",
+  "config.agentmail.test_auth_failed": "Přihlášení se nezdařilo. Zkontroluj uživatelské jméno a přihlašovací údaje.",
+  "config.agentmail.test_certificate_invalid": "Certifikát TLS je neplatný nebo nedůvěryhodný.",
+  "config.agentmail.test_timeout": "Vypršel časový limit připojení.",
+  "config.agentmail.test_target_blocked": "Adresa serveru nebo přesměrování je blokováno.",
+  "config.agentmail.test_rate_limited": "Poskytovatel pošty omezuje požadavky. Zkus to později.",
+  "config.agentmail.test_provider_rejected": "Poskytovatel pošty požadavek odmítl.",
+  "config.agentmail.test_connection_failed": "Připojení se nezdařilo. Zkontroluj adresu, port a nastavení TLS.",
+  "config.agentmail.test_cancelled": "Test připojení byl zrušen.",
+  "config.agentmail.test_invalid_url": "Použij adresu API s HTTPS bez přihlašovacích údajů, parametrů dotazu a fragmentu.",
+  "config.agentmail.test_mail_test_busy": "Test připojení již probíhá. Chvíli počkej a zkus to znovu.",
+  "config.agentmail.allow_delete_label": "Povolit trvalé mazání",
+  "help.agentmail.allow_delete": "Umožňuje mazat schránky, zprávy a koncepty AgentMail. Ve výchozím stavu vypnuto; režim jen pro čtení stále blokuje všechny změny."
 }

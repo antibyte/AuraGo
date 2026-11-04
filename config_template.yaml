@@ -430,11 +430,12 @@ package_manager:
     allow_remove: true    # allow remove/uninstall operations when not readonly
     allow_upgrade: true   # allow update and upgrade operations when not readonly
 email:
+    # Legacy single-account configuration, migrated with its enabled state preserved.
     enabled: false
     from_address: ""
     imap_host: ""
     imap_port: 993
-    password: ""
+    # Set the password through Integrations; credentials stay in the Vault.
     smtp_host: ""
     smtp_port: 587
     username: ""
@@ -445,6 +446,7 @@ email:
 agentmail:
     enabled: false
     readonly: false
+    allow_delete: false # explicit permission for provider inbox/message/draft deletion
     # API key is vault-only and stored as agentmail_api_key.
     inbox_id: ""
     auto_create_inbox: false
@@ -461,7 +463,7 @@ agentmail:
     # sender is ignored (logged, never relayed). Keep llm_guardian.scan_emails on as well.
     allowed_senders: []
     max_attachment_mb: 10
-    base_url: https://api.agentmail.to
+    base_url: https://api.agentmail.to # HTTPS only; no URL credentials, query or fragment
     websocket_url: wss://ws.agentmail.to/v0
 embeddings:
     api_key: ""

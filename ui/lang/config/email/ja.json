@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo は下で選択したフォルダーを定期的に確認して新着メールを検出し、それに対応できます。",
   "config.email.watch_folder_help": "新着メールを監視する IMAP フォルダーです。デフォルトは INBOX です。",
   "config.email.interval_seconds_help": "フォルダーを確認する頻度 (秒) です (デフォルト 120)。間隔を短くするほどメールサーバーの負荷が高まります。",
-  "config.email.id_sanitised": "使用できるのは a-z、0-9、-、_ のみです。ID は '{id}' として保存されます。"
+  "config.email.id_sanitised": "使用できるのは a-z、0-9、-、_ のみです。ID は '{id}' として保存されます。",
+  "config.email.test_auth_failed": "ログインに失敗しました。ユーザー名と認証情報を確認してください。",
+  "config.email.test_certificate_invalid": "TLS証明書が無効か、信頼されていません。",
+  "config.email.test_timeout": "接続がタイムアウトしました。",
+  "config.email.test_target_blocked": "サーバーのアドレスまたはリダイレクトがブロックされています。",
+  "config.email.test_rate_limited": "メール事業者がリクエストを制限しています。後でもう一度お試しください。",
+  "config.email.test_provider_rejected": "メール事業者がリクエストを拒否しました。",
+  "config.email.test_connection_failed": "接続に失敗しました。アドレス、ポート、TLS設定を確認してください。",
+  "config.email.test_cancelled": "接続テストをキャンセルしました。",
+  "config.email.test_invalid_url": "認証情報、クエリパラメーター、フラグメントを含まないHTTPSのAPI URLを使用してください。",
+  "config.email.test_mail_test_busy": "接続テストは実行中です。少し待ってから再試行してください。"
 }

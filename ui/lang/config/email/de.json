@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo prüft den unten gewählten Ordner regelmäßig auf neue Mails und kann darauf reagieren.",
   "config.email.watch_folder_help": "IMAP-Ordner, der auf neue Mails überwacht wird. Standard ist INBOX.",
   "config.email.interval_seconds_help": "Wie oft der Ordner geprüft wird, in Sekunden (Standard 120). Kürzere Abstände belasten den Mailserver stärker.",
-  "config.email.id_sanitised": "Erlaubt sind nur a-z, 0-9, - und _. Die ID wird als '{id}' gespeichert."
+  "config.email.id_sanitised": "Erlaubt sind nur a-z, 0-9, - und _. Die ID wird als '{id}' gespeichert.",
+  "config.email.test_auth_failed": "Anmeldung fehlgeschlagen. Prüfe Benutzername und Zugangsdaten.",
+  "config.email.test_certificate_invalid": "Das TLS-Zertifikat ist ungültig oder nicht vertrauenswürdig.",
+  "config.email.test_timeout": "Zeitüberschreitung bei der Verbindung.",
+  "config.email.test_target_blocked": "Die Serveradresse oder Weiterleitung ist gesperrt.",
+  "config.email.test_rate_limited": "Der Mailanbieter begrenzt Anfragen. Versuche es später erneut.",
+  "config.email.test_provider_rejected": "Der Mailanbieter hat die Anfrage abgelehnt.",
+  "config.email.test_connection_failed": "Verbindung fehlgeschlagen. Prüfe Adresse, Port und TLS-Einstellungen.",
+  "config.email.test_cancelled": "Verbindungstest abgebrochen.",
+  "config.email.test_invalid_url": "Verwende eine HTTPS-API-URL ohne Zugangsdaten, Parameter oder Fragment.",
+  "config.email.test_mail_test_busy": "Ein Verbindungstest läuft bereits. Warte kurz und versuche es erneut."
 }

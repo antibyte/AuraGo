@@ -154,6 +154,7 @@ func (c *Config) MigrateEmailAccounts() {
 	acct := EmailAccount{
 		ID:            "default",
 		Name:          "Default",
+		Disabled:      !c.Email.Enabled,
 		IMAPHost:      c.Email.IMAPHost,
 		IMAPPort:      c.Email.IMAPPort,
 		SMTPHost:      c.Email.SMTPHost,

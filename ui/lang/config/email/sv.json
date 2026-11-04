@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo kontrollerar regelbundet mappen som väljs nedan efter nya e-postmeddelanden och kan reagera på dem.",
   "config.email.watch_folder_help": "IMAP-mapp som bevakas efter nya e-postmeddelanden. Standard är INBOX.",
   "config.email.interval_seconds_help": "Hur ofta mappen kontrolleras, i sekunder (standard 120). Kortare intervall belastar e-postservern mer.",
-  "config.email.id_sanitised": "Endast a-z, 0-9, - och _ är tillåtna. ID:t sparas som '{id}'."
+  "config.email.id_sanitised": "Endast a-z, 0-9, - och _ är tillåtna. ID:t sparas som '{id}'.",
+  "config.email.test_auth_failed": "Inloggningen misslyckades. Kontrollera användarnamn och inloggningsuppgifter.",
+  "config.email.test_certificate_invalid": "TLS-certifikatet är ogiltigt eller inte betrott.",
+  "config.email.test_timeout": "Anslutningen tog för lång tid.",
+  "config.email.test_target_blocked": "Serveradressen eller omdirigeringen är blockerad.",
+  "config.email.test_rate_limited": "E-postleverantören begränsar förfrågningar. Försök igen senare.",
+  "config.email.test_provider_rejected": "E-postleverantören avvisade förfrågan.",
+  "config.email.test_connection_failed": "Anslutningen misslyckades. Kontrollera adress, port och TLS-inställningar.",
+  "config.email.test_cancelled": "Anslutningstestet avbröts.",
+  "config.email.test_invalid_url": "Använd en HTTPS-API-URL utan inloggningsuppgifter, frågeparametrar eller fragment.",
+  "config.email.test_mail_test_busy": "Ett anslutningstest pågår redan. Vänta en stund och försök igen."
 }

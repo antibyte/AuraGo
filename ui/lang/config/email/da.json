@@ -69,5 +69,15 @@
   "config.email.username_help": "Brugernavn til IMAP og SMTP, normalt den fulde mailadresse.",
   "config.email.watch_enabled_help": "AuraGo tjekker jævnligt den mappe, du vælger nedenfor, for ny mail og kan reagere på den.",
   "config.email.watch_folder_help": "IMAP-mappe, der overvåges for ny mail. Standard er INBOX.",
-  "config.email.id_sanitised": "Kun a-z, 0-9, - og _ er tilladt. ID'et gemmes som '{id}'."
+  "config.email.id_sanitised": "Kun a-z, 0-9, - og _ er tilladt. ID'et gemmes som '{id}'.",
+  "config.email.test_auth_failed": "Login mislykkedes. Kontrollér brugernavn og loginoplysninger.",
+  "config.email.test_certificate_invalid": "TLS-certifikatet er ugyldigt eller ikke betroet.",
+  "config.email.test_timeout": "Forbindelsen fik timeout.",
+  "config.email.test_target_blocked": "Serveradressen eller omdirigeringen er blokeret.",
+  "config.email.test_rate_limited": "Mailudbyderen begrænser forespørgsler. Prøv igen senere.",
+  "config.email.test_provider_rejected": "Mailudbyderen afviste forespørgslen.",
+  "config.email.test_connection_failed": "Forbindelsen mislykkedes. Kontrollér adresse, port og TLS-indstillinger.",
+  "config.email.test_cancelled": "Forbindelsestesten blev annulleret.",
+  "config.email.test_invalid_url": "Brug en HTTPS-API-URL uden loginoplysninger, forespørgselsparametre eller fragment.",
+  "config.email.test_mail_test_busy": "En forbindelsestest kører allerede. Vent lidt, og prøv igen."
 }

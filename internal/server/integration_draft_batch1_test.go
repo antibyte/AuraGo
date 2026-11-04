@@ -166,7 +166,11 @@ func TestWebDAVTestUsesDraftValues(t *testing.T) {
 
 func TestAgentMailTestUsesDraftValues(t *testing.T) {
 	s := newDraftTestServer(t)
-	probe, srv := newDraftProbe(t)
+	probe := &draftProbe{}
+	srv := testutil.NewHTTPSServer(t, probe)
+	defer srv.Close()
+	testutil.TrustHTTPSTestServer(t, srv)
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 	probe.handler = func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"inboxes":[],"count":0}`)

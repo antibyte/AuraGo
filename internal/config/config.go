@@ -3072,6 +3072,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"email", "relay_cheatsheet_id"}, c.Email.RelayCheatsheetID},
 		{[]string{"agentmail", "enabled"}, c.AgentMail.Enabled},
 		{[]string{"agentmail", "readonly"}, c.AgentMail.ReadOnly},
+		{[]string{"agentmail", "allow_delete"}, c.AgentMail.AllowDelete},
 		{[]string{"agentmail", "inbox_id"}, c.AgentMail.InboxID},
 		{[]string{"agentmail", "auto_create_inbox"}, c.AgentMail.AutoCreateInbox},
 		{[]string{"agentmail", "username"}, c.AgentMail.Username},

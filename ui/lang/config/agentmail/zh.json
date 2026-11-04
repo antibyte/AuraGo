@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "每行一项：完整地址 (anna@example.com) 或整个域名 (@example.com)。只有这些发件人的邮件会送达代理，其他所有人的邮件都会被忽略。列表为空时，没有任何邮件会送达代理，每封邮件只会收到一条隔离通知。From 头可以伪造，因此请保持列表简短，并保持开启 LLM 邮件扫描。",
   "help.agentmail.api_key": "AgentMail API 密钥。安全存储在加密 Vault 中。",
   "help.agentmail.auto_create_inbox": "在支持时允许设置流程自动创建配置的收件箱。",
-  "help.agentmail.base_url": "AgentMail REST API 的基础 URL。",
+  "help.agentmail.base_url": "AgentMail API的公共HTTPS基础地址，不含凭据、查询参数或片段。重定向必须保持相同主机、端口和HTTPS协议。",
   "help.agentmail.display_name": "新建收件箱的友好名称。",
   "help.agentmail.domain": "创建收件箱时使用的可选 AgentMail 域名。",
   "help.agentmail.enabled": "启用 AgentMail API 集成并公开 agentmail 工具。",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "可选速查表，其内容会作为说明附加到每个转发的新邮件提示中。",
   "help.agentmail.use_websocket": "优先使用出站 WebSocket 接收新邮件通知；轮询作为备用。",
   "help.agentmail.username": "用于自动或手动创建的收件箱用户名。",
-  "help.agentmail.websocket_url": "用于传入消息通知的 WebSocket 端点。"
+  "help.agentmail.websocket_url": "用于传入消息通知的 WebSocket 端点。",
+  "config.agentmail.test_auth_failed": "登录失败。请检查用户名和凭据。",
+  "config.agentmail.test_certificate_invalid": "TLS证书无效或不受信任。",
+  "config.agentmail.test_timeout": "连接超时。",
+  "config.agentmail.test_target_blocked": "服务器地址或重定向已被阻止。",
+  "config.agentmail.test_rate_limited": "邮件服务商正在限制请求，请稍后重试。",
+  "config.agentmail.test_provider_rejected": "邮件服务商拒绝了请求。",
+  "config.agentmail.test_connection_failed": "连接失败。请检查地址、端口和TLS设置。",
+  "config.agentmail.test_cancelled": "连接测试已取消。",
+  "config.agentmail.test_invalid_url": "请使用不含凭据、查询参数或片段的HTTPS API地址。",
+  "config.agentmail.test_mail_test_busy": "已有连接测试正在运行，请稍等后重试。",
+  "config.agentmail.allow_delete_label": "允许永久删除",
+  "help.agentmail.allow_delete": "允许删除收件箱、邮件和AgentMail草稿。默认关闭；只读模式仍会阻止所有更改。"
 }

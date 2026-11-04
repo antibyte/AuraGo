@@ -39,6 +39,24 @@ AgentMail replies use its native conversation endpoint when the subject stays
 unchanged. A changed subject or sending account starts a new AgentMail
 conversation while retaining the email's standard reply/reference headers.
 
+AgentMail uses a public HTTPS API base without URL credentials, query parameters
+or a fragment. Redirects cannot change the host, port or HTTPS scheme. Keep the
+configured URL pointed at the final API endpoint. Inbox, message and provider-draft
+deletion requires the separate **Allow permanent deletion** setting
+(`agentmail.allow_delete`, off by default). Read-only mode still blocks all writes;
+ordinary send permission does not grant permanent deletion. Local Mailer drafts
+remain separate from provider drafts.
+
+Classic mail servers may use explicitly configured LAN or loopback addresses.
+Connections resolve DNS once and dial the validated IP addresses; unspecified,
+multicast, link-local and known metadata targets are rejected. These explicit
+integration targets do not grant the agent arbitrary network access.
+
+Connection tests across Integrations and Mailer share two concurrent slots and
+start at most once per second. A busy response starts no network operation; wait
+briefly before testing again. Tests authenticate without sending mail. Public
+failures use fixed error categories rather than provider response text.
+
 **Remove from Mailer** unlinks the connection. It does not delete the shared
 integration or a provider mailbox. Manage shared credentials and integration
 access in the corresponding integration settings.

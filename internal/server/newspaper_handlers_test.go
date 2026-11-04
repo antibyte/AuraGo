@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/newspaper"
+	"aurago/internal/testutil"
 )
 
 func TestNewspaperHTTPAuthOriginAndReadOnly(t *testing.T) {
@@ -103,7 +104,7 @@ func TestNewspaperAgentMailChallengeOutcome(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
-			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			provider := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls++
 				if r.Method != http.MethodPost || r.URL.Path != "/v0/inboxes/test-inbox/messages/send" {
 					t.Errorf("unexpected AgentMail request: %s %s", r.Method, r.URL.Path)
@@ -113,6 +114,8 @@ func TestNewspaperAgentMailChallengeOutcome(t *testing.T) {
 				fmt.Fprint(w, tc.response)
 			}))
 			defer provider.Close()
+			testutil.TrustHTTPSTestServer(t, provider)
+			t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 			s, _, _ := testDesktopPermissionServer(t)
 			s.Cfg.VirtualDesktop.Enabled = true
 			s.Cfg.Newspaper.Enabled = true

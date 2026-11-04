@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
+	"aurago/internal/testutil"
 )
 
 func TestAgentMailToolSchemaOnlyAppearsWhenEnabled(t *testing.T) {
@@ -63,6 +63,23 @@ func TestDispatchAgentMailReadOnlyBlocksMutatingOperation(t *testing.T) {
 	}
 }
 
+func TestDispatchAgentMailDeletionNeedsExplicitGrant(t *testing.T) {
+	for _, operation := range []string{"delete_inbox", "delete_message", "delete_draft"} {
+		cfg := &config.Config{}
+		cfg.AgentMail.Enabled = true
+		out, handled := dispatchAgentMailCases(context.Background(), ToolCall{Operation: operation}, &DispatchContext{Cfg: cfg})
+		if !handled || !strings.Contains(out, "allow_delete") {
+			t.Fatalf("delete was not refused before client creation: %s", out)
+		}
+		cfg.AgentMail.AllowDelete = true
+		cfg.AgentMail.ReadOnly = true
+		out, _ = dispatchAgentMailCases(context.Background(), ToolCall{Operation: operation}, &DispatchContext{Cfg: cfg})
+		if !strings.Contains(out, "read-only") {
+			t.Fatal("delete grant overrode readonly")
+		}
+	}
+}
+
 func TestDecodeAgentMailArgsAcceptsNativeArrayRecipients(t *testing.T) {
 	var tc ToolCall
 	raw := []byte(`{
@@ -103,7 +120,7 @@ func TestStringOrArrayEncodesNonStringItemsAsCompactJSON(t *testing.T) {
 }
 
 func TestDispatchAgentMailListMessages(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes/inbox-1/messages" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}
@@ -113,6 +130,8 @@ func TestDispatchAgentMailListMessages(t *testing.T) {
 		_, _ = w.Write([]byte(`{"messages":[{"message_id":"msg-1","subject":"Hello"}]}`))
 	}))
 	defer srv.Close()
+	testutil.TrustHTTPSTestServer(t, srv)
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	cfg := &config.Config{}
 	cfg.AgentMail.Enabled = true

@@ -42,7 +42,7 @@
   "help.agentmail.allowed_senders": "Una entrada por línea: una dirección completa (anna@example.com) o un dominio entero (@example.com). Solo el correo de estos remitentes llega al agente; el de cualquier otro se ignora. Mientras la lista esté vacía, ningún correo llega al agente y solo se entrega un aviso de cuarentena por cada mensaje. La cabecera From puede falsificarse, así que conviene mantener la lista corta y dejar activado el análisis de correo con LLM.",
   "help.agentmail.api_key": "Clave API de AgentMail. Se guarda de forma segura en el Vault cifrado.",
   "help.agentmail.auto_create_inbox": "Permite que los flujos de configuración creen el buzón automáticamente cuando sea compatible.",
-  "help.agentmail.base_url": "URL base de la API REST de AgentMail.",
+  "help.agentmail.base_url": "URL base HTTPS pública de la API de AgentMail, sin credenciales, parámetros de consulta ni fragmento. Las redirecciones deben conservar el servidor, el puerto y HTTPS.",
   "help.agentmail.display_name": "Nombre amigable para buzones nuevos.",
   "help.agentmail.domain": "Dominio opcional de AgentMail al crear un buzón.",
   "help.agentmail.enabled": "Activa la integración API de AgentMail y expone la herramienta agentmail.",
@@ -54,5 +54,17 @@
   "help.agentmail.relay_cheatsheet_id": "Cheatsheet opcional cuyo contenido se añade como instrucciones a cada prompt reenviado de correo nuevo.",
   "help.agentmail.use_websocket": "Prefiere WebSockets salientes para avisos de correo nuevo; el sondeo queda como respaldo.",
   "help.agentmail.username": "Usuario del buzón para creación automática o manual.",
-  "help.agentmail.websocket_url": "Endpoint WebSocket usado para avisos de mensajes entrantes."
+  "help.agentmail.websocket_url": "Endpoint WebSocket usado para avisos de mensajes entrantes.",
+  "config.agentmail.test_auth_failed": "Error al iniciar sesión. Comprueba el usuario y las credenciales.",
+  "config.agentmail.test_certificate_invalid": "El certificado TLS no es válido o no es de confianza.",
+  "config.agentmail.test_timeout": "La conexión agotó el tiempo de espera.",
+  "config.agentmail.test_target_blocked": "La dirección del servidor o la redirección está bloqueada.",
+  "config.agentmail.test_rate_limited": "El proveedor de correo limita las solicitudes. Inténtalo más tarde.",
+  "config.agentmail.test_provider_rejected": "El proveedor de correo rechazó la solicitud.",
+  "config.agentmail.test_connection_failed": "Error de conexión. Comprueba la dirección, el puerto y la configuración TLS.",
+  "config.agentmail.test_cancelled": "Prueba de conexión cancelada.",
+  "config.agentmail.test_invalid_url": "Usa una URL de API HTTPS sin credenciales, parámetros de consulta ni fragmento.",
+  "config.agentmail.test_mail_test_busy": "Ya hay una prueba de conexión en curso. Espera un momento y vuelve a intentarlo.",
+  "config.agentmail.allow_delete_label": "Permitir eliminación permanente",
+  "help.agentmail.allow_delete": "Permite eliminar buzones, mensajes y borradores de AgentMail. Desactivado por defecto; el modo de solo lectura sigue bloqueando todos los cambios."
 }

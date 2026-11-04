@@ -69,5 +69,15 @@
   "config.email.watch_enabled_help": "AuraGo controleert regelmatig de hieronder gekozen map op nieuwe e-mail en kan daarop reageren.",
   "config.email.watch_folder_help": "IMAP-map die op nieuwe e-mail wordt gecontroleerd. De standaard is INBOX.",
   "config.email.interval_seconds_help": "Hoe vaak de map wordt gecontroleerd, in seconden (standaard 120). Kortere intervallen belasten de mailserver meer.",
-  "config.email.id_sanitised": "Alleen a-z, 0-9, - en _ zijn toegestaan. De ID wordt opgeslagen als '{id}'."
+  "config.email.id_sanitised": "Alleen a-z, 0-9, - en _ zijn toegestaan. De ID wordt opgeslagen als '{id}'.",
+  "config.email.test_auth_failed": "Aanmelden mislukt. Controleer de gebruikersnaam en aanmeldgegevens.",
+  "config.email.test_certificate_invalid": "Het TLS-certificaat is ongeldig of niet vertrouwd.",
+  "config.email.test_timeout": "De verbinding heeft de tijdslimiet overschreden.",
+  "config.email.test_target_blocked": "Het serveradres of de omleiding is geblokkeerd.",
+  "config.email.test_rate_limited": "De mailprovider beperkt aanvragen. Probeer het later opnieuw.",
+  "config.email.test_provider_rejected": "De mailprovider heeft de aanvraag geweigerd.",
+  "config.email.test_connection_failed": "Verbinding mislukt. Controleer adres, poort en TLS-instellingen.",
+  "config.email.test_cancelled": "Verbindingstest geannuleerd.",
+  "config.email.test_invalid_url": "Gebruik een HTTPS-API-URL zonder aanmeldgegevens, queryparameters of fragment.",
+  "config.email.test_mail_test_busy": "Er loopt al een verbindingstest. Wacht even en probeer het opnieuw."
 }

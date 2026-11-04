@@ -181,6 +181,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Feature / area | Required AGENTS.md | Scope |
 | --- | --- | --- |
 | Repository scripts | `scripts/AGENTS.md` | Developer entrypoints, project-root resolution and release helper paths; runtime/update policy remains in root and upkeep guides. |
+| Go test utilities | `internal/testutil/AGENTS.md` | Local protocol/TLS fixtures, test-only root trust, synthetic storage and asset helpers. |
 | Auxiliary Docker inputs | `deploy/docker/AGENTS.md` | Sidecar Dockerfiles, main entrypoint and repository-root build contexts; feature-specific children retain their contracts. |
 | Low-poly Game Maker pack | `assets/game-maker-low-poly/AGENTS.md` | Original 220-model Blender pack, animations, compact exports, playable acceptance scenes. |
 | Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
@@ -191,6 +192,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
 | ACE-Step | `internal/acestep/AGENTS.md` | Private local music lifecycle, pinned runtime/models, hardware qualification. |
 | Agent/tool system | `internal/agent/AGENTS.md` | Runtime prompts/discovery/dispatch/context; Prompt and Runtime Drift Contract. |
+| Email integrations and Mailer | `internal/agentmail/AGENTS.md`, `internal/mailer/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md`, `internal/tools/AGENTS.md` | AgentMail HTTPS/redirects/provider errors/delete grant; classic mail target policy, legacy migration, shared probes and Desktop source permissions. |
 | A2A protocol | `internal/a2a/AGENTS.md`, `internal/agent/AGENTS.md` | Peer cards/HTTP authentication, clients, session-scoped worker admission and shutdown. |
 | Agent self-tests | `internal/selftest/AGENTS.md`, `prompts/self_tests/AGENTS.md` | Prompt catalog, bounded runs, trusted evidence, private reports and admin Dashboard controls. |
 | Bluetooth | `internal/bluetooth/AGENTS.md` | Native discovery/permissions/playback. |

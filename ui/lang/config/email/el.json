@@ -69,5 +69,15 @@
   "config.email.username_help": "Όνομα χρήστη για IMAP και SMTP, συνήθως ολόκληρη η διεύθυνση email.",
   "config.email.watch_enabled_help": "Το AuraGo ελέγχει τακτικά τον φάκελο που επιλέγετε παρακάτω για νέα αλληλογραφία και μπορεί να αντιδρά σε αυτήν.",
   "config.email.watch_folder_help": "Φάκελος IMAP που παρακολουθείται για νέα αλληλογραφία. Η προεπιλογή είναι INBOX.",
-  "config.email.id_sanitised": "Επιτρέπονται μόνο a-z, 0-9, - και _. Το ID θα αποθηκευτεί ως '{id}'."
+  "config.email.id_sanitised": "Επιτρέπονται μόνο a-z, 0-9, - και _. Το ID θα αποθηκευτεί ως '{id}'.",
+  "config.email.test_auth_failed": "Η σύνδεση απέτυχε. Έλεγξε το όνομα χρήστη και τα διαπιστευτήρια.",
+  "config.email.test_certificate_invalid": "Το πιστοποιητικό TLS δεν είναι έγκυρο ή αξιόπιστο.",
+  "config.email.test_timeout": "Έληξε το χρονικό όριο σύνδεσης.",
+  "config.email.test_target_blocked": "Η διεύθυνση διακομιστή ή η ανακατεύθυνση αποκλείστηκε.",
+  "config.email.test_rate_limited": "Ο πάροχος αλληλογραφίας περιορίζει τα αιτήματα. Δοκίμασε αργότερα.",
+  "config.email.test_provider_rejected": "Ο πάροχος αλληλογραφίας απέρριψε το αίτημα.",
+  "config.email.test_connection_failed": "Η σύνδεση απέτυχε. Έλεγξε τη διεύθυνση, τη θύρα και τις ρυθμίσεις TLS.",
+  "config.email.test_cancelled": "Η δοκιμή σύνδεσης ακυρώθηκε.",
+  "config.email.test_invalid_url": "Χρησιμοποίησε διεύθυνση API HTTPS χωρίς διαπιστευτήρια, παραμέτρους ερωτήματος ή τμήμα.",
+  "config.email.test_mail_test_busy": "Εκτελείται ήδη δοκιμή σύνδεσης. Περίμενε λίγο και δοκίμασε ξανά."
 }
