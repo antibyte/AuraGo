@@ -1,21 +1,6 @@
 /* Precision Workspace shell for /config only. */
 .pw-page[data-workspace-page="config"] {
     --cfg-header-height: calc(69px + env(safe-area-inset-top, 0px));
-    --pw-canvas: #0d1726;
-    --pw-surface: #17283c;
-    --pw-surface-elevated: #20364e;
-    --pw-surface-soft: #273c52;
-    --pw-text: #edf3fa;
-    --pw-muted: #b3c2d2;
-    --pw-subtle: #96a9bc;
-    --pw-accent: #83baff;
-    --pw-accent-strong: #b2d5ff;
-    --pw-line: #30455e;
-    --pw-line-strong: #526a82;
-    --pw-radius-sm: 8px;
-    --pw-radius-md: 12px;
-    --pw-radius-lg: 16px;
-    --pw-radius-xl: 20px;
     --pw-control-size: 1rem;
     --pw-label-size: 1rem;
     --pw-help-size: 0.875rem;
@@ -39,7 +24,7 @@
     --pw-shadow-soft: var(--surface-shadow);
     --cfg-card-padding: 24px;
     --cfg-card-heading: linear-gradient(110deg, rgb(88 159 244 / 12%), rgb(84 197 215 / 3%));
-    --cfg-on-accent: #10243a;
+    --cfg-on-accent: var(--pw-on-accent);
     display: flex;
     flex-direction: column;
     height: 100dvh;
@@ -55,17 +40,6 @@
 
 [data-theme="light"] .pw-page[data-workspace-page="config"],
 .pw-page[data-workspace-page="config"][data-theme="light"] {
-    --pw-canvas: #edf3fa;
-    --pw-surface: #ffffff;
-    --pw-surface-elevated: #e4ecf5;
-    --pw-surface-soft: #d7e3ef;
-    --pw-text: #162b40;
-    --pw-muted: #455e76;
-    --pw-subtle: #546c83;
-    --pw-accent: #2864b4;
-    --pw-accent-strong: #1d4e93;
-    --pw-line: #cad6e2;
-    --pw-line-strong: #8098af;
     --cfg-on-accent: #ffffff;
     --surface-shadow: 0 6px 20px rgb(31 67 111 / 7%);
     --surface-shadow-strong: 0 20px 64px rgb(31 67 111 / 20%);

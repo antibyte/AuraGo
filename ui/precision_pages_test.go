@@ -14,7 +14,7 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-page {`,
 		`font-family: 'Geist'`,
-		`--pw-accent: #83baff;`,
+		`--pw-accent: #ed764d;`,
 		`[data-theme="light"] .pw-page`,
 		`.pw-page[data-density="compact"]`,
 		`@media (prefers-reduced-motion: reduce)`,
@@ -67,32 +67,34 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	assertPrecisionCSSScoped(t, components)
 }
 
-func TestPrecisionWorkspaceSlatePaletteTokens(t *testing.T) {
+func TestPrecisionWorkspaceStandardPaletteTokens(t *testing.T) {
 	t.Parallel()
 
 	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
 	for _, token := range []string{
-		`--pw-canvas: #0d1726;`, `--pw-surface: #17283c;`,
-		`--pw-surface-elevated: #20364e;`, `--pw-surface-soft: #273c52;`,
-		`--pw-text: #edf3fa;`, `--pw-muted: #b3c2d2;`,
-		`--pw-subtle: #96a9bc;`, `--pw-accent: #83baff;`,
-		`--pw-accent-strong: #b2d5ff;`, `--pw-line: #30455e;`,
-		`--pw-line-strong: #526a82;`,
+		`--pw-canvas: #12161d;`, `--pw-surface: #1a212b;`,
+		`--pw-surface-elevated: #222a35;`, `--pw-surface-soft: #1f2a38;`,
+		`--pw-text: #edf1f7;`, `--pw-muted: #aeb7c6;`,
+		`--pw-subtle: #a4afc0;`, `--pw-accent: #ed764d;`,
+		`--pw-accent-strong: #f08763;`, `--pw-on-accent: #0c1016;`,
+		`--pw-line: rgba(191, 210, 235, 0.15);`,
+		`--pw-line-strong: rgba(191, 210, 235, 0.28);`,
 	} {
 		if !strings.Contains(foundation, token) {
-			t.Errorf("missing dark blue/slate token %q", token)
+			t.Errorf("missing dark Standard token %q", token)
 		}
 	}
 	for _, token := range []string{
-		`--pw-canvas: #edf3fa;`, `--pw-surface: #ffffff;`,
-		`--pw-surface-elevated: #e4ecf5;`, `--pw-surface-soft: #d7e3ef;`,
-		`--pw-text: #162b40;`, `--pw-muted: #455e76;`,
-		`--pw-subtle: #546c83;`, `--pw-accent: #2864b4;`,
-		`--pw-accent-strong: #1d4e93;`, `--pw-line: #cad6e2;`,
-		`--pw-line-strong: #8098af;`,
+		`--pw-canvas: #f6f7f9;`, `--pw-surface: #ffffff;`,
+		`--pw-surface-elevated: #eceef2;`, `--pw-surface-soft: #e8ebf0;`,
+		`--pw-text: #1c2430;`, `--pw-muted: #4a5568;`,
+		`--pw-subtle: #5a6577;`, `--pw-accent: #b93e0b;`,
+		`--pw-accent-strong: #9a3412;`,
+		`--pw-line: rgba(40, 52, 76, 0.14);`,
+		`--pw-line-strong: rgba(40, 52, 76, 0.38);`,
 	} {
 		if !strings.Contains(foundation, token) {
-			t.Errorf("missing light blue/slate token %q", token)
+			t.Errorf("missing light Standard token %q", token)
 		}
 	}
 	for _, alias := range []string{
