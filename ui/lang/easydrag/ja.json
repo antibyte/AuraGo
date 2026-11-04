@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "シナリオ名を変更",
   "easydrag.ui.scenario_save": "新しいシナリオとして保存",
   "easydrag.ui.scenario_stale": "このシナリオは以前のフロー設定に属しています。シミュレーション前に現在のステップで新しいシナリオを作成してください。",
-  "easydrag.ui.scenario_title": "非公開テストシナリオ"
+  "easydrag.ui.scenario_title": "非公開テストシナリオ",
+  "easydrag.ui.library_view": "ライブラリの表示",
+  "easydrag.ui.library_cards": "カード",
+  "easydrag.ui.library_list": "コンパクトな一覧",
+  "easydrag.ui.library_local": "表示設定、お気に入り、保存したフィルターはこのデバイスに保存されます。フロー自体は変更されません。",
+  "easydrag.ui.library_favorites": "お気に入りのみ",
+  "easydrag.ui.library_favorite_add": "このデバイスで「{name}」をお気に入りに追加",
+  "easydrag.ui.library_favorite_remove": "このデバイスで「{name}」をお気に入りから削除",
+  "easydrag.ui.library_saved_filters": "このデバイスに保存したフィルター",
+  "easydrag.ui.library_current_filter": "現在のフィルター",
+  "easydrag.ui.library_filter_save": "現在のフィルターを保存",
+  "easydrag.ui.library_filter_delete": "保存したフィルターを削除",
+  "easydrag.ui.library_filter_name_invalid": "フィルター名を80文字以内で入力してください。",
+  "easydrag.ui.library_preferences_limit": "このデバイスにはお気に入りを1,000件、フィルターを20件まで保存できます。追加する前に不要な項目を削除してください。",
+  "easydrag.ui.library_preferences_unavailable": "このデバイスに設定を保存できませんでした。このウィンドウを閉じるまでは有効です。"
 }

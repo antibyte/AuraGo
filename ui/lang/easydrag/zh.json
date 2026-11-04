@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "重命名场景",
   "easydrag.ui.scenario_save": "保存为新场景",
   "easydrag.ui.scenario_stale": "此场景属于较早的流程配置。模拟前请使用当前步骤创建新场景。",
-  "easydrag.ui.scenario_title": "私有测试场景"
+  "easydrag.ui.scenario_title": "私有测试场景",
+  "easydrag.ui.library_view": "库视图",
+  "easydrag.ui.library_cards": "卡片",
+  "easydrag.ui.library_list": "紧凑列表",
+  "easydrag.ui.library_local": "视图选项、收藏和已保存的筛选条件仅保存在此设备上，不会更改你的流程。",
+  "easydrag.ui.library_favorites": "仅显示收藏",
+  "easydrag.ui.library_favorite_add": "在此设备上将“{name}”加入收藏",
+  "easydrag.ui.library_favorite_remove": "在此设备上将“{name}”移出收藏",
+  "easydrag.ui.library_saved_filters": "此设备上保存的筛选条件",
+  "easydrag.ui.library_current_filter": "当前筛选条件",
+  "easydrag.ui.library_filter_save": "保存当前筛选条件",
+  "easydrag.ui.library_filter_delete": "删除已保存的筛选条件",
+  "easydrag.ui.library_filter_name_invalid": "请输入不超过80个字符的筛选名称。",
+  "easydrag.ui.library_preferences_limit": "此设备最多可保存1,000个收藏和20个筛选条件。添加新条目前，请删除不再使用的条目。",
+  "easydrag.ui.library_preferences_unavailable": "无法在此设备上保存这些选项。它们将在此窗口关闭前继续生效。"
 }

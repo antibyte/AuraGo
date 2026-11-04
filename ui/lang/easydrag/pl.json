@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Zmień nazwę scenariusza",
   "easydrag.ui.scenario_save": "Zapisz jako nowy scenariusz",
   "easydrag.ui.scenario_stale": "Ten scenariusz należy do starszej konfiguracji przepływu. Przed symulacją rozpocznij nowy scenariusz z bieżącymi krokami.",
-  "easydrag.ui.scenario_title": "Prywatne scenariusze testowe"
+  "easydrag.ui.scenario_title": "Prywatne scenariusze testowe",
+  "easydrag.ui.library_view": "Widok biblioteki",
+  "easydrag.ui.library_cards": "Karty",
+  "easydrag.ui.library_list": "Lista kompaktowa",
+  "easydrag.ui.library_local": "Widok, ulubione i zapisane filtry są przechowywane na tym urządzeniu. Nie zmieniają Twoich przepływów.",
+  "easydrag.ui.library_favorites": "Tylko ulubione",
+  "easydrag.ui.library_favorite_add": "Dodaj „{name}” do ulubionych na tym urządzeniu",
+  "easydrag.ui.library_favorite_remove": "Usuń „{name}” z ulubionych na tym urządzeniu",
+  "easydrag.ui.library_saved_filters": "Filtry zapisane na tym urządzeniu",
+  "easydrag.ui.library_current_filter": "Bieżący filtr",
+  "easydrag.ui.library_filter_save": "Zapisz bieżący filtr",
+  "easydrag.ui.library_filter_delete": "Usuń zapisany filtr",
+  "easydrag.ui.library_filter_name_invalid": "Wpisz nazwę filtra o długości do 80 znaków.",
+  "easydrag.ui.library_preferences_limit": "To urządzenie może przechowywać do 1000 ulubionych i 20 filtrów. Usuń nieużywany wpis przed dodaniem kolejnego.",
+  "easydrag.ui.library_preferences_unavailable": "Nie udało się zapisać tych ustawień na urządzeniu. Będą działać do zamknięcia tego okna."
 }

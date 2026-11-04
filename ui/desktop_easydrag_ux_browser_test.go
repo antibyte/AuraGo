@@ -110,6 +110,34 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
 	s.failOnPageErrors("initial load recovery")
 
+	page.MustElement(`[data-ed-library-view="list"]`).MustClick()
+	page.MustElement(`[data-ed-favorite]`).MustClick()
+	page.MustElement(`[data-ed-library-favorites]`).MustClick()
+	page.MustElement(`.ed-library-saved > summary`).MustClick()
+	page.MustElement(`[data-ed-library-save]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.vd-modal-input')`)
+	page.MustElement(`.vd-modal-input`).MustInput("Favoriten")
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>!document.querySelector('.vd-modal-input') && !!document.querySelector('[data-ed-library-filter]').value`)
+	page.MustElement(`[data-ed-filter="errors"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-flow-card')`)
+	page.MustEval(`()=>{const s=document.querySelector('[data-ed-library-filter]');s.value=JSON.parse(localStorage.getItem('aurago.easydrag.library')).filters[0].id;s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelector('[data-ed-library-favorites]').getAttribute('aria-pressed')==='true'`)
+	page.MustElement(`.ed-library-saved > summary`).MustClick()
+	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
+		for _, width := range []int{390, 1440} {
+			page.MustSetViewport(width, 900, 1, width < 760)
+			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
+			s.wait(`()=>{const home=document.querySelector('.ed-home'),card=document.querySelector('.ed-flow-card'),r=card.getBoundingClientRect();return home.scrollWidth<=home.clientWidth+1 && document.querySelector('.ed-flow-grid').classList.contains('is-list') && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(card.querySelector('.ed-flow-preview')).display==='none';}`)
+			s.wait(`()=>[...document.querySelectorAll('.ed-home-actions button')].every(button=>{const r=button.getBoundingClientRect(),hero=button.closest('.ed-home-hero').getBoundingClientRect();return r.width>=44 && r.height>=30 && r.left>=hero.left && r.right<=hero.right && button.scrollWidth<=button.clientWidth+1;})`)
+			s.shot(fmt.Sprintf("ux-library-%s-%d", theme, width))
+		}
+	}
+	page.MustSetViewport(1440, 900, 1, false)
+	page.MustEval(`()=>fixtureTheme('standard')`)
+	s.noRawKeys("device-local library preferences")
+	s.failOnPageErrors("device-local library preferences")
+
 	// Goal-first authoring creates nothing until Apply, then the same phone Test path saves
 	// and replays a private scenario with an exact expected-result check.
 	page.MustElement(`[data-ed-authoring]`).MustClick()

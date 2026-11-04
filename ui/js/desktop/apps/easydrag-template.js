@@ -613,17 +613,35 @@
     }
 
     function splitText(value, args) {
-        const parts = stringify(value).split(strArg(args, 0, ','), MAX_SPLIT_PARTS + 1);
+        const text = stringify(value);
+        const separator = strArg(args, 0, ',');
+        const parts = separator ? text.split(separator, MAX_SPLIT_PARTS + 1) : [];
+        // Go splits an empty separator at code points; stop before allocating an unbounded list.
+        if (!separator) {
+            for (const point of text) {
+                parts.push(point);
+                if (parts.length > MAX_SPLIT_PARTS) break;
+            }
+        }
         if (parts.length > MAX_SPLIT_PARTS) throw tplError('TPL_TOO_LARGE', 'split would produce more than ' + MAX_SPLIT_PARTS + ' parts');
         return parts;
+    }
+
+    function trimSpace(value) {
+        const text = stringify(value);
+        // Match Go's unicode.IsSpace: U+0085 is whitespace, U+FEFF is data.
+        const space = /[\x09-\x0d\x20\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/;
+        let start = 0;
+        let end = text.length;
+        while (start < end && space.test(text[start])) start++;
+        while (end > start && space.test(text[end - 1])) end--;
+        return text.slice(start, end);
     }
 
     // Known differences from the Go engine, which stays authoritative:
     // - date: previews read zone-less dates and show results in the browser's time zone; the
     //   server uses the flow's zone.
     // - Numbers from 1e21 up and below 1e-6 print with an exponent in text; Go writes them out in full.
-    // - trim uses JavaScript's whitespace set, which differs from Go's strings.TrimSpace in U+0085 and U+FEFF.
-    // - split("") splits UTF-16 code units, so it breaks emoji apart; Go splits into whole characters.
     // - strip_html decodes numeric entities and only the named ones amp, lt, gt, quot, apos and
     //   nbsp. Go's html.UnescapeString also decodes all HTML5 names, the forms without ";", the
     //   windows-1252 mapping for &#128;-&#159;, and turns "&#x;" into U+FFFD.
@@ -641,7 +659,7 @@
         truncate: { min: 1, max: 1, hint: '(100)', fn: (v, a) => { const n = intArg(a, 0, 0, 1); const chars = Array.from(stringify(v)); return chars.length <= n ? chars.join('') : chars.slice(0, n).join('') + '…'; } },
         upper: { min: 0, max: 0, hint: '', fn: v => caseMap(stringify(v), true) },
         lower: { min: 0, max: 0, hint: '', fn: v => caseMap(stringify(v), false) },
-        trim: { min: 0, max: 0, hint: '', fn: v => stringify(v).trim() },
+        trim: { min: 0, max: 0, hint: '', fn: trimSpace },
         join: { min: 0, max: 1, hint: '(", ")', fn: joinList },
         split: { min: 1, max: 1, hint: '(",")', fn: splitText },
         first: { min: 0, max: 0, hint: '', fn: v => Array.isArray(v) ? (v.length ? v[0] : null) : (typeof v === 'string' ? Array.from(v)[0] || '' : null) },

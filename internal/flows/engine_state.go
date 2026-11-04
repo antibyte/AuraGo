@@ -270,6 +270,9 @@ loop:
 				if failure == nil {
 					return result
 				}
+				if s.req.durable.lost {
+					return RunResult{Status: RunError, ErrorCode: failure.Code, ErrorMessage: failure.Message, StartedAt: s.started, durabilityLost: true}
+				}
 				s.failure, s.failedID, s.status[id] = failure, id, StepError
 				s.skipOutgoing(id)
 				now := s.e.services.Now()

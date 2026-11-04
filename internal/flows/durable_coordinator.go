@@ -29,14 +29,15 @@ func newDurableEngine(services *Services, logger *slog.Logger) (*Engine, error) 
 }
 
 type durableRunControl struct {
-	deadline   time.Time
-	save       func(context.Context, durableCheckpointState, StepRecord) error
-	checkpoint func(context.Context, durableCheckpointState, StepRecord) error
-	finish     func(context.Context, RunResult, []RunEvent) error
-	active     bool
-	ctx        context.Context
-	pending    []RunEvent
-	lost       bool
+	deadline     time.Time
+	save         func(context.Context, durableCheckpointState, StepRecord) error
+	checkpoint   func(context.Context, durableCheckpointState, StepRecord) error
+	finish       func(context.Context, RunResult, []RunEvent) error
+	active       bool
+	ctx          context.Context
+	pending      []RunEvent
+	lost         bool
+	persistedSeq int
 }
 
 // suspendDurableNode runs only after the coordinator has drained every worker.
@@ -76,6 +77,7 @@ func (s *runState) suspendDurableNode(ctx context.Context, id string) (RunResult
 	// Reserve the waiting event's sequence in the committed checkpoint.
 	state.EventSeq++
 	if err := control.save(ctx, state, step); err != nil {
+		control.lost = true
 		return RunResult{}, NewNodeError("FLOW_NODE_UNAVAILABLE", "the durable run could not be saved")
 	}
 	s.status[id] = StepWaiting

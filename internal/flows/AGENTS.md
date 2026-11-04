@@ -7,6 +7,11 @@ testing and runtime expansion. Its phases and acceptance gates describe planned 
 the contracts below describe the implemented behavior of each delivered slice.
 
 ## Flagship authoring and testing
+- `blocks_contract.go` and `blocks_pins.go` are private, unregistered and uninstalled
+  phase-4 prototypes, not a usable subflow or batch feature. Typed boundaries, bounded
+  dependency validation and version/run pin helpers do not provide execution, migration,
+  retention integration or shared child budgets/taint. Do not expose their nodes before the
+  complete admission, lifecycle and recovery contracts are implemented and tested.
 - `simulation.go` owns synchronous, nonpersistent draft simulation. Construct a fresh built-in
   registry and an engine with no production tool, LLM, secret or notification service. Only the
   explicit pure-logic allowlist executes; other known steps require bounded, typed fixtures.
@@ -359,6 +364,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   `NewRunner` reserves flows with valid checkpoint metadata before accepting live starts; malformed metadata blocks
   recovery, and `MarkInterruptedRuns` excludes checkpoint rows. No scheduler, cancellation or restart wake-up is
   wired yet. Do not expose the private path until permission rechecks, queue ownership and crash tests are complete.
+  Treat an uncertain checkpoint commit as lost ownership: never emit terminal success/failure that could
+  contradict a persisted wait. Private engine/store round-trip tests cover reclaim after a committed step
+  without replaying successful work; they do not establish production Runner recovery.
   A checkpoint is at most 40 MiB, with 64 rows/512 MiB globally; scans reject more than one million JSON values.
   Scenario and checkpoint keys are separate, agent-hidden Vault entries; backups need their matching Vault keys.
 - Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one

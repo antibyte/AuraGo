@@ -1459,6 +1459,7 @@ export async function run(env) {
     });
 
     await (await import('./test-easydrag-scenarios.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
+    await (await import('./test-easydrag-library.mjs')).run({ sandbox, eq, guardAsync, settle });
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

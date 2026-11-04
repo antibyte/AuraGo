@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Μετονομασία σεναρίου",
   "easydrag.ui.scenario_save": "Αποθήκευση ως νέο σενάριο",
   "easydrag.ui.scenario_stale": "Το σενάριο ανήκει σε παλαιότερη ρύθμιση ροής. Ξεκίνησε νέο σενάριο με τα τρέχοντα βήματα πριν από την προσομοίωση.",
-  "easydrag.ui.scenario_title": "Ιδιωτικά σενάρια δοκιμής"
+  "easydrag.ui.scenario_title": "Ιδιωτικά σενάρια δοκιμής",
+  "easydrag.ui.library_view": "Προβολή βιβλιοθήκης",
+  "easydrag.ui.library_cards": "Κάρτες",
+  "easydrag.ui.library_list": "Συνοπτική λίστα",
+  "easydrag.ui.library_local": "Η προβολή, τα αγαπημένα και τα αποθηκευμένα φίλτρα παραμένουν σε αυτή τη συσκευή. Δεν αλλάζουν τις ροές σου.",
+  "easydrag.ui.library_favorites": "Μόνο αγαπημένα",
+  "easydrag.ui.library_favorite_add": "Προσθήκη του «{name}» στα αγαπημένα αυτής της συσκευής",
+  "easydrag.ui.library_favorite_remove": "Αφαίρεση του «{name}» από τα αγαπημένα αυτής της συσκευής",
+  "easydrag.ui.library_saved_filters": "Αποθηκευμένα φίλτρα σε αυτή τη συσκευή",
+  "easydrag.ui.library_current_filter": "Τρέχον φίλτρο",
+  "easydrag.ui.library_filter_save": "Αποθήκευση τρέχοντος φίλτρου",
+  "easydrag.ui.library_filter_delete": "Διαγραφή αποθηκευμένου φίλτρου",
+  "easydrag.ui.library_filter_name_invalid": "Δώσε όνομα φίλτρου με έως 80 χαρακτήρες.",
+  "easydrag.ui.library_preferences_limit": "Αυτή η συσκευή μπορεί να διατηρεί έως 1.000 αγαπημένα και 20 φίλτρα. Αφαίρεσε μια αχρησιμοποίητη καταχώριση πριν προσθέσεις άλλη.",
+  "easydrag.ui.library_preferences_unavailable": "Δεν ήταν δυνατή η αποθήκευση αυτών των επιλογών στη συσκευή. Θα ισχύουν μέχρι να κλείσεις αυτό το παράθυρο."
 }

@@ -307,7 +307,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     box-shadow: var(--vd-mat-primary-shadow, 0 10px 28px color-mix(in srgb, var(--ed-accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35));
 }
 .ed-logo .ed-icon { width: 26px; height: 26px; }
-.ed-home-actions { display: flex; gap: 8px; }
+.ed-home-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; }
+.ed-home-actions .ed-btn { min-width: 0; white-space: normal; }
 .ed-home-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 28px 0; }
 .ed-home-toolbar .ed-search { flex: 1 1 260px; max-width: 420px; }
 .ed-home-section { padding: 18px 28px 0; }
@@ -342,6 +343,31 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-flow-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--ed-muted); }
 .ed-flow-run { display: inline-flex; align-items: center; gap: 6px; }
 .ed-flow-card-actions { position: absolute; right: 8px; top: 126px; display: flex; align-items: center; gap: 4px; }
+.ed-library-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 20px; justify-content: space-between; margin-bottom: 12px; }
+.ed-library-heading > h2 { margin: 0; }
+.ed-library-tools, .ed-library-presets { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.ed-library-tools .ed-seg button { display: inline-flex; align-items: center; gap: 6px; }
+.ed-library-tools .ed-btn { white-space: normal; }
+.ed-library-saved { flex: 1 1 100%; }
+.ed-library-presets { padding-top: 10px; }
+.ed-library-presets select { flex: 1; min-width: min(150px, 100%); }
+.ed-flow-favorite { position: absolute; right: 0; top: -118px; background: var(--ed-panel); border: 1px solid var(--ed-border); }
+.ed-flow-favorite[aria-pressed="true"] { color: var(--ed-accent); }
+.ed-flow-favorite[aria-pressed="true"] .ed-icon { fill: currentColor; }
+.ed-flow-grid.is-list { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.ed-flow-grid.is-list > .ed-flow-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.ed-flow-grid.is-list > .ed-flow-card:hover { transform: none; }
+.ed-flow-grid.is-list .ed-flow-preview { display: none; }
+.ed-flow-grid.is-list .ed-flow-info { min-width: 0; padding: 12px 14px; }
+.ed-flow-grid.is-list h3 { padding-right: 0; }
+.ed-flow-grid.is-list .ed-flow-card-actions { position: static; padding-right: 8px; }
+.ed-flow-grid.is-list .ed-flow-favorite { position: static; }
+@container (max-width: 760px) {
+    .ed-library-tools .ed-seg button, .ed-library-tools .ed-btn, .ed-library-tools .ed-icon-btn, .ed-flow-favorite { min-width: 44px; min-height: 44px; }
+    .ed-library-tools { flex: 1 1 100%; }
+    .ed-library-tools > .ed-seg { flex-wrap: wrap; }
+    .ed-library-presets > .ed-btn { flex: 1; }
+}
 .ed-home-empty { grid-column: 1 / -1; display: grid; justify-items: center; gap: 8px; padding: 40px 16px; border: 1px dashed var(--ed-border-strong); border-radius: var(--ed-radius-lg); text-align: center; }
 .ed-home-empty > .ed-icon { width: 40px; height: 40px; color: var(--ed-accent); }
 .ed-home-empty h3 { margin: 0; font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, 700); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); color: var(--vd-mat-heading-color, var(--ed-text)); }
@@ -1071,6 +1097,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 @container (max-width: 560px) {
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }
+    .ed-home-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ed-home-actions .ed-btn { min-height: 44px; }
+    .ed-home-actions [data-ed-authoring] { grid-column: 1 / -1; grid-row: 2; }
+    .ed-home-actions [data-ed-new] { grid-column: 2; grid-row: 1; }
     /* the state chip goes, Paused stays (U13): a paused flow must be told apart on a phone too */
     .ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }
     .ed-state > [data-ed-live-outdated], .ed-state > [data-ed-timers-off] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

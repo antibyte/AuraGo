@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "परिदृश्य का नाम बदलें",
   "easydrag.ui.scenario_save": "नए परिदृश्य के रूप में सहेजें",
   "easydrag.ui.scenario_stale": "यह परिदृश्य पुराने फ़्लो कॉन्फ़िगरेशन का है। सिमुलेशन से पहले मौजूदा चरणों के साथ नया परिदृश्य शुरू करें।",
-  "easydrag.ui.scenario_title": "निजी परीक्षण परिदृश्य"
+  "easydrag.ui.scenario_title": "निजी परीक्षण परिदृश्य",
+  "easydrag.ui.library_view": "लाइब्रेरी दृश्य",
+  "easydrag.ui.library_cards": "कार्ड",
+  "easydrag.ui.library_list": "संक्षिप्त सूची",
+  "easydrag.ui.library_local": "दृश्य विकल्प, पसंदीदा और सहेजे गए फ़िल्टर इसी डिवाइस पर रखे जाते हैं। वे आपके फ़्लो नहीं बदलते।",
+  "easydrag.ui.library_favorites": "केवल पसंदीदा",
+  "easydrag.ui.library_favorite_add": "इस डिवाइस पर “{name}” को पसंदीदा में जोड़ें",
+  "easydrag.ui.library_favorite_remove": "इस डिवाइस पर “{name}” को पसंदीदा से हटाएँ",
+  "easydrag.ui.library_saved_filters": "इस डिवाइस पर सहेजे गए फ़िल्टर",
+  "easydrag.ui.library_current_filter": "वर्तमान फ़िल्टर",
+  "easydrag.ui.library_filter_save": "वर्तमान फ़िल्टर सहेजें",
+  "easydrag.ui.library_filter_delete": "सहेजा गया फ़िल्टर मिटाएँ",
+  "easydrag.ui.library_filter_name_invalid": "अधिकतम 80 अक्षरों का फ़िल्टर नाम दर्ज करें।",
+  "easydrag.ui.library_preferences_limit": "इस डिवाइस पर अधिकतम 1,000 पसंदीदा और 20 फ़िल्टर रखे जा सकते हैं। नया जोड़ने से पहले कोई अनुपयोगी प्रविष्टि हटाएँ।",
+  "easydrag.ui.library_preferences_unavailable": "ये विकल्प इस डिवाइस पर सहेजे नहीं जा सके। वे यह विंडो बंद होने तक काम करेंगे।"
 }

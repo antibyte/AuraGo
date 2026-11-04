@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Cambiar nombre del escenario",
   "easydrag.ui.scenario_save": "Guardar como escenario nuevo",
   "easydrag.ui.scenario_stale": "Este escenario pertenece a una configuración anterior del flujo. Crea uno nuevo con los pasos actuales antes de simular.",
-  "easydrag.ui.scenario_title": "Escenarios de prueba privados"
+  "easydrag.ui.scenario_title": "Escenarios de prueba privados",
+  "easydrag.ui.library_view": "Vista de la biblioteca",
+  "easydrag.ui.library_cards": "Tarjetas",
+  "easydrag.ui.library_list": "Lista compacta",
+  "easydrag.ui.library_local": "La vista, los favoritos y los filtros guardados se almacenan en este dispositivo. No cambian tus flujos.",
+  "easydrag.ui.library_favorites": "Solo favoritos",
+  "easydrag.ui.library_favorite_add": "Añadir «{name}» a los favoritos de este dispositivo",
+  "easydrag.ui.library_favorite_remove": "Quitar «{name}» de los favoritos de este dispositivo",
+  "easydrag.ui.library_saved_filters": "Filtros guardados en este dispositivo",
+  "easydrag.ui.library_current_filter": "Filtro actual",
+  "easydrag.ui.library_filter_save": "Guardar filtro actual",
+  "easydrag.ui.library_filter_delete": "Eliminar filtro guardado",
+  "easydrag.ui.library_filter_name_invalid": "Escribe un nombre de filtro de hasta 80 caracteres.",
+  "easydrag.ui.library_preferences_limit": "Este dispositivo puede guardar hasta 1000 favoritos y 20 filtros. Elimina una entrada que no uses antes de añadir otra.",
+  "easydrag.ui.library_preferences_unavailable": "No se pudieron guardar estas opciones en este dispositivo. Seguirán funcionando hasta que cierres esta ventana."
 }

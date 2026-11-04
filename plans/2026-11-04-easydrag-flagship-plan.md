@@ -9,11 +9,12 @@ Owners: `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`,
 
 | Area | Current implementation boundary |
 | --- | --- |
-| Daily editing | Resizable workspace, step outline, selected-path focus, explicit mapping target, local introductory recipe, readable results and semantic publication review implemented; browser acceptance in progress. |
-| Testing | Isolated backend simulation, encrypted private named scenarios, structured input, exact output/branch assertions and bounded retained-run comparison implemented. Scenario replay uses exact scenario version and current draft revision; browser acceptance is in progress. |
+| Daily editing | Resizable workspace, step outline, selected-path focus, explicit mapping target, local introductory recipe, readable results and semantic publication review implemented. Cards/compact list, device-local favorites and saved filters are implemented. Automated theme/phone journeys pass; human usability acceptance remains open. |
+| Testing | Isolated backend simulation, encrypted private named scenarios, structured input, exact output/branch assertions and bounded retained-run comparison implemented. Scenario replay uses exact scenario version and current draft revision; automated browser acceptance passes. |
 | Lifecycle | Paginated run history and explicit disabled Mission Control repair implemented. Test evidence requires the exact preview draft revision. |
 | AI | Goal-only proposal API and review/apply UI implemented for new and existing flows. Apply creates a new draft or one undoable revision-bound edit. Automated policy/shape/revision cases pass; real-provider task-quality evaluation remains open. No automatic publish, activation or execution. |
-| Durable execution | State-transition contract is in `2026-11-04-easydrag-durable-execution-contract.md`. Private pure-run checkpoint/coordinator primitives have migration, encryption, lease and crash tests. Scheduler/admission/cancellation integration is in progress; no restart/resume promise is exposed. |
+| Durable execution | State-transition contract is in `2026-11-04-easydrag-durable-execution-contract.md`. Private pure-run checkpoint/coordinator primitives have migration, encryption, lease and crash tests, including uncertain commit handling. Automated approval review blocked Runner activation; explicit clarification is pending. Scheduler/admission/cancellation integration remains incomplete; no restart/resume promise is exposed. |
+| Composition | Typed block contracts, bounded dependency/cycle checks and immutable revision pin helpers are tested privately. Their tables are not installed and no subflow/batch node is registered; execution, shared budgets and UI remain unfinished. |
 | Release acceptance | Human usability sessions, assistive-technology acceptance, reference-hardware performance and production integration acceptance remain unmeasured. Local fixture tests cannot substitute for these gates. |
 
 Later phases and their acceptance criteria below remain part of the authorized implementation scope.

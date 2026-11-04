@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Přejmenovat scénář",
   "easydrag.ui.scenario_save": "Uložit jako nový scénář",
   "easydrag.ui.scenario_stale": "Scénář patří ke starší konfiguraci toku. Před simulací vytvořte nový scénář s aktuálními kroky.",
-  "easydrag.ui.scenario_title": "Soukromé testovací scénáře"
+  "easydrag.ui.scenario_title": "Soukromé testovací scénáře",
+  "easydrag.ui.library_view": "Zobrazení knihovny",
+  "easydrag.ui.library_cards": "Karty",
+  "easydrag.ui.library_list": "Kompaktní seznam",
+  "easydrag.ui.library_local": "Zobrazení, oblíbené položky a uložené filtry se ukládají v tomto zařízení. Tvé flow se tím nemění.",
+  "easydrag.ui.library_favorites": "Jen oblíbené",
+  "easydrag.ui.library_favorite_add": "Přidat „{name}“ mezi oblíbené v tomto zařízení",
+  "easydrag.ui.library_favorite_remove": "Odebrat „{name}“ z oblíbených v tomto zařízení",
+  "easydrag.ui.library_saved_filters": "Uložené filtry v tomto zařízení",
+  "easydrag.ui.library_current_filter": "Aktuální filtr",
+  "easydrag.ui.library_filter_save": "Uložit aktuální filtr",
+  "easydrag.ui.library_filter_delete": "Smazat uložený filtr",
+  "easydrag.ui.library_filter_name_invalid": "Zadej název filtru o délce nejvýše 80 znaků.",
+  "easydrag.ui.library_preferences_limit": "V tomto zařízení lze uchovat nejvýše 1 000 oblíbených položek a 20 filtrů. Před přidáním další položky některou nepoužívanou odeber.",
+  "easydrag.ui.library_preferences_unavailable": "Tato nastavení se v zařízení nepodařilo uložit. Budou fungovat do zavření tohoto okna."
 }

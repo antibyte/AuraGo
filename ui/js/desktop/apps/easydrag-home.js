@@ -5,6 +5,22 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const FILTER_KEY = 'aurago.easydrag.home.filter';
+    const LIBRARY_KEY = 'aurago.easydrag.library';
+    let libraryChanges;
+    const FILTERS = ['all', 'active', 'inactive', 'drafts', 'errors'];
+    function preferences(value) {
+        const source = value && typeof value === 'object' ? value : {};
+        const id = text => typeof text === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(text);
+        const filters = Array.isArray(source.filters) ? source.filters : [];
+        return {
+            view: source.view === 'list' ? 'list' : 'cards',
+            favorites: Array.from(new Set((Array.isArray(source.favorites) ? source.favorites : []).filter(id))).slice(0, 1000),
+            filters: filters.filter(item => item && id(item.id) && typeof item.name === 'string' && item.name.trim() && Array.from(item.name).length <= 80).slice(0, 20).map(item => ({
+                id: item.id, name: item.name.trim(), query: typeof item.query === 'string' ? Array.from(item.query).slice(0, 4000).join('') : '',
+                filter: FILTERS.includes(item.filter) ? item.filter : 'all', sort: ['updated', 'last_run', 'name'].includes(item.sort) ? item.sort : 'updated', favorites: item.favorites === true
+            }))
+        };
+    }
     // IMPORT_MAX_BYTES is the server's request-body limit for flow documents (4 MiB). The document
     // itself may be at most 2 MiB (flows.MaxDocumentBytes); the server answers a larger one with
     // FLOW_TOO_LARGE.
@@ -45,6 +61,7 @@
     // the focus once the list is loaded, if New flow still has it (showHome focused New flow).
     function create(app, opts) {
         const core = ED.core;
+        if (!libraryChanges) libraryChanges = core.emitter();
         const { t, esc, ctx } = app;
         const bag = core.bag();
         let flows = [];
@@ -55,6 +72,7 @@
         let templateQuery = '';
         let templateCategory = '';
         let focusFlow = (opts && opts.focusFlow) || '';
+        let prefs = preferences(core.storage.get(LIBRARY_KEY, {})), favoritesOnly = false, selectedFilter = '', volatilePrefs = false;
 
         const el = core.el('<div class="ed-home">' +
             '<header class="ed-home-hero"><div class="ed-home-brand"><span class="ed-logo" aria-hidden="true">' + core.icon('git-branch') + '</span>' +
@@ -63,14 +81,18 @@
             '<button type="button" class="ed-btn" data-ed-authoring>' + core.icon('sparkles') + '<span>' + esc(t('easydrag.ui.authoring_title')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button>' +
             '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file></div></header>' +
-            '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
+            '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" maxlength="4000" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
             ['all', 'active', 'inactive', 'drafts', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div>' +
             '<select class="ed-input ed-input--small ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
             '<option value="updated">' + esc(t('easydrag.ui.home_sort_updated')) + '</option>' +
             '<option value="last_run">' + esc(t('easydrag.ui.home_sort_last_run')) + '</option>' +
             '<option value="name">' + esc(t('easydrag.ui.home_sort_name')) + '</option></select></div>' +
-            '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-flow-grid"></div></section>' +
+            '<section class="ed-home-section"><div class="ed-library-heading"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-library-tools" data-ed-library-tools>' +
+            '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.library_view')) + '"><button type="button" role="radio" data-ed-library-view="cards" aria-checked="true">' + core.icon('grid') + esc(t('easydrag.ui.library_cards')) + '</button><button type="button" role="radio" data-ed-library-view="list" aria-checked="false">' + core.icon('list') + esc(t('easydrag.ui.library_list')) + '</button></div>' +
+            '<button type="button" class="ed-btn" aria-pressed="false" data-ed-library-favorites>' + core.icon('star') + esc(t('easydrag.ui.library_favorites')) + '</button>' +
+            '<details class="ed-details ed-library-saved"><summary>' + esc(t('easydrag.ui.library_saved_filters')) + '</summary><div class="ed-library-presets"><select class="ed-input" data-ed-library-filter aria-label="' + esc(t('easydrag.ui.library_saved_filters')) + '"></select><button type="button" class="ed-btn" data-ed-library-save>' + core.icon('plus') + esc(t('easydrag.ui.library_filter_save')) + '</button><button type="button" class="ed-icon-btn" data-ed-library-delete disabled aria-label="' + esc(t('easydrag.ui.library_filter_delete')) + '" title="' + esc(t('easydrag.ui.library_filter_delete')) + '">' + core.icon('trash') + '</button></div></details></div></div>' +
+            '<p class="ed-hint" data-ed-library-local>' + esc(t('easydrag.ui.library_local')) + '</p><div class="ed-flow-grid"></div></section>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p>' +
             '<div class="ed-recipe-intro" data-ed-recipe-intro hidden><h2>' + esc(t('easydrag.ui.recipe_intro_title')) + '</h2><p>' + esc(t('easydrag.ui.recipe_intro_hint')) + '</p><div class="ed-recipe-steps">' + ['build', 'test', 'result'].map(id => '<span>' + esc(t('easydrag.ui.recipe_step_' + id)) + '</span>').join('') + '</div></div>' +
             '<div class="ed-recipe-tools"><div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-template-search aria-label="' + esc(t('easydrag.ui.template_search')) + '" placeholder="' + esc(t('easydrag.ui.template_search')) + '"></div><select class="ed-input" data-ed-template-category aria-label="' + esc(t('easydrag.ui.template_category')) + '"><option value="">' + esc(t('easydrag.ui.template_all')) + '</option></select></div><div class="ed-template-grid"></div></section>' +
@@ -81,6 +103,61 @@
         // The grid is no live region (every refresh would read all cards); meaningful changes
         // are announced on their own (a deleted flow).
         const voice = core.announcer(el.querySelector('[data-ed-home-live]'));
+
+        function changePreferences(change) {
+            const next = volatilePrefs ? preferences(prefs) : preferences(core.storage.get(LIBRARY_KEY, prefs));
+            if (change(next) === false) return false;
+            prefs = preferences(next);
+            const saved = core.storage.set(LIBRARY_KEY, prefs);
+            if (!saved && !volatilePrefs) ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.library_preferences_unavailable'), type: 'error' });
+            volatilePrefs = !saved;
+            if (saved) libraryChanges.emit('change', el);
+            return true;
+        }
+
+        function libraryControls() {
+            grid.classList.toggle('is-list', prefs.view === 'list');
+            el.querySelector('[data-ed-library-tools]').hidden = !!loadError;
+            el.querySelector('[data-ed-library-local]').hidden = !!loadError;
+            el.querySelectorAll('[data-ed-library-view]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.edLibraryView === prefs.view)));
+            el.querySelector('[data-ed-library-favorites]').setAttribute('aria-pressed', String(favoritesOnly));
+            const select = el.querySelector('[data-ed-library-filter]');
+            const options = '<option value="">' + esc(t('easydrag.ui.library_current_filter')) + '</option>' + prefs.filters.map(item => '<option value="' + esc(item.id) + '">' + esc(item.name) + '</option>').join('');
+            if (select.innerHTML !== options) select.innerHTML = options;
+            select.value = selectedFilter;
+            el.querySelector('[data-ed-library-delete]').disabled = !selectedFilter;
+        }
+
+        function toggleFavorite(id) {
+            if (!flows.some(flow => flow.id === id) || loadError) return;
+            if (!changePreferences(next => {
+                const at = next.favorites.indexOf(id);
+                if (at >= 0) next.favorites.splice(at, 1);
+                else if (next.favorites.length < 1000) next.favorites.push(id);
+                else { ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.library_preferences_limit'), type: 'error' }); return false; }
+            })) return;
+            render();
+            const button = Array.from(grid.querySelectorAll('[data-ed-favorite]')).find(item => item.dataset.edFavorite === id);
+            (button || el.querySelector('[data-ed-library-favorites]')).focus();
+        }
+
+        async function saveFilter() {
+            if (gone || loadError) return;
+            searchUpdate.cancel();
+            const input = await ctx.promptDialog(t('easydrag.ui.library_filter_save'), '');
+            if (input == null || gone || loadError) return;
+            const name = input.trim();
+            if (!name || Array.from(name).length > 80) { ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.library_filter_name_invalid'), type: 'error' }); return; }
+            query = el.querySelector('[data-ed-home-search]').value;
+            changePreferences(next => {
+                const previous = next.filters.find(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+                if (!previous && next.filters.length >= 20) { ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.library_preferences_limit'), type: 'error' }); return false; }
+                const item = { id: previous ? previous.id : core.randomID('filter_', 10), name, query, filter, sort: sortBy, favorites: favoritesOnly };
+                if (previous) next.filters.splice(next.filters.indexOf(previous), 1, item); else next.filters.push(item);
+                selectedFilter = item.id;
+            });
+            render();
+        }
 
         function triggerLabels(f) {
             const seen = new Set();
@@ -112,6 +189,7 @@
         function visibleFlows() {
             const q = query.trim().toLowerCase();
             const list = flows.filter(f => {
+                if (favoritesOnly && !prefs.favorites.includes(f.id)) return false;
                 // Names, descriptions and trigger labels already on the card. No catalog refetch.
                 if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q) &&
                     !triggerLabels(f).some(label => String(label).toLowerCase().includes(q))) return false;
@@ -215,7 +293,7 @@
         function noMatchCard() {
             let actions = '';
             if (query.trim()) actions += '<button type="button" class="ed-btn" data-ed-home-clear-search>' + esc(t('easydrag.ui.home_clear_search')) + '</button>';
-            if (filter !== 'all') actions += '<button type="button" class="ed-btn" data-ed-home-clear-filter>' + esc(t('easydrag.ui.home_clear_filter')) + '</button>';
+            if (filter !== 'all' || favoritesOnly) actions += '<button type="button" class="ed-btn" data-ed-home-clear-filter>' + esc(t('easydrag.ui.home_clear_filter')) + '</button>';
             return '<div class="ed-home-empty"><p class="ed-hint">' + esc(t('easydrag.ui.home_no_match')) + '</p><div class="ed-empty-actions">' + actions + '</div></div>';
         }
 
@@ -241,6 +319,7 @@
         }
 
         function render() {
+            libraryControls();
             const list = visibleFlows();
             const off = createOff();
             const banner = (!loadError && staleError ? staleBanner() : '') + (!loadError ? timersBanner() : '');
@@ -260,6 +339,7 @@
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
                     '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
+                    '<button type="button" class="ed-icon-btn ed-flow-favorite" data-ed-favorite="' + esc(f.id) + '" aria-pressed="' + prefs.favorites.includes(f.id) + '" aria-label="' + esc(t(prefs.favorites.includes(f.id) ? 'easydrag.ui.library_favorite_remove' : 'easydrag.ui.library_favorite_add', { name: f.name })) + '" title="' + esc(t(prefs.favorites.includes(f.id) ? 'easydrag.ui.library_favorite_remove' : 'easydrag.ui.library_favorite_add', { name: f.name })) + '">' + core.icon('star') + '</button>' +
                     (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.home_active_named', { name: f.name })) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');
                 speak(staleError ? 'stale' : 'ready', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_flows'));
@@ -526,6 +606,8 @@
         }
 
         function clearSearch() {
+            searchUpdate.cancel();
+            selectedFilter = '';
             query = '';
             const input = el.querySelector('[data-ed-home-search]');
             if (input) {
@@ -536,6 +618,7 @@
         }
 
         function clearFilter() {
+            selectedFilter = ''; favoritesOnly = false;
             filter = 'all';
             core.storage.set(FILTER_KEY, filter);
             el.querySelectorAll('[data-ed-filter]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.edFilter === 'all')));
@@ -545,6 +628,14 @@
         }
 
         bag.listen(el, 'click', (event) => {
+            if (loadError && event.target.closest('[data-ed-library-tools]')) return;
+            const view = event.target.closest('[data-ed-library-view]');
+            if (view) { changePreferences(next => { next.view = view.dataset.edLibraryView; }); libraryControls(); return; }
+            if (event.target.closest('[data-ed-library-favorites]')) { favoritesOnly = !favoritesOnly; selectedFilter = ''; render(); return; }
+            if (event.target.closest('[data-ed-library-save]')) { saveFilter(); return; }
+            if (event.target.closest('[data-ed-library-delete]')) { changePreferences(next => { next.filters = next.filters.filter(item => item.id !== selectedFilter); }); selectedFilter = ''; libraryControls(); return; }
+            const favorite = event.target.closest('[data-ed-favorite]');
+            if (favorite) { toggleFavorite(favorite.dataset.edFavorite); return; }
             if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
             if (event.target.closest('[data-ed-templates-retry]')) { retryTemplates(); return; }
             if (event.target.closest('[data-ed-home-retry]')) { retry(); return; }
@@ -556,6 +647,7 @@
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');
             if (f) {
+                selectedFilter = '';
                 filter = f.dataset.edFilter;
                 core.storage.set(FILTER_KEY, filter);
                 el.querySelectorAll('[data-ed-filter]').forEach(b => b.setAttribute('aria-checked', String(b === f)));
@@ -586,9 +678,23 @@
             event.preventDefault();
             cardMenu(flows.find(x => x.id === card.dataset.edFlow), event.clientX, event.clientY);
         });
-        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', core.debounce(event => { query = event.target.value; render(); }, 120));
+        const searchUpdate = core.debounce(event => { query = event.target.value; selectedFilter = ''; render(); }, 120);
+        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', searchUpdate);
+        bag.add(() => searchUpdate.cancel());
+        bag.listen(el.querySelector('[data-ed-library-filter]'), 'change', event => {
+            const saved = prefs.filters.find(item => item.id === event.target.value);
+            selectedFilter = saved ? saved.id : '';
+            if (!saved) return;
+            searchUpdate.cancel();
+            query = saved.query; filter = saved.filter; sortBy = saved.sort; favoritesOnly = saved.favorites;
+            el.querySelector('[data-ed-home-search]').value = query;
+            el.querySelector('[data-ed-home-sort]').value = sortBy;
+            el.querySelectorAll('[data-ed-filter]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.edFilter === filter)));
+            core.storage.set(FILTER_KEY, filter); render();
+        });
         bag.listen(el.querySelector('[data-ed-home-sort]'), 'change', (event) => {
             sortBy = event.target.value || 'updated';
+            selectedFilter = '';
             render();
         });
         bag.listen(el.querySelector('[data-ed-import-file]'), 'change', (event) => {
@@ -622,6 +728,16 @@
             if (d.reason === 'saved' || d.reason === 'run_finished') reloadSoon(); else reload();
         });
         bag.add(() => { loadSeq++; reloadSoon.cancel(); voice.cancel(); });
+        function refreshPreferences() {
+            if (volatilePrefs) return;
+            prefs = preferences(core.storage.get(LIBRARY_KEY, {}));
+            if (!prefs.filters.some(item => item.id === selectedFilter && item.query === query && item.filter === filter && item.sort === sortBy && item.favorites === favoritesOnly)) selectedFilter = '';
+            render();
+        }
+        bag.add(libraryChanges.on('change', owner => { if (owner !== el) refreshPreferences(); }));
+        bag.listen(window, 'storage', event => {
+            if (event.key === LIBRARY_KEY || event.key === null) refreshPreferences();
+        });
 
         render();
         reload();

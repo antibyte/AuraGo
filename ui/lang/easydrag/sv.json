@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Byt namn på scenario",
   "easydrag.ui.scenario_save": "Spara som nytt scenario",
   "easydrag.ui.scenario_stale": "Scenariot tillhör en äldre flödeskonfiguration. Starta ett nytt scenario med aktuella steg före simuleringen.",
-  "easydrag.ui.scenario_title": "Privata testscenarier"
+  "easydrag.ui.scenario_title": "Privata testscenarier",
+  "easydrag.ui.library_view": "Biblioteksvy",
+  "easydrag.ui.library_cards": "Kort",
+  "easydrag.ui.library_list": "Kompakt lista",
+  "easydrag.ui.library_local": "Vy, favoriter och sparade filter lagras på den här enheten. De ändrar inte dina flöden.",
+  "easydrag.ui.library_favorites": "Endast favoriter",
+  "easydrag.ui.library_favorite_add": "Lägg till ”{name}” som favorit på den här enheten",
+  "easydrag.ui.library_favorite_remove": "Ta bort ”{name}” från favoriter på den här enheten",
+  "easydrag.ui.library_saved_filters": "Sparade filter på den här enheten",
+  "easydrag.ui.library_current_filter": "Aktuellt filter",
+  "easydrag.ui.library_filter_save": "Spara aktuellt filter",
+  "easydrag.ui.library_filter_delete": "Ta bort sparat filter",
+  "easydrag.ui.library_filter_name_invalid": "Ange ett filternamn med högst 80 tecken.",
+  "easydrag.ui.library_preferences_limit": "Den här enheten kan lagra upp till 1 000 favoriter och 20 filter. Ta bort en oanvänd post innan du lägger till en ny.",
+  "easydrag.ui.library_preferences_unavailable": "Dessa val kunde inte sparas på enheten. De fungerar tills du stänger det här fönstret."
 }

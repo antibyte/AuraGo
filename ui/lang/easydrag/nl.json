@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Scenario hernoemen",
   "easydrag.ui.scenario_save": "Opslaan als nieuw scenario",
   "easydrag.ui.scenario_stale": "Dit scenario hoort bij een oudere flowconfiguratie. Start vóór de simulatie een nieuw scenario met de huidige stappen.",
-  "easydrag.ui.scenario_title": "Privétestscenario’s"
+  "easydrag.ui.scenario_title": "Privétestscenario’s",
+  "easydrag.ui.library_view": "Bibliotheekweergave",
+  "easydrag.ui.library_cards": "Kaarten",
+  "easydrag.ui.library_list": "Compacte lijst",
+  "easydrag.ui.library_local": "Weergave, favorieten en opgeslagen filters worden op dit apparaat bewaard. Ze wijzigen je flows niet.",
+  "easydrag.ui.library_favorites": "Alleen favorieten",
+  "easydrag.ui.library_favorite_add": "‘{name}’ toevoegen aan favorieten op dit apparaat",
+  "easydrag.ui.library_favorite_remove": "‘{name}’ verwijderen uit favorieten op dit apparaat",
+  "easydrag.ui.library_saved_filters": "Opgeslagen filters op dit apparaat",
+  "easydrag.ui.library_current_filter": "Huidig filter",
+  "easydrag.ui.library_filter_save": "Huidig filter opslaan",
+  "easydrag.ui.library_filter_delete": "Opgeslagen filter verwijderen",
+  "easydrag.ui.library_filter_name_invalid": "Voer een filternaam van maximaal 80 tekens in.",
+  "easydrag.ui.library_preferences_limit": "Dit apparaat kan maximaal 1.000 favorieten en 20 filters bewaren. Verwijder een ongebruikt item voordat je een nieuw item toevoegt.",
+  "easydrag.ui.library_preferences_unavailable": "Deze keuzes konden niet op dit apparaat worden opgeslagen. Ze blijven werken totdat je dit venster sluit."
 }

@@ -25,6 +25,18 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Der erste Flow
 
+Die Startseite bietet **Karten** und eine **Kompakte Liste** für dieselben Flows. Markiere
+einen Flow mit dem Stern als Favoriten und schalte **Nur Favoriten** ein, um die Liste
+einzugrenzen. Unter **Gespeicherte Filter auf diesem Gerät** speicherst Du die aktuelle
+Suche, den Statusfilter, die Sortierung und die Favoritenauswahl unter einem Namen.
+Die Auswahl dieses Namens stellt alles wieder her; Speichern unter demselben Namen
+aktualisiert den Filter. Beim Löschen eines gespeicherten Filters bleiben seine Flows
+erhalten. Du kannst bis zu 20 benannte Filter behalten. Diese Ansichten gehören zu
+diesem Browser auf diesem Gerät und werden nicht mit Flows exportiert. Verweigert der
+Browser das Speichern, sagt EasyDrag Dir Bescheid; die Auswahl gilt dann nur bis zum
+Schließen des Fensters. Andere offene EasyDrag-Fenster im selben Browser folgen der
+Änderung. Beim Löschen der Browserdaten gehen diese Einstellungen verloren.
+
 Für ein erstes Ergebnis ohne Konto wähle **Dein erstes lokales Ergebnis** in der
 Rezeptauswahl. Drei Schritte lesen einen Beispielnamen, bilden eine Begrüßung und prüfen,
 ob der Name vorhanden ist. Öffne nach dem Test die Ausgabe des Begrüßungsschritts.
@@ -45,7 +57,7 @@ und manuelles Bearbeiten nutzbar.
 2. Klicke **Auslöser wählen** und such dir einen Auslöser aus.
 3. Wähle den Auslöser aus und drücke **Strg+K**: Die Schnellsuche fügt den nächsten Schritt direkt dahinter ein und verbindet ihn. **Tab** verschiebt nur den Fokus. Du kannst auch **Hinzufügen** an der gewählten Karte nutzen oder Bausteine aus der Leiste links auf die Fläche oder auf eine Verbindung ziehen.
 4. Doppelklicke einen Schritt (oder drücke **Enter**), um ihn zu bearbeiten. Der Inspektor öffnet sich im Editor, nicht als Dialog. Er hat die Reiter Eingabe, Parameter und Ausgabe. Parameter hat drei Teile: *Werte*, *Einstellungen* und *Notiz*. Im Reiter Eingabe siehst Du die Daten früherer Schritte: aus dem letzten Test oder Lauf, oder als Beispiel. Ziehe einen Wert über den Reiter Parameter und dann in ein Feld, oder klicke ihn an, um ihn an der letzten Cursorposition einzufügen. Bezüge erscheinen als farbige Chips mit Schritt und Feld, etwa „Websuche › results“. Im Text stehen sie als `{{websuche.results}}`.
-5. **Testen** (Strg+Enter) speichert den Entwurf und führt ihn aus. Die Schritte leuchten nacheinander auf, an den Verbindungen steht die Anzahl der Einträge. Ein Test hat echte Auswirkungen; siehe [Testen](#testen).
+5. **Testen** (Strg+Enter) öffnet den Testdialog. Wähle **Simulation** mit Beispieldaten oder ausdrücklich einen **Echten Test**, der echte Auswirkungen haben kann. Vor der Ausführung wird der Entwurf gespeichert. Prüfe das Ergebnis und die durchlaufenen Schritte; siehe [Testen](#testen).
 6. **Veröffentlichen** prüft den Flow, zeigt, was er außerhalb von AuraGo tut, und schaltet ihn auf Wunsch gleich aktiv. Nur veröffentlichte Flows laufen selbstständig. Dein Entwurf bleibt bearbeitbar; die veröffentlichte Version läuft.
 
 ## Der Editor

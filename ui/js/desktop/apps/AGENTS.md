@@ -1319,7 +1319,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   technical metadata, excluding names, documents, payloads and message text. Verify
   `scripts/test-easydrag-compare.mjs` and the history journey.
 - Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
-  template filters mirror `internal/flows`. Template errors keep Go's English message (the parity
+  template filters mirror `internal/flows`. Empty-separator split counts Unicode code points
+  against its part limit; trim uses Go's whitespace set and preserves U+FEFF. Keep the matching
+  Go/JS boundary cases; remaining preview differences are documented beside the filter catalog.
+  Template errors keep Go's English message (the parity
   checks compare it) and carry `err.code` (`TPL_*`, `tplError`) with `err.params` ({name},
   {text}); the field preview shows `easydrag.ui.tpl_error_*` (`TPL_ERRORS` in
   `easydrag-forms.js`), an error without a known code the generic error, never the message. Every model command is one undo step. Pans and zooms
@@ -1423,6 +1426,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   document size recorded. Screen changes move the focus: leaving
   the run view to the canvas, the start page to New flow and then to the card of the flow just
   left (not for Mission Control's New flow or the templates link), the shell's error card to Retry.
+- Home's Cards and Compact list reuse the same flow identities and actions. Device-local
+  `aurago.easydrag.library` contains only view mode, favorite IDs (up to 1000) and named filters
+  (up to 20; name 80 characters, query 4000; status/sort/favorites). Never store graph, run or
+  sample payloads there. Normalize the preference allowlist, merge current storage before edits,
+  and report refused storage as window-only choices. A disposed home releases its module-local
+  change subscription; sibling windows share `core.emitter`, separate tabs follow `storage`.
+  List/session access loss hides these controls without rewriting their stored choices. Verify
+  `test-easydrag-library.mjs` and the library/phone paths in `TestDesktopEasyDragUXBrowser`.
 - Home has four list states. A successful list shows the cards. A later refresh failure keeps that
   list in memory only, shows the stale banner, and turns creates off until retry (`staleError`).
   An empty successful list offers templates, New and Import. The first load, `FLOWS_DISABLED`, or

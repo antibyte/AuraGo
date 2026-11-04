@@ -65,6 +65,14 @@ eq('default', T.evaluate('{{search.nope | default("x")}}', roots), 'x');
 eq('truncate', T.evaluate('{{trigger.data.name | truncate(2)}}', roots), 'We…');
 eq('strip_html', T.evaluate('{{trigger.data.html | strip_html}}', roots), 'Hi & bye');
 eq('round', T.applyFilter('round', 3.14159, [2]), 3.14);
+eq('split empty separator preserves Unicode code points', T.applyFilter('split', 'A😀é', ['']), ['A', '😀', 'é']);
+eq('split empty input matches Go', T.applyFilter('split', '', ['']), []);
+eq('trim uses Go whitespace without discarding BOM data', T.applyFilter('trim', '\u0085\u00a0x\u0085', []), 'x');
+eq('trim preserves BOM data', T.applyFilter('trim', '\uFEFFx\uFEFF', []), '\uFEFFx\uFEFF');
+eq('split counts code points against the limit', T.applyFilter('split', '😀'.repeat(100000), ['']).length, 100000);
+let splitLimit = false;
+try { T.applyFilter('split', '😀'.repeat(100001), ['']); } catch (err) { splitLimit = err.code === 'TPL_TOO_LARGE'; }
+check('split stops beyond the Unicode limit', splitLimit);
 eq('replace', T.applyFilter('replace', 'a-b-c', ['-', '+']), 'a+b+c');
 eq('date utc', T.evaluate('{{run.started_at | date("DD.MM.YYYY HH:mm", "UTC")}}', roots), '04.10.2026 07:30');
 eq('objects recurse', T.evaluate({ x: '{{search.count}}' }, roots), { x: 2 });

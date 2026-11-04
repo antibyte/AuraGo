@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Rename scenario",
   "easydrag.ui.scenario_save": "Save as a new scenario",
   "easydrag.ui.scenario_stale": "This scenario belongs to an older flow configuration. Start a fresh scenario with the current steps before simulating.",
-  "easydrag.ui.scenario_title": "Private test scenarios"
+  "easydrag.ui.scenario_title": "Private test scenarios",
+  "easydrag.ui.library_view": "Library view",
+  "easydrag.ui.library_cards": "Cards",
+  "easydrag.ui.library_list": "Compact list",
+  "easydrag.ui.library_local": "View choices, favorites and saved filters are stored on this device. They do not change your flows.",
+  "easydrag.ui.library_favorites": "Favorites only",
+  "easydrag.ui.library_favorite_add": "Add “{name}” to favorites on this device",
+  "easydrag.ui.library_favorite_remove": "Remove “{name}” from favorites on this device",
+  "easydrag.ui.library_saved_filters": "Saved filters on this device",
+  "easydrag.ui.library_current_filter": "Current filter",
+  "easydrag.ui.library_filter_save": "Save current filter",
+  "easydrag.ui.library_filter_delete": "Delete saved filter",
+  "easydrag.ui.library_filter_name_invalid": "Enter a filter name of up to 80 characters.",
+  "easydrag.ui.library_preferences_limit": "This device can keep up to 1,000 favorites and 20 saved filters. Remove an unused entry before adding another.",
+  "easydrag.ui.library_preferences_unavailable": "These choices could not be saved on this device. They will work until this window closes."
 }

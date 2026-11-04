@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Gi scenario nytt navn",
   "easydrag.ui.scenario_save": "Lagre som nytt scenario",
   "easydrag.ui.scenario_stale": "Scenarioet tilhører en eldre flytkonfigurasjon. Start et nytt scenario med gjeldende steg før simulering.",
-  "easydrag.ui.scenario_title": "Private testscenarioer"
+  "easydrag.ui.scenario_title": "Private testscenarioer",
+  "easydrag.ui.library_view": "Bibliotekvisning",
+  "easydrag.ui.library_cards": "Kort",
+  "easydrag.ui.library_list": "Kompakt liste",
+  "easydrag.ui.library_local": "Visning, favoritter og lagrede filtre lagres på denne enheten. De endrer ikke flytene dine.",
+  "easydrag.ui.library_favorites": "Bare favoritter",
+  "easydrag.ui.library_favorite_add": "Legg til «{name}» i favoritter på denne enheten",
+  "easydrag.ui.library_favorite_remove": "Fjern «{name}» fra favoritter på denne enheten",
+  "easydrag.ui.library_saved_filters": "Lagrede filtre på denne enheten",
+  "easydrag.ui.library_current_filter": "Gjeldende filter",
+  "easydrag.ui.library_filter_save": "Lagre gjeldende filter",
+  "easydrag.ui.library_filter_delete": "Slett lagret filter",
+  "easydrag.ui.library_filter_name_invalid": "Skriv inn et filternavn på opptil 80 tegn.",
+  "easydrag.ui.library_preferences_limit": "Denne enheten kan lagre opptil 1 000 favoritter og 20 filtre. Fjern en ubrukt oppføring før du legger til en ny.",
+  "easydrag.ui.library_preferences_unavailable": "Disse valgene kunne ikke lagres på enheten. De virker til du lukker dette vinduet."
 }

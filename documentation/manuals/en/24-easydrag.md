@@ -25,6 +25,16 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## Your First Flow
 
+The start page offers **Cards** and a **Compact list** for the same flows. Use the star
+on a flow to mark it as a favorite, then choose **Favorites only** to narrow the list.
+Under **Saved filters on this device**, save the current search, status filter, sort
+order and favorites selection with a name. Selecting that name restores those choices;
+saving the same name updates the filter. Deleting a saved filter leaves its flows intact.
+You can keep up to 20 named filters. These preferences belong to this browser on this
+device and are excluded from flow exports. If the browser refuses storage, EasyDrag
+tells you and keeps the choices only until the window closes. Other open EasyDrag windows
+in the same browser follow the change. Clearing browser storage removes these preferences.
+
 For a first result without an account, choose **Your first local result** in the recipe
 gallery. Its three steps read a sample name, make a greeting and check that the name
 is present. Open the greeting step's output after testing. Recipe search and category
@@ -44,7 +54,7 @@ when the provider is unavailable.
 2. Click **Choose a trigger** and pick one.
 3. Select the trigger and press **Ctrl+K**: quick search adds the next step right behind it and connects it. **Tab** only moves focus. You can also use **Add** on the selected card, or drag building blocks from the left panel onto the canvas or onto a connection.
 4. Double-click a step (or press **Enter**) to edit it. The inspector opens in the editor, not as a dialog. It has Input, Parameters and Output tabs. Parameters has three parts: *Values*, *Settings* and *Note*. The Input tab shows data from earlier steps: from the last test or run, or as an example. Drag a value over the Parameters tab and then into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
-5. **Test** (Ctrl+Enter) saves the draft and runs it. Steps light up one after another, and connections show how many items passed. A test has real effects; see [Testing](#testing).
+5. **Test** (Ctrl+Enter) opens the test dialog. Choose **Simulation** with sample outputs or an explicitly selected **Real test**, which can have real effects. The draft is saved before execution. Inspect the result and the steps it followed; see [Testing](#testing).
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
 
 ## The Editor

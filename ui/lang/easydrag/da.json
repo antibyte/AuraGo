@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Omdøb scenarie",
   "easydrag.ui.scenario_save": "Gem som nyt scenarie",
   "easydrag.ui.scenario_stale": "Scenariet tilhører en ældre flowkonfiguration. Start et nyt scenarie med de aktuelle trin før simulering.",
-  "easydrag.ui.scenario_title": "Private testscenarier"
+  "easydrag.ui.scenario_title": "Private testscenarier",
+  "easydrag.ui.library_view": "Biblioteksvisning",
+  "easydrag.ui.library_cards": "Kort",
+  "easydrag.ui.library_list": "Kompakt liste",
+  "easydrag.ui.library_local": "Visning, favoritter og gemte filtre lagres på denne enhed. De ændrer ikke dine flows.",
+  "easydrag.ui.library_favorites": "Kun favoritter",
+  "easydrag.ui.library_favorite_add": "Føj “{name}” til favoritter på denne enhed",
+  "easydrag.ui.library_favorite_remove": "Fjern “{name}” fra favoritter på denne enhed",
+  "easydrag.ui.library_saved_filters": "Gemte filtre på denne enhed",
+  "easydrag.ui.library_current_filter": "Aktuelt filter",
+  "easydrag.ui.library_filter_save": "Gem aktuelt filter",
+  "easydrag.ui.library_filter_delete": "Slet gemt filter",
+  "easydrag.ui.library_filter_name_invalid": "Indtast et filternavn på højst 80 tegn.",
+  "easydrag.ui.library_preferences_limit": "Denne enhed kan gemme op til 1.000 favoritter og 20 filtre. Fjern en ubrugt post, før du tilføjer en ny.",
+  "easydrag.ui.library_preferences_unavailable": "Disse valg kunne ikke gemmes på enheden. De virker, indtil du lukker dette vindue."
 }

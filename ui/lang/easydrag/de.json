@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Szenario umbenennen",
   "easydrag.ui.scenario_save": "Als neues Szenario speichern",
   "easydrag.ui.scenario_stale": "Dieses Szenario gehört zu einer älteren Flow-Konfiguration. Beginne vor der Simulation ein neues Szenario mit den aktuellen Schritten.",
-  "easydrag.ui.scenario_title": "Private Testszenarien"
+  "easydrag.ui.scenario_title": "Private Testszenarien",
+  "easydrag.ui.library_view": "Bibliotheksansicht",
+  "easydrag.ui.library_cards": "Karten",
+  "easydrag.ui.library_list": "Kompakte Liste",
+  "easydrag.ui.library_local": "Ansicht, Favoriten und gespeicherte Filter bleiben auf diesem Gerät. Deine Flows werden dadurch nicht geändert.",
+  "easydrag.ui.library_favorites": "Nur Favoriten",
+  "easydrag.ui.library_favorite_add": "„{name}“ auf diesem Gerät zu den Favoriten hinzufügen",
+  "easydrag.ui.library_favorite_remove": "„{name}“ auf diesem Gerät aus den Favoriten entfernen",
+  "easydrag.ui.library_saved_filters": "Gespeicherte Filter auf diesem Gerät",
+  "easydrag.ui.library_current_filter": "Aktueller Filter",
+  "easydrag.ui.library_filter_save": "Aktuellen Filter speichern",
+  "easydrag.ui.library_filter_delete": "Gespeicherten Filter löschen",
+  "easydrag.ui.library_filter_name_invalid": "Gib einen Filternamen mit höchstens 80 Zeichen ein.",
+  "easydrag.ui.library_preferences_limit": "Dieses Gerät kann bis zu 1.000 Favoriten und 20 Filter speichern. Entferne einen ungenutzten Eintrag, bevor Du einen weiteren hinzufügst.",
+  "easydrag.ui.library_preferences_unavailable": "Diese Auswahl konnte auf diesem Gerät nicht gespeichert werden. Sie gilt bis zum Schließen dieses Fensters."
 }

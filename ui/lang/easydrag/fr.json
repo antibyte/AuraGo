@@ -1058,5 +1058,19 @@
   "easydrag.ui.scenario_rename": "Renommer le scénario",
   "easydrag.ui.scenario_save": "Enregistrer comme nouveau scénario",
   "easydrag.ui.scenario_stale": "Ce scénario correspond à une ancienne configuration du flux. Crée un nouveau scénario avec les étapes actuelles avant la simulation.",
-  "easydrag.ui.scenario_title": "Scénarios de test privés"
+  "easydrag.ui.scenario_title": "Scénarios de test privés",
+  "easydrag.ui.library_view": "Affichage de la bibliothèque",
+  "easydrag.ui.library_cards": "Cartes",
+  "easydrag.ui.library_list": "Liste compacte",
+  "easydrag.ui.library_local": "L’affichage, les favoris et les filtres enregistrés sont conservés sur cet appareil. Ils ne modifient pas tes flux.",
+  "easydrag.ui.library_favorites": "Favoris uniquement",
+  "easydrag.ui.library_favorite_add": "Ajouter « {name} » aux favoris de cet appareil",
+  "easydrag.ui.library_favorite_remove": "Retirer « {name} » des favoris de cet appareil",
+  "easydrag.ui.library_saved_filters": "Filtres enregistrés sur cet appareil",
+  "easydrag.ui.library_current_filter": "Filtre actuel",
+  "easydrag.ui.library_filter_save": "Enregistrer le filtre actuel",
+  "easydrag.ui.library_filter_delete": "Supprimer le filtre enregistré",
+  "easydrag.ui.library_filter_name_invalid": "Saisis un nom de filtre de 80 caractères maximum.",
+  "easydrag.ui.library_preferences_limit": "Cet appareil peut conserver jusqu’à 1 000 favoris et 20 filtres. Supprime une entrée inutilisée avant d’en ajouter une autre.",
+  "easydrag.ui.library_preferences_unavailable": "Ces choix n’ont pas pu être enregistrés sur cet appareil. Ils resteront actifs jusqu’à la fermeture de cette fenêtre."
 }
