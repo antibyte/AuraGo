@@ -37,6 +37,7 @@ func TestExtractBoundsAndCancellation(t *testing.T) {
 		{"declared xref size", bytes.Replace(valid, []byte("/Size 5"), []byte("/Size 9223372036854775807"), 1), ErrLimit},
 		{"predictor allocation", pdftest.Document("1", compressed(""), "/Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 9223372036854775807 >>"), ErrLimit},
 		{"compressed stream limit", pdftest.Document("1", compressed(strings.Repeat(" ", (16<<20)+1)), "/Filter /FlateDecode"), ErrLimit},
+		{"empty filter stream limit", pdftest.Document("1", bytes.Repeat([]byte(" "), (16<<20)+1), "/Filter []"), ErrLimit},
 		{"text limit", pdftest.Document("1", compressed("BT ("+strings.Repeat("a", (8<<20)+1)+") Tj ET"), "/Filter /FlateDecode"), ErrLimit},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

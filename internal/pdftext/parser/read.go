@@ -917,7 +917,7 @@ func (v Value) Reader() io.ReadCloser {
 		}
 	}
 
-	if filter.Kind() == Null {
+	if filter.Kind() == Null || filter.Kind() == Array && filter.Len() == 0 {
 		rd = &boundedStream{reader: rd, safety: safety}
 	}
 	return io.NopCloser(rd)

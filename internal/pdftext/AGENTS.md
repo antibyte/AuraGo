@@ -21,6 +21,7 @@ Shared pure-Go PDF parsing for the indexer, PDF tool and PDF export verification
   predictor columns, default omitted columns to one and retain no-prediction mode.
   Recheck shared byte allowances and cancellation after nested decoder reads;
   exhaustion must retain `ErrLimit`, never become a generic parse error.
+  Empty filter arrays use the same bound as unfiltered streams.
 - Context checks reach tokenization, indirect references and page traversal.
   Check document-controlled sizes before allocation. Limit and cancellation
   errors are terminal; never publish partial text or send a fallback request.
