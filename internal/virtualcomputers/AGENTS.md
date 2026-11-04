@@ -14,6 +14,10 @@ Workspace leases, managed Garage storage, desktop images and guest browser lifec
 - `virtual_computers.allow_internet` is the parent gate for manual machine launches. The New computer dialog offers Internet and Offline only when the gate is enabled, defaults to Internet in that case, and sends the explicit per-machine `allow_internet` choice. The server rejects a direct internet-enabled launch while the gate is off; existing offline machines are not silently reconfigured.
 
 ### Guest browser lifecycle
+- Guest structured file writes and parent creation use one `os.Root` handle.
+  Final and swapped parent symlinks cannot redirect writes outside `/workspace`;
+  a preflight `EvalSymlinks` alone is insufficient. Verify Linux
+  `TestWorkspaceWritesStayRooted` and `TestWorkspaceWriteParentSwapCannotEscape`.
 - `guest_workspace_agent/module.txt` and `sum.txt` are the independent module inputs installed on the KVM build host. Refresh both during dependency updates and build the standalone agent for Linux amd64 and arm64; root-module tests alone do not check these pins.
 - The managed browser belongs to its session, not the opening RPC deadline. Session close is idempotent and asks Chrome to shut down gracefully with a five-second deadline, then forces process cleanup before removing the profile. Skip the non-idempotent Chrome cancellation when its context or connection has already ended (including a closed desktop window). Startup cancellation still aborts allocation immediately.
 - A healthy boringd `/healthz` does not establish Agent Workspace compatibility. With auto-setup and agent control enabled, startup probes the verified install marker plus the running workspace protocol and asset fingerprint asynchronously. Only an incompatible result schedules the full install/repair; compatible restarts skip it. Existing retry and credential gates still apply.

@@ -1283,7 +1283,20 @@ func writeWorkspaceFile(relative, encoded string, appendMode bool) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
+	root, err := os.OpenRoot(workspaceRoot)
+	if err != nil {
+		return fmt.Errorf("open workspace root: %w", err)
+	}
+	defer root.Close()
+	name, err := filepath.Rel(workspaceRoot, resolved)
+	if err != nil {
+		return err
+	}
+	return writeWorkspaceData(root, name, data, appendMode)
+}
+
+func writeWorkspaceData(root *os.Root, name string, data []byte, appendMode bool) error {
+	if err := root.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 		return fmt.Errorf("create workspace directory: %w", err)
 	}
 	flags := os.O_CREATE | os.O_WRONLY
@@ -1292,7 +1305,7 @@ func writeWorkspaceFile(relative, encoded string, appendMode bool) error {
 	} else {
 		flags |= os.O_TRUNC
 	}
-	file, err := os.OpenFile(resolved, flags, 0o600)
+	file, err := root.OpenFile(name, flags, 0o600)
 	if err != nil {
 		return fmt.Errorf("open workspace file for write: %w", err)
 	}

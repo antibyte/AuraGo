@@ -16,6 +16,11 @@ AuraGo then provisions the reviewed upstream revision automatically at server st
 
 When Agent Workspaces and auto-setup are enabled, startup also checks the verified install marker and running workspace protocol and asset fingerprint. A healthy `boringd` with stale workspace assets schedules the full Install/Repair path under the existing retry and sudo-credential gates; a compatible installation is left running.
 
+Structured guest file writes and appends stay rooted in `/workspace`, including
+when a final or parent symlink changes during the operation. This protection is
+part of the guest fingerprint: apply Install/Repair and start a new VM to use it;
+an already running VM keeps its previous guest binary.
+
 Install and Repair manage two components as one deployment:
 
 - `boringd`, the private control plane on `127.0.0.1:18082`
