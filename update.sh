@@ -1900,6 +1900,17 @@ download_release_asset() {
     verify_release_asset "$asset" "$dest"
 }
 
+refresh_update_script() (
+    local staged
+    staged="$(mktemp "$DIR/.aurago-update.sh.XXXXXX")" || return 1
+    trap 'rm -f -- "$staged"' EXIT
+    trap 'exit 1' HUP INT TERM
+    download_release_asset "update.sh" "$staged" || return 1
+    chmod 755 "$staged" || return 1
+    [ ! -L "$DIR/update.sh" ] && [ ! -d "$DIR/update.sh" ] || return 1
+    mv -f -- "$staged" "$DIR/update.sh"
+)
+
 _download_release_bin() {
     local name="$1"
     local dest="${2:-$DIR/bin/$name}"
@@ -3302,8 +3313,7 @@ if $BINARY_ONLY; then
         cp "$TMPEXT/config.yaml" "$DIR/config.yaml.new_template"
     fi
 
-    if download_release_asset "update.sh" "$DIR/update.sh"; then
-        chmod +x "$DIR/update.sh"
+    if refresh_update_script; then
         ok "update.sh refreshed"
     else
         warn "Could not refresh update.sh from verified release asset."

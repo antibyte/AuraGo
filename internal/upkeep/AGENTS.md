@@ -55,6 +55,10 @@ The updater owns transaction manifests; this package verifies them before collec
   Builders still sign and verify the finished manifest before publication;
   `AURAGO_ALLOW_UNSIGNED_RELEASES=1` only controls explicit legacy publication.
   See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
+- Updater self-refresh downloads into a private same-filesystem temporary file,
+  verifies the signed manifest's asset checksum and sets executable permissions
+  before atomic replacement. Failure or interruption preserves the installed
+  script; never download directly over it. Verify `TestUpdaterSelfRefresh*`.
 - `repair-update.sh` migrates blocked old script copies under the existing update
   lock. Verify the manifest and updater before atomic replacement; preserve config,
   master keys, binaries and running services. Save the old script privately. An

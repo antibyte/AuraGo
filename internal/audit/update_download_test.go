@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -34,6 +35,46 @@ func runUpdateScript(t *testing.T, script string) (string, error) {
 	cmd.Stdin = strings.NewReader("set -euo pipefail\n" + script)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+func TestUpdaterSelfRefreshPublishesOnlyVerifiedScript(t *testing.T) {
+	helper := updateScriptSpan(t, "refresh_update_script() (", "\n_download_release_bin() {")
+	for _, outcome := range []string{"valid", "truncated", "checksum", "chmod", "rename", "interrupted"} {
+		t.Run(outcome, func(t *testing.T) {
+			executableCheck, modeCheck := `[ -x "$DIR/update.sh" ]`, `[ "$(stat -c %a "$DIR/update.sh" 2>/dev/null || stat -f %Lp "$DIR/update.sh")" = 700 ]`
+			if runtime.GOOS == "windows" {
+				executableCheck, modeCheck = ":", ":"
+			}
+			script := `
+DIR="$(mktemp -d)"
+trap 'rm -rf -- "$DIR"' EXIT
+printf 'previous updater\n' > "$DIR/update.sh"
+chmod 700 "$DIR/update.sh"
+download_release_asset() {
+    [ "$2" != "$DIR/update.sh" ] || exit 91
+    printf 'new updater\n' > "$2"
+    if [ "$outcome" = interrupted ]; then kill -TERM "$BASHPID"; return 1; fi
+    [ "$outcome" != truncated ] && [ "$outcome" != checksum ]
+}
+chmod() { [ "$outcome" != chmod ] && command chmod "$@"; }
+mv() { [ "$outcome" != rename ] && command mv "$@"; }
+` + fmt.Sprintf("\noutcome=%s\n", outcome) + helper + `
+if refresh_update_script; then
+    [ "$outcome" = valid ]
+    [ "$(cat "$DIR/update.sh")" = 'new updater' ]
+    ` + executableCheck + `
+else
+    [ "$outcome" != valid ]
+    [ "$(cat "$DIR/update.sh")" = 'previous updater' ]
+    ` + modeCheck + `
+fi
+[ "$(find "$DIR" -name '.aurago-update.sh.*' | wc -l)" -eq 0 ]
+`
+			if output, err := runUpdateScript(t, script); err != nil {
+				t.Fatalf("self-refresh %s: %v\n%s", outcome, err, output)
+			}
+		})
+	}
 }
 
 func TestUpdaterRetriesTransientDownloads(t *testing.T) {
