@@ -21,6 +21,7 @@ type MQTTMessage struct {
 	Timestamp        string `json:"timestamp"`
 	PayloadBytes     int    `json:"payload_bytes,omitempty"`
 	PayloadTruncated bool   `json:"payload_truncated,omitempty"`
+	PayloadBinary    bool   `json:"payload_binary,omitempty"`
 }
 
 // MQTTUnsubscribeOwner identifies a non-manual owner that keeps a topic

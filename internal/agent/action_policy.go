@@ -74,6 +74,8 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	}
 	a.Mutating = !readActionOperation(a.Operation)
 	switch tc.Action {
+	case "mqtt_publish", "mqtt_subscribe", "mqtt_unsubscribe":
+		a.Mutating, a.HighRisk = true, true
 	case "qr_code":
 		a.Mutating = a.Operation != "presets" && a.Operation != "scan"
 	case "ecalc":
@@ -299,6 +301,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		return actionPolicyRefusal("policy_unavailable", "Execution policy is unavailable.", ToolResultDenied)
 	}
 	a := DescribeAction(tc, dc)
+	if refusal := checkMQTTRelayAction(tc, dc, a); refusal != nil {
+		return refusal
+	}
 	if a.Mutating && strings.Contains(tc.Action, "config") {
 		payload, _ := json.Marshal(tc)
 		if strings.Contains(strings.ToLower(string(payload)), "action_policy") || strings.Contains(strings.ToLower(string(payload)), "injection_guard") {

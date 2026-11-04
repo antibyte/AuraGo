@@ -66,6 +66,10 @@ func TestMQTTConfigRejectsBeforeWritingCredentialsOrFile(t *testing.T) {
 	for _, patch := range []string{
 		`{"mqtt":{"topics":"home/#"}}`,
 		`{"mqtt":{"qos":"1"}}`,
+		`{"mqtt":{"relay_topics":["#"],"password":"new-fixture-credential"}}`,
+		`{"mqtt":{"relay_grants":[{"tool":"mqtt_publish","operation":"publish","target":"*"}],"password":"new-fixture-credential"}}`,
+		`{"mqtt":{"relay_grants":[{"tool":"home_assistant","operation":"call_service","target":"ha:all/light.turn_on"}],"password":"new-fixture-credential"}}`,
+		`{"mqtt":{"buffer":{"max_bytes":-1},"password":"new-fixture-credential"}}`,
 		`{"mqtt":{"enabled":true,"tls":{"enabled":true},"password":"new-fixture-credential"}}`,
 		`{"mqtt":{"enabled":true,"broker":"mqtts://localhost:8883","tls":{"ca_file":"nonexistent-audit-ca.pem"},"password":"new-fixture-credential"}}`,
 	} {
@@ -86,6 +90,46 @@ func TestMQTTConfigRejectsBeforeWritingCredentialsOrFile(t *testing.T) {
 				t.Fatalf("missing field context: %s", rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestMQTTConfigRelayPermissionsAndByteLimitRoundTrip(t *testing.T) {
+	s := newMQTTConfigTestServer(t)
+	for _, clear := range []bool{false, true} {
+		before := s.ConfigSnapshot()
+		oldGrants := append([]config.ActionPolicyRule(nil), before.MQTT.RelayGrants...)
+		topics := []string{"home/+/state", "frigate/events"}
+		grants := []config.ActionPolicyRule{{Tool: "mqtt_publish", Operation: "publish", Target: "mqtt:home/light/set"}}
+		if clear {
+			topics, grants = []string{}, []config.ActionPolicyRule{}
+		}
+		body, _ := json.Marshal(map[string]any{"mqtt": map[string]any{
+			"relay_topics": topics, "relay_grants": grants, "buffer": map[string]any{"max_bytes": 2 << 20},
+		}})
+		rec := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(string(body))))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("save permissions: %d %s", rec.Code, rec.Body.String())
+		}
+		loaded, err := config.Load(before.ConfigPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(loaded.MQTT.RelayTopics, topics) || !reflect.DeepEqual(loaded.MQTT.RelayGrants, grants) || loaded.MQTT.Buffer.MaxBytes != 2<<20 {
+			t.Fatal("relay permissions or byte limit did not survive YAML reload")
+		}
+		if !reflect.DeepEqual(before.MQTT.RelayGrants, oldGrants) || clear && len(s.ConfigSnapshot().MQTT.RelayGrants) != 0 {
+			t.Fatal("save mutated a published snapshot or retained a cleared action grant")
+		}
+		rec = httptest.NewRecorder()
+		handleMQTTStatus(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/mqtt/status", nil))
+		var status struct {
+			MaxBytes int    `json:"max_buffer_bytes"`
+			Pause    string `json:"relay_pause_reason"`
+		}
+		if json.Unmarshal(rec.Body.Bytes(), &status) != nil || rec.Code != http.StatusOK || status.MaxBytes != 2<<20 || status.Pause != "disabled" {
+			t.Fatalf("MQTT status lost safe migration diagnostics: %s", rec.Body.String())
+		}
 	}
 }
 

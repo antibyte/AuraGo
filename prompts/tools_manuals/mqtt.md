@@ -60,11 +60,13 @@ mqtt:
   enabled: true
   broker: "tcp://localhost:1883"  # Or "mqtts://" for TLS
   username: ""  # Optional
-  password: ""  # Optional (stored in vault as mqtt_password)
   client_id: "aurago"  # MQTT client identifier
   topics: []  # topics to subscribe to on connect
   qos: 0  # Quality of Service: 0, 1, or 2
-  relay_to_agent: false  # forward incoming messages to agent
+  relay_to_agent: false  # only explicitly selected topics may trigger relays
+  relay_topics: []
+  relay_grants: []  # operator-managed tool/operation/target grants
+  allow_untrusted_transport: false
   allow_unauthenticated_relay: false  # anonymous agent triggers require explicit opt-in, including after upgrades
   connect_timeout: 15  # connection timeout in seconds
   tls:
@@ -76,6 +78,8 @@ mqtt:
   buffer:
     max_messages: 500  # max messages to buffer (0 = use default)
     max_age_hours: 0  # max age of messages before cleanup (0 = disabled)
+    max_payload_bytes: 262144
+    max_bytes: 16777216
 ```
 
 ## Notes
@@ -84,10 +88,12 @@ mqtt:
 - **Wildcards**: `+` matches one level (e.g. `home/+/light`), `#` matches all remaining (e.g. `home/#`).
 - **QoS levels**: 0 = fire-and-forget, 1 = at least once, 2 = exactly once.
 - **Retained messages**: Useful for sensor state (e.g. last temperature reading).
-- **Message buffer**: Messages are buffered for retrieval via `mqtt_get_messages`.
+- **Message buffer**: `mqtt_get_messages` supports exact topics and MQTT filters. Empty returns all topics; `#` does not include `$` system topics. Text is bounded; binary payloads expose length metadata only (`payload_binary`, `payload_bytes`), never raw bytes.
 - **Ownership**: Configured, Frigate and enabled MQTT mission filters subscribe automatically. Identical filters use the highest requested QoS. Manual unsubscribe preserves these owners and reports when the broker filter remains active.
 - **Confirmation**: Subscribe success requires an explicit broker SUBACK grant. Failed desired filters remain visible and retry on reconnect or a relevant settings change.
 - **Persistent sessions**: With `clean_session: false`, confirmed manual subscriptions survive server restarts through the broker/client subscription ledger.
 - **Read-only**: `mqtt.readonly` blocks publishing and manual subscription changes while keeping configured reception active.
 - **Live settings**: Saved MQTT settings and Vault credentials apply without restarting the server. Connection tests always use the saved snapshot.
-- **Agent triggers**: Generic/Frigate relays and MQTT missions require the live broker authentication/transport gate. Missing or null `allow_unauthenticated_relay` stays false; explicit true permits anonymous triggers and remains effective after upgrades. Refused or quarantined mission messages do not consume the trigger interval.
+- **Agent triggers**: Broker credentials (username and resolved password, or TLS client certificate/key pair) and trusted TLS are required. Anonymous and untrusted-transport exceptions are independent and never granted automatically during upgrades. MQTT/Frigate relays additionally need explicit incoming topics and exact action grants; empty lists pause them. The agent cannot grant itself rights or widen the event's tool scope. MQTT publication is a high-risk external send and must never include registered secrets.
+- **Relay limits**: Ten admitted jobs per rolling minute, a 60-second queue lifetime, a 120-second relay runtime and at most four tool calls. Quarantine does not start a model run. MQTT missions use complete text through 64 KiB and refuse larger or binary input without consuming the trigger interval.
+- **Administration**: Configure relay rights through the operator UI/API. See `documentation/mqtt.md` for grant targets and safe upgrade steps. Broker ACLs must restrict publishers independently from AuraGo's own broker login.

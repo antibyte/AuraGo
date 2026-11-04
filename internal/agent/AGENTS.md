@@ -10,6 +10,16 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- MQTT/Frigate relays have server-owned ingress topics and non-nil native/skill
+  scopes. `mqtt_relay_policy.go` checks exact tool/operation/target grants and
+  ingress filters against both captured and current authorization snapshots,
+  independently of `agent.action_policy.enabled`. Respect live read-only,
+  Home Assistant service policy and destination/credential replacement. MQTT
+  mutations have canonical operations/targets; publish and HA service calls
+  retain registered-secret egress protection. Relay accounting uses category
+  `mqtt`, which is blocked by exhausted partial budgets. See `../mqtt/AGENTS.md`;
+  verify `TestMQTTRelay*` and `TestAgentLoopChecksDailyBudgetByRunCategory`.
+
 - Co-agent model operations are scoped to the trusted initiating session; foreign IDs are indistinguishable from missing IDs. Dashboard administration and process shutdown remain global. Register local and A2A workers atomically with queue admission. Cancellation/completion keeps the slot until `WorkerDone`; terminal `Shutdown` rejects starts, marks queued/running work cancelled before cancelling the registry context, and joins workers before dependencies close. Cleanup must retain active workers and its stop must be concurrently idempotent. Verify `TestCoAgent*`.
 
 - Seven optional `kaggle_*` tools use the shared server-owned Kaggle/notebook services. Keep feature flags/cache keys, German/English discovery, semantic mutation classification and manuals aligned. All returned descriptions, forums, logs and cell events use external-content protection. Local output is polled through `kaggle_runtime.events` with cursor/revision/cell/execution identity; never replay code after reconnect. See `../kaggle/AGENTS.md` and `../notebooks/AGENTS.md`.

@@ -46,53 +46,65 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   changes only. Persist atomically per broker/client identity; never store
   credentials or payloads. Restore confirmed manual owners, reconcile managed
   owners from current configuration and reject traffic outside desired filters.
-- Mission dispatch uses one worker and at most 256 waiting jobs. Drop new work
-  on overload and recheck registration/generation before execution; dropped or
-  stale jobs never consume a trigger interval. A delivery refused by the
-  relay gate does not consume the interval; the claim is after admit and
-  before the mission callback.
-- MQTT and Frigate relays use separate internal autonomous sessions, exclude
-  global chat history and suppress derived conversation, memory, personality
-  and planner-reminder effects. Keep explicit authorized tools and operational
-  issue recording available. Relay registration is synchronized and delivery
-  uses the controller's cancellable context and bounded queue.
-- The relay sink (`newMQTTRelayHandler`, `internal/server/mqtt_relay.go`) scans
-  what the model would read, the topic and the payload cut to the prompt limit
-  (`mqttRelayText`), with the server Guardian's `ScanForInjectionLocal`,
-  after the debounce limiter and whatever `llm_guardian` says. At `ThreatHigh`
-  (an incomplete scan reads High) the delivery is dropped and the same
-  autonomous run receives only `security.QuarantineNotice` with a sha256
-  reference of the message (`mqttRelayQuarantineNotice`: no topic, no
-  payload), the webhook pattern. Anything below High keeps the isolated prompt.
-  MQTT mission triggers pass the same local scan in the adapter's `admit`
-  (`missionMQTTAdapter.admitDelivery`, `internal/server/mission_adapters.go`,
-  after the relay gate and before the interval claim) over the topic and the
-  whole payload (`mqttMissionTriggerText`: the mission path does not cut the
-  payload as the relay prompt does, so nothing unscanned reaches the trigger
-  data). At `ThreatHigh` the trigger is dropped and logged, the mission does not
-  start and the delivery does not consume the interval. Verify
+- Receive callbacks only validate, store and enqueue; never perform network or
+  agent work there. Paho uses serial routing so a broker flood cannot spawn an
+  unbounded goroutine per message before the application queues.
+- Retained strings own their bounded allocation. The observation buffer enforces
+  message count, age and `max_bytes` (default 16 MiB) across topics and payloads;
+  clear removed backing-slice entries. UTF-8 truncation is linear. Invalid UTF-8
+  or NUL payloads retain metadata (`payload_binary`, original `payload_bytes`)
+  only and never trigger agent work. Buffer retrieval uses the shared MQTT
+  filter matcher, including the reserved `$` namespace rule.
+- Generic and Frigate relays require explicit `mqtt.relay_topics` and
+  `mqtt.relay_grants`; empty lists pause them without changing broker ownership.
+  Relay filters must start with a literal level. Grants reuse
+  `config.ActionPolicyRule` with concrete tool, operation and target; reject
+  global wildcards and unsupported tools. MQTT missions retain their own filters
+  and trusted mission instructions instead of inheriting generic relay grants.
+- One controller admits at most ten relay/mission jobs per rolling minute,
+  counting mission fan-out separately. Admission precedes queues and survives
+  generation replacement. Relay topics debounce for two seconds at reception.
+  Keep one relay worker (100 waiting messages) and one mission worker (256 jobs).
+  Drop new work on overload; expire waiting jobs after 60 seconds and recheck
+  registration/generation at execution. Expose drop causes and rate-limit logs.
+- Mission payloads are independent from observation-buffer truncation: match,
+  scan and deliver the same complete text through 64 KiB; reject larger or
+  binary input. Gate and scan before the trigger-interval claim. Refused,
+  quarantined, stale and queue-dropped jobs do not consume that interval.
+- MQTT and Frigate use their own autonomous sessions without global chat history
+  or automatic memory, personality and planner effects. Restrict native tools
+  to configured grants and pass an explicit empty Agent Skills scope. Each
+  relay runs for at most 120 seconds and four tool calls, respecting a lower
+  configured tool limit. Charge category `mqtt` so exhausted partial budgets
+  stop these runs before a model request.
+- The relay sink scans the topic and `mqttRelayText` (16 KiB payload plus a
+  fixed truncation marker) locally regardless of the LLM Guardian toggle.
+  `ThreatHigh` or an incomplete scan starts no model run. Count it and record a
+  fixed `prompt_security` operational issue keyed per source, with a digest and
+  no raw topic/payload. MQTT mission admission likewise scans its whole bounded
+  text and drops High/incomplete content without claiming an interval. Verify
   `TestMQTTRelayHandlerQuarantinesInjectedBrokerMessages` and
   `TestMissionMQTTAdapterDropsInjectedBrokerMessages`.
-- Generic and Frigate relays and MQTT mission triggers start agent runs only
-  through the server's `mqttRelayAuthorized` gate. Normally both broker login
-  (`config.MQTTBrokerAuthenticated`) and trusted TLS
-  (`config.MQTTRelayTransportTrusted`) are required. `mqtt.allow_untrusted_transport`
-  relaxes transport trust only for an authenticated broker;
-  `mqtt.allow_unauthenticated_relay` explicitly permits anonymous agent triggers.
-  The gate reads the live snapshot per delivery; refusals log once. The Frigate prefix must be a literal MQTT topic; otherwise
-  there is no subscription and no agent run, while config load still accepts the
-  file and `frigate_mqtt_prefix` warns. Missing or null
-  `mqtt.allow_unauthenticated_relay` stays false in both `config.Load` and
-  config-merger, including mission-only configurations. Explicit true/false
-  values survive upgrades; a previously materialized true cannot be distinguished
-  from an operator opt-in. `mqtt_relay_no_auth` reports an open anonymous gate as
-  critical. `config.Load` and
-  config-merger also grandfather a missing `mqtt.allow_untrusted_transport`.
-  `mqtt_relay_untrusted_transport` is critical whenever the gate is open over
-  plaintext or skipped certificate verification, including when
-  `allow_unauthenticated_relay` is the switch that opens it despite a broker
-  login. The warning for a closed gate says AuraGo does not start agent runs
-  and does not say an observer can start them.
+- `config.MQTTAgentRunsAuthorized` is the shared queue/server gate. Broker login
+  requires username plus the resolved password, or a client certificate/key pair
+  over TLS. Anonymous permission and untrusted-transport permission are independent;
+  neither bypasses the other. Missing/null values stay false in Load and
+  config-merger, including upgrades. Never materialize a transport grandfather.
+  A client login does not identify publishers; broker ACLs must restrict them.
+- Every MQTT/Frigate tool dispatch rechecks exact grants and its server-owned
+  ingress topic against captured and live authorization snapshots, even with
+  the general action policy disabled. Preserve stricter run scopes, read-only
+  gates, HA service rules and registered-secret egress refusal. Supported actions
+  are MQTT read/publish/subscribe/unsubscribe, HA entity reads/services and owner
+  notifications. Bind MQTT targets to exact topics/filters, HA writes to every
+  explicit entity and service, and notifications to one configured channel.
+  Reject broad HA selectors, unresolved targets, code, MCP and delegation.
+  Revocation never widens an existing run; connection/credential replacement
+  must not keep using a captured HA/notification destination.
+- Frigate prefixes remain literal MQTT topics. Invalid prefixes create neither
+  subscriptions nor runs; the loader accepts the file and security hints explain
+  the refusal. Status keeps connection/subscription diagnostics and adds pause
+  reasons, actual buffer bytes, queue lengths and distinct drop counters.
 - Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at
   startup, reload and agent dispatch. MQTT bridge/CYD gates resolve the live
   server snapshot independently of earlier agent turns; dispatch also retains

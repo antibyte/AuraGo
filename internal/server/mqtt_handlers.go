@@ -58,6 +58,10 @@ func handleMQTTStatus(s *Server) http.HandlerFunc {
 			"max_buffer":              cfg.MQTT.Buffer.MaxMessages,
 			"max_age_hours":           cfg.MQTT.Buffer.MaxAgeHours,
 			"max_payload_bytes":       cfg.MQTT.Buffer.MaxPayloadBytes,
+			"max_buffer_bytes":        cfg.MQTT.Buffer.MaxBytes,
+			"buffer_bytes":            mqtt.BufferBytes(),
+			"relay_pause_reason":      config.MQTTRelayPauseReason(cfg),
+			"relay_enabled":           cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg),
 			"tls_enabled":             runtime.EffectiveTLS,
 			"stats":                   mqttSanitizedStats(),
 		}

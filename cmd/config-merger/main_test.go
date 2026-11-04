@@ -592,20 +592,20 @@ func TestApplyUpgradeGrandfathersRequiresExplicitUnauthenticatedMQTTRelayPermiss
 		want        bool
 		wantChanged bool
 	}{
-		{"anonymous relay, key absent", map[string]interface{}{"enabled": true, "relay_to_agent": true}, false, true},
-		{"anonymous broker without relay flag, key absent", map[string]interface{}{"enabled": true}, false, true},
-		{"enabled spelled on, key absent", map[string]interface{}{"enabled": "on"}, false, true},
-		{"username, key absent", map[string]interface{}{"enabled": true, "username": "iot"}, false, true},
-		{"numeric username, key absent", map[string]interface{}{"enabled": true, "username": 1234}, false, true},
-		{"blank username, key absent", map[string]interface{}{"enabled": true, "username": "  "}, false, true},
-		{"client certificate without broker URL, key absent", map[string]interface{}{"enabled": true, "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
-		{"client certificate over tcp, key absent", map[string]interface{}{"enabled": true, "broker": "tcp://broker.lan:1883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
-		{"client certificate over ssl, key absent", map[string]interface{}{"enabled": true, "broker": "ssl://broker.lan:8883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
-		{"client certificate over mqtts with tls.enabled yes, key absent", map[string]interface{}{"enabled": true, "broker": "mqtts://broker.lan:8883", "tls": map[string]interface{}{"enabled": "yes", "cert_file": "client.crt"}}, false, true},
-		{"mqtt disabled, key absent", map[string]interface{}{"enabled": false, "relay_to_agent": true}, false, true},
+		{"anonymous relay, key absent", map[string]interface{}{"enabled": true, "relay_to_agent": true}, false, false},
+		{"anonymous broker without relay flag, key absent", map[string]interface{}{"enabled": true}, false, false},
+		{"enabled spelled on, key absent", map[string]interface{}{"enabled": "on"}, false, false},
+		{"username, key absent", map[string]interface{}{"enabled": true, "username": "iot"}, false, false},
+		{"numeric username, key absent", map[string]interface{}{"enabled": true, "username": 1234}, false, false},
+		{"blank username, key absent", map[string]interface{}{"enabled": true, "username": "  "}, false, false},
+		{"client certificate without broker URL, key absent", map[string]interface{}{"enabled": true, "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, false},
+		{"client certificate over tcp, key absent", map[string]interface{}{"enabled": true, "broker": "tcp://broker.lan:1883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, false},
+		{"client certificate over ssl, key absent", map[string]interface{}{"enabled": true, "broker": "ssl://broker.lan:8883", "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, false},
+		{"client certificate over mqtts with tls.enabled yes, key absent", map[string]interface{}{"enabled": true, "broker": "mqtts://broker.lan:8883", "tls": map[string]interface{}{"enabled": "yes", "cert_file": "client.crt"}}, false, false},
+		{"mqtt disabled, key absent", map[string]interface{}{"enabled": false, "relay_to_agent": true}, false, false},
 		{"key written false", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": false, "allow_untrusted_transport": false}, false, false},
 		{"key written true", map[string]interface{}{"enabled": true, "username": "iot", "allow_unauthenticated_relay": true, "allow_untrusted_transport": true}, true, false},
-		{"no mqtt section", nil, false, true},
+		{"no mqtt section", nil, false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -672,7 +672,7 @@ func TestRepositoryTemplateMergeRequiresExplicitAnonymousMQTTRelay(t *testing.T)
 
 // A missing allow_untrusted_transport is filled with the same value config.Load
 // grandfathers. A written value, including false, stays.
-func TestRepositoryTemplateMergeWritesUntrustedMQTTTransportGrandfather(t *testing.T) {
+func TestRepositoryTemplateMergeRequiresExplicitUntrustedMQTTTransport(t *testing.T) {
 	tmplData, _ := repositoryTemplate(t)
 	const auth = "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtt://broker.lan:1883\n"
 	cases := []struct {
@@ -680,13 +680,13 @@ func TestRepositoryTemplateMergeWritesUntrustedMQTTTransportGrandfather(t *testi
 		user string
 		want bool
 	}{
-		{"username on mqtt, key absent", auth, true},
-		{"username on tcp, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: tcp://broker.lan:1883\n", true},
-		{"key null", auth + "    allow_untrusted_transport:\n", true},
+		{"username on mqtt, key absent", auth, false},
+		{"username on tcp, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: tcp://broker.lan:1883\n", false},
+		{"key null", auth + "    allow_untrusted_transport:\n", false},
 		{"key false", auth + "    allow_untrusted_transport: false\n", false},
 		{"key true on mqtts", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n    allow_untrusted_transport: true\n", true},
 		{"mqtts without skip, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n", false},
-		{"insecure_skip_verify yes, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n    tls:\n        insecure_skip_verify: yes\n", true},
+		{"insecure_skip_verify yes, key absent", "mqtt:\n    enabled: true\n    username: iot\n    broker: mqtts://broker.lan:8883\n    tls:\n        insecure_skip_verify: yes\n", false},
 		{"anonymous mqtt, key absent", "mqtt:\n    enabled: true\n    broker: mqtt://broker.lan:1883\n", false},
 		{"mqtt disabled, key absent", "mqtt:\n    enabled: false\n    username: iot\n    broker: mqtt://broker.lan:1883\n", false},
 		{"fresh install from template", tmplData, false},

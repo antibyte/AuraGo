@@ -1,5 +1,64 @@
 let _mqttSection = null;
 
+const mqttRelayActions = [
+    { tool: 'mqtt_get_messages', operation: 'read', target: 'tool:mqtt_get_messages', label: 'read' },
+    { tool: 'mqtt_publish', operation: 'publish', target: 'mqtt:home/light/set', label: 'publish' },
+    { tool: 'mqtt_subscribe', operation: 'subscribe', target: 'mqtt_filter:home/+/state', label: 'subscribe' },
+    { tool: 'mqtt_unsubscribe', operation: 'unsubscribe', target: 'mqtt_filter:home/+/state', label: 'unsubscribe' },
+    { tool: 'home_assistant', operation: 'get_state', target: 'ha:light.desk', label: 'ha_read' },
+    { tool: 'home_assistant', operation: 'call_service', target: 'ha:light.desk/light.turn_on', label: 'ha_control' },
+    { tool: 'send_notification', operation: 'execute', target: 'notification:push', label: 'notify' }
+];
+
+function mqttRelayGrantHTML(grant) {
+    const selected = `${grant.tool}|${grant.operation}`;
+    const action = mqttRelayActions.find(item => `${item.tool}|${item.operation}` === selected) || mqttRelayActions[0];
+    return `<div class="field-group" data-mqtt-relay-grant data-original="${escapeAttr(JSON.stringify(grant))}">
+        <div class="field-grid two-cols">
+            <label><span class="field-label">${t('config.mqtt.grant_action')}</span>
+                <select class="field-select" data-mqtt-grant-action onchange="mqttChangeGrant(this)">
+                    ${mqttRelayActions.map(item => `<option value="${item.tool}|${item.operation}"${`${item.tool}|${item.operation}` === selected ? ' selected' : ''}>${t('config.mqtt.action_' + item.label)}</option>`).join('')}
+                </select>
+            </label>
+            <label><span class="field-label">${t('config.mqtt.grant_target')}</span>
+                <input class="field-input" data-mqtt-grant-target value="${escapeAttr(grant.target || '')}" placeholder="${escapeAttr(action.target)}" oninput="mqttCollectGrants()">
+            </label>
+        </div>
+        ${grant.arguments_hash ? `<div class="field-help">SHA-256: ${escapeHtml(grant.arguments_hash)}</div>` : ''}
+        <button type="button" class="btn btn-sm btn-secondary" onclick="mqttRemoveGrant(this)">${t('config.mqtt.grant_remove')}</button>
+    </div>`;
+}
+
+function mqttCollectGrants() {
+    const store = document.getElementById('mqtt-relay-grants-value');
+    if (!store) return;
+    const grants = Array.from(document.querySelectorAll('[data-mqtt-relay-grant]')).map(row => {
+        const [tool, operation] = row.querySelector('[data-mqtt-grant-action]').value.split('|');
+        return { ...JSON.parse(row.dataset.original || '{}'), tool, operation, target: row.querySelector('[data-mqtt-grant-target]').value };
+    });
+    store.value = JSON.stringify(grants);
+    store.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function mqttAddGrant() {
+    const grant = { tool: 'mqtt_get_messages', operation: 'read', target: 'tool:mqtt_get_messages' };
+    document.getElementById('mqtt-relay-grants-list').insertAdjacentHTML('beforeend', mqttRelayGrantHTML(grant));
+    mqttCollectGrants();
+}
+
+function mqttRemoveGrant(button) {
+    button.closest('[data-mqtt-relay-grant]').remove();
+    mqttCollectGrants();
+}
+
+function mqttChangeGrant(select) {
+    const action = mqttRelayActions.find(item => `${item.tool}|${item.operation}` === select.value);
+    const input = select.closest('[data-mqtt-relay-grant]').querySelector('[data-mqtt-grant-target]');
+    input.placeholder = action.target;
+    input.value = action.tool === 'mqtt_get_messages' ? action.target : '';
+    mqttCollectGrants();
+}
+
 async function renderMQTTSection(section) {
     if (section) _mqttSection = section; else section = _mqttSection;
     const data = configData['mqtt'] || {};
@@ -92,6 +151,23 @@ async function renderMQTTSection(section) {
     </div>`;
 
     // Relay without broker login (relays and MQTT mission triggers)
+    const relayGrants = Array.isArray(data.relay_grants) ? data.relay_grants : [];
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.relay_topics_label')}</div>
+        <div class="field-help">${t('config.mqtt.relay_topics_help')}</div>
+        <input class="field-input" type="text" data-type="array" data-path="mqtt.relay_topics" value="${escapeAttr((data.relay_topics || []).join(', '))}" placeholder="home/door, frigate/events">
+    </div>
+    <div class="field-group">
+        <div class="field-label">${t('config.mqtt.relay_grants_label')}</div>
+        <div class="field-help">${t('config.mqtt.relay_grants_help')}</div>
+        <input type="hidden" id="mqtt-relay-grants-value" data-path="mqtt.relay_grants" data-type="json" value="${escapeAttr(JSON.stringify(relayGrants))}">
+        <div id="mqtt-relay-grants-list">${relayGrants.map(mqttRelayGrantHTML).join('')}</div>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="mqttAddGrant()">${t('config.mqtt.grant_add')}</button>
+    </div>
+    <div class="field-help">${t('config.mqtt.relay_limits_help')}</div>
+    <div id="mqtt-relay-status" class="field-help" role="status" aria-live="polite"></div>
+    <div id="mqtt-relay-metrics" class="field-help" role="status" aria-live="polite"></div>`;
+
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.allow_unauthenticated_relay_label')}</div>
         <div class="field-help">${t('help.mqtt.allow_unauthenticated_relay')}</div>
@@ -208,6 +284,12 @@ async function renderMQTTSection(section) {
     </div>`;
 
     // Availability / LWT Section
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.buffer_max_bytes_label')}</div>
+        <div class="field-help">${t('config.mqtt.buffer_max_bytes_help')}</div>
+        <input class="field-input" type="number" min="1048576" max="268435456" data-type="number" data-path="mqtt.buffer.max_bytes" value="${escapeAttr(String(buf.max_bytes || 16777216))}" placeholder="16777216">
+    </div>`;
+
     html += `<hr class="cfg-section-hr">`;
     html += `<div class="cfg-section-title">${cfgIcon('wifi')}<span>${t('config.mqtt.availability_title')}</span></div>`;
 
@@ -315,6 +397,18 @@ function mqttCheckStatus() {
     const banner = document.getElementById('mqtt-status-banner');
     if (!banner) return;
     return cfgStatusBanner.check(banner, () => fetch('/api/mqtt/status'), res => {
+        if (!res) return { state: 'error', detail: t('config.mqtt.status_error') };
+        const relayStatus = document.getElementById('mqtt-relay-status');
+        if (relayStatus) {
+            relayStatus.textContent = res.relay_enabled
+                ? t(res.relay_pause_reason ? 'config.mqtt.pause_' + res.relay_pause_reason : 'config.mqtt.relay_ready') : '';
+        }
+        const relayMetrics = document.getElementById('mqtt-relay-metrics');
+        if (relayMetrics) {
+            const stats = res.stats || {};
+            const runtime = res.runtime || {};
+            relayMetrics.textContent = `${t('config.mqtt.buffer_title')}: ${Number(res.buffer_bytes || 0)} B · ${t('config.mqtt.queue_label')}: ${Number(runtime.relay_queue_length || 0)}/${Number(runtime.mission_queue_length || 0)} · ${t('config.mqtt.dropped_label')}: ${Number(stats.dropped_relay_messages || 0)}/${Number(stats.dropped_mission_jobs || 0)} · ${t('config.mqtt.quarantined_label')}: ${Number(stats.quarantined_messages || 0)}`;
+        }
         if (!res || !res.status || res.status === 'disabled') return { state: 'off' };
         if (res.status === 'no_broker') return { state: 'unconfigured', detail: t('config.mqtt.status_no_broker') };
         const stateInfo = res.connection_state ? ` · ${res.connection_state}` : '';
@@ -366,7 +460,9 @@ function mqttRefreshMessages() {
                 const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
                 const topic = escapeHtml(m.topic || '');
                 const truncated = m.payload_truncated ? ` ${t('config.mqtt.payload_truncated')}` : '';
-                const payload = escapeHtml(typeof m.payload === 'string' ? m.payload : JSON.stringify(m.payload));
+                const payload = m.payload_binary
+                    ? `${t('config.mqtt.binary_payload')} (${Number(m.payload_bytes || 0)} B)`
+                    : escapeHtml(typeof m.payload === 'string' ? m.payload : JSON.stringify(m.payload));
                 return `<div class="cfg-message-item">
                     <span class="cfg-message-time">${time}</span>
                     <span class="cfg-message-topic">${topic}</span>

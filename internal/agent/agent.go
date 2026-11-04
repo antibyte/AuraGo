@@ -1188,6 +1188,7 @@ type RunConfig struct {
 	WorkspaceSearch    *services.WorkspaceSearchService
 	SideEffects        *AsyncTaskGroup
 	SessionID          string
+	MQTTRelayTopic     string // server-owned ingress topic for live relay revocation
 	// UserIntent is the immutable human-authored request for this turn. Entry
 	// points should set it explicitly; direct callers retain the compatibility
 	// fallback to the last initial user message.

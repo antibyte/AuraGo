@@ -284,6 +284,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		Guardian:             s.guardian,
 		LLMGuardian:          s.llmGuardian,
 		SessionID:            s.runCfg.SessionID,
+		MQTTRelayTopic:       s.runCfg.MQTTRelayTopic,
 		MissionID:            s.runCfg.MissionID,
 		CoAgentRegistry:      s.runCfg.CoAgentRegistry,
 		IsCoAgent:            s.runCfg.IsCoAgent,
@@ -419,6 +420,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	budgetCategory := "chat"
 	if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 		budgetCategory = "coagent"
+	} else if runCfg.MessageSource == "mqtt" || runCfg.MessageSource == "frigate" {
+		budgetCategory = "mqtt"
 	}
 	isAutonomousRun := isAutonomousAgentRun(runCfg, sessionID)
 	sideEffects := sideEffectsFromRunConfig(runCfg)

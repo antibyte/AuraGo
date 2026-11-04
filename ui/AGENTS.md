@@ -21,6 +21,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- MQTT configuration uses explicit `relay_topics` and typed `relay_grants` rows
+  with action dropdowns and concrete targets. Missing permissions pause relays;
+  show the saved pause reason, queue/drop diagnostics and binary metadata.
+  Preserve optional grant hashes when editing rows. Keep all sixteen MQTT and
+  help locale tables aligned. Verify `TestMQTTConfig*`; runtime contracts belong
+  to `../internal/mqtt/AGENTS.md`.
+
 - Incoming webhook replay protection uses a default-off boolean checkbox in
   `cfg/webhooks.js`. Save/reopen preserves the saved boolean and rejects enabling
   without SHA256, its header and a stored/new secret. All sixteen webhook locale

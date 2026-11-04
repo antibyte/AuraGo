@@ -1,12 +1,14 @@
 package mqtt
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
@@ -229,23 +231,39 @@ func messageHandler(clientRef pahomqtt.Client, msg pahomqtt.Message) {
 }
 
 func makeMQTTMessage(msg pahomqtt.Message) tools.MQTTMessage {
-	return tools.MQTTMessage{
-		Topic:     msg.Topic(),
-		Payload:   string(msg.Payload()),
-		QoS:       int(msg.Qos()),
-		Retained:  msg.Retained(),
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	payload := msg.Payload()
+	m := tools.MQTTMessage{
+		Topic:        strings.Clone(msg.Topic()),
+		QoS:          int(msg.Qos()),
+		Retained:     msg.Retained(),
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		PayloadBytes: len(payload),
 	}
+	m.PayloadBinary = !utf8.Valid(payload) || bytes.IndexByte(payload, 0) >= 0
+	if m.PayloadBinary {
+		return m
+	}
+	end := min(len(payload), max(buffer.currentMaxPayloadBytes(), MissionPayloadLimit))
+	for end > 0 && end < len(payload) && !utf8.RuneStart(payload[end]) {
+		end--
+	}
+	m.Payload = string(payload[:end])
+	m.PayloadTruncated = end < len(payload)
+	return m
 }
 
 func storeMQTTMessage(m tools.MQTTMessage) tools.MQTTMessage {
 	m = buffer.Add(m)
 	atomic.AddUint64(&stats.receivedMessages, 1)
 	if m.PayloadTruncated {
+		atomic.AddUint64(&stats.truncatedPayloadMessages, 1)
+	}
+	if m.PayloadBinary {
 		atomic.AddUint64(&stats.droppedPayloadMessages, 1)
+		atomic.AddUint64(&stats.binaryPayloadMessages, 1)
 	}
 	if logger != nil {
-		logger.Debug("[MQTT] Message received", "topic", m.Topic, "payload_len", len(m.Payload))
+		logger.Debug("[MQTT] Message received", "payload_bytes", m.PayloadBytes, "payload_binary", m.PayloadBinary)
 	}
 	return m
 }
@@ -348,6 +366,11 @@ func BufferLen() int {
 	return buffer.Len()
 }
 
+// BufferBytes reports actual retained topic and payload bytes.
+func BufferBytes() int {
+	return buffer.Bytes()
+}
+
 // GetMessages returns buffered MQTT messages, optionally filtered by topic.
 func GetMessages(topic string, limit int) []tools.MQTTMessage {
 	return buffer.Get(topic, limit)
@@ -356,30 +379,7 @@ func GetMessages(topic string, limit int) []tools.MQTTMessage {
 // topicMatches checks if an MQTT topic matches a filter pattern
 // supporting + (single level) and # (multi level) wildcards.
 func topicMatches(filter, topic string) bool {
-	if strings.HasPrefix(topic, "$") {
-		first := strings.SplitN(filter, "/", 2)[0]
-		if first == "#" || first == "+" {
-			return false
-		}
-	}
-	if filter == "#" {
-		return true
-	}
-	filterParts := strings.Split(filter, "/")
-	topicParts := strings.Split(topic, "/")
-
-	for i, fp := range filterParts {
-		if fp == "#" {
-			return true // # matches everything remaining
-		}
-		if i >= len(topicParts) {
-			return false
-		}
-		if fp != "+" && fp != topicParts[i] {
-			return false
-		}
-	}
-	return len(filterParts) == len(topicParts)
+	return config.MQTTTopicMatches(filter, topic)
 }
 
 func setActiveConfig(cfg *config.Config) {

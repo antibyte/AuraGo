@@ -81,6 +81,7 @@ type DispatchContext struct {
 	Guardian             *security.Guardian
 	LLMGuardian          *security.LLMGuardian
 	SessionID            string
+	MQTTRelayTopic       string
 	MissionID            string
 	FlowID               string
 	RunID                string

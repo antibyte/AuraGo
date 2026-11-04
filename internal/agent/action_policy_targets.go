@@ -22,6 +22,16 @@ func immutableDockerContainerID(value string) bool {
 }
 
 func canonicalPolicyOperation(tool, operation string) string {
+	switch tool {
+	case "mqtt_publish":
+		return "publish"
+	case "mqtt_subscribe":
+		return "subscribe"
+	case "mqtt_unsubscribe":
+		return "unsubscribe"
+	case "mqtt_get_messages":
+		return "read"
+	}
 	if tool == "docker" {
 		switch operation {
 		case "ps":
@@ -130,6 +140,16 @@ func canonicalActionTargets(tc ToolCall, dc *DispatchContext) ([]string, bool) {
 		add("server_id", selector)
 	}
 	switch tc.Action {
+	case "mqtt_publish":
+		topic := decodeMQTTArgs(tc).Topic
+		targets = append(targets, "mqtt:"+topic)
+		unknown = topic == ""
+	case "mqtt_subscribe", "mqtt_unsubscribe":
+		filter := decodeMQTTArgs(tc).Topic
+		targets = append(targets, "mqtt_filter:"+filter)
+		unknown = filter == ""
+	case "mqtt_get_messages":
+		add("tool", "mqtt_get_messages")
 	case "qr_code":
 		qrRef := func(root, value string) {
 			if value == "" {

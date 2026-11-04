@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -59,6 +60,9 @@ func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadC
 // allow_unauthenticated_relay, or allow_untrusted_transport) against the live
 // config, then the local injection scan.
 func (a *missionMQTTAdapter) admitDelivery(topic, payload string) bool {
+	if len(payload) > mqtt.MissionPayloadLimit || !utf8.ValidString(payload) || strings.IndexByte(payload, 0) >= 0 {
+		return false
+	}
 	var cfg *config.Config
 	if a.config != nil {
 		cfg = a.config()
@@ -90,8 +94,9 @@ func (a *missionMQTTAdapter) passesInjectionScan(topic, payload string) bool {
 	if scan.Level < security.ThreatHigh {
 		return true
 	}
+	mqtt.RecordQuarantinedMessage()
 	if a.logger != nil {
-		a.logger.Warn("[MQTT] Mission trigger dropped after prompt-injection scan", "topic", topic, "level", scan.Level.String(), "patterns", scan.Patterns)
+		a.logger.Warn("[MQTT] Mission trigger dropped after prompt-injection scan", "level", scan.Level.String())
 	}
 	return false
 }

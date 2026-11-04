@@ -60,20 +60,16 @@ func MQTTRelayTransportTrusted(cfg *Config) bool {
 	return err == nil && tlsOn && !cfg.MQTT.TLS.InsecureSkipVerify
 }
 
-// MQTTBrokerAuthenticated reports whether AuraGo logs in to the broker with a
-// username or a client certificate over TLS, the signs that the broker
-// authenticates its publishers. The client presents its certificate only when
-// the broker URL selects TLS (MQTTEffectiveTLS); on a plaintext URL it
-// connects anonymously. Without either login, broker traffic that starts
-// agent runs needs mqtt.allow_unauthenticated_relay.
+// MQTTBrokerAuthenticated reports configured client credentials, not publisher identity.
+// Broker ACLs must independently restrict who may publish to agent-triggering topics.
 func MQTTBrokerAuthenticated(cfg *Config) bool {
 	if cfg == nil {
 		return false
 	}
-	if strings.TrimSpace(cfg.MQTT.Username) != "" {
+	if strings.TrimSpace(cfg.MQTT.Username) != "" && cfg.MQTT.Password != "" {
 		return true
 	}
-	if strings.TrimSpace(cfg.MQTT.TLS.CertFile) == "" {
+	if strings.TrimSpace(cfg.MQTT.TLS.CertFile) == "" || strings.TrimSpace(cfg.MQTT.TLS.KeyFile) == "" {
 		return false
 	}
 	tlsOn, err := MQTTEffectiveTLS(cfg)
@@ -134,6 +130,9 @@ func ValidateMQTTConfig(cfg *Config) error {
 	if m.Buffer.MaxPayloadBytes != 0 && (m.Buffer.MaxPayloadBytes < 1024 || m.Buffer.MaxPayloadBytes > 10*1024*1024) {
 		return fmt.Errorf("mqtt.buffer.max_payload_bytes must be 0 or between 1024 and 10485760")
 	}
+	if m.Buffer.MaxBytes != 0 && (m.Buffer.MaxBytes < 1<<20 || m.Buffer.MaxBytes > 256<<20) {
+		return fmt.Errorf("mqtt.buffer.max_bytes must be 0 or between 1048576 and 268435456")
+	}
 	if m.Availability.QoS < 0 || m.Availability.QoS > 2 {
 		return fmt.Errorf("mqtt.availability.qos must be between 0 and 2")
 	}
@@ -146,6 +145,18 @@ func ValidateMQTTConfig(cfg *Config) error {
 		if err := validateMQTTTopicFilter(topic); err != nil {
 			return fmt.Errorf("mqtt.topics[%d]: %w", i, err)
 		}
+	}
+	for i, topic := range m.RelayTopics {
+		if err := validateMQTTTopicFilter(topic); err != nil {
+			return fmt.Errorf("mqtt.relay_topics[%d]: %w", i, err)
+		}
+		first, _, _ := strings.Cut(topic, "/")
+		if first == "" || strings.ContainsAny(first, "+#") {
+			return fmt.Errorf("mqtt.relay_topics[%d] requires a literal first topic level", i)
+		}
+	}
+	if err := ValidateMQTTRelayGrants(m.RelayGrants); err != nil {
+		return fmt.Errorf("mqtt.relay_grants: %w", err)
 	}
 	return nil
 }
@@ -190,10 +201,12 @@ func validateMQTTPatchField(key string, raw interface{}) error {
 		if _, ok := raw.(string); !ok {
 			return fmt.Errorf("must be a string")
 		}
-	case "topics":
+	case "topics", "relay_topics":
 		if err := validateMQTTPatchTopics(raw); err != nil {
 			return err
 		}
+	case "relay_grants":
+		return validateMQTTPatchGrants(raw)
 	case "qos":
 		return validateMQTTPatchInt(raw, 0, 2)
 	case "connect_timeout":
@@ -217,6 +230,7 @@ func validateMQTTPatchField(key string, raw interface{}) error {
 			"max_messages":      "max_messages",
 			"max_age_hours":     "max_age_hours",
 			"max_payload_bytes": "max_payload_bytes",
+			"max_bytes":         "max_bytes",
 		})
 	case "availability":
 		return validateMQTTPatchObject(raw, map[string]string{
@@ -295,6 +309,14 @@ func validateMQTTPatchObject(raw interface{}, types map[string]string) error {
 		case "max_payload_bytes":
 			if err := validateMQTTPatchPayloadBytes(value); err != nil {
 				return fmt.Errorf("%s: %w", key, err)
+			}
+		case "max_bytes":
+			if err := validateMQTTPatchInt(value, 0, 256<<20); err != nil {
+				return fmt.Errorf("%s: %w", key, err)
+			}
+			amount, _ := mqttPatchIntValue(value)
+			if amount != 0 && amount < 1<<20 {
+				return fmt.Errorf("%s must be 0 or at least 1048576", key)
 			}
 		}
 	}

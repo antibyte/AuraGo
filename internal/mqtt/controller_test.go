@@ -187,8 +187,8 @@ func TestMQTTControllerInitialStartConfiguresBufferLimits(t *testing.T) {
 		_, _ = io.Copy(io.Discard, conn) // hold the connection without CONNACK
 	}()
 
-	buffer.Configure(0, 0, 0)
-	t.Cleanup(func() { buffer.Configure(0, 0, 0) })
+	buffer.Configure(0, 0, 0, 0)
+	t.Cleanup(func() { buffer.Configure(0, 0, 0, 0) })
 	controller := NewMQTTController(mqttTestLogger())
 	cfg := &config.Config{}
 	cfg.MQTT.Enabled = true
@@ -264,6 +264,7 @@ func TestMQTTControllerRelayHandlerDoesNotBlockIncomingCallbacks(t *testing.T) {
 	cfg.MQTT.Enabled = true
 	cfg.MQTT.RelayToAgent = true
 	cfg.MQTT.Topics = []string{"#"}
+	enableMQTTRelayForTest(cfg)
 	controller.current = gen
 	controller.active = cloneMQTTSnapshot(cfg)
 	started := make(chan struct{})
@@ -351,6 +352,7 @@ func newRelayQueueProbe(t *testing.T, relayToAgent bool) relayQueueProbe {
 	}
 	cfg := &config.Config{}
 	cfg.MQTT.RelayToAgent = relayToAgent
+	enableMQTTRelayForTest(cfg)
 	cfg.Frigate.Enabled = true
 	cfg.Frigate.MQTTTopicPrefix = "frigate"
 	cfg.Frigate.EventRelay = true

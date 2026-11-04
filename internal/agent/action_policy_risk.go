@@ -351,7 +351,7 @@ func textEntropy(text string) float64 {
 // (fetchTargetsFromArguments), so a tool added later is covered without being listed.
 func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 	switch a.Tool {
-	case "api_request", "call_webhook", "telnyx_sms",
+	case "api_request", "call_webhook", "telnyx_sms", "mqtt_publish",
 		"send_email", "send_telegram", "send_whatsapp", "send_discord", "send_rocketchat", "send_push", "send_push_notification",
 		"send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video",
 		"dns_lookup", "network_ping", "port_scanner", "whois_lookup",
@@ -360,6 +360,8 @@ func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 		return true
 	case "agentmail", "agentmail_messages", "agentmail_drafts":
 		return a.HighRisk // Only the sending operations are high-risk here.
+	case "home_assistant":
+		return a.Operation == "call_service" || a.Operation == "service"
 	}
 	return len(fetchTargetsFromArguments(a.Tool, args)) > 0
 }

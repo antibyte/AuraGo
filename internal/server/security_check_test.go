@@ -665,8 +665,8 @@ func TestCheckSecurityMQTTRelayNoAuthCriticalWhenAnonymousRelayAllowed(t *testin
 				t.Fatalf("mqtt_relay_no_auth must stay a manual hint, got %#v", hint)
 			}
 			for _, want := range []string{
-				"Set a broker username/password or a client certificate over TLS; allow_unauthenticated_relay: true accepts that any LAN host can start agent runs.",
-				"MQTT-triggered missions",
+				"username/password pair", "client certificate/key pair over TLS",
+				"Configure complete broker credentials", "set allow_unauthenticated_relay to false", "MQTT missions",
 			} {
 				if !strings.Contains(hint.Description, want) {
 					t.Fatalf("description must mention %q: %s", want, hint.Description)
@@ -698,7 +698,7 @@ func TestCheckSecurityMQTTRelayNoAuthWarnsWhenRelayRefused(t *testing.T) {
 			if hint.Severity != SevWarning {
 				t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
 			}
-			for _, want := range []string{"does not start agent runs", "mqtt.allow_unauthenticated_relay is false", "client certificate over TLS"} {
+			for _, want := range []string{"does not start agent runs", "mqtt.allow_unauthenticated_relay is false", "mqtt.tls.cert_file", "mqtt.tls.key_file"} {
 				if !strings.Contains(hint.Description, want) {
 					t.Fatalf("description must mention %q: %s", want, hint.Description)
 				}
@@ -750,6 +750,7 @@ func TestCheckSecurityMQTTRelayNoAuthAbsentWhenAuthenticatedOrIdle(t *testing.T)
 		"username": func() *config.Config {
 			cfg := anonymousMQTTBrokerConfig()
 			cfg.MQTT.RelayToAgent, cfg.MQTT.AllowUnauthenticatedRelay, cfg.MQTT.Username = true, true, "iot"
+			cfg.MQTT.Password = "fixture-password"
 			return cfg
 		}(),
 		"client certificate over ssl": func() *config.Config {
@@ -777,115 +778,62 @@ func TestCheckSecurityMQTTRelayNoAuthAbsentWhenAuthenticatedOrIdle(t *testing.T)
 func TestCheckSecurityUntrustedMQTTTransport(t *testing.T) {
 	const old = "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  relay_to_agent: true\n"
 	cfg := loadSecurityConfig(t, old)
-	if !cfg.MQTT.AllowUntrustedTransport {
-		t.Fatal("missing allow_untrusted_transport must load true")
+	if cfg.MQTT.AllowUntrustedTransport || mqttRelayAuthorized(cfg) {
+		t.Fatal("upgrade silently opened the transport gate")
 	}
-	if !mqttRelayAuthorized(cfg) {
-		t.Fatal("grandfathered untrusted transport must authorize the relay")
-	}
+	cfg.MQTT.Password = "fixture-resolved-secret"
 	hint := findSecurityHint(CheckSecurity(cfg), "mqtt_relay_untrusted_transport")
-	if hint == nil {
-		t.Fatal("expected mqtt_relay_untrusted_transport")
-	}
-	if hint.Severity != SevCritical {
-		t.Fatalf("severity = %q, want %q", hint.Severity, SevCritical)
+	if hint == nil || hint.Severity != SevWarning {
+		t.Fatalf("closed transport hint = %#v", hint)
 	}
 	assertUntrustedTransportHint(t, hint, cfg.MQTT.Broker)
-	if findSecurityHint(CheckSecurity(cfg), "mqtt_relay_password_missing") == nil {
-		t.Fatal("empty resolved password on an open gate must warn")
+	cfg.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("explicit authenticated transport permission was refused")
 	}
-
-	closed := loadSecurityConfig(t, old+"  allow_untrusted_transport: false\n")
-	if closed.MQTT.AllowUntrustedTransport || mqttRelayAuthorized(closed) {
-		t.Fatal("explicit false must load false and close the gate")
-	}
-	hint = findSecurityHint(CheckSecurity(closed), "mqtt_relay_untrusted_transport")
-	if hint == nil || hint.Severity != SevWarning {
-		t.Fatalf("closed relay hint = %#v, want warning", hint)
-	}
-	assertUntrustedTransportHint(t, hint, closed.MQTT.Broker)
-	if hasSecurityHint(CheckSecurity(closed), "mqtt_relay_password_missing") {
-		t.Fatal("a closed gate must not warn about a missing password")
-	}
-	frigateOnly := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n  allow_untrusted_transport: false\nfrigate:\n  enabled: true\n  event_relay: true\n")
-	if mqttRelayAuthorized(frigateOnly) {
-		t.Fatal("Frigate relay over plaintext must stay closed without the switch")
-	}
-	hint = findSecurityHint(CheckSecurity(frigateOnly), "mqtt_relay_untrusted_transport")
-	if hint == nil || hint.Severity != SevWarning {
-		t.Fatalf("Frigate-only hint = %#v, want warning", hint)
-	}
-	missionOnly := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  relay_to_agent: false\n  allow_untrusted_transport: false\n")
-	if hasSecurityHint(CheckSecurity(missionOnly), "mqtt_relay_untrusted_transport") {
-		t.Fatal("a closed gate with no relay and no Frigate relay must not warn")
-	}
-
-	trusted := loadSecurityConfig(t, "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  relay_to_agent: true\n")
-	trusted.MQTT.Password = "resolved-secret"
-	if trusted.MQTT.AllowUntrustedTransport || !mqttRelayAuthorized(trusted) {
-		t.Fatal("username over checked mqtts must stay authorized without the untrusted switch")
-	}
-	hints := CheckSecurity(trusted)
-	if hasSecurityHint(hints, "mqtt_relay_untrusted_transport") {
-		t.Fatal("checked mqtts must not report mqtt_relay_untrusted_transport")
-	}
-	if hasSecurityHint(hints, "mqtt_relay_password_missing") {
-		t.Fatal("a resolved password must not report mqtt_relay_password_missing")
-	}
-	assertHintsOmitSecret(t, hints, "resolved-secret")
-
-	trusted.MQTT.Password = ""
-	passwordHint := findSecurityHint(CheckSecurity(trusted), "mqtt_relay_password_missing")
-	if passwordHint == nil || passwordHint.Severity != SevWarning {
-		t.Fatalf("cleared password hint = %#v, want warning", passwordHint)
-	}
-	assertHintsOmitSecret(t, CheckSecurity(trusted), "resolved-secret")
-
-	trusted.MQTT.Password = " "
-	if hasSecurityHint(CheckSecurity(trusted), "mqtt_relay_password_missing") {
-		t.Fatal("whitespace is a password and must not warn")
-	}
-
-	skipped := trusted
-	skipped.MQTT.Password = "resolved-secret"
-	skipped.MQTT.TLS.InsecureSkipVerify = true
-	skipped.MQTT.AllowUntrustedTransport = false
-	if mqttRelayAuthorized(skipped) {
-		t.Fatal("insecure_skip_verify must close the gate without the switch")
-	}
-	skipped.MQTT.AllowUntrustedTransport = true
-	if !mqttRelayAuthorized(skipped) {
-		t.Fatal("insecure_skip_verify must need allow_untrusted_transport")
-	}
-	hint = findSecurityHint(CheckSecurity(skipped), "mqtt_relay_untrusted_transport")
+	hint = findSecurityHint(CheckSecurity(cfg), "mqtt_relay_untrusted_transport")
 	if hint == nil || hint.Severity != SevCritical {
-		t.Fatalf("skip verify hint = %#v, want critical", hint)
+		t.Fatalf("open transport hint = %#v", hint)
 	}
-	if strings.Contains(hint.Description, "client.crt") || strings.Contains(hint.Description, skipped.MQTT.Broker) {
-		t.Fatalf("hint names a path or the broker: %s", hint.Description)
+	assertUntrustedTransportHint(t, hint, cfg.MQTT.Broker)
+	cfg.MQTT.Password = ""
+	if mqttRelayAuthorized(cfg) {
+		t.Fatal("username alone authenticated MQTT triggers")
 	}
-
-	viaAnonymous := anonymousMQTTBrokerConfig()
-	viaAnonymous.MQTT.Username = "iot"
-	viaAnonymous.MQTT.RelayToAgent = true
-	viaAnonymous.MQTT.AllowUnauthenticatedRelay = true
-	if !mqttRelayAuthorized(viaAnonymous) {
-		t.Fatal("allow_unauthenticated_relay must open the gate even with a username on plaintext")
+	if hint := findSecurityHint(CheckSecurity(cfg), "mqtt_relay_password_missing"); hint == nil || hint.Severity != SevWarning {
+		t.Fatalf("missing password hint = %#v", hint)
 	}
-	hint = findSecurityHint(CheckSecurity(viaAnonymous), "mqtt_relay_untrusted_transport")
-	if hint == nil || hint.Severity != SevCritical {
-		t.Fatalf("username plus allow_unauthenticated_relay on plaintext = %#v, want critical", hint)
+	cfg.MQTT.Password = " "
+	if !mqttRelayAuthorized(cfg) || hasSecurityHint(CheckSecurity(cfg), "mqtt_relay_password_missing") {
+		t.Fatal("whitespace password was trimmed")
 	}
-	assertUntrustedTransportHint(t, hint, viaAnonymous.MQTT.Broker)
-	if strings.Contains(hint.Description, "allow_untrusted_transport is true") {
-		t.Fatalf("anonymous switch must not be described as allow_untrusted_transport: %s", hint.Description)
+	cfg.MQTT.Broker = "mqtts://broker.lan:8883"
+	cfg.MQTT.AllowUntrustedTransport = false
+	if !mqttRelayAuthorized(cfg) || hasSecurityHint(CheckSecurity(cfg), "mqtt_relay_untrusted_transport") {
+		t.Fatal("verified TLS needed an unsafe permission")
 	}
-	if !strings.Contains(hint.Description, "allow_unauthenticated_relay is true") {
-		t.Fatalf("description must name the switch that opened the gate: %s", hint.Description)
+	cfg.MQTT.TLS.InsecureSkipVerify = true
+	if mqttRelayAuthorized(cfg) {
+		t.Fatal("skip verification bypassed the transport gate")
 	}
-	if hasSecurityHint(CheckSecurity(viaAnonymous), "mqtt_relay_no_auth") {
-		t.Fatal("a username must not also report mqtt_relay_no_auth")
+	cfg.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("explicit skipped-verification permission was refused")
 	}
+	anonymous := anonymousMQTTBrokerConfig()
+	anonymous.MQTT.AllowUnauthenticatedRelay = true
+	anonymous.MQTT.AllowUntrustedTransport = false
+	if mqttRelayAuthorized(anonymous) {
+		t.Fatal("anonymous permission bypassed transport trust")
+	}
+	anonymous.MQTT.AllowUntrustedTransport = true
+	if !mqttRelayAuthorized(anonymous) {
+		t.Fatal("two independent unsafe opt-ins were refused")
+	}
+	if hint := findSecurityHint(CheckSecurity(anonymous), "mqtt_relay_untrusted_transport"); hint == nil || hint.Severity != SevCritical {
+		t.Fatalf("anonymous plaintext hint = %#v", hint)
+	}
+	assertHintsOmitSecret(t, CheckSecurity(cfg), "fixture-resolved-secret")
 }
 
 func loadSecurityConfig(t *testing.T, yaml string) *config.Config {

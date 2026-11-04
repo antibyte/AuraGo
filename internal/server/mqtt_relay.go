@@ -5,78 +5,20 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
-	"sync"
+	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/mqtt"
+	"aurago/internal/planner"
 	"aurago/internal/security"
 )
 
-const mqttRelayDebounceWindow = 2 * time.Second
-
-// mqttRelayPromptPayloadLimit is the relay prompt payload cap. It uses the
-// same UTF-8 truncation as the message buffer and is independent of that buffer.
-const mqttRelayPromptPayloadLimit = 16 << 10
-
+const mqttRelayPromptPayloadLimit = mqtt.RelayPayloadLimit
 const mqttRelayPromptTruncatedSuffix = " [truncated]"
-
-var defaultMQTTRelayLimiter = newMQTTRelayLimiter(mqttRelayDebounceWindow)
-
-type mqttRelayLimiter struct {
-	mu          sync.Mutex
-	interval    time.Duration
-	lastByTopic map[string]time.Time
-	lastPrune   time.Time
-	dropped     uint64
-}
-
-func newMQTTRelayLimiter(interval time.Duration) *mqttRelayLimiter {
-	return &mqttRelayLimiter{
-		interval:    interval,
-		lastByTopic: make(map[string]time.Time),
-	}
-}
-
-func (l *mqttRelayLimiter) Allow(topic string, now time.Time) bool {
-	if l == nil {
-		return true
-	}
-	if now.IsZero() {
-		now = time.Now()
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pruneLocked(now)
-	last, ok := l.lastByTopic[topic]
-	if ok && l.interval > 0 && now.Sub(last) < l.interval {
-		atomic.AddUint64(&l.dropped, 1)
-		return false
-	}
-	l.lastByTopic[topic] = now
-	return true
-}
-
-func (l *mqttRelayLimiter) pruneLocked(now time.Time) {
-	if l.interval <= 0 || (!l.lastPrune.IsZero() && now.Sub(l.lastPrune) < l.interval) {
-		return
-	}
-	for topic, last := range l.lastByTopic {
-		if now.Sub(last) >= l.interval {
-			delete(l.lastByTopic, topic)
-		}
-	}
-	l.lastPrune = now
-}
-
-func (l *mqttRelayLimiter) Dropped() uint64 {
-	if l == nil {
-		return 0
-	}
-	return atomic.LoadUint64(&l.dropped)
-}
 
 // Delivery paths through the relay gate, used as the "path" log attribute and
 // to word the refusal.
@@ -96,7 +38,7 @@ func mqttRelayRefusalMessage(path string, haveConfig bool) string {
 	if !haveConfig {
 		return "[MQTT] " + subject + " refused: no config source"
 	}
-	return "[MQTT] " + subject + " refused: broker has no login (username or TLS client certificate) and mqtt.allow_unauthenticated_relay is false"
+	return "[MQTT] " + subject + " refused: broker has no complete login (username/password or TLS client certificate/key) and mqtt.allow_unauthenticated_relay is false"
 }
 
 // mqttRelayTransportRefusalMessage words a refusal where the broker has a
@@ -112,25 +54,16 @@ func mqttRelayTransportRefusalMessage(path string) string {
 }
 
 func mqttRelayRefusal(path string, cfg *config.Config) string {
-	if cfg != nil && config.MQTTBrokerAuthenticated(cfg) {
+	if cfg != nil && (config.MQTTBrokerAuthenticated(cfg) || cfg.MQTT.AllowUnauthenticatedRelay) {
 		return mqttRelayTransportRefusalMessage(path)
 	}
 	return mqttRelayRefusalMessage(path, cfg != nil)
 }
 
 // mqttRelayAuthorized reports whether inbound broker traffic may start agent
-// runs. Nil is refused. An explicit anonymous broker is allowed. Otherwise the
-// broker must authenticate the publisher and the transport must be trusted
-// TLS, unless the operator allowed plaintext or skipped certificate
-// verification. The grandfather for that switch happens at load, not here.
+// runs. Client authentication and transport trust need independent permission.
 func mqttRelayAuthorized(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-	if cfg.MQTT.AllowUnauthenticatedRelay {
-		return true
-	}
-	return config.MQTTBrokerAuthenticated(cfg) && (config.MQTTRelayTransportTrusted(cfg) || cfg.MQTT.AllowUntrustedTransport)
+	return config.MQTTAgentRunsAuthorized(cfg)
 }
 
 // mqttRelayGate applies mqttRelayAuthorized to every delivery that would start
@@ -164,6 +97,9 @@ func (g *mqttRelayGate) route(cfg *config.Config, topic string, logger *slog.Log
 		return "", "", false
 	}
 	if !g.admit(cfg, logger, mqttRelayPathRelay) {
+		return "", "", false
+	}
+	if !mqtt.RelayAllowedTopic(cfg, topic) || len(cfg.MQTT.RelayGrants) == 0 {
 		return "", "", false
 	}
 	if frigateRelayEnabled {
@@ -229,6 +165,9 @@ var mqttRelayRun = agent.LoopbackContext
 func (s *Server) newMQTTRelayHandler() func(ctx context.Context, topic, payload string) {
 	gate := &mqttRelayGate{}
 	return func(ctx context.Context, topic, payload string) {
+		if !utf8.ValidString(payload) || strings.IndexByte(payload, 0) >= 0 {
+			return
+		}
 		// Resolve one immutable snapshot for this delivery. Do not hold CfgMu
 		// while entering the agent loop: reloads publish a new pointer atomically.
 		cfg := s.ConfigSnapshot()
@@ -236,26 +175,29 @@ func (s *Server) newMQTTRelayHandler() func(ctx context.Context, topic, payload 
 		if !ok {
 			return
 		}
-		if !defaultMQTTRelayLimiter.Allow(topic, time.Now().UTC()) {
+		// A broker client with publish rights on a subscribed topic is not the
+		// owner: scan what the model would read, locally and whatever the LLM
+		// Guardian toggle says. Quarantined traffic never spends model tokens.
+		if scan := s.Guardian.ScanForInjectionLocal(mqttRelayText(topic, payload)); scan.Level >= security.ThreatHigh {
 			mqtt.RecordDroppedRelayMessage()
+			mqtt.RecordQuarantinedMessage()
 			if s.Logger != nil {
-				s.Logger.Debug("[MQTT] Relay message debounced", "topic", topic, "dropped", defaultMQTTRelayLimiter.Dropped())
+				s.Logger.Warn("[MQTT] Relay message quarantined after prompt-injection scan", "source", messageSource, "level", scan.Level.String())
+			}
+			if s.PlannerDB != nil {
+				_, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+					Source: planner.OperationalIssueSourcePromptSecurity, Context: messageSource,
+					Title: "MQTT content quarantined", Severity: "warning", Kind: "prompt_injection",
+					Fingerprint: "mqtt:quarantine:" + messageSource,
+					Detail:      mqttRelayQuarantineNotice(messageSource, topic, payload, scan), OccurredAt: time.Now(),
+				})
+				if err != nil && s.Logger != nil {
+					s.Logger.Warn("[MQTT] Cannot record quarantine diagnostic", "error", err)
+				}
 			}
 			return
 		}
-		// A broker client with publish rights on a subscribed topic is not the
-		// owner: scan what the model would read, locally and whatever the LLM
-		// Guardian toggle says. At ThreatHigh the delivery is dropped and only
-		// the fixed notice goes through the same route (the webhook pattern).
-		var prompt string
-		if scan := s.Guardian.ScanForInjectionLocal(mqttRelayText(topic, payload)); scan.Level >= security.ThreatHigh {
-			if s.Logger != nil {
-				s.Logger.Warn("[MQTT] Relay message quarantined after prompt-injection scan", "source", messageSource, "topic", topic, "level", scan.Level.String(), "patterns", scan.Patterns)
-			}
-			prompt = mqttRelayQuarantineNotice(messageSource, topic, payload, scan)
-		} else {
-			prompt = mqttRelayPrompt(topic, payload, frigateKind)
-		}
+		prompt := mqttRelayPrompt(topic, payload, frigateKind)
 		// The source label doubles as the session ID: MQTT and Frigate relays
 		// run in the internal "mqtt" and "frigate" sessions, so renaming a
 		// label moves its relay runs to another session.
@@ -294,10 +236,19 @@ func (s *Server) newMQTTRelayHandler() func(ctx context.Context, topic, payload 
 			PreparationService:      s.PreparationService,
 			WorkspaceSearch:         s.WorkspaceSearch,
 			SessionID:               sessionID,
+			MQTTRelayTopic:          topic,
+			AllowedTools:            agent.MQTTRelayAllowedTools(cfg.MQTT.RelayGrants),
+			AllowedAgentSkills:      []string{},
+			ToolCallLimit:           4,
 			IsMaintenance:           false,
 			MessageSource:           messageSource,
 			SuppressTurnSideEffects: true,
 		}
+		if cfg.CircuitBreaker.MaxToolCalls > 0 && cfg.CircuitBreaker.MaxToolCalls < runCfg.ToolCallLimit {
+			runCfg.ToolCallLimit = cfg.CircuitBreaker.MaxToolCalls
+		}
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
 		mqttRelayRun(ctx, runCfg, prompt, agent.NoopBroker{})
 	}
 }

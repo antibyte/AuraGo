@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"aurago/internal/config"
 )
 
 func isolateMissionTriggers(t *testing.T) {
@@ -138,6 +140,9 @@ func TestDroppedMissionQueueDoesNotConsumeMissionTriggerInterval(t *testing.T) {
 	}
 	controller.mu.Lock()
 	controller.current = gen
+	cfg := &config.Config{}
+	enableMQTTRelayForTest(cfg)
+	controller.active = cloneMQTTSnapshot(cfg)
 	controller.mu.Unlock()
 	t.Cleanup(func() {
 		gen.closed.Store(true)
@@ -155,6 +160,9 @@ func TestDroppedMissionQueueDoesNotConsumeMissionTriggerInterval(t *testing.T) {
 	})
 
 	controller.enqueueMission(gen, missionTriggerEntry{}, "home/sensor", "filler")
+	if len(gen.missionQueue) != 1 {
+		t.Fatal("fixture did not fill the mission queue")
+	}
 	before := atomic.LoadUint64(&stats.droppedMissionJobs)
 	controller.enqueueMission(gen, matched[0], "home/sensor", "on")
 	if got := atomic.LoadUint64(&stats.droppedMissionJobs); got != before+1 {

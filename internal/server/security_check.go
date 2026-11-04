@@ -637,9 +637,8 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	}
 
 	// 24. mqtt_relay_no_auth — broker traffic may start agent runs (relay_to_agent,
-	// Frigate relays, MQTT-triggered missions) although AuraGo logs in with
-	// neither a username nor a client certificate over TLS. Critical while
-	// allow_unauthenticated_relay (written or grandfathered at load) lets it run;
+	// Frigate relays, MQTT-triggered missions) without complete broker credentials.
+	// Critical while explicit allow_unauthenticated_relay lets it run;
 	// with the flag false the relay is refused and a configured relay is
 	// reported as a warning.
 	if cfg.MQTT.Enabled && !config.MQTTBrokerAuthenticated(cfg) {
@@ -647,19 +646,18 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			hints = append(hints, SecurityHint{
 				ID: "mqtt_relay_no_auth", Severity: SevCritical,
 				Title: "MQTT: agent runs accepted from an unauthenticated broker",
-				Description: "mqtt.allow_unauthenticated_relay is true and AuraGo connects to the broker with neither a username nor a client certificate over TLS. " +
-					"Any host that can publish to the broker can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
-					"Set a broker username/password or a client certificate over TLS; allow_unauthenticated_relay: true accepts that any LAN host can start agent runs. " +
-					"Configurations from before this check were allowed automatically; if you use none of these, set the key to false.",
+				Description: "mqtt.allow_unauthenticated_relay is true and AuraGo connects without a username/password pair or a client certificate/key pair over TLS. " +
+					"Hosts with publish access can trigger permitted relays and MQTT missions. " +
+					"Configure complete broker credentials or set allow_unauthenticated_relay to false.",
 				AutoFixable: false,
 			})
 		} else if cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg) {
 			hints = append(hints, SecurityHint{
 				ID: "mqtt_relay_no_auth", Severity: SevWarning,
 				Title: "MQTT: relay refused without broker authentication",
-				Description: "relay_to_agent or a Frigate relay is enabled, but AuraGo connects to the broker with neither a username nor a client certificate over TLS " +
+				Description: "relay_to_agent or a Frigate relay is enabled, but AuraGo connects without complete broker credentials " +
 					"and mqtt.allow_unauthenticated_relay is false, so AuraGo does not start agent runs from broker messages, MQTT-triggered missions included. " +
-					"Configure mqtt.username with the Vault password, or a client certificate over TLS (mqtt.tls.cert_file with an mqtts:// or ssl:// broker URL), to enable the relay.",
+					"Configure mqtt.username with the Vault password, or mqtt.tls.cert_file and mqtt.tls.key_file over TLS, to enable the relay.",
 				AutoFixable: false,
 			})
 		}
@@ -671,23 +669,17 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	// the switch that opens it. Warning when a relay or Frigate relay is on
 	// and the gate stays closed. The warning does not say an observer can
 	// start agent runs: the gate is closed, so broker traffic does not.
-	if cfg.MQTT.Enabled && config.MQTTBrokerAuthenticated(cfg) && !config.MQTTRelayTransportTrusted(cfg) {
+	if cfg.MQTT.Enabled && (config.MQTTBrokerAuthenticated(cfg) || cfg.MQTT.AllowUnauthenticatedRelay || strings.TrimSpace(cfg.MQTT.Username) != "") && !config.MQTTRelayTransportTrusted(cfg) {
 		if mqttRelayAuthorized(cfg) {
-			description := "mqtt.allow_unauthenticated_relay is true and a broker login is set, but the broker transport is plaintext or skips TLS certificate verification. " +
-				"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
-				"Use mqtts or wss with a verified certificate chain. Set allow_unauthenticated_relay to false unless allow_untrusted_transport: true is an intentional choice to keep the insecure path."
-			if cfg.MQTT.AllowUntrustedTransport {
-				description = "mqtt.allow_untrusted_transport is true and the broker transport is plaintext or skips TLS certificate verification. " +
-					"An observer on the path can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
-					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path."
-			}
 			hints = append(hints, SecurityHint{
 				ID: "mqtt_relay_untrusted_transport", Severity: SevCritical,
-				Title:       "MQTT: agent runs accepted over an untrusted transport",
-				Description: description,
+				Title: "MQTT: agent runs accepted over an untrusted transport",
+				Description: "mqtt.allow_untrusted_transport is true and the broker transport is plaintext or skips TLS certificate verification. " +
+					"An observer on the path can trigger permitted relays and MQTT missions. " +
+					"Use mqtts or wss with a verified certificate chain; allow_untrusted_transport: true accepts the insecure path.",
 				AutoFixable: false,
 			})
-		} else if cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg) {
+		} else if !cfg.MQTT.AllowUntrustedTransport && (cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg)) {
 			hints = append(hints, SecurityHint{
 				ID: "mqtt_relay_untrusted_transport", Severity: SevWarning,
 				Title: "MQTT: relay refused over an untrusted transport",
@@ -699,15 +691,25 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		}
 	}
 
-	// 24e. mqtt_relay_password_missing — username set, resolved password empty,
-	// relay gate open. Callers pass the snapshot after password resolution.
+	// Missing relay grants are an explicit migration stop, never an automatic grant.
+	if cfg.MQTT.Enabled && (cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg)) &&
+		(len(cfg.MQTT.RelayTopics) == 0 || len(cfg.MQTT.RelayGrants) == 0) {
+		hints = append(hints, SecurityHint{
+			ID: "mqtt_relay_permissions_missing", Severity: SevWarning,
+			Title:       "MQTT: relay paused until topics and actions are explicitly permitted",
+			Description: "MQTT and Frigate relays require mqtt.relay_topics and mqtt.relay_grants. Existing broker subscriptions continue to collect messages. Configure concrete actions and targets in the MQTT settings; no broad permissions are carried over on upgrade.",
+			AutoFixable: false,
+		})
+	}
+
+	// Callers pass the snapshot after password resolution.
 	// An empty password is a real warning. The password value is never logged.
-	if cfg.MQTT.Enabled && strings.TrimSpace(cfg.MQTT.Username) != "" && cfg.MQTT.Password == "" && mqttRelayAuthorized(cfg) {
+	if cfg.MQTT.Enabled && strings.TrimSpace(cfg.MQTT.Username) != "" && cfg.MQTT.Password == "" && !config.MQTTBrokerAuthenticated(cfg) {
 		hints = append(hints, SecurityHint{
 			ID: "mqtt_relay_password_missing", Severity: SevWarning,
 			Title: "MQTT: broker password is missing",
-			Description: "mqtt.username is set and the relay gate is open, but the resolved broker password is empty. " +
-				"A username without a password still counts as a broker login, so broker traffic can start agent runs. " +
+			Description: "mqtt.username is set, but the resolved broker password is empty. " +
+				"A username alone does not authenticate agent-triggering broker traffic. " +
 				"Store the broker password in the Vault.",
 			AutoFixable: false,
 		})

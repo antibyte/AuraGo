@@ -119,7 +119,7 @@ func mqttTestLogger() *slog.Logger {
 
 func TestMessageBufferLenUsesFullBufferAndPrunesByAge(t *testing.T) {
 	b := newMessageBuffer()
-	b.Configure(3, 1, 0)
+	b.Configure(3, 1, 0, 0)
 
 	b.Add(tools.MQTTMessage{Topic: "home/a", Payload: "old", Timestamp: time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)})
 	b.Add(tools.MQTTMessage{Topic: "home/a", Payload: "one", Timestamp: time.Now().UTC().Format(time.RFC3339)})
@@ -135,7 +135,7 @@ func TestMessageBufferLenUsesFullBufferAndPrunesByAge(t *testing.T) {
 
 func TestMessageBufferTruncatesOversizedPayloads(t *testing.T) {
 	b := newMessageBuffer()
-	b.Configure(10, 0, 5)
+	b.Configure(10, 0, 5, 0)
 
 	msg := b.Add(tools.MQTTMessage{Topic: "home/a", Payload: "abcdef", Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	if !msg.PayloadTruncated {

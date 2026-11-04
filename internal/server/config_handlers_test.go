@@ -1380,7 +1380,7 @@ func TestInjectMQTTRelayDefaultsExposesUntrustedTransport(t *testing.T) {
 		yaml string
 		want bool
 	}{
-		{"username on mqtt, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n", true},
+		{"username on mqtt, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n", false},
 		{"explicit false", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n  allow_untrusted_transport: false\n", false},
 		{"mqtts, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n", false},
 	}

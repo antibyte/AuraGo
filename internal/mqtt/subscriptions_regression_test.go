@@ -316,12 +316,16 @@ func TestMQTTSubscriptionsMissingSUBACKStopsOnGenerationCancelAndStatusRemainsRe
 
 func TestMQTTMissionQueueIsBoundedAndDropsStaleGenerationCallbacks(t *testing.T) {
 	cfg := subscriptionRegressionConfig("mission/queue")
+	enableMQTTRelayForTest(cfg)
 	client := newSubscriptionRegressionClient(nil)
 	controller, gen := newSubscriptionRegressionFixture(t, cfg, client)
+	now := time.Now().UTC()
+	controller.now = func() time.Time { return now }
 	trigger := missionTriggerEntry{topicFilter: "mission/#", callback: func(string, string) {}}
 
 	droppedBefore := atomic.LoadUint64(&stats.droppedMissionJobs)
 	for i := 0; i < cap(gen.missionQueue)+1; i++ {
+		now = now.Add(time.Minute)
 		controller.enqueueMission(gen, trigger, "mission/queue", "payload")
 	}
 	if got := len(gen.missionQueue); got != cap(gen.missionQueue) {

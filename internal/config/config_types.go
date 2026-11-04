@@ -906,6 +906,7 @@ type MQTTBuffer struct {
 	MaxMessages     int `yaml:"max_messages"`      // max messages to buffer (default: 500, 0 = use default)
 	MaxAgeHours     int `yaml:"max_age_hours"`     // max age of messages in hours before cleanup (0 = disabled)
 	MaxPayloadBytes int `yaml:"max_payload_bytes"` // max payload bytes per message (default: 262144, 0 = use default)
+	MaxBytes        int `yaml:"max_bytes"`         // retained topic and payload bytes (default: 16 MiB)
 }
 
 // MQTTAvailability holds Last Will and Testament / availability settings.
@@ -2293,23 +2294,25 @@ type Config struct {
 	} `yaml:"adguard"`
 
 	MQTT struct {
-		Enabled                   bool             `yaml:"enabled"`
-		ReadOnly                  bool             `yaml:"readonly"` // true = only get_messages, block publish/subscribe/unsubscribe
-		Broker                    string           `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
-		ClientID                  string           `yaml:"client_id"`
-		Username                  string           `yaml:"username"`
-		Password                  string           `yaml:"-" json:"-"`
-		Topics                    []string         `yaml:"topics"`                      // topics to subscribe to on connect
-		QoS                       int              `yaml:"qos"`                         // 0, 1, or 2
-		RelayToAgent              bool             `yaml:"relay_to_agent"`              // forward incoming messages to agent
-		AllowUnauthenticatedRelay bool             `yaml:"allow_unauthenticated_relay"` // let relay_to_agent, the Frigate relays and mission triggers run without a broker username or a client certificate over TLS
-		AllowUntrustedTransport   bool             `yaml:"allow_untrusted_transport"`   // let a broker login start those runs over plaintext or skipped certificate verification
-		ConnectTimeout            int              `yaml:"connect_timeout"`             // connection timeout in seconds (default: 15)
-		CleanSession              *bool            `yaml:"clean_session,omitempty"`
-		TriggerMinIntervalSeconds int              `yaml:"trigger_min_interval_seconds"` // minimum seconds between MQTT-triggered mission starts (0 = disabled)
-		TLS                       MQTTTLS          `yaml:"tls"`
-		Buffer                    MQTTBuffer       `yaml:"buffer"`
-		Availability              MQTTAvailability `yaml:"availability"`
+		Enabled                   bool               `yaml:"enabled"`
+		ReadOnly                  bool               `yaml:"readonly"` // true = only get_messages, block publish/subscribe/unsubscribe
+		Broker                    string             `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
+		ClientID                  string             `yaml:"client_id"`
+		Username                  string             `yaml:"username"`
+		Password                  string             `yaml:"-" json:"-"`
+		Topics                    []string           `yaml:"topics"`                      // topics to subscribe to on connect
+		QoS                       int                `yaml:"qos"`                         // 0, 1, or 2
+		RelayToAgent              bool               `yaml:"relay_to_agent"`              // forward incoming messages to agent
+		RelayTopics               []string           `yaml:"relay_topics"`                // explicit inbound relay filters; empty pauses relays
+		RelayGrants               []ActionPolicyRule `yaml:"relay_grants"`                // mandatory per-action grants for MQTT and Frigate relays
+		AllowUnauthenticatedRelay bool               `yaml:"allow_unauthenticated_relay"` // permit agent triggers without complete broker credentials
+		AllowUntrustedTransport   bool               `yaml:"allow_untrusted_transport"`   // independently permit plaintext or skipped certificate verification
+		ConnectTimeout            int                `yaml:"connect_timeout"`             // connection timeout in seconds (default: 15)
+		CleanSession              *bool              `yaml:"clean_session,omitempty"`
+		TriggerMinIntervalSeconds int                `yaml:"trigger_min_interval_seconds"` // minimum seconds between MQTT-triggered mission starts (0 = disabled)
+		TLS                       MQTTTLS            `yaml:"tls"`
+		Buffer                    MQTTBuffer         `yaml:"buffer"`
+		Availability              MQTTAvailability   `yaml:"availability"`
 	} `yaml:"mqtt"`
 
 	Cyd struct {

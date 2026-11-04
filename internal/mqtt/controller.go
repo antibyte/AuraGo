@@ -40,6 +40,8 @@ type MQTTStatus struct {
 	EffectiveTLS       bool                     `json:"effective_tls"`
 	Subscriptions      []MQTTSubscriptionStatus `json:"subscriptions,omitempty"`
 	DroppedMissionJobs uint64                   `json:"dropped_mission_jobs"`
+	RelayQueueLength   int                      `json:"relay_queue_length"`
+	MissionQueueLength int                      `json:"mission_queue_length"`
 }
 
 type mqttSnapshot struct {
@@ -54,6 +56,8 @@ func cloneMQTTSnapshot(src *config.Config) *mqttSnapshot {
 	copyCfg := *src
 	copyCfg.MQTT = src.MQTT
 	copyCfg.MQTT.Topics = append([]string(nil), src.MQTT.Topics...)
+	copyCfg.MQTT.RelayTopics = append([]string(nil), src.MQTT.RelayTopics...)
+	copyCfg.MQTT.RelayGrants = append([]config.ActionPolicyRule(nil), src.MQTT.RelayGrants...)
 	if src.MQTT.CleanSession != nil {
 		clean := *src.MQTT.CleanSession
 		copyCfg.MQTT.CleanSession = &clean
@@ -69,6 +73,8 @@ func (s *mqttSnapshot) config() *config.Config {
 	}
 	copyCfg := s.cfg
 	copyCfg.MQTT.Topics = append([]string(nil), s.cfg.MQTT.Topics...)
+	copyCfg.MQTT.RelayTopics = append([]string(nil), s.cfg.MQTT.RelayTopics...)
+	copyCfg.MQTT.RelayGrants = append([]config.ActionPolicyRule(nil), s.cfg.MQTT.RelayGrants...)
 	if s.cfg.MQTT.CleanSession != nil {
 		clean := *s.cfg.MQTT.CleanSession
 		copyCfg.MQTT.CleanSession = &clean
@@ -126,9 +132,10 @@ type mqttGeneration struct {
 }
 
 type missionJob struct {
-	trigger missionTriggerEntry
-	topic   string
-	payload string
+	trigger    missionTriggerEntry
+	topic      string
+	payload    string
+	enqueuedAt time.Time
 }
 
 // MQTTController owns one server MQTT runtime. Configuration updates are
@@ -149,13 +156,18 @@ type MQTTController struct {
 	lastError       string
 	ledgerError     string
 
-	relayHandler   func(context.Context, string, string)
-	manualMu       sync.RWMutex
-	manualOpMu     sync.Mutex
-	manualTopics   map[string]byte
-	ledgerMu       sync.RWMutex
-	ledger         map[string]subscriptionLedgerEntry
-	ledgerIdentity string
+	relayHandler    func(context.Context, string, string)
+	admissionMu     sync.Mutex
+	admittedAt      []time.Time
+	lastRelayTopic  map[string]time.Time
+	now             func() time.Time
+	lastOverloadLog atomic.Int64
+	manualMu        sync.RWMutex
+	manualOpMu      sync.Mutex
+	manualTopics    map[string]byte
+	ledgerMu        sync.RWMutex
+	ledger          map[string]subscriptionLedgerEntry
+	ledgerIdentity  string
 
 	reconcileCh  chan struct{}
 	workerDone   chan struct{}
@@ -272,6 +284,8 @@ func (c *MQTTController) Status() MQTTStatus {
 	}
 	c.mu.RUnlock()
 	if gen != nil {
+		status.RelayQueueLength = len(gen.queue)
+		status.MissionQueueLength = len(gen.missionQueue)
 		gen.subscriptionMu.Lock()
 		status.Subscriptions = cloneSubscriptionStatuses(gen.subscriptions)
 		gen.subscriptionMu.Unlock()
@@ -406,7 +420,7 @@ func (c *MQTTController) reconcile() {
 	c.activeRevision = revision
 	current := c.current
 	c.mu.Unlock()
-	buffer.Configure(desired.cfg.MQTT.Buffer.MaxMessages, desired.cfg.MQTT.Buffer.MaxAgeHours, desired.cfg.MQTT.Buffer.MaxPayloadBytes)
+	buffer.Configure(desired.cfg.MQTT.Buffer.MaxMessages, desired.cfg.MQTT.Buffer.MaxAgeHours, desired.cfg.MQTT.Buffer.MaxPayloadBytes, desired.cfg.MQTT.Buffer.MaxBytes)
 	if current != nil {
 		c.manualOpMu.Lock()
 		c.updateGenerationSubscriptions(current, desired.config())
@@ -433,7 +447,7 @@ func (c *MQTTController) startGeneration(snapshot *mqttSnapshot, revision uint64
 	// Buffer limits belong to the active generation even before the first
 	// callback/reconnect. Configure them before opening the transport so an
 	// immediately delivered message observes the requested limits.
-	buffer.Configure(cfg.MQTT.Buffer.MaxMessages, cfg.MQTT.Buffer.MaxAgeHours, cfg.MQTT.Buffer.MaxPayloadBytes)
+	buffer.Configure(cfg.MQTT.Buffer.MaxMessages, cfg.MQTT.Buffer.MaxAgeHours, cfg.MQTT.Buffer.MaxPayloadBytes, cfg.MQTT.Buffer.MaxBytes)
 	c.loadManualLedger(cfg)
 	transportCtx, cancelTransport := context.WithCancel(context.Background())
 	opts, err := newClientOptionsContext(transportCtx, cfg, log)
@@ -687,6 +701,13 @@ func (c *MQTTController) relayLoop(gen *mqttGeneration) {
 		case <-gen.ctx.Done():
 			return
 		case msg := <-gen.queue:
+			stamp, _ := time.Parse(time.RFC3339Nano, msg.Timestamp)
+			if c.jobExpired(stamp) {
+				RecordDroppedRelayMessage()
+				atomic.AddUint64(&stats.expiredRelayMessages, 1)
+				c.warnOverload("relay_expired")
+				continue
+			}
 			if !c.enterGenerationCallback(gen) {
 				continue
 			}
@@ -714,6 +735,12 @@ func (c *MQTTController) missionLoop(gen *mqttGeneration) {
 		case <-gen.ctx.Done():
 			return
 		case job := <-gen.missionQueue:
+			if c.jobExpired(job.enqueuedAt) {
+				atomic.AddUint64(&stats.droppedMissionJobs, 1)
+				atomic.AddUint64(&stats.expiredMissionJobs, 1)
+				c.warnOverload("mission_expired")
+				continue
+			}
 			if !c.generationCurrent(gen) || gen.ctx.Err() != nil {
 				continue
 			}
@@ -726,10 +753,16 @@ func (c *MQTTController) enqueueMission(gen *mqttGeneration, trigger missionTrig
 	if gen == nil || gen.missionQueue == nil || !c.generationCurrent(gen) {
 		return
 	}
+	if len(payload) > MissionPayloadLimit || !config.MQTTAgentRunsAuthorized(c.currentConfig()) || !c.admitJob(topic, false) {
+		atomic.AddUint64(&stats.droppedMissionJobs, 1)
+		return
+	}
 	select {
-	case gen.missionQueue <- missionJob{trigger: trigger, topic: topic, payload: payload}:
+	case gen.missionQueue <- missionJob{trigger: trigger, topic: topic, payload: payload, enqueuedAt: c.clockNow()}:
 	default:
 		atomic.AddUint64(&stats.droppedMissionJobs, 1)
+		atomic.AddUint64(&stats.missionQueueOverflows, 1)
+		c.warnOverload("mission_queue_full")
 	}
 }
 
@@ -756,12 +789,20 @@ func (c *MQTTController) messageHandler(gen *mqttGeneration) pahomqtt.MessageHan
 			return
 		}
 		m := makeMQTTMessage(msg)
-		m = storeMQTTMessage(m)
+		storeMQTTMessage(m)
+		if m.PayloadBinary {
+			return
+		}
 		c.mu.RLock()
 		active := c.active
 		c.mu.RUnlock()
 		if active != nil && relayWantsTopic(&active.cfg, m.Topic) {
 			c.enqueueRelay(gen, m)
+		}
+		if m.PayloadBytes > MissionPayloadLimit {
+			atomic.AddUint64(&stats.oversizedMissionPayloads, 1)
+			c.warnOverload("mission_payload_oversized")
+			return
 		}
 		for _, trigger := range matchingMissionTriggers(m.Topic, m.Payload) {
 			c.enqueueMission(gen, trigger, m.Topic, m.Payload)
@@ -770,9 +811,11 @@ func (c *MQTTController) messageHandler(gen *mqttGeneration) pahomqtt.MessageHan
 }
 
 // relayWantsTopic reports whether a received topic would become a relay run.
-// RelayToAgent accepts every topic that reached the handler. Otherwise only a
-// Frigate relay kind is queued; other topics stay in the global message buffer.
+// Only explicitly selected topics with configured action grants can be relayed.
 func relayWantsTopic(cfg *config.Config, topic string) bool {
+	if !RelayAllowedTopic(cfg, topic) || !config.MQTTAgentRunsAuthorized(cfg) || len(cfg.MQTT.RelayGrants) == 0 {
+		return false
+	}
 	if cfg != nil && cfg.MQTT.RelayToAgent {
 		return true
 	}
@@ -813,10 +856,24 @@ func (c *MQTTController) enqueueRelay(gen *mqttGeneration, msg tools.MQTTMessage
 	if !c.generationCurrent(gen) {
 		return
 	}
+	if !c.admitJob(msg.Topic, true) {
+		RecordDroppedRelayMessage()
+		return
+	}
+	limited := TruncateUTF8Bytes(msg.Payload, RelayPayloadLimit)
+	if limited != msg.Payload || msg.PayloadBytes > len(limited) {
+		limited += " [truncated]"
+	}
+	msg.Payload = limited
+	if msg.Timestamp == "" {
+		msg.Timestamp = c.clockNow().Format(time.RFC3339Nano)
+	}
 	select {
 	case gen.queue <- msg:
 	default:
 		RecordDroppedRelayMessage()
+		atomic.AddUint64(&stats.relayQueueOverflows, 1)
+		c.warnOverload("relay_queue_full")
 	}
 }
 

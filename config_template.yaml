@@ -1457,6 +1457,8 @@ mqtt:
     relay_to_agent: false
     allow_unauthenticated_relay: false  # anonymous relay/Frigate/mission agent runs require explicit true; missing/null stays false on upgrades too
     allow_untrusted_transport: false    # plaintext or skipped certificate verification cannot start those runs unless true
+    relay_topics: []                  # explicit incoming relay filters; empty pauses MQTT/Frigate relays
+    relay_grants: []                  # explicit tool/operation/target grants; empty pauses MQTT/Frigate relays
     connect_timeout: 15             # connection timeout in seconds
     clean_session: true             # true = broker does not keep a persistent session for this client
     trigger_min_interval_seconds: 0  # minimum seconds between MQTT-triggered mission starts (0 = disabled)
@@ -1470,6 +1472,7 @@ mqtt:
         max_messages: 500           # max messages to buffer (0 = use default 500)
         max_age_hours: 0            # max age of messages before cleanup (0 = disabled)
         max_payload_bytes: 262144   # max payload bytes per message (0 = use default 256 KiB)
+        max_bytes: 16777216         # retained topic and payload bytes (0 = use default 16 MiB)
     availability:
         enabled: false              # publish online/offline availability via MQTT LWT
         topic: aurago/status

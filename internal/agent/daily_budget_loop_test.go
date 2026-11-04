@@ -26,11 +26,16 @@ func TestAgentLoopChecksDailyBudgetByRunCategory(t *testing.T) {
 		{"disabled co-agent", "coagent-budget", "partial", true, true, false, false},
 		{"partial stream co-agent", "coagent-budget", "partial", true, false, true, true},
 		{"full stream chat", "budget-main", "full", false, false, true, true},
+		{"partial mqtt relay", "mqtt", "partial", false, false, true, false},
+		{"partial frigate relay", "frigate", "partial", false, false, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run, _, cleanup := newPromptPipelineTestRunConfig(t, tc.session, "web_chat")
 			defer cleanup()
 			run.SuppressTurnSideEffects = true
+			if tc.session == "mqtt" || tc.session == "frigate" {
+				run.MessageSource = tc.session
+			}
 			run.Checkpoint = func([]openai.ChatCompletionMessage) error { return nil }
 			run.IsCoAgent = tc.coAgent
 			run.Config.Budget.Enabled = !tc.disabled

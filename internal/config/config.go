@@ -147,10 +147,6 @@ var defaultWorkspaceSearchExcludes = []string{
 }
 var configSaveMu sync.Mutex
 
-// mqttUntrustedTransportGrandfatherWarning limits the Load warning about a
-// grandfathered plaintext or unverified MQTT transport to once per process.
-var mqttUntrustedTransportGrandfatherWarning sync.Once
-
 // meshCentralPowerGrandfatherWarning limits the Load warning about a
 // pre-allow_power_actions MeshCentral config to once per process.
 var meshCentralPowerGrandfatherWarning sync.Once
@@ -1792,19 +1788,6 @@ func Load(path string) (*Config, error) {
 		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
 	}
 
-	// A broker login over plaintext or skipped certificate verification used to
-	// start relay runs. Existing configs keep that until
-	// mqtt.allow_untrusted_transport is written. Null counts as unwritten
-	// (yamlHasValue), as config-merger fills a null key like a missing one.
-	// A written false or true ends the grandfather. The security check reports
-	// the result; this warning appears once per process.
-	if cfg.MQTT.Enabled && MQTTBrokerAuthenticated(&cfg) && !MQTTRelayTransportTrusted(&cfg) && !yamlHasValue(data, "mqtt", "allow_untrusted_transport") {
-		cfg.MQTT.AllowUntrustedTransport = true
-		mqttUntrustedTransportGrandfatherWarning.Do(func() {
-			slog.Warn("[Config] untrusted MQTT transport grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_untrusted_transport is written")
-		})
-	}
-
 	// docker.allow_host_access gates host access for agent Compose stacks
 	// (up/create/build). Configurations written before the key existed keep
 	// working: an absent key loads as true. config-merger writes the key on
@@ -2592,6 +2575,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.MQTT.Buffer.MaxPayloadBytes <= 0 {
 		cfg.MQTT.Buffer.MaxPayloadBytes = 256 << 10
+	}
+	if cfg.MQTT.Buffer.MaxBytes <= 0 {
+		cfg.MQTT.Buffer.MaxBytes = 16 << 20
 	}
 	if cfg.MQTT.Availability.Topic == "" {
 		cfg.MQTT.Availability.Topic = "aurago/status"

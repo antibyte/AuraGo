@@ -35,6 +35,7 @@ func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOpt
 	if clientID == "" {
 		clientID = "aurago"
 	}
+	// Receive callbacks only validate and enqueue; avoid an unbounded Paho goroutine per message.
 	opts := pahomqtt.NewClientOptions().
 		AddBroker(cfg.MQTT.Broker).
 		SetClientID(clientID).
@@ -44,7 +45,7 @@ func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOpt
 		SetKeepAlive(30 * time.Second).
 		SetConnectTimeout(mqttConnectTimeout(cfg)).
 		SetCleanSession(mqttCleanSession(cfg)).
-		SetOrderMatters(false)
+		SetOrderMatters(true)
 
 	if cfg.MQTT.Username != "" {
 		opts.SetUsername(cfg.MQTT.Username)

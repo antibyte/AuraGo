@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -4216,24 +4215,24 @@ func TestLoadTemplateDoesNotGrandfatherUnauthenticatedMQTTRelay(t *testing.T) {
 // A broker login on plaintext or with certificate verification skipped keeps
 // starting relay runs until mqtt.allow_untrusted_transport is written. A null
 // value counts as unwritten. A written false or true ends that.
-func TestLoadGrandfathersUntrustedMQTTTransport(t *testing.T) {
+func TestLoadRequiresExplicitUntrustedMQTTTransport(t *testing.T) {
 	const auth = "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"
 	cases := []struct {
 		name string
 		yaml string
 		want bool
 	}{
-		{"username on mqtt, key absent", auth, true},
-		{"username on tcp, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n", true},
-		{"key null", auth + "  allow_untrusted_transport:\n", true},
+		{"username on mqtt, key absent", auth, false},
+		{"username on tcp, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: tcp://broker.lan:1883\n", false},
+		{"key null", auth + "  allow_untrusted_transport:\n", false},
 		{"key false", auth + "  allow_untrusted_transport: false\n", false},
 		{"key true", auth + "  allow_untrusted_transport: true\n", true},
 		{"mqtts without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n", false},
 		{"wss without skip, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: wss://broker.lan:443\n", false},
-		{"mqtts skip verify, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  tls:\n    insecure_skip_verify: true\n", true},
-		{"ws, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: ws://broker.lan:80\n", true},
+		{"mqtts skip verify, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: mqtts://broker.lan:8883\n  tls:\n    insecure_skip_verify: true\n", false},
+		{"ws, key absent", "mqtt:\n  enabled: true\n  username: iot\n  broker: ws://broker.lan:80\n", false},
 		{"client certificate over mqtts, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
-		{"client certificate over mqtts with skip, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    insecure_skip_verify: true\n", true},
+		{"client certificate over mqtts with skip, key absent", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  tls:\n    cert_file: client.crt\n    insecure_skip_verify: true\n", false},
 		{"anonymous plaintext, key absent", "mqtt:\n  enabled: true\n  broker: mqtt://broker.lan:1883\n", false},
 		{"blank username", "mqtt:\n  enabled: true\n  username: \"  \"\n  broker: mqtt://broker.lan:1883\n", false},
 		{"mqtt disabled", "mqtt:\n  enabled: false\n  username: iot\n  broker: mqtt://broker.lan:1883\n", false},
@@ -4255,12 +4254,11 @@ func TestLoadGrandfathersUntrustedMQTTTransport(t *testing.T) {
 	}
 }
 
-func TestLoadWarnsAboutGrandfatheredUntrustedMQTTTransportOncePerProcess(t *testing.T) {
+func TestLoadNeverGrandfathersUntrustedMQTTTransportAcrossReloads(t *testing.T) {
 	var logs strings.Builder
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
 	t.Cleanup(func() { slog.SetDefault(previous) })
-	mqttUntrustedTransportGrandfatherWarning = sync.Once{}
 
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("mqtt:\n  enabled: true\n  username: iot\n  broker: mqtt://broker.lan:1883\n"), 0o644); err != nil {
@@ -4271,13 +4269,13 @@ func TestLoadWarnsAboutGrandfatheredUntrustedMQTTTransportOncePerProcess(t *test
 		if err != nil {
 			t.Fatalf("Load() error = %v", err)
 		}
-		if !cfg.MQTT.AllowUntrustedTransport {
-			t.Fatal("username on mqtt:// must stay grandfathered on every load")
+		if cfg.MQTT.AllowUntrustedTransport {
+			t.Fatal("missing transport permission must remain closed on every load")
 		}
 	}
 	const want = "untrusted MQTT transport grandfathered"
-	if got := strings.Count(logs.String(), want); got != 1 {
-		t.Fatalf("grandfather warning logged %d times, want once:\n%s", got, logs.String())
+	if got := strings.Count(logs.String(), want); got != 0 {
+		t.Fatalf("grandfather warning logged %d times, want none:\n%s", got, logs.String())
 	}
 	if strings.Contains(logs.String(), "broker.lan") || strings.Contains(logs.String(), "mqtt://") {
 		t.Fatalf("grandfather warning must not name the broker:\n%s", logs.String())

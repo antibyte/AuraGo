@@ -25,6 +25,9 @@ func TestNewClientOptionsSecureSchemeAlwaysBuildsTLSConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newClientOptions() error = %v", err)
 	}
+	if !opts.Order {
+		t.Fatal("receive routing must apply backpressure instead of spawning unbounded callback goroutines")
+	}
 	if opts.TLSConfig == nil {
 		t.Fatal("secure broker did not receive a TLS config")
 	}

@@ -67,48 +67,109 @@ It contains no message payloads or credentials. Unknown broker subscriptions
 from installations without a ledger are not deleted automatically; messages
 outside the current desired filters are ignored.
 
-MQTT missions use a single dispatch worker with up to 256 waiting jobs. When
-full, new jobs are dropped and counted. A dropped job does not consume the
-mission's trigger interval.
+MQTT missions use one dispatch worker with up to 256 waiting jobs. Their topic
+and `payload_contains` matching use the original complete text, independently
+of observation-buffer truncation. Text above 64 KiB and binary payloads do not
+start missions. Refused, quarantined, expired and queue-dropped deliveries do
+not consume the mission's trigger interval.
 
-## Relay processing and permissions
+## Relay topics and action permissions
 
-MQTT and Frigate messages run in their own internal background sessions. They
-do not inherit normal chat history or create automatic conversation summaries,
-memory extraction, personality changes or planner reminders. Their existing
-tools remain available under the current configuration and the run's own
-restrictions. Background operational failures remain recorded for diagnosis.
+After upgrading, MQTT and Frigate relays pause until both **Relay topics** and
+**Relay action permissions** are configured. Broker subscriptions and buffered
+observation continue. The MQTT page displays the saved pause reason; granting
+permissions never changes your subscriptions or enables a transport exception.
 
-Broker messages start agent runs (Relay to Agent, the Frigate event and review
-relays, MQTT-triggered missions) through the live relay gate. Normally this needs
-a broker username or client certificate over verified TLS. An authenticated
-broker on plaintext or unverified TLS additionally needs
-`mqtt.allow_untrusted_transport: true`. A username protects the relay only when
-the broker rejects anonymous clients (for Mosquitto, `allow_anonymous false`).
+Choose relay filters with a concrete first level, such as `home/door` or
+`frigate/events`. Global `#` and `+/state` relay filters are rejected. Manual or
+mission subscriptions do not implicitly become generic relay triggers.
 
-Anonymous agent triggers require an explicit
-`mqtt.allow_unauthenticated_relay: true`. Missing or null values remain false,
-including when loading or upgrading old configurations and when only mission
-triggers are registered. Explicit values survive upgrades. A true value written
-by an older upgrader is also retained because its origin was not stored; review
-it and set false when anonymous triggers are unnecessary. The existing separate
-compatibility rule for `allow_untrusted_transport` is unchanged.
+Each relay action needs an exact tool, operation and target grant, even when
+the general Action Policy is disabled. The UI supplies action dropdowns and
+target examples. Add only the actions that this event should be able to perform:
 
-The gate reads the live configuration for every delivery, so saving credentials
-or the flag takes effect without a restart. Refused deliveries are logged once
-until a delivery is admitted again. A refused mission trigger does not consume
-its trigger interval; admission precedes the interval claim. High-threat relay
-content is replaced with a fixed quarantine notice; high-threat mission messages
-are dropped without starting a mission or consuming its interval.
+```yaml
+mqtt:
+  topics: [home/door, frigate/events]
+  relay_to_agent: true
+  relay_topics: [home/door, frigate/events]
+  relay_grants:
+    - tool: mqtt_get_messages
+      operation: read
+      target: tool:mqtt_get_messages
+    - tool: mqtt_publish
+      operation: publish
+      target: mqtt:home/light/set
+    - tool: home_assistant
+      operation: call_service
+      target: ha:light.desk/light.turn_on
+    - tool: send_notification
+      operation: execute
+      target: notification:push
+```
 
-The controller runs one relay worker with at most 100 waiting messages. Disabling
-MQTT or stopping the server cancels its current relay and joins the workers.
-`/api/mqtt/status` exposes subscription failures and dropped relay/mission work
-through `runtime.subscriptions` and `stats`; overload drops newly arriving work.
+Publishing uses `mqtt:<exact-topic>`; subscription edits use
+`mqtt_filter:<exact-filter>`. HA reads use `ha:<entity_id>` and service calls use
+`ha:<entity_id>/<domain.service>`. Every entity in a multi-entity service call
+needs a grant; area/device/label/floor selectors and service-data target overrides
+are refused. Notifications name one
+configured channel (`ntfy`, `pushover`, `telegram`, `whatsapp`, `discord`, `push`,
+`telnyx` or `cyd`). Wildcard action grants, code execution, skills, MCP calls and
+delegation are unavailable to relays. An optional `arguments_hash` narrows a
+rule using the same canonical SHA-256 semantics as the general Action Policy.
 
-CYD publishing uses the live server permissions even before the first agent
-turn. Disabled MQTT, read-only mode and Egg Mode continue to restrict publishing;
-publication failures are recorded in the server log.
+Current and captured permissions must both allow the call. Removing a grant or
+relay topic takes effect on an in-flight run without restart. Existing
+integration activation, read-only, HA service, Guardian and optional general
+Action Policy restrictions still apply. Registered secrets cannot be published.
+MQTT missions retain their explicitly configured mission instructions and their
+normal execution permissions instead of inheriting these generic relay grants.
+
+## Authentication and transport
+
+All MQTT-triggered agent work requires complete broker credentials and verified
+TLS by default. A username alone does not qualify: provide the Vault password
+or a valid TLS client certificate/key pair. Client credentials do not establish
+who published an event; restrict publishers with broker ACLs.
+
+`allow_unauthenticated_relay` waives authentication only.
+`allow_untrusted_transport` waives trusted TLS only. An anonymous plaintext
+broker therefore needs **both** explicit exceptions. Missing or null values
+remain false after upgrades; old configurations no longer gain an automatic
+transport exception. Existing explicit values remain stored, but relays still
+need their new topic/action grants. The Security panel reports unsafe exceptions
+and missing credentials without exposing their values.
+
+## Load, payloads and status
+
+MQTT and Frigate run in separate internal background sessions without normal
+chat history or automatic memory/personality/planner effects. Their model input
+keeps at most 16 KiB of payload and a truncation marker. High-threat or incomplete
+local scans start no model run: a fixed, deduplicated security diagnostic records
+only a digest. Missions scan their whole accepted text before interval admission.
+
+One controller admits at most ten agent jobs per rolling minute, shared by
+relays and MQTT mission fan-out. Relay topics debounce at reception for two
+seconds. The relay queue holds at most 100 jobs; the mission queue holds 256.
+Waiting jobs expire after 60 seconds. Relay runs last at most 120 seconds and
+four tool calls, or a lower configured limit. Category `mqtt` participates in
+existing daily budget enforcement, including blocking in `partial` mode.
+
+The observation buffer defaults to 500 messages, 256 KiB per payload and
+`buffer.max_bytes: 16777216` (16 MiB) total topic/payload bytes. Zero selects the
+default; the total limit accepts 1–256 MiB. Oldest messages are removed when a
+count, age or byte limit is reached. Binary input (invalid UTF-8 or NUL) stores
+only topic/length metadata with `payload_binary: true`; `payload_bytes` retains
+the original length and `payload_truncated` identifies shortened text. No binary
+content reaches an agent. `mqtt_get_messages` supports MQTT filters including
+`+`, `#` and explicit `$SYS/#`; an empty filter returns all buffered messages.
+
+`/api/mqtt/status` includes `relay_enabled`, `relay_pause_reason`, `buffer_bytes`,
+`max_buffer_bytes`, queue lengths under `runtime`, and distinct `stats` for
+truncation, binary omission, rate limiting, queue overflow, expiry and quarantine.
+Overload warnings are rate limited. Disabled MQTT or server shutdown cancels
+active relays and joins the workers before dependent services close. CYD
+publishing keeps its existing live permission checks and failure logging.
 
 ## Generated Python skills
 

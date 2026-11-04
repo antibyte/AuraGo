@@ -184,6 +184,8 @@ func TestMQTTBrokerAuthenticatedNeedsUsernameOrCertificateOverTLS(t *testing.T) 
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &Config{}
 			cfg.MQTT.Broker, cfg.MQTT.Username = tc.broker, tc.username
+			cfg.MQTT.Password = "fixture-password"
+			cfg.MQTT.TLS.KeyFile = "client.key"
 			cfg.MQTT.TLS.CertFile, cfg.MQTT.TLS.Enabled = tc.certFile, tc.tlsEnabled
 			if got := MQTTBrokerAuthenticated(cfg); got != tc.want {
 				t.Fatalf("MQTTBrokerAuthenticated = %v, want %v", got, tc.want)
