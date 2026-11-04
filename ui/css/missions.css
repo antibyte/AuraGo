@@ -896,6 +896,11 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="missions"] input:not([type="checkbox"]):not([type="radio"]), .pw-page[data-workspace-page="missions"] select, .pw-page[data-workspace-page="missions"] textarea {
+    border-color: var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
+}
+
 .pw-page[data-workspace-page="missions"] .mission-selector {
     display: flex;
     flex-direction: column;

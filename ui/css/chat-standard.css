@@ -175,6 +175,11 @@
     background: linear-gradient(90deg, #ed764d, #f08763);
 }
 
+:root:is([data-theme="dark"], :not([data-theme])) .input-wrap textarea {
+    border-color: rgba(191, 210, 235, 0.17);
+    background: #0c1016;
+}
+
 /* enhancements.css: input focus, scrollbars, hover sweep */
 :root:is([data-theme="dark"], :not([data-theme])) .input-wrap textarea:focus {
     border-color: #ed764d;

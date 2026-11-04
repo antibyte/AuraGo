@@ -41,6 +41,11 @@
     font-weight: 650;
 }
 
+.pw-page[data-workspace-page="media"] .gallery-filter {
+    border-color: var(--pw-mat-field-border);
+    background: var(--pw-mat-field);
+}
+
 .pw-page[data-workspace-page="media"] .media-tab .media-tab-icon {
     display: inline-flex;
     width: 16px;
