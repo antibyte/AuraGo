@@ -1,0 +1,45 @@
+{
+ "pinout": "midi",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "nc": 2,
+    "ground": 1,
+    "data": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "N/C",
+     "type": "nc",
+     "ref": "CA-033, MIDI Device Connectors: pins 1 and 3 are not used"
+    },
+    {
+     "number": "2",
+     "name": "Shield",
+     "type": "ground",
+     "ref": "CA-033, figure 1 and MIDI Cable: pin 2 tied to ground at the transmitter, shield connected to pin 2"
+    },
+    {
+     "number": "3",
+     "name": "N/C",
+     "type": "nc",
+     "ref": "CA-033, MIDI Device Connectors: pins 1 and 3 are not used"
+    },
+    {
+     "number": "4",
+     "name": "Loop +",
+     "type": "data",
+     "ref": "CA-033, figure 1: pin 4 to VTX through RA"
+    },
+    {
+     "number": "5",
+     "name": "Loop -",
+     "type": "data",
+     "ref": "CA-033, figure 1: pin 5 to the UART through RC"
+    }
+   ]
+  }
+ ]
+}

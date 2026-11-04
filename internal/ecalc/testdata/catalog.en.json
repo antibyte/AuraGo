@@ -32150,6 +32150,430 @@
     },
     {
       "kind": "pinout",
+      "id": "audio_trs",
+      "category": "pinouts",
+      "group": "audio",
+      "name": "3.5 mm jack, stereo (TRS)",
+      "name_en": "3.5 mm jack, stereo (TRS)",
+      "doc": "The common 3.5 mm stereo plug of headphones and line cables, shown from the side with the tip at the left.",
+      "notes": "Left and right on tip and ring apply to headphones and stereo line signals. Balanced studio TRS jacks use the same contacts for positive, negative and ground instead.",
+      "tags": [
+        "trs",
+        "klinke",
+        "3.5 mm",
+        "3,5 mm",
+        "jack",
+        "mini jack",
+        "miniklinke",
+        "stereo",
+        "tip",
+        "ring",
+        "sleeve",
+        "headphones",
+        "kopfhörer",
+        "aux",
+        "audio"
+      ],
+      "source": "Texas Instruments TS3A225E datasheet SCDS329A, table 2; Rane Note 102 (Rane Corporation), section on phone jacks; Wikipedia, Phone connector (audio)",
+      "views": null,
+      "shape": {
+        "type": "jack",
+        "outline": "",
+        "contact": "",
+        "drawn": "side",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [
+          "T",
+          "R",
+          "S"
+        ],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "T",
+          "name": "L",
+          "function": "Left audio channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "R",
+          "name": "R",
+          "function": "Right audio channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "S",
+          "name": "GND",
+          "function": "Common ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "audio_trrs",
+      "category": "pinouts",
+      "group": "audio",
+      "name": "3.5 mm headset jack (TRRS)",
+      "name_en": "3.5 mm headset jack (TRRS)",
+      "doc": "The four-contact plug of headsets with a microphone. Tip and first ring stay left and right; microphone and ground sit on the last two contacts, in an order that depends on the variant.",
+      "notes": "CTIA (also called AHJ) and OMTP differ only in that microphone and ground are swapped, so a headset of the other kind gets the two the wrong way round. The Android headset specification requires the CTIA order and treats OMTP as optional.",
+      "tags": [
+        "trrs",
+        "headset",
+        "ctia",
+        "ahj",
+        "omtp",
+        "mic",
+        "mikrofon",
+        "microphone",
+        "3.5 mm",
+        "3,5 mm",
+        "klinke",
+        "jack",
+        "smartphone",
+        "tip",
+        "ring",
+        "sleeve"
+      ],
+      "source": "Android Open Source Project, 3.5 mm headset accessory and jack specifications; Texas Instruments TS3A225E datasheet SCDS329A, table 2; Wikipedia, Phone connector (audio)",
+      "views": null,
+      "shape": {
+        "type": "jack",
+        "outline": "",
+        "contact": "",
+        "drawn": "side",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [
+          "T",
+          "R1",
+          "R2",
+          "S"
+        ],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "ctia",
+          "name": "CTIA (AHJ)",
+          "pins": [
+            {
+              "number": "T",
+              "name": "L",
+              "function": "Left audio channel",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "R1",
+              "name": "R",
+              "function": "Right audio channel",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "R2",
+              "name": "GND",
+              "function": "Common ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "S",
+              "name": "MIC",
+              "function": "Microphone signal",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "omtp",
+          "name": "OMTP",
+          "pins": [
+            {
+              "number": "T",
+              "name": "L",
+              "function": "Left audio channel",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "R1",
+              "name": "R",
+              "function": "Right audio channel",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "R2",
+              "name": "MIC",
+              "function": "Microphone signal",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "S",
+              "name": "GND",
+              "function": "Common ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
+      "id": "xlr",
+      "category": "pinouts",
+      "group": "audio",
+      "name": "XLR, 3-pin (balanced audio)",
+      "name_en": "XLR, 3-pin (balanced audio)",
+      "doc": "The three-pin XLR connector of balanced microphone and line signals.",
+      "notes": "Pin 2 hot is the wiring of IEC 268 and AES14-1992; older equipment can differ, so check its manual if polarity matters. Pins 1 and 2 lie level with the centre and pin 3 straight below it, so the pattern is a T, not an equal triangle. The notch in the drawing marks the latch at 12 o'clock; a small polarising rib also sits at the upper right of the male face.",
+      "tags": [
+        "xlr",
+        "xlr3",
+        "xlr-3",
+        "cannon",
+        "balanced",
+        "symmetrisch",
+        "mikrofon",
+        "microphone",
+        "mic",
+        "hot",
+        "cold",
+        "heiß",
+        "kalt",
+        "aes14",
+        "shield",
+        "schirm",
+        "neutrik",
+        "audio"
+      ],
+      "source": "Neutrik drawings ST-NC3MAH and 3102 St 18 19 (NC3FAV1); Amphenol Entertainment Interconnect Catalogue, AX series standard data; ITT Cannon Audio XL catalogue; Rane Note 102; Shure SM58 user guide; Mackie 1620 manual, appendix B",
+      "views": {
+        "plug": "Male connector (pins)",
+        "socket": "Female connector (sockets)"
+      },
+      "shape": {
+        "type": "circular",
+        "outline": "",
+        "contact": "round",
+        "drawn": "plug",
+        "key": 0,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [
+          {
+            "pin": "1",
+            "angle": 270,
+            "radius": 0.5
+          },
+          {
+            "pin": "2",
+            "angle": 90,
+            "radius": 0.5
+          },
+          {
+            "pin": "3",
+            "angle": 180,
+            "radius": 0.5
+          }
+        ],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Shield",
+          "function": "Cable shield and ground",
+          "type": "ground",
+          "notes": "Some female connectors make this contact longer, so it mates first and breaks last.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "Hot (+)",
+          "function": "Balanced audio, positive line",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "Cold (-)",
+          "function": "Balanced audio, negative line",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "midi",
+      "category": "pinouts",
+      "group": "audio",
+      "name": "MIDI (DIN-5, 180°)",
+      "name_en": "MIDI (DIN-5, 180°)",
+      "doc": "The 5-pin 180° DIN connector of MIDI 1.0. Only pins 2, 4 and 5 are used: 4 and 5 carry a 5 mA current loop at 31.25 kBd, 2 the cable shield.",
+      "notes": "The contacts follow the arc in the order 1, 4, 2, 5, 3. On the solder side of a jack that order is mirrored, which matches the plug view of this drawing, not the jack view. Pin 2 is grounded at MIDI Out and Thru only; at MIDI In it has no DC path to ground. The cable shield goes to pin 2 only, never to the plug barrel.",
+      "tags": [
+        "midi",
+        "din",
+        "din-5",
+        "din5",
+        "din 41524",
+        "5-pin",
+        "5-polig",
+        "current loop",
+        "stromschleife",
+        "midi in",
+        "midi out",
+        "midi thru",
+        "ca-033",
+        "audio"
+      ],
+      "source": "MMA/AMEI CA-033, MIDI 1.0 Electrical Specification Update (2014); binder catalogue M16 IP67, series 423/723, contact arrangements (5 contacts stereo, DIN 41524); Switchcraft catalogue, DIN connectors and receptacles (57PC5F PC board layout)",
+      "views": {
+        "plug": "Cable plug (pins)",
+        "socket": "Device jack (sockets)"
+      },
+      "shape": {
+        "type": "circular",
+        "outline": "",
+        "contact": "round",
+        "drawn": "socket",
+        "key": 0,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [
+          {
+            "pin": "1",
+            "angle": 90,
+            "radius": 0.53
+          },
+          {
+            "pin": "4",
+            "angle": 135,
+            "radius": 0.53
+          },
+          {
+            "pin": "2",
+            "angle": 180,
+            "radius": 0.53
+          },
+          {
+            "pin": "5",
+            "angle": 225,
+            "radius": 0.53
+          },
+          {
+            "pin": "3",
+            "angle": 270,
+            "radius": 0.53
+          }
+        ],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "N/C",
+          "function": "Not used, leave unconnected",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "Shield",
+          "function": "Cable shield, grounded at the sender only",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "N/C",
+          "function": "Not used, leave unconnected",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "Loop +",
+          "function": "Current loop, supply side: at the sender fed from VTX through a resistor",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "Loop -",
+          "function": "Current loop, switched side: at the sender driven by the UART through a resistor",
+          "type": "data",
+          "notes": "Logic 0 means current on.",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
       "id": "arduino_uno",
       "category": "pinouts",
       "group": "boards",

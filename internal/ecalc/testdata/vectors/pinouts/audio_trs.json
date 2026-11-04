@@ -1,0 +1,32 @@
+{
+ "pinout": "audio_trs",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "signal": 2,
+    "ground": 1
+   },
+   "pins": [
+    {
+     "number": "T",
+     "name": "L",
+     "type": "signal",
+     "ref": "TI TS3A225E SCDS329A, table 2: Tip, Audio Left"
+    },
+    {
+     "number": "R",
+     "name": "R",
+     "type": "signal",
+     "ref": "TI TS3A225E SCDS329A, table 2: Ring, Audio Right"
+    },
+    {
+     "number": "S",
+     "name": "GND",
+     "type": "ground",
+     "ref": "TI TS3A225E SCDS329A, table 2: Sleeve, Ground; Rane Note 102: Sleeve = Common Ground"
+    }
+   ]
+  }
+ ]
+}

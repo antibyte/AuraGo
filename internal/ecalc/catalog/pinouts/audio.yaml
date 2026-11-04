@@ -1,0 +1,103 @@
+# Audio connectors. The sources behind every item are in documentation/ecalc-sources/pinouts/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: audio_trs
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "Jack 3,5 mm, stereo (TRS)", da: "3,5 mm jack, stereo (TRS)", de: "3,5-mm-Klinke, Stereo (TRS)", el: "Βύσμα 3,5 mm, στερεοφωνικό (TRS)", en: "3.5 mm jack, stereo (TRS)", es: "Jack 3,5 mm, estéreo (TRS)", fr: "Jack 3,5 mm, stéréo (TRS)", hi: "3.5 मिमी जैक, स्टीरियो (TRS)", it: "Jack 3,5 mm, stereo (TRS)", ja: "3.5 mm ジャック ステレオ (TRS)", nl: "3,5 mm-jack, stereo (TRS)", "no": "3,5 mm jack, stereo (TRS)", pl: "Jack 3,5 mm, stereo (TRS)", pt: "Jack 3,5 mm, estéreo (TRS)", sv: "3,5 mm-teleplugg, stereo (TRS)", zh: "3.5 毫米立体声插头 (TRS)"}
+  doc: {en: "The common 3.5 mm stereo plug of headphones and line cables, shown from the side with the tip at the left.", de: "Der übliche 3,5-mm-Stereostecker von Kopfhörern und Line-Kabeln, von der Seite gezeigt, Spitze links."}
+  notes: {en: "Left and right on tip and ring apply to headphones and stereo line signals. Balanced studio TRS jacks use the same contacts for positive, negative and ground instead.", de: "Links und rechts auf Spitze und Ring gelten für Kopfhörer und Stereo-Line-Signale. Symmetrische TRS-Buchsen der Studiotechnik belegen dieselben Kontakte stattdessen mit Plus, Minus und Masse."}
+  tags: ["trs", "klinke", "3.5 mm", "3,5 mm", "jack", "mini jack", "miniklinke", "stereo", "tip", "ring", "sleeve", "headphones", "kopfhörer", "aux", "audio"]
+  source: "Texas Instruments TS3A225E datasheet SCDS329A, table 2; Rane Note 102 (Rane Corporation), section on phone jacks; Wikipedia, Phone connector (audio)"
+  shape:
+    type: jack
+    segments: ["T", "R", "S"]
+  pins:
+    - {number: "T", name: "L", function: {en: "Left audio channel", de: "Linker Audiokanal"}, type: signal}
+    - {number: "R", name: "R", function: {en: "Right audio channel", de: "Rechter Audiokanal"}, type: signal}
+    - {number: "S", name: "GND", function: {en: "Common ground", de: "Gemeinsame Masse"}, type: ground}
+
+- id: audio_trrs
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "Jack 3,5 mm pro headset (TRRS)", da: "3,5 mm headset-jack (TRRS)", de: "3,5-mm-Headset-Klinke (TRRS)", el: "Βύσμα ακουστικών 3,5 mm (TRRS)", en: "3.5 mm headset jack (TRRS)", es: "Jack de auriculares 3,5 mm (TRRS)", fr: "Jack de casque-micro 3,5 mm (TRRS)", hi: "3.5 मिमी हेडसेट जैक (TRRS)", it: "Jack per cuffie 3,5 mm (TRRS)", ja: "3.5 mm ヘッドセットジャック (TRRS)", nl: "3,5 mm-headsetjack (TRRS)", "no": "3,5 mm headset-jack (TRRS)", pl: "Jack słuchawkowy 3,5 mm (TRRS)", pt: "Jack de headset 3,5 mm (TRRS)", sv: "3,5 mm-headsetplugg (TRRS)", zh: "3.5 毫米耳麦插头 (TRRS)"}
+  doc: {en: "The four-contact plug of headsets with a microphone. Tip and first ring stay left and right; microphone and ground sit on the last two contacts, in an order that depends on the variant.", de: "Der vierpolige Stecker von Headsets mit Mikrofon. Spitze und erster Ring bleiben links und rechts; Mikrofon und Masse liegen auf den letzten beiden Kontakten, die Reihenfolge hängt von der Variante ab."}
+  notes: {en: "CTIA (also called AHJ) and OMTP differ only in that microphone and ground are swapped, so a headset of the other kind gets the two the wrong way round. The Android headset specification requires the CTIA order and treats OMTP as optional.", de: "CTIA (auch AHJ genannt) und OMTP unterscheiden sich nur darin, dass Mikrofon und Masse vertauscht sind; ein Headset der anderen Art bekommt beide also falsch herum. Die Android-Headset-Spezifikation verlangt die CTIA-Reihenfolge, OMTP ist optional."}
+  tags: ["trrs", "headset", "ctia", "ahj", "omtp", "mic", "mikrofon", "microphone", "3.5 mm", "3,5 mm", "klinke", "jack", "smartphone", "tip", "ring", "sleeve"]
+  source: "Android Open Source Project, 3.5 mm headset accessory and jack specifications; Texas Instruments TS3A225E datasheet SCDS329A, table 2; Wikipedia, Phone connector (audio)"
+  shape:
+    type: jack
+    segments: ["T", "R1", "R2", "S"]
+  variants:
+    - id: ctia
+      name: {en: "CTIA (AHJ)", de: "CTIA (AHJ)"}
+      pins:
+        - {number: "T", name: "L", function: {en: "Left audio channel", de: "Linker Audiokanal"}, type: signal}
+        - {number: "R1", name: "R", function: {en: "Right audio channel", de: "Rechter Audiokanal"}, type: signal}
+        - {number: "R2", name: "GND", function: {en: "Common ground", de: "Gemeinsame Masse"}, type: ground}
+        - {number: "S", name: "MIC", function: {en: "Microphone signal", de: "Mikrofonsignal"}, type: signal}
+    - id: omtp
+      name: {en: "OMTP", de: "OMTP"}
+      pins:
+        - {number: "T", name: "L", function: {en: "Left audio channel", de: "Linker Audiokanal"}, type: signal}
+        - {number: "R1", name: "R", function: {en: "Right audio channel", de: "Rechter Audiokanal"}, type: signal}
+        - {number: "R2", name: "MIC", function: {en: "Microphone signal", de: "Mikrofonsignal"}, type: signal}
+        - {number: "S", name: "GND", function: {en: "Common ground", de: "Gemeinsame Masse"}, type: ground}
+
+- id: xlr
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "XLR, 3 piny (symetrický)", da: "XLR, 3-polet (balanceret)", de: "XLR, 3-polig (symmetrisch)", el: "XLR, 3 ακίδων (συμμετρικό)", en: "XLR, 3-pin (balanced audio)", es: "XLR, 3 pines (balanceado)", fr: "XLR, 3 broches (symétrique)", hi: "XLR, 3-पिन (बैलेंस्ड ऑडियो)", it: "XLR, 3 poli (bilanciato)", ja: "XLR 3 ピン (バランス)", nl: "XLR, 3-polig (gebalanceerd)", "no": "XLR, 3-polet (balansert)", pl: "XLR, 3-pinowy (symetryczny)", pt: "XLR, 3 pinos (balanceado)", sv: "XLR, 3-polig (balanserad)", zh: "XLR 3 针 (平衡音频)"}
+  doc: {en: "The three-pin XLR connector of balanced microphone and line signals.", de: "Der dreipolige XLR-Steckverbinder für symmetrische Mikrofon- und Line-Signale."}
+  notes: {en: "Pin 2 hot is the wiring of IEC 268 and AES14-1992; older equipment can differ, so check its manual if polarity matters. Pins 1 and 2 lie level with the centre and pin 3 straight below it, so the pattern is a T, not an equal triangle. The notch in the drawing marks the latch at 12 o'clock; a small polarising rib also sits at the upper right of the male face.", de: "Pin 2 heiß ist die Belegung nach IEC 268 und AES14-1992; ältere Geräte können abweichen, im Zweifel also das Handbuch prüfen. Die Pins 1 und 2 liegen auf Höhe der Mitte, Pin 3 genau darunter: das Muster ist ein T, kein gleichseitiges Dreieck. Die Kerbe in der Zeichnung markiert die Verriegelung auf 12 Uhr; außerdem sitzt eine kleine Kodierrippe oben rechts auf der Steckerseite."}
+  tags: ["xlr", "xlr3", "xlr-3", "cannon", "balanced", "symmetrisch", "mikrofon", "microphone", "mic", "hot", "cold", "heiß", "kalt", "aes14", "shield", "schirm", "neutrik", "audio"]
+  source: "Neutrik drawings ST-NC3MAH and 3102 St 18 19 (NC3FAV1); Amphenol Entertainment Interconnect Catalogue, AX series standard data; ITT Cannon Audio XL catalogue; Rane Note 102; Shure SM58 user guide; Mackie 1620 manual, appendix B"
+  views:
+    plug: {en: "Male connector (pins)", de: "Stecker (Stifte)"}
+    socket: {en: "Female connector (sockets)", de: "Buchse (Kontaktbuchsen)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: plug
+    key: 0
+    positions:
+      - {pin: "1", angle: 270, radius: 0.5}
+      - {pin: "2", angle: 90, radius: 0.5}
+      - {pin: "3", angle: 180, radius: 0.5}
+  pins:
+    - {number: "1", name: "Shield", function: {en: "Cable shield and ground", de: "Kabelschirm und Masse"}, type: ground, notes: {en: "Some female connectors make this contact longer, so it mates first and breaks last.", de: "Manche Kabelbuchsen haben diesen Kontakt länger: Er schließt zuerst und trennt zuletzt."}}
+    - {number: "2", name: "Hot (+)", function: {en: "Balanced audio, positive line", de: "Symmetrisches Audio, positive Leitung"}, type: signal}
+    - {number: "3", name: "Cold (-)", function: {en: "Balanced audio, negative line", de: "Symmetrisches Audio, negative Leitung"}, type: signal}
+
+- id: midi
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "MIDI (DIN-5, 180°)", da: "MIDI (DIN-5, 180°)", de: "MIDI (DIN-5, 180°)", el: "MIDI (DIN-5, 180°)", en: "MIDI (DIN-5, 180°)", es: "MIDI (DIN-5, 180°)", fr: "MIDI (DIN-5, 180°)", hi: "MIDI (DIN-5, 180°)", it: "MIDI (DIN-5, 180°)", ja: "MIDI (DIN-5, 180°)", nl: "MIDI (DIN-5, 180°)", "no": "MIDI (DIN-5, 180°)", pl: "MIDI (DIN-5, 180°)", pt: "MIDI (DIN-5, 180°)", sv: "MIDI (DIN-5, 180°)", zh: "MIDI (DIN-5, 180°)"}
+  doc: {en: "The 5-pin 180° DIN connector of MIDI 1.0. Only pins 2, 4 and 5 are used: 4 and 5 carry a 5 mA current loop at 31.25 kBd, 2 the cable shield.", de: "Der fünfpolige 180°-DIN-Steckverbinder von MIDI 1.0. Benutzt werden nur die Pins 2, 4 und 5: 4 und 5 führen eine 5-mA-Stromschleife mit 31,25 kBd, 2 den Kabelschirm."}
+  notes: {en: "The contacts follow the arc in the order 1, 4, 2, 5, 3. On the solder side of a jack that order is mirrored, which matches the plug view of this drawing, not the jack view. Pin 2 is grounded at MIDI Out and Thru only; at MIDI In it has no DC path to ground. The cable shield goes to pin 2 only, never to the plug barrel.", de: "Die Kontakte liegen entlang des Bogens in der Reihenfolge 1, 4, 2, 5, 3. Auf der Lötseite einer Buchse ist diese Folge gespiegelt: Sie entspricht dann der Steckeransicht dieser Zeichnung, nicht der Buchsenansicht. Pin 2 liegt nur an MIDI Out und Thru auf Masse, an MIDI In hat er keinen Gleichstromweg nach Masse. Der Kabelschirm kommt nur an Pin 2, nie an das Steckergehäuse."}
+  tags: ["midi", "din", "din-5", "din5", "din 41524", "5-pin", "5-polig", "current loop", "stromschleife", "midi in", "midi out", "midi thru", "ca-033", "audio"]
+  source: "MMA/AMEI CA-033, MIDI 1.0 Electrical Specification Update (2014); binder catalogue M16 IP67, series 423/723, contact arrangements (5 contacts stereo, DIN 41524); Switchcraft catalogue, DIN connectors and receptacles (57PC5F PC board layout)"
+  views:
+    plug: {en: "Cable plug (pins)", de: "Kabelstecker (Stifte)"}
+    socket: {en: "Device jack (sockets)", de: "Gerätebuchse (Kontaktbuchsen)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: socket
+    key: 0
+    positions:
+      - {pin: "1", angle: 90, radius: 0.53}
+      - {pin: "4", angle: 135, radius: 0.53}
+      - {pin: "2", angle: 180, radius: 0.53}
+      - {pin: "5", angle: 225, radius: 0.53}
+      - {pin: "3", angle: 270, radius: 0.53}
+  pins:
+    - {number: "1", name: "N/C", function: {en: "Not used, leave unconnected", de: "Unbenutzt, frei lassen"}, type: nc}
+    - {number: "2", name: "Shield", function: {en: "Cable shield, grounded at the sender only", de: "Kabelschirm, nur beim Sender auf Masse"}, type: ground}
+    - {number: "3", name: "N/C", function: {en: "Not used, leave unconnected", de: "Unbenutzt, frei lassen"}, type: nc}
+    - {number: "4", name: "Loop +", function: {en: "Current loop, supply side: at the sender fed from VTX through a resistor", de: "Stromschleife, Versorgungsseite: beim Sender über einen Widerstand an VTX"}, type: data}
+    - {number: "5", name: "Loop -", function: {en: "Current loop, switched side: at the sender driven by the UART through a resistor", de: "Stromschleife, geschaltete Seite: beim Sender über einen Widerstand vom UART getrieben"}, type: data, notes: {en: "Logic 0 means current on.", de: "Logisch 0 bedeutet: Strom fließt."}}

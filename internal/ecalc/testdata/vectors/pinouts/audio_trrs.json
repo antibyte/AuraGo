@@ -1,0 +1,71 @@
+{
+ "pinout": "audio_trrs",
+ "variants": [
+  {
+   "variant": "ctia",
+   "counts": {
+    "signal": 3,
+    "ground": 1
+   },
+   "pins": [
+    {
+     "number": "T",
+     "name": "L",
+     "type": "signal",
+     "ref": "TI TS3A225E SCDS329A, table 2 (Standard): Tip, Audio Left"
+    },
+    {
+     "number": "R1",
+     "name": "R",
+     "type": "signal",
+     "ref": "TI TS3A225E SCDS329A, table 2 (Standard): Ring 1, Audio Right"
+    },
+    {
+     "number": "R2",
+     "name": "GND",
+     "type": "ground",
+     "ref": "TI TS3A225E SCDS329A, table 2 (Standard): Ring 2, Ground; Android: CTIA order LRGM"
+    },
+    {
+     "number": "S",
+     "name": "MIC",
+     "type": "signal",
+     "ref": "TI TS3A225E SCDS329A, table 2 (Standard): Sleeve, Microphone; Android: CTIA order LRGM"
+    }
+   ]
+  },
+  {
+   "variant": "omtp",
+   "counts": {
+    "signal": 3,
+    "ground": 1
+   },
+   "pins": [
+    {
+     "number": "T",
+     "name": "L",
+     "type": "signal",
+     "ref": "Android 3.5 mm headset specification: OMTP order LRMG"
+    },
+    {
+     "number": "R1",
+     "name": "R",
+     "type": "signal",
+     "ref": "Android 3.5 mm headset specification: OMTP order LRMG"
+    },
+    {
+     "number": "R2",
+     "name": "MIC",
+     "type": "signal",
+     "ref": "Wikipedia, Phone connector (audio): OMTP has the microphone on the second ring; TI TS3A225E band diagram G M R L"
+    },
+    {
+     "number": "S",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Wikipedia, Phone connector (audio): OMTP has the ground return on the sleeve; TI TS3A225E band diagram G M R L"
+    }
+   ]
+  }
+ ]
+}

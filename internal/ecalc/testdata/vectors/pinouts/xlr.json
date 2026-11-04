@@ -1,0 +1,32 @@
+{
+ "pinout": "xlr",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "signal": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "Shield",
+     "type": "ground",
+     "ref": "Mackie 1620 manual, appendix B: Pin 1 = Shield; Rane Note 102: Pin 1 Ground (Shield, screen, etc.)"
+    },
+    {
+     "number": "2",
+     "name": "Hot (+)",
+     "type": "signal",
+     "ref": "Mackie 1620 manual, appendix B: Pin 2 = Hot (+); Rane Note 102: Pin 2 Positive; Shure SM58 user guide, polarity"
+    },
+    {
+     "number": "3",
+     "name": "Cold (-)",
+     "type": "signal",
+     "ref": "Mackie 1620 manual, appendix B: Pin 3 = Cold; Rane Note 102: Pin 3 Negative"
+    }
+   ]
+  }
+ ]
+}
