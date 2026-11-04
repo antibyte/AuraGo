@@ -167,12 +167,20 @@
 .pw-page ::selection {
     background: color-mix(in srgb, var(--pw-accent) 28%, transparent);
     color: var(--pw-text);
+    text-shadow: none;
 }
 
 .pw-page a {
     color: inherit;
     text-decoration-color: color-mix(in srgb, var(--pw-accent) 52%, transparent);
     text-underline-offset: 0.2em;
+}
+
+/* A page corresponds to window content: no noise layer and no colour orbs. */
+body.pw-page::before,
+body.pw-page::after {
+    content: none;
+    animation: none;
 }
 
 .pw-page h1,
