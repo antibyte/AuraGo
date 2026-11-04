@@ -32147,6 +32147,4636 @@
           "Some makers use R, S or H as extra EIA-96 letters with conflicting meanings; they are not decoded - check the datasheet."
         ]
       }
+    },
+    {
+      "kind": "pinout",
+      "id": "arduino_uno",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "Arduino Uno R3",
+      "name_en": "Arduino Uno R3",
+      "doc": "Arduino Uno R3 from above with the USB socket at the top and the DC jack beside it. The board carries no pin numbers, so each pin is named after its header in the Arduino schematic (POWER, AD, IOH, IOL, ICSP) plus its position there.",
+      "notes": "Logic level 5 V; each I/O pin carries 20 mA at most. The ICSP block is the 6-pin header at the end of the board away from USB and belongs to the ATmega328P. A second 6-pin header near the USB socket, ICSP1, programs the ATmega16U2 and is not listed here. D0 and D1 also reach the USB bridge, so a circuit on them can get in the way of uploads.",
+      "tags": [
+        "arduino",
+        "uno",
+        "uno r3",
+        "atmega328p",
+        "shield",
+        "header",
+        "stiftleiste",
+        "belegung",
+        "pinout",
+        "icsp",
+        "isp",
+        "spi",
+        "i2c",
+        "uart",
+        "pwm",
+        "sda",
+        "scl",
+        "mosi",
+        "miso",
+        "cipo",
+        "copi",
+        "sck",
+        "ioref",
+        "aref",
+        "vin",
+        "d13",
+        "a0",
+        "gpio"
+      ],
+      "source": "Arduino UNO R3 Full Pinout, SKU A000066 (6 Oct 2022); Arduino UNO-TH_Rev3e schematic (A000066-schematics.pdf); Arduino UNO R3 datasheet, SKU A000066 (modified 03/11/2026)",
+      "views": null,
+      "shape": {
+        "type": "board",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [
+          null,
+          null,
+          null,
+          null,
+          "POWER.1",
+          "POWER.2",
+          "POWER.3",
+          "POWER.4",
+          "POWER.5",
+          "POWER.6",
+          "POWER.7",
+          "POWER.8",
+          null,
+          "AD.1",
+          "AD.2",
+          "AD.3",
+          "AD.4",
+          "AD.5",
+          "AD.6"
+        ],
+        "right": [
+          "IOH.10",
+          "IOH.9",
+          "IOH.8",
+          "IOH.7",
+          "IOH.6",
+          "IOH.5",
+          "IOH.4",
+          "IOH.3",
+          "IOH.2",
+          "IOH.1",
+          null,
+          "IOL.8",
+          "IOL.7",
+          "IOL.6",
+          "IOL.5",
+          "IOL.4",
+          "IOL.3",
+          "IOL.2",
+          "IOL.1"
+        ],
+        "top": [],
+        "bottom": [],
+        "connector": "top",
+        "inner": [
+          {
+            "label": "ICSP",
+            "rows": [
+              {
+                "pins": [
+                  "ICSP.5",
+                  "ICSP.3",
+                  "ICSP.1"
+                ],
+                "offset": 0
+              },
+              {
+                "pins": [
+                  "ICSP.6",
+                  "ICSP.4",
+                  "ICSP.2"
+                ],
+                "offset": 0
+              }
+            ]
+          }
+        ]
+      },
+      "pins": [
+        {
+          "number": "POWER.1",
+          "name": "NC",
+          "function": "Not connected",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.2",
+          "name": "IOREF",
+          "function": "Tells shields the logic voltage; tied to 5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.3",
+          "name": "RESET",
+          "function": "Reset; pull low to restart the ATmega328P",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.4",
+          "name": "3V3",
+          "function": "3.3 V output, 50 mA at most",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.5",
+          "name": "5V",
+          "function": "5 V rail, output",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.6",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "POWER.8",
+          "name": "VIN",
+          "function": "Supply input, 6–20 V, feeds the 5 V regulator",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.1",
+          "name": "A0",
+          "function": "Analog input ADC0; digital D14 (PC0)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.2",
+          "name": "A1",
+          "function": "Analog input ADC1; digital D15 (PC1)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.3",
+          "name": "A2",
+          "function": "Analog input ADC2; digital D16 (PC2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.4",
+          "name": "A3",
+          "function": "Analog input ADC3; digital D17 (PC3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.5",
+          "name": "A4",
+          "function": "Analog input ADC4; digital D18; I2C SDA (PC4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "AD.6",
+          "name": "A5",
+          "function": "Analog input ADC5; digital D19; I2C SCL (PC5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.1",
+          "name": "D0",
+          "function": "UART RX (PD0); linked to the USB bridge through 1 kΩ",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.2",
+          "name": "D1",
+          "function": "UART TX (PD1); linked to the USB bridge through 1 kΩ",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.3",
+          "name": "D2",
+          "function": "Digital pin; interrupt INT0 (PD2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.4",
+          "name": "D3",
+          "function": "PWM (OC2B); interrupt INT1 (PD3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.5",
+          "name": "D4",
+          "function": "Digital pin (PD4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.6",
+          "name": "D5",
+          "function": "PWM (OC0B) (PD5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.7",
+          "name": "D6",
+          "function": "PWM (OC0A) (PD6)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOL.8",
+          "name": "D7",
+          "function": "Digital pin (PD7)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.1",
+          "name": "D8",
+          "function": "Digital pin (PB0)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.2",
+          "name": "D9",
+          "function": "PWM (OC1A) (PB1)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.3",
+          "name": "D10",
+          "function": "PWM (OC1B); SPI SS (PB2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.4",
+          "name": "D11",
+          "function": "PWM (OC2A); SPI COPI, formerly MOSI (PB3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.5",
+          "name": "D12",
+          "function": "SPI CIPO, formerly MISO (PB4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.6",
+          "name": "D13",
+          "function": "SPI SCK; on-board LED (PB5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.8",
+          "name": "AREF",
+          "function": "Reference voltage of the ADC",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.9",
+          "name": "SDA",
+          "function": "I2C SDA; same line as A4",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "IOH.10",
+          "name": "SCL",
+          "function": "I2C SCL; same line as A5",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.1",
+          "name": "CIPO",
+          "function": "SPI CIPO, formerly MISO (D12, PB4)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.2",
+          "name": "5V",
+          "function": "5 V rail",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.3",
+          "name": "SCK",
+          "function": "SPI clock (D13, PB5)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.4",
+          "name": "COPI",
+          "function": "SPI COPI, formerly MOSI (D11, PB3)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.5",
+          "name": "RESET",
+          "function": "Reset of the ATmega328P",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.6",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "arduino_nano",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "Arduino Nano",
+      "name_en": "Arduino Nano",
+      "doc": "Classic Arduino Nano (ATmega328, USB Mini-B) from above with USB at the top. Numbers follow the headers J1 and J2 of the Arduino schematic: J1 is the right column, J2 the left one, and pin 1 of each is the end away from USB.",
+      "notes": "Logic level 5 V; each I/O pin carries 20 mA at most. Arduino's pinout gives VIN as 7–12 V, the feature list of its datasheet as 7–15 V. That list counts pins around the board: its pin 30 is J2.1 (VIN), its pin 27 is J2.4 (5V). This is the ATmega328 Nano, not the Nano Every or Nano 33 boards.",
+      "tags": [
+        "arduino",
+        "nano",
+        "atmega328",
+        "atmega328p",
+        "ft232rl",
+        "header",
+        "stiftleiste",
+        "belegung",
+        "pinout",
+        "breadboard",
+        "steckbrett",
+        "icsp",
+        "isp",
+        "spi",
+        "i2c",
+        "uart",
+        "pwm",
+        "sda",
+        "scl",
+        "mosi",
+        "miso",
+        "cipo",
+        "copi",
+        "sck",
+        "aref",
+        "vin",
+        "d13",
+        "a7",
+        "gpio"
+      ],
+      "source": "Arduino Nano Full Pinout, SKU A000005 (30/06/2021); Arduino NanoV3.3 schematic (A000005-schematics.pdf); Arduino Nano datasheet, SKU A000005 (modified 03/11/2026)",
+      "views": null,
+      "shape": {
+        "type": "board",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [
+          "J2.15",
+          "J2.14",
+          "J2.13",
+          "J2.12",
+          "J2.11",
+          "J2.10",
+          "J2.9",
+          "J2.8",
+          "J2.7",
+          "J2.6",
+          "J2.5",
+          "J2.4",
+          "J2.3",
+          "J2.2",
+          "J2.1"
+        ],
+        "right": [
+          "J1.15",
+          "J1.14",
+          "J1.13",
+          "J1.12",
+          "J1.11",
+          "J1.10",
+          "J1.9",
+          "J1.8",
+          "J1.7",
+          "J1.6",
+          "J1.5",
+          "J1.4",
+          "J1.3",
+          "J1.2",
+          "J1.1"
+        ],
+        "top": [],
+        "bottom": [],
+        "connector": "top",
+        "inner": [
+          {
+            "label": "ICSP",
+            "rows": [
+              {
+                "pins": [
+                  "ICSP.2",
+                  "ICSP.4",
+                  "ICSP.6"
+                ],
+                "offset": 0
+              },
+              {
+                "pins": [
+                  "ICSP.1",
+                  "ICSP.3",
+                  "ICSP.5"
+                ],
+                "offset": 0
+              }
+            ]
+          }
+        ]
+      },
+      "pins": [
+        {
+          "number": "J1.1",
+          "name": "D1",
+          "function": "UART TX (PD1); linked to the FT232RL through 1 kΩ",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.2",
+          "name": "D0",
+          "function": "UART RX (PD0); linked to the FT232RL through 1 kΩ",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.3",
+          "name": "RESET",
+          "function": "Reset; pull low to restart the ATmega328",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.5",
+          "name": "D2",
+          "function": "Digital pin; interrupt INT0 (PD2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.6",
+          "name": "D3",
+          "function": "PWM (OC2B); interrupt INT1 (PD3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.7",
+          "name": "D4",
+          "function": "Digital pin (PD4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.8",
+          "name": "D5",
+          "function": "PWM (OC0B) (PD5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.9",
+          "name": "D6",
+          "function": "PWM (OC0A) (PD6)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.10",
+          "name": "D7",
+          "function": "Digital pin (PD7)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.11",
+          "name": "D8",
+          "function": "Digital pin (PB0)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.12",
+          "name": "D9",
+          "function": "PWM (OC1A) (PB1)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.13",
+          "name": "D10",
+          "function": "PWM (OC1B); SPI SS (PB2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.14",
+          "name": "D11",
+          "function": "PWM (OC2A); SPI COPI, formerly MOSI (PB3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.15",
+          "name": "D12",
+          "function": "SPI CIPO, formerly MISO (PB4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.1",
+          "name": "VIN",
+          "function": "Supply input, 7–12 V, feeds the 5 V regulator",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.2",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.3",
+          "name": "RESET",
+          "function": "Reset; pull low to restart the ATmega328",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.4",
+          "name": "5V",
+          "function": "5 V rail; can also take a regulated 5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.5",
+          "name": "A7",
+          "function": "Analog input ADC7 only, no digital use",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.6",
+          "name": "A6",
+          "function": "Analog input ADC6 only, no digital use",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.7",
+          "name": "A5",
+          "function": "Analog input ADC5; digital D19; I2C SCL (PC5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.8",
+          "name": "A4",
+          "function": "Analog input ADC4; digital D18; I2C SDA (PC4)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.9",
+          "name": "A3",
+          "function": "Analog input ADC3; digital D17 (PC3)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.10",
+          "name": "A2",
+          "function": "Analog input ADC2; digital D16 (PC2)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.11",
+          "name": "A1",
+          "function": "Analog input ADC1; digital D15 (PC1)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.12",
+          "name": "A0",
+          "function": "Analog input ADC0; digital D14 (PC0)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.13",
+          "name": "AREF",
+          "function": "Reference voltage of the ADC",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.14",
+          "name": "3V3",
+          "function": "3.3 V output of the FT232RL, 50 mA at most",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.15",
+          "name": "D13",
+          "function": "SPI SCK; on-board LED (PB5)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.1",
+          "name": "CIPO",
+          "function": "SPI CIPO, formerly MISO (D12, PB4)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.2",
+          "name": "5V",
+          "function": "5 V rail",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.3",
+          "name": "SCK",
+          "function": "SPI clock (D13, PB5)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.4",
+          "name": "COPI",
+          "function": "SPI COPI, formerly MOSI (D11, PB3)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.5",
+          "name": "RESET",
+          "function": "Reset of the ATmega328",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "ICSP.6",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "esp32_devkitc",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "ESP32-DevKitC V4",
+      "name_en": "ESP32-DevKitC V4",
+      "doc": "ESP32-DevKitC V4 from the component side, drawn with the Micro-USB socket at the top, so the antenna is at the bottom; Espressif's own figure shows the board the other way up. Numbers are the headers J2 and J3 of Espressif's user guide.",
+      "notes": "GPIO34, 35, 36 and 39 are inputs only and have no pull resistors. GPIO0, 2, 5, 12 and 15 are strapping pins, read at reset, so a circuit on them can change how the board starts. GPIO6 to GPIO11 belong to the SPI flash and cannot serve as regular GPIO. Every other GPIO that can output can also do PWM. Inputs take at most the 3.3 V supply plus 0.3 V. Power the board from one source only (USB, the 5V pin or the 3V3 pin); two at once can do damage.",
+      "tags": [
+        "esp32",
+        "devkitc",
+        "devkit",
+        "espressif",
+        "wroom",
+        "wrover",
+        "wifi",
+        "gpio",
+        "strapping",
+        "input only",
+        "nur eingang",
+        "flash",
+        "adc",
+        "dac",
+        "touch",
+        "pwm",
+        "i2c",
+        "spi",
+        "vspi",
+        "hspi",
+        "uart",
+        "boot",
+        "en",
+        "stiftleiste",
+        "belegung",
+        "pinout"
+      ],
+      "source": "Espressif, ESP32-DevKitC V4 user guide (esp-dev-kits, latest): header tables J2 and J3, pin layout figure; Espressif, ESP32_DevKitc_V4 schematic; Espressif, ESP32 Series Datasheet v5.3",
+      "views": null,
+      "shape": {
+        "type": "board",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [
+          "J3.19",
+          "J3.18",
+          "J3.17",
+          "J3.16",
+          "J3.15",
+          "J3.14",
+          "J3.13",
+          "J3.12",
+          "J3.11",
+          "J3.10",
+          "J3.9",
+          "J3.8",
+          "J3.7",
+          "J3.6",
+          "J3.5",
+          "J3.4",
+          "J3.3",
+          "J3.2",
+          "J3.1"
+        ],
+        "right": [
+          "J2.19",
+          "J2.18",
+          "J2.17",
+          "J2.16",
+          "J2.15",
+          "J2.14",
+          "J2.13",
+          "J2.12",
+          "J2.11",
+          "J2.10",
+          "J2.9",
+          "J2.8",
+          "J2.7",
+          "J2.6",
+          "J2.5",
+          "J2.4",
+          "J2.3",
+          "J2.2",
+          "J2.1"
+        ],
+        "top": [],
+        "bottom": [],
+        "connector": "top",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "J2.1",
+          "name": "3V3",
+          "function": "3.3 V supply, output or input",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.2",
+          "name": "EN",
+          "function": "Chip enable CHIP_PU; low resets; EN button",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.3",
+          "name": "GPIO36",
+          "function": "Input only. Silk VP. ADC1_CH0, S_VP",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.4",
+          "name": "GPIO39",
+          "function": "Input only. Silk VN. ADC1_CH3, S_VN",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.5",
+          "name": "GPIO34",
+          "function": "Input only. ADC1_CH6, VDET_1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.6",
+          "name": "GPIO35",
+          "function": "Input only. ADC1_CH7, VDET_2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.7",
+          "name": "GPIO32",
+          "function": "ADC1_CH4, TOUCH9, 32 kHz crystal XTAL_32K_P",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.8",
+          "name": "GPIO33",
+          "function": "ADC1_CH5, TOUCH8, 32 kHz crystal XTAL_32K_N",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.9",
+          "name": "GPIO25",
+          "function": "ADC2_CH8, DAC_1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.10",
+          "name": "GPIO26",
+          "function": "ADC2_CH9, DAC_2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.11",
+          "name": "GPIO27",
+          "function": "ADC2_CH7, TOUCH7",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.12",
+          "name": "GPIO14",
+          "function": "ADC2_CH6, TOUCH6, JTAG MTMS, HSPI SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.13",
+          "name": "GPIO12",
+          "function": "Strapping pin (MTDI). ADC2_CH5, TOUCH5, HSPI MISO",
+          "type": "io",
+          "notes": "Keep low at reset: high switches the flash supply to the internal 1.8 V regulator.",
+          "wire": ""
+        },
+        {
+          "number": "J2.14",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.15",
+          "name": "GPIO13",
+          "function": "ADC2_CH4, TOUCH4, JTAG MTCK, HSPI MOSI",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.16",
+          "name": "GPIO9",
+          "function": "Silk D2. SPI flash line SD_DATA2; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.17",
+          "name": "GPIO10",
+          "function": "Silk D3. SPI flash line SD_DATA3; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.18",
+          "name": "GPIO11",
+          "function": "Silk CMD. SPI flash line SD_CMD; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.19",
+          "name": "5V",
+          "function": "5 V supply, output or input",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.2",
+          "name": "GPIO23",
+          "function": "VSPI MOSI",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.3",
+          "name": "GPIO22",
+          "function": "I2C SCL in the Arduino core (WIRE_SCL)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.4",
+          "name": "GPIO1",
+          "function": "Silk TX. UART0 TXD; USB bridge and boot messages",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.5",
+          "name": "GPIO3",
+          "function": "Silk RX. UART0 RXD; USB bridge",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.6",
+          "name": "GPIO21",
+          "function": "I2C SDA in the Arduino core (WIRE_SDA)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.8",
+          "name": "GPIO19",
+          "function": "VSPI MISO",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.9",
+          "name": "GPIO18",
+          "function": "VSPI SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.10",
+          "name": "GPIO5",
+          "function": "Strapping pin. VSPI SS",
+          "type": "io",
+          "notes": "Together with GPIO15 it sets the SDIO slave timing at reset; pulled up by default.",
+          "wire": ""
+        },
+        {
+          "number": "J3.11",
+          "name": "GPIO17",
+          "function": "UART2 TXD; reserved on WROVER boards",
+          "type": "io",
+          "notes": "Free only with ESP32-WROOM and ESP32-SOLO-1 modules.",
+          "wire": ""
+        },
+        {
+          "number": "J3.12",
+          "name": "GPIO16",
+          "function": "UART2 RXD; reserved on WROVER boards",
+          "type": "io",
+          "notes": "Free only with ESP32-WROOM and ESP32-SOLO-1 modules.",
+          "wire": ""
+        },
+        {
+          "number": "J3.13",
+          "name": "GPIO4",
+          "function": "ADC2_CH0, TOUCH0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.14",
+          "name": "GPIO0",
+          "function": "Strapping pin; Boot button. ADC2_CH1, TOUCH1",
+          "type": "io",
+          "notes": "Low at reset, with GPIO2 low as well, starts download mode.",
+          "wire": ""
+        },
+        {
+          "number": "J3.15",
+          "name": "GPIO2",
+          "function": "Strapping pin. ADC2_CH2, TOUCH2",
+          "type": "io",
+          "notes": "Must be low for download mode; has no effect on a normal boot.",
+          "wire": ""
+        },
+        {
+          "number": "J3.16",
+          "name": "GPIO15",
+          "function": "Strapping pin (MTDO). ADC2_CH3, TOUCH3, HSPI SS",
+          "type": "io",
+          "notes": "Low at reset silences the boot messages on U0TXD; with GPIO5 it also sets the SDIO slave timing.",
+          "wire": ""
+        },
+        {
+          "number": "J3.17",
+          "name": "GPIO8",
+          "function": "Silk D1. SPI flash line SD_DATA1; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.18",
+          "name": "GPIO7",
+          "function": "Silk D0. SPI flash line SD_DATA0; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J3.19",
+          "name": "GPIO6",
+          "function": "Silk CLK. SPI flash line SD_CLK; leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "esp8266_nodemcu",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "NodeMCU DevKit 1.0 (ESP8266)",
+      "name_en": "NodeMCU DevKit 1.0 (ESP8266)",
+      "doc": "NodeMCU DevKit V1.0 with ESP-12E from the component side, drawn with the Micro-USB socket at the top, so the antenna is at the bottom; the project's own pin map shows the board the other way up. Numbers are the headers J1 and J2 of its schematic.",
+      "notes": "This is the open-hardware V1.0 revision only. Clones differ, so compare with the silk screen before wiring. For a boot D8 (GPIO15) must be low and D4 (GPIO2) high; D3 (GPIO0) high runs the firmware, low enters flash mode. Logic runs at 3.3 V, inputs take 3.6 V at most, an output 12 mA. PWM and I2C are done in software: the NodeMCU firmware accepts the IO indexes 1 to 12, and its examples use a different pair than the Arduino core's default of D2 (SDA) and D1 (SCL).",
+      "tags": [
+        "esp8266",
+        "nodemcu",
+        "devkit",
+        "esp-12e",
+        "esp12",
+        "wifi",
+        "gpio",
+        "d0",
+        "d1",
+        "d8",
+        "gpio16",
+        "strapping",
+        "flash",
+        "a0",
+        "adc",
+        "hspi",
+        "uart",
+        "i2c",
+        "pwm",
+        "rsv",
+        "vin",
+        "stiftleiste",
+        "belegung",
+        "pinout"
+      ],
+      "source": "NodeMCU DEVKIT V1.0 schematic, pin map and instruction V1.0 (github.com/nodemcu/nodemcu-devkit-v1.0); NodeMCU firmware documentation, modules gpio, i2c, pwm, spi; Espressif, ESP8266EX Datasheet v7.1; ESP8266 Arduino core documentation, Libraries",
+      "views": null,
+      "shape": {
+        "type": "board",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [
+          "J2.15",
+          "J2.14",
+          "J2.13",
+          "J2.12",
+          "J2.11",
+          "J2.10",
+          "J2.9",
+          "J2.8",
+          "J2.7",
+          "J2.6",
+          "J2.5",
+          "J2.4",
+          "J2.3",
+          "J2.2",
+          "J2.1"
+        ],
+        "right": [
+          "J1.15",
+          "J1.14",
+          "J1.13",
+          "J1.12",
+          "J1.11",
+          "J1.10",
+          "J1.9",
+          "J1.8",
+          "J1.7",
+          "J1.6",
+          "J1.5",
+          "J1.4",
+          "J1.3",
+          "J1.2",
+          "J1.1"
+        ],
+        "top": [],
+        "bottom": [],
+        "connector": "top",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "J1.1",
+          "name": "A0",
+          "function": "Analog input to TOUT (ADC0) through a divider",
+          "type": "signal",
+          "notes": "220 kΩ over 100 kΩ on the board: 3.2 V at A0 gives the 1.0 V limit of TOUT.",
+          "wire": ""
+        },
+        {
+          "number": "J1.2",
+          "name": "RSV",
+          "function": "Reserved; leave open",
+          "type": "nc",
+          "notes": "The schematic ties this pin to the ADC net behind the divider.",
+          "wire": ""
+        },
+        {
+          "number": "J1.3",
+          "name": "RSV",
+          "function": "Reserved; leave open",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.4",
+          "name": "SD3",
+          "function": "GPIO10 (IO index 12); flash SD_D3",
+          "type": "io",
+          "notes": "Also wired to the flash inside the module. Use with care.",
+          "wire": ""
+        },
+        {
+          "number": "J1.5",
+          "name": "SD2",
+          "function": "GPIO9 (IO index 11); flash SD_D2",
+          "type": "io",
+          "notes": "Also wired to the flash inside the module. Use with care.",
+          "wire": ""
+        },
+        {
+          "number": "J1.6",
+          "name": "SD1",
+          "function": "Flash SD_D1, SPI MOSI (GPIO8); leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.7",
+          "name": "CMD",
+          "function": "Flash SD_CMD, SPI CS0 (GPIO11); leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.8",
+          "name": "SD0",
+          "function": "Flash SD_D0, SPI MISO (GPIO7); leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.9",
+          "name": "CLK",
+          "function": "Flash SD_CLK, SPI clock (GPIO6); leave free",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.10",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.11",
+          "name": "3V3",
+          "function": "3.3 V rail",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.12",
+          "name": "EN",
+          "function": "Chip enable; 12 kΩ pull-up",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.13",
+          "name": "RST",
+          "function": "Reset, active low; 12 kΩ pull-up; RST button",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.14",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J1.15",
+          "name": "VIN",
+          "function": "5 V supply input",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.1",
+          "name": "D0",
+          "function": "GPIO16 (IO index 0); on-board LED; deep-sleep wake",
+          "type": "io",
+          "notes": "Plain read and write only: no PWM, I2C, 1-Wire or interrupts. The LED lights when the pin is low. For deep-sleep wake-up connect it to RST.",
+          "wire": ""
+        },
+        {
+          "number": "J2.2",
+          "name": "D1",
+          "function": "GPIO5 (IO index 1); I2C SCL in the Arduino core",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.3",
+          "name": "D2",
+          "function": "GPIO4 (IO index 2); I2C SDA in the Arduino core",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.4",
+          "name": "D3",
+          "function": "Strapping pin. GPIO0 (IO index 3); FLASH button",
+          "type": "io",
+          "notes": "High at boot runs the firmware, low enters flash mode. The FLASH button pulls it low through 470 Ω.",
+          "wire": ""
+        },
+        {
+          "number": "J2.5",
+          "name": "D4",
+          "function": "Strapping pin. GPIO2 (IO index 4); UART1 TXD1",
+          "type": "io",
+          "notes": "Must be high at boot; 12 kΩ pull-up on the board.",
+          "wire": ""
+        },
+        {
+          "number": "J2.6",
+          "name": "3V3",
+          "function": "3.3 V rail",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.8",
+          "name": "D5",
+          "function": "GPIO14 (IO index 5); HSPI CLK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.9",
+          "name": "D6",
+          "function": "GPIO12 (IO index 6); HSPI MISO",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.10",
+          "name": "D7",
+          "function": "GPIO13 (IO index 7); HSPI MOSI; RXD2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.11",
+          "name": "D8",
+          "function": "Strapping pin. GPIO15 (IO index 8); HSPI CS; TXD2",
+          "type": "io",
+          "notes": "Must be low at boot; 12 kΩ pull-down on the board.",
+          "wire": ""
+        },
+        {
+          "number": "J2.12",
+          "name": "RX",
+          "function": "D9: GPIO3 (IO index 9); UART0 RXD",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.13",
+          "name": "TX",
+          "function": "D10: GPIO1 (IO index 10); UART0 TXD",
+          "type": "io",
+          "notes": "Do not pull low from outside during power-up.",
+          "wire": ""
+        },
+        {
+          "number": "J2.14",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "J2.15",
+          "name": "3V3",
+          "function": "3.3 V rail",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "raspberry_pi_40",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "Raspberry Pi 40-pin header",
+      "name_en": "Raspberry Pi 40-pin header",
+      "doc": "The 40-pin GPIO header of Raspberry Pi B+ and later and of the Zero models, turned as in Raspberry Pi's figure: header at the right edge, USB and Ethernet at the bottom, pin 1 top left. With the header along the top edge of the board, pin 1 is the lower left corner.",
+      "notes": "The GPIOs run at 3.3 V and are not 5 V tolerant: never put 5 V on a GPIO. One pin may supply 16 mA, all GPIOs together 50 mA. Names are the SoC's GPIO numbers (BCM numbering), not positions. Keyboard computers have the header turned by 180°, so go by the pin 1 mark there. Alternative functions vary with the SoC; the list shows Raspberry Pi's typical ones. Pi models with the old 26-pin header are not covered.",
+      "tags": [
+        "raspberry pi",
+        "raspi",
+        "rpi",
+        "gpio",
+        "40-pin",
+        "40 pin",
+        "header",
+        "stiftleiste",
+        "pfostenleiste",
+        "hat",
+        "bcm",
+        "i2c",
+        "spi",
+        "uart",
+        "pwm",
+        "pcm",
+        "sda",
+        "scl",
+        "mosi",
+        "miso",
+        "txd",
+        "rxd",
+        "id_sd",
+        "id_sc",
+        "belegung",
+        "pinout"
+      ],
+      "source": "Raspberry Pi documentation, Raspberry Pi hardware, section 40-pin GPIO header (pin table and two figures); Raspberry Pi, BCM2711 ARM Peripherals, table 94",
+      "views": {
+        "plug": "Pin header on the board",
+        "socket": "Socket on a cable"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "3",
+              "4"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "5",
+              "6"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "7",
+              "8"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "9",
+              "10"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "11",
+              "12"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "13",
+              "14"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "15",
+              "16"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "17",
+              "18"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "19",
+              "20"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "21",
+              "22"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "23",
+              "24"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "25",
+              "26"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "27",
+              "28"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "29",
+              "30"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "31",
+              "32"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "33",
+              "34"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "35",
+              "36"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "37",
+              "38"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "39",
+              "40"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "3V3",
+          "function": "3.3 V output",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "5V",
+          "function": "5 V; output, or input to power the Pi",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "GPIO2",
+          "function": "I2C1 SDA; fixed 1.8 kΩ pull-up to 3.3 V",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "5V",
+          "function": "5 V; output, or input to power the Pi",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GPIO3",
+          "function": "I2C1 SCL; fixed 1.8 kΩ pull-up to 3.3 V",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GPIO4",
+          "function": "GPCLK0 clock output",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GPIO14",
+          "function": "UART TXD",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "GPIO15",
+          "function": "UART RXD",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "GPIO17",
+          "function": "SPI1 CE1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "GPIO18",
+          "function": "PCM clock; SPI1 CE0; PWM0 on BCM2711",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "GPIO27",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "GPIO22",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "GPIO23",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "3V3",
+          "function": "3.3 V output",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "GPIO24",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "GPIO10",
+          "function": "SPI0 MOSI",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "20",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "21",
+          "name": "GPIO9",
+          "function": "SPI0 MISO",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "22",
+          "name": "GPIO25",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "23",
+          "name": "GPIO11",
+          "function": "SPI0 SCLK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "24",
+          "name": "GPIO8",
+          "function": "SPI0 CE0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "25",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "26",
+          "name": "GPIO7",
+          "function": "SPI0 CE1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "27",
+          "name": "GPIO0",
+          "function": "ID_SD: I2C data to the HAT ID EEPROM; reserved",
+          "type": "nc",
+          "notes": "Leave unconnected unless you build a HAT.",
+          "wire": ""
+        },
+        {
+          "number": "28",
+          "name": "GPIO1",
+          "function": "ID_SC: I2C clock to the HAT ID EEPROM; reserved",
+          "type": "nc",
+          "notes": "Leave unconnected unless you build a HAT.",
+          "wire": ""
+        },
+        {
+          "number": "29",
+          "name": "GPIO5",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "30",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "31",
+          "name": "GPIO6",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "32",
+          "name": "GPIO12",
+          "function": "PWM0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "33",
+          "name": "GPIO13",
+          "function": "PWM1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "34",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "35",
+          "name": "GPIO19",
+          "function": "PCM frame sync; SPI1 MISO; PWM1 on BCM2711",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "36",
+          "name": "GPIO16",
+          "function": "SPI1 CE2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "37",
+          "name": "GPIO26",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "38",
+          "name": "GPIO20",
+          "function": "PCM data in; SPI1 MOSI",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "39",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "40",
+          "name": "GPIO21",
+          "function": "PCM data out; SPI1 SCLK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "raspberry_pi_pico",
+      "category": "pinouts",
+      "group": "boards",
+      "name": "Raspberry Pi Pico / Pico W",
+      "name_en": "Raspberry Pi Pico / Pico W",
+      "doc": "Raspberry Pi Pico and Pico W from above with the micro-USB socket at the top: pin 1 top left, pin 20 bottom left, pin 21 bottom right, pin 40 top right. D1 to D3 are the three debug pads, shown where the Pico has them.",
+      "notes": "Pins 1 to 40 are the same on both boards. The debug pads sit on the bottom edge of the Pico; on the Pico W they are inside the board, level with pins 13 and 28, in the same left-to-right order. The GPIOs run at 3.3 V and all of them also do PWM and PIO. (default) marks the bus pins that Raspberry Pi's pinout highlights as default. Keep GP26 to GP28 below 3.3 V plus 300 mV. The user LED is not on a header: GPIO25 on the Pico, WL_GPIO0 of the wireless chip on the Pico W.",
+      "tags": [
+        "raspberry pi",
+        "pico",
+        "pico w",
+        "rp2040",
+        "gpio",
+        "gp0",
+        "gp15",
+        "swd",
+        "swclk",
+        "swdio",
+        "debug",
+        "adc",
+        "i2c",
+        "spi",
+        "uart",
+        "pwm",
+        "pio",
+        "vsys",
+        "vbus",
+        "3v3_en",
+        "run",
+        "agnd",
+        "adc_vref",
+        "mikrocontroller",
+        "belegung",
+        "pinout"
+      ],
+      "source": "Raspberry Pi Pico Datasheet (figures 2 and 4, sections 2.1 and 4.2); Raspberry Pi Pico W Datasheet (figure 4, section 2.1); Raspberry Pi pinout diagrams Pico-R3-A4-Pinout and PicoW-A4-Pinout",
+      "views": null,
+      "shape": {
+        "type": "board",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
+          "18",
+          "19",
+          "20"
+        ],
+        "right": [
+          "40",
+          "39",
+          "38",
+          "37",
+          "36",
+          "35",
+          "34",
+          "33",
+          "32",
+          "31",
+          "30",
+          "29",
+          "28",
+          "27",
+          "26",
+          "25",
+          "24",
+          "23",
+          "22",
+          "21"
+        ],
+        "top": [],
+        "bottom": [
+          "D1",
+          "D2",
+          "D3"
+        ],
+        "connector": "top",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GP0",
+          "function": "UART0 TX (default); I2C0 SDA; SPI0 RX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "GP1",
+          "function": "UART0 RX (default); I2C0 SCL; SPI0 CSn",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GP2",
+          "function": "I2C1 SDA; SPI0 SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GP3",
+          "function": "I2C1 SCL; SPI0 TX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "GP4",
+          "function": "UART1 TX; I2C0 SDA (default); SPI0 RX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GP5",
+          "function": "UART1 RX; I2C0 SCL (default); SPI0 CSn",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "GP6",
+          "function": "I2C1 SDA; SPI0 SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "GP7",
+          "function": "I2C1 SCL; SPI0 TX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "GP8",
+          "function": "UART1 TX; I2C0 SDA; SPI1 RX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "GP9",
+          "function": "UART1 RX; I2C0 SCL; SPI1 CSn",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "GP10",
+          "function": "I2C1 SDA; SPI1 SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "GP11",
+          "function": "I2C1 SCL; SPI1 TX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "GP12",
+          "function": "UART0 TX; I2C0 SDA; SPI1 RX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "GP13",
+          "function": "UART0 RX; I2C0 SCL; SPI1 CSn",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "GP14",
+          "function": "I2C1 SDA; SPI1 SCK",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "20",
+          "name": "GP15",
+          "function": "I2C1 SCL; SPI1 TX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "21",
+          "name": "GP16",
+          "function": "SPI0 RX (default); I2C0 SDA; UART0 TX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "22",
+          "name": "GP17",
+          "function": "SPI0 CSn (default); I2C0 SCL; UART0 RX",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "23",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "24",
+          "name": "GP18",
+          "function": "SPI0 SCK (default); I2C1 SDA",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "25",
+          "name": "GP19",
+          "function": "SPI0 TX (default); I2C1 SCL",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "26",
+          "name": "GP20",
+          "function": "I2C0 SDA",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "27",
+          "name": "GP21",
+          "function": "I2C0 SCL",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "28",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "29",
+          "name": "GP22",
+          "function": "General purpose",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "30",
+          "name": "RUN",
+          "function": "Enable of the RP2040; pull low to reset",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "31",
+          "name": "GP26",
+          "function": "ADC0; I2C1 SDA",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "32",
+          "name": "GP27",
+          "function": "ADC1; I2C1 SCL",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "33",
+          "name": "AGND",
+          "function": "Ground reference of the ADC inputs",
+          "type": "ground",
+          "notes": "Can go to normal ground if ADC accuracy does not matter.",
+          "wire": ""
+        },
+        {
+          "number": "34",
+          "name": "GP28",
+          "function": "ADC2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "35",
+          "name": "ADC_VREF",
+          "function": "Supply and reference of the ADC, filtered from 3.3 V",
+          "type": "signal",
+          "notes": "An external reference can be connected here.",
+          "wire": ""
+        },
+        {
+          "number": "36",
+          "name": "3V3(OUT)",
+          "function": "3.3 V from the on-board SMPS; keep the load below 300 mA",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "37",
+          "name": "3V3_EN",
+          "function": "Enable of the SMPS; pull low to switch 3.3 V off",
+          "type": "signal",
+          "notes": "Pulled up to VSYS through 100 kΩ. Switching it off also powers down the RP2040.",
+          "wire": ""
+        },
+        {
+          "number": "38",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "39",
+          "name": "VSYS",
+          "function": "Main supply input, 1.8–5.5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "40",
+          "name": "VBUS",
+          "function": "Micro-USB input voltage, nominal 5 V",
+          "type": "power",
+          "notes": "0 V when USB is not connected or not powered.",
+          "wire": ""
+        },
+        {
+          "number": "D1",
+          "name": "SWCLK",
+          "function": "SWD debug clock",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "D2",
+          "name": "GND",
+          "function": "Debug ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "D3",
+          "name": "SWDIO",
+          "function": "SWD debug data",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_a",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB 2.0 Type-A",
+      "name_en": "USB 2.0 Type-A",
+      "doc": "The flat USB connector of hosts and hubs, with four contacts inside a metal shell.",
+      "notes": "The shell is the shield and goes to the drain wire of the cable. The drawn order holds for a receptacle whose contact tongue fills the upper half of the shell, with the contacts on its underside. The wire colours are the typical wiring named by the specification.",
+      "tags": [
+        "usb",
+        "usb-a",
+        "usb2",
+        "usb 2.0",
+        "type-a",
+        "typ a",
+        "vbus",
+        "d+",
+        "d-",
+        "host",
+        "plug",
+        "stecker",
+        "receptacle",
+        "buchse",
+        "socket"
+      ],
+      "source": "USB 2.0 Specification (USB-IF, package usb_20_20250603), table 6-1 and figures 6-7 and 6-9",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the host or hub)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_a",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VBUS",
+          "function": "Bus supply, nominally +5 V",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "2",
+          "name": "D-",
+          "function": "USB data, negative line",
+          "type": "data",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "3",
+          "name": "D+",
+          "function": "USB data, positive line",
+          "type": "data",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_a_3",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB 3.x Type-A",
+      "name_en": "USB 3.x Type-A",
+      "doc": "The Standard-A connector with SuperSpeed: the four USB 2.0 contacts plus five more, nine in all.",
+      "notes": "RX and TX are named from the host's point of view. Pins 1 to 4 are the USB 2.0 contacts, pins 5 to 9 the SuperSpeed contacts. The two rows lie at different depths of the connector, so face-on they are not really above each other; the left-right position is as drawn. The drawn receptacle has its contact tongue in the upper half of the shell. The shell is the shield and mates first. The specification names no wire colours for this connector.",
+      "tags": [
+        "usb",
+        "usb-a",
+        "usb3",
+        "usb 3.0",
+        "usb 3.1",
+        "usb 3.2",
+        "superspeed",
+        "type-a",
+        "typ a",
+        "standard-a",
+        "stda_ssrx",
+        "stda_sstx",
+        "ssrx",
+        "sstx",
+        "gnd_drain",
+        "vbus",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "USB 3.1 Legacy Cable and Connector Specification, Revision 1.0 (22 September 2017), table 5-2 and figures 5-1, 5-4 (detail G) and 5-5",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the host or hub)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_a",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "9",
+              "8",
+              "7",
+              "6",
+              "5"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0.5
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VBUS",
+          "function": "Bus supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "D-",
+          "function": "USB 2.0 data, negative line",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "D+",
+          "function": "USB 2.0 data, positive line",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground return of the supply",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "StdA_SSRX-",
+          "function": "SuperSpeed receive pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "StdA_SSRX+",
+          "function": "SuperSpeed receive pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND_DRAIN",
+          "function": "Ground return of the signals",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "StdA_SSTX-",
+          "function": "SuperSpeed transmit pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "StdA_SSTX+",
+          "function": "SuperSpeed transmit pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_b",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB 2.0 Type-B",
+      "name_en": "USB 2.0 Type-B",
+      "doc": "The nearly square USB connector of devices such as printers, with two contacts above and two below.",
+      "notes": "The shell is the shield and goes to the drain wire of the cable. The drawing has the chamfered corners of the shell at the top. The wire colours are the typical wiring named by the specification.",
+      "tags": [
+        "usb",
+        "usb-b",
+        "usb2",
+        "usb 2.0",
+        "type-b",
+        "typ b",
+        "vbus",
+        "d+",
+        "d-",
+        "printer",
+        "drucker",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "USB 2.0 Specification (USB-IF, package usb_20_20250603), table 6-1 and figures 6-8 and 6-10",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_b",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "2",
+              "1"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VBUS",
+          "function": "Bus supply, nominally +5 V",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "2",
+          "name": "D-",
+          "function": "USB data, negative line",
+          "type": "data",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "3",
+          "name": "D+",
+          "function": "USB data, positive line",
+          "type": "data",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_mini_b",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB Mini-B",
+      "name_en": "USB Mini-B",
+      "doc": "The small five-contact USB connector of older handheld devices.",
+      "notes": "The drawing has the wider side of the shell at the top. The shell is the shield and goes to the drain wire of the cable. The wire colours are the typical wiring named by the specification.",
+      "tags": [
+        "usb",
+        "mini-usb",
+        "mini-b",
+        "usb mini",
+        "vbus",
+        "d+",
+        "d-",
+        "id",
+        "otg",
+        "kamera",
+        "camera",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "USB 2.0 Specification Engineering Change Notice #1: Mini-B connector (20 October 2000), table 6-2 and figures 6-11 and 6-15",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_mini_b",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VBUS",
+          "function": "Bus supply, nominally +5 V",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "2",
+          "name": "D-",
+          "function": "USB data, negative line",
+          "type": "data",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "3",
+          "name": "D+",
+          "function": "USB data, positive line",
+          "type": "data",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "4",
+          "name": "ID",
+          "function": "Identification contact",
+          "type": "signal",
+          "notes": "The contact exists in the plug but no wire of the cable goes to it.",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_micro_b",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB Micro-B",
+      "name_en": "USB Micro-B",
+      "doc": "The very flat five-contact USB connector of phones and small boards, before USB Type-C.",
+      "notes": "The drawing has the wider side of the shell at the top. The shell is the shield and goes to the drain wire of the cable. The wire colours are the typical wiring named by the specification.",
+      "tags": [
+        "usb",
+        "micro-usb",
+        "micro-b",
+        "usb micro",
+        "microusb",
+        "vbus",
+        "d+",
+        "d-",
+        "id",
+        "otg",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "Universal Serial Bus Micro-USB Cables and Connectors Specification, Revision 1.01 (4 April 2007), table 4-2 and figures 4-7 and 4-10",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_micro_b",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VBUS",
+          "function": "Bus supply, nominally +5 V",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "2",
+          "name": "D-",
+          "function": "USB data, negative line",
+          "type": "data",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "3",
+          "name": "D+",
+          "function": "USB data, positive line",
+          "type": "data",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "4",
+          "name": "ID",
+          "function": "Tells a Micro-A plug from a Micro-B plug",
+          "type": "signal",
+          "notes": "In a Micro-B plug it is open or has more than 100 kΩ to GND. A Micro-A plug ties it to GND (at most 10 Ω).",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "usb_c",
+      "category": "pinouts",
+      "group": "data",
+      "name": "USB Type-C",
+      "name_en": "USB Type-C",
+      "doc": "The reversible 24-contact USB connector. The contact plan repeats after a half turn, so the plug fits both ways; the CC lines show which way it is in.",
+      "notes": "CC resistors, from tables 4-27 and 4-28 of the Type-C specification. Sink: Rd 5.1 kΩ to GND on CC1 and on CC2 (±10% if it reads the advertised current, otherwise ±20% is allowed). Source: Rp to 4.75–5.5 V on CC1 and on CC2: 56 kΩ ±20% for default USB power, 22 kΩ ±5% for 1.5 A, 10 kΩ ±5% for 3.0 A. With a pull-up to 3.3 V: 36 kΩ ±20%, 12 kΩ ±5%, 4.7 kΩ ±5%. A cable or adapter whose Type-C plug stands for a legacy USB host uses 56 kΩ ±5%. All VBUS contacts are tied together, and so are all GND contacts. A USB 2.0 receptacle leaves A2, A3, A10, A11, B2, B3, B10 and B11 unconnected.",
+      "tags": [
+        "usb",
+        "usb-c",
+        "type-c",
+        "typ c",
+        "usb4",
+        "usb 3.2",
+        "thunderbolt",
+        "cc",
+        "cc1",
+        "cc2",
+        "vconn",
+        "sbu",
+        "vbus",
+        "rd",
+        "rp",
+        "5.1 k",
+        "5,1 k",
+        "tx",
+        "rx",
+        "power delivery",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "USB Type-C Cable and Connector Specification, Release 2.5 (March 2026), figures 2-1 and 2-2, tables 3-4, 3-5, 4-27 and 4-28",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "usb_c",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "A1",
+              "A2",
+              "A3",
+              "A4",
+              "A5",
+              "A6",
+              "A7",
+              "A8",
+              "A9",
+              "A10",
+              "A11",
+              "A12"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "B12",
+              "B11",
+              "B10",
+              "B9",
+              "B8",
+              "B7",
+              "B6",
+              "B5",
+              "B4",
+              "B3",
+              "B2",
+              "B1"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "A1",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A2",
+          "name": "TX1+",
+          "function": "First transmit pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A3",
+          "name": "TX1-",
+          "function": "First transmit pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A4",
+          "name": "VBUS",
+          "function": "Bus power",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A5",
+          "name": "CC1",
+          "function": "Configuration channel 1",
+          "type": "signal",
+          "notes": "In a plug this contact is the CC line of the cable.",
+          "wire": ""
+        },
+        {
+          "number": "A6",
+          "name": "D+",
+          "function": "USB 2.0 data, positive, position 1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A7",
+          "name": "D-",
+          "function": "USB 2.0 data, negative, position 1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A8",
+          "name": "SBU1",
+          "function": "Sideband use 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A9",
+          "name": "VBUS",
+          "function": "Bus power",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A10",
+          "name": "RX2-",
+          "function": "Second receive pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A11",
+          "name": "RX2+",
+          "function": "Second receive pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "A12",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B1",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B2",
+          "name": "TX2+",
+          "function": "Second transmit pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B3",
+          "name": "TX2-",
+          "function": "Second transmit pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B4",
+          "name": "VBUS",
+          "function": "Bus power",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B5",
+          "name": "CC2",
+          "function": "Configuration channel 2",
+          "type": "signal",
+          "notes": "In a plug this contact is VCONN, the supply for electronics in the plug.",
+          "wire": ""
+        },
+        {
+          "number": "B6",
+          "name": "D+",
+          "function": "USB 2.0 data, positive, position 2",
+          "type": "data",
+          "notes": "Not meant to exist in a plug. The receptacle has both positions because the plug can be turned.",
+          "wire": ""
+        },
+        {
+          "number": "B7",
+          "name": "D-",
+          "function": "USB 2.0 data, negative, position 2",
+          "type": "data",
+          "notes": "Not meant to exist in a plug. The receptacle has both positions because the plug can be turned.",
+          "wire": ""
+        },
+        {
+          "number": "B8",
+          "name": "SBU2",
+          "function": "Sideband use 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B9",
+          "name": "VBUS",
+          "function": "Bus power",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B10",
+          "name": "RX1-",
+          "function": "First receive pair, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B11",
+          "name": "RX1+",
+          "function": "First receive pair, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "B12",
+          "name": "GND",
+          "function": "Ground return",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "hdmi_a",
+      "category": "pinouts",
+      "group": "data",
+      "name": "HDMI Type A",
+      "name_en": "HDMI Type A",
+      "doc": "The full-size 19-contact HDMI connector: three TMDS data channels and a clock, each with its own shield, plus DDC, CEC, +5 V and hot plug detect.",
+      "notes": "The drawing has the wider side of the shell at the top, with the odd pins in the upper row. From HDMI 1.4 pins 14 and 19 can also carry the HDMI Ethernet and audio return channel (HEAC+ on 14, HEAC- on 19). Older cables and devices leave pin 14 unused. The +5 V line is only for low currents: the sources name 50 mA or 55 mA.",
+      "tags": [
+        "hdmi",
+        "type a",
+        "typ a",
+        "tmds",
+        "ddc",
+        "edid",
+        "cec",
+        "hpd",
+        "hot plug",
+        "heac",
+        "arc",
+        "hec",
+        "scl",
+        "sda",
+        "video",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "Amphenol Socapex drawing 191-PLC-1038-00 (HDMIF TV 7 x x); Rohde & Schwarz HDMI poster 3606.8489.82, version 03.02 (June 2014); Schlegel RRJ_HDMI_STB data sheet; TRU Components 15 71 072 data sheet; Barco Event Master user guide R5905948, A.24; Sony VPL-PHZ50 help guide, Pin Assignment (HDMI Terminal); Sony patent EP2405654B1",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "hdmi_a",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "19",
+              "17",
+              "15",
+              "13",
+              "11",
+              "9",
+              "7",
+              "5",
+              "3",
+              "1"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "18",
+              "16",
+              "14",
+              "12",
+              "10",
+              "8",
+              "6",
+              "4",
+              "2"
+            ],
+            "offset": 0.5
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "TMDS Data2+",
+          "function": "TMDS data channel 2, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "TMDS Data2 Shield",
+          "function": "Shield of TMDS data channel 2",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "TMDS Data2-",
+          "function": "TMDS data channel 2, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "TMDS Data1+",
+          "function": "TMDS data channel 1, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "TMDS Data1 Shield",
+          "function": "Shield of TMDS data channel 1",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "TMDS Data1-",
+          "function": "TMDS data channel 1, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "TMDS Data0+",
+          "function": "TMDS data channel 0, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "TMDS Data0 Shield",
+          "function": "Shield of TMDS data channel 0",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "TMDS Data0-",
+          "function": "TMDS data channel 0, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "TMDS Clock+",
+          "function": "TMDS clock, positive",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "TMDS Clock Shield",
+          "function": "Shield of the TMDS clock",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "TMDS Clock-",
+          "function": "TMDS clock, negative",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "CEC",
+          "function": "Consumer Electronics Control bus",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "Utility",
+          "function": "Reserved up to HDMI 1.3, from 1.4 HEAC+",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "SCL",
+          "function": "DDC clock (I²C)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "SDA",
+          "function": "DDC data (I²C)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "DDC/CEC Ground",
+          "function": "Ground for DDC and CEC, also for HEAC",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "+5V Power",
+          "function": "+5 V low-current supply from the source",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "Hot Plug Detect",
+          "function": "Shows the source that a display is attached, from HDMI 1.4 also HEAC-",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "displayport",
+      "category": "pinouts",
+      "group": "data",
+      "name": "DisplayPort",
+      "name_en": "DisplayPort",
+      "doc": "The full-size 20-contact DisplayPort connector: four main link lanes, an auxiliary channel, hot plug detect and a small supply. A source and a sink number the lanes differently.",
+      "notes": "Choose the variant by the device: a graphics output is the source side, a monitor input the sink side. Only pins 1 to 12 differ. At a source, pin 1 is ML_Lane 0 (p); at a sink, pin 1 is ML_Lane 3 (n). The drawing has the cut corner of the shell at the lower left.",
+      "tags": [
+        "displayport",
+        "dp",
+        "ml_lane",
+        "lane",
+        "aux",
+        "aux ch",
+        "hpd",
+        "hot plug",
+        "config1",
+        "config2",
+        "dp_pwr",
+        "source",
+        "sink",
+        "quelle",
+        "senke",
+        "video",
+        "stecker",
+        "buchse",
+        "receptacle",
+        "plug"
+      ],
+      "source": "NCR Voyix 7772 workstation online help, DisplayPort pinout; Barco Event Master user guide R5905948, A.24; Barco MDSC-8255 user guide, 2.4.5; Dell P3424WEB user's guide, Pin assignments; University of Oregon Projection Design Bootcamp, Display Port Information",
+      "views": {
+        "plug": "Plug (cable end)",
+        "socket": "Receptacle (on the device)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "displayport",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "19",
+              "17",
+              "15",
+              "13",
+              "11",
+              "9",
+              "7",
+              "5",
+              "3",
+              "1"
+            ],
+            "offset": 0.5
+          },
+          {
+            "pins": [
+              "20",
+              "18",
+              "16",
+              "14",
+              "12",
+              "10",
+              "8",
+              "6",
+              "4",
+              "2"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "source",
+          "name": "Source side (output)",
+          "pins": [
+            {
+              "number": "1",
+              "name": "ML_Lane 0 (p)",
+              "function": "Main link lane 0, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "ML_Lane 0 (n)",
+              "function": "Main link lane 0, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "4",
+              "name": "ML_Lane 1 (p)",
+              "function": "Main link lane 1, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "5",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "6",
+              "name": "ML_Lane 1 (n)",
+              "function": "Main link lane 1, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "7",
+              "name": "ML_Lane 2 (p)",
+              "function": "Main link lane 2, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "8",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "9",
+              "name": "ML_Lane 2 (n)",
+              "function": "Main link lane 2, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "10",
+              "name": "ML_Lane 3 (p)",
+              "function": "Main link lane 3, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "11",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "12",
+              "name": "ML_Lane 3 (n)",
+              "function": "Main link lane 3, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "13",
+              "name": "CONFIG1",
+              "function": "Configuration pin, to ground directly or through a pull-down",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "14",
+              "name": "CONFIG2",
+              "function": "Configuration pin, to ground directly or through a pull-down",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "15",
+              "name": "AUX CH (p)",
+              "function": "Auxiliary channel, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "16",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "17",
+              "name": "AUX CH (n)",
+              "function": "Auxiliary channel, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "18",
+              "name": "Hot Plug Detect",
+              "function": "Shows the source that a sink is attached",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "19",
+              "name": "Return",
+              "function": "Return for DP_PWR",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "20",
+              "name": "DP_PWR",
+              "function": "Connector power, +3.3 V, up to 500 mA",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "sink",
+          "name": "Sink side (monitor input)",
+          "pins": [
+            {
+              "number": "1",
+              "name": "ML_Lane 3 (n)",
+              "function": "Main link lane 3, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "ML_Lane 3 (p)",
+              "function": "Main link lane 3, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "4",
+              "name": "ML_Lane 2 (n)",
+              "function": "Main link lane 2, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "5",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "6",
+              "name": "ML_Lane 2 (p)",
+              "function": "Main link lane 2, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "7",
+              "name": "ML_Lane 1 (n)",
+              "function": "Main link lane 1, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "8",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "9",
+              "name": "ML_Lane 1 (p)",
+              "function": "Main link lane 1, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "10",
+              "name": "ML_Lane 0 (n)",
+              "function": "Main link lane 0, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "11",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "12",
+              "name": "ML_Lane 0 (p)",
+              "function": "Main link lane 0, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "13",
+              "name": "CONFIG1",
+              "function": "Configuration pin",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "14",
+              "name": "CONFIG2",
+              "function": "Configuration pin",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "15",
+              "name": "AUX CH (p)",
+              "function": "Auxiliary channel, positive",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "16",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "17",
+              "name": "AUX CH (n)",
+              "function": "Auxiliary channel, negative",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "18",
+              "name": "Hot Plug Detect",
+              "function": "Tells the source that this sink is attached",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "19",
+              "name": "Return",
+              "function": "Return for DP_PWR",
+              "type": "ground",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "20",
+              "name": "DP_PWR",
+              "function": "Connector power, +3.3 V, up to 500 mA",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
+      "id": "vga",
+      "category": "pinouts",
+      "group": "data",
+      "name": "VGA (DE-15)",
+      "name_en": "VGA (DE-15)",
+      "doc": "The three-row 15-pin D-sub connector for analogue video. Computers and monitors usually have the female socket, cables the male plug.",
+      "notes": "Devices differ on pins 4, 5, 9 and 11. Pin 9 is a missing key position on older equipment and +5 V or 3.3 V on newer. Monitors may ground pins 4 and 11, or use pin 5 as DDC return or for self-test. Pins 11, 12, 4 and 15 were once monitor ID bits 0 to 3. The drawing has the wide side of the D shell at the top.",
+      "tags": [
+        "vga",
+        "svga",
+        "de-15",
+        "de15",
+        "hd15",
+        "hd-15",
+        "db15",
+        "d-sub",
+        "dsub",
+        "rgb",
+        "hsync",
+        "vsync",
+        "ddc",
+        "edid",
+        "scl",
+        "sda",
+        "monitor",
+        "video",
+        "stecker",
+        "buchse"
+      ],
+      "source": "Winford Engineering drawing BRKLD15HDF-SG-DIN rev A (connector pinout); Dell SE2416H user's guide, Pin assignments; Acer B193 user's guide, Connector pin assignment; Crypto Museum, D-sub connectors; Wikipedia, VGA connector with figure VGA_Port.svg; pinouts.ru, 15 pin highdensity D-SUB connector figures",
+      "views": {
+        "plug": "Male connector (cable)",
+        "socket": "Female connector (computer or monitor)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "dsub",
+        "contact": "round",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "5",
+              "4",
+              "3",
+              "2",
+              "1"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "10",
+              "9",
+              "8",
+              "7",
+              "6"
+            ],
+            "offset": 0.5
+          },
+          {
+            "pins": [
+              "15",
+              "14",
+              "13",
+              "12",
+              "11"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "RED",
+          "function": "Red video",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "GREEN",
+          "function": "Green video",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "BLUE",
+          "function": "Blue video",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "ID2/RES",
+          "function": "Reserved, once monitor ID bit 2",
+          "type": "nc",
+          "notes": "Ground on some monitors.",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "DDC return on some monitors, self-test on others.",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "RED_RTN",
+          "function": "Return of red video",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GREEN_RTN",
+          "function": "Return of green video",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "BLUE_RTN",
+          "function": "Return of blue video",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "KEY/PWR",
+          "function": "Supply from the computer for the monitor's EDID memory, once a key",
+          "type": "power",
+          "notes": "May be missing on older equipment. Sources name +5 V, one monitor maker 5 V or 3.3 V.",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "GND",
+          "function": "Ground for sync and DDC",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "ID0/RES",
+          "function": "Reserved, once monitor ID bit 0",
+          "type": "nc",
+          "notes": "Ground on some monitors.",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "ID1/SDA",
+          "function": "DDC data (I²C), once monitor ID bit 1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "HSync",
+          "function": "Horizontal sync or composite sync",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VSync",
+          "function": "Vertical sync",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "ID3/SCL",
+          "function": "DDC clock (I²C), once monitor ID bit 3",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "rj45",
+      "category": "pinouts",
+      "group": "data",
+      "name": "RJ45 (8P8C)",
+      "name_en": "RJ45 (8P8C)",
+      "doc": "The eight-contact modular connector of twisted-pair Ethernet. T568A and T568B differ only in the wire colours: the green and the orange pair swap places, the signals stay on the same pins.",
+      "notes": "Drawn: a jack seen from the front with the latch notch at the bottom, pin 1 on the left. A plug seen from its tip with the latch at the bottom has pin 1 on the right; with the latch on top, pin 1 is on the left. Signal names are those of an end device; at a switch TX and RX swap. Power over Ethernet: IEEE 802.3af/at Mode A puts the power on the data pairs, pins 1 and 2 as one pole, pins 3 and 6 as the other. Mode B uses the spare pairs, pins 4 and 5 as one pole, pins 7 and 8 as the other. The power source uses only one of the two at a time. Four-pair IEEE 802.3bt can use all four pairs together. The polarity of the data pairs is not the same everywhere, so measure before wiring anything without a rectifier.",
+      "tags": [
+        "rj45",
+        "rj-45",
+        "8p8c",
+        "ethernet",
+        "lan",
+        "netzwerk",
+        "network",
+        "patch",
+        "t568a",
+        "t568b",
+        "tia-568",
+        "568a",
+        "568b",
+        "1000base-t",
+        "100base-tx",
+        "poe",
+        "power over ethernet",
+        "802.3af",
+        "802.3at",
+        "802.3bt",
+        "mode a",
+        "mode b",
+        "stecker",
+        "buchse",
+        "jack",
+        "plug"
+      ],
+      "source": "NetAlly PoE reference flyer; Seetronic, RJ45 Color Code: T568A vs T568B; Microchip AN3361 (DS00003361C), table 3-1; Barco Event Master user guide R5905948, A.24; L-com drawing TDG1026-8R; GlobTek, PoE Mode A vs. Mode B; L-com PoE white paper; IEEE 802.3bt contribution darshan_02_0314",
+      "views": {
+        "plug": "Plug (cable end), latch at the bottom",
+        "socket": "Jack, latch notch at the bottom"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rj45",
+        "contact": "blade",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "t568a",
+          "name": "T568A",
+          "pins": [
+            {
+              "number": "1",
+              "name": "TX+ / A+",
+              "function": "10/100BASE-T transmit +, 1000BASE-T pair A +",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 2.",
+              "wire": "white_green"
+            },
+            {
+              "number": "2",
+              "name": "TX- / A-",
+              "function": "10/100BASE-T transmit -, 1000BASE-T pair A -",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 1.",
+              "wire": "green"
+            },
+            {
+              "number": "3",
+              "name": "RX+ / B+",
+              "function": "10/100BASE-T receive +, 1000BASE-T pair B +",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 6.",
+              "wire": "white_orange"
+            },
+            {
+              "number": "4",
+              "name": "C+",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair C +",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 5.",
+              "wire": "blue"
+            },
+            {
+              "number": "5",
+              "name": "C-",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair C -",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 4.",
+              "wire": "white_blue"
+            },
+            {
+              "number": "6",
+              "name": "RX- / B-",
+              "function": "10/100BASE-T receive -, 1000BASE-T pair B -",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 3.",
+              "wire": "orange"
+            },
+            {
+              "number": "7",
+              "name": "D+",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair D +",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 8.",
+              "wire": "white_brown"
+            },
+            {
+              "number": "8",
+              "name": "D-",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair D -",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 7.",
+              "wire": "brown"
+            }
+          ]
+        },
+        {
+          "id": "t568b",
+          "name": "T568B",
+          "pins": [
+            {
+              "number": "1",
+              "name": "TX+ / A+",
+              "function": "10/100BASE-T transmit +, 1000BASE-T pair A +",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 2.",
+              "wire": "white_orange"
+            },
+            {
+              "number": "2",
+              "name": "TX- / A-",
+              "function": "10/100BASE-T transmit -, 1000BASE-T pair A -",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 1.",
+              "wire": "orange"
+            },
+            {
+              "number": "3",
+              "name": "RX+ / B+",
+              "function": "10/100BASE-T receive +, 1000BASE-T pair B +",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 6.",
+              "wire": "white_green"
+            },
+            {
+              "number": "4",
+              "name": "C+",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair C +",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 5.",
+              "wire": "blue"
+            },
+            {
+              "number": "5",
+              "name": "C-",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair C -",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 4.",
+              "wire": "white_blue"
+            },
+            {
+              "number": "6",
+              "name": "RX- / B-",
+              "function": "10/100BASE-T receive -, 1000BASE-T pair B -",
+              "type": "data",
+              "notes": "PoE Mode A and four-pair: DC, same pole as pin 3.",
+              "wire": "green"
+            },
+            {
+              "number": "7",
+              "name": "D+",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair D +",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 8.",
+              "wire": "white_brown"
+            },
+            {
+              "number": "8",
+              "name": "D-",
+              "function": "Unused at 10/100BASE-T, 1000BASE-T pair D -",
+              "type": "data",
+              "notes": "PoE Mode B and four-pair: DC, same pole as pin 7.",
+              "wire": "brown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
+      "id": "rs232_db9",
+      "category": "pinouts",
+      "group": "data",
+      "name": "RS-232 (DE-9)",
+      "name_en": "RS-232 (DE-9)",
+      "doc": "The 9-pin serial port of PCs, often called DB9. The DTE (a PC or terminal) has the male connector with pins; the DCE (a modem) has the female connector with sockets.",
+      "notes": "Every signal name and direction is from the DTE's point of view. A pin carries the same signal at both ends, so the DCE drives what the DTE reads: pin 2 is an output on a DCE. The genders are the usual rule and some devices break it, so check the pin directions on the device before you connect a cable. To join two DTEs you need a cable that crosses TXD and RXD. The levels are RS-232 voltages, not logic levels.",
+      "tags": [
+        "rs232",
+        "rs-232",
+        "rs 232",
+        "db9",
+        "de9",
+        "de-9",
+        "d-sub",
+        "dsub",
+        "serial",
+        "seriell",
+        "com",
+        "uart",
+        "txd",
+        "rxd",
+        "rts",
+        "cts",
+        "dtr",
+        "dsr",
+        "dcd",
+        "dte",
+        "dce",
+        "modem",
+        "tia-574",
+        "stecker",
+        "buchse"
+      ],
+      "source": "Texas Instruments SLLA037A, Interface Circuits for TIA/EIA-232-F; Moxa NPort 6110 user's manual, Pin assignments; Crypto Museum, D-sub connectors; serial_pinout.txt (xmtel archive, University of Louisville); CS Club Waterloo wiki, Serial Pin-outs",
+      "views": {
+        "plug": "Male connector, pins (DTE, such as a PC)",
+        "socket": "Female connector, sockets (DCE, such as a modem)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "dsub",
+        "contact": "round",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "6",
+              "7",
+              "8",
+              "9"
+            ],
+            "offset": 0.5
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "DCD",
+          "function": "Data carrier detect: input at the DTE, output at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "RXD",
+          "function": "Received data: input at the DTE, output at the DCE",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "TXD",
+          "function": "Transmitted data: output at the DTE, input at the DCE",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "DTR",
+          "function": "Data terminal ready: output at the DTE, input at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Signal ground, common reference of all circuits",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "DSR",
+          "function": "Data set ready: input at the DTE, output at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "RTS",
+          "function": "Request to send: output at the DTE, input at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "CTS",
+          "function": "Clear to send: input at the DTE, output at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "RI",
+          "function": "Ring indicator: input at the DTE, output at the DCE",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
     }
   ]
 }

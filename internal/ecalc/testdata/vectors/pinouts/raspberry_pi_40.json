@@ -1,0 +1,76 @@
+{
+ "pinout": "raspberry_pi_40",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 4,
+    "ground": 8,
+    "io": 26,
+    "nc": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "3V3",
+     "type": "power",
+     "ref": "Raspberry Pi documentation, 40-pin GPIO header, table Pin names, types, and typical functions, pin 1"
+    },
+    {
+     "number": "2",
+     "name": "5V",
+     "type": "power",
+     "ref": "Raspberry Pi documentation, same table, pin 2"
+    },
+    {
+     "number": "3",
+     "name": "GPIO2",
+     "type": "io",
+     "ref": "Raspberry Pi documentation, same table, pin 3 GP2; Raspberry Pi pinout diagram GPIO 2 (SDA)"
+    },
+    {
+     "number": "6",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Raspberry Pi documentation, same table, pin 6"
+    },
+    {
+     "number": "8",
+     "name": "GPIO14",
+     "type": "io",
+     "ref": "Raspberry Pi documentation, same table, pin 8 GP14 TXD"
+    },
+    {
+     "number": "27",
+     "name": "GPIO0",
+     "type": "nc",
+     "ref": "Raspberry Pi documentation, table Pin types: ID EEPROM GP0, reserved for HATs; note maps it to pin 27; pin labelling figure: DNC"
+    },
+    {
+     "number": "28",
+     "name": "GPIO1",
+     "type": "nc",
+     "ref": "Raspberry Pi documentation, table Pin types: ID EEPROM GP1, reserved for HATs; note maps it to pin 28; pin labelling figure: DNC"
+    },
+    {
+     "number": "32",
+     "name": "GPIO12",
+     "type": "io",
+     "ref": "Raspberry Pi documentation, same table, pin 32 GP12 PWM0"
+    },
+    {
+     "number": "39",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Raspberry Pi documentation, same table, pin 39"
+    },
+    {
+     "number": "40",
+     "name": "GPIO21",
+     "type": "io",
+     "ref": "Raspberry Pi documentation, same table, pin 40 GP21 PCM_DOUT"
+    }
+   ]
+  }
+ ]
+}

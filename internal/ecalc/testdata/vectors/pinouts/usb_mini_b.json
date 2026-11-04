@@ -1,0 +1,5 @@
+{"pinout": "usb_mini_b", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "data": 2, "signal": 1}, "pins": [
+  {"number": "1", "name": "VBUS", "type": "power", "ref": "USB 2.0 ECN #1: Mini-B connector, table 6-2"},
+  {"number": "3", "name": "D+", "type": "data", "ref": "USB 2.0 ECN #1: Mini-B connector, table 6-2"},
+  {"number": "4", "name": "ID", "type": "signal", "ref": "USB 2.0 ECN #1: Mini-B connector, table 6-2"},
+  {"number": "5", "name": "GND", "type": "ground", "ref": "USB 2.0 ECN #1: Mini-B connector, table 6-2"}]}]}

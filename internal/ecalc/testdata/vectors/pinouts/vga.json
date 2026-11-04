@@ -1,0 +1,7 @@
+{"pinout": "vga", "variants": [{"variant": "", "counts": {"signal": 5, "nc": 2, "ground": 5, "power": 1, "data": 2}, "pins": [
+  {"number": "1", "name": "RED", "type": "signal", "ref": "Dell SE2416H user's guide, Pin assignments (Video-Red); Acer B193 (Red); Wikipedia, VGA connector"},
+  {"number": "6", "name": "RED_RTN", "type": "ground", "ref": "Dell SE2416H user's guide (GND-R); Acer B193 (R-ground); Wikipedia, VGA connector"},
+  {"number": "12", "name": "ID1/SDA", "type": "data", "ref": "Dell SE2416H user's guide (DDC data); Acer B193 (DDC-serial data); Crypto Museum (ID1 or SDA)"},
+  {"number": "13", "name": "HSync", "type": "signal", "ref": "Dell SE2416H user's guide (H-sync); Acer B193 (H-sync); Crypto Museum (H-Sync or C-Sync)"},
+  {"number": "14", "name": "VSync", "type": "signal", "ref": "Dell SE2416H user's guide (V-sync); Acer B193 (V-sync); Crypto Museum (V-Sync)"},
+  {"number": "15", "name": "ID3/SCL", "type": "data", "ref": "Dell SE2416H user's guide (DDC clock); Acer B193 (DDC-serial clock); Crypto Museum (ID3 or SCL)"}]}]}

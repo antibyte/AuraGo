@@ -1,0 +1,403 @@
+# Data and display connectors. The sources behind every item are in documentation/ecalc-sources/pinouts/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: usb_a
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB 2.0 Type-A", da: "USB 2.0 Type-A", de: "USB 2.0 Type-A", el: "USB 2.0 Type-A", en: "USB 2.0 Type-A", es: "USB 2.0 Type-A", fr: "USB 2.0 Type-A", hi: "USB 2.0 Type-A", it: "USB 2.0 Type-A", ja: "USB 2.0 Type-A", nl: "USB 2.0 Type-A", no: "USB 2.0 Type-A", pl: "USB 2.0 Type-A", pt: "USB 2.0 Type-A", sv: "USB 2.0 Type-A", zh: "USB 2.0 Type-A"}
+  doc: {en: "The flat USB connector of hosts and hubs, with four contacts inside a metal shell.", de: "Der flache USB-Anschluss an Hosts und Hubs, mit vier Kontakten in einem Metallgehäuse."}
+  notes: {en: "The shell is the shield and goes to the drain wire of the cable. The drawn order holds for a receptacle whose contact tongue fills the upper half of the shell, with the contacts on its underside. The wire colours are the typical wiring named by the specification.", de: "Das Gehäuse ist die Abschirmung und führt zur Beilauflitze des Kabels. Die gezeichnete Reihenfolge gilt für eine Buchse, deren Kontaktzunge in der oberen Hälfte des Gehäuses liegt, mit den Kontakten auf der Unterseite. Die Aderfarben sind die von der Spezifikation genannte übliche Belegung."}
+  tags: [usb, usb-a, usb2, "usb 2.0", type-a, "typ a", vbus, "d+", "d-", host, plug, stecker, receptacle, buchse, socket]
+  source: "USB 2.0 Specification (USB-IF, package usb_20_20250603), table 6-1 and figures 6-7 and 6-9"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the host or hub)", de: "Buchse (am Host oder Hub)"}
+  shape:
+    type: rows
+    outline: usb_a
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: VBUS, function: {en: "Bus supply, nominally +5 V", de: "Busversorgung, nominell +5 V"}, type: power, wire: red}
+    - {number: "2", name: "D-", function: {en: "USB data, negative line", de: "USB-Daten, negative Leitung"}, type: data, wire: white}
+    - {number: "3", name: "D+", function: {en: "USB data, positive line", de: "USB-Daten, positive Leitung"}, type: data, wire: green}
+    - {number: "4", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: usb_a_3
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB 3.x Type-A", da: "USB 3.x Type-A", de: "USB 3.x Type-A", el: "USB 3.x Type-A", en: "USB 3.x Type-A", es: "USB 3.x Type-A", fr: "USB 3.x Type-A", hi: "USB 3.x Type-A", it: "USB 3.x Type-A", ja: "USB 3.x Type-A", nl: "USB 3.x Type-A", no: "USB 3.x Type-A", pl: "USB 3.x Type-A", pt: "USB 3.x Type-A", sv: "USB 3.x Type-A", zh: "USB 3.x Type-A"}
+  doc: {en: "The Standard-A connector with SuperSpeed: the four USB 2.0 contacts plus five more, nine in all.", de: "Der Standard-A-Anschluss mit SuperSpeed: die vier USB-2.0-Kontakte und fünf weitere, zusammen neun."}
+  notes: {en: "RX and TX are named from the host's point of view. Pins 1 to 4 are the USB 2.0 contacts, pins 5 to 9 the SuperSpeed contacts. The two rows lie at different depths of the connector, so face-on they are not really above each other; the left-right position is as drawn. The drawn receptacle has its contact tongue in the upper half of the shell. The shell is the shield and mates first. The specification names no wire colours for this connector.", de: "RX und TX sind aus Sicht des Hosts benannt. Die Pins 1 bis 4 sind die USB-2.0-Kontakte, die Pins 5 bis 9 die SuperSpeed-Kontakte. Die beiden Reihen liegen unterschiedlich tief im Anschluss, stehen von vorn gesehen also nicht wirklich übereinander; die Lage von links nach rechts stimmt mit der Zeichnung überein. Die gezeichnete Buchse hat ihre Kontaktzunge in der oberen Hälfte des Gehäuses. Das Gehäuse ist die Abschirmung und kontaktiert zuerst. Die Spezifikation nennt für diesen Anschluss keine Aderfarben."}
+  tags: [usb, usb-a, usb3, "usb 3.0", "usb 3.1", "usb 3.2", superspeed, type-a, "typ a", standard-a, stda_ssrx, stda_sstx, ssrx, sstx, gnd_drain, vbus, stecker, buchse, receptacle, plug]
+  source: "USB 3.1 Legacy Cable and Connector Specification, Revision 1.0 (22 September 2017), table 5-2 and figures 5-1, 5-4 (detail G) and 5-5"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the host or hub)", de: "Buchse (am Host oder Hub)"}
+  shape:
+    type: rows
+    outline: usb_a
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["9", "8", "7", "6", "5"]}
+      - {pins: ["1", "2", "3", "4"], offset: 0.5}
+  pins:
+    - {number: "1", name: VBUS, function: {en: "Bus supply", de: "Busversorgung"}, type: power}
+    - {number: "2", name: "D-", function: {en: "USB 2.0 data, negative line", de: "USB-2.0-Daten, negative Leitung"}, type: data}
+    - {number: "3", name: "D+", function: {en: "USB 2.0 data, positive line", de: "USB-2.0-Daten, positive Leitung"}, type: data}
+    - {number: "4", name: GND, function: {en: "Ground return of the supply", de: "Masserückleitung der Versorgung"}, type: ground}
+    - {number: "5", name: "StdA_SSRX-", function: {en: "SuperSpeed receive pair, negative", de: "SuperSpeed-Empfangspaar, negativ"}, type: data}
+    - {number: "6", name: "StdA_SSRX+", function: {en: "SuperSpeed receive pair, positive", de: "SuperSpeed-Empfangspaar, positiv"}, type: data}
+    - {number: "7", name: GND_DRAIN, function: {en: "Ground return of the signals", de: "Masserückleitung der Signale"}, type: ground}
+    - {number: "8", name: "StdA_SSTX-", function: {en: "SuperSpeed transmit pair, negative", de: "SuperSpeed-Sendepaar, negativ"}, type: data}
+    - {number: "9", name: "StdA_SSTX+", function: {en: "SuperSpeed transmit pair, positive", de: "SuperSpeed-Sendepaar, positiv"}, type: data}
+
+- id: usb_b
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB 2.0 Type-B", da: "USB 2.0 Type-B", de: "USB 2.0 Type-B", el: "USB 2.0 Type-B", en: "USB 2.0 Type-B", es: "USB 2.0 Type-B", fr: "USB 2.0 Type-B", hi: "USB 2.0 Type-B", it: "USB 2.0 Type-B", ja: "USB 2.0 Type-B", nl: "USB 2.0 Type-B", no: "USB 2.0 Type-B", pl: "USB 2.0 Type-B", pt: "USB 2.0 Type-B", sv: "USB 2.0 Type-B", zh: "USB 2.0 Type-B"}
+  doc: {en: "The nearly square USB connector of devices such as printers, with two contacts above and two below.", de: "Der fast quadratische USB-Anschluss von Geräten wie Druckern, mit zwei Kontakten oben und zwei unten."}
+  notes: {en: "The shell is the shield and goes to the drain wire of the cable. The drawing has the chamfered corners of the shell at the top. The wire colours are the typical wiring named by the specification.", de: "Das Gehäuse ist die Abschirmung und führt zur Beilauflitze des Kabels. In der Zeichnung liegen die abgeschrägten Ecken des Gehäuses oben. Die Aderfarben sind die von der Spezifikation genannte übliche Belegung."}
+  tags: [usb, usb-b, usb2, "usb 2.0", type-b, "typ b", vbus, "d+", "d-", printer, drucker, stecker, buchse, receptacle, plug]
+  source: "USB 2.0 Specification (USB-IF, package usb_20_20250603), table 6-1 and figures 6-8 and 6-10"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: usb_b
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["2", "1"]}
+      - {pins: ["3", "4"]}
+  pins:
+    - {number: "1", name: VBUS, function: {en: "Bus supply, nominally +5 V", de: "Busversorgung, nominell +5 V"}, type: power, wire: red}
+    - {number: "2", name: "D-", function: {en: "USB data, negative line", de: "USB-Daten, negative Leitung"}, type: data, wire: white}
+    - {number: "3", name: "D+", function: {en: "USB data, positive line", de: "USB-Daten, positive Leitung"}, type: data, wire: green}
+    - {number: "4", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: usb_mini_b
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB Mini-B", da: "USB Mini-B", de: "USB Mini-B", el: "USB Mini-B", en: "USB Mini-B", es: "USB Mini-B", fr: "USB Mini-B", hi: "USB Mini-B", it: "USB Mini-B", ja: "USB Mini-B", nl: "USB Mini-B", no: "USB Mini-B", pl: "USB Mini-B", pt: "USB Mini-B", sv: "USB Mini-B", zh: "USB Mini-B"}
+  doc: {en: "The small five-contact USB connector of older handheld devices.", de: "Der kleine fünfpolige USB-Anschluss älterer Handgeräte."}
+  notes: {en: "The drawing has the wider side of the shell at the top. The shell is the shield and goes to the drain wire of the cable. The wire colours are the typical wiring named by the specification.", de: "In der Zeichnung liegt die breitere Seite des Gehäuses oben. Das Gehäuse ist die Abschirmung und führt zur Beilauflitze des Kabels. Die Aderfarben sind die von der Spezifikation genannte übliche Belegung."}
+  tags: [usb, mini-usb, mini-b, "usb mini", vbus, "d+", "d-", id, otg, kamera, camera, stecker, buchse, receptacle, plug]
+  source: "USB 2.0 Specification Engineering Change Notice #1: Mini-B connector (20 October 2000), table 6-2 and figures 6-11 and 6-15"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: usb_mini_b
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4", "5"]}
+  pins:
+    - {number: "1", name: VBUS, function: {en: "Bus supply, nominally +5 V", de: "Busversorgung, nominell +5 V"}, type: power, wire: red}
+    - {number: "2", name: "D-", function: {en: "USB data, negative line", de: "USB-Daten, negative Leitung"}, type: data, wire: white}
+    - {number: "3", name: "D+", function: {en: "USB data, positive line", de: "USB-Daten, positive Leitung"}, type: data, wire: green}
+    - {number: "4", name: ID, function: {en: "Identification contact", de: "Kennungskontakt"}, type: signal, notes: {en: "The contact exists in the plug but no wire of the cable goes to it.", de: "Der Kontakt ist im Stecker vorhanden, aber keine Ader des Kabels führt zu ihm."}}
+    - {number: "5", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: usb_micro_b
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB Micro-B", da: "USB Micro-B", de: "USB Micro-B", el: "USB Micro-B", en: "USB Micro-B", es: "USB Micro-B", fr: "USB Micro-B", hi: "USB Micro-B", it: "USB Micro-B", ja: "USB Micro-B", nl: "USB Micro-B", no: "USB Micro-B", pl: "USB Micro-B", pt: "USB Micro-B", sv: "USB Micro-B", zh: "USB Micro-B"}
+  doc: {en: "The very flat five-contact USB connector of phones and small boards, before USB Type-C.", de: "Der sehr flache fünfpolige USB-Anschluss von Telefonen und kleinen Platinen aus der Zeit vor USB Type-C."}
+  notes: {en: "The drawing has the wider side of the shell at the top. The shell is the shield and goes to the drain wire of the cable. The wire colours are the typical wiring named by the specification.", de: "In der Zeichnung liegt die breitere Seite des Gehäuses oben. Das Gehäuse ist die Abschirmung und führt zur Beilauflitze des Kabels. Die Aderfarben sind die von der Spezifikation genannte übliche Belegung."}
+  tags: [usb, micro-usb, micro-b, "usb micro", microusb, vbus, "d+", "d-", id, otg, stecker, buchse, receptacle, plug]
+  source: "Universal Serial Bus Micro-USB Cables and Connectors Specification, Revision 1.01 (4 April 2007), table 4-2 and figures 4-7 and 4-10"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: usb_micro_b
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4", "5"]}
+  pins:
+    - {number: "1", name: VBUS, function: {en: "Bus supply, nominally +5 V", de: "Busversorgung, nominell +5 V"}, type: power, wire: red}
+    - {number: "2", name: "D-", function: {en: "USB data, negative line", de: "USB-Daten, negative Leitung"}, type: data, wire: white}
+    - {number: "3", name: "D+", function: {en: "USB data, positive line", de: "USB-Daten, positive Leitung"}, type: data, wire: green}
+    - {number: "4", name: ID, function: {en: "Tells a Micro-A plug from a Micro-B plug", de: "Unterscheidet Micro-A-Stecker von Micro-B-Stecker"}, type: signal, notes: {en: "In a Micro-B plug it is open or has more than 100 kΩ to GND. A Micro-A plug ties it to GND (at most 10 Ω).", de: "Im Micro-B-Stecker ist er offen oder hat mehr als 100 kΩ gegen GND. Ein Micro-A-Stecker legt ihn auf GND (höchstens 10 Ω)."}}
+    - {number: "5", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+
+- id: usb_c
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "USB Type-C", da: "USB Type-C", de: "USB Type-C", el: "USB Type-C", en: "USB Type-C", es: "USB Type-C", fr: "USB Type-C", hi: "USB Type-C", it: "USB Type-C", ja: "USB Type-C", nl: "USB Type-C", no: "USB Type-C", pl: "USB Type-C", pt: "USB Type-C", sv: "USB Type-C", zh: "USB Type-C"}
+  doc: {en: "The reversible 24-contact USB connector. The contact plan repeats after a half turn, so the plug fits both ways; the CC lines show which way it is in.", de: "Der umsteckbare USB-Anschluss mit 24 Kontakten. Der Kontaktplan wiederholt sich nach einer halben Drehung, darum passt der Stecker in beiden Lagen; die CC-Leitungen zeigen, wie er steckt."}
+  notes: {en: "CC resistors, from tables 4-27 and 4-28 of the Type-C specification. Sink: Rd 5.1 kΩ to GND on CC1 and on CC2 (±10% if it reads the advertised current, otherwise ±20% is allowed). Source: Rp to 4.75–5.5 V on CC1 and on CC2: 56 kΩ ±20% for default USB power, 22 kΩ ±5% for 1.5 A, 10 kΩ ±5% for 3.0 A. With a pull-up to 3.3 V: 36 kΩ ±20%, 12 kΩ ±5%, 4.7 kΩ ±5%. A cable or adapter whose Type-C plug stands for a legacy USB host uses 56 kΩ ±5%. All VBUS contacts are tied together, and so are all GND contacts. A USB 2.0 receptacle leaves A2, A3, A10, A11, B2, B3, B10 and B11 unconnected.", de: "CC-Widerstände aus den Tabellen 4-27 und 4-28 der Type-C-Spezifikation. Senke: Rd 5,1 kΩ gegen GND an CC1 und an CC2 (±10 %, wenn sie den angebotenen Strom auswertet, sonst sind ±20 % erlaubt). Quelle: Rp nach 4,75–5,5 V an CC1 und an CC2: 56 kΩ ±20 % für die normale USB-Leistung, 22 kΩ ±5 % für 1,5 A, 10 kΩ ±5 % für 3,0 A. Mit Pull-up nach 3,3 V: 36 kΩ ±20 %, 12 kΩ ±5 %, 4,7 kΩ ±5 %. Ein Kabel oder Adapter, dessen Type-C-Stecker für einen älteren USB-Host steht, nutzt 56 kΩ ±5 %. Alle VBUS-Kontakte sind miteinander verbunden, ebenso alle GND-Kontakte. Eine USB-2.0-Buchse lässt A2, A3, A10, A11, B2, B3, B10 und B11 unbeschaltet."}
+  tags: [usb, usb-c, type-c, "typ c", usb4, "usb 3.2", thunderbolt, cc, cc1, cc2, vconn, sbu, vbus, rd, rp, "5.1 k", "5,1 k", tx, rx, "power delivery", stecker, buchse, receptacle, plug]
+  source: "USB Type-C Cable and Connector Specification, Release 2.5 (March 2026), figures 2-1 and 2-2, tables 3-4, 3-5, 4-27 and 4-28"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: usb_c
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12"]}
+      - {pins: ["B12", "B11", "B10", "B9", "B8", "B7", "B6", "B5", "B4", "B3", "B2", "B1"]}
+  pins:
+    - {number: "A1", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground}
+    - {number: "A2", name: "TX1+", function: {en: "First transmit pair, positive", de: "Erstes Sendepaar, positiv"}, type: data}
+    - {number: "A3", name: "TX1-", function: {en: "First transmit pair, negative", de: "Erstes Sendepaar, negativ"}, type: data}
+    - {number: "A4", name: VBUS, function: {en: "Bus power", de: "Busversorgung"}, type: power}
+    - {number: "A5", name: CC1, function: {en: "Configuration channel 1", de: "Konfigurationskanal 1"}, type: signal, notes: {en: "In a plug this contact is the CC line of the cable.", de: "Im Stecker ist dieser Kontakt die CC-Leitung des Kabels."}}
+    - {number: "A6", name: "D+", function: {en: "USB 2.0 data, positive, position 1", de: "USB-2.0-Daten, positiv, Position 1"}, type: data}
+    - {number: "A7", name: "D-", function: {en: "USB 2.0 data, negative, position 1", de: "USB-2.0-Daten, negativ, Position 1"}, type: data}
+    - {number: "A8", name: SBU1, function: {en: "Sideband use 1", de: "Seitenband-Nutzung 1"}, type: signal}
+    - {number: "A9", name: VBUS, function: {en: "Bus power", de: "Busversorgung"}, type: power}
+    - {number: "A10", name: "RX2-", function: {en: "Second receive pair, negative", de: "Zweites Empfangspaar, negativ"}, type: data}
+    - {number: "A11", name: "RX2+", function: {en: "Second receive pair, positive", de: "Zweites Empfangspaar, positiv"}, type: data}
+    - {number: "A12", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground}
+    - {number: "B1", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground}
+    - {number: "B2", name: "TX2+", function: {en: "Second transmit pair, positive", de: "Zweites Sendepaar, positiv"}, type: data}
+    - {number: "B3", name: "TX2-", function: {en: "Second transmit pair, negative", de: "Zweites Sendepaar, negativ"}, type: data}
+    - {number: "B4", name: VBUS, function: {en: "Bus power", de: "Busversorgung"}, type: power}
+    - {number: "B5", name: CC2, function: {en: "Configuration channel 2", de: "Konfigurationskanal 2"}, type: signal, notes: {en: "In a plug this contact is VCONN, the supply for electronics in the plug.", de: "Im Stecker ist dieser Kontakt VCONN, die Versorgung für Elektronik im Stecker."}}
+    - {number: "B6", name: "D+", function: {en: "USB 2.0 data, positive, position 2", de: "USB-2.0-Daten, positiv, Position 2"}, type: data, notes: {en: "Not meant to exist in a plug. The receptacle has both positions because the plug can be turned.", de: "Im Stecker nicht vorgesehen. Die Buchse hat beide Positionen, weil der Stecker gedreht werden kann."}}
+    - {number: "B7", name: "D-", function: {en: "USB 2.0 data, negative, position 2", de: "USB-2.0-Daten, negativ, Position 2"}, type: data, notes: {en: "Not meant to exist in a plug. The receptacle has both positions because the plug can be turned.", de: "Im Stecker nicht vorgesehen. Die Buchse hat beide Positionen, weil der Stecker gedreht werden kann."}}
+    - {number: "B8", name: SBU2, function: {en: "Sideband use 2", de: "Seitenband-Nutzung 2"}, type: signal}
+    - {number: "B9", name: VBUS, function: {en: "Bus power", de: "Busversorgung"}, type: power}
+    - {number: "B10", name: "RX1-", function: {en: "First receive pair, negative", de: "Erstes Empfangspaar, negativ"}, type: data}
+    - {number: "B11", name: "RX1+", function: {en: "First receive pair, positive", de: "Erstes Empfangspaar, positiv"}, type: data}
+    - {number: "B12", name: GND, function: {en: "Ground return", de: "Masserückleitung"}, type: ground}
+
+- id: hdmi_a
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "HDMI Type A", da: "HDMI Type A", de: "HDMI Type A", el: "HDMI Type A", en: "HDMI Type A", es: "HDMI Type A", fr: "HDMI Type A", hi: "HDMI Type A", it: "HDMI Type A", ja: "HDMI Type A", nl: "HDMI Type A", no: "HDMI Type A", pl: "HDMI Type A", pt: "HDMI Type A", sv: "HDMI Type A", zh: "HDMI Type A"}
+  doc: {en: "The full-size 19-contact HDMI connector: three TMDS data channels and a clock, each with its own shield, plus DDC, CEC, +5 V and hot plug detect.", de: "Der große 19-polige HDMI-Anschluss: drei TMDS-Datenkanäle und ein Takt, jeder mit eigener Abschirmung, dazu DDC, CEC, +5 V und Hot-Plug-Erkennung."}
+  notes: {en: "The drawing has the wider side of the shell at the top, with the odd pins in the upper row. From HDMI 1.4 pins 14 and 19 can also carry the HDMI Ethernet and audio return channel (HEAC+ on 14, HEAC- on 19). Older cables and devices leave pin 14 unused. The +5 V line is only for low currents: the sources name 50 mA or 55 mA.", de: "In der Zeichnung liegt die breitere Seite des Gehäuses oben, die ungeraden Pins in der oberen Reihe. Ab HDMI 1.4 können die Pins 14 und 19 auch den HDMI-Ethernet- und Audio-Rückkanal führen (HEAC+ auf 14, HEAC- auf 19). Ältere Kabel und Geräte lassen Pin 14 ungenutzt. Die +5-V-Leitung ist nur für kleine Ströme gedacht: Die Quellen nennen 50 mA oder 55 mA."}
+  tags: [hdmi, "type a", "typ a", tmds, ddc, edid, cec, hpd, "hot plug", heac, arc, hec, scl, sda, video, stecker, buchse, receptacle, plug]
+  source: "Amphenol Socapex drawing 191-PLC-1038-00 (HDMIF TV 7 x x); Rohde & Schwarz HDMI poster 3606.8489.82, version 03.02 (June 2014); Schlegel RRJ_HDMI_STB data sheet; TRU Components 15 71 072 data sheet; Barco Event Master user guide R5905948, A.24; Sony VPL-PHZ50 help guide, Pin Assignment (HDMI Terminal); Sony patent EP2405654B1"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: hdmi_a
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["19", "17", "15", "13", "11", "9", "7", "5", "3", "1"]}
+      - {pins: ["18", "16", "14", "12", "10", "8", "6", "4", "2"], offset: 0.5}
+  pins:
+    - {number: "1", name: "TMDS Data2+", function: {en: "TMDS data channel 2, positive", de: "TMDS-Datenkanal 2, positiv"}, type: data}
+    - {number: "2", name: "TMDS Data2 Shield", function: {en: "Shield of TMDS data channel 2", de: "Abschirmung von TMDS-Datenkanal 2"}, type: ground}
+    - {number: "3", name: "TMDS Data2-", function: {en: "TMDS data channel 2, negative", de: "TMDS-Datenkanal 2, negativ"}, type: data}
+    - {number: "4", name: "TMDS Data1+", function: {en: "TMDS data channel 1, positive", de: "TMDS-Datenkanal 1, positiv"}, type: data}
+    - {number: "5", name: "TMDS Data1 Shield", function: {en: "Shield of TMDS data channel 1", de: "Abschirmung von TMDS-Datenkanal 1"}, type: ground}
+    - {number: "6", name: "TMDS Data1-", function: {en: "TMDS data channel 1, negative", de: "TMDS-Datenkanal 1, negativ"}, type: data}
+    - {number: "7", name: "TMDS Data0+", function: {en: "TMDS data channel 0, positive", de: "TMDS-Datenkanal 0, positiv"}, type: data}
+    - {number: "8", name: "TMDS Data0 Shield", function: {en: "Shield of TMDS data channel 0", de: "Abschirmung von TMDS-Datenkanal 0"}, type: ground}
+    - {number: "9", name: "TMDS Data0-", function: {en: "TMDS data channel 0, negative", de: "TMDS-Datenkanal 0, negativ"}, type: data}
+    - {number: "10", name: "TMDS Clock+", function: {en: "TMDS clock, positive", de: "TMDS-Takt, positiv"}, type: data}
+    - {number: "11", name: "TMDS Clock Shield", function: {en: "Shield of the TMDS clock", de: "Abschirmung des TMDS-Takts"}, type: ground}
+    - {number: "12", name: "TMDS Clock-", function: {en: "TMDS clock, negative", de: "TMDS-Takt, negativ"}, type: data}
+    - {number: "13", name: CEC, function: {en: "Consumer Electronics Control bus", de: "Bus für Consumer Electronics Control"}, type: data}
+    - {number: "14", name: Utility, function: {en: "Reserved up to HDMI 1.3, from 1.4 HEAC+", de: "Bis HDMI 1.3 reserviert, ab 1.4 HEAC+"}, type: signal}
+    - {number: "15", name: SCL, function: {en: "DDC clock (I²C)", de: "DDC-Takt (I²C)"}, type: data}
+    - {number: "16", name: SDA, function: {en: "DDC data (I²C)", de: "DDC-Daten (I²C)"}, type: data}
+    - {number: "17", name: "DDC/CEC Ground", function: {en: "Ground for DDC and CEC, also for HEAC", de: "Masse für DDC und CEC, auch für HEAC"}, type: ground}
+    - {number: "18", name: "+5V Power", function: {en: "+5 V low-current supply from the source", de: "+5-V-Versorgung für kleine Ströme, von der Quelle"}, type: power}
+    - {number: "19", name: "Hot Plug Detect", function: {en: "Shows the source that a display is attached, from HDMI 1.4 also HEAC-", de: "Zeigt der Quelle ein angeschlossenes Anzeigegerät, ab HDMI 1.4 auch HEAC-"}, type: signal}
+
+- id: displayport
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "DisplayPort", da: "DisplayPort", de: "DisplayPort", el: "DisplayPort", en: "DisplayPort", es: "DisplayPort", fr: "DisplayPort", hi: "DisplayPort", it: "DisplayPort", ja: "DisplayPort", nl: "DisplayPort", no: "DisplayPort", pl: "DisplayPort", pt: "DisplayPort", sv: "DisplayPort", zh: "DisplayPort"}
+  doc: {en: "The full-size 20-contact DisplayPort connector: four main link lanes, an auxiliary channel, hot plug detect and a small supply. A source and a sink number the lanes differently.", de: "Der große 20-polige DisplayPort-Anschluss: vier Hauptkanäle (Lanes), ein Hilfskanal, Hot-Plug-Erkennung und eine kleine Versorgung. Quelle und Senke nummerieren die Lanes unterschiedlich."}
+  notes: {en: "Choose the variant by the device: a graphics output is the source side, a monitor input the sink side. Only pins 1 to 12 differ. At a source, pin 1 is ML_Lane 0 (p); at a sink, pin 1 is ML_Lane 3 (n). The drawing has the cut corner of the shell at the lower left.", de: "Die Variante richtet sich nach dem Gerät: Ein Grafikausgang ist die Quellseite, ein Monitoreingang die Senkenseite. Nur die Pins 1 bis 12 unterscheiden sich. An der Quelle ist Pin 1 ML_Lane 0 (p), an der Senke ML_Lane 3 (n). In der Zeichnung liegt die abgeschrägte Ecke des Gehäuses unten links."}
+  tags: [displayport, dp, ml_lane, lane, aux, "aux ch", hpd, "hot plug", config1, config2, dp_pwr, source, sink, quelle, senke, video, stecker, buchse, receptacle, plug]
+  source: "NCR Voyix 7772 workstation online help, DisplayPort pinout; Barco Event Master user guide R5905948, A.24; Barco MDSC-8255 user guide, 2.4.5; Dell P3424WEB user's guide, Pin assignments; University of Oregon Projection Design Bootcamp, Display Port Information"
+  views:
+    plug: {en: "Plug (cable end)", de: "Stecker (Kabelende)"}
+    socket: {en: "Receptacle (on the device)", de: "Buchse (am Gerät)"}
+  shape:
+    type: rows
+    outline: displayport
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["19", "17", "15", "13", "11", "9", "7", "5", "3", "1"], offset: 0.5}
+      - {pins: ["20", "18", "16", "14", "12", "10", "8", "6", "4", "2"]}
+  variants:
+    - id: source
+      name: {en: "Source side (output)", de: "Quellseite (Ausgang)"}
+      pins:
+        - {number: "1", name: "ML_Lane 0 (p)", function: {en: "Main link lane 0, positive", de: "Hauptkanal Lane 0, positiv"}, type: data}
+        - {number: "2", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "3", name: "ML_Lane 0 (n)", function: {en: "Main link lane 0, negative", de: "Hauptkanal Lane 0, negativ"}, type: data}
+        - {number: "4", name: "ML_Lane 1 (p)", function: {en: "Main link lane 1, positive", de: "Hauptkanal Lane 1, positiv"}, type: data}
+        - {number: "5", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "6", name: "ML_Lane 1 (n)", function: {en: "Main link lane 1, negative", de: "Hauptkanal Lane 1, negativ"}, type: data}
+        - {number: "7", name: "ML_Lane 2 (p)", function: {en: "Main link lane 2, positive", de: "Hauptkanal Lane 2, positiv"}, type: data}
+        - {number: "8", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "9", name: "ML_Lane 2 (n)", function: {en: "Main link lane 2, negative", de: "Hauptkanal Lane 2, negativ"}, type: data}
+        - {number: "10", name: "ML_Lane 3 (p)", function: {en: "Main link lane 3, positive", de: "Hauptkanal Lane 3, positiv"}, type: data}
+        - {number: "11", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "12", name: "ML_Lane 3 (n)", function: {en: "Main link lane 3, negative", de: "Hauptkanal Lane 3, negativ"}, type: data}
+        - {number: "13", name: CONFIG1, function: {en: "Configuration pin, to ground directly or through a pull-down", de: "Konfigurationspin, direkt oder über Pull-down auf Masse"}, type: signal}
+        - {number: "14", name: CONFIG2, function: {en: "Configuration pin, to ground directly or through a pull-down", de: "Konfigurationspin, direkt oder über Pull-down auf Masse"}, type: signal}
+        - {number: "15", name: "AUX CH (p)", function: {en: "Auxiliary channel, positive", de: "Hilfskanal, positiv"}, type: data}
+        - {number: "16", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "17", name: "AUX CH (n)", function: {en: "Auxiliary channel, negative", de: "Hilfskanal, negativ"}, type: data}
+        - {number: "18", name: "Hot Plug Detect", function: {en: "Shows the source that a sink is attached", de: "Zeigt der Quelle eine angeschlossene Senke"}, type: signal}
+        - {number: "19", name: Return, function: {en: "Return for DP_PWR", de: "Rückleitung für DP_PWR"}, type: ground}
+        - {number: "20", name: DP_PWR, function: {en: "Connector power, +3.3 V, up to 500 mA", de: "Anschlussversorgung, +3,3 V, bis 500 mA"}, type: power}
+    - id: sink
+      name: {en: "Sink side (monitor input)", de: "Senkenseite (Monitoreingang)"}
+      pins:
+        - {number: "1", name: "ML_Lane 3 (n)", function: {en: "Main link lane 3, negative", de: "Hauptkanal Lane 3, negativ"}, type: data}
+        - {number: "2", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "3", name: "ML_Lane 3 (p)", function: {en: "Main link lane 3, positive", de: "Hauptkanal Lane 3, positiv"}, type: data}
+        - {number: "4", name: "ML_Lane 2 (n)", function: {en: "Main link lane 2, negative", de: "Hauptkanal Lane 2, negativ"}, type: data}
+        - {number: "5", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "6", name: "ML_Lane 2 (p)", function: {en: "Main link lane 2, positive", de: "Hauptkanal Lane 2, positiv"}, type: data}
+        - {number: "7", name: "ML_Lane 1 (n)", function: {en: "Main link lane 1, negative", de: "Hauptkanal Lane 1, negativ"}, type: data}
+        - {number: "8", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "9", name: "ML_Lane 1 (p)", function: {en: "Main link lane 1, positive", de: "Hauptkanal Lane 1, positiv"}, type: data}
+        - {number: "10", name: "ML_Lane 0 (n)", function: {en: "Main link lane 0, negative", de: "Hauptkanal Lane 0, negativ"}, type: data}
+        - {number: "11", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "12", name: "ML_Lane 0 (p)", function: {en: "Main link lane 0, positive", de: "Hauptkanal Lane 0, positiv"}, type: data}
+        - {number: "13", name: CONFIG1, function: {en: "Configuration pin", de: "Konfigurationspin"}, type: signal}
+        - {number: "14", name: CONFIG2, function: {en: "Configuration pin", de: "Konfigurationspin"}, type: signal}
+        - {number: "15", name: "AUX CH (p)", function: {en: "Auxiliary channel, positive", de: "Hilfskanal, positiv"}, type: data}
+        - {number: "16", name: GND, function: {en: "Ground", de: "Masse"}, type: ground}
+        - {number: "17", name: "AUX CH (n)", function: {en: "Auxiliary channel, negative", de: "Hilfskanal, negativ"}, type: data}
+        - {number: "18", name: "Hot Plug Detect", function: {en: "Tells the source that this sink is attached", de: "Meldet der Quelle, dass diese Senke angeschlossen ist"}, type: signal}
+        - {number: "19", name: Return, function: {en: "Return for DP_PWR", de: "Rückleitung für DP_PWR"}, type: ground}
+        - {number: "20", name: DP_PWR, function: {en: "Connector power, +3.3 V, up to 500 mA", de: "Anschlussversorgung, +3,3 V, bis 500 mA"}, type: power}
+
+- id: vga
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "VGA (DE-15)", da: "VGA (DE-15)", de: "VGA (DE-15)", el: "VGA (DE-15)", en: "VGA (DE-15)", es: "VGA (DE-15)", fr: "VGA (DE-15)", hi: "VGA (DE-15)", it: "VGA (DE-15)", ja: "VGA (DE-15)", nl: "VGA (DE-15)", no: "VGA (DE-15)", pl: "VGA (DE-15)", pt: "VGA (DE-15)", sv: "VGA (DE-15)", zh: "VGA (DE-15)"}
+  doc: {en: "The three-row 15-pin D-sub connector for analogue video. Computers and monitors usually have the female socket, cables the male plug.", de: "Der dreireihige 15-polige D-Sub-Anschluss für analoges Video. Computer und Monitore haben meist die Buchse, Kabel den Stecker."}
+  notes: {en: "Devices differ on pins 4, 5, 9 and 11. Pin 9 is a missing key position on older equipment and +5 V or 3.3 V on newer. Monitors may ground pins 4 and 11, or use pin 5 as DDC return or for self-test. Pins 11, 12, 4 and 15 were once monitor ID bits 0 to 3. The drawing has the wide side of the D shell at the top.", de: "Die Geräte unterscheiden sich bei den Pins 4, 5, 9 und 11. Pin 9 ist bei älteren Geräten eine fehlende Kodierposition, bei neueren +5 V oder 3,3 V. Monitore legen die Pins 4 und 11 teils auf Masse oder nutzen Pin 5 als DDC-Rückleitung oder für den Selbsttest. Die Pins 11, 12, 4 und 15 waren früher die Monitor-ID-Bits 0 bis 3. In der Zeichnung liegt die breite Seite des D-Gehäuses oben."}
+  tags: [vga, svga, de-15, de15, hd15, hd-15, db15, d-sub, dsub, rgb, hsync, vsync, ddc, edid, scl, sda, monitor, video, stecker, buchse]
+  source: "Winford Engineering drawing BRKLD15HDF-SG-DIN rev A (connector pinout); Dell SE2416H user's guide, Pin assignments; Acer B193 user's guide, Connector pin assignment; Crypto Museum, D-sub connectors; Wikipedia, VGA connector with figure VGA_Port.svg; pinouts.ru, 15 pin highdensity D-SUB connector figures"
+  views:
+    plug: {en: "Male connector (cable)", de: "Stecker (Kabel)"}
+    socket: {en: "Female connector (computer or monitor)", de: "Buchse (Computer oder Monitor)"}
+  shape:
+    type: rows
+    outline: dsub
+    contact: round
+    drawn: socket
+    rows:
+      - {pins: ["5", "4", "3", "2", "1"]}
+      - {pins: ["10", "9", "8", "7", "6"], offset: 0.5}
+      - {pins: ["15", "14", "13", "12", "11"]}
+  pins:
+    - {number: "1", name: RED, function: {en: "Red video", de: "Video Rot"}, type: signal}
+    - {number: "2", name: GREEN, function: {en: "Green video", de: "Video Grün"}, type: signal}
+    - {number: "3", name: BLUE, function: {en: "Blue video", de: "Video Blau"}, type: signal}
+    - {number: "4", name: ID2/RES, function: {en: "Reserved, once monitor ID bit 2", de: "Reserviert, früher Monitor-ID-Bit 2"}, type: nc, notes: {en: "Ground on some monitors.", de: "Bei manchen Monitoren Masse."}}
+    - {number: "5", name: GND, function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "DDC return on some monitors, self-test on others.", de: "Bei manchen Monitoren DDC-Rückleitung, bei anderen Selbsttest."}}
+    - {number: "6", name: RED_RTN, function: {en: "Return of red video", de: "Rückleitung Video Rot"}, type: ground}
+    - {number: "7", name: GREEN_RTN, function: {en: "Return of green video", de: "Rückleitung Video Grün"}, type: ground}
+    - {number: "8", name: BLUE_RTN, function: {en: "Return of blue video", de: "Rückleitung Video Blau"}, type: ground}
+    - {number: "9", name: KEY/PWR, function: {en: "Supply from the computer for the monitor's EDID memory, once a key", de: "Versorgung vom Computer für den EDID-Speicher des Monitors, früher Kodierung"}, type: power, notes: {en: "May be missing on older equipment. Sources name +5 V, one monitor maker 5 V or 3.3 V.", de: "Kann bei älteren Geräten fehlen. Die Quellen nennen +5 V, ein Monitorhersteller 5 V oder 3,3 V."}}
+    - {number: "10", name: GND, function: {en: "Ground for sync and DDC", de: "Masse für Sync und DDC"}, type: ground}
+    - {number: "11", name: ID0/RES, function: {en: "Reserved, once monitor ID bit 0", de: "Reserviert, früher Monitor-ID-Bit 0"}, type: nc, notes: {en: "Ground on some monitors.", de: "Bei manchen Monitoren Masse."}}
+    - {number: "12", name: ID1/SDA, function: {en: "DDC data (I²C), once monitor ID bit 1", de: "DDC-Daten (I²C), früher Monitor-ID-Bit 1"}, type: data}
+    - {number: "13", name: HSync, function: {en: "Horizontal sync or composite sync", de: "Horizontal-Sync oder Composite-Sync"}, type: signal}
+    - {number: "14", name: VSync, function: {en: "Vertical sync", de: "Vertikal-Sync"}, type: signal}
+    - {number: "15", name: ID3/SCL, function: {en: "DDC clock (I²C), once monitor ID bit 3", de: "DDC-Takt (I²C), früher Monitor-ID-Bit 3"}, type: data}
+
+- id: rj45
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "RJ45 (8P8C)", da: "RJ45 (8P8C)", de: "RJ45 (8P8C)", el: "RJ45 (8P8C)", en: "RJ45 (8P8C)", es: "RJ45 (8P8C)", fr: "RJ45 (8P8C)", hi: "RJ45 (8P8C)", it: "RJ45 (8P8C)", ja: "RJ45 (8P8C)", nl: "RJ45 (8P8C)", no: "RJ45 (8P8C)", pl: "RJ45 (8P8C)", pt: "RJ45 (8P8C)", sv: "RJ45 (8P8C)", zh: "RJ45 (8P8C)"}
+  doc: {en: "The eight-contact modular connector of twisted-pair Ethernet. T568A and T568B differ only in the wire colours: the green and the orange pair swap places, the signals stay on the same pins.", de: "Der achtpolige Modularstecker von Twisted-Pair-Ethernet. T568A und T568B unterscheiden sich nur in den Aderfarben: Das grüne und das orange Paar tauschen die Plätze, die Signale bleiben auf denselben Pins."}
+  notes: {en: "Drawn: a jack seen from the front with the latch notch at the bottom, pin 1 on the left. A plug seen from its tip with the latch at the bottom has pin 1 on the right; with the latch on top, pin 1 is on the left. Signal names are those of an end device; at a switch TX and RX swap. Power over Ethernet: IEEE 802.3af/at Mode A puts the power on the data pairs, pins 1 and 2 as one pole, pins 3 and 6 as the other. Mode B uses the spare pairs, pins 4 and 5 as one pole, pins 7 and 8 as the other. The power source uses only one of the two at a time. Four-pair IEEE 802.3bt can use all four pairs together. The polarity of the data pairs is not the same everywhere, so measure before wiring anything without a rectifier.", de: "Gezeichnet: eine Buchse von vorn mit der Rastnase-Aussparung unten, Pin 1 links. Ein Stecker von der Spitze gesehen hat mit der Rastnase unten Pin 1 rechts, mit der Rastnase oben Pin 1 links. Die Signalnamen gelten für ein Endgerät, an einem Switch tauschen TX und RX. Power over Ethernet: IEEE 802.3af/at Mode A legt die Leistung auf die Datenpaare, Pins 1 und 2 als einen Pol, Pins 3 und 6 als den anderen. Mode B nutzt die freien Paare, Pins 4 und 5 als einen Pol, Pins 7 und 8 als den anderen. Die Quelle nutzt immer nur einen der beiden Wege. Vierpaariges IEEE 802.3bt kann alle vier Paare zusammen nutzen. Die Polarität der Datenpaare ist nicht überall gleich, darum vor dem Verdrahten ohne Gleichrichter messen."}
+  tags: [rj45, rj-45, 8p8c, ethernet, lan, netzwerk, network, patch, t568a, t568b, tia-568, 568a, 568b, "1000base-t", "100base-tx", poe, "power over ethernet", 802.3af, 802.3at, 802.3bt, "mode a", "mode b", stecker, buchse, jack, plug]
+  source: "NetAlly PoE reference flyer; Seetronic, RJ45 Color Code: T568A vs T568B; Microchip AN3361 (DS00003361C), table 3-1; Barco Event Master user guide R5905948, A.24; L-com drawing TDG1026-8R; GlobTek, PoE Mode A vs. Mode B; L-com PoE white paper; IEEE 802.3bt contribution darshan_02_0314"
+  views:
+    plug: {en: "Plug (cable end), latch at the bottom", de: "Stecker (Kabelende), Rastnase unten"}
+    socket: {en: "Jack, latch notch at the bottom", de: "Buchse, Rastnase-Aussparung unten"}
+  shape:
+    type: rows
+    outline: rj45
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4", "5", "6", "7", "8"]}
+  variants:
+    - id: t568a
+      name: {en: "T568A", de: "T568A"}
+      pins:
+        - {number: "1", name: "TX+ / A+", function: {en: "10/100BASE-T transmit +, 1000BASE-T pair A +", de: "10/100BASE-T Senden +, 1000BASE-T Paar A +"}, type: data, wire: white_green, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 2.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 2."}}
+        - {number: "2", name: "TX- / A-", function: {en: "10/100BASE-T transmit -, 1000BASE-T pair A -", de: "10/100BASE-T Senden -, 1000BASE-T Paar A -"}, type: data, wire: green, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 1.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 1."}}
+        - {number: "3", name: "RX+ / B+", function: {en: "10/100BASE-T receive +, 1000BASE-T pair B +", de: "10/100BASE-T Empfangen +, 1000BASE-T Paar B +"}, type: data, wire: white_orange, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 6.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 6."}}
+        - {number: "4", name: "C+", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair C +", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar C +"}, type: data, wire: blue, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 5.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 5."}}
+        - {number: "5", name: "C-", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair C -", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar C -"}, type: data, wire: white_blue, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 4.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 4."}}
+        - {number: "6", name: "RX- / B-", function: {en: "10/100BASE-T receive -, 1000BASE-T pair B -", de: "10/100BASE-T Empfangen -, 1000BASE-T Paar B -"}, type: data, wire: orange, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 3.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 3."}}
+        - {number: "7", name: "D+", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair D +", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar D +"}, type: data, wire: white_brown, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 8.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 8."}}
+        - {number: "8", name: "D-", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair D -", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar D -"}, type: data, wire: brown, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 7.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 7."}}
+    - id: t568b
+      name: {en: "T568B", de: "T568B"}
+      pins:
+        - {number: "1", name: "TX+ / A+", function: {en: "10/100BASE-T transmit +, 1000BASE-T pair A +", de: "10/100BASE-T Senden +, 1000BASE-T Paar A +"}, type: data, wire: white_orange, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 2.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 2."}}
+        - {number: "2", name: "TX- / A-", function: {en: "10/100BASE-T transmit -, 1000BASE-T pair A -", de: "10/100BASE-T Senden -, 1000BASE-T Paar A -"}, type: data, wire: orange, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 1.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 1."}}
+        - {number: "3", name: "RX+ / B+", function: {en: "10/100BASE-T receive +, 1000BASE-T pair B +", de: "10/100BASE-T Empfangen +, 1000BASE-T Paar B +"}, type: data, wire: white_green, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 6.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 6."}}
+        - {number: "4", name: "C+", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair C +", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar C +"}, type: data, wire: blue, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 5.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 5."}}
+        - {number: "5", name: "C-", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair C -", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar C -"}, type: data, wire: white_blue, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 4.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 4."}}
+        - {number: "6", name: "RX- / B-", function: {en: "10/100BASE-T receive -, 1000BASE-T pair B -", de: "10/100BASE-T Empfangen -, 1000BASE-T Paar B -"}, type: data, wire: green, notes: {en: "PoE Mode A and four-pair: DC, same pole as pin 3.", de: "PoE Mode A und vierpaarig: Gleichstrom, derselbe Pol wie Pin 3."}}
+        - {number: "7", name: "D+", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair D +", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar D +"}, type: data, wire: white_brown, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 8.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 8."}}
+        - {number: "8", name: "D-", function: {en: "Unused at 10/100BASE-T, 1000BASE-T pair D -", de: "Bei 10/100BASE-T frei, 1000BASE-T Paar D -"}, type: data, wire: brown, notes: {en: "PoE Mode B and four-pair: DC, same pole as pin 7.", de: "PoE Mode B und vierpaarig: Gleichstrom, derselbe Pol wie Pin 7."}}
+
+- id: rs232_db9
+  kind: pinout
+  category: pinouts
+  group: data
+  name: {cs: "RS-232 (DE-9)", da: "RS-232 (DE-9)", de: "RS-232 (DE-9)", el: "RS-232 (DE-9)", en: "RS-232 (DE-9)", es: "RS-232 (DE-9)", fr: "RS-232 (DE-9)", hi: "RS-232 (DE-9)", it: "RS-232 (DE-9)", ja: "RS-232 (DE-9)", nl: "RS-232 (DE-9)", no: "RS-232 (DE-9)", pl: "RS-232 (DE-9)", pt: "RS-232 (DE-9)", sv: "RS-232 (DE-9)", zh: "RS-232 (DE-9)"}
+  doc: {en: "The 9-pin serial port of PCs, often called DB9. The DTE (a PC or terminal) has the male connector with pins; the DCE (a modem) has the female connector with sockets.", de: "Der 9-polige serielle Anschluss von PCs, oft DB9 genannt. Die DTE (PC oder Terminal) hat den Stecker mit Stiften, die DCE (Modem) die Buchse."}
+  notes: {en: "Every signal name and direction is from the DTE's point of view. A pin carries the same signal at both ends, so the DCE drives what the DTE reads: pin 2 is an output on a DCE. The genders are the usual rule and some devices break it, so check the pin directions on the device before you connect a cable. To join two DTEs you need a cable that crosses TXD and RXD. The levels are RS-232 voltages, not logic levels.", de: "Alle Signalnamen und Richtungen sind aus Sicht der DTE angegeben. Ein Pin führt an beiden Enden dasselbe Signal, die DCE treibt also, was die DTE liest: Pin 2 ist an einer DCE ein Ausgang. Die Steckerformen sind die übliche Regel, manche Geräte halten sich nicht daran, darum vor dem Anschließen die Pinrichtungen am Gerät prüfen. Zwei DTEs verbindet ein Kabel, das TXD und RXD kreuzt. Die Pegel sind RS-232-Spannungen, keine Logikpegel."}
+  tags: [rs232, rs-232, "rs 232", db9, de9, de-9, d-sub, dsub, serial, seriell, com, uart, txd, rxd, rts, cts, dtr, dsr, dcd, dte, dce, modem, tia-574, stecker, buchse]
+  source: "Texas Instruments SLLA037A, Interface Circuits for TIA/EIA-232-F; Moxa NPort 6110 user's manual, Pin assignments; Crypto Museum, D-sub connectors; serial_pinout.txt (xmtel archive, University of Louisville); CS Club Waterloo wiki, Serial Pin-outs"
+  views:
+    plug: {en: "Male connector, pins (DTE, such as a PC)", de: "Stecker mit Stiften (DTE, etwa ein PC)"}
+    socket: {en: "Female connector, sockets (DCE, such as a modem)", de: "Buchse (DCE, etwa ein Modem)"}
+  shape:
+    type: rows
+    outline: dsub
+    contact: round
+    drawn: plug
+    rows:
+      - {pins: ["1", "2", "3", "4", "5"]}
+      - {pins: ["6", "7", "8", "9"], offset: 0.5}
+  pins:
+    - {number: "1", name: DCD, function: {en: "Data carrier detect: input at the DTE, output at the DCE", de: "Trägersignal erkannt: Eingang an der DTE, Ausgang an der DCE"}, type: signal}
+    - {number: "2", name: RXD, function: {en: "Received data: input at the DTE, output at the DCE", de: "Empfangsdaten: Eingang an der DTE, Ausgang an der DCE"}, type: data}
+    - {number: "3", name: TXD, function: {en: "Transmitted data: output at the DTE, input at the DCE", de: "Sendedaten: Ausgang an der DTE, Eingang an der DCE"}, type: data}
+    - {number: "4", name: DTR, function: {en: "Data terminal ready: output at the DTE, input at the DCE", de: "Endgerät bereit: Ausgang an der DTE, Eingang an der DCE"}, type: signal}
+    - {number: "5", name: GND, function: {en: "Signal ground, common reference of all circuits", de: "Signalmasse, gemeinsamer Bezug aller Leitungen"}, type: ground}
+    - {number: "6", name: DSR, function: {en: "Data set ready: input at the DTE, output at the DCE", de: "Modem bereit: Eingang an der DTE, Ausgang an der DCE"}, type: signal}
+    - {number: "7", name: RTS, function: {en: "Request to send: output at the DTE, input at the DCE", de: "Sendeanforderung: Ausgang an der DTE, Eingang an der DCE"}, type: signal}
+    - {number: "8", name: CTS, function: {en: "Clear to send: input at the DTE, output at the DCE", de: "Sendefreigabe: Eingang an der DTE, Ausgang an der DCE"}, type: signal}
+    - {number: "9", name: RI, function: {en: "Ring indicator: input at the DTE, output at the DCE", de: "Klingelsignal: Eingang an der DTE, Ausgang an der DCE"}, type: signal}

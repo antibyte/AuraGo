@@ -1,0 +1,7 @@
+{"pinout": "rs232_db9", "variants": [{"variant": "", "counts": {"signal": 6, "data": 2, "ground": 1}, "pins": [
+  {"number": "1", "name": "DCD", "type": "signal", "ref": "TI SLLA037A, figure 6; Moxa NPort 6110 manual, DB9 male table"},
+  {"number": "2", "name": "RXD", "type": "data", "ref": "TI SLLA037A, figure 6 (RD); Moxa NPort 6110 manual, DB9 male table (RxD)"},
+  {"number": "3", "name": "TXD", "type": "data", "ref": "TI SLLA037A, figure 6 (TD); Moxa NPort 6110 manual, DB9 male table (TxD)"},
+  {"number": "5", "name": "GND", "type": "ground", "ref": "TI SLLA037A, text Signal Ground (pin 5); Moxa NPort 6110 manual, DB9 male table"},
+  {"number": "7", "name": "RTS", "type": "signal", "ref": "TI SLLA037A, figure 6; Moxa NPort 6110 manual, DB9 male table"},
+  {"number": "9", "name": "RI", "type": "signal", "ref": "TI SLLA037A, figure 6; serial_pinout.txt, xmtel archive"}]}]}

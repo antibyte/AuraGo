@@ -1,0 +1,90 @@
+{
+ "pinout": "esp8266_nodemcu",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 4,
+    "ground": 4,
+    "signal": 3,
+    "data": 4,
+    "io": 13,
+    "nc": 2
+   },
+   "pins": [
+    {
+     "number": "J1.1",
+     "name": "A0",
+     "type": "signal",
+     "ref": "NODEMCU_DEVKIT_V1.0.PDF, sheet IO CONN, J1 pin 1 A0, net ADC_EX; pin map: A0 = TOUT, ADC0"
+    },
+    {
+     "number": "J1.2",
+     "name": "RSV",
+     "type": "nc",
+     "ref": "NODEMCU_DEVKIT_V1.0_PINMAP.png: second pin on the A0 side RSV, RESERVED"
+    },
+    {
+     "number": "J1.4",
+     "name": "SD3",
+     "type": "io",
+     "ref": "IO CONN sheet, J1 pin 4 SD_D3, GPIO10; pin map SD3 = GPIO10"
+    },
+    {
+     "number": "J1.15",
+     "name": "VIN",
+     "type": "power",
+     "ref": "IO CONN sheet, J1 pin 15 VDD5V; pin map Vin = VIN 5V"
+    },
+    {
+     "number": "J2.1",
+     "name": "D0",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 1 D0 = GPIO16; NodeMCU firmware gpio.md IO index 0 = GPIO16"
+    },
+    {
+     "number": "J2.2",
+     "name": "D1",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 2 D1 = GPIO5; NodeMCU firmware gpio.md IO index 1 = GPIO5"
+    },
+    {
+     "number": "J2.3",
+     "name": "D2",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 3 D2 = GPIO4; NodeMCU firmware gpio.md IO index 2 = GPIO4"
+    },
+    {
+     "number": "J2.4",
+     "name": "D3",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 4 D3 = GPIO0; pin map D3 = GPIO0, FLASH"
+    },
+    {
+     "number": "J2.7",
+     "name": "GND",
+     "type": "ground",
+     "ref": "IO CONN sheet, J2 pin 7 GND"
+    },
+    {
+     "number": "J2.11",
+     "name": "D8",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 11 D8 = GPIO15, TXD2, HSPICS"
+    },
+    {
+     "number": "J2.12",
+     "name": "RX",
+     "type": "io",
+     "ref": "IO CONN sheet, J2 pin 12 D9, RXD0, GPIO3; board photo in the repository shows silk RX"
+    },
+    {
+     "number": "J2.15",
+     "name": "3V3",
+     "type": "power",
+     "ref": "IO CONN sheet, J2 pin 15 VDD3V3"
+    }
+   ]
+  }
+ ]
+}

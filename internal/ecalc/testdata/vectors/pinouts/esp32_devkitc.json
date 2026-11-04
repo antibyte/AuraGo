@@ -1,0 +1,89 @@
+{
+ "pinout": "esp32_devkitc",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 2,
+    "ground": 3,
+    "signal": 1,
+    "data": 6,
+    "io": 26
+   },
+   "pins": [
+    {
+     "number": "J2.1",
+     "name": "3V3",
+     "type": "power",
+     "ref": "Espressif ESP32-DevKitC V4 user guide, table J2, No. 1; schematic J2 pin 1 net VDD33"
+    },
+    {
+     "number": "J2.2",
+     "name": "EN",
+     "type": "signal",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 2: CHIP_PU, Reset"
+    },
+    {
+     "number": "J2.3",
+     "name": "GPIO36",
+     "type": "io",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 3: VP = GPIO36, type I"
+    },
+    {
+     "number": "J2.13",
+     "name": "GPIO12",
+     "type": "io",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 13: IO12 = GPIO12, MTDI"
+    },
+    {
+     "number": "J2.14",
+     "name": "GND",
+     "type": "ground",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 14"
+    },
+    {
+     "number": "J2.16",
+     "name": "GPIO9",
+     "type": "data",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 16: D2 = GPIO9, flash note; pin layout figure marks it not usable as regular GPIO"
+    },
+    {
+     "number": "J2.19",
+     "name": "5V",
+     "type": "power",
+     "ref": "ESP32-DevKitC V4 user guide, table J2, No. 19; schematic J2 pin 19 net EXT_5V"
+    },
+    {
+     "number": "J3.1",
+     "name": "GND",
+     "type": "ground",
+     "ref": "ESP32-DevKitC V4 user guide, table J3, No. 1; schematic J3 pin 1 net GND"
+    },
+    {
+     "number": "J3.2",
+     "name": "GPIO23",
+     "type": "io",
+     "ref": "ESP32-DevKitC V4 user guide, table J3, No. 2"
+    },
+    {
+     "number": "J3.4",
+     "name": "GPIO1",
+     "type": "io",
+     "ref": "ESP32-DevKitC V4 user guide, table J3, No. 4: TX = GPIO1, U0TXD"
+    },
+    {
+     "number": "J3.14",
+     "name": "GPIO0",
+     "type": "io",
+     "ref": "ESP32-DevKitC V4 user guide, table J3, No. 14: IO0 = GPIO0, Boot"
+    },
+    {
+     "number": "J3.19",
+     "name": "GPIO6",
+     "type": "data",
+     "ref": "ESP32-DevKitC V4 user guide, table J3, No. 19: CLK = GPIO6, flash note"
+    }
+   ]
+  }
+ ]
+}

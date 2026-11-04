@@ -1,0 +1,5 @@
+{"pinout": "usb_a_3", "variants": [{"variant": "", "counts": {"power": 1, "ground": 2, "data": 6}, "pins": [
+  {"number": "1", "name": "VBUS", "type": "power", "ref": "USB 3.1 Legacy Cable and Connector Specification Rev 1.0, table 5-2"},
+  {"number": "5", "name": "StdA_SSRX-", "type": "data", "ref": "USB 3.1 Legacy Cable and Connector Specification Rev 1.0, table 5-2"},
+  {"number": "7", "name": "GND_DRAIN", "type": "ground", "ref": "USB 3.1 Legacy Cable and Connector Specification Rev 1.0, table 5-2"},
+  {"number": "9", "name": "StdA_SSTX+", "type": "data", "ref": "USB 3.1 Legacy Cable and Connector Specification Rev 1.0, table 5-2"}]}]}

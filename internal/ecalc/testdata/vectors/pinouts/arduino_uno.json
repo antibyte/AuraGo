@@ -1,0 +1,96 @@
+{
+ "pinout": "arduino_uno",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 5,
+    "ground": 4,
+    "signal": 3,
+    "data": 3,
+    "io": 22,
+    "nc": 1
+   },
+   "pins": [
+    {
+     "number": "POWER.1",
+     "name": "NC",
+     "type": "nc",
+     "ref": "Arduino UNO-TH_Rev3e schematic, header POWER pin 1 has no net; UNO R3 Full Pinout p.1 labels the top left pin NC"
+    },
+    {
+     "number": "POWER.2",
+     "name": "IOREF",
+     "type": "power",
+     "ref": "UNO-TH_Rev3e schematic, POWER pin 2 joins the +5V net; UNO R3 datasheet section 5.1 IOREF connected to 5V"
+    },
+    {
+     "number": "POWER.8",
+     "name": "VIN",
+     "type": "power",
+     "ref": "UNO-TH_Rev3e schematic, header POWER pin 8 net VIN"
+    },
+    {
+     "number": "AD.1",
+     "name": "A0",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header AD pin 1 test point TP_A0, net AD0"
+    },
+    {
+     "number": "AD.6",
+     "name": "A5",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header AD pin 6 test point TP_A5, net AD5/SCL"
+    },
+    {
+     "number": "IOL.1",
+     "name": "D0",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header IOL pin 1 labelled 0"
+    },
+    {
+     "number": "IOL.8",
+     "name": "D7",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header IOL pin 8 labelled 7"
+    },
+    {
+     "number": "IOH.6",
+     "name": "D13",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header IOH pin 6 labelled 13, net SCK"
+    },
+    {
+     "number": "IOH.7",
+     "name": "GND",
+     "type": "ground",
+     "ref": "UNO-TH_Rev3e schematic, header IOH pin 7 net GND"
+    },
+    {
+     "number": "IOH.10",
+     "name": "SCL",
+     "type": "io",
+     "ref": "UNO-TH_Rev3e schematic, header IOH pin 10 labelled SCL, net AD5/SCL"
+    },
+    {
+     "number": "ICSP.1",
+     "name": "CIPO",
+     "type": "data",
+     "ref": "UNO R3 Full Pinout p.4, table ICSP row 1"
+    },
+    {
+     "number": "ICSP.2",
+     "name": "5V",
+     "type": "power",
+     "ref": "UNO-TH_Rev3e schematic, header ICSP pin 2 net +5V"
+    },
+    {
+     "number": "ICSP.6",
+     "name": "GND",
+     "type": "ground",
+     "ref": "UNO-TH_Rev3e schematic, header ICSP pin 6 net GND"
+    }
+   ]
+  }
+ ]
+}

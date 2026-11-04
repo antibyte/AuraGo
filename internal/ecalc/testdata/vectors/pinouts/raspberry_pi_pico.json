@@ -1,0 +1,95 @@
+{
+ "pinout": "raspberry_pi_pico",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 3,
+    "ground": 9,
+    "signal": 3,
+    "data": 2,
+    "io": 26
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "GP0",
+     "type": "io",
+     "ref": "Pico-R3-A4-Pinout, pin 1 GP0; Raspberry Pi Pico Datasheet figure 2"
+    },
+    {
+     "number": "3",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Pico-R3-A4-Pinout, pin 3 GND"
+    },
+    {
+     "number": "20",
+     "name": "GP15",
+     "type": "io",
+     "ref": "Pico-R3-A4-Pinout, pin 20 GP15"
+    },
+    {
+     "number": "21",
+     "name": "GP16",
+     "type": "io",
+     "ref": "Pico-R3-A4-Pinout, pin 21 GP16"
+    },
+    {
+     "number": "30",
+     "name": "RUN",
+     "type": "signal",
+     "ref": "Raspberry Pi Pico Datasheet section 2.1, PIN30 RUN"
+    },
+    {
+     "number": "33",
+     "name": "AGND",
+     "type": "ground",
+     "ref": "Raspberry Pi Pico Datasheet section 2.1, PIN33 AGND"
+    },
+    {
+     "number": "35",
+     "name": "ADC_VREF",
+     "type": "signal",
+     "ref": "Raspberry Pi Pico Datasheet section 2.1, PIN35 ADC_VREF"
+    },
+    {
+     "number": "36",
+     "name": "3V3(OUT)",
+     "type": "power",
+     "ref": "Pico-R3-A4-Pinout, pin 36 3V3(OUT); datasheet section 2.1 PIN36 3V3"
+    },
+    {
+     "number": "39",
+     "name": "VSYS",
+     "type": "power",
+     "ref": "Raspberry Pi Pico Datasheet section 2.1, PIN39 VSYS"
+    },
+    {
+     "number": "40",
+     "name": "VBUS",
+     "type": "power",
+     "ref": "Raspberry Pi Pico Datasheet section 2.1, PIN40 VBUS"
+    },
+    {
+     "number": "D1",
+     "name": "SWCLK",
+     "type": "data",
+     "ref": "Raspberry Pi Pico Datasheet figure 4 pad D1; Pico-R3-A4-Pinout first debug pad SWCLK"
+    },
+    {
+     "number": "D2",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Raspberry Pi Pico Datasheet figure 4 pad D2; Pico-R3-A4-Pinout middle debug pad GND"
+    },
+    {
+     "number": "D3",
+     "name": "SWDIO",
+     "type": "data",
+     "ref": "Raspberry Pi Pico Datasheet figure 4 pad D3; Pico-R3-A4-Pinout last debug pad SWDIO"
+    }
+   ]
+  }
+ ]
+}

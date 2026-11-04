@@ -1,0 +1,89 @@
+{
+ "pinout": "arduino_nano",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 4,
+    "ground": 3,
+    "signal": 6,
+    "data": 3,
+    "io": 20
+   },
+   "pins": [
+    {
+     "number": "J1.1",
+     "name": "D1",
+     "type": "io",
+     "ref": "Arduino NanoV3.3 schematic, J1 pin 1 net D1/TX"
+    },
+    {
+     "number": "J1.3",
+     "name": "RESET",
+     "type": "signal",
+     "ref": "NanoV3.3 schematic, J1 pin 3 net RESET"
+    },
+    {
+     "number": "J1.4",
+     "name": "GND",
+     "type": "ground",
+     "ref": "NanoV3.3 schematic, J1 pin 4 runs to the ground symbol"
+    },
+    {
+     "number": "J1.15",
+     "name": "D12",
+     "type": "io",
+     "ref": "NanoV3.3 schematic, J1 pin 15 net D12/MISO"
+    },
+    {
+     "number": "J2.1",
+     "name": "VIN",
+     "type": "power",
+     "ref": "NanoV3.3 schematic, J2 pin 1 net VIN"
+    },
+    {
+     "number": "J2.2",
+     "name": "GND",
+     "type": "ground",
+     "ref": "NanoV3.3 schematic, J2 pin 2 runs to the ground symbol"
+    },
+    {
+     "number": "J2.4",
+     "name": "5V",
+     "type": "power",
+     "ref": "NanoV3.3 schematic, J2 pin 4 net +5V"
+    },
+    {
+     "number": "J2.5",
+     "name": "A7",
+     "type": "signal",
+     "ref": "NanoV3.3 schematic, J2 pin 5 net A7; Nano Full Pinout p.1 shows A7 with no digital number"
+    },
+    {
+     "number": "J2.14",
+     "name": "3V3",
+     "type": "power",
+     "ref": "NanoV3.3 schematic, J2 pin 14 net 3V3"
+    },
+    {
+     "number": "J2.15",
+     "name": "D13",
+     "type": "io",
+     "ref": "NanoV3.3 schematic, J2 pin 15 net D13/SCK"
+    },
+    {
+     "number": "ICSP.1",
+     "name": "CIPO",
+     "type": "data",
+     "ref": "Nano Full Pinout p.3, ICSP row 1; NanoV3.3 schematic J4 pin 1 net D12/MISO"
+    },
+    {
+     "number": "ICSP.6",
+     "name": "GND",
+     "type": "ground",
+     "ref": "NanoV3.3 schematic, J4 pin 6 runs to the ground symbol"
+    }
+   ]
+  }
+ ]
+}

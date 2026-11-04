@@ -1,0 +1,10 @@
+{"pinout": "usb_c", "variants": [{"variant": "", "counts": {"power": 4, "ground": 4, "data": 12, "signal": 4}, "pins": [
+  {"number": "A1", "name": "GND", "type": "ground", "ref": "USB Type-C Specification Release 2.5, table 3-4 and figure 2-1"},
+  {"number": "A4", "name": "VBUS", "type": "power", "ref": "USB Type-C Specification Release 2.5, table 3-4 and figure 2-1"},
+  {"number": "A5", "name": "CC1", "type": "signal", "ref": "USB Type-C Specification Release 2.5, table 3-4 and figure 2-1"},
+  {"number": "A6", "name": "D+", "type": "data", "ref": "USB Type-C Specification Release 2.5, figure 2-1; table 3-4 calls it Dp1"},
+  {"number": "A2", "name": "TX1+", "type": "data", "ref": "USB Type-C Specification Release 2.5, figure 2-1; table 3-4 calls it TXp1"},
+  {"number": "B5", "name": "CC2", "type": "signal", "ref": "USB Type-C Specification Release 2.5, table 3-4 and figure 2-1"},
+  {"number": "B7", "name": "D-", "type": "data", "ref": "USB Type-C Specification Release 2.5, figure 2-1; table 3-4 calls it Dn2"},
+  {"number": "B8", "name": "SBU2", "type": "signal", "ref": "USB Type-C Specification Release 2.5, table 3-4 and figure 2-1"},
+  {"number": "B11", "name": "RX1+", "type": "data", "ref": "USB Type-C Specification Release 2.5, figure 2-1; table 3-4 calls it RXp1"}]}]}
