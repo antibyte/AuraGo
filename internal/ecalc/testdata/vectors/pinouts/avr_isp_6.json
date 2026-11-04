@@ -1,0 +1,7 @@
+{"pinout": "avr_isp_6", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 1, "data": 3}, "pins": [
+  {"number": "1", "name": "MISO", "type": "data", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"},
+  {"number": "2", "name": "VCC", "type": "power", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"},
+  {"number": "3", "name": "SCK", "type": "data", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"},
+  {"number": "4", "name": "MOSI", "type": "data", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"},
+  {"number": "5", "name": "RESET", "type": "signal", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"},
+  {"number": "6", "name": "GND", "type": "ground", "ref": "Microchip (Atmel) AVR910, Atmel-0943F, figure 1-2"}]}]}

@@ -1,0 +1,11 @@
+{"pinout": "arm_jtag_20", "variants": [{"variant": "", "counts": {"power": 1, "ground": 9, "signal": 4, "data": 5, "nc": 1}, "pins": [
+  {"number": "1", "name": "VTref", "type": "power", "ref": "SEGGER Knowledge Base, 20-pin J-Link Connector, JTAG table"},
+  {"number": "2", "name": "NC", "type": "nc", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "3", "name": "nTRST", "type": "signal", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "5", "name": "TDI", "type": "data", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "7", "name": "TMS/SWDIO", "type": "data", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "9", "name": "TCK/SWCLK", "type": "data", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "13", "name": "TDO/SWO", "type": "data", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "15", "name": "nSRST", "type": "signal", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "19", "name": "DBGACK", "type": "signal", "ref": "ARM 100956_0527_00_en, table 2-6"},
+  {"number": "20", "name": "GND", "type": "ground", "ref": "ARM 100956_0527_00_en, table 2-6"}]}]}

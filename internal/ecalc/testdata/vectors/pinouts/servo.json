@@ -1,0 +1,4 @@
+{"pinout": "servo", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 1}, "pins": [
+  {"number": "S", "name": "Signal", "type": "signal", "ref": "Parallax Standard Servo #900-00005 v3.0, Voltage Specifications table: 1 (white) Signal"},
+  {"number": "+", "name": "V+", "type": "power", "ref": "Hitec RCD, General Servo Information: the Red wire ( center ) is 'power'; Parallax v3.0: 2 (red) Vservo"},
+  {"number": "-", "name": "GND", "type": "ground", "ref": "Parallax Standard Servo #900-00005 v3.0, Voltage Specifications table: 3 (black) Ground"}]}]}

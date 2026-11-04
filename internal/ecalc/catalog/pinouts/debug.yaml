@@ -1,0 +1,271 @@
+# Debug, bus and hobby connectors. The sources behind every item are in documentation/ecalc-sources/pinouts/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: arm_jtag_20
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "ARM JTAG (20 pinů)", da: "ARM JTAG (20 ben)", de: "ARM JTAG (20-polig)", el: "ARM JTAG (20 ακίδες)", en: "ARM JTAG (20-pin)", es: "ARM JTAG (20 pines)", fr: "ARM JTAG (20 broches)", hi: "ARM JTAG (20-पिन)", it: "ARM JTAG (20 pin)", ja: "ARM JTAG(20ピン)", nl: "ARM JTAG (20-pins)", no: "ARM JTAG (20 pinner)", pl: "ARM JTAG (20 pinów)", pt: "ARM JTAG (20 pinos)", sv: "ARM JTAG (20 stift)", zh: "ARM JTAG(20 针)"}
+  doc: {en: "The classic 20-way, 0.1 inch debug header of ARM targets. It also works in Serial Wire Debug mode, where TMS, TCK and TDO carry SWDIO, SWCLK and SWO.", de: "Der klassische 20-polige Debug-Anschluss im 2,54-mm-Raster für ARM-Ziele. Er funktioniert auch im Modus Serial Wire Debug, dann führen TMS, TCK und TDO die Signale SWDIO, SWCLK und SWO."}
+  notes: {en: "In Arm's table every even pin from 4 to 20 is ground. A SEGGER J-Link differs: pins 14, 16, 18 and 20 are reserved there, and pin 19 is a 5 V output. Check the manual of your probe before relying on these pins. On a boxed header the notch lies on the side of the odd pins.", de: "In Arms Tabelle ist jeder gerade Pin von 4 bis 20 Masse. Ein SEGGER J-Link weicht ab: Dort sind die Pins 14, 16, 18 und 20 reserviert, und Pin 19 ist ein 5-V-Ausgang. Vor der Nutzung dieser Pins das Handbuch des Debuggers prüfen. Beim Wannenstecker liegt die Aussparung auf der Seite der ungeraden Pins."}
+  tags: [jtag, swd, arm, "20-pin", "20-polig", debug, debugger, tck, tms, tdi, tdo, rtck, ntrst, nsrst, vtref, swdio, swclk, swo, j-link, jlink, segger, idc, "box header", wannenstecker]
+  source: "ARM 100956_0527_00_en, ARM DSTREAM System and Interface Design Reference Guide, section 2.4 (tables 2-6 and 2-7, read in the ManualsLib copy); Arm, Cortex-M Debug Connectors (20-pin IDC diagram); SEGGER Knowledge Base, 20-pin J-Link Connector; Keil ULINKpro User's Guide, Connectors"
+  views:
+    plug: {en: "Box header on the board (pins)", de: "Wannenstecker auf der Platine (Stifte)"}
+    socket: {en: "Socket of the ribbon cable", de: "Buchse am Flachbandkabel"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: left
+    rows:
+      - {pins: ["1", "2"]}
+      - {pins: ["3", "4"]}
+      - {pins: ["5", "6"]}
+      - {pins: ["7", "8"]}
+      - {pins: ["9", "10"]}
+      - {pins: ["11", "12"]}
+      - {pins: ["13", "14"]}
+      - {pins: ["15", "16"]}
+      - {pins: ["17", "18"]}
+      - {pins: ["19", "20"]}
+  pins:
+    - {number: "1", name: "VTref", function: {en: "Target voltage, sets the logic levels of the probe", de: "Zielspannung, legt die Logikpegel des Debuggers fest"}, type: power, notes: {en: "An input of the probe. Arm allows at most 100 Ω if this pin is pulled up through a resistor.", de: "Ein Eingang des Debuggers. Arm erlaubt höchstens 100 Ω, wenn dieser Pin über einen Widerstand hochgezogen wird."}}
+    - {number: "2", name: "NC", function: {en: "Not connected", de: "Nicht belegt"}, type: nc, notes: {en: "Some targets feed VCC here (Keil's drawing: VCC optional). A J-Link ignores this pin, so such a target needs pins 1 and 2 joined.", de: "Manche Ziele speisen hier VCC ein (Keil-Zeichnung: VCC optional). Ein J-Link ignoriert diesen Pin, solche Ziele brauchen daher eine Brücke zwischen Pin 1 und 2."}}
+    - {number: "3", name: "nTRST", function: {en: "JTAG TAP reset, normally active low", de: "JTAG-TAP-Reset, normalerweise aktiv low"}, type: signal}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "5", name: "TDI", function: {en: "JTAG test data to the target", de: "JTAG-Testdaten zum Ziel"}, type: data, notes: {en: "Not used in SWD mode.", de: "Im SWD-Modus unbenutzt."}}
+    - {number: "6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "7", name: "TMS/SWDIO", function: {en: "JTAG mode select; serial wire data in SWD mode", de: "JTAG-Modusauswahl; im SWD-Modus die serielle Datenleitung"}, type: data}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "TCK/SWCLK", function: {en: "JTAG clock; serial wire clock in SWD mode", de: "JTAG-Takt; im SWD-Modus der serielle Takt"}, type: data}
+    - {number: "10", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "11", name: "RTCK", function: {en: "Clock returned by the target for adaptive clocking", de: "Vom Ziel zurückgegebener Takt für adaptives Takten"}, type: data, notes: {en: "Tie it to a fixed level when unused: Arm allows high or low, SEGGER asks for GND.", de: "Unbenutzt auf einen festen Pegel legen: Arm erlaubt high oder low, SEGGER verlangt GND."}}
+    - {number: "12", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "13", name: "TDO/SWO", function: {en: "JTAG test data from the target; trace output in SWD mode", de: "JTAG-Testdaten vom Ziel; im SWD-Modus der Trace-Ausgang"}, type: data}
+    - {number: "14", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "Reserved on a SEGGER J-Link, not guaranteed to be ground.", de: "Beim SEGGER J-Link reserviert, nicht sicher Masse."}}
+    - {number: "15", name: "nSRST", function: {en: "System reset of the target, driven by probe or target", de: "System-Reset des Ziels, vom Debugger oder vom Ziel getrieben"}, type: signal, notes: {en: "Called nRESET by SEGGER and RESET by Keil. Normally active low.", de: "Bei SEGGER nRESET, bei Keil RESET genannt. Normalerweise aktiv low."}}
+    - {number: "16", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "Reserved on a SEGGER J-Link, not guaranteed to be ground.", de: "Beim SEGGER J-Link reserviert, nicht sicher Masse."}}
+    - {number: "17", name: "DBGRQ", function: {en: "Debug request to the target", de: "Debug-Anforderung an das Ziel"}, type: signal, notes: {en: "Rarely used today and usually pulled low on the target. Not connected in a J-Link.", de: "Heute selten genutzt und auf dem Ziel meist nach low gezogen. Im J-Link nicht angeschlossen."}}
+    - {number: "18", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "Reserved on a SEGGER J-Link, not guaranteed to be ground.", de: "Beim SEGGER J-Link reserviert, nicht sicher Masse."}}
+    - {number: "19", name: "DBGACK", function: {en: "Debug acknowledge from the target", de: "Debug-Bestätigung vom Ziel"}, type: signal, notes: {en: "Rarely used today and usually pulled low on the target. Caution: a SEGGER J-Link has a 5 V supply output here (max. 300 mA).", de: "Heute selten genutzt und auf dem Ziel meist nach low gezogen. Vorsicht: Ein SEGGER J-Link hat hier einen 5-V-Versorgungsausgang (max. 300 mA)."}}
+    - {number: "20", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "Reserved on a SEGGER J-Link, not guaranteed to be ground.", de: "Beim SEGGER J-Link reserviert, nicht sicher Masse."}}
+
+- id: arm_swd_10
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Cortex Debug / SWD (10 pinů)", da: "Cortex Debug / SWD (10 ben)", de: "Cortex Debug / SWD (10-polig)", el: "Cortex Debug / SWD (10 ακίδες)", en: "Cortex Debug / SWD (10-pin)", es: "Cortex Debug / SWD (10 pines)", fr: "Cortex Debug / SWD (10 broches)", hi: "Cortex Debug / SWD (10-पिन)", it: "Cortex Debug / SWD (10 pin)", ja: "Cortex Debug / SWD(10ピン)", nl: "Cortex Debug / SWD (10-pins)", no: "Cortex Debug / SWD (10 pinner)", pl: "Cortex Debug / SWD (10 pinów)", pt: "Cortex Debug / SWD (10 pinos)", sv: "Cortex Debug / SWD (10 stift)", zh: "Cortex Debug / SWD(10 针)"}
+  doc: {en: "The small 10-way, 0.05 inch debug header of Cortex-M boards. Serial Wire Debug with SWO and JTAG share its pins.", de: "Der kleine 10-polige Debug-Anschluss im 1,27-mm-Raster von Cortex-M-Platinen. Serial Wire Debug mit SWO und JTAG teilen sich die Pins."}
+  notes: {en: "Position 7 holds no pin: this gap is the key of the connector. In Arm's drawing the notch of the shroud lies on the side of the odd pins.", de: "Position 7 hat keinen Stift: Diese Lücke ist die Codierung des Steckers. In Arms Zeichnung liegt die Aussparung des Kragens auf der Seite der ungeraden Pins."}
+  tags: [swd, jtag, swdio, swclk, swdclk, swo, tms, tck, tdo, tdi, vtref, nreset, gnddetect, cortex, "cortex-m", arm, coresight, "10-pin", "10-polig", debug, debugger, ftsh, samtec]
+  source: "Arm, Cortex-M Debug Connectors (Cortex Debug Connector diagram); ARM 100956_0527_00_en, ARM DSTREAM System and Interface Design Reference Guide, section 2.7 (tables 2-12 and 2-13, read in the ManualsLib copy); Keil ULINKpro User's Guide, Connectors; Microchip SAM E54 Xplained Pro User's Guide, section 5.2.8"
+  views:
+    plug: {en: "Header on the board (pins)", de: "Stiftleiste auf der Platine"}
+    socket: {en: "Socket of the ribbon cable", de: "Buchse am Flachbandkabel"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: left
+    rows:
+      - {pins: ["1", "2"]}
+      - {pins: ["3", "4"]}
+      - {pins: ["5", "6"]}
+      - {pins: ["7", "8"]}
+      - {pins: ["9", "10"]}
+  pins:
+    - {number: "1", name: "VTref", function: {en: "Target voltage, sets the logic levels of the probe", de: "Zielspannung, legt die Logikpegel des Debuggers fest"}, type: power, notes: {en: "An input of the probe. Arm allows at most 100 Ω if this pin is pulled up through a resistor.", de: "Ein Eingang des Debuggers. Arm erlaubt höchstens 100 Ω, wenn dieser Pin über einen Widerstand hochgezogen wird."}}
+    - {number: "2", name: "SWDIO/TMS", function: {en: "Serial wire data; JTAG mode select", de: "Serielle Datenleitung; JTAG-Modusauswahl"}, type: data}
+    - {number: "3", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "4", name: "SWCLK/TCK", function: {en: "Serial wire clock (also written SWDCLK); JTAG clock", de: "Serieller Takt (auch SWDCLK geschrieben); JTAG-Takt"}, type: data}
+    - {number: "5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "6", name: "SWO/TDO", function: {en: "Trace output in SWD mode; JTAG test data from the target", de: "Trace-Ausgang im SWD-Modus; JTAG-Testdaten vom Ziel"}, type: data}
+    - {number: "7", name: "KEY", function: {en: "Key position, no pin", de: "Codierposition, kein Stift"}, type: nc, notes: {en: "Arm: the pin must not be present on the target's connector.", de: "Arm: Auf dem Anschluss des Ziels darf dieser Stift nicht vorhanden sein."}}
+    - {number: "8", name: "NC/TDI", function: {en: "Unused in SWD mode; JTAG test data to the target", de: "Im SWD-Modus unbenutzt; JTAG-Testdaten zum Ziel"}, type: data}
+    - {number: "9", name: "GNDDetect", function: {en: "Ground, also used for ground detection", de: "Masse, dient auch der Masseerkennung"}, type: ground, notes: {en: "Arm's DSTREAM guide simply lists GND here.", de: "Arms DSTREAM-Handbuch nennt hier einfach GND."}}
+    - {number: "10", name: "nRESET", function: {en: "Target reset, driven by probe or target", de: "Reset des Ziels, vom Debugger oder vom Ziel getrieben"}, type: signal, notes: {en: "Called nSRST in Arm's DSTREAM guide.", de: "In Arms DSTREAM-Handbuch nSRST genannt."}}
+
+- id: avr_isp_6
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "AVR ISP (6 pinů)", da: "AVR ISP (6 ben)", de: "AVR ISP (6-polig)", el: "AVR ISP (6 ακίδες)", en: "AVR ISP (6-pin)", es: "AVR ISP (6 pines)", fr: "AVR ISP (6 broches)", hi: "AVR ISP (6-पिन)", it: "AVR ISP (6 pin)", ja: "AVR ISP(6ピン)", nl: "AVR ISP (6-pins)", no: "AVR ISP (6 pinner)", pl: "AVR ISP (6 pinów)", pt: "AVR ISP (6 pinos)", sv: "AVR ISP (6 stift)", zh: "AVR ISP(6 针)"}
+  doc: {en: "The 2 × 3 pin, 0.1 inch programming header of AVR microcontrollers, working over the chip's SPI lines.", de: "Der Programmieranschluss von AVR-Mikrocontrollern mit 2 × 3 Stiften im 2,54-mm-Raster, er arbeitet über die SPI-Leitungen des Chips."}
+  notes: {en: "Connect like to like: MISO to MISO and MOSI to MOSI, there is no crossover. A boxed header has its notch on the side of pins 1, 3 and 5; many boards use bare pins without a notch. Microchip's other 6-way headers (PDI, TPI, UPDI) assign the pins differently.", de: "Gleiches mit Gleichem verbinden: MISO an MISO und MOSI an MOSI, nichts wird gekreuzt. Ein Wannenstecker hat die Aussparung auf der Seite der Pins 1, 3 und 5; viele Platinen haben nur blanke Stifte ohne Aussparung. Microchips andere 6-polige Anschlüsse (PDI, TPI, UPDI) sind anders belegt."}
+  tags: [avr, isp, icsp, spi, miso, mosi, sck, reset, vtg, atmel, microchip, atmega, attiny, programmer, programmieren, "6-pin", "6-polig", "atmel-ice", avrisp, usbasp]
+  source: "Microchip (Atmel) AVR910 In-System Programming, Atmel-0943F, figure 1-2; Microchip AN2519 AVR Microcontroller Hardware Design Considerations, DS00002519B, figure 4-1; Atmel-ICE User Guide, Atmel-42330C, figure 4-10 and table 3-6"
+  views:
+    plug: {en: "Header on the board (pins)", de: "Stiftleiste auf der Platine"}
+    socket: {en: "Socket of the programmer cable", de: "Buchse am Programmierkabel"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: left
+    rows:
+      - {pins: ["1", "2"]}
+      - {pins: ["3", "4"]}
+      - {pins: ["5", "6"]}
+  pins:
+    - {number: "1", name: "MISO", function: {en: "Data from the target AVR to the programmer", de: "Daten vom Ziel-AVR zum Programmiergerät"}, type: data}
+    - {number: "2", name: "VCC", function: {en: "Target supply voltage (VTG)", de: "Versorgungsspannung des Ziels (VTG)"}, type: power, notes: {en: "Programmers use it to match the target's level, and some draw their power from it. Others can power the target through it: the target's own supply must then stay off.", de: "Programmiergeräte passen sich damit an den Pegel des Ziels an, manche beziehen hier ihren Strom. Andere können das Ziel darüber versorgen: Dessen eigene Versorgung muss dann aus bleiben."}}
+    - {number: "3", name: "SCK", function: {en: "Programming clock from the programmer", de: "Programmiertakt vom Programmiergerät"}, type: data}
+    - {number: "4", name: "MOSI", function: {en: "Data from the programmer to the target AVR", de: "Daten vom Programmiergerät zum Ziel-AVR"}, type: data}
+    - {number: "5", name: "RESET", function: {en: "Reset of the target AVR, held low while programming", de: "Reset des Ziel-AVR, beim Programmieren auf low gehalten"}, type: signal}
+    - {number: "6", name: "GND", function: {en: "Common ground", de: "Gemeinsame Masse"}, type: ground}
+
+- id: ftdi_6
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "FTDI TTL-232R (6 pinů)", da: "FTDI TTL-232R (6 ben)", de: "FTDI TTL-232R (6-polig)", el: "FTDI TTL-232R (6 ακίδες)", en: "FTDI TTL-232R (6-pin)", es: "FTDI TTL-232R (6 pines)", fr: "FTDI TTL-232R (6 broches)", hi: "FTDI TTL-232R (6-पिन)", it: "FTDI TTL-232R (6 pin)", ja: "FTDI TTL-232R(6ピン)", nl: "FTDI TTL-232R (6-pins)", no: "FTDI TTL-232R (6 pinner)", pl: "FTDI TTL-232R (6 pinów)", pt: "FTDI TTL-232R (6 pinos)", sv: "FTDI TTL-232R (6 stift)", zh: "FTDI TTL-232R(6 针)"}
+  doc: {en: "The single-row, 6-way, 0.1 inch connector at the end of the TTL-232R-5V and TTL-232R-3V3 USB serial cables.", de: "Der einreihige, 6-polige Anschluss im 2,54-mm-Raster am Ende der USB-Seriell-Kabel TTL-232R-5V und TTL-232R-3V3."}
+  notes: {en: "VCC is +5 V on both cables (75 mA at most): on the TTL-232R-3V3 only the signals run at 3.3 V, so do not feed a 3.3 V board from it directly. TXD is an output and RXD an input of the cable: join cable TXD to the target's RX and cable RXD to the target's TX. A triangle on the housing marks pin 1. The audio jack, wire end and 2 mm versions of this cable range are laid out differently.", de: "VCC führt bei beiden Kabeln +5 V (höchstens 75 mA): Beim TTL-232R-3V3 arbeiten nur die Signale mit 3,3 V, eine 3,3-V-Platine also nicht direkt daraus versorgen. TXD ist ein Ausgang und RXD ein Eingang des Kabels: TXD des Kabels an RX des Ziels und RXD des Kabels an TX des Ziels. Ein Dreieck auf dem Gehäuse markiert Pin 1. Die Versionen mit Klinke, offenen Enden und 2-mm-Raster sind anders belegt."}
+  tags: [ftdi, "ttl-232r", ttl232r, "ttl-232r-5v", "ttl-232r-3v3", uart, serial, seriell, usb, adapter, kabel, cable, txd, rxd, cts, rts, ft232, "6-pin", "6-polig"]
+  source: "FTDI, TTL-232R TTL to USB Serial Converter Range of Cables Datasheet, FT_000054 version 2.01 (2008); Connective Peripherals, same datasheet, CP_000069 version 1.1 (figures 4.1 and 4.2, table 4.1)"
+  views:
+    plug: {en: "Matching pin header on the board", de: "Passende Stiftleiste auf der Platine"}
+    socket: {en: "Connector at the end of the cable", de: "Buchsenleiste am Kabelende"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1"]}
+      - {pins: ["2"]}
+      - {pins: ["3"]}
+      - {pins: ["4"]}
+      - {pins: ["5"]}
+      - {pins: ["6"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "2", name: "CTS#", function: {en: "Clear to send, handshake input of the cable", de: "Sendefreigabe, Handshake-Eingang des Kabels"}, type: signal, wire: brown}
+    - {number: "3", name: "VCC", function: {en: "+5 V output of the cable", de: "+5-V-Ausgang des Kabels"}, type: power, wire: red}
+    - {number: "4", name: "TXD", function: {en: "Transmit data, output of the cable", de: "Sendedaten, Ausgang des Kabels"}, type: data, wire: orange}
+    - {number: "5", name: "RXD", function: {en: "Receive data, input of the cable", de: "Empfangsdaten, Eingang des Kabels"}, type: data, wire: yellow}
+    - {number: "6", name: "RTS#", function: {en: "Request to send, handshake output of the cable", de: "Sendeanforderung, Handshake-Ausgang des Kabels"}, type: signal, wire: green}
+
+- id: qwiic
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Qwiic / STEMMA QT", da: "Qwiic / STEMMA QT", de: "Qwiic / STEMMA QT", el: "Qwiic / STEMMA QT", en: "Qwiic / STEMMA QT", es: "Qwiic / STEMMA QT", fr: "Qwiic / STEMMA QT", hi: "Qwiic / STEMMA QT", it: "Qwiic / STEMMA QT", ja: "Qwiic / STEMMA QT", nl: "Qwiic / STEMMA QT", no: "Qwiic / STEMMA QT", pl: "Qwiic / STEMMA QT", pt: "Qwiic / STEMMA QT", sv: "Qwiic / STEMMA QT", zh: "Qwiic / STEMMA QT"}
+  doc: {en: "4-pin, 1 mm JST SH connector for I2C modules, used by SparkFun Qwiic and Adafruit STEMMA QT.", de: "4-poliger JST-SH-Stecker im 1-mm-Raster für I2C-Module, verwendet von SparkFun Qwiic und Adafruit STEMMA QT."}
+  notes: {en: "STEMMA QT is compatible with Qwiic: connector, pin order and wire colours are the same, and Adafruit states that both kinds of device work together. They differ in the supply. Qwiic boards run on 3.3 V only, while STEMMA QT devices accept 3 to 5 V and carry their own regulator and level shifting. So keep V+ at 3.3 V when a Qwiic device is on the bus. Pin numbers are not uniform: the schematics of both makers count GND as pin 1, SparkFun's cable drawing counts the yellow SCL wire as 1. Go by signal and wire colour, not by number.", de: "STEMMA QT ist mit Qwiic kompatibel: Stecker, Pinfolge und Aderfarben sind gleich, und Adafruit nennt beide Gerätearten ausdrücklich zusammen verwendbar. Der Unterschied liegt in der Versorgung. Qwiic-Platinen laufen nur mit 3,3 V, STEMMA-QT-Geräte vertragen 3 bis 5 V und haben eigenen Regler und Pegelwandler. Ist ein Qwiic-Gerät am Bus, muss V+ also 3,3 V bleiben. Die Pinnummern sind nicht einheitlich: Die Schaltpläne beider Hersteller zählen GND als Pin 1, SparkFuns Kabelzeichnung zählt die gelbe SCL-Ader als 1. Nach Signal und Aderfarbe gehen, nicht nach der Nummer."}
+  tags: [qwiic, stemma, "stemma qt", sparkfun, adafruit, jst, "jst sh", "jst-sh", i2c, iic, sda, scl, "3.3v", "4-pin", "4-polig", sensor, sm04b, shr-04v, kabel, cable]
+  source: "SparkFun, Qwiic Connect System page (sparkfun.com/qwiic), Qwiic cable drawing ACCA-1571 and SparkFun-Connectors.lbr (device QWIIC_CONNECTOR); Adafruit, Adafruit STEMMA & STEMMA QT guide (What is STEMMA QT?, Technical Specs, comparison page) and Adafruit QT Py schematic (device STEMMA_I2C)"
+  views:
+    plug: {en: "Header on the board (pins)", de: "Stiftleiste auf der Platine"}
+    socket: {en: "Housing on the cable (sockets)", de: "Gehäuse am Kabel (Buchsenkontakte)"}
+  shape:
+    type: rows
+    outline: jst
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["1"]}
+      - {pins: ["2"]}
+      - {pins: ["3"]}
+      - {pins: ["4"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+    - {number: "2", name: "3.3V", function: {en: "3.3 V supply on Qwiic; V+ of 3 to 5 V on STEMMA QT", de: "3,3-V-Versorgung bei Qwiic; V+ von 3 bis 5 V bei STEMMA QT"}, type: power, wire: red}
+    - {number: "3", name: "SDA", function: {en: "I2C data", de: "I2C-Daten"}, type: data, wire: blue}
+    - {number: "4", name: "SCL", function: {en: "I2C clock", de: "I2C-Takt"}, type: data, wire: yellow}
+
+- id: grove
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Grove (4 piny)", da: "Grove (4 ben)", de: "Grove (4-polig)", el: "Grove (4 ακίδες)", en: "Grove (4-pin)", es: "Grove (4 pines)", fr: "Grove (4 broches)", hi: "Grove (4-पिन)", it: "Grove (4 pin)", ja: "Grove(4ピン)", nl: "Grove (4-pins)", no: "Grove (4 pinner)", pl: "Grove (4 piny)", pt: "Grove (4 pinos)", sv: "Grove (4 stift)", zh: "Grove(4 针)"}
+  doc: {en: "The 4-wire, 2.0 mm connector of Seeed's Grove modules. Pins 3 and 4 always carry the supply; the meaning of pins 1 and 2 depends on the interface.", de: "Der 4-adrige Anschluss im 2,0-mm-Raster der Grove-Module von Seeed. Pin 3 und 4 führen immer die Versorgung; die Bedeutung von Pin 1 und 2 hängt von der Schnittstelle ab."}
+  notes: {en: "Digital: pin 1 is Dn (main line), pin 2 is Dn+1 (second line). Analog: pin 1 is An (main input), pin 2 is An+1. UART: pin 1 is RX and pin 2 is TX, both named from the base unit's side. I2C: pin 1 is SCL, pin 2 is SDA. VCC is 5 V or 3.3 V, and some modules accept only one of them: check the module. Grove is not Qwiic: the pitch differs, and the wires run in the opposite order. Adafruit describes the housing as an HY type and not as a true JST.", de: "Digital: Pin 1 ist Dn (Hauptleitung), Pin 2 ist Dn+1 (zweite Leitung). Analog: Pin 1 ist An (Haupteingang), Pin 2 ist An+1. UART: Pin 1 ist RX und Pin 2 ist TX, beide aus Sicht der Basiseinheit benannt. I2C: Pin 1 ist SCL, Pin 2 ist SDA. VCC beträgt 5 V oder 3,3 V, manche Module vertragen nur einen der Werte: das Modul prüfen. Grove ist nicht Qwiic: Das Raster ist anders, und die Adern liegen in umgekehrter Folge. Adafruit beschreibt das Gehäuse als HY-Typ und nicht als echtes JST."}
+  tags: [grove, seeed, seeedstudio, "4-pin", "4-polig", i2c, uart, digital, analog, scl, sda, rx, tx, d0, a0, sensor, modul, module, hy, kabel, cable]
+  source: "Seeed Studio Wiki, Grove Ecosystem Introduction (Grove_System), interface tables for digital, analog, UART and I2C; Adafruit STEMMA & STEMMA QT guide, STEMMA / Grove comparison"
+  views:
+    plug: {en: "Plug on the cable", de: "Stecker am Kabel"}
+    socket: {en: "Connector on the module (Seeed: female header)", de: "Anschluss auf dem Modul (Seeed: Female Header)"}
+  shape:
+    type: rows
+    outline: jst
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1"]}
+      - {pins: ["2"]}
+      - {pins: ["3"]}
+      - {pins: ["4"]}
+  pins:
+    - {number: "1", name: "SIG1", function: {en: "Signal 1: Dn, An, RX or SCL", de: "Signal 1: Dn, An, RX oder SCL"}, type: signal, wire: yellow}
+    - {number: "2", name: "SIG2", function: {en: "Signal 2: Dn+1, An+1, TX or SDA", de: "Signal 2: Dn+1, An+1, TX oder SDA"}, type: signal, wire: white}
+    - {number: "3", name: "VCC", function: {en: "Module supply, 5 V or 3.3 V", de: "Modulversorgung, 5 V oder 3,3 V"}, type: power, wire: red}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, wire: black}
+
+- id: servo
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Modelářské servo (3 piny)", da: "Modelservo (3 ben)", de: "Modellbau-Servo (3-polig)", el: "Σέρβο μοντελισμού (3 ακίδες)", en: "Hobby servo (3-pin)", es: "Servo de modelismo (3 pines)", fr: "Servo de modélisme (3 broches)", hi: "हॉबी सर्वो (3-पिन)", it: "Servo da modellismo (3 pin)", ja: "ホビー用サーボ(3ピン)", nl: "Modelbouwservo (3-pins)", no: "Modellservo (3 pinner)", pl: "Serwo modelarskie (3 piny)", pt: "Servo de modelismo (3 pinos)", sv: "Modellservo (3 stift)", zh: "模型舵机(3 针)"}
+  doc: {en: "The usual 3-way, 0.1 inch plug of hobby servos: signal, V+, ground. Makers number these pins differently, so this page calls them S, + and -.", de: "Der übliche 3-polige Stecker im 2,54-mm-Raster von Modellbau-Servos: Signal, V+, Masse. Die Hersteller nummerieren diese Pins unterschiedlich, deshalb heißen sie hier S, + und -."}
+  notes: {en: "V+ sits in the middle. That matters because a plug turned round keeps V+ on V+ and only swaps signal and ground, so the supply is not reversed across the servo; it just gets no usable signal. Avoid it anyway, because the servo's ground then hangs on the controller's signal pin. Truly reversed power, for example from a wrongly built adapter, can destroy a servo at once. Wire colours drawn here: Futaba scheme, white signal, red V+, black ground. JR scheme: orange signal, red V+, brown ground. Hitec scheme: signal on the third wire, usually yellow, red V+, black ground. Exceptions exist: Spektrum's AR6310 manual has the brown negative wire in the middle of its JST micro plug and warns that JST servos differ, and Airtronics is reported to use another order. Check the data sheet of an unknown servo.", de: "V+ liegt in der Mitte. Das ist wichtig, weil ein umgedrehter Stecker V+ auf V+ lässt und nur Signal und Masse vertauscht. Die Versorgung liegt also nicht verpolt am Servo; es bekommt nur kein brauchbares Signal. Trotzdem vermeiden, denn die Servomasse hängt dann am Signalpin des Controllers. Eine echte Verpolung, etwa durch einen falsch gebauten Adapter, kann ein Servo sofort zerstören. Hier gezeichnete Aderfarben: Futaba-Schema, weiß Signal, rot V+, schwarz Masse. JR-Schema: orange Signal, rot V+, braun Masse. Hitec-Schema: Signal auf der dritten Ader, meist gelb, rot V+, schwarz Masse. Es gibt Ausnahmen: Spektrums Handbuch zum AR6310 legt beim JST-Mikrostecker die braune Minusader in die Mitte und warnt vor abweichenden JST-Servos, und für Airtronics wird eine andere Reihenfolge berichtet. Bei einem unbekannten Servo das Datenblatt prüfen."}
+  tags: [servo, modellbau, rc, hobby, pwm, futaba, hitec, jr, spektrum, airtronics, signal, "v+", masse, ground, "3-pin", "3-polig", receiver, empfänger, stellmotor]
+  source: "Parallax Standard Servo (#900-00005) product guide v3.0 (2022) and datasheet v2.0, pin tables; Hitec RCD, General Servo Information, Wire Color Meanings; Pololu, Electrical characteristics of servos and introduction to the servo control interface (2011); SparkFun, Hobby Servo Tutorial; Spektrum SPMAR6310 User Manual; ProgressiveRC, JR/Hitec servo extension; RobotPlatform, Major Servo Manufacturers"
+  views:
+    plug: {en: "Pin header on receiver or controller", de: "Stiftleiste am Empfänger oder Controller"}
+    socket: {en: "Plug of the servo lead (sockets)", de: "Stecker am Servokabel (Buchsenkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["S"]}
+      - {pins: ["+"]}
+      - {pins: ["-"]}
+  pins:
+    - {number: "S", name: "Signal", function: {en: "PWM control signal, input of the servo", de: "PWM-Steuersignal, Eingang des Servos"}, type: signal, wire: white}
+    - {number: "+", name: "V+", function: {en: "Servo supply, the middle pin", de: "Servoversorgung, der mittlere Pin"}, type: power, wire: red, notes: {en: "Hitec names 4.8 to 6 V, Parallax 4 to 6 V. Check your servo.", de: "Hitec nennt 4,8 bis 6 V, Parallax 4 bis 6 V. Das eigene Servo prüfen."}}
+    - {number: "-", name: "GND", function: {en: "Ground, shared with the controller", de: "Masse, gemeinsam mit dem Controller"}, type: ground, wire: black}
+
+- id: obd2
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "OBD-II (SAE J1962)", da: "OBD-II (SAE J1962)", de: "OBD-II (SAE J1962)", el: "OBD-II (SAE J1962)", en: "OBD-II (SAE J1962)", es: "OBD-II (SAE J1962)", fr: "OBD-II (SAE J1962)", hi: "OBD-II (SAE J1962)", it: "OBD-II (SAE J1962)", ja: "OBD-II (SAE J1962)", nl: "OBD-II (SAE J1962)", no: "OBD-II (SAE J1962)", pl: "OBD-II (SAE J1962)", pt: "OBD-II (SAE J1962)", sv: "OBD-II (SAE J1962)", zh: "OBD-II (SAE J1962)"}
+  doc: {en: "The 16-way diagnostic connector of road vehicles under SAE J1962 and ISO 15031-3. The drawing shows the vehicle's socket, looking into it with the wide side up; the other view is the tester's plug.", de: "Der 16-polige Diagnoseanschluss von Straßenfahrzeugen nach SAE J1962 und ISO 15031-3. Die Zeichnung zeigt die Buchse im Fahrzeug, von vorn gesehen mit der breiten Seite oben; die andere Ansicht ist der Stecker des Testers."}
+  notes: {en: "Pin 16 stays live with the ignition off: nominally 12 V on a type A connector and 24 V on type B. Fuse your own adapter. Pins 2, 6, 7, 10, 14 and 15 carry their listed signal only if the vehicle uses that protocol for OBD; otherwise the manufacturer may use them for something else. A few vehicles are reported to lack pin 5: use pin 4 for ground there.", de: "Pin 16 bleibt auch bei ausgeschalteter Zündung unter Spannung: nominal 12 V beim Typ A und 24 V beim Typ B. Den eigenen Adapter absichern. Die Pins 2, 6, 7, 10, 14 und 15 führen das genannte Signal nur, wenn das Fahrzeug dieses Protokoll für OBD nutzt; sonst darf der Hersteller sie anders verwenden. Bei wenigen Fahrzeugen fehlt Berichten zufolge Pin 5: Dort Pin 4 als Masse nehmen."}
+  tags: [obd, obd2, obdii, "obd-ii", eobd, j1962, "sae j1962", "iso 15031-3", dlc, diagnose, diagnostic, auto, car, fahrzeug, kfz, can, "k-line", "k-leitung", "l-line", j1850, elm327, "16-pin", "16-polig"]
+  source: "Elm Electronics, ELM327 datasheet (ELM327DSK), figures 8 and 9; AESTECHNO, OBD2 pinout (OBD-II port) reference page, citing SAE J1962 table 1, section 6.3 and figure 3; Wikipedia, On-board diagnostics, standard interface section. SAE J1962 and ISO 15031-3 themselves are paywalled and were not read."
+  views:
+    plug: {en: "Tester's plug (blades)", de: "Stecker des Testers (Messerkontakte)"}
+    socket: {en: "Vehicle's socket", de: "Buchse im Fahrzeug"}
+  shape:
+    type: rows
+    outline: obd2
+    contact: blade
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4", "5", "6", "7", "8"]}
+      - {pins: ["9", "10", "11", "12", "13", "14", "15", "16"]}
+  pins:
+    - {number: "1", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "2", name: "J1850 Bus+", function: {en: "SAE J1850 bus, positive line (PWM and VPW)", de: "SAE-J1850-Bus, positive Leitung (PWM und VPW)"}, type: data}
+    - {number: "3", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "4", name: "Chassis GND", function: {en: "Chassis ground", de: "Fahrzeugmasse"}, type: ground}
+    - {number: "5", name: "Signal GND", function: {en: "Signal ground", de: "Signalmasse"}, type: ground}
+    - {number: "6", name: "CAN_H", function: {en: "CAN high (ISO 15765-4)", de: "CAN High (ISO 15765-4)"}, type: data}
+    - {number: "7", name: "K-line", function: {en: "K line (ISO 9141-2, ISO 14230-4)", de: "K-Leitung (ISO 9141-2, ISO 14230-4)"}, type: data}
+    - {number: "8", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "9", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "10", name: "J1850 Bus-", function: {en: "SAE J1850 bus, negative line (PWM only)", de: "SAE-J1850-Bus, negative Leitung (nur PWM)"}, type: data}
+    - {number: "11", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "12", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "13", name: "OEM", function: {en: "Manufacturer-specific, not defined by the standard; can be live", de: "Herstellerspezifisch, von der Norm nicht festgelegt; kann aktiv sein"}, type: nc}
+    - {number: "14", name: "CAN_L", function: {en: "CAN low (ISO 15765-4)", de: "CAN Low (ISO 15765-4)"}, type: data}
+    - {number: "15", name: "L-line", function: {en: "L line, optional (ISO 9141-2, ISO 14230-4)", de: "L-Leitung, optional (ISO 9141-2, ISO 14230-4)"}, type: data}
+    - {number: "16", name: "Battery +", function: {en: "Permanent battery voltage", de: "Dauerplus der Batterie"}, type: power}

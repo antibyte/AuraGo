@@ -1,0 +1,5 @@
+{"pinout": "grove", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 2}, "pins": [
+  {"number": "1", "name": "SIG1", "type": "signal", "ref": "Seeed Studio Wiki, Grove_System: pin 1 yellow, Dn / An / RX / SCL in the four interface tables"},
+  {"number": "2", "name": "SIG2", "type": "signal", "ref": "Seeed Studio Wiki, Grove_System: pin 2 white, Dn+1 / An+1 / TX / SDA in the four interface tables"},
+  {"number": "3", "name": "VCC", "type": "power", "ref": "Seeed Studio Wiki, Grove_System: Pin 3 - Red - VCC on all Grove Connectors"},
+  {"number": "4", "name": "GND", "type": "ground", "ref": "Seeed Studio Wiki, Grove_System: Pin 4 - Black - GND on all Grove Connectors"}]}]}

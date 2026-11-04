@@ -1,0 +1,9 @@
+{"pinout": "arm_swd_10", "variants": [{"variant": "", "counts": {"power": 1, "ground": 3, "signal": 1, "data": 4, "nc": 1}, "pins": [
+  {"number": "1", "name": "VTref", "type": "power", "ref": "Keil ULINKpro User's Guide, Connectors, figure concortex10pindesc.png"},
+  {"number": "2", "name": "SWDIO/TMS", "type": "data", "ref": "Microchip SAM E54 Xplained Pro User's Guide, section 5.2.8, table 5-10"},
+  {"number": "4", "name": "SWCLK/TCK", "type": "data", "ref": "Microchip SAM E54 Xplained Pro User's Guide, section 5.2.8, table 5-10"},
+  {"number": "6", "name": "SWO/TDO", "type": "data", "ref": "Microchip SAM E54 Xplained Pro User's Guide, section 5.2.8, table 5-10"},
+  {"number": "7", "name": "KEY", "type": "nc", "ref": "Arm, Cortex-M Debug Connectors, page 2 diagram"},
+  {"number": "8", "name": "NC/TDI", "type": "data", "ref": "Microchip SAM E54 Xplained Pro User's Guide, section 5.2.8, table 5-10"},
+  {"number": "9", "name": "GNDDetect", "type": "ground", "ref": "Arm, Cortex-M Debug Connectors, page 2 diagram"},
+  {"number": "10", "name": "nRESET", "type": "signal", "ref": "Arm, Cortex-M Debug Connectors, page 2 diagram"}]}]}
