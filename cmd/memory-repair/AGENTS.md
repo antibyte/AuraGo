@@ -28,6 +28,12 @@ This command owns offline previews, backups, rehearsals and resumable merges.
   tombstones until conditional on-disk vector deletion is confirmed. Persist
   progress in `memory_maintenance_meta`; resume only with the original plan.
   Changed evidence stops the group, repeated application never double-counts. New previews exclude IDs in unfinished journals; unknown legacy journal ownership blocks fresh groups until the original saved plan resumes. Canonical corpus backup/rehearsal uses a consistent SQLite snapshot and never copies live WAL/SHM sidecars as source data.
+- Include document/archive identities, pending archive cleanup and expiry in
+  evidence. Conflicting identities, active archive resurrection, unequal expiry
+  (including missing expiry) and pending cleanup require review. Keep historical
+  archive identities at their old IDs. Remove duplicate document identities and
+  expiry only after confirmed vector deletion. Omit empty additive evidence keys
+  so unchanged legacy saved plans and journals remain resumable.
 
 ## Work Guidance
 

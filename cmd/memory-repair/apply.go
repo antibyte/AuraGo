@@ -94,6 +94,9 @@ func mergeActivity(group mergeGroup) (record, error) {
 }
 
 func transferReferences(ctx context.Context, tx *sql.Tx, group mergeGroup) error {
+	if err := transferIdentityRows(ctx, tx, group); err != nil {
+		return err
+	}
 	activity, err := mergeActivity(group)
 	if err != nil {
 		return err
@@ -279,6 +282,13 @@ func applyGroup(ctx context.Context, db *sql.DB, vectorPath string, group mergeG
 	}
 	for _, id := range group.IDs {
 		if id != group.Canonical {
+			for _, table := range []string{"memory_document_identities", "memory_expiry"} {
+				if len(current[table]) > 0 {
+					if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE doc_id=?`, id); err != nil {
+						return false, err
+					}
+				}
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM memory_meta WHERE doc_id=?`, id); err != nil {
 				return false, err
 			}

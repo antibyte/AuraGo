@@ -124,6 +124,8 @@ var referenceColumns = map[string][]string{
 	"memory_curation_events": {"doc_id"}, "memory_extraction_sources": {"doc_id"},
 	"memory_conflicts":    {"doc_id_left", "doc_id_right", "winning_doc_id", "superseded_doc_id"},
 	"file_embedding_docs": {"doc_id"}, "memory_maintenance_failures": {"target_id"},
+	"memory_document_identities": {"doc_id"}, "memory_archive_identities": {"doc_id"},
+	"memory_archive_cleanup": {"doc_id"}, "memory_expiry": {"doc_id"},
 }
 
 const journalPrefix = "memory_analysis_merge."
@@ -158,6 +160,10 @@ func sqlSnapshot(ctx context.Context, db queryer, ids []string) (map[string][]re
 		result[table], err = rowsFor(ctx, db, `SELECT * FROM `+table+` WHERE `+strings.Join(clauses, " OR "), args...)
 		if err != nil {
 			return nil, fmt.Errorf("read %s evidence: %w", table, err)
+		}
+		// Empty additive tables must not invalidate saved legacy evidence hashes.
+		if len(result[table]) == 0 && identityOrExpiryTable(table) {
+			delete(result, table)
 		}
 	}
 	if exists["episodic_memories"] {
@@ -390,6 +396,9 @@ func selectCanonical(group mergeGroup) (string, error) {
 }
 
 func validateReferences(group mergeGroup) error {
+	if err := validateIdentityRows(group); err != nil {
+		return err
+	}
 	if _, err := mergeActivity(group); err != nil {
 		return err
 	}

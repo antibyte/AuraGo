@@ -241,6 +241,16 @@ IDs, or a protected ID that would supersede newer human curation, require review
 Otherwise choose the latest proved human curation, then the lexicographically smallest
 ID. Automatic reviews cannot supersede human provenance or confidence.
 
+The preview includes `memory_document_identities`, `memory_archive_identities`,
+`memory_archive_cleanup` and `memory_expiry`. Matching document identities are
+preserved on the canonical ID. Conflicting identities, different expiry rules
+(including one ID without expiry), active copies of an archived identity and
+pending archive cleanup require manual review. Historical archive identities
+remain at their original IDs after vector deletion. Redundant document identities
+and expiry rows are removed only after every redundant vector is confirmed gone.
+Unchanged saved plans from older versions remain resumable when the additive
+tables contain no new evidence for their IDs.
+
 Application requires the saved plan and creates a consistent SQLite backup, full
 vector backup and checksummed manifest under installation `reports/`. It rehearses
 every group and repeated application on copies first. Each group then rechecks the
