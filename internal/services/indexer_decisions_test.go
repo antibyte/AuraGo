@@ -183,7 +183,7 @@ func TestIndexerDecisionsAgnesKeepsCoarseEntry(t *testing.T) {
 }
 
 func TestIndexerDecisionsOffUnchanged(t *testing.T) {
-	if got, want := indexImagePrompt("a.jpg", ""), "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. Dateiname: a.jpg"; got != want {
+	if got, want := indexImagePrompt(""), "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details."; got != want {
 		t.Fatalf("prompt = %q", got)
 	}
 	f := newIndexerDecisionFixture(t, true, false, false, nil)

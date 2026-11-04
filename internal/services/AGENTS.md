@@ -11,6 +11,9 @@ Background services and workspace search.
 ## Local Contracts
 
 ### File Indexing
+- Image filenames remain searchable metadata; never append them to the vision
+  prompt or allow them to select object-count mode. Decisions hints remain trusted.
+  Verify `TestIndexImageFilenameCannotChangePromptOrCountingMode`.
 - PDF extraction uses `pdftext.Extract` with the scan context. Limit and
   cancellation errors preserve the old index and never start multimodal fallback.
   Bounds and parser ownership: `../pdftext/AGENTS.md`; verify `TestPDFLimit*`.

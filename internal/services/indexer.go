@@ -537,9 +537,9 @@ type fileIndexOutcome struct {
 }
 
 // indexImagePrompt asks for a detailed description. kind is the optional Decisions
-// verdict; an empty kind keeps the prompt exactly as it was without Decisions.
-func indexImagePrompt(name, kind string) string {
-	return "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details." + imagePromptHint(kind) + " Dateiname: " + name
+// verdict. Filenames remain metadata, never model instructions or count-mode input.
+func indexImagePrompt(kind string) string {
+	return "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details." + imagePromptHint(kind)
 }
 
 func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path string, info os.FileInfo) fileIndexOutcome {
@@ -670,7 +670,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 			}
 			content = entry
 		} else {
-			prompt := indexImagePrompt(info.Name(), class.Kind)
+			prompt := indexImagePrompt(class.Kind)
 			var analysis string
 			var visionErr error
 			for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
