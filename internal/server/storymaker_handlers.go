@@ -220,7 +220,7 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 	ff := videostudio.CheckRuntime(r.Context(), cfg.VideoStudio.FFmpegPath)
 	ffmpeg := map[string]any{"ready": ff.Ready}
 	if ff.Version != "" {
-		ffmpeg["version"] = ff.Version
+		ffmpeg["version"] = storymakerFFmpegVersion(ff.Version)
 	}
 	if !ff.Ready && ff.Error != "" {
 		ffmpeg["issue"] = ff.Error

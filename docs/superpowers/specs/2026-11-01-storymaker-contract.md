@@ -499,7 +499,7 @@ Render details:
 | `enabled` | bool | `storymaker.enabled` |
 | `read_only` | bool | the desktop is read-only |
 | `desktop_enabled` | bool | the virtual desktop is enabled |
-| `ffmpeg` | object | `ready` (bool), `version?`, `issue?` (text when not ready). FFmpeg comes from `video_studio.ffmpeg_path` or PATH. |
+| `ffmpeg` | object | `ready` (bool), `version?` (the version token of `ffmpeg -version`, for example `8.1.1-full_build-www.gyan.dev`, not the banner line), `issue?` (text when not ready). FFmpeg comes from `video_studio.ffmpeg_path` or PATH. |
 | `browser` | object | `ready` (bool), `source` (`config`, `system`, `pinned` or `missing`), `issue?`, `can_download?` (bool: the pinned Chromium can be downloaded by the first export), `version?` |
 | `limits` | object | `max_duration_seconds`, `max_scenes`, `max_items_per_scene`, `max_beats_per_scene`, `max_narration_chars`, `max_story_bytes`, `max_code_bytes`, `max_queued_renders` (16) |
 | `transport` | string | the transport in use (`png` by default) |

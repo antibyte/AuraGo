@@ -425,7 +425,8 @@ func TestStorymakerStatus(t *testing.T) {
 	var st struct {
 		Enabled bool `json:"enabled"`
 		FFmpeg  struct {
-			Ready bool `json:"ready"`
+			Ready   bool   `json:"ready"`
+			Version string `json:"version"`
 		} `json:"ffmpeg"`
 		Browser struct {
 			Ready  bool   `json:"ready"`
@@ -441,6 +442,9 @@ func TestStorymakerStatus(t *testing.T) {
 	}
 	if st.Limits["max_duration_seconds"] != 900 || st.Limits["max_scenes"] != 200 || st.Transport != render.DefaultTransport || len(st.CatalogVersion) != 12 {
 		t.Errorf("status values: %+v", st)
+	}
+	if strings.ContainsAny(st.FFmpeg.Version, " 	") || strings.Contains(st.FFmpeg.Version, "Copyright") {
+		t.Errorf("ffmpeg.version must be the version token, got %q", st.FFmpeg.Version)
 	}
 	// The configured transport and duration show up.
 	s.Cfg.Storymaker.Render.Transport = "screenshot"
