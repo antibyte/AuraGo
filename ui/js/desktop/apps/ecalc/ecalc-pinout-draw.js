@@ -145,11 +145,12 @@
                 { cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset, b.y + b.h], [b.x + inset, b.y + b.h]]) }
             ];
         },
-        // The plug: a steel shell around the insulating tongue.
+        // A steel shell around the insulating tongue. The two tongues meet at the contacts: the tongue of the receptacle fills the
+        // upper half and the contacts sit under it, the tongue of the plug fills the lower half and the contacts sit on it.
         usb_a(b, ctx) {
-            // the tongue with the contacts fills the upper half, the steel shell goes on below it
             const last = ctx.rowsBox.length ? ctx.rowsBox[ctx.rowsBox.length - 1].b : b.h / 2;
-            return [{ cls: 'ec-shell', d: roundRect(b.x, b.y, b.w, b.h, 3) }, { cls: 'ec-shell-tongue', d: roundRect(b.x + 5, b.y + 5, b.w - 10, last + 4 - 5, 2) }];
+            const tongue = ctx.view === 'plug' ? roundRect(b.x + 5, b.y + last - 4, b.w - 10, b.h - last - 1, 2) : roundRect(b.x + 5, b.y + 5, b.w - 10, last + 4 - 5, 2);
+            return [{ cls: 'ec-shell', d: roundRect(b.x, b.y, b.w, b.h, 3) }, { cls: 'ec-shell-tongue', d: tongue }];
         },
         // The square B plug: the two upper corners cut.
         usb_b(b) {
@@ -224,7 +225,7 @@
         }
     };
 
-    function layoutRows(shape, map) {
+    function layoutRows(shape, map, view) {
         const style = ROW_STYLE[shape.outline] || ROW_STYLE.rect;
         const kind = shape.contact === 'blade' || shape.contact === 'square' ? shape.contact : 'round';
         const dims = contactDims(kind, style), p = style.p, rp = style.rp;
@@ -239,9 +240,11 @@
         let outsideTop = false, outsideBottom = false, stubTop = false, stubBottom = false, stubLeft = false;
         // A single column (a servo, a Qwiic plug) has its wires leave to the left, where no name stands.
         const column = count > 0 && rows.every(row => row.pins.length === 1);
+        // One rule per drawing: when a number does not fit inside its contact, the numbers of the outer rows all go outside.
+        const allFit = rows.every(row => row.pins.every(number => !given(number) || fitNumber(String(number), kind, dims.w, dims.h)));
         rows.forEach((row, r) => row.pins.forEach((number, c) => {
             if (!given(number)) return;
-            const fs = fitNumber(String(number), kind, dims.w, dims.h);
+            const fs = allFit ? fitNumber(String(number), kind, dims.w, dims.h) : 0;
             const side = fs ? '' : (r === 0 ? 'top' : r === count - 1 ? 'bottom' : '');
             if (side === 'top') outsideTop = true;
             if (side === 'bottom') outsideBottom = true;
@@ -303,7 +306,7 @@
         });
         const key = shape.key && shape.key !== 'none' ? shape.key : '';
         const build = SHELLS[shape.outline] || SHELLS.rect;
-        const shell = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key });
+        const shell = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key, view });
         return { width, height, shellBox: [ox - ears, oy, ox + sw + ears, oy + sh], shell, texts: [], contacts, mirrorable: true };
     }
 
@@ -522,8 +525,8 @@
         const type = shape && shape.type;
         const build = LAYOUTS[type];
         if (!build) return { type: type || '', view: '', mirrored: false, width: 0, height: 0, shellBox: [0, 0, 0, 0], shell: [], texts: [], contacts: [] };
-        const result = build(shape, pinMap(pins));
         const view = options && (options.view === 'plug' || options.view === 'socket') ? options.view : shape.drawn;
+        const result = build(shape, pinMap(pins), view);
         result.type = type;
         result.view = result.mirrorable ? view : shape.drawn;
         result.mirrored = false;

@@ -141,6 +141,24 @@ assert.ok(checked >= 60, `checked ${checked} layouts`);
     assert.deepEqual(layout.contacts.map(c => c.number), ['S', '+', '-']);
     assert.ok(layout.contacts.every(c => c.label && c.name), 'a single column carries its names');
 }
+// One rule per drawing: when a number moves out of its contact, the numbers of all outer rows do.
+for (const item of items.filter(entry => entry.shape.type === 'rows')) {
+    const pins = item.variants.length ? item.variants[0].pins : item.pins;
+    const view = plain(Draw.layout(item.shape, pins, { view: item.shape.drawn }));
+    const heights = view.contacts.map(contact => contact.y), top = Math.min(...heights), bottom = Math.max(...heights);
+    const outer = view.contacts.filter(contact => contact.y === top || contact.y === bottom);
+    assert.equal(new Set(outer.map(contact => contact.num.mode)).size, 1, `${item.id}: the numbers of the outer rows are all inside or all outside`);
+}
+// The tongue of USB-A: the receptacle's fills the upper half, the plug's the lower half.
+{
+    const item = items.find(entry => entry.shape.outline === 'usb_a');
+    const pins = item.variants.length ? item.variants[0].pins : item.pins;
+    const tongueTop = view => {
+        const part = plain(Draw.layout(item.shape, pins, { view })).shell.find(entry => entry.cls === 'ec-shell-tongue');
+        return Number(part.d.match(/-?[\d.]+/g)[1]);
+    };
+    assert.ok(tongueTop('plug') > tongueTop('socket') + 8, `the tongue of the plug starts below that of the receptacle (${tongueTop('plug')} / ${tongueTop('socket')})`);
+}
 // The rule for the numbers: they fit inside or move out.
 assert.ok(Draw.fitNumber('12', 'round', 20, 20) > 0, 'two digits fit a round contact of 20');
 assert.equal(Draw.fitNumber('A12', 'blade', 13, 16), 0, 'a three-character number does not fit a blade');
