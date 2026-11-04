@@ -27,6 +27,8 @@ func TestECalcAllResponsesRespectEffectiveBudget(t *testing.T) {
 		{Operation: "calculate", ID: "ohms_law", Inputs: []ecalc.NamedValue{{Name: long, Value: "1"}}},
 		{Operation: "open", ID: long},
 		{Operation: "search", Query: long},
+		{Operation: "pinout", ID: long},
+		{Operation: "pinout", ID: "x", Pin: long, Variant: long, Filter: long},
 	}
 	cat, err := ecalc.Default()
 	if err != nil {
@@ -34,6 +36,9 @@ func TestECalcAllResponsesRespectEffectiveBudget(t *testing.T) {
 	}
 	for _, item := range cat.Calculators {
 		requests = append(requests, ECalcRequest{Operation: "describe", ID: item.ID})
+	}
+	for _, item := range cat.Pinouts {
+		requests = append(requests, ECalcRequest{Operation: "describe", ID: item.ID}, ECalcRequest{Operation: "pinout", ID: item.ID})
 	}
 	for _, req := range requests {
 		for _, budget := range []int{0, 100, 1500, 2500} {

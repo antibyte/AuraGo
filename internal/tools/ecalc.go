@@ -12,8 +12,9 @@ import (
 	"aurago/internal/ecalc"
 )
 
-// The ecalc tool: search, describe, calculate, table (rows and lookups of the reference tables), decode and encode
-// (component codes) on the embedded ECalc catalog (pure computation, no I/O) and open the ECalc desktop app pre-filled.
+// The ecalc tool: search, describe, calculate, table (rows and lookups of the reference tables), pinout (the pins of a
+// connector, board header or IC package), decode and encode (component codes) on the embedded ECalc catalog (pure
+// computation, no I/O) and open the ECalc desktop app pre-filled.
 // Only open touches the desktop and is gated like the other desktop-opening tools.
 
 const (
@@ -32,7 +33,7 @@ const (
 
 // ECalcRequest is a decoded ecalc tool call. Inputs are variable ids with the values as a person would type them
 // ("4k7", "12 V"); Choices pair a choice id with an option id. Filter, Offset, Limit and Lookup belong to table (Limit
-// also to search); Kind (a code kind), Code, Value, Bands, Tolerance, TempCo, Voltage and Class to decode and encode.
+// also to search; Filter, Offset and Limit to pinout, which adds Pin and Variant); Kind (a code kind), Code, Value, Bands, Tolerance, TempCo, Voltage and Class to decode and encode.
 // OutputBudget is the agent's inline limit in bytes (0 = 6,000): search results, descriptions, rows and results are
 // shortened to stay below it.
 type ECalcRequest struct {
@@ -49,6 +50,9 @@ type ECalcRequest struct {
 	Offset int
 	Lookup *ecalc.TableLookup
 
+	Pin     string
+	Variant string
+
 	Kind      string
 	Code      string
 	Value     string
@@ -61,13 +65,18 @@ type ECalcRequest struct {
 
 // ExecuteECalc runs the ecalc tool. Output is a JSON string with status ok, error or policy_denied; open also
 // carries the desktop event that opens the app.
-func ExecuteECalc(cfg *config.Config, req ECalcRequest) (result VirtualDesktopExecution) {
-	budget := ecalcBudget(req.OutputBudget)
-	defer func() { result = ecalcBoundOutput(result, budget) }()
+func ExecuteECalc(cfg *config.Config, req ECalcRequest) VirtualDesktopExecution {
 	cat, err := ecalc.Default()
 	if err != nil {
-		return ecalcFailure("error", "ecalc_unavailable", "The ECalc catalog could not be loaded.")
+		return ecalcBoundOutput(ecalcFailure("error", "ecalc_unavailable", "The ECalc catalog could not be loaded."), ecalcBudget(req.OutputBudget))
 	}
+	return executeECalc(cfg, cat, req)
+}
+
+// executeECalc runs the tool on a catalog; the tests hand it a catalog with fixture pinouts.
+func executeECalc(cfg *config.Config, cat *ecalc.Catalog, req ECalcRequest) (result VirtualDesktopExecution) {
+	budget := ecalcBudget(req.OutputBudget)
+	defer func() { result = ecalcBoundOutput(result, budget) }()
 	switch op := strings.ToLower(strings.TrimSpace(req.Operation)); op {
 	case "search":
 		return ecalcSearch(cat, req, budget)
@@ -77,6 +86,8 @@ func ExecuteECalc(cfg *config.Config, req ECalcRequest) (result VirtualDesktopEx
 		return ecalcCalculate(cat, req, budget)
 	case "table":
 		return ecalcTable(cat, req, budget)
+	case "pinout":
+		return ecalcPinout(cat, req, budget)
 	case "decode":
 		return ecalcDecodeCode(cat, req)
 	case "encode":
@@ -84,7 +95,7 @@ func ExecuteECalc(cfg *config.Config, req ECalcRequest) (result VirtualDesktopEx
 	case "open":
 		return ecalcOpen(cfg, cat, req)
 	default:
-		return ecalcFailure("error", "invalid_operation", "operation must be search, describe, calculate, table, decode, encode or open.")
+		return ecalcFailure("error", "invalid_operation", "operation must be search, describe, calculate, table, pinout, decode, encode or open.")
 	}
 }
 
@@ -181,7 +192,7 @@ func ecalcSearch(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDeskto
 	if query == "" {
 		return ecalcResult(ecalcSearchOut{
 			Status: "ok", Operation: "search", Total: cat.ItemCount(), Categories: cat.Overview(),
-			Note: "Give a query (a topic, part, formula or category name, in English or German) to list calculators, tables and codes; the categories are above.",
+			Note: "Give a query (a topic, part, formula or category name, in English or German) to list calculators, tables, codes and pinouts; the categories are above.",
 		}, nil)
 	}
 	all := cat.SearchAll(query)
@@ -198,7 +209,7 @@ func ecalcSearch(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDeskto
 		out.Results = all
 	}
 	if len(all) == 0 {
-		out.Note = "No calculator, table or code matches. Try other words, an English or German term, or a category name; an empty query lists the categories."
+		out.Note = "No calculator, table, code or pinout matches. Try other words, an English or German term, or a category name; an empty query lists the categories."
 	}
 	// One step per result: each drops the last hit until the answer fits.
 	cut := func() {
@@ -234,6 +245,8 @@ func ecalcDescribe(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesk
 		return ecalcDescribeTable(cat, id, budget)
 	case "code":
 		return ecalcDescribeCode(cat, id)
+	case "pinout":
+		return ecalcDescribePinout(cat, id, budget)
 	}
 	d, err := cat.Describe(id)
 	if err != nil {
@@ -468,6 +481,106 @@ func ecalcTable(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesktop
 	return ecalcFit(budget, build, steps...)
 }
 
+// ---- pinouts --------------------------------------------------------------------------------------------------
+
+type ecalcDescribePinoutOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.PinoutDescription
+	Truncated bool `json:"truncated,omitempty"`
+}
+
+// ecalcDescribePinout answers what a pinout is, without its pins. A long description loses its optional text first (the
+// texts are clipped, then the per-variant counts, then the texts go), the view last.
+func ecalcDescribePinout(cat *ecalc.Catalog, id string, budget int) VirtualDesktopExecution {
+	d, err := cat.DescribePinout(id)
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	out := ecalcDescribePinoutOut{Status: "ok", Operation: "describe", PinoutDescription: d}
+	return ecalcFit(budget, func() any { return out },
+		func() { out.Doc, out.Notes, out.Truncated = ecalcClip(out.Doc, 240), ecalcClip(out.Notes, 240), true },
+		func() { out.Source = ecalcClip(out.Source, 120) },
+		func() {
+			variants := make([]ecalc.PinoutVariantInfo, len(out.Variants))
+			copy(variants, out.Variants)
+			for i := range variants {
+				variants[i].Counts = nil
+			}
+			out.Variants = variants
+		},
+		func() { out.Doc, out.Notes, out.Source = "", "", "" },
+		func() { out.View = "" },
+	)
+}
+
+type ecalcPinoutOut struct {
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	ecalc.PinoutResult
+}
+
+// ecalcPinout answers the pins of a pinout. When the answer is over the budget it shortens the notes first (the clipped
+// notes and source, the notes of the pins, the notes of the pinout), then lists fewer pins (the answer says where to
+// continue), then leaves out the source and, as the last resort for a budget that ExecuteECalc can really hand over (from
+// ecalcMinBudget), the listed pins themselves. A page of pins is shortened, never refused for its size.
+func ecalcPinout(cat *ecalc.Catalog, req ECalcRequest, budget int) VirtualDesktopExecution {
+	res, err := cat.QueryPinout(req.ID, ecalc.PinoutRequest{Pin: req.Pin, Variant: req.Variant, Filter: req.Filter, Offset: req.Offset, Limit: req.Limit})
+	if err != nil {
+		return ecalcQueryFailure(err)
+	}
+	out := ecalcPinoutOut{Status: "ok", Operation: "pinout", PinoutResult: res}
+	note, shortened, advice := res.Note, []string{}, ""
+	build := func() any {
+		out.Note = note
+		if len(shortened) > 0 {
+			out.Note = strings.TrimSpace(note + " Shortened to fit the output limit: " + strings.Join(shortened, ", ") + "." + advice)
+		}
+		return out
+	}
+	steps := []func(){
+		func() {
+			out.Notes, out.Source, shortened = ecalcClip(out.Notes, 160), ecalcClip(out.Source, 120), append(shortened, "notes and source clipped")
+		},
+		func() {
+			pins := make([]ecalc.PinAnswer, len(out.Pins))
+			copy(pins, out.Pins)
+			dropped := false
+			for i := range pins {
+				dropped = dropped || pins[i].Notes != ""
+				pins[i].Notes = ""
+			}
+			out.Pins = pins
+			if dropped {
+				shortened = append(shortened, "pin notes left out")
+			}
+		},
+		func() {
+			if out.Notes != "" {
+				out.Notes, shortened = "", append(shortened, "pinout notes left out")
+			}
+		},
+	}
+	for range len(out.Pins) {
+		steps = append(steps, func() {
+			if n := len(out.Pins); n > 1 {
+				out.Keep(n - 1)
+			}
+		})
+	}
+	steps = append(steps, func() { out.Source, shortened = "", append(shortened, "source left out") })
+	if budget >= ecalcMinBudget {
+		steps = append(steps, func() {
+			if len(out.Pins) > 0 {
+				out.Keep(0)
+				shortened = append(shortened, "pins left out")
+				advice = " No pin fits the output limit: name one with pin."
+			}
+		})
+	}
+	return ecalcFit(budget, build, steps...)
+}
+
 // ---- codes ----------------------------------------------------------------------------------------------------
 
 type ecalcDescribeCodeOut struct {
@@ -581,7 +694,7 @@ func ecalcOpen(cfg *config.Config, cat *ecalc.Catalog, req ECalcRequest) Virtual
 	}, event)
 }
 
-// ecalcOpenItem opens the page of a table or a code. Only calculators take values and choices; the page of anything else
+// ecalcOpenItem opens the page of a table, a code or a pinout. Only calculators take values and choices; the page of anything else
 // opens as it is.
 func ecalcOpenItem(kind, id string, req ECalcRequest, cat *ecalc.Catalog) VirtualDesktopExecution {
 	if len(req.Inputs) > 0 || len(req.Choices) > 0 {
@@ -593,6 +706,8 @@ func ecalcOpenItem(kind, id string, req ECalcRequest, cat *ecalc.Catalog) Virtua
 		name, advice = cat.Table(id).Name["en"], " Use table to read its rows yourself."
 	case "code":
 		name, advice = cat.Code(id).Name["en"], " Use decode and encode to work with the code yourself."
+	case "pinout":
+		name, advice = cat.Pinout(id).Name["en"], " Use pinout to read its pins yourself."
 	}
 	launch := map[string]interface{}{"page": id, "values": ecalcOrdered(nil), "choices": ecalcOrdered(nil)}
 	event := virtualDesktopEvent("open_app", map[string]interface{}{"app_id": "ecalc", "ecalc": launch})

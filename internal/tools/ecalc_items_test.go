@@ -22,14 +22,16 @@ func TestECalcSearchAndDescribeCoverTablesAndCodes(t *testing.T) {
 	// An empty query counts every item and lists the categories that hold items, the tables among them.
 	out := ecalcDecode(t, ExecuteECalc(nil, ECalcRequest{Operation: "search"}))
 	cats, _ := out["categories"].([]any)
-	found := false
+	found, pinouts := false, false
 	for _, c := range cats {
 		found = found || c.(map[string]any)["id"] == "tables"
-		if c.(map[string]any)["id"] == "pinouts" {
-			t.Errorf("the empty pinouts must not be listed: %v", cats)
-		}
+		pinouts = pinouts || c.(map[string]any)["id"] == "pinouts"
 	}
-	if out["total"] != float64(cat.ItemCount()) || !found || !strings.Contains(out["note"].(string), "calculators, tables and codes") {
+	// The category of the pinouts is listed when the catalog has pinouts, and only then.
+	if pinouts != (len(cat.Pinouts) > 0) {
+		t.Errorf("the pinouts category is listed: %v, the catalog has %d pinouts: %v", pinouts, len(cat.Pinouts), cats)
+	}
+	if out["total"] != float64(cat.ItemCount()) || !found || !strings.Contains(out["note"].(string), "calculators, tables, codes and pinouts") {
 		t.Fatalf("output = %v", out)
 	}
 	// A table is found by its id and says what it is.
