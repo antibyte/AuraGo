@@ -307,6 +307,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### HTTP trust and shutdown boundaries
 
+- The shared loopback listener may be exposed by cloudflared. Only a valid
+  loopback process token can override Homepage-only routing; the presence of
+  internal headers never grants routing authority. Verify `TestLoopbackTargetRequiresProcessToken`.
+
 - Desktop agent chat, its stream and log APIs require administrative Desktop access. Log tail/search/stream/download scrub registered secrets and credential fields. Passive media proxies reject active HTML/SVG/XML; every inline Knowledge document uses sandbox CSP. Garage HTTP and WebSocket proxies remove local cookies and authorization headers before forwarding.
 - Logout is same-origin POST and persistently revokes the presented session until expiry. Nonce-bearing sessions remain independent; revocation persistence failure does not report success. Login combines bounded per-IP state with account verification concurrency/backoff rather than letting one attacker globally lock the owner out.
 - `POST /api/tokens` accepts only scopes that some `TokenManager.Validate` call checks (`knownTokenScopes` in `token_scopes.go`, plus the desktop remote device/tag prefixes with a non-empty suffix that has no surrounding whitespace), refuses `cyd` combined with anything and refuses the CYD Creator device scope `cyd_creator_device` (minted per flashed board by CYD Creator, never stored in `tokens.json`; "CYD Creator" below). Add a scope there when a handler starts checking it; the allowlist is creation-time only, so stored tokens keep validating. Verify `TestCreateTokenValidatesScopes`.

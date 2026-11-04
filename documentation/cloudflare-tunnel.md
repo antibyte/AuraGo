@@ -44,6 +44,10 @@ if the second route should use AuraGo's optional loopback listener. Inside a
 container, localhost means that container or its shared network namespace; native
 host networking and Docker Desktop have different reachability requirements.
 
+The loopback target follows the saved exposure flags. Homepage-only exposure
+does not expose AuraGo login or API routes through caller-supplied internal
+headers. Only authenticated process self-calls may override that target.
+
 ## Lifecycle and status
 
 Running verified token/named Docker containers survive an AuraGo crash under

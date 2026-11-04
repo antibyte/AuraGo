@@ -937,8 +937,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Dedicated loopback HTTP port:
 	// When HTTPS is active, open a plain HTTP listener on 127.0.0.1 only for
 	// internal self-calls. If cloudflare_tunnel.loopback_port is set, cloudflared
-	// can use the same listener to avoid local TLS verification. The loopback
-	// interface ensures this port is never reachable from the network.
+	// can use the same listener to avoid local TLS verification. A tunnel can
+	// expose this local socket, so only the process token identifies self-calls.
 	s.CfgMu.RLock()
 	loopbackPort := DedicatedInternalLoopbackPort(s.Cfg)
 	s.CfgMu.RUnlock()
@@ -960,21 +960,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			req.Header.Set("X-Forwarded-Host", req.Host)
 		},
 	}
-	s.loopbackHandler = trustedProxyMiddleware(s, previewHostMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.CfgMu.RLock()
-		exposeHomepage := s.Cfg.CloudflareTunnel.ExposeHomepage
-		exposeWebUI := s.Cfg.CloudflareTunnel.ExposeWebUI
-		s.CfgMu.RUnlock()
-		if r.Header.Get("X-Internal-Token") != "" || r.Header.Get("X-Internal-FollowUp") != "" {
-			webUILoopbackHandler.ServeHTTP(w, r)
-			return
-		}
-		if exposeHomepage && !exposeWebUI {
-			homepageProxy.ServeHTTP(w, r)
-		} else {
-			webUILoopbackHandler.ServeHTTP(w, r)
-		}
-	})))
+	s.loopbackHandler = trustedProxyMiddleware(s, previewHostMiddleware(s, s.loopbackTargetHandler(homepageProxy, webUILoopbackHandler)))
 	if loopbackPort > 0 {
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
