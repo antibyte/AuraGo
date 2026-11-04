@@ -297,16 +297,22 @@ func TestDesktopECalcPinoutsBrowser(t *testing.T) {
 	if !linked("hover", "3") {
 		t.Fatal("hovering the contact of pin 3 must highlight its row and nothing else")
 	}
+	same("a hovered contact shows its details", eval(`()=>document.querySelector('.ec-pin-detail-num')?.textContent||''`), "3")
 	page.MustElement(`tr[data-pin="5"] .ec-pin-cell-name`).MustHover()
 	if !linked("hover", "5") {
 		t.Fatal("hovering the row of pin 5 must highlight its contact and nothing else")
 	}
+	same("a hovered row leaves the panel alone: its height would move the rows under the pointer", eval(`()=>document.querySelector('.ec-pin-detail-num')?.textContent||''`), "")
 	page.MustElement(`g.ec-pin[data-pin="4"] .ec-pin-body`).MustClick()
 	if !linked("selected", "4") {
 		t.Fatal("clicking the contact of pin 4 must select its row")
 	}
 	same("the detail panel names the pin", eval(`()=>document.querySelector('.ec-pin-detail-num').textContent+'|'+document.querySelector('.ec-pin-detail-name').textContent`), "4|"+eval(`()=>document.querySelector('tr[data-pin="4"] .ec-pin-cell-name').textContent`))
 	same("the detail panel is a polite live region", eval(`()=>document.querySelector('.ec-pin-detail').getAttribute('aria-live')`), "polite")
+	page.MustElement(`g.ec-pin[data-pin="3"] .ec-pin-body`).MustHover()
+	same("a hovered contact goes before the selected pin", eval(`()=>document.querySelector('.ec-pin-detail-num')?.textContent||''`), "3")
+	page.MustElement(`tr[data-pin="5"] .ec-pin-cell-name`).MustHover()
+	same("the selected pin comes back when the pointer leaves the contact", eval(`()=>document.querySelector('.ec-pin-detail-num')?.textContent||''`), "4")
 	// The keyboard path: the button in the first cell of a row.
 	page.MustElement(`tr[data-pin="7"] .ec-pin-rowbtn`).MustFocus()
 	page.Keyboard.MustType(input.Enter)

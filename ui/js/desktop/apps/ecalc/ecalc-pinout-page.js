@@ -4,7 +4,8 @@
    (aria-live="polite") and the pin table: number, name, function, type chip, wire swatch (the column is hidden when no pin of
    the variant has a wire) and notes. The table stands beside the drawing when the page is wide and under it when it is narrow.
    A pin is found from both sides: hovering a contact or a row highlights both, a click selects (the row of the selected pin is
-   scrolled into view inside the table area, never the page). The drawing is pointer-only (role="img", aria-hidden pins); the
+   scrolled into view inside the table area, never the page). A hovered contact shows its details in the panel; a hovered row
+   does not, because its cells say the same and the height of the panel would move the rows under the pointer. The drawing is pointer-only (role="img", aria-hidden pins); the
    keyboard path is the button in the first cell of every row. The filter box matches number, name, function, type name, wire
    name and notes, dims the other contacts and hides the other rows. The variant and the view are remembered per item
    (store.saveCalc(item.id, {choices: {variant, view}})).
@@ -36,7 +37,7 @@
         const st = {
             variant: variants.some(v => v.id === saved.variant) ? saved.variant : (variants[0] ? variants[0].id : ''),
             view: twoViews && (saved.view === 'plug' || saved.view === 'socket') ? saved.view : (shape.drawn === 'socket' ? 'socket' : 'plug'),
-            selected: '', hover: '', query: ''
+            selected: '', hover: '', peek: '', query: ''
         };
         let copyTimer = 0;
         const pinsNow = () => {
@@ -136,7 +137,8 @@
         }
 
         function renderDetail() {
-            const pin = pinsNow().find(entry => entry.number === st.selected);
+            const pins = pinsNow();
+            const pin = (st.peek && pins.find(entry => entry.number === st.peek)) || pins.find(entry => entry.number === st.selected);
             if (!pin) { detailEl.innerHTML = '<p class="ec-pin-hint">' + esc(t('desktop.ecalc_pin_pick')) + '</p>'; return; }
             detailEl.innerHTML = '<div class="ec-pin-detail-head" data-type="' + esc(pin.type) + '"><span class="ec-pin-detail-num">' + esc(pin.number) + '</span><strong class="ec-pin-detail-name">' + esc(pin.name) + '</strong></div>'
                 + '<dl class="ec-pin-detail-rows"><dt>' + esc(t('desktop.ecalc_pin_function')) + '</dt><dd>' + esc(pin.function) + '</dd>'
@@ -185,6 +187,11 @@
             st.hover = number;
             paintMarks();
         }
+        function peek(number) {
+            if (st.peek === number) return;
+            st.peek = number;
+            renderDetail();
+        }
 
         // ---- copy ------------------------------------------------------------------------------------------------
         function plainText() {
@@ -214,9 +221,14 @@
         // ---- events ----------------------------------------------------------------------------------------------
         el.addEventListener('pointerover', event => {
             const target = event.target.closest ? event.target.closest('g.ec-pin, tr[data-pin]') : null;
-            hover(target && el.contains(target) ? (target.getAttribute('data-pin') || '') : '');
+            const number = target && el.contains(target) ? (target.getAttribute('data-pin') || '') : '';
+            hover(number);
+            peek(number && target.matches('g.ec-pin') ? number : '');
         });
-        el.addEventListener('pointerleave', () => hover(''));
+        el.addEventListener('pointerleave', () => {
+            hover('');
+            peek('');
+        });
         el.addEventListener('change', event => {
             const input = event.target;
             if (!input || input.type !== 'radio') return;
