@@ -183,7 +183,6 @@ func TestValidateNames(t *testing.T) {
 		// The phase 1 support matrix.
 		{"transition not played yet", `{"id":"s1","transition":"slide-right"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
 		{"transition zoom", `{"id":"s1","transition":"zoom"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
-		{"sfx beat", `{"id":"s1","beats":[{"do":"sfx","sound":"sfx.pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"chart beat", `{"id":"s1","beats":[{"do":"chart","chart":"bar","data":{"labels":["a"],"values":[1]},"at":"right"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"show with icon", `{"id":"s1","beats":[{"do":"show","icon":"warning","at":"center","entry":"pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 	}
@@ -374,7 +373,7 @@ func TestValidateStoryLevel(t *testing.T) {
 			}
 		})
 	}
-	// Valid voice ids and a music setting that is only a note.
+	// Valid voice ids and a generated music setting without any note.
 	s := base()
 	s.Voice = &Voice{Provider: "piper", Voice: "de_DE-thorsten-high", Language: "de"}
 	s.Music = &Music{Mode: "generated", Mood: "upbeat-corporate"}
@@ -382,7 +381,9 @@ func TestValidateStoryLevel(t *testing.T) {
 	if HasErrors(issues) {
 		t.Fatalf("errors:%s", dump(issues))
 	}
-	expectIssue(t, issues, CodeNotSupportedYet, SeverityMinor, "/music")
+	if is := findIssue(issues, CodeNotSupportedYet, SeverityMinor, "/music"); is != nil {
+		t.Fatalf("music is still a note: %+v", is)
+	}
 }
 
 func TestValidateStyleRhythm(t *testing.T) {

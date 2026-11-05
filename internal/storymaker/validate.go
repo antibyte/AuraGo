@@ -292,6 +292,8 @@ func (v *validator) music() {
 		switch {
 		case m.File == "" && m.Track == "":
 			v.errorf(CodeMissingField, "/music/file", `The music mode "file" needs a file or a track.`, `Add "file": "Documents/Music/theme.mp3".`)
+		case m.File != "" && m.Track != "":
+			v.errorf(CodeInvalidValue, "/music/track", `The music mode "file" takes a file or a track, not both.`, `Remove "track" or "file".`)
 		case m.File != "":
 			if why := badDesktopPath(m.File); why != "" {
 				v.errorf(CodeInvalidValue, "/music/file", fmt.Sprintf("The music file %q is not a desktop path: %s.", clip(m.File, 60), why),
@@ -299,8 +301,17 @@ func (v *validator) music() {
 			}
 		}
 	}
-	if m.Mode != "none" {
-		v.notYet("/music", "Background music is accepted but not played yet.")
+	if m.Track != "" && !validMusicTrack(m.Track) {
+		v.errorf(CodeInvalidValue, "/music/track", fmt.Sprintf("The music track %q is not a media id.", clip(m.Track, 40)),
+			`Use the decimal id of a generated track, for example "track": "42".`)
+	}
+	if m.Mood != "" && !containsName(MusicMoods, m.Mood) {
+		alts := closestNames(m.Mood, MusicMoods, 5)
+		v.errorf(CodeInvalidValue, "/music/mood", fmt.Sprintf("The music mood %q is not known.", clip(m.Mood, 40)),
+			"Use one of: "+listOf(alts)+". Example: "+exampleJSON("mood", alts[0]))
+	}
+	if m.Mode == "generated" && m.Mood == "" && m.Prompt == "" {
+		v.errorf(CodeMissingField, "/music/mood", `The music mode "generated" needs a mood or a prompt.`, `Add "mood": "upbeat-corporate".`)
 	}
 }
 
