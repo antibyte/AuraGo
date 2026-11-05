@@ -311,8 +311,8 @@
         return e.message ? base + ' ' + e.message : base;
     }
 
-    // The job error codes of the spec (Error handling) that a phase 1 render can end with.
-    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error'];
+    // The job error codes of the spec (Error handling) that a render or a narrate job can end with.
+    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error', 'narration_failed', 'narration_unavailable', 'voice_required', 'budget_exceeded'];
 
     function describeJobError(t, error) {
         const code = error && typeof error.code === 'string' ? error.code : '';
@@ -320,7 +320,7 @@
         return t('storymaker.job_error.unknown');
     }
 
-    const ISSUE_CODES = ['invalid_json', 'unknown_field', 'schema_mismatch', 'too_large', 'limit_exceeded', 'missing_field', 'invalid_value', 'duplicate_id', 'unknown_name', 'unknown_asset', 'unknown_spot', 'unknown_cast', 'unknown_cue', 'canonicalised', 'not_supported_yet', 'narration_missing', 'code_error', 'deadline', 'layout_unverified', 'line_unread', 'dead_stretch', 'first_frame_empty', 'text_too_small', 'fade_between_worlds', 'entry_monotony', 'transition_variety', 'cue_late'];
+    const ISSUE_CODES = ['invalid_json', 'unknown_field', 'schema_mismatch', 'too_large', 'limit_exceeded', 'missing_field', 'invalid_value', 'duplicate_id', 'unknown_name', 'unknown_asset', 'unknown_spot', 'unknown_cast', 'unknown_cue', 'canonicalised', 'not_supported_yet', 'narration_missing', 'code_error', 'deadline', 'layout_unverified', 'line_unread', 'dead_stretch', 'first_frame_empty', 'text_too_small', 'fade_between_worlds', 'entry_monotony', 'transition_variety', 'cue_late', 'glyph_missing'];
 
     function issueTitle(t, code) {
         if (ISSUE_CODES.indexOf(code) >= 0) return t('storymaker.issue.' + code);

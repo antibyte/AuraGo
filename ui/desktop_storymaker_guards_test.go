@@ -157,10 +157,17 @@ func TestStorymakerAppUsesOnlyKeysItHas(t *testing.T) {
 		"storymaker.export.phase_":  storymakerList(t, exporter, "PHASES"),
 		"storymaker.export.source_": {"config", "system", "pinned"},
 	}
-	// The list of issue codes is the contract's: twenty-seven codes, no more, no less.
-	want := strings.Fields("invalid_json unknown_field schema_mismatch too_large limit_exceeded missing_field invalid_value duplicate_id unknown_name unknown_asset unknown_spot unknown_cast unknown_cue canonicalised not_supported_yet narration_missing code_error deadline layout_unverified line_unread dead_stretch first_frame_empty text_too_small fade_between_worlds entry_monotony transition_variety cue_late")
+	// The list of issue codes is the contract's: twenty-eight codes, no more, no less.
+	want := strings.Fields("invalid_json unknown_field schema_mismatch too_large limit_exceeded missing_field invalid_value duplicate_id unknown_name unknown_asset unknown_spot unknown_cast unknown_cue canonicalised not_supported_yet narration_missing code_error deadline layout_unverified line_unread dead_stretch first_frame_empty text_too_small fade_between_worlds entry_monotony transition_variety cue_late glyph_missing")
 	if strings.Join(families["storymaker.issue."], " ") != strings.Join(want, " ") {
-		t.Errorf("ISSUE_CODES = %v, want the 27 codes of the contract", families["storymaker.issue."])
+		t.Errorf("ISSUE_CODES = %v, want the 28 codes of the contract", families["storymaker.issue."])
+	}
+	// A narrate job ends with these codes, so the app needs a sentence for each. Batch 2C adds more, so this is no exact list.
+	jobCodes := " " + strings.Join(families["storymaker.job_error."], " ") + " "
+	for _, code := range strings.Fields("narration_failed narration_unavailable voice_required budget_exceeded") {
+		if !strings.Contains(jobCodes, " "+code+" ") {
+			t.Errorf("JOB_ERROR_CODES = %v lacks %s", families["storymaker.job_error."], code)
+		}
 	}
 	for prefix, names := range families {
 		if len(names) == 0 {
