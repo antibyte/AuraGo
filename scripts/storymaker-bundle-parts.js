@@ -20,6 +20,7 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/stage.js',
   'ui/js/storymaker/parts.js',
   'ui/js/storymaker/rig.js',
+  'ui/js/storymaker/glyphs.js',
   'ui/js/storymaker/text.js',
   'ui/js/storymaker/camera.js',
   'ui/js/storymaker/scene.js',

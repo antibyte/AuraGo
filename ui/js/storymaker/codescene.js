@@ -258,6 +258,8 @@
                 ctx.textAlign = o.align === 'left' || o.align === 'right' ? o.align : 'center';
                 ctx.textBaseline = 'middle';
                 if (o.color) ctx.fillStyle = resolve(String(o.color));
+                // Set per call, so the direction never depends on what an earlier draw left on the canvas.
+                ctx.direction = SM.ranges.dirOf(String(str));
                 ctx.fillText(String(str), num(x, 'x'), num(y, 'y'));
             }
         };

@@ -147,3 +147,46 @@ check('camera: framings, zoom and pan tweens, shake bursts decay and never leave
     const stage = SM.stage.create({ aspect: '16:9' }), win = stage.cameraWindow(SM.camera.at(cam, 2.5));
     near(win.w, 960, 1e-9); near(win.x, 1200 - 480, 1e-9); near(win.y, 600 - 270, 1e-9);
 });
+
+check('text flow (D26): family lists, code points, kinsoku, CJK wrap, trim set, direction before measuring', () => {
+    const cp = (...codes) => String.fromCodePoint(...codes);
+    const ell = cp(0x2026), perPoint = s => [...s].length * 10;   // 10 px per code point
+
+    assert.equal(SM.text.fontString(700, 76, ['SMGreek', 'Geist', 'SMCJK']), '700 76px "SMGreek", "Geist", "SMCJK", sans-serif');
+    assert.equal(SM.text.fontString(700, 76, 'Storymaker Default'), '700 76px "Storymaker Default", sans-serif');
+
+    // 25 px fits two code points, so five emoji give 2, 2, 1. An emoji is two UTF-16 units and never splits.
+    const pair = cp(0x1F600);
+    assert.deepEqual(plain(SM.text.breakWord(perPoint, pair.repeat(5), 25)), [pair + pair, pair + pair, pair]);
+
+    // 15 px fits one code point, but ka, virama and ssa stay one cluster: no break before a mark or after U+094D.
+    const cluster = cp(0x0915, 0x094D, 0x0937), ka = cp(0x0915);
+    assert.deepEqual(plain(SM.text.breakWord(perPoint, cluster + ka, 15)), [cluster, ka]);
+
+    // 40 px fits four. U+3002 may not start a line, so the character before it moves down with it.
+    const han = cp(0x6F22), zi = cp(0x5B57), dot = cp(0x3002), open = cp(0x300C);
+    assert.deepEqual(plain(SM.text.wrap(perPoint, han + zi + han + zi + dot + han + zi, 40, 5).lines), [han + zi + han, zi + dot + han + zi]);
+    // U+300C may not end a line, so it moves down with the character after it.
+    assert.deepEqual(plain(SM.text.wrap(perPoint, han + zi + han + open + zi, 40, 5).lines), [han + zi + han, open + zi]);
+    // balance adds no space where a CJK line break had none. 40 px is the narrowest width that keeps two lines, so 5 + 3 becomes 4 + 4.
+    assert.deepEqual(plain(SM.text.balance(perPoint, [han + zi + han + zi + han, zi + han + zi], 50, 2)), [han + zi + han + zi, han + zi + han + zi]);
+
+    // 25 px fits five units. The first line is aaa, U+FF0C, b. The cut reaches the comma, and the trim set drops it.
+    assert.equal(SM.text.wrap(s => s.length * 5, 'aaa' + cp(0xFF0C) + 'bbbbbb cc', 25, 1).lines[0], 'aaa' + ell);
+    // Three lines of two emoji, one kept. 25 px fits one emoji and the ellipsis, and the cut drops whole pairs.
+    assert.equal(SM.text.wrap(perPoint, pair.repeat(6), 25, 1).lines[0], pair + ell);
+
+    const seen = [];
+    const ctx = makeContext(null, { measure: s => { seen.push(ctx.direction); return String(s).length * 10; } });
+    const style = t.byId('text.title'), opts = { canvasH: 1080, maxWidth: 900, family: 'Storymaker Default' };
+    const arabic = SM.text.layout(ctx, cp(0x0645, 0x0631, 0x062D, 0x0628, 0x0627), style, opts);
+    assert.equal(arabic.dir, 'rtl');
+    assert.ok(seen.length > 0 && seen.every(d => d === 'rtl'), 'the direction is set before the first measure');
+    seen.length = 0;
+    const latin = SM.text.layout(ctx, 'Hello', style, opts);
+    assert.equal(latin.dir, 'ltr');
+    assert.ok(seen.length > 0 && seen.every(d => d === 'ltr'), 'the previous text leaves no direction behind');
+    ctx.log.length = 0;
+    SM.text.draw(ctx, arabic, style, 100, 100, () => '#000000', 1);
+    assert.ok(ctx.log.includes('set direction=rtl'), 'draw sets the direction of its layout');
+});

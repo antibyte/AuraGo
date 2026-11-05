@@ -1069,6 +1069,95 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
+/* ui/js/storymaker/glyphs.js */
+// Storymaker player: glyph coverage in JS, read from the catalog's coverage file (catalog.glyph_data, schema
+// storymaker-glyphs/1). It answers which fallback face draws a code point, which faces a text needs, the family chain for
+// ctx.font and the faces a code scene gets for its language. Only the tables of SM.ranges decide, never ICU. Classic script;
+// publishes StorymakerCore.glyphs.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+
+    var LANGUAGE_FACES = { el: ['sm-greek', 'sm-greek-ext'], hi: ['sm-deva'], ar: ['sm-arab'], zh: ['sm-cjk'], ja: ['sm-cjk'] };
+
+    // decode(d): d is [start0, len0, gap1, len1, ...] with gap = start - previous end and len = end - start. The result is the
+    // flat list [start0, end0, start1, end1, ...]. An end is inclusive.
+    function decode(d) {
+        var out = [], prev = 0;
+        for (var i = 0; i + 1 < d.length; i += 2) {
+            var start = prev + d[i], end = start + d[i + 1];
+            out.push(start, end);
+            prev = end;
+        }
+        return out;
+    }
+
+    function covers(ranges, cp) {
+        var lo = 0, hi = ranges.length / 2 - 1;
+        while (lo <= hi) {
+            var mid = (lo + hi) >> 1;
+            if (cp < ranges[mid * 2]) hi = mid - 1;
+            else if (cp > ranges[mid * 2 + 1]) lo = mid + 1;
+            else return true;
+        }
+        return false;
+    }
+
+    // index(glyphData) = {faces, ranges}, in fallback order, or null without glyph data.
+    function index(glyphData) {
+        if (!glyphData || !Array.isArray(glyphData.faces)) return null;
+        return {
+            faces: glyphData.faces,
+            ranges: glyphData.faces.map(function (face) { return decode(face && Array.isArray(face.d) ? face.d : []); })
+        };
+    }
+
+    // faceOf(idx, cp) = the index of the first covering face, -1 when none.
+    function faceOf(idx, cp) {
+        if (!idx) return -1;
+        for (var i = 0; i < idx.ranges.length; i++) if (covers(idx.ranges[i], cp)) return i;
+        return -1;
+    }
+
+    // needsFor(idx, text) = the faces a text draws from, each once. Marks add no need, because compile may not normalize.
+    function needsFor(idx, text) {
+        var out = [], R = SM.ranges, s = String(text === undefined || text === null ? '' : text);
+        if (!idx) return out;
+        for (var i = 0; i < s.length;) {
+            var cp = s.codePointAt(i);
+            i += cp > 0xFFFF ? 2 : 1;
+            if (R.isDefaultIgnorable(cp) || R.isMark(cp) || R.isSpace(cp)) continue;
+            var at = faceOf(idx, cp);
+            if (at >= 0 && out.indexOf(idx.faces[at]) < 0) out.push(idx.faces[at]);
+        }
+        return out;
+    }
+
+    // chain(idx, styleFamily) = the family list for ctx.font, with the style family in the place of Geist.
+    function chain(idx, styleFamily) {
+        var out = [];
+        if (!idx) return out;
+        idx.faces.forEach(function (face) {
+            var family = face.family === 'Geist' ? styleFamily : face.family;
+            if (out.indexOf(family) < 0) out.push(family);
+        });
+        return out;
+    }
+
+    // facesForLanguage(idx, lang): the same base rule as Go's LanguageBase, because the validator accepts any language string.
+    function facesForLanguage(idx, lang) {
+        if (!idx) return [];
+        var base = String(lang === undefined || lang === null ? '' : lang).toLowerCase().split(/[-_]/)[0];
+        var wanted = Object.prototype.hasOwnProperty.call(LANGUAGE_FACES, base) ? LANGUAGE_FACES[base] : [];
+        return idx.faces.filter(function (face) { return wanted.indexOf(face.id) >= 0; });
+    }
+
+    function key(face) { return 'font:' + face.id + '/400'; }
+
+    SM.glyphs = { index: index, faceOf: faceOf, needsFor: needsFor, chain: chain, facesForLanguage: facesForLanguage, key: key };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
 /* ui/js/storymaker/text.js */
 // Storymaker player: text. Text styles come from the catalog (font, size as a fraction of the canvas height, weight,
 // colour, optional box, alignment, max_lines). Wrapping measures the real font through measureText and ends an
@@ -1080,27 +1169,70 @@
 
     var ELLIPSIS = String.fromCharCode(0x2026);
     var LINE_HEIGHT = 1.22;
+    // Trimmed before an ellipsis, besides ASCII punctuation: Arabic and CJK punctuation and the ellipsis itself.
+    var TRIM_CODES = [0x060C, 0x061B, 0x061F, 0x06D4, 0x2026, 0x3001, 0x3002, 0xFF01, 0xFF0C, 0xFF1A, 0xFF1B, 0xFF1F];
     var SHRINK_STEP = 0.94, SHRINK_FLOOR = 0.45, FONT_FLOOR = 0.026, BALANCE_STEPS = 8, MEMO_LIMIT = 512;
     var memo = Object.create(null), memoSize = 0;
 
     function fontString(weight, px, family) {
-        return String(weight || 400) + ' ' + px + 'px "' + String(family || 'sans-serif').replace(/"/g, '') + '", sans-serif';
+        // family is one name or a fallback list. Each name is quoted, and sans-serif comes last.
+        var names = (Array.isArray(family) ? family : [family]).filter(Boolean);
+        if (!names.length) names = ['sans-serif'];
+        var list = names.map(function (name) { return '"' + String(name).replace(/"/g, '') + '"'; }).join(', ');
+        return String(weight || 400) + ' ' + px + 'px ' + list + ', sans-serif';
+    }
+
+    function trimEnd(line) {
+        var end = line.length;
+        while (end > 0 && (TRIM_CODES.indexOf(line.charCodeAt(end - 1)) >= 0 || /[\s.,;:!?-]/.test(line.charAt(end - 1)))) end--;
+        return line.slice(0, end);
+    }
+
+    // dropLast(text): text without its last code point, so a surrogate pair never splits.
+    function dropLast(text) {
+        var cut = text.length - 1, low = text.charCodeAt(cut), high = text.charCodeAt(cut - 1);
+        if (low >= 0xDC00 && low <= 0xDFFF && high >= 0xD800 && high <= 0xDBFF) cut--;
+        return text.slice(0, cut);
     }
 
     function fitEllipsis(measure, line, maxWidth) {
-        var text = line.replace(/[\s.,;:!?-]+$/, '');
-        while (text.length > 0 && measure(text + ELLIPSIS) > maxWidth) text = text.slice(0, -1);
+        var text = trimEnd(line);
+        while (text.length > 0 && measure(text + ELLIPSIS) > maxWidth) text = trimEnd(dropLast(text));
         return text + ELLIPSIS;
     }
 
-    // breakWord(measure, word, maxWidth): splits a word that is wider than a line into pieces that fit.
+    // breakWord(measure, word, maxWidth): splits a word that is wider than a line into pieces that fit. It iterates code points
+    // and breaks only where SM.ranges.canBreakAfter allows, at the last allowed point before the line would overflow.
     function breakWord(measure, word, maxWidth) {
-        var pieces = [], current = '';
-        for (var i = 0; i < word.length; i++) {
-            if (current && measure(current + word[i]) > maxWidth) { pieces.push(current); current = word[i]; } else current += word[i];
+        var pieces = [], current = '', breakAt = 0, prev = -1;
+        for (var i = 0; i < word.length;) {
+            var cp = word.codePointAt(i), ch = String.fromCodePoint(cp);
+            i += ch.length;
+            if (current && SM.ranges.canBreakAfter(prev, cp)) breakAt = current.length;
+            if (breakAt > 0 && measure(current + ch) > maxWidth) {
+                pieces.push(current.slice(0, breakAt));
+                current = current.slice(breakAt);
+                breakAt = 0;
+            }
+            current += ch;
+            prev = cp;
         }
         if (current) pieces.push(current);
         return pieces;
+    }
+
+    // cjkParts(word): a token split at every SM.ranges.cjkBreak. A token without CJK stays whole.
+    function cjkParts(word) {
+        var parts = [], current = '', prev = -1;
+        for (var i = 0; i < word.length;) {
+            var cp = word.codePointAt(i), ch = String.fromCodePoint(cp);
+            i += ch.length;
+            if (current && SM.ranges.cjkBreak(prev, cp)) { parts.push(current); current = ''; }
+            current += ch;
+            prev = cp;
+        }
+        if (current) parts.push(current);
+        return parts;
     }
 
     // wrap(measure, text, maxWidth, maxLines) = {lines, truncated}. measure(str) returns the width at the target font.
@@ -1112,7 +1244,10 @@
             var words = paragraph.split(/\s+/).filter(Boolean), line = '';
             if (!words.length) { lines.push(''); return; }
             words.forEach(function (word) {
-                var parts = measure(word) > maxWidth ? breakWord(measure, word, maxWidth) : [word];
+                var parts = [];
+                cjkParts(word).forEach(function (piece) {
+                    (measure(piece) > maxWidth ? breakWord(measure, piece, maxWidth) : [piece]).forEach(function (p) { parts.push(p); });
+                });
                 parts.forEach(function (part, k) {
                     var joined = line && k === 0 ? line + ' ' + part : (line ? line + part : part);
                     if (!line || measure(joined) <= maxWidth) { line = joined; return; }
@@ -1128,12 +1263,23 @@
         return { lines: kept, truncated: true };
     }
 
+    // rejoin(lines): the lines as one text, with a space only where the break replaced one. A break at SM.ranges.cjkBreak had none.
+    // The lines cannot show a real space between two CJK characters at a break, so that space goes.
+    function rejoin(lines) {
+        return lines.reduce(function (text, line) {
+            var last = text.slice(dropLast(text).length).codePointAt(0);
+            return text + (SM.ranges.cjkBreak(last, line.codePointAt(0)) ? '' : ' ') + line;
+        });
+    }
+
     // balance(measure, lines, maxWidth, maxLines): the same text, re-wrapped at the narrowest width (by bisection) that does not
     // add a line. A word never breaks here, because the width stays at least as wide as the widest word.
     function balance(measure, lines, maxWidth, maxLines) {
         if (lines.length < 2) return lines;
-        var joined = lines.join(' '), best = lines, hi = maxWidth, lo = 0;
-        joined.split(' ').forEach(function (word) { var w = measure(word); if (w > lo) lo = w; });
+        var joined = rejoin(lines), best = lines, hi = maxWidth, lo = 0;
+        joined.split(' ').forEach(function (word) {
+            cjkParts(word).forEach(function (part) { var w = measure(part); if (w > lo) lo = w; });
+        });
         if (lo > maxWidth) return lines;
         for (var i = 0; i < BALANCE_STEPS; i++) {
             var mid = (lo + hi) / 2, tried = wrap(measure, joined, mid, maxLines);
@@ -1187,6 +1333,16 @@
         return (memo[key] = compute(ctx, text, style, opts));
     }
 
+    // layoutDir(ctx, text, style, opts): layout with the direction of the text, from its first strong character. Setting it first
+    // means canvas state never leaks from one text to the next, so workers cannot diverge. style.align stays physical for RTL.
+    function layoutDir(ctx, text, style, opts) {
+        var dir = SM.ranges.dirOf(String(text === undefined || text === null ? '' : text));
+        ctx.direction = dir;
+        var lay = layout(ctx, text, style, opts);
+        lay.dir = dir;
+        return lay;
+    }
+
     function roundRect(ctx, x, y, w, h, r) {
         var rr = Math.min(r, w / 2, h / 2);
         ctx.beginPath();
@@ -1206,6 +1362,7 @@
     // centre of the block, in canvas pixels.
     function draw(ctx, lay, style, x, y, resolve, alpha) {
         if (!(alpha > 0)) return;
+        ctx.direction = lay.dir || 'ltr';
         var align = style.align === 'left' || style.align === 'right' ? style.align : 'center';
         var left = align === 'left' ? x : (align === 'right' ? x - lay.width : x - lay.width / 2);
         ctx.globalAlpha = alpha > 1 ? 1 : alpha;
@@ -1233,7 +1390,7 @@
         return Math.max(full * 0.25, Math.min(full, w));
     }
 
-    SM.text = { fontString: fontString, wrap: wrap, balance: balance, layout: layout, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
+    SM.text = { fontString: fontString, wrap: wrap, balance: balance, breakWord: breakWord, layout: layoutDir, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -3107,6 +3264,8 @@
                 ctx.textAlign = o.align === 'left' || o.align === 'right' ? o.align : 'center';
                 ctx.textBaseline = 'middle';
                 if (o.color) ctx.fillStyle = resolve(String(o.color));
+                // Set per call, so the direction never depends on what an earlier draw left on the canvas.
+                ctx.direction = SM.ranges.dirOf(String(str));
                 ctx.fillText(String(str), num(x, 'x'), num(y, 'y'));
             }
         };

@@ -169,3 +169,17 @@ check('code scene bundle form: Node esbuild reproduces the golden bundle of part
     if (!fs.existsSync(path.join(root, golden))) return;   // part A's golden file has not landed in this tree yet
     assert.equal(t.s3Bundle, read(golden).replace(/\r\n/g, '\n'));
 });
+
+check('code scene frames (D26): each g.text sets the direction of its own text', () => {
+    const arabic = String.fromCodePoint(0x0645, 0x0631, 0x062D, 0x0628, 0x0627) + '!';
+    const { C, build } = runScene(`export default function scene(api) {
+      api.duration(1);
+      api.onFrame((t, g) => { g.text(${JSON.stringify(arabic)}, 100, 100); g.text('Hello!', 100, 200); });
+    }`, 'dirs');
+    const cv = new FakeCanvas(1920, 1080);
+    const tl = { aspect: '16:9', fps: 30, palette: { bg: '#fff', bg2: '#eee', accent: '#f00', text: '#000' }, cat: C.scene.indexCatalog(catalog), fontFamilies: { default: 'F' }, style: { font: 'default' }, safe: catalog.stage.safe };
+    const rc = C.render.makeContext(tl, { rig: files.rig, props: files.props, envs: files.envs }, 1920, 1080);
+    C.codescene.drawFrame(build(), 0, cv.ctx, rc);
+    const drawn = cv.ctx.log.filter(l => l.startsWith('set direction=') || l.startsWith('fillText('));
+    assert.deepEqual(drawn, ['set direction=rtl', 'fillText(' + arabic + ',100,100)', 'set direction=ltr', 'fillText(Hello!,100,200)']);
+});
