@@ -9,11 +9,6 @@ import (
 func TestBlockPinsProtectPublishedAndDraftRunDependencies(t *testing.T) {
 	ctx := context.Background()
 	s := openTestStore(t)
-	for _, stmt := range []string{blockVersionPinsSchema, blockRunPinsSchema, blockVersionPinsIndex, blockRunPinsIndex} {
-		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
-			t.Fatal(err)
-		}
-	}
 	child := blockTestDoc("flow_child")
 	parent := sampleFlow("flow_parent")
 	for _, doc := range []*Flow{child, parent} {
@@ -68,11 +63,6 @@ func TestBlockPinsProtectPublishedAndDraftRunDependencies(t *testing.T) {
 func TestBlockPinsRejectChangedOrMissingVersion(t *testing.T) {
 	ctx := context.Background()
 	s := openTestStore(t)
-	for _, stmt := range []string{blockVersionPinsSchema, blockRunPinsSchema, blockVersionPinsIndex, blockRunPinsIndex} {
-		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
-			t.Fatal(err)
-		}
-	}
 	child := blockTestDoc("flow_child")
 	if _, err := s.CreateFlow(ctx, child, "", storeNow); err != nil {
 		t.Fatal(err)

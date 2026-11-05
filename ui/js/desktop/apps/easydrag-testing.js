@@ -116,10 +116,11 @@
             el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + run.status, run.status);
             const failed = steps.find(step => step.status === 'error');
             const complete = steps.filter(step => step.status === 'success');
-            const preview = contentResult(ed, complete);
-            const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || n.type : step.node_key || step.node_id; };
+            const preview = ed.isBlock && run.outputs ? null : contentResult(ed, complete);
+            const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || (ed.model.info(n.type) || {}).label || n.type : step.node_key || step.node_id; };
             el.querySelector('.ed-run-results-body').innerHTML =
-                (simulation ? '<p class="ed-hint">' + esc(t('easydrag.ui.simulation_hint')) + '</p>' : '') +
+                (simulation ? '<p class="ed-hint">' + esc(t(ed.isBlock ? 'easydrag.ui.block_simulation_hint' : 'easydrag.ui.simulation_hint')) + '</p>' : '') +
+                (simulation && ed.isBlock && run.status === 'success' ? ED.blocks.outputMarkup(ed, run.outputs) : '') +
                 (failed ? '<section class="ed-run-diagnosis"><h3>' + esc(label(failed)) + '</h3><p>' + esc(core.stepErrorText(t, failed)) + '</p><p>' + esc(t('easydrag.ui.run_next_action')) + '</p>' + (!simulation ? '<h4>' + esc(t('easydrag.ui.run_completed_effects')) + '</h4><p>' + esc(complete.map(label).join(' · ') || '—') + '</p>' : '') + '</section>' : '') +
                 (preview ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview') + ' · ' + preview.label) + '</h4><p>' + esc(preview.text.slice(0, 1500)) + '</p></section>' : '') +
                 (simulation && run.record && run.record.assertions && run.record.assertions.length ? '<h4>' + esc(t('easydrag.ui.scenario_assertions')) + '</h4><ul class="ed-assertion-results">' + run.record.assertions.map(assertion => '<li><strong>' + esc(label(assertion)) + ' · ' + esc(t(assertion.passed ? 'easydrag.ui.scenario_assertion_passed' : 'easydrag.ui.scenario_assertion_failed')) + '</strong>' + (assertion.code ? '<p>' + esc(core.tr(t, 'easydrag.ui.assertion_' + assertion.code, assertion.code)) + '</p>' : '') + '</li>').join('') + '</ul>' : '') +

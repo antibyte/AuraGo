@@ -713,9 +713,10 @@
         const { t, esc } = env;
         const text = value === undefined ? '' : JSON.stringify(value, null, 2);
         const errorId = (id || 'ed-json-' + (++fieldCount)) + '-error';
-        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea>' +
+        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '></textarea>' +
             '<div class="ed-json-error" id="' + esc(errorId) + '" role="alert" hidden></div></div>');
         const area = el.querySelector('textarea');
+        area.value = text;
         const error = el.querySelector('.ed-json-error');
         let committed = area.value;
         // showError shows the message as an alert and links it to the field while the text is no JSON (U5).
@@ -735,10 +736,10 @@
         function commit() {
             if (area.edComposing) return false;
             if (area.value === committed && error.hidden) return true;
-            const raw = area.value.trim();
+            const raw = env.parseJSON ? area.value : area.value.trim();
             if (!raw) { showError(false); committed = area.value; onChange(undefined); return true; }
             try {
-                const parsed = JSON.parse(raw);
+                const parsed = env.parseJSON ? env.parseJSON(raw) : JSON.parse(raw);
                 showError(false);
                 committed = area.value;
                 onChange(parsed);

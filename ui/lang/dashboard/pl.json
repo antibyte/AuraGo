@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Narzędzie",
   "dashboard.selftest_connections": "Połączenia",
   "dashboard.rustfs_running_unready": "Działa, jeszcze niegotowe",
-  "dashboard.audit_type_flow_mission_repair": "Naprawiono powiązanie misji przepływu"
+  "dashboard.audit_type_flow_mission_repair": "Naprawiono powiązanie misji przepływu",
+  "dashboard.audit_type_flow_block_create": "Utworzono blok przepływu",
+  "dashboard.audit_type_flow_block_publish": "Opublikowano blok przepływu",
+  "dashboard.audit_type_flow_block_delete": "Usunięto blok przepływu"
 }

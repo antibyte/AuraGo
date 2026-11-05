@@ -1,6 +1,7 @@
 package flows
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -9,9 +10,43 @@ import (
 	"fmt"
 )
 
-// These tables are not installed until a reviewed v3 migration backs up the
-// complete v2 database and installs both tables in one transaction. Published
-// parents own their pins; run pins independently protect draft-test snapshots.
+func verifyExistingBlockVersionPins(ctx context.Context, tx *sql.Tx, parent string, revision int, blocks []resolvedBlock) error {
+	if err := verifyBlockPinsTx(ctx, tx, blocks); err != nil {
+		return err
+	}
+	want := make(map[blockRef][32]byte, len(blocks))
+	for _, block := range blocks {
+		want[block.Ref] = block.Hash
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT block_flow_id,block_revision,block_hash FROM flow_block_version_pins WHERE parent_flow_id=? AND parent_revision=?`, parent, revision)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		var ref blockRef
+		var hash []byte
+		if err := rows.Scan(&ref.FlowID, &ref.Revision, &hash); err != nil {
+			return err
+		}
+		expected, ok := want[ref]
+		if !ok || !bytes.Equal(hash, expected[:]) {
+			return errBlockPinConflict
+		}
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if count != len(want) {
+		return errBlockPinConflict
+	}
+	return nil
+}
+
+// The v3 migration backs up v2 and installs both tables transactionally.
+// Published parents own their pins; run pins independently protect draft-test snapshots.
 const blockVersionPinsSchema = `CREATE TABLE flow_block_version_pins (
 	parent_flow_id TEXT NOT NULL,
 	parent_revision INTEGER NOT NULL,
@@ -35,7 +70,7 @@ const blockRunPinsSchema = `CREATE TABLE flow_block_run_pins (
 const blockVersionPinsIndex = `CREATE INDEX idx_block_version_pins_child ON flow_block_version_pins(block_flow_id,block_revision)`
 const blockRunPinsIndex = `CREATE INDEX idx_block_run_pins_child ON flow_block_run_pins(block_flow_id,block_revision)`
 
-var errBlockPinConflict = errors.New("reusable block version changed or is unavailable")
+var errBlockPinConflict = fmt.Errorf("%w: reusable block version changed", ErrBlockUnavailable)
 
 // verifyBlockPinsTx re-reads each immutable revision inside the caller's write
 // transaction. This is required even if resolution happened immediately prior:
@@ -51,7 +86,10 @@ func verifyBlockPinsTx(ctx context.Context, tx *sql.Tx, blocks []resolvedBlock) 
 		}
 		seen[block.Ref] = true
 		var raw string
-		if err := tx.QueryRowContext(ctx, `SELECT json FROM flow_versions WHERE flow_id=? AND revision=? AND length(CAST(json AS BLOB))<=?`,
+		query := `SELECT v.json FROM flow_versions v JOIN flows f ON f.id=v.flow_id
+			WHERE v.flow_id=? AND v.revision=? AND f.kind='block' AND f.mission_id='' AND length(CAST(v.json AS BLOB))<=?
+			AND (` + validStoredDocumentSQL("f.draft_json") + `) AND (f.live_json='' OR (` + validStoredDocumentSQL("f.live_json") + `))`
+		if err := tx.QueryRowContext(ctx, query,
 			block.Ref.FlowID, block.Ref.Revision, MaxDocumentBytes).Scan(&raw); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return errBlockPinConflict

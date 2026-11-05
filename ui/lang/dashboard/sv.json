@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Verktyg",
   "dashboard.selftest_connections": "Anslutningar",
   "dashboard.rustfs_running_unready": "Körs, ännu inte klar",
-  "dashboard.audit_type_flow_mission_repair": "Flödets uppdragskoppling reparerad"
+  "dashboard.audit_type_flow_mission_repair": "Flödets uppdragskoppling reparerad",
+  "dashboard.audit_type_flow_block_create": "Flödesblock skapat",
+  "dashboard.audit_type_flow_block_publish": "Flödesblock publicerat",
+  "dashboard.audit_type_flow_block_delete": "Flödesblock borttaget"
 }

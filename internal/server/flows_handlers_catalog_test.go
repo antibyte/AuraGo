@@ -41,7 +41,7 @@ func TestFlowsAPICatalog(t *testing.T) {
 	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/node-types/bogus/options/x", token, ""); w.Code != http.StatusNotFound {
 		t.Fatalf("unknown type = %d", w.Code)
 	}
-	if tpls := flowsBody(t, flowsCall(t, s, http.MethodGet, "/api/desktop/flows/templates", token, ""))["templates"].([]any); len(tpls) != 7 {
+	if tpls := flowsBody(t, flowsCall(t, s, http.MethodGet, "/api/desktop/flows/templates", token, ""))["templates"].([]any); len(tpls) != 12 {
 		t.Fatalf("templates = %+v", tpls)
 	} else if first := tpls[0].(map[string]any); first["id"] != "local_first_result" || first["effects_known"] != true || first["local_only"] != true {
 		t.Fatalf("local template metadata = %+v", first)

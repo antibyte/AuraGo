@@ -22,9 +22,10 @@
 
     function build(app, loaded, opts, guard) {
         const core = ED.core;
+        const isBlock = !!app.isBlock;
         const { t, esc, ctx } = app;
         const bag = core.bag();
-        let canvas, wires, interact, palette, runs, publish, history, workspace, authoring, emailBinding;
+        let canvas, wires, interact, palette, runs, publish, history, workspace, authoring, emailBinding, blockTracker;
         // A build that fails later releases what it set up (dispose skips what does not exist yet).
         guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
@@ -84,7 +85,8 @@
         const banner = el.querySelector('.ed-runview-banner');
 
         const ed = {
-            ctx, t, esc, api: app.api, catalog: app.catalog, windowId: app.windowId, readonly: !!app.readonly,
+            ctx, t, esc, api: app.api, blockApi: app.blockApi, catalog: app.catalog, windowId: app.windowId, readonly: !!app.readonly,
+            isBlock, openBlock: app.openBlock,
             // model is the document shown (a stored run's in the run view); draftModel is the draft.
             root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel, draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
@@ -98,9 +100,12 @@
         wires = ED.wires.create(ed, canvas);
         interact = ED.interact.create(ed, canvas, wires);
         palette = ED.palette.createPanel(ed, canvas);
-        runs = ED.runs.create(ed, canvas);
+        if (!ed.catalog.blockContracts) ed.catalog.blockContracts = new Map();
+        if (!isBlock && ED.blockFields && ed.blockApi) blockTracker = ED.blockFields.track(ed);
+        el.classList.toggle('is-block-editor', isBlock);
+        runs = isBlock ? ED.blocks.runController(ed, canvas) : ED.runs.create(ed, canvas);
         publish = ED.publish.create(ed);
-        authoring = ED.authoring && ED.authoring.create(ed);
+        authoring = !isBlock && ED.authoring && ED.authoring.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
         body.appendChild(canvas.listRegion);
@@ -169,7 +174,7 @@
             const draftN = String(Number(ed.flow.draft_revision) || 0);
             const liveN = String(Number(ed.flow.live_revision) || 0);
             const kind = !ed.flow.live ? 'draft' : ed.flow.draft_revision !== ed.flow.published_draft_revision ? 'newer' : 'live';
-            const paused = !!(ed.flow.live && !ed.flowEnabled);
+            const paused = !isBlock && !!(ed.flow.live && !ed.flowEnabled);
             node.dataset.kind = kind;
             node.dataset.draft = draftN;
             node.dataset.live = liveN;
@@ -190,6 +195,7 @@
 
         // timersChip: the server's Date & time triggers do not fire (its flow store did not start).
         function timersChip() {
+            if (isBlock) return '';
             if (ed.runView || ed.timersRunning !== false) return '';
             const text = t('easydrag.ui.timers_stopped_text');
             return '<span class="ed-chip ed-chip--warn" data-ed-timers-off title="' + esc(text) + '">' + esc(t('easydrag.ui.timers_stopped_title')) +
@@ -203,14 +209,21 @@
             if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || '';
             nameInput.readOnly = !!(ed.readonly || ed.runView);
             const s = stateOf();
-            const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
+            const inactive = !isBlock && ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted" data-ed-paused>' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
+                (inactive ? '<span class="ed-chip ed-chip--muted" data-ed-paused>' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + (isBlock ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.block_pure')) + '</span>' : '') + liveChip() + timersChip();
             paintRevision();
             syncSaveChip();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
+            if (isBlock) {
+                btn('test').querySelector('span').textContent = t('easydrag.ui.block_simulate');
+                btn('test').title = t('easydrag.ui.block_simulate');
+                btn('runs').hidden = true; btn('active').hidden = true;
+                el.querySelector('[data-ed-cmd="templates"]').hidden = true;
+                nameInput.setAttribute('aria-label', t('easydrag.ui.block_name'));
+            }
             btn('test').disabled = ro || running;
             btn('test').classList.toggle('is-busy', running);
             btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
@@ -222,7 +235,7 @@
             if (runBtn) {
                 const run = runNowState();
                 const reason = runNowTitle();
-                runBtn.hidden = !ed.flow.live;
+                runBtn.hidden = isBlock || !ed.flow.live;
                 runBtn.disabled = !!run.disabled;
                 if (reason && ed.flow.live) { runBtn.title = reason; runBtn.setAttribute('title', reason); }
                 else { runBtn.title = ''; runBtn.removeAttribute('title'); }
@@ -236,7 +249,7 @@
             btn('palette').setAttribute('aria-disabled', String(!!ed.runView));
             // flow_id/run_id from a notification are cleared, so a later render does not reopen
             // that run, or a run of another flow after openFlow switched flows.
-            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id, flow_id: null, run_id: null });
+            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, isBlock ? { blockId: ed.flow.id, flowId: null, flow_id: null, run_id: null } : { blockId: null, flowId: ed.flow.id, flow_id: null, run_id: null });
         }
 
         // renderSaveState shows the saver's state. A failed or offline save names its error (an
@@ -300,7 +313,7 @@
             const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? core.tr(t, 'easydrag.ui.status_' + r.status, r.status) : '';
             text.textContent = r
                 ? head + (r.started_at ? ' · ' + core.fmt.relative(r.started_at) : '') + (r.duration_ms ? ' · ' + core.fmt.duration(r.duration_ms) : '')
-                : t('easydrag.ui.home_never_ran');
+                : t(isBlock ? 'easydrag.ui.block_not_simulated' : 'easydrag.ui.home_never_ran');
             // Narrow footers cut the text: the button keeps the whole of it as its name and tooltip.
             text.parentElement.setAttribute('aria-label', text.textContent);
             text.parentElement.title = text.textContent;
@@ -425,7 +438,7 @@
         }
 
         function publishNow() { if (ed.flushPendingEdits()) publish.openDialog(); }
-        function runLiveNow() { if (ed.flushPendingEdits()) runs.runLive(); }
+        function runLiveNow() { if (!isBlock && ed.flushPendingEdits()) runs.runLive(); }
 
         // The palette stays hidden in the run view; its toggle and the search key wait until it ends.
         function togglePalette() { if (!ed.runView) palette.setOpen(!palette.isOpen()); }
@@ -447,6 +460,7 @@
         }
 
         function exportFlow() {
+            if (isBlock) return;
             const a = document.createElement('a');
             a.href = ed.api.exportUrl(ed.flow.id);
             // The export is the draft, also in the run view: it carries the draft's name.
@@ -459,6 +473,7 @@
         // deleteFlow deletes the flow; while the request runs, its own "deleted" broadcast is not
         // news (deleting).
         async function deleteFlow() {
+            if (isBlock) return ED.blocks.remove(ed, () => { core.forgetFlow(ed.flow.id); app.openHome(); });
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: draftModel.doc.name }));
             if (!ok || deleting) return;
             const id = ed.flow.id;
@@ -551,7 +566,7 @@
             }
         }
         ed.flushPendingEdits = flushPendingEdits;
-        emailBinding = window.AuraDesktopEmail?.attach(app.windowId, () => null, () => ({
+        emailBinding = !isBlock && window.AuraDesktopEmail?.attach(app.windowId, () => null, () => ({
             key:disposed?null:ed.flow.id,disabled:disposed||restoring||deleting,
             subject:draftModel.doc.name,formats:[{id:'json',label:'.easydrag.json'}],
             createFiles:async(_format,signal)=>{
@@ -579,6 +594,14 @@
 
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
+            if (isBlock) {
+                ctx.showContextMenu(r.left, r.bottom + 4, [
+                    { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => ED.blocks.versions(ed, app) },
+                    { icon: 'pencil', label: t('easydrag.ui.block_open_draft'), action: () => app.openBlock(ed.flow.id) },
+                    { icon: 'trash', label: t('easydrag.ui.block_delete'), disabled: !!ed.readonly, action: deleteFlow }
+                ]);
+                return;
+            }
             const run = runNowState();
             const ro = !!(ed.readonly || ed.runView);
             const moved = headerNarrow() ? [
@@ -647,7 +670,7 @@
             const busy = overlayOpen();
             const sel = ed.selection.size > 0;
             const run = runNowState();
-            ctx.setWindowMenus(ed.windowId, [
+            const menus = [
                 {
                     id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
                         { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
@@ -692,7 +715,12 @@
                         { id: 'keys', labelKey: 'easydrag.ui.keys_title', icon: 'help', shortcutHint: '?', action: unlessModal(() => ED.dialogs.shortcuts(ed)) }
                     ]
                 }
-            ]);
+            ];
+            if (isBlock) menus.forEach(menu => {
+                menu.items = menu.items.filter(item => !['run', 'runs', 'settings', 'export'].includes(item.id));
+                const test = menu.items.find(item => item.id === 'test'); if (test) test.labelKey = 'easydrag.ui.block_simulate';
+            });
+            ctx.setWindowMenus(ed.windowId, menus);
         }
         const setMenusSoon = core.debounce(setMenus, 120);
         // Dialogs, the detail view, quick-add and the run drawer open as children of the editor:
@@ -744,7 +772,7 @@
             setMenus();
         }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));
-        bag.add(ed.bus.on('node-test', req => runs.startTest({ onlyNode: req.nodeId })));
+        bag.add(ed.bus.on('node-test', req => { if (!isBlock) runs.startTest({ onlyNode: req.nodeId }); }));
         bag.add(ed.bus.on('focus-node', id => { interact.select([id]); canvas.centerOn(id, { animate: true }); }));
         bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId, req)));
         bag.add(ed.bus.on('find-step', () => ED.dialogs.findStep(ed, canvas, interact)));
@@ -931,6 +959,7 @@
             } else if (copy) {
                 ED.saver.dropEmergencyCopy(ed.flow.id);
             }
+            if (isBlock) return;
             if (opts && opts.runId) runs.openRunView(opts.runId);
             else runs.loadLast();
         }
@@ -983,7 +1012,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());

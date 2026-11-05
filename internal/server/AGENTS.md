@@ -728,6 +728,22 @@ Server-owned HTTP and cross-component integration contracts.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
 ### EasyDrag flows
+- Mission Control's optional `FlowAdmissionRevoker` bridge is synchronous under the manager
+  lock and may only invalidate the bounded Runner admission tracker; never call a manager,
+  database or flow/service lock there. Existing timer and deletion lifecycle hooks remain
+  asynchronous. Verify `TestFlowAdmissionRevocation*` and block admission cancellation tests.
+- Reusable pure blocks use `/api/desktop/flow-blocks` and its subtree, with the same Desktop
+  authentication, origin, availability, readonly and revocable-grant gates as flows. GET/HEAD
+  need `desktop:read`; all POST/PUT/DELETE need `desktop:admin`. Only `POST validate` is
+  readonly-safe. List and version history are bounded keyset pages; editable draft/version
+  documents use the ordinary raw editor response, while preview and synchronous simulation
+  are scrubbed. Publish and deletion require observed revisions; dependencies return only
+  bounded identities and deletion rechecks pins transactionally. Simulation requires the
+  observed draft revision and creates no run, mission, timer or event. Create, publish and
+  delete audit only fixed text and the block ID. There are no block enable or run routes.
+  Ordinary flow routes and block routes enforce distinct document kinds, including corrupt rows.
+  Goal-only AI proposals exclude block calls: users choose published versions in the editor.
+  Verify `TestFlowBlock*` and `TestFlowAIProposalRejectsInventedBlockReferences`.
 - Flagship routes remain under the existing Desktop origin, grant and cancellation gates.
   `POST {id}/simulate` returns a bounded synchronous simulation result from the isolated flow
   service; it cannot invoke production tools or create a run. Validate fixture data and the

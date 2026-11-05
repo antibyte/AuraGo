@@ -77,10 +77,11 @@
             return src ? src.roots : {};
         }
 
-        function schemaExample(u) {
+        function schemaExample(u, depth = 0) {
             const out = {};
+            if (depth >= 32) return out;
             (u.fields || []).forEach(f => {
-                out[f.name] = { list: [], object: {}, number: 0, bool: false, file: { $type: 'file', name: 'file.pdf', path: '' } }[f.type] ?? '';
+                out[f.name] = f.type === 'object' && Array.isArray(f.fields) ? schemaExample({ fields: f.fields }, depth + 1) : { list: [], object: {}, number: 0, bool: false, file: { $type: 'file', name: 'file.pdf', path: '' } }[f.type] ?? '';
             });
             return out;
         }

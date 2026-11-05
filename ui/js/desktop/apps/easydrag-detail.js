@@ -223,7 +223,7 @@
             const ids = ed.model.upstream(node.id);
             return sortedNodes(ed.model).filter(n => ids.has(n.id)).map(n => {
                 const i = ed.model.info(n.type);
-                return { key: n.key, label: n.label || n.type, icon: i ? i.icon : 'tool', cat: core.catOf(i), fields: ed.model.fieldsOf(n), nodeId: n.id };
+                return { key: n.key, label: n.label || (i && i.label) || n.type, icon: i ? i.icon : 'tool', cat: core.catOf(i), fields: ed.model.fieldsOf(n), nodeId: n.id };
             });
         }
 
@@ -262,11 +262,12 @@
             // One run at a time: "test this step" waits until the active run ended.
             const busy = !!(ed.run && !ed.run.view && !ed.run.stale && ED.runs && !ED.runs.isFinal(ed.run.status));
             el.querySelector('[data-ed-detail-test]').disabled = !!(ed.readonly || ed.runView || (info && info.trigger) || busy);
+            el.querySelector('[data-ed-detail-test]').hidden = !!ed.isBlock;
             const list = sortedNodes(ed.model);
             const idx = list.findIndex(n => n.id === node.id);
             el.querySelector('[data-ed-nav="-1"]').disabled = idx <= 0;
             el.querySelector('[data-ed-nav="1"]').disabled = idx >= list.length - 1;
-            dialog.setAttribute('aria-label', node.label || node.type);
+            dialog.setAttribute('aria-label', node.label || (info && info.label) || node.type);
         }
 
         function renderInput() {
@@ -283,8 +284,8 @@
                     const target = mappingTargets().find(param => param.name === lastField);
                     if (!form || !target) { const select = el.querySelector('[data-ed-mapping-target]'); if (select) select.focus(); core.say(ed, t('easydrag.ui.mapping_choose_target')); return; }
                     if (flushPendingEdits() === false) return;
-                    const model = ed.model, version = model.version, id = node.id, capturedNode = node, capturedForm = form, field = lastField, original = JSON.stringify(node.params[field]);
-                    const current = () => !closed && !ed.readonly && !ed.runView && ed.model === model && model.version === version && node === capturedNode && model.node(id) === capturedNode && JSON.stringify(capturedNode.params[field]) === original && form === capturedForm && lastField === field && mappingTargets().some(param => param.name === field);
+                    const model = ed.model, version = model.version, id = node.id, capturedNode = node, capturedForm = form, field = lastField, original = JSON.stringify(form.value ? form.value(field) : node.params[field]);
+                    const current = () => !closed && !ed.readonly && !ed.runView && ed.model === model && model.version === version && node === capturedNode && model.node(id) === capturedNode && JSON.stringify(capturedForm.value ? capturedForm.value(field) : capturedNode.params[field]) === original && form === capturedForm && lastField === field && mappingTargets().some(param => param.name === field);
                     transformDialog = ED.transform.open(ed, Object.assign({}, source, { targetLabel: target.label || field, isCurrent: current, apply: expression => {
                         if (!current() || flushPendingEdits() === false || !current()) return false;
                         model.endCoalescing();
@@ -317,6 +318,7 @@
         }
 
         function mappingTargets() {
+            if (form && form.mappingTargets) return form.mappingTargets();
             return ((info && info.params) || []).filter(p => p.templatable && ED.forms.visible(p, node.params));
         }
 
@@ -344,7 +346,7 @@
                 host.appendChild(core.el('<div class="ed-callout ed-callout--warn">' + core.icon('settings') + '<div><strong>' + esc(t('easydrag.ui.badge_needs_setup')) + '</strong><p>' + esc(detail) + '</p>' +
                     '<a class="ed-link" href="/config#' + esc(avail.config_section || 'tools') + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.setup_open')) + '</a></div></div>'));
             }
-            if (info.description) host.appendChild(core.el('<p class="ed-detail-desc">' + esc(info.description) + '</p>'));
+            if (info.description && !(ED.blockFields && ED.blockFields.handles(node.type))) host.appendChild(core.el('<p class="ed-detail-desc">' + esc(info.description) + '</p>'));
             const boundId = node.id;
             form = ED.forms.render({
                 ed, node, info, upstream: upstreamList(), roots: roots(), issues: ed.issues,
@@ -355,6 +357,7 @@
                 }
             });
             host.appendChild(form.el);
+            renderMappingTarget();
             if (opts && opts.param) { const p = opts.param; opts = null; requestAnimationFrame(() => form.focus(p)); }
         }
 
@@ -393,12 +396,23 @@
                 '<label>' + esc(t('easydrag.ui.settings_retry_delay')) + '<input type="number" min="0" max="600" class="ed-input" data-k="delay_seconds" value="' + esc((s.retry && s.retry.delay_seconds) || 10) + '"' + (ro ? ' disabled' : '') + '></label>' +
                 '<label>' + esc(t('easydrag.ui.settings_timeout')) + '<input type="number" min="0" max="3600" class="ed-input" data-k="timeout" value="' + esc(s.timeout_seconds || '') + '" placeholder="' + esc(t('easydrag.ui.settings_default')) + '"' + (ro ? ' disabled' : '') + '></label></div>');
             retry.addEventListener('change', () => {
-                const count = core.clamp(Number(retry.querySelector('[data-k="count"]').value) || 0, 0, 5);
+                const current = ed.model.node(id); if (!current || ed.readonly || ed.runView) return;
+                const count = current.type === 'component.call' ? Number((current.settings.retry || {}).count) || 0 : core.clamp(Number(retry.querySelector('[data-k="count"]').value) || 0, 0, 5);
                 const delay = core.clamp(Number(retry.querySelector('[data-k="delay_seconds"]').value) || 0, 0, 600);
                 const timeout = Number(retry.querySelector('[data-k="timeout"]').value) || undefined;
                 ed.model.setSettings(id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
             });
             host.appendChild(retry);
+            if (node.type === 'component.call') {
+                const count = retry.querySelector('[data-k="count"]'), delay = retry.querySelector('[data-k="delay_seconds"]');
+                count.max = '0'; count.disabled = true; delay.disabled = true;
+                retry.appendChild(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.block_retry_hint')) + '</p>'));
+                if (s.retry && s.retry.count) {
+                    const reset = core.el('<button type="button" class="ed-btn" data-ed-block-reset-retry>' + esc(t('easydrag.ui.block_reset_retry')) + '</button>');
+                    reset.disabled = ro; reset.addEventListener('click', () => { if (!ed.readonly && !ed.runView && ed.model.node(id)) { ed.model.setSettings(id, { retry: { count: 0 } }); renderSettings(); host.querySelector('[data-k="timeout"]').focus(); } });
+                    retry.appendChild(reset);
+                }
+            }
             // WCAG 2.5.7 (U10): the step moves without dragging. Whole pixels; an empty or broken value
             // is refused and the current position shown again. Each change is one undo step.
             const pos = node.position || { x: 0, y: 0 };
@@ -795,6 +809,7 @@
             refreshData();
         }));
         bag.add(ed.bus.on('last-run', refreshData));
+        bag.add(ed.bus.on('schema', () => { if (mapping) renderInput(); renderMappingTarget(); }));
         bag.add(ed.bus.on('issues', () => { if (form) form.refresh(node, roots(), ed.issues); }));
         const narrowFrame = core.frame(applyNarrow);
         const ro = new ResizeObserver(() => narrowFrame.request());

@@ -282,8 +282,11 @@ func (b flowMissionBridge) noteRunsPaused(missionID string) {
 
 // flowMissionHooks lets Mission Control start and manage flow runs (tools.FlowHooks).
 //
-// How MissionManagerV2 (internal/tools) calls the hooks, and why none of them can wait for
+// How MissionManagerV2 (internal/tools) calls the hooks, and why none can wait for
 // a flow lock that its caller holds:
+//   - InvalidateFlowAdmissions is the sole synchronous callback under the manager's
+//     lock. It only cancels the bounded admission tracker and never calls the manager,
+//     the database or a flow/service lock.
 //   - FlowMissionDeleted and FlowEnabledChanged take the flow's lock (through
 //     Service.DeleteFlowForMission and Service.MissionEnabledChanged). The manager calls them
 //     only on goroutines of their own (its tracked runAsync work, which Stop waits for),
@@ -302,6 +305,16 @@ func (b flowMissionBridge) noteRunsPaused(missionID string) {
 //     the manager released its lock, also from broadcastMissionState while the Service holds
 //     a flow lock. It calls Service.NextTimer, which takes no flow lock.
 type flowMissionHooks struct{ s *Server }
+
+var _ tools.FlowAdmissionRevoker = flowMissionHooks{}
+
+// InvalidateFlowAdmissions is the manager's synchronous, bounded cancellation
+// signal. It must not call back into the manager or take a flow/service lock.
+func (h flowMissionHooks) InvalidateFlowAdmissions(missionID string) {
+	if h.s.Flows != nil {
+		h.s.Flows.InvalidateFlowAdmissions(missionID)
+	}
+}
 
 // StartFlowRun implements tools.FlowHooks: StartFlowRunReported without the outcome.
 func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerData string) error {

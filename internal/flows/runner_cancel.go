@@ -90,6 +90,10 @@ func (r *Runner) CancelFlowMode(flowID string, mode RunMode) int {
 
 // cancelFlowRuns cancels the flow's runs whose mode match accepts; see CancelFlow.
 func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
+	// Interrupt a block admission before waiting for startMu or SQLite.
+	r.blockAdmissionTokens.cancelMatching(func(a *blockAdmission) bool {
+		return a.flowID == flowID && match(a.mode)
+	})
 	r.startMu.Lock()
 	r.mu.Lock()
 	var pending, keptQueue []*pendingRun

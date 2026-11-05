@@ -20,6 +20,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 12. [Einstellungen](#einstellungen)
 13. [Wenn EasyDrag abgeschaltet ist](#wenn-easydrag-abgeschaltet-ist)
 14. [Tastenkürzel](#tastenkürzel)
+15. [Wiederverwendbare lokale Bausteine](#wiederverwendbare-lokale-bausteine)
 
 ---
 
@@ -59,6 +60,47 @@ und manuelles Bearbeiten nutzbar.
 4. Doppelklicke einen Schritt (oder drücke **Enter**), um ihn zu bearbeiten. Der Inspektor öffnet sich im Editor, nicht als Dialog. Er hat die Reiter Eingabe, Parameter und Ausgabe. Parameter hat drei Teile: *Werte*, *Einstellungen* und *Notiz*. Im Reiter Eingabe siehst Du die Daten früherer Schritte: aus dem letzten Test oder Lauf, oder als Beispiel. Ziehe einen Wert über den Reiter Parameter und dann in ein Feld, oder klicke ihn an, um ihn an der letzten Cursorposition einzufügen. Bezüge erscheinen als farbige Chips mit Schritt und Feld, etwa „Websuche › results“. Im Text stehen sie als `{{websuche.results}}`.
 5. **Testen** (Strg+Enter) öffnet den Testdialog. Wähle **Simulation** mit Beispieldaten oder ausdrücklich einen **Echten Test**, der echte Auswirkungen haben kann. Vor der Ausführung wird der Entwurf gespeichert. Prüfe das Ergebnis und die durchlaufenen Schritte; siehe [Testen](#testen).
 6. **Veröffentlichen** prüft den Flow, zeigt, was er außerhalb von AuraGo tut, und schaltet ihn auf Wunsch gleich aktiv. Nur veröffentlichte Flows laufen selbstständig. Dein Entwurf bleibt bearbeitbar; die veröffentlichte Version läuft.
+
+## Wiederverwendbare lokale Bausteine
+
+Öffne auf der Startseite **Wiederverwendbare Bausteine** und wähle **Neuer Baustein**.
+Ein Baustein beginnt mit einer Eingabe- und einer Ausgabegrenze. Öffne beide per Doppelklick,
+füge benannte Felder hinzu und wähle Text, Zahl, Wahrheitswert, Objekt oder Liste. Pflichtfeld
+und zulässiges `null` sind getrennte Einstellungen. Ein nicht übergebener optionaler Wert
+unterscheidet sich von ausdrücklich gesetztem `null`; `false` und `0` bleiben echte Werte.
+Die Ausgabe bindet jedes deklarierte Feld an einen festen Wert oder Daten eines vorherigen
+Schritts. Wähle im Eingabetab das Zielfeld und füge Daten aus dem Baum an der gespeicherten
+Cursorposition ein. `{{block_input.data.name}}` liest beispielsweise das Eingabefeld `name`.
+Sind gespeicherte Felddeklarationen ungültig, erhält die JSON-Reparaturansicht sie, bis Du eine
+korrigierte Liste ausdrücklich übernimmst. Ein Vertrag erlaubt höchstens 64 Felder und 32 KiB Deklarationen.
+
+**Baustein simulieren** speichert und prüft den Entwurf schon vor der ersten Veröffentlichung.
+Trage Beispieldaten mit den typisierten Feldern ein; Objekte und Listen verwenden JSON.
+Die Simulation verarbeitet ausschließlich lokale Logik und erzeugt keinen Laufverlauf, Timer
+und keine Mission. Beispiele bleiben im geöffneten Dialog. **Vorschauhinweise** nennt die
+Grenzen: insgesamt 64 KiB, 10.000 Werte und 32 Verschachtelungsebenen. Das Schließen des
+Dialogs bricht seine ausstehende Anfrage ab. Prüfe den Feldvertrag und wähle **Veröffentlichen**,
+um eine unveränderliche Version anzulegen. Unterstützt werden nur Felder setzen, Wenn,
+Fallunterscheidung und Zusammenführen. Verschachtelte Bausteine, Warten, Stoppen, KI,
+Geheimnisse und externe Werkzeuge sind ausgeschlossen.
+
+Füge in einem normalen Flow **Baustein aufrufen** hinzu. Wähle einen Baustein und eine
+veröffentlichte Version und klicke auf **Gewählte Version verwenden**. Prüfe vor dem Übernehmen
+den bisherigen und den neuen Feldvertrag. Fülle benannte Eingaben aus oder ordne Daten aus
+vorherigen Schritten zu. Ausgaben liegen direkt am Aufruf, etwa `{{greet.greeting}}`, wenn
+sein Datenname `greet` lautet. Eine neue Bausteinversion ändert bestehende Aufrufer nicht.
+Aktualisiere jeden Aufrufer ausdrücklich: passende Zuordnungen bleiben erhalten, entfernte
+Felder werden genannt, und Rückgängig stellt die alte Referenz wieder her. Unpassende Werte
+bleiben bis zur Korrektur sichtbar. Ein Aufruf hat keine automatischen Wiederholungen;
+importierte Wiederholungseinstellungen musst Du vor Veröffentlichung oder Ausführung
+ausdrücklich auf `0` zurücksetzen.
+
+Unter **Mehr** kannst Du veröffentlichte Versionen ansehen und vor dem Löschen Abhängigkeiten
+prüfen. Veröffentlichte Elternversionen und aufbewahrte Läufe können eine Bausteinversion
+weiter verwenden; dann bleibt das Löschen gesperrt. **Mehr laden** zeigt ältere Versionen
+oder weitere Abhängigkeiten. Die Versionsansicht ist schreibgeschützt; **Aktuellen Entwurf
+öffnen** führt zur Bearbeitung zurück. Der Elternlauf zeigt Baustein-ID und Version des
+Aufrufs, jedoch keinen eigenen Verlauf der untergeordneten Schritte.
 
 ## Der Editor
 

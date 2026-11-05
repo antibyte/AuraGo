@@ -40,6 +40,11 @@ func TestFF1MissionHooksBroadcastTheFlowID(t *testing.T) {
 		t.Fatalf("enabled broadcasts = %+v", got)
 	}
 
+	// The real deletion hook runs only after Mission Control removed the mission.
+	// A still-present mission intentionally makes the repair guard retain the flow.
+	if err := s.MissionManagerV2.DeleteFlowMission(rec.MissionID); err != nil {
+		t.Fatalf("delete mission: %v", err)
+	}
 	hooks.FlowMissionDeleted(rec.MissionID)
 	if got := ff1FlowsChanged(c17Drain(events), "deleted"); len(got) != 1 || got[0]["flow_id"] != rec.ID {
 		t.Fatalf("deleted broadcasts = %+v", got)

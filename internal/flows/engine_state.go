@@ -139,6 +139,38 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		return "FLOW_TOO_LARGE", fmt.Sprintf("the flow has %d nodes and %d connections; the limits are %d and %d",
 			len(f.Nodes), len(f.Edges), MaxNodes, MaxEdges), ""
 	}
+	for _, n := range f.Nodes {
+		if n.Type == blockEachType {
+			return "FLOW_PARAM_INVALID", "batch blocks are not available", n.ID
+		}
+		if n.Type == blockCallType {
+			if n.Settings.Retry.Count != 0 || s.req.blocks == nil || s.req.scope == nil {
+				return "FLOW_PARAM_INVALID", "the block call has no valid execution plan", n.ID
+			}
+			block, ok := s.req.blocks.byNode[n.ID]
+			ref, err := blockReference(n)
+			if !ok || err != nil || ref != block.Ref {
+				return "FLOW_PARAM_INVALID", "the block call has no valid execution plan", n.ID
+			}
+		}
+	}
+	registry := s.e.reg
+	if s.req.blocks != nil {
+		// A caller cannot replace the trusted call definition with a same-name
+		// production callback. Other parent definitions retain their normal policy.
+		registry = NewRegistry()
+		for _, def := range s.e.reg.All() {
+			if def.Type == blockCallType {
+				continue
+			}
+			if err := registry.Register(def); err != nil {
+				return "FLOW_NODE_UNAVAILABLE", "the node registry is unavailable", ""
+			}
+		}
+		if err := registry.Register(blockCallDef()); err != nil {
+			return "FLOW_NODE_UNAVAILABLE", "the node registry is unavailable", ""
+		}
+	}
 	s.g = buildGraph(f)
 	order, cyclic := s.g.topoOrder()
 	if len(cyclic) > 0 {
@@ -147,14 +179,14 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 	s.topo = order
 	s.info = make(map[string]nodeInfo, len(order))
 	for _, id := range order {
-		info, ne := describeNode(s.e.reg, s.g.nodes[id])
+		info, ne := describeNode(registry, s.g.nodes[id])
 		if ne != nil {
 			return ne.Code, ne.Message, id
 		}
 		info.hasEffects = declaresEffects(info.def, s.g.nodes[id])
 		s.info[id] = info
 	}
-	issues, roots := lintUntrusted(f, s.e.reg)
+	issues, roots := lintUntrusted(f, registry)
 	s.untrusted = roots.env()
 	for id, ne := range refusalsOf(issues) {
 		if info, ok := s.info[id]; ok {
@@ -241,6 +273,9 @@ func (s *runState) run(parent context.Context) RunResult {
 		s.inScope[s.req.OnlyNode] = true
 	}
 	s.fireTrigger(trigger)
+	if s.failure != nil {
+		return s.finish(RunError, s.failure.Code, s.failure.Message, trigger.ID)
+	}
 	return s.drive(parent, ctx, cancel)
 }
 
@@ -341,6 +376,10 @@ func (s *runState) fireTrigger(trigger *Node) {
 		raw["data"] = map[string]any{}
 		out, encoded, _ = normalizeOutput(raw)
 	}
+	if s.req.scope != nil && !s.req.scope.reserveOutput(len(encoded)) {
+		s.failure = NewNodeError("FLOW_RUN_OUTPUT_TOO_LARGE", "the run's outputs exceed %d bytes in total", MaxRunOutputBytes)
+		return
+	}
 	s.trigger = out
 	s.outputs[trigger.Key] = out
 	s.outputBytes += len(encoded)
@@ -366,7 +405,12 @@ func (s *runState) fireTrigger(trigger *Node) {
 	s.status[trigger.ID] = StepSuccess
 	s.deliverPorts(trigger, ports)
 	stored, truncated := storedOutput(out, encoded)
-	s.storedBytes += storedSize(encoded, truncated)
+	storedBytes := storedSize(encoded, truncated)
+	if s.req.scope != nil && !s.req.scope.reserveStored(storedBytes) {
+		stored, truncated = storedOmitted(), true
+	} else {
+		s.storedBytes += storedBytes
+	}
 	step := StepRecord{NodeID: trigger.ID, NodeKey: trigger.Key, Attempt: 1, Status: StepSuccess,
 		StartedAt: now, FinishedAt: now, Output: stored, OutputTruncated: truncated, Ports: ports}
 	s.steps = append(s.steps, step)
@@ -442,6 +486,11 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 		Services: s.e.services,
 		Logger:   s.e.logger.With("flow", s.req.Flow.ID, "run", s.req.RunID, "node", n.Key),
 	}
+	if s.req.blocks != nil {
+		if block, ok := s.req.blocks.byNode[id]; ok {
+			in.block, in.scope = &block, s.req.scope
+		}
+	}
 	s.gate.launched()
 	if s.gate != nil {
 		in.Slot = s.gate // never a typed nil
@@ -507,7 +556,11 @@ func (s *runState) rejectResult(info nodeInfo, d nodeDone) *NodeError {
 			return &NodeError{Code: "FLOW_PORT_INVALID", Message: "node returned unknown output " + quoteForError(p)}
 		}
 	}
-	if s.outputBytes+d.size > MaxRunOutputBytes {
+	if s.req.scope != nil {
+		if !s.req.scope.reserveOutput(d.size) {
+			return &NodeError{Code: "FLOW_RUN_OUTPUT_TOO_LARGE", Message: fmt.Sprintf("the run's outputs exceed %d bytes in total", MaxRunOutputBytes)}
+		}
+	} else if s.outputBytes+d.size > MaxRunOutputBytes {
 		return &NodeError{Code: "FLOW_RUN_OUTPUT_TOO_LARGE", Message: fmt.Sprintf("the run's outputs exceed %d bytes in total", MaxRunOutputBytes)}
 	}
 	return nil
@@ -591,7 +644,7 @@ func (s *runState) chargeStored(step StepRecord, size int) StepRecord {
 	if size <= 0 {
 		return step
 	}
-	if s.storedBytes+size <= MaxStoredRunBytes {
+	if (s.req.scope != nil && s.req.scope.reserveStored(size)) || (s.req.scope == nil && s.storedBytes+size <= MaxStoredRunBytes) {
 		s.storedBytes += size
 		return step
 	}

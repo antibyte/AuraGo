@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "工具",
   "dashboard.selftest_connections": "连接",
   "dashboard.rustfs_running_unready": "正在运行，尚未就绪",
-  "dashboard.audit_type_flow_mission_repair": "已修复流程的任务关联"
+  "dashboard.audit_type_flow_mission_repair": "已修复流程的任务关联",
+  "dashboard.audit_type_flow_block_create": "已创建流程模块",
+  "dashboard.audit_type_flow_block_publish": "已发布流程模块",
+  "dashboard.audit_type_flow_block_delete": "已删除流程模块"
 }

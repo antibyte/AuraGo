@@ -11,7 +11,7 @@ import (
 var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
-	"easydrag-forms.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-compare.js", "easydrag-runs.js", "easydrag-publish.js",
+	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-compare.js", "easydrag-runs.js", "easydrag-publish.js",
 	"easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-editor.js", "easydrag.js",
 }
 
@@ -134,6 +134,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		t.Fatalf("found only %d literal easydrag.ui keys; is the scan broken?", len(used))
 	}
 	families := map[string][]string{
+		"easydrag.ui.block_":            {"required", "nullable"},
 		"easydrag.ui.transform_filter_": {"default", "truncate", "upper", "lower", "trim", "join", "split", "first", "last", "count", "pluck", "json", "date", "round", "replace", "strip_html", "pick", "rename", "where", "sort", "unique", "sum"},
 		"easydrag.ui.publish_change_":   {"before", "after"},
 		"easydrag.ui.assertion_":        {"step_unavailable", "output_truncated", "output_mismatch", "ports_mismatch"},

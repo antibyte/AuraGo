@@ -94,7 +94,10 @@ type StartRequest struct {
 	// Gated marks a live run that a trigger started without anyone asking at that moment
 	// (Mission Control's triggers and Run, the Date/Time timers): when it has to wait, it asks
 	// RunnerConfig.Gate again before it executes.
-	Gated bool
+	Gated        bool
+	blocks       *blockPlan
+	missionID    string
+	enabledCheck func() error
 }
 
 // StartStatus tells what Start did.
@@ -161,22 +164,26 @@ type Runner struct {
 	// record while holding it instead of mu (see Start). It is taken before mu.
 	startMu sync.Mutex
 
-	mu          sync.Mutex
-	closed      bool
-	slots       int
-	live        map[string]int
-	durable     map[string]durableReservation
-	recoveryErr error
-	flowSlots   map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
-	flowQueue   map[string][]*pendingRun
-	waiting     []*pendingRun
-	resumers    []*resumeWait // parked runs waiting for a slot again (A7)
-	parked      int           // runs whose global slot is given back (A7)
-	nextTicket  uint64        // arrival order of waiting runs and resumers
-	cancels     map[string]activeRun
-	baseCtx     context.Context
-	baseStop    context.CancelFunc
-	wg          sync.WaitGroup
+	mu                   sync.Mutex
+	closed               bool
+	slots                int
+	live                 map[string]int
+	durable              map[string]durableReservation
+	recoveryErr          error
+	flowSlots            map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
+	flowQueue            map[string][]*pendingRun
+	waiting              []*pendingRun
+	resumers             []*resumeWait // parked runs waiting for a slot again (A7)
+	parked               int           // runs whose global slot is given back (A7)
+	nextTicket           uint64        // arrival order of waiting runs and resumers
+	cancels              map[string]activeRun
+	baseCtx              context.Context
+	baseStop             context.CancelFunc
+	blockAdmissionCtx    context.Context
+	blockAdmissionStop   context.CancelFunc
+	blockAdmissions      chan struct{}
+	blockAdmissionTokens blockAdmissionTracker
+	wg                   sync.WaitGroup
 
 	// testOnEvent, when set before the first Start, sees every engine event before
 	// it is published. Tests use it to inject failures into the event sink.
@@ -207,17 +214,21 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		logger = slog.Default()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	blockCtx, blockCancel := context.WithCancel(context.Background())
 	r := &Runner{
 		engine: engine, store: store, hooks: hooks, cfg: cfg, logger: logger,
-		bus:       NewEventBus(eventRetention, engine.services.Now),
-		now:       engine.services.Now,
-		live:      map[string]int{},
-		durable:   map[string]durableReservation{},
-		flowSlots: map[string]int{},
-		flowQueue: map[string][]*pendingRun{},
-		cancels:   map[string]activeRun{},
-		baseCtx:   ctx,
-		baseStop:  cancel,
+		bus:                NewEventBus(eventRetention, engine.services.Now),
+		now:                engine.services.Now,
+		live:               map[string]int{},
+		durable:            map[string]durableReservation{},
+		flowSlots:          map[string]int{},
+		flowQueue:          map[string][]*pendingRun{},
+		cancels:            map[string]activeRun{},
+		baseCtx:            ctx,
+		baseStop:           cancel,
+		blockAdmissionCtx:  blockCtx,
+		blockAdmissionStop: blockCancel,
+		blockAdmissions:    make(chan struct{}, 4),
 	}
 	reservations, err := store.durableReservations(context.Background())
 	if err != nil {
@@ -246,11 +257,88 @@ func (r *Runner) Bus() *EventBus { return r.bus }
 // a run that passed the first step still fits, and one that found its flow busy
 // starts right away if the flow became idle meanwhile.
 func (r *Runner) Start(req StartRequest) (StartResult, error) {
+	return r.StartContext(context.Background(), req)
+}
+
+// StartContext bounds block-plan admission to the caller's context. Once
+// admitted, a run continues under the runner's own shutdown/cancellation context.
+func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResult, error) {
 	if req.Flow == nil || req.TriggerNode == "" {
 		return StartResult{}, errors.New("a flow and a trigger node are required")
 	}
+	if req.Flow.Kind == KindBlock {
+		return StartResult{}, ErrWrongFlowKind
+	}
 	if req.Mode == "" {
 		req.Mode = ModeLive
+	}
+	r.mu.Lock()
+	closedBeforePlan := r.closed
+	r.mu.Unlock()
+	if closedBeforePlan {
+		return StartResult{}, ErrRunnerClosed
+	}
+	admissionCtx := context.Background()
+	var cancel context.CancelFunc
+	var stop func() bool
+	var token *blockAdmission
+	defer func() {
+		if token != nil {
+			r.blockAdmissionTokens.remove(token)
+		}
+		if stop != nil {
+			stop()
+		}
+		if cancel != nil {
+			cancel()
+		}
+	}()
+	for _, n := range req.Flow.Nodes {
+		if n.Type != blockCallType && n.Type != blockEachType {
+			continue
+		}
+		if ctx == nil {
+			return StartResult{}, ErrBlockInvalid
+		}
+		admissionCtx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		stop = context.AfterFunc(r.blockAdmissionCtx, cancel)
+		if r.blockAdmissionCtx.Err() != nil {
+			return StartResult{}, ErrRunnerClosed
+		}
+		if err := admissionCtx.Err(); err != nil {
+			return StartResult{}, err
+		}
+		select {
+		case r.blockAdmissions <- struct{}{}:
+			defer func() { <-r.blockAdmissions }()
+		default:
+			return StartResult{}, ErrRunnerQueueFull
+		}
+		token = r.blockAdmissionTokens.add(req.Flow.ID, req.missionID, req.Mode, cancel)
+		if req.enabledCheck != nil {
+			if err := req.enabledCheck(); err != nil {
+				return StartResult{}, err
+			}
+		}
+		if err := admissionCtx.Err(); err != nil {
+			return StartResult{}, err
+		}
+		data, err := req.Flow.Marshal()
+		if err != nil {
+			return StartResult{}, err
+		}
+		req.Flow, err = ParseFlow(data)
+		if err != nil {
+			return StartResult{}, err
+		}
+		req.blocks, err = prepareBlockPlan(admissionCtx, r.store, req.Flow, r.engine.services)
+		if err != nil {
+			if admissionCtx.Err() != nil {
+				return StartResult{}, admissionCtx.Err()
+			}
+			return StartResult{}, err
+		}
+		break
 	}
 	if req.Mode != ModeTest && r.recoveryErr != nil {
 		return StartResult{}, fmt.Errorf("durable run recovery unavailable: %w", r.recoveryErr)
@@ -262,9 +350,20 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	exclusive := counted && policy != ConcurrencyParallel
 	// Measured before the locks: a waiting run holds its trigger data in memory (MaxPendingBytes).
 	size := triggerDataSize(req.TriggerData)
+	// The gate is external code and must never run under the runner's locks.
+	if req.blocks != nil && req.Gated && req.Mode == ModeLive {
+		if err := r.checkGate(""); err != nil {
+			return StartResult{}, err
+		}
+	}
 
 	r.startMu.Lock()
-	defer r.startMu.Unlock()
+	startLocked := true
+	defer func() {
+		if startLocked {
+			r.startMu.Unlock()
+		}
+	}()
 	r.mu.Lock()
 	closed, busy := r.closed, exclusive && r.busyLocked(flowID)
 	full := busy && len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
@@ -292,32 +391,58 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 		return StartResult{}, ErrRunnerQueueFull
 	}
 
-	p, err := r.newPending(req, counted, size)
+	if req.blocks != nil {
+		if err := admissionCtx.Err(); err != nil {
+			return StartResult{}, err
+		}
+	}
+	p, err := r.newPending(admissionCtx, req, counted, size)
 	if err != nil {
+		if req.blocks != nil && admissionCtx.Err() != nil {
+			return StartResult{}, admissionCtx.Err()
+		}
 		return StartResult{}, err
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if exclusive && r.busyLocked(flowID) {
-		p.waited = true
-		r.flowQueue[flowID] = append(r.flowQueue[flowID], p)
-		return StartResult{RunID: p.rec.ID, Status: StartQueued}, nil
+	var result StartResult
+	accept := func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		result = StartResult{RunID: p.rec.ID, Status: StartQueued}
+		if exclusive && r.busyLocked(flowID) {
+			p.waited = true
+			r.flowQueue[flowID] = append(r.flowQueue[flowID], p)
+		} else if r.admitLocked(p) {
+			result.Status = StartStarted
+		}
 	}
-	if r.admitLocked(p) {
-		return StartResult{RunID: p.rec.ID, Status: StartStarted}, nil
+	if token != nil {
+		if err := r.blockAdmissionTokens.transfer(token, admissionCtx, accept); err != nil {
+			// The commit succeeded, but revocation won before the run was accepted.
+			// Finish its recorded header outside runner locks; never retry the commit.
+			r.startMu.Unlock()
+			startLocked = false
+			r.finishUnstarted(p, "FLOW_CANCELLED", "the run was cancelled before it started")
+			return StartResult{}, err
+		}
+	} else {
+		accept()
 	}
-	return StartResult{RunID: p.rec.ID, Status: StartQueued}, nil
+	return result, nil
 }
 
 // newPending records the run as queued and opens its event log, so the run can be
 // subscribed to as soon as Start returns its id, also while it waits.
-func (r *Runner) newPending(req StartRequest, counted bool, size int) (*pendingRun, error) {
+func (r *Runner) newPending(ctx context.Context, req StartRequest, counted bool, size int) (*pendingRun, error) {
 	rec := RunRecord{
 		ID: NewRunID(), FlowID: req.Flow.ID, Revision: req.Revision, Mode: req.Mode,
 		TriggerNode: req.TriggerNode, TriggerType: req.TriggerType, TriggerData: req.TriggerData,
 		Status: RunQueued, StartedAt: r.now(), ParentRunID: req.ParentRunID, ParentNodeID: req.ParentNodeID,
 	}
-	if err := r.store.CreateRun(context.Background(), rec, req.Flow); err != nil {
+	var blocks []resolvedBlock
+	if req.blocks != nil {
+		blocks = req.blocks.blocks
+	}
+	if err := r.store.createRunWithBlocks(ctx, rec, req.Flow, blocks); err != nil {
 		return nil, fmt.Errorf("record run: %w", err)
 	}
 	r.bus.Open(rec.ID)
@@ -470,9 +595,16 @@ func (r *Runner) gateRefusal(p *pendingRun) (err error) {
 	if r.cfg.Gate == nil || !p.req.Gated || !p.waited || p.req.Mode != ModeLive {
 		return nil
 	}
+	return r.checkGate(p.rec.ID)
+}
+
+func (r *Runner) checkGate(runID string) (err error) {
+	if r.cfg.Gate == nil {
+		return nil
+	}
 	defer func() {
 		if v := recover(); v != nil {
-			r.logger.Error("flow run gate panicked; the queued run is not started", "run", p.rec.ID, "panic", v)
+			r.logger.Error("flow run gate panicked; the run is not started", "run", runID, "panic", v)
 			err = errors.New("the run gate failed")
 		}
 	}()
@@ -526,10 +658,14 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 	if p.slot != nil {
 		slot = p.slot
 	}
+	var scope *blockRunScope
+	if p.req.blocks != nil {
+		scope = &blockRunScope{}
+	}
 	res = r.engine.Execute(ctx, RunRequest{
 		RunID: runID, Flow: p.req.Flow, Revision: p.req.Revision, Mode: p.req.Mode,
 		TriggerNode: p.req.TriggerNode, TriggerType: p.req.TriggerType, TriggerData: p.req.TriggerData,
-		OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot,
+		OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot, blocks: p.req.blocks, scope: scope,
 	}, sink)
 	if err := r.store.FinishRun(bg, runID, res); err != nil {
 		r.logStoreError("flow run result not saved", runID, err)
@@ -696,6 +832,8 @@ func (r *Runner) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan RunEv
 // or OnRunFinished of a run that executed), it waits until ctx ends, because that
 // goroutine is one of those it waits for.
 func (r *Runner) Shutdown(ctx context.Context) error {
+	// Interrupt only not-yet-admitted block snapshots before waiting for startMu.
+	r.blockAdmissionStop()
 	r.startMu.Lock()
 	r.mu.Lock()
 	if r.closed {

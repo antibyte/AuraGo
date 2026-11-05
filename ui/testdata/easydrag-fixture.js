@@ -695,10 +695,16 @@
                 if ((types.get(n.type) || {}).trigger) output = { data, fired_at: started };
                 else if (n.type === 'logic.set') output = Object.fromEntries((n.params.fields || []).map(field => [field.name, window.EasyDrag.template.evaluate(field.value, roots)]));
                 else if (n.type === 'logic.if') { output = {}; ports = [data.name ? 'true' : 'false']; }
+                else if (n.type === 'component.call' && window.edBlockFixture) {
+                    const params = window.EasyDrag.template.evaluate(n.params, roots);
+                    const result = window.edBlockFixture.invokeVersion(params.flow_id, params.revision, params.inputs, started);
+                    output = result.outputs; error = result.error_code || '';
+                }
                 else if (fixture && Object.prototype.hasOwnProperty.call(fixture, 'output')) { output = fixture.output; ports = fixture.ports || ['out']; }
                 else error = 'FLOW_SIMULATION_FIXTURE_REQUIRED';
                 if (fixture && fixture.error_code) error = fixture.error_code;
                 const step = { node_id: n.id, node_key: n.key, status: error ? 'error' : 'success', started_at: started, finished_at: started, duration_ms: 0, output, ports };
+                if (n.type === 'component.call') step.params = window.EasyDrag.template.evaluate(n.params, roots);
                 if (error) { step.error_code = error; steps.push(step); break; }
                 steps.push(step); roots[n.key] = output;
             }
@@ -862,6 +868,7 @@
 
     window.edFixture = {
         state, seededID: seeded.id, catalog,
+        registerNode(info) { if (!types.has(info.type)) catalog.node_types.push(info); types.set(info.type, info); },
         lastSave: () => state.saves[state.saves.length - 1] || null,
         runs: () => Array.from(state.runs.values()).map(r => r.run),
         flow: id => state.flows.get(id || seeded.id),

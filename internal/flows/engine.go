@@ -63,6 +63,8 @@ type RunRequest struct {
 	Slot RunSlot
 	// durable is set only by the durable coordinator, never by ordinary runs.
 	durable *durableRunControl
+	blocks  *blockPlan
+	scope   *blockRunScope
 }
 
 // EventSink receives run events in order, always from the run's coordinator goroutine.

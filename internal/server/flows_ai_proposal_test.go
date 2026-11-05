@@ -116,6 +116,23 @@ func TestNewFlowAIProposalDoesNotCreateFlow(t *testing.T) {
 	}
 }
 
+func TestFlowAIProposalRejectsInventedBlockReferences(t *testing.T) {
+	s, _ := newFlowsTestServer(t)
+	for _, typ := range []string{"component.call", "component.each"} {
+		stepper := proposalStepper(func(_ context.Context, req flows.LLMRequest) (flows.LLMResponse, error) {
+			if strings.Contains(req.System, `"type":"component.call"`) || strings.Contains(req.System, `"type":"component.each"`) {
+				t.Fatal("proposal catalog disclosed block node types")
+			}
+			return flows.LLMResponse{Text: strings.ReplaceAll(greetFlowJSON, "logic.set", typ)}, nil
+		})
+		_, err := s.makeNewFlowProposal(context.Background(), "say hello", stepper)
+		var nodeErr *flows.NodeError
+		if !errors.As(err, &nodeErr) || nodeErr.Code != "FLOW_AI_OUTPUT_INVALID" {
+			t.Fatalf("proposal %s: %v", typ, err)
+		}
+	}
+}
+
 func TestNewFlowAIProposalRouteRequiresAdmin(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	path := "/api/desktop/flows/ai-proposal"

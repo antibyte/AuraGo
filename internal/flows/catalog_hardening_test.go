@@ -283,8 +283,8 @@ func TestDescribeNodeTypesRealCatalog(t *testing.T) {
 		t.Fatalf("%d generic nodes registered, want %d", registered, len(tools))
 	}
 	infos := DescribeNodeTypes(reg, nil)
-	if len(infos) != 38+registered {
-		t.Fatalf("%d infos, want %d", len(infos), 38+registered)
+	if len(infos) != 39+registered {
+		t.Fatalf("%d infos, want %d", len(infos), 39+registered)
 	}
 	if got := logs.fallbacks(); len(got) != 0 {
 		t.Fatalf("hooks of the real catalog needed fallbacks: %v", got)

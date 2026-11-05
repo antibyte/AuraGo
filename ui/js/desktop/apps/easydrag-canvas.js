@@ -404,7 +404,7 @@
         // cardName is a card's accessible name (U7): its label and its state (turned off, not set up or
         // blocked, open issues, the run status), so a screen reader hears more than the name.
         function cardName(n, i, status, issues) {
-            const parts = [n.label || n.type];
+            const parts = [n.label || (i && i.label) || n.type];
             if (n.settings && n.settings.disabled) parts.push(t('easydrag.ui.card_state_off'));
             const avail = i ? (i.availability || {}).state : '';
             if (!i) parts.push(t('easydrag.ui.badge_unknown'));
@@ -468,10 +468,10 @@
                     '<button type="button" class="ed-port-add" tabindex="-1" data-ed-port-add="' + esc(p) + '" aria-label="' + esc(t('easydrag.ui.port_add')) + '">' + core.icon('plus') + '</button></span>';
             }).join('');
             const ro = ed.readonly || ed.runView;
-            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar" aria-label="' + esc(t('easydrag.ui.node_tools', { name: n.label || n.type })) + '">' +
+            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar" aria-label="' + esc(t('easydrag.ui.node_tools', { name: n.label || (i && i.label) || n.type })) + '">' +
                 toolButton('add', 'plus', t('easydrag.ui.port_add')) +
                 toolButton('connect', 'link', t('easydrag.ui.keys_connect')) +
-                toolButton('test', 'flask', t('easydrag.ui.node_test')) +
+                (ed.isBlock ? '' : toolButton('test', 'flask', t('easydrag.ui.node_test'))) +
                 toolButton('disable', 'eye-off', n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable')) +
                 toolButton('duplicate', 'copy', t('easydrag.ui.node_duplicate')) +
                 toolButton('delete', 'trash', t('easydrag.ui.node_delete')) + '</div>';
@@ -827,13 +827,13 @@
             const leadsTo = new Map();
             ed.model.doc.edges.forEach(e => {
                 const other = byId.get(e.target.node);
-                if (!other || !other.label) return;
+                if (!other) return;
                 if (!leadsTo.has(e.source.node)) leadsTo.set(e.source.node, []);
-                leadsTo.get(e.source.node).push(other.label);
+                leadsTo.get(e.source.node).push(other.label || (info(other) && info(other).label) || other.type);
             });
             listEl.innerHTML = ed.model.doc.nodes.map(n => {
                 const targets = leadsTo.get(n.id) || [];
-                const text = (n.label || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
+                const text = (n.label || (info(n) && info(n).label) || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
                 return '<li><button type="button" tabindex="' + (ed.outlineOpen ? '0' : '-1') + '" aria-current="' + (ed.selection.has(n.id) ? 'step' : 'false') + '" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
             }).join('');
         }

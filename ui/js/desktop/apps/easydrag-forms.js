@@ -68,6 +68,7 @@
     //   onChange(name, value), openFileDialog?
     // Returns {el, focus(param), insert(param, ref), refresh(node, roots), dispose()}.
     function render(env) {
+        if (ED.blockFields && ED.blockFields.handles(env.node.type)) return ED.blockFields.render(env);
         const core = ED.core;
         const F = ED.fields;
         const { t, esc } = env.ed;
@@ -95,6 +96,7 @@
                 get upstream() { return env.upstream; },
                 get roots() { return roots; },
                 openFileDialog: env.openFileDialog,
+                parseJSON: ((env.info && env.info.params) || []).find(param => param.name === name)?.parseJSON,
                 change: value => {
                     const field = lastTpl && lastTpl.closest('[data-param]');
                     committingField = !!(field && field.dataset.param === name && el.contains(lastTpl));
@@ -173,11 +175,12 @@
                     return tpl({ multiline: true });
                 case 'text':
                 case 'cron':
+                    if (param.literal) return plainInput(param, value, id, set);
                     return asTemplate || param.kind === 'text' ? tpl() : plainInput(param, value, id, set);
                 case 'number':
                     return templated(param, value) ? tpl() : numberInput(param, value, id, set);
                 case 'bool':
-                    return F.toggle(fenv, value === undefined ? param.default : value, set, param.label);
+                    return templated(param, value) ? tpl() : F.toggle(fenv, value === undefined ? param.default : value, set, param.label);
                 case 'segmented':
                     return F.segmented(fenv, param.options || [], value === undefined ? param.default : value, set);
                 case 'select':
@@ -379,6 +382,7 @@
                 el.appendChild(field);
                 previewFor(param.name);
             });
+            if (env.onRendered) env.onRendered();
         }
 
         el.addEventListener('compositionstart', (event) => { if (event.target) event.target.edComposing = true; });
@@ -386,11 +390,14 @@
         el.addEventListener('click', (event) => {
             const mode = event.target.closest('[data-ed-mode]');
             if (!mode) return;
+            if (readonly || env.ed.readonly || env.ed.runView || Array.from(el.querySelectorAll('input,textarea,select')).some(input => input.edComposing) || flush() === false) return;
             const name = mode.dataset.edMode;
             const value = node.params[name];
             if (isTemplate(value) || forced.has(name)) {
                 forced.delete(name);
-                if (isTemplate(value)) env.onChange(name, undefined); else build();
+                if (isTemplate(value)) env.onChange(name, undefined);
+                build();
+                const next = el.querySelector('[data-ed-mode="' + CSS.escape(name) + '"]'); if (next) next.focus();
                 return;
             }
             forced.add(name);

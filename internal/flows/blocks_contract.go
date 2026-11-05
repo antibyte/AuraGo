@@ -11,8 +11,8 @@ import (
 	"regexp"
 )
 
-// These definitions are deliberately not registered as executable nodes until
-// version pinning, shared run budgets and the child coordinator ship together.
+// Only component.call is registered in the normal catalog. Boundary nodes are
+// available in the pure block registry; component.each is not executable.
 const (
 	blockInputType     = "block.input"
 	blockOutputType    = "block.output"
@@ -30,7 +30,7 @@ const (
 var (
 	errBlockContract = errors.New("invalid reusable block contract")
 	blockFieldName   = regexp.MustCompile(`^[a-z][a-z0-9_]{0,39}$`)
-	blockFlowID      = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
+	blockFlowID      = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 )
 
 type blockField struct {
@@ -41,8 +41,31 @@ type blockField struct {
 }
 
 type blockContract struct {
-	Inputs  []blockField
-	Outputs []blockField
+	Inputs  []blockField `json:"inputs"`
+	Outputs []blockField `json:"outputs"`
+}
+
+// BlockField and BlockContract describe validated named reusable-block boundaries.
+type BlockField = blockField
+type BlockContract = blockContract
+
+// BlockVersion pairs an immutable published document with its verified contract.
+type BlockVersion struct {
+	Doc      *Flow         `json:"doc"`
+	Contract BlockContract `json:"contract"`
+}
+
+// BlockDraftContract returns checked boundary declarations when they are complete.
+// It does not imply that a draft graph is publishable.
+func BlockDraftContract(doc *Flow) (*BlockContract, error) {
+	if !blockDocumentAllowed(doc) {
+		return nil, errBlockContract
+	}
+	contract, err := readBlockContract(doc)
+	if err != nil {
+		return nil, err
+	}
+	return &contract, nil
 }
 
 type blockRef struct {

@@ -99,6 +99,11 @@
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
+        if (ED.blocks && app.openBlock) {
+            const button = core.el('<button type="button" class="ed-btn ed-block-library-link">' + core.icon('grid') + esc(t('easydrag.ui.blocks_title')) + '</button>');
+            button.addEventListener('click', () => app.openHome({ section: 'blocks' }));
+            el.insertBefore(button, el.querySelector('.ed-home-toolbar'));
+        }
         const tplGrid = el.querySelector('.ed-template-grid');
         // The grid is no live region (every refresh would read all cards); meaningful changes
         // are announced on their own (a deleted flow).

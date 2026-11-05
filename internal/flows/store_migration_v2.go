@@ -71,6 +71,10 @@ func backupFlowsBeforeV2(db *sql.DB, logger *slog.Logger) error {
 	if exists == 0 {
 		return nil
 	}
+	return backupFlowsSnapshot(db, logger, ".flows-v1-backup-*")
+}
+
+func backupFlowsSnapshot(db *sql.DB, logger *slog.Logger, prefix string) error {
 	var path string
 	if err := db.QueryRow(`SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&path); err != nil {
 		return fmt.Errorf("locate flows database: %w", err)
@@ -78,7 +82,7 @@ func backupFlowsBeforeV2(db *sql.DB, logger *slog.Logger) error {
 	if path == "" {
 		return nil
 	}
-	dir, err := os.MkdirTemp(filepath.Dir(path), ".flows-v1-backup-*")
+	dir, err := os.MkdirTemp(filepath.Dir(path), prefix)
 	if err != nil {
 		return fmt.Errorf("create flows migration backup directory: %w", err)
 	}

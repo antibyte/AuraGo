@@ -1275,6 +1275,28 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
   shows the start page once the editor's `leave()` allowed it.
+- `easydrag-blocks.js` adapts `/api/desktop/flow-blocks` to the existing editor/saver,
+  with a separate paginated library, immutable version inspection, dependency review and isolated
+  draft simulation. `blockId` opens a block; `{section: 'blocks'}` opens its library. Block editors
+  use the trusted pure catalog and never expose Mission, activation, real run/history, AI or import.
+  Publish and simulation require the exact reviewed saved revision and unchanged local model.
+  Simulation is synchronous, local and unpersisted; close/cancel aborts and fences pending replies.
+- `easydrag-block-fields.js` owns explicit typed boundaries and pinned `component.call` bindings.
+  Preserve absent, null, false and zero separately. Required-value submission checks do not prevent
+  repairing an incomplete draft. Incompatible legacy values remain visible until explicitly fixed;
+  unknown bindings are removed only by an explicit action. Simulation raw JSON and aggregate data
+  are preflighted before parse/clone (64 KiB, 10,000 values, 32 levels); rejected edits stay visible.
+  Invalid stored boundary declarations use a bounded JSON repair view instead of coercing them
+  to an empty list or rendering arbitrary rows. Only explicit Apply replaces them, as one undo;
+  accept omitted bool flags as false, enforce 64 fields/32 KiB, and preserve readonly inspection.
+  Child inputs resolve under the actual input key's `data` object; parent outputs are direct fields
+  on the call key. Dynamic schemas come only from verified immutable server contracts, cached by
+  exact block ID/revision. Metadata requests patch changed call IDs, never traverse on run ticks.
+  Choosing a newer version requires contract review and one undoable Apply; publication never
+  upgrades callers. Call retries stay zero: retain invalid imported counts through unrelated edits,
+  and offer an explicit reset. No nested calls, external steps, batching or child-run history.
+  Block/version/dependency lists retain cursor pagination; retained run pins are not published
+  parent versions. Verify `test-easydrag-blocks.mjs` and `TestDesktopEasyDragBlocksBrowser`.
 - `easydrag-workspace.js` owns panel resizing, the visible step outline and path framing.
   Preferences contain only view choices in `aurago.easydrag.workspace`, never flow payloads.
   Resizers have keyboard and pointer controls. Keep the selected node visible when a panel

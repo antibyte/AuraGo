@@ -13,7 +13,7 @@
 
     function buildCatalog(res) {
         const list = (res && res.node_types) || [];
-        return { types: new Map(list.map(info => [info.type, info])), list, categories: (res && res.categories) || [] };
+        return { types: new Map(list.map(info => [info.type, info])), list, categories: (res && res.categories) || [], blockContracts: new Map() };
     }
 
     // ensureCatalog loads the node catalog; it is refreshed when older than a minute so that
@@ -23,6 +23,14 @@
         inst.catalog = buildCatalog(await inst.api.nodeTypes());
         inst.catalogAt = Date.now();
         return inst.catalog;
+    }
+
+    async function ensureBlockCatalog(inst) {
+        if (!inst.blockCatalog || Date.now() - inst.blockCatalogAt >= CATALOG_MAX_AGE_MS) {
+            inst.blockCatalog = buildCatalog(await inst.blockApi.nodeTypes());
+            inst.blockCatalogAt = Date.now();
+        }
+        return inst.blockCatalog;
     }
 
     function clearScreen(inst) {
@@ -68,8 +76,8 @@
         const blocked = !!(inst.ctx.readonly || (inst.screen && typeof inst.screen.createOff === 'function' && inst.screen.createOff()));
         inst.ctx.setWindowMenus(inst.windowId, [{
             id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
-                { id: 'new', labelKey: 'easydrag.ui.home_new', icon: 'plus', disabled: blocked, action: () => clickHome(inst, '[data-ed-new]') },
-                { id: 'import', labelKey: 'easydrag.ui.home_import', icon: 'upload', disabled: blocked, action: () => clickHome(inst, '[data-ed-import]') },
+                { id: 'new', labelKey: inst.blockHome ? 'easydrag.ui.block_new' : 'easydrag.ui.home_new', icon: 'plus', disabled: blocked, action: () => clickHome(inst, '[data-ed-new]') },
+                ...(!inst.blockHome ? [{ id: 'import', labelKey: 'easydrag.ui.home_import', icon: 'upload', disabled: blocked, action: () => clickHome(inst, '[data-ed-import]') }] : []),
                 { type: 'separator' },
                 { id: 'reload', labelKey: 'easydrag.ui.reload', icon: 'refresh', action: () => inst.screen && inst.screen.reload && inst.screen.reload() }
             ]
@@ -90,8 +98,9 @@
         const left = inst.screen && inst.screen.ed && !o.focusNew && o.section !== 'templates' ? inst.screen.ed.flow.id : '';
         inst.nav += 1;
         clearScreen(inst);
-        inst.lastRoute = {};
-        const screen = ED.home.create(inst.app, {
+        inst.blockHome = o.section === 'blocks';
+        inst.lastRoute = inst.blockHome ? { section: 'blocks' } : {};
+        const screen = inst.blockHome ? ED.blocks.library(inst.app) : ED.home.create(inst.app, {
             focusFlow: left,
             onLoaded() {
                 if (!alive(inst) || inst.screen !== screen) return;
@@ -108,7 +117,7 @@
         }
         // A notification's flow_id/run_id are cleared too: a later render from the window context
         // must not route back to them (updateWindowContext merges, so null clears a key).
-        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { flowId: null, flow_id: null, run_id: null });
+        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { blockId: null, flowId: null, flow_id: null, run_id: null });
         setHomeMenus(inst);
     }
 
@@ -150,29 +159,51 @@
         inst.root.appendChild(inst.screen.el);
     }
 
+    async function showBlock(inst, blockId, options) {
+        const opts = options || {}, nav = ++inst.nav;
+        if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
+        if (nav !== inst.nav || !alive(inst)) return;
+        inst.lastRoute = { blockId, revision: opts.revision };
+        showLoading(inst);
+        try {
+            const [loaded, catalog] = await Promise.all([inst.blockApi.get(blockId), ensureBlockCatalog(inst)]);
+            if (opts.revision) {
+                const version = await inst.blockApi.version(blockId, opts.revision);
+                ED.blocks.contract(version.contract);
+                loaded.flow = Object.assign({}, loaded.flow, { draft: version.doc, draft_revision: opts.revision, live: version.doc, live_revision: opts.revision, published_draft_revision: opts.revision });
+            }
+            if (nav !== inst.nav || !alive(inst)) return;
+            clearScreen(inst);
+            const app = Object.assign({}, inst.app, { api: inst.blockApi, catalog, isBlock: true, readonly: !!(inst.ctx.readonly || opts.revision), openHome: () => showHome(inst, { section: 'blocks' }) });
+            inst.screen = ED.editor.create(app, loaded, opts);
+            inst.root.appendChild(inst.screen.el);
+        } catch (err) { if (nav === inst.nav && alive(inst)) showError(inst, err); }
+    }
+
     // start loads the catalog, then shows the route. A navigation or dispose during the load wins.
     async function start(inst, route) {
         const nav = ++inst.nav;
         showLoading(inst);
         try {
-            await ensureCatalog(inst, true);
+            if (route.blockId) await ensureBlockCatalog(inst); else if (route.section !== 'blocks') await ensureCatalog(inst, true);
         } catch (err) {
             if (nav === inst.nav && alive(inst)) showError(inst, err);
             return;
         }
         if (nav !== inst.nav || !alive(inst)) return;
-        if (route.flowId) showFlow(inst, route.flowId, { runId: route.runId });
-        else showHome(inst);
+        if (route.blockId) showBlock(inst, route.blockId, { revision: route.revision });
+        else if (route.flowId) showFlow(inst, route.flowId, { runId: route.runId });
+        else showHome(inst, { section: route.section });
     }
 
     // goHome is a second launch's way to the start page (Mission Control's New flow). Like showFlow
     // it waits for the editor's leave(): a pending change is saved first, a failed save asks, and
     // "stay" keeps the editor. A start page that is shown already stays; New flow gets the focus.
-    async function goHome(inst) {
+    async function goHome(inst, section) {
         const nav = ++inst.nav;
         if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
         if (nav !== inst.nav || !alive(inst)) return;
-        if (!inst.screen || inst.screen.ed) showHome(inst, { focusNew: true });
+        if (!inst.screen || inst.screen.ed || inst.blockHome !== (section === 'blocks')) showHome(inst, { focusNew: true, section });
         const add = inst.root.querySelector('.ed-home [data-ed-new]');
         if (add && !add.disabled && typeof add.focus === 'function') add.focus();
     }
@@ -181,7 +212,7 @@
     function routeOf(context) {
         const c = context || {};
         const flowId = c.flowId || c.flow_id || '';
-        return { flowId, runId: c.runId || c.run_id || '', home: !flowId && c.section === 'home' };
+        return { flowId, blockId: !flowId && c.blockId || '', revision: c.revision, runId: c.runId || c.run_id || '', section: c.section, home: !flowId && !c.blockId && c.section === 'home' };
     }
 
     function render(container, windowId, context) {
@@ -192,11 +223,13 @@
         container.innerHTML = '';
         container.appendChild(root);
         const inst = { windowId, ctx, root, t: ctx.t, esc: ctx.esc || core.esc, api: core.createApi(ctx.api), catalog: null, catalogAt: 0, screen: null, nav: 0, lastRoute: {} };
+        inst.blockApi = ED.blocks && ED.blocks.api(ctx.api);
         inst.app = {
-            ctx, t: inst.t, esc: inst.esc, api: inst.api, windowId, readonly: !!ctx.readonly,
+            ctx, t: inst.t, esc: inst.esc, api: inst.api, blockApi: inst.blockApi, windowId, readonly: !!ctx.readonly,
             get catalog() { return inst.catalog; },
             openHome: opts => showHome(inst, opts),
-            openFlow: (id, opts) => showFlow(inst, id, opts)
+            openFlow: (id, opts) => showFlow(inst, id, opts),
+            openBlock: (id, opts) => showBlock(inst, id, opts)
         };
         instances.set(windowId, inst);
         // A new window keeps its launch context, so section "home" is dropped once read: a later
@@ -212,8 +245,9 @@
         const inst = instances.get(windowId);
         if (!inst) return;
         const route = routeOf(context);
+        if (route.blockId) { showBlock(inst, route.blockId, { revision: route.revision }); return; }
         if (!route.flowId) {
-            if (route.home) goHome(inst);
+            if (route.home || route.section === 'blocks') goHome(inst, route.section);
             return;
         }
         const editor = inst.screen && inst.screen.ed;

@@ -500,7 +500,7 @@
             const ro = readonly();
             const items = [
                 { icon: 'edit', label: t('easydrag.ui.menu_open_node'), action: () => ed.bus.emit('open-detail', { nodeId: id }) },
-                { icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) },
+                ...(!ed.isBlock ? [{ icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) }] : []),
                 { separator: true },
                 { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },

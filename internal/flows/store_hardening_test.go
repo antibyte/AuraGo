@@ -464,25 +464,25 @@ func TestStoreKindColumnFollowsTheDocument(t *testing.T) {
 		t.Fatalf("ListFlows(block) = %d, want 1", len(list))
 	}
 
-	// SaveDraft moves the column together with the document.
+	// Saving a different kind cannot convert an existing record.
 	f := sampleFlow("flow_aaaaaaaabh")
 	if _, err := s.CreateFlow(ctx, f, "", storeNow); err != nil {
 		t.Fatal(err)
 	}
 	f.Kind = KindBlock
 	rev, err := s.SaveDraft(ctx, f.ID, f, 1, storeNow)
-	if err != nil || rev != 2 {
+	if !errors.Is(err, ErrWrongFlowKind) || rev != 1 {
 		t.Fatalf("SaveDraft(block) = %d, %v", rev, err)
 	}
 	rec, _ := s.GetFlow(ctx, f.ID)
-	if rec.Kind != KindBlock || rec.Draft.Kind != KindBlock {
+	if rec.Kind != KindFlow || rec.Draft.Kind != KindFlow {
 		t.Fatalf("after SaveDraft(block): column %q, document %q", rec.Kind, rec.Draft.Kind)
 	}
-	if list, _ := s.ListFlows(ctx, KindBlock); len(list) != 2 {
-		t.Fatalf("ListFlows(block) after the change = %d, want 2", len(list))
+	if list, _ := s.ListFlows(ctx, KindBlock); len(list) != 1 {
+		t.Fatalf("ListFlows(block) after rejected change = %d, want 1", len(list))
 	}
 	f.Kind = ""
-	if rev, err = s.SaveDraft(ctx, f.ID, f, rev, storeNow); err != nil || rev != 3 {
+	if rev, err = s.SaveDraft(ctx, f.ID, f, rev, storeNow); err != nil || rev != 2 {
 		t.Fatalf("SaveDraft(empty kind) = %d, %v", rev, err)
 	}
 	if rec, _ = s.GetFlow(ctx, f.ID); rec.Kind != KindFlow {
@@ -490,6 +490,42 @@ func TestStoreKindColumnFollowsTheDocument(t *testing.T) {
 	}
 	if f.Kind != "" {
 		t.Fatalf("SaveDraft changed the caller's kind to %q", f.Kind)
+	}
+}
+
+func TestStoreSaveRejectsCorruptIdentityTypes(t *testing.T) {
+	for _, tc := range []struct{ name, id, old, replacement string }{
+		{"fractional schema", "flow_schemafloat", `"schema":1`, `"schema":1.0`},
+		{"exponent schema", "flow_schemaexp", `"schema":1`, `"schema":1e0`},
+		{"numeric identity", "123", `"id":"123"`, `"id":123`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := openTestStore(t)
+			ctx := context.Background()
+			doc := sampleFlow(tc.id)
+			if _, err := s.CreateFlow(ctx, doc, "", storeNow); err != nil {
+				t.Fatal(err)
+			}
+			var raw string
+			if err := s.db.QueryRow(`SELECT draft_json FROM flows WHERE id=?`, tc.id).Scan(&raw); err != nil {
+				t.Fatal(err)
+			}
+			bad := strings.Replace(raw, tc.old, tc.replacement, 1)
+			if bad == raw {
+				t.Fatalf("fixture did not contain %s", tc.old)
+			}
+			if _, err := s.db.Exec(`UPDATE flows SET draft_json=? WHERE id=?`, bad, tc.id); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.SaveDraft(ctx, tc.id, doc, 1, storeNow); err == nil {
+				t.Fatal("corrupt draft was overwritten")
+			}
+			var after string
+			var rev int
+			if err := s.db.QueryRow(`SELECT draft_json,draft_revision FROM flows WHERE id=?`, tc.id).Scan(&after, &rev); err != nil || after != bad || rev != 1 {
+				t.Fatalf("row changed: %q, %d, %v", after, rev, err)
+			}
+		})
 	}
 }
 

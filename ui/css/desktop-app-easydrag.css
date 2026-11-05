@@ -1039,6 +1039,31 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-modal-foot > .ed-btn > span { overflow-wrap: anywhere; }
 .ed-app .ed-modal-backdrop:has(> .ed-modal--transform) { max-width: 100vw; }
 .ed-app .ed-modal--transform { width: min(720px, 100%); }
+.ed-app .ed-modal-backdrop:has(> .ed-modal--block) { max-width: 100vw; }
+.ed-app .ed-modal--block { width: min(720px, 100%); }
+.ed-app .ed-modal--block .ed-btn { max-width: 100%; white-space: normal; }
+.ed-app .ed-block-library-link { align-self: start; margin: -4px 0 18px; }
+.ed-app .ed-block-open { width: 100%; border: 0; background: transparent; color: inherit; padding: 20px; text-align: left; font: inherit; cursor: pointer; }
+.ed-app .ed-block-open h3 { margin: 0 0 12px; }
+.ed-app .ed-block-library > [data-ed-block-library-more] { margin-top: 16px; }
+.ed-app .ed-block-field { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; padding: 14px 0; border-bottom: 1px solid var(--ed-border); }
+.ed-app .ed-block-field > .ed-icon-btn { justify-self: end; }
+.ed-app .ed-block-field input, .ed-app .ed-block-field select, .ed-app .ed-block-call select { min-width: 0; }
+.ed-app .ed-block-values .ed-field-head { flex-wrap: wrap; }
+.ed-app .ed-block-values [data-ed-block-presence] { max-width: 100%; }
+.ed-app .ed-block-call, .ed-app .ed-block-boundary, .ed-app .ed-block-values { min-width: 0; }
+.ed-app .ed-block-call { display: grid; gap: 12px; }
+.ed-app .ed-block-contract { padding-left: 20px; overflow-wrap: anywhere; }
+.ed-app .ed-block-contract li { margin: 4px 0; }
+.ed-app .ed-block-versions { display: grid; gap: 8px; margin-bottom: 12px; }
+.ed-app .ed-block-dependents { padding-left: 20px; overflow-wrap: anywhere; }
+.ed-app .ed-block-result dl { margin: 8px 0; }
+.ed-app .ed-block-result dd { margin: 3px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@container (max-width: 760px) {
+    .ed-app .ed-block-field { grid-template-columns: minmax(0, 1fr); }
+    .ed-app .ed-block-field button, .ed-app .ed-block-field input:not([type="checkbox"]), .ed-app .ed-block-field select,
+    .ed-app .ed-block-call button, .ed-app .ed-block-call select, .ed-app .ed-modal--block button, .ed-app .ed-modal--block select { min-height: 44px; }
+}
 .ed-app .ed-modal--transform code { overflow-wrap: anywhere; white-space: normal; }
 .ed-app .ed-transform-context { margin: 8px 0 12px; }
 .ed-app .ed-transform-context p { margin: 3px 0; }

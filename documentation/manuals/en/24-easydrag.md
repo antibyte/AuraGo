@@ -20,6 +20,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 12. [Settings](#settings)
 13. [When EasyDrag Is Switched Off](#when-easydrag-is-switched-off)
 14. [Keyboard Shortcuts](#keyboard-shortcuts)
+15. [Reusable Local Blocks](#reusable-local-blocks)
 
 ---
 
@@ -56,6 +57,41 @@ when the provider is unavailable.
 4. Double-click a step (or press **Enter**) to edit it. The inspector opens in the editor, not as a dialog. It has Input, Parameters and Output tabs. Parameters has three parts: *Values*, *Settings* and *Note*. The Input tab shows data from earlier steps: from the last test or run, or as an example. Drag a value over the Parameters tab and then into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
 5. **Test** (Ctrl+Enter) opens the test dialog. Choose **Simulation** with sample outputs or an explicitly selected **Real test**, which can have real effects. The draft is saved before execution. Inspect the result and the steps it followed; see [Testing](#testing).
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
+
+## Reusable Local Blocks
+
+Open **Reusable blocks** from the start page and choose **New block**. A block starts with
+an Input and an Output boundary. Double-click each boundary to add named fields and choose
+Text, Number, Boolean, Object or List. Mark a field required or nullable independently.
+An omitted optional value is different from explicit `null`; `false` and `0` remain real values.
+The Output boundary binds each declared output to a fixed value or a value from an earlier step.
+Use the Input tab's target selector and data tree to insert a reference at the saved cursor.
+For example, `{{block_input.data.name}}` reads the scaffold's input field `name`.
+If stored field declarations are invalid, a JSON repair view preserves them until you explicitly
+apply a corrected list. A contract allows up to 64 fields and 32 KiB of declarations.
+
+**Simulate block** saves and tests the draft before its first publication. Enter sample inputs
+with the typed controls; objects and lists use JSON. Simulation performs only local logic and
+creates no run history, timer or mission. Samples stay in the open dialog. **Preview notes** lists
+the sample limits: 64 KiB in total, 10,000 values and 32 nested levels. Closing the dialog cancels
+its pending request. Review the declared contract and then **Publish** to create an immutable
+version. Blocks support Set fields, If, Switch and Merge only; they cannot call another block,
+wait, stop, use AI, access secrets or invoke external tools.
+
+In a normal flow, add **Call block**, select a block and a published version, then choose
+**Use selected version**. Review the old and new contracts before applying the reference. Fill the
+named input fields or map upstream data to them. Outputs are direct fields, for example
+`{{greet.greeting}}` for a call whose data name is `greet`. Publishing a new block version leaves
+every existing caller unchanged. Upgrade each caller explicitly; matching bindings remain,
+removed fields are listed, and Undo restores the previous reference. Incompatible values stay
+visible until corrected. A call has no automatic retries; imported retry settings must be
+explicitly reset to zero before publishing or running.
+
+Under **More**, inspect published versions or review a block's dependents before deletion.
+Published parent versions and retained runs can keep a block version in use; deletion then
+remains blocked. **Load more** retrieves older versions or additional dependencies. Version
+inspection is read-only; **Open current draft** returns to editing. The parent run shows the
+call's block ID and version, without a separate child-run history.
 
 ## The Editor
 

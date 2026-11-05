@@ -116,7 +116,7 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 		return nil, nil, err
 	}
 	defer unlock()
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -129,12 +129,20 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 	if HasErrors(issues) {
 		return nil, issues, &ValidationError{Issues: issues}
 	}
+	plan, err := prepareBlockPlan(ctx, s.store, rec.Draft, s.services)
+	if err != nil {
+		return nil, issues, err
+	}
 	bindings, err := BindTriggers(rec.Draft, s.reg, loc, now)
 	if err != nil {
 		issues = append(issues, bindingIssue(err))
 		return nil, issues, &ValidationError{Issues: issues}
 	}
-	pub, err := s.store.Publish(ctx, id, baseRevision, now)
+	var blocks []resolvedBlock
+	if plan != nil {
+		blocks = plan.blocks
+	}
+	pub, err := s.store.publishKindWithBlocks(ctx, id, baseRevision, now, KindFlow, blocks)
 	if err != nil {
 		return nil, issues, err
 	}
@@ -189,7 +197,7 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error
 		return err
 	}
 	defer unlock()
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -200,6 +208,9 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error
 	ctx = context.WithoutCancel(ctx)
 	if err := s.bridge.SetFlowMissionEnabled(rec.MissionID, enabled); err != nil {
 		return err
+	}
+	if !enabled {
+		s.InvalidateFlowAdmissions(rec.MissionID)
 	}
 	return s.armTimers(ctx, rec)
 }
@@ -238,7 +249,7 @@ func (s *Service) DeleteFlow(ctx context.Context, id string) error {
 		return err
 	}
 	defer unlock()
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -256,7 +267,7 @@ func (s *Service) DeleteFlow(ctx context.Context, id string) error {
 // ErrMissionAmbiguous and deletes nothing. Once it holds the flow's lock it ignores the
 // cancellation of ctx: the mission is gone already.
 func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) error {
-	rec, err := s.store.GetFlowByMission(ctx, missionID)
+	rec, err := s.requireMissionFlow(ctx, missionID)
 	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
@@ -271,7 +282,7 @@ func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) er
 	// Mission Control has deleted the mission already; finish even when the caller goes away.
 	ctx = context.WithoutCancel(ctx)
 	// The flow may have been deleted while this call waited for the lock.
-	cur, err := s.store.GetFlow(ctx, rec.ID)
+	cur, err := s.requireFlow(ctx, rec.ID)
 	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
@@ -281,7 +292,7 @@ func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) er
 	if cur.MissionID != missionID {
 		return nil
 	}
-	linked, err := s.store.GetFlowByMission(ctx, missionID)
+	linked, err := s.requireMissionFlow(ctx, missionID)
 	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
@@ -318,7 +329,7 @@ func (s *Service) RepairMission(ctx context.Context, id string, baseDraftRevisio
 		return err
 	}
 	defer unlockDraft()
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -328,7 +339,7 @@ func (s *Service) RepairMission(ctx context.Context, id string, baseDraftRevisio
 	if rec.MissionID == "" {
 		return ErrFlowMissionMissing
 	}
-	linked, err := s.store.GetFlowByMission(ctx, rec.MissionID)
+	linked, err := s.requireMissionFlow(ctx, rec.MissionID)
 	if err != nil {
 		return err
 	}

@@ -275,5 +275,5 @@
         renderRows();
         return dialog;
     }
-    ED.transform = { build, preview, literal, available, initial, readSample, open };
+    ED.transform = { build, preview, literal, available, initial, readSample, boundedJSON: bounded, open };
 })();

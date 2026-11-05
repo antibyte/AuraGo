@@ -335,8 +335,9 @@ func (s *Server) automaticFlowRunsAllowed() error {
 // recordFlowAudit writes a user action on a flow to the audit timeline.
 //
 // The event types (flow_create, flow_import, flow_publish, flow_enable, flow_disable,
-// flow_delete, flow_secret_set, flow_secret_delete, flow_run_cancel) are listed in the
-// dashboard's audit type filter (ui/dashboard.html) and labelled in
+// flow_delete, flow_secret_set, flow_secret_delete, flow_run_cancel and the
+// flow_block_create/publish/delete types) are listed in the dashboard's audit type
+// filter (ui/dashboard/sections/audit.html) and labelled in
 // ui/lang/dashboard/*.json (dashboard.audit_type_<type>); a new type needs both.
 func (s *Server) recordFlowAudit(eventType, flowID, name, summary string) {
 	s.recordFlowAuditStatus(eventType, flowID, name, memory.AuditStatusSuccess, summary)

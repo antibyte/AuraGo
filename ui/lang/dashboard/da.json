@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Værktøj",
   "dashboard.selftest_connections": "Forbindelser",
   "dashboard.rustfs_running_unready": "Kører, endnu ikke klar",
-  "dashboard.audit_type_flow_mission_repair": "Flowets missionsforbindelse repareret"
+  "dashboard.audit_type_flow_mission_repair": "Flowets missionsforbindelse repareret",
+  "dashboard.audit_type_flow_block_create": "Flowblok oprettet",
+  "dashboard.audit_type_flow_block_publish": "Flowblok udgivet",
+  "dashboard.audit_type_flow_block_delete": "Flowblok slettet"
 }

@@ -139,7 +139,7 @@ func (s *Service) reconcileFlow(ctx context.Context, id string, recon MissionRec
 		return nil
 	}
 	defer unlock()
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()

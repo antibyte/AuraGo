@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-saver.js', 'easydrag-canvas.js',
-    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-transform.js', 'easydrag-mapping.js',
+    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
     'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
@@ -208,7 +208,8 @@ export async function run(env) {
         const o = opts || {};
         const flow = Object.assign({ id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3, published_draft_revision: 0, live: null, live_revision: 0 }, o.flow);
         const app = {
-            ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, windowId: 'w1', readonly: !!o.readonly,
+            ctx: h.ctx, t, esc: h.ED.core.esc, api: o.block ? h.blockApi : h.api, blockApi: h.blockApi, isBlock: !!o.block, catalog: h.catalog, windowId: 'w1', readonly: !!o.readonly,
+            openBlock: (id, opts) => h.opened.push({ blockId: id, opts }),
             openHome: x => h.homes.push(x || {}), openFlow: id => h.opened.push(id)
         };
         const editor = h.ED.editor.create(app, { flow, enabled: !!o.enabled, issues: [] }, {});
@@ -1016,11 +1017,11 @@ export async function run(env) {
         }
         openEditor(h);
         await settle();
-        const cleared = JSON.stringify({ flowId: null, flow_id: null, run_id: null });
+        const cleared = JSON.stringify({ blockId: null, flowId: null, flow_id: null, run_id: null });
         eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id',
             [screens, h.notes.map(n => n.message), patches.slice(0, 2), patches[patches.length - 1], h.logged],
             [[[true, false], [true, false]], ['error_flow_not_found', 'error_flow_not_found'], [cleared, cleared],
-                JSON.stringify({ flowId: 'f1', flow_id: null, run_id: null }), []]);
+                JSON.stringify({ blockId: null, flowId: 'f1', flow_id: null, run_id: null }), []]);
     });
 
     // ── 1d-11: Mission Control's New flow launches EasyDrag with section "home" ──
@@ -1461,6 +1462,7 @@ export async function run(env) {
     await (await import('./test-easydrag-scenarios.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-library.mjs')).run({ sandbox, eq, guardAsync, settle });
     await (await import('./test-easydrag-transform.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
+    await (await import('./test-easydrag-blocks.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

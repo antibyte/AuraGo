@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Tool",
   "dashboard.selftest_connections": "Verbindingen",
   "dashboard.rustfs_running_unready": "Draait, nog niet gereed",
-  "dashboard.audit_type_flow_mission_repair": "Missiekoppeling van flow hersteld"
+  "dashboard.audit_type_flow_mission_repair": "Missiekoppeling van flow hersteld",
+  "dashboard.audit_type_flow_block_create": "Flowblok aangemaakt",
+  "dashboard.audit_type_flow_block_publish": "Flowblok gepubliceerd",
+  "dashboard.audit_type_flow_block_delete": "Flowblok verwijderd"
 }

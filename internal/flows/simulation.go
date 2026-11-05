@@ -2,10 +2,12 @@ package flows
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -20,12 +22,32 @@ type SimulationFixture struct {
 
 // SimulationRequest describes an isolated, non-persistent draft run.
 type SimulationRequest struct {
-	TriggerNode  string
-	TriggerData  map[string]any
-	OnlyNode     string
-	BaseRevision int
-	Fixtures     map[string]SimulationFixture
-	At           time.Time
+	TriggerNode       string
+	TriggerData       map[string]any
+	OnlyNode          string
+	BaseRevision      int
+	Fixtures          map[string]SimulationFixture
+	At                time.Time
+	blockFingerprints map[string]string
+}
+
+func scenarioBlockPlanMatches(saved map[string]string, plan *blockPlan) bool {
+	if saved == nil {
+		return true
+	}
+	expected := map[string]string{}
+	for key, hash := range saved {
+		if strings.HasPrefix(key, "__block__:") {
+			expected[key] = hash
+		}
+	}
+	actual := map[string]string{}
+	if plan != nil {
+		for _, block := range plan.blocks {
+			actual[fmt.Sprintf("__block__:%s:%d", block.Ref.FlowID, block.Ref.Revision)] = hex.EncodeToString(block.Hash[:])
+		}
+	}
+	return equalScenarioFingerprints(expected, actual)
 }
 
 // SimulationResult contains bounded step records, never live action results.
@@ -60,12 +82,29 @@ func (c simulationClock) After(time.Duration) <-chan time.Time {
 // Simulate executes only trusted built-in pure logic; all other built-in nodes
 // require a fixture. It never uses the production registry's executable hooks.
 func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest) (*SimulationResult, error) {
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if req.BaseRevision > 0 && req.BaseRevision != rec.DraftRevision {
 		return nil, ErrRevisionConflict
+	}
+	var plan *blockPlan
+	for _, node := range rec.Draft.Nodes {
+		if node.Type != blockCallType && node.Type != blockEachType {
+			continue
+		}
+		plan, err = prepareDraftBlockPlan(ctx, s.store, rec.Draft, rec.DraftRevision, s.services)
+		if err != nil {
+			if req.blockFingerprints != nil && !errors.Is(err, ErrRevisionConflict) && ctx.Err() == nil {
+				return nil, ErrScenarioStale
+			}
+			return nil, err
+		}
+		break
+	}
+	if !scenarioBlockPlanMatches(req.blockFingerprints, plan) {
+		return nil, ErrScenarioStale
 	}
 	type inputData struct {
 		Data     map[string]any               `json:"data"`
@@ -87,6 +126,18 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	if err := RegisterCatalog(reg, nil); err != nil {
 		return nil, err
 	}
+	if plan != nil {
+		if _, ok := reg.Lookup(blockCallType); !ok {
+			if err := reg.Register(blockCallDef()); err != nil {
+				return nil, err
+			}
+		}
+		for id := range req.Fixtures {
+			if _, ok := plan.byNode[id]; ok {
+				return nil, ErrInvalidSimulationFixture
+			}
+		}
+	}
 	if err := validateSimulationFixtures(rec.Draft, reg, req.Fixtures); err != nil {
 		return nil, err
 	}
@@ -94,7 +145,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		if def.Trigger {
 			continue
 		}
-		pure := simulationPureType(def.Type)
+		pure := simulationPureType(def.Type) || def.Type == blockCallType
 		copyDef := *def
 		original := def.Execute
 		copyDef.Execute = func(nodeCtx context.Context, in ExecInput) (ExecResult, error) {
@@ -160,8 +211,12 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	}
 	engine := NewEngine(reg, &Services{Clock: simulationClock{at: at}, Location: s.services.Loc()}, s.logger, 1)
 	engine.simulation = true
+	var scope *blockRunScope
+	if plan != nil {
+		scope = &blockRunScope{}
+	}
 	result := engine.Execute(ctx, RunRequest{Flow: rec.Draft, Revision: rec.DraftRevision, Mode: ModeSimulation,
-		TriggerNode: trigger, TriggerType: "simulation", TriggerData: data, OnlyNode: req.OnlyNode}, nil)
+		TriggerNode: trigger, TriggerType: "simulation", TriggerData: data, OnlyNode: req.OnlyNode, blocks: plan, scope: scope}, nil)
 	if result.Steps == nil {
 		result.Steps = []StepRecord{}
 	}

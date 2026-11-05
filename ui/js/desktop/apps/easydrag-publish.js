@@ -143,11 +143,14 @@
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_unsaved'), type: 'error' });
                 return;
             }
+            const reviewedModelVersion = ed.model.version;
+            const reviewedRevision = ed.saver ? ed.saver.revision : ed.flow.draft_revision;
             let preview;
             try { preview = await ed.api.preview(ed.flow.id); } catch (err) {
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: core.errorText(t, err), type: 'error' });
                 return;
             }
+            if (ed.isBlock && (ed.readonly || !ed.root.isConnected || ed.model.version !== reviewedModelVersion || preview.draft_revision !== reviewedRevision)) return;
             ed.issues = preview.issues || [];
             ed.bus.emit('issues', ed.issues);
             const errors = ed.issues.filter(is => is.severity === 'error');
@@ -164,8 +167,9 @@
             if (errors.length) {
                 body += '<div class="ed-callout ed-callout--error">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.publish_blocked', { count: errors.length })) + '</strong>' + issuesMarkup(errors) + '</div></div>';
             } else {
-                body += '<p class="ed-publish-lead">' + esc(t('easydrag.ui.publish_lead')) + '</p>';
+                body += '<p class="ed-publish-lead">' + esc(t(ed.isBlock ? 'easydrag.ui.block_publish_hint' : 'easydrag.ui.publish_lead')) + '</p>';
             }
+            if (ed.isBlock) body += ED.blocks.contractMarkup(ed, preview.contract);
             const fx = preview.effects || [];
             if (fx.length) {
                 body += '<h4 class="ed-section-title">' + esc(t('easydrag.ui.publish_effects')) + '</h4><ul class="ed-effects">' + fx.map(e =>
@@ -181,7 +185,7 @@
             const evidence = ed.testEvidence;
             const exactTest = evidence && Number.isInteger(preview.draft_revision) && Number(evidence.revision) === preview.draft_revision && !(ed.saver && ed.saver.isDirty());
             body += '<section class="ed-publish-evidence"><h4>' + esc(t('easydrag.ui.publish_tested_revision')) + '</h4><p>' + esc(exactTest ? (evidence.mode === 'simulation' ? t('easydrag.ui.simulation_title') : t('easydrag.ui.real_test')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + evidence.status, evidence.status) : t('easydrag.ui.publish_not_tested')) + '</p></section>';
-            if (!enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate' + (ed.flow.live ? '' : ' checked') + '> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
+            if (!ed.isBlock && !enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate' + (ed.flow.live ? '' : ' checked') + '> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
             const dialog = core.modal(ed.root, {
                 title: t('easydrag.ui.publish_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--publish', body,
                 actions: errors.length
@@ -189,6 +193,10 @@
                     : [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'publish', label: t('easydrag.ui.publish'), primary: true, icon: 'rocket' }],
                 onAction: async (action, d) => {
                     if (action !== 'publish') return true;
+                    if (ed.isBlock && (ed.readonly || !ed.root.isConnected || ed.model.version !== reviewedModelVersion || ed.saver.revision !== reviewedRevision || ed.saver.isDirty())) {
+                        ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_unsaved'), type: 'error' });
+                        return false;
+                    }
                     const activate = d.body.querySelector('[data-ed-activate]');
                     return publish(!!(activate && activate.checked));
                 }
@@ -233,6 +241,7 @@
         }
 
         async function setActive(on, quiet) {
+            if (ed.isBlock) return false;
             try {
                 await ed.api.setEnabled(ed.flow.id, on);
                 ed.flowEnabled = on;
@@ -252,6 +261,7 @@
         }
 
         async function openVersions() {
+            if (ed.isBlock) return ED.blocks.versions(ed, { openBlock: ed.openBlock });
             let data;
             try {
                 data = await ed.api.versions(ed.flow.id);

@@ -208,6 +208,16 @@
         function fieldsOf(n) {
             const i = info(n.type);
             if (!i) return [];
+            if (n.type === 'component.call') {
+                const contract = catalog.blockContracts && catalog.blockContracts.get(n.params.flow_id + ':' + n.params.revision);
+                return contract ? contract.outputs.map((field, index) => ({ name: field.name, type: ({ string: 'text', boolean: 'bool', array: 'list' })[field.type] || field.type, primary: index === 0 })) : [];
+            }
+            if (n.type === 'block.input' || n.type === 'block.output') {
+                const fields = n.params && n.params.fields;
+                if (!Array.isArray(fields) || fields.length > 64 || fields.some(field => !field || !/^[a-z][a-z0-9_]{0,39}$/.test(field.name) || !['string', 'number', 'boolean', 'object', 'array'].includes(field.type)) || new Set(fields.map(field => field.name)).size !== fields.length) return [];
+                const declared = fields.map((field, index) => ({ name: field.name, type: ({ string: 'text', boolean: 'bool', array: 'list' })[field.type] || field.type, primary: index === 0 }));
+                return n.type === 'block.input' ? [{ name: 'data', type: 'object', primary: true, fields: declared }] : declared;
+            }
             if (i.dynamic_fields === 'operation') {
                 const raw = n.params ? n.params.operation : undefined;
                 const op = raw === undefined || raw === null ? 'call_service' : typeof raw === 'string' ? (raw.trim().toLowerCase() || 'call_service') : '';

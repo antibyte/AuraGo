@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Ferramenta",
   "dashboard.selftest_connections": "Ligações",
   "dashboard.rustfs_running_unready": "Em execução, ainda não está pronto",
-  "dashboard.audit_type_flow_mission_repair": "Ligação à missão do fluxo reparada"
+  "dashboard.audit_type_flow_mission_repair": "Ligação à missão do fluxo reparada",
+  "dashboard.audit_type_flow_block_create": "Bloco de fluxo criado",
+  "dashboard.audit_type_flow_block_publish": "Bloco de fluxo publicado",
+  "dashboard.audit_type_flow_block_delete": "Bloco de fluxo eliminado"
 }

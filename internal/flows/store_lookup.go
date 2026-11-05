@@ -53,13 +53,16 @@ func (s *Store) GetFlowByMission(ctx context.Context, missionID string) (*FlowRe
 	if scanErr != nil {
 		return nil, scanErr
 	}
+	if r.Kind != KindFlow {
+		return nil, ErrWrongFlowKind
+	}
 	return r, nil
 }
 
 // flowIDByMissionSQL reads at most two ids of a mission's flows, like flowByMissionSQL but
 // without the documents. It is a constant so a test can check its query plan (it must use
 // idx_flows_mission).
-const flowIDByMissionSQL = `SELECT id FROM flows WHERE mission_id = ? LIMIT 2`
+const flowIDByMissionSQL = `SELECT id, kind FROM flows WHERE mission_id = ? LIMIT 2`
 
 // flowIDByMission returns the id of the flow that owns a mission without reading its
 // documents, so it works even when a document cannot be parsed. Like GetFlowByMission it
@@ -74,22 +77,26 @@ func (s *Store) flowIDByMission(ctx context.Context, missionID string) (string, 
 		return "", err
 	}
 	defer rows.Close()
-	var ids []string
+	type owner struct{ id, kind string }
+	var owners []owner
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var item owner
+		if err := rows.Scan(&item.id, &item.kind); err != nil {
 			return "", err
 		}
-		ids = append(ids, id)
+		owners = append(owners, item)
 	}
 	if err := rows.Err(); err != nil {
 		return "", err
 	}
-	switch len(ids) {
+	switch len(owners) {
 	case 0:
 		return "", ErrNotFound
 	case 1:
-		return ids[0], nil
+		if owners[0].kind != string(KindFlow) {
+			return "", ErrWrongFlowKind
+		}
+		return owners[0].id, nil
 	default:
 		return "", fmt.Errorf("%w: %s", ErrMissionAmbiguous, quoteForError(missionID))
 	}
@@ -103,7 +110,7 @@ type flowMissionRef struct {
 // flowMissionRefs lists every flow with its mission id, ordered by flow id, without
 // reading the documents (ReconcileMissions).
 func (s *Store) flowMissionRefs(ctx context.Context) ([]flowMissionRef, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, mission_id FROM flows ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, mission_id FROM flows WHERE kind='flow' ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}

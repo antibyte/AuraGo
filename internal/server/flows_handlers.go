@@ -106,6 +106,8 @@ func (l *flowRateLimiter) allow(key string, now time.Time, limit int, window tim
 func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
 	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
+	mux.HandleFunc(flowBlocksPath, s.handleFlowBlocks)
+	mux.HandleFunc(flowBlocksPath+"/", s.handleFlowBlocks)
 }
 
 // flowsEncodeFailure is the whole answer when a response cannot be encoded.
@@ -230,12 +232,18 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 	switch {
 	case errors.As(err, &ve) && ve != nil:
 		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": flowsErrorText(err), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
+	case errors.Is(err, flows.ErrWrongFlowKind):
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "flow not found")
 	case errors.Is(err, flows.ErrNotFound):
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunNotFound):
 		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRevisionConflict):
 		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", flowsErrorText(err))
+	case errors.Is(err, flows.ErrBlockUnavailable):
+		flowsError(w, http.StatusConflict, "FLOW_BLOCK_UNAVAILABLE", "the referenced block revision is unavailable")
+	case errors.Is(err, flows.ErrBlockInvalid):
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "invalid block request")
 	case errors.Is(err, flows.ErrNotPublished):
 		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrNoTrigger):
@@ -328,6 +336,13 @@ func flowsDocumentError(w http.ResponseWriter, err error) {
 // flowsLogFlowID returns the flow id of a /api/desktop/flows/{id}/… request for a log line
 // (bounded), or "" for the collection routes, which name no flow.
 func flowsLogFlowID(r *http.Request) string {
+	if isFlowBlocksAPIPath(r.URL.Path) {
+		parts := flowBlockPathParts(r.URL.Path)
+		if len(parts) == 0 || parts[0] == "validate" || parts[0] == "node-types" {
+			return ""
+		}
+		return flowBoundRunes(parts[0], flowNameEchoRunes)
+	}
 	parts := flowsPathParts(r.URL.Path)
 	if len(parts) == 0 || flowsCollectionRoutes[parts[0]] {
 		return ""

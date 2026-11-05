@@ -170,7 +170,9 @@ type ExecInput struct {
 	Services *Services
 	Logger   *slog.Logger
 	// Slot lets a node that only waits give the run's global slot back (SlotParker); nil without one.
-	Slot SlotParker
+	Slot  SlotParker
+	block *resolvedBlock
+	scope *blockRunScope
 }
 
 // ExecResult is a node's output. Ports nil means the definition's default port.

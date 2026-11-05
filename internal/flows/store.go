@@ -22,6 +22,8 @@ var (
 	ErrNotFound         = errors.New("flow not found")
 	ErrRunNotFound      = errors.New("flow run not found")
 	ErrRevisionConflict = errors.New("the flow was changed elsewhere")
+	// ErrWrongFlowKind prevents flow and reusable-block operations crossing ownership.
+	ErrWrongFlowKind = errors.New("the requested flow has a different kind")
 	// ErrFlowExists is returned (wrapped, with the flow id) by CreateFlow when a flow with that id is already stored.
 	ErrFlowExists = errors.New("a flow with this id already exists")
 )
@@ -53,7 +55,7 @@ func parseTime(s string) time.Time {
 // storeSchemaVersion is the flows.db schema this code creates and migrates to; it is
 // stored as flows_meta.schema_version. OpenStore refuses a database with a greater
 // version (a newer AuraGo migrated it), so an older AuraGo never writes into it.
-const storeSchemaVersion = 2
+const storeSchemaVersion = 3
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -202,9 +204,30 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := verifyFlowsV3(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	var existing int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&existing); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("inspect flows database: %w", err)
+	}
 	if err := backupFlowsBeforeV2(db, logger); err != nil {
 		_ = db.Close()
 		return nil, err
+	}
+	versionBeforeWrites, err := flowSchemaVersion(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	v2BackedUp := existing > 0 && versionBeforeWrites == 2
+	if v2BackedUp {
+		if err := backupFlowsSnapshot(db, logger, ".flows-v2-backup-*"); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
 	}
 	s := &Store{db: db, logger: logger}
 	for _, stmt := range schemaStatements {
@@ -226,6 +249,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		}
 	}
 	if err := migrateFlowsV2(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := migrateFlowsV3(db, logger, existing > 0 && !v2BackedUp); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -319,12 +346,18 @@ func scanFlow(row scanner) (*FlowRecord, error) {
 		return nil, fmt.Errorf("flow %s draft: %w", quoteForError(r.ID), err)
 	}
 	r.Draft = draft
+	if (r.Kind != KindFlow && r.Kind != KindBlock) || draft.Kind != r.Kind || draft.ID != r.ID {
+		return nil, fmt.Errorf("flow %s draft kind: %w", quoteForError(r.ID), ErrWrongFlowKind)
+	}
 	if liveJSON != "" {
 		live, err := ParseFlow([]byte(liveJSON))
 		if err != nil {
 			return nil, fmt.Errorf("flow %s live revision: %w", quoteForError(r.ID), err)
 		}
 		r.Live = live
+		if live.Kind != r.Kind || live.ID != r.ID {
+			return nil, fmt.Errorf("flow %s live kind: %w", quoteForError(r.ID), ErrWrongFlowKind)
+		}
 	}
 	r.PublishedAt = parseTime(publishedAt)
 	r.CreatedAt = parseTime(createdAt)
@@ -409,14 +442,18 @@ func (s *Store) ListFlows(ctx context.Context, kind Kind) ([]*FlowRecord, error)
 	return out, rows.Err()
 }
 
-// SaveDraft replaces the draft if baseRevision is current and returns the new revision.
-// On a conflict it returns the current revision and ErrRevisionConflict.
-// The stored document must name the row it lives in, so f.ID has to equal id;
-// SaveDraft rejects a mismatch rather than rewriting the id. It also rejects a
-// flow whose Schema is not SchemaVersion (ErrUnsupportedSchema, wrapped), since
-// ParseFlow could not read the row back. A rejected save returns revision 0 and
-// changes nothing. The kind, name and description columns follow the document.
-// SaveDraft does not modify f.
+// validStoredDocumentSQL builds a predicate for the two fixed JSON columns.
+// CASE prevents SQLite from evaluating JSON functions on damaged text.
+func validStoredDocumentSQL(column string) string {
+	return `CASE WHEN length(CAST(` + column + ` AS BLOB))<=` + strconv.Itoa(MaxDocumentBytes) + ` AND json_valid(` + column + `)
+		THEN COALESCE(json_type(` + column + `)='object' AND json_type(` + column + `,'$.schema')='integer' AND json_extract(` + column + `,'$.schema')=` + strconv.Itoa(SchemaVersion) + `
+		AND json_type(` + column + `,'$.id')='text' AND json_extract(` + column + `,'$.id')=id
+		AND COALESCE(json_type(` + column + `,'$.kind') IN ('text','null'),1)
+		AND CASE WHEN json_extract(` + column + `,'$.kind')='block' THEN 'block' ELSE 'flow' END=kind,0) ELSE 0 END`
+}
+
+// SaveDraft replaces the draft at its current revision without modifying f. The
+// stored kind and document identity remain immutable; conflicts change nothing.
 func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision int, now time.Time) (int, error) {
 	if f == nil {
 		return 0, errors.New("flow is required")
@@ -434,9 +471,11 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 	if len(data) > MaxDocumentBytes {
 		return 0, ErrDocumentTooLarge
 	}
-	res, err := s.db.ExecContext(ctx, `UPDATE flows SET draft_json = ?, kind = ?, name = ?, description = ?,
-		draft_revision = draft_revision + 1, updated_at = ? WHERE id = ? AND draft_revision = ?`,
-		string(data), string(storedKind(f.Kind)), f.Name, f.Description, formatTime(now), id, baseRevision)
+	query := `UPDATE flows SET draft_json = ?, name = ?, description = ?,
+		draft_revision = draft_revision + 1, updated_at = ? WHERE id = ? AND draft_revision = ? AND kind = ? AND (` + validStoredDocumentSQL("draft_json") + `)
+		AND (live_json='' OR (` + validStoredDocumentSQL("live_json") + `))`
+	res, err := s.db.ExecContext(ctx, query,
+		string(data), f.Name, f.Description, formatTime(now), id, baseRevision, string(storedKind(f.Kind)))
 	if err != nil {
 		return 0, fmt.Errorf("save draft: %w", err)
 	}
@@ -444,12 +483,21 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 		return baseRevision + 1, nil
 	}
 	var current int
-	err = s.db.QueryRowContext(ctx, `SELECT draft_revision FROM flows WHERE id = ?`, id).Scan(&current)
+	var kind string
+	err = s.db.QueryRowContext(ctx, `SELECT draft_revision, kind FROM flows WHERE id = ?`, id).Scan(&current, &kind)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrNotFound
 	}
 	if err != nil {
 		return 0, err
+	}
+	if kind != string(storedKind(f.Kind)) {
+		return current, ErrWrongFlowKind
+	}
+	if current == baseRevision {
+		if _, err := s.GetFlow(ctx, id); err != nil {
+			return current, err
+		}
 	}
 	return current, ErrRevisionConflict
 }
@@ -465,7 +513,9 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 const pruneVersionsSQL = `DELETE FROM flow_versions WHERE flow_id = ?
 	AND revision <= (SELECT live_revision FROM flows WHERE id = ?) - ?
 	AND revision NOT IN (SELECT revision FROM flow_runs WHERE flow_id = ? AND mode = 'live'
-		AND status IN ('queued', 'running', 'waiting'))`
+		AND status IN ('queued', 'running', 'waiting'))
+	AND NOT EXISTS (SELECT 1 FROM flow_block_version_pins p WHERE p.block_flow_id = flow_versions.flow_id AND p.block_revision = flow_versions.revision)
+	AND NOT EXISTS (SELECT 1 FROM flow_block_run_pins p WHERE p.block_flow_id = flow_versions.flow_id AND p.block_revision = flow_versions.revision)`
 
 // Publish copies the draft to the live revision, stores a version and keeps the last 50
 // versions, plus every older one that an unfinished live run still executes (see
@@ -478,6 +528,14 @@ const pruneVersionsSQL = `DELETE FROM flow_versions WHERE flow_id = ?
 // a committed publish always returns its record (or a read error), never a context
 // error, so the caller can bring Mission Control and the timers in line with it.
 func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now time.Time) (*FlowRecord, error) {
+	return s.publishKind(ctx, id, baseRevision, now, "")
+}
+
+func (s *Store) publishKind(ctx context.Context, id string, baseRevision int, now time.Time, expected Kind) (*FlowRecord, error) {
+	return s.publishKindWithBlocks(ctx, id, baseRevision, now, expected, nil)
+}
+
+func (s *Store) publishKindWithBlocks(ctx context.Context, id string, baseRevision int, now time.Time, expected Kind, blocks []resolvedBlock) (*FlowRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -489,24 +547,33 @@ func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now ti
 	// wait for it. A read-then-write transaction cannot: SQLite never runs the
 	// busy handler when a read transaction upgrades to a write, so a concurrent
 	// writer made the upgrade fail at once with "database is locked".
-	res, err := tx.ExecContext(ctx, `UPDATE flows SET live_json = draft_json, live_revision = live_revision + 1,
+	query := `UPDATE flows SET live_json = draft_json, live_revision = live_revision + 1,
 		published_draft_revision = draft_revision, published_at = ?, updated_at = ?
-		WHERE id = ? AND draft_revision = ? AND (live_revision = 0 OR published_draft_revision <> draft_revision)`,
-		ts, ts, id, baseRevision)
+		WHERE id = ? AND draft_revision = ? AND (? = '' OR kind = ?) AND (kind <> 'block' OR mission_id='')
+		AND (` + validStoredDocumentSQL("draft_json") + `) AND (live_json='' OR (` + validStoredDocumentSQL("live_json") + `))
+		AND (live_revision = 0 OR published_draft_revision <> draft_revision)`
+	res, err := tx.ExecContext(ctx, query, ts, ts, id, baseRevision, string(expected), string(expected))
 	if err != nil {
 		return nil, fmt.Errorf("publish: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		var draftRev int
-		err := tx.QueryRowContext(ctx, `SELECT draft_revision FROM flows WHERE id = ?`, id).Scan(&draftRev)
+		current, err := scanFlow(tx.QueryRowContext(ctx, `SELECT `+flowColumns+` FROM flows WHERE id = ?`, id))
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		if err != nil {
 			return nil, err
 		}
-		if draftRev != baseRevision {
+		if (expected != "" && current.Kind != expected) || (current.Kind == KindBlock && current.MissionID != "") {
+			return nil, ErrWrongFlowKind
+		}
+		if current.DraftRevision != baseRevision {
 			return nil, ErrRevisionConflict
+		}
+		if len(blocks) > 0 {
+			if err := verifyExistingBlockVersionPins(ctx, tx, id, current.LiveRevision, blocks); err != nil {
+				return nil, err
+			}
 		}
 		// The revision matches but the UPDATE skipped it: it is already live.
 		if err := tx.Commit(); err != nil {
@@ -517,6 +584,15 @@ func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now ti
 	if _, err := tx.ExecContext(ctx, `INSERT INTO flow_versions (flow_id, revision, json, published_at)
 		SELECT id, live_revision, live_json, published_at FROM flows WHERE id = ?`, id); err != nil {
 		return nil, err
+	}
+	if len(blocks) > 0 {
+		var revision int
+		if err := tx.QueryRowContext(ctx, `SELECT live_revision FROM flows WHERE id=?`, id).Scan(&revision); err != nil {
+			return nil, err
+		}
+		if err := pinBlockVersionTx(ctx, tx, id, revision, blocks); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, pruneVersionsSQL, id, id, maxStoredVersions, id); err != nil {
 		return nil, err

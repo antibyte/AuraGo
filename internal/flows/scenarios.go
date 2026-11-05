@@ -48,17 +48,18 @@ type ScenarioKeyProvider interface {
 
 // Scenario is a private, simulation-only set of sample inputs and fixture outputs.
 type Scenario struct {
-	ID            string                       `json:"id"`
-	Name          string                       `json:"name"`
-	Version       int                          `json:"version"`
-	DraftRevision int                          `json:"draft_revision"`
-	TriggerNode   string                       `json:"trigger_node"`
-	TriggerData   map[string]any               `json:"trigger_data"`
-	OnlyNode      string                       `json:"only_node,omitempty"`
-	At            time.Time                    `json:"at"`
-	Fixtures      map[string]SimulationFixture `json:"fixtures"`
-	Assertions    []ScenarioAssertion          `json:"assertions,omitempty"`
-	Stale         bool                         `json:"stale"`
+	ID                string                       `json:"id"`
+	Name              string                       `json:"name"`
+	Version           int                          `json:"version"`
+	DraftRevision     int                          `json:"draft_revision"`
+	TriggerNode       string                       `json:"trigger_node"`
+	TriggerData       map[string]any               `json:"trigger_data"`
+	OnlyNode          string                       `json:"only_node,omitempty"`
+	At                time.Time                    `json:"at"`
+	Fixtures          map[string]SimulationFixture `json:"fixtures"`
+	Assertions        []ScenarioAssertion          `json:"assertions,omitempty"`
+	Stale             bool                         `json:"stale"`
+	blockFingerprints map[string]string
 }
 
 type ScenarioAssertion struct {
@@ -225,6 +226,27 @@ func scenarioFingerprints(doc *Flow, scenario Scenario) (map[string]string, erro
 	return fingerprints, nil
 }
 
+func scenarioFingerprintsWithBlocks(ctx context.Context, tx *sql.Tx, doc *Flow, scenario Scenario, services *Services) (map[string]string, error) {
+	fingerprints, err := scenarioFingerprints(doc, scenario)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range doc.Nodes {
+		if n.Type != blockCallType && n.Type != blockEachType {
+			continue
+		}
+		plan, err := prepareBlockPlanTx(ctx, tx, doc, services)
+		if err != nil {
+			return nil, err
+		}
+		for _, block := range plan.blocks {
+			fingerprints[fmt.Sprintf("__block__:%s:%d", block.Ref.FlowID, block.Ref.Revision)] = hex.EncodeToString(block.Hash[:])
+		}
+		break
+	}
+	return fingerprints, nil
+}
+
 func scenarioContainsSensitive(value any) bool {
 	stack := []any{value}
 	for len(stack) > 0 {
@@ -263,15 +285,22 @@ func scenarioNewID() (string, error) {
 
 func scenarioDraft(ctx context.Context, tx *sql.Tx, flowID string) (*Flow, int, error) {
 	var raw string
+	var kind string
 	var revision int
-	err := tx.QueryRowContext(ctx, `SELECT draft_json, draft_revision FROM flows WHERE id = ?`, flowID).Scan(&raw, &revision)
+	err := tx.QueryRowContext(ctx, `SELECT draft_json, draft_revision, kind FROM flows WHERE id = ?`, flowID).Scan(&raw, &revision, &kind)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, 0, ErrNotFound
 	}
 	if err != nil {
 		return nil, 0, err
 	}
+	if kind != string(KindFlow) {
+		return nil, 0, ErrWrongFlowKind
+	}
 	doc, err := ParseFlow([]byte(raw))
+	if err == nil && (doc.Kind != KindFlow || doc.ID != flowID) {
+		return nil, 0, ErrWrongFlowKind
+	}
 	return doc, revision, err
 }
 
@@ -375,6 +404,21 @@ func (s *Service) SaveScenario(ctx context.Context, flowID string, baseDraftRevi
 	if err := RegisterCatalog(reg, nil); err != nil {
 		return Scenario{}, err
 	}
+	for _, node := range doc.Nodes {
+		if node.Type == blockCallType {
+			if _, ok := reg.Lookup(blockCallType); !ok {
+				if err := reg.Register(blockCallDef()); err != nil {
+					return Scenario{}, err
+				}
+			}
+			break
+		}
+	}
+	for id := range scenario.Fixtures {
+		if node := doc.NodeByID(id); node != nil && node.Type == blockCallType {
+			return Scenario{}, ErrInvalidSimulationFixture
+		}
+	}
 	trigger := doc.NodeByID(scenario.TriggerNode)
 	if trigger == nil || trigger.Settings.Disabled {
 		return Scenario{}, ErrNoTrigger
@@ -407,7 +451,7 @@ func (s *Service) SaveScenario(ctx context.Context, flowID string, baseDraftRevi
 			}
 		}
 	}
-	fingerprints, err := scenarioFingerprints(doc, scenario)
+	fingerprints, err := scenarioFingerprintsWithBlocks(ctx, tx, doc, scenario, s.services)
 	if err != nil {
 		return Scenario{}, err
 	}
@@ -508,7 +552,7 @@ func (s *Service) ListScenarios(ctx context.Context, flowID string, keys Scenari
 		if err != nil {
 			return nil, err
 		}
-		actual, err := scenarioFingerprints(doc, payload.Scenario)
+		actual, err := scenarioFingerprintsWithBlocks(ctx, tx, doc, payload.Scenario, s.services)
 		payload.Scenario.Stale = err != nil || !equalScenarioFingerprints(actual, payload.Fingerprints)
 		item := payload.Scenario
 		list = append(list, ScenarioSummary{ID: item.ID, Name: item.Name, Version: item.Version,
@@ -569,8 +613,9 @@ func (s *Service) getScenarioAtDraftRevision(ctx context.Context, flowID, id str
 	if err != nil {
 		return Scenario{}, 0, err
 	}
-	actual, err := scenarioFingerprints(doc, payload.Scenario)
+	actual, err := scenarioFingerprintsWithBlocks(ctx, tx, doc, payload.Scenario, s.services)
 	payload.Scenario.Stale = err != nil || !equalScenarioFingerprints(actual, payload.Fingerprints)
+	payload.Scenario.blockFingerprints = payload.Fingerprints
 	return payload.Scenario, revision, nil
 }
 
@@ -597,7 +642,7 @@ func (s *Service) simulateLoadedScenario(ctx context.Context, flowID string, bas
 		return nil, ErrScenarioStale
 	}
 	result, err := s.Simulate(ctx, flowID, SimulationRequest{TriggerNode: scenario.TriggerNode, TriggerData: scenario.TriggerData,
-		OnlyNode: scenario.OnlyNode, BaseRevision: baseDraftRevision, Fixtures: scenario.Fixtures, At: scenario.At})
+		OnlyNode: scenario.OnlyNode, BaseRevision: baseDraftRevision, Fixtures: scenario.Fixtures, At: scenario.At, blockFingerprints: scenario.blockFingerprints})
 	if err != nil {
 		return nil, err
 	}
@@ -732,11 +777,11 @@ func (s *Service) RenameScenario(ctx context.Context, flowID, id string, expecte
 	if _, err := tx.ExecContext(ctx, `UPDATE flow_test_scenarios SET ciphertext=?,updated_at=? WHERE flow_id=? AND id=?`, replacement, formatTime(s.now()), flowID, id); err != nil {
 		return ScenarioSummary{}, err
 	}
+	actual, compatibilityErr := scenarioFingerprintsWithBlocks(ctx, tx, doc, payload.Scenario, s.services)
 	if err := tx.Commit(); err != nil {
 		return ScenarioSummary{}, err
 	}
-	actual, err := scenarioFingerprints(doc, payload.Scenario)
 	item := payload.Scenario
 	return ScenarioSummary{ID: id, Name: name, Version: item.Version, DraftRevision: item.DraftRevision,
-		Stale: err != nil || !equalScenarioFingerprints(actual, payload.Fingerprints)}, nil
+		Stale: compatibilityErr != nil || !equalScenarioFingerprints(actual, payload.Fingerprints)}, nil
 }

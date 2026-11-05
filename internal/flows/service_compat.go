@@ -83,7 +83,7 @@ func (s *Service) CheckLiveRevisions(ctx context.Context) ([]LiveIssueReport, er
 			continue
 		}
 		// Published again while the check ran: the finding belongs to a revision that is gone.
-		if cur, err := s.store.GetFlow(ctx, rec.ID); err == nil && cur.LiveRevision != rec.LiveRevision {
+		if cur, err := s.requireFlow(ctx, rec.ID); err == nil && cur.LiveRevision != rec.LiveRevision {
 			continue
 		}
 		visited[rec.ID] = &liveCompat{revision: rec.LiveRevision, issues: issues}

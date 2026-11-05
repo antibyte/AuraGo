@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Verktøy",
   "dashboard.selftest_connections": "Forbindelser",
   "dashboard.rustfs_running_unready": "Kjører, ikke klar ennå",
-  "dashboard.audit_type_flow_mission_repair": "Flytens oppdragskobling reparert"
+  "dashboard.audit_type_flow_mission_repair": "Flytens oppdragskobling reparert",
+  "dashboard.audit_type_flow_block_create": "Flytblokk opprettet",
+  "dashboard.audit_type_flow_block_publish": "Flytblokk publisert",
+  "dashboard.audit_type_flow_block_delete": "Flytblokk slettet"
 }

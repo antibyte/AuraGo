@@ -344,11 +344,14 @@ type easyDragSmoke struct {
 
 // startEasyDragSmoke serves the desktop shell with the aurora and EasyDrag fixtures and opens
 // EasyDrag in a 1440×900 page.
-func startEasyDragSmoke(t *testing.T) *easyDragSmoke {
+func startEasyDragSmoke(t *testing.T, extraFixtures ...string) *easyDragSmoke {
 	t.Helper()
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/easydrag-shell.js"></script><script src="/testdata/aurora-fixture.js"></script><script src="/testdata/easydrag-fixture.js"></script></body>`, 1)
+	for _, fixture := range extraFixtures {
+		html = strings.Replace(html, "</body>", `<script src="`+fixture+`"></script></body>`, 1)
+	}
 	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
 	if cut < 0 {

@@ -390,6 +390,9 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 	enabledChanged := mission.Enabled != updated.Enabled
 	mission.Enabled = updated.Enabled
 	mission.Locked = updated.Locked
+	if enabledChanged && !mission.Enabled {
+		m.invalidateFlowAdmissionsLocked(mission.ID)
+	}
 	// Only the enabled switch changes the registrations; a lock change keeps them (and the
 	// MQTT min-interval state) and only registers what is missing.
 	var regErr error

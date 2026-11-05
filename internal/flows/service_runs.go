@@ -70,7 +70,7 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 			return StartResult{}, err
 		}
 	}
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -98,7 +98,7 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 			return StartResult{}, err
 		}
 	}
-	return s.runner.Start(StartRequest{Flow: rec.Draft, Revision: rec.DraftRevision, Mode: ModeTest,
+	return s.runner.StartContext(ctx, StartRequest{Flow: rec.Draft, Revision: rec.DraftRevision, Mode: ModeTest,
 		TriggerNode: trigger, TriggerType: "test", TriggerData: data, OnlyNode: req.OnlyNode})
 }
 
@@ -106,7 +106,7 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 // sample. A node that is not an enabled trigger of the draft is ErrNoTrigger (wrapped,
 // bounded id), like in SaveTriggerSample.
 func (s *Service) TriggerSampleData(ctx context.Context, flowID, nodeID string) (map[string]any, error) {
-	rec, err := s.store.GetFlow(ctx, flowID)
+	rec, err := s.requireFlow(ctx, flowID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (s *Service) requireTrigger(rec *FlowRecord, nodeID string) error {
 // Mission Control's triggers and Run before TriggerFromMission, onTimerFired before
 // startLive. The runner's ErrQueueFull and ErrRunnerClosed are returned unchanged.
 func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -159,7 +159,7 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
 		return StartResult{}, s.notEnabledReason(rec.MissionID)
 	}
-	return s.startLive(rec, "", "manual", nil, false)
+	return s.startLive(ctx, rec, "", "manual", nil, false)
 }
 
 // notEnabledReason tells why FlowMissionEnabled said no, which it reports as one false:
@@ -206,7 +206,7 @@ func (s *Service) notEnabledReason(missionID string) error {
 // also from inside MissionBridge.FlowRunFinished when a finished run fires dependent
 // missions.
 func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data map[string]any) (StartResult, error) {
-	rec, err := s.store.GetFlowByMission(context.Background(), missionID)
+	rec, err := s.requireMissionFlow(context.Background(), missionID)
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -221,7 +221,7 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 		}
 		data = nil
 	}
-	return s.startLive(rec, nodeID, triggerType, data, true)
+	return s.startLive(context.Background(), rec, nodeID, triggerType, data, true)
 }
 
 // startLive starts a run of rec's live revision. gated marks a run that a trigger started
@@ -239,7 +239,7 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 // The flow lock must stay out of these paths: TriggerFromMission can run inside
 // MissionBridge.FlowRunFinished, which runs inside the delete of another flow while that
 // flow's lock is held, and two flows deleted at once could then wait for each other.
-func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any, gated bool) (StartResult, error) {
+func (s *Service) startLive(ctx context.Context, rec *FlowRecord, nodeID, triggerType string, data map[string]any, gated bool) (StartResult, error) {
 	if rec.Live == nil {
 		return StartResult{}, ErrNotPublished
 	}
@@ -253,8 +253,14 @@ func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data ma
 			data = TriggerSample(n)
 		}
 	}
-	return s.runner.Start(StartRequest{Flow: rec.Live, Revision: rec.LiveRevision, Mode: ModeLive,
-		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data, Gated: gated})
+	return s.runner.StartContext(ctx, StartRequest{Flow: rec.Live, Revision: rec.LiveRevision, Mode: ModeLive,
+		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data, Gated: gated,
+		missionID: rec.MissionID, enabledCheck: func() error {
+			if !s.bridge.FlowMissionEnabled(rec.MissionID) {
+				return s.notEnabledReason(rec.MissionID)
+			}
+			return nil
+		}})
 }
 
 // automaticRunsAllowed asks the bridge's optional RunGate; nil without one. It is the runner's
@@ -313,6 +319,9 @@ func (s *Service) pickTrigger(f *Flow, nodeID string) string {
 
 // Runs lists runs of a flow.
 func (s *Service) Runs(ctx context.Context, flowID string, f RunFilter) ([]RunRecord, error) {
+	if _, err := s.requireFlow(ctx, flowID); err != nil {
+		return nil, err
+	}
 	runs, err := s.store.ListRuns(ctx, flowID, f)
 	if runs == nil {
 		runs = []RunRecord{}
@@ -326,6 +335,9 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	if err != nil {
 		return nil, err
 	}
+	if _, err := s.requireFlow(ctx, rec.FlowID); err != nil {
+		return nil, err
+	}
 	if steps == nil {
 		steps = []StepRecord{}
 	}
@@ -336,6 +348,10 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	if includeDoc {
 		doc, err := s.store.GetRunDoc(ctx, runID)
 		if err == nil {
+			if doc == nil || doc.Kind != KindFlow || doc.ID != rec.FlowID {
+				detail.DocMissing = DocMissingUnreadable
+				return detail, nil
+			}
 			// runs stored before S6 may hold typed-in credentials; templates stay
 			red, rerr := RedactCredentials(doc)
 			if rerr == nil {
@@ -365,7 +381,14 @@ func docMissingReason(mode RunMode, err error) string {
 
 // RunHeader returns a run's header only (Store.GetRunHeader): no trigger data, no steps.
 func (s *Service) RunHeader(ctx context.Context, runID string) (*RunRecord, error) {
-	return s.store.GetRunHeader(ctx, runID)
+	rec, err := s.store.GetRunHeader(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.requireFlow(ctx, rec.FlowID); err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 // Cancel stops or dequeues a run.
@@ -377,6 +400,9 @@ func (s *Service) CancelRun(runID string) (known, first bool) { return s.runner.
 
 // Subscribe returns the event backlog after afterSeq and a channel for new events.
 func (s *Service) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan RunEvent, func(), bool) {
+	if _, err := s.RunHeader(context.Background(), runID); err != nil {
+		return nil, nil, func() {}, false
+	}
 	return s.runner.Subscribe(runID, afterSeq)
 }
 
@@ -386,7 +412,7 @@ func (s *Service) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan RunE
 // exceeds MaxStoredOutputBytes is refused with ErrTestDataTooLarge (wrapped), data that
 // cannot be encoded with an error; nothing is stored then.
 func (s *Service) SaveTriggerSample(ctx context.Context, flowID, nodeID string, data map[string]any) error {
-	rec, err := s.store.GetFlow(ctx, flowID)
+	rec, err := s.requireFlow(ctx, flowID)
 	if err != nil {
 		return err
 	}
@@ -505,7 +531,7 @@ func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 	}
 	switch {
 	case doc == nil:
-		fr, err := s.store.GetFlow(ctx, rec.FlowID)
+		fr, err := s.requireFlow(ctx, rec.FlowID)
 		if err != nil {
 			s.logLookup("the flow of a finished run could not be read", rec.ID, err)
 			break
@@ -612,7 +638,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 			return nil
 		}
 	}
-	rec, err := s.store.GetFlow(context.Background(), flowID)
+	rec, err := s.requireFlow(context.Background(), flowID)
 	if errors.Is(err, ErrNotFound) {
 		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)
 		return nil
@@ -640,7 +666,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 		return nil
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
-	res, err := s.startLive(rec, nodeID, "datetime", data, true)
+	res, err := s.startLive(context.Background(), rec, nodeID, "datetime", data, true)
 	switch {
 	case err == nil && res.Status == StartSkipped:
 		s.logger.Info("a date and time trigger was skipped because a run of the flow is still active (concurrency: skip)",

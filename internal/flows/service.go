@@ -368,6 +368,9 @@ func (s *Service) CreateFlow(ctx context.Context, req CreateRequest) (*FlowRecor
 	var f *Flow
 	switch {
 	case req.Import != nil:
+		if req.Import.Kind == KindBlock {
+			return nil, ErrWrongFlowKind
+		}
 		clone, err := req.Import.Clone()
 		if err != nil {
 			return nil, err
@@ -406,11 +409,14 @@ func (s *Service) CreateFlow(ctx context.Context, req CreateRequest) (*FlowRecor
 // GetFlow returns a flow. It takes no flow lock, so a MissionBridge may call it
 // synchronously (see MissionBridge); keep it that way.
 func (s *Service) GetFlow(ctx context.Context, id string) (*FlowRecord, error) {
-	return s.store.GetFlow(ctx, id)
+	return s.requireFlow(ctx, id)
 }
 
 // Validate checks a document without saving it.
 func (s *Service) Validate(doc *Flow, mode ValidationMode) []Issue {
+	if doc != nil && doc.Kind == KindBlock {
+		return []Issue{{Code: IssueSchema, Severity: SeverityError, Message: "a reusable block requires block validation"}}
+	}
 	return Validate(doc, s.reg, s.vc(mode))
 }
 
@@ -419,6 +425,9 @@ func (s *Service) Validate(doc *Flow, mode ValidationMode) []Issue {
 func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevision int) (int, []Issue, error) {
 	if doc == nil {
 		return 0, nil, errors.New("a flow document is required")
+	}
+	if doc.Kind == KindBlock {
+		return 0, nil, ErrWrongFlowKind
 	}
 	f, err := doc.Clone()
 	if err != nil {
@@ -520,11 +529,17 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 
 // ListVersions returns the stored published revisions of a flow, newest first.
 func (s *Service) ListVersions(ctx context.Context, id string) ([]FlowVersionSummary, error) {
+	if _, err := s.requireFlow(ctx, id); err != nil {
+		return nil, err
+	}
 	return s.store.ListVersions(ctx, id)
 }
 
 // RestoreVersion loads a stored published revision and saves it as the new draft revision.
 func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseRevision int) (*FlowRecord, []Issue, error) {
+	if _, err := s.requireFlow(ctx, id); err != nil {
+		return nil, nil, err
+	}
 	doc, err := s.store.GetVersion(ctx, id, revision)
 	if err != nil {
 		return nil, nil, err
@@ -532,7 +547,7 @@ func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseR
 	if _, issues, err := s.SaveDraft(ctx, id, doc, baseRevision); err != nil {
 		return nil, issues, err
 	} else {
-		rec, err := s.store.GetFlow(ctx, id)
+		rec, err := s.requireFlow(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -562,11 +577,14 @@ type PublishPreview struct {
 
 // PublishPreview validates the draft with publish rules and summarises effects and changes.
 func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPreview, error) {
-	rec, err := s.store.GetFlow(ctx, id)
+	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	issues := append(Validate(rec.Draft, s.reg, s.vc(ModePublish)), selfTriggerIssues(rec.Draft, rec.MissionID)...)
+	if _, err := prepareBlockPlan(ctx, s.store, rec.Draft, s.services); err != nil {
+		issues = append(issues, Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: "a referenced block revision is invalid or unavailable"})
+	}
 	if issues == nil {
 		issues = []Issue{}
 	}

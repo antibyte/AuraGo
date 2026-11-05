@@ -2408,6 +2408,9 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 		}
 		return err
 	}
+	if isFlow {
+		m.invalidateFlowAdmissionsLocked(id)
+	}
 	// The flow service deletes the flow only once the mission's removal is saved; otherwise
 	// the mission would come back after a restart without its flow.
 	if hooks := m.flowHooks; isFlow && hooks != nil {

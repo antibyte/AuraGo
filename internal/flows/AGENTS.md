@@ -18,11 +18,25 @@ the contracts below describe the implemented behavior of each delivered slice.
   that loses data during normalization before the server's semantic check.
   Verify `TestCollectionFilter*` and
   `node internal/flows/testdata/collection_filters_test.cjs` against shared JSON vectors.
-- `blocks_contract.go` and `blocks_pins.go` are private, unregistered and uninstalled
-  phase-4 prototypes, not a usable subflow or batch feature. Typed boundaries, bounded
-  dependency validation and version/run pin helpers do not provide execution, migration,
-  retention integration or shared child budgets/taint. Do not expose their nodes before the
-  complete admission, lifecycle and recovery contracts are implemented and tested.
+- Typed reusable blocks execute synchronously through `component.call` in the parent run;
+  block drafts can also be simulated without runs, pins, events or external services. Only
+  `block.input`, `block.output`, `logic.set`, `logic.if`, `logic.switch` and `logic.merge`
+  are allowed in a block. Nested calls, batches, waits, stops, tools, models and secrets are
+  excluded. Calls require retry count zero. Child frames use the parent's deadline,
+  cancellation, taint fences and shared output/log budgets, with no second Runner.
+  Inputs use the boundary node key's `data` object; call outputs expose declared fields directly.
+- Publication and run admission bind exact child revisions and hashes to the owning block,
+  verify owner kind and stored document consistency, and install version/run pins atomically.
+  Pins prevent deletion and pruning while needed. Flow and block APIs reject the other kind,
+  including corrupt ownership and mission links. Admission counts every call occurrence toward
+  the existing 500-node, 2,000-edge and 2 MiB graph limits. Four concurrent block admissions
+  are allowed, each bounded by request cancellation and 30 seconds; scoped SQLite busy handling
+  retries only before mutation and restores the connection's previous timeout. After admission,
+  the accepted run remains independent of the HTTP request. Block admissions register before
+  rechecking the mission switch; pause, deletion and flow cancellation invalidate active tokens
+  even if a mission is re-enabled before admission completes. Mission Control triggers already
+  handed off before entry retain their existing trigger-decision contract. Verify `TestBlock*`
+  and kind tests.
 - `simulation.go` owns synchronous, nonpersistent draft simulation. Construct a fresh built-in
   registry and an engine with no production tool, LLM, secret or notification service. Only the
   explicit pure-logic allowlist executes; other known steps require bounded, typed fixtures.
@@ -37,7 +51,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Named simulation scenarios encrypt the name, trigger data, fixtures and assertions with the
   Vault-backed scenario key. They are limited to 20 per flow, 256 KiB per ciphertext and 16 MiB
   globally. Writes use revision/version checks and serialized quota/key admission; semantic
-  graph changes invalidate scenarios, while canvas-only changes do not. Never accept sensitive,
+  graph changes and pinned block revision/hash changes invalidate scenarios, while canvas-only changes do not. Never accept sensitive,
   redacted or truncated sample data as a saved scenario. Simulation assertions require a
   successful, untruncated step and compare normalized output/selected ports. Verify `TestScenario*`.
 - `local_first_result` is the seventh starter recipe: manual sample input, a greeting made with
@@ -67,7 +81,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 38 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 39 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -367,7 +381,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (2). `OpenStore` refuses a database
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (3). `OpenStore` refuses a database
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
@@ -375,7 +389,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   `.flows-v1-backup-*` sibling directory, verifies integrity and syncs the backup. A failed backup blocks
   migration. Version 2 creates `flow_test_scenarios` and `flow_checkpoints` transactionally and writes the
   version last; an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
-  Verify `TestFlowsV2Migration*` and `TestC16OpenStoreRefusesANewerSchema`.
+  Version 3 similarly backs up v2 before atomically installing block version/run pin tables and indexes;
+  incomplete or incompatible v3 ownership constraints fail closed before other writes. Verify
+  `TestFlowsV2Migration*`, `TestFlowsV3*` and `TestC16OpenStoreRefusesANewerSchema`.
 - Checkpoint cryptography, complete coordinator snapshots, per-step CAS/lease fencing and private pure-only
   suspend/resume helpers are implementation groundwork, not a registered node or user-facing recovery feature.
   `NewRunner` reserves flows with valid checkpoint metadata before accepting live starts; malformed metadata blocks
@@ -458,9 +474,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 38 curated types, 14 triggers and 24 others: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
-  `set`, `stop`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
-  planner 2); `TestRegisterCatalogCounts` pins the total (38) and the trigger count (14). Generic `tool.<name>` nodes are
+- Counts: `RegisterCatalog(reg, env)` registers 39 curated types, 14 triggers and 25 others: logic 7 (`logic.if`, `switch`, `merge`, `wait`,
+  `set`, `stop`, `component.call`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total (39) and the trigger count (14). Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.

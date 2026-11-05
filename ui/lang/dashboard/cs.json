@@ -1153,5 +1153,8 @@
   "dashboard.selftest_tool": "Nástroj",
   "dashboard.selftest_connections": "Spojení",
   "dashboard.rustfs_running_unready": "Běží, zatím nepřipraveno",
-  "dashboard.audit_type_flow_mission_repair": "Propojení mise s flow opraveno"
+  "dashboard.audit_type_flow_mission_repair": "Propojení mise s flow opraveno",
+  "dashboard.audit_type_flow_block_create": "Blok toku vytvořen",
+  "dashboard.audit_type_flow_block_publish": "Blok toku publikován",
+  "dashboard.audit_type_flow_block_delete": "Blok toku odstraněn"
 }

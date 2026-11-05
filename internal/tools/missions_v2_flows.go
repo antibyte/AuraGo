@@ -68,6 +68,20 @@ type FlowHooks interface {
 	NextFlowRun(missionID string) (time.Time, bool)
 }
 
+// FlowAdmissionRevoker is an optional, synchronous cancellation signal. The manager
+// calls it under m.mu when a flow mission is disabled or removed. Implementations
+// must only invalidate bounded pending-admission tokens, without manager, service,
+// flow-lock, database or network calls; the ordinary flow hooks remain asynchronous.
+type FlowAdmissionRevoker interface {
+	InvalidateFlowAdmissions(missionID string)
+}
+
+func (m *MissionManagerV2) invalidateFlowAdmissionsLocked(missionID string) {
+	if revoker, ok := m.flowHooks.(FlowAdmissionRevoker); ok {
+		revoker.InvalidateFlowAdmissions(missionID)
+	}
+}
+
 // FlowStartOutcome tells what a flow start did (FlowRunReporter): Status is "started", "queued" or
 // "skipped" (the flow's skip policy dropped the start while one of its runs is going); RunID is
 // empty for a skip.
@@ -249,6 +263,9 @@ func (m *MissionManagerV2) SetFlowMissionEnabled(missionID string, enabled bool)
 		return err
 	}
 	mission.Enabled = enabled
+	if !enabled {
+		m.invalidateFlowAdmissionsLocked(missionID)
+	}
 	regErr := m.syncFlowTriggersLocked(mission)
 	return errors.Join(regErr, m.save())
 }
@@ -274,6 +291,7 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 	m.unregisterFlowTriggersLocked(mission)
 	delete(m.missions, missionID)
 	delete(m.flowActive, missionID)
+	m.invalidateFlowAdmissionsLocked(missionID)
 	return m.save()
 }
 

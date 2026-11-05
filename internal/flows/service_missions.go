@@ -19,7 +19,7 @@ import (
 // MissionBridge.FlowRunFinished on the caller's goroutine, so the caller must not hold a
 // lock that FlowRunFinished takes.
 func (s *Service) CancelMissionRuns(ctx context.Context, missionID string) (int, error) {
-	rec, err := s.store.GetFlowByMission(ctx, missionID)
+	rec, err := s.requireMissionFlow(ctx, missionID)
 	if err != nil {
 		return 0, err
 	}
@@ -44,7 +44,7 @@ func (s *Service) CancelMissionRuns(ctx context.Context, missionID string) (int,
 // MissionBridge.FlowMissionEnabled and TimerService.Replace, as SetEnabled does. Like every lock-taking method it must not be
 // called synchronously from a MissionBridge method (see MissionBridge).
 func (s *Service) MissionEnabledChanged(ctx context.Context, missionID string) error {
-	rec, err := s.store.GetFlowByMission(ctx, missionID)
+	rec, err := s.requireMissionFlow(ctx, missionID)
 	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
@@ -58,7 +58,7 @@ func (s *Service) MissionEnabledChanged(ctx context.Context, missionID string) e
 	defer unlock()
 	// The mission is switched already; arm or clear the timers even when the caller goes away.
 	ctx = context.WithoutCancel(ctx)
-	cur, err := s.store.GetFlow(ctx, rec.ID)
+	cur, err := s.requireFlow(ctx, rec.ID)
 	if errors.Is(err, ErrNotFound) {
 		return nil // deleted while this call waited for the lock
 	}

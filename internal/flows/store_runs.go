@@ -114,9 +114,10 @@ func requireRow(res sql.Result, notFound error) error {
 }
 
 // insertRunSQL inserts a run header while its flow exists; the last argument is the flow id again.
-const insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
+var insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
 	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash)
-	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`
+	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow'
+	AND (` + validStoredDocumentSQL("draft_json") + `) AND (live_json='' OR (` + validStoredDocumentSQL("live_json") + `)))`
 
 // CreateRun inserts a run header. It returns ErrNotFound when the flow does not exist
 // (the foreign key would fail) and rejects a zero StartedAt.
@@ -130,6 +131,10 @@ const insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigge
 // The trigger data (a webhook or mail payload of up to MaxOutputBytes) is bounded like a step
 // output: beyond MaxStoredOutputBytes the header keeps {"_preview": ...} instead.
 func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
+	return s.createRunWithBlocks(ctx, rec, doc, nil)
+}
+
+func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flow, blocks []resolvedBlock) error {
 	if rec.StartedAt.IsZero() {
 		return errors.New("a run needs a started_at time")
 	}
@@ -155,7 +160,7 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	}
 	args := []any{rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
 		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.FlowID}
-	if docHash == "" {
+	if docHash == "" && len(blocks) == 0 {
 		res, err := s.db.ExecContext(ctx, insertRunSQL, args...)
 		if err != nil {
 			return err
@@ -164,14 +169,62 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	}
 	// The document and the run row go in together, so the orphan sweep of PruneRunsByMode never
 	// sees the document without its run. The transaction starts with a write (see Store).
-	tx, err := s.db.BeginTx(ctx, nil)
+	var tx *sql.Tx
+	var release func()
+	if len(blocks) > 0 {
+		if doc == nil {
+			return ErrBlockInvalid
+		}
+		tx, release, err = beginBlockWrite(ctx, s.db, rec.FlowID)
+	} else {
+		tx, err = s.db.BeginTx(ctx, nil)
+	}
 	if err != nil {
 		return err
 	}
+	if release != nil {
+		defer release()
+	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO flow_test_docs (flow_id, hash, json)
-		SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`, rec.FlowID, docHash, docJSON, rec.FlowID); err != nil {
-		return err
+	if len(blocks) > 0 {
+		var raw string
+		if rec.Mode == ModeTest {
+			err = tx.QueryRowContext(ctx, `SELECT draft_json FROM flows WHERE id=? AND draft_revision=?`, rec.FlowID, rec.Revision).Scan(&raw)
+		} else {
+			err = tx.QueryRowContext(ctx, `SELECT json FROM flow_versions WHERE flow_id=? AND revision=?`, rec.FlowID, rec.Revision).Scan(&raw)
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRevisionConflict
+		}
+		if err != nil {
+			return err
+		}
+		storedDoc, err := ParseFlow([]byte(raw))
+		if err != nil {
+			return err
+		}
+		storedJSON, err := storedDoc.Marshal()
+		if err != nil {
+			return err
+		}
+		requested, err := doc.Marshal()
+		if err != nil {
+			return err
+		}
+		if storedDoc.ID != rec.FlowID || storedDoc.Kind != KindFlow || sha256.Sum256(storedJSON) != sha256.Sum256(requested) {
+			return ErrRevisionConflict
+		}
+		if rec.Mode != ModeTest {
+			if err := verifyExistingBlockVersionPins(ctx, tx, rec.FlowID, rec.Revision, blocks); err != nil {
+				return err
+			}
+		}
+	}
+	if docHash != "" {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO flow_test_docs (flow_id, hash, json)
+			SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow')`, rec.FlowID, docHash, docJSON, rec.FlowID); err != nil {
+			return err
+		}
 	}
 	res, err := tx.ExecContext(ctx, insertRunSQL, args...)
 	if err != nil {
@@ -179,6 +232,11 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	}
 	if err := requireRow(res, ErrNotFound); err != nil {
 		return err
+	}
+	if len(blocks) > 0 {
+		if err := pinBlockRunTx(ctx, tx, rec.ID, blocks); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

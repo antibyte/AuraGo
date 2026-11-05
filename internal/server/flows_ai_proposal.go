@@ -93,6 +93,11 @@ func (s *Server) generateFlowProposal(ctx context.Context, id, goal string, step
 	if err := flows.RegisterCatalog(reg, nil); err != nil {
 		return nil, nil, err
 	}
+	// A goal-only proposal has no authority to invent a saved block identity or
+	// revision. Users select published blocks explicitly in the editor instead.
+	reg.RemoveWhere(func(def *flows.NodeDef) bool {
+		return def.Type == "component.call" || def.Type == "component.each"
+	})
 	type nodeSchema struct {
 		Type    string            `json:"type"`
 		Trigger bool              `json:"trigger"`
