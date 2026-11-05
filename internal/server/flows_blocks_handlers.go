@@ -64,7 +64,7 @@ func (s *Server) flowBlockSimulate(w http.ResponseWriter, r *http.Request, id st
 		s.flowBlockError(w, r, err)
 		return
 	}
-	s.flowsJSONScrubbed(w, http.StatusOK, result)
+	s.flowsChildSimulationJSON(w, result)
 }
 
 func (s *Server) flowBlocksCollection(w http.ResponseWriter, r *http.Request) {

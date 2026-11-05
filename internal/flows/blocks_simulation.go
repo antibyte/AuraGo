@@ -62,10 +62,10 @@ func (s *Service) SimulateBlock(ctx context.Context, id string, req BlockSimulat
 		at = s.now()
 	}
 	services := &Services{Clock: simulationClock{at: at}, Location: s.services.Loc()}
-	result := executePureBlockPlanned(ctx, rec.Draft, inputs, services, s.logger, ModeSimulation, rec.DraftRevision, "", &blockRunScope{}, plan)
+	result := executePureBlockPlanned(ctx, rec.Draft, inputs, services, s.logger, ModeSimulation, rec.DraftRevision, "", &blockRunScope{historyScrubber: s.store.childHistoryScrubber()}, plan)
 	response := &BlockSimulationResult{SimulationResult: SimulationResult{Mode: ModeSimulation, Revision: rec.DraftRevision,
 		StartedAt: result.StartedAt, Status: result.Status, ErrorCode: result.ErrorCode, ErrorMessage: result.ErrorMessage,
-		ErrorNodeID: result.ErrorNodeID, Steps: result.Steps}}
+		ErrorNodeID: result.ErrorNodeID, Steps: result.Steps, ChildTraces: result.childTraces, ChildDocuments: childSimulationDocuments(result.childTraces, plan)}}
 	if response.Steps == nil {
 		response.Steps = []StepRecord{}
 	}
@@ -91,6 +91,10 @@ func executePureBlock(ctx context.Context, doc *Flow, inputs map[string]any, ser
 }
 
 func executePureBlockPlanned(ctx context.Context, doc *Flow, inputs map[string]any, services *Services, logger *slog.Logger, mode RunMode, revision int, runID string, scope *blockRunScope, plan *blockPlan) RunResult {
+	return executePureBlockTraced(ctx, doc, inputs, services, logger, mode, revision, runID, scope, plan, nil, "", false)
+}
+
+func executePureBlockTraced(ctx context.Context, doc *Flow, inputs map[string]any, services *Services, logger *slog.Logger, mode RunMode, revision int, runID string, scope *blockRunScope, plan *blockPlan, collector *childCollector, frame string, nested bool) RunResult {
 	if !blockDocumentAllowed(doc) {
 		return RunResult{Status: RunError, ErrorCode: "FLOW_PARAM_INVALID", ErrorMessage: "the block contains an unsupported node"}
 	}
@@ -108,7 +112,7 @@ func executePureBlockPlanned(ctx context.Context, doc *Flow, inputs map[string]a
 	engine := NewEngine(blockRegistry(), services, logger, 1)
 	engine.simulation = mode == ModeSimulation
 	result := engine.Execute(ctx, RunRequest{RunID: runID, Flow: doc, Revision: revision, Mode: mode, TriggerNode: trigger,
-		TriggerType: blockInputType, TriggerData: inputs, scope: scope, blocks: plan}, nil)
+		TriggerType: blockInputType, TriggerData: inputs, scope: scope, blocks: plan, childCollector: collector, childFrame: frame, childNested: nested}, nil)
 	if result.Status == RunSuccess {
 		for _, node := range doc.Nodes {
 			if node.Type != blockOutputType {

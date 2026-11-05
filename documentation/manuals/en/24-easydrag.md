@@ -89,7 +89,7 @@ its pending request. Review the declared contract and then **Publish** to create
 version. Blocks support Set fields, If, Switch, Merge and calls to published pure block versions.
 The maximum call depth is eight; circular references are refused. Each call remains bound
 to its chosen version. Blocks cannot contain a batch, wait, stop, use AI, access secrets or
-invoke external tools. Simulation shows the parent call step, not a separate child-step history.
+invoke external tools. Completed child steps can be inspected in the simulation result.
 
 In a flow or another block, add **Call block**, select a block and a published version, then choose
 **Use selected version**. Review the old and new contracts before applying the reference. Fill the
@@ -106,8 +106,28 @@ remains blocked. **Load more** retrieves older versions or additional dependenci
 inspection is read-only; **Open current draft** returns to editing. **Restore as draft** asks
 for confirmation and replaces the current block draft with the selected version. The live block
 changes only when you publish; callers keep their pinned version until explicitly upgraded.
-The parent run shows the
-call's block ID and version, without a separate child-run history.
+The parent run shows the call's block ID and version; recorded child steps remain part of that run.
+
+### Inspect recorded block steps
+
+Open a run or simulation result, select its call or batch step and choose **Output → Inspect
+block steps**. Choose a call, then a recorded step to inspect its resolved parameters or
+output as a tree, table or JSON. Breadcrumbs and Back navigate nested calls. Versions,
+item numbers and attempts identify repeated invocations; the parent flow stays unchanged.
+The view shows completed records, not live child progress or separate child runs.
+Selecting a record replaces its list; **Back** returns to it. On small windows the same
+viewer opens as a dialog so its values and navigation remain usable.
+
+The call list and step list use local pages. Their retained counts differ from totals when
+recording was shortened; unknown totals appear as a dash. Incomplete, shortened and older
+history are identified explicitly. A missing record does not prove that a step was skipped.
+Only complete values up to 16 KiB are shown; larger or already-shortened values are omitted
+entirely. The final attempt's times describe the whole node lifetime, including retries.
+
+Document labels come from the exact retained block version. If it is unavailable, protected
+or too large, records remain readable without substituting a current version. The same
+viewer is available through the run list even when the historical parent document is missing.
+Simulation uses only the snapshots returned with that simulation and never fetches live files.
 
 ### Extract selected steps into a block
 
@@ -145,7 +165,8 @@ Cancellation, time limits and resource limits always stop the whole batch. Outpu
 `items`, `count`, `succeeded` and `failed`; the result view distinguishes processed totals
 from retained entries and shows up to 50 item summaries, with the existing tree/table/JSON
 views below. A shortened or omitted retained result does not prove that missing entries
-succeeded or failed. There is no separate child-run history.
+succeeded or failed. **Inspect block steps** opens retained item and nested-call evidence;
+stop mode still provides no partial structured batch output.
 
 Simulation uses the same pinned pure block. Publishing a later block version never
 upgrades this step: review the version change explicitly. If its per-item field disappears,

@@ -36,7 +36,7 @@ func libraryV3Fixture(t *testing.T, conflict bool) string {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.Exec(`ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata;
+	if _, err := db.Exec(`DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata;
 		DROP TABLE flow_library_folders; UPDATE flows_meta SET value='3' WHERE key='schema_version'`); err != nil {
 		t.Fatal(err)
 	}
@@ -71,9 +71,19 @@ func libraryMigrationData(t *testing.T, db *sql.DB) map[string][][]any {
 				rows.Close()
 				t.Fatal(err)
 			}
-			// The v6 marker is an additive field absent in older backups.
-			if table == "flow_runs" && len(columns) > 0 && columns[len(columns)-1] == "durable_mission_id" {
-				values = values[:len(values)-2]
+			// Compare the original columns across v6/v7 additive run fields.
+			if table == "flow_runs" {
+				keep := len(columns)
+				for keep > 0 {
+					switch columns[keep-1] {
+					case "durable_mission_id", "durable", "child_history_state", "child_history_bytes", "child_history_metadata":
+						keep--
+					default:
+						goto originalColumns
+					}
+				}
+			originalColumns:
+				values = values[:keep]
 			}
 			result[table] = append(result[table], values)
 		}
@@ -129,7 +139,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	assertData(s.db, "6")
+	assertData(s.db, "7")
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +163,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertData(reopened.db, "6")
+	assertData(reopened.db, "7")
 	if err := reopened.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +183,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	assertData(restored.db, "6")
+	assertData(restored.db, "7")
 }
 
 func TestFlowsV4MigrationFailureRollsBackBeforeVersionAdvance(t *testing.T) {
@@ -235,7 +245,7 @@ func TestFlowsV4RefusesInvalidLibrarySchemaBeforeAnyWrites(t *testing.T) {
 			}
 			var version string
 			var recreated int
-			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "6" {
+			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "7" {
 				t.Fatalf("schema changed: %q, %v", version, err)
 			}
 			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='idx_flows_mission'`).Scan(&recreated); err != nil || recreated != 0 {

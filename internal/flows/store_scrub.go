@@ -15,6 +15,15 @@ type Scrubber struct {
 // the first run starts. A nil field leaves that kind of data unscrubbed.
 func (s *Store) SetScrubber(sc Scrubber) { s.scrubber.Store(&sc) }
 
+func (s *Store) childHistoryScrubber() Scrubber {
+	if s != nil {
+		if sc := s.scrubber.Load(); sc != nil {
+			return *sc
+		}
+	}
+	return Scrubber{}
+}
+
 // scrubJSON runs the JSON scrubber over encoded text; without one the text is returned as it is.
 func (s *Store) scrubJSON(text string) (string, error) {
 	sc := s.scrubber.Load()

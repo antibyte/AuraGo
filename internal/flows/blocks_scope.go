@@ -5,9 +5,11 @@ import "sync"
 // blockRunScope shares the parent run's budgets with all concurrent child frames.
 // Existing ordinary runs and private durable checkpoints keep their local counters.
 type blockRunScope struct {
-	mu          sync.Mutex
-	outputBytes int
-	storedBytes int
+	mu              sync.Mutex
+	outputBytes     int
+	storedBytes     int
+	history         *childHistoryBudget
+	historyScrubber Scrubber
 }
 
 func (s *blockRunScope) reserveOutput(size int) bool {

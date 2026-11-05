@@ -829,6 +829,7 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 		durable.deadline = r.now().Add(timeout)
 	}
 	var terminalEvent *RunEvent
+	historyState := ChildHistoryComplete
 	sink := func(ev RunEvent) {
 		if p.rec.Durable && ((p.durableCtx != nil && p.durableCtx.Err() != nil) || (durable != nil && durable.ownerCtx != nil && durable.ownerCtx.Err() != nil)) {
 			return
@@ -843,12 +844,30 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 			terminalEvent = &event
 			return
 		}
+		if ev.Type == EventStepFinished && ev.Step != nil && ev.childTrace != nil {
+			if err := r.store.saveChildStep(bg, runID, ev.Seq, *ev.Step, ev.childTrace); err != nil {
+				r.logStoreError("flow child history not saved", runID, err, "node", ev.NodeID)
+				historyState = ChildHistoryIncomplete
+				step := *ev.Step
+				step.ChildHistory = nil
+				ev.Step = &step
+			} else if ev.childTrace.History.State == ChildHistoryIncomplete {
+				historyState = ChildHistoryIncomplete
+			} else if ev.childTrace.History.Truncated && historyState == ChildHistoryComplete {
+				historyState = ChildHistoryTruncated
+			}
+			if ev.Step.ChildHistory != nil {
+				step := *ev.Step
+				step.ChildHistory = &ev.childTrace.History
+				ev.Step = &step
+			}
+		}
 		if r.testOnEvent != nil {
 			r.testOnEvent(ev)
 		}
 		r.bus.Publish(ev)
 		lastSeq, ended = ev.Seq, ev.Type == EventRunFinished
-		if ev.Type == EventStepFinished && ev.Step != nil && (durable == nil || ev.Seq > durable.persistedSeq) {
+		if ev.Type == EventStepFinished && ev.Step != nil && ev.childTrace == nil && (durable == nil || ev.Seq > durable.persistedSeq) {
 			if err := r.store.SaveStep(bg, runID, ev.Seq, *ev.Step); err != nil {
 				r.logStoreError("flow step not saved", runID, err, "node", ev.NodeID)
 			}
@@ -860,7 +879,7 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 	}
 	var scope *blockRunScope
 	if p.req.blocks != nil {
-		scope = &blockRunScope{}
+		scope = &blockRunScope{historyScrubber: r.store.childHistoryScrubber()}
 	}
 	engine := r.engine
 	if p.rec.Durable {
@@ -899,7 +918,7 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 		}
 		return res
 	}
-	if err := r.store.FinishRun(bg, runID, res); err != nil {
+	if err := r.store.finishRunWithChildHistory(bg, runID, res, historyState); err != nil {
 		r.logStoreError("flow run result not saved", runID, err)
 	}
 	return res

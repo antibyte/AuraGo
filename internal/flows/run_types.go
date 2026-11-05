@@ -85,7 +85,8 @@ type StepRecord struct {
 	// EffectUncertain marks a step that was still running when the run ended it (cut off after a
 	// stop's grace, cancelled or abandoned) while its node declares an outward effect: what it
 	// sends or changes may already have happened.
-	EffectUncertain bool `json:"effect_uncertain,omitempty"`
+	EffectUncertain bool                 `json:"effect_uncertain,omitempty"`
+	ChildHistory    *ChildHistorySummary `json:"child_history,omitempty"`
 }
 
 // Run event types.
@@ -98,13 +99,14 @@ const (
 
 // RunEvent is one entry of a run's live event stream. Seq starts at 1 per run.
 type RunEvent struct {
-	Seq    int         `json:"seq"`
-	RunID  string      `json:"run_id"`
-	Type   string      `json:"type"`
-	NodeID string      `json:"node_id,omitempty"`
-	Step   *StepRecord `json:"step,omitempty"`
-	Run    *RunSummary `json:"run,omitempty"`
-	Time   time.Time   `json:"time"`
+	Seq        int         `json:"seq"`
+	RunID      string      `json:"run_id"`
+	Type       string      `json:"type"`
+	NodeID     string      `json:"node_id,omitempty"`
+	Step       *StepRecord `json:"step,omitempty"`
+	Run        *RunSummary `json:"run,omitempty"`
+	Time       time.Time   `json:"time"`
+	childTrace *ChildTrace
 }
 
 // RunSummary describes the run in run_started / run_finished events.
@@ -126,6 +128,7 @@ type RunResult struct {
 	DurationMS     int64
 	Steps          []StepRecord
 	Outputs        map[string]map[string]any
+	childTraces    []ChildTrace
 	suspended      bool
 	durabilityLost bool
 }
@@ -137,20 +140,21 @@ type RunResult struct {
 // payload can be large. The store keeps at most MaxStoredOutputBytes of it: a
 // larger payload is stored as {"_preview": "<start of the encoded JSON>"}.
 type RunRecord struct {
-	ID           string         `json:"id"`
-	Durable      bool           `json:"durable"`
-	FlowID       string         `json:"flow_id"`
-	Revision     int            `json:"revision"`
-	Mode         RunMode        `json:"mode"`
-	TriggerNode  string         `json:"trigger_node"`
-	TriggerType  string         `json:"trigger_type"`
-	TriggerData  map[string]any `json:"trigger_data,omitempty"`
-	Status       RunStatus      `json:"status"`
-	ErrorCode    string         `json:"error_code,omitempty"`
-	ErrorMessage string         `json:"error_message,omitempty"`
-	StartedAt    time.Time      `json:"started_at"`
-	FinishedAt   *time.Time     `json:"finished_at,omitempty"`
-	DurationMS   int64          `json:"duration_ms"`
-	ParentRunID  string         `json:"parent_run_id,omitempty"`
-	ParentNodeID string         `json:"parent_node_id,omitempty"`
+	ID                string            `json:"id"`
+	Durable           bool              `json:"durable"`
+	FlowID            string            `json:"flow_id"`
+	Revision          int               `json:"revision"`
+	Mode              RunMode           `json:"mode"`
+	TriggerNode       string            `json:"trigger_node"`
+	TriggerType       string            `json:"trigger_type"`
+	TriggerData       map[string]any    `json:"trigger_data,omitempty"`
+	Status            RunStatus         `json:"status"`
+	ErrorCode         string            `json:"error_code,omitempty"`
+	ErrorMessage      string            `json:"error_message,omitempty"`
+	StartedAt         time.Time         `json:"started_at"`
+	FinishedAt        *time.Time        `json:"finished_at,omitempty"`
+	DurationMS        int64             `json:"duration_ms"`
+	ParentRunID       string            `json:"parent_run_id,omitempty"`
+	ParentNodeID      string            `json:"parent_node_id,omitempty"`
+	ChildHistoryState ChildHistoryState `json:"child_history_state,omitempty"`
 }

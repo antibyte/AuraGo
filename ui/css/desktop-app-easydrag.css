@@ -1454,6 +1454,35 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-outline-group > button { display: grid; gap: 4px; }
 .ed-app .ed-outline-group small { font-size: 12px; color: var(--ed-muted); }
 .ed-app .ed-outline-group > ul { padding-inline-start: 14px; list-style: none; }
+.ed-app .ed-child-history { min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+.ed-app .ed-child-history h3, .ed-app .ed-child-history h4, .ed-app .ed-child-history p { margin: 0; overflow-wrap: anywhere; }
+.ed-app .ed-child-history h3 { font-size: 15px; }
+.ed-app .ed-child-history h4 { font-size: 13px; }
+.ed-app .ed-child-history .ed-btn { min-height: 44px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.ed-app .ed-child-nav, .ed-app .ed-child-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.ed-app .ed-child-nav { position: sticky; top: 0; z-index: 2; background: var(--ed-card); }
+.ed-app .ed-child-nav .ed-icon-btn { width: 44px; min-width: 44px; height: 44px; flex: 0 0 44px; }
+.ed-app .ed-child-path { flex: 1 1 0; min-width: 0; max-height: 240px; overflow: auto; }
+.ed-app .ed-child-path summary { min-height: 44px; padding: 10px 4px; box-sizing: border-box; list-style-position: inside; cursor: pointer; color: var(--ed-muted); font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
+.ed-app .ed-child-path .ed-btn { display: block; width: 100%; }
+.ed-app .ed-child-nav .ed-btn { text-align: left; }
+.ed-app .ed-child-pager > span { flex: 1 1 120px; color: var(--ed-muted); font-size: 12px; }
+.ed-app .ed-child-list { display: flex; flex-direction: column; min-width: 0; }
+.ed-app .ed-child-row { width: 100%; min-width: 0; min-height: 44px; padding: 10px 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; border: 0; border-bottom: 1px solid var(--ed-border); background: transparent; color: var(--ed-text); text-align: left; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.ed-app .ed-child-row span, .ed-app .ed-child-help { color: var(--ed-muted); font-size: 12px; line-height: 1.5; }
+.ed-app .ed-child-row[aria-current="true"] { background: var(--ed-selected); }
+.ed-app .ed-child-row:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: -2px; }
+.ed-app .ed-child-record { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ed-app .ed-child-history .ed-seg { display: flex; flex-wrap: wrap; }
+.ed-app .ed-child-history .ed-code { max-width: 100%; overflow: auto; }
+.ed-app .ed-child-help summary { min-height: 44px; cursor: pointer; }
+.ed-app .ed-child-help p { padding-block: 8px; }
+.ed-app .ed-detail-col.is-child-history > :not([data-ed-child-slot]) { display: none; }
+.ed-app .ed-detail-col.is-child-history > [data-ed-child-slot] { overflow: auto; min-height: 0; flex: 1; }
+.ed-app .ed-detail-col.is-child-history [data-ed-child-open] { display: none; }
+.ed-app [data-ed-child-slot] > [data-ed-child-open] { margin: 8px 12px; }
+.ed-app .ed-modal--children { width: min(760px, calc(100% - 24px)); }
+.ed-app [data-ed-child-run-list] { display: grid; gap: 8px; }
 @media (pointer: coarse) {
     .ed-app .ed-group-controls .ed-icon-btn { min-width: 44px; min-height: 44px; }
     .ed-app .ed-group-title { min-height: 44px; }

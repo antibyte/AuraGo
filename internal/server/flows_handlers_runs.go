@@ -124,7 +124,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 				s.flowsErrorFrom(w, r, err)
 				return true
 			}
-			s.flowsJSONScrubbed(w, http.StatusOK, res)
+			s.flowsChildSimulationJSON(w, res)
 			return true
 		}
 		res, err := s.Flows.Simulate(simCtx, id, flows.SimulationRequest{TriggerNode: body.TriggerNode,
@@ -141,7 +141,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			s.flowsErrorFrom(w, r, err)
 			return true
 		}
-		s.flowsJSONScrubbed(w, http.StatusOK, res)
+		s.flowsChildSimulationJSON(w, res)
 	case action == "test" && len(rest) == 0:
 		if r.Method != http.MethodPost {
 			flowsMethodNotAllowed(w)
@@ -296,6 +296,10 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 			return
 		}
 		s.streamFlowRunEvents(w, r, runID)
+	case len(rest) == 4 && rest[1] == "steps" && rest[3] == "children":
+		s.flowChildHistory(w, r, runID, rest[2], "", false)
+	case len(rest) == 6 && rest[1] == "steps" && rest[3] == "children" && rest[5] == "document":
+		s.flowChildHistory(w, r, runID, rest[2], rest[4], true)
 	case len(rest) == 2 && rest[1] == "cancel":
 		if r.Method != http.MethodPost {
 			flowsMethodNotAllowed(w)

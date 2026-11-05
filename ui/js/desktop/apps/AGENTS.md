@@ -1362,12 +1362,33 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Nested pure calls pin exact published versions. The backend rejects Flow-ID cycles and call
   depth over eight edges; never infer dependency validity from a locally loaded contract alone.
   Generic dependency issues remain safe; use node/field navigation only when the server supplies
-  it, with local cycle/depth guidance instead of parsing free error text. Simulation shows only
-  the displayed block's steps, with no child-run history. No external steps or batching in blocks.
+  it, with local cycle/depth guidance instead of parsing free error text. Simulation retains
+  bounded completed child-step evidence without creating child runs. No external steps or batching in blocks.
   Dependency owners may be flows or blocks and include indirect pins; kind published/run is the
   pin type, not the document kind or proof of a direct call. Keep deletion/upgrade wording neutral.
   Block/version/dependency lists retain cursor pagination; retained run pins are not published
   parent versions. Verify `test-easydrag-blocks.mjs` and `TestDesktopEasyDragBlocksBrowser`.
+- `easydrag-child-history.js` owns one read-only invocation viewer, loaded after `testing` and
+  before `runs`. Inspect from a parent step's Output pane; the same viewer works in the run
+  details modal when its parent document is missing. Real requests use actual persisted
+  `(run_id, child_history.parent_seq)`, never a node ID or array position. Simulation uses only
+  inline `child_traces` and deduplicated `child_documents` from that response, with no run URL.
+  Keep trace-local invocation IDs, parent links, item zero, call attempts and frame-local
+  `{ordinal,step}` records distinct. Never merge children into the parent model, canvas or SSE.
+  Trace reads are lazy and capped at 256 KiB, with local pages of 50 calls/100 records and only
+  the selected bounded value rendered. Cache at most two exact block/revision/hash documents;
+  requests are abortable and fenced to the current viewer/run. Read denial clears values and
+  document labels; navigation, close and disposal invalidate late replies. Missing/redacted/
+  oversized documents preserve recorded evidence and never fall back to today's live/draft.
+  Larger or already-shortened values use whole-value omission, with no retained prefix or
+  file/media preview. Show pending, incomplete, truncated, unavailable and legacy states
+  truthfully; no missing record proves a skipped execution. Step times retain their existing
+  node-lifetime meaning across retries. Selecting a record replaces its list/pager; Back returns
+  to that list. Below 760 px use the same viewer in `core.modal`, promoting an already-open
+  embedded view on resize; its original Inspector still owns navigation/disposal. Keep values,
+  Back and Close visible together without scrolling past lists. Verify `test-easydrag-child-history.mjs` through the
+  canonical Node entry and `TestDesktopEasyDragChildHistoryBrowser` in Standard/Fruity at
+  desktop and 320/390 px. C11 durable graphs still exclude calls and batches.
 - `easydrag-workspace.js` owns panel resizing, the visible step outline and path framing.
   Preferences contain only view choices in `aurago.easydrag.workspace`, never flow payloads.
   Resizers have keyboard and pointer controls. Keep the selected node visible when a panel

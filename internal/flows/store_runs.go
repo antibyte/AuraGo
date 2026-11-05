@@ -22,7 +22,7 @@ type RunFilter struct {
 
 // runColumnNames are the flow_runs columns scanRun reads, in scan order.
 var runColumnNames = []string{"id", "flow_id", "revision", "mode", "trigger_node", "trigger_type", "trigger_data_json",
-	"status", "error_code", "error_message", "started_at", "finished_at", "duration_ms", "parent_run_id", "parent_node_id", "durable"}
+	"status", "error_code", "error_message", "started_at", "finished_at", "duration_ms", "parent_run_id", "parent_node_id", "durable", "child_history_state"}
 
 // runSelect builds the column list scanRun reads. alias qualifies the columns when
 // the query joins another table. Without withTrigger the potentially large
@@ -56,11 +56,14 @@ func scanRun(row scanner) (*RunRecord, error) {
 	var r RunRecord
 	var mode, status, triggerJSON, startedAt, finishedAt string
 	if err := row.Scan(&r.ID, &r.FlowID, &r.Revision, &mode, &r.TriggerNode, &r.TriggerType, &triggerJSON, &status,
-		&r.ErrorCode, &r.ErrorMessage, &startedAt, &finishedAt, &r.DurationMS, &r.ParentRunID, &r.ParentNodeID, &r.Durable); err != nil {
+		&r.ErrorCode, &r.ErrorMessage, &startedAt, &finishedAt, &r.DurationMS, &r.ParentRunID, &r.ParentNodeID, &r.Durable, &r.ChildHistoryState); err != nil {
 		return nil, err
 	}
 	r.Mode = RunMode(mode)
 	r.Status = RunStatus(status)
+	if r.Status.Terminal() && r.ChildHistoryState == ChildHistoryPending {
+		r.ChildHistoryState = ChildHistoryIncomplete
+	}
 	if triggerJSON != "" {
 		_ = json.Unmarshal([]byte(triggerJSON), &r.TriggerData)
 	}
@@ -115,8 +118,8 @@ func requireRow(res sql.Result, notFound error) error {
 
 // insertRunSQL inserts a run header while its flow exists; the last argument is the flow id again.
 var insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
-	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash, durable, durable_mission_id)
-	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow'
+	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash, durable, durable_mission_id, child_history_state)
+	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow'
 	AND (` + validStoredDocumentSQL("draft_json") + `) AND (live_json='' OR (` + validStoredDocumentSQL("live_json") + `)))`
 
 // CreateRun inserts a run header. It returns ErrNotFound when the flow does not exist
@@ -163,8 +166,12 @@ func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flo
 	if rec.Durable {
 		owner = missionID
 	}
+	historyState := ChildHistoryPending
+	if rec.Durable {
+		historyState = ChildHistoryLegacyUnknown
+	}
 	args := []any{rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
-		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.Durable, owner, rec.FlowID}
+		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.Durable, owner, historyState, rec.FlowID}
 	if docHash == "" && len(blocks) == 0 && !rec.Durable {
 		res, err := s.db.ExecContext(ctx, insertRunSQL, args...)
 		if err != nil {
@@ -363,9 +370,11 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 	if err != nil {
 		return nil, nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT node_id, node_key, attempt, status, started_at, finished_at, duration_ms,
-		params_json, params_truncated, output_json, output_truncated, item_count, ports_json, error_code, error_message, effect_uncertain
-		FROM flow_run_steps WHERE run_id = ? ORDER BY seq`, runID)
+	rows, err := s.db.QueryContext(ctx, `SELECT s.seq,s.node_id, s.node_key, s.attempt, s.status, s.started_at, s.finished_at, s.duration_ms,
+		s.params_json, s.params_truncated, s.output_json, s.output_truncated, s.item_count, s.ports_json, s.error_code, s.error_message, s.effect_uncertain,
+		CASE WHEN length(CAST(t.summary_json AS BLOB))<=2048 THEN t.summary_json END,
+		CASE WHEN t.run_id IS NULL THEN 0 WHEN length(CAST(t.summary_json AS BLOB))<=2048 THEN 1 ELSE 2 END
+		FROM flow_run_steps s LEFT JOIN flow_child_traces t ON t.run_id=s.run_id AND t.parent_seq=s.seq WHERE s.run_id = ? ORDER BY s.seq`, runID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -373,10 +382,13 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 	var steps []StepRecord
 	for rows.Next() {
 		var st StepRecord
+		var seq int
+		var summary sql.NullString
+		var summarySize int
 		var status, startedAt, finishedAt, params, output, ports string
 		var paramsTruncated, outputTruncated, effectUncertain int
-		if err := rows.Scan(&st.NodeID, &st.NodeKey, &st.Attempt, &status, &startedAt, &finishedAt, &st.DurationMS,
-			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage, &effectUncertain); err != nil {
+		if err := rows.Scan(&seq, &st.NodeID, &st.NodeKey, &st.Attempt, &status, &startedAt, &finishedAt, &st.DurationMS,
+			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage, &effectUncertain, &summary, &summarySize); err != nil {
 			return nil, nil, err
 		}
 		st.Status = StepStatus(status)
@@ -388,6 +400,16 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 		_ = json.Unmarshal([]byte(params), &st.Params)
 		_ = json.Unmarshal([]byte(output), &st.Output)
 		_ = json.Unmarshal([]byte(ports), &st.Ports)
+		if summarySize == 2 {
+			return nil, nil, ErrChildHistoryUnavailable
+		}
+		if summary.Valid {
+			var child ChildHistorySummary
+			if len(summary.String) > 2048 || json.Unmarshal([]byte(summary.String), &child) != nil || child.ParentSeq != seq {
+				return nil, nil, ErrChildHistoryUnavailable
+			}
+			st.ChildHistory = &child
+		}
 		steps = append(steps, st)
 	}
 	return rec, steps, rows.Err()

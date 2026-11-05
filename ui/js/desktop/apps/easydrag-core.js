@@ -349,6 +349,8 @@
             runNow: id => api(flow(id) + '/run', json('POST')),
             runs: (id, params) => api(flow(id) + '/runs' + query(params)),
             run: (runId, includeDoc, signal) => api(base + '/runs/' + enc(runId) + (includeDoc ? '?include=doc' : ''), signal ? { signal } : undefined),
+            childTrace: (runId, seq, signal) => api(base + '/runs/' + enc(runId) + '/steps/' + enc(seq) + '/children', { signal, cache: 'no-store' }),
+            childDocument: (runId, seq, invocationId, signal) => api(base + '/runs/' + enc(runId) + '/steps/' + enc(seq) + '/children/' + enc(invocationId) + '/document', { signal, cache: 'no-store' }),
             cancel: runId => api(base + '/runs/' + enc(runId) + '/cancel', json('POST')),
             eventsUrl: (runId, after) => base + '/runs/' + enc(runId) + '/events' + query({ after }),
             testData: (id, node) => api(flow(id) + '/test-data/' + enc(node)),

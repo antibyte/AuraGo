@@ -52,14 +52,16 @@ func scenarioBlockPlanMatches(saved map[string]string, plan *blockPlan) bool {
 
 // SimulationResult contains bounded step records, never live action results.
 type SimulationResult struct {
-	Mode         RunMode      `json:"mode"`
-	Revision     int          `json:"revision"`
-	StartedAt    time.Time    `json:"started_at"`
-	Status       RunStatus    `json:"status"`
-	ErrorCode    string       `json:"error_code,omitempty"`
-	ErrorMessage string       `json:"error_message,omitempty"`
-	ErrorNodeID  string       `json:"error_node_id,omitempty"`
-	Steps        []StepRecord `json:"steps"`
+	Mode           RunMode              `json:"mode"`
+	Revision       int                  `json:"revision"`
+	StartedAt      time.Time            `json:"started_at"`
+	Status         RunStatus            `json:"status"`
+	ErrorCode      string               `json:"error_code,omitempty"`
+	ErrorMessage   string               `json:"error_message,omitempty"`
+	ErrorNodeID    string               `json:"error_node_id,omitempty"`
+	Steps          []StepRecord         `json:"steps"`
+	ChildTraces    []ChildTrace         `json:"child_traces,omitempty"`
+	ChildDocuments []ChildTraceDocument `json:"child_documents,omitempty"`
 }
 
 type simulationClock struct{ at time.Time }
@@ -218,7 +220,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	engine.simulation = true
 	var scope *blockRunScope
 	if plan != nil {
-		scope = &blockRunScope{}
+		scope = &blockRunScope{historyScrubber: s.store.childHistoryScrubber()}
 	}
 	result := engine.Execute(ctx, RunRequest{Flow: rec.Draft, Revision: rec.DraftRevision, Mode: ModeSimulation,
 		TriggerNode: trigger, TriggerType: "simulation", TriggerData: data, OnlyNode: req.OnlyNode, blocks: plan, scope: scope}, nil)
@@ -226,7 +228,8 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		result.Steps = []StepRecord{}
 	}
 	return &SimulationResult{Mode: ModeSimulation, Revision: rec.DraftRevision, StartedAt: result.StartedAt, Status: result.Status,
-		ErrorCode: result.ErrorCode, ErrorMessage: result.ErrorMessage, ErrorNodeID: result.ErrorNodeID, Steps: result.Steps}, nil
+		ErrorCode: result.ErrorCode, ErrorMessage: result.ErrorMessage, ErrorNodeID: result.ErrorNodeID, Steps: result.Steps,
+		ChildTraces: result.childTraces, ChildDocuments: childSimulationDocuments(result.childTraces, plan)}, nil
 }
 
 func validateSimulationFixtures(doc *Flow, reg *Registry, fixtures map[string]SimulationFixture) error {

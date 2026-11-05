@@ -40,7 +40,7 @@ func groupsV4Fixture(t *testing.T) (string, *sql.DB) {
 	t.Cleanup(func() { _ = db.Close() })
 	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;
-		ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; UPDATE flows_meta SET value='4' WHERE key='schema_version'; PRAGMA wal_checkpoint(TRUNCATE);
+		DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; UPDATE flows_meta SET value='4' WHERE key='schema_version'; PRAGMA wal_checkpoint(TRUNCATE);
 		UPDATE flows SET name='Only in WAL',live_json=draft_json,live_revision=1,published_draft_revision=1;
 		INSERT INTO flow_versions(flow_id,revision,json,published_at) SELECT id,1,draft_json,created_at FROM flows;
 		INSERT INTO flow_runs(id,flow_id,mode,status,started_at) VALUES('run_v5','flow_v5parent','test','success','2026-11-05T10:00:00Z');
@@ -122,7 +122,7 @@ func TestFlowsV5MigrationPreservesWALAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	assertData(s.db, "6")
+	assertData(s.db, "7")
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestFlowsV5MigrationPreservesWALAndRestorableBackup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertData(reopened.db, "6")
+	assertData(reopened.db, "7")
 	if err := reopened.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestFlowsV5MigrationPreservesWALAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	assertData(restored.db, "6")
+	assertData(restored.db, "7")
 }
 
 func TestFlowsV5MigrationFailureKeepsMarkerAndBackupBeforeBaselineWrites(t *testing.T) {

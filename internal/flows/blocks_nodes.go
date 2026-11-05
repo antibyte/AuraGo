@@ -60,19 +60,31 @@ func blockCallDef() *NodeDef {
 			if in.block == nil || in.scope == nil {
 				return ExecResult{}, NewNodeError("FLOW_NODE_UNAVAILABLE", "the block execution plan is unavailable")
 			}
+			frame := ""
+			if in.childCollector != nil && in.Node != nil {
+				frame = in.childCollector.open(in.childFrame, in.Node.ID, 1, in.block, nil)
+			}
 			inputs := map[string]any{}
 			if raw, present := in.Params["inputs"]; present {
 				var ok bool
 				inputs, ok = raw.(map[string]any)
 				if !ok || inputs == nil {
+					in.childCollector.update(frame, false, RunError, "FLOW_PARAM_INVALID")
 					return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "block inputs must be an object")
 				}
 			}
 			if checkBlockValues(in.block.Contract.Inputs, inputs) != nil {
+				in.childCollector.update(frame, false, RunError, "FLOW_PARAM_INVALID")
 				return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "block inputs do not match the declared contract")
 			}
 			services := &Services{Clock: in.Services.Clock, Location: in.Services.Location}
-			result := executePureBlockPlanned(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan)
+			in.childCollector.update(frame, true, "", "")
+			collector := in.childCollector
+			if frame == "" {
+				collector = nil
+			}
+			result := executePureBlockTraced(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan, collector, frame, true)
+			in.childCollector.update(frame, true, result.Status, result.ErrorCode)
 			if ctx.Err() != nil {
 				return ExecResult{}, ctx.Err()
 			}

@@ -129,6 +129,7 @@
         });
         extraction = !isBlock && ED.extraction && ED.extraction.create(ed, canvas);
         ed.runtime = !isBlock && ED.durable && ED.durable.supported(ed) ? ED.durable.observe(ed) : null;
+        ed.childHistory = ED.childHistory ? ED.childHistory.create(ed) : null;
 
         // ── header and footer ───────────────────────────────────────────────────
 
@@ -1032,7 +1033,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [ed.childHistory, ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());

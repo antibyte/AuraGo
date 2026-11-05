@@ -94,6 +94,19 @@
         return key ? output[key].slice(0, 8000) : '';
     }
 
+    // Recorded child values are inert: reuse the bounded views without file/media previews.
+    function recordValueMarkup(ed, value, view) {
+        const { esc, t } = ed;
+        if (value === undefined) return '<p class="ed-hint">' + esc(t('easydrag.ui.option_none')) + '</p>';
+        if (value && typeof value === 'object' && Object.hasOwn(value, '_omitted')) return '<p class="ed-hint">' + esc(t('easydrag.ui.output_truncated')) + '</p>';
+        if (view === 'json') return '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(capped(value), null, 2)) + '</pre>';
+        if (view === 'table') {
+            const table = tableOf(Array.isArray(value) ? { items: value } : value);
+            return table ? '<div class="ed-table-wrap"><table class="ed-table"><thead><tr>' + table.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' + table.rows.map(r => '<tr>' + table.cols.map(c => '<td>' + esc(ED.mapping.preview(r ? r[c] : null)) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' + (table.total > table.rows.length ? '<p class="ed-hint">' + esc(t('easydrag.ui.tree_more', { count: table.total - table.rows.length })) + '</p>' : '') : '<p class="ed-hint">' + esc(t('easydrag.ui.output_no_table')) + '</p>';
+        }
+        return '<div class="ed-json-tree">' + jsonTree(value, esc, 0, { left: 100 }) + '</div>';
+    }
+
     function files(value, out, depth) {
         const list = out || [];
         const d = depth || 0;
@@ -212,7 +225,7 @@
             '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.output_view_label')) + '">' +
             ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div>' +
             '<button type="button" class="ed-icon-btn" data-ed-copy-json aria-label="' + esc(t('easydrag.ui.copy_json')) + '" title="' + esc(t('easydrag.ui.copy_json')) + '" hidden>' + core.icon('copy') + '</button></div></div>' +
-            '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +
+            '<div data-ed-child-slot></div><div class="ed-output-status"></div><div class="ed-output"></div></section>' +
             '</div></div></aside>');
         const host = ed.root.querySelector('.ed-body') || ed.root;
         host.appendChild(el);
@@ -572,6 +585,9 @@
 
         function renderOutput() {
             const step = currentStep();
+            const childSlot = el.querySelector('[data-ed-child-slot]');
+            if (ed.childHistory) ed.childHistory.detach(childSlot);
+            childSlot.innerHTML = ED.childHistory ? ED.childHistory.actionMarkup(ed, step, node.type) : '';
             const simulation = !!(ed.run && ed.run.mode === 'simulation');
             const status = el.querySelector('.ed-output-status');
             const out = el.querySelector('.ed-output');
@@ -749,6 +765,8 @@
             const nt = event.target.closest('[data-ed-narrow]');
             if (nt) { narrowTab = nt.dataset.edNarrow; applyNarrow(); return; }
             const subj = event.target.closest('[data-ed-subject]');
+            const children = event.target.closest('[data-ed-child-open]');
+            if (children && ed.childHistory) { ed.childHistory.open(currentStep(), { host: el.querySelector('[data-ed-child-slot]'), opener: children }); return; }
             if (subj) { outputSubject = subj.dataset.edSubject; renderOutput(); return; }
             if (event.target.closest('[data-ed-copy-json]')) {
                 const step = currentStep();
@@ -830,6 +848,7 @@
                 if (closed) return;
                 closed = true;
                 if (transformDialog) { transformDialog.close(); transformDialog = null; }
+                if (ed.childHistory) ed.childHistory.detach(el);
                 try { flushPendingEdits(); } catch (err) { console.error('EasyDrag inspector flush failed', err); }
                 bag.dispose();
                 ed.root.classList.remove('is-inspector');
@@ -855,5 +874,5 @@
 
     function close(ed) { if (ed.detail) ed.detail.close(); }
 
-    ED.detail = { open, close, jsonTree, safeFileUrl, previewText };
+    ED.detail = { open, close, jsonTree, safeFileUrl, previewText, recordValueMarkup };
 })();

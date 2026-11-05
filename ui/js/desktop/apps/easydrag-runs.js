@@ -562,6 +562,7 @@
                 apply: (result, data) => {
                     const record = { id: 'simulation', mode: 'simulation', revision: result.revision, status: result.status, error_code: result.error_code, error_message: result.error_message, assertions: result.assertions, started_at: result.started_at || new Date().toISOString(), trigger_node: dialog.body.querySelector('[data-ed-test-trigger]') ? dialog.body.querySelector('[data-ed-test-trigger]').value : trigger.id, trigger_data: data };
                     const run = stepsFrom(result.steps || [], record);
+                    if (ED.childHistory) ED.childHistory.rememberSimulation(run, result);
                     ed.lastRunData = { label: t('easydrag.ui.simulation_result'), roots: rootsFrom(result.steps || [], record) };
                     ed.testEvidence = { revision: result.revision, status: (result.assertions || []).some(assertion => !assertion.passed) ? 'error' : result.status, mode: 'simulation' };
                     setRun(run);
@@ -1034,11 +1035,7 @@
                 const detail = await ed.api.run(runId, true);
                 if (disposed || mine !== viewSeq) return;
                 if (!detail.doc) {
-                    // doc_missing (internal/flows RunDetail) tells a cleaned-up version from other gaps.
-                    const message = detail.doc_missing === 'version_pruned'
-                        ? t('easydrag.ui.run_view_pruned', { revision: (detail.run && detail.run.revision) || '?' })
-                        : t('easydrag.ui.run_view_missing');
-                    ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message, type: 'error' });
+                    ED.childHistory.missing(ed, detail);
                     return;
                 }
                 ed.enterRunView(detail);

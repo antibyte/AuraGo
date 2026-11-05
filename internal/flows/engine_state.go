@@ -68,7 +68,10 @@ type runState struct {
 	// a node was cancelled or abandoned, or never got to run.
 	interrupted bool
 	// gate is the run's slot gate (A7); nil without a runner slot.
-	gate *slotGate
+	gate        *slotGate
+	childActive map[string]*childCollector
+	childTraces []ChildTrace
+	hadError    bool
 }
 
 // newRunState prepares the state of one run; run builds the graph after
@@ -76,11 +79,12 @@ type runState struct {
 func newRunState(e *Engine, req RunRequest, emit EventSink) *runState {
 	return &runState{
 		e: e, req: req, emit: emit,
-		launched: map[string]time.Time{},
-		edges:    map[*Edge]edgeState{},
-		status:   map[string]StepStatus{},
-		queued:   map[string]bool{},
-		outputs:  map[string]map[string]any{},
+		launched:    map[string]time.Time{},
+		edges:       map[*Edge]edgeState{},
+		status:      map[string]StepStatus{},
+		queued:      map[string]bool{},
+		outputs:     map[string]map[string]any{},
+		childActive: map[string]*childCollector{},
 	}
 }
 
@@ -89,6 +93,17 @@ func (s *runState) publish(ev RunEvent) {
 	ev.Seq = s.seq
 	ev.RunID = s.req.RunID
 	ev.Time = s.e.services.Now()
+	if ev.Type == EventStepFinished && ev.Step != nil && s.req.childCollector != nil {
+		s.req.childCollector.step(s.req.childFrame, *ev.Step)
+	}
+	if ev.Type == EventStepFinished && ev.Step != nil && ev.Step.ChildHistory != nil {
+		for i := range s.childTraces {
+			if s.childTraces[i].ParentSeq == ev.Seq {
+				ev.childTrace = &s.childTraces[i]
+				break
+			}
+		}
+	}
 	if control := s.req.durable; control != nil && control.active && ev.Type == EventStepFinished && ev.Step != nil {
 		if control.lost || (control.ownerCtx != nil && control.ownerCtx.Err() != nil) {
 			control.lost = true
@@ -500,6 +515,12 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 			in.block, in.scope = &block, s.req.scope
 		}
 	}
+	in.childCollector, in.childFrame = s.req.childCollector, s.req.childFrame
+	if (n.Type == blockCallType || n.Type == blockEachType) && !s.req.childNested && s.req.scope != nil {
+		in.childCollector = newChildCollector(s.req.scope)
+		in.childCollector.afterError = s.hadError
+		s.childActive[id] = in.childCollector
+	}
 	s.gate.launched()
 	if s.gate != nil {
 		in.Slot = s.gate // never a typed nil
@@ -546,6 +567,7 @@ func (s *runState) abandonRunning(ctx context.Context, done <-chan nodeDone) {
 			StartedAt: s.launched[id], FinishedAt: now, DurationMS: now.Sub(s.launched[id]).Milliseconds(),
 			ErrorCode: "FLOW_NODE_ABANDONED", ErrorMessage: "the node did not stop after the run ended",
 			EffectUncertain: s.info[id].hasEffects}
+		s.attachChildTrace(id, &step, true)
 		s.steps = append(s.steps, step)
 		s.publish(RunEvent{Type: EventStepFinished, NodeID: id, Step: &step})
 	}
@@ -588,6 +610,9 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		}
 	}
 	step := d.step
+	if d.err != nil {
+		s.hadError = true
+	}
 	switch {
 	case d.cancelled:
 		s.status[n.ID] = StepCancelled
@@ -642,8 +667,42 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		}
 	}
 	step = s.chargeStored(step, d.stored)
+	incomplete := d.abrupt
+	if !d.executed && n.Type == blockCallType && step.Status != StepSuccess && s.req.blocks != nil {
+		collector, parent := s.req.childCollector, s.req.childFrame
+		if collector == nil {
+			collector = s.childActive[n.ID]
+		}
+		if block, ok := s.req.blocks.byNode[n.ID]; ok && collector != nil && !collector.hasInvocation(parent, n.ID) {
+			id := collector.open(parent, n.ID, max(1, step.Attempt), &block, nil)
+			collector.update(id, false, RunError, step.ErrorCode)
+		}
+	}
+	if n.Type == blockEachType && step.Status != StepSuccess && !s.childActive[n.ID].hasFrames() {
+		incomplete = true
+	}
+	s.attachChildTrace(n.ID, &step, incomplete)
 	s.steps = append(s.steps, step)
 	s.publish(RunEvent{Type: EventStepFinished, NodeID: n.ID, Step: &step})
+}
+
+func (s *runState) attachChildTrace(id string, step *StepRecord, incomplete bool) {
+	c := s.childActive[id]
+	delete(s.childActive, id)
+	if c == nil {
+		return
+	}
+	if c.hasShortError() {
+		s.hadError = true
+	}
+	trace := c.freeze(incomplete)
+	if trace == nil {
+		return
+	}
+	trace.RunID, trace.ParentSeq = s.req.RunID, s.seq+1
+	trace.History.ParentSeq = trace.ParentSeq
+	step.ChildHistory = &trace.History
+	s.childTraces = append(s.childTraces, *trace)
 }
 
 // chargeStored counts what the run log keeps of a step against MaxStoredRunBytes. Once the run
@@ -772,7 +831,7 @@ func (s *runState) finish(status RunStatus, code, msg, nodeID string) RunResult 
 	res := RunResult{
 		Status: status, ErrorCode: code, ErrorMessage: msg, ErrorNodeID: nodeID,
 		StartedAt: s.started, FinishedAt: end, DurationMS: end.Sub(s.started).Milliseconds(),
-		Steps: s.steps, Outputs: s.outputs,
+		Steps: s.steps, Outputs: s.outputs, childTraces: s.childTraces,
 	}
 	if control := s.req.durable; control != nil && control.active {
 		finishCtx := context.WithoutCancel(control.ctx)

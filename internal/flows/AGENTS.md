@@ -53,6 +53,22 @@ the contracts below describe the implemented behavior of each delivered slice.
   tools, models and secrets are excluded. Calls require retry count zero. Child frames use the parent's deadline,
   cancellation, taint fences and shared output/log budgets, with no second Runner.
   Inputs use the boundary node key's `data` object; call outputs expose declared fields directly.
+- Recorded child history belongs to an actual parent step sequence, never a child run or SSE
+  stream. A v7 migration backs up v6 before writes and retains old runs as `legacy_unknown`.
+  A parent step and its frozen trace or bounded omission marker commit in one transaction;
+  pending history on a terminal/crashed run reads as incomplete. Document reads verify the
+  exact frame against the run-owned pin and canonical version hash. Simulation uses the same
+  trace shape inline with deduplicated plan documents, without persistence or synthetic URLs.
+  Each trace is at most 256 KiB; a run shares 4 MiB, 512 KiB metadata, 1,000 frames and 2,000
+  step attempts. Persisted trace payloads use at most 3.5 MiB so the remaining space inside
+  the same 4 MiB can hold honest bounded omission markers. Captures never charge execution
+  value budgets twice. Complete values at most 16 KiB are scrubbed at capture and response;
+  already-partial or larger values are omitted without text prefixes, and shortened free error
+  text is never retained. Once a run encounters an error, later child-history values are
+  conservatively omitted because they may derive from its already-shortened `error.message`;
+  execution outputs are unchanged. Freeze rejects late worker writes after cancellation or abandonment.
+  The typed final encoder protects structural IDs and enforces trace/document caps after scrub.
+  Verify `TestChildHistory*`, `TestFlowsV7*`, block/batch simulations and server history tests.
 - Nested calls use frame-local node identities and immutable transitive snapshots. Resolution rejects
   cycles by flow ID, depth over 8 and more than 32 block versions or 4096 references. Graph limits
   count each expanded call occurrence; batches multiply nested worst-case attempts. Each published

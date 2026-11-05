@@ -98,7 +98,7 @@ Fallunterscheidung, Zusammenführen und Aufrufe veröffentlichter reiner Baustei
 Die maximale Aufruftiefe beträgt acht; kreisförmige Verweise werden abgelehnt. Jeder Aufruf
 bleibt an seine gewählte Version gebunden. Stapelverarbeitung, Warten, Stoppen, KI,
 Geheimnisse und externe Werkzeuge sind innerhalb eines Bausteins ausgeschlossen. Die
-Simulation zeigt den Aufrufschritt, aber keinen getrennten Verlauf der Unterschritte.
+Simulation erlaubt Dir, abgeschlossene Bausteinschritte im Ergebnis anzusehen.
 
 Füge in einem Flow oder einem anderen Baustein **Baustein aufrufen** hinzu. Wähle einen Baustein und eine
 veröffentlichte Version und klicke auf **Gewählte Version verwenden**. Prüfe vor dem Übernehmen
@@ -119,7 +119,32 @@ oder weitere Abhängigkeiten. Die Versionsansicht ist schreibgeschützt; **Aktue
 Rückfrage den aktuellen Bausteinentwurf durch die gewählte Version. Der laufende Baustein
 ändert sich erst beim Veröffentlichen; aufrufende Flows behalten ihre gebundene Version, bis
 Du sie ausdrücklich aktualisierst. Der Elternlauf zeigt Baustein-ID und Version des
-Aufrufs, jedoch keinen eigenen Verlauf der untergeordneten Schritte.
+Aufrufs; aufgezeichnete untergeordnete Schritte bleiben Teil desselben Laufs.
+
+### Aufgezeichnete Bausteinschritte ansehen
+
+Öffne ein Lauf- oder Simulationsergebnis, wähle den Aufruf- oder Stapelschritt und dann
+**Ausgabe → Bausteinschritte ansehen**. Wähle einen Aufruf und anschließend einen
+aufgezeichneten Schritt. Du kannst seine aufgelösten Parameter oder seine Ausgabe als Baum,
+Tabelle oder JSON lesen. Die Pfadleiste und Zurück führen durch verschachtelte Aufrufe.
+Version, Eintragsnummer und Versuch unterscheiden wiederholte Aufrufe. Der Eltern-Flow bleibt
+unverändert. Die Ansicht zeigt abgeschlossene Aufzeichnungen, keinen Live-Fortschritt und
+keine getrennten Bausteinläufe.
+Der gewählte Schritt ersetzt die Liste; **Zurück** führt wieder zur Liste. Auf schmalen
+Fenstern öffnet sich dieselbe Ansicht als Dialog, damit Werte und Navigation bedienbar bleiben.
+
+Aufruf- und Schrittlisten haben lokale Seiten. Nach einer Kürzung unterscheiden sich
+aufbewahrte Einträge von Gesamtzahlen; unbekannte Gesamtzahlen erscheinen als Strich.
+Unvollständige, gekürzte und ältere Verläufe werden ausdrücklich gekennzeichnet. Ein fehlender
+Eintrag beweist nicht, dass ein Schritt übersprungen wurde. Es werden nur vollständige Werte
+bis 16 KiB angezeigt; größere oder bereits gekürzte Werte bleiben vollständig ausgeblendet.
+Die Zeiten des letzten Versuchs gelten für den gesamten Schritt einschließlich Wiederholungen.
+
+Beschriftungen stammen aus der genau aufbewahrten Bausteinversion. Ist sie nicht verfügbar,
+geschützt oder zu groß, bleiben die Aufzeichnungen lesbar, ohne eine aktuelle Version
+einzusetzen. Fehlt das historische Elterndokument, erreichst Du dieselbe Ansicht über die
+Laufliste. Simulationen verwenden nur ihre mitgelieferten Fassungen und laden keine echten
+Dateien nach.
 
 ### Ausgewählte Schritte als Baustein auslagern
 
@@ -164,7 +189,8 @@ Ressourcengrenzen beenden immer die gesamte Verarbeitung. Die Ausgabe bietet `it
 Gesamtzahlen von aufbewahrten Einträgen und zeigt bis zu 50 Zusammenfassungen. Darunter
 bleiben die Ansichten Baum, Tabelle und JSON verfügbar. Aus gekürzten oder ausgelassenen
 Ergebnissen kannst Du nicht schließen, ob fehlende Einträge erfolgreich waren oder
-scheiterten. Einen getrennten Verlauf der Bausteinläufe gibt es nicht.
+scheiterten. **Bausteinschritte ansehen** öffnet aufbewahrte Eintrags- und Aufrufdetails;
+der Abbruchmodus liefert weiterhin kein strukturiertes Teilergebnis.
 
 Die Simulation verwendet denselben festgelegten reinen Baustein. Eine spätere
 Veröffentlichung aktualisiert diesen Schritt nie automatisch: Prüfe den Versionswechsel

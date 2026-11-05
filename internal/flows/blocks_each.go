@@ -160,12 +160,21 @@ func executeBlockEach(ctx context.Context, in ExecInput) (ExecResult, error) {
 			inputs[name] = value
 		}
 		inputs[field] = item
+		itemIndex := index
+		frame := in.childCollector.open(in.childFrame, in.Node.ID, 1, in.block, &itemIndex)
 		code := ""
 		var output map[string]any
 		if checkBlockValues(in.block.Contract.Inputs, inputs) != nil {
 			code = "FLOW_PARAM_INVALID"
+			in.childCollector.update(frame, false, RunError, code)
 		} else {
-			result := executePureBlockPlanned(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan)
+			in.childCollector.update(frame, true, "", "")
+			collector := in.childCollector
+			if frame == "" {
+				collector = nil
+			}
+			result := executePureBlockTraced(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan, collector, frame, true)
+			in.childCollector.update(frame, true, result.Status, result.ErrorCode)
 			if err := ctx.Err(); err != nil {
 				return ExecResult{}, err
 			}

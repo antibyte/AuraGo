@@ -62,9 +62,12 @@ type RunRequest struct {
 	// without a runner.
 	Slot RunSlot
 	// durable is set only by the durable coordinator, never by ordinary runs.
-	durable *durableRunControl
-	blocks  *blockPlan
-	scope   *blockRunScope
+	durable        *durableRunControl
+	blocks         *blockPlan
+	scope          *blockRunScope
+	childCollector *childCollector
+	childFrame     string
+	childNested    bool
 }
 
 // EventSink receives run events in order, always from the run's coordinator goroutine.
@@ -171,6 +174,8 @@ type nodeDone struct {
 	stored    int // bytes the run log keeps of the step's params and output (MaxStoredRunBytes)
 	err       *NodeError
 	cancelled bool
+	abrupt    bool
+	executed  bool
 }
 
 func withDefaults(def *NodeDef, params map[string]any) map[string]any {
@@ -314,8 +319,18 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 				break
 			}
 		}
+		if attempt > 1 && in.childCollector != nil && in.childFrame != "" {
+			failed := step
+			failed.Status = StepError
+			failed.ErrorCode = asNodeError(runErr).Code
+			failed.ErrorMessage = ""
+			// Existing step timestamps span the node lifetime, not an attempt.
+			failed.StartedAt, failed.FinishedAt, failed.DurationMS = time.Time{}, time.Time{}, 0
+			in.childCollector.step(in.childFrame, failed)
+		}
 		// Counted only once it runs: a cancel during the delay leaves the count.
 		step.Attempt = attempt
+		d.executed = true
 		nodeCtx, cancel := context.WithTimeout(ctx, timeout)
 		res, runErr = safeExecute(nodeCtx, def.Execute, in)
 		timedOut := errors.Is(nodeCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
@@ -372,6 +387,7 @@ func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInpu
 			d = nodeDone{nodeID: n.ID, err: ne, step: StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1,
 				Status: StepError, StartedAt: started, FinishedAt: end, DurationMS: end.Sub(started).Milliseconds(),
 				ErrorCode: ne.Code, ErrorMessage: ne.Message}}
+			d.abrupt = true
 		}
 	}()
 	return e.executeNode(ctx, def, n, in, refusal)
@@ -381,7 +397,7 @@ func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInpu
 // (runtime.Goexit inside a node); the worker sends it from a deferred call.
 func exitedNode(n *Node, started time.Time) nodeDone {
 	ne := &NodeError{Code: "FLOW_NODE_PANIC", Message: "the node exited without a result"}
-	return nodeDone{nodeID: n.ID, err: ne, step: StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1,
+	return nodeDone{nodeID: n.ID, err: ne, abrupt: true, step: StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1,
 		Status: StepError, StartedAt: started, FinishedAt: started, ErrorCode: ne.Code, ErrorMessage: ne.Message}}
 }
 

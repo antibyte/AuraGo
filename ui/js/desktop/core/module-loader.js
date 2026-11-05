@@ -224,6 +224,7 @@
                 '/js/desktop/apps/easydrag-detail.js',
                 '/js/desktop/apps/easydrag-scenarios.js',
                 '/js/desktop/apps/easydrag-testing.js',
+                '/js/desktop/apps/easydrag-child-history.js',
                 '/js/desktop/apps/easydrag-compare.js',
                 '/js/desktop/apps/easydrag-runs.js',
                 '/js/desktop/apps/easydrag-metadata.js',
