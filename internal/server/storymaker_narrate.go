@@ -508,7 +508,10 @@ type storymakerMusicPayload struct {
 }
 
 // storymakerMusicRefusal is a music source that POST /music and the job refuse. Its text is safe to show.
-type storymakerMusicRefusal struct{ message string }
+type storymakerMusicRefusal struct {
+	message string
+	badFile bool // the file itself is wrong, so it will never pass; a full disk is not
+}
 
 func (e *storymakerMusicRefusal) Error() string { return e.message }
 
@@ -580,7 +583,7 @@ func (s *Server) storymakerMusicSourceOpen(ctx context.Context, rt *storymakerRu
 // and free disk. It leaves r at the start and returns the format.
 func storymakerCheckMusicSource(r io.ReadSeeker, size int64, workspaceDir string) (string, error) {
 	if size > maxMusicSourceBytes {
-		return "", &storymakerMusicRefusal{message: "The music file is larger than 1 GiB."}
+		return "", &storymakerMusicRefusal{message: "The music file is larger than 1 GiB.", badFile: true}
 	}
 	head := make([]byte, 12)
 	n, err := io.ReadFull(r, head)
@@ -592,7 +595,7 @@ func storymakerCheckMusicSource(r io.ReadSeeker, size int64, workspaceDir string
 	}
 	ext := storymaker.SniffAudio(head[:n])
 	if ext != "wav" && ext != "mp3" {
-		return "", &storymakerMusicRefusal{message: "The music file is not WAV or MP3."}
+		return "", &storymakerMusicRefusal{message: "The music file is not WAV or MP3.", badFile: true}
 	}
 	free, err := fileutil.FreeDiskBytes(workspaceDir)
 	if err != nil {
@@ -793,11 +796,35 @@ func storymakerMusicPendingPath(rt *storymakerRuntime, id, key string) (string, 
 }
 
 func storymakerRemoveMusicPending(ctx context.Context, rt *storymakerRuntime, id, key string) error {
+	storymakerForgetMusicResult(rt, id, key)
 	pendingPath, err := storymakerMusicPendingPath(rt, id, key)
 	if err != nil {
 		return err
 	}
 	return rt.store.Remove(ctx, pendingPath)
+}
+
+func storymakerMusicResultKey(id, key string) string { return id + "|" + key }
+
+func storymakerRememberMusicResult(rt *storymakerRuntime, id, key, rel string) {
+	rt.musicMu.Lock()
+	defer rt.musicMu.Unlock()
+	if rt.musicResults == nil {
+		rt.musicResults = map[string]string{}
+	}
+	rt.musicResults[storymakerMusicResultKey(id, key)] = rel
+}
+
+func storymakerRememberedMusicResult(rt *storymakerRuntime, id, key string) string {
+	rt.musicMu.Lock()
+	defer rt.musicMu.Unlock()
+	return rt.musicResults[storymakerMusicResultKey(id, key)]
+}
+
+func storymakerForgetMusicResult(rt *storymakerRuntime, id, key string) {
+	rt.musicMu.Lock()
+	defer rt.musicMu.Unlock()
+	delete(rt.musicResults, storymakerMusicResultKey(id, key))
 }
 
 // storymakerReadMusicPending returns the stored result path, or "" without a usable file. It is an ordinary workspace
@@ -893,8 +920,23 @@ func storymakerCopyGeneratedMusic(ctx context.Context, rt *storymakerRuntime, cf
 	return ext, storymakerStoreMusic(ctx, rt, id, key, ext, src)
 }
 
+// storymakerCopyPaidMusic copies a paid result. A file that can never pass drops the pending record, so the next Generate
+// pays for a new one; the file stays in the Music library.
+func storymakerCopyPaidMusic(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, id, key, rel string) (string, error) {
+	ext, err := storymakerCopyGeneratedMusic(ctx, rt, cfg, id, key, rel)
+	var refusal *storymakerMusicRefusal
+	if errors.As(err, &refusal) && refusal.badFile {
+		if rmErr := storymakerRemoveMusicPending(ctx, rt, id, key); rmErr != nil {
+			return "", rmErr
+		}
+	}
+	return ext, err
+}
+
 // storymakerGenerateMusic runs the provider once and copies the result. The pending file comes right after the call, so a
-// failed copy or a restart does not pay again while the result sits in DataDir/audio.
+// failed copy or a restart does not pay again while the result sits in DataDir/audio. If that write fails, the runtime
+// remembers the result for the next click; a restart in between loses it. A result that is not WAV or MP3 drops the
+// pending file, so the next click pays again.
 func (s *Server) storymakerGenerateMusic(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, p storymakerMusicPayload, key string, m *storymaker.Music, h *render.Handle) (string, error) {
 	pendingPath, err := storymakerMusicPendingPath(rt, p.ProjectID, key)
 	if err != nil {
@@ -904,13 +946,17 @@ func (s *Server) storymakerGenerateMusic(ctx context.Context, rt *storymakerRunt
 	if err != nil {
 		return "", err
 	}
+	if rel == "" {
+		rel = storymakerRememberedMusicResult(rt, p.ProjectID, key)
+	}
 	if rel != "" {
 		h.SetPhase(render.PhaseWriting)
-		ext, err := storymakerCopyGeneratedMusic(ctx, rt, cfg, p.ProjectID, key, rel)
+		ext, err := storymakerCopyPaidMusic(ctx, rt, cfg, p.ProjectID, key, rel)
 		if !errors.Is(err, fs.ErrNotExist) {
 			return ext, err
 		}
 		// The result is gone, so only a new call can bring it back.
+		storymakerForgetMusicResult(rt, p.ProjectID, key)
 	}
 	// A paid call needs the click that named this mood and prompt. A file job that finds a generated story has no key, and a
 	// click whose story changed while the job waited has an older one. A pending result above is already paid for.
@@ -938,6 +984,7 @@ func (s *Server) storymakerGenerateMusic(ctx context.Context, rt *storymakerRunt
 	if err != nil {
 		return "", err
 	}
+	storymakerRememberMusicResult(rt, p.ProjectID, key, rel)
 	pending, err := json.Marshal(storymakerMusicPending{Path: rel})
 	if err != nil {
 		return "", err
@@ -946,5 +993,5 @@ func (s *Server) storymakerGenerateMusic(ctx context.Context, rt *storymakerRunt
 		return "", err
 	}
 	h.SetPhase(render.PhaseWriting)
-	return storymakerCopyGeneratedMusic(ctx, rt, cfg, p.ProjectID, key, rel)
+	return storymakerCopyPaidMusic(ctx, rt, cfg, p.ProjectID, key, rel)
 }

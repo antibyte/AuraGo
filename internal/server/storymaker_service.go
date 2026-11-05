@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -37,6 +38,9 @@ type storymakerRuntime struct {
 	jobs     *render.Manager           // the render queue
 	narrate  *render.Manager           // the narrate and music queue
 	usage    *storymakerNarrationUsage // daily characters of the cloud voices
+
+	musicMu      sync.Mutex
+	musicResults map[string]string // project id + music key -> result path, for a paid result whose pending file was not written
 }
 
 // storymakerUIFiles returns the ui tree the catalog and the player bundles are read from: the

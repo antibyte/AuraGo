@@ -1221,6 +1221,71 @@ func TestStorymakerMusicRerunReadsPendingWithoutAProviderCall(t *testing.T) {
 	}
 }
 
+func TestStorymakerMusicBadGeneratedFileDoesNotBlockTheNextGenerate(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	ctx := context.Background()
+	good := fx.seam.generate
+	bad := fx.audioFile(t, "bad.wav", 1)
+	if err := os.WriteFile(bad, []byte("this is not audio at all"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fx.seam.generate = func(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+		fx.calls.Add(1)
+		return tools.MusicGenResult{Status: "ok", FilePath: bad, CostEstimate: 0.06}
+	}
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusFailed || done.Error == nil || !strings.Contains(done.Error.Message, "not WAV or MP3") {
+		t.Fatalf("first job = %+v %+v", done, done.Error)
+	}
+	target, err := fx.rt.projects.AudioPath(fx.id, "music", fx.key+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := fx.rt.store.ReadFile(ctx, path.Join(path.Dir(target), fx.key+".pending.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the pending file stayed: %v", err)
+	}
+	fx.seam.generate = good
+	done = waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("second job = %+v %+v", done, done.Error)
+	}
+	if fx.calls.Load() != 2 {
+		t.Fatalf("the provider was called %d times, want 2", fx.calls.Load())
+	}
+}
+
+func TestStorymakerMusicFailedPendingWriteDoesNotPayTwice(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	ctx := context.Background()
+	target, err := fx.rt.projects.AudioPath(fx.id, "music", fx.key+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := path.Join(path.Dir(target), fx.key+".pending.json")
+	inner := fx.seam.generate
+	// A folder at the pending path makes the write after the paid call fail.
+	fx.seam.generate = func(c context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+		if err := fx.rt.store.MkdirAll(c, pending); err != nil {
+			t.Error(err)
+		}
+		return inner(c, cfg, params)
+	}
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusFailed {
+		t.Fatalf("first job = %+v %+v", done, done.Error)
+	}
+	if err := fx.rt.store.Remove(ctx, pending); err != nil {
+		t.Fatal(err)
+	}
+	done = waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("second job = %+v %+v", done, done.Error)
+	}
+	if fx.calls.Load() != 1 {
+		t.Fatalf("the provider was called %d times, want 1", fx.calls.Load())
+	}
+}
+
 func TestStorymakerMusicGeneratedScrubsTheProviderFailure(t *testing.T) {
 	fx := newGeneratedMusicFixture(t)
 	const sentinel = "sm-music-sentinel-0123456789abcdef"
