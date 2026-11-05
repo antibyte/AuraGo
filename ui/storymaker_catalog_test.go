@@ -56,6 +56,7 @@ type smCatalog struct {
 	Version  string           `json:"version"`
 	Stage    map[string]any   `json:"stage"`
 	Rig      map[string]any   `json:"rig"`
+	Glyphs   map[string]any   `json:"glyphs"`
 	Fonts    []map[string]any `json:"fonts"`
 	Palettes []smPalette      `json:"palettes"`
 	Entries  []map[string]any `json:"entries"`
@@ -774,7 +775,7 @@ func TestStorymakerCatalogFilesVersionAndBudget(t *testing.T) {
 		t.Errorf("catalog version %s, but the files hash to %s: run node scripts/build-storymaker-catalog.mjs", c.Version, got)
 	}
 	// every file below the catalog directory is referenced by the manifest
-	referenced := map[string]bool{"catalog.json": true, smStr(c.Rig, "file"): true}
+	referenced := map[string]bool{"catalog.json": true, smStr(c.Rig, "file"): true, smStr(c.Glyphs, "file"): true}
 	for _, e := range c.Entries {
 		referenced[smStr(e, "thumb")] = true
 		if f := smStr(e, "file"); f != "" {

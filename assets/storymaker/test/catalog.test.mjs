@@ -21,7 +21,7 @@ test('two builds produce identical bytes and the version hash follows the files'
   assert.equal(a.manifest.version, versionOf(a.files));
   assert.match(a.manifest.version, /^[0-9a-f]{12}$/);
   for (const text of a.files.values()) assert.ok(!text.includes('\r'), 'LF only');
-  assert.equal(a.files.size, 105);
+  assert.equal(a.files.size, 106);
 });
 
 test('the generated catalog passes the build validator', () => {

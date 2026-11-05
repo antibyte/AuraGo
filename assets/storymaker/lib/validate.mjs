@@ -6,6 +6,7 @@ import { versionOf, PALETTES } from './catalog.mjs';
 import { NAMES, LANGS, nameKey } from './names.mjs';
 import { Ctx, characterSvg } from './svg.mjs';
 import { MOUTH_NAMES } from './face.mjs';
+import { GLYPHS_SCHEMA, decodeRanges, rangesCover } from './glyphs.mjs';
 
 export const REQUIRED = {
   character: ['char.office-woman-1', 'char.office-man-1', 'char.it-tech-1', 'char.senior-man-1'],
@@ -38,6 +39,21 @@ function shapeProblems(where, shapes, known, out) {
     }
     if (s.opacity !== undefined && !(s.opacity >= 0 && s.opacity <= 1)) out.push(`${where}[${i}]: opacity out of range`);
   });
+}
+
+function glyphProblems(data, add) {
+  if (data.schema !== GLYPHS_SCHEMA) add(`glyphs.json: schema must be ${GLYPHS_SCHEMA}`);
+  const ids = new Set();
+  for (const f of data.faces) {
+    if (ids.has(f.id)) add(`glyphs.json: duplicate face ${f.id}`);
+    ids.add(f.id);
+    if (!f.family || !f.weight || !f.file.startsWith('/fonts/')) add(`glyphs.json: face ${f.id} needs a family, a weight and a /fonts/ file`);
+    if (!f.d.length || f.d.length % 2) add(`glyphs.json: face ${f.id} needs pairs of range values`);
+    for (let i = 0; i < f.d.length; i += 2) {
+      if (f.d[i] < (i ? 1 : 0) || f.d[i + 1] < 0) add(`glyphs.json: face ${f.id} is not monotonic at value ${i}`);
+    }
+  }
+  if (!data.faces.some((f) => rangesCover(decodeRanges(f.d), 0x2026))) add('glyphs.json: U+2026 is not covered by any face');
 }
 
 export function validateOutputs(built, { maxProblems = 40 } = {}) {
@@ -196,5 +212,10 @@ export function validateOutputs(built, { maxProblems = 40 } = {}) {
     const same = Object.values(NAMES).filter((row) => row[i] === row[LANGS.indexOf('en')]).length;
     if (same > Object.keys(NAMES).length * 0.35) add(`names ${lang}: ${same} of ${Object.keys(NAMES).length} are copies of the English name`);
   });
+  // fallback coverage
+  if (manifest.glyphs?.file !== 'glyphs.json') add('the manifest must name glyphs.json');
+  const glyphText = files.get('glyphs.json');
+  if (typeof glyphText !== 'string') add('glyphs.json is missing');
+  else glyphProblems(JSON.parse(glyphText), add);
   return out;
 }

@@ -43,7 +43,7 @@ function listExisting() {
     }
   };
   for (const d of SUBDIRS) walk(path.join(outDir, d));
-  if (fs.existsSync(path.join(outDir, 'catalog.json'))) found.push(path.join(outDir, 'catalog.json'));
+  for (const f of ['catalog.json', 'glyphs.json']) if (fs.existsSync(path.join(outDir, f))) found.push(path.join(outDir, f));
   walk(langDir);
   return found;
 }

@@ -9,6 +9,7 @@ import { POSES, GESTURES, CYCLES } from './motion.mjs';
 import { nameKey } from './names.mjs';
 import { Ctx, svgDoc, placedCharacter, propSvg, environmentSvg, evalKeys, shapesSvg } from './svg.mjs';
 import { roundRect, fill, line, poly, circle } from './util.mjs';
+import { buildGlyphs, glyphsText } from './glyphs.mjs';
 
 export const STAGE = { width: 1920, height: 1080, safe: { x: 5, y: 5, w: 90, h: 90 } };
 
@@ -263,7 +264,7 @@ export function versionOf(files) {
 function manifestText(manifest) {
   const lines = [];
   const j = (v) => JSON.stringify(v);
-  lines.push('{' + [`"schema":${j(manifest.schema)}`, `"version":${j(manifest.version)}`, `"stage":${j(manifest.stage)}`, `"rig":${j(manifest.rig)}`].join(',') + ',');
+  lines.push('{' + [`"schema":${j(manifest.schema)}`, `"version":${j(manifest.version)}`, `"stage":${j(manifest.stage)}`, `"rig":${j(manifest.rig)}`, `"glyphs":${j(manifest.glyphs)}`].join(',') + ',');
   lines.push(` "fonts":[\n${manifest.fonts.map((f) => '  ' + j(f)).join(',\n')}\n ],`);
   lines.push(` "palettes":[\n${manifest.palettes.map((p) => '  ' + j(p)).join(',\n')}\n ],`);
   lines.push(` "entries":[\n${manifest.entries.map((e) => '  ' + j(e)).join(',\n')}\n ]}`);
@@ -285,11 +286,13 @@ export function buildOutputs() {
     files.set(`environments/${n}.json`, JSON.stringify({ viewbox: [0, 0, 1920, 1080], layers: e.layers, tokens: e.tokens }) + '\n');
   }
   for (const [p, svg] of buildThumbs(rig, entries)) files.set(p, svg);
+  files.set('glyphs.json', glyphsText(buildGlyphs()));
   const manifest = {
     schema: 'storymaker-catalog/1',
     version: versionOf(files),
     stage: STAGE,
     rig: { id: 'rig.human/1', file: 'rig/human.json' },
+    glyphs: { file: 'glyphs.json' },
     fonts: FONTS,
     palettes: buildPalettes(),
     entries,
