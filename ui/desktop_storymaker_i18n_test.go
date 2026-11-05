@@ -79,6 +79,7 @@ func TestStorymakerAppTranslationsAreTranslated(t *testing.T) {
 	t.Parallel()
 	english := storymakerLocale(t, "storymaker", "en")
 	same := map[string]bool{
+		"storymaker.music.volume": true, "storymaker.music.mood_lo_fi": true,
 		"storymaker.title": true, "storymaker.tab_stage": true, "storymaker.strip.duration_s": true, "storymaker.export.cap_ffmpeg": true,
 		"storymaker.pause": true, "storymaker.side_scene": true, "storymaker.projects.new_format": true, "storymaker.strip.scene_n": true,
 		"storymaker.export.cap_browser": true, "storymaker.tab_code": true, "storymaker.code.title": true, "storymaker.aspect_9_16": true,

@@ -314,7 +314,7 @@
     }
 
     // The job error codes of the spec (Error handling) that a render or a narrate job can end with.
-    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error', 'narration_failed', 'narration_unavailable', 'voice_required', 'budget_exceeded'];
+    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error', 'narration_failed', 'narration_unavailable', 'voice_required', 'budget_exceeded', 'narration_incomplete', 'music_failed', 'music_incomplete'];
 
     function describeJobError(t, error) {
         const code = error && typeof error.code === 'string' ? error.code : '';
