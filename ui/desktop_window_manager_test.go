@@ -128,15 +128,16 @@ func TestDesktopWindowResizeHandlesStayOutsideScrollableContent(t *testing.T) {
 	}
 
 	for selector, markers := range map[string][]string{
-		".vd-window":                             {"overflow: visible;"},
-		".vd-window-content":                     {"overflow: hidden;"},
-		".vd-resize-handle::after":               {"inset: 0;"},
-		".vd-resize-e,\n.vd-resize-w":            {"width: 8px;"},
-		".vd-resize-n,\n.vd-resize-s":            {"height: 8px;"},
-		".vd-resize-e":                           {"right: -8px;"},
-		".vd-resize-w":                           {"left: -8px;"},
-		".vd-resize-n":                           {"top: -8px;"},
-		".vd-resize-s":                           {"bottom: -8px;"},
+		".vd-window":                  {"overflow: visible;"},
+		".vd-window-content":          {"overflow: hidden;"},
+		".vd-resize-handle::after":    {"inset: 0;"},
+		".vd-resize-e,\n.vd-resize-w": {"width: 12px;"},
+		".vd-resize-n,\n.vd-resize-s": {"height: 12px;"},
+		".vd-resize-ne,\n.vd-resize-nw,\n.vd-resize-se,\n.vd-resize-sw": {"width: 18px;", "height: 18px;"},
+		".vd-resize-e":                           {"right: -12px;"},
+		".vd-resize-w":                           {"left: -12px;"},
+		".vd-resize-n":                           {"top: -12px;"},
+		".vd-resize-s":                           {"bottom: -12px;"},
 		".vd-window.maximized .vd-resize-handle": {"display: none;"},
 	} {
 		block := blockFor(selector)

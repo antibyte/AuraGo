@@ -52,10 +52,11 @@
     flex: 1 1 0; min-height: 0; padding: 0; overflow: hidden; border: 0; background: transparent;
 }
 /* Keep the shell's resize hit areas inside the cabinet clipping edge. */
-.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-n { top: 0; }
-.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-s { bottom: 0; }
-.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-e { right: 0; }
-.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-w { left: 0; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-n { top: 0; height: 8px; left: 8px; right: 8px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-s { bottom: 0; height: 8px; left: 8px; right: 8px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-e { right: 0; width: 8px; top: 8px; bottom: 8px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-w { left: 0; width: 8px; top: 8px; bottom: 8px; }
+.desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] :is(.vd-resize-ne, .vd-resize-nw, .vd-resize-se, .vd-resize-sw) { width: 8px; height: 8px; }
 .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-se { bottom: 5px; right: 5px; }
 .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-sw { bottom: 5px; left: 5px; }
 .desktop-body[data-theme] .vd-window[data-app-id="ha-switchboard"] .vd-resize-ne { top: 5px; right: 5px; }

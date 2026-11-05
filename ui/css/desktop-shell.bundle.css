@@ -4884,67 +4884,70 @@
     inset: 0;
 }
 
+/* Edge grips sit fully outside the window box (12px) so they never cover
+   scrollbars; the corner grips are larger (18px) and reach 6px into the
+   window so the corner is easy to hit. Edge grips stop where the corners begin. */
 .vd-resize-n,
 .vd-resize-s {
-    left: 8px;
-    right: 8px;
-    height: 8px;
+    left: 6px;
+    right: 6px;
+    height: 12px;
     cursor: ns-resize;
 }
 
 .vd-resize-n {
-    top: -8px;
+    top: -12px;
 }
 
 .vd-resize-s {
-    bottom: -8px;
+    bottom: -12px;
 }
 
 .vd-resize-e,
 .vd-resize-w {
-    top: 8px;
-    bottom: 8px;
-    width: 8px;
+    top: 6px;
+    bottom: 6px;
+    width: 12px;
     cursor: ew-resize;
 }
 
 .vd-resize-e {
-    right: -8px;
+    right: -12px;
 }
 
 .vd-resize-w {
-    left: -8px;
+    left: -12px;
 }
 
 .vd-resize-ne,
 .vd-resize-nw,
 .vd-resize-se,
 .vd-resize-sw {
-    width: 8px;
-    height: 8px;
+    width: 18px;
+    height: 18px;
 }
 
 .vd-resize-ne {
-    top: -8px;
-    right: -8px;
+    top: -12px;
+    right: -12px;
     cursor: nesw-resize;
 }
 
 .vd-resize-nw {
-    top: -8px;
-    left: -8px;
+    top: -12px;
+    left: -12px;
     cursor: nwse-resize;
 }
 
 .vd-resize-se {
-    right: -8px;
-    bottom: -8px;
+    right: -12px;
+    bottom: -12px;
     cursor: nwse-resize;
 }
 
 .vd-resize-sw {
-    left: -8px;
-    bottom: -8px;
+    left: -12px;
+    bottom: -12px;
     cursor: nesw-resize;
 }
 
