@@ -14,6 +14,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 5. [Publishing](#publishing)
 6. [Runs and Notifications](#runs-and-notifications)
    - [Resuming local runs](#resuming-local-runs)
+   - [Human approval](#human-approval-for-a-local-run)
 7. [Decisions Node](#decisions-node)
 8. [When a Step Fails](#when-a-step-fails)
 9. [Secrets](#secrets)
@@ -371,7 +372,7 @@ saved work. The observed processing status and counts describe the server; chang
 checkbox does not change them. Unknown counts are shown as unknown.
 
 This initial mode supports a manual trigger, Set fields, If, Switch, Merge, Stop and
-**Persistent wait**. The complete graph is checked, including disabled or unreachable steps.
+**Persistent wait** and **Request approval**. The complete graph is checked, including disabled or unreachable steps.
 Calls, batches, tools, models and external effects are excluded. Persistent wait accepts 1–86,400
 seconds and is distinct from ordinary **Wait**, whose behavior stays unchanged. Publish and
 explicitly start the supported live flow; draft tests and simulations never start recovery.
@@ -406,6 +407,32 @@ counter is unchanged in this initial mode. No child invocation history is provid
 An active history entry whose source cannot be verified shows **Unknown**; its last recorded
 state does not confirm current progress.
 
+### Human approval for a local run
+
+**Request approval** pauses an eligible local durable flow without holding a worker.
+Add a review summary and, optionally, review data. The summary is limited to 2 KiB and
+the JSON data to 16 KiB with at most 32 nesting levels. They are resolved once when the
+run reaches this step. Oversized reviews and registered secret values are refused, not
+shortened. Represent integer identifiers above 9,007,199,254,740,991 or below its negative
+as strings to preserve their exact digits. The original run deadline also applies to approval.
+
+Open **Approval inbox** in the EasyDrag library, then **Review request**. Check the exact
+flow revision, step, complete summary/data and deadline. **Approve** explicitly allows
+that same run to continue through its normal queue; it does not prove that it has already
+continued or finished. **Reject** stops the waiting run. Expiry also stops it once the
+stored state can be verified. The existing **Stop** remains available for a blocked run.
+
+A usable administrator login and the default-off durable processing setting are required.
+Only a signed-in administrator browser session can decide; API keys and deep links cannot.
+The single administrator account records the local administrator as the decision maker;
+it cannot distinguish people sharing its credentials. Read-only mode prevents decisions.
+
+If the decision reply is lost, use **Check status**. This reads the stored result without
+sending the decision again. Closing the view does not undo an accepted decision. Once
+the encrypted checkpoint no longer retains the review, the view shows decision metadata
+and explicitly says that the complete review is no longer retained.
+This local approval step cannot authorize external actions.
+
 ## Decisions Node
 
 *Decision* uses AuraGo’s optional managed Decisions service, which can run natively or in Docker. It accepts a state value and up to eight registered image references; templates can supply both. The server resolves image references within AuraGo’s media boundary before the model sees them. A missing or unavailable service marks the node as needing setup.
@@ -439,7 +466,7 @@ state does not confirm current progress.
 
 **Export local pack** downloads a `.easydrag-pack.json` file containing the flow and
 the exact pure block versions it uses, including nested calls. This format supports
-manually started flows with local Set, If, Switch, Merge and Call block steps. Waits,
+manually started flows with local Set, If, Switch, Merge and Call block steps. Waits, approvals,
 batches, AI, tools, integrations and secret references are not supported. Ordinary
 `.easydrag.json` import and export remain available.
 

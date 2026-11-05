@@ -4,6 +4,9 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const TYPE = 'logic.durable_wait';
     const REASONS = new Set(['disabled', 'authority', 'key_unavailable', 'checkpoint_unreadable', 'storage_unavailable', 'incompatible', 'service_unavailable']);
+    const ACTIVE_STATES = new Set(['waiting', 'running', 'blocked', 'approval_pending']);
+    const TERMINAL_STATES = new Set(['success', 'error', 'cancelled']);
+    const GATE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
     const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
     const count = value => value === null || Number.isSafeInteger(value) && value >= 0 && value <= 1000000000;
     function capability(value) {
@@ -14,12 +17,13 @@
         return result;
     }
     function status(run, value) {
-        if (!run || !object(value) || value.run_id !== run.id || !['waiting', 'running', 'blocked'].includes(value.state) || !Number.isSafeInteger(value.generation) || value.generation < 0 || typeof value.cancel_available !== 'boolean' || value.blocked_code !== undefined && (!REASONS.has(value.blocked_code) || value.blocked_code === 'service_unavailable')) return null;
+        const terminalApproval = object(value) && TERMINAL_STATES.has(value.state) && value.state === run?.status && value.cancel_available === false && GATE_ID_PATTERN.test(value.approval_gate_id || '');
+        if (!run || !object(value) || value.run_id !== run.id || !(ACTIVE_STATES.has(value.state) || terminalApproval) || !Number.isSafeInteger(value.generation) || value.generation < 0 || typeof value.cancel_available !== 'boolean' || value.blocked_code !== undefined && (!REASONS.has(value.blocked_code) || value.blocked_code === 'service_unavailable') || value.approval_gate_id !== undefined && !GATE_ID_PATTERN.test(value.approval_gate_id || '')) return null;
         for (const key of ['wake_at', 'deadline']) {
             if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 64 || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/.test(value[key]) || !Number.isFinite(Date.parse(value[key])))) return null;
         }
         const result = {};
-        ['run_id', 'state', 'generation', 'cancel_available', 'blocked_code', 'wake_at', 'deadline'].forEach(key => { if (value[key] !== undefined) result[key] = value[key]; });
+        ['run_id', 'state', 'generation', 'cancel_available', 'blocked_code', 'wake_at', 'deadline', 'approval_gate_id'].forEach(key => { if (value[key] !== undefined) result[key] = value[key]; });
         return result;
     }
     function record(run) { return run && (run.record || run); }
@@ -30,7 +34,7 @@
         if (!r) return '';
         if (run.durableStopping && !['success', 'error', 'cancelled'].includes(r.status)) return t('easydrag.ui.run_stopping');
         // A legacy checkpoint can outlive a terminal run. Keep that run's actual result.
-        if (!['success', 'error', 'cancelled'].includes(r.status) && s && s.state !== 'running') return t(s.state === 'blocked' ? 'easydrag.ui.durable_blocked' : 'easydrag.ui.durable_waiting');
+        if (!['success', 'error', 'cancelled'].includes(r.status) && s && s.state !== 'running') return t(s.state === 'approval_pending' ? 'easydrag.ui.approval_state_pending' : s.state === 'blocked' ? 'easydrag.ui.durable_blocked' : 'easydrag.ui.durable_waiting');
         return ED.core.tr(t, 'easydrag.ui.status_' + r.status, r.status);
     }
     function reason(t, code) { return REASONS.has(code) ? t('easydrag.ui.durable_reason_' + code) : t('easydrag.ui.durable_unknown'); }

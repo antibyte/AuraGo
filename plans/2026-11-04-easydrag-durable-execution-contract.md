@@ -1,6 +1,6 @@
 # EasyDrag durable execution contract
 
-This contract separates the implemented pure-local Runner path from later effect receipts and approval gates. Runner integration and full testing were explicitly authorized on 2026-11-05, with processing kept disabled by default. The flagship checkpoint table and owning guides record implementation and verification boundaries. Activation and deployment are outside this change.
+This contract defines the first pure-local Runner path. Human approvals extend it under `2026-11-05-easydrag-durable-approval-contract.md`; effect receipts remain a separate slice. Runner integration and full testing were explicitly authorized on 2026-11-05, with processing kept disabled by default. The flagship checkpoint table and owning guides record implementation and verification boundaries. Activation and deployment are outside this change.
 
 Existing `logic.wait` parks a live process slot; it is not durable. Existing run steps are bounded and sometimes truncated, and therefore cannot restore execution. Existing runs without a durable marker or checkpoint keep `FLOW_RESTARTED` cancellation on startup. No existing run is silently upgraded or replayed.
 

@@ -65,6 +65,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="approval-review" hidden>' + core.icon('check') + '<span>' + esc(t('easydrag.ui.approval_review')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
@@ -349,8 +350,12 @@
             const node = banner.querySelector('[data-ed-runview-text]');
             if (node.textContent !== text) node.textContent = text;
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
-            // Stop shows on a read-only desktop too (a stop is no write); nothing else does.
+            const approval = banner.querySelector('[data-ed-cmd="approval-review"]');
             const durableStatus = ED.durable && ED.durable.info(ed.run);
+            const gateId = durableStatus && durableStatus.approval_gate_id;
+            approval.hidden = !gateId;
+            if (approval.hidden && document.activeElement === approval) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
+            // Stop shows on a read-only desktop too (a stop is no write); nothing else does.
             const off = !!ed.run?.durableStatusError || (durableStatus ? !durableStatus.cancel_available : !!(run.durable) || !ED.runs.isActive(run.status));
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
             stop.hidden = off;
@@ -389,6 +394,7 @@
 
         function enterRunView(detail) {
             if (!ed.flushPendingEdits()) return;
+            if (ed.runView && ED.approvals) ED.approvals.closeRunReview(ed);
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
             if (!ed.runView) savedView = Object.assign({}, ed.view);
@@ -418,6 +424,7 @@
         function exitRunView() {
             if (!ed.runView) return;
             if (!ed.flushPendingEdits()) return;
+            if (ED.approvals) ED.approvals.closeRunReview(ed);
             ED.detail.close(ed);
             ed.runView = null;
             ed.model = draftModel;
@@ -859,6 +866,10 @@
             else if (cmd === 'active') publish.setActive(!ed.flowEnabled);
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
+            else if (cmd === 'approval-review') {
+                const gateId = ED.durable && ED.durable.info(ed.run)?.approval_gate_id;
+                if (gateId && ED.approvals) ED.approvals.openRunReview(ed, gateId, { runId: ed.runView?.run.id, flowId: ed.flow.id, revision: ed.runView?.run.revision });
+            }
             else if (cmd === 'stop-viewed') runs.stopRun(ed.runView && ed.runView.run);
             else if (cmd === 'rerun-viewed') rerunViewed();
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
@@ -984,7 +995,7 @@
                 ED.saver.dropEmergencyCopy(ed.flow.id);
             }
             if (isBlock) return;
-            if (opts && opts.runId) runs.openRunView(opts.runId);
+            if (opts && opts.runId) runs.openRunView(opts.runId, opts.gateId);
             else runs.loadLast();
         }
 
@@ -1032,6 +1043,7 @@
             if (disposed) return;
             disposed = true;
             const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
+            safely(() => { if (ED.approvals) ED.approvals.closeRunReview(ed); });
             safely(() => { if (ED.metadata) ED.metadata.dispose(el); });
             safely(() => ED.detail.close(ed));
             safely(() => ED.palette.closeQuickAdd(ed));
@@ -1048,7 +1060,7 @@
         }
         return {
             el, ed, leave,
-            showRun(runId) { runs.openRunView(runId); },
+            showRun(runId, gateId) { runs.openRunView(runId, gateId); },
             dispose
         };
     }

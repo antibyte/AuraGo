@@ -1027,8 +1027,9 @@
 
         // openRunView fetches a stored run for the run view: a second click on the same run while
         // it loads does nothing, and only the run clicked last is shown.
-        async function openRunView(runId) {
+        async function openRunView(runId, gateId) {
             if (disposed || viewing === runId) return;
+            if (ed.runView && ed.runView.run.id !== runId && ED.approvals) ED.approvals.closeRunReview(ed);
             viewing = runId;
             const mine = ++viewSeq;
             try {
@@ -1039,6 +1040,9 @@
                     return;
                 }
                 ed.enterRunView(detail);
+                if (gateId && ED.approvals && ed.runView && ed.runView.run.id === runId) {
+                    ED.approvals.openRunReview(ed, gateId, { runId, flowId: ed.flow.id, revision: ed.runView.run.revision });
+                }
             } catch (err) {
                 if (!disposed && mine === viewSeq) ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
             } finally {

@@ -215,7 +215,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Managed RustFS S3 | `internal/rustfs/AGENTS.md` | Optional Docker storage lifecycle, private IAM credentials, scoped S3 leases and retained-volume recovery; server/UI/config/tool integration. |
 | Kaggle integration | `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md` | Fixed native Kaggle contracts, account grants, durable jobs, project transfers, notebook preservation and managed local Jupyter; agent/server/UI/release integration. |
 | File utilities | `internal/fileutil/AGENTS.md` | Shared file replacement/free-space probe. |
-| EasyDrag | `internal/flows/AGENTS.md` | Flows and Decisions media authorization. |
+| EasyDrag | `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Flow authoring, execution, approval/session authority, Desktop UI and Decisions media authorization. |
 | Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
 | Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
 | Aura Drift | `ui/js/desktop/apps/AGENTS.md`, `ui/AGENTS.md`, `internal/desktop/AGENTS.md`, `documentation/aura-drift.md`, `plans/2026-11-04-aura-drift-racing-plan.md` | Offline top-down Virtual Desktop racer: deterministic 120 Hz bicycle physics, spline tracks with chunk streaming, Canvas 2D world plus WebGL2 High/Ultra post-processing, procedural Web Audio, six counterable weapons, bounded disclosed AI catch-up, sixteen locales; verify `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the three `scripts/test-aura-drift-*.mjs` checks. |

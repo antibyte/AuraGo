@@ -24,6 +24,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 - Run `bash -n <path>` for each changed shell script.
 - Parse changed PowerShell with `System.Management.Automation.Language.Parser`.
 - Run `node scripts/test-easydrag.mjs` for EasyDrag UI module and pack wire-contract checks.
+- Run `node scripts/test-easydrag-approvals.mjs` for approval DTO, bounds, review-safety and blocked-reason checks.
 - `python scripts/test-prepare-phonon.py` and relevant `go test ./internal/audit` release/install/build contracts.
 
 ## Child DOX Index

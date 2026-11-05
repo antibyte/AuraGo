@@ -249,6 +249,7 @@
                 '/js/desktop/apps/easydrag-testing.js',
                 '/js/desktop/apps/easydrag-child-history.js',
                 '/js/desktop/apps/easydrag-compare.js',
+                '/js/desktop/apps/easydrag-approvals.js',
                 '/js/desktop/apps/easydrag-runs.js',
                 '/js/desktop/apps/easydrag-metadata.js',
                 '/js/desktop/apps/easydrag-publish.js',

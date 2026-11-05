@@ -11,7 +11,7 @@ import (
 var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-durable.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-groups.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
-	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
+	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-approvals.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
 	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-editor.js", "easydrag.js",
 }
 
@@ -161,6 +161,8 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.home_bulk_outcome_": {"confirmed", "save_uncertain", "active", "unresolved", "not_attempted"},
 		"easydrag.ui.pack_":              {"export", "import", "intro", "warning", "parent", "blocks", "block_version", "content", "preview", "import_action", "success", "success_detail", "open", "unknown", "reconcile", "unconfirmed", "invalid", "too_large", "finish_status", "finish_status_text"},
 		"easydrag.ui.error_flow_pack_":   {"too_large", "invalid", "unsupported", "conflict"},
+		"easydrag.ui.approval_state_":    {"pending", "approved", "rejected", "expired", "cancelled", "stale", "unknown"},
+		"easydrag.ui.approval_blocked_":  {"approval_auth_unavailable", "session_required", "readonly", "durable_disabled", "stale", "key_unavailable", "checkpoint_unavailable", "decision_complete", "deadline_elapsed"},
 		"easydrag.ui.runs_filter_":       {"all", "errors", "tests", "live"},
 		"easydrag.ui.recipe_step_":       {"build", "test", "result"},
 		"easydrag.ui.detail_":            {"input", "parameters", "output"},
@@ -182,6 +184,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_http_status", "flow_name_required", "flow_node_failed", "flow_node_not_found", "flow_node_panic", "flow_node_unavailable",
 			"flow_notify_failed", "flow_output_invalid", "flow_output_too_large", "flow_param_invalid", "flow_schema", "flow_shutdown", "flow_stopped",
 			"flow_template_error", "flow_too_many_nodes", "flow_trigger_disabled", "flow_trigger_invalid", "flow_value_type", "flow_wait_too_long",
+			"flow_approval_auth_unavailable", "flow_durable_approval_conflict", "flow_durable_approval_not_found", "flow_durable_approval_unavailable", "flow_approval_rejected", "flow_approval_expired",
 			// The 503 causes other than flows switched off (FLOWS_DISABLED), audit 2026-10-08 finding 1.2.
 			"flow_mission_control_unavailable", "flow_runner_stopped", "flow_vault_unavailable", "flow_request_cancelled"},
 	}

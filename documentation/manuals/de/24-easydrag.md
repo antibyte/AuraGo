@@ -14,6 +14,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 5. [Veröffentlichen](#veröffentlichen)
 6. [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)
    - [Lokale Läufe fortsetzen](#lokale-läufe-fortsetzen)
+   - [Menschliche Freigabe](#menschliche-freigabe-für-einen-lokalen-lauf)
 7. [Decisions-Baustein](#decisions-baustein)
 8. [Wenn ein Schritt scheitert](#wenn-ein-schritt-scheitert)
 9. [Geheimnisse](#geheimnisse)
@@ -418,7 +419,7 @@ beschreiben den Server; ein ungespeicherter Schalter ändert sie nicht. Unbekann
 werden als unbekannt angezeigt.
 
 Dieser erste Modus unterstützt einen manuellen Auslöser, Felder setzen, Wenn, Verzweigung,
-Zusammenführen, Stopp und **Fortsetzbare Wartezeit**. Geprüft wird der gesamte Graph, auch
+Zusammenführen, Stopp, **Fortsetzbare Wartezeit** und **Freigabe anfordern**. Geprüft wird der gesamte Graph, auch
 deaktivierte oder unerreichbare Schritte. Aufrufe, Stapel, Tools, Modelle und externe Effekte
 sind ausgeschlossen. Die fortsetzbare Wartezeit akzeptiert 1–86.400 Sekunden. Sie ist vom
 gewöhnlichen **Warten** getrennt, dessen Verhalten unverändert bleibt. Veröffentliche den
@@ -463,6 +464,37 @@ erhalten keinen eigenen Verlauf.
 Ein aktiver Verlaufseintrag ohne prüfbare Quelle zeigt **Unbekannt**; sein zuletzt erfasster
 Zustand bestätigt keinen aktuellen Fortschritt.
 
+### Menschliche Freigabe für einen lokalen Lauf
+
+**Freigabe anfordern** hält einen geeigneten lokalen, fortsetzbaren Flow an, ohne einen
+Ausführungsplatz zu belegen. Trage eine Zusammenfassung und bei Bedarf Prüfdaten ein.
+Die Zusammenfassung darf höchstens 2 KiB, die JSON-Daten höchstens 16 KiB mit maximal
+32 Verschachtelungsebenen umfassen. Die Werte werden einmal beim Erreichen des Schritts
+ermittelt. Zu große Prüfinhalte und registrierte Geheimniswerte werden abgelehnt und nicht
+gekürzt. Schreibe ganzzahlige Kennungen über 9.007.199.254.740.991 oder unter deren negativem
+Wert als Text, damit alle Ziffern erhalten bleiben. Die ursprüngliche Lauf-Frist gilt weiter.
+
+Öffne **Freigaben** in der EasyDrag-Bibliothek und anschließend **Anfrage prüfen**.
+Prüfe die genaue Flow-Revision, den Schritt, die vollständigen Inhalte und die Frist.
+**Freigeben** erlaubt ausdrücklich, denselben Lauf über seine normale Warteschlange
+fortzusetzen. Das bestätigt noch nicht, dass er weitergelaufen oder abgeschlossen ist.
+**Ablehnen** beendet den wartenden Lauf. Eine abgelaufene Frist beendet ihn ebenfalls,
+sobald der gespeicherte Zustand geprüft werden kann. **Stoppen** bleibt für einen
+blockierten Lauf mit Prüfung seines aktuellen Zustands verfügbar.
+
+Dafür müssen eine funktionierende Admin-Anmeldung und die standardmäßig deaktivierte
+Fortsetzung lokaler Läufe eingerichtet sein. Nur eine angemeldete Admin-Sitzung im Browser
+kann entscheiden; API-Schlüssel und Direktlinks erteilen keine Freigabe. Das Einzelkonto
+protokolliert den lokalen Administrator und kann Personen mit gemeinsamem Passwort nicht
+unterscheiden. Im Nur-Lese-Modus sind Entscheidungen gesperrt.
+
+Fehlt die Antwort zur Entscheidung, nutze **Status prüfen**. Das liest das gespeicherte
+Ergebnis, ohne die Entscheidung erneut zu senden. Das Schließen der Ansicht nimmt eine
+angenommene Entscheidung nicht zurück. Sobald der verschlüsselte Laufzustand die Prüfinhalte
+nicht mehr aufbewahrt, zeigt die Ansicht nur Entscheidungsdaten und weist
+auf die fehlenden vollständigen Inhalte hin. Dieser lokale Freigabeschritt erlaubt keine
+externen Aktionen.
+
 ## Decisions-Baustein
 
 *Entscheidung* nutzt den optionalen, von AuraGo verwalteten Decisions-Dienst. Er kann nativ oder in Docker laufen. Der Baustein nimmt einen Zustandswert und bis zu acht registrierte Bildreferenzen an; Vorlagen können beides liefern. Der Server löst Bildreferenzen innerhalb der AuraGo-Mediengrenze auf, bevor das Modell sie erhält. Fehlt der Dienst oder ist er nicht verfügbar, zeigt der Baustein an, dass eine Einrichtung nötig ist.
@@ -497,7 +529,7 @@ Zustand bestätigt keinen aktuellen Fortschritt.
 **Lokales Pack exportieren** lädt eine `.easydrag-pack.json`-Datei mit dem Flow und
 den genau verwendeten reinen Blockversionen herunter, einschließlich verschachtelter
 Aufrufe. Dieses Format unterstützt manuell gestartete Flows mit lokalen Setzen-, Wenn-,
-Verzweigung-, Zusammenführen- und Blockaufruf-Schritten. Warte- und Stapelschritte,
+Verzweigung-, Zusammenführen- und Blockaufruf-Schritten. Warte-, Freigabe- und Stapelschritte,
 KI, Werkzeuge, Integrationen und Geheimnisverweise werden nicht unterstützt. Der
 gewöhnliche Import und Export von `.easydrag.json` bleibt verfügbar.
 

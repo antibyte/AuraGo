@@ -1716,6 +1716,22 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   flushes the saver and shares one in-flight promise. `pagehide` and a hidden page flush a
   pending note before the emergency copy. Sessions
   and notification contexts keep `flowId` only when it matches `^flow_[a-z0-9]{10}$`.
+- `easydrag-approvals.js` owns the bounded inbox and exact RunView review. The list and detail
+  are GET-only; review fields are the direct gate DTO plus nested `review`. Validate the fixed
+  state/reason set, server identifier/name bounds and complete review limits before display.
+  Opening, refreshing and uncertainty recovery never decide. Approve/Reject require a separate
+  explicit confirmation and one session-only POST; after a lost reply, offer GET status checks
+  only. Bind late reads and acknowledgements to the exact editor, RunView, flow, run and revision;
+  after POST also require the submitted gate, node, owner, generation and digest identity. A
+  mismatch stays uncertain with decisions disabled. Historical terminal runs retain a valid gate
+  route only when durable state matches the run result and cancellation is unavailable; reopening
+  shows decision metadata without retained review data. Defer focus to the enabled status button.
+  Close reviews on RunView replacement or exit. Keep the modal header and footer inside app content
+  bounds on short viewports, stack title/state on narrow screens, and let the complete summary/data
+  scroll as escaped text; never truncate it or enable decisions when the review is incomplete.
+  Localize the server-derived `local_admin` actor and keep login-disabled distinct from a missing
+  session. Verify `node scripts/test-easydrag-approvals.mjs` and the combined
+  `TestDesktopEasyDragApprovalBrowser` journey in Standard dark and Fruity light/dark at 320/390 px.
 - Opening: a stored view `{cx, cy, zoom}` per flow (editors wider than 560 px), else the readable
   fit (zoom ≥ 0.8, trigger first); below zoom 0.7 cards show labels only. Under 900 px the
   palette floats over the canvas; the run view keeps it hidden and inert. Do not add a portal
@@ -1724,6 +1740,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
 - Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra7.mjs` and `-ux-batch5.mjs`),
+  `node scripts/test-easydrag-approvals.mjs`,
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   browser tests `TestDesktopEasyDragBrowser`, `TestDesktopEasyDragDecisionBrowser` and

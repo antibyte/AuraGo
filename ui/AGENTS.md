@@ -93,10 +93,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Boolean save path. `flows.durable_enabled` is false unless explicitly set; enabling requires
   restart, live disable retains saved work. `_flows_durable_status` is observed GET-only data,
   independent of the checkbox draft; null counters remain unknown. The Desktop reads the
-  no-store `/api/desktop/flow-runtime` separately from the static node catalog/ETag. Status and
-  cancellation views belong to the EasyDrag Apps contract; never enable the runtime, resubmit
-  a start/Stop after uncertainty, or expose checkpoint payloads from UI actions. Verify Config
-  flows cases in `scripts/test-ui-regressions.mjs`, the durable EasyDrag Node/native cases and
+  no-store `/api/desktop/flow-runtime` separately from the static node catalog/ETag. Durable
+  approval reads use the bounded inbox and exact run view; only an explicit confirmed decision
+  sends one session-only POST. A lost reply is reconciled with GET only. Never enable the
+  runtime, replay start/Stop/decision mutations after uncertainty, or expose checkpoint payloads
+  from UI actions. Verify Config flows cases in `scripts/test-ui-regressions.mjs`,
+  `node scripts/test-easydrag-approvals.mjs`, the single combined approval browser journey and
   all16 Config/flows, EasyDrag and Desktop locale values.
 - Action-policy settings mount inside the Danger Zone's `.cfg-section` and use
   the Config topic heading/body, native checkbox switch and standard controls.

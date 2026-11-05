@@ -90,6 +90,7 @@
             '<div><h1>EasyDrag</h1><p>' + esc(t('easydrag.ui.home_tagline')) + '</p></div></div>' +
             '<div class="ed-home-actions"><button type="button" class="ed-btn" data-ed-import>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.home_import')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-pack-import>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.pack_import')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-approval-inbox>' + core.icon('check') + '<span>' + esc(t('easydrag.ui.approval_inbox')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-authoring>' + core.icon('sparkles') + '<span>' + esc(t('easydrag.ui.authoring_title')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button>' +
             '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file>' +
@@ -114,6 +115,8 @@
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
+        const approvalUI = ED.approvals && ED.approvals.createHome(app, el);
+        if (approvalUI) bag.add(() => approvalUI.dispose());
         const packUI = ED.pack && ED.pack.createHome(app, el, { canWrite: () => mayChange(), onChanged: () => reload() });
         if (packUI) bag.add(() => packUI.dispose());
         const organization = hasOrganization ? core.el('<details class="ed-details ed-library-organization"><summary>' + esc(t('easydrag.ui.organization_filters')) + '</summary><div class="ed-library-organization-controls"><label class="ed-label">' + esc(t('easydrag.ui.folder')) + '<select class="ed-input" data-ed-folder-filter></select></label><label class="ed-label">' + esc(t('easydrag.ui.tags')) + '<select class="ed-input" data-ed-tag-filter></select></label><button type="button" class="ed-btn" data-ed-folders-manage>' + core.icon('folder') + esc(t('easydrag.ui.folders_manage')) + '</button></div><p class="ed-hint" data-ed-folder-error hidden></p></details>') : null;

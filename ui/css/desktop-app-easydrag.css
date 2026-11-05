@@ -1544,3 +1544,34 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-app .ed-modal--pack .ed-modal-foot .ed-btn { flex: 1 1 100%; }
     .ed-app .ed-pack-document { max-height: 34vh; }
 }
+
+.ed-app .ed-modal--approvals { width: min(760px, calc(100% - 24px)); }
+.ed-app .ed-modal--approvals .ed-modal-body { overscroll-behavior: contain; }
+.ed-app .ed-approval-card { display: grid; gap: 10px; min-width: 0; margin: 8px 0; padding: 12px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-panel); }
+.ed-app .ed-approval-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-width: 0; }
+.ed-app .ed-approval-card__top > strong, .ed-app .ed-approval-card__top > h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.ed-app .ed-approval-state { flex: none; max-width: 52%; padding: 3px 8px; border: 1px solid var(--ed-border); border-radius: 999px; background: var(--ed-well); color: var(--ed-text); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+.ed-app .ed-approval-state--pending { border-color: color-mix(in srgb, var(--ed-accent) 45%, var(--ed-border)); }
+.ed-app .ed-approval-state--approved { color: var(--ed-info); }
+.ed-app .ed-approval-state--rejected, .ed-app .ed-approval-state--expired, .ed-app .ed-approval-state--cancelled { color: var(--ed-danger); }
+.ed-app .ed-approval-state--stale, .ed-app .ed-approval-state--unknown { color: var(--ed-warn); }
+.ed-app .ed-approval-meta { display: grid; grid-template-columns: minmax(108px, .36fr) minmax(0, 1fr); gap: 4px 12px; min-width: 0; margin: 0; }
+.ed-app .ed-approval-meta dt { color: var(--ed-muted); font-size: 12px; }
+.ed-app .ed-approval-meta dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.ed-app .ed-approval-review-data { display: grid; gap: 8px; min-width: 0; margin-top: 14px; }
+.ed-app .ed-approval-review-data h3 { margin: 4px 0 0; font-size: 13px; }
+.ed-app .ed-approval-literal { margin: 0; padding: 12px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-well-color); color: var(--ed-text); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.ed-app .ed-approval-json { min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-well-color); color: var(--ed-text); font: 12px/1.5 var(--ds-font-mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.ed-app .ed-approval-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.ed-app .ed-approval-actions > .ed-btn { min-width: min(150px, 100%); min-height: 44px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+@container (max-width: 460px) {
+    .ed-app .ed-modal--approvals { width: calc(100% - 16px); }
+    .ed-app .ed-modal--approvals .ed-modal-body { padding-inline: 12px; }
+    .ed-app .ed-modal--approvals .ed-modal-foot { gap: 6px; padding: 10px 12px 12px; }
+    .ed-app .ed-modal--approvals .ed-modal-foot > .ed-btn { flex: 1 1 120px; min-height: 44px; }
+    .ed-app .ed-modal--approval-review .ed-approval-card__top { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .ed-app .ed-modal--approval-review .ed-approval-state { max-width: 100%; }
+    .ed-app .ed-approval-card { padding: 10px; }
+    .ed-app .ed-approval-meta { grid-template-columns: minmax(88px, .38fr) minmax(0, 1fr); gap: 4px 8px; }
+    .ed-app .ed-approval-actions > .ed-btn { flex: 1 1 120px; }
+}

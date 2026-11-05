@@ -115,9 +115,9 @@
             const grid = inst.screen.el.querySelector('.ed-template-grid');
             if (grid) requestAnimationFrame(() => grid.parentElement.scrollIntoView({ block: 'start' }));
         }
-        // A notification's flow_id/run_id are cleared too: a later render from the window context
+        // A notification's flow/run/gate route is cleared too: a later render from the window context
         // must not route back to them (updateWindowContext merges, so null clears a key).
-        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { blockId: null, flowId: null, flow_id: null, run_id: null });
+        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { blockId: null, flowId: null, flow_id: null, run_id: null, gateId: null, gate_id: null });
         setHomeMenus(inst);
     }
 
@@ -125,7 +125,7 @@
         const nav = ++inst.nav;
         if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
         if (nav !== inst.nav || !alive(inst)) return;
-        inst.lastRoute = { flowId, runId: opts && opts.runId };
+        inst.lastRoute = { flowId, runId: opts && opts.runId, gateId: opts && opts.gateId };
         showLoading(inst);
         let loaded;
         try {
@@ -192,7 +192,7 @@
         }
         if (nav !== inst.nav || !alive(inst)) return;
         if (route.blockId) showBlock(inst, route.blockId, { revision: route.revision });
-        else if (route.flowId) showFlow(inst, route.flowId, { runId: route.runId });
+        else if (route.flowId) showFlow(inst, route.flowId, { runId: route.runId, gateId: route.gateId });
         else showHome(inst, { section: route.section });
     }
 
@@ -212,7 +212,7 @@
     function routeOf(context) {
         const c = context || {};
         const flowId = c.flowId || c.flow_id || '';
-        return { flowId, blockId: !flowId && c.blockId || '', revision: c.revision, runId: c.runId || c.run_id || '', section: c.section, home: !flowId && !c.blockId && c.section === 'home' };
+        return { flowId, blockId: !flowId && c.blockId || '', revision: c.revision, runId: c.runId || c.run_id || '', gateId: c.gateId || c.gate_id || '', section: c.section, home: !flowId && !c.blockId && c.section === 'home' };
     }
 
     function render(container, windowId, context) {
@@ -252,10 +252,10 @@
         }
         const editor = inst.screen && inst.screen.ed;
         if (editor && editor.flow.id === route.flowId) {
-            if (route.runId) inst.screen.showRun(route.runId);
+            if (route.runId) inst.screen.showRun(route.runId, route.gateId);
             return;
         }
-        showFlow(inst, route.flowId, { runId: route.runId });
+        showFlow(inst, route.flowId, { runId: route.runId, gateId: route.gateId });
     }
 
     function dispose(windowId) {
