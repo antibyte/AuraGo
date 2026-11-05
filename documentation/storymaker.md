@@ -62,6 +62,34 @@ Editing and the preview work without 1 and 2. The export draws every frame in a 
 while; the panel shows the phase and the frame count and can cancel. The result is
 `Documents/Storymaker/<project id>/exports/<title>-<job>.mp4`; **Show in Files** opens that folder. Phase 1 videos have no sound.
 
+## Motion
+
+The player times a story by motion rules. They also change how existing projects play: a text stays on screen long enough to be
+read, a hide takes 0.35 s, and a beat on another actor starts while the previous beat is still running.
+
+- **Rhythm.** `style.rhythm` is `calm`, `standard` or `lively`. Edit it in the Code tab. It scales default beat durations and
+  lengthens text holds. It never changes an explicit `duration`, `delay` or `wait`.
+- **Cues.** An arrival with a cue lands on its narration marker, so it starts a little earlier. If its actor is still busy, it lands
+  late and the issues list says so.
+- **Text.** A text that does not fit shrinks in steps, at most to 45 % of its size and never below 2.6 % of the short side of the
+  frame. Its lines are then balanced.
+- **Highlight.** The `highlight` beat draws attention to an actor, a prop or a text. Its style is `pulse`, `outline` or `arrow`.
+- **Default transition.** A new scene gets a wipe when its environment differs from the previous scene's, and a fade otherwise.
+  Scenes you already saved keep their transition.
+
+The issues list also shows motion hints. A hint never blocks an export.
+
+| Code | Meaning |
+| --- | --- |
+| `line_unread` | A text leaves before it can be read. |
+| `dead_stretch` | Nothing moves and nothing is spoken for more than 3 s. |
+| `first_frame_empty` | The first frame after the transition shows no actor, prop or text. |
+| `text_too_small` | A text style is below 2.6 % of the short side of the frame. |
+| `fade_between_worlds` | A scene fades into another environment. Use a cut or a wipe. |
+| `cue_late` | An arrival lands after its marker, because its actor is still busy. |
+| `entry_monotony` | Three or more show beats, all with the same entry. |
+| `transition_variety` | More than five transition kinds in one film. |
+
 ## Not in phase 1
 
 Voices and narration audio, music and sound effects, captions, the agent panel and chat tool, the asset generator, charts and

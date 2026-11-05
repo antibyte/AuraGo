@@ -1,8 +1,8 @@
-# Storymaker phase 1: interface contract
+# Storymaker: interface contract
 
 **Purpose.** This document fixes the names, formats, routes, limits and protocols that the Storymaker parts share: the story document, the catalog, the Go core, the HTTP API, the render server, the player runtime, the messages between the desktop app and the player, and the desktop app registration. Code comments and plan tasks cite it as "contract section N". The section numbers are the ones of the drafting stage and are kept on purpose.
 
-**Status.** Phase 1 (foundation). Matches the phase 1 plan `docs/superpowers/plans/2026-11-01-storymaker-phase1-foundation.md`. The parent document is the design spec `docs/superpowers/specs/2026-11-01-storymaker-design.md`. Where the spec and this document differ for phase 1, this document is the reference.
+**Status.** Phases 1 and 2. Matches the phase 1 and phase 2 plans. The parent document is the design spec `docs/superpowers/specs/2026-11-01-storymaker-design.md`. Where the spec and this document differ for phases 1 and 2, this document is the reference.
 
 **Basis.** The text describes the integrated code (base `561685cde` with the review fixes of the integration step). Names, enums, limits and routes are taken from the Go and JavaScript sources, not from the drafting text.
 
@@ -26,7 +26,7 @@ Go types: `internal/storymaker/model.go`. Keys are snake_case. A key that is not
 Story       {schema:"storymaker/1", title:string 1..120, format:Format, style:Style, voice:Voice|null,
              music:Music|null, cast:[CastMember], scenes:[Scene]}
 Format      {aspect:"16:9"|"9:16"|"1:1", fps:24|25|30}
-Style       {palette:string, font:string, captions:bool}
+Style       {palette:string, font:string, captions:bool, rhythm?:"calm"|"standard"|"lively"}
 Voice       {provider:VoiceProvider, voice:string, language:string}   // provider and voice id are checked, see the notes
 Music       {mode:"none"|"generated"|"file", mood?, prompt?, file?, track?, volume?:0..1}
 CastMember  {id:slug, name?:string, character:assetId, voice?:Voice|null}
@@ -62,6 +62,7 @@ Notes on the shape:
 - Numbers `amount`, `seconds`, `delay`, `duration`, `count`, `cue` and the `scale` of actors and props are plain numbers with `omitempty`. A value of 0 means "absent".
 - A `Position` or `Duration` of the wrong JSON shape is kept as written. The story therefore saves unchanged, and `Validate` reports `invalid_value` at the exact path.
 - `kind` is not defaulted. An absent kind is a storyboard scene.
+- `style.rhythm` is not written when absent.
 - `Prop.id` is not defaulted. `show` beats get an instance id (see "Defaults").
 
 ### Closed name sets
@@ -78,12 +79,12 @@ Notes on the shape:
 
 Pose, expression, gesture, palette, text style, transition and ease values are bare names. The validator also accepts the prefixed form (`pose.typing`, `expr.`, `gesture.`, `trans.`, `palette.`, `ease.`, `text.`), rewrites it to the bare name and reports a `canonicalised` minor issue.
 
-### Phase 1 support
+### Phase 2 support
 
-| Item | Phase 1 behaviour |
+| Item | Behaviour |
 | --- | --- |
-| Beats the player plays | enter, exit, walk, move, pose, gesture, emote, look, show (with `item` or `text` only), hide, camera, wait |
-| Beats accepted and ignored | say, highlight, sfx, chart, and show with `icon` or `chart`. Each gets a minor `not_supported_yet` issue. |
+| Beats the player plays | enter, exit, walk, move, pose, gesture, emote, look, show (with `item` or `text` only), hide, highlight, camera, wait |
+| Beats accepted and ignored | say, sfx, chart, and show with `icon` or `chart`. Each gets a minor `not_supported_yet` issue. |
 | Transitions the player plays | cut, fade, slide-left, wipe |
 | Transitions accepted, played as fade | slide-right, slide-up, slide-down, zoom, iris, whip. Each gets a minor `not_supported_yet` issue. |
 | `music` other than `none` | Accepted, ignored, minor `not_supported_yet`. |
@@ -108,7 +109,7 @@ Behaviour of the first scene: the player never plays an entry transition on scen
 | `/scenes/<i>/environment` | the environment of the previous scene, else `env.plain-stage` |
 | `/scenes/<i>/variant` | `"day"` |
 | `/scenes/<i>/speaker` | `"narrator"` |
-| `/scenes/<i>/transition` | `"fade"`; scene 1 gets `"cut"` |
+| `/scenes/<i>/transition` | `cut` on scene 1; `wipe` when the environment differs from the previous scene's; else `fade` |
 | `/scenes/<i>/duration` | `"auto"` |
 | `/scenes/<i>/camera` | `{framing:"wide"}` (also when `framing` is empty) |
 | actors `at` | one actor: `center`. Several actors: `left`, `right`, `far-left`, `far-right` by the actor's rank in `story.cast` (wraps after four). |
@@ -162,11 +163,13 @@ Issue codes (fixed; the desktop app has a localised heading for each):
 | `unknown_cast` | error or warning | Go Validate: cast id not in the cast (error); a beat of an actor who is not on stage (warning) |
 | `unknown_cue` | error or warning | Go Validate and player: `cue` without a `{n}` marker in the narration (error); a cue in a silent scene (warning) |
 | `canonicalised` | minor | Go Validate: a prefixed name rewritten to its bare form |
-| `not_supported_yet` | minor | Go Validate and player: see "Phase 1 support" |
+| `not_supported_yet` | minor | Go Validate and player: see "Phase 2 support" |
 | `narration_missing` | warning | Player compile report only (`plan.js`). Go does not emit it. |
 | `code_error` | error | Go `CodeSceneIssues`: a code scene without source or with a failed bundle. Player: a code scene that fails to build or to draw. |
 | `deadline` | error | Player compile report: a code scene build or a frame missed its deadline |
 | `layout_unverified` | minor | Player compile report: one per code scene (layout inside code is not checked) |
+| `line_unread`, `dead_stretch`, `first_frame_empty`, `text_too_small`, `fade_between_worlds`, `cue_late` | warning | Player compile report, storyboard scenes |
+| `entry_monotony`, `transition_variety` | minor | Player compile report |
 
 Go constants are `Code<CamelCase>` (for example `CodeInvalidValue`). `DecodeStory` failures always return at least one issue, so a 422 response carries `issues`.
 
@@ -314,7 +317,7 @@ const MaxModelIssues = 8                      // model-facing answers
 const MaxHTTPIssues = 200                     // HTTP save answers
 const DefaultEnvironment = "env.plain-stage"  // DefaultAspect "16:9", DefaultFPS 30, DefaultPalette "sunny", DefaultFont "default"
 const SeverityError, SeverityWarning, SeverityMinor   // "error" "warning" "minor"
-// Code<CamelCase> constants for the 19 issue codes of section 2
+// Code<CamelCase> constants for the 27 issue codes of section 2
 
 var ErrConflict = errors.New(...)          // failed If-Match or MustNotExist on an existing file
 var ErrInvalidID, ErrInvalidArgument, ErrTooLarge error
@@ -551,9 +554,9 @@ The app reads `limits.max_narration_chars` for the narration length limit, `issu
 Source: `ui/js/storymaker/`. Classic scripts, each in its own IIFE, shared through `StorymakerCore` (the pure modules) and `StorymakerHost` (the document realm). Parts are listed in `scripts/storymaker-bundle-parts.js`, which the bundle build and the Node tests both read.
 
 - `ui/js/storymaker/host.bundle.js` (5 parts) runs in the document realm: the page, the host and the render driver.
-- `ui/js/storymaker/player.bundle.js` (21 parts) runs in workers (one blob per worker, prelude `self.__SM_ROLE__ = "player" | "scene"; importScripts(<base>/js/storymaker/player.bundle.js);`, plus the scene bundle text for a scene worker).
+- `ui/js/storymaker/player.bundle.js` (25 parts, with `seed.js`, `ranges.js`, `motion.js` and `lint.js` from phase 2) runs in workers (one blob per worker, prelude `self.__SM_ROLE__ = "player" | "scene"; importScripts(<base>/js/storymaker/player.bundle.js);`, plus the scene bundle text for a scene worker).
 - `.gitattributes` keeps both bundles LF (`ui/js/storymaker/*.bundle.js text eol=lf`).
-- `package.json` scripts: `test:storymaker` (`node scripts/test-storymaker-player.mjs`), `build:storymaker-catalog`, `check:storymaker-catalog` (with `--check`). Node runs the tests with a vm-based runner.
+- `package.json` scripts: `test:storymaker` (`node scripts/test-storymaker-player.mjs`), `build:storymaker-catalog`, `check:storymaker-catalog` (with `--check`). `node scripts/build-storymaker-ranges.mjs` generates `ui/js/storymaker/ranges.js` and `internal/storymaker/ranges_gen.go`; with `--check` it fails on a stale output. Node runs the tests with a vm-based runner.
 - `ui/css/storymaker-player.css` makes the canvas fill the page with `object-fit: contain` on black.
 
 ### Page markup
@@ -610,13 +613,22 @@ No template string with data, no `innerHTML` and no `eval` in the player source.
 
 ### Timing rules (summary)
 
-- Scene time 0 is the start of the entry transition. Narration starts when the transition ends, and so do the beats.
+- Scene time 0 is the start of the entry transition. Narration starts when the transition ends. A beat without a cue starts there too; a cued arrival may start earlier, down to scene time 0.
 - A cue time is the start plus (character position ÷ text length) × the block duration. The block duration is words ÷ 2.3 (at least 1 s) or the measured first block.
-- Automatic scene length is the largest of: the end of the narration plus 0.4 s, the end of the last beat, and 1.0 s for a scene without narration.
+- Automatic scene length is the largest of: narration end plus 0.4 s, the end of the last beat, the end of the last text hold, and 1.0 s for a scene without speech.
 - An explicit `duration` is the total local length, entry transition included. Narration longer than an explicit duration is a `warning` at `/scenes/<i>/duration`.
 - Scene boundaries are whole frames: `start_frame[i] = max(start_frame[i-1] + 1, end_frame[i-1] - tf[i])`, where `tf = round(duration × fps)`.
-- Beat defaults: enter and exit 0.6 s (enter walks in from the left or right edge, or from the `door` spot); walk takes its distance at `cycle.walk.speed`, at least 0.3 s; move 0.8 s; pose 0.3 s; gesture = catalog duration × `count`; emote 0.25 s; look 0.3 s; show 0.5 s (0 with `entry: "none"`); hide 0.3 s; camera 0.8 s (shake 0.5 s); wait `seconds` (default 1).
-- `with: "prev"` starts together with the previous beat. A `cue` beat re-anchors the cursor at its own end. `delay` shifts the start.
+- Beat defaults, scaled by the rhythm factor unless explicit: enter and exit 0.6 s (they walk); walk distance at `cycle.walk.speed`, at least 0.3 s; move 0.8 s; pose 0.3 s; gesture = catalog duration × `count`; emote 0.25 s; look 0.3 s; show 0.5 s (0 with `entry: "none"`); hide 0.35 s; camera 0.8 s (shake 0.5 s); highlight 0.8 s; sfx 0. `wait` is `seconds` (default 1), never scaled.
+- Scheduling, in beat order. State: `cursor = T`, `prev`, `anchor`, the last end per target instance, `beatsEnd`. `f` is the rhythm factor.
+  1. A non-object is skipped. An unknown kind, `chart`, or a show with `icon` or `chart` gets its minor issue and leaves the state untouched.
+  2. A beat's target is the resolved instance of `who`, else `target`. A show's target is the instance it creates. `wait`, `sfx`, `chart`, a camera without a target, and a string that resolves to no instance (a camera on a spot) have none. Targets compare as instances, never as strings.
+  3. `floor` is the end of the last beat on the same target, else 0.
+  4. `dur`: an explicit `duration` wins. `wait` is `seconds`, else 1, never scaled. Otherwise it is the default above times `f`. `walk` is `max(0.3, distance ÷ speed) × f`, with the distance from the target's position at `max(floor, 0)`.
+  5. An arrival (`enter`, `walk`, `move`, a show with an entry other than `none`, camera `focus`, camera `zoom` with a target) has `lead = leadFraction(ease) × dur`: the share of the duration until the ease first reaches 0.9, or for the pop spring until it first crosses 1. Every other beat has lead 0.
+  6. Start time `t`: (a) a cue that resolves gives `t = cue time + delay - lead`, and a cue beats `with`; (b) else `with: "prev"` with a previous beat gives `t = prev.start + delay`; (c) else, when the previous beat and this beat both have a target and the targets differ, `t = anchor.start + 0.4 × anchor.dur + delay`; (d) else `t = cursor + delay`. An unresolved cue warns `unknown_cue` and falls through to b, c or d.
+  7. Rules a, c, d: `start = max(0, floor, t)`. Rule b: `start = max(0, t)`, with no floor, so a `with: "prev"` beat stays together with the previous beat, also on the same target. A cued beat held back by its target gets a `cue_late` warning at `<beat>/cue` with `at_seconds = start + lead`. A clamp at 0 never warns.
+  8. `landing = start + lead` for an arrival, else none. `end = start + dur`. `cursor`: rule b gives `max(cursor, end)`, the others give `end`. `anchor`: under rule b it moves only when `end` reaches the anchor's end, otherwise it is this beat. `prev` is always this beat.
+  9. After the loop, `holdsEnd` is the largest `landing + scaled hold` of a text that no `hide` removes. A show with entry `none` has no landing and holds from its `start`. A hold is `0.5 + 0.3 × words`, at least 1.2 s for a caption or label in a scene that shows a title, and `max(1, f)` times that when scaled.
 - Camera framings: wide 1.0, medium 1.35, close 1.9. `zoom` multiplies the current zoom (default 1.25). `focus` zooms to `amount` (default 1.6) on a target. `pan` moves to a target or by `amount` percent of the width. `shake` is `amount` design pixels (default 14).
 - `show` text uses the `title` style at the upper third. Text is drawn in screen space; camera movement does not move it.
 - A `show` instance id is `<item slug>-<n>` (per item and scene; props first) unless `id` is given. `hide` with `target` names an instance id; without one it hides the latest instance of the item.
