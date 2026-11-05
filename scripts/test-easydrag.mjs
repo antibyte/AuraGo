@@ -25,7 +25,7 @@ const apps = path.join(here, '..', 'ui', 'js', 'desktop', 'apps');
 const sandbox = { window: {}, Intl, Number, String, Array, Object, Math, Set, Map, RegExp, Date, JSON, console, Uint8Array, crypto: webcrypto };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-home.js', 'easydrag-dialogs.js']) {
+for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-library-pause.js', 'easydrag-home.js', 'easydrag-dialogs.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }

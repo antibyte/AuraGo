@@ -1614,6 +1614,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   At widths up to 460px, review/result rows stack the name above a left-aligned full-width status.
   Final results lead with the summary and target rows; the repeated lifecycle intro stays in review
   and progress views.
+- `easydrag-library-pause.js` owns the pause request timeout/deadline, authority classification,
+  sequential precheck/write/readback queue, and per-target outcomes (`ED.libraryPause`). It loads
+  immediately before `easydrag-home.js`, which owns selection and modal composition; keep the
+  1,100-line home-module limit. The home module exposes `pauseOps` as a test seam. The canonical UI
+  module list and every Node/browser fixture loader must retain this dependency order.
 - Strings: `easydrag.ui.*`, `easydrag.decision.*`, `easydrag.availability.*` in
   `ui/lang/easydrag/<16>.json` (shared with the server's catalog keys); built keys (`core.tr`)
   belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
