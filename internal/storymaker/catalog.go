@@ -76,6 +76,36 @@ type AspectOverride struct {
 	Spots  map[string]Spot `json:"spots,omitempty"`
 }
 
+// SFXTake is one rendered take of a sound effect, with its measured values.
+type SFXTake struct {
+	File         string  `json:"file"`
+	DurMS        float64 `json:"dur_ms"`
+	OnsetMS      float64 `json:"onset_ms"`
+	PeakMS       float64 `json:"peak_ms"`
+	ImpactMS     float64 `json:"impact_ms"`
+	L50LUFS      float64 `json:"l50_lufs"`
+	TruePeakDBTP float64 `json:"true_peak_dbtp"`
+}
+
+// SFXHit is the level of a sound above the bed and the dip it makes in the bed.
+type SFXHit struct {
+	OverDB float64 `json:"over_db"`
+	DipDB  float64 `json:"dip_db"`
+}
+
+// SFXPattern makes a sound repeat as spaced events, like typing keys.
+type SFXPattern struct {
+	SpacingMS         [2]float64 `json:"spacing_ms"`
+	DefaultDurationMS float64    `json:"default_duration_ms"`
+}
+
+// SFXSource records where a sound comes from.
+type SFXSource struct {
+	Kind  string `json:"kind"`
+	Basis string `json:"basis"`
+	URL   string `json:"url,omitempty"`
+}
+
 // Entry is one catalog entry. Common fields and the environment data are typed; Raw keeps
 // the complete entry for describe answers (kind-specific fields differ and some names
 // clash between kinds, for example size).
@@ -93,6 +123,12 @@ type Entry struct {
 	Floor        *Floor                    `json:"floor,omitempty"`
 	Variants     []string                  `json:"variants,omitempty"`
 	Aspects      map[string]AspectOverride `json:"aspects,omitempty"`
+	Takes        []SFXTake                 `json:"takes,omitempty"`
+	ImpactMS     float64                   `json:"impact_ms,omitempty"` // nominal; the player and the mix read the take's
+	Align        string                    `json:"align,omitempty"`     // "peak" | "onset"
+	Hit          *SFXHit                   `json:"hit,omitempty"`
+	Pattern      *SFXPattern               `json:"pattern,omitempty"`
+	Source       *SFXSource                `json:"source,omitempty"`
 	raw          json.RawMessage
 }
 
@@ -339,7 +375,8 @@ func (c *Catalog) checkEntry(e *Entry, raw json.RawMessage, i int, bad func(stri
 	if e.NameKey != catalogNameKey(e.ID) {
 		fail("name_key must be %s", catalogNameKey(e.ID))
 	}
-	if !safeRelPath(e.Thumb) || !strings.HasSuffix(e.Thumb, ".svg") {
+	// An sfx entry has no image, so its thumb is empty.
+	if e.Kind != "sfx" && (!safeRelPath(e.Thumb) || !strings.HasSuffix(e.Thumb, ".svg")) {
 		fail("thumb must be a relative .svg path")
 	}
 	if len(e.UsageExample) == 0 || e.UsageExample[0] != '{' {
@@ -420,6 +457,22 @@ func (c *Catalog) checkEntry(e *Entry, raw json.RawMessage, i int, bad func(stri
 	case "sfx":
 		if !safeRelPath(e.File) {
 			fail("file must be a relative path")
+		}
+		if len(e.Takes) < 2 {
+			fail("at least two takes are required")
+		} else if e.File != e.Takes[0].File {
+			fail("file must equal takes[0].file")
+		}
+		for j, take := range e.Takes {
+			if !safeRelPath(take.File) {
+				fail("takes[%d].file must be a relative path", j)
+			}
+		}
+		if e.Align != "peak" && e.Align != "onset" {
+			fail("align must be peak or onset")
+		}
+		if e.Source == nil {
+			fail("source is required")
 		}
 	case "pose":
 		var p struct {
@@ -527,7 +580,14 @@ func (c *Catalog) VerifyFiles(fsys fs.FS, dir string) error {
 		if e.File != "" {
 			check(path.Join(dir, e.File))
 		}
-		check(path.Join(dir, e.Thumb))
+		for _, take := range e.Takes {
+			if take.File != e.File {
+				check(path.Join(dir, take.File))
+			}
+		}
+		if e.Thumb != "" {
+			check(path.Join(dir, e.Thumb))
+		}
 	}
 	for _, f := range c.Fonts {
 		check(strings.TrimPrefix(f.File, "/"))

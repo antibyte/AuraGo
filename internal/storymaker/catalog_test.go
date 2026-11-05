@@ -225,6 +225,101 @@ func TestLoadCatalogRejectsBadManifests(t *testing.T) {
 	}
 }
 
+// sfxTestEntry is one sfx entry in the frozen shape, with an empty thumb and two takes.
+const sfxTestEntry = `{"id":"sfx.pop","kind":"sfx","name":"sfx.pop","name_key":"storymaker.catalog.sfx_pop","tags":["pop"],"thumb":"",` +
+	`"usage_example":{"do":"sfx","sound":"sfx.pop"},"file":"sfx/pop_1.wav","impact_ms":3.75,"align":"peak",` +
+	`"hit":{"over_db":4.5,"dip_db":3},"source":{"kind":"forge","basis":"earshot 0.4.0 pop/0","url":""},` +
+	`"takes":[{"file":"sfx/pop_1.wav","dur_ms":200,"onset_ms":0,"peak_ms":3.5,"impact_ms":3.5,"l50_lufs":-18,"true_peak_dbtp":-10},` +
+	`{"file":"sfx/pop_2.wav","dur_ms":200,"onset_ms":0,"peak_ms":4.5,"impact_ms":4.5,"l50_lufs":-18,"true_peak_dbtp":-10.7}]}`
+
+// sfxTestFS is a catalog with nothing but that entry, after an edit of its text.
+func sfxTestFS(edit func(string) string) fstest.MapFS {
+	doc := `{"schema":"storymaker-catalog/1","version":"sfx000000000",` +
+		`"stage":{"width":1920,"height":1080,"safe":{"x":5,"y":5,"w":90,"h":90}},` +
+		`"rig":{"id":"rig.human/1","file":"rig/human.json"},` +
+		`"fonts":[{"name":"default","family":"Geist","weight":400,"file":"/fonts/Geist-Regular.woff2","licence":"OFL-1.1"}],` +
+		`"palettes":[],"entries":[` + edit(sfxTestEntry) + `]}`
+	return fstest.MapFS{"catalog.json": {Data: []byte(doc)}}
+}
+
+func TestCatalogSFXEntryLoads(t *testing.T) {
+	c, err := LoadCatalog(sfxTestFS(func(s string) string { return s }), "catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, ok := c.Lookup("sfx.pop")
+	if !ok || e.Thumb != "" || e.File != "sfx/pop_1.wav" || e.ImpactMS != 3.75 || e.Align != "peak" {
+		t.Fatalf("entry: %+v %v", e, ok)
+	}
+	if len(e.Takes) != 2 || e.Takes[1].File != "sfx/pop_2.wav" || e.Takes[1].ImpactMS != 4.5 || e.Takes[1].TruePeakDBTP != -10.7 {
+		t.Fatalf("takes: %+v", e.Takes)
+	}
+	if e.Hit == nil || e.Hit.OverDB != 4.5 || e.Hit.DipDB != 3 || e.Pattern != nil || e.Source == nil || e.Source.Kind != "forge" {
+		t.Fatalf("hit %+v, pattern %+v, source %+v", e.Hit, e.Pattern, e.Source)
+	}
+	withPattern := func(s string) string {
+		return strings.Replace(s, `"hit":{"over_db":4.5,"dip_db":3},`, `"pattern":{"spacing_ms":[90,140],"default_duration_ms":1200},`, 1)
+	}
+	c, err = LoadCatalog(sfxTestFS(withPattern), "catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, _ = c.Lookup("sfx.pop"); e.Hit != nil || e.Pattern == nil || e.Pattern.SpacingMS != [2]float64{90, 140} || e.Pattern.DefaultDurationMS != 1200 {
+		t.Fatalf("pattern: %+v", e.Pattern)
+	}
+}
+
+func TestCatalogSFXEntryRefusals(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(string) string
+		want string
+	}{
+		{"one take", func(s string) string {
+			return strings.Replace(s, `,{"file":"sfx/pop_2.wav","dur_ms":200,"onset_ms":0,"peak_ms":4.5,"impact_ms":4.5,"l50_lufs":-18,"true_peak_dbtp":-10.7}`, ``, 1)
+		}, "at least two takes"},
+		{"no align", func(s string) string { return strings.Replace(s, `"align":"peak",`, ``, 1) }, "align must be"},
+		{"no source", func(s string) string {
+			return strings.Replace(s, `"source":{"kind":"forge","basis":"earshot 0.4.0 pop/0","url":""},`, ``, 1)
+		}, "source is required"},
+		{"file is not the first take", func(s string) string {
+			return strings.Replace(s, `"file":"sfx/pop_1.wav","impact_ms"`, `"file":"sfx/pop_2.wav","impact_ms"`, 1)
+		}, "takes[0].file"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.edit(sfxTestEntry) == sfxTestEntry {
+				t.Fatal("the edit changed nothing")
+			}
+			_, err := LoadCatalog(sfxTestFS(tc.edit), "catalog.json")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error %v, want one containing %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestCatalogSFXVerifyFiles(t *testing.T) {
+	c, err := LoadCatalog(sfxTestFS(func(s string) string { return s }), "catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsys := fstest.MapFS{
+		"img/storymaker/rig/human.json": {Data: []byte("{}")},
+		"fonts/Geist-Regular.woff2":     {Data: []byte("font")},
+		"img/storymaker/sfx/pop_1.wav":  {Data: []byte("RIFF")},
+	}
+	// pop_2.wav is the only absent file: the empty thumb is skipped, it would otherwise name the catalog directory.
+	err = c.VerifyFiles(fsys, "img/storymaker")
+	if err == nil || !strings.Contains(err.Error(), "1 missing files") || !strings.Contains(err.Error(), "img/storymaker/sfx/pop_2.wav") {
+		t.Fatalf("a missing take must be the only missing file: %v", err)
+	}
+	fsys["img/storymaker/sfx/pop_2.wav"] = &fstest.MapFile{Data: []byte("RIFF")}
+	if err := c.VerifyFiles(fsys, "img/storymaker"); err != nil {
+		t.Fatalf("complete tree rejected: %v", err)
+	}
+}
+
 func TestCatalogVerifyFiles(t *testing.T) {
 	c := loadMini(t)
 	// The mini fixture references files that part C owns; the manifest alone loads fine.
