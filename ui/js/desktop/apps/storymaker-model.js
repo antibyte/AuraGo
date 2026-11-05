@@ -281,6 +281,20 @@
         return at;
     }
 
+    // Set a scene's environment in the editor. The server's default (wipe into another environment, otherwise fade) only reaches a
+    // scene without a transition, and addScene saves a new scene at once, with the fade of the environment it copied. So a stored
+    // fade that now crosses into another environment becomes a wipe, on this scene and on the next. Other transitions stay.
+    function setEnvironment(story, scene, environment) {
+        const scenes = scenesOf(story);
+        scene.environment = environment;
+        const at = scenes.indexOf(scene);
+        for (let i = Math.max(at, 1); at >= 0 && i <= at + 1 && i < scenes.length; i++) {
+            const current = scenes[i];
+            const before = scenes[i - 1];
+            if (current.transition === 'fade' && current.environment && before.environment && current.environment !== before.environment) current.transition = 'wipe';
+        }
+    }
+
     function removeScene(story, index) {
         const scenes = scenesOf(story);
         if (index < 0 || index >= scenes.length || scenes.length <= 1) return -1;
@@ -422,6 +436,7 @@
     M.scenesOf = scenesOf;
     M.newSceneId = newSceneId;
     M.addScene = addScene;
+    M.setEnvironment = setEnvironment;
     M.removeScene = removeScene;
     M.moveScene = moveScene;
     M.setSceneField = setSceneField;

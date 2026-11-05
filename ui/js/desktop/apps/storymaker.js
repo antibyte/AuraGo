@@ -240,7 +240,7 @@
             openCode: sceneId => openCode(inst, sceneId),
             addActor: entry => addActor(inst, entry),
             addProp: entry => addProp(inst, entry),
-            setEnvironment: id => { const scene = currentScene(inst); if (scene) editScene(inst, scene.id, draft => { draft.environment = id; }, { immediate: true }); },
+            setEnvironment: id => { const scene = currentScene(inst); if (scene) editScene(inst, scene.id, (draft, story) => S.model.setEnvironment(story, draft, id), { immediate: true }); },
             actorInScene: entry => actorInScene(inst, entry),
             play: () => { if (inst.player) inst.player.play(); },
             pause: () => { if (inst.player) inst.player.pause(); },

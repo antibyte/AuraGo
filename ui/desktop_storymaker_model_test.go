@@ -132,6 +132,22 @@ eq(M.insertActor(draft, M.scenesOf(draft).length - 1, man, 'x').ok, false, 'no a
 const one = { schema: 'storymaker/1', scenes: [{ id: 's1' }] };
 eq(M.removeScene(one, 0), -1, 'the last scene stays');
 eq(one.scenes[M.addScene(one, 0, { kind: 'code', taken: ['code2'] })].id, 'code3', 'a code file that outlived its scene keeps its id');
+// the editor's environment edit: the server's default only reaches a scene without a transition
+const worlds = { scenes: [{ id: 'a', environment: 'env.office', transition: 'cut' }, { id: 'b', environment: 'env.office', transition: 'fade' }, { id: 'c', environment: 'env.office', transition: 'fade' }, { id: 'd', environment: 'env.office', transition: 'fade' }] };
+M.setEnvironment(worlds, worlds.scenes[1], 'env.home-office');
+eq(worlds.scenes[1].environment, 'env.home-office', 'the environment is set');
+eq(worlds.scenes.map(s => s.transition), ['cut', 'wipe', 'wipe', 'fade'], 'a fade between worlds becomes a wipe, on this scene and the next');
+M.setEnvironment(worlds, worlds.scenes[1], 'env.office');
+eq(worlds.scenes.map(s => s.transition), ['cut', 'wipe', 'wipe', 'fade'], 'a wipe stays when the worlds match again');
+const chosen = { scenes: [{ id: 'a', environment: 'env.office', transition: 'cut' }, { id: 'b', environment: 'env.office', transition: 'slide-left' }] };
+M.setEnvironment(chosen, chosen.scenes[1], 'env.home-office');
+eq(chosen.scenes[1].transition, 'slide-left', 'another transition stays');
+const opening = { scenes: [{ id: 'a', environment: 'env.office', transition: 'fade' }, { id: 'b', environment: 'env.office', transition: 'fade' }] };
+M.setEnvironment(opening, opening.scenes[0], 'env.home-office');
+eq(opening.scenes.map(s => s.transition), ['fade', 'wipe'], 'the first scene has no transition to change, the next one has');
+const unsaved = { scenes: [{ id: 'a', environment: 'env.office' }, { id: 'b', environment: 'env.office' }] };
+M.setEnvironment(unsaved, unsaved.scenes[1], 'env.home-office');
+eq('transition' in unsaved.scenes[1], false, 'an unset transition is left to the server default');
 const scene = { id: 'x', narration: 'hi' };
 M.setSceneField(scene, 'narration', ''); eq('narration' in scene, false, 'an empty field leaves the document');
 M.setDuration(scene, false, '7.26'); eq(scene.duration, 7.3, 'fixed duration');

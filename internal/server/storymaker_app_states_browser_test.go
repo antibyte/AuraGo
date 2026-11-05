@@ -192,3 +192,37 @@ func TestStorymakerAppRealServerStatesBrowser(t *testing.T) {
 		smappNoErrors(t, page)
 	})
 }
+
+// TestStorymakerEnvironmentChangeRealServerBrowser: the editor saves a new scene at once, with the server's fade for a scene in
+// the same environment, so the default cannot react to a later environment change. The editor turns that fade into a wipe. A fade
+// picked afterwards stays and the motion lint flags it in the issues panel. Gated by AURAGO_RUN_BROWSER_SMOKE=1.
+func TestStorymakerEnvironmentChangeRealServerBrowser(t *testing.T) {
+	s := storymakerRealServer(t)
+	page, origin := smappPage(t, s)
+	smappWait(t, page, `()=>!!document.querySelector('.stm-projects')`)
+	page.MustElement(`[data-stm="new-title"]`).MustInput("Worlds")
+	page.MustElement(`[data-stm="create-project"]`).MustClick()
+	smappWait(t, page, `()=>document.querySelectorAll('[data-stm="scene"]').length===1 && document.querySelector('[data-stm="clock-total"]').textContent!=='0:00.0'`)
+	id := smappProjectIDs(t, origin)[0]
+	const saved = `document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`
+	const setSelect = `(sel,value)=>{const s=document.querySelector(sel);s.value=value;s.dispatchEvent(new Event('change',{bubbles:true}));}`
+
+	smappClick(t, page, `[data-stm="add-scene"]`)
+	smappWait(t, page, `()=>document.querySelectorAll('[data-stm="scene"]').length===2 && document.querySelector('[data-stm="transition"]')?.value==='fade' && `+saved)
+
+	page.MustEval(setSelect, `[data-stm="environment"]`, "env.home-office")
+	smappWait(t, page, `()=>document.querySelector('[data-stm="transition"]')?.value==='wipe' && `+saved)
+	second := smappStored(t, origin, id)["scenes"].([]any)[1].(map[string]any)
+	if second["environment"] != "env.home-office" || second["transition"] != "wipe" {
+		t.Fatalf("stored scene after the environment change = %v", second)
+	}
+
+	page.MustEval(setSelect, `[data-stm="transition"]`, "fade")
+	smappWait(t, page, `()=>document.querySelector('[data-stm="transition"]')?.value==='fade' && `+saved)
+	if got := smappStored(t, origin, id)["scenes"].([]any)[1].(map[string]any)["transition"]; got != "fade" {
+		t.Fatalf("a fade picked by the user must stay, stored = %v", got)
+	}
+	smappClick(t, page, `[data-stm="issues-toggle"]`)
+	smappWait(t, page, `()=>!!document.querySelector('.stm-issue[data-code="fade_between_worlds"]')`)
+	smappNoErrors(t, page)
+}

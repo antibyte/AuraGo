@@ -75,7 +75,8 @@ read, a hide takes 0.35 s, and a beat on another actor starts while the previous
   frame. Its lines are then balanced.
 - **Highlight.** The `highlight` beat draws attention to an actor, a prop or a text. Its style is `pulse`, `outline` or `arrow`.
 - **Default transition.** A new scene gets a wipe when its environment differs from the previous scene's, and a fade otherwise.
-  Scenes you already saved keep their transition.
+  Scenes you already saved keep their transition, with one exception: picking another environment in the editor turns a fade into
+  a wipe, on that scene and on the next. Any other transition stays, and you can pick a fade again.
 
 The issues list also shows motion hints. A hint never blocks an export.
 

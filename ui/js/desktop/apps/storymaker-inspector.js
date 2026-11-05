@@ -39,7 +39,7 @@
             const known = names('environment');
             known.forEach(entry => select.appendChild(option(entry.id, S.catalogName(t, entry), entry.id === current)));
             if (current && !known.some(entry => entry.id === current)) select.appendChild(option(current, current, true));
-            select.addEventListener('change', () => inst.editScene(scene.id, draft => { draft.environment = select.value; }, { immediate: true }));
+            select.addEventListener('change', () => inst.editScene(scene.id, (draft, story) => S.model.setEnvironment(story, draft, select.value), { immediate: true }));
             return select;
         }
 
