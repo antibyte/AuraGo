@@ -50,7 +50,7 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"versions": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2}
+	"versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -108,6 +108,8 @@ func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
 	mux.HandleFunc(flowBlocksPath, s.handleFlowBlocks)
 	mux.HandleFunc(flowBlocksPath+"/", s.handleFlowBlocks)
+	mux.HandleFunc(flowFoldersPath, s.handleFlowFolders)
+	mux.HandleFunc(flowFoldersPath+"/", s.handleFlowFolders)
 }
 
 // flowsEncodeFailure is the whole answer when a response cannot be encoded.
@@ -244,6 +246,16 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusConflict, "FLOW_BLOCK_UNAVAILABLE", "the referenced block revision is unavailable")
 	case errors.Is(err, flows.ErrBlockInvalid):
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "invalid block request")
+	case errors.Is(err, flows.ErrLibraryInvalid):
+		flowsError(w, http.StatusBadRequest, "FLOW_LIBRARY_INVALID", "invalid flow library data")
+	case errors.Is(err, flows.ErrLibraryConflict):
+		flowsError(w, http.StatusConflict, "FLOW_LIBRARY_CONFLICT", "flow library data changed elsewhere")
+	case errors.Is(err, flows.ErrLibraryFolderNotEmpty):
+		flowsError(w, http.StatusConflict, "FLOW_FOLDER_NOT_EMPTY", "move the folder's flows before deleting it")
+	case errors.Is(err, flows.ErrVersionNoteConflict):
+		flowsError(w, http.StatusConflict, "FLOW_VERSION_NOTE_CONFLICT", "the version note changed elsewhere")
+	case errors.Is(err, flows.ErrLibrarySensitive):
+		flowsError(w, http.StatusBadRequest, "FLOW_LIBRARY_SENSITIVE", "replace redacted or sensitive text")
 	case errors.Is(err, flows.ErrNotPublished):
 		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrNoTrigger):
@@ -537,6 +549,9 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
+		for i := range list {
+			list[i].Library.RefreshPrivacy()
+		}
 		flowsJSON(w, http.StatusOK, map[string]any{"flows": list, "timers_running": s.Flows.TimersRunning()})
 	case http.MethodPost:
 		var body flowCreateBody
@@ -583,11 +598,13 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 	if len(rest) > 0 {
 		action = rest[0]
 	}
-	if n, ok := flowRouteSegments[action]; (!ok || len(rest) != n) && !(action == "scenarios" && (len(rest) == 1 || len(rest) == 2)) {
+	if n, ok := flowRouteSegments[action]; (!ok || len(rest) != n) && !(action == "scenarios" && (len(rest) == 1 || len(rest) == 2)) && !(action == "versions" && len(rest) == 3 && rest[2] == "note") {
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
 		return
 	}
 	switch action {
+	case "library":
+		s.flowLibrary(w, r, id)
 	case "scenarios":
 		s.flowScenarios(w, r, id, rest[1:])
 	case "ai-proposal":
@@ -658,12 +675,17 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		var body struct {
-			BaseRevision int `json:"base_revision"`
+			BaseRevision int             `json:"base_revision"`
+			Note         json.RawMessage `json:"note"`
 		}
 		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
 			return
 		}
-		rec, issues, err := s.Flows.Publish(ctx, id, body.BaseRevision)
+		note, ok := optionalFlowPublishNote(w, body.Note)
+		if !ok {
+			return
+		}
+		rec, issues, err := s.Flows.PublishWithNote(ctx, id, body.BaseRevision, note)
 		if err != nil && rec != nil {
 			s.flowPublishIncomplete(w, rec, issues, err)
 			return
@@ -721,6 +743,10 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		}
 		flowsJSON(w, http.StatusOK, doc)
 	case "versions":
+		if len(rest) == 3 {
+			s.flowVersionNote(w, r, id, rest[1], flows.KindFlow)
+			return
+		}
 		switch r.Method {
 		case http.MethodGet:
 			rec, err := s.Flows.GetFlow(ctx, id)
@@ -732,6 +758,9 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			if err != nil {
 				s.flowsErrorFrom(w, r, err)
 				return
+			}
+			for i := range versions {
+				versions[i].RefreshNotePrivacy()
 			}
 			flowsJSON(w, http.StatusOK, map[string]any{
 				"versions":       versions,

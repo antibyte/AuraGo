@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Mission-Verknüpfung des Flows repariert",
   "dashboard.audit_type_flow_block_create": "Flow-Baustein erstellt",
   "dashboard.audit_type_flow_block_publish": "Flow-Baustein veröffentlicht",
-  "dashboard.audit_type_flow_block_delete": "Flow-Baustein gelöscht"
+  "dashboard.audit_type_flow_block_delete": "Flow-Baustein gelöscht",
+  "dashboard.audit_type_flow_library_change": "EasyDrag-Bibliothek geändert",
+  "dashboard.audit_type_flow_version_note": "EasyDrag-Versionsnotiz"
 }

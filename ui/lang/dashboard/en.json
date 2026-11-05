@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Flow mission link repaired",
   "dashboard.audit_type_flow_block_create": "Flow block created",
   "dashboard.audit_type_flow_block_publish": "Flow block published",
-  "dashboard.audit_type_flow_block_delete": "Flow block deleted"
+  "dashboard.audit_type_flow_block_delete": "Flow block deleted",
+  "dashboard.audit_type_flow_library_change": "EasyDrag library changed",
+  "dashboard.audit_type_flow_version_note": "EasyDrag version note"
 }

@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Flowets missionsforbindelse repareret",
   "dashboard.audit_type_flow_block_create": "Flowblok oprettet",
   "dashboard.audit_type_flow_block_publish": "Flowblok udgivet",
-  "dashboard.audit_type_flow_block_delete": "Flowblok slettet"
+  "dashboard.audit_type_flow_block_delete": "Flowblok slettet",
+  "dashboard.audit_type_flow_library_change": "EasyDrag-bibliotek ændret",
+  "dashboard.audit_type_flow_version_note": "EasyDrag-versionsnote"
 }

@@ -1190,6 +1190,9 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		if isFlowBlocksAPIPath(path) {
 			return desktopTokenHasScope(s, token, flowBlocksRequiredScope(method))
 		}
+		if isFlowFoldersAPIPath(path) {
+			return desktopTokenHasScope(s, token, flowFoldersRequiredScope(method))
+		}
 		if isCYDCreatorAPIPath(path) {
 			return desktopTokenHasScope(s, token, cydCreatorBearerScope(method, path))
 		}

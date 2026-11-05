@@ -728,6 +728,20 @@ Server-owned HTTP and cross-component integration contracts.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
 ### EasyDrag flows
+- Flow folders (`/api/desktop/flow-folders`), flow library metadata and flow/block version
+  notes use Desktop read scope for GET/HEAD and admin for mutations, with the existing origin,
+  availability, readonly and revocable-grant gates. Library, folder and note revisions are
+  separate CAS domains; metadata never changes a draft/live revision or test evidence.
+  A library PUT preserves omitted fields, clears a folder with null, clears tags with `[]`
+  and rejects null tags. Nonempty folders cannot be deleted. Note updates and optional
+  publication notes follow their own validated service contracts; an omitted note leaves
+  an existing publication note alone, and a differing note on same-draft re-publication
+  conflicts rather than overwriting it. Scrub full metadata before previews, expose
+  redacted/editable flags, reject redaction-marker roundtrips, and never put metadata text
+  into audit or broadcasts. Metadata `flows_changed` reasons do not reload editor drafts.
+  Audit `flow_library_change` and `flow_version_note`; ordinary publish retains its audit.
+  Verify `TestFlowLibrary*`, `TestFlowFoldersAdmission`, `TestFlowAndBlockVersionNotes`
+  and `TestFlowVersionNotePrivacyBeforePreviewTruncation`.
 - Mission Control's optional `FlowAdmissionRevoker` bridge is synchronous under the manager
   lock and may only invalidate the bounded Runner admission tracker; never call a manager,
   database or flow/service lock there. Existing timer and deletion lifecycle hooks remain

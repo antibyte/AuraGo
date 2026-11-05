@@ -240,7 +240,8 @@ func (s *Server) flowBlockPublish(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 	var body struct {
-		BaseRevision *int `json:"base_revision"`
+		BaseRevision *int            `json:"base_revision"`
+		Note         json.RawMessage `json:"note"`
 	}
 	if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
 		return
@@ -249,7 +250,11 @@ func (s *Server) flowBlockPublish(w http.ResponseWriter, r *http.Request, id str
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "a positive base revision is required")
 		return
 	}
-	block, issues, err := s.Flows.PublishBlock(r.Context(), id, *body.BaseRevision)
+	note, ok := optionalFlowPublishNote(w, body.Note)
+	if !ok {
+		return
+	}
+	block, issues, err := s.Flows.PublishBlockWithNote(r.Context(), id, *body.BaseRevision, note)
 	if err != nil {
 		s.flowBlockError(w, r, err)
 		return
@@ -286,6 +291,9 @@ func (s *Server) flowBlockVersions(w http.ResponseWriter, r *http.Request, id st
 		if err != nil {
 			s.flowBlockError(w, r, err)
 			return
+		}
+		for i := range versions.Items {
+			versions.Items[i].RefreshNotePrivacy()
 		}
 		answer := map[string]any{"versions": versions.Items}
 		if versions.NextCursor > 0 {

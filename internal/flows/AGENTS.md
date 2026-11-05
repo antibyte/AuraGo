@@ -7,6 +7,18 @@ testing and runtime expansion. Its phases and acceptance gates describe planned 
 the contracts below describe the implemented behavior of each delivered slice.
 
 ## Flagship authoring and testing
+- Server-wide flat folders and tags organize normal flows independently of the executable
+  document. Folder and per-flow metadata use separate revision checks; omitted patch fields
+  retain stored values, null folder clears it and an empty tag list clears tags. Empty folders
+  persist; deleting a nonempty folder is refused. Changes never advance draft/live revisions,
+  modify flow timestamps or invalidate saved simulation evidence. Folder names and tags are
+  bounded and case-sensitive; local favorites and saved filters remain browser-owned.
+- Version notes belong to immutable flow or block revisions and have their own CAS revision.
+  A new publication and its optional note commit with version pins; repeat publication never
+  silently changes an existing note. Notes follow version retention. Registered secrets and
+  redaction markers are rejected on write; reads scrub full values before deriving previews,
+  mark masked values non-editable and do not echo them into audit or provider requests.
+  Verify `TestLibrary*`, `TestFlowsV4*` and the library server integration tests.
 - Collection template filters `pick`, `rename`, `where`, `sort`, `unique` and `sum`
   use literal field names and strict JSON scalar types; they never mutate input or execute
   supplied code. Missing values stay distinct from null; sorted null/missing values are
@@ -381,7 +393,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (3). `OpenStore` refuses a database
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (4). `OpenStore` refuses a database
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
@@ -390,8 +402,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   migration. Version 2 creates `flow_test_scenarios` and `flow_checkpoints` transactionally and writes the
   version last; an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
   Version 3 similarly backs up v2 before atomically installing block version/run pin tables and indexes;
-  incomplete or incompatible v3 ownership constraints fail closed before other writes. Verify
-  `TestFlowsV2Migration*`, `TestFlowsV3*` and `TestC16OpenStoreRefusesANewerSchema`.
+  version 4 backs up v3 and atomically installs folders, flow metadata and version notes. Incomplete
+  or incompatible v3/v4 ownership constraints fail closed before other writes. Verify
+  `TestFlowsV2Migration*`, `TestFlowsV3*`, `TestFlowsV4*` and `TestC16OpenStoreRefusesANewerSchema`.
 - Checkpoint cryptography, complete coordinator snapshots, per-step CAS/lease fencing and private pure-only
   suspend/resume helpers are implementation groundwork, not a registered node or user-facing recovery feature.
   `NewRunner` reserves flows with valid checkpoint metadata before accepting live starts; malformed metadata blocks

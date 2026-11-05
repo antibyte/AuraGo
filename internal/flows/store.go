@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/dbutil"
 
@@ -55,7 +56,7 @@ func parseTime(s string) time.Time {
 // storeSchemaVersion is the flows.db schema this code creates and migrates to; it is
 // stored as flows_meta.schema_version. OpenStore refuses a database with a greater
 // version (a newer AuraGo migrated it), so an older AuraGo never writes into it.
-const storeSchemaVersion = 3
+const storeSchemaVersion = 4
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -208,6 +209,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := verifyFlowsV4(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	var existing int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&existing); err != nil {
 		_ = db.Close()
@@ -225,6 +230,13 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	v2BackedUp := existing > 0 && versionBeforeWrites == 2
 	if v2BackedUp {
 		if err := backupFlowsSnapshot(db, logger, ".flows-v2-backup-*"); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+	v3BackedUp := existing > 0 && versionBeforeWrites == 3
+	if v3BackedUp {
+		if err := backupFlowsSnapshot(db, logger, ".flows-v3-backup-*"); err != nil {
 			_ = db.Close()
 			return nil, err
 		}
@@ -253,6 +265,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		return nil, err
 	}
 	if err := migrateFlowsV3(db, logger, existing > 0 && !v2BackedUp); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := migrateFlowsV4(db, logger, existing > 0 && !v3BackedUp); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -536,6 +552,10 @@ func (s *Store) publishKind(ctx context.Context, id string, baseRevision int, no
 }
 
 func (s *Store) publishKindWithBlocks(ctx context.Context, id string, baseRevision int, now time.Time, expected Kind, blocks []resolvedBlock) (*FlowRecord, error) {
+	return s.publishKindWithBlocksNote(ctx, id, baseRevision, now, expected, blocks, nil)
+}
+
+func (s *Store) publishKindWithBlocksNote(ctx context.Context, id string, baseRevision int, now time.Time, expected Kind, blocks []resolvedBlock, note *string) (*FlowRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -575,6 +595,9 @@ func (s *Store) publishKindWithBlocks(ctx context.Context, id string, baseRevisi
 				return nil, err
 			}
 		}
+		if err := publishVersionNote(ctx, tx, id, current.LiveRevision, note, false); err != nil {
+			return nil, err
+		}
 		// The revision matches but the UPDATE skipped it: it is already live.
 		if err := tx.Commit(); err != nil {
 			return nil, err
@@ -585,11 +608,14 @@ func (s *Store) publishKindWithBlocks(ctx context.Context, id string, baseRevisi
 		SELECT id, live_revision, live_json, published_at FROM flows WHERE id = ?`, id); err != nil {
 		return nil, err
 	}
+	var revision int
+	if err := tx.QueryRowContext(ctx, `SELECT live_revision FROM flows WHERE id=?`, id).Scan(&revision); err != nil {
+		return nil, err
+	}
+	if err := publishVersionNote(ctx, tx, id, revision, note, true); err != nil {
+		return nil, err
+	}
 	if len(blocks) > 0 {
-		var revision int
-		if err := tx.QueryRowContext(ctx, `SELECT live_revision FROM flows WHERE id=?`, id).Scan(&revision); err != nil {
-			return nil, err
-		}
 		if err := pinBlockVersionTx(ctx, tx, id, revision, blocks); err != nil {
 			return nil, err
 		}
@@ -613,10 +639,15 @@ func (s *Store) readPublished(ctx context.Context, id string) (*FlowRecord, erro
 
 // FlowVersionSummary describes a stored published revision in flow_versions.
 type FlowVersionSummary struct {
-	Revision    int       `json:"revision"`
-	PublishedAt time.Time `json:"published_at"`
-	NodeCount   int       `json:"node_count"`
-	EdgeCount   int       `json:"edge_count"`
+	Revision     int       `json:"revision"`
+	PublishedAt  time.Time `json:"published_at"`
+	NodeCount    int       `json:"node_count"`
+	EdgeCount    int       `json:"edge_count"`
+	NotePreview  string    `json:"note_preview"`
+	NoteRevision int       `json:"note_revision"`
+	NoteRedacted bool      `json:"note_redacted"`
+	NoteEditable bool      `json:"note_editable"`
+	noteFull     string
 }
 
 // GetVersion returns a published revision.
@@ -641,7 +672,7 @@ func (s *Store) ListVersions(ctx context.Context, id string) ([]FlowVersionSumma
 		}
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT revision, published_at, json FROM flow_versions WHERE flow_id = ? ORDER BY revision DESC`, id)
+	rows, err := s.db.QueryContext(ctx, `SELECT v.revision,v.published_at,v.json,CASE WHEN length(CAST(COALESCE(n.note,'') AS BLOB))<=4096 THEN COALESCE(n.note,'') ELSE NULL END,COALESCE(n.note_revision,0) FROM flow_versions v LEFT JOIN flow_version_notes n ON n.flow_id=v.flow_id AND n.revision=v.revision WHERE v.flow_id=? ORDER BY v.revision DESC`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -650,13 +681,20 @@ func (s *Store) ListVersions(ctx context.Context, id string) ([]FlowVersionSumma
 	for rows.Next() {
 		var rev int
 		var pubAt, raw string
-		if err := rows.Scan(&rev, &pubAt, &raw); err != nil {
+		var note string
+		var noteRevision int
+		if err := rows.Scan(&rev, &pubAt, &raw, &note, &noteRevision); err != nil {
 			return nil, err
 		}
 		sum := FlowVersionSummary{
 			Revision:    rev,
 			PublishedAt: parseTime(pubAt),
+			noteFull:    note, NoteRevision: noteRevision,
 		}
+		if !utf8.ValidString(note) || utf8.RuneCountInString(note) > 2048 || noteRevision < 0 {
+			return nil, ErrLibraryInvalid
+		}
+		sum.RefreshNotePrivacy()
 		if f, err := ParseFlow([]byte(raw)); err == nil && f != nil {
 			sum.NodeCount = len(f.Nodes)
 			sum.EdgeCount = len(f.Edges)

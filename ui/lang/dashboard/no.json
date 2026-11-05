@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Flytens oppdragskobling reparert",
   "dashboard.audit_type_flow_block_create": "Flytblokk opprettet",
   "dashboard.audit_type_flow_block_publish": "Flytblokk publisert",
-  "dashboard.audit_type_flow_block_delete": "Flytblokk slettet"
+  "dashboard.audit_type_flow_block_delete": "Flytblokk slettet",
+  "dashboard.audit_type_flow_library_change": "EasyDrag-bibliotek endret",
+  "dashboard.audit_type_flow_version_note": "EasyDrag-versjonsnotat"
 }

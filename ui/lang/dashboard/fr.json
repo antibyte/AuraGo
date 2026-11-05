@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Lien de mission du flux réparé",
   "dashboard.audit_type_flow_block_create": "Bloc de flux créé",
   "dashboard.audit_type_flow_block_publish": "Bloc de flux publié",
-  "dashboard.audit_type_flow_block_delete": "Bloc de flux supprimé"
+  "dashboard.audit_type_flow_block_delete": "Bloc de flux supprimé",
+  "dashboard.audit_type_flow_library_change": "Modification de la bibliothèque EasyDrag",
+  "dashboard.audit_type_flow_version_note": "Note de version EasyDrag"
 }

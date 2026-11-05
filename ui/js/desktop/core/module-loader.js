@@ -223,6 +223,7 @@
                 '/js/desktop/apps/easydrag-testing.js',
                 '/js/desktop/apps/easydrag-compare.js',
                 '/js/desktop/apps/easydrag-runs.js',
+                '/js/desktop/apps/easydrag-metadata.js',
                 '/js/desktop/apps/easydrag-publish.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',

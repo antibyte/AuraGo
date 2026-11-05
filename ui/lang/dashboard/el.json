@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Επιδιορθώθηκε η σύνδεση αποστολής της ροής",
   "dashboard.audit_type_flow_block_create": "Δημιουργήθηκε μπλοκ ροής",
   "dashboard.audit_type_flow_block_publish": "Δημοσιεύτηκε μπλοκ ροής",
-  "dashboard.audit_type_flow_block_delete": "Διαγράφηκε μπλοκ ροής"
+  "dashboard.audit_type_flow_block_delete": "Διαγράφηκε μπλοκ ροής",
+  "dashboard.audit_type_flow_library_change": "Αλλαγή βιβλιοθήκης EasyDrag",
+  "dashboard.audit_type_flow_version_note": "Σημείωση έκδοσης EasyDrag"
 }

@@ -16,7 +16,9 @@
             get: (id, signal) => transport(path(id), { signal }).then(normalize),
             save: (id, doc, revision) => transport(path(id), json('PUT', { doc, base_revision: revision })),
             preview: (id, signal) => transport(path(id) + '/publish-preview', { signal }),
-            publish: (id, revision) => transport(path(id) + '/publish', json('POST', { base_revision: revision })).then(normalize),
+            publish: (id, revision, note) => transport(path(id) + '/publish', json('POST', Object.assign({ base_revision: revision }, note === undefined ? {} : { note }))).then(normalize),
+            versionNote: (id, revision, signal) => transport(path(id) + '/versions/' + enc(revision) + '/note', { signal }),
+            saveVersionNote: (id, revision, note, baseRevision, signal) => transport(path(id) + '/versions/' + enc(revision) + '/note', Object.assign(json('PUT', { note, base_revision: baseRevision }), { signal })),
             remove: (id, revision, liveRevision) => transport(path(id), json('DELETE', { base_revision: revision, base_live_revision: liveRevision })),
             versions: (id, before, signal) => transport(path(id) + '/versions?limit=50' + (before ? '&before_revision=' + enc(before) : ''), { signal }),
             version: (id, revision, signal) => transport(path(id) + '/versions/' + enc(revision), { signal }),
@@ -110,7 +112,7 @@
             const button = event.target.closest('[data-ed-block-open]');
             if (button && rows.some(row => row.id === button.dataset.edBlockOpen)) app.openBlock(button.dataset.edBlockOpen);
         });
-        bag.listen(document, 'aurago:flows-changed', () => reload());
+        bag.listen(document, 'aurago:flows-changed', event => { if (!['library', 'version_note', 'folders'].includes((event.detail || {}).reason)) reload(); });
         paint(); reload();
         return { el, reload, createOff: () => denied, dispose() { closed = true; seq++; controller.abort(); bag.dispose(); el.querySelectorAll('.ed-modal-backdrop').forEach(node => node.remove()); el.remove(); } };
     }
@@ -163,7 +165,8 @@
         if (!ed.root.isConnected) return;
         let rows = res.versions || [], cursor = res.next_cursor;
         const dialog = ED.core.modal(ed.root, { title: ed.t('easydrag.ui.versions_title'), closeLabel: ed.t('easydrag.ui.close'), className: 'ed-modal--block', body: '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_pins_hint')) + '</p><div class="ed-block-versions" data-ed-block-versions></div><button type="button" class="ed-btn" data-ed-block-versions-more>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button><p class="ed-error" role="alert" hidden></p>', actions: [{ id: 'close-dialog', label: ed.t('easydrag.ui.close') }] });
-        function paint() { dialog.body.querySelector('[data-ed-block-versions]').innerHTML = rows.map(row => '<button type="button" class="ed-btn" data-ed-block-version="' + ed.esc(row.revision) + '">v' + ed.esc(row.revision) + ' · ' + ed.esc(ED.core.fmt.dateTime(row.published_at)) + '</button>').join(''); dialog.body.querySelector('[data-ed-block-versions-more]').hidden = !cursor; }
+        function paint() { dialog.body.querySelector('[data-ed-block-versions]').innerHTML = rows.map(row => '<article class="ed-block-version-row"><button type="button" class="ed-btn" data-ed-block-version="' + ed.esc(row.revision) + '">v' + ed.esc(row.revision) + ' · ' + ed.esc(ED.core.fmt.dateTime(row.published_at)) + '</button>' + (ED.metadata ? ED.metadata.noteMarkup(ed, row) : '') + '</article>').join(''); dialog.body.querySelector('[data-ed-block-versions-more]').hidden = !cursor; }
+        if (ED.metadata) ED.metadata.bindNotes(ed, dialog, () => rows, paint);
         dialog.body.addEventListener('click', async event => {
             const button = event.target.closest('[data-ed-block-version]');
             if (button && rows.some(row => String(row.revision) === button.dataset.edBlockVersion)) { dialog.close(null); app.openBlock(ed.flow.id, { revision: Number(button.dataset.edBlockVersion) }); return; }

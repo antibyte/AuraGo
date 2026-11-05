@@ -38,6 +38,17 @@ Browser das Speichern, sagt EasyDrag Dir Bescheid; die Auswahl gilt dann nur bis
 Schließen des Fensters. Andere offene EasyDrag-Fenster im selben Browser folgen der
 Änderung. Beim Löschen der Browserdaten gehen diese Einstellungen verloren.
 
+**Ordner und Tags** ordnet normale Flows auf AuraGo geräteübergreifend. Öffne am Flow
+**⋯ → Ordner und Tags**, wähle einen Ordner und gib bis zu 16 Tags ein. Groß- und
+Kleinschreibung werden unterschieden. Unter **Ordner verwalten** erstellst oder benennst
+Du flache Ordner um; verschiebe ihre Flows, bevor Du einen belegten Ordner löschst.
+Ordner- und Tagfilter lassen sich auch in einem lokalen Filter speichern. Die Zuordnung
+ändert weder den Flow noch seine veröffentlichte Version oder Testergebnisse. Hat ein
+anderes Fenster zuerst gespeichert, bleibt Deine Eingabe sichtbar; **Gespeicherte Werte
+neu laden** fragt vor dem Verwerfen nach. Verborgene Tags bleiben beim Ordnerwechsel
+auf dem Server. **Verborgenen Inhalt ersetzen** beginnt eine frische Tagliste. Gib in
+diesen Namen und Tags keine Geheimnisse ein.
+
 Für ein erstes Ergebnis ohne Konto wähle **Dein erstes lokales Ergebnis** in der
 Rezeptauswahl. Drei Schritte lesen einen Beispielnamen, bilden eine Begrüßung und prüfen,
 ob der Name vorhanden ist. Öffne nach dem Test die Ausgabe des Begrüßungsschritts.
@@ -219,6 +230,20 @@ den zugehörigen Schlüssel können diese Daten nicht wiederhergestellt werden.
 - Ein Test führt den Entwurf aus, den du siehst: Wurde er inzwischen in einem anderen Fenster geändert, lehnt EasyDrag den Test ab (*Der Flow wurde woanders geändert*). Lade den Flow neu und teste erneut.
 
 ## Veröffentlichen
+
+Beim Veröffentlichen einer neuen Flow- oder Bausteinversion kannst Du eine optionale
+**Versionsnotiz** ergänzen. Sie wird zusammen mit der Version gespeichert. Im
+**Versionsverlauf** gibt es getrennte Aktionen zum Lesen und Bearbeiten; eine leer
+gespeicherte Notiz entfernt ihren Text. Eine Notizänderung verändert weder den Entwurf
+noch den veröffentlichten Graphen oder Testergebnisse. Leerzeichen bleiben erhalten;
+erlaubt sind bis zu 2.048 Zeichen und 4.096 UTF-8-Bytes. Verborgene Notizen musst Du
+ausdrücklich mit frischem Text ersetzen. Gib auch dort keine Geheimnisse ein.
+Meldet die Veröffentlichung ein Problem mit Mission Control oder Timern, sind Version
+und Notiz bereits gespeichert. Erneutes Veröffentlichen desselben Entwurfs behält die
+Notiz; ändere sie getrennt über **Notiz bearbeiten**. Konflikte erhalten Deine Eingabe
+und wiederholen keine Schreibaktion automatisch. Bei einer Schreibsperre bleibt Dein
+Text erhalten, solange Du ihn noch lesen darfst; öffne den Dialog nach Wiederherstellung
+des Zugriffs erneut.
 
 Die Prüfung zeigt benannte Änderungen an Schritten und Parametern mit Vorher/Nachher-Werten,
 soweit diese sicher angezeigt werden können. Dazu kommt der Testnachweis für genau diesen

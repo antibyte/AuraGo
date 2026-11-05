@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "フローのミッション連携を修復",
   "dashboard.audit_type_flow_block_create": "フローブロックを作成",
   "dashboard.audit_type_flow_block_publish": "フローブロックを公開",
-  "dashboard.audit_type_flow_block_delete": "フローブロックを削除"
+  "dashboard.audit_type_flow_block_delete": "フローブロックを削除",
+  "dashboard.audit_type_flow_library_change": "EasyDragライブラリの変更",
+  "dashboard.audit_type_flow_version_note": "EasyDragのバージョンメモ"
 }

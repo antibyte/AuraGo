@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 	"strings"
+
+	"aurago/internal/flows"
 )
 
 const flowBlocksPath = "/api/desktop/flow-blocks"
@@ -114,6 +116,10 @@ func (s *Server) handleFlowBlocks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "versions":
+		if len(parts) == 4 && parts[3] == "note" {
+			s.flowVersionNote(w, r, id, parts[2], flows.KindBlock)
+			return
+		}
 		s.flowBlockVersions(w, r, id, parts[2:])
 		return
 	case "dependents":

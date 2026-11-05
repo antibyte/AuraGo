@@ -451,21 +451,22 @@ func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevis
 
 // FlowSummary is one card on the editor's start page.
 type FlowSummary struct {
-	ID                    string        `json:"id"`
-	Name                  string        `json:"name"`
-	Description           string        `json:"description,omitempty"`
-	MissionID             string        `json:"mission_id"`
-	Enabled               bool          `json:"enabled"`
-	Published             bool          `json:"published"`
-	HasUnpublishedChanges bool          `json:"has_unpublished_changes"`
-	DraftRevision         int           `json:"draft_revision"`
-	LiveRevision          int           `json:"live_revision"`
-	UpdatedAt             time.Time     `json:"updated_at"`
-	LastRun               *RunRecord    `json:"last_run,omitempty"`
-	Triggers              []string      `json:"triggers"`
-	Preview               []PreviewNode `json:"preview"`
-	PreviewEdges          [][2]int      `json:"preview_edges,omitempty"`
-	LiveIssues            []Issue       `json:"live_issues,omitempty"`
+	ID                    string          `json:"id"`
+	Name                  string          `json:"name"`
+	Description           string          `json:"description,omitempty"`
+	MissionID             string          `json:"mission_id"`
+	Enabled               bool            `json:"enabled"`
+	Published             bool            `json:"published"`
+	HasUnpublishedChanges bool            `json:"has_unpublished_changes"`
+	DraftRevision         int             `json:"draft_revision"`
+	LiveRevision          int             `json:"live_revision"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+	LastRun               *RunRecord      `json:"last_run,omitempty"`
+	Triggers              []string        `json:"triggers"`
+	Preview               []PreviewNode   `json:"preview"`
+	PreviewEdges          [][2]int        `json:"preview_edges,omitempty"`
+	LiveIssues            []Issue         `json:"live_issues,omitempty"`
+	Library               LibraryMetadata `json:"library"`
 }
 
 // PreviewNode positions a node in the start page's mini preview.
@@ -478,7 +479,7 @@ type PreviewNode struct {
 // ListFlows returns the start page cards. It takes no flow lock, so a MissionBridge may
 // call it synchronously (see MissionBridge); keep it that way.
 func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
-	records, err := s.store.ListFlows(ctx, KindFlow)
+	records, library, err := s.store.listFlowsWithLibrary(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -488,11 +489,16 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 	}
 	out := make([]FlowSummary, 0, len(records))
 	for _, rec := range records {
+		metadata, ok := library[rec.ID]
+		if !ok {
+			metadata = safeLibrary(LibraryMetadata{Tags: []string{}})
+		}
 		sum := FlowSummary{
 			ID: rec.ID, Name: rec.Name, Description: rec.Description, MissionID: rec.MissionID,
 			Published: rec.Published(), HasUnpublishedChanges: rec.HasUnpublishedChanges(),
 			DraftRevision: rec.DraftRevision, LiveRevision: rec.LiveRevision, UpdatedAt: rec.UpdatedAt,
 			Triggers: []string{}, Preview: []PreviewNode{},
+			Library: metadata,
 		}
 		if run, ok := last[rec.ID]; ok {
 			r := run
@@ -568,11 +574,13 @@ type DiffSummary struct {
 
 // PublishPreview is shown in the publish dialog.
 type PublishPreview struct {
-	DraftRevision int             `json:"draft_revision"`
-	Issues        []Issue         `json:"issues"`
-	Effects       []EffectSummary `json:"effects"`
-	Diff          DiffSummary     `json:"diff"`
-	CanPublish    bool            `json:"can_publish"`
+	DraftRevision          int             `json:"draft_revision"`
+	LiveRevision           int             `json:"live_revision"`
+	PublishedDraftRevision int             `json:"published_draft_revision"`
+	Issues                 []Issue         `json:"issues"`
+	Effects                []EffectSummary `json:"effects"`
+	Diff                   DiffSummary     `json:"diff"`
+	CanPublish             bool            `json:"can_publish"`
 }
 
 // PublishPreview validates the draft with publish rules and summarises effects and changes.
@@ -592,7 +600,7 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 	if effects == nil {
 		effects = []EffectSummary{}
 	}
-	return &PublishPreview{DraftRevision: rec.DraftRevision, Issues: issues, Effects: effects, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, nil
+	return &PublishPreview{DraftRevision: rec.DraftRevision, LiveRevision: rec.LiveRevision, PublishedDraftRevision: rec.PublishedDraftRevision, Issues: issues, Effects: effects, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, nil
 }
 
 // DiffFlows compares the live revision with the draft. Moving a node is not a change.

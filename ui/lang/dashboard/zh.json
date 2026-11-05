@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "已修复流程的任务关联",
   "dashboard.audit_type_flow_block_create": "已创建流程模块",
   "dashboard.audit_type_flow_block_publish": "已发布流程模块",
-  "dashboard.audit_type_flow_block_delete": "已删除流程模块"
+  "dashboard.audit_type_flow_block_delete": "已删除流程模块",
+  "dashboard.audit_type_flow_library_change": "EasyDrag资料库变更",
+  "dashboard.audit_type_flow_version_note": "EasyDrag版本备注"
 }

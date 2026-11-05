@@ -1270,6 +1270,22 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
+- `easydrag-metadata.js` owns server-stored flat folders and case-sensitive tags for normal
+  flows, plus version notes for flows and blocks. These resources use their own CAS revisions;
+  never route metadata through the graph model, autosaver, undo or test-evidence invalidation.
+  Selective library PUT omits untouched fields, preserving hidden server tags during folder moves.
+  Masked notes/tags require explicit clean replacement; never submit redacted display values.
+  Publish notes are atomic with a new version; same-draft repair displays the existing note and
+  omits `note`. A partial publish already committed both version and note. Metadata-only
+  `library`/`folders`/`version_note` broadcasts never reload editor documents or invalidate tests.
+  Dialog requests are identity-bound, aborted on close/navigation and fenced against detached DOM.
+  Conflict reload requires confirmation before discarding pending text. Write-403 locks writes
+  and probes the same resource's GET without replay/rebase; GET-401/403 clears protected views
+  and cached note previews. Successful probes preserve pending edits while scrubbing stale server
+  values. UTF-8/codepoint/control checks reject broken surrogate pairs before sending.
+  Home derives organization options on dataset reload, retains focused pickers during ordinary
+  refresh, and immediately purges newly hidden options; saved filters never restore hidden raw
+  tags into the DOM. Verify `test-easydrag-metadata.mjs` and `TestDesktopEasyDragMetadataBrowser`.
 - The classic scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
   order of `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`), `easydrag.js` last.
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by

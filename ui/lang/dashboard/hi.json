@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "फ़्लो का मिशन लिंक ठीक किया गया",
   "dashboard.audit_type_flow_block_create": "फ़्लो ब्लॉक बनाया गया",
   "dashboard.audit_type_flow_block_publish": "फ़्लो ब्लॉक प्रकाशित किया गया",
-  "dashboard.audit_type_flow_block_delete": "फ़्लो ब्लॉक हटाया गया"
+  "dashboard.audit_type_flow_block_delete": "फ़्लो ब्लॉक हटाया गया",
+  "dashboard.audit_type_flow_library_change": "EasyDrag लाइब्रेरी में बदलाव",
+  "dashboard.audit_type_flow_version_note": "EasyDrag संस्करण की टिप्पणी"
 }

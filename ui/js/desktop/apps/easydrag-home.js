@@ -17,7 +17,9 @@
             favorites: Array.from(new Set((Array.isArray(source.favorites) ? source.favorites : []).filter(id))).slice(0, 1000),
             filters: filters.filter(item => item && id(item.id) && typeof item.name === 'string' && item.name.trim() && Array.from(item.name).length <= 80).slice(0, 20).map(item => ({
                 id: item.id, name: item.name.trim(), query: typeof item.query === 'string' ? Array.from(item.query).slice(0, 4000).join('') : '',
-                filter: FILTERS.includes(item.filter) ? item.filter : 'all', sort: ['updated', 'last_run', 'name'].includes(item.sort) ? item.sort : 'updated', favorites: item.favorites === true
+                filter: FILTERS.includes(item.filter) ? item.filter : 'all', sort: ['updated', 'last_run', 'name'].includes(item.sort) ? item.sort : 'updated', favorites: item.favorites === true,
+                ...(item.folder === ':none' || id(item.folder) ? { folder: item.folder } : {}),
+                ...(typeof item.tag === 'string' && item.tag && Array.from(item.tag).length <= 40 ? { tag: item.tag } : {})
             }))
         };
     }
@@ -73,6 +75,10 @@
         let templateCategory = '';
         let focusFlow = (opts && opts.focusFlow) || '';
         let prefs = preferences(core.storage.get(LIBRARY_KEY, {})), favoritesOnly = false, selectedFilter = '', volatilePrefs = false;
+        let folders = [], foldersError = null, organizationFolder = '', organizationTag = '';
+        let folderMap = new Map(), tagSet = new Set(), folderOptions = '', tagOptions = '', installedFolders = '', installedTags = '';
+        let privacyUpdate = false;
+        const hasOrganization = !!(ED.metadata && app.api.folders && app.api.library);
 
         const el = core.el('<div class="ed-home">' +
             '<header class="ed-home-hero"><div class="ed-home-brand"><span class="ed-logo" aria-hidden="true">' + core.icon('git-branch') + '</span>' +
@@ -99,6 +105,8 @@
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
+        const organization = hasOrganization ? core.el('<details class="ed-details ed-library-organization"><summary>' + esc(t('easydrag.ui.organization_filters')) + '</summary><div class="ed-library-organization-controls"><label class="ed-label">' + esc(t('easydrag.ui.folder')) + '<select class="ed-input" data-ed-folder-filter></select></label><label class="ed-label">' + esc(t('easydrag.ui.tags')) + '<select class="ed-input" data-ed-tag-filter></select></label><button type="button" class="ed-btn" data-ed-folders-manage>' + core.icon('folder') + esc(t('easydrag.ui.folders_manage')) + '</button></div><p class="ed-hint" data-ed-folder-error hidden></p></details>') : null;
+        if (organization) grid.parentElement.insertBefore(organization, grid);
         if (ED.blocks && app.openBlock) {
             const button = core.el('<button type="button" class="ed-btn ed-block-library-link">' + core.icon('grid') + esc(t('easydrag.ui.blocks_title')) + '</button>');
             button.addEventListener('click', () => app.openHome({ section: 'blocks' }));
@@ -118,6 +126,41 @@
             volatilePrefs = !saved;
             if (saved) libraryChanges.emit('change', el);
             return true;
+        }
+
+        function metadataEnv() { return { root: el, api: app.api, ctx, t, esc, readonly: !!app.readonly, canWrite: mayChange,
+            onAuthLost(err) { flows = []; templates = []; folders = []; loadError = err; staleError = null; listed = false; cacheOrganization(); render(); reportLoaded(); },
+            onLibraryRead(id, library, nextFolders) { const flow = flows.find(row => row.id === id); if (flow) flow.library = library; folders = nextFolders; cacheOrganization(); render(); }
+        }; }
+        function metadataOf(flow) { return flow.library || { folder_id: null, tags: [], revision: 0 }; }
+        function cacheOrganization() {
+            const nextFolders = new Map(folders.map(row => [row.id, row]));
+            const nextTags = new Set(flows.flatMap(flow => { const meta = metadataOf(flow); return meta.tags_redacted || meta.tags_editable === false ? [] : meta.tags || []; }));
+            if (loadError || flows.some(flow => metadataOf(flow).tags_redacted || metadataOf(flow).tags_editable === false) && Array.from(tagSet).some(tag => !nextTags.has(tag)) || folders.some(row => row.redacted && folderMap.get(row.id)?.name !== row.name)) privacyUpdate = true;
+            folderMap = nextFolders; tagSet = nextTags;
+            folderOptions = '<option value="">' + esc(t('easydrag.ui.folders_all')) + '</option><option value=":none">' + esc(t('easydrag.ui.folder_none')) + '</option>' + folders.map(row => '<option value="' + esc(row.id) + '">' + esc(row.name) + '</option>').join('');
+            tagOptions = '<option value="">' + esc(t('easydrag.ui.tags_all')) + '</option>' + Array.from(tagSet).sort((a, b) => a.localeCompare(b)).map(tag => '<option value="' + esc('tag:' + tag) + '">' + esc(tag) + '</option>').join('');
+        }
+        function organizationControls() {
+            if (!organization) return;
+            organization.hidden = !!loadError;
+            const folderSelect = organization.querySelector('[data-ed-folder-filter]');
+            const nextFolders = folderOptions + (organizationFolder && organizationFolder !== ':none' && !folderMap.has(organizationFolder) ? '<option value="' + esc(organizationFolder) + '">' + esc(t('easydrag.ui.folder_missing')) + '</option>' : '');
+            if (nextFolders !== installedFolders && (privacyUpdate || document.activeElement !== folderSelect)) { folderSelect.innerHTML = nextFolders; installedFolders = nextFolders; }
+            if (privacyUpdate || document.activeElement !== folderSelect) folderSelect.value = organizationFolder;
+            const tagSelect = organization.querySelector('[data-ed-tag-filter]'), missingTag = organizationTag && !tagSet.has(organizationTag), nextTags = tagOptions + (missingTag ? '<option value=":unavailable">' + esc(t('easydrag.ui.tags_missing')) + '</option>' : '');
+            const hideOldTag = missingTag && tagSelect.value === 'tag:' + organizationTag;
+            if (nextTags !== installedTags && (privacyUpdate || hideOldTag || document.activeElement !== tagSelect)) { tagSelect.innerHTML = nextTags; installedTags = nextTags; }
+            if (privacyUpdate || hideOldTag || document.activeElement !== tagSelect) tagSelect.value = missingTag ? ':unavailable' : organizationTag ? 'tag:' + organizationTag : '';
+            privacyUpdate = false;
+            const error = organization.querySelector('[data-ed-folder-error]'); error.hidden = !foldersError; error.textContent = foldersError ? core.errorText(t, foldersError) : '';
+            organization.querySelector('[data-ed-folders-manage]').disabled = !mayChange();
+        }
+        function metadataMarkup(flow) {
+            if (!hasOrganization) return '';
+            const meta = metadataOf(flow), folder = folderMap.get(meta.folder_id), tags = meta.tags || [];
+            const parts = (meta.folder_id ? [folder ? folder.name : t('easydrag.ui.folder_missing')] : []).concat(tags);
+            return !parts.length ? '' : '<p class="ed-flow-organization" title="' + esc(parts.join(' · ')) + '">' + esc(parts.slice(0, 3).join(' · ') + (parts.length > 3 ? ' …' : '')) + '</p>';
         }
 
         function libraryControls() {
@@ -148,6 +191,7 @@
 
         async function saveFilter() {
             if (gone || loadError) return;
+            if (organizationTag && !tagSet.has(organizationTag)) { ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.tags_missing'), type: 'error' }); return; }
             searchUpdate.cancel();
             const input = await ctx.promptDialog(t('easydrag.ui.library_filter_save'), '');
             if (input == null || gone || loadError) return;
@@ -158,6 +202,8 @@
                 const previous = next.filters.find(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
                 if (!previous && next.filters.length >= 20) { ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.library_preferences_limit'), type: 'error' }); return false; }
                 const item = { id: previous ? previous.id : core.randomID('filter_', 10), name, query, filter, sort: sortBy, favorites: favoritesOnly };
+                if (organizationFolder) item.folder = organizationFolder;
+                if (organizationTag) item.tag = organizationTag;
                 if (previous) next.filters.splice(next.filters.indexOf(previous), 1, item); else next.filters.push(item);
                 selectedFilter = item.id;
             });
@@ -194,6 +240,9 @@
         function visibleFlows() {
             const q = query.trim().toLowerCase();
             const list = flows.filter(f => {
+                const organization = metadataOf(f);
+                if (organizationFolder === ':none' && organization.folder_id || organizationFolder && organizationFolder !== ':none' && organization.folder_id !== organizationFolder) return false;
+                if (organizationTag && !(organization.tags || []).includes(organizationTag)) return false;
                 if (favoritesOnly && !prefs.favorites.includes(f.id)) return false;
                 // Names, descriptions and trigger labels already on the card. No catalog refetch.
                 if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q) &&
@@ -298,7 +347,7 @@
         function noMatchCard() {
             let actions = '';
             if (query.trim()) actions += '<button type="button" class="ed-btn" data-ed-home-clear-search>' + esc(t('easydrag.ui.home_clear_search')) + '</button>';
-            if (filter !== 'all' || favoritesOnly) actions += '<button type="button" class="ed-btn" data-ed-home-clear-filter>' + esc(t('easydrag.ui.home_clear_filter')) + '</button>';
+            if (filter !== 'all' || favoritesOnly || organizationFolder || organizationTag) actions += '<button type="button" class="ed-btn" data-ed-home-clear-filter>' + esc(t('easydrag.ui.home_clear_filter')) + '</button>';
             return '<div class="ed-home-empty"><p class="ed-hint">' + esc(t('easydrag.ui.home_no_match')) + '</p><div class="ed-empty-actions">' + actions + '</div></div>';
         }
 
@@ -325,6 +374,7 @@
 
         function render() {
             libraryControls();
+            organizationControls();
             const list = visibleFlows();
             const off = createOff();
             const banner = (!loadError && staleError ? staleBanner() : '') + (!loadError ? timersBanner() : '');
@@ -342,7 +392,7 @@
                     '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(cardName(f)) + '">' +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
-                    '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
+                    '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div>' + metadataMarkup(f) + '</div>' +
                     '<div class="ed-flow-card-actions">' +
                     '<button type="button" class="ed-icon-btn ed-flow-favorite" data-ed-favorite="' + esc(f.id) + '" aria-pressed="' + prefs.favorites.includes(f.id) + '" aria-label="' + esc(t(prefs.favorites.includes(f.id) ? 'easydrag.ui.library_favorite_remove' : 'easydrag.ui.library_favorite_add', { name: f.name })) + '" title="' + esc(t(prefs.favorites.includes(f.id) ? 'easydrag.ui.library_favorite_remove' : 'easydrag.ui.library_favorite_add', { name: f.name })) + '">' + core.icon('star') + '</button>' +
                     (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.home_active_named', { name: f.name })) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
@@ -384,13 +434,18 @@
         async function reload() {
             reloadSoon.cancel();
             const mine = ++loadSeq;
-            const [listAnswer, tplAnswer] = await Promise.allSettled([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
+            const [listAnswer, tplAnswer, folderAnswer] = await Promise.allSettled([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates(), hasOrganization ? app.api.folders() : Promise.resolve({ folders: [] })]);
             if (mine !== loadSeq) return;
+            if (folderAnswer.status === 'rejected' && (Number(folderAnswer.reason?.status) === 401 || Number(folderAnswer.reason?.status) === 403)) {
+                metadataEnv().onAuthLost(folderAnswer.reason);
+                return;
+            }
             if (listAnswer.status === 'rejected') {
                 const err = listAnswer.reason;
                 // A refresh that fails keeps the last authoritative list and blocks changes.
                 // The first load, FLOWS_DISABLED and a lost session do not keep protected cards.
                 if (authLoss(err)) {
+                    folders = [];
                     flows = [];
                     templates = [];
                     templateError = null;
@@ -406,6 +461,7 @@
                     staleError = err;
                     loadError = null;
                 }
+                cacheOrganization();
                 render();
                 reportLoaded();
                 return;
@@ -415,6 +471,9 @@
             staleError = null;
             listed = true;
             flows = list.flows || [];
+            if (folderAnswer.status === 'fulfilled') { folders = folderAnswer.value.folders || []; foldersError = null; }
+            else { foldersError = folderAnswer.reason; if (authLoss(foldersError)) folders = []; }
+            cacheOrganization();
             timersRunning = list.timers_running !== false;
             if (tplAnswer.status === 'fulfilled') {
                 templates = (tplAnswer.value && tplAnswer.value.templates) || [];
@@ -590,6 +649,7 @@
             const why = blockReason();
             ctx.showContextMenu(x, y, [
                 { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => app.openFlow(f.id) },
+                ...(hasOrganization ? [{ icon: 'folder', label: t('easydrag.ui.organize'), disabled: locked, disabledHint: why, action: () => ED.metadata.organization(metadataEnv(), f.id, reload) }] : []),
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: locked || !f.published || paused || runsPending.has(f.id), disabledHint: why || (paused && !app.readonly ? t('easydrag.ui.error_flow_disabled') : ''), action: () => runNow(f) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: locked, disabledHint: why, action: () => duplicate(f.id) },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: () => download(f.id, f.name) },
@@ -624,6 +684,7 @@
 
         function clearFilter() {
             selectedFilter = ''; favoritesOnly = false;
+            organizationFolder = ''; organizationTag = '';
             filter = 'all';
             core.storage.set(FILTER_KEY, filter);
             el.querySelectorAll('[data-ed-filter]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.edFilter === 'all')));
@@ -692,6 +753,7 @@
             if (!saved) return;
             searchUpdate.cancel();
             query = saved.query; filter = saved.filter; sortBy = saved.sort; favoritesOnly = saved.favorites;
+            organizationFolder = saved.folder || ''; organizationTag = saved.tag || '';
             el.querySelector('[data-ed-home-search]').value = query;
             el.querySelector('[data-ed-home-sort]').value = sortBy;
             el.querySelectorAll('[data-ed-filter]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.edFilter === filter)));
@@ -728,6 +790,7 @@
         });
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
+            if (d.reason === 'version_note') return;
             // A flow deleted elsewhere leaves nothing behind in this browser either.
             if (d.reason === 'deleted' && d.flow_id) core.forgetFlow(d.flow_id);
             if (d.reason === 'saved' || d.reason === 'run_finished') reloadSoon(); else reload();
@@ -736,17 +799,26 @@
         function refreshPreferences() {
             if (volatilePrefs) return;
             prefs = preferences(core.storage.get(LIBRARY_KEY, {}));
-            if (!prefs.filters.some(item => item.id === selectedFilter && item.query === query && item.filter === filter && item.sort === sortBy && item.favorites === favoritesOnly)) selectedFilter = '';
+            if (!prefs.filters.some(item => item.id === selectedFilter && item.query === query && item.filter === filter && item.sort === sortBy && item.favorites === favoritesOnly && (item.folder || '') === organizationFolder && (item.tag || '') === organizationTag)) selectedFilter = '';
             render();
         }
         bag.add(libraryChanges.on('change', owner => { if (owner !== el) refreshPreferences(); }));
         bag.listen(window, 'storage', event => {
             if (event.key === LIBRARY_KEY || event.key === null) refreshPreferences();
         });
+        if (organization) {
+            const frame = core.frame(organizationControls); bag.add(() => frame.cancel());
+            bag.listen(organization.querySelector('[data-ed-folder-filter]'), 'change', event => { organizationFolder = event.target.value; selectedFilter = ''; render(); });
+            bag.listen(organization.querySelector('[data-ed-tag-filter]'), 'change', event => { if (event.target.value === '' || event.target.value.startsWith('tag:')) organizationTag = event.target.value ? event.target.value.slice(4) : ''; selectedFilter = ''; render(); });
+            bag.listen(organization.querySelector('[data-ed-folder-filter]'), 'blur', () => frame.request());
+            bag.listen(organization.querySelector('[data-ed-tag-filter]'), 'blur', () => frame.request());
+            bag.listen(organization.querySelector('[data-ed-folders-manage]'), 'click', () => ED.metadata.folders(metadataEnv(), rows => { folders = rows; cacheOrganization(); render(); }));
+        }
 
+        cacheOrganization();
         render();
         reload();
-        return { el, reload, createOff, dispose() { gone = true; bag.dispose(); el.remove(); } };
+        return { el, reload, createOff, dispose() { gone = true; if (ED.metadata) ED.metadata.dispose(el); bag.dispose(); el.remove(); } };
     }
 
     ED.home = { create, previewSVG };

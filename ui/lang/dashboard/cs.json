@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Propojení mise s flow opraveno",
   "dashboard.audit_type_flow_block_create": "Blok toku vytvořen",
   "dashboard.audit_type_flow_block_publish": "Blok toku publikován",
-  "dashboard.audit_type_flow_block_delete": "Blok toku odstraněn"
+  "dashboard.audit_type_flow_block_delete": "Blok toku odstraněn",
+  "dashboard.audit_type_flow_library_change": "Změna knihovny EasyDrag",
+  "dashboard.audit_type_flow_version_note": "Poznámka k verzi EasyDrag"
 }

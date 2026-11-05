@@ -613,6 +613,7 @@
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
+                ...(ED.metadata ? [{ icon: 'folder', label: t('easydrag.ui.organize'), disabled: ro, action: () => ED.metadata.organization(Object.assign({}, ed, { readonly: ro, canWrite: () => !disposed && !ed.readonly && !ed.runView }), ed.flow.id) }] : []),
                 { icon: 'sparkles', label: t('easydrag.ui.authoring_title'), disabled: ro || runs.isRunning() || !authoring, action: () => authoring && authoring.open() },
                 ...(ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') ? [{ icon: 'link', label: t('easydrag.ui.repair_mission'), disabled: ro, action: repairMission }] : []),
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
@@ -1007,6 +1008,7 @@
             if (disposed) return;
             disposed = true;
             const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
+            safely(() => { if (ED.metadata) ED.metadata.dispose(el); });
             safely(() => ED.detail.close(ed));
             safely(() => ED.palette.closeQuickAdd(ed));
             safely(() => { if (interact) interact.dispose(); });

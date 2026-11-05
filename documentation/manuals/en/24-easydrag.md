@@ -36,6 +36,15 @@ device and are excluded from flow exports. If the browser refuses storage, EasyD
 tells you and keeps the choices only until the window closes. Other open EasyDrag windows
 in the same browser follow the change. Clearing browser storage removes these preferences.
 
+**Folders and tags** organizes normal flows on AuraGo across devices. Use a flow's **⋯ →
+Folder and tags**, choose one folder and enter up to 16 tags. Tags distinguish upper and
+lower case. **Manage folders** creates or renames flat folders; move their flows before
+deleting an occupied folder. Folder and tag filters can also be included in a saved local
+filter. Organization does not change the flow, its published version or its test results.
+If another window saved first, your input stays visible; **Reload stored values** asks before
+discarding it. Hidden tags remain on the server during a folder move. **Replace hidden
+content** starts a fresh tag list. Keep secrets out of these names and tags.
+
 For a first result without an account, choose **Your first local result** in the recipe
 gallery. Its three steps read a sample name, make a greeting and check that the name
 is present. Open the greeting step's output after testing. Recipe search and category
@@ -207,6 +216,16 @@ The review includes named step and parameter changes, with before/after values w
 safe, and the test evidence for the exact draft in this editor. A later edit invalidates
 that evidence. Credentials remain hidden and large comparisons may be marked as partial;
 a successful test does not guarantee that a future live action will succeed.
+
+Add an optional **Version note** when publishing a new flow or block version. The note is
+saved with that version. **Version history** offers **Read note** and **Edit note** separately;
+an empty saved note removes its text. Editing a note changes no draft, published graph or
+test result. Notes preserve whitespace and allow up to 2,048 characters and 4,096 UTF-8 bytes.
+Hidden notes require explicit replacement with fresh text. Keep secrets out of notes.
+If publication reports a Mission Control or timer problem, the version and its note are
+already saved. Publishing the same draft again keeps that note; use **Edit note** to change it.
+Conflicts retain your input and never automatically repeat a write. If saving is blocked,
+the dialog retains your text while read access remains available; reopen after access is restored.
 
 - The publish dialog lists blocking problems, what the flow does outside AuraGo, data from outside that reaches sensitive steps, hints and the changes since the last publication. With blocking problems it can only be closed; a click on a problem opens its step.
 - **Version history** (⋯ menu or the *Flow* menu) lists the published versions, newest first, with their date, number of steps and connections, and *Live* on the version that runs. **Restore as draft** replaces your draft with that version after a question; the live version stays until you publish. A draft that cannot be saved first (offline, invalid) is not replaced. EasyDrag keeps the last 50 published versions; the run view of an older run whose version was cleaned up says so.

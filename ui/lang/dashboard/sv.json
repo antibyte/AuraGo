@@ -1156,5 +1156,7 @@
   "dashboard.audit_type_flow_mission_repair": "Flödets uppdragskoppling reparerad",
   "dashboard.audit_type_flow_block_create": "Flödesblock skapat",
   "dashboard.audit_type_flow_block_publish": "Flödesblock publicerat",
-  "dashboard.audit_type_flow_block_delete": "Flödesblock borttaget"
+  "dashboard.audit_type_flow_block_delete": "Flödesblock borttaget",
+  "dashboard.audit_type_flow_library_change": "EasyDrag-bibliotek ändrat",
+  "dashboard.audit_type_flow_version_note": "EasyDrag-versionsanteckning"
 }

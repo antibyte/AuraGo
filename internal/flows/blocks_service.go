@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf8"
 )
 
 // ErrBlockInUse means a published parent or retained run pins this block.
@@ -145,11 +146,22 @@ func (s *Service) BlockPublishPreview(ctx context.Context, id string) (*BlockPre
 		issues = []Issue{}
 	}
 	contract, _ := BlockDraftContract(rec.Draft)
-	return &BlockPreview{PublishPreview: PublishPreview{DraftRevision: rec.DraftRevision, Issues: issues, Effects: []EffectSummary{}, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, Contract: contract}, nil
+	return &BlockPreview{PublishPreview: PublishPreview{DraftRevision: rec.DraftRevision, LiveRevision: rec.LiveRevision, PublishedDraftRevision: rec.PublishedDraftRevision, Issues: issues, Effects: []EffectSummary{}, Diff: DiffFlows(rec.Live, rec.Draft), CanPublish: !HasErrors(issues)}, Contract: contract}, nil
 }
 
 // PublishBlock publishes a validated block without creating a mission or timer.
 func (s *Service) PublishBlock(ctx context.Context, id string, baseRevision int) (*FlowRecord, []Issue, error) {
+	return s.PublishBlockWithNote(ctx, id, baseRevision, nil)
+}
+
+func (s *Service) PublishBlockWithNote(ctx context.Context, id string, baseRevision int, note *string) (*FlowRecord, []Issue, error) {
+	if note != nil {
+		copy := *note
+		if err := libraryText(copy, 2048, 4096, true); err != nil {
+			return nil, nil, err
+		}
+		note = &copy
+	}
 	unlock, err := s.locks.lock(ctx, id)
 	if err != nil {
 		return nil, nil, err
@@ -166,7 +178,7 @@ func (s *Service) PublishBlock(ctx context.Context, id string, baseRevision int)
 	if HasErrors(issues) {
 		return nil, issues, &ValidationError{Issues: issues}
 	}
-	result, err := s.store.publishKind(ctx, id, baseRevision, s.now(), KindBlock)
+	result, err := s.store.publishKindWithBlocksNote(ctx, id, baseRevision, s.now(), KindBlock, nil, note)
 	return result, issues, err
 }
 
@@ -184,13 +196,14 @@ func (s *Service) BlockVersions(ctx context.Context, id string, beforeRevision, 
 	if _, err := s.GetBlock(ctx, id); err != nil {
 		return nil, err
 	}
-	rows, err := s.store.db.QueryContext(ctx, `SELECT revision,published_at,
-		CASE WHEN length(CAST(json AS BLOB))<=? AND json_valid(json) THEN
-			COALESCE(json_type(json,'$.id')='text' AND json_extract(json,'$.id')=flow_id AND json_extract(json,'$.kind')='block'
-			AND json_type(json,'$.schema')='integer' AND json_extract(json,'$.schema')=?,0) ELSE 0 END,
-		CASE WHEN length(CAST(json AS BLOB))<=? AND json_valid(json) THEN COALESCE(json_array_length(json,'$.nodes'),0) ELSE 0 END,
-		CASE WHEN length(CAST(json AS BLOB))<=? AND json_valid(json) THEN COALESCE(json_array_length(json,'$.edges'),0) ELSE 0 END
-		FROM flow_versions WHERE flow_id=? AND (?=0 OR revision<?) ORDER BY revision DESC LIMIT ?`,
+	rows, err := s.store.db.QueryContext(ctx, `SELECT v.revision,v.published_at,
+		CASE WHEN length(CAST(v.json AS BLOB))<=? AND json_valid(v.json) THEN
+			COALESCE(json_type(v.json,'$.id')='text' AND json_extract(v.json,'$.id')=v.flow_id AND json_extract(v.json,'$.kind')='block'
+			AND json_type(v.json,'$.schema')='integer' AND json_extract(v.json,'$.schema')=?,0) ELSE 0 END,
+		CASE WHEN length(CAST(v.json AS BLOB))<=? AND json_valid(v.json) THEN COALESCE(json_array_length(v.json,'$.nodes'),0) ELSE 0 END,
+		CASE WHEN length(CAST(v.json AS BLOB))<=? AND json_valid(v.json) THEN COALESCE(json_array_length(v.json,'$.edges'),0) ELSE 0 END,
+		CASE WHEN length(CAST(COALESCE(n.note,'') AS BLOB))<=4096 THEN COALESCE(n.note,'') ELSE NULL END,COALESCE(n.note_revision,0)
+		FROM flow_versions v LEFT JOIN flow_version_notes n ON n.flow_id=v.flow_id AND n.revision=v.revision WHERE v.flow_id=? AND (?=0 OR v.revision<?) ORDER BY v.revision DESC LIMIT ?`,
 		MaxDocumentBytes, SchemaVersion, MaxDocumentBytes, MaxDocumentBytes, id, beforeRevision, beforeRevision, limit+1)
 	if err != nil {
 		return nil, err
@@ -201,7 +214,7 @@ func (s *Service) BlockVersions(ctx context.Context, id string, beforeRevision, 
 		var item FlowVersionSummary
 		var valid bool
 		var published string
-		if err := rows.Scan(&item.Revision, &published, &valid, &item.NodeCount, &item.EdgeCount); err != nil {
+		if err := rows.Scan(&item.Revision, &published, &valid, &item.NodeCount, &item.EdgeCount, &item.noteFull, &item.NoteRevision); err != nil {
 			return nil, err
 		}
 		if !valid || item.Revision <= 0 || item.Revision > math.MaxInt32 || item.NodeCount > MaxNodes || item.EdgeCount > MaxEdges {
@@ -212,6 +225,10 @@ func (s *Service) BlockVersions(ctx context.Context, id string, beforeRevision, 
 			break
 		}
 		item.PublishedAt = parseTime(published)
+		if !utf8.ValidString(item.noteFull) || utf8.RuneCountInString(item.noteFull) > 2048 || item.NoteRevision < 0 {
+			return nil, ErrLibraryInvalid
+		}
+		item.RefreshNotePrivacy()
 		page.Items = append(page.Items, item)
 	}
 	if err := rows.Err(); err != nil {

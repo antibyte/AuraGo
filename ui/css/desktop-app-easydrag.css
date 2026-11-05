@@ -1059,10 +1059,32 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-block-dependents { padding-left: 20px; overflow-wrap: anywhere; }
 .ed-app .ed-block-result dl { margin: 8px 0; }
 .ed-app .ed-block-result dd { margin: 3px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ed-app .ed-modal--metadata { width: min(720px, 100%); max-width: calc(100vw - 24px); }
+.ed-app .ed-modal--metadata .ed-modal-foot { flex-wrap: wrap; }
+.ed-app .ed-modal--metadata .ed-btn { max-width: 100%; white-space: normal; }
+.ed-app .ed-modal--metadata .ed-label { display: grid; gap: 7px; margin: 12px 0; }
+.ed-app .ed-library-organization { margin: 12px 0 18px; }
+.ed-app .ed-library-organization-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding-top: 12px; }
+.ed-app .ed-library-organization-controls .ed-label { flex: 1 1 180px; min-width: 0; }
+.ed-app .ed-flow-organization { font-size: 12px; color: var(--ed-muted); overflow-wrap: anywhere; margin: 7px 0 0; }
+.ed-app .ed-metadata-tag-add { display: flex; gap: 8px; margin-top: 10px; }
+.ed-app .ed-metadata-tag-add input { flex: 1 1 auto; min-width: 0; }
+.ed-app .ed-folder-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--ed-border); }
+.ed-app .ed-folder-row > div { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.ed-app .ed-folder-row p { margin: 4px 0 0; }
+.ed-app .ed-note-text, .ed-app .ed-note-preview { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ed-app .ed-version-note { order: 3; flex: 1 1 100%; min-width: 0; padding-top: 8px; }
+.ed-app .ed-version-note p { margin: 0 0 8px; }
+.ed-app .ed-block-version-row { padding: 10px 0; border-bottom: 1px solid var(--ed-border); }
+.ed-app .ed-block-version-row > .ed-btn { width: 100%; justify-content: flex-start; }
+.ed-app .ed-publication-note { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ed-border); }
 @container (max-width: 760px) {
     .ed-app .ed-block-field { grid-template-columns: minmax(0, 1fr); }
     .ed-app .ed-block-field button, .ed-app .ed-block-field input:not([type="checkbox"]), .ed-app .ed-block-field select,
     .ed-app .ed-block-call button, .ed-app .ed-block-call select, .ed-app .ed-modal--block button, .ed-app .ed-modal--block select { min-height: 44px; }
+    .ed-app .ed-modal--metadata button, .ed-app .ed-modal--metadata input, .ed-app .ed-modal--metadata select,
+    .ed-app .ed-library-organization button, .ed-app .ed-library-organization select { min-height: 44px; }
+    .ed-app .ed-library-organization-controls { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 .ed-app .ed-modal--transform code { overflow-wrap: anywhere; white-space: normal; }
 .ed-app .ed-transform-context { margin: 8px 0 12px; }

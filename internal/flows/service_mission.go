@@ -111,6 +111,17 @@ func (l *flowLocks) drop(id string, fl *flowLock) {
 // run would start the next one. Longer loops are stopped at run time by Mission Control's
 // chain depth (maxCompletionChainDepth in internal/tools).
 func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*FlowRecord, []Issue, error) {
+	return s.PublishWithNote(ctx, id, baseRevision, nil)
+}
+
+func (s *Service) PublishWithNote(ctx context.Context, id string, baseRevision int, note *string) (*FlowRecord, []Issue, error) {
+	if note != nil {
+		copy := *note
+		if err := libraryText(copy, 2048, 4096, true); err != nil {
+			return nil, nil, err
+		}
+		note = &copy
+	}
 	unlock, err := s.locks.lock(ctx, id)
 	if err != nil {
 		return nil, nil, err
@@ -142,7 +153,7 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 	if plan != nil {
 		blocks = plan.blocks
 	}
-	pub, err := s.store.publishKindWithBlocks(ctx, id, baseRevision, now, KindFlow, blocks)
+	pub, err := s.store.publishKindWithBlocksNote(ctx, id, baseRevision, now, KindFlow, blocks, note)
 	if err != nil {
 		return nil, issues, err
 	}

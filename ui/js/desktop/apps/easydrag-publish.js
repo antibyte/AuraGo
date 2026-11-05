@@ -14,6 +14,7 @@
         let opener = null;
         let seq = 0;
         let dialogBusy = false;
+        const noteViews = new Set();
 
         // refreshIssues checks the draft (ed.draftModel), never a stored run's document: while the
         // run view shows one it waits, and leaving the run view checks again (exitRunView). An
@@ -150,7 +151,7 @@
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: core.errorText(t, err), type: 'error' });
                 return;
             }
-            if (ed.isBlock && (ed.readonly || !ed.root.isConnected || ed.model.version !== reviewedModelVersion || preview.draft_revision !== reviewedRevision)) return;
+            if (ed.readonly || ed.runView || ed.root.isConnected === false || ed.model.version !== reviewedModelVersion || ((ed.isBlock || Number.isInteger(preview.draft_revision)) && preview.draft_revision !== reviewedRevision)) return;
             ed.issues = preview.issues || [];
             ed.bus.emit('issues', ed.issues);
             const errors = ed.issues.filter(is => is.severity === 'error');
@@ -186,6 +187,8 @@
             const exactTest = evidence && Number.isInteger(preview.draft_revision) && Number(evidence.revision) === preview.draft_revision && !(ed.saver && ed.saver.isDirty());
             body += '<section class="ed-publish-evidence"><h4>' + esc(t('easydrag.ui.publish_tested_revision')) + '</h4><p>' + esc(exactTest ? (evidence.mode === 'simulation' ? t('easydrag.ui.simulation_title') : t('easydrag.ui.real_test')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + evidence.status, evidence.status) : t('easydrag.ui.publish_not_tested')) + '</p></section>';
             if (!ed.isBlock && !enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate' + (ed.flow.live ? '' : ' checked') + '> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
+            const note = !errors.length && ED.metadata ? ED.metadata.publicationNote(ed, preview) : null;
+            if (note) body += '<div data-ed-publication-note></div>';
             const dialog = core.modal(ed.root, {
                 title: t('easydrag.ui.publish_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--publish', body,
                 actions: errors.length
@@ -193,14 +196,16 @@
                     : [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'publish', label: t('easydrag.ui.publish'), primary: true, icon: 'rocket' }],
                 onAction: async (action, d) => {
                     if (action !== 'publish') return true;
-                    if (ed.isBlock && (ed.readonly || !ed.root.isConnected || ed.model.version !== reviewedModelVersion || ed.saver.revision !== reviewedRevision || ed.saver.isDirty())) {
+                    if (ed.readonly || ed.runView || ed.root.isConnected === false || ed.model.version !== reviewedModelVersion || (ed.saver && (ed.saver.revision !== reviewedRevision || ed.saver.isDirty()))) {
                         ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_unsaved'), type: 'error' });
                         return false;
                     }
+                    if (note && !note.flush()) return false;
                     const activate = d.body.querySelector('[data-ed-activate]');
-                    return publish(!!(activate && activate.checked));
+                    return publish(!!(activate && activate.checked), reviewedRevision, note ? note.value() : undefined);
                 }
             });
+            if (note) { noteViews.add(note); dialog.body.querySelector('[data-ed-publication-note]').appendChild(note.el); dialog.done.then(() => { noteViews.delete(note); note.dispose(); }); }
             dialog.el.addEventListener('click', (event) => {
                 const b = event.target.closest('[data-ed-issue]');
                 if (!b) return;
@@ -215,9 +220,9 @@
         // publish makes the saved draft live. A partial answer (200 with partial: true) is live too,
         // but Mission Control or the timers were not updated: ed.publishIncomplete keeps its code
         // until a full publish, so the editor keeps offering Publish, and "activate now" waits.
-        async function publish(activate) {
+        async function publish(activate, revision, note) {
             try {
-                const res = await ed.api.publish(ed.flow.id, ed.saver ? ed.saver.revision : ed.flow.draft_revision);
+                const res = await ed.api.publish(ed.flow.id, revision === undefined ? (ed.saver ? ed.saver.revision : ed.flow.draft_revision) : revision, note);
                 ed.flow = res.flow;
                 if (res.partial) {
                     ed.publishIncomplete = res.code || 'FLOW_PUBLISH_INCOMPLETE';
@@ -272,7 +277,7 @@
             const versions = (data && data.versions) || [];
             const liveRev = Number(data && data.live_revision) || 0;
             const ro = !!(ed.readonly || ed.runView);
-            const body = !versions.length
+            const markup = () => !versions.length
                 ? '<p class="ed-hint">' + esc(t('easydrag.ui.versions_empty')) + '</p>'
                 : '<div class="ed-versions-list">' + versions.map(v => {
                     const isLive = Number(v.revision) === liveRev;
@@ -281,15 +286,16 @@
                         (isLive ? ' <span class="ed-chip ed-chip--live">' + esc(t('easydrag.ui.versions_live')) + '</span>' : '') +
                         '<span class="ed-muted">' + esc(core.fmt.dateTime(v.published_at)) + ' · ' +
                         esc(t('easydrag.ui.versions_stats', { nodes: v.node_count || 0, edges: v.edge_count || 0 })) + '</span></div>' +
-                        (!ro ? '<button type="button" class="ed-btn ed-btn--small" data-ed-restore-rev="' + esc(v.revision) + '">' +
+                        (ED.metadata ? ED.metadata.noteMarkup(ed, v) : '') + (!ro ? '<button type="button" class="ed-btn ed-btn--small" data-ed-restore-rev="' + esc(v.revision) + '">' +
                             core.icon('history') + '<span>' + esc(t('easydrag.ui.versions_restore')) + '</span></button>' : '') +
                         '</div>';
                 }).join('') + '</div>';
             const dialog = core.modal(ed.root, {
                 title: t('easydrag.ui.versions_title'), closeLabel: t('easydrag.ui.close'),
-                body,
+                body: markup(),
                 actions: [{ id: 'close-dialog', label: t('easydrag.ui.close') }]
             });
+            if (ED.metadata) ED.metadata.bindNotes(ed, dialog, versions, () => { dialog.body.innerHTML = markup(); });
             dialog.el.addEventListener('click', async (event) => {
                 const b = event.target.closest('[data-ed-restore-rev]');
                 if (!b || b.disabled) return;
@@ -321,7 +327,7 @@
         }
 
         // Dispose drops a validation in flight (seq) along with the pending one.
-        bag.add(() => { seq++; refreshIssues.cancel(); closeIssues(); });
+        bag.add(() => { seq++; refreshIssues.cancel(); closeIssues(); noteViews.forEach(note => note.dispose()); noteViews.clear(); });
 
         return { refreshIssues, openIssues, closeIssues, openDialog, openVersions, publish, setActive, focusIssue, partialText, dispose() { bag.dispose(); } };
     }
