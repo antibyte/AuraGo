@@ -263,7 +263,7 @@ func TestIngestRestartsWithSoftwareWhenTheHardwareEncoderFails(t *testing.T) {
 	if outcome != FrameDone {
 		t.Fatalf("last outcome = %v", outcome)
 	}
-	if err := soft.Wait(context.Background()); err != nil {
+	if err := soft.Wait(context.Background(), postEncodeMinLimit); err != nil {
 		t.Fatalf("software encode: %v", err)
 	}
 	doc := ffprobeFile(t, ffprobe, base.Output)

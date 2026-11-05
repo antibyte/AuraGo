@@ -507,7 +507,13 @@ func (run *renderRun) finish(ctx context.Context) (Output, error) {
 	if ff == nil {
 		return Output{}, Fail(CodeRenderFailed, "The encoder is missing.")
 	}
-	if err := ff.Wait(ctx); err != nil {
+	// The file is nearly complete here. What is left is the encoder's tail and the +faststart rewrite of all of it.
+	// A failed stat leaves the 120 s floor, and the check below reports a missing file.
+	var written int64
+	if partial, err := os.Stat(run.output); err == nil {
+		written = partial.Size()
+	}
+	if err := ff.Wait(ctx, postEncodeLimit(written)); err != nil {
 		if ctx.Err() != nil {
 			return Output{}, ctx.Err()
 		}
@@ -519,6 +525,16 @@ func (run *renderRun) finish(ctx context.Context) (Output, error) {
 	}
 	if info.Size() > maxOutputBytes {
 		return Output{}, Fail(CodeRenderFailed, "The video is larger than %d GB.", maxOutputBytes>>30)
+	}
+	probe, err := ProbeOutput(ctx, run.st.FFprobePath, run.output, postEncodeLimit(info.Size()))
+	if err != nil {
+		if ctx.Err() != nil {
+			return Output{}, ctx.Err()
+		}
+		return Output{}, Fail(CodeRenderFailed, "The video could not be checked: %v", err)
+	}
+	if err := CheckOutput(probe, run.report.FrameCount); err != nil {
+		return Output{}, Fail(CodeRenderFailed, "The video failed the frame check: %v", err)
 	}
 
 	h.SetPhase(PhaseWriting)

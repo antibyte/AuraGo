@@ -17,7 +17,6 @@ import (
 
 const (
 	ffmpegWriteTimeout = 30 * time.Second
-	ffmpegWaitAfterEnd = 120 * time.Second
 	ffmpegStderrKeep   = 8 << 10
 	// hardwareSettle is how long a hardware encoder gets after the first frame to fail: FFmpeg opens the
 	// encoder only once it has seen a frame, and a failure must surface before the page renders on.
@@ -208,9 +207,9 @@ func (f *FFmpeg) Finish() error {
 
 func (f *FFmpeg) closeStdin() { f.stdinOnce.Do(func() { _ = f.stdin.Close() }) }
 
-// Wait waits for the process to end after Finish and returns its error with FFmpeg's message.
-func (f *FFmpeg) Wait(ctx context.Context) error {
-	timer := time.NewTimer(ffmpegWaitAfterEnd)
+// Wait waits at most limit for the process to end after Finish and returns its error with FFmpeg's message.
+func (f *FFmpeg) Wait(ctx context.Context, limit time.Duration) error {
+	timer := time.NewTimer(limit)
 	defer timer.Stop()
 	select {
 	case <-f.done:

@@ -59,7 +59,7 @@ func encodeFrames(t *testing.T, cfg FFmpegConfig, frames [][]byte) (*FFmpeg, err
 		}
 	}
 	_ = ff.Finish()
-	return ff, ff.Wait(context.Background())
+	return ff, ff.Wait(context.Background(), postEncodeMinLimit)
 }
 
 func TestFFmpegEncodesPNGFramesToMP4WithBT709AndSilentAAC(t *testing.T) {
