@@ -20,11 +20,11 @@
   "config.flows.max_parallel_nodes_per_run_help": "单次运行中可并行执行多少个步骤（1 到 16，默认 4）。",
   "config.flows.max_runs_per_flow_help": "每个流程保留多少次已完成的运行，更早的会被删除（10 到 5000，默认 200）。",
   "config.flows.run_retention_days_help": "运行记录在这么多天后会被删除（1 到 365，默认 30）。",
-  "config.flows.durable_available": "恢复服务已就绪",
-  "config.flows.durable_configured": "已保存的选项",
-  "config.flows.durable_counts": "等待中：{{waiting}} · 运行中：{{running}} · 已阻止：{{blocked}}",
-  "config.flows.durable_effective": "处理已启用",
   "config.flows.durable_enabled": "重启后恢复本地运行",
   "config.flows.durable_enabled_help": "默认关闭。仅支持纯本地手动流程和已保存的等待。启用需要重启；关闭立即生效，并保留已保存的运行。不支持工具、模型、积木和批处理。",
-  "config.flows.durable_observed": "观测到的恢复状态"
+  "config.flows.durable_observed": "观测到的恢复状态",
+  "config.flows.durable_configured": "已保存的选项",
+  "config.flows.durable_effective": "处理已启用",
+  "config.flows.durable_available": "恢复服务已就绪",
+  "config.flows.durable_counts": "等待中：{{waiting}} · 运行中：{{running}} · 已阻止：{{blocked}}"
 }

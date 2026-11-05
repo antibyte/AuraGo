@@ -20,11 +20,11 @@
   "config.flows.max_parallel_nodes_per_run_help": "1 回の実行で並列に処理できるステップ数です (1 ～ 16、デフォルト 4)。",
   "config.flows.max_runs_per_flow_help": "フローごとに保持する完了済みの実行数です。古いものは削除されます (10 ～ 5000、デフォルト 200)。",
   "config.flows.run_retention_days_help": "実行の履歴は、この日数が経過すると削除されます (1 ～ 365、デフォルト 30)。",
-  "config.flows.durable_available": "再開サービスの準備完了",
-  "config.flows.durable_configured": "保存済みの設定",
-  "config.flows.durable_counts": "待機中: {{waiting}} · 実行中: {{running}} · ブロック中: {{blocked}}",
-  "config.flows.durable_effective": "処理が有効",
   "config.flows.durable_enabled": "再起動後にローカル実行を再開",
   "config.flows.durable_enabled_help": "初期設定では無効です。純粋なローカルの手動フローと保存された待機のみ対応します。有効化には再起動が必要です。無効化はすぐに反映され、保存済みの実行は保持されます。ツール、モデル、ブロック、バッチは対象外です。",
-  "config.flows.durable_observed": "確認された再開状態"
+  "config.flows.durable_observed": "確認された再開状態",
+  "config.flows.durable_configured": "保存済みの設定",
+  "config.flows.durable_effective": "処理が有効",
+  "config.flows.durable_available": "再開サービスの準備完了",
+  "config.flows.durable_counts": "待機中: {{waiting}} · 実行中: {{running}} · ブロック中: {{blocked}}"
 }

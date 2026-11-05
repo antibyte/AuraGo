@@ -20,11 +20,11 @@
   "config.flows.max_parallel_runs_help": "Kolik běhů flow může probíhat současně (1 až 32, výchozí 8). Další čekají.",
   "config.flows.max_runs_per_flow_help": "Kolik dokončených běhů se uchovává na flow; starší se mažou (10 až 5000, výchozí 200).",
   "config.flows.run_retention_days_help": "Historie běhu se smaže po tolika dnech (1 až 365, výchozí 30).",
-  "config.flows.durable_available": "Služba obnovení připravena",
-  "config.flows.durable_configured": "Uložená volba",
-  "config.flows.durable_counts": "Čekající běhy: {{waiting}} · Aktivní běhy: {{running}} · Blokované běhy: {{blocked}}",
-  "config.flows.durable_effective": "Zpracování zapnuto",
   "config.flows.durable_enabled": "Pokračovat v místních bězích po restartu",
   "config.flows.durable_enabled_help": "Ve výchozím stavu vypnuto. Podporuje jen čistě místní ruční toky a uložená čekání. Zapnutí vyžaduje restart; vypnutí platí ihned a zachová uložené běhy. Nástroje, modely, bloky a dávky nejsou podporovány.",
-  "config.flows.durable_observed": "Zjištěný stav obnovení"
+  "config.flows.durable_observed": "Zjištěný stav obnovení",
+  "config.flows.durable_configured": "Uložená volba",
+  "config.flows.durable_effective": "Zpracování zapnuto",
+  "config.flows.durable_available": "Služba obnovení připravena",
+  "config.flows.durable_counts": "Čekající běhy: {{waiting}} · Aktivní běhy: {{running}} · Blokované běhy: {{blocked}}"
 }

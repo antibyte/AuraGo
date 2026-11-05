@@ -20,11 +20,11 @@
   "config.flows.max_parallel_nodes_per_run_help": "Quantas etapas de uma execução podem rodar em paralelo (1 a 16, padrão 4).",
   "config.flows.max_runs_per_flow_help": "Quantas execuções concluídas são mantidas por fluxo; as mais antigas são excluídas (10 a 5000, padrão 200).",
   "config.flows.run_retention_days_help": "O histórico de uma execução é excluído após este número de dias (1 a 365, padrão 30).",
-  "config.flows.durable_available": "Serviço de retomada pronto",
-  "config.flows.durable_configured": "Opção salva",
-  "config.flows.durable_counts": "Em espera: {{waiting}} · Ativas: {{running}} · Bloqueadas: {{blocked}}",
-  "config.flows.durable_effective": "Processamento ativado",
   "config.flows.durable_enabled": "Retomar execuções locais após reiniciar",
   "config.flows.durable_enabled_help": "Desativado por padrão. Suporta apenas fluxos manuais puramente locais e esperas salvas. A ativação exige reinicialização; a desativação é imediata e mantém as execuções salvas. Ferramentas, modelos, blocos e lotes ficam excluídos.",
-  "config.flows.durable_observed": "Estado de retomada observado"
+  "config.flows.durable_observed": "Estado de retomada observado",
+  "config.flows.durable_configured": "Opção salva",
+  "config.flows.durable_effective": "Processamento ativado",
+  "config.flows.durable_available": "Serviço de retomada pronto",
+  "config.flows.durable_counts": "Em espera: {{waiting}} · Ativas: {{running}} · Bloqueadas: {{blocked}}"
 }

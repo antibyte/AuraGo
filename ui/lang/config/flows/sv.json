@@ -20,11 +20,11 @@
   "config.flows.max_parallel_nodes_per_run_help": "Hur många steg i en körning som får köras parallellt (1 till 16, standard 4).",
   "config.flows.max_runs_per_flow_help": "Hur många avslutade körningar som sparas per flöde; äldre tas bort (10 till 5000, standard 200).",
   "config.flows.run_retention_days_help": "Historiken för en körning tas bort efter så här många dagar (1 till 365, standard 30).",
-  "config.flows.durable_available": "Återupptagningstjänsten är redo",
-  "config.flows.durable_configured": "Sparat val",
-  "config.flows.durable_counts": "Väntande: {{waiting}} · Aktiva: {{running}} · Blockerade: {{blocked}}",
-  "config.flows.durable_effective": "Bearbetning aktiverad",
   "config.flows.durable_enabled": "Återuppta lokala körningar efter omstart",
   "config.flows.durable_enabled_help": "Av som standard. Stöder endast helt lokala manuella flöden och sparade väntetider. Aktivering kräver omstart; avaktivering gäller direkt och bevarar sparade körningar. Verktyg, modeller, block och omgångar ingår inte.",
-  "config.flows.durable_observed": "Observerad återupptagningsstatus"
+  "config.flows.durable_observed": "Observerad återupptagningsstatus",
+  "config.flows.durable_configured": "Sparat val",
+  "config.flows.durable_effective": "Bearbetning aktiverad",
+  "config.flows.durable_available": "Återupptagningstjänsten är redo",
+  "config.flows.durable_counts": "Väntande: {{waiting}} · Aktiva: {{running}} · Blockerade: {{blocked}}"
 }

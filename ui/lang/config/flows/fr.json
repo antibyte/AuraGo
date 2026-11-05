@@ -20,11 +20,11 @@
   "config.flows.max_parallel_nodes_per_run_help": "Nombre d'étapes d'une même exécution pouvant s'exécuter en parallèle (1 à 16, 4 par défaut).",
   "config.flows.max_runs_per_flow_help": "Nombre d'exécutions terminées conservées par flux ; les plus anciennes sont supprimées (10 à 5000, 200 par défaut).",
   "config.flows.run_retention_days_help": "L'historique d'une exécution est supprimé après ce nombre de jours (1 à 365, 30 par défaut).",
-  "config.flows.durable_available": "Service de reprise prêt",
-  "config.flows.durable_configured": "Option enregistrée",
-  "config.flows.durable_counts": "Exécutions en attente : {{waiting}} · Actives : {{running}} · Bloquées : {{blocked}}",
-  "config.flows.durable_effective": "Traitement activé",
   "config.flows.durable_enabled": "Reprendre les exécutions locales après redémarrage",
   "config.flows.durable_enabled_help": "Désactivé par défaut. Prend uniquement en charge les flux manuels purement locaux et les attentes enregistrées. L’activation nécessite un redémarrage ; la désactivation est immédiate et conserve les exécutions enregistrées. Outils, modèles, blocs et lots sont exclus.",
-  "config.flows.durable_observed": "État de reprise observé"
+  "config.flows.durable_observed": "État de reprise observé",
+  "config.flows.durable_configured": "Option enregistrée",
+  "config.flows.durable_effective": "Traitement activé",
+  "config.flows.durable_available": "Service de reprise prêt",
+  "config.flows.durable_counts": "Exécutions en attente : {{waiting}} · Actives : {{running}} · Bloquées : {{blocked}}"
 }
