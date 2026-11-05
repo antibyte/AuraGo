@@ -172,11 +172,9 @@ func TestValidateNames(t *testing.T) {
 		// The phase 1 support matrix.
 		{"transition not played yet", `{"id":"s1","transition":"slide-right"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
 		{"transition zoom", `{"id":"s1","transition":"zoom"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
-		{"say beat", `{"id":"s1","actors":[{"cast":"anna"}],"beats":[{"do":"say","who":"anna","style":"speech","text":"Hi"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"sfx beat", `{"id":"s1","beats":[{"do":"sfx","sound":"sfx.pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"chart beat", `{"id":"s1","beats":[{"do":"chart","chart":"bar","data":{"labels":["a"],"values":[1]},"at":"right"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"show with icon", `{"id":"s1","beats":[{"do":"show","icon":"warning","at":"center","entry":"pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
-		{"cast speaker", `{"id":"s1","speaker":"anna"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/speaker"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -570,4 +568,54 @@ func TestValidateGlyphMissing(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestValidateSayAndSpeaker(t *testing.T) {
+	const bareSay = `{"do":"say","who":"anna","style":"speech"}`
+	stage := func(extra, beats string) string {
+		return `{"id":"s1",` + extra + `"actors":[{"cast":"anna"}],"beats":[` + beats + `]}`
+	}
+
+	// A say without text shows the narration of the scene speaker, so its who must be that speaker.
+	expectIssue(t, validateScenes(t, stage("", bareSay)), CodeInvalidValue, SeverityError, "/scenes/0/beats/0/who")
+	markerOnly := `{"do":"say","who":"anna","style":"speech","text":"{1} "}`
+	expectIssue(t, validateScenes(t, stage(`"speaker":"narrator",`, markerOnly)), CodeInvalidValue, SeverityError, "/scenes/0/beats/0/who")
+	if issues := validateScenes(t, stage(`"speaker":"anna",`, bareSay)); len(issues) != 0 {
+		t.Errorf("a say by the speaker:%s", dump(issues))
+	}
+
+	// In a silent scene it has no narration to show: a warning, never an error.
+	issues := validateScenes(t, stage(`"silent":true,`, bareSay))
+	expectIssue(t, issues, CodeInvalidValue, SeverityWarning, "/scenes/0/beats/0/text")
+	if is := findIssue(issues, CodeInvalidValue, SeverityError, "/scenes/0/beats/0/who"); is != nil {
+		t.Errorf("a silent scene must not block on who: %+v", is)
+	}
+
+	// The say text has the narration limit: DefaultLimits().MaxNarrationChars is 1500, so 1501 is one too many.
+	sayOf := func(n int) string {
+		return `{"do":"say","who":"anna","style":"speech","text":"` + strings.Repeat("a", n) + `"}`
+	}
+	expectIssue(t, validateScenes(t, stage("", sayOf(1501))), CodeLimitExceeded, SeverityError, "/scenes/0/beats/0/text")
+	if issues := validateScenes(t, stage("", sayOf(1500))); len(issues) != 0 {
+		t.Errorf("a say at the limit:%s", dump(issues))
+	}
+
+	// Off stage the speech still plays. Every other beat is still ignored.
+	off := expectIssue(t, validateScenes(t, `{"id":"s1","beats":[{"do":"say","who":"anna","style":"speech","text":"Hi"}]}`), CodeUnknownCast, SeverityWarning, "/scenes/0/beats/0/who")
+	if !strings.Contains(off.Message, "still plays") {
+		t.Errorf("off-stage say: %s", off.Message)
+	}
+	pose := expectIssue(t, validateScenes(t, `{"id":"s1","beats":[{"do":"pose","who":"anna","pose":"stand"}]}`), CodeUnknownCast, SeverityWarning, "/scenes/0/beats/0/who")
+	if !strings.Contains(pose.Message, "ignored") {
+		t.Errorf("off-stage pose: %s", pose.Message)
+	}
+
+	// A cast speaker and a say are played now, so neither is not_supported_yet.
+	for _, scene := range []string{`{"id":"s1","speaker":"anna"}`, stage("", sayOf(2))} {
+		for _, is := range validateScenes(t, scene) {
+			if is.Code == CodeNotSupportedYet {
+				t.Errorf("%s: %+v", scene, is)
+			}
+		}
+	}
 }

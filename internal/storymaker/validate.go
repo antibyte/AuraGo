@@ -524,9 +524,7 @@ func (v *validator) speaker(base string, sc *Scene) {
 		if _, ok := v.cast[sc.Speaker]; !ok {
 			v.errorf(CodeUnknownCast, base+"/speaker", fmt.Sprintf("The speaker %q is not in the cast.", clip(sc.Speaker, 40)),
 				v.castFix("speaker", sc.Speaker))
-			return
 		}
-		v.notYet(base+"/speaker", "A cast speaker (lip-sync and speech bubble) is accepted but not shown yet; the scene plays like a narrator scene.")
 	}
 }
 
@@ -881,8 +879,11 @@ func (v *validator) beat(bb string, j int, b *Beat, sc *Scene, env string, refs 
 			return
 		}
 		if !enter && !stage[b.Who] {
-			v.warnf(CodeUnknownCast, bb+"/who", fmt.Sprintf("%q is not on stage here; the beat is ignored.", b.Who),
-				`Add the actor to "actors" or use an enter beat before this one.`)
+			msg := fmt.Sprintf("%q is not on stage here; the beat is ignored.", b.Who)
+			if b.Do == "say" {
+				msg = fmt.Sprintf("%q is not on stage here; the speech still plays, with no bubble and no lip-sync.", b.Who)
+			}
+			v.warnf(CodeUnknownCast, bb+"/who", msg, `Add the actor to "actors" or use an enter beat before this one.`)
 		}
 	}
 	needPos := func(field string, p *Position) {
@@ -958,6 +959,7 @@ func (v *validator) beat(bb string, j int, b *Beat, sc *Scene, env string, refs 
 		default:
 			v.errorf(CodeInvalidValue, bb+"/style", fmt.Sprintf("A say style is \"speech\" or \"thought\", not %q.", clip(b.Style, 20)), `Use "style": "speech".`)
 		}
+		v.sayText(bb, b, sc)
 	case "show":
 		v.show(bb, b, refs, explicit, env)
 	case "hide":
@@ -1020,6 +1022,33 @@ func (v *validator) beat(bb string, j int, b *Beat, sc *Scene, env string, refs 
 		case b.Seconds > 600:
 			v.errorf(CodeInvalidValue, bb+"/seconds", "A wait is at most 600 seconds.", `Use "seconds": 1.`)
 		}
+	}
+}
+
+// sayText checks the text of a say beat. A say without text shows the caption lines of the scene narration, so its who must
+// be the scene speaker. A silent scene has no narration to show, so no bubble is drawn. A say with text has the narration
+// limit, which also bounds its blocks and pieces.
+func (v *validator) sayText(bb string, b *Beat, sc *Scene) {
+	if n := runeLen(b.Text); n > v.lim.MaxNarrationChars {
+		v.errorf(CodeLimitExceeded, bb+"/text", fmt.Sprintf("The say text has %d characters; the limit is %d.", n, v.lim.MaxNarrationChars),
+			"Shorten the text or split it into two say beats.")
+		return
+	}
+	if sayHasText(b.Text) {
+		return
+	}
+	if sc.Silent {
+		v.warnf(CodeInvalidValue, bb+"/text", "A say without text shows the scene's narration, but this scene is silent, so no bubble is drawn.",
+			`Add "text", or clear "silent".`)
+		return
+	}
+	speaker := sc.Speaker
+	if speaker == "" {
+		speaker = "narrator"
+	}
+	if b.Who != "" && b.Who != speaker {
+		v.errorf(CodeInvalidValue, bb+"/who", fmt.Sprintf("A say without text shows the narration of the speaker %q, so \"who\" must be that speaker, not %q.", speaker, clip(b.Who, 40)),
+			fmt.Sprintf(`Add "text", or set the scene's "speaker" to %q.`, clip(b.Who, 40)))
 	}
 }
 
