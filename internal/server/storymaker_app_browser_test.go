@@ -2,19 +2,24 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"aurago/internal/desktop"
+	"aurago/internal/storymaker"
+	"aurago/internal/tools"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
@@ -227,8 +232,53 @@ func smappProjectIDs(t *testing.T, origin string) []string {
 	return ids
 }
 
+// smappStubSpeech is the audio of the tour's stub synth: a 24 kHz mono s16 WAV with a 440 Hz sine. A peak of sqrt(2)*0.1
+// is an RMS of 0.1, which is -20 dBFS and above the -40 dBFS speech threshold, so the envelope finds speech.
+func smappStubSpeech(seconds float64) []byte {
+	const rate = 24000
+	frames := int(seconds * rate)
+	data := make([]byte, 44+2*frames)
+	copy(data[0:], "RIFF")
+	binary.LittleEndian.PutUint32(data[4:], uint32(36+2*frames))
+	copy(data[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(data[16:], 16)
+	binary.LittleEndian.PutUint16(data[20:], 1)
+	binary.LittleEndian.PutUint16(data[22:], 1)
+	binary.LittleEndian.PutUint32(data[24:], rate)
+	binary.LittleEndian.PutUint32(data[28:], 2*rate)
+	binary.LittleEndian.PutUint16(data[32:], 2)
+	binary.LittleEndian.PutUint16(data[34:], 16)
+	copy(data[36:], "data")
+	binary.LittleEndian.PutUint32(data[40:], uint32(2*frames))
+	for i := 0; i < frames; i++ {
+		sample := math.Sqrt2 * 0.1 * math.Sin(2*math.Pi*440*float64(i)/rate)
+		binary.LittleEndian.PutUint16(data[44+2*i:], uint16(int16(sample*32767)))
+	}
+	return data
+}
+
+// smappEventually polls until ok returns true, for state that only the real API shows.
+func smappEventually(t *testing.T, limit time.Duration, what string, ok func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(limit)
+	for !ok() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
 func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	s := storymakerRealServer(t)
+	// A stub synth behind the real narrate job: no provider call and no cost. The key only makes the provider ready.
+	var synthCalls atomic.Int32
+	s.Cfg.TTS.Provider = "openai"
+	s.Cfg.TTS.OpenAI.APIKey = "tour-key"
+	s.storymakerSynthOverride = func(ctx context.Context, cfg tools.TTSConfig, text string) ([]byte, string, error) {
+		synthCalls.Add(1)
+		return smappStubSpeech(0.8), "wav", nil
+	}
 	page, origin := smappPage(t, s)
 	started := time.Now()
 
@@ -339,6 +389,41 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	smappWait(t, page, `()=>document.querySelector('[data-stm="scene"][data-index="0"]')?.dataset.scene==='code2' && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
 	smappClick(t, page, `[data-stm="scene-down"]`)
 	smappWait(t, page, `()=>document.querySelector('[data-stm="scene"][data-index="1"]')?.dataset.scene==='code2' && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
+
+	// Voice: the panel preselects the active provider, and one action writes the voice into the story. openai lists its voices
+	// and takes any language, so its language control is the free-text field.
+	const setField = `(sel,value)=>{const e=document.querySelector(sel);e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}`
+	smappClick(t, page, `[data-stm="side-tab"][data-tab="voice"]`)
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="voice"]')`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="voice-provider"]')?.value==='openai'`)
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="voice-select"] option[value="nova"]')`)
+	page.MustEval(setField, `[data-stm="voice-select"]`, "nova")
+	page.MustEval(setField, `[data-stm="voice-language-free"]`, "en")
+	smappClick(t, page, `[data-stm="voice-apply"]`)
+	smappEventually(t, 30*time.Second, "the stored voice", func() bool {
+		voice, _ := smappStored(t, origin, id)["voice"].(map[string]any)
+		return voice["provider"] == "openai" && voice["voice"] == "nova" && voice["language"] == "en"
+	})
+
+	// Narration: the real job runs against the stub synth. The narration has two sentences and neither merges: "Anna works
+	// from home." has width 21 (at least 20) and 4 words (more than 3), so SplitPieces gives two pieces and the job calls the
+	// synth twice. Scene code2 has no narration. A drawn waveform shows that the app refreshed its answer and compiled again.
+	const waveDrawn = `document.querySelector('[data-stm="scrub-wave"]')?.dataset.drawn`
+	if drawn := page.MustEval(`()=>` + waveDrawn).String(); drawn != "false" {
+		t.Fatalf("waveform before any audio: drawn = %q, want false", drawn)
+	}
+	smappClick(t, page, `[data-stm="narration-generate"]`)
+	var answer storymaker.AudioAnswer
+	smappEventually(t, 90*time.Second, "the narrate job", func() bool {
+		answer = storymaker.AudioAnswer{}
+		smappGet(t, origin, "/projects/"+id+"/narration", &answer)
+		return len(answer.Missing) == 0 && len(answer.Narration["s1"].Blocks) == 1
+	})
+	if pieces := len(answer.Narration["s1"].Blocks[0].Pieces); pieces != 2 || synthCalls.Load() != 2 {
+		t.Fatalf("pieces = %d, synth calls = %d, want 2 and 2", pieces, synthCalls.Load())
+	}
+	smappWait(t, page, `()=>`+waveDrawn+`==='true'`)
+	smappNoErrors(t, page)
 
 	// Export: the real render runs (FFmpeg and Chrome), progress arrives on the project's event stream and the panel ends in
 	// the output path of an MP4 that exists in the project folder.
