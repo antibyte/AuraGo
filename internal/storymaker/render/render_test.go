@@ -169,7 +169,7 @@ func play(t *testing.T, o playOptions) func(ctx context.Context, base string) {
 		}
 		body, _ := json.Marshal(rep)
 		if !o.skipReport {
-			out, st, err := httpDo(ctx, "POST", base+"/report", "application/json", nil, body)
+			out, st, err := httpDo(context.WithoutCancel(ctx), "POST", base+"/report", "application/json", nil, body)
 			if err != nil || st != 200 {
 				return
 			}
@@ -404,8 +404,14 @@ func TestRunRefusesReportsThatDisagreeWithTheJob(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fx := newRunFixture(t)
 			var refused ReportAnswer
-			fx.playing(playOptions{frames: 24, mutateRep: tc.mut, onRefused: func(a ReportAnswer) { refused = a }})
+			told := make(chan struct{})
+			fx.playing(playOptions{frames: 24, mutateRep: tc.mut, onRefused: func(a ReportAnswer) { refused = a; close(told) }})
 			job := fx.render(t)
+			select {
+			case <-told:
+			case <-time.After(10 * time.Second):
+				t.Fatal("the page was never told about the refusal")
+			}
 			if job.Status != StatusFailed || job.Error == nil || job.Error.Code != tc.code || !strings.Contains(job.Error.Message, tc.text) {
 				t.Fatalf("job = %+v error %+v", job, job.Error)
 			}
